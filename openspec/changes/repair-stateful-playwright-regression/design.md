@@ -4,7 +4,7 @@ The July 18 run (`29635653949`, commit `00e0722`) used the former staging-backed
 
 The historical missing `VITE_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` error therefore cannot be treated as a current reproduction. The first current source-contract run instead found that `scripts/qa/isolated-e2e-workflow.test.ts` pins `supabase/setup-cli@v1` even though Dependabot has upgraded the workflow to v3.
 
-This is test/CI infrastructure only. It does not read or mutate core show-day data through a new path, change replication, or affect the role-specific application experience.
+The planned work is primarily test/CI infrastructure. During verification, the strengthened disposable secretary journey exposed a production replication scheduler race: a check-in queued after an active upload pass captured its pending snapshot could have its debounced upload skipped as “already in progress” and remain stranded. The change therefore includes one narrow replication-core correction without changing public APIs, stored mutation shape, or user-facing surfaces.
 
 ## Goals / Non-Goals
 
@@ -15,6 +15,7 @@ This is test/CI infrastructure only. It does not read or mutate core show-day da
 - Run the current curated suite and repair or explicitly triage only failures reproduced against the isolated target.
 - Record one successful manual dispatch as the acceptance evidence.
 - Re-enable a bounded weekly schedule because every job now owns a disposable, resettable Supabase stack.
+- Prove and repair the missed-upload race exposed by persisted Show Desk check-in verification.
 
 **Non-Goals:**
 
@@ -23,6 +24,7 @@ This is test/CI infrastructure only. It does not read or mutate core show-day da
 - No database behavior expansion beyond correcting a historical fresh-chain ordering defect that blocks the disposable target.
 - No retries or loosened assertions used to manufacture a green run.
 - No expansion of the two-spec PR smoke gate.
+- No broader replication refactor, queue-format change, or conflict-resolution behavior change.
 - No speculative rewrite of the six July 18 failures when current isolated evidence does not reproduce them.
 
 ## Decisions
@@ -104,6 +106,14 @@ reintroduced on Entry Management.
 
 Alternative considered: grant broad table access to `service_role`. Rejected because the requirement is local deterministic setup, and changing hosted data-access grants would unnecessarily expand scope.
 
+### 10. Remember upload requests that overlap an active pass
+
+`MutationUploadRunner` reads a snapshot of pending mutations at the start of each pass. If a new mutation is queued after that snapshot and its debounced upload fires while the pass is still active, the concurrency guard previously returned an empty result and forgot the request. The new mutation then remained pending until an unrelated sync trigger.
+
+Record that an upload was requested while a pass is active. When the active pass exits, schedule one debounced follow-up pass. A focused assertion-first unit test holds the first RPC open, queues a second mutation after the snapshot, forces the overlapping debounce, and requires the second RPC plus an empty queue.
+
+Alternative considered: make the Show Desk test explicitly call the diagnostic upload trigger. Rejected because that would hide a production reliability defect and would not help real secretaries whose check-in lands in the same race window.
+
 ## Risks / Trade-offs
 
 - **The disposable local stack is slower or flaky on hosted runners** → keep the 90-minute job bound, zero retries, two reports, and fail-closed preparation so infrastructure failure remains visible.
@@ -114,11 +124,13 @@ Alternative considered: grant broad table access to `service_role`. Rejected bec
 - **An excluded service becomes necessary to a future curated spec** → that spec must add the service back with a focused lifecycle contract before promotion.
 - **Correcting an applied historical migration diverges from existing database history** → keep the correction additive and idempotent, retain migration 024 unchanged in behavior, and do not push migrations to a shared database as part of this change.
 - **A current browser failure needs a product decision** → stop that item, record the exact trace/evidence, and do not weaken the assertion.
+- **The follow-up drain creates redundant empty upload passes** → coalesce requests behind one boolean and retain the existing 100 ms debounce; the worst case is one harmless empty pass after concurrent activity.
+- **A replication fix broadens a CI repair unexpectedly** → keep the production change to the scheduler race, cover it with a focused red-to-green test, and require the real persisted secretary journey to pass twice after reset.
 
 ## Migration Plan
 
 1. Land the source-contract and workflow/spec repairs on the MYK9-107 branch.
-2. Run focused unit/source tests, Playwright list/compile validation, lint/typecheck for touched TypeScript, and OpenSpec validation.
+2. Run focused unit/source tests, the replication scheduler race test and suite, Playwright list/compile validation, lint/typecheck for touched TypeScript, and OpenSpec validation.
 3. Push the branch and dispatch `Playwright Regression` against it.
 4. If the dispatch is green, record the run URL and schedule decision in repository evidence and Linear.
 5. If the dispatch exposes a current failure, download its artifacts, repair or explicitly triage it, and repeat with no more than three rounds for the same cause.

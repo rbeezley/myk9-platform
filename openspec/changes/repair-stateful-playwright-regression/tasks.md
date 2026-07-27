@@ -14,13 +14,15 @@
 - [x] 3.1 [EXPANDED] Verify the regression enablement variable and required secret names exist without exposing values, then dispatch or run the current curated suite against the isolated target; treat a skipped/failed preparation job as a configuration failure and map every browser failure to configuration, fixture drift, stale test behavior, or product behavior.
 - [x] 3.2 Repair each reproduced failure narrowly, or record an explicit rewrite/delete decision with replacement coverage; do not add retries or weaken the journey.
 - [x] 3.3 Re-run the affected specs and then the full curated isolated suite until one complete dispatch succeeds.
+- [x] 3.4 [EXPANDED] Add an assertion-first regression for a mutation queued after an active upload snapshot, then make the upload runner schedule one follow-up drain when the overlapping attempt is skipped.
 
 ## 4. Testing and verification
 
 - [x] 4.1 Run `pnpm qa:isolated-e2e:test` and confirm the focused source/unit contracts pass.
 - [x] 4.2 Run Playwright list/compile validation for the curated config and focused browser specs for any repaired journey.
 - [x] 4.3 Run targeted lint/typecheck for touched TypeScript, workflow YAML validation, `git diff --check`, and `pnpm openspec validate --change repair-stateful-playwright-regression`.
-- [x] 4.4 Review the diff for shared-system writes, shared-staging secret leakage, retries, PR-smoke expansion, and unrelated product changes.
+- [x] 4.4 Review the diff for shared-system writes, shared-staging secret leakage, retries, PR-smoke expansion, and unrelated application behavior changes.
+- [x] 4.5 Run the focused replication race test red before the fix and green after it, then run the broader MutationManager tests and package/app typechecks.
 
 ## 5. Evidence and delivery
 
@@ -32,4 +34,4 @@
 
 - Risk: medium
 - Validation: app
-- Rationale: The change affects a shared CI workflow and stateful browser evidence but not production code or data; focused contracts plus a complete isolated workflow dispatch provide the decisive validation.
+- Rationale: The change affects a shared CI workflow, stateful browser evidence, and internal production replication scheduling without changing stored data or public APIs; focused red-to-green scheduler coverage plus a complete two-pass isolated workflow dispatch provide the decisive validation.

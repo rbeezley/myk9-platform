@@ -64,6 +64,17 @@ describe('isolated E2E migration chain', () => {
     expect(demoSeed).toContain('ON CONFLICT (club_id, livemode) DO UPDATE');
   });
 
+  it('does not seed show-official columns removed by migration 099', () => {
+    const showInsertColumns = demoSeed.slice(
+      demoSeed.indexOf('INSERT INTO public.shows ('),
+      demoSeed.indexOf(')\nVALUES (', demoSeed.indexOf('INSERT INTO public.shows ('))
+    );
+
+    expect(showInsertColumns).not.toMatch(/\bchairman\b/);
+    expect(showInsertColumns).not.toMatch(/\bsecretary\b/);
+    expect(showInsertColumns).not.toMatch(/\bchief_steward\b/);
+  });
+
   it('uses direct local SQL for account profiles and roles around the demo seed', () => {
     expect(existsSync(isolatedAccountSeedPath)).toBe(true);
     expect(lifecycleSource).toContain("MYK9_E2E_AUTH_ONLY: 'true'");

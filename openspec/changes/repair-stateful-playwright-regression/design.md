@@ -79,7 +79,7 @@ Alternative considered: change ownership or elevate the migration role. Rejected
 
 Use the local Auth admin API only to create/reset canonical credentials. In isolated mode, skip the setup script's PostgREST profile/role writes and run an idempotent SQL seed through the generated local database URL before and after `seed-demo.sql`. The first pass guarantees the `people` rows required by demo preflight; the second restores scoped roles after the demo club is recreated. This keeps test setup independent of API table grants without granting broader access to `service_role`.
 
-Also keep demo fixture upserts aligned with the final schema: `club_stripe_accounts` is unique on `(club_id, livemode)`, so the sandbox row explicitly sets `livemode=false` and targets both columns.
+Also keep demo fixture writes aligned with the final schema: `club_stripe_accounts` is unique on `(club_id, livemode)`, so the sandbox row explicitly sets `livemode=false` and targets both columns. Migration 099 removed the free-text `shows.chairman`, `secretary`, and `chief_steward` columns; the demo show therefore relies on its existing `user_roles` official grants instead of writing removed snapshots.
 
 Alternative considered: grant broad table access to `service_role`. Rejected because the requirement is local deterministic setup, and changing hosted data-access grants would unnecessarily expand scope.
 

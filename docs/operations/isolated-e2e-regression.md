@@ -52,7 +52,7 @@ The last pre-isolation failure was [run 29635653949](https://github.com/rbeezley
 
 Current dispatch evidence:
 
-- `pnpm qa:isolated-e2e:test` → 22 passed.
+- `pnpm qa:isolated-e2e:test` → 23 passed.
 - Playwright regression discovery → 59 tests in 15 files compile/list successfully.
 - All eight E2E credential secret names exist in GitHub Actions.
 - `MYK9SHOW_REGRESSION_CI_ENABLED=true` was enabled with operator approval on 2026-07-27.
@@ -61,5 +61,6 @@ Current dispatch evidence:
 - [Run 30296908060](https://github.com/rbeezley/myk9-platform/actions/runs/30296908060) applied through migration 060, then exposed the scoped overload of the same ordering defect: migration 061 called `is_show_secretary(show_id)` before migration 099 defined it. Migration 061 now resolves the show to its owning club and delegates to `is_trial_secretary(club_id)` until migration 099 replaces the overload with the later show-role implementation. The source contract guards both helper arities at their first use.
 - [Run 30297186424](https://github.com/rbeezley/myk9-platform/actions/runs/30297186424) applied through the 2026-07-18 migrations, then failed because the Broadcast migration attempted to alter the Supabase-managed `realtime.messages` table before creating its policy. The redundant `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` is removed; the scoped policy remains, matching Supabase's managed Realtime authorization pattern.
 - [Run 30297456341](https://github.com/rbeezley/myk9-platform/actions/runs/30297456341) completed the entire migration chain and reached fixture setup. It exposed two final-schema drift assumptions: the demo Stripe row still targeted the superseded `club_id` uniqueness constraint, and PostgREST service-role grants were not a safe dependency for local profile setup. The demo seed now targets `(club_id, livemode)`. The isolated lifecycle creates Auth users in auth-only mode, synchronizes their profiles/roles directly through the generated local DB URL before and after the demo seed, and never broadens hosted table grants.
+- [Run 30297987142](https://github.com/rbeezley/myk9-platform/actions/runs/30297987142) proved the auth-only plus direct-SQL account lifecycle, then found that the demo show row still named `chairman`, `secretary`, and `chief_steward` after migration 099 removed those columns. The seed now relies exclusively on its existing `user_roles` official grants, and a final-schema source contract prevents those removed columns from returning.
 
 Successful dispatch: pending.

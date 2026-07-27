@@ -87,7 +87,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(entryStatusButton).toContainText('Accepted', { timeout: 10000 });
     await expect
       .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
-      .toMatchObject({ entry_status: 'accepted' });
+      .toMatchObject({ entry_status: 'confirmed' });
 
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('link', { name: 'Open Check-in desk' }).click();
@@ -114,7 +114,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     });
     await expect
       .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
-      .toMatchObject({ entry_status: 'accepted', check_in_status: 'checked-in' });
+      .toMatchObject({ entry_status: 'confirmed', check_in_status: 'checked-in' });
   });
 });
 

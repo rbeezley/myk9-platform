@@ -4,6 +4,7 @@ import {
   buildGithubEnvLines,
   buildJobEnvironment,
   formatLifecycleFailure,
+  localSupabaseStartArgs,
   localSupabaseEnvironmentFromStatus,
   parseSupabaseStatusEnv,
   resolveSupabaseCliCommand,
@@ -71,6 +72,14 @@ describe('buildJobEnvironment', () => {
 });
 
 describe('lifecycle safety', () => {
+  it('starts only the local services required by the curated browser suite', () => {
+    expect(localSupabaseStartArgs()).toEqual([
+      'start',
+      '--exclude',
+      'analytics,edge-runtime,functions,imgproxy,inbucket,meta,studio,vector',
+    ]);
+  });
+
   it('allows CI to select an explicit Supabase CLI binary', () => {
     expect(resolveSupabaseCliCommand({ SUPABASE_CLI_BIN: '/tmp/supabase' })).toBe('/tmp/supabase');
     expect(resolveSupabaseCliCommand({})).toBe('supabase');
@@ -94,5 +103,21 @@ describe('lifecycle safety', () => {
     expect(() => localSupabaseEnvironmentFromStatus(output)).not.toThrow('local-secret');
     expect(formatLifecycleFailure('Supabase start')).toBe('Supabase start failed');
     expect(formatLifecycleFailure('Supabase start')).not.toContain('local-secret');
+  });
+
+  it('keeps useful start diagnostics while redacting generated credentials', () => {
+    const detail = [
+      'container supabase_storage is unhealthy',
+      'SERVICE_ROLE_KEY=local-service-role-secret',
+      'DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres',
+    ].join('\n');
+
+    const message = formatLifecycleFailure('Supabase start', detail);
+
+    expect(message).toContain('container supabase_storage is unhealthy');
+    expect(message).toContain('SERVICE_ROLE_KEY=[redacted]');
+    expect(message).toContain('DB_URL=[redacted]');
+    expect(message).not.toContain('local-service-role-secret');
+    expect(message).not.toContain('postgres:postgres');
   });
 });

@@ -55,6 +55,7 @@ Current pre-dispatch evidence:
 - `pnpm qa:isolated-e2e:test` → 15 passed.
 - Playwright regression discovery → 59 tests in 15 files compile/list successfully.
 - All eight E2E credential secret names exist in GitHub Actions.
-- `MYK9SHOW_REGRESSION_CI_ENABLED` was not present when checked on 2026-07-27; it must be set to `true` before a dispatch can produce the required green run.
+- `MYK9SHOW_REGRESSION_CI_ENABLED=true` was enabled with operator approval on 2026-07-27.
+- [Run 30296081479](https://github.com/rbeezley/myk9-platform/actions/runs/30296081479) reached the disposable-target preparation step but failed before Playwright with an opaque `Supabase start failed`. The lifecycle now excludes optional Studio/analytics/vector/image/mail/metadata/Functions services and emits bounded sanitized startup detail without ignoring required-service health checks.
 
 Successful dispatch: pending.

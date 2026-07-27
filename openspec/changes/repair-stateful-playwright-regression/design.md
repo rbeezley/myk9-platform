@@ -54,6 +54,12 @@ Alternative considered: remain manual-only. Rejected because three previous repa
 
 For each current failure, classify it as environment/configuration, fixture drift, stale locator/copy, or product behavior. Fix the narrow cause, keep one worker and zero retries, and record deletions only when the journey is genuinely obsolete and already covered by a canonical surface.
 
+### 6. Keep the CI stack minimal and startup failures diagnosable
+
+Start only the local services used by the browser suite: database, API gateway, REST, Auth, Storage, and Realtime. Exclude Studio, analytics/vector, image transformation, mail UI, metadata, and Edge Functions to reduce hosted-runner startup load. Capture startup stderr/stdout only on failure, redact generated keys/JWTs/database credentials, and expose the bounded sanitized detail in the error.
+
+Alternative considered: use `--ignore-health-check`. Rejected because it could let browser tests start against an unhealthy required service. Keeping every optional service was also rejected after the first branch dispatch failed during opaque stack startup before any browser test.
+
 ## Risks / Trade-offs
 
 - **The disposable local stack is slower or flaky on hosted runners** → keep the 90-minute job bound, zero retries, two reports, and fail-closed preparation so infrastructure failure remains visible.
@@ -61,6 +67,7 @@ For each current failure, classify it as environment/configuration, fixture drif
 - **A weekly cron consumes Actions capacity without alerting a human** → retain the existing Actions result and artifact trail; record the schedule as the anti-rot mechanism and keep manual dispatch for immediate verification.
 - **Historical failures no longer reproduce** → record them as superseded by the isolated target/current code rather than manufacturing code changes.
 - **A dependency upgrade changes workflow syntax** → behavior-focused source tests allow safe version upgrades while still failing when the lifecycle action disappears.
+- **An excluded service becomes necessary to a future curated spec** → that spec must add the service back with a focused lifecycle contract before promotion.
 - **A current browser failure needs a product decision** → stop that item, record the exact trace/evidence, and do not weaken the assertion.
 
 ## Migration Plan

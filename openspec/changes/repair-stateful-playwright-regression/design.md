@@ -81,7 +81,7 @@ Use the local Auth admin API only to create/reset canonical credentials. In isol
 
 Also keep demo fixture writes aligned with the final schema: `club_stripe_accounts` is unique on `(club_id, livemode)`, so the sandbox row explicitly sets `livemode=false` and targets both columns. Migration 099 removed the free-text `shows.chairman`, `secretary`, and `chief_steward` columns; the demo show therefore relies on its existing `user_roles` official grants instead of writing removed snapshots.
 
-The refunded-entry fixture crosses two deliberate final-schema controls: its insert trigger requires the `service_role` role GUC, while later ACL hardening removes direct `entries` writes from that role. The seed therefore grants only `INSERT` on `entries` within its existing transaction, performs the two guarded fixture inserts as `service_role`, then resets the role and revokes that privilege. This keeps the exception atomic, local to fixture creation, and absent from the committed schema.
+The refunded-entry fixture crosses two deliberate final-schema controls: its insert trigger requires the `service_role` role GUC, while later ACL hardening removes direct access to both `entries` and the `people` handler lookup from that role. The seed therefore grants only `entries INSERT` and `people SELECT` within its existing transaction, performs the two guarded fixture inserts as `service_role`, then resets the role and revokes both privileges. This keeps the exception atomic, local to fixture creation, and absent from the committed schema.
 
 Alternative considered: grant broad table access to `service_role`. Rejected because the requirement is local deterministic setup, and changing hosted data-access grants would unnecessarily expand scope.
 

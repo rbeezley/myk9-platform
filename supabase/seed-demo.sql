@@ -495,14 +495,16 @@ WHERE id = 'dec1a55e-0000-0000-0000-000000000031';
 --    excluded from entries_dog_class_unique_idx anyway, so there is no unique-index
 --    clash. The refund columns (refund_amount/refund_notes/refunded_at) are guarded
 --    by trg_restrict_entry_refund_columns_insert, which raises unless the current
---    role is service_role. Final-schema ACL hardening removes direct table writes
---    from service_role, so this transaction grants only INSERT for these two rows,
---    uses the documented guarded role, then immediately resets and revokes it.
---    The surrounding transaction makes that temporary privilege atomic with the
---    fixture. No armbands row is created for a withdrawn entry. payment_method is
---    left NULL so the paid-online insert guard (entries_protect_payment_fields_insert,
---    which only fires for online refunds) does not trip.
+--    role is service_role. Final-schema ACL hardening removes its direct access to
+--    both the inserted table and the handler lookup, so this transaction grants
+--    only entries INSERT and people SELECT for these two rows, uses the documented
+--    guarded role, then immediately resets and revokes both. The surrounding
+--    transaction makes those temporary privileges atomic with the fixture. No
+--    armbands row is created for a withdrawn entry. payment_method is left NULL so
+--    the paid-online insert guard (entries_protect_payment_fields_insert, which only
+--    fires for online refunds) does not trip.
 -- ---------------------------------------------------------------------------
+GRANT SELECT ON TABLE public.people TO service_role;
 GRANT INSERT ON TABLE public.entries TO service_role;
 SET LOCAL ROLE service_role;
 INSERT INTO public.entries (
@@ -529,6 +531,7 @@ VALUES
    '2026-06-01 00:00:00+00', 1);
 RESET ROLE;
 REVOKE INSERT ON TABLE public.entries FROM service_role;
+REVOKE SELECT ON TABLE public.people FROM service_role;
 
 -- ---------------------------------------------------------------------------
 -- 10. Demo RBAC role grants  (F1 fix — audit 04-secretary-rewalk-2026-06-17)

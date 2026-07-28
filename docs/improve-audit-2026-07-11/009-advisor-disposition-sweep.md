@@ -312,7 +312,7 @@ effective as (
     and ('public' = any (p.roles) or r.rolname = any (p.roles))
     and (p.cmd = 'ALL' or p.cmd = c.cmd)
 ),
-overlaps as (
+policy_overlaps as (
   select
     tablename,
     rolname,
@@ -323,10 +323,14 @@ overlaps as (
   having count(*) > 1
 )
 select *
-from overlaps
+from policy_overlaps
 order by tablename, rolname, cmd;
 ```
 
-**Post-push evidence still required:** record the applied query result and the Supabase performance
-advisor count. Any remainder beyond the five groups above reopens the table-level review; do not
-mark MYK9-112 complete on migration text alone.
+**Post-push evidence — complete 2026-07-28:** the five MYK9-112 migrations applied successfully,
+and a follow-up `supabase db push --dry-run` reported the remote database up to date. The applied
+overlap query returned exactly five rows: `dogs` authenticated INSERT and `push_subscriptions`
+authenticated SELECT, INSERT, UPDATE, and DELETE. A fresh performance-advisor run returned 171
+total findings and exactly five `multiple_permissive_policies` warnings, down from 72. Those five
+warnings map only to the two intentionally layered tables documented above; no unexpected
+permissive-policy finding remains.

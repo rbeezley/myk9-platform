@@ -220,8 +220,9 @@ must also create a policy or match the documented deny-all table keep-list.
 The same contract rejects unsafe public default-privilege grants, bulk grants, and standalone
 function/table grants that do not carry a complete API-role disposition. Its deliberately unsafe
 fixtures cover functions, overloads, tables, no-policy RLS tables, grant-only changes, default
-grants, and backdated filenames. This is the repository-side continuous guard; the post-push
-advisor/ACL check is the continuous monitor for the hosted `supabase_admin` residual.
+grants, bulk and multi-target grants, `FUNCTION`/`ROUTINE` syntax, signature-omitted targets, and
+backdated filenames. This is the repository-side continuous guard; the post-push advisor/ACL check
+is the continuous monitor for the hosted `supabase_admin` residual.
 
 **Post-push evidence still required:** apply `20260728120000`, repeat the applied ACL queries, re-run
 the security advisor, and record the observed counts. Do not mark MYK9-108 complete before that

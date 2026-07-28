@@ -50,8 +50,14 @@ interface FunctionIdentity {
   signature: string;
 }
 
-interface FunctionGrant {
-  identity: FunctionIdentity;
+interface RoutineTarget {
+  name: string;
+  signature: string | null;
+}
+
+interface RoutineMutation {
+  operation: 'GRANT' | 'REVOKE';
+  target: RoutineTarget;
   roles: string;
 }
 
@@ -78,33 +84,48 @@ function functionCreates(sql: string): FunctionIdentity[] {
   return identities;
 }
 
-function functionGrants(sql: string): FunctionGrant[] {
-  const grants: FunctionGrant[] = [];
+function routineTargets(targetList: string): RoutineTarget[] {
+  const parsedTargets: RoutineTarget[] = [];
+
+  for (const target of splitArguments(targetList)) {
+    const match = target.match(/^(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*(?:\(|$)/i);
+    if (!match) continue;
+    const openingIndex = target.indexOf('(', match[0].length - 1);
+    if (openingIndex === -1) {
+      parsedTargets.push({ name: match[1].toLowerCase(), signature: null });
+      continue;
+    }
+    const closingIndex = closingParen(target, openingIndex);
+    if (closingIndex === -1) continue;
+    parsedTargets.push({
+      name: match[1].toLowerCase(),
+      signature: normalizeSignature(target.slice(openingIndex + 1, closingIndex)),
+    });
+  }
+
+  return parsedTargets;
+}
+
+function routineMutations(sql: string): RoutineMutation[] {
+  const mutations: RoutineMutation[] = [];
 
   for (const statement of sql.split(';')) {
     const match = statement.match(
-      /\bGRANT\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+(.+?)\s+TO\s+(.+)$/i
+      /\b(GRANT|REVOKE)\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+(?:FUNCTION|PROCEDURE|ROUTINE)\s+(.+?)\s+(?:TO|FROM)\s+(.+)$/i
     );
     if (!match) continue;
-    const [, targets, roles] = match;
+    const [, operation, targets, roles] = match;
 
-    for (const target of splitArguments(targets)) {
-      const targetMatch = target.match(/^(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/i);
-      if (!targetMatch) continue;
-      const openingIndex = targetMatch[0].length - 1;
-      const closingIndex = closingParen(target, openingIndex);
-      if (closingIndex === -1) continue;
-      grants.push({
-        identity: {
-          name: targetMatch[1].toLowerCase(),
-          signature: normalizeSignature(target.slice(openingIndex + 1, closingIndex)),
-        },
+    for (const target of routineTargets(targets)) {
+      mutations.push({
+        operation: operation.toUpperCase() as RoutineMutation['operation'],
+        target,
         roles,
       });
     }
   }
 
-  return grants;
+  return mutations;
 }
 
 function publicTableTargets(targetList: string): string[] {
@@ -144,41 +165,22 @@ function tableCreates(sql: string): string[] {
 }
 
 function hasAnonFunctionDecision(sql: string, identity: FunctionIdentity): boolean {
-  const pattern =
-    /\bREVOKE\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi;
-
-  for (const match of sql.matchAll(pattern)) {
-    if (match[1].toLowerCase() !== identity.name) continue;
-    const openingIndex = (match.index ?? 0) + match[0].length - 1;
-    const closingIndex = closingParen(sql, openingIndex);
-    if (closingIndex === -1) continue;
-    if (normalizeSignature(sql.slice(openingIndex + 1, closingIndex)) !== identity.signature) {
-      continue;
-    }
-    const roles = sql.slice(closingIndex + 1).split(';', 1)[0];
-    if (/\bFROM\s+[^;]*\banon\b/i.test(roles)) return true;
-  }
-
-  return false;
+  return routineMutations(sql).some(
+    mutation =>
+      mutation.operation === 'REVOKE' &&
+      mutation.target.name === identity.name &&
+      mutation.target.signature === identity.signature &&
+      /\banon\b/i.test(mutation.roles)
+  );
 }
 
 function hasAuthenticatedFunctionDecision(sql: string, identity: FunctionIdentity): boolean {
-  const pattern =
-    /\b(?:GRANT|REVOKE)\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi;
-
-  for (const match of sql.matchAll(pattern)) {
-    if (match[1].toLowerCase() !== identity.name) continue;
-    const openingIndex = (match.index ?? 0) + match[0].length - 1;
-    const closingIndex = closingParen(sql, openingIndex);
-    if (closingIndex === -1) continue;
-    if (normalizeSignature(sql.slice(openingIndex + 1, closingIndex)) !== identity.signature) {
-      continue;
-    }
-    const roles = sql.slice(closingIndex + 1).split(';', 1)[0];
-    if (/\b(?:TO|FROM)\s+[^;]*\bauthenticated\b/i.test(roles)) return true;
-  }
-
-  return false;
+  return routineMutations(sql).some(
+    mutation =>
+      mutation.target.name === identity.name &&
+      mutation.target.signature === identity.signature &&
+      /\bauthenticated\b/i.test(mutation.roles)
+  );
 }
 
 function hasTableRoleDecision(
@@ -243,7 +245,7 @@ function findUnsafeDefaultPrivilegeGrants(filename: string, sql: string): string
     const roles = statement.match(/\bTO\s+(.+)$/i)?.[1] ?? '';
     if (!hasApiRole(roles)) continue;
 
-    if (/\bGRANT\s+[^;]+\s+ON\s+FUNCTIONS\b/i.test(statement)) {
+    if (/\bGRANT\s+[^;]+\s+ON\s+(?:FUNCTIONS|ROUTINES)\b/i.test(statement)) {
       violations.push(`${filename}: public function default privileges grant API execution`);
     }
     if (/\bGRANT\s+[^;]+\s+ON\s+TABLES\b/i.test(statement)) {
@@ -261,7 +263,9 @@ function findUnsafeBulkGrants(filename: string, sql: string): string[] {
     const roles = statement.match(/\bTO\s+(.+)$/i)?.[1] ?? '';
     if (!hasApiRole(roles)) continue;
     if (
-      /\bGRANT\s+[^;]+\s+ON\s+ALL\s+FUNCTIONS\s+IN\s+SCHEMA\s+(?:"?public"?)\b/i.test(statement)
+      /\bGRANT\s+[^;]+\s+ON\s+ALL\s+(?:FUNCTIONS|ROUTINES)\s+IN\s+SCHEMA\s+(?:"?public"?)\b/i.test(
+        statement
+      )
     ) {
       violations.push(`${filename}: bulk public function grant exposes an API role`);
     }
@@ -281,24 +285,35 @@ function findStandaloneGrantViolations(
 ): string[] {
   const violations: string[] = [];
 
-  for (const grant of functionGrants(sql)) {
-    const displaySignature = identityKey(grant.identity);
-    if (createdFunctions.has(displaySignature) || !hasApiRole(grant.roles)) continue;
-    if (/\bPUBLIC\b/i.test(grant.roles)) {
+  for (const mutation of routineMutations(sql)) {
+    if (mutation.operation !== 'GRANT' || !hasApiRole(mutation.roles)) continue;
+    if (mutation.target.signature === null) {
+      violations.push(
+        `${filename}: public.${mutation.target.name} signature-omitted API function grant is forbidden`
+      );
+      continue;
+    }
+    const identity: FunctionIdentity = {
+      name: mutation.target.name,
+      signature: mutation.target.signature,
+    };
+    const displaySignature = identityKey(identity);
+    if (createdFunctions.has(displaySignature)) continue;
+    if (/\bPUBLIC\b/i.test(mutation.roles)) {
       violations.push(
         `${filename}: public.${displaySignature} standalone PUBLIC function grant is forbidden`
       );
       continue;
     }
-    if (/\banon\b/i.test(grant.roles) && !(displaySignature in ANON_EXECUTE_KEEP_LIST)) {
+    if (/\banon\b/i.test(mutation.roles) && !(displaySignature in ANON_EXECUTE_KEEP_LIST)) {
       violations.push(
         `${filename}: public.${displaySignature} standalone anon grant is not keep-listed`
       );
     }
     if (
-      /\bauthenticated\b/i.test(grant.roles) &&
+      /\bauthenticated\b/i.test(mutation.roles) &&
       !(displaySignature in ANON_EXECUTE_KEEP_LIST) &&
-      !hasAnonFunctionDecision(sql, grant.identity)
+      !hasAnonFunctionDecision(sql, identity)
     ) {
       violations.push(
         `${filename}: public.${displaySignature} standalone authenticated grant has no anon EXECUTE decision`

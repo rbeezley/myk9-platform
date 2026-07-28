@@ -212,6 +212,56 @@ describe('public migration grant decisions', () => {
     ]);
   });
 
+  it('accepts exact multi-target decisions for multiple new functions', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120012_safe_multi_function_decisions.sql',
+        sql: `
+          CREATE FUNCTION public.first_probe()
+          RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
+          CREATE FUNCTION public.second_probe(p_id uuid)
+          RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
+          REVOKE EXECUTE ON FUNCTION public.first_probe(), public.second_probe(uuid)
+            FROM PUBLIC, anon;
+          GRANT EXECUTE ON FUNCTION public.first_probe(), public.second_probe(uuid)
+            TO authenticated;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([]);
+  });
+
+  it('rejects signature-omitted API function grants', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120013_unsafe_signature_omitted_grant.sql',
+        sql: `
+          GRANT EXECUTE ON FUNCTION public.existing_probe TO anon;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120013_unsafe_signature_omitted_grant.sql: public.existing_probe signature-omitted API function grant is forbidden',
+    ]);
+  });
+
+  it('applies standalone decisions to ROUTINE grant syntax', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120014_unsafe_routine_grant.sql',
+        sql: `
+          GRANT EXECUTE ON ROUTINE public.existing_probe(uuid) TO authenticated;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120014_unsafe_routine_grant.sql: public.existing_probe(uuid) standalone authenticated grant has no anon EXECUTE decision',
+    ]);
+  });
+
   it('checks every target in a multi-table grant', () => {
     const violations = findUndecidedPublicObjects([
       {
@@ -261,6 +311,24 @@ describe('public migration grant decisions', () => {
     expect(violations).toEqual([
       '20260728120011_unsafe_bulk_grants.sql: bulk public function grant exposes an API role',
       '20260728120011_unsafe_bulk_grants.sql: bulk public table grant exposes an API role',
+    ]);
+  });
+
+  it('rejects default and bulk ROUTINE grants to API roles', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120015_unsafe_routine_defaults.sql',
+        sql: `
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT EXECUTE ON ROUTINES TO authenticated;
+          GRANT EXECUTE ON ALL ROUTINES IN SCHEMA public TO anon;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120015_unsafe_routine_defaults.sql: public function default privileges grant API execution',
+      '20260728120015_unsafe_routine_defaults.sql: bulk public function grant exposes an API role',
     ]);
   });
 

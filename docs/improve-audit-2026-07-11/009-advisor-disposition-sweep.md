@@ -227,3 +227,101 @@ is the continuous monitor for the hosted `supabase_admin` residual.
 **Post-push evidence still required:** apply `20260728120000`, repeat the applied ACL queries, re-run
 the security advisor, and record the observed counts. Do not mark MYK9-108 complete before that
 shared-system gate.
+
+## Permissive-policy disposition — MYK9-112 (prepared 2026-07-28)
+
+A read-only applied-catalog inventory found 70 policies on the 23 tables responsible for the 72
+`multiple_permissive_policies` advisor findings. The remediation is deliberately split by semantic
+shape:
+
+| Disposition                                                                                                      | Tables                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Consolidate same-role, same-command predicates with an exact logical OR                                          | `enrollments`, `exhibitor_profiles`, `people`, `role_requests`, `vaccinations`                                                                                                                                                                                                                                                  |
+| Split authenticated `ALL` management policies into command-specific writes so they no longer overlap broad reads | `judge_assignments`, `notification_queue`, `offline_scoring`, `push_notification_queue`, `sport_class_rules`, `sport_templates`, `sport_titles`, `stripe_customers`, `stripe_orders`, `stripe_subscriptions`, `sync_conflicts`, `volunteer_class_assignments`, `volunteer_general_assignments`, `volunteer_roles`, `volunteers` |
+| Consolidate public owner/admin/secretary predicates into one policy per command                                  | `judge_availability`                                                                                                                                                                                                                                                                                                            |
+| Retain as intentionally layered because the role sets differ                                                     | `dogs`, `push_subscriptions`                                                                                                                                                                                                                                                                                                    |
+
+The two intentional exceptions cannot be merged without changing access for hosted roles:
+
+- `dogs_insert_secretary TO public` supplies an owner-or-secretary predicate to every public-member
+  role, while `dogs_insert TO authenticated` additionally permits co-owner and site-admin inserts.
+  Moving the authenticated predicate into the public policy would widen access; narrowing the public
+  policy to API roles would revoke its current behavior from other hosted roles.
+- `Users manage own subscriptions TO public` is owner-only, while
+  `push_subscriptions_user_access TO authenticated` adds platform-admin access. The same widening or
+  narrowing problem applies.
+
+Those policies therefore remain as five expected advisor groups: `dogs` INSERT plus
+`push_subscriptions` SELECT, INSERT, UPDATE, and DELETE. MYK9-112's table-driven contract proves the
+pre/post union for public-only, authenticated, and other public-member role classes and rejects any
+additional overlap.
+
+Immediately before a real database push, run this read-only baseline query and compare the full
+policy definitions with the reviewed migration inputs:
+
+```sql
+select
+  tablename,
+  cmd,
+  roles::text,
+  policyname,
+  permissive,
+  qual,
+  with_check
+from pg_policies
+where schemaname = 'public'
+  and tablename = any (array[
+    'dogs', 'enrollments', 'exhibitor_profiles', 'judge_assignments',
+    'judge_availability', 'notification_queue', 'offline_scoring', 'people',
+    'push_notification_queue', 'push_subscriptions', 'role_requests',
+    'sport_class_rules', 'sport_templates', 'sport_titles', 'stripe_customers',
+    'stripe_orders', 'stripe_subscriptions', 'sync_conflicts', 'vaccinations',
+    'volunteer_class_assignments', 'volunteer_general_assignments',
+    'volunteer_roles', 'volunteers'
+  ])
+order by tablename, cmd, policyname;
+```
+
+After the approved push, this read-only topology query must return only the five documented groups:
+
+```sql
+with candidate_roles as (
+  select rolname::name
+  from pg_roles
+  where not rolbypassrls
+),
+commands(cmd) as (
+  values ('SELECT'::text), ('INSERT'::text), ('UPDATE'::text), ('DELETE'::text)
+),
+effective as (
+  select
+    p.tablename,
+    r.rolname,
+    c.cmd,
+    p.policyname
+  from pg_policies p
+  cross join candidate_roles r
+  cross join commands c
+  where p.schemaname = 'public'
+    and p.permissive = 'PERMISSIVE'
+    and ('public' = any (p.roles) or r.rolname = any (p.roles))
+    and (p.cmd = 'ALL' or p.cmd = c.cmd)
+),
+overlaps as (
+  select
+    tablename,
+    rolname,
+    cmd,
+    array_agg(policyname order by policyname) as policies
+  from effective
+  group by tablename, rolname, cmd
+  having count(*) > 1
+)
+select *
+from overlaps
+order by tablename, rolname, cmd;
+```
+
+**Post-push evidence still required:** record the applied query result and the Supabase performance
+advisor count. Any remainder beyond the five groups above reopens the table-level review; do not
+mark MYK9-112 complete on migration text alone.

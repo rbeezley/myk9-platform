@@ -143,8 +143,9 @@ queries.
 The helper will copy the latest predicates exactly:
 
 - `site_admin` is global;
-- `club_admin`, `secretary`, and `trial_secretary` manage only matching
-  non-null club scopes;
+- `club_admin`, `secretary`, and `trial_secretary` manage matching club scopes;
+  for an existing show with no club, any active manager role preserves the
+  legacy `can_manage_show()` behavior, while an entry with no show fails closed;
 - judge access requires the caller's person ID, matching class ID, and
   `confirmed|invited`;
 - steward access matches either a show role or a club role with null show scope;

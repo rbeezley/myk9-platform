@@ -235,9 +235,12 @@ CROSS JOIN LATERAL public.resolve_class_result_visibility(e.class_id) AS vis
 CROSS JOIN LATERAL (
   SELECT
     (
-      ctx.is_site_admin
-      OR (sh.club_id IS NULL AND ctx.has_manager_role)
-      OR sh.club_id = ANY(ctx.managed_club_ids)
+      sh.id IS NOT NULL
+      AND (
+        ctx.is_site_admin
+        OR (sh.club_id IS NULL AND ctx.has_manager_role)
+        OR sh.club_id = ANY(ctx.managed_club_ids)
+      )
     ) AS can_manage,
     e.class_id = ANY(ctx.assigned_class_ids) AS is_assigned_judge,
     (

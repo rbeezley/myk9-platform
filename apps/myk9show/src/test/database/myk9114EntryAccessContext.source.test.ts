@@ -80,6 +80,7 @@ describe('MYK9-114 statement-scoped entry access context', () => {
 
   it('preserves manager, judge, steward, owner, exhibitor, and claim gates', () => {
     expect(view).toContain('ctx.is_site_admin');
+    expect(view).toContain('sh.id IS NOT NULL');
     expect(view).toContain('(sh.club_id IS NULL AND ctx.has_manager_role)');
     expect(view).toContain('sh.club_id = ANY(ctx.managed_club_ids)');
     expect(view).toContain('e.class_id = ANY(ctx.assigned_class_ids)');

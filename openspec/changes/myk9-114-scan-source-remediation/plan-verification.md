@@ -31,7 +31,7 @@ implementation-critical requirement remains implied.
 
 ### Top Gaps Patched
 
-1. [ADDED] Canonical Supabase type regeneration for the public-schema helper.
+1. [ADDED] Canonical Supabase type regeneration check for the private-schema helper.
 2. [EXPANDED] Exact SQL fixture file, isolated runner, and characterization-test
    semantics.
 3. [EXPANDED] Exact supported OpenSpec, lint, and typecheck commands.

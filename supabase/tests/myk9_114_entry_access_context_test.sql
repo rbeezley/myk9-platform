@@ -66,20 +66,12 @@ values
 
 insert into public.dogs (id, name, call_name, breed, owner_id)
 values
-  (
-    '00000000-0000-0000-0000-000000114021',
-    'Handler Dog',
-    'Handler Dog',
-    'Beagle',
-    '00000000-0000-0000-0000-000000114015'
-  ),
-  (
-    '00000000-0000-0000-0000-000000114022',
-    'Other Dog',
-    'Other Dog',
-    'Beagle',
-    '00000000-0000-0000-0000-000000114017'
-  );
+  ('00000000-0000-0000-0000-000000114021', 'Handler Dog', 'Handler Dog', 'Beagle',
+   '00000000-0000-0000-0000-000000114015'),
+  ('00000000-0000-0000-0000-000000114022', 'Other Dog', 'Other Dog', 'Beagle',
+   '00000000-0000-0000-0000-000000114017'),
+  ('00000000-0000-0000-0000-000000114025', 'Null Show Dog', 'Null Show Dog', 'Beagle',
+   '00000000-0000-0000-0000-000000114017');
 
 insert into public.entries (
   id, dog_id, class_id, show_id, trial_id, handler_id, entry_status,
@@ -111,6 +103,12 @@ insert into public.entries (
     '00000000-0000-0000-0000-000000114006',
     '00000000-0000-0000-0000-000000114017',
     'confirmed', 'paid', 35, true, 'qualified', 80, 'unscoped show score'
+  ),
+  (
+    '00000000-0000-0000-0000-000000114034', '00000000-0000-0000-0000-000000114025',
+    '00000000-0000-0000-0000-000000114004', null,
+    '00000000-0000-0000-0000-000000114003', '00000000-0000-0000-0000-000000114017',
+    'confirmed', 'paid', 40, true, 'qualified', 70, 'null-show score'
   );
 
 insert into public.judge_assignments (
@@ -234,6 +232,7 @@ declare
   row_count integer;
   admin_count integer;
   score_count integer;
+  null_show_count integer;
 begin
   foreach auth_id in array array[
     '00000000-0000-0000-0000-000000114101'::uuid,
@@ -255,8 +254,13 @@ begin
       raise exception 'FAIL manager % rows/admin/scores: %/%/%',
         auth_id, row_count, admin_count, score_count;
     end if;
+    select count(*) into null_show_count from public.view_authenticated_entry_results
+     where id = '00000000-0000-0000-0000-000000114034';
+    if null_show_count <> 0 then
+      raise exception 'FAIL manager % can access null-show entry', auth_id;
+    end if;
   end loop;
-  raise notice 'PASS site admin, secretary, trial secretary, and club admin preserve full access';
+  raise notice 'PASS managers preserve scoped access and reject null-show entries';
 end
 $$;
 

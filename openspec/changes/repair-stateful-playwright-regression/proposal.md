@@ -14,7 +14,7 @@ This directly supports fall 2026 launch readiness by restoring repeatable eviden
 - Keep the UAT service-role and app Supabase configuration sourced from the disposable target's generated job environment; add focused contract coverage that prevents either value from disappearing.
 - Repair or explicitly triage each current curated-suite failure without weakening the tested journey or adding retries.
 - Repair the production mutation-upload race exposed by the strengthened secretary check-in journey so a mutation queued during an active upload pass receives a follow-up drain instead of remaining stranded.
-- Stop derived class-status refreshes from recursively rewriting entry placements that are already `NULL`, which otherwise traps the Show Desk check-in RPC.
+- Stop derived class-status refreshes from issuing nested same-row placement updates when the value is already `NULL`, which otherwise traps the Show Desk check-in RPC.
 - Enable a bounded schedule now that the workflow target is disposable and resettable, while preserving manual dispatch and fail-closed target verification.
 - Record the successful dispatched run, schedule decision, and remaining risks in the repository evidence and MYK9-107.
 - Keep the existing two-spec PR smoke gate unchanged.
@@ -31,7 +31,7 @@ None.
 
 - `testing-e2e-ci`: Require the stateful regression workflow to receive generated isolated-target configuration, run successfully after a deterministic reset, and run on a bounded schedule now that the target is disposable.
 - `replication-core-contract-preservation`: Require a follow-up upload pass when new work arrives while an upload pass is already running.
-- `class-status-derivation`: Require derived status refreshes to avoid recursive no-op entry placement writes.
+- `class-status-derivation`: Require derived status refreshes to avoid nested no-op entry placement writes.
 
 ## Impact
 

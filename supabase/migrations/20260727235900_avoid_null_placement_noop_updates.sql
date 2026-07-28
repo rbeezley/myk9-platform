@@ -1,7 +1,7 @@
--- Avoid recursively updating an entry from its own AFTER UPDATE scoring-state
--- trigger when final_placement is already NULL. A show-desk check-in on an
--- unscored derived-status class otherwise waits inside ringside_update_entry
--- until the client times out.
+-- Avoid a nested same-row update from the AFTER UPDATE scoring-state trigger
+-- when final_placement is already NULL. A show-desk check-in on an unscored
+-- derived-status class otherwise waits inside ringside_update_entry until the
+-- client times out.
 
 BEGIN;
 
@@ -115,7 +115,7 @@ COMMENT ON FUNCTION public.refresh_class_scoring_state(uuid) IS
   'expected/accounted-for completeness definition. Skips the status write '
   '(still refreshes scored_count) when status_source = ''manual''. Clears '
   'reopened_after_closeout_at on legitimate completion. Reads shows.is_nationals '
-  'for the placement ranking. Avoids recursive no-op placement rewrites.';
+  'for the placement ranking. Avoids nested no-op placement rewrites.';
 
 COMMIT;
 

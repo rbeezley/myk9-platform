@@ -2,7 +2,7 @@
 
 ### Requirement: Derivation extends the single existing scoring authority
 
-The derivation SHALL remain the sole database-side writer of `classes.status` for scoring, implemented by extending the existing `refresh_class_scoring_state()` function and its trigger handler rather than introducing a second trigger that also writes `classes.status`. The trigger SHALL fire on entry INSERT and DELETE in addition to the existing scoring-column UPDATE set. When derivation clears placements for a non-completed class, it SHALL update only entries whose `final_placement` is non-null so an entry's own scoring-state trigger does not recursively rewrite an already-clear placement.
+The derivation SHALL remain the sole database-side writer of `classes.status` for scoring, implemented by extending the existing `refresh_class_scoring_state()` function and its trigger handler rather than introducing a second trigger that also writes `classes.status`. The trigger SHALL fire on entry INSERT and DELETE in addition to the existing scoring-column UPDATE set. When derivation clears placements for a non-completed class, it SHALL update only entries whose `final_placement` is non-null so the refresh does not issue a nested same-row no-op update for an already-clear placement.
 
 #### Scenario: Every scoring path re-derives status
 
@@ -17,4 +17,4 @@ The derivation SHALL remain the sole database-side writer of `classes.status` fo
 #### Scenario: Check-in leaves an already-clear placement untouched
 
 - **WHEN** an unscored entry with `final_placement IS NULL` is checked into a derived-status class that remains non-completed
-- **THEN** class status is refreshed without issuing a recursive no-op placement update against that entry, and the check-in RPC completes
+- **THEN** class status is refreshed without issuing a nested no-op placement update against that entry, and the check-in RPC completes

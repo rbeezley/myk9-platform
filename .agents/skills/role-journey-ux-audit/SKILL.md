@@ -23,6 +23,8 @@ including safe show and entry CRUD.”
 
 1. Read `AGENTS.md`, `docs/INTENT.md`, the role's route inventory, relevant tests, prior role
    reports/memory, current findings/Linear issues, and current main.
+   If `audit-pages` lacks the role (including steward) or an `/at-show` surface, derive coverage
+   from the current router and role E2E specs; list the resulting routes and any uncertainty.
 2. Start the documented dev server only if needed; record whether the run used current main.
 3. Resolve credentials from `apps/myk9show/src/test/e2e/helpers/testUsers.ts` and `.env.local`.
    Never print credentials and never use legacy `*@myk9t.com` fixtures as login accounts.
@@ -45,9 +47,12 @@ For every major route and requested viewport:
 6. Search for the existing surface before recommending UI. Prefer consolidation or deep links over
    duplicated workflows.
 
-Exercise required CRUD only with seeded/disposable data and established e2e-safe patterns. Never
-delete shared fixtures or mutate real permissions, ownership, payouts, payment accounts, production
-data, or other consequential state without explicit approval. Mark unsafe paths blocked.
+Exercise required CRUD without approval only against an isolated local Supabase fixture or through
+an established non-persisting interception. Every write to hosted/shared Supabase—including seeded
+or disposable rows—requires explicit approval. Never delete shared fixtures or mutate real
+permissions, ownership, payouts, payment accounts, production data, or other consequential state
+without explicit approval. Use read-only verification or mark the path blocked when approval is
+absent.
 
 ## Recent changes
 

@@ -24,6 +24,16 @@ Use statuses `new`, `unchanged`, `resolved`, `duplicate`, `rejected`, or `blocke
 defects, UX/accessibility findings, security findings, test/harness failures, environment/access
 failures, enhancements, and inconclusive signals separate.
 
+These are run-to-run transition labels, not `docs/qa/findings.md` registry statuses. Preserve the
+registry value and map explicitly:
+
+- `new` or `unchanged` → registry `open`; use `in-progress` when remediation is underway.
+- `resolved` → registry `fixed`, only after closure proof passes.
+- explicitly accepted/out-of-scope risk → lifecycle `unchanged`, registry `deferred`, with reason.
+- `duplicate` or `rejected` → no new registry row; reference the canonical ID or rejection proof.
+- `blocked` → keep a confirmed finding `open`/`in-progress`; a blocked check without confirmed
+  product impact stays only as a report/memory coverage gap.
+
 ## Evidence record
 
 Every finding must contain:

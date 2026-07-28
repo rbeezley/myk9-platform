@@ -41,7 +41,7 @@
 - [x] 5.3 After CI and review pass, merge the PR.
 - [x] 5.4 With explicit approval, push the migrations to the linked Supabase project.
 - [x] 5.5 Re-run the catalog overlap query and Supabase advisor, update the MYK9-108 disposition with observed counts, and confirm MYK9-112 acceptance criteria.
-- [x] 5.6 Mark MYK9-112 Done only after the applied-state evidence gate passes, then archive the OpenSpec change and clean up the branch/worktree.
+- [x] 5.6 Mark MYK9-112 Done only after the applied-state evidence gate passes, then archive the OpenSpec change and clean up the implementation branch/worktree.
 
 ## Validation Profile
 

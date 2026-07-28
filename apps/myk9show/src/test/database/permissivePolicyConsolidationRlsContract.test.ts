@@ -44,7 +44,7 @@ interface TableCase {
 const migrationsDir = resolve(__dirname, '../../../../../supabase/migrations');
 const rollbackPath = resolve(
   __dirname,
-  '../../../../../openspec/changes/consolidate-permissive-rls-policies/rollback.sql'
+  '../../../../../openspec/changes/archive/2026-07-28-consolidate-permissive-rls-policies/rollback.sql'
 );
 
 const tableCases: TableCase[] = [

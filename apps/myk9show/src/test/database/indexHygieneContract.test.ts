@@ -168,5 +168,8 @@ describe('MYK9-113 index hygiene migration contract', () => {
     expect(subtractiveMigration).toContain('keep_index.indisready');
     expect(subtractiveMigration).toContain('drop_index.indisvalid');
     expect(subtractiveMigration).toContain('drop_index.indisready');
+    expect(subtractiveMigration).toContain(
+      'keep_index.indnullsnotdistinct = drop_index.indnullsnotdistinct'
+    );
   });
 });

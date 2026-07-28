@@ -37,14 +37,13 @@
       PostgreSQL cluster, apply both migrations there, and rerun the strict catalog invariants;
       do not use Supabase local/Docker. Stop and record the blocked gate if the scratch cluster is
       unavailable.
-- [x] 4.3 Run `pnpm openspec validate myk9-113-index-hygiene --type change --strict`, `git diff
-  --check`, and
-      the relevant repository lint/type checks required by changed TypeScript test code.
+- [x] 4.3 Run strict OpenSpec validation, `git diff --check`, and the relevant repository
+      lint/type checks required by changed TypeScript test code.
 - [x] 4.4 Link the worktree to project `sojmvhhwsjxmfistvzbe` if needed and run
       `supabase db push --dry-run`; record the exact pending migrations without applying them.
       Passed 2026-07-28: the dry run reported only `20260728140000_add_foreign_key_indexes.sql`
       and `20260728141000_drop_duplicate_indexes.sql`. No migration was applied.
-- [ ] 4.5 Complete OpenSpec implementation verification and resolve every critical finding.
+- [x] 4.5 Complete OpenSpec implementation verification and resolve every critical/high finding.
 
 ## 5. Shared Supabase evidence gate
 

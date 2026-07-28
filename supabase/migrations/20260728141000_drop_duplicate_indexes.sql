@@ -26,6 +26,7 @@ BEGIN
           AND keep_index.indrelid = drop_index.indrelid
           AND keep_class.relam = drop_class.relam
           AND keep_index.indisunique = drop_index.indisunique
+          AND keep_index.indnullsnotdistinct = drop_index.indnullsnotdistinct
           AND keep_index.indisexclusion = drop_index.indisexclusion
           AND keep_index.indnkeyatts = drop_index.indnkeyatts
           AND keep_index.indnatts = drop_index.indnatts
@@ -64,6 +65,7 @@ BEGIN
           AND keep_index.indrelid = drop_index.indrelid
           AND keep_class.relam = drop_class.relam
           AND keep_index.indisunique = drop_index.indisunique
+          AND keep_index.indnullsnotdistinct = drop_index.indnullsnotdistinct
           AND keep_index.indisexclusion = drop_index.indisexclusion
           AND keep_index.indnkeyatts = drop_index.indnkeyatts
           AND keep_index.indnatts = drop_index.indnatts

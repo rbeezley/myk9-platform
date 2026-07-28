@@ -29,8 +29,8 @@
 ## 5. Evidence and delivery
 
 - [x] 5.1 Record the historical-failure disposition, schedule decision, successful dispatch URL, and residual risks in the isolated-regression runbook/evidence.
-- [ ] 5.2 Push the feature branch, open the MYK9-107 PR with the repository template and OpenSpec link, and complete CI/review/merge before archive.
-- [ ] 5.3 Post the implementation summary, verification results, PR/run links, risks, and acceptance-criteria result to MYK9-107; move it to Done only after the green dispatch evidence gate passes.
+- [x] 5.2 Push the feature branch, open the MYK9-107 PR with the repository template and OpenSpec link, and complete CI/review/merge before archive. — PR #1503 merged to `main` as `91a13f92d` on 2026-07-28 after review and green CI.
+- [x] 5.3 Post the implementation summary, verification results, PR/run links, risks, and acceptance-criteria result to MYK9-107; move it to Done only after the green dispatch evidence gate passes. — Linear updated with the final evidence and moved to Done on 2026-07-28.
 
 ## Validation Profile [ADDED]
 

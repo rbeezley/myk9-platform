@@ -56,7 +56,7 @@ Adding an expected entry to a class that is currently `completed` or manually cl
 - **THEN** the show-map attention count for that class node reflects the reopened class as needing attention
 
 ### Requirement: Derivation extends the single existing scoring authority
-The derivation SHALL remain the sole database-side writer of `classes.status` for scoring, implemented by extending the existing `refresh_class_scoring_state()` function and its trigger handler rather than introducing a second trigger that also writes `classes.status`. The trigger SHALL fire on entry INSERT and DELETE in addition to the existing scoring-column UPDATE set.
+The derivation SHALL remain the sole database-side writer of `classes.status` for scoring, implemented by extending the existing `refresh_class_scoring_state()` function and its trigger handler rather than introducing a second trigger that also writes `classes.status`. The trigger SHALL fire on entry INSERT and DELETE in addition to the existing scoring-column UPDATE set. When derivation clears placements for a non-completed class, it SHALL update only entries whose `final_placement` is non-null so the refresh does not issue a nested same-row no-op update for an already-clear placement.
 
 #### Scenario: Every scoring path re-derives status
 - **WHEN** an entry is scored through the `ringside_update_entry` RPC, or through a direct manager entries update
@@ -65,6 +65,10 @@ The derivation SHALL remain the sole database-side writer of `classes.status` fo
 #### Scenario: Entry insertion re-derives status
 - **WHEN** an entry is inserted into a class
 - **THEN** the derivation runs (the trigger fires on INSERT, not only UPDATE)
+
+#### Scenario: Check-in leaves an already-clear placement untouched
+- **WHEN** an unscored entry with `final_placement IS NULL` is checked into a derived-status class that remains non-completed
+- **THEN** class status is refreshed without issuing a nested no-op placement update against that entry, and the check-in RPC completes
 
 ### Requirement: Existing classes are reconciled on deploy
 The deploying migration SHALL run a one-time recompute of the derived status for existing classes so the corrected completeness definition reaches classes currently stuck `in_progress` behind a scratch or no-show, SHALL skip classes with `status_source = 'manual'`, and SHALL prevent the class-status push webhook from firing for the backfill's status changes.

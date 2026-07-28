@@ -145,8 +145,8 @@ Alternative considered: seed the E2E class with `status_source='manual'`. Reject
 4. If the dispatch is green, record the run URL and schedule decision in repository evidence and Linear.
 5. If the dispatch exposes a current failure, download its artifacts, repair or explicitly triage it, and repeat with no more than three rounds for the same cause.
 
-Rollback is a normal workflow revert: remove the cron entry to return to manual-only operation while keeping the isolated lifecycle and its contract tests.
+Rollback is split by change surface. For the workflow-only portion, remove the cron entry to return to manual-only operation while keeping the isolated lifecycle and its contract tests. The replication follow-up drain can be reverted with the application commit if needed. The additive class-status migration is not rewritten or rolled back in place: before it is applied to a shared database, revert the branch and omit it; after it is applied, use a new forward migration that explicitly re-emits the prior authority rather than editing migration history. Shared-database rollback remains a separately approved operation.
 
-## Open Questions
+## Closed Questions
 
-- Which, if any, of the July 18 six failures still reproduce after MYK9-61 and subsequent spec refreshes? The first branch dispatch supplies this evidence.
+- The July 18 failures were rechecked against the isolated lifecycle and current code. The exact executable-head two-pass dispatch passed, so no additional product or test changes are warranted for those historical failures.

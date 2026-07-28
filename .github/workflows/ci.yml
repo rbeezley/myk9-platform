@@ -281,7 +281,7 @@ jobs:
         run: pnpm -r --filter='./packages/*' build
 
       - name: Download coverage blobs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-blob-*
           path: apps/myk9show/.vitest-reports

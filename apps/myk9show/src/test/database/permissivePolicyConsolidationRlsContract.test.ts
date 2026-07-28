@@ -8,7 +8,6 @@ import {
   identityMigration,
   intentionalPolicyOverlaps,
   migrationNames,
-  migrationPredicateFragments,
   operationsMigration,
   policyCommands,
   policyRoleClasses,
@@ -27,6 +26,11 @@ import {
   update,
   type Policy,
 } from './permissivePolicyModel';
+import {
+  expectedForwardPolicySignature,
+  expectedRollbackPolicySignature,
+} from './permissivePolicySqlDigests';
+import { policyDefinitionSignature } from './permissivePolicySqlContract';
 
 interface TableCase {
   table: string;
@@ -417,29 +421,28 @@ describe('MYK9-112 permissive-policy consolidation contract', () => {
     expect(source).not.toMatch(/\bcreate\s+or\s+replace\s+function\b/i);
   });
 
-  it('retains every catalog-derived authorization predicate family', () => {
-    for (const [migration, fragments] of Object.entries(migrationPredicateFragments)) {
-      const normalizedSource = sourceFor(migration).toLowerCase().replace(/\s+/g, ' ');
-      for (const fragment of fragments) {
-        expect(normalizedSource, `${migration}: ${fragment}`).toContain(fragment);
-      }
-    }
+  it('binds every created policy to its reviewed role, command, USING, and WITH CHECK SQL', () => {
+    const source = migrationNames.map(sourceFor).join('\n');
+    expect(policyDefinitionSignature(source)).toEqual(expectedForwardPolicySignature);
+  });
+
+  it('preserves duplicate definitions and accepts qualified or unqualified policy tables', () => {
+    const source = `
+      CREATE POLICY "duplicate" ON example FOR SELECT TO public USING (true);
+      CREATE POLICY "duplicate" ON public.example FOR SELECT TO public USING (true);
+    `;
+    expect(policyDefinitionSignature(source).count).toBe(2);
+  });
+
+  it('fails closed when any CREATE POLICY statement cannot be parsed', () => {
+    expect(() => policyDefinitionSignature('CREATE POLICY incomplete')).toThrow(
+      'Parsed 0 of 1 CREATE POLICY statements'
+    );
   });
 
   it('keeps an exact 70-policy forward-restoration artifact', () => {
     const rollback = readFileSync(rollbackPath, 'utf8');
-    expect(rollback.match(/^CREATE POLICY /gm)).toHaveLength(70);
-
-    for (const tableCase of tableCases) {
-      for (const policyValue of tableCase.before) {
-        const escapedName = policyValue.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        expect(rollback, `${tableCase.table}.${policyValue.name}`).toMatch(
-          new RegExp(
-            `CREATE POLICY (?:"${escapedName}"|${escapedName}) ON public\\.${tableCase.table}`
-          )
-        );
-      }
-    }
+    expect(policyDefinitionSignature(rollback)).toEqual(expectedRollbackPolicySignature);
   });
 
   it('does not rewrite the two intentionally layered policy sets', () => {

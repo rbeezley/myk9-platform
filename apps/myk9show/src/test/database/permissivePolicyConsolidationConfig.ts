@@ -15,36 +15,6 @@ export const migrationNames = [
   availabilityMigration,
 ];
 
-export const migrationPredicateFragments: Record<string, string[]> = {
-  [identityMigration]: [
-    'public.is_show_official(show_id)',
-    'ur.show_id = enrollments.show_id or ur.show_id is null',
-    'auth_user_id is null',
-    'public.can_manage_show_person(people.id)',
-    'public.is_trial_secretary()',
-  ],
-  [showdayMigration]: [
-    'public.is_club_admin(s.club_id)',
-    'public.is_trial_secretary(s.club_id)',
-    'public.is_show_official(s.id)',
-    'public.is_club_admin()',
-    'public.is_trial_secretary()',
-  ],
-  [catalogMigration]: [
-    'public.is_platform_admin()',
-    'public.volunteer_show_id(volunteer_id)',
-    'public.can_manage_show(show_id)',
-    'public.is_club_admin()',
-    'public.is_trial_secretary()',
-  ],
-  [operationsMigration]: ['public.is_platform_admin()', "auth.jwt() ->> 'is_anonymous'::text"],
-  [availabilityMigration]: [
-    'public.is_platform_admin()',
-    'ur.user_id = p.id',
-    "array['secretary'::text, 'site_admin'::text]",
-  ],
-};
-
 export const policyRoleClasses: PolicyRoleClass[] = ['publicOnly', 'authenticated', 'otherPublic'];
 export const policyCommands: Exclude<PolicyCommand, 'ALL'>[] = [
   'SELECT',

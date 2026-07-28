@@ -8,7 +8,7 @@
 
 ## Repository checks
 
-- Focused migration/database contracts: 4 files, 81 tests passed.
+- Focused migration/database contracts: 4 files, 84 tests passed.
 - Complete `apps/myk9show/src/test/database` set: 67 files, 475 tests passed.
 - Repository typecheck: passed.
 - Repository lint: passed.
@@ -21,6 +21,7 @@
 - Migration collision check against current `origin/main`: no collision.
 - `supabase db push --dry-run`: exactly the five MYK9-112 migrations are pending; nothing was applied.
 - Exact forward-restoration artifact: `rollback.sql` recreates the captured 70-policy baseline.
+- Exact-SQL signatures bind all 58 forward and 70 rollback policy definitions to their reviewed roles, commands, `USING`, and `WITH CHECK` text.
 
 ## Independent migration audit
 
@@ -30,7 +31,7 @@ Combined verdict: **PUSH WITH CAUTION; no blocking defects**.
 - All drops use `IF EXISTS`; no tables, data, constraints, functions, table privileges, or RLS mode change.
 - Two inherited row-correlated helper patterns remain in the `people` and volunteer policies. They predate MYK9-112 and are retained to avoid changing authorization semantics.
 - Expected advisor remainder: five intentional role-mismatched groups (`dogs` INSERT and four `push_subscriptions` commands).
-- The optional external Codex companion review was not run because submitting the private branch diff required separate authorization. The repository-required migration-auditor review above is complete.
+- The required external Codex second-opinion review remains a pre-merge gate because submitting the private branch diff requires separate authorization. The repository-required migration-auditor and PR branch reviews are complete.
 
 ## Pending shared-system gate
 

@@ -146,3 +146,73 @@ Every `authenticated` SELECT/ALL policy whose `qual` doesn't filter `is_anonymou
 | `volunteer_class_assignments`, `volunteer_general_assignments`, `volunteer_roles`, `volunteers` | Accept (low) — mild PII (names); operational, shown to show managers |
 
 Recommended follow-up (own reviewed migration, not this sweep): add `(SELECT (auth.jwt()->>'is_anonymous')::boolean) IS NOT TRUE` to `platform_settings` and `sync_conflicts`. All other rows are gated (`is_site_admin`, ownership, `can_manage_show`) and correctly exclude claimless anon.
+
+---
+
+## Regrowth re-disposition — MYK9-108 (prepared 2026-07-28)
+
+The 2026-07-26 issue snapshot (16 anon / 94 authenticated SECURITY DEFINER warnings) was
+overtaken by July 27 migrations. A fresh applied-database query on 2026-07-28 found:
+
+| Lint-equivalent applied check                        | 2026-07-12 | 2026-07-28 pre-fix | Expected after `20260728120000` |
+| ---------------------------------------------------- | ---------: | -----------------: | ------------------------------: |
+| anon-executable SECURITY DEFINER identities          |         10 |                 17 |                              10 |
+| authenticated-executable SECURITY DEFINER identities |         84 |                 96 |                              94 |
+| RLS-enabled tables with no policy                    |          4 |                  6 |                               6 |
+
+Applied `pg_default_acl` evidence explained the regrowth: `postgres` still default-granted
+functions and tables to `authenticated`; `supabase_admin` still default-granted both object classes
+to `anon` and `authenticated`. The new migration revokes both API roles from future functions and
+tables for both owners. Intended client access must now be granted explicitly.
+
+### Function decisions
+
+The original anon keep-list remains exactly 10 identities: `get_my_person_id()`,
+`has_role(text, uuid)`, `is_club_admin(uuid)`, `is_platform_admin()`,
+`is_show_official(uuid)`, both `is_show_secretary` overloads, `is_site_admin()`,
+`is_trial_secretary(uuid)`, and `resolve_class_result_visibility(uuid)`. Each is required by
+anon-readable RLS policies or the public-results release-gate view.
+
+Migration `20260728120000_advisor_grant_regrowth_guard.sql` revokes anon from all seven regrown
+identities:
+
+- Trigger-only: `broadcast_showday_change()`, `broadcast_paperwork_print_change()`; authenticated
+  is revoked too because trigger execution does not use API-role EXECUTE.
+- Internally gated authenticated RPCs: `financial_reconciliation_summary`,
+  `financial_reconciliation_orders`, `financial_reconciliation_payouts`,
+  `get_my_onboarding_requests`, `set_entry_refund_decision`; authenticated and service-role access
+  is explicitly retained.
+
+Twelve new or replacement authenticated RPC identities remain accepted by design:
+`admin_grant_entitlement`, `admin_revoke_entitlement`, the replacement
+`create_show_managed_dog` signature, the three reconciliation RPCs,
+`get_my_onboarding_requests`, `get_own_entitlement_context`, `get_show_access_codes`,
+`has_effective_premium_access`, `reserve_operator_support_query`, and
+`set_entry_refund_decision`. Each has an internal identity/scope gate. The retired old
+`create_show_managed_dog` signature and the later `system_health_probe` authenticated revoke offset
+two of these, so the net accepted count is 84 → 94.
+
+### Table decisions
+
+The six no-policy tables are deny-all by design:
+
+- Existing: `login_attempts`, `premium_generation_attempts`, `show_money_locks`, `show_passcodes`.
+- New: `stripe_order_refunds`, `waitlist_notification_events`.
+
+The new migration adds the missing advisor-specific schema comments to the two new tables. Applied
+ACL checks showed no anon/authenticated table or column grants on
+`stripe_order_refunds` or `waitlist_notification_events`.
+
+### Standing guard
+
+`migrationGrantDecisionContract.test.ts` inspects every migration from
+`20260728120000_advisor_grant_regrowth_guard.sql` onward. Every new `public` function must either
+carry exact-overload decisions for both `anon` and `authenticated` (or match the documented anon
+keep-list); every new `public` table must carry decisions for both API roles. An RLS-enabled table
+must also create a policy or match the documented deny-all table keep-list. The test includes
+deliberately unsafe function, overload, table, and undispositioned no-policy fixtures and asserts
+that each is rejected. This converts the one-time sweep into a CI contract.
+
+**Post-push evidence still required:** apply `20260728120000`, repeat the applied ACL queries, re-run
+the security advisor, and record the observed counts. Do not mark MYK9-108 complete before that
+shared-system gate.

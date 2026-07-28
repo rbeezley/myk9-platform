@@ -31,17 +31,17 @@
 - [x] 4.3 Run repository typecheck and lint.
 - [x] 4.4 Run strict OpenSpec validation for `consolidate-permissive-rls-policies`.
 - [x] 4.5 Run `supabase db push --dry-run` and confirm only the reviewed migrations are pending.
-- [ ] 4.6 Re-run the applied policy inventory immediately before deployment and stop on any baseline drift.
+- [x] 4.6 Re-run the applied policy inventory immediately before deployment and stop on any baseline drift.
 - [x] 4.7 Complete independent RLS/migration review and resolve all critical findings.
 
 ## 5. Delivery and Applied Evidence
 
 - [x] 5.1 Commit the verified implementation and open a PR linked to MYK9-112 and this OpenSpec change.
 - [x] 5.2 Record local checks, risk, intentional non-goals, and the pending database gate in the PR and Linear issue.
-- [ ] 5.3 After CI and review pass, merge the PR.
-- [ ] 5.4 With explicit approval, push the migrations to the linked Supabase project.
-- [ ] 5.5 Re-run the catalog overlap query and Supabase advisor, update the MYK9-108 disposition with observed counts, and confirm MYK9-112 acceptance criteria.
-- [ ] 5.6 Mark MYK9-112 Done only after the applied-state evidence gate passes, then archive the OpenSpec change and clean up the branch/worktree.
+- [x] 5.3 After CI and review pass, merge the PR.
+- [x] 5.4 With explicit approval, push the migrations to the linked Supabase project.
+- [x] 5.5 Re-run the catalog overlap query and Supabase advisor, update the MYK9-108 disposition with observed counts, and confirm MYK9-112 acceptance criteria.
+- [x] 5.6 Mark MYK9-112 Done only after the applied-state evidence gate passes, then archive the OpenSpec change and clean up the implementation branch/worktree.
 
 ## Validation Profile
 

@@ -164,6 +164,19 @@ describe('DB migration sanity contracts', () => {
     expect(sql).toContain('ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push');
   });
 
+  it('does not recursively rewrite entry placements that are already null', () => {
+    const { sql } = latestMigrationContaining(
+      /CREATE OR REPLACE FUNCTION public\.refresh_class_scoring_state/i
+    );
+    const refreshFunction = sliceBetween(
+      sql,
+      'CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state',
+      'COMMENT ON FUNCTION public.refresh_class_scoring_state'
+    );
+
+    expect(refreshFunction.match(/AND final_placement IS NOT NULL/g)).toHaveLength(3);
+  });
+
   it('only reopens a class after a completed closeout', () => {
     const { sql } = latestMigrationContaining(
       /CREATE OR REPLACE FUNCTION public\.handle_entry_scoring_state_change/i

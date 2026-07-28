@@ -105,11 +105,7 @@ export class MutationUploadRunner {
           ).locks
         : undefined;
     if (locks && typeof locks.request === 'function') {
-      this.logger.warn('[MutationManager][diagnostic] Requesting replication-upload Web Lock');
-      const result = await locks.request('replication-upload', () => {
-        this.logger.warn('[MutationManager][diagnostic] Acquired replication-upload Web Lock');
-        return this.runUploadPass();
-      });
+      const result = await locks.request('replication-upload', () => this.runUploadPass());
       return result ?? [];
     }
     return this.runUploadPass();
@@ -132,13 +128,10 @@ export class MutationUploadRunner {
     this.isUploading = true;
     const startTime = Date.now();
     markPerf('replication:flush:start');
-    this.logger.warn('[MutationManager][diagnostic] Entered upload pass');
 
     try {
       const db = await databaseManager.getDatabase('MutationManager');
-      this.logger.warn('[MutationManager][diagnostic] Opened mutation database');
       const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-      this.logger.warn(`[MutationManager][diagnostic] Read ${pending.length} pending mutation(s)`);
 
       if (pending.length === 0) {
         this.logger.log('[MutationManager] No pending mutations to upload');
@@ -240,9 +233,6 @@ export class MutationUploadRunner {
         }
 
         try {
-          this.logger.warn(
-            `[MutationManager][diagnostic] Executing ${queuedMutation.id} for ${queuedMutation.tableName}`
-          );
           const { newServerVersion, remappedRowId } = await executeMutation(
             this.supabase,
             this.logger,
@@ -398,7 +388,6 @@ export class MutationUploadRunner {
       throw error;
     } finally {
       this.isUploading = false;
-      this.logger.warn('[MutationManager][diagnostic] Exited upload pass');
       if (this.uploadRequestedWhileRunning) {
         this.uploadRequestedWhileRunning = false;
         this.scheduleUpload();

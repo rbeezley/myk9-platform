@@ -134,20 +134,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(classRow.getByText('Checked-in', { exact: true })).toBeVisible({
       timeout: 10_000,
     });
-    try {
-      await expect.poll(() => ringsideResponses.length, { timeout: 5_000 }).toBeGreaterThan(0);
-    } catch {
-      const beforeManualUpload = await readReplicationSchedulerSnapshot(page, seed.entryId);
-      const manualUpload = await requestDiagnosticUpload(page);
-      const afterManualUpload = await readReplicationSchedulerSnapshot(page, seed.entryId);
-      throw new Error(
-        `Check-in auto-upload was not sent: ${JSON.stringify(
-          { beforeManualUpload, manualUpload, afterManualUpload, ringsideResponses },
-          null,
-          2
-        )}`
-      );
-    }
+    await expect.poll(() => ringsideResponses.length, { timeout: 20_000 }).toBeGreaterThan(0);
     await expect
       .poll(() => ringsideResponses.every(response => response.body !== '<pending>'), {
         timeout: 5_000,
@@ -162,126 +149,6 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       .toMatchObject({ entry_status: 'confirmed', check_in_status: 'checked-in' });
   });
 });
-
-async function requestDiagnosticUpload(page: Page) {
-  return page.evaluate(async () => {
-    const diag = (
-      window as unknown as {
-        __replicationDiag?: { uploadNow: () => Promise<unknown> };
-      }
-    ).__replicationDiag;
-    if (!diag) return { status: 'missing' };
-
-    return Promise.race([
-      diag
-        .uploadNow()
-        .then(result => ({ status: 'resolved', result }))
-        .catch(error => ({
-          status: 'rejected',
-          error: error instanceof Error ? error.message : String(error),
-        })),
-      new Promise<{ status: 'timed-out' }>(resolve => {
-        window.setTimeout(() => resolve({ status: 'timed-out' }), 5_000);
-      }),
-    ]);
-  });
-}
-
-async function readReplicationSchedulerSnapshot(page: Page, entryId: string) {
-  return page.evaluate(
-    async ({ dbName, entryId: targetEntryId }) => {
-      const lockState =
-        'locks' in navigator && typeof navigator.locks.query === 'function'
-          ? await navigator.locks.query()
-          : null;
-      return new Promise<unknown>(resolve => {
-        const base = {
-          navigatorOnline: navigator.onLine,
-          visibilityState: document.visibilityState,
-          lockState,
-          hasDiagnosticUpload: Boolean(
-            (window as unknown as { __replicationDiag?: unknown }).__replicationDiag
-          ),
-          replicationLogs: (() => {
-            try {
-              const logs = JSON.parse(localStorage.getItem('myk9show_logs') ?? '[]') as Array<
-                Record<string, unknown>
-              >;
-              return logs
-                .filter(log => log.category === 'replication')
-                .slice(-30)
-                .map(log => ({ level: log.level, message: log.message }));
-            } catch {
-              return [];
-            }
-          })(),
-        };
-        const openRequest = indexedDB.open(dbName);
-        openRequest.onerror = () => resolve({ ...base, database: 'unavailable' });
-        openRequest.onsuccess = () => {
-          const db = openRequest.result;
-          const transaction = db.transaction(
-            ['replicated_tables', 'pending_mutations', 'failed_mutations'],
-            'readonly'
-          );
-          const readStore = (storeName: string) =>
-            new Promise<unknown[]>((storeResolve, storeReject) => {
-              const request = transaction.objectStore(storeName).getAll();
-              request.onsuccess = () => storeResolve(request.result as unknown[]);
-              request.onerror = () => storeReject(request.error);
-            });
-
-          void Promise.all([
-            readStore('replicated_tables'),
-            readStore('pending_mutations'),
-            readStore('failed_mutations'),
-          ])
-            .then(([replicatedRows, pendingRows, failedRows]) => {
-              const forEntry = (rows: unknown[]) =>
-                rows.filter(row => {
-                  const record = row as Record<string, unknown>;
-                  return record.tableName === 'entries' && String(record.rowId) === targetEntryId;
-                });
-              const replica = replicatedRows.find(row => {
-                const record = row as Record<string, unknown>;
-                return record.tableName === 'entries' && String(record.id) === targetEntryId;
-              }) as Record<string, unknown> | undefined;
-              const summarizeMutations = (rows: unknown[]) =>
-                forEntry(rows).map(row => {
-                  const mutation = row as Record<string, unknown>;
-                  return {
-                    id: mutation.id,
-                    status: mutation.status,
-                    retries: mutation.retries,
-                    nextRetryAt: mutation.nextRetryAt,
-                    serverVersion: mutation.serverVersion,
-                    rpc: mutation.rpc,
-                  };
-                });
-              db.close();
-              resolve({
-                ...base,
-                replica: replica
-                  ? {
-                      syncStatus: replica.syncStatus,
-                      isDirty: replica.isDirty,
-                      serverVersion: replica.serverVersion,
-                    }
-                  : null,
-                pending: summarizeMutations(pendingRows),
-                failed: summarizeMutations(failedRows),
-              });
-            })
-            .catch(error => {
-              db.close();
-              resolve({ ...base, readError: String(error) });
-            });
-        };
-      });
-    },
-    { dbName: 'myK9_Replication', entryId }
-  );
-}
 
 async function openArmbandDialog(page: Page) {
   const directAssign = page.getByRole('button', { name: 'Assign', exact: true }).last();

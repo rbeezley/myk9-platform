@@ -4,7 +4,7 @@ The July 18 run (`29635653949`, commit `00e0722`) used the former staging-backed
 
 The historical missing `VITE_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` error therefore cannot be treated as a current reproduction. The first current source-contract run instead found that `scripts/qa/isolated-e2e-workflow.test.ts` pins `supabase/setup-cli@v1` even though Dependabot has upgraded the workflow to v3.
 
-The planned work is primarily test/CI infrastructure. During verification, the strengthened disposable secretary journey exposed a production replication scheduler race: a check-in queued after an active upload pass captured its pending snapshot could have its debounced upload skipped as “already in progress” and remain stranded. The change therefore includes one narrow replication-core correction without changing public APIs, stored mutation shape, or user-facing surfaces.
+The planned work is primarily test/CI infrastructure. During verification, the strengthened disposable secretary journey exposed two production reliability defects. A mutation queued after an active upload pass captured its pending snapshot could have its debounced upload skipped as “already in progress.” Separately, a check-in on a derived-status class entered `ringside_update_entry()` but hung when `refresh_class_scoring_state()` recursively updated the same entry to set an already-`NULL` placement to `NULL`. The change therefore includes narrow replication-core and database-trigger corrections without changing public APIs, stored mutation shape, or user-facing surfaces.
 
 ## Goals / Non-Goals
 
@@ -16,12 +16,13 @@ The planned work is primarily test/CI infrastructure. During verification, the s
 - Record one successful manual dispatch as the acceptance evidence.
 - Re-enable a bounded weekly schedule because every job now owns a disposable, resettable Supabase stack.
 - Prove and repair the missed-upload race exposed by persisted Show Desk check-in verification.
+- Make derived class-status refresh safe when an unscored entry's placement is already clear.
 
 **Non-Goals:**
 
 - No application UI, user-facing copy, page, dialog, deep link, or duplicate workflow surface.
 - No production or shared-staging writes, Supabase project configuration changes, or external payment/email side effects.
-- No database behavior expansion beyond correcting a historical fresh-chain ordering defect that blocks the disposable target.
+- No schema expansion or class-status policy change beyond preventing recursive no-op placement writes.
 - No retries or loosened assertions used to manufacture a green run.
 - No expansion of the two-spec PR smoke gate.
 - No broader replication refactor, queue-format change, or conflict-resolution behavior change.
@@ -114,6 +115,14 @@ Record that an upload was requested while a pass is active. When the active pass
 
 Alternative considered: make the Show Desk test explicitly call the diagnostic upload trigger. Rejected because that would hide a production reliability defect and would not help real secretaries whose check-in lands in the same race window.
 
+### 11. Do not recursively clear an already-clear placement
+
+The persisted check-in journey proved that the upload runner acquired its Web Lock, entered the pass, and called `ringside_update_entry()`, but the RPC did not return. The fixture's class uses the normal `status_source='derived'` default. Its scoring-state trigger recomputed the class as `upcoming`, then issued an inner `UPDATE entries SET final_placement = NULL` that targeted the same outer-updated entry even though its placement was already `NULL`.
+
+Add a forward migration that re-emits the existing `refresh_class_scoring_state()` authority and adds `final_placement IS NOT NULL` to all three placement-clear branches. This preserves every status and placement rule while avoiding recursive no-op row writes. A source contract requires all three guards, and the real disposable check-in provides the end-to-end behavioral proof against a fresh migration chain.
+
+Alternative considered: seed the E2E class with `status_source='manual'`. Rejected because it would bypass the default derived-status path used by real newly created classes and hide the database defect.
+
 ## Risks / Trade-offs
 
 - **The disposable local stack is slower or flaky on hosted runners** → keep the 90-minute job bound, zero retries, two reports, and fail-closed preparation so infrastructure failure remains visible.
@@ -126,11 +135,12 @@ Alternative considered: make the Show Desk test explicitly call the diagnostic u
 - **A current browser failure needs a product decision** → stop that item, record the exact trace/evidence, and do not weaken the assertion.
 - **The follow-up drain creates redundant empty upload passes** → coalesce requests behind one boolean and retain the existing 100 ms debounce; the worst case is one harmless empty pass after concurrent activity.
 - **A replication fix broadens a CI repair unexpectedly** → keep the production change to the scheduler race, cover it with a focused red-to-green test, and require the real persisted secretary journey to pass twice after reset.
+- **Re-emitting the class-status function drifts from its existing authority** → copy the current function verbatim except for the three no-op guards, assert all guards from source, and exercise the fresh chain twice through persisted check-in.
 
 ## Migration Plan
 
 1. Land the source-contract and workflow/spec repairs on the MYK9-107 branch.
-2. Run focused unit/source tests, the replication scheduler race test and suite, Playwright list/compile validation, lint/typecheck for touched TypeScript, and OpenSpec validation.
+2. Run focused unit/source tests, the replication scheduler race test and suite, the migration source contract, Playwright list/compile validation, lint/typecheck for touched TypeScript, and OpenSpec validation.
 3. Push the branch and dispatch `Playwright Regression` against it.
 4. If the dispatch is green, record the run URL and schedule decision in repository evidence and Linear.
 5. If the dispatch exposes a current failure, download its artifacts, repair or explicitly triage it, and repeat with no more than three rounds for the same cause.

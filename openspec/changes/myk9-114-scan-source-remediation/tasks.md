@@ -90,18 +90,25 @@
 
 - [x] 5.1 Update `docs/launch/go-live-2026-07-26.md` with the three concrete
       sources, secondary-source deferrals, and the MYK9-109 handoff.
-- [ ] 5.2 Commit the reviewed implementation, request approval for the external
+- [x] 5.2 Commit the reviewed implementation, request approval for the external
       GitHub write, push the feature branch, and open a PR using the repository
       template with `Tracked in openspec change:
 myk9-114-scan-source-remediation`.
 - [ ] 5.3 Record focused checks, review result, branch/PR, risks, and acceptance
       status on MYK9-114; keep the issue In Progress until its evidence gate passes.
-- [ ] 5.4 After explicit database-write approval, capture the final pre-reset
+- [x] 5.4 After explicit database-write approval, capture the final pre-reset
       evidence, push the migration, and smoke-test representative site-admin,
       secretary, judge, steward, exhibitor, valid-claim, and stale-claim reads.
+      Migration `20260728210000` was linked-deployed on 2026-07-28; all paths
+      passed using existing rows (the database had no active persistent steward
+      fixture, so the current steward passcode path supplied that smoke).
 - [ ] 5.5 After explicit statistics-reset approval, run `pg_stat_reset()`, replay
       the agreed representative/MYK9-109 workload, and attach attributable
-      post-reset scan counts and ratios to MYK9-114.
+      post-reset scan counts and ratios to MYK9-114. [BLOCKED] Supabase denies
+      both database-wide and per-table resets to the linked non-superuser
+      `postgres` role. Reset-incapable separate-session evidence passed instead:
+      account `1/1/0` and valid ringside `1/1/1` total scans for
+      `user_roles`/`judge_assignments`/`show_passcodes`.
 - [ ] 5.6 After CI, review, merge, and the post-reset evidence gate pass, mark
       MYK9-114 Done with the PR and merge commit, archive the OpenSpec change, sync
       tracking, and perform final branch/worktree cleanup.

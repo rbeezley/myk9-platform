@@ -92,6 +92,10 @@ select set_config('request.jwt.claims', :'jwt_claims', false)
     where v.show_id = :'show_id'::uuid
   ) evaluated
   where projected_row is not null;
+  -- PostgreSQL rate-limits stats flushes. Force this backend's completed read
+  -- counters out before the separate snapshot session starts so a fast run
+  -- cannot report a false zero delta.
+  select pg_stat_force_next_flush();
   \quit
 \endif
 

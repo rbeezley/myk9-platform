@@ -141,6 +141,7 @@ describe('MYK9-114 statement-scoped entry access context', () => {
     expect(scanEvidenceSql).toContain(":'evidence_mode' = 'snapshot'");
     expect(scanEvidenceSql).toContain(":'evidence_mode' = 'read'");
     expect(scanEvidenceSql).toContain(":'evidence_mode' = 'plans'");
+    expect(scanEvidenceSql).toContain('select pg_stat_force_next_flush()');
     expect(scanEvidenceSql).toContain('select *\n  from public.view_authenticated_entry_results;');
     expect(scanEvidenceRunner).toContain("runEvidence('snapshot')");
     expect(scanEvidenceRunner).toContain("runEvidence('read')");

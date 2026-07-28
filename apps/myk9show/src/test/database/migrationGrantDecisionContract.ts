@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export interface MigrationSource {
   filename: string;
   sql: string;
@@ -5,6 +7,10 @@ export interface MigrationSource {
 
 export const GRANT_DECISION_ENFORCEMENT_MIGRATION =
   '20260728120000_advisor_grant_regrowth_guard.sql';
+
+const LEGACY_MIGRATION_COUNT = 419;
+const LEGACY_MIGRATION_FILENAME_SHA256 =
+  '1c33ed17ca2c89fbe89fd48330e59f829518928e93a227efe23ff9340ce9a1e7';
 
 const ANON_EXECUTE_KEEP_LIST: Readonly<Record<string, string>> = {
   'get_my_person_id()':
@@ -48,6 +54,11 @@ function normalizeSql(sql: string): string {
 interface FunctionIdentity {
   name: string;
   signature: string;
+}
+
+interface FunctionGrant {
+  identity: FunctionIdentity;
+  roles: string;
 }
 
 const TYPE_STARTS = new Set([
@@ -164,6 +175,29 @@ function functionCreates(sql: string): FunctionIdentity[] {
   return identities;
 }
 
+function functionGrants(sql: string): FunctionGrant[] {
+  const grants: FunctionGrant[] = [];
+  const pattern =
+    /\bGRANT\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi;
+
+  for (const match of sql.matchAll(pattern)) {
+    const openingIndex = (match.index ?? 0) + match[0].length - 1;
+    const closingIndex = closingParen(sql, openingIndex);
+    if (closingIndex === -1) continue;
+    const tail = sql.slice(closingIndex + 1).split(';', 1)[0];
+    const roles = tail.match(/\bTO\s+(.+)$/i)?.[1] ?? '';
+    grants.push({
+      identity: {
+        name: match[1].toLowerCase(),
+        signature: normalizeSignature(sql.slice(openingIndex + 1, closingIndex)),
+      },
+      roles,
+    });
+  }
+
+  return grants;
+}
+
 function tableCreates(sql: string): string[] {
   return [
     ...sql.matchAll(
@@ -238,16 +272,163 @@ function createsPolicy(sql: string, tableName: string): boolean {
   ).test(sql);
 }
 
-export function findUndecidedPublicObjects(migrations: MigrationSource[]): string[] {
+function identityKey(identity: FunctionIdentity): string {
+  return `${identity.name}(${identity.signature})`;
+}
+
+function hasApiRole(roles: string): boolean {
+  return /\b(?:PUBLIC|anon|authenticated)\b/i.test(roles);
+}
+
+function findUnsafeDefaultPrivilegeGrants(filename: string, sql: string): string[] {
   const violations: string[] = [];
+
+  for (const statement of sql.split(';')) {
+    if (!/\bALTER\s+DEFAULT\s+PRIVILEGES\b/i.test(statement)) continue;
+    const schemaClause = statement.match(/\bIN\s+SCHEMA\s+(.+?)\s+GRANT\b/i)?.[1];
+    if (schemaClause && !/\bpublic\b/i.test(schemaClause)) continue;
+    const roles = statement.match(/\bTO\s+(.+)$/i)?.[1] ?? '';
+    if (!hasApiRole(roles)) continue;
+
+    if (/\bGRANT\s+[^;]+\s+ON\s+FUNCTIONS\b/i.test(statement)) {
+      violations.push(`${filename}: public function default privileges grant API execution`);
+    }
+    if (/\bGRANT\s+[^;]+\s+ON\s+TABLES\b/i.test(statement)) {
+      violations.push(`${filename}: public table default privileges grant API access`);
+    }
+  }
+
+  return violations;
+}
+
+function findUnsafeBulkGrants(filename: string, sql: string): string[] {
+  const violations: string[] = [];
+
+  for (const statement of sql.split(';')) {
+    const roles = statement.match(/\bTO\s+(.+)$/i)?.[1] ?? '';
+    if (!hasApiRole(roles)) continue;
+    if (
+      /\bGRANT\s+[^;]+\s+ON\s+ALL\s+FUNCTIONS\s+IN\s+SCHEMA\s+(?:"?public"?)\b/i.test(statement)
+    ) {
+      violations.push(`${filename}: bulk public function grant exposes an API role`);
+    }
+    if (/\bGRANT\s+[^;]+\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+(?:"?public"?)\b/i.test(statement)) {
+      violations.push(`${filename}: bulk public table grant exposes an API role`);
+    }
+  }
+
+  return violations;
+}
+
+function findStandaloneGrantViolations(
+  filename: string,
+  sql: string,
+  createdFunctions: Set<string>,
+  createdTables: Set<string>
+): string[] {
+  const violations: string[] = [];
+
+  for (const grant of functionGrants(sql)) {
+    const displaySignature = identityKey(grant.identity);
+    if (createdFunctions.has(displaySignature) || !hasApiRole(grant.roles)) continue;
+    if (/\bPUBLIC\b/i.test(grant.roles)) {
+      violations.push(
+        `${filename}: public.${displaySignature} standalone PUBLIC function grant is forbidden`
+      );
+      continue;
+    }
+    if (/\banon\b/i.test(grant.roles) && !(displaySignature in ANON_EXECUTE_KEEP_LIST)) {
+      violations.push(
+        `${filename}: public.${displaySignature} standalone anon grant is not keep-listed`
+      );
+    }
+    if (
+      /\bauthenticated\b/i.test(grant.roles) &&
+      !(displaySignature in ANON_EXECUTE_KEEP_LIST) &&
+      !hasAnonFunctionDecision(sql, grant.identity)
+    ) {
+      violations.push(
+        `${filename}: public.${displaySignature} standalone authenticated grant has no anon EXECUTE decision`
+      );
+    }
+  }
+
+  const tableGrantPattern =
+    /\bGRANT\s+[^;]+\s+ON\s+(?:TABLE\s+)?(?:"?public"?\.)"?([A-Za-z_][A-Za-z0-9_]*)"?\s+TO\s+([^;]+)/gi;
+  for (const match of sql.matchAll(tableGrantPattern)) {
+    const tableName = match[1].toLowerCase();
+    const roles = match[2];
+    if (createdTables.has(tableName) || !hasApiRole(roles)) continue;
+    if (/\bPUBLIC\b/i.test(roles)) {
+      violations.push(
+        `${filename}: public.${tableName} standalone PUBLIC table grant is forbidden`
+      );
+      continue;
+    }
+    if (!hasTableRoleDecision(sql, tableName, 'anon')) {
+      violations.push(
+        `${filename}: public.${tableName} standalone table grant has no anon decision`
+      );
+    }
+    if (!hasTableRoleDecision(sql, tableName, 'authenticated')) {
+      violations.push(
+        `${filename}: public.${tableName} standalone table grant has no authenticated decision`
+      );
+    }
+  }
+
+  return violations;
+}
+
+function findLegacyBaselineViolation(migrations: MigrationSource[]): string[] {
+  const filenames = migrations
+    .map(migration => migration.filename)
+    .filter(filename => filename < GRANT_DECISION_ENFORCEMENT_MIGRATION)
+    .sort();
+  const digest = createHash('sha256')
+    .update(`${filenames.join('\n')}\n`)
+    .digest('hex');
+
+  if (filenames.length === LEGACY_MIGRATION_COUNT && digest === LEGACY_MIGRATION_FILENAME_SHA256) {
+    return [];
+  }
+
+  return [
+    `legacy migration filename baseline changed (expected ${LEGACY_MIGRATION_COUNT} files, sha256 ${LEGACY_MIGRATION_FILENAME_SHA256}; received ${filenames.length}, sha256 ${digest})`,
+  ];
+}
+
+interface GrantDecisionOptions {
+  validateLegacyBaseline?: boolean;
+}
+
+export function findUndecidedPublicObjects(
+  migrations: MigrationSource[],
+  options: GrantDecisionOptions = {}
+): string[] {
+  const violations: string[] = [];
+
+  if (options.validateLegacyBaseline) {
+    violations.push(...findLegacyBaselineViolation(migrations));
+  }
 
   for (const migration of migrations) {
     if (migration.filename < GRANT_DECISION_ENFORCEMENT_MIGRATION) continue;
 
     const sql = normalizeSql(migration.sql);
+    const createdFunctionIdentities = functionCreates(sql);
+    const createdFunctions = new Set(createdFunctionIdentities.map(identityKey));
+    const createdTableNames = tableCreates(sql);
+    const createdTables = new Set(createdTableNames);
 
-    for (const identity of functionCreates(sql)) {
-      const displaySignature = `${identity.name}(${identity.signature})`;
+    violations.push(...findUnsafeDefaultPrivilegeGrants(migration.filename, sql));
+    violations.push(...findUnsafeBulkGrants(migration.filename, sql));
+    violations.push(
+      ...findStandaloneGrantViolations(migration.filename, sql, createdFunctions, createdTables)
+    );
+
+    for (const identity of createdFunctionIdentities) {
+      const displaySignature = identityKey(identity);
       const keepListed = displaySignature in ANON_EXECUTE_KEEP_LIST;
       if (!keepListed && !hasAnonFunctionDecision(sql, identity)) {
         violations.push(
@@ -261,7 +442,7 @@ export function findUndecidedPublicObjects(migrations: MigrationSource[]): strin
       }
     }
 
-    for (const tableName of tableCreates(sql)) {
+    for (const tableName of createdTableNames) {
       const keepListed = tableName in TABLE_GRANT_DECISION_KEEP_LIST;
       if (!keepListed && !hasTableRoleDecision(sql, tableName, 'anon')) {
         violations.push(`${migration.filename}: public.${tableName} has no anon table decision`);

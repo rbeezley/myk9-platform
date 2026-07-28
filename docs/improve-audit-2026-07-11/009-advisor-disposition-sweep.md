@@ -4,15 +4,15 @@
 
 ## Advisor inventory (2026-07-11)
 
-| Lint | Level | Count | Verdict |
-| --- | --- | --- | --- |
-| `security_definer_view` | ERROR | 2 | **Accept, document** (deliberate design) |
-| `anon_security_definer_function_executable` | WARN | 112 | **Fix: default-deny + allowlist** (structural) |
-| `authenticated_security_definer_function_executable` | WARN | 119 | **Mostly accept; revoke test/trigger fns** |
-| `auth_allow_anonymous_sign_ins` | WARN | 110 (per-policy) | **Accept mechanism; VERIFY blast radius** (the one open check) |
-| `function_search_path_mutable` | WARN | 16 | **Fix: pin all 16** (mechanical) |
-| `public_bucket_allows_listing` | WARN | 2 | **Fix: drop listing policies** (after one grep) |
-| `rls_enabled_no_policy` | INFO | 3 | **Accept, document** (deny-all by design) |
+| Lint                                                 | Level | Count            | Verdict                                                        |
+| ---------------------------------------------------- | ----- | ---------------- | -------------------------------------------------------------- |
+| `security_definer_view`                              | ERROR | 2                | **Accept, document** (deliberate design)                       |
+| `anon_security_definer_function_executable`          | WARN  | 112              | **Fix: default-deny + allowlist** (structural)                 |
+| `authenticated_security_definer_function_executable` | WARN  | 119              | **Mostly accept; revoke test/trigger fns**                     |
+| `auth_allow_anonymous_sign_ins`                      | WARN  | 110 (per-policy) | **Accept mechanism; VERIFY blast radius** (the one open check) |
+| `function_search_path_mutable`                       | WARN  | 16               | **Fix: pin all 16** (mechanical)                               |
+| `public_bucket_allows_listing`                       | WARN  | 2                | **Fix: drop listing policies** (after one grep)                |
+| `rls_enabled_no_policy`                              | INFO  | 3                | **Accept, document** (deny-all by design)                      |
 
 ## Verdict 1 — SECURITY DEFINER views (2 ERROR): accepted by design
 
@@ -67,7 +67,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLI
 
 Anonymous sign-ins are **required** by the passcode ringside identity (enabled deliberately 2026-06-24, `plan-ringside-entries-read-authz.md`, now archived-track). The 110 WARNs are the advisor noting, per policy, that anything granted to `authenticated` is also reachable by an anonymous session. The intended surface is tightly claim-gated (`kind: 'ringside_passcode'` in app_metadata gates the view tier and RPC tier). **The open question the advisor is actually asking:** do any OTHER `authenticated` SELECT/INSERT/UPDATE policies on sensitive tables (people PII, entries payment columns, clubs, payments/refund tables, support tickets) admit an anonymous session that holds no ringside claim?
 
-Mitigations already in place: signup trigger guard `20260625000000` (anon users don't get people rows / roles), recurring cleanup `20260625000100`, `dogs_select`/`people_select` gated by `is_show_manager()` (membership an anon session lacks). So exposure is *probably* nil — but nobody has enumerated it.
+Mitigations already in place: signup trigger guard `20260625000000` (anon users don't get people rows / roles), recurring cleanup `20260625000100`, `dogs_select`/`people_select` gated by `is_show_manager()` (membership an anon session lacks). So exposure is _probably_ nil — but nobody has enumerated it.
 
 **Executor check (this is the whole task):**
 
@@ -79,7 +79,7 @@ WHERE schemaname='public' AND roles @> '{authenticated}'
   AND qual NOT ILIKE '%is_anonymous%';
 ```
 
-For each row, ask: does the `qual` reduce to "any authenticated user may read" (e.g. `true`, or only `auth.uid() IS NOT NULL`) on a table with PII/payment/operational data? For each such table, either add `(SELECT (auth.jwt()->>'is_anonymous')::boolean) IS NOT TRUE` to the policy or document why anonymous read is acceptable (e.g. reference/lookup tables). Report the table list in the PR even if the answer is "all fine" — that written enumeration is what retires the 110 WARNs as *dispositioned*.
+For each row, ask: does the `qual` reduce to "any authenticated user may read" (e.g. `true`, or only `auth.uid() IS NOT NULL`) on a table with PII/payment/operational data? For each such table, either add `(SELECT (auth.jwt()->>'is_anonymous')::boolean) IS NOT TRUE` to the policy or document why anonymous read is acceptable (e.g. reference/lookup tables). Report the table list in the PR even if the answer is "all fine" — that written enumeration is what retires the 110 WARNs as _dispositioned_.
 
 ## Verdict 4 — mutable search_path (16): pin them all, one migration
 
@@ -87,7 +87,7 @@ All 16 (`set_updated_at`-family, `custom_access_token_hook`, `restrict_*` trigge
 
 ## Verdict 5 — public bucket listing (2): fix after one grep
 
-Drop the broad SELECT policies (`Public read access for images`, `Public read premium published`) on `storage.objects` for buckets `images` and `premium-published`. Public buckets serve objects by URL without any policy; the policy only enables *listing* (enumerating every club logo / every published share card — the latter leaks premium content URLs pre-share).
+Drop the broad SELECT policies (`Public read access for images`, `Public read premium published`) on `storage.objects` for buckets `images` and `premium-published`. Public buckets serve objects by URL without any policy; the policy only enables _listing_ (enumerating every club logo / every published share card — the latter leaks premium content URLs pre-share).
 **Precondition grep:** `grep -rn "storage.from('images')\|storage.from('premium-published')" apps/ packages/ | grep -n "\.list("` — if any client code lists these buckets, replace that usage first (typically with a DB-tracked file index) or scope the policy to the exact prefix instead of dropping it.
 
 ## Verdict 6 — RLS enabled, no policies (3 INFO): deny-all by design, document
@@ -114,21 +114,22 @@ Gates per push: `supabase migration list` first (remote has a known version coll
 ## Execution results — DONE 2026-07-12
 
 Migrations (applied + live-verified on `sojmvhhwsjxmfistvzbe`):
+
 - `20260712130000_advisor_sweep_mechanical.sql` — 16 search_path pins (11 → `''`, 5 → `public, pg_temp`), dropped 2 bucket listing policies, COMMENTed 2 views + 3 policy-less tables. (SA-021 FORCE RLS was already live via `20260711170000`, so no FORCE-RLS statements were needed.)
 - `20260712140000_revoke_anon_function_execute.sql` — `ALTER DEFAULT PRIVILEGES … REVOKE EXECUTE FROM PUBLIC` + per-function REVOKE the implicit PUBLIC grant on the 112 over-granted SECURITY DEFINER functions, GRANT back `authenticated`+`service_role`, anon only for the 8-name RLS-helper keep-list.
 - `20260712150000_keep_anon_execute_public_results_helper.sql` — keep-list correction: cold-session verification caught that the anon-facing SECURITY DEFINER view `view_public_entry_results` calls `resolve_class_result_visibility()` (EXECUTE checked against the caller, anon), which the policy-only keep-list derivation missed. Granted anon EXECUTE back on that one helper.
 
 **Advisor before → after (365 → 210 lints):**
 
-| Lint | Level | Before | After | Disposition |
-| --- | --- | ---: | ---: | --- |
-| `function_search_path_mutable` | WARN | 16 | 0 | fixed |
-| `public_bucket_allows_listing` | WARN | 2 | 0 | fixed |
-| `anon_security_definer_function_executable` | WARN | 112 | 10 | RLS-helper keep-list (9 sigs of 8 names) + `resolve_class_result_visibility`; all required for anon RLS reads / the public-results view |
-| `authenticated_security_definer_function_executable` | WARN | 120 | 84 | dropped 36 = 33 trigger fns + 3 test fns; remaining accepted (internal gates are the authz layer) |
-| `security_definer_view` | ERROR | 2 | 2 | accepted, `COMMENT ON VIEW` added |
-| `rls_enabled_no_policy` | INFO | 3 | 4 | deny-all by design, `COMMENT ON TABLE` added; the +1 (`premium_generation_attempts`) belongs to SA-025's `20260712120000` |
-| `auth_allow_anonymous_sign_ins` | WARN | 110 | 110 | mechanism accepted; blast radius enumerated below |
+| Lint                                                 | Level | Before | After | Disposition                                                                                                                             |
+| ---------------------------------------------------- | ----- | -----: | ----: | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `function_search_path_mutable`                       | WARN  |     16 |     0 | fixed                                                                                                                                   |
+| `public_bucket_allows_listing`                       | WARN  |      2 |     0 | fixed                                                                                                                                   |
+| `anon_security_definer_function_executable`          | WARN  |    112 |    10 | RLS-helper keep-list (9 sigs of 8 names) + `resolve_class_result_visibility`; all required for anon RLS reads / the public-results view |
+| `authenticated_security_definer_function_executable` | WARN  |    120 |    84 | dropped 36 = 33 trigger fns + 3 test fns; remaining accepted (internal gates are the authz layer)                                       |
+| `security_definer_view`                              | ERROR |      2 |     2 | accepted, `COMMENT ON VIEW` added                                                                                                       |
+| `rls_enabled_no_policy`                              | INFO  |      3 |     4 | deny-all by design, `COMMENT ON TABLE` added; the +1 (`premium_generation_attempts`) belongs to SA-025's `20260712120000`               |
+| `auth_allow_anonymous_sign_ins`                      | WARN  |    110 |   110 | mechanism accepted; blast radius enumerated below                                                                                       |
 
 **Cold-session anon verification (direct PostgREST, anon key):** `shows`/`classes`/`trials` → 200; `view_public_entry_results` → 200 (after the `150000` fix). Authenticated flows (ringside RPCs, `submit_show_entries`) retain `authenticated` EXECUTE — verified via `has_function_privilege`.
 
@@ -136,14 +137,14 @@ Migrations (applied + live-verified on `sojmvhhwsjxmfistvzbe`):
 
 Every `authenticated` SELECT/ALL policy whose `qual` doesn't filter `is_anonymous`; a claimless anonymous session can only reach those reducing to `qual = true`:
 
-| Table | Disposition |
-| --- | --- |
-| `roles`, `permissions`, `role_permissions` | Accept — RBAC reference catalogs, authenticated-only deny-anon by SA-006 design |
-| `judge_qualifications`, `organization_agreements` | Accept — reference data (judge numbers, legal text) |
-| `offline_scoring`, `performance_metrics` | Accept (low) — operational/telemetry, eventually-public scoring buffer |
-| `sync_conflicts` | **Follow-up** — may hold cross-user row payloads; add `is_anonymous IS NOT TRUE` |
-| `platform_settings` | **Follow-up** — config readable by any anon session; add `is_anonymous IS NOT TRUE` |
-| `volunteer_class_assignments`, `volunteer_general_assignments`, `volunteer_roles`, `volunteers` | Accept (low) — mild PII (names); operational, shown to show managers |
+| Table                                                                                           | Disposition                                                                         |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `roles`, `permissions`, `role_permissions`                                                      | Accept — RBAC reference catalogs, authenticated-only deny-anon by SA-006 design     |
+| `judge_qualifications`, `organization_agreements`                                               | Accept — reference data (judge numbers, legal text)                                 |
+| `offline_scoring`, `performance_metrics`                                                        | Accept (low) — operational/telemetry, eventually-public scoring buffer              |
+| `sync_conflicts`                                                                                | **Follow-up** — may hold cross-user row payloads; add `is_anonymous IS NOT TRUE`    |
+| `platform_settings`                                                                             | **Follow-up** — config readable by any anon session; add `is_anonymous IS NOT TRUE` |
+| `volunteer_class_assignments`, `volunteer_general_assignments`, `volunteer_roles`, `volunteers` | Accept (low) — mild PII (names); operational, shown to show managers                |
 
 Recommended follow-up (own reviewed migration, not this sweep): add `(SELECT (auth.jwt()->>'is_anonymous')::boolean) IS NOT TRUE` to `platform_settings` and `sync_conflicts`. All other rows are gated (`is_site_admin`, ownership, `can_manage_show`) and correctly exclude claimless anon.
 
@@ -162,8 +163,12 @@ overtaken by July 27 migrations. A fresh applied-database query on 2026-07-28 fo
 
 Applied `pg_default_acl` evidence explained the regrowth: `postgres` still default-granted
 functions and tables to `authenticated`; `supabase_admin` still default-granted both object classes
-to `anon` and `authenticated`. The new migration revokes both API roles from future functions and
-tables for both owners. Intended client access must now be granted explicitly.
+to `anon` and `authenticated`. The linked `postgres` role cannot assume `supabase_admin`
+(`pg_has_role(..., 'MEMBER'/'USAGE') = false`), so a repository migration cannot safely alter the
+hosted owner's defaults. The new migration revokes both API roles from future `postgres`-owned
+functions and tables. The `supabase_admin` default remains an explicit hosted-platform residual:
+the security advisor and ACL inventory must be checked after every database push, including for
+objects created outside repository migrations.
 
 ### Function decisions
 
@@ -205,13 +210,18 @@ ACL checks showed no anon/authenticated table or column grants on
 
 ### Standing guard
 
-`migrationGrantDecisionContract.test.ts` inspects every migration from
-`20260728120000_advisor_grant_regrowth_guard.sql` onward. Every new `public` function must either
+`migrationGrantDecisionContract.test.ts` freezes the 419-file legacy migration filename baseline
+by count and SHA-256, then inspects every non-legacy migration. The fingerprint makes a newly added
+backdated migration fail instead of bypassing a timestamp cutoff. Every new `public` function must
 carry exact-overload decisions for both `anon` and `authenticated` (or match the documented anon
 keep-list); every new `public` table must carry decisions for both API roles. An RLS-enabled table
-must also create a policy or match the documented deny-all table keep-list. The test includes
-deliberately unsafe function, overload, table, and undispositioned no-policy fixtures and asserts
-that each is rejected. This converts the one-time sweep into a CI contract.
+must also create a policy or match the documented deny-all table keep-list.
+
+The same contract rejects unsafe public default-privilege grants, bulk grants, and standalone
+function/table grants that do not carry a complete API-role disposition. Its deliberately unsafe
+fixtures cover functions, overloads, tables, no-policy RLS tables, grant-only changes, default
+grants, and backdated filenames. This is the repository-side continuous guard; the post-push
+advisor/ACL check is the continuous monitor for the hosted `supabase_admin` residual.
 
 **Post-push evidence still required:** apply `20260728120000`, repeat the applied ACL queries, re-run
 the security advisor, and record the observed counts. Do not mark MYK9-108 complete before that

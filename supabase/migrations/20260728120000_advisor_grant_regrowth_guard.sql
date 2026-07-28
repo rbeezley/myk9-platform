@@ -6,23 +6,16 @@
 -- EXECUTE is unnecessary too. The other five functions are authenticated RPCs with
 -- internal authorization gates; keep authenticated and service_role, revoke anon.
 
--- Reinforce the default for both migration owners. The repository contract test
--- separately requires an explicit per-object decision in every future migration.
+-- Reinforce defaults owned by the repository migration role. The hosted
+-- supabase_admin role also has unsafe defaults, but the linked postgres role cannot
+-- assume or alter that role (pg_has_role MEMBER/USAGE were both false on 2026-07-28).
+-- Repository migrations therefore cannot safely mutate those defaults. The static
+-- migration contract rejects unsafe default, bulk, and standalone API grants; the
+-- external-owner residual remains a required post-push advisor/ACL monitoring gate.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated;
-
-DO $$
-BEGIN
-  EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public '
-          'REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated';
-  EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public '
-          'REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated';
-EXCEPTION WHEN insufficient_privilege THEN
-  RAISE WARNING 'MYK9-108: could not revoke supabase_admin default function/table privileges. '
-                'Run this ALTER DEFAULT PRIVILEGES as supabase_admin to finish.';
-END $$;
 
 -- Trigger functions fire through their triggers; no API role needs direct EXECUTE.
 REVOKE EXECUTE ON FUNCTION public.broadcast_showday_change()

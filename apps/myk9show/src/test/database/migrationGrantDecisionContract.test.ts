@@ -5,6 +5,16 @@ import { findUndecidedPublicObjects } from './migrationGrantDecisionContract';
 
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 
+function readMigrationCorpus() {
+  return readdirSync(MIGRATIONS_DIR)
+    .filter(filename => filename.endsWith('.sql'))
+    .sort()
+    .map(filename => ({
+      filename,
+      sql: readFileSync(resolve(MIGRATIONS_DIR, filename), 'utf8'),
+    }));
+}
+
 describe('public migration grant decisions', () => {
   it('rejects a new public function without an explicit execute decision', () => {
     const violations = findUndecidedPublicObjects([
@@ -139,15 +149,110 @@ describe('public migration grant decisions', () => {
     expect(violations).toEqual([]);
   });
 
-  it('keeps the applied migration corpus free of undecided public objects', () => {
-    const migrations = readdirSync(MIGRATIONS_DIR)
-      .filter(filename => filename.endsWith('.sql'))
-      .sort()
-      .map(filename => ({
-        filename,
-        sql: readFileSync(resolve(MIGRATIONS_DIR, filename), 'utf8'),
-      }));
+  it('rejects a standalone authenticated function grant without an anon disposition', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120008_unsafe_standalone_grant.sql',
+        sql: `
+          GRANT EXECUTE ON FUNCTION public.existing_probe(uuid) TO authenticated;
+        `,
+      },
+    ]);
 
-    expect(findUndecidedPublicObjects(migrations)).toEqual([]);
+    expect(violations).toEqual([
+      '20260728120008_unsafe_standalone_grant.sql: public.existing_probe(uuid) standalone authenticated grant has no anon EXECUTE decision',
+    ]);
+  });
+
+  it('rejects standalone anon function grants outside the documented keep-list', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120009_unsafe_standalone_anon.sql',
+        sql: `
+          GRANT EXECUTE ON FUNCTION public.existing_probe(uuid) TO anon;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120009_unsafe_standalone_anon.sql: public.existing_probe(uuid) standalone anon grant is not keep-listed',
+    ]);
+  });
+
+  it('requires both API-role decisions in standalone table grants', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120010_unsafe_standalone_table.sql',
+        sql: `
+          GRANT SELECT ON TABLE public.existing_events TO authenticated;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120010_unsafe_standalone_table.sql: public.existing_events standalone table grant has no anon decision',
+    ]);
+  });
+
+  it('rejects API grants in public default privileges', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120009_unsafe_default_grants.sql',
+        sql: `
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT EXECUTE ON FUNCTIONS TO anon, authenticated;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT ALL ON TABLES TO PUBLIC;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120009_unsafe_default_grants.sql: public function default privileges grant API execution',
+      '20260728120009_unsafe_default_grants.sql: public table default privileges grant API access',
+    ]);
+  });
+
+  it('rejects bulk public function and table grants to API roles', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120011_unsafe_bulk_grants.sql',
+        sql: `
+          GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+          GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120011_unsafe_bulk_grants.sql: bulk public function grant exposes an API role',
+      '20260728120011_unsafe_bulk_grants.sql: bulk public table grant exposes an API role',
+    ]);
+  });
+
+  it('rejects a backdated migration outside the frozen legacy baseline', () => {
+    const violations = findUndecidedPublicObjects(
+      [
+        ...readMigrationCorpus(),
+        {
+          filename: '20260701000000_backdated_unsafe_function.sql',
+          sql: `
+            CREATE FUNCTION public.backdated_probe()
+            RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
+          `,
+        },
+      ],
+      { validateLegacyBaseline: true }
+    );
+
+    expect(violations).toEqual([
+      expect.stringContaining('legacy migration filename baseline changed'),
+    ]);
+  });
+
+  it('keeps the applied migration corpus free of undecided public objects', () => {
+    expect(
+      findUndecidedPublicObjects(readMigrationCorpus(), { validateLegacyBaseline: true })
+    ).toEqual([]);
   });
 });

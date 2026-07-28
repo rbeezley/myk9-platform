@@ -141,7 +141,14 @@ describe('MYK9-114 statement-scoped entry access context', () => {
     expect(scanEvidenceSql).toContain(":'evidence_mode' = 'snapshot'");
     expect(scanEvidenceSql).toContain(":'evidence_mode' = 'read'");
     expect(scanEvidenceSql).toContain(":'evidence_mode' = 'plans'");
-    expect(scanEvidenceSql).toContain('select pg_stat_force_next_flush()');
+    const readBlock = scanEvidenceSql.slice(
+      scanEvidenceSql.indexOf('\\if :is_read'),
+      scanEvidenceSql.indexOf('\\if :is_plans')
+    );
+    expect(readBlock.indexOf('where projected_row is not null')).toBeLessThan(
+      readBlock.indexOf('select pg_stat_force_next_flush()')
+    );
+    expect(scanEvidenceSql.match(/select pg_stat_force_next_flush\(\)/g)).toHaveLength(1);
     expect(scanEvidenceSql).toContain('select *\n  from public.view_authenticated_entry_results;');
     expect(scanEvidenceRunner).toContain("runEvidence('snapshot')");
     expect(scanEvidenceRunner).toContain("runEvidence('read')");

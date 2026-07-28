@@ -74,10 +74,10 @@ abbreviations rather than relying on PostgreSQL's silent 63-byte identifier trun
 ### Use a normal additive migration during the pre-launch quiet window
 
 The database is approximately 50 MB and the affected tables are currently tiny. Regular
-`CREATE INDEX IF NOT EXISTS` statements keep the migration compatible with the established
-Supabase migration runner and complete quickly at this scale. Each index will be followed by a
-catalog postcondition that verifies a valid covering index exists, so `IF NOT EXISTS` cannot
-silently accept an unrelated object with the same name.
+`CREATE INDEX` statements keep the migration compatible with the established Supabase migration
+runner and complete quickly at this scale. They intentionally fail closed on any same-name
+collision, so an unrelated existing object cannot be silently accepted. A final catalog
+postcondition also verifies that no public foreign key remains without strict coverage.
 
 `CREATE INDEX CONCURRENTLY` was considered to reduce write blocking, but it complicates migration
 transaction behavior and recovery. It provides little benefit for the measured table sizes.
@@ -152,8 +152,9 @@ connectivity is restored.
 - **[Risk] Regular index creation briefly blocks writes.** → **Mitigation:** recheck relation sizes,
   push in a quiet pre-launch window, and stop for a concurrent-index redesign if any affected
   relation has reached 100 MB.
-- **[Risk] `IF NOT EXISTS` can hide a wrong same-name index.** → **Mitigation:** migration
-  postconditions verify valid coverage from `pg_index` and `pg_constraint`.
+- **[Risk] Same-name catalog drift aborts the migration.** → **Mitigation:** the live inventory
+  confirms the intended names are absent, and failing closed is safer than accepting an unrelated
+  object.
 - **[Risk] Statistics reset or light traffic changes the zero-scan list.** → **Mitigation:** record
   timestamped baseline and post-push snapshots; do not infer usefulness from the raw count.
 - **[Risk] Dropping a duplicate name referenced by tooling.** → **Mitigation:** repository-wide

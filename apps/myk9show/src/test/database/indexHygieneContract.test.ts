@@ -116,7 +116,7 @@ function extractCreatedIndexes(sql: string): Array<{
 }> {
   return [
     ...sql.matchAll(
-      /create\s+index\s+if\s+not\s+exists\s+([a-z0-9_]+)\s+on\s+public\.([a-z0-9_]+)\s*(?:using\s+btree\s*)?\(\s*([a-z0-9_]+)\s*\)/gi
+      /create\s+index\s+([a-z0-9_]+)\s+on\s+public\.([a-z0-9_]+)\s*(?:using\s+btree\s*)?\(\s*([a-z0-9_]+)\s*\)/gi
     ),
   ].map(([, name, table, column]) => ({ name, table, column }));
 }
@@ -139,6 +139,7 @@ describe('MYK9-113 index hygiene migration contract', () => {
   it('fails closed unless every public foreign key has strict catalog coverage', () => {
     const migration = readAdditiveMigration().toLowerCase();
 
+    expect(migration).not.toContain('create index if not exists');
     expect(migration).toContain('i.indpred is null');
     expect(migration).toContain('(i.indkey::smallint[])[0:cardinality(c.conkey) - 1] @> c.conkey');
     expect(migration).toContain('raise exception');

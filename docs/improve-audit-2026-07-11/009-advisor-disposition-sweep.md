@@ -150,12 +150,12 @@ Recommended follow-up (own reviewed migration, not this sweep): add `(SELECT (au
 
 ---
 
-## Regrowth re-disposition — MYK9-108 (prepared 2026-07-28)
+## Regrowth re-disposition — MYK9-108 (applied and live-verified 2026-07-28)
 
 The 2026-07-26 issue snapshot (16 anon / 94 authenticated SECURITY DEFINER warnings) was
 overtaken by July 27 migrations. A fresh applied-database query on 2026-07-28 found:
 
-| Lint-equivalent applied check                        | 2026-07-12 | 2026-07-28 pre-fix | Expected after `20260728120000` |
+| Lint-equivalent applied check                        | 2026-07-12 | 2026-07-28 pre-fix | Observed after `20260728120000` |
 | ---------------------------------------------------- | ---------: | -----------------: | ------------------------------: |
 | anon-executable SECURITY DEFINER identities          |         10 |                 17 |                              10 |
 | authenticated-executable SECURITY DEFINER identities |         84 |                 96 |                              94 |
@@ -224,9 +224,14 @@ grants, bulk and multi-target grants, `FUNCTION`/`ROUTINE` syntax, signature-omi
 backdated filenames. This is the repository-side continuous guard; the post-push advisor/ACL check
 is the continuous monitor for the hosted `supabase_admin` residual.
 
-**Post-push evidence still required:** apply `20260728120000`, repeat the applied ACL queries, re-run
-the security advisor, and record the observed counts. Do not mark MYK9-108 complete before that
-shared-system gate.
+**Post-push evidence — complete 2026-07-28:** `20260728120000` applied successfully and a follow-up
+`supabase db push --dry-run` reported the remote database up to date. Applied ACL queries returned
+the expected 10 anon-executable and 94 authenticated-executable SECURITY DEFINER identities, six
+RLS-enabled no-policy tables, and zero anon/authenticated table or column grants on
+`stripe_order_refunds` and `waitlist_notification_events`. A fresh dashboard linter run returned
+**225 findings**: two accepted SECURITY DEFINER view errors, 217 documented warnings (113 anonymous
+sign-in + 94 authenticated-executable + 10 anon-executable), and the exact six documented deny-all
+table suggestions. No undispositioned advisor finding remains.
 
 ## Permissive-policy disposition — MYK9-112 (prepared 2026-07-28)
 

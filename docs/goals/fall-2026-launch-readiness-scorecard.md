@@ -162,12 +162,53 @@ If evidence does not exist, the status should remain Yellow or Unknown.
 
 ## Measurement Cadence
 
-### Weekly
+### Daily P0/P1 triage
+
+- Review new scheduled-task findings each morning.
+- Validate the evidence, deduplicate against existing findings and Linear issues, and assign the
+  canonical P0-P3 severity from this scorecard. Preserve the detecting task's original severity
+  separately.
+- Treat a credible P0 as stop-the-line work: pause lower-priority work, contain the risk, and begin
+  remediation immediately.
+- Triage every credible P1 the same day, give it an owner and next proof, and make it the next
+  implementation priority unless an explicit launch decision says otherwise.
+- Do not wait for the Friday review to address a P0 or P1. Reject false positives and duplicates
+  promptly with evidence so they do not continue to recur.
+
+“Address” means validate, classify, contain when necessary, assign ownership, and start the
+appropriate response. It does not require every P1 fix to be completed the day it is discovered.
+
+### Friday consolidated review
 
 - Review each scorecard dimension.
+- Reconcile all scheduled-task findings and translate source severities into the canonical P0-P3
+  scale based on demonstrated product impact, not label alone.
+- Approve or update appropriate Linear issues for confirmed P0/P1 findings. Review recurring P2
+  findings for acceptance, scheduling, or deferral; retain P3 findings without allowing them to
+  displace launch-critical work.
+- Select roughly 1-3 highest-impact, PR-sized remediation slices for the coming week. Use the Linear
+  issue as the execution contract; create or update an OpenSpec/remediation plan only when the work
+  is non-trivial or several findings form one coherent change.
 - Promote verified Green items.
-- Convert Red/Yellow gaps into `OPEN-TODOS.md` tasks.
-- Pick the next highest-impact launch-readiness slice.
+- Confirm serious findings are closing at least as quickly as new ones are arriving.
+
+### Stability window
+
+Launch stability requires four consecutive Friday review cycles in which:
+
+- no new or reopened P0/P1 finding is confirmed
+- every critical scheduled check completed; a blocked or unmeasured critical check is not clean
+- prior P0/P1 closures still have current passing proof
+- remaining P2 findings are understood, owned, scheduled, or explicitly accepted
+- the serious-finding backlog is not growing
+
+An audit may be clean while reporting bounded P2/P3 improvements. “Clean” does not mean zero
+observations; it means no unresolved launch-blocking signal and no missing critical evidence.
+
+A significant change to payments, authentication, RLS, replication/offline behavior, scoring, or
+results restarts the four-cycle window for the affected scorecard dimension, not automatically for
+the whole product. A merge alone does not close a finding: require the stated passing test plus a
+reproduction re-walk, staging/live check, or other risk-appropriate evidence.
 
 ### Monthly
 
@@ -182,6 +223,7 @@ If evidence does not exist, the status should remain Yellow or Unknown.
 - Complete real-user testing with 2-3 non-technical users.
 - Verify print workflows on representative venue hardware.
 - Confirm no P0/P1 issues remain.
+- Confirm the four-cycle stability window is satisfied for every affected Primary dimension.
 - Confirm migration/deployment/support runbooks are current.
 
 ## How Gaps Become Tasks
@@ -190,7 +232,8 @@ When a readiness check fails:
 
 1. Record the failed criterion.
 2. Assign severity.
-3. Add or update an `OPEN-TODOS.md` item.
+3. After required shared-system approval, add or update the appropriate Linear issue for team
+   **MyK9-platform**.
 4. Link to any existing plan or create a focused plan if the work is non-trivial.
 5. Implement in a small PR.
 6. Update this scorecard only after verification evidence exists.

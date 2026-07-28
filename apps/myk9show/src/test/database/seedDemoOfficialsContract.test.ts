@@ -7,11 +7,11 @@ import { describe, expect, it } from 'vitest';
 // The original F1 bug was a role grant that was silently ABSENT from the seed:
 // after a reseed the secretary golden path 403'd because nothing granted the
 // secretary role. The seed was later extended to guarantee secretary/club_admin,
-// and then (this change) judge/steward/chairman plus the named show officials.
+// and then judge/steward/chairman plus class-level judge assignments.
 //
-// These assertions pin the COMPLETENESS of that data so a future edit can't drop
-// a grant or an official and still pass review — the failure mode is invisible
-// in the app until someone logs in as that role on a freshly-reseeded DB.
+// These assertions pin the COMPLETENESS of that relational data so a future edit
+// can't drop a grant or assignment and still pass review — the failure mode is
+// invisible in the app until someone logs in on a freshly-reseeded DB.
 
 const repoRoot = resolve(__dirname, '../../../../..');
 const HEARTLAND_CLUB_ID = 'dededede-0000-0000-0000-000000000001';
@@ -24,10 +24,15 @@ function readSeed(): string {
 describe('seed-demo officials + RBAC completeness contract', () => {
   const seed = readSeed();
 
-  it('populates the named show officials (chairman / secretary / chief_steward)', () => {
-    // Column list and values both present in the shows INSERT.
-    expect(seed).toContain('chairman, secretary, chief_steward,');
-    expect(seed).toContain("'Test Club', 'Test Secretary', 'Test Steward',");
+  it('does not repopulate show-official columns removed by migration 099', () => {
+    const showInsertColumns = seed.slice(
+      seed.indexOf('INSERT INTO public.shows ('),
+      seed.indexOf(')\nVALUES (', seed.indexOf('INSERT INTO public.shows ('))
+    );
+
+    expect(showInsertColumns).not.toMatch(/\bchairman\b/);
+    expect(showInsertColumns).not.toMatch(/\bsecretary\b/);
+    expect(showInsertColumns).not.toMatch(/\bchief_steward\b/);
   });
 
   it('sets a judge_name on every seeded class', () => {
@@ -91,9 +96,9 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     expect(seed).toContain('dededede-0000-0000-0000-000000000092');
   });
 
-  it('treats classes.judge_name / shows.secretary as derived snapshots, documented as such', () => {
-    // The comments must flag these as snapshots so a future edit does not mistake
-    // them for the source of truth (which is the assignment / role grant).
+  it('treats classes.judge_name as a derived snapshot, documented as such', () => {
+    // The comment must flag this as a snapshot so a future edit does not mistake
+    // it for the source of truth (which is the assignment).
     expect(seed).toContain('DENORMALIZED SNAPSHOT');
     expect(seed).toMatch(/judge_qualifications/);
   });

@@ -21,13 +21,21 @@ BEGIN
         WHERE keep_index.indexrelid = 'public.platform_waitlist_email_key'::regclass
           AND keep_index.indisvalid
           AND keep_index.indisready
+          AND keep_index.indislive
           AND drop_index.indisvalid
           AND drop_index.indisready
+          AND drop_index.indislive
           AND keep_index.indrelid = drop_index.indrelid
           AND keep_class.relam = drop_class.relam
+          AND keep_class.reltablespace = drop_class.reltablespace
+          AND keep_class.reloptions IS NOT DISTINCT FROM drop_class.reloptions
           AND keep_index.indisunique = drop_index.indisunique
           AND keep_index.indnullsnotdistinct = drop_index.indnullsnotdistinct
+          AND keep_index.indisprimary = drop_index.indisprimary
           AND keep_index.indisexclusion = drop_index.indisexclusion
+          AND keep_index.indimmediate = drop_index.indimmediate
+          AND keep_index.indisclustered = drop_index.indisclustered
+          AND keep_index.indisreplident = drop_index.indisreplident
           AND keep_index.indnkeyatts = drop_index.indnkeyatts
           AND keep_index.indnatts = drop_index.indnatts
           AND keep_index.indkey = drop_index.indkey
@@ -60,13 +68,21 @@ BEGIN
         WHERE keep_index.indexrelid = 'public.idx_push_subscriptions_user_id'::regclass
           AND keep_index.indisvalid
           AND keep_index.indisready
+          AND keep_index.indislive
           AND drop_index.indisvalid
           AND drop_index.indisready
+          AND drop_index.indislive
           AND keep_index.indrelid = drop_index.indrelid
           AND keep_class.relam = drop_class.relam
+          AND keep_class.reltablespace = drop_class.reltablespace
+          AND keep_class.reloptions IS NOT DISTINCT FROM drop_class.reloptions
           AND keep_index.indisunique = drop_index.indisunique
           AND keep_index.indnullsnotdistinct = drop_index.indnullsnotdistinct
+          AND keep_index.indisprimary = drop_index.indisprimary
           AND keep_index.indisexclusion = drop_index.indisexclusion
+          AND keep_index.indimmediate = drop_index.indimmediate
+          AND keep_index.indisclustered = drop_index.indisclustered
+          AND keep_index.indisreplident = drop_index.indisreplident
           AND keep_index.indnkeyatts = drop_index.indnkeyatts
           AND keep_index.indnatts = drop_index.indnatts
           AND keep_index.indkey = drop_index.indkey

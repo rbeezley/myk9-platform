@@ -99,6 +99,11 @@ zero, and it is the name introduced by the later notification-specific migration
 older object was considered, but would discard the planner-selected object's statistics without
 any compatibility benefit.
 
+Before either drop, the migration requires both indexes to be valid, ready, and live and compares
+their access method, tablespace, storage options, uniqueness/NULL semantics, primary/exclusion/
+replica-identity/cluster/immediacy roles, keys, operator classes, collations, per-column options,
+expressions, and predicates. Any drift aborts the migration.
+
 The drops live in a migration after the additive migration, as required by MYK9-113, so reviewers
 can approve additive safety and subtractive evidence independently.
 

@@ -73,9 +73,69 @@ where schemaname = 'public' and idx_scan = 0
 order by relname, indexrelname;
 ```
 
-Exact duplicates compare table, uniqueness/exclusion flags, keys, operator classes, collations,
-options, expressions, and predicates. Primary-key identity and index names are deliberately not
-part of the physical signature.
+Exact duplicate groups:
+
+```sql
+with index_signatures as (
+  select i.indrelid,
+         i.indexrelid,
+         t.relname as table_name,
+         ic.relname as index_name,
+         ic.relam,
+         ic.reltablespace,
+         ic.reloptions,
+         i.indisunique,
+         i.indnullsnotdistinct,
+         i.indisprimary,
+         i.indisexclusion,
+         i.indimmediate,
+         i.indisclustered,
+         i.indisreplident,
+         i.indnkeyatts,
+         i.indnatts,
+         i.indkey,
+         i.indclass,
+         i.indcollation,
+         i.indoption,
+         pg_get_expr(i.indexprs, i.indrelid) as indexprs,
+         pg_get_expr(i.indpred, i.indrelid) as indpred
+  from pg_index i
+  join pg_class t on t.oid = i.indrelid
+  join pg_class ic on ic.oid = i.indexrelid
+  join pg_namespace n on n.oid = t.relnamespace
+  where n.nspname = 'public'
+    and i.indisvalid
+    and i.indisready
+    and i.indislive
+)
+select a.table_name,
+       a.index_name as first_index,
+       b.index_name as second_index,
+       pg_get_indexdef(a.indexrelid) as first_definition,
+       pg_get_indexdef(b.indexrelid) as second_definition
+from index_signatures a
+join index_signatures b
+  on a.indrelid = b.indrelid
+ and a.indexrelid < b.indexrelid
+ and row(
+       a.relam, a.reltablespace, a.reloptions, a.indisunique,
+       a.indnullsnotdistinct, a.indisprimary, a.indisexclusion,
+       a.indimmediate, a.indisclustered, a.indisreplident,
+       a.indnkeyatts, a.indnatts, a.indkey, a.indclass,
+       a.indcollation, a.indoption, a.indexprs, a.indpred
+     ) is not distinct from row(
+       b.relam, b.reltablespace, b.reloptions, b.indisunique,
+       b.indnullsnotdistinct, b.indisprimary, b.indisexclusion,
+       b.indimmediate, b.indisclustered, b.indisreplident,
+       b.indnkeyatts, b.indnatts, b.indkey, b.indclass,
+       b.indcollation, b.indoption, b.indexprs, b.indpred
+     )
+order by a.table_name, a.index_name, b.index_name;
+```
+
+Index names are deliberately excluded from the physical signature. Semantic-role flags, access
+method, tablespace, storage options, keys, operator classes, collations, per-column options,
+expressions, and predicates must all match.
 
 ## Strict uncovered foreign keys
 
@@ -166,6 +226,26 @@ part of the physical signature.
 | ------------------ | -------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | platform_waitlist  | `platform_waitlist_email_unique` | `platform_waitlist_email_key`    | Exact definitions; both have 0 scans. Retained name is declared by `197_create_platform_waitlist.sql`; dropped twin has no current migration source. |
 | push_subscriptions | `push_subscriptions_user_id_idx` | `idx_push_subscriptions_user_id` | Exact definitions. Retained index has 48 scans/106 tuples read and is declared by the later `056_push_subscriptions.sql`; dropped twin has 0 scans.  |
+
+Recorded definitions:
+
+```text
+platform_waitlist_email_key:
+  CREATE UNIQUE INDEX platform_waitlist_email_key
+  ON public.platform_waitlist USING btree (lower(email))
+platform_waitlist_email_unique:
+  CREATE UNIQUE INDEX platform_waitlist_email_unique
+  ON public.platform_waitlist USING btree (lower(email))
+idx_push_subscriptions_user_id:
+  CREATE INDEX idx_push_subscriptions_user_id
+  ON public.push_subscriptions USING btree (user_id)
+push_subscriptions_user_id_idx:
+  CREATE INDEX push_subscriptions_user_id_idx
+  ON public.push_subscriptions USING btree (user_id)
+```
+
+All four indexes were valid, ready, live, non-primary, immediate, non-clustered, not replica
+identity, in the default tablespace, and had no storage options at capture time.
 
 ## Zero-scan dispositions
 
@@ -350,7 +430,7 @@ migrations and applied neither.
 | Focused database source suite               | PASS         | 2026-07-28: 13/13 tests passed across index hygiene, migration-version uniqueness, and DB migration sanity.                                                                                                                                                                                                |
 | Isolated live-schema execution              | PASS         | This repository uses remote Supabase, not Supabase local/Docker. A disposable vanilla PostgreSQL 18 cluster restored a read-only schema snapshot of the linked PostgreSQL 17 database. First application created 78 indexes and finished with 0 strict uncovered FKs and 0 exact duplicate groups.         |
 | Isolated idempotency rerun                  | RED → PASS   | The first rerun exposed eager resolution of a missing `regclass` inside a combined guard. Nested guards fixed it; the corrected subtractive migration reran with both twins already absent and retained 0 strict uncovered FKs / 0 duplicate groups.                                                       |
-| Exact duplicate guards                      | RED → PASS   | OpenSpec verification added valid/ready requirements. Independent PR review then found missing `indnullsnotdistinct` comparison. Both assertions failed first; the strengthened migration passed 3/3 tests and two idempotent executions against disposable vanilla PostgreSQL.                            |
+| Exact duplicate guards                      | RED → PASS   | Review added valid/ready/live checks, NULL uniqueness, semantic-role flags, tablespace, and storage options. Assertions failed first. Disposable PostgreSQL proved replica-identity and `fillfactor` mismatches abort, while exact twins drop and rerun idempotently.                                      |
 | Quality gates                               | PASS         | Strict OpenSpec validation, targeted ESLint, test TypeScript checking, and `git diff --check` passed.                                                                                                                                                                                                      |
 | Remote Supabase dry run                     | PASS         | After transient project-link failures cleared, the linked-project dry run reported only `20260728140000_add_foreign_key_indexes.sql` and `20260728141000_drop_duplicate_indexes.sql`. No migration was applied.                                                                                            |
 | Broad repository checks                     | INCOMPLETE   | The full myK9Show Vitest run exceeded the repository's 60-second hang limit and was stopped. Turbo typecheck was stopped after 25/26 tasks at 1m37s, and lint after 13/14 tasks at 1m40s, when neither produced further output. No failure was reported before the stops; focused changed-file gates pass. |

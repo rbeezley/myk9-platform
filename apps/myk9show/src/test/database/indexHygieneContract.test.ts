@@ -167,10 +167,20 @@ describe('MYK9-113 index hygiene migration contract', () => {
     expect(subtractiveMigration).toContain("to_regclass('public.push_subscriptions_user_id_idx')");
     expect(subtractiveMigration).toContain('keep_index.indisvalid');
     expect(subtractiveMigration).toContain('keep_index.indisready');
+    expect(subtractiveMigration).toContain('keep_index.indislive');
     expect(subtractiveMigration).toContain('drop_index.indisvalid');
     expect(subtractiveMigration).toContain('drop_index.indisready');
+    expect(subtractiveMigration).toContain('drop_index.indislive');
     expect(subtractiveMigration).toContain(
       'keep_index.indnullsnotdistinct = drop_index.indnullsnotdistinct'
     );
+    expect(subtractiveMigration).toContain('keep_index.indisprimary = drop_index.indisprimary');
+    expect(subtractiveMigration).toContain('keep_index.indimmediate = drop_index.indimmediate');
+    expect(subtractiveMigration).toContain('keep_index.indisclustered = drop_index.indisclustered');
+    expect(subtractiveMigration).toContain('keep_index.indisreplident = drop_index.indisreplident');
+    expect(subtractiveMigration).toContain(
+      'keep_class.reloptions is not distinct from drop_class.reloptions'
+    );
+    expect(subtractiveMigration).toContain('keep_class.reltablespace = drop_class.reltablespace');
   });
 });

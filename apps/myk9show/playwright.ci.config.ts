@@ -29,7 +29,10 @@ const REGRESSION_SPECS = [
   // in the maintained inventory, but not in Nightly until that fixture exists.
   '**/authentication-validation.spec.ts',
   '**/slice2-dog-workspace-evidence.spec.ts',
-  '**/entities/entriesUI.spec.ts',
+  // The former entities/entriesUI suite targets the deleted table/card
+  // implementation. Current registration-cockpit and mutation coverage lives
+  // in the focused UAT specs below.
+  '**/uat/secretary/entry-management-cockpit.spec.ts',
   '**/secretary/show-creation-wizard.spec.ts',
   '**/secretary/classCreation.spec.ts',
   '**/browse-shows-to-details.spec.ts',

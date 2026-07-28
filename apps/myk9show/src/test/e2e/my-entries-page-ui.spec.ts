@@ -99,9 +99,8 @@ test.describe('My Shows Page - Enter a Show CTA', () => {
     await expect(page).toHaveURL(/\/shows$/);
   });
 
-  test('should display dog management affordances alongside Enter a Show', async ({ page }) => {
-    await expect(page.getByText('My Dogs', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New Dog', exact: true })).toBeVisible();
+  test('should link to dog management alongside Enter a Show', async ({ page }) => {
+    await expect(page.getByRole('link', { name: /My Dogs/ })).toHaveAttribute('href', '/dogs');
   });
 });
 

@@ -2,13 +2,15 @@
 # smoke in ci.yml). This is intentionally separate from the read-only nightly
 # health workflow because these journeys can create or mutate E2E data.
 #
-# Manual dispatch only until the workflow target is an isolated/resettable E2E
-# database. Do not turn on a schedule while it points at shared staging.
+# Weekly plus manual dispatch. Each job owns a disposable local Supabase target,
+# resets it between two complete runs, and rejects shared staging before writes.
 #
 # Gated separately from the read-only smoke variable.
 name: Playwright Regression
 
 on:
+  schedule:
+    - cron: '0 7 * * 1'
   workflow_dispatch: {}
 
 env:
@@ -100,6 +102,8 @@ jobs:
         if: success()
         run: pnpm qa:isolated-e2e:reset
         env:
+          MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
+          MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}

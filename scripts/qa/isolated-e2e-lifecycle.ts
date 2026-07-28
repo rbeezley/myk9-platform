@@ -13,6 +13,16 @@ export interface LocalSupabaseEnvironment {
 
 const REQUIRED_STATUS_KEYS = ['API_URL', 'ANON_KEY', 'SERVICE_ROLE_KEY', 'DB_URL'] as const;
 const DEMO_SHOW_ID = 'dededede-0000-0000-0000-000000000010';
+const UNUSED_BROWSER_SUITE_SERVICES = [
+  'analytics',
+  'edge-runtime',
+  'functions',
+  'imgproxy',
+  'inbucket',
+  'meta',
+  'studio',
+  'vector',
+] as const;
 
 const POST_SEED_ASSERTION = `
 SELECT
@@ -80,8 +90,35 @@ export function resolveSupabaseCliCommand(env: NodeJS.ProcessEnv = process.env):
   return env.SUPABASE_CLI_BIN?.trim() || 'supabase';
 }
 
-export function formatLifecycleFailure(label: string): string {
-  return `${label} failed`;
+export function localSupabaseStartArgs(): string[] {
+  return ['start', '--exclude', UNUSED_BROWSER_SUITE_SERVICES.join(',')];
+}
+
+function redactLifecycleOutput(output: string): string {
+  return output
+    .replace(
+      /\b(ANON_KEY|SERVICE_ROLE_KEY|JWT_SECRET|DB_URL|POSTGRES_PASSWORD)=(?:"[^"]*"|'[^']*'|\S+)/g,
+      '$1=[redacted]'
+    )
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[redacted-jwt]')
+    .replace(/\bpostgres(?:ql)?:\/\/[^@\s]+@/g, 'postgresql://[redacted]@')
+    .trim()
+    .slice(-4000);
+}
+
+export function formatLifecycleFailure(label: string, detail = ''): string {
+  const safeDetail = redactLifecycleOutput(detail);
+  return safeDetail ? `${label} failed: ${safeDetail}` : `${label} failed`;
+}
+
+function capturedFailureOutput(error: unknown): string {
+  if (!error || typeof error !== 'object') return '';
+
+  const failure = error as { stderr?: string | Buffer; stdout?: string | Buffer };
+  return [failure.stderr, failure.stdout]
+    .map(value => (Buffer.isBuffer(value) ? value.toString('utf8') : (value ?? '')))
+    .filter(Boolean)
+    .join('\n');
 }
 
 function runCommand(
@@ -95,10 +132,13 @@ function runCommand(
     execFileSync(command, args, {
       cwd: process.cwd(),
       env,
-      stdio: options.silent ? 'ignore' : 'inherit',
+      encoding: options.silent ? 'utf8' : undefined,
+      stdio: options.silent ? ['ignore', 'pipe', 'pipe'] : 'inherit',
     });
-  } catch {
-    throw new Error(formatLifecycleFailure(label));
+  } catch (error) {
+    throw new Error(
+      formatLifecycleFailure(label, options.silent ? capturedFailureOutput(error) : '')
+    );
   }
 }
 
@@ -151,23 +191,44 @@ function runPostSeedAssertions(local: LocalSupabaseEnvironment, env: NodeJS.Proc
   }
 }
 
+function seedIsolatedAccounts(local: LocalSupabaseEnvironment, env: NodeJS.ProcessEnv) {
+  runCommand(
+    'Isolated E2E account database seed',
+    'psql',
+    [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-isolated-e2e-accounts.sql'],
+    env
+  );
+}
+
+function seedIsolatedPlatformGrants(local: LocalSupabaseEnvironment, env: NodeJS.ProcessEnv) {
+  runCommand(
+    'Isolated E2E platform grant mirror',
+    'psql',
+    [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-isolated-e2e-platform-grants.sql'],
+    env
+  );
+}
+
 function resetAndSeed(local: LocalSupabaseEnvironment, baseEnv: NodeJS.ProcessEnv) {
   const jobEnv = { ...baseEnv, ...buildJobEnvironment(local) };
   resolveIsolatedE2eTarget(jobEnv);
 
   runCommand('Supabase database reset', resolveSupabaseCliCommand(jobEnv), ['db', 'reset'], jobEnv);
+  seedIsolatedPlatformGrants(local, jobEnv);
   runCommand(
     'E2E account setup',
     'pnpm',
     ['--dir', 'apps/myk9show', 'exec', 'tsx', 'scripts/setup-e2e-test-users.ts'],
-    jobEnv
+    { ...jobEnv, MYK9_E2E_AUTH_ONLY: 'true' }
   );
+  seedIsolatedAccounts(local, jobEnv);
   runCommand(
     'Deterministic demo seed',
     'psql',
     [local.dbUrl, '-v', 'ON_ERROR_STOP=1', '-f', 'supabase/seed-demo.sql'],
     jobEnv
   );
+  seedIsolatedAccounts(local, jobEnv);
   runPostSeedAssertions(local, jobEnv);
 }
 
@@ -188,9 +249,15 @@ function assertPreparationIntent(env: NodeJS.ProcessEnv) {
 
 function prepare() {
   assertPreparationIntent(process.env);
-  runCommand('Supabase start', resolveSupabaseCliCommand(process.env), ['start'], process.env, {
-    silent: true,
-  });
+  runCommand(
+    'Supabase start',
+    resolveSupabaseCliCommand(process.env),
+    localSupabaseStartArgs(),
+    process.env,
+    {
+      silent: true,
+    }
+  );
   const local = readLocalEnvironment(process.env);
   const jobEnv = { ...process.env, ...buildJobEnvironment(local) };
   resolveIsolatedE2eTarget(jobEnv);

@@ -9,6 +9,7 @@ import {
 } from '../shared/artifacts';
 import {
   cleanupSecretaryEntry,
+  readSecretaryEntryState,
   seedSecretaryEntry,
   type SecretaryUatSeed,
 } from '../shared/secretaryData';
@@ -17,6 +18,12 @@ test.describe.configure({ mode: 'serial' });
 
 const healthByTest = new Map<string, BrowserHealth>();
 const seedByTest = new Map<string, SecretaryUatSeed>();
+
+interface ObservedRingsideResponse {
+  status: number;
+  body: string;
+  request: unknown;
+}
 
 test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
   test.setTimeout(90000);
@@ -49,19 +56,43 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     page,
   }, testInfo) => {
     const seed = seedByTest.get(testInfo.testId)!;
+    const ringsideResponses: ObservedRingsideResponse[] = [];
+    page.on('response', response => {
+      if (new URL(response.url()).pathname !== '/rest/v1/rpc/ringside_update_entry') return;
+      const observed: ObservedRingsideResponse = {
+        status: response.status(),
+        body: '<pending>',
+        request: response.request().postData(),
+      };
+      ringsideResponses.push(observed);
+      void response
+        .text()
+        .then(body => {
+          observed.body = body;
+          observed.request = response.request().postDataJSON();
+        })
+        .catch(error => {
+          observed.body = error instanceof Error ? error.message : String(error);
+        });
+    });
 
     await page.goto(`/shows/${seed.showId}/entry-management`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
       timeout: 15000,
     });
 
-    await page.getByRole('textbox', { name: 'Search entries' }).fill(seed.dogName);
-    await expect(page.getByText(seed.dogName).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(seed.className).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Cards view' }).click();
+    await page.getByRole('searchbox', { name: 'Search all show registrations' }).fill(seed.dogName);
+    const registrationRow = page
+      .getByRole('list', { name: 'Registration work queue' })
+      .getByRole('listitem')
+      .filter({ hasText: seed.dogName });
+    await expect(registrationRow).toBeVisible({ timeout: 10000 });
+    await registrationRow.click();
 
-    const entryCard = page.locator('.border.rounded-lg').filter({ hasText: seed.dogName }).first();
-    await expect(entryCard).toBeVisible({ timeout: 10000 });
+    const entryCard = page
+      .locator('section[aria-label^="Focused registration for"]')
+      .filter({ hasText: seed.dogName });
+    await expect(entryCard).toContainText(seed.className, { timeout: 10000 });
 
     await openArmbandDialog(page);
     const armbandDialog = page.getByRole('dialog', { name: 'Assign Armband' });
@@ -77,19 +108,45 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       ),
     });
     await expect(entryStatusButton).toBeVisible({ timeout: 10000 });
-    const acceptedItem = page.getByRole('menuitem', { name: 'Accepted', exact: true });
-    await clickMenuItemWhenStable(() => entryStatusButton.click(), acceptedItem);
+    await entryCard.getByRole('button', { name: 'Accept', exact: true }).click();
     await expect(entryStatusButton).toContainText('Accepted', { timeout: 10000 });
+    await expect
+      .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
+      .toMatchObject({ entry_status: 'confirmed' });
 
-    const checkInStatusButton = entryCard.getByRole('button', {
-      name: new RegExp(
-        `Change check-in status for ${escapeRegExp(seed.dogName)} in ${escapeRegExp(seed.className)}`
-      ),
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('link', { name: 'Open Check-in desk' }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`/shows/${seed.showId}/show-desk\\?tool=people-at-show`)
+    );
+
+    const toolsDialog = page.getByRole('dialog', { name: 'Show Desk tools' });
+    await expect(toolsDialog).toBeVisible();
+    await page.getByRole('textbox', { name: 'Search exhibitors' }).fill(seed.dogName);
+
+    const personRow = page.getByRole('button').filter({ hasText: seed.dogName });
+    await expect(personRow).toHaveCount(1);
+    await personRow.click();
+
+    const classRow = page.getByText(seed.dogName, { exact: true }).locator('..').locator('..');
+    await expect(classRow.getByText(seed.armband, { exact: true })).toBeVisible();
+    await classRow.getByRole('button', { name: 'Check in', exact: true }).click();
+    await expect(classRow.getByText('Checked-in', { exact: true })).toBeVisible({
+      timeout: 10_000,
     });
-    await expect(checkInStatusButton).toBeVisible({ timeout: 10000 });
-    const checkedInItem = page.getByRole('menuitem', { name: 'Checked-in' });
-    await clickMenuItemWhenStable(() => checkInStatusButton.click(), checkedInItem);
-    await expect(checkInStatusButton).toContainText(/Checked-in|Checked In/, { timeout: 10000 });
+    await expect.poll(() => ringsideResponses.length, { timeout: 20_000 }).toBeGreaterThan(0);
+    await expect
+      .poll(() => ringsideResponses.every(response => response.body !== '<pending>'), {
+        timeout: 5_000,
+      })
+      .toBe(true);
+    const failedRingsideResponse = ringsideResponses.find(response => response.status >= 400);
+    if (failedRingsideResponse) {
+      throw new Error(`Check-in RPC failed: ${JSON.stringify(failedRingsideResponse, null, 2)}`);
+    }
+    await expect
+      .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
+      .toMatchObject({ entry_status: 'confirmed', check_in_status: 'checked-in' });
   });
 });
 
@@ -123,22 +180,6 @@ async function clickRowActionsWhenStable(rowActions: Locator) {
 
     try {
       await rowActions.click({ timeout: 3000 });
-      return;
-    } catch (error) {
-      if (attempt === 3 || !isDetachedDuringClick(error)) {
-        throw error;
-      }
-    }
-  }
-}
-
-async function clickMenuItemWhenStable(openMenu: () => Promise<void>, menuItem: Locator) {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    await openMenu();
-    await expect(menuItem).toBeVisible({ timeout: 10000 });
-
-    try {
-      await menuItem.click({ timeout: 3000 });
       return;
     } catch (error) {
       if (attempt === 3 || !isDetachedDuringClick(error)) {

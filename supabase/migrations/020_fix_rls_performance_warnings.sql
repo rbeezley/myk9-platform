@@ -3,6 +3,24 @@
 -- 2. Remove duplicate permissive policies
 -- 3. Remove duplicate index
 
+-- Migration 016 defines is_trial_secretary(), which is the canonical RBAC role
+-- check. Define the historical show-secretary alias before the policies below
+-- reference it so a fresh migration chain can apply migration 020.
+CREATE OR REPLACE FUNCTION is_show_secretary()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = ''
+AS $$
+  SELECT public.is_trial_secretary();
+$$;
+
+COMMENT ON FUNCTION is_show_secretary() IS
+  'Alias for is_trial_secretary(). Show secretary and trial secretary are the same RBAC role.';
+
+GRANT EXECUTE ON FUNCTION is_show_secretary() TO authenticated;
+
 -- ============================================
 -- PART 1: Remove duplicate policies
 -- ============================================

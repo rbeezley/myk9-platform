@@ -18,6 +18,7 @@ export class MutationUploadRunner {
   private backoffRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private backoffRetryAt: number | null = null;
   private isUploading = false;
+  private uploadRequestedWhileRunning = false;
 
   constructor(
     private readonly supabase: SupabaseClient,
@@ -117,6 +118,10 @@ export class MutationUploadRunner {
   private async runUploadPass(): Promise<SyncResult[]> {
     // Prevent concurrent upload runs
     if (this.isUploading) {
+      // A mutation may have been queued after the active pass captured its
+      // pending snapshot. Remember this request so the new work is not stranded
+      // when the overlapping attempt returns early.
+      this.uploadRequestedWhileRunning = true;
       this.logger.log('[MutationManager] Upload already in progress, skipping');
       return [];
     }
@@ -383,6 +388,10 @@ export class MutationUploadRunner {
       throw error;
     } finally {
       this.isUploading = false;
+      if (this.uploadRequestedWhileRunning) {
+        this.uploadRequestedWhileRunning = false;
+        this.scheduleUpload();
+      }
       measurePerf('replication:flush', 'replication:flush:start', {
         durationMs: Date.now() - startTime,
       });
@@ -394,5 +403,6 @@ export class MutationUploadRunner {
     if (this.backoffRetryTimer) clearTimeout(this.backoffRetryTimer);
     this.uploadDebounceTimer = this.backoffRetryTimer = null;
     this.backoffRetryAt = null;
+    this.uploadRequestedWhileRunning = false;
   }
 }

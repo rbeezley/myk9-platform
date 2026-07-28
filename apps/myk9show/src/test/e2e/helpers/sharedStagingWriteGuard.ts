@@ -21,6 +21,7 @@ export interface GuardedRingsideRpcCall {
 interface SharedStagingWriteGuardOptions {
   ringsideRpcCalls?: GuardedRingsideRpcCall[];
   versionBase?: number;
+  observeIsolatedRingsideWrites?: boolean;
 }
 
 export function classifySharedStagingWrite(request: RequestLike): GuardedWrite | null {
@@ -47,21 +48,34 @@ export async function installSharedStagingWriteGuard(
 ) {
   const ringsideRpcCalls = options.ringsideRpcCalls ?? [];
   const versionBase = options.versionBase ?? 100;
+  const observeIsolatedRingsideWrites = options.observeIsolatedRingsideWrites ?? false;
 
   await page.route('**/rest/v1/rpc/ringside_update_entry', async route => {
     const request = route.request();
-    const guardedWrite = classifySharedStagingWrite({
+    const requestLike = {
       method: request.method(),
       url: request.url(),
-    });
+    };
+    const guardedWrite = classifySharedStagingWrite(requestLike);
 
-    if (guardedWrite?.kind !== 'ringside-update-entry-rpc') {
+    const isSharedStagingWrite = guardedWrite?.kind === 'ringside-update-entry-rpc';
+    const isObservedIsolatedWrite =
+      observeIsolatedRingsideWrites &&
+      isRingsideUpdateEntryRequest(requestLike) &&
+      isIsolatedHost(requestLike.url);
+
+    if (!isSharedStagingWrite && !isObservedIsolatedWrite) {
       await fallbackRoute(route);
       return;
     }
 
     const payload = (request.postDataJSON() ?? {}) as GuardedRingsideRpcCall;
     ringsideRpcCalls.push(payload);
+
+    if (isObservedIsolatedWrite) {
+      await fallbackRoute(route);
+      return;
+    }
 
     await route.fulfill({
       status: 200,
@@ -100,6 +114,19 @@ function parseUrl(value: string) {
 
 function isSharedStagingHost(hostname: string) {
   return hostname === `${SHARED_STAGING_PROJECT_REF}.supabase.co`;
+}
+
+function isRingsideUpdateEntryRequest(request: RequestLike) {
+  const url = parseUrl(request.url);
+  return (
+    request.method.toUpperCase() === 'POST' &&
+    url?.pathname === '/rest/v1/rpc/ringside_update_entry'
+  );
+}
+
+function isIsolatedHost(value: string) {
+  const url = parseUrl(value);
+  return url?.hostname === '127.0.0.1' || url?.hostname === 'localhost';
 }
 
 async function fallbackRoute(route: Route) {

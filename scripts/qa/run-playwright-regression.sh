@@ -18,5 +18,6 @@ cd "$repo_root"
 
 pnpm exec tsx scripts/qa/verify-isolated-e2e-target.ts
 
-pnpm --dir apps/myk9show test:e2e:regression -- \
+PLAYWRIGHT_REGRESSION=true pnpm --dir apps/myk9show exec playwright test \
+  --config=playwright.ci.config.ts \
   --fail-on-flaky-tests --workers=1 --retries=0

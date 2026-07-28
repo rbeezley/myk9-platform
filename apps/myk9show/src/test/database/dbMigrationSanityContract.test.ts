@@ -164,6 +164,27 @@ describe('DB migration sanity contracts', () => {
     expect(sql).toContain('ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push');
   });
 
+  it('does not issue no-op placement updates for entries that are already clear', () => {
+    const { sql } = latestMigrationContaining(
+      /CREATE OR REPLACE FUNCTION public\.refresh_class_scoring_state/i
+    );
+    const refreshFunction = sliceBetween(
+      sql,
+      'CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state',
+      'COMMENT ON FUNCTION public.refresh_class_scoring_state'
+    );
+    const placementClears = [
+      ...refreshFunction.matchAll(
+        /UPDATE public\.entries\s+SET final_placement = NULL\s+WHERE[\s\S]*?;/g
+      ),
+    ].map(match => match[0]);
+
+    expect(placementClears).toHaveLength(3);
+    for (const placementClear of placementClears) {
+      expect(placementClear).toContain('AND final_placement IS NOT NULL');
+    }
+  });
+
   it('only reopens a class after a completed closeout', () => {
     const { sql } = latestMigrationContaining(
       /CREATE OR REPLACE FUNCTION public\.handle_entry_scoring_state_change/i

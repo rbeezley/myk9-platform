@@ -348,6 +348,49 @@ describe('MutationManager', () => {
       expect(results1[0]!.success).toBe(true);
     });
 
+    it('drains a mutation queued while an upload pass is in progress', async () => {
+      let releaseFirstRpc!: (result: { data: number; error: null }) => void;
+      const firstRpc = new Promise<{ data: number; error: null }>(resolve => {
+        releaseFirstRpc = resolve;
+      });
+      vi.mocked(mockSupabase.rpc)
+        .mockReturnValueOnce(firstRpc as unknown as ReturnType<typeof mockSupabase.rpc>)
+        .mockResolvedValue({ data: 3, error: null } as never);
+
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-in-flight',
+          rpc: { name: 'ringside_update_entry', fields: { check_in_status: 'at-gate' } },
+        })
+      );
+
+      const firstUpload = manager.uploadPendingMutations();
+      await vi.waitFor(() => {
+        expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
+      });
+
+      await manager.queueMutation(
+        'entries',
+        'UPDATE',
+        'entry-2',
+        { id: 'entry-2' },
+        undefined,
+        undefined,
+        { name: 'ringside_update_entry', fields: { check_in_status: 'checked-in' } }
+      );
+      await vi.advanceTimersByTimeAsync(150);
+
+      releaseFirstRpc({ data: 2, error: null });
+      await firstUpload;
+      await vi.advanceTimersByTimeAsync(150);
+
+      await vi.waitFor(() => {
+        expect(mockSupabase.rpc).toHaveBeenCalledTimes(2);
+      });
+      expect(await manager.getPendingCount()).toBe(0);
+    });
+
     it('should reset isUploading after successful upload', async () => {
       await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, makeMutation({ id: 'mut-1' }));
 

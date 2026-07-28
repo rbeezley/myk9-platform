@@ -104,7 +104,9 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await selectFirstSecretary(page);
 
     await page.getByRole('button', { name: /^Next$/ }).click();
-    await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();
+    await expect(
+      page.getByLabel('Wizard progress').getByText('Step 2 of 4', { exact: true })
+    ).toBeVisible();
     await expect(page.getByRole('heading', { name: /^Trials \(\d+\)$/ })).toBeVisible();
   });
 
@@ -119,7 +121,9 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible({
       timeout: 15000,
     });
-    await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();
+    await expect(
+      page.getByLabel('Wizard progress').getByText('Step 2 of 4', { exact: true })
+    ).toBeVisible();
 
     const addTrialAction = page.getByRole('button', { name: /^Add (First )?Trial$/ }).last();
     await expect(addTrialAction).toBeVisible();

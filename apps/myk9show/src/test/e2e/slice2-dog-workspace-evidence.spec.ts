@@ -141,11 +141,14 @@ test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
     }
     // Correct secondary view for a specific legacy id, and the locked
     // treatment: the demo exhibitor is a free account, so Records/Pedigree
-    // must render the Premium lock with a working upgrade action.
+    // must render the read-only Premium notice with a working upgrade action.
     await page.goto(`${dogPath}?tab=pedigree`);
-    await expect(page.getByText('Premium Feature', { exact: false }).first()).toBeVisible({
-      timeout: 15000,
-    });
+    await expect(
+      page.getByText(
+        'Your existing records remain available to view, export, and delete. Upgrade to add or edit records.',
+        { exact: true }
+      )
+    ).toBeVisible({ timeout: 15000 });
     const upgrade = page.getByRole('button', { name: /Upgrade to Premium/i }).first();
     await expect(upgrade).toBeVisible();
     await upgrade.click();

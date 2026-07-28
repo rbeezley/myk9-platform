@@ -6,10 +6,8 @@
 --   AKC scent-work show, 2 trials, 5 classes, 6 dogs, 8 entries) with COMPLETE
 --   show officials and full RBAC role coverage so every role's golden path is
 --   walkable after a reseed:
---     - Named officials on the show: secretary is a snapshot of the section-10
---       secretary LOGIN (the real actor); chairman / chief_steward are report-only
---       free text (no in-app actor). classes.judge_name is a snapshot of the
---       assigned judge (section 2 + 4).
+--     - Show officials are modeled through user_roles grants. classes.judge_name
+--       remains a snapshot of the assigned judge (section 2 + 4).
 --     - Judges modeled as PEOPLE, not strings: judge_qualifications rows carry
 --       each judge's number + disciplines (section 13); CLASS-LEVEL
 --       judge_assignments put all 5 classes on each judge's dashboard (section
@@ -193,14 +191,15 @@ VALUES (
 -- payouts_enabled=true gates the stripe-checkout edge function's online-entry
 -- check. The session itself doesn't use Connect (no transfer_data), so a
 -- sandbox placeholder account id is safe for testing.
-INSERT INTO public.club_stripe_accounts (club_id, stripe_account_id, onboarding_complete, payouts_enabled)
+INSERT INTO public.club_stripe_accounts (club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode)
 VALUES (
   'dededede-0000-0000-0000-000000000001',
   'acct_test_dededede_sandbox',
   true,
-  true
+  true,
+  false
 )
-ON CONFLICT (club_id) DO UPDATE
+ON CONFLICT (club_id, livemode) DO UPDATE
   SET stripe_account_id   = EXCLUDED.stripe_account_id,
       onboarding_complete = EXCLUDED.onboarding_complete,
       payouts_enabled     = EXCLUDED.payouts_enabled;
@@ -227,7 +226,6 @@ INSERT INTO public.shows (
   mail_in_strategy, mail_in_auto_release, waitlist_payment_deadline_hours,
   accept_check_payments, accept_cash_payments,
   cc_secretary_on_exhibitor_emails,
-  chairman, secretary, chief_steward,
   style, experience_is_published, experience_published_content,
   brand_color, version, is_nationals
 )
@@ -249,16 +247,6 @@ VALUES (
   'none', false, 48,
   true, true,
   true,
-  -- Named officials. TWO DIFFERENT KINDS of data live in these columns:
-  --   * chairman + chief_steward are REPORT-ONLY free text — those people don't
-  --     act inside the program, we only print their names. Free text is correct;
-  --     promoting them to people rows would buy nothing and risk duplicate-person
-  --     drift. (Here: canonical demo person names, by convention.)
-  --   * secretary is a DENORMALIZED SNAPSHOT, not the source of truth. The real
-  --     secretary "who runs the show" is the section-10 club-scoped `secretary`
-  --     role grant (a real login: e2e-secretary@test.myk9.com). This text is a cached
-  --     label for reports; the relational truth is the grant.
-  'Test Club', 'Test Secretary', 'Test Steward',
   'headline', false, '{}'::jsonb,
   '#0d4d4f', 3, false
 );
@@ -508,11 +496,13 @@ WHERE id = 'dec1a55e-0000-0000-0000-000000000031';
 --    excluded from entries_dog_class_unique_idx anyway, so there is no unique-index
 --    clash. The refund columns (refund_amount/refund_notes/refunded_at) are guarded
 --    by trg_restrict_entry_refund_columns_insert, which raises unless the current
---    role is service_role; we briefly SET LOCAL ROLE service_role for these inserts
---    (the documented manual path) then RESET. No armbands row is created for a
---    withdrawn entry. payment_method left NULL so the paid-online insert guard
---    (entries_protect_payment_fields_insert, which only fires for online refunds)
---    does not trip.
+--    role is service_role. Hosted Supabase grants that role the baseline table
+--    privileges before RLS; the isolated lifecycle mirrors the same applied ACLs
+--    before running this seed. We therefore use the documented guarded role for
+--    these inserts without changing schema privileges here. No armbands row is
+--    created for a withdrawn entry. payment_method is left NULL so the paid-online
+--    insert guard (entries_protect_payment_fields_insert, which only fires for
+--    online refunds) does not trip.
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE service_role;
 INSERT INTO public.entries (

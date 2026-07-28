@@ -62,9 +62,9 @@ npx vitest run \
 
 ### Separate Playwright regression
 
-The broader curated Playwright suite is a separate, stateful regression routine. It runs only against the disposable local Supabase lifecycle documented in [`../operations/isolated-e2e-regression.md`](../operations/isolated-e2e-regression.md). It remains manual-only and CI-variable-gated; do not point it at shared staging or add it to an unattended schedule.
+The broader curated Playwright suite is a separate, stateful regression routine. It runs weekly and on manual dispatch only against the disposable local Supabase lifecycle documented in [`../operations/isolated-e2e-regression.md`](../operations/isolated-e2e-regression.md). It remains CI-variable-gated and must never point at shared staging.
 
-Run it only after the target and shared-system approval are confirmed:
+For a local invocation, run it only after the target and shared-system approval are confirmed:
 
 ```bash
 MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true \

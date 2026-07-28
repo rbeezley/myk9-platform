@@ -194,6 +194,40 @@ describe('public migration grant decisions', () => {
     ]);
   });
 
+  it('checks every target in a multi-function grant', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120011_unsafe_multi_function_grant.sql',
+        sql: `
+          GRANT EXECUTE ON FUNCTION
+            public.is_site_admin(),
+            public.existing_probe(uuid)
+          TO anon;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120011_unsafe_multi_function_grant.sql: public.existing_probe(uuid) standalone anon grant is not keep-listed',
+    ]);
+  });
+
+  it('checks every target in a multi-table grant', () => {
+    const violations = findUndecidedPublicObjects([
+      {
+        filename: '20260728120012_unsafe_multi_table_grant.sql',
+        sql: `
+          GRANT SELECT ON TABLE public.existing_events, public.existing_people TO anon;
+        `,
+      },
+    ]);
+
+    expect(violations).toEqual([
+      '20260728120012_unsafe_multi_table_grant.sql: public.existing_events standalone table grant has no authenticated decision',
+      '20260728120012_unsafe_multi_table_grant.sql: public.existing_people standalone table grant has no authenticated decision',
+    ]);
+  });
+
   it('rejects API grants in public default privileges', () => {
     const violations = findUndecidedPublicObjects([
       {

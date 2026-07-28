@@ -1,4 +1,10 @@
 import { createHash } from 'node:crypto';
+import {
+  closingParen,
+  normalizeSignature,
+  normalizeSql,
+  splitArguments,
+} from './migrationGrantDecisionSql';
 
 export interface MigrationSource {
   filename: string;
@@ -39,18 +45,6 @@ const TABLE_GRANT_DECISION_KEEP_LIST: Readonly<Record<string, string>> = {
     'RLS with no policies intentionally denies API roles; waitlist worker RPCs own access.',
 };
 
-function stripNonStatements(sql: string): string {
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/--[^\n]*/g, ' ')
-    .replace(/(\$[A-Za-z0-9_]*\$)[\s\S]*?\1/g, '$1$1')
-    .replace(/'(?:[^']|'')*'/g, "''");
-}
-
-function normalizeSql(sql: string): string {
-  return stripNonStatements(sql).replace(/\s+/g, ' ').trim();
-}
-
 interface FunctionIdentity {
   name: string;
   signature: string;
@@ -61,100 +55,9 @@ interface FunctionGrant {
   roles: string;
 }
 
-const TYPE_STARTS = new Set([
-  'bigint',
-  'bigserial',
-  'bit',
-  'boolean',
-  'box',
-  'bytea',
-  'character',
-  'cidr',
-  'circle',
-  'date',
-  'double',
-  'inet',
-  'integer',
-  'interval',
-  'json',
-  'jsonb',
-  'line',
-  'lseg',
-  'macaddr',
-  'money',
-  'numeric',
-  'path',
-  'point',
-  'polygon',
-  'real',
-  'record',
-  'serial',
-  'smallint',
-  'smallserial',
-  'text',
-  'time',
-  'timestamp',
-  'trigger',
-  'tsquery',
-  'tsvector',
-  'uuid',
-  'varbit',
-  'varchar',
-  'xml',
-]);
-
-function closingParen(sql: string, openingIndex: number): number {
-  let depth = 0;
-  for (let index = openingIndex; index < sql.length; index += 1) {
-    if (sql[index] === '(') depth += 1;
-    if (sql[index] === ')') {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-  return -1;
-}
-
-function splitArguments(args: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let index = 0; index < args.length; index += 1) {
-    if (args[index] === '(') depth += 1;
-    if (args[index] === ')') depth -= 1;
-    if (args[index] === ',' && depth === 0) {
-      parts.push(args.slice(start, index));
-      start = index + 1;
-    }
-  }
-  parts.push(args.slice(start));
-  return parts.map(part => part.trim()).filter(Boolean);
-}
-
-function normalizeArgument(argument: string): string | null {
-  const withoutDefault = argument.split(/\s+(?:DEFAULT)\s+|=/i, 1)[0].trim();
-  const tokens = withoutDefault.replace(/"/g, '').split(/\s+/);
-  const mode = tokens[0]?.toLowerCase();
-
-  if (mode === 'out') return null;
-  if (mode === 'in' || mode === 'inout' || mode === 'variadic') tokens.shift();
-
-  const first = tokens[0]?.toLowerCase() ?? '';
-  const firstIsType =
-    TYPE_STARTS.has(first) ||
-    first.startsWith('any') ||
-    first.includes('.') ||
-    first.endsWith('[]');
-  if (tokens.length > 1 && !firstIsType) tokens.shift();
-
-  return tokens.join(' ').toLowerCase();
-}
-
-function normalizeSignature(args: string): string {
-  return splitArguments(args)
-    .map(normalizeArgument)
-    .filter((argument): argument is string => Boolean(argument))
-    .join(', ');
+interface TableGrant {
+  tableName: string;
+  roles: string;
 }
 
 function functionCreates(sql: string): FunctionIdentity[] {
@@ -177,22 +80,56 @@ function functionCreates(sql: string): FunctionIdentity[] {
 
 function functionGrants(sql: string): FunctionGrant[] {
   const grants: FunctionGrant[] = [];
-  const pattern =
-    /\bGRANT\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/gi;
 
-  for (const match of sql.matchAll(pattern)) {
-    const openingIndex = (match.index ?? 0) + match[0].length - 1;
-    const closingIndex = closingParen(sql, openingIndex);
-    if (closingIndex === -1) continue;
-    const tail = sql.slice(closingIndex + 1).split(';', 1)[0];
-    const roles = tail.match(/\bTO\s+(.+)$/i)?.[1] ?? '';
-    grants.push({
-      identity: {
-        name: match[1].toLowerCase(),
-        signature: normalizeSignature(sql.slice(openingIndex + 1, closingIndex)),
-      },
-      roles,
-    });
+  for (const statement of sql.split(';')) {
+    const match = statement.match(
+      /\bGRANT\s+(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)\s+ON\s+FUNCTION\s+(.+?)\s+TO\s+(.+)$/i
+    );
+    if (!match) continue;
+    const [, targets, roles] = match;
+
+    for (const target of splitArguments(targets)) {
+      const targetMatch = target.match(/^(?:"?public"?\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\s*\(/i);
+      if (!targetMatch) continue;
+      const openingIndex = targetMatch[0].length - 1;
+      const closingIndex = closingParen(target, openingIndex);
+      if (closingIndex === -1) continue;
+      grants.push({
+        identity: {
+          name: targetMatch[1].toLowerCase(),
+          signature: normalizeSignature(target.slice(openingIndex + 1, closingIndex)),
+        },
+        roles,
+      });
+    }
+  }
+
+  return grants;
+}
+
+function publicTableTargets(targetList: string): string[] {
+  return splitArguments(targetList).flatMap(target => {
+    const match = target.match(/^(?:(?:"?public"?)\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?$/i);
+    return match ? [match[1].toLowerCase()] : [];
+  });
+}
+
+function tableGrants(sql: string): TableGrant[] {
+  const grants: TableGrant[] = [];
+
+  for (const statement of sql.split(';')) {
+    if (
+      /\bALTER\s+DEFAULT\s+PRIVILEGES\b/i.test(statement) ||
+      /\bON\s+ALL\s+TABLES\b/i.test(statement)
+    ) {
+      continue;
+    }
+    const match = statement.match(/\bGRANT\s+[^;]+\s+ON\s+(?:TABLE\s+)?(.+?)\s+TO\s+(.+)$/i);
+    if (!match) continue;
+    const [, targets, roles] = match;
+    for (const tableName of publicTableTargets(targets)) {
+      grants.push({ tableName, roles });
+    }
   }
 
   return grants;
@@ -249,11 +186,27 @@ function hasTableRoleDecision(
   tableName: string,
   role: 'anon' | 'authenticated'
 ): boolean {
-  const escapedName = tableName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(
-    String.raw`\b(?:GRANT|REVOKE)\s+[^;]+\s+ON\s+(?:TABLE\s+)?(?:"?public"?\.)?"?${escapedName}"?\s+(?:TO|FROM)\s+[^;]*\b${role}\b`,
-    'i'
-  ).test(sql);
+  for (const statement of sql.split(';')) {
+    if (
+      /\bALTER\s+DEFAULT\s+PRIVILEGES\b/i.test(statement) ||
+      /\bON\s+ALL\s+TABLES\b/i.test(statement)
+    ) {
+      continue;
+    }
+    const match = statement.match(
+      /\b(?:GRANT|REVOKE)\s+[^;]+\s+ON\s+(?:TABLE\s+)?(.+?)\s+(?:TO|FROM)\s+(.+)$/i
+    );
+    if (!match) continue;
+    const [, targets, roles] = match;
+    if (
+      publicTableTargets(targets).includes(tableName) &&
+      new RegExp(String.raw`\b${role}\b`, 'i').test(roles)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function enablesRls(sql: string, tableName: string): boolean {
@@ -353,11 +306,8 @@ function findStandaloneGrantViolations(
     }
   }
 
-  const tableGrantPattern =
-    /\bGRANT\s+[^;]+\s+ON\s+(?:TABLE\s+)?(?:"?public"?\.)"?([A-Za-z_][A-Za-z0-9_]*)"?\s+TO\s+([^;]+)/gi;
-  for (const match of sql.matchAll(tableGrantPattern)) {
-    const tableName = match[1].toLowerCase();
-    const roles = match[2];
+  for (const grant of tableGrants(sql)) {
+    const { tableName, roles } = grant;
     if (createdTables.has(tableName) || !hasApiRole(roles)) continue;
     if (/\bPUBLIC\b/i.test(roles)) {
       violations.push(

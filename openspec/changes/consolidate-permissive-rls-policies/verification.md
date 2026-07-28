@@ -31,7 +31,8 @@ Combined verdict: **PUSH WITH CAUTION; no blocking defects**.
 - All drops use `IF EXISTS`; no tables, data, constraints, functions, table privileges, or RLS mode change.
 - Two inherited row-correlated helper patterns remain in the `people` and volunteer policies. They predate MYK9-112 and are retained to avoid changing authorization semantics.
 - Expected advisor remainder: five intentional role-mismatched groups (`dogs` INSERT and four `push_subscriptions` commands).
-- The required external Codex second-opinion review remains a pre-merge gate because submitting the private branch diff requires separate authorization. The repository-required migration-auditor and PR branch reviews are complete.
+- External Codex second-opinion review: no actionable defects; it confirmed that the migrations preserve the existing RLS predicate unions and that the topology and exact-SQL contracts cover the change.
+- The repository-required migration-auditor and independent PR branch reviews are also complete.
 
 ## Pending shared-system gate
 

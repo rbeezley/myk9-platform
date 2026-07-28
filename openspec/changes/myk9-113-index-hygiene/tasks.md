@@ -47,17 +47,18 @@
 
 ## 5. Shared Supabase evidence gate
 
-- [ ] 5.1 Obtain explicit user approval for the real linked-project `supabase db push`.
-- [ ] 5.2 Recheck affected relation sizes, apply the migrations in a quiet window, and record the
+- [x] 5.1 Obtain explicit user approval for the real linked-project `supabase db push`.
+- [x] 5.2 Recheck affected relation sizes, apply the migrations in a quiet window, and record the
       migration result.
-- [ ] 5.3 Rerun the catalog inventory and Supabase performance advisor; add post-push uncovered-FK,
-      duplicate-group, zero-scan, and advisor counts to the evidence ledger.
+- [x] 5.3 Rerun the catalog inventory and the two relevant official Supabase performance-advisor
+      lint queries; add post-push uncovered-FK, duplicate-group, zero-scan, and advisor counts to
+      the evidence ledger.
 
 ## 6. Tracking and shipping
 
-- [ ] 6.1 Update the existing launch-readiness tracking source with the verified MYK9-113 result
+- [x] 6.1 Update the existing launch-readiness tracking source with the verified MYK9-113 result
       and any dependency remaining on MYK9-109.
-- [ ] 6.2 Commit the bounded diff, run required migration/database second-opinion review, push the
+- [x] 6.2 Commit the bounded diff, run required migration/database second-opinion review, push the
       feature branch, and open a PR linked to MYK9-113 and this OpenSpec change.
 - [ ] 6.3 Wait for required CI and review, fix actionable failures, and merge only with explicit
       user approval.

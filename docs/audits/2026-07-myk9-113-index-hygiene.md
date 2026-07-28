@@ -414,10 +414,40 @@ usage-based deletion decision until realistic show-weekend traffic exists.
 
 ## Post-deployment evidence gate
 
-No shared-system mutation has been performed. The real `supabase db push`, catalog rerun, and
-performance-advisor rerun remain pending explicit user approval. MYK9-113 must remain open until
-that evidence is recorded. The 2026-07-28 linked-project dry run reported exactly the two intended
-migrations and applied neither.
+The user approved the remote migration push on 2026-07-28. Before the push, the largest affected
+relations were `dogs` (1,568 kB), `entries` (568 kB), `clubs` (432 kB), and `user_roles` (272 kB);
+all were below the plan's 100 MB quiet-window threshold. The linked-project push applied only:
+
+- `20260728140000_add_foreign_key_indexes.sql`
+- `20260728141000_drop_duplicate_indexes.sql`
+
+Post-push catalog evidence captured at 2026-07-28 19:31:22 UTC:
+
+| Check                                      | Result |
+| ------------------------------------------ | -----: |
+| Applied MYK9-113 migration versions        |      2 |
+| Supabase-lint unindexed foreign keys       |      0 |
+| Strict public uncovered foreign keys       |      0 |
+| Advisor-compatible public uncovered FKs    |      0 |
+| Exact duplicate groups                     |      0 |
+| Canonical survivors valid, ready, and live |      2 |
+| Dropped twins still present                |      0 |
+| Public indexes                             |    571 |
+| Raw zero-scan public indexes               |    223 |
+| Supabase-lint unused indexes               |    180 |
+
+The Supabase Management API advisor endpoint rejected the available CLI credential with HTTP 401,
+so the two relevant performance-advisor lints were reproduced read-only against the linked
+database from Supabase's official Splinter sources:
+[`0001_unindexed_foreign_keys.sql`](https://github.com/supabase/splinter/blob/b69b4b9e0e32bb04b389edbb95b720f4b634e9ae/lints/0001_unindexed_foreign_keys.sql)
+and
+[`0005_unused_index.sql`](https://github.com/supabase/splinter/blob/b69b4b9e0e32bb04b389edbb95b720f4b634e9ae/lints/0005_unused_index.sql).
+The official unindexed-FK result is zero. The official unused-index count is 180, which is the
+expected historical baseline movement: 103 + 78 new zero-scan FK indexes − 1 removed non-unique
+zero-scan duplicate = 180. The other removed duplicate was unique and therefore excluded by the
+official unused-index lint. Likewise, the raw public zero-scan count moved from the fresh 147-index
+baseline to 147 + 78 − 2 = 223. Neither count is a deletion signal before MYK9-109 supplies
+representative show-weekend traffic.
 
 ## Local verification
 
@@ -433,4 +463,6 @@ migrations and applied neither.
 | Exact duplicate guards                      | RED → PASS   | Review added valid/ready/live checks, NULL uniqueness, semantic-role flags, tablespace, and storage options. Assertions failed first. Disposable PostgreSQL proved replica-identity and `fillfactor` mismatches abort, while exact twins drop and rerun idempotently.                                      |
 | Quality gates                               | PASS         | Strict OpenSpec validation, targeted ESLint, test TypeScript checking, and `git diff --check` passed.                                                                                                                                                                                                      |
 | Remote Supabase dry run                     | PASS         | After transient project-link failures cleared, the linked-project dry run reported only `20260728140000_add_foreign_key_indexes.sql` and `20260728141000_drop_duplicate_indexes.sql`. No migration was applied.                                                                                            |
+| Remote Supabase migration push              | PASS         | User-approved push applied exactly the two MYK9-113 migrations to project `sojmvhhwsjxmfistvzbe`; both versions are present in migration history.                                                                                                                                                          |
+| Post-push catalog and advisor lints         | PASS         | Strict and official Supabase-lint uncovered FKs are 0, exact duplicate groups are 0, both canonical survivors are live, dropped twins are absent, and the expected Supabase-lint unused-index count is 180.                                                                                                |
 | Broad repository checks                     | INCOMPLETE   | The full myK9Show Vitest run exceeded the repository's 60-second hang limit and was stopped. Turbo typecheck was stopped after 25/26 tasks at 1m37s, and lint after 13/14 tasks at 1m40s, when neither produced further output. No failure was reported before the stops; focused changed-file gates pass. |

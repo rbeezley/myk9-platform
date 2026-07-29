@@ -116,7 +116,7 @@ The contextual-group layout shift remains a monitoring item; it was not proven h
 | Empty                  | Partial      | Good    | Missing first name falls back to “myK9”; a user with no recognized role receives Browse metadata           |
 | Loading                | Implicit     | Fair    | Club- and show-context groups can appear after their stores become ready, causing a small navigation shift |
 | Success                | Yes          | Good    | Identity, role-filtered groups, active styling, and footer render consistently                             |
-| Partial                | Yes          | Good    | Missing club context safely hides the club group                                                           |
+| Partial                | Yes          | Good    | Missing club context hides only club-scoped links; stable Members and Payments remain available            |
 | Error                  | Implicit     | Fair    | No sidebar-specific error is shown if contextual stores fail, but core navigation remains available        |
 | Mobile                 | Yes          | Good    | Overlay and 44px close control are present                                                                 |
 | Keyboard/screen reader | Partial      | Fair    | Focus is visible, but the current page lacks `aria-current`                                                |

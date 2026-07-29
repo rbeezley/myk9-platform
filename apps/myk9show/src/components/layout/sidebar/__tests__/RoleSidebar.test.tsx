@@ -52,6 +52,20 @@ describe('RoleSidebar', () => {
     expect(currentLinks[0]).toHaveTextContent('Members');
   });
 
+  it('identifies the filtered club shows link instead of generic Shows', () => {
+    const config = buildUnifiedSidebarConfig(
+      [UserRole.CLUB_ADMIN],
+      { clubId: 'club-1', clubName: 'Heartland Club' },
+      undefined,
+      'Jamie'
+    );
+
+    render(<RoleSidebar config={config} />, { initialRoute: '/shows?club=club-1' });
+
+    expect(screen.getByRole('link', { name: /Our Shows/ })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: /^Shows$/ })).not.toHaveAttribute('aria-current');
+  });
+
   it('keeps every expanded navigation target at least 44 pixels tall', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
 

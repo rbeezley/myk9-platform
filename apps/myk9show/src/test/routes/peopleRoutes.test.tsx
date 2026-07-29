@@ -27,9 +27,17 @@ vi.mock('@/hooks/useAuth', () => ({
 
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
+    getUserPermissions: vi.fn().mockResolvedValue({
+      roles: [],
+      permissions: [],
+      effectivePermissions: [],
+    }),
     getUserRoles: vi.fn().mockResolvedValue([]),
     getUserRolesByEmail: vi.fn().mockResolvedValue([]),
     hasPermission: vi.fn().mockResolvedValue(false),
+    checkPermission: vi.fn().mockResolvedValue(false),
+    clearUserCache: vi.fn(),
+    clearAllCache: vi.fn(),
   },
 }));
 

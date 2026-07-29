@@ -33,21 +33,24 @@ interface DbUserRole {
 }
 
 interface DbUserPermission {
-  category: string;
-  club_id: string | null;
+  permission_id: string;
   permission_code: string;
   permission_name: string;
+  description: string | null;
+  category: string | null;
+  role_id: string;
   role_name: string;
-  show_id: string | null;
+  scope_type: string;
+  scope_id: string | null;
 }
 
 interface DbEffectivePermission {
-  category: string;
   permission_code: string;
   permission_name: string;
+  source_type: string;
+  source_role: string;
   scope_id: string | null;
   scope_type: string;
-  source: string;
 }
 
 /**
@@ -85,6 +88,13 @@ async function rpc<T>(
 
 export class PermissionChecker {
   private permissionCache = new Map<string, { hasPermission: boolean; expiresAt: number }>();
+  private completeAccessCache = new Map<
+    string,
+    { result: UserPermissionsResponse; expiresAt: number }
+  >();
+  private completeAccessInFlight = new Map<string, Promise<UserPermissionsResponse>>();
+  private accessGeneration = new Map<string, number>();
+  private accessEpoch = 0;
   private cacheTimeout = 5 * 60 * 1000; // 5 minutes
 
   /**
@@ -102,6 +112,9 @@ export class PermissionChecker {
       if (cached && cached.expiresAt > Date.now()) {
         return cached.hasPermission;
       }
+
+      const generation = this.accessGeneration.get(userId) ?? 0;
+      const epoch = this.accessEpoch;
 
       // user_has_permission is from migration 017 (not in generated types)
       const { data, error } = await rpc<boolean>('user_has_permission', {
@@ -122,11 +135,12 @@ export class PermissionChecker {
 
       const hasPermission = data === true;
 
-      // Cache the result
-      this.permissionCache.set(cacheKey, {
-        hasPermission,
-        expiresAt: Date.now() + this.cacheTimeout,
-      });
+      if (this.accessEpoch === epoch && (this.accessGeneration.get(userId) ?? 0) === generation) {
+        this.permissionCache.set(cacheKey, {
+          hasPermission,
+          expiresAt: Date.now() + this.cacheTimeout,
+        });
+      }
 
       return hasPermission;
     } catch (error) {
@@ -142,6 +156,39 @@ export class PermissionChecker {
     userId: string,
     _scope?: { type: string; id: string }
   ): Promise<UserPermissionsResponse> {
+    const cached = this.completeAccessCache.get(userId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.result;
+    }
+
+    const inFlight = this.completeAccessInFlight.get(userId);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const generation = this.accessGeneration.get(userId) ?? 0;
+    const epoch = this.accessEpoch;
+    const load = this.loadUserPermissions(userId)
+      .then(result => {
+        if (this.accessEpoch === epoch && (this.accessGeneration.get(userId) ?? 0) === generation) {
+          this.completeAccessCache.set(userId, {
+            result,
+            expiresAt: Date.now() + this.cacheTimeout,
+          });
+        }
+        return result;
+      })
+      .finally(() => {
+        if (this.completeAccessInFlight.get(userId) === load) {
+          this.completeAccessInFlight.delete(userId);
+        }
+      });
+
+    this.completeAccessInFlight.set(userId, load);
+    return load;
+  }
+
+  private async loadUserPermissions(userId: string): Promise<UserPermissionsResponse> {
     try {
       // Get detailed permissions via RPC (migration 017)
       const { data: permissions, error: permError } = await rpc<DbUserPermission[]>(
@@ -213,21 +260,17 @@ export class PermissionChecker {
 
       // Map user permissions to PermissionWithRole format
       const typedPermissions = permissions ?? [];
-      const mappedPermissions = typedPermissions.map(p => {
-        const scopeType = p.club_id ? 'club' : p.show_id ? 'show' : 'global';
-        const scopeId = p.club_id || p.show_id || null;
-        return {
-          permission_id: '',
-          permission_code: p.permission_code,
-          permission_name: p.permission_name,
-          description: null,
-          category: p.category,
-          role_id: '',
-          role_name: p.role_name,
-          scope_type: scopeType,
-          scope_id: scopeId,
-        };
-      });
+      const mappedPermissions = typedPermissions.map(p => ({
+        permission_id: p.permission_id,
+        permission_code: p.permission_code,
+        permission_name: p.permission_name,
+        description: p.description,
+        category: p.category,
+        role_id: p.role_id,
+        role_name: p.role_name,
+        scope_type: p.scope_type,
+        scope_id: p.scope_id,
+      }));
 
       return {
         permissions: mappedPermissions,
@@ -363,10 +406,19 @@ export class PermissionChecker {
       }
     }
     keysToDelete.forEach(key => this.permissionCache.delete(key));
+    this.completeAccessCache.delete(userId);
+    this.completeAccessInFlight.delete(userId);
+    this.accessGeneration.set(userId, (this.accessGeneration.get(userId) ?? 0) + 1);
   }
 
   clearAllCache(): void {
     this.permissionCache.clear();
+    this.completeAccessCache.clear();
+    this.completeAccessInFlight.clear();
+    this.accessEpoch += 1;
+    for (const [userId, generation] of this.accessGeneration) {
+      this.accessGeneration.set(userId, generation + 1);
+    }
   }
 
   setCacheTimeout(timeout: number): void {

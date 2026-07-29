@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useRBAC, usePermission, useRole, useIsAdmin } from './useRBAC';
-import type { UserPermissionsResponse } from '@/types/rbac-types';
 
 vi.mock('./useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -26,21 +25,35 @@ vi.mock('@/services/rbac/RBACService', () => ({
 
 import { useAuthContext } from './useAuthContext';
 
-const NO_PERMISSIONS: UserPermissionsResponse = {
-  permissions: [],
-  roles: [],
-  effectivePermissions: [],
-};
+function mockSharedAccessContext(overrides: Record<string, unknown> = {}) {
+  const context = {
+    user: { id: 'user-1' },
+    dbPermissions: ['show:read'],
+    rbacUserRoles: [],
+    rbacScopedPermissions: [],
+    rbacLoading: false,
+    rbacError: null,
+    rbacLastRefreshed: '2026-07-29T12:00:00.000Z',
+    hasPermission: vi.fn((permission: string) => permission === 'show:read'),
+    checkPermissionAsync: vi.fn().mockResolvedValue(false),
+    refreshPermissions: vi.fn().mockResolvedValue(undefined),
+    isAdmin: false,
+    ...overrides,
+  };
+  (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue(context);
+  return context;
+}
 
 function mockUser(id: string | null) {
-  (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+  return mockSharedAccessContext({
     user: id ? { id } : null,
+    dbPermissions: [],
+    hasPermission: vi.fn().mockReturnValue(false),
   });
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockRbacService.getUserPermissions.mockResolvedValue(NO_PERMISSIONS);
   mockRbacService.checkPermission.mockResolvedValue(false);
 });
 
@@ -71,6 +84,74 @@ describe('useRBAC — no user', () => {
   });
 });
 
+describe('useRBAC — shared auth-context lifecycle', () => {
+  it('reuses auth-context access state without starting another service load', () => {
+    mockSharedAccessContext();
+
+    const { result } = renderHook(() => useRBAC());
+
+    expect(result.current.effectivePermissions).toEqual(['show:read']);
+    expect(result.current.hasPermission('show:read')).toBe(true);
+    expect(result.current.lastRefreshed).toBe('2026-07-29T12:00:00.000Z');
+    expect(mockRbacService.getUserPermissions).not.toHaveBeenCalled();
+  });
+
+  it('returns async permission results without overriding shared access state', async () => {
+    mockSharedAccessContext({
+      user: { id: 'user-1' },
+      dbPermissions: [],
+      hasPermission: vi.fn().mockReturnValue(false),
+      checkPermissionAsync: vi.fn().mockResolvedValue(true),
+    });
+    const { result, rerender } = renderHook(() => useRBAC());
+
+    let granted = false;
+    await act(async () => {
+      granted = await result.current.checkPermission('admin:manage');
+    });
+    expect(granted).toBe(true);
+    expect(result.current.hasPermission('admin:manage')).toBe(false);
+
+    mockSharedAccessContext({
+      user: { id: 'user-2' },
+      dbPermissions: [],
+      hasPermission: vi.fn().mockReturnValue(false),
+    });
+    rerender();
+
+    expect(result.current.hasPermission('admin:manage')).toBe(false);
+  });
+
+  it('does not let a late async check overwrite refreshed authoritative state', async () => {
+    let resolvePermission: ((value: boolean) => void) | undefined;
+    mockSharedAccessContext({
+      dbPermissions: [],
+      rbacLastRefreshed: '2026-07-29T12:00:00.000Z',
+      hasPermission: vi.fn().mockReturnValue(false),
+      checkPermissionAsync: vi.fn(
+        () =>
+          new Promise(resolve => {
+            resolvePermission = resolve;
+          })
+      ),
+    });
+    const { result, rerender } = renderHook(() => useRBAC());
+
+    const pendingCheck = result.current.checkPermission('admin:manage');
+
+    mockSharedAccessContext({
+      dbPermissions: [],
+      rbacLastRefreshed: '2026-07-29T12:05:00.000Z',
+      hasPermission: vi.fn().mockReturnValue(false),
+    });
+    rerender();
+
+    resolvePermission?.(true);
+    await expect(pendingCheck).resolves.toBe(true);
+    expect(result.current.hasPermission('admin:manage')).toBe(false);
+  });
+});
+
 describe('useRBAC — decision table: effectivePermissions -> isAdmin -> admin methods exposed', () => {
   it.each<[string, string[], boolean]>([
     ['no permissions -> not admin, methods hidden', [], false],
@@ -78,11 +159,9 @@ describe('useRBAC — decision table: effectivePermissions -> isAdmin -> admin m
     ['admin:manage present -> is admin, methods exposed', ['admin:manage'], true],
     ['admin:manage among others -> is admin', ['dog:read', 'admin:manage', 'show:create'], true],
   ])('%s', async (_label, effectivePermissions, expectedAdmin) => {
-    mockUser('user-1');
-    mockRbacService.getUserPermissions.mockResolvedValue({
-      permissions: [],
-      roles: [],
-      effectivePermissions,
+    mockSharedAccessContext({
+      dbPermissions: effectivePermissions,
+      hasPermission: vi.fn((permission: string) => permission === 'admin:manage' && expectedAdmin),
     });
 
     const { result } = renderHook(() => useRBAC());
@@ -110,11 +189,9 @@ describe('useRBAC — admin-gated mutation methods', () => {
   // not exposed-but-throwing. Verified above in the isAdmin decision table.
   // For admins, the exposed methods delegate straight to rbacService:
   it('admin: assignRole delegates to rbacService.assignRole', async () => {
-    mockUser('user-1');
-    mockRbacService.getUserPermissions.mockResolvedValue({
-      permissions: [],
-      roles: [],
-      effectivePermissions: ['admin:manage'],
+    const context = mockSharedAccessContext({
+      dbPermissions: ['admin:manage'],
+      hasPermission: vi.fn((permission: string) => permission === 'admin:manage'),
     });
     mockRbacService.assignRole.mockResolvedValue('new-assignment-id');
 
@@ -129,14 +206,13 @@ describe('useRBAC — admin-gated mutation methods', () => {
       userId: 'target',
       roleName: 'secretary',
     });
+    expect(context.refreshPermissions).toHaveBeenCalledTimes(1);
   });
 
   it('admin: revokeRole delegates to rbacService.revokeRole', async () => {
-    mockUser('user-1');
-    mockRbacService.getUserPermissions.mockResolvedValue({
-      permissions: [],
-      roles: [],
-      effectivePermissions: ['admin:manage'],
+    const context = mockSharedAccessContext({
+      dbPermissions: ['admin:manage'],
+      hasPermission: vi.fn((permission: string) => permission === 'admin:manage'),
     });
     mockRbacService.revokeRole.mockResolvedValue(true);
 
@@ -151,16 +227,17 @@ describe('useRBAC — admin-gated mutation methods', () => {
       userId: 'target',
       roleName: 'secretary',
     });
+    expect(context.refreshPermissions).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('useRBAC — hasPermission cache', () => {
-  it('reflects effectivePermissions loaded from the service after settling', async () => {
-    mockUser('user-1');
-    mockRbacService.getUserPermissions.mockResolvedValue({
-      permissions: [],
-      roles: [],
-      effectivePermissions: ['dog:read', 'show:create'],
+  it('reflects effectivePermissions owned by the auth context', async () => {
+    mockSharedAccessContext({
+      dbPermissions: ['dog:read', 'show:create'],
+      hasPermission: vi.fn((permission: string) =>
+        ['dog:read', 'show:create'].includes(permission)
+      ),
     });
 
     const { result } = renderHook(() => useRBAC());
@@ -169,9 +246,12 @@ describe('useRBAC — hasPermission cache', () => {
     expect(result.current.hasPermission('show:delete')).toBe(false);
   });
 
-  it('checkPermission queries the service and updates the cache', async () => {
-    mockUser('user-1');
-    mockRbacService.checkPermission.mockResolvedValue(true);
+  it('checkPermission delegates without replacing the shared access snapshot', async () => {
+    const context = mockSharedAccessContext({
+      dbPermissions: [],
+      hasPermission: vi.fn().mockReturnValue(false),
+      checkPermissionAsync: vi.fn().mockResolvedValue(true),
+    });
 
     const { result } = renderHook(() => useRBAC());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -185,14 +265,8 @@ describe('useRBAC — hasPermission cache', () => {
     });
 
     expect(granted).toBe(true);
-    expect(mockRbacService.checkPermission).toHaveBeenCalledWith(
-      'user-1',
-      'show:create',
-      undefined
-    );
-    // The awaited check must have populated permissionCache so the synchronous
-    // hasPermission now returns true. Fails if checkPermission stops caching.
-    await waitFor(() => expect(result.current.hasPermission('show:create')).toBe(true));
+    expect(context.checkPermissionAsync).toHaveBeenCalledWith('show:create', undefined);
+    expect(result.current.hasPermission('show:create')).toBe(false);
   });
 });
 
@@ -222,10 +296,9 @@ describe('useRole', () => {
   });
 
   it('reports hasRole=true for an active matching role', async () => {
-    mockUser('user-1');
-    mockRbacService.getUserPermissions.mockResolvedValue({
-      permissions: [],
-      roles: [
+    mockSharedAccessContext({
+      dbPermissions: [],
+      rbacUserRoles: [
         {
           id: 'ur-1',
           user_id: 'user-1',
@@ -246,7 +319,6 @@ describe('useRole', () => {
           },
         },
       ],
-      effectivePermissions: [],
     });
 
     const { result } = renderHook(() => useRole('secretary'));
@@ -259,11 +331,9 @@ describe('useIsAdmin', () => {
     ['no admin permission -> false', ['dog:read'], false],
     ['admin:manage present -> true', ['admin:manage'], true],
   ])('%s', async (_label, effectivePermissions, expected) => {
-    mockUser('user-1');
-    mockRbacService.getUserPermissions.mockResolvedValue({
-      permissions: [],
-      roles: [],
-      effectivePermissions,
+    mockSharedAccessContext({
+      dbPermissions: effectivePermissions,
+      hasPermission: vi.fn((permission: string) => permission === 'admin:manage' && expected),
     });
 
     const { result } = renderHook(() => useIsAdmin());

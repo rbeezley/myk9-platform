@@ -8,230 +8,144 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthContext } from './useAuthContext';
 import { rbacService } from '@/services/rbac/RBACService';
 import {
-  // UserPermissionsResponse, // Not used
-  PermissionWithRole,
   UserRoleWithDetails,
   AssignRoleRequest,
   RevokeRoleRequest,
   CreateRoleRequest,
   UpdateRoleRequest,
-  UseRBACOptions,
-  RBACContextValue
+  RBACContextValue,
 } from '@/types/rbac-types';
 
 /**
  * Main RBAC hook for permission checking and role management
  */
-export function useRBAC(options: UseRBACOptions = {}): RBACContextValue {
-  const { user } = useAuthContext();
+export function useRBAC(): RBACContextValue {
   const {
-    refreshInterval = 5 * 60 * 1000, // 5 minutes
-    cacheTimeout = 5 * 60 * 1000, // 5 minutes
-    enableRealTimeUpdates = true // Reserved for future real-time feature implementation
-  } = options;
-  
-  // Suppress unused variable warning - enableRealTimeUpdates reserved for future use
-  void enableRealTimeUpdates;
+    user,
+    dbPermissions,
+    rbacUserRoles,
+    rbacScopedPermissions,
+    rbacLoading,
+    rbacError,
+    rbacLastRefreshed,
+    hasPermission: hasContextPermission,
+    checkPermissionAsync,
+    refreshPermissions,
+  } = useAuthContext();
 
-  const [userPermissions, setUserPermissions] = useState<PermissionWithRole[]>([]);
-  const [userRoles, setUserRoles] = useState<UserRoleWithDetails[]>([]);
-  const [effectivePermissions, setEffectivePermissions] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // Changed from true to false
-  const [error, setError] = useState<string | null>(null);
-  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
-
-  // Permission cache for fast synchronous checks
-  const [permissionCache, setPermissionCache] = useState<Map<string, boolean>>(new Map());
-
-  // Set cache timeout in service
-  useEffect(() => {
-    rbacService.setCacheTimeout(cacheTimeout);
-  }, [cacheTimeout]);
-
-  // Load user permissions and roles
-  const loadUserData = useCallback(async () => {
-    if (!user?.id) {
-      setUserPermissions([]);
-      setUserRoles([]);
-      setEffectivePermissions([]);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const data = await rbacService.getUserPermissions(user.id);
-
-      setUserPermissions(data.permissions);
-      setUserRoles(data.roles);
-      setEffectivePermissions(data.effectivePermissions);
-
-      // Update permission cache
-      const newCache = new Map<string, boolean>();
-      data.effectivePermissions.forEach(permission => {
-        newCache.set(permission, true);
-      });
-      setPermissionCache(newCache);
-
-      setLastRefreshed(new Date().toISOString());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load permissions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id]);
-
-  // Initial load
-  useEffect(() => {
-    loadUserData();
-  }, [loadUserData]);
-
-  // Periodic refresh
-  useEffect(() => {
-    if (!user?.id || refreshInterval <= 0) return;
-
-    const interval = setInterval(loadUserData, refreshInterval);
-    return () => clearInterval(interval);
-  }, [loadUserData, refreshInterval, user?.id]);
-
-  // Synchronous permission check (uses cache)
-  const hasPermission = useCallback((
-    permission: string,
-    scope?: { type: string; id: string }
-  ): boolean => {
-    if (!user?.id) {
-      return false;
-    }
-
-    // For now, use simple permission checking without scope
-    // Scope checking will be enhanced in future iterations
-    // Suppress unused parameter warning - scope reserved for future scoped permission feature
-    void scope;
-
-    return permissionCache.has(permission) && permissionCache.get(permission) === true;
-  }, [user?.id, permissionCache]);
-
-  // Asynchronous permission check (queries database)
-  const checkPermission = useCallback(async (
-    permission: string,
-    scope?: { type: string; id: string }
-  ): Promise<boolean> => {
-    if (!user?.id) return false;
-
-    try {
-      const hasPermission = await rbacService.checkPermission(user.id, permission, scope);
-      
-      // Update cache
-      setPermissionCache(prev => {
-        const newCache = new Map(prev);
-        const cacheKey = scope ? `${permission}:${scope.type}:${scope.id}` : permission;
-        newCache.set(cacheKey, hasPermission);
-        return newCache;
-      });
-      
-      return hasPermission;
-    } catch {
-      return false;
-    }
-  }, [user?.id]);
-
-  // Admin functions (only available if user has admin permissions)
-  const isAdmin = useMemo(() => 
-    hasPermission('admin:manage'), 
-    [hasPermission]
+  const hasPermission = useCallback(
+    (permission: string, scope?: { type: string; id: string }): boolean =>
+      !!user?.id && hasContextPermission(permission, scope),
+    [hasContextPermission, user?.id]
   );
 
-  const assignRole = useCallback(async (request: AssignRoleRequest): Promise<void> => {
-    if (!isAdmin) {
-      throw new Error('Insufficient permissions to assign roles');
-    }
+  // Point-in-time asynchronous checks never overwrite the shared access snapshot.
+  const checkPermission = useCallback(
+    async (permission: string, scope?: { type: string; id: string }): Promise<boolean> => {
+      if (!user?.id) return false;
 
-    await rbacService.assignRole(request);
-    
-    // Refresh data if assigning to current user
-    if (request.userId === user?.id) {
-      await loadUserData();
-    }
-  }, [isAdmin, user?.id, loadUserData]);
+      try {
+        return await checkPermissionAsync(permission, scope);
+      } catch {
+        return false;
+      }
+    },
+    [checkPermissionAsync, user?.id]
+  );
 
-  const revokeRole = useCallback(async (request: RevokeRoleRequest): Promise<void> => {
-    if (!isAdmin) {
-      throw new Error('Insufficient permissions to revoke roles');
-    }
+  // Admin functions (only available if user has admin permissions)
+  const isAdmin = useMemo(() => hasPermission('admin:manage'), [hasPermission]);
 
-    await rbacService.revokeRole(request);
-    
-    // Refresh data if revoking from current user
-    if (request.userId === user?.id) {
-      await loadUserData();
-    }
-  }, [isAdmin, loadUserData, user?.id]);
+  const assignRole = useCallback(
+    async (request: AssignRoleRequest): Promise<void> => {
+      if (!isAdmin) {
+        throw new Error('Insufficient permissions to assign roles');
+      }
 
-  const createRole = useCallback(async (request: CreateRoleRequest) => {
-    if (!isAdmin) {
-      throw new Error('Insufficient permissions to create roles');
-    }
+      await rbacService.assignRole(request);
+      await refreshPermissions();
+    },
+    [isAdmin, refreshPermissions]
+  );
 
-    return await rbacService.createRole(request);
-  }, [isAdmin]);
+  const revokeRole = useCallback(
+    async (request: RevokeRoleRequest): Promise<void> => {
+      if (!isAdmin) {
+        throw new Error('Insufficient permissions to revoke roles');
+      }
 
-  const updateRole = useCallback(async (roleId: string, request: UpdateRoleRequest) => {
-    if (!isAdmin) {
-      throw new Error('Insufficient permissions to update roles');
-    }
+      await rbacService.revokeRole(request);
+      await refreshPermissions();
+    },
+    [isAdmin, refreshPermissions]
+  );
 
-    const result = await rbacService.updateRole(roleId, request);
-    
-    // Refresh user data if any of their roles were updated
-    const userRoleIds = userRoles.map(ur => ur.role_id);
-    if (userRoleIds.includes(roleId)) {
-      await loadUserData();
-    }
-    
-    return result;
-  }, [isAdmin, userRoles, loadUserData]);
+  const createRole = useCallback(
+    async (request: CreateRoleRequest) => {
+      if (!isAdmin) {
+        throw new Error('Insufficient permissions to create roles');
+      }
+
+      const role = await rbacService.createRole(request);
+      await refreshPermissions();
+      return role;
+    },
+    [isAdmin, refreshPermissions]
+  );
+
+  const updateRole = useCallback(
+    async (roleId: string, request: UpdateRoleRequest) => {
+      if (!isAdmin) {
+        throw new Error('Insufficient permissions to update roles');
+      }
+
+      const result = await rbacService.updateRole(roleId, request);
+      await refreshPermissions();
+      return result;
+    },
+    [isAdmin, refreshPermissions]
+  );
 
   // Clear cache
   const clearCache = useCallback(() => {
     rbacService.clearUserCache(user?.id || '');
-    setPermissionCache(new Map());
   }, [user?.id]);
 
   // Refresh
   const refresh = useCallback(async () => {
     clearCache();
-    await loadUserData();
-  }, [clearCache, loadUserData]);
+    await refreshPermissions();
+  }, [clearCache, refreshPermissions]);
 
   return {
     // Permission checking
     hasPermission,
     checkPermission,
-    
+
     // User data
-    userRoles,
-    userPermissions,
-    effectivePermissions,
-    
+    userRoles: rbacUserRoles,
+    userPermissions: rbacScopedPermissions,
+    effectivePermissions: dbPermissions,
+
     // Admin functions (conditionally available)
-    ...(isAdmin ? {
-      assignRole,
-      revokeRole,
-      createRole,
-      updateRole
-    } : {}),
-    
+    ...(isAdmin
+      ? {
+          assignRole,
+          revokeRole,
+          createRole,
+          updateRole,
+        }
+      : {}),
+
     // State
-    isLoading,
-    error,
-    
-    lastRefreshed,
-    
+    isLoading: rbacLoading,
+    error: rbacError,
+
+    lastRefreshed: rbacLastRefreshed,
+
     // Actions
     refresh,
-    clearCache
+    clearCache,
   };
 }
 
@@ -263,7 +177,9 @@ export function usePermission(
 
     try {
       setIsLoading(true);
-      const scopeObj = scopeKey ? { type: scopeKey.split(':')[0], id: scopeKey.split(':')[1] } : undefined;
+      const scopeObj = scopeKey
+        ? { type: scopeKey.split(':')[0], id: scopeKey.split(':')[1] }
+        : undefined;
       const result = await rbacService.checkPermission(user.id, permission, scopeObj);
       setHasPermission(result);
       return result;
@@ -282,7 +198,7 @@ export function usePermission(
   return {
     hasPermission,
     isLoading,
-    checkPermission
+    checkPermission,
   };
 }
 
@@ -296,20 +212,17 @@ export function useRole(roleName: string): {
 } {
   const { userRoles, isLoading } = useRBAC();
 
-  const roleDetails = useMemo(() => 
-    userRoles.find(ur => ur.role?.name === roleName && ur.is_active) || null,
+  const roleDetails = useMemo(
+    () => userRoles.find(ur => ur.role?.name === roleName && ur.is_active) || null,
     [userRoles, roleName]
   );
 
-  const hasRole = useMemo(() => 
-    roleDetails !== null,
-    [roleDetails]
-  );
+  const hasRole = useMemo(() => roleDetails !== null, [roleDetails]);
 
   return {
     hasRole,
     isLoading,
-    roleDetails
+    roleDetails,
   };
 }
 
@@ -322,14 +235,11 @@ export function useIsAdmin(): {
 } {
   const { hasPermission, isLoading } = useRBAC();
 
-  const isAdmin = useMemo(() => 
-    hasPermission('admin:manage'),
-    [hasPermission]
-  );
+  const isAdmin = useMemo(() => hasPermission('admin:manage'), [hasPermission]);
 
   return {
     isAdmin,
-    isLoading
+    isLoading,
   };
 }
 
@@ -349,17 +259,20 @@ export function useScopedPermissions(
 } {
   const { hasPermission, isLoading } = useRBAC();
 
-  const permissions = useMemo(() => ({
-    canCreate: hasPermission(`${resource}:create`, scope),
-    canRead: hasPermission(`${resource}:read`, scope),
-    canUpdate: hasPermission(`${resource}:update`, scope),
-    canDelete: hasPermission(`${resource}:delete`, scope),
-    canManage: hasPermission(`${resource}:manage`, scope)
-  }), [hasPermission, resource, scope]);
+  const permissions = useMemo(
+    () => ({
+      canCreate: hasPermission(`${resource}:create`, scope),
+      canRead: hasPermission(`${resource}:read`, scope),
+      canUpdate: hasPermission(`${resource}:update`, scope),
+      canDelete: hasPermission(`${resource}:delete`, scope),
+      canManage: hasPermission(`${resource}:manage`, scope),
+    }),
+    [hasPermission, resource, scope]
+  );
 
   return {
     ...permissions,
-    isLoading
+    isLoading,
   };
 }
 
@@ -372,15 +285,19 @@ export function useRoleBasedPermissions() {
   const rbac = useRBAC();
 
   // Maintain backward compatibility with existing auth context
-  const hasRole = useCallback((roleName: string): boolean => {
-    return rbac.userRoles.some(ur => 
-      ur.role?.name === roleName && ur.is_active
-    );
-  }, [rbac.userRoles]);
+  const hasRole = useCallback(
+    (roleName: string): boolean => {
+      return rbac.userRoles.some(ur => ur.role?.name === roleName && ur.is_active);
+    },
+    [rbac.userRoles]
+  );
 
-  const hasPermission = useCallback((permission: string): boolean => {
-    return rbac.hasPermission(permission);
-  }, [rbac]);
+  const hasPermission = useCallback(
+    (permission: string): boolean => {
+      return rbac.hasPermission(permission);
+    },
+    [rbac]
+  );
 
   // Legacy role checking methods
   const isAdmin = hasRole('site_admin');
@@ -391,17 +308,17 @@ export function useRoleBasedPermissions() {
   return {
     // User info
     user,
-    
+
     // Role checking
     hasRole,
     isAdmin,
     isSecretary,
     isExhibitor,
     isJudge,
-    
+
     // New RBAC features
     ...rbac,
-    
+
     // Permission checking (override any from rbac)
     hasPermission,
   };

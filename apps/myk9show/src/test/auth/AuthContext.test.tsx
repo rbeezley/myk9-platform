@@ -23,6 +23,8 @@ const { mockRbacService } = vi.hoisted(() => ({
     getUserRolesByEmail: vi.fn(),
     hasPermission: vi.fn(),
     checkPermission: vi.fn(),
+    clearUserCache: vi.fn(),
+    clearAllCache: vi.fn(),
   },
 }));
 
@@ -67,6 +69,18 @@ describe('AuthContext', () => {
     updateProfile: vi.fn(),
   };
 
+  const accessForRole = (role: UserRole) => ({
+    roles: [
+      {
+        role_id: `role-${role}`,
+        role: { name: role, display_name: role },
+        is_active: true,
+      },
+    ],
+    permissions: [],
+    effectivePermissions: [],
+  });
+
   beforeEach(() => {
     localStorage.clear();
     mockUseAuth.mockReturnValue(mockAuthReturn);
@@ -92,13 +106,15 @@ describe('AuthContext', () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    return render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[initialRoute]}>
-          <AuthProvider>{children}</AuthProvider>
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
+    return render(<>{children}</>, {
+      wrapper: ({ children: wrappedChildren }) => (
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={[initialRoute]}>
+            <AuthProvider>{wrappedChildren}</AuthProvider>
+          </MemoryRouter>
+        </QueryClientProvider>
+      ),
+    });
   };
 
   describe('AuthProvider', () => {
@@ -248,7 +264,7 @@ describe('AuthContext', () => {
       });
     });
 
-    it('refreshes RBAC roles on the live-session poll interval', async () => {
+    it('refreshes RBAC roles on a five-minute interval', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       mockRbacService.getUserPermissions
         .mockResolvedValueOnce({
@@ -289,9 +305,245 @@ describe('AuthContext', () => {
         await vi.advanceTimersByTimeAsync(60_000);
       });
 
+      expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(1);
+      expect(mockRbacService.clearUserCache).not.toHaveBeenCalled();
+      expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(240_000);
+      });
+
       await waitFor(() => {
+        expect(mockRbacService.clearUserCache).toHaveBeenCalledWith(mockUser.id);
         expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
         expect(screen.getByTestId('user-roles')).not.toHaveTextContent(UserRole.SECRETARY);
+      });
+    });
+
+    it('exposes shared detailed RBAC state and invalidates before explicit refresh', async () => {
+      mockRbacService.getUserPermissions.mockResolvedValue({
+        roles: [
+          {
+            id: 'user-role-1',
+            user_id: mockUser.id,
+            role_id: 'role-secretary',
+            club_id: 'club-1',
+            show_id: null,
+            granted_by: null,
+            granted_at: null,
+            expires_at: null,
+            is_active: true,
+            scope_type: 'club',
+            scope_id: 'club-1',
+            role: {
+              id: 'role-secretary',
+              name: UserRole.SECRETARY,
+              description: null,
+              is_system: true,
+              permissions: null,
+              created_at: null,
+            },
+          },
+        ],
+        permissions: [
+          {
+            permission_id: 'permission-1',
+            permission_code: PERMISSIONS.SHOW_MANAGE,
+            permission_name: 'Manage shows',
+            description: null,
+            category: 'show',
+            role_id: 'role-secretary',
+            role_name: UserRole.SECRETARY,
+            scope_type: 'club',
+            scope_id: 'club-1',
+          },
+        ],
+        effectivePermissions: [PERMISSIONS.SHOW_MANAGE],
+      });
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return (
+          <div>
+            <span data-testid="detailed-role">{auth.rbacUserRoles[0]?.role.name}</span>
+            <span data-testid="permission-scope">
+              {auth.rbacScopedPermissions[0]?.scope_type}:{auth.rbacScopedPermissions[0]?.scope_id}
+            </span>
+            <span data-testid="last-refreshed">{auth.rbacLastRefreshed ?? 'none'}</span>
+            <button type="button" onClick={() => void auth.refreshPermissions()}>
+              Refresh access
+            </button>
+          </div>
+        );
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('detailed-role')).toHaveTextContent(UserRole.SECRETARY);
+        expect(screen.getByTestId('permission-scope')).toHaveTextContent('club:club-1');
+        expect(screen.getByTestId('last-refreshed')).not.toHaveTextContent('none');
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+
+      await waitFor(() => {
+        expect(mockRbacService.clearUserCache).toHaveBeenCalledWith(mockUser.id);
+        expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('does not expose the prior user RBAC state while the next user loads', async () => {
+      let resolveSecondUser: ((value: ReturnType<typeof accessForRole>) => void) | undefined;
+      mockRbacService.getUserPermissions
+        .mockResolvedValueOnce(accessForRole(UserRole.SECRETARY))
+        .mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              resolveSecondUser = resolve;
+            })
+        );
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return (
+          <div>
+            <span data-testid="current-user">{auth.user?.id}</span>
+            <span data-testid="current-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+          </div>
+        );
+      };
+
+      const view = renderWithAuthProvider(<TestComponent />);
+      await waitFor(() => {
+        expect(screen.getByTestId('current-roles')).toHaveTextContent(UserRole.SECRETARY);
+      });
+
+      mockUseAuth.mockReturnValue({
+        ...mockAuthReturn,
+        user: { ...mockUser, id: 'second-user-id' },
+      });
+      view.rerender(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('current-user')).toHaveTextContent('second-user-id');
+        expect(screen.getByTestId('current-roles')).toHaveTextContent('none');
+      });
+
+      resolveSecondUser?.(accessForRole(UserRole.EXHIBITOR));
+    });
+
+    it('ignores an explicit-refresh response after the authenticated user changes', async () => {
+      let resolveStaleRefresh: ((value: ReturnType<typeof accessForRole>) => void) | undefined;
+      mockRbacService.getUserPermissions
+        .mockResolvedValueOnce(accessForRole(UserRole.SECRETARY))
+        .mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              resolveStaleRefresh = resolve;
+            })
+        )
+        .mockResolvedValueOnce(accessForRole(UserRole.EXHIBITOR));
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return (
+          <div>
+            <span data-testid="race-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+            <button type="button" onClick={() => void auth.refreshPermissions()}>
+              Refresh permissions
+            </button>
+          </div>
+        );
+      };
+
+      const view = renderWithAuthProvider(<TestComponent />);
+      await waitFor(() => {
+        expect(screen.getByTestId('race-roles')).toHaveTextContent(UserRole.SECRETARY);
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Refresh permissions' }));
+      mockUseAuth.mockReturnValue({
+        ...mockAuthReturn,
+        user: { ...mockUser, id: 'second-user-id' },
+      });
+      view.rerender(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
+      });
+
+      await act(async () => {
+        resolveStaleRefresh?.(accessForRole(UserRole.SITE_ADMIN));
+      });
+
+      expect(screen.getByTestId('race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
+      expect(screen.getByTestId('race-roles')).not.toHaveTextContent(UserRole.SITE_ADMIN);
+    });
+
+    it('keeps the newest same-user RBAC refresh when an older load finishes last', async () => {
+      let resolveInitialLoad: ((value: ReturnType<typeof accessForRole>) => void) | undefined;
+      mockRbacService.getUserPermissions
+        .mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              resolveInitialLoad = resolve;
+            })
+        )
+        .mockResolvedValueOnce(accessForRole(UserRole.EXHIBITOR));
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return (
+          <div>
+            <span data-testid="same-user-race-roles">
+              {auth.userWithRoles?.roles.join(',') ?? 'none'}
+            </span>
+            <button type="button" onClick={() => void auth.refreshPermissions()}>
+              Refresh current access
+            </button>
+          </div>
+        );
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+      await waitFor(() => {
+        expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(1);
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Refresh current access' }));
+      await waitFor(() => {
+        expect(screen.getByTestId('same-user-race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
+      });
+
+      await act(async () => {
+        resolveInitialLoad?.(accessForRole(UserRole.SITE_ADMIN));
+      });
+
+      expect(screen.getByTestId('same-user-race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
+      expect(screen.getByTestId('same-user-race-roles')).not.toHaveTextContent(UserRole.SITE_ADMIN);
+    });
+
+    it('invalidates the prior user service cache on sign-out', async () => {
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return <span data-testid="signed-in-user">{auth.user?.id ?? 'signed-out'}</span>;
+      };
+
+      const view = renderWithAuthProvider(<TestComponent />);
+      await waitFor(() => {
+        expect(screen.getByTestId('signed-in-user')).toHaveTextContent(mockUser.id);
+      });
+
+      mockUseAuth.mockReturnValue({
+        ...mockAuthReturn,
+        user: null,
+      });
+      view.rerender(<TestComponent />);
+
+      await waitFor(() => {
+        expect(mockRbacService.clearUserCache).toHaveBeenCalledWith(mockUser.id);
+        expect(screen.getByTestId('signed-in-user')).toHaveTextContent('signed-out');
       });
     });
   });

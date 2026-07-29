@@ -149,7 +149,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       '/club-admin/payments',
       '/clubs/club-1',
     ]);
-    expect(group?.items.find(item => item.title === 'Club Profile')?.description).toBe(undefined);
+    expect(group?.items.find(item => item.title === 'Club Profile')?.description).toBeUndefined();
     expect(group?.items.find(item => item.title === 'Members')?.description).toBeUndefined();
   });
 

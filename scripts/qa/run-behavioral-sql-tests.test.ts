@@ -38,9 +38,11 @@ describe('behavioral SQL test harness', () => {
       paidEntryInsert
     );
     const paymentServiceReset = pullRefundFixture.indexOf('RESET ROLE', paidEntryInsert);
+    const userRoleInsert = pullRefundFixture.indexOf('INSERT INTO public.user_roles');
 
     expect(paymentServiceRole).toBeGreaterThan(authInsert);
     expect(paymentServiceReset).toBeGreaterThan(paidEntryInsert);
+    expect(paymentServiceReset).toBeLessThan(userRoleInsert);
   });
 
   it('executes every launch-critical behavioral SQL file through psql', () => {

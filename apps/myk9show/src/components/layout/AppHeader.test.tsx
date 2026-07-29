@@ -74,6 +74,12 @@ describe('AppHeader phone-width header consolidation', () => {
     const askQButton = screen.getByRole('button', { name: /askq assistant/i });
     expect(askQButton).toHaveClass('hidden', 'md:flex');
   });
+
+  it('keeps the account trigger in the header on mobile but hides it on desktop', () => {
+    render(<AppHeader />);
+
+    expect(screen.getByRole('button', { name: /account menu/i })).toHaveClass('md:hidden');
+  });
 });
 
 describe('AppHeader branding', () => {
@@ -99,7 +105,7 @@ describe('AppHeader onboarding shell', () => {
     render(<AppHeader />, { initialRoute: '/onboarding' });
 
     expect(screen.getByText('myK9Show')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /account menu/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /account menu/i })).not.toHaveClass('md:hidden');
     expect(screen.queryByRole('button', { name: /search/i })).not.toBeInTheDocument();
     expect(screen.queryByText('Search...')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /shopping cart/i })).not.toBeInTheDocument();

@@ -29,18 +29,17 @@ import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 
 interface AccountMenuContentProps {
-  /** Opens the About dialog, whose state lives in the host AppHeader. */
+  /** Opens the About dialog owned by the shared account-menu host. */
   onAbout: () => void;
+  align?: 'start' | 'center' | 'end';
 }
 
 function AccountMenuSeparator() {
   return <DropdownMenuSeparator className="bg-muted-foreground/40" />;
 }
 
-/** The account dropdown's menu body. Extracted from AppHeader so that file
- * stays under the 500-line ratchet; it re-derives everything it needs from
- * hooks, so the only coupling back to the header is the About dialog toggle. */
-export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
+/** Shared account dropdown body used by the mobile header and desktop sidebar. */
+export function AccountMenuContent({ onAbout, align = 'end' }: AccountMenuContentProps) {
   const { user, signOut, userWithRoles, getUserRoles } = useAuthContext();
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
@@ -90,7 +89,7 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
   };
 
   return (
-    <DropdownMenuContent align="end" className="w-64">
+    <DropdownMenuContent align={align} className="w-64">
       {/* User Info */}
       <div className="px-3 py-2 border-b">
         <p className="text-sm font-medium">{user?.email}</p>

@@ -8,6 +8,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
+import { AccountMenu } from '@/components/layout/AccountMenu';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { SidebarConfig } from './types';
@@ -20,7 +21,7 @@ export interface RoleSidebarProps {
 }
 
 export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile, isCollapsed }) => {
-  const { groups, headerTitle, footerIcon: FooterIcon, footerLabel } = config;
+  const { groups, accountName, accountRoleLabel } = config;
 
   // Pre-computed once per config identity (stable across renders since config is a module-level constant)
   const allHrefs = React.useMemo(() => collectNavHrefs(groups), [groups]);
@@ -28,19 +29,9 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
 
   return (
     <div className="flex h-full flex-col bg-[var(--sidebar)] overflow-hidden">
-      {/* Header */}
-      <div
-        className={cn(
-          'flex h-16 items-center border-b border-border',
-          isCollapsed ? 'justify-center px-0' : 'justify-between px-6'
-        )}
-      >
-        {!isCollapsed && (
-          <h2 className="text-base font-semibold" style={{ fontWeight: 590 }}>
-            {headerTitle}
-          </h2>
-        )}
-        {!isCollapsed && onCloseMobile && (
+      {/* Mobile sidebar close control. Desktop identity lives in the footer. */}
+      {onCloseMobile && (
+        <div className="flex h-16 items-center justify-end border-b border-border px-4 md:hidden">
           <Button
             variant="ghost"
             size="sm"
@@ -50,8 +41,8 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
           >
             <X className="h-4 w-4" />
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className={cn('flex-1 overflow-y-auto py-6', isCollapsed ? 'px-2' : 'px-4')}>
@@ -140,22 +131,15 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
         </nav>
       </div>
 
-      {/* Footer */}
-      <section className="border-t border-border px-4 py-3" aria-label="Access level">
-        {isCollapsed ? (
-          <div className="flex justify-center" title={footerLabel}>
-            <FooterIcon className="h-5 w-5 text-primary" aria-hidden="true" />
-            <span className="sr-only">{footerLabel}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 px-2 text-muted-foreground">
-            <FooterIcon className="h-4 w-4 text-primary" aria-hidden="true" />
-            <span className="text-sm font-medium" style={{ fontWeight: 500 }}>
-              {footerLabel}
-            </span>
-          </div>
-        )}
-      </section>
+      {/* Desktop account access; mobile keeps the trigger in AppHeader. */}
+      <div className={cn('hidden border-t border-border md:block', isCollapsed ? 'p-2' : 'p-3')}>
+        <AccountMenu
+          variant="sidebar"
+          displayName={accountName}
+          roleLabel={accountRoleLabel}
+          isCollapsed={Boolean(isCollapsed)}
+        />
+      </div>
     </div>
   );
 };

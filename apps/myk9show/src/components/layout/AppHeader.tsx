@@ -2,8 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { ChevronDown, Search, ShoppingCart, Menu } from 'lucide-react';
-import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Search, ShoppingCart, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/common/CommandPalette';
 import { KeyboardShortcutsOverlay } from '@/components/common/KeyboardShortcutsOverlay';
@@ -12,14 +11,11 @@ import { buildAppShortcuts } from '@/components/layout/appShortcuts';
 import { useCartItemCount, useCartStore } from '@/store/cartStore';
 import { useActiveCartItemCount } from '@/hooks/queries/useActiveCartItemCount';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
-import { AboutDialog } from '@/components/common/AboutDialog';
-import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
+import { AccountMenu } from '@/components/layout/AccountMenu';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 import { AskQPanel } from '@/components/askq/AskQPanel';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
-import { useCurrentUserPerson } from '@/hooks/useProfileForm';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useAppShellMobileNav } from './useAppShellMobileNav';
 
 const MOBILE_SIDEBAR_QUERY = '(max-width: 767px)';
@@ -48,7 +44,6 @@ function useIsMobileSidebarViewport() {
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuthContext();
-  const { data: currentPerson } = useCurrentUserPerson(user?.id);
   const navigate = useNavigate();
   const location = useLocation();
   const { isMobileNavOpen, openMobileNav } = useAppShellMobileNav();
@@ -65,7 +60,6 @@ const AppHeader: React.FC = () => {
   const isAtShow = location.pathname === '/at-show' || location.pathname.startsWith('/at-show/');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsOverlayOpen, setShortcutsOverlayOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
   const storeCartItemCount = useCartItemCount();
   const { toggle: toggleAskQ } = useAskQPanelStore();
 
@@ -268,27 +262,12 @@ const AppHeader: React.FC = () => {
                   </Button>
                 )}
 
-                {/* Profile Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild nativeButton>
-                    <Button
-                      variant="ghost"
-                      className="text-primary hover:bg-primary/10 flex min-h-11 min-w-11 items-center gap-1.5 rounded-lg px-2 py-2 hover:bg-muted/50"
-                      aria-label="Account menu"
-                    >
-                      <Avatar className="w-7 h-7">
-                        {currentPerson?.profileImage && (
-                          <AvatarImage src={currentPerson.profileImage} alt="Profile photo" />
-                        )}
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
-                          {user.email?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <ChevronDown className="h-3 w-3 text-muted-foreground hidden sm:block" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <AccountMenuContent onAbout={() => setAboutOpen(true)} />
-                </DropdownMenu>
+                {/* Account access lives in the sidebar on desktop. Onboarding
+                    has no sidebar, so it keeps this trigger at every width. */}
+                <AccountMenu
+                  variant="header"
+                  {...(!isOnboardingRoute && { className: 'md:hidden' })}
+                />
               </>
             ) : (
               <>
@@ -324,8 +303,6 @@ const AppHeader: React.FC = () => {
         shortcuts={shortcutDisplays}
       />
 
-      {/* About Dialog */}
-      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
       <AskQPanel />
     </nav>
   );

@@ -57,7 +57,10 @@ VALUES
   );
 
 -- Paid-online fixture rows must use the same privileged role as the payment
--- service. The authorization assertions below run as authenticated users.
+-- service. Production writes use its SECURITY DEFINER RPC, so grant only the
+-- direct INSERT needed by this rolled-back fixture transaction.
+GRANT INSERT ON public.entries TO service_role;
+
 SET LOCAL ROLE service_role;
 
 INSERT INTO public.entries (

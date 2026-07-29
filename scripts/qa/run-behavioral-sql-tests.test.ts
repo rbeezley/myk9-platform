@@ -33,6 +33,9 @@ describe('behavioral SQL test harness', () => {
     );
 
     const paidEntryInsert = pullRefundFixture.indexOf('INSERT INTO public.entries');
+    const paymentServiceGrant = pullRefundFixture.indexOf(
+      'GRANT INSERT ON public.entries TO service_role'
+    );
     const paymentServiceRole = pullRefundFixture.lastIndexOf(
       'SET LOCAL ROLE service_role',
       paidEntryInsert
@@ -41,6 +44,8 @@ describe('behavioral SQL test harness', () => {
     const userRoleInsert = pullRefundFixture.indexOf('INSERT INTO public.user_roles');
 
     expect(paymentServiceRole).toBeGreaterThan(authInsert);
+    expect(paymentServiceGrant).toBeGreaterThan(authInsert);
+    expect(paymentServiceGrant).toBeLessThan(paymentServiceRole);
     expect(paymentServiceReset).toBeGreaterThan(paidEntryInsert);
     expect(paymentServiceReset).toBeLessThan(userRoleInsert);
   });

@@ -23,7 +23,8 @@ vi.mock('./useAppShellMobileNav', () => ({
 
 vi.mock('@/store/cartStore', () => ({
   useCartItemCount: () => 2,
-  useCartStore: (selector: (s: { cart: unknown }) => unknown) => selector({ cart: null }),
+  useCartStore: (selector: (s: { cart: unknown }) => unknown) =>
+    selector({ cart: { id: 'cart-1' } }),
 }));
 
 vi.mock('@/hooks/queries/useActiveCartItemCount', () => ({
@@ -64,11 +65,11 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
 }));
 
 describe('AppHeader phone-width header consolidation', () => {
-  it('hides the standalone theme and AskQ buttons below md, reachable via the account menu instead', () => {
+  it('keeps theme access in the header while consolidating AskQ into the account menu below md', () => {
     render(<AppHeader />);
 
     const themeButton = screen.getByRole('button', { name: /switch to dark mode/i });
-    expect(themeButton).toHaveClass('hidden', 'md:flex');
+    expect(themeButton).not.toHaveClass('hidden');
 
     const askQButton = screen.getByRole('button', { name: /askq assistant/i });
     expect(askQButton).toHaveClass('hidden', 'md:flex');
@@ -84,6 +85,7 @@ describe('AppHeader branding', () => {
     const wordmark = screen.getByText('myK9Show');
 
     expect(homeLink).toHaveAttribute('href', '/');
+    expect(homeLink).toHaveClass('max-[359px]:hidden');
     expect(mark).toHaveAttribute('src', '/brand-mark-64.png');
     expect(mark).toHaveAttribute('width', '28');
     expect(mark).toHaveAttribute('height', '28');

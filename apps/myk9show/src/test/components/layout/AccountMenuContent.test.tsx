@@ -5,20 +5,26 @@ import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
+import { UserRole } from '@/types/auth-types';
 
-const { networkState, syncState, themeState } = vi.hoisted(() => ({
+const { authState, networkState, syncState } = vi.hoisted(() => ({
+  authState: { roles: [] as string[] },
   networkState: { isOnline: true },
   syncState: { status: 'synced' as 'synced' | 'pending' | 'offline' | 'error' },
-  themeState: { theme: 'light' as 'light' | 'dark' },
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'test-user', email: 'test@example.com' },
-    hasRole: () => false,
+    hasRole: (role: string) => authState.roles.includes(role),
     signOut: vi.fn(),
-    userWithRoles: { id: 'person-1', roles: ['exhibitor'], scopes: [], user_metadata: {} },
-    getUserRoles: () => ['exhibitor'],
+    userWithRoles: {
+      id: 'person-1',
+      roles: authState.roles,
+      scopes: [],
+      user_metadata: {},
+    },
+    getUserRoles: () => authState.roles,
   }),
 }));
 
@@ -28,11 +34,6 @@ vi.mock('@/hooks/useNetworkStatus', () => ({
 
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => syncState,
-}));
-
-const toggleTheme = vi.fn();
-vi.mock('@/hooks/useTheme', () => ({
-  useTheme: () => ({ theme: themeState.theme, toggleTheme }),
 }));
 
 vi.mock('@/utils/debugUtils', () => ({
@@ -55,10 +56,9 @@ function renderOpenAccountMenu() {
 }
 
 beforeEach(() => {
+  authState.roles.length = 0;
   networkState.isOnline = true;
   syncState.status = 'synced';
-  themeState.theme = 'light';
-  toggleTheme.mockClear();
   useAskQPanelStore.getState().close();
 });
 
@@ -66,7 +66,6 @@ describe('AccountMenuContent developer tools', () => {
   beforeEach(() => {
     vi.mocked(resetAllMockData).mockClear();
     vi.mocked(clearDevelopmentCache).mockClear();
-    toggleTheme.mockClear();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
@@ -139,28 +138,15 @@ describe('AccountMenuContent developer tools', () => {
   });
 });
 
-describe('AccountMenuContent theme + AskQ items (phone consolidation)', () => {
-  it('exposes concise appearance and AskQ items that fire the same handlers as the header icons', async () => {
+describe('AccountMenuContent AskQ item (phone consolidation)', () => {
+  it('fires the same AskQ handler as the header icon', async () => {
     const { user } = renderOpenAccountMenu();
-
-    const themeItem = screen.getByRole('menuitem', { name: 'Dark mode' });
-    expect(themeItem).toBeInTheDocument();
-    await user.click(themeItem);
-    expect(toggleTheme).toHaveBeenCalledTimes(1);
 
     const askQItem = screen.getByRole('menuitem', { name: 'AskQ' });
     expect(askQItem).toBeInTheDocument();
     expect(askQItem.querySelector('[data-icon="askq"]')).toBeInTheDocument();
     await user.click(askQItem);
     expect(useAskQPanelStore.getState().isOpen).toBe(true);
-  });
-
-  it('offers the mode the theme action will activate', () => {
-    themeState.theme = 'dark';
-
-    renderOpenAccountMenu();
-
-    expect(screen.getByRole('menuitem', { name: 'Light mode' })).toBeInTheDocument();
   });
 });
 
@@ -174,30 +160,30 @@ describe('AccountMenuContent organization', () => {
     dividers.forEach(divider => expect(divider).toHaveClass('bg-muted-foreground/40'));
   });
 
-  it('keeps plan details reachable from every account menu', () => {
-    renderOpenAccountMenu();
+  it.each(Object.values(UserRole))(
+    'omits destinations and controls owned by primary navigation for %s',
+    role => {
+      authState.roles.push(role);
 
-    expect(screen.getByRole('menuitem', { name: 'Plan & billing' })).toHaveAttribute(
-      'href',
-      '/account?section=billing'
-    );
-    expect(screen.queryByRole('menuitem', { name: /view plans/i })).not.toBeInTheDocument();
-  });
+      renderOpenAccountMenu();
 
-  it('orders assistance, appearance, information, and session actions by task', () => {
+      expect(screen.queryByRole('menuitem', { name: 'Plan & billing' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Judge Scoring' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Analytics' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: 'Template Management' })
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Dark mode' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Light mode' })).not.toBeInTheDocument();
+    }
+  );
+
+  it('orders assistance, information, and session actions by task', () => {
     renderOpenAccountMenu();
 
     const itemNames = screen.getAllByRole('menuitem').map(item => item.textContent?.trim());
 
-    expect(itemNames).toEqual([
-      'Account',
-      'Plan & billing',
-      'AskQ',
-      'Help & Guides',
-      'Dark mode',
-      'About',
-      'Sign out',
-    ]);
+    expect(itemNames).toEqual(['Account', 'AskQ', 'Help & Guides', 'About', 'Sign out']);
   });
 
   it('keeps Sign out neutral until focus or highlight', () => {

@@ -185,6 +185,12 @@ export function buildUnifiedSidebarConfig(
             icon: Wallet,
             description: 'Platform fee + payout ledger',
           },
+          {
+            title: 'Templates',
+            href: '/admin/templates',
+            icon: FileText,
+            description: 'Class and show templates',
+          },
         ],
       });
     }

@@ -7,6 +7,19 @@
 
 BEGIN;
 
+-- Seed unlinked people first. handle_new_user() adopts a matching person by
+-- email when the auth row is inserted, avoiding duplicate auth_user_id rows.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000000811',
+    'Pull', 'Secretary', 'pull-secretary@example.test', NULL
+  ),
+  (
+    '00000000-0000-0000-0000-000000000812',
+    'Other', 'Club Admin', 'pull-club-admin@example.test', NULL
+  );
+
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -26,32 +39,21 @@ VALUES
     now(), now(), '{}', '{}', false, false, false
   );
 
-INSERT INTO public.people (id, first_name, last_name, auth_user_id)
-VALUES
-  (
-    '00000000-0000-0000-0000-000000000811',
-    'Pull', 'Secretary', '00000000-0000-0000-0000-000000000801'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000812',
-    'Other', 'Club Admin', '00000000-0000-0000-0000-000000000802'
-  );
-
 INSERT INTO public.clubs (id, name)
 VALUES
   ('00000000-0000-0000-0000-000000000821', 'Pull Test Club'),
   ('00000000-0000-0000-0000-000000000822', 'Unrelated Club');
 
-INSERT INTO public.shows (id, name, type, start_date, end_date, club_id)
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)
 VALUES
   (
     '00000000-0000-0000-0000-000000000831',
-    'Managed Pull Show', 'All-Breed', CURRENT_DATE, CURRENT_DATE,
+    'Managed Pull Show', 'AKC', CURRENT_DATE, CURRENT_DATE,
     '00000000-0000-0000-0000-000000000821'
   ),
   (
     '00000000-0000-0000-0000-000000000832',
-    'Clubless Pull Show', 'All-Breed', CURRENT_DATE, CURRENT_DATE, NULL
+    'Clubless Pull Show', 'AKC', CURRENT_DATE, CURRENT_DATE, NULL
   );
 
 INSERT INTO public.entries (

@@ -8,6 +8,10 @@ import { describe, expect, it } from 'vitest';
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const runner = resolve(repositoryRoot, 'scripts/qa/run-behavioral-sql-tests.sh');
 const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/ci.yml'), 'utf8');
+const pullRefundFixture = readFileSync(
+  resolve(repositoryRoot, 'supabase/tests/pull_refund_decision_rls_test.sql'),
+  'utf8'
+);
 const launchCriticalSqlTests = [
   'myk9_114_entry_access_context_test.sql',
   'pull_refund_decision_rls_test.sql',
@@ -16,6 +20,19 @@ const launchCriticalSqlTests = [
 ];
 
 describe('behavioral SQL test harness', () => {
+  it('seeds pull/refund people before auth users so the signup trigger adopts them', () => {
+    const peopleInsert = pullRefundFixture.indexOf('INSERT INTO public.people');
+    const authInsert = pullRefundFixture.indexOf('INSERT INTO auth.users');
+
+    expect(peopleInsert).toBeGreaterThan(-1);
+    expect(peopleInsert).toBeLessThan(authInsert);
+    expect(pullRefundFixture.slice(peopleInsert, authInsert)).toContain('auth_user_id');
+    expect(pullRefundFixture.slice(peopleInsert, authInsert)).toContain('NULL');
+    expect(pullRefundFixture).toContain(
+      'INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)'
+    );
+  });
+
   it('executes every launch-critical behavioral SQL file through psql', () => {
     const scratch = mkdtempSync(join(tmpdir(), 'myk9-behavioral-sql-'));
     const fakePsql = join(scratch, 'psql');

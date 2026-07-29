@@ -1,4 +1,6 @@
 export const LOAD_SHOW_ID = 'dededede-0000-0000-0000-000000000010';
+export const LOAD_GENERATED_ENTRY_COUNT = 504;
+export const LOAD_SHOW_ENTRY_COUNT = 514;
 
 export const LOAD_CLASS_IDS = [
   'dec1a55e-0000-0000-0000-000000000032',
@@ -19,8 +21,14 @@ export interface LoadEntryFixture {
 }
 
 export function loadEntryFixture(entryNumber: number): LoadEntryFixture {
-  if (!Number.isInteger(entryNumber) || entryNumber < 1 || entryNumber > 504) {
-    throw new Error(`Load entry number must be between 1 and 504; received ${entryNumber}.`);
+  if (
+    !Number.isInteger(entryNumber) ||
+    entryNumber < 1 ||
+    entryNumber > LOAD_GENERATED_ENTRY_COUNT
+  ) {
+    throw new Error(
+      `Load entry number must be between 1 and ${LOAD_GENERATED_ENTRY_COUNT}; received ${entryNumber}.`
+    );
   }
   const dogNumber = Math.floor((entryNumber - 1) / 8) + 1;
   const classIndex = (entryNumber - 1) % 8;

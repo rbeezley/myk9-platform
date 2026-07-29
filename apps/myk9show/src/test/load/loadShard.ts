@@ -39,10 +39,12 @@ export function loadShardFromEnv(
   if (!/^[A-Za-z0-9._-]{1,100}$/.test(runId)) {
     throw new Error('Distributed load run ID is missing or invalid.');
   }
-  if (!Number.isSafeInteger(startAtMs) || startAtMs <= nowMs) {
-    throw new Error('Distributed load start must be a future Unix timestamp in milliseconds.');
+  if (!Number.isSafeInteger(startAtMs) || startAtMs <= 0) {
+    throw new Error('Distributed load start must be a valid Unix timestamp in milliseconds.');
   }
-  return { count, index, runId, startAtMs };
+  const shard = { count, index, runId, startAtMs };
+  scheduledStartDelayMs(shard, nowMs);
+  return shard;
 }
 
 export function selectShardAssignments(

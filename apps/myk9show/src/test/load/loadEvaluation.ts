@@ -88,9 +88,6 @@ export function evaluateLoadResult(
   if (!finite(observation.apiP95Ms) || observation.apiP95Ms > scenario.targets.apiP95Ms) {
     failures.push('API p95 exceeded or was missing.');
   }
-  if (!finite(observation.pageP95Ms) || observation.pageP95Ms > scenario.targets.pageP95Ms) {
-    failures.push('Page p95 exceeded or was missing.');
-  }
   if (!finite(observation.errorRate) || observation.errorRate > scenario.targets.errorRateMax) {
     failures.push('Error rate exceeded or was missing.');
   }

@@ -39,6 +39,9 @@ manual-only and uses four standard public-repository `ubuntu-latest` runners.
 Each runner serves the checked-out frontend locally, prepares 25 isolated
 browser sessions, connects to the same remote Supabase project, and waits for
 one shared UTC start barrier. This does not require a paid runner or Vercel.
+Page p95 remains informational because it includes standard-runner saturation;
+scoring/API latency and database telemetry are the backend capacity gates until
+the evidence also records clean generator CPU/headroom.
 Create the `load-rehearsal` GitHub environment with a required reviewer before
 the first dispatch so the prepare job cannot seed the remote target unattended.
 GitHub only permits `workflow_dispatch` after the workflow exists on the default

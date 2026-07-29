@@ -19,7 +19,7 @@ describe('distributed load shards', () => {
     ).toEqual(Array.from({ length: 100 }, (_, index) => index));
   });
 
-  it('requires the complete four-shard environment and a future shared start', () => {
+  it('requires the complete four-shard environment and a valid shared start', () => {
     const now = Date.parse('2026-07-28T12:00:00.000Z');
     const shard = loadShardFromEnv(
       {
@@ -46,6 +46,22 @@ describe('distributed load shards', () => {
         now
       )
     ).toThrow('Distributed load configuration is incomplete');
+  });
+
+  it('allows the same five-second lateness tolerance used by the start barrier', () => {
+    const now = Date.parse('2026-07-28T12:00:00.000Z');
+    const shard = loadShardFromEnv(
+      {
+        LOAD_TEST_SHARD_COUNT: '4',
+        LOAD_TEST_SHARD_INDEX: '2',
+        LOAD_TEST_RUN_ID: '12345-1',
+        LOAD_TEST_START_AT: String(now - 3_000),
+      },
+      now
+    );
+
+    expect(shard?.startAtMs).toBe(now - 3_000);
+    expect(scheduledStartDelayMs(shard!, now)).toBe(0);
   });
 
   it('fails closed when a runner misses the start barrier', () => {

@@ -109,6 +109,9 @@ describe('isolated E2E migration chain', () => {
     expect(lifecycleSource).toContain(
       `(SELECT count(*) FROM public.entries WHERE show_id = '\${DEMO_SHOW_ID}')`
     );
-    expect(lifecycleSource).toContain("entryCount !== '514'");
+    expect(lifecycleSource).toContain('entryCount !== String(LOAD_SHOW_ENTRY_COUNT)');
+    expect(lifecycleSource).toContain(
+      "import { LOAD_SHOW_ENTRY_COUNT } from '../../apps/myk9show/src/test/load/loadFixture'"
+    );
   });
 });

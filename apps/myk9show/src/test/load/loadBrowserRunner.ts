@@ -4,7 +4,12 @@ import { signInAsExhibitor, signInAsSecretary } from '../e2e/helpers/testUsers';
 import { assertApplicationTarget } from './loadAppTarget';
 import { buildSessionAssignments, type LoadSessionAssignment } from './loadAssignments';
 import type { LoadObservation } from './loadEvaluation';
-import { loadEntryFixture, LOAD_CLASS_IDS, LOAD_SHOW_ID } from './loadFixture';
+import {
+  loadEntryFixture,
+  LOAD_CLASS_IDS,
+  LOAD_SHOW_ENTRY_COUNT,
+  LOAD_SHOW_ID,
+} from './loadFixture';
 import { LoadMetrics, type LoadMetricSamples } from './loadMetrics';
 import {
   readPendingMutationCount,
@@ -231,7 +236,7 @@ async function createAuthState(browser: Browser, baseURL: string, role: 'secreta
       { timeout: 90_000 }
     );
     await page.goto(warmPath, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-    await waitForReplicatedEntrySync(page, LOAD_SHOW_ID, 514);
+    await waitForReplicatedEntrySync(page, LOAD_SHOW_ID, LOAD_SHOW_ENTRY_COUNT);
     await waitForReplicatedEntry(page, warmFixture.entryId, warmFixture.classId);
     return await context.storageState({ indexedDB: true });
   } finally {
@@ -414,8 +419,10 @@ async function assertCanonicalFixture(): Promise<void> {
     .select('id', { count: 'exact', head: true })
     .eq('show_id', LOAD_SHOW_ID);
   if (error) throw new Error(`Could not preflight the load fixture: ${error.message}`);
-  if (count !== 514) {
-    throw new Error(`Load fixture requires exactly 514 demo-show entries; found ${count ?? 0}.`);
+  if (count !== LOAD_SHOW_ENTRY_COUNT) {
+    throw new Error(
+      `Load fixture requires exactly ${LOAD_SHOW_ENTRY_COUNT} demo-show entries; found ${count ?? 0}.`
+    );
   }
 }
 

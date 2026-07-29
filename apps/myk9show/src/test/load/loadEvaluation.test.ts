@@ -103,4 +103,14 @@ describe('load result evaluation', () => {
 
     expect(result.derived.serializationFailureRate).toBe(0.025);
   });
+
+  it('records runner-contaminated page p95 without using it as a backend gate', () => {
+    const result = evaluateLoadResult(
+      G9_NORMAL_SCENARIO,
+      passingObservation({ pageP95Ms: 30_000 })
+    );
+
+    expect(result.passed).toBe(true);
+    expect(result.failures).not.toContain('Page p95 exceeded or was missing.');
+  });
 });

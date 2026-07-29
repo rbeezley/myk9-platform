@@ -44,7 +44,11 @@ vi.mock('@/services/replication', () => ({
     updateCheckInStatus: vi.fn(),
     updateEntry: vi.fn(),
   },
-  replicatedTrialsTable: { getTrialById: vi.fn() },
+  replicatedTrialsTable: {
+    getTrialById: vi.fn(),
+    getTrialsByShow: vi.fn(),
+    sync: vi.fn(),
+  },
 }));
 
 // Auth: force a SITE_ADMIN primary role (→ ringside 'admin', canScore = true)
@@ -90,6 +94,10 @@ function seedReplication() {
     trialNumber: 1,
     date: '2026-06-01',
   } as never);
+  vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
+    { id: 'trial-1', showId: 'show-1' },
+    { id: 'trial-2', showId: 'show-1' },
+  ] as never);
   vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([PENDING_ENTRY] as never);
   vi.mocked(replicatedEntriesTable.updateCheckInStatus).mockResolvedValue('entry-1');
   vi.mocked(replicatedEntriesTable.updateEntry).mockResolvedValue('entry-1');
@@ -168,8 +176,12 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
 
     renderPage();
 
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
     expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
+    expect(replicatedClassesTable.sync).not.toHaveBeenCalledWith('');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
   });
 
   it('deduplicates concurrent show-scoped hydration requests', async () => {

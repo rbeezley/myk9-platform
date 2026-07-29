@@ -37,13 +37,16 @@ function syncAtShowData(showId: string): Promise<void> {
   const existing = atShowSyncsInFlight.get(showId);
   if (existing) return existing;
 
-  const operation = Promise.all([
-    // myK9Show's licenseKey is the show id, while classes.sync() scopes by
-    // trial id. Use its safe unscoped read so the show id cannot be applied
-    // to the wrong foreign key.
-    replicatedClassesTable.sync(''),
-    replicatedEntriesTable.sync(showId),
-  ]).then(() => undefined);
+  const operation = (async () => {
+    await replicatedTrialsTable.sync(showId);
+    const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
+    await Promise.all([
+      // Classes are scoped by trial_id, so hydrate only the trials that belong
+      // to this show. An empty scope would fetch every visible changed class.
+      ...showTrials.map(trial => replicatedClassesTable.sync(trial.id)),
+      replicatedEntriesTable.sync(showId),
+    ]);
+  })();
   atShowSyncsInFlight.set(showId, operation);
   const release = () => {
     if (atShowSyncsInFlight.get(showId) === operation) {

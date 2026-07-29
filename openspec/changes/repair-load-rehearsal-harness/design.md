@@ -232,7 +232,9 @@ records the failing dimension and MYK9-109 stays open.
 - **[Risk] Browser-context load measures the runner host as well as the backend.** →
   **Mitigation:** distribute 25 contexts to each of four standard runners, synchronize the start,
   record shard identity/timing, fail on late or missing shards, and separate page/UI timing from
-  Supabase request timing.
+  Supabase request timing. Until a rehearsal also records clean runner CPU/headroom, page p95 is
+  generator-contaminated supporting evidence rather than standalone Supabase-capacity evidence;
+  scoring/API latency and database telemetry remain the backend indicators.
 - **[Risk] GitHub matrix jobs do not become ready simultaneously.** →
   **Mitigation:** calculate a future UTC barrier before matrix setup, prepare contexts before the
   barrier, fail any late shard, and aggregate only four manifests with the same run/start identity.

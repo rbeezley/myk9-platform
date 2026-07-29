@@ -31,6 +31,14 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('514|504|0');
   });
 
+  it('protects every remote rehearsal job and offers a realistic preparation window', () => {
+    expect(workflow.match(/environment: load-rehearsal/g)).toHaveLength(4);
+    expect(workflow).toContain("default: '25'");
+    expect(workflow).toContain("- '15'");
+    expect(workflow).toContain("- '25'");
+    expect(workflow).toContain("- '35'");
+  });
+
   it('does not depend on Vercel or paid runner labels', () => {
     expect(workflow).not.toMatch(/VERCEL|larger-runner|self-hosted/i);
   });

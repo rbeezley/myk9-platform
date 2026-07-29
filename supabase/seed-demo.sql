@@ -2,10 +2,14 @@
 -- Lane 1.1 Demo Reseed  (myK9Show / Supabase project sojmvhhwsjxmfistvzbe)
 -- ----------------------------------------------------------------------------
 -- WHAT THIS IS
+--   TypeScript fixture counts live in apps/myk9show/src/test/load/loadFixture.ts;
+--   keep this SQL contract aligned because SQL cannot import those constants.
 --   A realistic, *publicly visible* demo dataset (1 club, 1 published
 --   multi-registry show, 4 trials, 9 classes, 69 dogs, 514 entries). Ten
 --   hand-authored entries preserve the golden paths; 504 deterministic entries
---   support the MYK9-109 rehearsal. It also includes complete show officials and
+--   support the MYK9-109 rehearsal. The demo exhibitor therefore owns an
+--   intentionally heavy persona; targeted exhibitor tests must tolerate 504
+--   additional entries. It also includes complete show officials and
 --   full RBAC role coverage so every role's golden path is walkable after a reseed:
 --     - Show officials are modeled through user_roles grants. classes.judge_name
 --       remains a snapshot of the assigned judge (section 2 + 4).
@@ -148,9 +152,11 @@ DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-00000000001
 -- Deterministic myk9_109 rows use separate UUID ranges so a reseed can remove
 -- them without broad predicates or touching the hand-authored demo fixtures.
 DELETE FROM public.entries
-WHERE id::text LIKE 'a1090000-0000-0000-0002-%'; -- myk9_109
+WHERE id >= 'a1090000-0000-0000-0002-000000000000'::uuid
+  AND id < 'a1090000-0000-0000-0003-000000000000'::uuid; -- myk9_109
 DELETE FROM public.dogs
-WHERE id::text LIKE 'a1090000-0000-0000-0001-%'; -- myk9_109
+WHERE id >= 'a1090000-0000-0000-0001-000000000000'::uuid
+  AND id < 'a1090000-0000-0000-0002-000000000000'::uuid; -- myk9_109
 -- entries ...059 / ...060 are the GAP FIXTURE #4 withdrawn/refunded rows (added
 -- below: ...059 owned by beezley, ...060 owned by e2e-exhibitor for the P1-04
 -- exhibitor-surface walk). The refund-column guard fires only on INSERT/UPDATE,

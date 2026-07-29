@@ -2,6 +2,7 @@ import { appendFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+import { LOAD_SHOW_ENTRY_COUNT } from '../../apps/myk9show/src/test/load/loadFixture';
 import { LOCAL_E2E_PROJECT_REF, resolveIsolatedE2eTarget } from './isolated-e2e-target';
 
 export interface LocalSupabaseEnvironment {
@@ -187,9 +188,11 @@ function runPostSeedAssertions(local: LocalSupabaseEnvironment, env: NodeJS.Proc
     Number(classCount) <= 0 ||
     Number(assignmentCount) <= 0 ||
     Number(roleGrantCount) <= 0 ||
-    entryCount !== '514'
+    entryCount !== String(LOAD_SHOW_ENTRY_COUNT)
   ) {
-    throw new Error('Post-seed fixture verification failed');
+    throw new Error(
+      `Post-seed fixture verification failed for MYK9-109: expected show/classes/assignments/roles and ${LOAD_SHOW_ENTRY_COUNT} entries; received ${output}`
+    );
   }
 }
 

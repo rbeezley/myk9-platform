@@ -7,6 +7,7 @@ import {
   type LoadScenario,
 } from './loadScenario';
 import type { ResolvedLoadTarget } from './loadTarget';
+import { LOAD_SHOW_ENTRY_COUNT } from './loadFixture';
 
 export type LoadEvidenceTarget = Pick<
   ResolvedLoadTarget,
@@ -22,7 +23,7 @@ export interface LoadRunEvidence {
     computeTier: string;
     gateEligible: boolean;
   };
-  seedSize: 514;
+  seedSize: typeof LOAD_SHOW_ENTRY_COUNT;
   scenario: {
     id: LoadScenario['id'];
     durationMs: number;
@@ -51,14 +52,14 @@ export function buildLoadEvidence(input: {
       computeTier: input.target.computeTier,
       gateEligible: input.target.gateEligible,
     },
-    seedSize: 514,
+    seedSize: LOAD_SHOW_ENTRY_COUNT,
     scenario: {
       id: input.scenario.id,
       durationMs: input.scenario.durationMs,
       configuredSessions: scenarioSessionCount(input.scenario),
       configuredRingsideSessions,
     },
-    supportedCeiling: `${configuredRingsideSessions} concurrent ringside sessions on a show of 514 entries`,
+    supportedCeiling: `${configuredRingsideSessions} concurrent ringside sessions on a show of ${LOAD_SHOW_ENTRY_COUNT} entries`,
     observation: input.observation,
     evaluation: input.evaluation,
   };
@@ -83,7 +84,8 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Supported ceiling: ${evidence.supportedCeiling}
 - Measured peak sessions: ${evidence.observation.concurrentSessions}
 - Measured peak ringside sessions: ${evidence.observation.ringsideSessions}
-- Scoring/API/page p95: ${evidence.observation.scoringWriteP95Ms} / ${evidence.observation.apiP95Ms} / ${evidence.observation.pageP95Ms} ms
+- Scoring/API p95: ${evidence.observation.scoringWriteP95Ms} / ${evidence.observation.apiP95Ms} ms
+- Page p95 (informational until runner headroom is measured): ${evidence.observation.pageP95Ms} ms
 - Requests/failures/workflow failures: ${evidence.observation.requestCount} / ${evidence.observation.failedRequestCount} / ${evidence.observation.workflowFailures}
 - Error rate / throughput / availability: ${evidence.observation.errorRate} / ${evidence.observation.throughputRps} rps / ${evidence.observation.availabilityPercent}%
 - SQLSTATE 40001: ${evidence.observation.serializationFailures} / ${evidence.observation.scoringWriteAttempts} (${evidence.evaluation.derived.serializationFailureRate})

@@ -19,11 +19,10 @@ values
   ('00000000-0000-0000-0000-000000000918', 'Test', 'Unrelated', '00000000-0000-0000-0000-000000000928');
 
 insert into public.shows (
-  id, name, type, organization, start_date, end_date, club_id, status
+  id, name, organization, start_date, end_date, club_id, status
 ) values (
   '00000000-0000-0000-0000-000000000902',
   'Recoverable Access Code Test',
-  'Scent Work',
   'AKC',
   current_date,
   current_date + 1,

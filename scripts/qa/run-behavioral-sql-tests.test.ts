@@ -12,6 +12,10 @@ const pullRefundFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/pull_refund_decision_rls_test.sql'),
   'utf8'
 );
+const recoverableAccessFixture = readFileSync(
+  resolve(repositoryRoot, 'supabase/tests/recoverable_show_access_codes_test.sql'),
+  'utf8'
+);
 const launchCriticalSqlTests = [
   'myk9_114_entry_access_context_test.sql',
   'pull_refund_decision_rls_test.sql',
@@ -99,6 +103,13 @@ describe('behavioral SQL test harness', () => {
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }
+  });
+
+  it('uses the current shows schema in the recoverable access-code fixture', () => {
+    expect(recoverableAccessFixture).toContain(
+      'id, name, organization, start_date, end_date, club_id, status'
+    );
+    expect(recoverableAccessFixture).not.toContain('id, name, type, organization');
   });
 
   it.each([

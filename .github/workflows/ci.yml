@@ -135,6 +135,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Load harness anti-rot
+        run: |
+          pnpm --filter @myk9/show test:load:unit
+          pnpm --filter @myk9/show test:load:list
+        env:
+          LOAD_TEST_MODE: discovery
+
       - name: Nightly health workflow contract
         run: pnpm qa:nightly:workflow:test
 

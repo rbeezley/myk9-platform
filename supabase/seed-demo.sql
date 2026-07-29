@@ -2,10 +2,11 @@
 -- Lane 1.1 Demo Reseed  (myK9Show / Supabase project sojmvhhwsjxmfistvzbe)
 -- ----------------------------------------------------------------------------
 -- WHAT THIS IS
---   A small, realistic, *publicly visible* demo dataset (1 club, 1 published
---   AKC scent-work show, 2 trials, 5 classes, 6 dogs, 8 entries) with COMPLETE
---   show officials and full RBAC role coverage so every role's golden path is
---   walkable after a reseed:
+--   A realistic, *publicly visible* demo dataset (1 club, 1 published
+--   multi-registry show, 4 trials, 9 classes, 69 dogs, 514 entries). Ten
+--   hand-authored entries preserve the golden paths; 504 deterministic entries
+--   support the MYK9-109 rehearsal. It also includes complete show officials and
+--   full RBAC role coverage so every role's golden path is walkable after a reseed:
 --     - Show officials are modeled through user_roles grants. classes.judge_name
 --       remains a snapshot of the assigned judge (section 2 + 4).
 --     - Judges modeled as PEOPLE, not strings: judge_qualifications rows carry
@@ -119,6 +120,9 @@ END $$;
 --   dog    dededede-0000-0000-0000-00000000004{1..6}
 --   entry  dededede-0000-0000-0000-00000000005{1..8}  (+ ...059/...060 refund fixtures)
 --   armband      dededede-0000-0000-0000-00000000006{1..6}
+--   load dog     a1090000-0000-0000-0001-{000000000001..000000000063}
+--   load entry   a1090000-0000-0000-0002-{000000000001..000000000504}
+--   load armband a1090000-0000-0000-0003-{000000000001..000000000063}
 --   judge_assign dededede-0000-0000-0000-0000000000a{1..5} (judge@) / b{1..5} (e2e-judge), class-level
 --   passcode     dededede-0000-0000-0000-00000000008{1,2}
 --   judge_qual   dededede-0000-0000-0000-00000000009{1,2}
@@ -140,6 +144,13 @@ WHERE class_id IN (
 -- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
 -- before deleting entries/dogs so their FKs can't block.
 DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+-- MYK9-109 LOAD FIXTURE CLEANUP
+-- Deterministic myk9_109 rows use separate UUID ranges so a reseed can remove
+-- them without broad predicates or touching the hand-authored demo fixtures.
+DELETE FROM public.entries
+WHERE id::text LIKE 'a1090000-0000-0000-0002-%'; -- myk9_109
+DELETE FROM public.dogs
+WHERE id::text LIKE 'a1090000-0000-0000-0001-%'; -- myk9_109
 -- entries ...059 / ...060 are the GAP FIXTURE #4 withdrawn/refunded rows (added
 -- below: ...059 owned by beezley, ...060 owned by e2e-exhibitor for the P1-04
 -- exhibitor-surface walk). The refund-column guard fires only on INSERT/UPDATE,
@@ -926,6 +937,101 @@ $$;
 UPDATE public.entries
 SET check_in_status = 'checked-in'
 WHERE id = 'dededede-0000-0000-0000-000000000052';
+
+-- ---------------------------------------------------------------------------
+-- 17. MYK9-109 LOAD FIXTURE START
+-- MYK9-109 LOAD FIXTURE START
+--     63 dogs x 8 classes = 504 deterministic, unscored entries. This fixture
+--     excludes finalized class dec1a55e-0000-0000-0000-000000000031 so load
+--     rehearsal writes cannot corrupt the released-results golden path.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.dogs (
+  id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version
+)
+SELECT
+  format('a1090000-0000-0000-0001-%s', lpad(dog_number::text, 12, '0'))::uuid,
+  format('MYK9-109 Load Dog %s', lpad(dog_number::text, 2, '0')),
+  format('Load %s', lpad(dog_number::text, 2, '0')),
+  'Mixed Breed',
+  CASE WHEN dog_number % 2 = 0 THEN 'female' ELSE 'male' END,
+  DATE '2021-01-01' + dog_number,
+  'Load Fixture',
+  'active',
+  (SELECT id FROM public.people WHERE lower(email) = 'e2e-exhibitor@test.myk9.com'),
+  1
+FROM generate_series(1, 63) AS load_dogs(dog_number);
+
+WITH load_entries AS (
+  SELECT
+    dog_number,
+    class_number,
+    ((dog_number - 1) * 8) + class_number AS entry_number,
+    CASE class_number
+      WHEN 1 THEN 'dec1a55e-0000-0000-0000-000000000032'::uuid
+      WHEN 2 THEN 'dec1a55e-0000-0000-0000-000000000033'::uuid
+      WHEN 3 THEN 'dec1a55e-0000-0000-0000-000000000034'::uuid
+      WHEN 4 THEN 'dec1a55e-0000-0000-0000-000000000035'::uuid
+      WHEN 5 THEN 'dec1a55e-0000-0000-0000-000000000036'::uuid
+      WHEN 6 THEN 'dec1a55e-0000-0000-0000-000000000037'::uuid
+      WHEN 7 THEN 'dec1a55e-0000-0000-0000-000000000038'::uuid
+      WHEN 8 THEN 'dec1a55e-0000-0000-0000-000000000039'::uuid
+    END AS class_id,
+    CASE
+      WHEN class_number <= 2 THEN 'dededede-0000-0000-0000-000000000021'::uuid
+      WHEN class_number <= 4 THEN 'dededede-0000-0000-0000-000000000022'::uuid
+      WHEN class_number <= 6 THEN 'dededede-0000-0000-0000-000000000023'::uuid
+      ELSE 'dededede-0000-0000-0000-000000000024'::uuid
+    END AS trial_id
+  FROM generate_series(1, 63) AS load_dogs(dog_number)
+  CROSS JOIN generate_series(1, 8) AS load_classes(class_number)
+)
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, handler_id, handler,
+  entry_status, payment_status, entry_fee, armband, run_order,
+  move_up_requested, version
+)
+SELECT
+  format('a1090000-0000-0000-0002-%s', lpad(entry_number::text, 12, '0'))::uuid,
+  format('a1090000-0000-0000-0001-%s', lpad(dog_number::text, 12, '0'))::uuid,
+  class_id,
+  'dededede-0000-0000-0000-000000000010',
+  trial_id,
+  (SELECT id FROM public.people WHERE lower(email) = 'e2e-exhibitor@test.myk9.com'),
+  'Test Exhibitor',
+  'confirmed',
+  'paid',
+  30.00,
+  2000 + dog_number,
+  dog_number,
+  false,
+  1
+FROM load_entries;
+
+INSERT INTO public.armbands (
+  id, show_id, dog_id, armband_number, is_available, assigned_at, version
+)
+SELECT
+  format('a1090000-0000-0000-0003-%s', lpad(dog_number::text, 12, '0'))::uuid,
+  'dededede-0000-0000-0000-000000000010',
+  format('a1090000-0000-0000-0001-%s', lpad(dog_number::text, 12, '0'))::uuid,
+  (2000 + dog_number)::text,
+  false,
+  '2026-07-15 00:00:00+00',
+  1
+FROM generate_series(1, 63) AS load_armbands(dog_number);
+
+DO $$
+DECLARE
+  v_entry_count integer;
+BEGIN
+  SELECT count(*) INTO v_entry_count
+  FROM public.entries
+  WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+
+  IF v_entry_count <> 514 THEN
+    RAISE EXCEPTION 'MYK9-109 expected 514 demo-show entries, found %', v_entry_count;
+  END IF;
+END $$;
 
 COMMIT;
 

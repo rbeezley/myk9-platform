@@ -108,6 +108,7 @@ const REPLICATED_TABLE_NAMES = REPLICATED_TABLES.map(({ name }) => name);
 const REPLICATED_TABLE_NAME_SET: ReadonlySet<string> = new Set(REPLICATED_TABLE_NAMES);
 const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
 const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
+let entryResultReplicaVersionPromise: Promise<void> | null = null;
 
 // Connect the shared MutationManager (owned by sharedMutationManager.ts so
 // hooks can import it read-only) to all replicated tables.
@@ -130,7 +131,7 @@ function warnRecoveredFromEmptyReplica(tableName: string): void {
   logger.warn('Replica recovered from unexpected empty state', 'replication', { tableName });
 }
 
-async function ensureAuthenticatedEntryResultReplicaVersion(): Promise<void> {
+async function applyAuthenticatedEntryResultReplicaVersion(): Promise<void> {
   if (typeof window === 'undefined') return;
 
   try {
@@ -155,7 +156,10 @@ async function ensureAuthenticatedEntryResultReplicaVersion(): Promise<void> {
     return;
   }
 
-  await replicatedEntriesTable.clearCache();
+  const existingEntryIds = await replicatedEntriesTable.getAllLocalIds();
+  if (existingEntryIds.size > 0) {
+    await replicatedEntriesTable.clearCache();
+  }
 
   try {
     window.localStorage.setItem(ENTRY_RESULT_REPLICA_VERSION_KEY, ENTRY_RESULT_REPLICA_VERSION);
@@ -164,6 +168,22 @@ async function ensureAuthenticatedEntryResultReplicaVersion(): Promise<void> {
   }
 
   logger.info('Entry result replica cache refreshed for authenticated result view', 'replication');
+}
+
+async function ensureAuthenticatedEntryResultReplicaVersion(): Promise<void> {
+  if (entryResultReplicaVersionPromise) {
+    return entryResultReplicaVersionPromise;
+  }
+
+  const operation = applyAuthenticatedEntryResultReplicaVersion();
+  entryResultReplicaVersionPromise = operation;
+  try {
+    await operation;
+  } finally {
+    if (entryResultReplicaVersionPromise === operation) {
+      entryResultReplicaVersionPromise = null;
+    }
+  }
 }
 
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
@@ -270,7 +290,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       return;
     }
 
-    if (status.isSyncing) {
+    // State updates are asynchronous, so the startup timer and auth-session
+    // effect can both observe isSyncing=false in the same render. The ref flips
+    // synchronously before the first await and is the authoritative overlap
+    // guard.
+    if (syncInFlightRef.current) {
       logger.debug('Sync already in progress', 'replication');
       return;
     }
@@ -375,7 +399,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       }));
       syncInFlightRef.current = false;
     }
-  }, [isAuthenticated, isOnline, status.isSyncing, syncScopeId, queryClient]);
+  }, [isAuthenticated, isOnline, syncScopeId, queryClient]);
 
   // Keep ref in sync so effects always call latest version without re-triggering
   useEffect(() => {

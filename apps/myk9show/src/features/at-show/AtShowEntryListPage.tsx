@@ -111,6 +111,7 @@ export const AtShowEntryListPage: React.FC = () => {
   // Shared drag ref — passed to both the data hook (suppress sync snap-back)
   // and the drag hook (sets it during a drag).
   const isDraggingRef = useRef<boolean>(false);
+  const initialSyncKeyRef = useRef<string | null>(null);
 
   const dependencies = useMemo<EntryListDataDependencies>(
     () => ({
@@ -130,6 +131,14 @@ export const AtShowEntryListPage: React.FC = () => {
     isDraggingRef,
     dependencies,
   });
+
+  useEffect(() => {
+    if (!showId || syncStatus.isSyncing || !syncStatus.lastSyncAt) return;
+    const syncKey = `${showId}:${syncStatus.lastSyncAt.getTime()}`;
+    if (initialSyncKeyRef.current === syncKey) return;
+    initialSyncKeyRef.current = syncKey;
+    void refresh(true);
+  }, [refresh, showId, syncStatus.isSyncing, syncStatus.lastSyncAt]);
 
   // An exhibitor-role account (including an admin who entered an exhibitor
   // passcode) lacks the staff RLS authority the replicated writer needs, so its

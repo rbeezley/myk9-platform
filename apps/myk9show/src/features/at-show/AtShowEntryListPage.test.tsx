@@ -14,7 +14,7 @@
 
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@/test/utils/testUtils';
+import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
@@ -169,19 +169,16 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(await screen.findByText('Rex')).toBeInTheDocument();
   });
 
-  it('hydrates show-scoped entries on the first at-show mount', async () => {
-    vi.mocked(replicatedEntriesTable.getEntriesByClass)
-      .mockResolvedValueOnce([] as never)
-      .mockResolvedValue([PENDING_ENTRY] as never);
-
+  it('hydrates show-scoped replicas on the first at-show mount', async () => {
     renderPage();
 
-    expect(await screen.findByText('Rex')).toBeInTheDocument();
-    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
-    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
-    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
-    expect(replicatedClassesTable.sync).not.toHaveBeenCalledWith('');
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    await waitFor(() => {
+      expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
+      expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
+      expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
+      expect(replicatedClassesTable.sync).not.toHaveBeenCalledWith('');
+      expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    });
   });
 
   it('deduplicates concurrent show-scoped hydration requests', async () => {

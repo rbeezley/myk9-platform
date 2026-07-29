@@ -65,6 +65,9 @@ VALUES
 -- restrict_subscription_column_updates (migration 109) only admits
 -- current_setting('role') = 'service_role' or platform_admin — superuser is
 -- NOT exempt — so impersonate service_role for this fixture write.
+GRANT SELECT (person_id) ON public.exhibitor_profiles TO service_role;
+GRANT UPDATE (subscription_tier, subscription_expires_at) ON public.exhibitor_profiles TO service_role;
+
 SET LOCAL ROLE service_role;
 UPDATE public.exhibitor_profiles ep
 SET subscription_tier = v.tier, subscription_expires_at = v.expires_at

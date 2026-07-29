@@ -16,6 +16,10 @@ const recoverableAccessFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/recoverable_show_access_codes_test.sql'),
   'utf8'
 );
+const subscriptionEntitlementFixture = readFileSync(
+  resolve(repositoryRoot, 'supabase/tests/subscription_entitlement_grants_test.sql'),
+  'utf8'
+);
 const launchCriticalSqlTests = [
   'myk9_114_entry_access_context_test.sql',
   'pull_refund_decision_rls_test.sql',
@@ -118,6 +122,15 @@ describe('behavioral SQL test harness', () => {
     );
     expect(recoverableAccessFixture).toContain("'Container Novice',\n  'upcoming'");
     expect(recoverableAccessFixture).not.toContain("'no-status'");
+  });
+
+  it('grants the payment role only the subscription fixture access it needs', () => {
+    expect(subscriptionEntitlementFixture).toContain(
+      'GRANT SELECT (person_id) ON public.exhibitor_profiles TO service_role'
+    );
+    expect(subscriptionEntitlementFixture).toContain(
+      'GRANT UPDATE (subscription_tier, subscription_expires_at) ON public.exhibitor_profiles TO service_role'
+    );
   });
 
   it.each([

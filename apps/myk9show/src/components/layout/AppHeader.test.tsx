@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import AppHeader from './AppHeader';
@@ -17,8 +17,15 @@ vi.mock('@/hooks/useProfileForm', () => ({
   useCurrentUserPerson: () => ({ data: { profileImage: null } }),
 }));
 
+const appShellNavMock = vi.hoisted(() => ({
+  openMobileNav: vi.fn() as (() => void) | null,
+}));
+
 vi.mock('./useAppShellMobileNav', () => ({
-  useAppShellMobileNav: () => ({ isMobileNavOpen: false, openMobileNav: vi.fn() }),
+  useAppShellMobileNav: () => ({
+    isMobileNavOpen: false,
+    openMobileNav: appShellNavMock.openMobileNav,
+  }),
 }));
 
 vi.mock('@/store/cartStore', () => ({
@@ -64,6 +71,10 @@ vi.mock('@/components/layout/AccountMenuContent', () => ({
   AccountMenuContent: () => null,
 }));
 
+beforeEach(() => {
+  appShellNavMock.openMobileNav = vi.fn();
+});
+
 describe('AppHeader phone-width header consolidation', () => {
   it('keeps theme access in the header while consolidating AskQ into the account menu below md', () => {
     render(<AppHeader />);
@@ -73,6 +84,20 @@ describe('AppHeader phone-width header consolidation', () => {
 
     const askQButton = screen.getByRole('button', { name: /askq assistant/i });
     expect(askQButton).toHaveClass('hidden', 'md:flex');
+  });
+
+  it('keeps the account trigger in the header on mobile but hides it on desktop', () => {
+    render(<AppHeader />);
+
+    expect(screen.getByRole('button', { name: /account menu/i })).toHaveClass('md:hidden');
+  });
+
+  it('keeps desktop account access on authenticated routes without a sidebar', () => {
+    appShellNavMock.openMobileNav = null;
+
+    render(<AppHeader />, { initialRoute: '/pricing-page' });
+
+    expect(screen.getByRole('button', { name: /account menu/i })).not.toHaveClass('md:hidden');
   });
 });
 
@@ -96,10 +121,12 @@ describe('AppHeader branding', () => {
 
 describe('AppHeader onboarding shell', () => {
   it('hides utility actions on onboarding while keeping account access', () => {
+    appShellNavMock.openMobileNav = null;
+
     render(<AppHeader />, { initialRoute: '/onboarding' });
 
     expect(screen.getByText('myK9Show')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /account menu/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /account menu/i })).not.toHaveClass('md:hidden');
     expect(screen.queryByRole('button', { name: /search/i })).not.toBeInTheDocument();
     expect(screen.queryByText('Search...')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /shopping cart/i })).not.toBeInTheDocument();

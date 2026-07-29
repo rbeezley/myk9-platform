@@ -24,10 +24,8 @@ export interface SidebarConfig {
   groups: NavGroup[];
   /** The dashboard route for this role (used for exact-match active detection) */
   dashboardHref: string;
-  /** User name shown in the sidebar header */
-  headerTitle: string;
-  /** Icon shown in the access-level footer */
-  footerIcon: React.ComponentType<{ className?: string }>;
-  /** Label shown in the access-level footer (e.g. "Judge Access") */
-  footerLabel: string;
+  /** User name shown in the desktop account footer */
+  accountName: string;
+  /** Primary role shown below the user name; additional roles are summarized */
+  accountRoleLabel: string;
 }

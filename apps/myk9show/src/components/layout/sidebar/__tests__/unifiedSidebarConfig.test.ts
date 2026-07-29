@@ -377,9 +377,9 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   });
 });
 
-// ── Sidebar personalization (headerTitle) ────────────────────────────────
-describe('buildUnifiedSidebarConfig — user header personalization', () => {
-  it('uses firstName as headerTitle for every role when present', () => {
+// ── Sidebar account identity ──────────────────────────────────────────────
+describe('buildUnifiedSidebarConfig — account identity', () => {
+  it('uses firstName as accountName for every role when present', () => {
     const admin = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
     const secretary = buildUnifiedSidebarConfig(
       [UserRole.SECRETARY],
@@ -390,40 +390,48 @@ describe('buildUnifiedSidebarConfig — user header personalization', () => {
     const judge = buildUnifiedSidebarConfig([UserRole.JUDGE], undefined, undefined, 'Jamie');
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, 'Jamie');
 
-    expect(admin.headerTitle).toBe('Jamie');
-    expect(secretary.headerTitle).toBe('Jamie');
-    expect(judge.headerTitle).toBe('Jamie');
-    expect(config.headerTitle).toBe('Jamie');
+    expect(admin.accountName).toBe('Jamie');
+    expect(secretary.accountName).toBe('Jamie');
+    expect(judge.accountName).toBe('Jamie');
+    expect(config.accountName).toBe('Jamie');
   });
 
   it('falls back to "myK9" when firstName is null', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, null);
-    expect(config.headerTitle).toBe('myK9');
+    expect(config.accountName).toBe('myK9');
   });
 
   it('falls back to "myK9" when firstName is omitted', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
-    expect(config.headerTitle).toBe('myK9');
+    expect(config.accountName).toBe('myK9');
   });
 
   it('falls back to "myK9" when firstName is empty/whitespace', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR], undefined, undefined, '   ');
-    expect(config.headerTitle).toBe('myK9');
+    expect(config.accountName).toBe('myK9');
   });
 
-  it('personalizes headerTitle for an exhibitor combined with another role', () => {
+  it('summarizes additional roles beneath the account name', () => {
     const config = buildUnifiedSidebarConfig(
-      [UserRole.EXHIBITOR, UserRole.JUDGE],
+      [UserRole.EXHIBITOR, UserRole.SITE_ADMIN, UserRole.JUDGE],
       undefined,
       undefined,
       'Jamie'
     );
-    expect(config.headerTitle).toBe('Jamie');
+    expect(config.accountRoleLabel).toBe('Site Admin +2');
   });
 
-  it('does not add role-specific header icon configuration', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
+  it.each([
+    [UserRole.SITE_ADMIN, 'Site Admin'],
+    [UserRole.SECRETARY, 'Secretary'],
+    [UserRole.JUDGE, 'Judge'],
+    [UserRole.CLUB_ADMIN, 'Club Admin'],
+    [UserRole.CHAIRMAN, 'Chairman'],
+    [UserRole.STEWARD, 'Steward'],
+    [UserRole.EXHIBITOR, 'Exhibitor'],
+  ])('uses the canonical label for %s', (role, label) => {
+    const config = buildUnifiedSidebarConfig([role], undefined, undefined, 'Jamie');
 
-    expect(config).not.toHaveProperty('headerIcon');
+    expect(config.accountRoleLabel).toBe(label);
   });
 });

@@ -22,13 +22,11 @@ import {
   Heart,
   Users,
   Building2,
-  Scale,
   ClipboardCheck,
   FileText,
   List,
   Shield,
   ShieldCheck,
-  Compass,
   Search,
   HelpCircle,
   Landmark,
@@ -37,7 +35,8 @@ import {
   Activity,
   LifeBuoy,
 } from 'lucide-react';
-import { UserRole } from '@/types/auth-types';
+import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
+import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem } from './types';
 
@@ -325,30 +324,17 @@ export function buildUnifiedSidebarConfig(
     });
   }
 
-  // Keep identity personal in the header. Role/access context already lives
-  // in the footer, so repeating it here adds noise and makes multi-role users
-  // look like a role instead of a person.
+  // Keep identity and role context together in the account footer. The
+  // canonical hierarchy determines which role leads for multi-role users;
+  // the full role list remains available inside the account menu.
   const isAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
-  const isSecretary = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN]);
-  const isJudge = hasAnyRole(userRoles, [UserRole.JUDGE]);
-
-  const headerTitle = firstName?.trim() || 'myK9';
-  let footerIcon = Compass;
-  let footerLabel = 'Browse';
-
-  if (isAdmin) {
-    footerIcon = Shield;
-    footerLabel = 'Admin Access';
-  } else if (isSecretary) {
-    footerIcon = Building2;
-    footerLabel = 'Manager Access';
-  } else if (isJudge) {
-    footerIcon = Scale;
-    footerLabel = 'Judge Access';
-  } else if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
-    footerIcon = Heart;
-    footerLabel = 'Exhibitor Access';
-  }
+  const uniqueRoles = [...new Set(userRoles)];
+  const primaryRole = USER_ROLE_HIERARCHY.find(role => uniqueRoles.includes(role));
+  const primaryRoleLabel = primaryRole ? ROLE_LABELS[primaryRole] : 'Browse';
+  const additionalRoleCount = Math.max(0, uniqueRoles.length - 1);
+  const accountName = firstName?.trim() || 'myK9';
+  const accountRoleLabel =
+    additionalRoleCount > 0 ? `${primaryRoleLabel} +${additionalRoleCount}` : primaryRoleLabel;
 
   // Dashboard href = first role-specific dashboard, or /shows for browse-only
   const dashboardHref = isAdmin
@@ -378,8 +364,7 @@ export function buildUnifiedSidebarConfig(
   return {
     groups: filteredGroups,
     dashboardHref,
-    headerTitle,
-    footerIcon,
-    footerLabel,
+    accountName,
+    accountRoleLabel,
   };
 }

@@ -1,17 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { RoleSidebar } from '../RoleSidebar';
 import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
 import { UserRole } from '@/types/auth-types';
 
+vi.mock('@/components/layout/AccountMenuContent', () => ({
+  AccountMenuContent: () => null,
+}));
+
 describe('RoleSidebar', () => {
-  it('shows the user first name without a role icon in the header', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
+  it('combines the user name and primary role in one desktop account control', () => {
+    const config = buildUnifiedSidebarConfig(
+      [UserRole.SITE_ADMIN, UserRole.EXHIBITOR],
+      undefined,
+      undefined,
+      'Jamie'
+    );
 
     render(<RoleSidebar config={config} />, { initialRoute: '/admin/dashboard' });
 
-    const heading = screen.getByRole('heading', { name: 'Jamie' });
-    expect(heading.closest('.h-16')?.querySelector('svg')).toBeNull();
+    const accountMenu = screen.getByRole('button', { name: 'Account menu for Jamie, Site Admin +1' });
+    expect(accountMenu).toHaveTextContent('Jamie');
+    expect(accountMenu).toHaveTextContent('Site Admin +1');
+    expect(screen.queryByRole('heading', { name: 'Jamie' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Access level')).not.toBeInTheDocument();
   });
 
   it('gives collapsed icon-only links accessible names', () => {
@@ -88,22 +100,19 @@ describe('RoleSidebar', () => {
     expect(screen.getByRole('link', { name: /Dashboard/ })).toHaveClass('min-h-11');
   });
 
-  it('renders the access level as quiet status text instead of a card', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
-
-    render(<RoleSidebar config={config} />, { initialRoute: '/admin/dashboard' });
-
-    const accessLevel = screen.getByLabelText('Access level');
-    expect(accessLevel).toHaveTextContent('Admin Access');
-    expect(accessLevel).not.toHaveClass('rounded-lg', 'bg-muted/30');
-    expect(screen.queryByText('Full system administration')).not.toBeInTheDocument();
-  });
-
-  it('keeps the collapsed access-level text available to assistive technology', () => {
-    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
+  it('keeps the collapsed account control available to assistive technology', () => {
+    const config = buildUnifiedSidebarConfig(
+      [UserRole.SITE_ADMIN],
+      undefined,
+      undefined,
+      'Jamie'
+    );
 
     render(<RoleSidebar config={config} isCollapsed />, { initialRoute: '/admin/dashboard' });
 
-    expect(screen.getByLabelText('Access level')).toHaveTextContent('Admin Access');
+    expect(
+      screen.getByRole('button', { name: 'Account menu for Jamie, Site Admin' })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Jamie')).not.toBeInTheDocument();
   });
 });

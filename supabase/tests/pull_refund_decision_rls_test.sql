@@ -7,6 +7,19 @@
 
 BEGIN;
 
+-- Seed unlinked people first. handle_new_user() adopts a matching person by
+-- email when the auth row is inserted, avoiding duplicate auth_user_id rows.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000000811',
+    'Pull', 'Secretary', 'pull-secretary@example.test', NULL
+  ),
+  (
+    '00000000-0000-0000-0000-000000000812',
+    'Other', 'Club Admin', 'pull-club-admin@example.test', NULL
+  );
+
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -26,33 +39,29 @@ VALUES
     now(), now(), '{}', '{}', false, false, false
   );
 
-INSERT INTO public.people (id, first_name, last_name, auth_user_id)
-VALUES
-  (
-    '00000000-0000-0000-0000-000000000811',
-    'Pull', 'Secretary', '00000000-0000-0000-0000-000000000801'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000812',
-    'Other', 'Club Admin', '00000000-0000-0000-0000-000000000802'
-  );
-
 INSERT INTO public.clubs (id, name)
 VALUES
   ('00000000-0000-0000-0000-000000000821', 'Pull Test Club'),
   ('00000000-0000-0000-0000-000000000822', 'Unrelated Club');
 
-INSERT INTO public.shows (id, name, type, start_date, end_date, club_id)
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)
 VALUES
   (
     '00000000-0000-0000-0000-000000000831',
-    'Managed Pull Show', 'All-Breed', CURRENT_DATE, CURRENT_DATE,
+    'Managed Pull Show', 'AKC', CURRENT_DATE, CURRENT_DATE,
     '00000000-0000-0000-0000-000000000821'
   ),
   (
     '00000000-0000-0000-0000-000000000832',
-    'Clubless Pull Show', 'All-Breed', CURRENT_DATE, CURRENT_DATE, NULL
+    'Clubless Pull Show', 'AKC', CURRENT_DATE, CURRENT_DATE, NULL
   );
+
+-- Paid-online fixture rows must use the same privileged role as the payment
+-- service. Production writes use its SECURITY DEFINER RPC, so grant only the
+-- direct INSERT needed by this rolled-back fixture transaction.
+GRANT INSERT ON public.entries TO service_role;
+
+SET LOCAL ROLE service_role;
 
 INSERT INTO public.entries (
   id, show_id, entry_status, payment_method, payment_status, entry_fee
@@ -74,11 +83,21 @@ VALUES
     'scratched', 'online', 'paid', 25
   );
 
-INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
+RESET ROLE;
+
+-- The clean CI database does not inherit the API's default table grants.
+-- Reproduce only the authenticated access needed to exercise RLS and the
+-- refund-decision trigger; these grants roll back with the fixture.
+GRANT SELECT ON public.people TO authenticated;
+GRANT SELECT ON public.dogs TO authenticated;
+GRANT UPDATE (refund_decision) ON public.entries TO authenticated;
+
+INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000000811',
   id,
   '00000000-0000-0000-0000-000000000831',
+  '00000000-0000-0000-0000-000000000821',
   true,
   '00000000-0000-0000-0000-000000000801'
 FROM public.roles
@@ -128,6 +147,9 @@ BEGIN
      WHERE id = '00000000-0000-0000-0000-000000000842';
     RAISE EXCEPTION 'FAIL direct refund-decision update succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'refund decisions are written only through set_entry_refund_decision' THEN
+      RAISE;
+    END IF;
     RAISE NOTICE 'PASS direct refund-decision update is rejected';
   END;
 END;

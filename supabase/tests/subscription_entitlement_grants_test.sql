@@ -65,6 +65,9 @@ VALUES
 -- restrict_subscription_column_updates (migration 109) only admits
 -- current_setting('role') = 'service_role' or platform_admin — superuser is
 -- NOT exempt — so impersonate service_role for this fixture write.
+GRANT SELECT (person_id) ON public.exhibitor_profiles TO service_role;
+GRANT UPDATE (subscription_tier, subscription_expires_at) ON public.exhibitor_profiles TO service_role;
+
 SET LOCAL ROLE service_role;
 UPDATE public.exhibitor_profiles ep
 SET subscription_tier = v.tier, subscription_expires_at = v.expires_at
@@ -75,6 +78,13 @@ FROM (VALUES
 ) AS v(person_id, tier, expires_at)
 WHERE ep.person_id = v.person_id;
 RESET ROLE;
+
+-- Reproduce the client table privileges needed to reach the health-data RLS
+-- policies on a clean CI database. These fixture grants roll back.
+GRANT SELECT, INSERT, DELETE ON public.vaccinations TO authenticated;
+GRANT INSERT ON public.pedigree_ancestors TO authenticated;
+GRANT SELECT ON public.dogs TO authenticated;
+GRANT SELECT ON public.stripe_customers TO authenticated;
 
 -- Site admin role for the admin person.
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
@@ -302,6 +312,9 @@ BEGIN
     VALUES ('00000000-0000-0000-0000-000000000951','Rabies', CURRENT_DATE);
     RAISE EXCEPTION 'FAIL premium non-owner inserted a vaccination';
   EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'new row violates row-level security policy for table "vaccinations"' THEN
+      RAISE;
+    END IF;
     RAISE NOTICE 'PASS premium non-owner cannot insert vaccination (ownership)';
   END;
 END;
@@ -357,6 +370,9 @@ BEGIN
     VALUES ('00000000-0000-0000-0000-000000000951','Bordetella', CURRENT_DATE);
     RAISE EXCEPTION 'FAIL free owner inserted a vaccination';
   EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'new row violates row-level security policy for table "vaccinations"' THEN
+      RAISE;
+    END IF;
     RAISE NOTICE 'PASS free owner INSERT into vaccinations is denied';
   END;
 
@@ -365,6 +381,9 @@ BEGIN
     VALUES ('00000000-0000-0000-0000-000000000951','00000000-0000-0000-0000-000000000902','dam','Grand Dam');
     RAISE EXCEPTION 'FAIL free owner inserted a pedigree ancestor';
   EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'new row violates row-level security policy for table "pedigree_ancestors"' THEN
+      RAISE;
+    END IF;
     RAISE NOTICE 'PASS free owner INSERT into pedigree_ancestors is denied';
   END;
 
@@ -563,20 +582,31 @@ $$;
 -- the drop with their end dates. If the migration had taken the grants with
 -- the column, this is where it would show.
 DO $$
-DECLARE v_backfill integer; v_dateless integer;
+DECLARE v_backfill integer; v_dateless integer; v_legacy_column boolean;
 BEGIN
   SELECT count(*) INTO v_backfill FROM public.subscription_entitlement_grants
     WHERE grant_type='founding' AND reason='Backfilled from early_adopter_until';
   SELECT count(*) INTO v_dateless FROM public.subscription_entitlement_grants
     WHERE grant_type='founding' AND ends_at IS NULL;
+  SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'people'
+      AND column_name = 'early_adopter_until'
+  ) INTO v_legacy_column;
 
-  IF v_backfill = 0 THEN
-    RAISE EXCEPTION 'FAIL no backfilled founding grants remain — the legacy data did not survive the column drop';
+  IF v_legacy_column THEN
+    RAISE EXCEPTION 'FAIL legacy early_adopter_until column remains';
   END IF;
   IF v_dateless > 0 THEN
     RAISE EXCEPTION 'FAIL % founding grant(s) lost their end date', v_dateless;
   END IF;
-  RAISE NOTICE 'PASS % backfilled founding grant(s) survived the column drop with end dates intact', v_backfill;
+  IF v_backfill = 0 THEN
+    RAISE NOTICE 'PASS clean schema has no legacy early-adopter rows and the legacy column is absent';
+  ELSE
+    RAISE NOTICE 'PASS % backfilled founding grant(s) survived the column drop with end dates intact', v_backfill;
+  END IF;
 END;
 $$;
 

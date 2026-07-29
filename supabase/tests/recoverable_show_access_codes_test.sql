@@ -19,11 +19,10 @@ values
   ('00000000-0000-0000-0000-000000000918', 'Test', 'Unrelated', '00000000-0000-0000-0000-000000000928');
 
 insert into public.shows (
-  id, name, type, organization, start_date, end_date, club_id, status
+  id, name, organization, start_date, end_date, club_id, status
 ) values (
   '00000000-0000-0000-0000-000000000902',
   'Recoverable Access Code Test',
-  'Scent Work',
   'AKC',
   current_date,
   current_date + 1,
@@ -39,13 +38,12 @@ values (
   current_date
 );
 
-insert into public.classes (id, trial_id, show_id, name, status)
+insert into public.classes (id, trial_id, name, status)
 values (
   '00000000-0000-0000-0000-000000000904',
   '00000000-0000-0000-0000-000000000903',
-  '00000000-0000-0000-0000-000000000902',
   'Container Novice',
-  'no-status'
+  'upcoming'
 );
 
 insert into public.dogs (id, name, call_name, breed, owner_id, co_owner_id)

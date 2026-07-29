@@ -26,6 +26,11 @@ import { TEST_USERS } from './helpers/testUsers';
 import { signIn } from './uat/shared/auth';
 import { LIVE_SECRETARY_SHOW_ID } from './uat/shared/seededShows';
 import {
+  expectedRoutePath,
+  routePathMatches,
+  type RoutePathContract,
+} from '../harness/routePathContract';
+import {
   createBrowserHealth,
   watchBrowserHealth,
   type BrowserHealth,
@@ -45,13 +50,12 @@ const NOISE_PATTERNS = ['Maximum update depth exceeded'];
 // Closed as non-reproducing 2026-06-05; kept as a regression guard here.
 const REPLICATION_PATTERNS = ['Sync failed', 'Failed to fetch', 'Database query failed'];
 
-interface RouteSpec {
+interface RouteSpec extends RoutePathContract {
   label: string;
-  path: string;
-  /** Expected final pathname when a compatibility route intentionally redirects. */
-  expectedPath?: string;
   /** Measure horizontal overflow at 375px for this route. */
   check375?: boolean;
+  /** Stable heading that proves a redirect reached the intended destination. */
+  readyHeading?: string;
 }
 
 // ── Route lists ───────────────────────────────────────────────────────────────
@@ -82,6 +86,8 @@ const SECRETARY_ROUTES: RouteSpec[] = [
     path: `/shows/${SEEDED_SHOW}/setup`,
     // Setup is retained as a compatibility route; its content lives on the overview.
     expectedPath: `/shows/${SEEDED_SHOW}`,
+    pathMatch: 'exact',
+    readyHeading: 'Show schedule',
   },
 ];
 
@@ -208,6 +214,15 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
       continue;
     }
 
+    // Compatibility routes can redirect after the initial response commits.
+    // Wait for their declared canonical destination before evaluating render
+    // and health so redirect timing cannot create an intermittent false alarm.
+    await page
+      .waitForURL(url => routePathMatches(route, url.pathname), {
+        timeout: ROUTE_GOTO_TIMEOUT_MS,
+      })
+      .catch(() => undefined);
+
     // Render check: body must contain meaningful text (>20 chars).
     // This catches blank pages and pages stuck on "Loading page..." (14 chars).
     await page
@@ -222,12 +237,20 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
     // Path check: prove the intended route rendered, not a redirect to /sign-in
     // or an access-denied page (both would pass the render check above).
     const currentPath = new URL(page.url()).pathname;
-    const expectedBase = (route.expectedPath ?? route.path).split('?')[0];
-    const pathOk =
-      expectedBase === '/' ? currentPath === '/' : currentPath.startsWith(expectedBase);
+    const expectedBase = expectedRoutePath(route);
+    const pathOk = routePathMatches(route, currentPath);
     expect
       .soft(pathOk, `${id}: unexpected redirect (expected ≈ ${expectedBase}, got ${currentPath})`)
       .toBe(true);
+
+    if (route.readyHeading) {
+      await expect
+        .soft(
+          page.getByRole('heading', { name: route.readyHeading }),
+          `${id}: canonical page landmark is missing`
+        )
+        .toBeVisible({ timeout: ROUTE_GOTO_TIMEOUT_MS });
+    }
 
     // 375px overflow check — run before health assertion so mobile-viewport
     // errors are captured in health before we evaluate violations.

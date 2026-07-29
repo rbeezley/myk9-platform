@@ -89,6 +89,7 @@ RESET ROLE;
 -- Reproduce only the authenticated access needed to exercise RLS and the
 -- refund-decision trigger; these grants roll back with the fixture.
 GRANT SELECT ON public.people TO authenticated;
+GRANT SELECT ON public.dogs TO authenticated;
 GRANT UPDATE (refund_decision) ON public.entries TO authenticated;
 
 INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)

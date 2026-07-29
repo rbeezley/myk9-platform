@@ -49,6 +49,7 @@ describe('behavioral SQL test harness', () => {
     expect(paymentServiceReset).toBeGreaterThan(paidEntryInsert);
     expect(paymentServiceReset).toBeLessThan(userRoleInsert);
     expect(pullRefundFixture).toContain('GRANT SELECT ON public.people TO authenticated');
+    expect(pullRefundFixture).toContain('GRANT SELECT ON public.dogs TO authenticated');
     expect(pullRefundFixture).toContain(
       'GRANT UPDATE (refund_decision) ON public.entries TO authenticated'
     );

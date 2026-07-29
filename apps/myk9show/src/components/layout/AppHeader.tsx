@@ -210,16 +210,14 @@ const AppHeader: React.FC = () => {
                   </Button>
                 )}
 
-                {/* Theme Toggle — desktop only below md; on phone the same
-                    handler is reachable as a labeled item in the account
-                    menu (see AccountMenuContent) to keep the header from
-                    crowding out legible tap targets. */}
+                {/* Theme Toggle — remains visible at every width so appearance
+                    stays a single, consistent header action. */}
                 {!isOnboardingRoute && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={toggleTheme}
-                    className="hidden md:flex min-h-11 min-w-11 rounded-lg p-2"
+                    className="flex min-h-11 min-w-11 rounded-lg p-2"
                     aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   >
                     {theme === 'dark' ? (
@@ -254,9 +252,8 @@ const AppHeader: React.FC = () => {
                   </Button>
                 )}
 
-                {/* AskQ Assistant — desktop only below md; same reasoning as
-                    the theme toggle above (labeled item in AccountMenuContent
-                    covers phone widths, same handler). */}
+                {/* AskQ Assistant — desktop only below md; the labeled item in
+                    AccountMenuContent covers phone widths with the same handler. */}
                 {!isOnboardingRoute && (
                   <Button
                     variant="ghost"

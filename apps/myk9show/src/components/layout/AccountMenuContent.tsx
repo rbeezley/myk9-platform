@@ -7,9 +7,7 @@ import {
   Info,
   LifeBuoy,
   LogOut,
-  Moon,
   RefreshCw,
-  Sun,
   User as UserIcon,
   WifiOff,
 } from 'lucide-react';
@@ -25,7 +23,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
-import { useTheme } from '@/hooks/useTheme';
 import { helpUrl } from '@/lib/help';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
@@ -48,7 +45,6 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
-  const { theme, toggleTheme } = useTheme();
   const [isClearingCache, setIsClearingCache] = useState(false);
 
   const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
@@ -151,13 +147,6 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
       </DropdownMenuItem>
       <AccountMenuSeparator />
 
-      <DropdownMenuItem
-        onClick={toggleTheme}
-        className="w-full flex items-center gap-2 cursor-pointer"
-      >
-        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-      </DropdownMenuItem>
       <DropdownMenuItem onClick={onAbout} className="cursor-pointer">
         <Info className="h-4 w-4 mr-2" />
         About

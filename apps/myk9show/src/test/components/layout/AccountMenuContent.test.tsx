@@ -160,7 +160,7 @@ describe('AccountMenuContent organization', () => {
     dividers.forEach(divider => expect(divider).toHaveClass('bg-muted-foreground/40'));
   });
 
-  it.each([UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN])(
+  it.each(Object.values(UserRole))(
     'omits destinations and controls owned by primary navigation for %s',
     role => {
       authState.roles.push(role);

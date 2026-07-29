@@ -16,7 +16,9 @@ export default defineConfig({
   forbidOnly: true,
   retries: 0,
   workers: 1,
-  timeout: 25 * 60 * 1_000,
+  // The manual workflow can hold at the barrier for 35 minutes before
+  // running the full 10-minute scenario.
+  timeout: 50 * 60 * 1_000,
   expect: { timeout: 20_000 },
   reporter: [['list']],
   outputDir: 'test-results/load',

@@ -466,6 +466,30 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### NQA-2026-07-29-01
+
+- **Status:** fixed
+- **Classification:** test defect / harness expectation drift
+- **Severity:** Medium (QA signal); **canonical:** P2
+- **Role:** secretary
+- **Workflow:** read-only route-health sweep, show workbench compatibility link
+- **Surface:** `/shows/:showId/setup`; `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`; `apps/myk9show/src/pages/secretary/ShowWorkbenchSetupPage.tsx`
+- **Suite category:** nightly
+- **Pattern:** test-flake
+- **Detected by:** scheduled Overnight proactive QA
+- **First seen:** 2026-07-28
+- **Last seen:** 2026-07-29
+- **Consecutive runs:** 2
+- **Baseline SHA:** `32f6342060caa9c00117a60b710cab64ddb747e3` for closure proof; prior reproduction baseline recorded in automation memory.
+- **Evidence:** On both scheduled runs, the route-health spec expected `/shows/<seed>/setup` but the app returned `/shows/<seed>`. Source inspection confirms `ShowWorkbenchSetupPage` intentionally preserves `/setup` only as a compatibility route and redirects its content to the canonical overview. Initial browser evidence: `apps/myk9show/test-results/route-health-by-role-Route-4ffda-cretary-routes-render-clean-chromium/error-context.md` and `test-failed-1.png`.
+- **Expected vs observed:** The test should accept the documented compatibility redirect; it instead treated the intended redirect as a failure.
+- **User impact:** No confirmed product impact. The stale assertion falsely turned a healthy secretary route into a red Nightly gate and reduced QA/release confidence.
+- **Confidence:** High.
+- **Likely owner:** QA/test maintenance.
+- **Existing QA/Linear references:** No duplicate QA finding or Linear issue found; `QA-ROLE-RLS-MISMATCH-002` is unrelated and already fixed.
+- **Proof required:** Full documented read-only route-health replay with generated isolated ports, Chromium, one worker, zero retries, all six role groups passing, with the compatibility redirect still observed and no browser-health violations.
+- **Resolution:** Updated the route-health `RouteSpec` with an explicit `expectedPath` for `/setup`; final proof passed `6/6` role groups in `1.2m` with `--workers=1 --retries=0`. Local commit `399c0868d`.
+
 ### QA-MUTATION-STALE-CACHE-034
 
 - **Status:** fixed

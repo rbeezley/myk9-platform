@@ -38,7 +38,7 @@
 
 ## 5. Remote Verification and Capacity Decision
 
-- [ ] 5.1 After explicit approval, push the migration and verify remote roles/permissions/
+- [x] 5.1 After explicit approval, push the migration and verify remote roles/permissions/
       role-permissions inventory, authenticated/anonymous grants, seeded result equivalence, and
       before/after `EXPLAIN (ANALYZE, BUFFERS)` evidence
 - [ ] 5.2 After explicit approval, create the PR; run required CI and independent PR review

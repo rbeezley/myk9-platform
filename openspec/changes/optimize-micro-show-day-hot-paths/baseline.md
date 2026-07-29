@@ -59,6 +59,24 @@ another complete load and five-minute timer.
 
 The reproducible read-only inventory is in `remote-inventory.sql`.
 
+## Remote post-change verification
+
+Migration `20260729160000_optimize_rbac_auth_lookup.sql` was applied to project
+`sojmvhhwsjxmfistvzbe` on 2026-07-29.
+
+- All four functions remain `STABLE`, `SECURITY DEFINER`, and fixed to an empty search path.
+- Anonymous execution remains denied and authenticated execution remains granted.
+- All four functions use `user_roles.auth_user_id` directly and no longer join `people`.
+- Representative secretary/exhibitor comparison against the legacy people-join queries found zero
+  differences across 98 permission rows, 6 role rows, and 114 effective-permission rows.
+- `user_has_permission` matched the legacy predicate for all 116 direct, inherited, scoped, and
+  missing-permission probes.
+- The representative direct-auth plan returned the same 49 rows in 0.226 ms with 114 shared-buffer
+  hits and no `people` join. PostgreSQL still chose a sequential scan of the 22-row `user_roles`
+  table because it is cheaper at this cardinality; the auth-identity index remains applicable.
+
+The reproducible read-only post-change check is in `remote-verification.sql`.
+
 ## Comparative rerun contract
 
 The post-change result must use the same Micro tier, canonical fixture, four-shard topology,

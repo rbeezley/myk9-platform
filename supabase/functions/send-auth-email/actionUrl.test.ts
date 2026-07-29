@@ -16,6 +16,19 @@ describe('buildAuthActionUrl', () => {
     );
   });
 
+  it('preserves an invitation onboarding path and token', () => {
+    expect(
+      buildAuthActionUrl('https://myk9show.com', {
+        tokenHash: 'signup-token',
+        actionType: 'signup',
+        redirectTo:
+          'https://myk9show.com/auth/callback?returnTo=%2Fonboarding%3Ftoken%3Dinvite-token',
+      })
+    ).toBe(
+      'https://myk9show.com/auth/callback?returnTo=%2Fonboarding%3Ftoken%3Dinvite-token&token_hash=signup-token&type=signup'
+    );
+  });
+
   it('falls back to the canonical callback when Auth supplies no redirect', () => {
     expect(
       buildAuthActionUrl('https://myk9show.com', {
@@ -31,6 +44,27 @@ describe('buildAuthActionUrl', () => {
         tokenHash: 'signup-token',
         actionType: 'signup',
         redirectTo: 'https://myk9show.com',
+      })
+    ).toBe('https://myk9show.com/auth/callback?token_hash=signup-token&type=signup');
+  });
+
+  it('falls back to the canonical callback for a malformed redirect', () => {
+    expect(
+      buildAuthActionUrl('https://myk9show.com', {
+        tokenHash: 'signup-token',
+        actionType: 'signup',
+        redirectTo: 'https://[invalid',
+      })
+    ).toBe('https://myk9show.com/auth/callback?token_hash=signup-token&type=signup');
+  });
+
+  it('does not preserve parameters from an untrusted redirect path', () => {
+    expect(
+      buildAuthActionUrl('https://myk9show.com', {
+        tokenHash: 'signup-token',
+        actionType: 'signup',
+        redirectTo:
+          'https://attacker.example/collect?redirectTo=%2Fonboarding%3Ftoken%3Dinvite-token',
       })
     ).toBe('https://myk9show.com/auth/callback?token_hash=signup-token&type=signup');
   });

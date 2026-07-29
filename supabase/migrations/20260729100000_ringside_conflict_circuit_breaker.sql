@@ -30,6 +30,7 @@ COMMENT ON TABLE public.ringside_conflict_breaker IS
   'Singleton state for the manually re-armed ringside OCC conflict circuit breaker.';
 
 ALTER TABLE public.ringside_conflict_breaker ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ringside_conflict_breaker FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.ringside_conflict_breaker FROM PUBLIC, anon, authenticated;
 
 INSERT INTO public.ringside_conflict_breaker (

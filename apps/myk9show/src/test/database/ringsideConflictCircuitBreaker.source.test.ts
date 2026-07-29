@@ -17,6 +17,9 @@ describe('ringside conflict circuit breaker migration', () => {
     expect(migration).toContain("state IN ('armed', 'tripped')");
     expect(migration).toContain('observed_conflicts');
     expect(migration).toContain('tripped_at');
+    expect(migration).toContain(
+      'ALTER TABLE public.ringside_conflict_breaker FORCE ROW LEVEL SECURITY'
+    );
   });
 
   it('trips by revoking the ringside RPC and never auto-grants it', () => {

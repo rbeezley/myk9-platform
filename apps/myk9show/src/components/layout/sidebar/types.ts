@@ -26,10 +26,8 @@ export interface SidebarConfig {
   dashboardHref: string;
   /** User name shown in the sidebar header */
   headerTitle: string;
-  /** Icon shown in footer badge area */
+  /** Icon shown in the access-level footer */
   footerIcon: React.ComponentType<{ className?: string }>;
-  /** Label for footer badge (e.g. "Judge Access") */
+  /** Label shown in the access-level footer (e.g. "Judge Access") */
   footerLabel: string;
-  /** Description for footer badge */
-  footerDescription: string;
 }

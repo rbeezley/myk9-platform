@@ -6,7 +6,7 @@ import { UserRole } from '@/types/auth-types';
 
 describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   // ── Admin ────────────────────────────────────────────────────────────────
-  it('admin sidebar contains Dashboard, System Health, Users, Role Requests, Onboarding, Roles & Permissions, Payments, Support, Help', () => {
+  it('admin sidebar keeps operational items together', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
     const adminGroup = config.groups.find(g => g.title === 'Admin');
     const titles = adminGroup?.items.map(i => i.title) ?? [];
@@ -18,9 +18,29 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       'Onboarding',
       'Roles & Permissions',
       'Payments',
-      'Support',
-      'Help',
     ]);
+  });
+
+  it('admin sidebar puts Support and Help in a final Resources group', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
+    const resourcesGroup = config.groups.find(g => g.title === 'Resources');
+
+    expect(resourcesGroup?.items.map(i => i.title)).toEqual(['Support', 'Help']);
+    expect(config.groups.at(-1)?.title).toBe('Resources');
+  });
+
+  it('admin sidebar uses plain language and omits redundant descriptions', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
+    const adminItems = config.groups.find(g => g.title === 'Admin')?.items ?? [];
+
+    expect(adminItems.find(i => i.title === 'Dashboard')?.description).toBeUndefined();
+    expect(adminItems.find(i => i.title === 'Users')?.description).toBeUndefined();
+    expect(adminItems.find(i => i.title === 'System Health')?.description).toBe(
+      'Deployment and data checks'
+    );
+    expect(adminItems.find(i => i.title === 'Payments')?.description).toBe(
+      'Platform fees and payouts'
+    );
   });
 
   it('admin sidebar omits all parked items', () => {
@@ -44,7 +64,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
 
   it('pure site-admin sidebar stays focused on admin operations', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
-    expect(config.groups.map(g => g.title)).toEqual(['Admin']);
+    expect(config.groups.map(g => g.title)).toEqual(['Admin', 'Resources']);
   });
 
   it('site admin with secretary role still gets staff workflow groups', () => {
@@ -54,6 +74,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(titles).toContain('Manage');
     expect(titles).toContain('Show Day');
     expect(titles).toContain('Browse');
+    expect(titles.at(-1)).toBe('Resources');
   });
 
   // ── Manage ───────────────────────────────────────────────────────────────
@@ -61,7 +82,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
-    expect(titles).toEqual(['Dashboard']);
+    expect(titles).toEqual(['Show Management']);
   });
 
   it('manage sidebar includes show name item when nextShow is provided', () => {
@@ -69,7 +90,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
     const group = config.groups.find(g => g.title === 'Manage');
     const titles = group?.items.map(i => i.title) ?? [];
-    expect(titles).toEqual(['Dashboard', 'Spring Classic']);
+    expect(titles).toEqual(['Show Management', 'Spring Classic']);
   });
 
   it('manage sidebar omits Messages because Message Center is the communication hub', () => {
@@ -98,17 +119,18 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     }
   });
 
-  it('manage Dashboard href is /secretary/dashboard', () => {
+  it('Show Management href is /secretary/dashboard for secretaries', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Dashboard');
+    const item = group?.items.find(i => i.title === 'Show Management');
     expect(item?.href).toBe('/secretary/dashboard');
+    expect(item?.description).toBeUndefined();
   });
 
-  it('club admin-only manage Dashboard href is /club-admin/members', () => {
+  it('Show Management href is /club-admin/members for club admins', () => {
     const config = buildUnifiedSidebarConfig([UserRole.CLUB_ADMIN]);
     const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Dashboard');
+    const item = group?.items.find(i => i.title === 'Show Management');
     expect(item?.href).toBe('/club-admin/members');
     expect(config.dashboardHref).toBe('/club-admin/members');
   });

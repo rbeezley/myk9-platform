@@ -48,6 +48,8 @@ const REPLICATION_PATTERNS = ['Sync failed', 'Failed to fetch', 'Database query 
 interface RouteSpec {
   label: string;
   path: string;
+  /** Expected final pathname when a compatibility route intentionally redirects. */
+  expectedPath?: string;
   /** Measure horizontal overflow at 375px for this route. */
   check375?: boolean;
 }
@@ -75,7 +77,12 @@ const SECRETARY_ROUTES: RouteSpec[] = [
   { label: 'reports', path: `/shows/${SEEDED_SHOW}/reports` },
   { label: 'settings', path: '/secretary/settings' },
   { label: 'people', path: '/people' },
-  { label: 'workbench', path: `/shows/${SEEDED_SHOW}/setup` },
+  {
+    label: 'workbench',
+    path: `/shows/${SEEDED_SHOW}/setup`,
+    // Setup is retained as a compatibility route; its content lives on the overview.
+    expectedPath: `/shows/${SEEDED_SHOW}`,
+  },
 ];
 
 const JUDGE_ROUTES: RouteSpec[] = [
@@ -215,7 +222,7 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
     // Path check: prove the intended route rendered, not a redirect to /sign-in
     // or an access-denied page (both would pass the render check above).
     const currentPath = new URL(page.url()).pathname;
-    const expectedBase = route.path.split('?')[0];
+    const expectedBase = (route.expectedPath ?? route.path).split('?')[0];
     const pathOk =
       expectedBase === '/' ? currentPath === '/' : currentPath.startsWith(expectedBase);
     expect

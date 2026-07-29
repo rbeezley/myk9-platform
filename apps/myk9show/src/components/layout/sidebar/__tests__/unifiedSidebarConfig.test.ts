@@ -18,6 +18,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       'Onboarding',
       'Roles & Permissions',
       'Payments',
+      'Templates',
     ]);
   });
 
@@ -53,10 +54,19 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       'Load Testing',
       'Sync',
       'Permission Audit',
-      'Templates',
     ]) {
       expect(titles, `"${parked}" should be absent`).not.toContain(parked);
     }
+  });
+
+  it('admin sidebar links Templates to the guarded management surface', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
+    const item = config.groups
+      .find(group => group.title === 'Admin')
+      ?.items.find(navItem => navItem.title === 'Templates');
+
+    expect(item?.href).toBe('/admin/templates');
+    expect(item?.description).toBe('Class and show templates');
   });
 
   it('pure site-admin sidebar stays focused on admin operations', () => {

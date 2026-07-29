@@ -5,8 +5,10 @@ import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
+import { UserRole } from '@/types/auth-types';
 
-const { networkState, syncState, themeState } = vi.hoisted(() => ({
+const { authState, networkState, syncState, themeState } = vi.hoisted(() => ({
+  authState: { roles: [] as string[] },
   networkState: { isOnline: true },
   syncState: { status: 'synced' as 'synced' | 'pending' | 'offline' | 'error' },
   themeState: { theme: 'light' as 'light' | 'dark' },
@@ -15,10 +17,15 @@ const { networkState, syncState, themeState } = vi.hoisted(() => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'test-user', email: 'test@example.com' },
-    hasRole: () => false,
+    hasRole: (role: string) => authState.roles.includes(role),
     signOut: vi.fn(),
-    userWithRoles: { id: 'person-1', roles: ['exhibitor'], scopes: [], user_metadata: {} },
-    getUserRoles: () => ['exhibitor'],
+    userWithRoles: {
+      id: 'person-1',
+      roles: authState.roles,
+      scopes: [],
+      user_metadata: {},
+    },
+    getUserRoles: () => authState.roles,
   }),
 }));
 
@@ -55,6 +62,7 @@ function renderOpenAccountMenu() {
 }
 
 beforeEach(() => {
+  authState.roles.length = 0;
   networkState.isOnline = true;
   syncState.status = 'synced';
   themeState.theme = 'light';
@@ -174,14 +182,22 @@ describe('AccountMenuContent organization', () => {
     dividers.forEach(divider => expect(divider).toHaveClass('bg-muted-foreground/40'));
   });
 
-  it('keeps plan details reachable from every account menu', () => {
+  it('omits destinations owned by the account page or primary navigation', () => {
     renderOpenAccountMenu();
 
-    expect(screen.getByRole('menuitem', { name: 'Plan & billing' })).toHaveAttribute(
-      'href',
-      '/account?section=billing'
-    );
-    expect(screen.queryByRole('menuitem', { name: /view plans/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Plan & billing' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Judge Scoring' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Analytics' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Template Management' })).not.toBeInTheDocument();
+  });
+
+  it('keeps site-admin workflow destinations out of the account menu', () => {
+    authState.roles.push(UserRole.SITE_ADMIN);
+
+    renderOpenAccountMenu();
+
+    expect(screen.queryByRole('menuitem', { name: 'Analytics' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Template Management' })).not.toBeInTheDocument();
   });
 
   it('orders assistance, appearance, information, and session actions by task', () => {
@@ -191,7 +207,6 @@ describe('AccountMenuContent organization', () => {
 
     expect(itemNames).toEqual([
       'Account',
-      'Plan & billing',
       'AskQ',
       'Help & Guides',
       'Dark mode',

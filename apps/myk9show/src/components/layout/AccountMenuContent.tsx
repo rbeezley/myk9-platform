@@ -4,13 +4,11 @@ import {
   CircleAlert,
   CircleCheck,
   Code2,
-  CreditCard,
   Info,
   LifeBuoy,
   LogOut,
   Moon,
   RefreshCw,
-  Settings,
   Sun,
   User as UserIcon,
   WifiOff,
@@ -24,7 +22,6 @@ import {
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole } from '@/types/auth-types';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
@@ -47,7 +44,7 @@ function AccountMenuSeparator() {
  * stays under the 500-line ratchet; it re-derives everything it needs from
  * hooks, so the only coupling back to the header is the About dialog toggle. */
 export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
-  const { user, signOut, userWithRoles, getUserRoles, hasRole } = useAuthContext();
+  const { user, signOut, userWithRoles, getUserRoles } = useAuthContext();
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
@@ -130,47 +127,6 @@ export function AccountMenuContent({ onAbout }: AccountMenuContentProps) {
           Account
         </Link>
       </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        {/* Billing now lives as a section on the unified account page; the
-            standalone /subscription route is kept only for Stripe checkout
-            redirects. */}
-        <Link to="/account?section=billing" className="w-full flex items-center gap-2">
-          <CreditCard className="h-4 w-4" />
-          Plan &amp; billing
-        </Link>
-      </DropdownMenuItem>
-
-      {/* Role-specific menu items */}
-      {(hasRole(UserRole.SECRETARY) ||
-        hasRole(UserRole.CLUB_ADMIN) ||
-        hasRole(UserRole.SITE_ADMIN)) && (
-        <>
-          <AccountMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link to="/judge-scoring" className="w-full flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Judge Scoring
-            </Link>
-          </DropdownMenuItem>
-        </>
-      )}
-
-      {hasRole(UserRole.SITE_ADMIN) && (
-        <>
-          <DropdownMenuItem asChild>
-            <Link to="/analytics" className="w-full flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Analytics
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/admin/templates" className="w-full flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Template Management
-            </Link>
-          </DropdownMenuItem>
-        </>
-      )}
       <AccountMenuSeparator />
 
       {/* AskQ stays here as the labeled compact-width access path for the

@@ -11,6 +11,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { verifyStandardWebhookSignature } from '../_shared/standardWebhookSignature.ts';
 import { persistAuthEmailFailureAlert } from '../_shared/authEmailAlerts.ts';
+import { buildAuthActionUrl } from './actionUrl.ts';
 import { deliverAuthEmail } from './delivery.ts';
 
 const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:5173';
@@ -145,7 +146,11 @@ Deno.serve(async (req: Request) => {
     const { user, email_data } = payload;
 
     const firstName = user.user_metadata?.first_name || 'there';
-    const callbackUrl = `${siteUrl}/auth/callback?token_hash=${email_data.token_hash}&type=${email_data.email_action_type}`;
+    const callbackUrl = buildAuthActionUrl(siteUrl, {
+      tokenHash: email_data.token_hash,
+      actionType: email_data.email_action_type,
+      redirectTo: email_data.redirect_to || undefined,
+    });
 
     const { subject, html } = buildAuthEmailHtml(
       email_data.email_action_type,

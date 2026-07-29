@@ -177,3 +177,45 @@ remain explicit on-demand operations against an owner-approved prelaunch target.
   the seed step begins
 - **THEN** a separate always-run cleanup job restores the canonical seed and verifies 514 total
   show entries, 504 load entries, and zero scored load entries
+
+### Requirement: Ordinary tests cannot contact hosted Supabase accidentally
+
+Routine unit and component tests SHALL fail before sending an HTTP or HTTPS request to a hosted
+`*.supabase.co` endpoint.
+
+#### Scenario: An ordinary test bypasses a Supabase module mock
+
+- **WHEN** code under a Vitest test attempts to fetch a hosted Supabase URL
+- **THEN** the request is rejected locally with a diagnostic isolation error
+- **AND** no request reaches the hosted project
+
+#### Scenario: An approved remote end-to-end test runs
+
+- **WHEN** an operator starts a dedicated Playwright or load workflow through its explicit remote
+  gate
+- **THEN** the Vitest network guard is not installed in that process
+- **AND** the workflow can exercise the approved Supabase target end to end
+
+### Requirement: Repeated ringside conflicts are bounded on both sides
+
+The system SHALL prevent one stale client from retrying ringside optimistic-concurrency conflicts
+without bound.
+
+#### Scenario: A current client repeatedly receives OCC conflicts
+
+- **WHEN** a mutation reaches the configured automatic OCC retry cap
+- **THEN** the mutation stops automatic retrying
+- **AND** follows the existing terminal failure path with conflict evidence preserved
+
+#### Scenario: Conflict volume exceeds the incident threshold
+
+- **WHEN** the periodic database monitor observes a conflict delta above the configured threshold
+- **THEN** it revokes authenticated execution of `ringside_update_entry`
+- **AND** records durable breaker state and the observed conflict volume
+- **AND** it does not automatically restore execution
+
+#### Scenario: An operator re-arms the mutation path
+
+- **WHEN** the caller has been contained and the breaker evidence has been reviewed
+- **THEN** an operator may explicitly reset the breaker and restore the authenticated grant
+- **AND** that shared-system action remains separately approval-gated

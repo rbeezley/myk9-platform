@@ -4,6 +4,7 @@ import { cleanup } from '@testing-library/react';
 import { testCleanup } from './config/testOptimization';
 import { mockSupabase, resetMockSupabase } from './mocks/supabase';
 import { resetAllStores } from './mocks/zustandReset';
+import { createSupabaseNetworkGuard } from './supabaseNetworkGuard';
 import 'fake-indexeddb/auto';
 import {
   IDBFactory as FDBFactory,
@@ -49,6 +50,12 @@ vi.mock('@/lib/supabase', () => ({
   supabase: mockSupabase,
   default: mockSupabase,
 }));
+
+// Defense in depth: module mocks are the normal test seam, but a direct
+// createClient()/fetch path must never escape an ordinary Vitest worker to the
+// shared hosted project. Dedicated Playwright/load processes do not load this
+// setup file and retain their explicit remote-target approval gates.
+globalThis.fetch = createSupabaseNetworkGuard(globalThis.fetch.bind(globalThis));
 
 // Zustand stores are module-level singletons whose in-memory state survives
 // between tests. Route every store through the test mock so resetAllStores()

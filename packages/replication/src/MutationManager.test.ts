@@ -989,10 +989,9 @@ describe('MutationManager', () => {
     });
 
     it('parks the mutation at the occ lifetime cap instead of retrying forever', async () => {
-      // occRetries persists on the mutation (survives reloads), so seeding 49
-      // models a wedged write that has already conflicted 49 times across any
-      // number of sessions — the 2026-07-11 storm shape. The 50th conflict
-      // must park it, not schedule attempt 51.
+      // occRetries persists on the mutation (survives reloads), so seeding 7
+      // models a wedged write that has already conflicted 7 times across any
+      // number of sessions. The 8th conflict must park it, not schedule attempt 9.
       await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
         tableName: 'entries',
         id: 'entry-occ3',
@@ -1011,7 +1010,7 @@ describe('MutationManager', () => {
           rowId: 'entry-occ3',
           data: { id: 'entry-occ3', run_order: 7 },
           serverVersion: 3,
-          occRetries: 49,
+          occRetries: 7,
           rpc: { name: 'ringside_update_entry', fields: { run_order: 7 } },
         })
       );
@@ -1030,9 +1029,9 @@ describe('MutationManager', () => {
       expect(failed).toHaveLength(1);
       expect(failed[0]!.id).toBe('mut-occ3');
       expect(failed[0]!.status).toBe('failed');
-      expect(failed[0]!.occRetries).toBe(50);
+      expect(failed[0]!.occRetries).toBe(8);
       expect(failed[0]!.data).toEqual({ id: 'entry-occ3', run_order: 7 });
-      expect(failed[0]!.error).toMatch(/50 attempts/);
+      expect(failed[0]!.error).toMatch(/8 attempts/);
       expect(failed[0]!.nextRetryAt).toBeUndefined();
       // P1: parked with the AUTHORITATIVE server version (8 from the RPC DETAIL),
       // NOT the stale 3 it carried — so a later Retry can actually succeed.
@@ -1064,7 +1063,7 @@ describe('MutationManager', () => {
           rowId: 'entry-fullrow',
           data: { id: 'entry-fullrow', handler_name: 'Stale Name' },
           serverVersion: 3,
-          occRetries: 49,
+          occRetries: 7,
         })
       );
       // Direct UPDATE OCC rejection: empty update result → re-read finds v8.
@@ -1096,7 +1095,7 @@ describe('MutationManager', () => {
       expect(pending[0]!.id).toBe('mut-fullrow');
       // occRetries still advances, but the token is left stale for the resolver
       // (never advanced under a full-row) — pre-fix behavior, unchanged.
-      expect(pending[0]!.occRetries).toBe(50);
+      expect(pending[0]!.occRetries).toBe(8);
       expect(pending[0]!.serverVersion).toBe(3);
     });
 
@@ -1168,7 +1167,7 @@ describe('MutationManager', () => {
           rowId: 'entry-occ5',
           data: { id: 'entry-occ5', run_order: 2 },
           serverVersion: 3,
-          occRetries: 49,
+          occRetries: 7,
           rpc: { name: 'ringside_update_entry', fields: { run_order: 2 } },
         })
       );

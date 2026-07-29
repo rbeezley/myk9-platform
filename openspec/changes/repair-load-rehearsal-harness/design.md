@@ -155,6 +155,34 @@ and requires cloud telemetry.
 This keeps routine CI safe while ensuring the entry points and current scenario do not silently
 rot again.
 
+### [ADDED] Enforce test-tier network boundaries
+
+Ordinary Vitest runs install an outbound HTTP guard before each test. Any request whose hostname
+is a hosted Supabase domain fails with a diagnostic error before the network call is made. The
+guard is defense in depth alongside the existing Supabase module mocks and dummy test URL.
+
+Remote E2E and load testing remain separate, explicit paths. They do not load the Vitest setup
+file and continue to require their existing target-identity and operator gates. This preserves
+real end-to-end coverage without allowing routine unit/component tests to mutate the shared
+project accidentally.
+
+### [ADDED] Bound OCC retries and trip a server-side circuit breaker
+
+The replication mutation manager caps automatic optimistic-concurrency retries. A mutation that
+continues conflicting after the cap follows the existing terminal failure path instead of
+retrying forever. This limits current clients while preserving failure evidence for reconciliation.
+
+An already-deployed stale client cannot receive that fix, so PostgreSQL also monitors the
+ringside conflict sequence on a fixed interval. If the observed conflict delta exceeds the
+conservative incident threshold, the monitor:
+
+1. revokes `authenticated` execution of `ringside_update_entry`;
+2. records the trip time, observed rate, and reason in durable breaker state; and
+3. leaves the breaker open until an operator verifies the source is gone and explicitly re-arms it.
+
+The monitor commits the revoke instead of raising an exception. Re-enabling the RPC is
+intentionally not part of the migration or an automatic timer.
+
 ### [ADDED] Run the full gate on four synchronized free GitHub runners
 
 The two owner-approved local full attempts proved that one Mac/Chromium process is the load
@@ -231,6 +259,15 @@ records the failing dimension and MYK9-109 stays open.
   **Mitigation:** capture the target's starting fixture marker, install signal/finally cleanup, and
   run the canonical reset/reseed verification after both success and failure; preserve the failed
   evidence before cleanup.
+- **[Risk] A unit/component test bypasses a mocked Supabase module.** →
+  **Mitigation:** block hosted Supabase HTTP requests in the ordinary test runtime independently
+  of module mocks.
+- **[Risk] A stale deployed client retries conflicts indefinitely.** →
+  **Mitigation:** cap retries in current clients and use a durable, manually re-armed database
+  breaker for already-deployed clients.
+- **[Risk] The breaker interrupts legitimate scoring.** →
+  **Mitigation:** trip only on sustained conflict volume far above the bounded rehearsal budget,
+  record evidence, and require operator review before re-arm.
 
 ## Migration Plan
 
@@ -250,6 +287,9 @@ records the failing dimension and MYK9-109 stays open.
 8. Preserve evidence and restore the target through the canonical reset path after success,
    failure, or interruption. If the rehearsal fails, remediate without changing thresholds. If it
    passes, update the runbook/scorecard and close MYK9-109 only after the evidence follow-up merges.
+9. Apply the conflict-breaker migration while the emergency RPC revoke remains in place, verify
+   the stale caller is gone, and restore authenticated execution only through a separately
+   approved operator action.
 
 Rollback is source-only before the approved rehearsal: revert the load config, runner, and
 set-based seed block. Any seeded remote rehearsal target is reset through the canonical reseed

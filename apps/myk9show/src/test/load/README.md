@@ -22,6 +22,12 @@ uses the remote prelaunch Supabase project, so the quick smoke and full commands
 require an approved remote window. They are never scheduled or run in pull
 request CI.
 
+Ordinary Vitest runs install an HTTP guard that rejects every hosted
+`*.supabase.co` request before it leaves the process. Unit/component tests must
+mock that boundary. Real Supabase coverage still belongs in the dedicated
+Playwright/load commands above, which do not load the Vitest setup and retain
+their explicit target approval gates.
+
 Do not use one local browser process as G9 evidence. The five-session smoke is
 supported locally, but two 100-session attempts saturated the local generator
 before they could produce a valid Supabase result.
@@ -138,3 +144,53 @@ After a forced workflow cancellation, verify that the cleanup job completed.
 If GitHub itself prevented cleanup from running, manually restore the approved
 target with the canonical reseed and verify `514|504|0` before leaving the load
 window.
+
+## Ringside conflict breaker recovery
+
+Migration `20260729100000_ringside_conflict_circuit_breaker.sql` samples the
+rollback-proof ringside conflict counter every minute. At 300 conflicts in one
+interval it revokes authenticated execution of `ringside_update_entry`, records
+the evidence, and remains tripped. Current clients also park one RPC mutation
+after eight OCC conflicts; the server breaker protects against older clients.
+
+Inspect breaker state in the SQL editor:
+
+```sql
+select *
+from public.ringside_conflict_breaker;
+```
+
+Do not re-arm from a timer or merely because CPU has fallen. First identify and
+stop the caller, confirm the conflict counter is stable across multiple samples,
+and obtain separate approval for the shared-system grant. Then run this as one
+operator transaction:
+
+```sql
+begin;
+
+with sequence_baseline as (
+  select case when is_called then last_value else 0 end as value
+  from public.ringside_conflict_seq
+)
+update public.ringside_conflict_breaker
+set state = 'armed',
+    last_sequence_value = sequence_baseline.value,
+    last_checked_at = now(),
+    observed_conflicts = 0,
+    observed_window_seconds = 0,
+    tripped_at = null,
+    reason = null,
+    updated_at = now()
+from sequence_baseline
+where singleton;
+
+grant execute
+on function public.ringside_update_entry(uuid, jsonb, integer)
+to authenticated;
+
+commit;
+```
+
+After re-arm, sample breaker state, conflicts, CPU, and active calls. If conflict
+volume returns, manually revoke the RPC immediately; the one-minute monitor is
+the fallback, not the first response during an observed incident.

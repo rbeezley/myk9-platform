@@ -23,11 +23,20 @@ const hoisted = vi.hoisted(() => {
     waitlist_entries: makeSyncSpy(),
   };
   const clearEntriesCache = vi.fn().mockResolvedValue(undefined);
+  const getEntryIds = vi.fn().mockResolvedValue(new Set(['cached-entry']));
   const getPendingCount = vi.fn().mockResolvedValue(0);
-  return { authState, unsubscribeSpy, syncSpies, clearEntriesCache, getPendingCount };
+  return {
+    authState,
+    unsubscribeSpy,
+    syncSpies,
+    clearEntriesCache,
+    getEntryIds,
+    getPendingCount,
+  };
 });
 
-const { authState, unsubscribeSpy, syncSpies, clearEntriesCache, getPendingCount } = hoisted;
+const { authState, unsubscribeSpy, syncSpies, clearEntriesCache, getEntryIds, getPendingCount } =
+  hoisted;
 
 vi.mock('@/lib/notifications', () => ({
   notifications: {
@@ -56,6 +65,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     setMutationManager: vi.fn(),
     sync: hoisted.syncSpies.entries,
     clearCache: hoisted.clearEntriesCache,
+    getAllLocalIds: hoisted.getEntryIds,
   },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -140,6 +150,8 @@ describe('ReplicationSyncProvider — auth guard', () => {
     authState.callback = null;
     unsubscribeSpy.mockClear();
     clearEntriesCache.mockClear();
+    getEntryIds.mockReset();
+    getEntryIds.mockResolvedValue(new Set(['cached-entry']));
     getPendingCount.mockReset();
     getPendingCount.mockResolvedValue(0);
     window.localStorage.clear();
@@ -204,6 +216,26 @@ describe('ReplicationSyncProvider — auth guard', () => {
       '20260620-authenticated-entry-results-view-v2'
     );
     expect(syncSpies.entries).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not clear an already-empty entry replica during the result-view version check', async () => {
+    getEntryIds.mockResolvedValueOnce(new Set());
+    renderProvider();
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      authState.callback?.('INITIAL_SESSION', fakeSession());
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(clearEntriesCache).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem('myk9:entry-result-replica-version')).toBe(
+      '20260620-authenticated-entry-results-view-v2'
+    );
   });
 
   it('defers the entries cache refresh while offline mutations are still pending', async () => {

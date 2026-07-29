@@ -2,6 +2,7 @@ import { appendFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+import { LOAD_SHOW_ENTRY_COUNT } from '../../apps/myk9show/src/test/load/loadFixture';
 import { LOCAL_E2E_PROJECT_REF, resolveIsolatedE2eTarget } from './isolated-e2e-target';
 
 export interface LocalSupabaseEnvironment {
@@ -29,7 +30,8 @@ SELECT
   (SELECT count(*) FROM public.shows WHERE id = '${DEMO_SHOW_ID}'),
   (SELECT count(*) FROM public.classes c JOIN public.trials t ON t.id = c.trial_id WHERE t.show_id = '${DEMO_SHOW_ID}'),
   (SELECT count(*) FROM public.judge_assignments ja JOIN public.classes c ON c.id = ja.class_id JOIN public.trials t ON t.id = c.trial_id WHERE t.show_id = '${DEMO_SHOW_ID}'),
-  (SELECT count(*) FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id WHERE ur.is_active AND r.name IN ('secretary', 'club_admin', 'judge', 'steward', 'chairman'));
+  (SELECT count(*) FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id WHERE ur.is_active AND r.name IN ('secretary', 'club_admin', 'judge', 'steward', 'chairman')),
+  (SELECT count(*) FROM public.entries WHERE show_id = '${DEMO_SHOW_ID}');
 `;
 
 export function parseSupabaseStatusEnv(output: string): Record<string, string> {
@@ -180,14 +182,17 @@ function runPostSeedAssertions(local: LocalSupabaseEnvironment, env: NodeJS.Proc
     env
   ).trim();
 
-  const [showCount, classCount, assignmentCount, roleGrantCount] = output.split('|');
+  const [showCount, classCount, assignmentCount, roleGrantCount, entryCount] = output.split('|');
   if (
     showCount !== '1' ||
     Number(classCount) <= 0 ||
     Number(assignmentCount) <= 0 ||
-    Number(roleGrantCount) <= 0
+    Number(roleGrantCount) <= 0 ||
+    entryCount !== String(LOAD_SHOW_ENTRY_COUNT)
   ) {
-    throw new Error('Post-seed fixture verification failed');
+    throw new Error(
+      `Post-seed fixture verification failed for MYK9-109: expected show/classes/assignments/roles and ${LOAD_SHOW_ENTRY_COUNT} entries; received ${output}`
+    );
   }
 }
 

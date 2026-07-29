@@ -104,4 +104,14 @@ describe('isolated E2E migration chain', () => {
     expect(accountSetupSource).toContain("process.env.MYK9_E2E_AUTH_ONLY === 'true'");
     expect(isolatedAccountSeed).toContain('onboarding_completed_at');
   });
+
+  it('requires the canonical 514-entry load fixture after every isolated reset', () => {
+    expect(lifecycleSource).toContain(
+      `(SELECT count(*) FROM public.entries WHERE show_id = '\${DEMO_SHOW_ID}')`
+    );
+    expect(lifecycleSource).toContain('entryCount !== String(LOAD_SHOW_ENTRY_COUNT)');
+    expect(lifecycleSource).toContain(
+      "import { LOAD_SHOW_ENTRY_COUNT } from '../../apps/myk9show/src/test/load/loadFixture'"
+    );
+  });
 });

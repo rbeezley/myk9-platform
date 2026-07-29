@@ -14,10 +14,11 @@
 
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@/test/utils/testUtils';
+import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
+import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { AtShowRoutes } from '@/routes/atShowRoutes';
 import {
   replicatedShowsTable,
@@ -30,14 +31,24 @@ import {
 // reach for. Mock the whole module so every table is a vi.fn() bag.
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
-  replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn(), updateClass: vi.fn() },
+  replicatedClassesTable: {
+    getClassById: vi.fn(),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+    updateClass: vi.fn(),
+  },
   replicatedEntriesTable: {
     getEntriesByClass: vi.fn(),
     sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
     updateCheckInStatus: vi.fn(),
     updateEntry: vi.fn(),
   },
-  replicatedTrialsTable: { getTrialById: vi.fn() },
+  replicatedTrialsTable: {
+    getTrialById: vi.fn(),
+    getTrialsByShow: vi.fn(),
+    sync: vi.fn(),
+  },
 }));
 
 // Auth: force a SITE_ADMIN primary role (→ ringside 'admin', canScore = true)
@@ -83,6 +94,10 @@ function seedReplication() {
     trialNumber: 1,
     date: '2026-06-01',
   } as never);
+  vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
+    { id: 'trial-1', showId: 'show-1' },
+    { id: 'trial-2', showId: 'show-1' },
+  ] as never);
   vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([PENDING_ENTRY] as never);
   vi.mocked(replicatedEntriesTable.updateCheckInStatus).mockResolvedValue('entry-1');
   vi.mocked(replicatedEntriesTable.updateEntry).mockResolvedValue('entry-1');
@@ -137,6 +152,55 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
 
     expect(await screen.findByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
     expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+  });
+
+  it('refreshes an initially empty query from the replicated subscription snapshot', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass)
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValue([PENDING_ENTRY] as never);
+    vi.mocked(replicatedEntriesTable.subscribe).mockImplementation(callback => {
+      callback([PENDING_ENTRY] as never);
+      return vi.fn();
+    });
+
+    renderPage();
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+  });
+
+  it('hydrates show-scoped replicas on the first at-show mount', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
+      expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
+      expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
+      expect(replicatedClassesTable.sync).not.toHaveBeenCalledWith('');
+      expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    });
+  });
+
+  it('deduplicates concurrent show-scoped hydration requests', async () => {
+    const dependencies = createAtShowDataDependencies();
+
+    const first = dependencies.forceSyncEntriesAndClasses('show-1');
+    const second = dependencies.forceSyncEntriesAndClasses('show-1');
+    await Promise.all([first, second]);
+
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledTimes(1);
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+  });
+
+  it('keeps cached classes available when show-scoped trial hydration is empty', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([]);
+    const dependencies = createAtShowDataDependencies();
+
+    await dependencies.forceSyncEntriesAndClasses('empty-show');
+
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('empty-show');
+    expect(replicatedClassesTable.sync).not.toHaveBeenCalled();
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('empty-show');
   });
 
   it('does not write in-ring status when a pending card is tapped for viewing', async () => {

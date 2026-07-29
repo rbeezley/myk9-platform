@@ -14,8 +14,18 @@ import { AtShowCombinedEntryListPage } from './AtShowCombinedEntryListPage';
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
-  replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn(), updateClass: vi.fn() },
-  replicatedEntriesTable: { getEntriesByClass: vi.fn(), sync: vi.fn(), updateEntry: vi.fn() },
+  replicatedClassesTable: {
+    getClassById: vi.fn(),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => () => undefined),
+    updateClass: vi.fn(),
+  },
+  replicatedEntriesTable: {
+    getEntriesByClass: vi.fn(),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => () => undefined),
+    updateEntry: vi.fn(),
+  },
   replicatedTrialsTable: { getTrialById: vi.fn() },
 }));
 

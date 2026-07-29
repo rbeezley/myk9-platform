@@ -31,6 +31,32 @@ import {
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
 
+const atShowSyncsInFlight = new Map<string, Promise<void>>();
+
+function syncAtShowData(showId: string): Promise<void> {
+  const existing = atShowSyncsInFlight.get(showId);
+  if (existing) return existing;
+
+  const operation = (async () => {
+    await replicatedTrialsTable.sync(showId);
+    const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
+    await Promise.all([
+      // Classes are scoped by trial_id, so hydrate only the trials that belong
+      // to this show. An empty scope would fetch every visible changed class.
+      ...showTrials.map(trial => replicatedClassesTable.sync(trial.id)),
+      replicatedEntriesTable.sync(showId),
+    ]);
+  })();
+  atShowSyncsInFlight.set(showId, operation);
+  const release = () => {
+    if (atShowSyncsInFlight.get(showId) === operation) {
+      atShowSyncsInFlight.delete(showId);
+    }
+  };
+  void operation.then(release, release);
+  return operation;
+}
+
 /**
  * Build the rendered class name from element + level (+ section). Delegates to
  * the shared composeClassTitle; the '-' "no section" sentinel that used to be
@@ -253,18 +279,21 @@ export function createAtShowDataDependencies(): Pick<
       // Offline-first contract: rejection is expected offline; the hook
       // swallows it and falls back to cached data. We surface failures by
       // resolving (sync internally logs), matching myK9Q's Promise.all shape.
-      await Promise.all([
-        replicatedClassesTable.sync(licenseKey),
-        replicatedEntriesTable.sync(licenseKey),
-      ]);
+      await syncAtShowData(licenseKey);
     },
 
-    // INTENT (spike): myK9Show drives live updates through ReplicationSync
-    // Provider + React Query invalidation, not a per-table pub-sub the way
-    // myK9Q does. The contract explicitly tolerates a no-op unsubscribe; a real
-    // change-subscription is a follow-up once the /at-show page proves out.
-    subscribeToReplicationChanges: (): (() => void) => {
-      return () => {};
+    subscribeToReplicationChanges: (callback): (() => void) => {
+      // The table's first callback is also important: a background sync can
+      // finish after the React Query read but before this subscription binds.
+      // Invalidating from that current snapshot closes the race without
+      // waiting for a second replication change.
+      const unsubscribeEntries = replicatedEntriesTable.subscribe(() => callback());
+      const unsubscribeClasses = replicatedClassesTable.subscribe(() => callback());
+
+      return () => {
+        unsubscribeEntries();
+        unsubscribeClasses();
+      };
     },
   };
 }

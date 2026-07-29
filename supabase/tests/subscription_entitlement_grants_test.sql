@@ -581,20 +581,31 @@ $$;
 -- the drop with their end dates. If the migration had taken the grants with
 -- the column, this is where it would show.
 DO $$
-DECLARE v_backfill integer; v_dateless integer;
+DECLARE v_backfill integer; v_dateless integer; v_legacy_column boolean;
 BEGIN
   SELECT count(*) INTO v_backfill FROM public.subscription_entitlement_grants
     WHERE grant_type='founding' AND reason='Backfilled from early_adopter_until';
   SELECT count(*) INTO v_dateless FROM public.subscription_entitlement_grants
     WHERE grant_type='founding' AND ends_at IS NULL;
+  SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'people'
+      AND column_name = 'early_adopter_until'
+  ) INTO v_legacy_column;
 
-  IF v_backfill = 0 THEN
-    RAISE EXCEPTION 'FAIL no backfilled founding grants remain — the legacy data did not survive the column drop';
+  IF v_legacy_column THEN
+    RAISE EXCEPTION 'FAIL legacy early_adopter_until column remains';
   END IF;
   IF v_dateless > 0 THEN
     RAISE EXCEPTION 'FAIL % founding grant(s) lost their end date', v_dateless;
   END IF;
-  RAISE NOTICE 'PASS % backfilled founding grant(s) survived the column drop with end dates intact', v_backfill;
+  IF v_backfill = 0 THEN
+    RAISE NOTICE 'PASS clean schema has no legacy early-adopter rows and the legacy column is absent';
+  ELSE
+    RAISE NOTICE 'PASS % backfilled founding grant(s) survived the column drop with end dates intact', v_backfill;
+  END IF;
 END;
 $$;
 

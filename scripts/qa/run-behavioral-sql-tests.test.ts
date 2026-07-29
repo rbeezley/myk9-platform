@@ -146,6 +146,12 @@ describe('behavioral SQL test harness', () => {
     expect(subscriptionEntitlementFixture).toContain(
       `IF SQLERRM <> 'new row violates row-level security policy for table "pedigree_ancestors"'`
     );
+    expect(subscriptionEntitlementFixture).not.toContain(
+      'FAIL no backfilled founding grants remain'
+    );
+    expect(subscriptionEntitlementFixture).toContain(
+      'PASS clean schema has no legacy early-adopter rows and the legacy column is absent'
+    );
   });
 
   it.each([

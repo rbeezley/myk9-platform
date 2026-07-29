@@ -140,7 +140,9 @@ const AppHeader: React.FC = () => {
             <Link
               to="/"
               aria-label="myK9Show home"
-              className="flex min-h-11 min-w-0 items-center gap-2"
+              className={`flex min-h-11 min-w-0 items-center gap-2 ${
+                cartItemCount > 0 ? 'max-[359px]:hidden' : ''
+              }`}
             >
               <img
                 src="/brand-mark-64.png"

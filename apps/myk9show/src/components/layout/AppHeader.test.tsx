@@ -23,7 +23,8 @@ vi.mock('./useAppShellMobileNav', () => ({
 
 vi.mock('@/store/cartStore', () => ({
   useCartItemCount: () => 2,
-  useCartStore: (selector: (s: { cart: unknown }) => unknown) => selector({ cart: null }),
+  useCartStore: (selector: (s: { cart: unknown }) => unknown) =>
+    selector({ cart: { id: 'cart-1' } }),
 }));
 
 vi.mock('@/hooks/queries/useActiveCartItemCount', () => ({
@@ -84,6 +85,7 @@ describe('AppHeader branding', () => {
     const wordmark = screen.getByText('myK9Show');
 
     expect(homeLink).toHaveAttribute('href', '/');
+    expect(homeLink).toHaveClass('max-[359px]:hidden');
     expect(mark).toHaveAttribute('src', '/brand-mark-64.png');
     expect(mark).toHaveAttribute('width', '28');
     expect(mark).toHaveAttribute('height', '28');

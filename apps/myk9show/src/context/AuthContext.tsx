@@ -42,6 +42,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
 import {
   PermissionWithRole,
+  EffectivePermissionScope,
   UserRoleWithDetails as RbacUserRoleWithDetails,
 } from '@/types/rbac-types';
 import { ensureError } from '@myk9/core';
@@ -65,6 +66,7 @@ export interface UserRoleWithDetails {
 const EMPTY_RBAC_USER_ROLES: RbacUserRoleWithDetails[] = [];
 const EMPTY_RBAC_PERMISSIONS: string[] = [];
 const EMPTY_RBAC_SCOPED_PERMISSIONS: PermissionWithRole[] = [];
+const EMPTY_RBAC_EFFECTIVE_PERMISSION_SCOPES: EffectivePermissionScope[] = [];
 
 /**
  * Determine the primary (highest-privilege) role from a set of roles.
@@ -263,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: null as string | null,
     userRoles: [] as RbacUserRoleWithDetails[],
     effectivePermissions: [] as string[],
+    effectivePermissionScopes: [] as EffectivePermissionScope[],
     scopedPermissions: [] as PermissionWithRole[],
     isLoading: false,
     loaded: false,
@@ -324,6 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId: null,
         userRoles: [],
         effectivePermissions: [],
+        effectivePermissionScopes: [],
         scopedPermissions: [],
         isLoading: false,
         loaded: false,
@@ -353,6 +357,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 userId,
                 userRoles: [],
                 effectivePermissions: [],
+                effectivePermissionScopes: [],
                 scopedPermissions: [],
                 isLoading: true,
                 loaded: false,
@@ -366,6 +371,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId,
           userRoles: mapRbacRoles(data.roles),
           effectivePermissions: data.effectivePermissions,
+          effectivePermissionScopes: data.effectivePermissionScopes ?? data.permissions,
           scopedPermissions: data.permissions,
           isLoading: false,
           loaded: true,
@@ -414,6 +420,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentScopedPermissions = rbacBelongsToCurrentUser
     ? rbacData.scopedPermissions
     : EMPTY_RBAC_SCOPED_PERMISSIONS;
+  const currentEffectivePermissionScopes = rbacBelongsToCurrentUser
+    ? rbacData.effectivePermissionScopes
+    : EMPTY_RBAC_EFFECTIVE_PERMISSION_SCOPES;
 
   // Build userWithRoles - priority: mock user > database RBAC > default exhibitor
   // Deps use primitive/stable values (IDs, not object references) to avoid re-creating
@@ -519,7 +528,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (scope) {
           const scopeType = (scope as { type: string }).type;
           const scopeId = (scope as { id: string }).id;
-          return currentScopedPermissions.some(
+          return currentEffectivePermissionScopes.some(
             sp =>
               sp.permission_code === permCode &&
               (sp.scope_type === 'global' ||
@@ -544,7 +553,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [currentEffectivePermissions, currentScopedPermissions, userWithRoles]
+    [currentEffectivePermissionScopes, currentEffectivePermissions, userWithRoles]
   );
 
   /**
@@ -599,6 +608,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId,
         userRoles: mapRbacRoles(data.roles),
         effectivePermissions: data.effectivePermissions,
+        effectivePermissionScopes: data.effectivePermissionScopes ?? data.permissions,
         scopedPermissions: data.permissions,
         isLoading: false,
         loaded: true,

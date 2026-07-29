@@ -158,6 +158,16 @@ describe('PermissionChecker complete-access cache', () => {
           scope_id: 'show-123',
         },
       ],
+      get_effective_permissions: [
+        {
+          permission_code: 'show:create',
+          permission_name: 'Create shows',
+          source_type: 'inherited',
+          source_role: 'secretary (via :manage)',
+          scope_type: 'club',
+          scope_id: 'club-123',
+        },
+      ],
     });
     const checker = new PermissionChecker();
 
@@ -169,6 +179,13 @@ describe('PermissionChecker complete-access cache', () => {
       scope_type: 'show',
       scope_id: 'show-123',
     });
+    expect(result.effectivePermissionScopes).toEqual([
+      {
+        permission_code: 'show:create',
+        scope_type: 'club',
+        scope_id: 'club-123',
+      },
+    ]);
   });
 });
 

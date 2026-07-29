@@ -8,7 +8,6 @@ vi.mock('./useAuthContext', () => ({
 
 const { mockRbacService } = vi.hoisted(() => ({
   mockRbacService: {
-    setCacheTimeout: vi.fn(),
     getUserPermissions: vi.fn(),
     checkPermission: vi.fn(),
     assignRole: vi.fn(),

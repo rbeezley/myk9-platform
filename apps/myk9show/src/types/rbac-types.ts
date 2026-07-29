@@ -98,6 +98,12 @@ export interface PermissionWithRole {
   scope_id: string | null;
 }
 
+export interface EffectivePermissionScope {
+  permission_code: string;
+  scope_type: string;
+  scope_id: string | null;
+}
+
 // Service types
 export interface PermissionCheck {
   permission: string;
@@ -176,6 +182,7 @@ export interface UserPermissionsResponse {
   permissions: PermissionWithRole[];
   roles: UserRoleWithDetails[];
   effectivePermissions: string[];
+  effectivePermissionScopes?: EffectivePermissionScope[];
 }
 
 // Permission template types

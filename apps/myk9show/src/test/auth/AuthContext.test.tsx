@@ -358,7 +358,19 @@ describe('AuthContext', () => {
             scope_id: 'club-1',
           },
         ],
-        effectivePermissions: [PERMISSIONS.SHOW_MANAGE],
+        effectivePermissions: [PERMISSIONS.SHOW_MANAGE, PERMISSIONS.SHOW_CREATE],
+        effectivePermissionScopes: [
+          {
+            permission_code: PERMISSIONS.SHOW_MANAGE,
+            scope_type: 'club',
+            scope_id: 'club-1',
+          },
+          {
+            permission_code: PERMISSIONS.SHOW_CREATE,
+            scope_type: 'club',
+            scope_id: 'club-1',
+          },
+        ],
       });
 
       const TestComponent = () => {
@@ -379,6 +391,16 @@ describe('AuthContext', () => {
                 .hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-2' })
                 .toString()}
             </span>
+            <span data-testid="inherited-same-club-permission">
+              {auth
+                .hasPermission(PERMISSIONS.SHOW_CREATE, { type: 'club', id: 'club-1' })
+                .toString()}
+            </span>
+            <span data-testid="inherited-different-club-permission">
+              {auth
+                .hasPermission(PERMISSIONS.SHOW_CREATE, { type: 'club', id: 'club-2' })
+                .toString()}
+            </span>
             <span data-testid="last-refreshed">{auth.rbacLastRefreshed ?? 'none'}</span>
             <button type="button" onClick={() => void auth.refreshPermissions()}>
               Refresh access
@@ -394,6 +416,8 @@ describe('AuthContext', () => {
         expect(screen.getByTestId('permission-scope')).toHaveTextContent('club:club-1');
         expect(screen.getByTestId('same-club-permission')).toHaveTextContent('true');
         expect(screen.getByTestId('different-club-permission')).toHaveTextContent('false');
+        expect(screen.getByTestId('inherited-same-club-permission')).toHaveTextContent('true');
+        expect(screen.getByTestId('inherited-different-club-permission')).toHaveTextContent('false');
         expect(screen.getByTestId('last-refreshed')).not.toHaveTextContent('none');
       });
 

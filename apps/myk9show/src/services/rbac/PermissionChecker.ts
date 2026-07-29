@@ -276,6 +276,11 @@ export class PermissionChecker {
         permissions: mappedPermissions,
         roles: rolesWithDetails,
         effectivePermissions: typedEffective.map(ep => ep.permission_code || ep.permission_name),
+        effectivePermissionScopes: typedEffective.map(ep => ({
+          permission_code: ep.permission_code || ep.permission_name,
+          scope_type: ep.scope_type,
+          scope_id: ep.scope_id,
+        })),
       };
     } catch (error) {
       if (!isTransientBrowserFetchError(error)) {

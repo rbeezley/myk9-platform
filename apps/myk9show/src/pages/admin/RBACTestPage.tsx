@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRBAC, useIsAdmin } from '@/hooks/useRBAC';
-// usePermission not used
 import {
   PermissionGuard,
   IfPermission,

@@ -48,6 +48,9 @@ describe('behavioral SQL test harness', () => {
     expect(paymentServiceGrant).toBeLessThan(paymentServiceRole);
     expect(paymentServiceReset).toBeGreaterThan(paidEntryInsert);
     expect(paymentServiceReset).toBeLessThan(userRoleInsert);
+    expect(pullRefundFixture).toContain(
+      'INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)'
+    );
   });
 
   it('executes every launch-critical behavioral SQL file through psql', () => {

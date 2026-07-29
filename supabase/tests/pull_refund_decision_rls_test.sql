@@ -85,11 +85,12 @@ VALUES
 
 RESET ROLE;
 
-INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
+INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000000811',
   id,
   '00000000-0000-0000-0000-000000000831',
+  '00000000-0000-0000-0000-000000000821',
   true,
   '00000000-0000-0000-0000-000000000801'
 FROM public.roles

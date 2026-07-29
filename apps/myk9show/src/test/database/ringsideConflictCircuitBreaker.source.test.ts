@@ -20,6 +20,9 @@ describe('ringside conflict circuit breaker migration', () => {
     expect(migration).toContain(
       'ALTER TABLE public.ringside_conflict_breaker FORCE ROW LEVEL SECURITY'
     );
+    expect(migration).toMatch(
+      /CREATE POLICY ringside_conflict_breaker_deny_all[\s\S]+USING \(false\)[\s\S]+WITH CHECK \(false\)/i
+    );
   });
 
   it('trips by revoking the ringside RPC and never auto-grants it', () => {

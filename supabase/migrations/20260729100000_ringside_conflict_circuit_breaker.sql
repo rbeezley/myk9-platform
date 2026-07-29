@@ -32,6 +32,12 @@ COMMENT ON TABLE public.ringside_conflict_breaker IS
 ALTER TABLE public.ringside_conflict_breaker ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ringside_conflict_breaker FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.ringside_conflict_breaker FROM PUBLIC, anon, authenticated;
+CREATE POLICY ringside_conflict_breaker_deny_all
+  ON public.ringside_conflict_breaker
+  FOR ALL
+  TO anon, authenticated
+  USING (false)
+  WITH CHECK (false);
 
 INSERT INTO public.ringside_conflict_breaker (
   singleton,

@@ -41,7 +41,7 @@ export interface MutationManagerOptions {
   retryBackoffBase?: number;
   /**
    * Lifetime cap on OCC-conflict upload attempts for one mutation (default:
-   * 8). occRetries persists on the queued mutation, so the cap holds across
+   * 50). occRetries persists on the queued mutation, so the cap holds across
    * page reloads. On reaching it the mutation is PARKED into the
    * failed-mutations store (visible, user-recoverable via retry/discard —
    * never silently dropped) instead of retrying the same conflicting write
@@ -75,7 +75,7 @@ export class MutationManager {
       this.logger,
       options.maxRetries ?? 3,
       options.retryBackoffBase ?? 1000,
-      options.maxOccAttempts ?? 8,
+      options.maxOccAttempts ?? 50,
       this.queueStore,
       () => this.writeCurrentMutationsBackup()
     );

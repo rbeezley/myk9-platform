@@ -195,6 +195,17 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
   });
 
+  it('keeps cached classes available when show-scoped trial hydration is empty', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([]);
+    const dependencies = createAtShowDataDependencies();
+
+    await dependencies.forceSyncEntriesAndClasses('empty-show');
+
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('empty-show');
+    expect(replicatedClassesTable.sync).not.toHaveBeenCalled();
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('empty-show');
+  });
+
   it('does not write in-ring status when a pending card is tapped for viewing', async () => {
     renderPage();
     const card = await screen.findByText('Rex');

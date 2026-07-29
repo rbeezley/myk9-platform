@@ -67,6 +67,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
 
+      - name: Verify ringside scoring is enabled
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          can_score="$(psql \
+            "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:5432/postgres" \
+            -X -v ON_ERROR_STOP=1 -At \
+            -c "SELECT has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer)', 'EXECUTE');")"
+          [[ "$can_score" == "t" ]] || {
+            echo "Ringside scoring is disabled; restore the authenticated RPC grant through a separately approved operator action before rehearsal." >&2
+            exit 1
+          }
+
       - name: Mark canonical restoration required
         id: restore
         run: echo "required=true" >>"$GITHUB_OUTPUT"

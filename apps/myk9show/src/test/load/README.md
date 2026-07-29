@@ -44,6 +44,9 @@ scoring/API latency and database telemetry are the backend capacity gates until
 the evidence also records clean generator CPU/headroom.
 Create the `load-rehearsal` GitHub environment with a required reviewer before
 the first dispatch so the prepare job cannot seed the remote target unattended.
+The prepare job also verifies that `authenticated` can execute
+`ringside_update_entry` and aborts before reseeding when scoring is disabled;
+restoring that grant remains a separate operator-approved action.
 GitHub only permits `workflow_dispatch` after the workflow exists on the default
 branch, so merge the reviewed harness implementation before running it. That
 implementation merge does not close G9 or MYK9-109; the aggregate evidence must
@@ -147,53 +150,3 @@ After a forced workflow cancellation, verify that the cleanup job completed.
 If GitHub itself prevented cleanup from running, manually restore the approved
 target with the canonical reseed and verify `514|504|0` before leaving the load
 window.
-
-## Ringside conflict breaker recovery
-
-Migration `20260729100000_ringside_conflict_circuit_breaker.sql` samples the
-rollback-proof ringside conflict counter every minute. At 300 conflicts in one
-interval it revokes authenticated execution of `ringside_update_entry`, records
-the evidence, and remains tripped. Current clients also park one RPC mutation
-after eight OCC conflicts; the server breaker protects against older clients.
-
-Inspect breaker state in the SQL editor:
-
-```sql
-select *
-from public.ringside_conflict_breaker;
-```
-
-Do not re-arm from a timer or merely because CPU has fallen. First identify and
-stop the caller, confirm the conflict counter is stable across multiple samples,
-and obtain separate approval for the shared-system grant. Then run this as one
-operator transaction:
-
-```sql
-begin;
-
-with sequence_baseline as (
-  select case when is_called then last_value else 0 end as value
-  from public.ringside_conflict_seq
-)
-update public.ringside_conflict_breaker
-set state = 'armed',
-    last_sequence_value = sequence_baseline.value,
-    last_checked_at = now(),
-    observed_conflicts = 0,
-    observed_window_seconds = 0,
-    tripped_at = null,
-    reason = null,
-    updated_at = now()
-from sequence_baseline
-where singleton;
-
-grant execute
-on function public.ringside_update_entry(uuid, jsonb, integer)
-to authenticated;
-
-commit;
-```
-
-After re-arm, sample breaker state, conflicts, CPU, and active calls. If conflict
-volume returns, manually revoke the RPC immediately; the one-minute monitor is
-the fallback, not the first response during an observed incident.

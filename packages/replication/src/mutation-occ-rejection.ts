@@ -76,7 +76,7 @@ export async function handleOccRejection(ctx: OccRejectionContext): Promise<numb
   // separate counter from `retries` so an ordinary conflict is not
   // dead-lettered after 3 attempts — it slows down and keeps waiting
   // for reconciliation. It is NOT unlimited: occRetries persists on
-  // the mutation, and at maxOccAttempts (default 8, across reloads)
+  // the mutation, and at maxOccAttempts (default 50, across reloads)
   // the mutation is PARKED into the failed-mutations store — visible
   // and user-recoverable via retry/discard, never silently dropped,
   // never replayed forever (2026-07-11 ringside conflict storm).

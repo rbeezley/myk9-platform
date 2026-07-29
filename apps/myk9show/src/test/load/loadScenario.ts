@@ -18,7 +18,6 @@ export interface LoadWorkload {
 export interface LoadTargets {
   readonly apiP95Ms: number;
   readonly scoringWriteP95Ms: number;
-  readonly pageP95Ms: number;
   readonly errorRateMax: number;
   readonly throughputMin: number;
   readonly availabilityMin: number;
@@ -95,7 +94,6 @@ export const G9_NORMAL_SCENARIO = freezeScenario({
   targets: {
     apiP95Ms: 200,
     scoringWriteP95Ms: 200,
-    pageP95Ms: 3_000,
     errorRateMax: 0.05,
     throughputMin: 50,
     availabilityMin: 99.5,

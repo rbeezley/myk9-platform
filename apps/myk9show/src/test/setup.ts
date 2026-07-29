@@ -54,7 +54,9 @@ vi.mock('@/lib/supabase', () => ({
 // Defense in depth: module mocks are the normal test seam, but a direct
 // createClient()/fetch path must never escape an ordinary Vitest worker to the
 // shared hosted project. Dedicated Playwright/load processes do not load this
-// setup file and retain their explicit remote-target approval gates.
+// setup file and retain their explicit remote-target approval gates. Tests that
+// replace global fetch must delegate through or reinstall this guard; restoring
+// the original global fetch would remove the isolation boundary for that file.
 globalThis.fetch = createSupabaseNetworkGuard(globalThis.fetch.bind(globalThis));
 
 // Zustand stores are module-level singletons whose in-memory state survives

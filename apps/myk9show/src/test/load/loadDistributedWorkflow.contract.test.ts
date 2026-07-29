@@ -29,6 +29,9 @@ describe('manual distributed load workflow', () => {
     );
     expect(workflow).toContain('supabase/seed-demo.sql');
     expect(workflow).toContain('514|504|0');
+    expect(workflow).toContain(
+      "has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer)', 'EXECUTE')"
+    );
   });
 
   it('protects every remote rehearsal job and offers a realistic preparation window', () => {

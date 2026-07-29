@@ -26,8 +26,6 @@ or missing the documented latency, error-rate, throughput, and availability targ
   outside the load path.
 - Enforce a network boundary for ordinary Vitest runs so accidental hosted-Supabase HTTP requests
   fail locally while dedicated, explicitly approved remote E2E/load workflows remain available.
-- Bound repeated client optimistic-concurrency retries and add a durable database conflict circuit
-  breaker for already-deployed stale clients.
 - Record the passing rehearsal, supported ceiling, and tracking updates only after running against
   staging or the isolated E2E project after MYK9-111.
 
@@ -56,8 +54,6 @@ represent show day.
 
 - `go-live-phase-4-evidence-pass-verification`: Adds the G9 capacity rehearsal to the evidence-bound
   Phase 4 checklist and prevents a missing or failing rehearsal from closing the gate.
-- `offline-scoring-durability`: Tightens the persisted lifetime cap for RPC/delta OCC conflicts
-  from 50 attempts to eight while retaining visible, user-recoverable parking.
 
 ## Impact
 
@@ -66,8 +62,6 @@ represent show day.
 - `apps/myk9show/scripts/` load orchestration and evidence helpers as needed
 - `supabase/seed-demo.sql` and its focused source-contract tests
 - `apps/myk9show/src/test/setup.ts` and focused test-isolation contracts
-- `packages/replication/src/MutationManager.ts` and OCC retry contracts
-- `supabase/migrations/` conflict-monitoring and breaker state
 - CI/workflow configuration for safe recurring harness validation
 - A manual GitHub Actions matrix for four synchronized 25-session generators, exact shard
   aggregation, evidence upload, and unconditional canonical reseed

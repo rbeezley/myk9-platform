@@ -78,22 +78,11 @@
       until `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_PASSWORD` are explicitly installed; do not
       use Vercel or paid/larger runners.
 
-## 6A. Incident remediation — enforced isolation and conflict containment
+## 6A. Incident remediation — enforced test isolation
 
-- [x] 6A.1 [ADDED] Add assertion-first contracts for ordinary-test Supabase network isolation,
-      bounded OCC retries, and database breaker behavior.
+- [x] 6A.1 [ADDED] Add an assertion-first contract for ordinary-test Supabase network isolation.
 - [x] 6A.2 [ADDED] Install an ordinary Vitest HTTP guard that rejects hosted Supabase requests
       without affecting dedicated remote E2E/load processes.
-- [x] 6A.3 [ADDED] Cap automatic OCC conflict retries in the replication mutation manager and
-      preserve the existing terminal failure path; modify the canonical offline-scoring durability
-      requirement from 50 persisted attempts to eight.
-- [x] 6A.4 [ADDED] Add a migration that monitors conflict volume, records durable breaker state,
-      and revokes authenticated ringside execution when the threshold is exceeded.
-- [x] 6A.5 [ADDED] Run focused tests plus OpenSpec validation and record incident verification.
-      (103 focused tests, replication/app TypeScript checks, strict OpenSpec validation, and
-      migration dry run passed; broad app shards hit the known >60-second hang and were stopped.)
-- [x] 6A.6 [ADDED] Keep migration deployment and authenticated grant restoration approval-gated
-      until the stale caller is confirmed absent. (Dry run only; remote RPC remains revoked.)
 
 ## 7. Local and implementation verification
 

@@ -46,12 +46,12 @@ A malformed rule affects every future show, so migrations (history, review, roll
 reproducibility) beat an admin form. And the tables have real runtime consumers that are
 not configuration:
 
-| Consumer | Reads | Why it is load-bearing |
-| --- | --- | --- |
+| Consumer                                                                                     | Reads               | Why it is load-bearing                                                                                                            |
+| -------------------------------------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | [`buildRuleMap.ts`](../apps/myk9show/src/pages/secretary/ShowCreationWizard/buildRuleMap.ts) | `sport_class_rules` | Bakes max time, timer mode, odors, hide/distraction counts, MRV into class rows at creation so ringside scoring works **offline** |
-| [`titleEngine.ts`](../apps/myk9show/src/services/titleEngine.ts) | `sport_titles` | Types its entire API on `SportTitleRow`; drives title tracking |
-| [`useSportTemplates.ts`](../apps/myk9show/src/hooks/queries/useSportTemplates.ts) | all three | React Query read layer |
-| [`templateMappers.ts`](../apps/myk9show/src/services/mappers/templateMappers.ts) | `sport_templates` | Maps DB rows → `ClassTemplate` for the wizard |
+| [`titleEngine.ts`](../apps/myk9show/src/services/titleEngine.ts)                             | `sport_titles`      | Types its entire API on `SportTitleRow`; drives title tracking                                                                    |
+| [`useSportTemplates.ts`](../apps/myk9show/src/hooks/queries/useSportTemplates.ts)            | all three           | React Query read layer                                                                                                            |
+| [`templateMappers.ts`](../apps/myk9show/src/services/mappers/templateMappers.ts)             | `sport_templates`   | Maps DB rows → `ClassTemplate` for the wizard                                                                                     |
 
 Replacing these with hardcoded TypeScript would be considerably more work and riskier,
 and it would touch offline scoring — the highest-risk pre-launch surface. Out of scope.
@@ -70,7 +70,7 @@ the orphaned `template_fields` table, and the tests pinning all of it.
   `titleEngine`, `buildRuleMap`, `templateMappers`.
 - The secretary "save/reuse a class set" feature — `useTrialTemplates`,
   `AddClassFromTemplateDialog`, `ShowTemplateManager`, `showTemplateStore`,
-  `classTemplateStore`. That is a *user convenience*, not rule configuration. Separate
+  `classTemplateStore`. That is a _user convenience_, not rule configuration. Separate
   judgment, separate plan.
 - Namesakes: `notification_templates`, `club_premium_templates`,
   `organizationFormTemplates`, `print-templates`, `PermissionTemplateSelector`,
@@ -94,42 +94,42 @@ Every path below was confirmed by grep against the working tree. Line counts are
 
 ### 3.1 Pages and routes
 
-| Path | Lines | Action |
-| --- | --- | --- |
-| [`pages/admin/TemplateEditorPage.tsx`](../apps/myk9show/src/pages/admin/TemplateEditorPage.tsx) | 565 | delete |
-| [`pages/admin/TemplateTestingPage.tsx`](../apps/myk9show/src/pages/admin/TemplateTestingPage.tsx) | 410 | delete |
-| [`pages/admin/TemplateManagementPage.tsx`](../apps/myk9show/src/pages/admin/TemplateManagementPage.tsx) | 680 | **reduce** to read-only list + detail; strip "reload defaults", "reset local templates", "clean duplicates", import/export, and all row actions |
-| [`routes/routeRegistry.ts:32-35`](../apps/myk9show/src/routes/routeRegistry.ts:32) | — | remove `new` / `edit` / `test` entries; keep `'/admin/templates'` |
-| [`routes/routeRegistry.ts:182`](../apps/myk9show/src/routes/routeRegistry.ts:182) | — | `templateManagement` prefetch group references `/admin/templates/new` — drop that entry |
-| [`routes/adminRoutes.tsx:40-47, 202-229`](../apps/myk9show/src/routes/adminRoutes.tsx:202) | — | remove the three lazy imports + three `<Route>` blocks |
+| Path                                                                                                    | Lines | Action                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`pages/admin/TemplateEditorPage.tsx`](../apps/myk9show/src/pages/admin/TemplateEditorPage.tsx)         | 565   | delete                                                                                                                                          |
+| [`pages/admin/TemplateTestingPage.tsx`](../apps/myk9show/src/pages/admin/TemplateTestingPage.tsx)       | 410   | delete                                                                                                                                          |
+| [`pages/admin/TemplateManagementPage.tsx`](../apps/myk9show/src/pages/admin/TemplateManagementPage.tsx) | 680   | **reduce** to read-only list + detail; strip "reload defaults", "reset local templates", "clean duplicates", import/export, and all row actions |
+| [`routes/routeRegistry.ts:32-35`](../apps/myk9show/src/routes/routeRegistry.ts:32)                      | —     | remove `new` / `edit` / `test` entries; keep `'/admin/templates'`                                                                               |
+| [`routes/routeRegistry.ts:182`](../apps/myk9show/src/routes/routeRegistry.ts:182)                       | —     | `templateManagement` prefetch group references `/admin/templates/new` — drop that entry                                                         |
+| [`routes/adminRoutes.tsx:40-47, 202-229`](../apps/myk9show/src/routes/adminRoutes.tsx:202)              | —     | remove the three lazy imports + three `<Route>` blocks                                                                                          |
 
 ### 3.2 Authoring components
 
-| Path | Lines | Action |
-| --- | --- | --- |
-| [`components/templates/admin/TemplateForm.tsx`](../apps/myk9show/src/components/templates/admin/TemplateForm.tsx) | 262 | delete |
-| [`components/templates/admin/TemplateActions.tsx`](../apps/myk9show/src/components/templates/admin/TemplateActions.tsx) | 182 | delete |
-| [`components/templates/admin/TemplateList.tsx`](../apps/myk9show/src/components/templates/admin/TemplateList.tsx) | 256 | **reduce** — strip action props/callbacks |
-| [`components/templates/admin/TemplatePreview.tsx`](../apps/myk9show/src/components/templates/admin/TemplatePreview.tsx) | 465 | **reduce and move** — see §4.0 Q1. Props are read-only (`{ template }`); keep the Classes/Fields/Rules tabs, delete the `test` tab (lines 386+) and its `testValues` state. Move out of `admin/` |
+| Path                                                                                                                    | Lines | Action                                                                                                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`components/templates/admin/TemplateForm.tsx`](../apps/myk9show/src/components/templates/admin/TemplateForm.tsx)       | 262   | delete                                                                                                                                                                                           |
+| [`components/templates/admin/TemplateActions.tsx`](../apps/myk9show/src/components/templates/admin/TemplateActions.tsx) | 182   | delete                                                                                                                                                                                           |
+| [`components/templates/admin/TemplateList.tsx`](../apps/myk9show/src/components/templates/admin/TemplateList.tsx)       | 256   | **reduce** — strip action props/callbacks                                                                                                                                                        |
+| [`components/templates/admin/TemplatePreview.tsx`](../apps/myk9show/src/components/templates/admin/TemplatePreview.tsx) | 465   | **reduce and move** — see §4.0 Q1. Props are read-only (`{ template }`); keep the Classes/Fields/Rules tabs, delete the `test` tab (lines 386+) and its `testValues` state. Move out of `admin/` |
 
 ### 3.3 Import/export and local-cache maintenance
 
-| Path | Lines | Action |
-| --- | --- | --- |
-| [`components/templates/ExportTemplatesDialog.tsx`](../apps/myk9show/src/components/templates/ExportTemplatesDialog.tsx) | 160 | delete |
-| [`components/templates/AutoSaveTemplatesDialog.tsx`](../apps/myk9show/src/components/templates/AutoSaveTemplatesDialog.tsx) | 160 | delete |
-| [`components/templates/DirectSaveTemplatesDialog.tsx`](../apps/myk9show/src/components/templates/DirectSaveTemplatesDialog.tsx) | 182 | delete |
-| [`utils/autoSaveTemplates.ts`](../apps/myk9show/src/utils/autoSaveTemplates.ts) | 143 | delete |
-| [`utils/cleanup-duplicate-templates.ts`](../apps/myk9show/src/utils/cleanup-duplicate-templates.ts) | ~50 | delete — dedup is now structural via `upsertTemplates` (replace-by-id) |
+| Path                                                                                                                            | Lines | Action                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------- |
+| [`components/templates/ExportTemplatesDialog.tsx`](../apps/myk9show/src/components/templates/ExportTemplatesDialog.tsx)         | 160   | delete                                                                 |
+| [`components/templates/AutoSaveTemplatesDialog.tsx`](../apps/myk9show/src/components/templates/AutoSaveTemplatesDialog.tsx)     | 160   | delete                                                                 |
+| [`components/templates/DirectSaveTemplatesDialog.tsx`](../apps/myk9show/src/components/templates/DirectSaveTemplatesDialog.tsx) | 182   | delete                                                                 |
+| [`utils/autoSaveTemplates.ts`](../apps/myk9show/src/utils/autoSaveTemplates.ts)                                                 | 143   | delete                                                                 |
+| [`utils/cleanup-duplicate-templates.ts`](../apps/myk9show/src/utils/cleanup-duplicate-templates.ts)                             | ~50   | delete — dedup is now structural via `upsertTemplates` (replace-by-id) |
 
 ### 3.4 Services
 
-| Path | Lines | Action |
-| --- | --- | --- |
-| [`services/templates/templateVersioning.ts`](../apps/myk9show/src/services/templates/templateVersioning.ts) | 527 | delete — only reachable through the editor |
-| [`services/templates/templateInheritance.ts`](../apps/myk9show/src/services/templates/templateInheritance.ts) | 430 | delete — same |
-| [`lib/templateValidation.ts`](../apps/myk9show/src/lib/templateValidation.ts) | 283 | delete — unreachable from runtime code, see §4.0 Q2 |
-| [`lib/classGeneration.ts`](../apps/myk9show/src/lib/classGeneration.ts) | — | delete — its only importers are two test files, see §4.0 Q2 |
+| Path                                                                                                          | Lines | Action                                                      |
+| ------------------------------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------- |
+| [`services/templates/templateVersioning.ts`](../apps/myk9show/src/services/templates/templateVersioning.ts)   | 527   | delete — only reachable through the editor                  |
+| [`services/templates/templateInheritance.ts`](../apps/myk9show/src/services/templates/templateInheritance.ts) | 430   | delete — same                                               |
+| [`lib/templateValidation.ts`](../apps/myk9show/src/lib/templateValidation.ts)                                 | 283   | delete — unreachable from runtime code, see §4.0 Q2         |
+| [`lib/classGeneration.ts`](../apps/myk9show/src/lib/classGeneration.ts)                                       | —     | delete — its only importers are two test files, see §4.0 Q2 |
 
 ### 3.5 Store surgery — `templateStore`
 
@@ -141,13 +141,13 @@ Every path below was confirmed by grep against the working tree. Line counts are
 
 **Keep — every non-admin consumer depends on these:**
 
-| Consumer | Uses |
-| --- | --- |
-| [`hooks/useTemplates.ts`](../apps/myk9show/src/hooks/useTemplates.ts) | `templates`, `isInitialized`, `ensureTemplatesLoaded` |
-| [`store/classCreationStore.ts:88`](../apps/myk9show/src/store/classCreationStore.ts:88) | `getTemplate` |
-| [`components/panels/edit/ShowEditForm.tsx:31`](../apps/myk9show/src/components/panels/edit/ShowEditForm.tsx:31) | `templates` |
-| [`components/templates/secretary/OrganizationSelector.tsx:36`](../apps/myk9show/src/components/templates/secretary/OrganizationSelector.tsx:36) | `templates` |
-| [`components/trials/TrialDetail/TrialManagementDialogs.tsx:62`](../apps/myk9show/src/components/trials/TrialDetail/TrialManagementDialogs.tsx:62) | `templates`, `initializeDefaultTemplates` |
+| Consumer                                                                                                                                          | Uses                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| [`hooks/useTemplates.ts`](../apps/myk9show/src/hooks/useTemplates.ts)                                                                             | `templates`, `isInitialized`, `ensureTemplatesLoaded` |
+| [`store/classCreationStore.ts:88`](../apps/myk9show/src/store/classCreationStore.ts:88)                                                           | `getTemplate`                                         |
+| [`components/panels/edit/ShowEditForm.tsx:31`](../apps/myk9show/src/components/panels/edit/ShowEditForm.tsx:31)                                   | `templates`                                           |
+| [`components/templates/secretary/OrganizationSelector.tsx:36`](../apps/myk9show/src/components/templates/secretary/OrganizationSelector.tsx:36)   | `templates`                                           |
+| [`components/trials/TrialDetail/TrialManagementDialogs.tsx:62`](../apps/myk9show/src/components/trials/TrialDetail/TrialManagementDialogs.tsx:62) | `templates`, `initializeDefaultTemplates`             |
 
 Also keep: `activeTemplate`, `getOfficialTemplates`, `getCustomTemplates`, search/filter
 state, `refreshTemplatesFromDB`, `upsertTemplates`.
@@ -162,21 +162,21 @@ state, `refreshTemplatesFromDB`, `upsertTemplates`.
 
 Resolved — see §4.0 Q3.
 
-| Path | Lines | Action |
-| --- | --- | --- |
-| [`styles/template-management.css`](../apps/myk9show/src/styles/template-management.css) | 207 | **delete** — zero importers. Orphan using a `.template-*` class prefix nothing emits |
-| [`styles/myk9-template-management.css`](../apps/myk9show/src/styles/myk9-template-management.css) | 582 | **keep, reduce** — the live one (`.myk9-*` prefix). Triple-imported: [`index.css:8`](../apps/myk9show/src/index.css:8) globally, plus [`TemplateList.tsx:37`](../apps/myk9show/src/components/templates/admin/TemplateList.tsx:37) and [`TemplateManagementPage.tsx:34`](../apps/myk9show/src/pages/admin/TemplateManagementPage.tsx:34). Drop the two component-level imports (the global one already covers them) and prune rules for deleted affordances |
+| Path                                                                                              | Lines | Action                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`styles/template-management.css`](../apps/myk9show/src/styles/template-management.css)           | 207   | **delete** — zero importers. Orphan using a `.template-*` class prefix nothing emits                                                                                                                                                                                                                                                                                                                                                                        |
+| [`styles/myk9-template-management.css`](../apps/myk9show/src/styles/myk9-template-management.css) | 582   | **keep, reduce** — the live one (`.myk9-*` prefix). Triple-imported: [`index.css:8`](../apps/myk9show/src/index.css:8) globally, plus [`TemplateList.tsx:37`](../apps/myk9show/src/components/templates/admin/TemplateList.tsx:37) and [`TemplateManagementPage.tsx:34`](../apps/myk9show/src/pages/admin/TemplateManagementPage.tsx:34). Drop the two component-level imports (the global one already covers them) and prune rules for deleted affordances |
 
 ### 3.7 Navigation, help, and lazy-load config
 
-| Path | Action |
-| --- | --- |
-| [`store/navigationStore.ts:76`](../apps/myk9show/src/store/navigationStore.ts:76) | keep `'/admin/templates'`; retitle "Template Management" → **"Sport Rules"** (it no longer manages anything) |
-| [`components/layout/AccountMenuContent.tsx:167`](../apps/myk9show/src/components/layout/AccountMenuContent.tsx:167) | keep the link; update the label to match |
-| [`features/admin-help/utils/resolveExamplePath.ts:73-79`](../apps/myk9show/src/features/admin-help/utils/resolveExamplePath.ts:73) | remove the `edit` and `test` resolvers |
-| [`features/admin-help/data/pageDirectory.ts:118,140,163`](../apps/myk9show/src/features/admin-help/data/pageDirectory.ts:118) | rewrite the entry as read-only; verify `linksTo` still resolves |
-| [`hooks/useLazyStore.ts:93,126`](../apps/myk9show/src/hooks/useLazyStore.ts:93) | `admin-templates` group drops `classTemplateStore`/`showTemplateStore` if unused by the read-only page |
-| [`components/layout/sidebar/unifiedSidebarConfig.ts`](../apps/myk9show/src/components/layout/sidebar/unifiedSidebarConfig.ts) | confirm whether a sidebar entry exists; no `/admin/templates` match was found, so likely nothing to change |
+| Path                                                                                                                               | Action                                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [`store/navigationStore.ts:76`](../apps/myk9show/src/store/navigationStore.ts:76)                                                  | keep `'/admin/templates'`; retitle "Template Management" → **"Sport Rules"** (it no longer manages anything) |
+| [`components/layout/AccountMenuContent.tsx:167`](../apps/myk9show/src/components/layout/AccountMenuContent.tsx:167)                | keep the link; update the label to match                                                                     |
+| [`features/admin-help/utils/resolveExamplePath.ts:73-79`](../apps/myk9show/src/features/admin-help/utils/resolveExamplePath.ts:73) | remove the `edit` and `test` resolvers                                                                       |
+| [`features/admin-help/data/pageDirectory.ts:118,140,163`](../apps/myk9show/src/features/admin-help/data/pageDirectory.ts:118)      | rewrite the entry as read-only; verify `linksTo` still resolves                                              |
+| [`hooks/useLazyStore.ts:93,126`](../apps/myk9show/src/hooks/useLazyStore.ts:93)                                                    | `admin-templates` group drops `classTemplateStore`/`showTemplateStore` if unused by the read-only page       |
+| [`components/layout/sidebar/unifiedSidebarConfig.ts`](../apps/myk9show/src/components/layout/sidebar/unifiedSidebarConfig.ts)      | confirm whether a sidebar entry exists; no `/admin/templates` match was found, so likely nothing to change   |
 
 ### 3.8 Orphaned table — `template_fields`
 
@@ -188,11 +188,26 @@ on a "may be used by other features" hunch. Grep says nothing reads it at runtim
   `anonGrantTestFixtures.ts:21`)
 - legacy scripts (`backup-templates.sql`, `document-current-state.ts`,
   `migrate-to-singular-tables.ts`)
+- **four mappers in [`templateMappers.ts`](../apps/myk9show/src/services/mappers/templateMappers.ts)** —
+  see the caveat below
 
-**Action:** `DROP TABLE public.template_fields` in its own migration, then remove the type
-aliases and the anon-grant fixture entries. The anon-grant contract test reads the whole
-migrations directory, so the fixture and the migration must land together or that test
-fails. Do this as a **separate PR after** the code removal merges.
+> **The type aliases cannot be removed on their own.** `templateMappers.ts` — otherwise out
+> of scope — imports `DbTemplateField` and `DbTemplateFieldInsert` at lines 23–24 and uses
+> them in four exported functions: `mapDatabaseToClassTemplateField` (204),
+> `mapClassTemplateFieldToInsert` (226), `mapShowFieldToTemplateField` (362),
+> `mapTemplateFieldToShowField` (386), plus the `template_fields?: DbTemplateField[]` field at
+> line 78. `tsconfig.app.json` compiles all of `src`, so deleting the aliases without touching
+> that file breaks typecheck.
+>
+> **Verified:** all four mappers have **zero consumers**. So delete the mappers rather than
+> retain the aliases — they are dead alongside the table they map. This makes §3.8 a
+> self-contained unit: table + mappers + aliases + fixtures.
+
+**Action (PR 4):** `DROP TABLE public.template_fields`, delete the four dead field mappers
+and the `template_fields?` field from `templateMappers.ts`, then remove the type aliases and
+the anon-grant fixture entries. The anon-grant contract test parses the whole migrations
+directory, so the fixture removal and the migration must land in the **same** PR or that test
+fails. Land **after** PR 2.
 
 ---
 
@@ -209,12 +224,12 @@ See §4.0 below. All three resolved; one produced a bonus deletion.
 Its prop interface is `{ template: ClassTemplate }` — **read-only, no callbacks**. Its only
 importer is `TemplateEditorPage.tsx:447`. It renders four tabs:
 
-| Tab | Lines | Verdict |
-| --- | --- | --- |
-| Classes | 200–298 | keep |
-| Fields | 299–334 | keep |
-| Rules | 335–385 | keep — this is the rules matrix the read-only viewer needs |
-| **Test** | 386+ | **delete** — this is the "Test Template" harness, along with the `testValues` and `selectedClass` state that backs it |
+| Tab      | Lines   | Verdict                                                                                                               |
+| -------- | ------- | --------------------------------------------------------------------------------------------------------------------- |
+| Classes  | 200–298 | keep                                                                                                                  |
+| Fields   | 299–334 | keep                                                                                                                  |
+| Rules    | 335–385 | keep — this is the rules matrix the read-only viewer needs                                                            |
+| **Test** | 386+    | **delete** — this is the "Test Template" harness, along with the `testValues` and `selectedClass` state that backs it |
 
 **Action:** keep it, delete the `test` tab and its state, and move it out of
 `components/templates/admin/` — after this change nothing about it is admin-authoring.
@@ -303,11 +318,18 @@ worked example.
 - [`features/admin-help/__tests__/resolveExamplePath.test.ts:68-72`](../apps/myk9show/src/features/admin-help/__tests__/resolveExamplePath.test.ts:68) —
   drop the edit/test expectations.
 
-**Delete outright** (§4.0 Q2 — they test only each other):
+**Already done in PR 1 — do not redo:**
 
-- [`test/lib/templateValidation.test.ts`](../apps/myk9show/src/test/lib/templateValidation.test.ts) — 414 lines
-- [`test/lib/classGeneration.test.ts`](../apps/myk9show/src/test/lib/classGeneration.test.ts)
-- [`test/performance/templatePerformance.test.ts`](../apps/myk9show/src/test/performance/templatePerformance.test.ts) — 440 lines
+- `test/lib/templateValidation.test.ts` (414) — **deleted**, tested only the dead lib
+- `test/lib/classGeneration.test.ts` (246) — **deleted**, same
+- [`test/performance/templatePerformance.test.ts`](../apps/myk9show/src/test/performance/templatePerformance.test.ts) —
+  **reduced 440 → 235, NOT deleted.** Its `Store Performance`, `Class Creation Store
+Performance`, and template-store memory blocks (8 surviving tests) exercise the **live**
+  `templateStore` and `classCreationStore`. Only the two dead-lib describe blocks and the
+  class-generation memory test were removed. Deleting the rest would discard unrelated live
+  coverage.
+  > Phase 3's store surgery will touch the surviving `Store Performance` block, since it
+  > `setState`s `templates` / `activeTemplate` directly. Update it there, in PR 2.
 
 **Fix or delete:**
 
@@ -337,13 +359,14 @@ show-creation wizard e2e path (it consumes `buildRuleMap`, the highest-risk cons
 
 ## 5 · Risks
 
-| Risk | Mitigation |
-| --- | --- |
-| Deleting a store action a secretary flow uses | The five non-admin consumers and their exact reads are enumerated in §3.5; `pnpm typecheck` catches the rest |
-| `initializeDefaultTemplates` deleted because the name reads like a write | Called out as a trap in §3.5; rename in Phase 3 |
-| Offline scoring regression via `buildRuleMap` | `buildRuleMap`, `sportTemplateService`, and the three tables are explicitly out of scope; wizard e2e in the Phase 6 gate |
-| `template_fields` drop breaks the anon-grant contract test | Migration + fixture removal land in the same PR, in a separate PR after code removal |
-| Someone made real edits in the editor believing they persisted | They did not persist — writes were local-only and overwritten on reload. Staging-only, pre-launch, no real users. No data recovery needed. Confirm no one is relying on a locally-cached edit before shipping |
+| Risk                                                                     | Mitigation                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deleting a store action a secretary flow uses                            | The five non-admin consumers and their exact reads are enumerated in §3.5; `pnpm typecheck` catches the rest                                                                                                  |
+| `initializeDefaultTemplates` deleted because the name reads like a write | Called out as a trap in §3.5; rename in Phase 3                                                                                                                                                               |
+| Offline scoring regression via `buildRuleMap`                            | `buildRuleMap`, `sportTemplateService`, and the three tables are explicitly out of scope; wizard e2e in the Phase 6 gate                                                                                      |
+| `template_fields` drop breaks the anon-grant contract test               | Migration + fixture removal land in the same PR, in a separate PR after code removal                                                                                                                          |
+| Someone made real edits in the editor believing they persisted           | They did not persist — writes were local-only and overwritten on reload. Staging-only, pre-launch, no real users. No data recovery needed. Confirm no one is relying on a locally-cached edit before shipping |
+| A PR deletes a symbol whose test still names it, so CI cannot pass       | `pnpm typecheck` runs `typecheck:tests`, so test files are compiled too. Every symbol deletion ships with its test rewrite in the **same** PR — see the note in §7                                            |
 
 ## 6 · Definition of done
 
@@ -368,9 +391,17 @@ estimate because §4.0 Q2 found ~1,137 lines of mutually-referential dead code a
 
 Suggested PR split:
 
-| PR | Contents | Risk |
-| --- | --- | --- |
-| 1 | §4.0 Q2 deletions + Q3 orphan stylesheet | **none** — nothing reachable is touched; land independently |
-| 2 | Phases 2–5 (routes, components, store surgery, read-only page, labels) | low — typecheck-guided |
-| 3 | Phase 6 test rewrites + registry↔DB parity test | low |
-| 4 | `template_fields` DROP migration + fixture removal | low — must land after PR 2 |
+| PR  | Contents                                                                       | Risk                                                                                                                                   |
+| --- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | §4.0 Q2 deletions + Q3 orphan stylesheet                                       | **none** — nothing reachable is touched; land independently. **Shipped: [#1523](https://github.com/rbeezley/myk9-platform/pull/1523)** |
+| 2   | Phases 2–5 **plus the dependent test rewrites from Phase 6**                   | low — typecheck-guided                                                                                                                 |
+| 3   | Registry↔DB parity test (new coverage only) + the stale cross-browser e2e path | low                                                                                                                                    |
+| 4   | `template_fields` DROP + dead field mappers + type aliases + fixture removal   | low — must land after PR 2                                                                                                             |
+
+> **The dependent test rewrites cannot be deferred to PR 3.** `pnpm typecheck` runs
+> `typecheck:tests` against `tsconfig.test.json`, and both `templateStore.test.ts` and
+> `phase4-template-system.test.ts` reference the CRUD actions by name — including bare
+> `expect(typeof store.createTemplate).toBe('function')` assertions. Deleting those actions
+> in PR 2 while their tests wait for PR 3 makes PR 2 unable to pass CI. Every rewrite in
+> Phase 6 that names a deleted symbol ships **in PR 2**; PR 3 carries only genuinely new,
+> independent coverage.

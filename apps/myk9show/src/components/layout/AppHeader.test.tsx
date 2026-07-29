@@ -75,6 +75,23 @@ describe('AppHeader phone-width header consolidation', () => {
   });
 });
 
+describe('AppHeader branding', () => {
+  it('pairs the transparent brand mark with a compact responsive wordmark', () => {
+    render(<AppHeader />);
+
+    const homeLink = screen.getByRole('link', { name: 'myK9Show home' });
+    const mark = homeLink.querySelector('img');
+    const wordmark = screen.getByText('myK9Show');
+
+    expect(homeLink).toHaveAttribute('href', '/');
+    expect(mark).toHaveAttribute('src', '/brand-mark-64.png');
+    expect(mark).toHaveAttribute('width', '28');
+    expect(mark).toHaveAttribute('height', '28');
+    expect(mark).toHaveAttribute('alt', '');
+    expect(wordmark).toHaveClass('max-[359px]:hidden');
+  });
+});
+
 describe('AppHeader onboarding shell', () => {
   it('hides utility actions on onboarding while keeping account access', () => {
     render(<AppHeader />, { initialRoute: '/onboarding' });
@@ -118,9 +135,7 @@ describe('AppHeader keyboard shortcut registration (task 3.1)', () => {
     expect(lastCall).toBeDefined();
     const registered = lastCall![0];
 
-    expect(registered.map(s => s.id).sort()).toEqual(
-      APP_SHORTCUTS.map(s => s.id).sort()
-    );
+    expect(registered.map(s => s.id).sort()).toEqual(APP_SHORTCUTS.map(s => s.id).sort());
     // Every registered shortcut is bound to a real, callable action — no
     // display-only entries.
     for (const shortcut of registered) {

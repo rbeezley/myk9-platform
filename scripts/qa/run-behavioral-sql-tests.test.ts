@@ -138,6 +138,9 @@ describe('behavioral SQL test harness', () => {
       'GRANT INSERT ON public.pedigree_ancestors TO authenticated'
     );
     expect(subscriptionEntitlementFixture).toContain(
+      'GRANT SELECT ON public.dogs TO authenticated'
+    );
+    expect(subscriptionEntitlementFixture).toContain(
       `IF SQLERRM <> 'new row violates row-level security policy for table "vaccinations"'`
     );
     expect(subscriptionEntitlementFixture).toContain(

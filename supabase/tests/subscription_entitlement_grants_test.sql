@@ -83,6 +83,7 @@ RESET ROLE;
 -- policies on a clean CI database. These fixture grants roll back.
 GRANT SELECT, INSERT, DELETE ON public.vaccinations TO authenticated;
 GRANT INSERT ON public.pedigree_ancestors TO authenticated;
+GRANT SELECT ON public.dogs TO authenticated;
 
 -- Site admin role for the admin person.
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)

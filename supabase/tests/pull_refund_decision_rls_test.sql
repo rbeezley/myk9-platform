@@ -85,6 +85,12 @@ VALUES
 
 RESET ROLE;
 
+-- The clean CI database does not inherit the API's default table grants.
+-- Reproduce only the authenticated access needed to exercise RLS and the
+-- refund-decision trigger; these grants roll back with the fixture.
+GRANT SELECT ON public.people TO authenticated;
+GRANT UPDATE (refund_decision) ON public.entries TO authenticated;
+
 INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000000811',
@@ -140,6 +146,9 @@ BEGIN
      WHERE id = '00000000-0000-0000-0000-000000000842';
     RAISE EXCEPTION 'FAIL direct refund-decision update succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'refund decisions are written only through set_entry_refund_decision' THEN
+      RAISE;
+    END IF;
     RAISE NOTICE 'PASS direct refund-decision update is rejected';
   END;
 END;

@@ -48,8 +48,15 @@ describe('behavioral SQL test harness', () => {
     expect(paymentServiceGrant).toBeLessThan(paymentServiceRole);
     expect(paymentServiceReset).toBeGreaterThan(paidEntryInsert);
     expect(paymentServiceReset).toBeLessThan(userRoleInsert);
+    expect(pullRefundFixture).toContain('GRANT SELECT ON public.people TO authenticated');
+    expect(pullRefundFixture).toContain(
+      'GRANT UPDATE (refund_decision) ON public.entries TO authenticated'
+    );
     expect(pullRefundFixture).toContain(
       'INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)'
+    );
+    expect(pullRefundFixture).toContain(
+      "IF SQLERRM <> 'refund decisions are written only through set_entry_refund_decision'"
     );
   });
 

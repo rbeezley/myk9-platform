@@ -56,6 +56,10 @@ VALUES
     'Clubless Pull Show', 'AKC', CURRENT_DATE, CURRENT_DATE, NULL
   );
 
+-- Paid-online fixture rows must use the same privileged role as the payment
+-- service. The authorization assertions below run as authenticated users.
+SET LOCAL ROLE service_role;
+
 INSERT INTO public.entries (
   id, show_id, entry_status, payment_method, payment_status, entry_fee
 )
@@ -75,6 +79,8 @@ VALUES
     '00000000-0000-0000-0000-000000000832',
     'scratched', 'online', 'paid', 25
   );
+
+RESET ROLE;
 
 INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
 SELECT

@@ -31,6 +31,16 @@ describe('behavioral SQL test harness', () => {
     expect(pullRefundFixture).toContain(
       'INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)'
     );
+
+    const paidEntryInsert = pullRefundFixture.indexOf('INSERT INTO public.entries');
+    const paymentServiceRole = pullRefundFixture.lastIndexOf(
+      'SET LOCAL ROLE service_role',
+      paidEntryInsert
+    );
+    const paymentServiceReset = pullRefundFixture.indexOf('RESET ROLE', paidEntryInsert);
+
+    expect(paymentServiceRole).toBeGreaterThan(authInsert);
+    expect(paymentServiceReset).toBeGreaterThan(paidEntryInsert);
   });
 
   it('executes every launch-critical behavioral SQL file through psql', () => {

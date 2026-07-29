@@ -262,11 +262,12 @@ const AppHeader: React.FC = () => {
                   </Button>
                 )}
 
-                {/* Account access lives in the sidebar on desktop. Onboarding
-                    has no sidebar, so it keeps this trigger at every width. */}
+                {/* Account access lives in the sidebar on desktop. Routes
+                    without a registered sidebar keep this trigger at every
+                    width so Account and Sign out are never stranded. */}
                 <AccountMenu
                   variant="header"
-                  {...(!isOnboardingRoute && { className: 'md:hidden' })}
+                  {...(openMobileNav && { className: 'md:hidden' })}
                 />
               </>
             ) : (

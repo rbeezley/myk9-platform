@@ -38,9 +38,6 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(adminItems.find(i => i.title === 'System Health')?.description).toBe(
       'Deployment and data checks'
     );
-    expect(adminItems.find(i => i.title === 'Payments')?.description).toBe(
-      'Platform fees and payouts'
-    );
   });
 
   it('admin sidebar omits all parked items', () => {
@@ -127,11 +124,17 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(item?.description).toBeUndefined();
   });
 
-  it('Show Management href is /club-admin/members for club admins', () => {
+  it('club admins use the My Club Members destination as their dashboard', () => {
     const config = buildUnifiedSidebarConfig([UserRole.CLUB_ADMIN]);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Show Management');
-    expect(item?.href).toBe('/club-admin/members');
+
+    expect(config.groups.find(g => g.title === 'Manage')).toBeUndefined();
+    expect(config.groups.find(g => g.title === 'My Club')?.items.map(item => item.title)).toEqual([
+      'Members',
+      'Payments',
+    ]);
+    expect(
+      config.groups.flatMap(g => g.items).filter(item => item.href === '/club-admin/members')
+    ).toHaveLength(1);
     expect(config.dashboardHref).toBe('/club-admin/members');
   });
 
@@ -146,15 +149,17 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       '/club-admin/payments',
       '/clubs/club-1',
     ]);
-    expect(group?.items.find(item => item.title === 'Club Profile')?.description).toBe(
-      'Club details and settings'
-    );
+    expect(group?.items.find(item => item.title === 'Club Profile')?.description).toBe(undefined);
+    expect(group?.items.find(item => item.title === 'Members')?.description).toBeUndefined();
   });
 
-  it('club admin gets no actionable My Club links without validated context', () => {
+  it('club admin keeps stable My Club links without validated context', () => {
     const config = buildUnifiedSidebarConfig([UserRole.CLUB_ADMIN]);
 
-    expect(config.groups.find(g => g.title === 'My Club')).toBeUndefined();
+    expect(config.groups.find(g => g.title === 'My Club')?.items.map(item => item.href)).toEqual([
+      '/club-admin/members',
+      '/club-admin/payments',
+    ]);
   });
 
   it('manage omits show link when no nextShow provided', () => {
@@ -221,6 +226,15 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(allTitles).toEqual(['My Shows', 'My Dogs', 'My Payments', 'Ringside', 'Find Shows']);
   });
 
+  it('exhibitor-only sidebar omits descriptions from self-explanatory destinations', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const items = config.groups.flatMap(g => g.items);
+
+    expect(items.find(item => item.title === 'My Dogs')?.description).toBeUndefined();
+    expect(items.find(item => item.title === 'Find Shows')?.description).toBeUndefined();
+    expect(items.find(item => item.title === 'Ringside')?.description).toBeDefined();
+  });
+
   // The permanent Ringside entry targets the bare /at-show route, which resolves
   // the showId at the destination (RingsideEntryPage) — so a static link is safe
   // for an exhibitor with several shows. It replaces the old retired
@@ -269,6 +283,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const browse = config.groups.find(g => g.title === 'Browse');
     const titles = browse?.items.map(i => i.title) ?? [];
     expect(titles).toEqual(['Shows', 'Dogs', 'Clubs', 'People']);
+    expect(browse?.items.every(item => item.description === undefined)).toBe(true);
   });
 
   it('browse section for secretary omits Calendar', () => {

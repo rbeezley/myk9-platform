@@ -15,7 +15,7 @@ Implemented in `codex/sidebar-ux-audit`:
 - Active links expose `aria-current="page"` and expanded navigation rows retain a 44px minimum target.
 - Admin descriptions use plain language and omit redundant copy.
 - Support and Help sit in a final Resources group.
-- The Manage destination is named Show Management, removing the duplicate Dashboard label for multi-role users.
+- The secretary Manage destination is named Show Management, removing the duplicate Dashboard label for multi-role users. Club admins use one Members destination in My Club rather than a misleading duplicate.
 - The access-level footer is a quiet, accessible status row instead of a card-like surface.
 
 The contextual-group layout shift remains a monitoring item; it was not proven harmful enough to justify new loading UI or state management in this batch.
@@ -38,7 +38,7 @@ The contextual-group layout shift remains a monitoring item; it was not proven h
 
 ## Pass 2: Information Architecture
 
-**Current structure:**
+**Audited baseline structure (before implementation):**
 
 - Identity: first name
 - Admin: nine operational and support destinations

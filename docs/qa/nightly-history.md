@@ -21,7 +21,7 @@ Track scheduled Nightly Health outcomes here until a more automated report exist
 
 ### 2026-07-29
 
-- **Playwright command:** not run; this bounded pass used the documented Nightly health command, which ran Phase 1 and the committed route-health gate only.
+- **Playwright command:** broader active regression command not run; the bounded Nightly health command ran the committed read-only route-health gate, which passed after the test-only repair.
 - **Route sweep:** fail initially, then pass after a low-risk test-only repair. Phase 1 deterministic Vitest passed (`4 files`, `18/18`). Initial route-health passed public, exhibitor, judge, club-admin, and admin; secretary failed only because the compatibility `/shows/<seed>/setup` route intentionally redirected to `/shows/<seed>` while the test required the old pathname. Final route-health passed all six role groups (`6/6`, `1.2m`, `--workers=1`, `--retries=0`).
 - **Failures:** `NQA-2026-07-29-01` — confirmed test defect, reproduced on two consecutive scheduled runs (2026-07-28 and 2026-07-29), then resolved with focused route-health proof. Initial evidence: `apps/myk9show/test-results/route-health-by-role-Route-4ffda-cretary-routes-render-clean-chromium/error-context.md` and `test-failed-1.png`.
 - **Fixes made:** `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts` now permits an explicit expected final pathname for compatibility redirects; no product code or shared data changed. Local commit: `399c0868d` (`test(qa): accept setup compatibility redirect`).

@@ -34,8 +34,8 @@ describe('manual distributed load workflow', () => {
     );
   });
 
-  it('protects every remote rehearsal job and offers a realistic preparation window', () => {
-    expect(workflow.match(/environment: load-rehearsal/g)).toHaveLength(4);
+  it('approval-gates the preparation job once and offers a realistic preparation window', () => {
+    expect(workflow.match(/environment: load-rehearsal/g)).toHaveLength(1);
     expect(workflow).toContain("default: '25'");
     expect(workflow).toContain("- '15'");
     expect(workflow).toContain("- '25'");

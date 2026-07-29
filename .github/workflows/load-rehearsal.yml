@@ -124,7 +124,6 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    environment: load-rehearsal
     strategy:
       fail-fast: false
       max-parallel: 4
@@ -196,7 +195,6 @@ jobs:
     if: ${{ always() && needs.prepare.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: load-rehearsal
 
     steps:
       - uses: actions/checkout@v7
@@ -239,7 +237,6 @@ jobs:
     if: ${{ always() && needs.prepare.outputs.restore-required == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    environment: load-rehearsal
 
     steps:
       - uses: actions/checkout@v7

@@ -56,6 +56,10 @@ export function useActivePath(allHrefs: string[], dashboardHref: string) {
       return !hasMatchingFilteredHref;
     }
 
+    // A query-bearing link represents a filtered listing, not every child
+    // route beneath that listing's pathname.
+    if (hrefSearchParams.size > 0) return false;
+
     const hasMoreSpecificRoute = allHrefs.some(otherHref => {
       const { pathname: otherPathname } = parseNavHref(otherHref);
       return (

@@ -66,6 +66,20 @@ describe('RoleSidebar', () => {
     expect(screen.getByRole('link', { name: /^Shows$/ })).not.toHaveAttribute('aria-current');
   });
 
+  it('does not mark a filtered listing current on a show detail route', () => {
+    const config = buildUnifiedSidebarConfig(
+      [UserRole.CLUB_ADMIN],
+      { clubId: 'club-1', clubName: 'Heartland Club' },
+      undefined,
+      'Jamie'
+    );
+
+    render(<RoleSidebar config={config} />, { initialRoute: '/shows/show-1' });
+
+    expect(screen.getByRole('link', { name: /Our Shows/ })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: /^Shows$/ })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('keeps every expanded navigation target at least 44 pixels tall', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
 

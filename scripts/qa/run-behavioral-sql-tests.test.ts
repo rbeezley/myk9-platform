@@ -131,6 +131,18 @@ describe('behavioral SQL test harness', () => {
     expect(subscriptionEntitlementFixture).toContain(
       'GRANT UPDATE (subscription_tier, subscription_expires_at) ON public.exhibitor_profiles TO service_role'
     );
+    expect(subscriptionEntitlementFixture).toContain(
+      'GRANT SELECT, INSERT, DELETE ON public.vaccinations TO authenticated'
+    );
+    expect(subscriptionEntitlementFixture).toContain(
+      'GRANT INSERT ON public.pedigree_ancestors TO authenticated'
+    );
+    expect(subscriptionEntitlementFixture).toContain(
+      `IF SQLERRM <> 'new row violates row-level security policy for table "vaccinations"'`
+    );
+    expect(subscriptionEntitlementFixture).toContain(
+      `IF SQLERRM <> 'new row violates row-level security policy for table "pedigree_ancestors"'`
+    );
   });
 
   it.each([

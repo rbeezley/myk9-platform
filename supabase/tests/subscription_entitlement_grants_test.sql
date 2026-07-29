@@ -79,6 +79,11 @@ FROM (VALUES
 WHERE ep.person_id = v.person_id;
 RESET ROLE;
 
+-- Reproduce the client table privileges needed to reach the health-data RLS
+-- policies on a clean CI database. These fixture grants roll back.
+GRANT SELECT, INSERT, DELETE ON public.vaccinations TO authenticated;
+GRANT INSERT ON public.pedigree_ancestors TO authenticated;
+
 -- Site admin role for the admin person.
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000000000911', id, true, '00000000-0000-0000-0000-000000000901'
@@ -305,6 +310,9 @@ BEGIN
     VALUES ('00000000-0000-0000-0000-000000000951','Rabies', CURRENT_DATE);
     RAISE EXCEPTION 'FAIL premium non-owner inserted a vaccination';
   EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'new row violates row-level security policy for table "vaccinations"' THEN
+      RAISE;
+    END IF;
     RAISE NOTICE 'PASS premium non-owner cannot insert vaccination (ownership)';
   END;
 END;
@@ -360,6 +368,9 @@ BEGIN
     VALUES ('00000000-0000-0000-0000-000000000951','Bordetella', CURRENT_DATE);
     RAISE EXCEPTION 'FAIL free owner inserted a vaccination';
   EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'new row violates row-level security policy for table "vaccinations"' THEN
+      RAISE;
+    END IF;
     RAISE NOTICE 'PASS free owner INSERT into vaccinations is denied';
   END;
 
@@ -368,6 +379,9 @@ BEGIN
     VALUES ('00000000-0000-0000-0000-000000000951','00000000-0000-0000-0000-000000000902','dam','Grand Dam');
     RAISE EXCEPTION 'FAIL free owner inserted a pedigree ancestor';
   EXCEPTION WHEN insufficient_privilege THEN
+    IF SQLERRM <> 'new row violates row-level security policy for table "pedigree_ancestors"' THEN
+      RAISE;
+    END IF;
     RAISE NOTICE 'PASS free owner INSERT into pedigree_ancestors is denied';
   END;
 

@@ -5,10 +5,11 @@
  *
  * Section Ordering (priority/visual hierarchy):
  * 1. Admin (if SITE_ADMIN)
- * 2. Manage (if SECRETARY, CLUB_ADMIN, or SITE_ADMIN)
+ * 2. Manage (if SECRETARY)
  * 3. My Shows (if EXHIBITOR with other roles)
  * 4. Browse (always visible for non-exhibitor-only users)
- * 5. My Club (if CLUB_ADMIN or SITE_ADMIN with club context)
+ * 5. My Club (if CLUB_ADMIN; club-scoped links require context)
+ * 6. Resources (if SITE_ADMIN)
  *
  * This ordering ensures primary role-based navigation appears first,
  * followed by browsing/discovery, then secondary management sections.
@@ -89,7 +90,7 @@ export function buildUnifiedSidebarConfig(
 ): SidebarConfig {
   const groups: NavGroup[] = [];
   const hasSiteAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
-  const hasShowManagementRole = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN]);
+  const hasSecretaryRole = hasAnyRole(userRoles, [UserRole.SECRETARY]);
   const hasRingsideRole = hasAnyRole(userRoles, [
     UserRole.JUDGE,
     UserRole.SECRETARY,
@@ -123,7 +124,6 @@ export function buildUnifiedSidebarConfig(
           title: 'My Dogs',
           href: '/dogs',
           icon: Heart,
-          description: 'Manage your dogs and registrations',
         },
         {
           title: 'My Payments',
@@ -139,7 +139,6 @@ export function buildUnifiedSidebarConfig(
           title: 'Find Shows',
           href: '/shows',
           icon: Search,
-          description: 'Browse and enter shows',
         },
       ],
     });
@@ -154,15 +153,14 @@ export function buildUnifiedSidebarConfig(
             title: 'Dashboard',
             href: '/admin/dashboard',
             icon: LayoutDashboard,
-            description: 'System overview',
           },
           {
             title: 'System Health',
             href: '/admin/health',
             icon: Activity,
-            description: 'Daily go-live parity checks',
+            description: 'Deployment and data checks',
           },
-          { title: 'Users', href: '/admin/users', icon: Users, description: 'User accounts' },
+          { title: 'Users', href: '/admin/users', icon: Users },
           {
             title: 'Role Requests',
             href: '/admin/role-requests',
@@ -187,34 +185,17 @@ export function buildUnifiedSidebarConfig(
             icon: Wallet,
             description: 'Platform fee + payout ledger',
           },
-          {
-            title: 'Support',
-            href: '/admin/support',
-            icon: LifeBuoy,
-            description: 'Customer ticket inbox',
-          },
-          {
-            title: 'Help',
-            href: '/admin/help',
-            icon: HelpCircle,
-            description: 'Directory of every page in myK9Show',
-          },
         ],
       });
     }
 
-    // 2. Manage section (secretary / club admin)
-    if (hasShowManagementRole) {
-      const manageDashboardHref = hasAnyRole(userRoles, [UserRole.SECRETARY])
-        ? '/secretary/dashboard'
-        : '/club-admin/members';
-
+    // 2. Manage section (secretary)
+    if (hasSecretaryRole) {
       const manageItems: NavItem[] = [
         {
-          title: 'Dashboard',
-          href: manageDashboardHref,
+          title: 'Show Management',
+          href: '/secretary/dashboard',
           icon: LayoutDashboard,
-          description: 'Show management dashboard',
         },
       ];
 
@@ -249,7 +230,6 @@ export function buildUnifiedSidebarConfig(
             title: 'My Entries',
             href: '/exhibitor/entries',
             icon: FileText,
-            description: 'Your entries, dogs, and upcoming shows',
           },
         ],
       });
@@ -258,8 +238,8 @@ export function buildUnifiedSidebarConfig(
     // 4. Browse section (visible for role workflows; pure site-admin discovery lives in Help)
     if (!isPureSiteAdmin) {
       const browseItems: NavItem[] = [
-        { title: 'Shows', href: '/shows', icon: Calendar, description: 'Find and explore shows' },
-        { title: 'Dogs', href: '/dogs', icon: Heart, description: 'Browse dogs' },
+        { title: 'Shows', href: '/shows', icon: Calendar },
+        { title: 'Dogs', href: '/dogs', icon: Heart },
       ];
       // Clubs and People are secretary + admin only (privacy restriction — navigation-ia.md)
       if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])) {
@@ -268,51 +248,75 @@ export function buildUnifiedSidebarConfig(
             title: 'Clubs',
             href: '/clubs',
             icon: Building2,
-            description: 'Browse clubs',
           },
           {
             title: 'People',
             href: '/people',
             icon: Users,
-            description: 'Browse people',
           }
         );
       }
       groups.push({ title: 'Browse', items: browseItems });
     }
 
-    // 5. My Club section (club admin — only if club context is available)
-    if (clubContext && hasAnyRole(userRoles, [UserRole.CLUB_ADMIN])) {
+    // 5. My Club section. Stable account destinations remain available while
+    // club-scoped routes wait for validated context.
+    if (hasAnyRole(userRoles, [UserRole.CLUB_ADMIN])) {
+      const myClubItems: NavItem[] = [
+        {
+          title: 'Members',
+          href: '/club-admin/members',
+          icon: Users,
+        },
+        {
+          title: 'Payments',
+          href: '/club-admin/payments',
+          icon: Landmark,
+          description: 'Bank account and show payouts',
+        },
+      ];
+
+      if (clubContext) {
+        myClubItems.unshift({
+          title: 'Our Shows',
+          href: `/shows?club=${clubContext.clubId}`,
+          icon: Calendar,
+          description: `Shows for ${clubContext.clubName}`,
+        });
+        myClubItems.push({
+          title: 'Club Profile',
+          href: `/clubs/${clubContext.clubId}`,
+          icon: Building2,
+        });
+      }
+
       groups.push({
         title: 'My Club',
-        items: [
-          {
-            title: 'Our Shows',
-            href: `/shows?club=${clubContext.clubId}`,
-            icon: Calendar,
-            description: `Shows for ${clubContext.clubName}`,
-          },
-          {
-            title: 'Members',
-            href: '/club-admin/members',
-            icon: Users,
-            description: 'Manage club members',
-          },
-          {
-            title: 'Payments',
-            href: '/club-admin/payments',
-            icon: Landmark,
-            description: 'Bank account and show payouts',
-          },
-          {
-            title: 'Club Profile',
-            href: `/clubs/${clubContext.clubId}`,
-            icon: Building2,
-            description: 'Club details and settings',
-          },
-        ],
+        items: myClubItems,
       });
     }
+  }
+
+  // Keep secondary assistance links at the end so operational work remains
+  // visually distinct, especially for admins who also hold club roles.
+  if (hasSiteAdmin) {
+    groups.push({
+      title: 'Resources',
+      items: [
+        {
+          title: 'Support',
+          href: '/admin/support',
+          icon: LifeBuoy,
+          description: 'Customer ticket inbox',
+        },
+        {
+          title: 'Help',
+          href: '/admin/help',
+          icon: HelpCircle,
+          description: 'Directory of every page in myK9Show',
+        },
+      ],
+    });
   }
 
   // Keep identity personal in the header. Role/access context already lives
@@ -325,24 +329,19 @@ export function buildUnifiedSidebarConfig(
   const headerTitle = firstName?.trim() || 'myK9';
   let footerIcon = Compass;
   let footerLabel = 'Browse';
-  let footerDescription = 'Explore shows, dogs, and clubs';
 
   if (isAdmin) {
     footerIcon = Shield;
     footerLabel = 'Admin Access';
-    footerDescription = 'Full system administration';
   } else if (isSecretary) {
     footerIcon = Building2;
     footerLabel = 'Manager Access';
-    footerDescription = 'Show management and coordination';
   } else if (isJudge) {
     footerIcon = Scale;
     footerLabel = 'Judge Access';
-    footerDescription = 'Scoring and evaluation';
   } else if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
     footerIcon = Heart;
     footerLabel = 'Exhibitor Access';
-    footerDescription = 'Show entries and dog management';
   }
 
   // Dashboard href = first role-specific dashboard, or /shows for browse-only
@@ -376,6 +375,5 @@ export function buildUnifiedSidebarConfig(
     headerTitle,
     footerIcon,
     footerLabel,
-    footerDescription,
   };
 }

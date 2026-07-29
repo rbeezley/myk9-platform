@@ -20,7 +20,7 @@ export interface RoleSidebarProps {
 }
 
 export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile, isCollapsed }) => {
-  const { groups, headerTitle, footerIcon: FooterIcon, footerLabel, footerDescription } = config;
+  const { groups, headerTitle, footerIcon: FooterIcon, footerLabel } = config;
 
   // Pre-computed once per config identity (stable across renders since config is a module-level constant)
   const allHrefs = React.useMemo(() => collectNavHrefs(groups), [groups]);
@@ -82,6 +82,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                       to={item.href}
                       onClick={onCloseMobile}
                       aria-label={isCollapsed ? item.title : undefined}
+                      aria-current={active ? 'page' : undefined}
                       title={isCollapsed ? item.title : undefined}
                       className={cn(
                         'group flex items-center gap-3 rounded-lg text-sm transition-all duration-200',
@@ -90,7 +91,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                         // sidebar moved an invisible cursor (WCAG 2.4.7).
                         // Matches the ring pattern used elsewhere in the app.
                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-                        isCollapsed ? 'justify-center p-3' : 'px-3 py-2.5',
+                        isCollapsed ? 'justify-center p-3' : 'min-h-11 px-3 py-2.5',
                         active
                           ? 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary'
                           : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
@@ -140,23 +141,21 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
       </div>
 
       {/* Footer */}
-      <div className="border-t border-border p-4">
+      <section className="border-t border-border px-4 py-3" aria-label="Access level">
         {isCollapsed ? (
-          <div className="flex justify-center">
-            <FooterIcon className="h-5 w-5 text-primary" />
+          <div className="flex justify-center" title={footerLabel}>
+            <FooterIcon className="h-5 w-5 text-primary" aria-hidden="true" />
+            <span className="sr-only">{footerLabel}</span>
           </div>
         ) : (
-          <div className="rounded-lg bg-muted/30 p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <FooterIcon className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium" style={{ fontWeight: 500 }}>
-                {footerLabel}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">{footerDescription}</p>
+          <div className="flex items-center gap-2 px-2 text-muted-foreground">
+            <FooterIcon className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span className="text-sm font-medium" style={{ fontWeight: 500 }}>
+              {footerLabel}
+            </span>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

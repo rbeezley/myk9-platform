@@ -21,6 +21,9 @@ const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
 const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
 const SESSION_PREPARATION_CONCURRENCY = 10;
 const PLATFORM_BASELINE_LEAD_MS = 15_000;
+const CONTENTION_FIRST_SESSION = 50;
+const CONTENTION_SESSION_COUNT = 5;
+const CONTENTION_ENTRY_NUMBER = CONTENTION_FIRST_SESSION * LOAD_CLASS_IDS.length + 1;
 
 interface RunOptions {
   smoke?: boolean;
@@ -206,6 +209,14 @@ export async function mapWithConcurrency<T, TResult>(
   return results;
 }
 
+export function scoringEntryNumber(sessionIndex: number, classIndex: number): number {
+  const isContentionSession =
+    sessionIndex >= CONTENTION_FIRST_SESSION &&
+    sessionIndex < CONTENTION_FIRST_SESSION + CONTENTION_SESSION_COUNT;
+  if (isContentionSession && classIndex === 0) return CONTENTION_ENTRY_NUMBER;
+  return sessionIndex * LOAD_CLASS_IDS.length + classIndex + 1;
+}
+
 async function createAuthState(browser: Browser, baseURL: string, role: 'secretary' | 'exhibitor') {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
@@ -272,7 +283,7 @@ async function runScoringSession(
   const entryCount = smoke ? 1 : LOAD_CLASS_IDS.length;
 
   for (let classIndex = 0; classIndex < entryCount; classIndex += 1) {
-    const entryNumber = sessionIndex * LOAD_CLASS_IDS.length + classIndex + 1;
+    const entryNumber = scoringEntryNumber(sessionIndex, classIndex);
     const entryId = await runScoringEntry(page, entryNumber, metrics);
     scoredEntryIds.push(entryId);
     onScored(entryId);

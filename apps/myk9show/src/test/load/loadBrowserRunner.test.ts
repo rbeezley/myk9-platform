@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { mapWithConcurrency } from './loadBrowserRunner';
+import { mapWithConcurrency, scoringEntryNumber } from './loadBrowserRunner';
+
+describe('scoringEntryNumber', () => {
+  it('creates one bounded five-session overlap while keeping other scores disjoint', () => {
+    const firstTargets = Array.from({ length: 55 }, (_, sessionIndex) =>
+      scoringEntryNumber(sessionIndex, 0)
+    );
+
+    expect(firstTargets.filter(entryNumber => entryNumber === 401)).toHaveLength(5);
+    expect(new Set(firstTargets).size).toBe(51);
+    expect(firstTargets.slice(49)).toEqual([393, 401, 401, 401, 401, 401]);
+    expect(scoringEntryNumber(51, 1)).toBe(410);
+    expect(scoringEntryNumber(52, 1)).toBe(418);
+  });
+});
 
 describe('mapWithConcurrency', () => {
   it('bounds concurrent preparation while preserving assignment order', async () => {

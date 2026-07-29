@@ -72,6 +72,8 @@ success or failure.
 The G9 Normal scenario is 100 concurrent sessions over 10 minutes with a
 2-minute ramp: 55 ringside scoring, 15 secretary check-in, 15 exhibitor at-show
 reads, 10 run-order/dogs-ahead reads, and 5 show-desk reads.
+Ringside sessions 50–54 intentionally share their first scoring target to
+create a bounded contention sample; every other scoring target is disjoint.
 
 It passes only when all of these are present and passing:
 

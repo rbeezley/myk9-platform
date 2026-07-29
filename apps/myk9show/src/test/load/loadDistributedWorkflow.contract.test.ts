@@ -19,7 +19,14 @@ describe('manual distributed load workflow', () => {
   it('fails closed on target confirmation and always restores the canonical seed', () => {
     expect(workflow).toContain('SUPABASE_SERVICE_ROLE_KEY');
     expect(workflow).toContain('SUPABASE_DB_PASSWORD');
-    expect(workflow).toContain('if: always()');
+    expect(workflow).toContain('restore-required: ${{ steps.restore.outputs.required }}');
+    expect(workflow).toContain('id: restore');
+    expect(workflow).toContain(
+      "if: ${{ always() && needs.prepare.outputs.restore-required == 'true' }}"
+    );
+    expect(workflow).not.toContain(
+      "if: ${{ always() && needs.prepare.result == 'success' }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 12"
+    );
     expect(workflow).toContain('supabase/seed-demo.sql');
     expect(workflow).toContain('514|504|0');
   });

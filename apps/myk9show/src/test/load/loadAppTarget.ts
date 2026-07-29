@@ -40,7 +40,12 @@ export async function assertApplicationTarget(
 
   try {
     await page.goto('/shows', { waitUntil: 'domcontentloaded', timeout: 45_000 });
-    const origin = await Promise.race([observedOrigin, identityTimeout]);
+    const declaredOrigin = await page
+      .locator('meta[name="myk9-supabase-origin"]')
+      .getAttribute('content');
+    const origin = declaredOrigin
+      ? new URL(declaredOrigin).origin
+      : await Promise.race([observedOrigin, identityTimeout]);
     if (origin !== target.supabaseUrl) {
       throw new Error('Application and approved Supabase targets do not match.');
     }

@@ -84,6 +84,7 @@ const SECRETARY_ROUTES: RouteSpec[] = [
   {
     label: 'workbench',
     path: `/shows/${SEEDED_SHOW}/setup`,
+    // Setup is retained as a compatibility route; its content lives on the overview.
     expectedPath: `/shows/${SEEDED_SHOW}`,
     pathMatch: 'exact',
     readyHeading: 'Show schedule',

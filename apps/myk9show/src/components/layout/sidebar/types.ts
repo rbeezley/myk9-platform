@@ -24,9 +24,7 @@ export interface SidebarConfig {
   groups: NavGroup[];
   /** The dashboard route for this role (used for exact-match active detection) */
   dashboardHref: string;
-  /** Icon shown in sidebar header and collapsed footer */
-  headerIcon: React.ComponentType<{ className?: string }>;
-  /** Title shown in sidebar header (e.g. "Judge Console") */
+  /** User name shown in the sidebar header */
   headerTitle: string;
   /** Icon shown in footer badge area */
   footerIcon: React.ComponentType<{ className?: string }>;

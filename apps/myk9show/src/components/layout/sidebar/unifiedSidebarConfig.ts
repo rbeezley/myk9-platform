@@ -25,7 +25,6 @@ import {
   ClipboardCheck,
   FileText,
   List,
-  Crown,
   Shield,
   ShieldCheck,
   Compass,
@@ -316,38 +315,31 @@ export function buildUnifiedSidebarConfig(
     }
   }
 
-  // Determine header/footer branding based on highest role
+  // Keep identity personal in the header. Role/access context already lives
+  // in the footer, so repeating it here adds noise and makes multi-role users
+  // look like a role instead of a person.
   const isAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
   const isSecretary = hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.CLUB_ADMIN]);
   const isJudge = hasAnyRole(userRoles, [UserRole.JUDGE]);
 
-  let headerIcon = Compass;
-  let headerTitle = 'myK9';
+  const headerTitle = firstName?.trim() || 'myK9';
   let footerIcon = Compass;
   let footerLabel = 'Browse';
   let footerDescription = 'Explore shows, dogs, and clubs';
 
   if (isAdmin) {
-    headerIcon = Crown;
-    headerTitle = 'myK9 Admin';
     footerIcon = Shield;
     footerLabel = 'Admin Access';
     footerDescription = 'Full system administration';
   } else if (isSecretary) {
-    headerIcon = Building2;
-    headerTitle = 'myK9 Manager';
     footerIcon = Building2;
     footerLabel = 'Manager Access';
     footerDescription = 'Show management and coordination';
   } else if (isJudge) {
-    headerIcon = Scale;
-    headerTitle = 'myK9 Judge';
     footerIcon = Scale;
     footerLabel = 'Judge Access';
     footerDescription = 'Scoring and evaluation';
   } else if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
-    headerIcon = Heart;
-    headerTitle = firstName?.trim() ? firstName.trim() : 'myK9 Exhibitor';
     footerIcon = Heart;
     footerLabel = 'Exhibitor Access';
     footerDescription = 'Show entries and dog management';
@@ -381,7 +373,6 @@ export function buildUnifiedSidebarConfig(
   return {
     groups: filteredGroups,
     dashboardHref,
-    headerIcon,
     headerTitle,
     footerIcon,
     footerLabel,

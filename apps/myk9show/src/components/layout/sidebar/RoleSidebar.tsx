@@ -20,14 +20,7 @@ export interface RoleSidebarProps {
 }
 
 export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile, isCollapsed }) => {
-  const {
-    groups,
-    headerIcon: HeaderIcon,
-    headerTitle,
-    footerIcon: FooterIcon,
-    footerLabel,
-    footerDescription,
-  } = config;
+  const { groups, headerTitle, footerIcon: FooterIcon, footerLabel, footerDescription } = config;
 
   // Pre-computed once per config identity (stable across renders since config is a module-level constant)
   const allHrefs = React.useMemo(() => collectNavHrefs(groups), [groups]);
@@ -42,18 +35,11 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
           isCollapsed ? 'justify-center px-0' : 'justify-between px-6'
         )}
       >
-        <div className={cn('flex items-center', isCollapsed ? '' : 'gap-3')}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary shadow-sm">
-            <HeaderIcon className="h-4 w-4 text-primary-foreground" />
-          </div>
-          {!isCollapsed && (
-            <div>
-              <h2 className="text-base font-semibold" style={{ fontWeight: 590 }}>
-                {headerTitle}
-              </h2>
-            </div>
-          )}
-        </div>
+        {!isCollapsed && (
+          <h2 className="text-base font-semibold" style={{ fontWeight: 590 }}>
+            {headerTitle}
+          </h2>
+        )}
         {!isCollapsed && onCloseMobile && (
           <Button
             variant="ghost"

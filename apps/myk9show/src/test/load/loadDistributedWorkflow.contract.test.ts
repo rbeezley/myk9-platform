@@ -40,6 +40,9 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain("- '15'");
     expect(workflow).toContain("- '25'");
     expect(workflow).toContain("- '35'");
+    expect(workflow).toMatch(
+      /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 55/
+    );
   });
 
   it('does not depend on Vercel or paid runner labels', () => {

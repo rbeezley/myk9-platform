@@ -1,7 +1,15 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('load Playwright discovery', () => {
+  it('budgets for the longest synchronized start window and full scenario', () => {
+    const config = readFileSync(resolve(process.cwd(), 'playwright.load.config.ts'), 'utf8');
+
+    expect(config).toContain('timeout: 50 * 60 * 1_000');
+  });
+
   it('discovers a non-zero suite containing the Normal show-day gate', () => {
     const result = spawnSync(
       'pnpm',

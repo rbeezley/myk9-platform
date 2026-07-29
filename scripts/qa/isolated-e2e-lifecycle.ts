@@ -14,13 +14,13 @@ export interface LocalSupabaseEnvironment {
 const REQUIRED_STATUS_KEYS = ['API_URL', 'ANON_KEY', 'SERVICE_ROLE_KEY', 'DB_URL'] as const;
 const DEMO_SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const UNUSED_BROWSER_SUITE_SERVICES = [
-  'analytics',
   'edge-runtime',
-  'functions',
   'imgproxy',
-  'inbucket',
-  'meta',
+  'logflare',
+  'mailpit',
+  'postgres-meta',
   'studio',
+  'supavisor',
   'vector',
 ] as const;
 

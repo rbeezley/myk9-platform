@@ -1,5 +1,5 @@
 /**
- * Two-client integration test for show presence (plan §8).
+ * Two-client test for show presence (plan §8).
  *
  * Runs two useShowPresence instances ("Alice" and "Bob") against a single
  * simulated Supabase Realtime presence channel and asserts each client sees the
@@ -84,7 +84,8 @@ beforeEach(() => {
   channelsByName.clear();
   (features as { showPresence: boolean }).showPresence = true;
   vi.mocked(supabase.channel).mockImplementation((name: string, opts?: unknown) => {
-    const key = (opts as { config?: { presence?: { key?: string } } })?.config?.presence?.key ?? 'anon';
+    const key =
+      (opts as { config?: { presence?: { key?: string } } })?.config?.presence?.key ?? 'anon';
     const channel = makeChannel(name, key);
     const set = channelsByName.get(name) ?? new Set();
     set.add(channel);

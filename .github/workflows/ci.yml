@@ -117,7 +117,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0  # needed for git diff origin/main...HEAD merge-base in doc-staleness check
+          fetch-depth: 0 # needed for git diff origin/main...HEAD merge-base in doc-staleness check
 
       - uses: pnpm/action-setup@v6
 
@@ -138,27 +138,31 @@ jobs:
       - name: Nightly health workflow contract
         run: pnpm qa:nightly:workflow:test
 
+      - name: Behavioral SQL harness contract
+        run: pnpm qa:sql:behavioral:test
+
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 
       - name: Doc staleness check
         run: pnpm qa:doc-staleness:strict
 
-  # Executable SQL tests for the financial migrations. Every other test for
-  # supabase/migrations reads the files as TEXT, which cannot catch invalid SQL,
-  # a runtime-only ambiguous column reference, or a non-re-runnable migration.
-  # This job applies the real migrations twice to a throwaway cluster and runs
-  # accounting assertions. Uses the runner's preinstalled Postgres — no service
-  # container and no network database. Fast (<1 min) and independent, so it runs
-  # in parallel with the other test jobs.
+  # Executable SQL tests. The financial contracts use a minimal throwaway
+  # Postgres cluster; the behavioral RLS/RPC contracts need the complete
+  # Supabase schema and therefore run against a clean local Supabase target.
+  # Neither harness can target a shared database.
   sql-tests:
-    name: SQL tests (financial migrations)
+    name: SQL tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     if: github.event_name == 'push' || github.event.pull_request.draft == false
 
     steps:
       - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
 
       - name: Financial migration SQL tests
         # REQUIRE=1 so a runner image without Postgres fails loudly instead of
@@ -166,6 +170,21 @@ jobs:
         env:
           MYK9_SQL_TEST_REQUIRE: '1'
         run: bash scripts/qa/run-financial-sql-tests.sh
+
+      - name: Start clean local Supabase
+        run: supabase start --exclude edge-runtime,imgproxy,logflare,mailpit,postgres-meta,studio,supavisor,vector
+
+      - name: Apply all migrations without seed data
+        run: supabase db reset --no-seed
+
+      - name: Behavioral RLS and RPC SQL tests
+        env:
+          MYK9_BEHAVIORAL_SQL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: bash scripts/qa/run-behavioral-sql-tests.sh
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
 
   # Packages run through turbo so the remote cache provides affected-only
   # behaviour: a PR touching only myK9Show turns these into cache hits.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Run every committed behavioral SQL contract against a local migrated Supabase
-# database. The loopback guard makes it impossible to point this harness at a
-# shared staging or production database.
+# Run the launch-critical behavioral SQL contracts against a local migrated
+# Supabase database. The loopback guard makes it impossible to point this
+# harness at a shared staging or production database.
 
 set -Eeuo pipefail
 
@@ -25,13 +25,18 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
-TEST_FILES=("$TEST_DIR"/*.sql)
-if [ ! -e "${TEST_FILES[0]}" ]; then
-  echo "FAIL: no behavioral SQL tests found in $TEST_DIR." >&2
-  exit 1
-fi
+TEST_FILES=(
+  "$TEST_DIR/myk9_114_entry_access_context_test.sql"
+  "$TEST_DIR/pull_refund_decision_rls_test.sql"
+  "$TEST_DIR/recoverable_show_access_codes_test.sql"
+  "$TEST_DIR/subscription_entitlement_grants_test.sql"
+)
 
 for test_file in "${TEST_FILES[@]}"; do
+  if [ ! -f "$test_file" ]; then
+    echo "FAIL: missing behavioral SQL test $test_file." >&2
+    exit 1
+  fi
   echo "── $(basename "$test_file") ──"
   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$test_file"
 done

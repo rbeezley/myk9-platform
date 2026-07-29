@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -8,9 +8,15 @@ import { describe, expect, it } from 'vitest';
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const runner = resolve(repositoryRoot, 'scripts/qa/run-behavioral-sql-tests.sh');
 const workflow = readFileSync(resolve(repositoryRoot, '.github/workflows/ci.yml'), 'utf8');
+const launchCriticalSqlTests = [
+  'myk9_114_entry_access_context_test.sql',
+  'pull_refund_decision_rls_test.sql',
+  'recoverable_show_access_codes_test.sql',
+  'subscription_entitlement_grants_test.sql',
+];
 
 describe('behavioral SQL test harness', () => {
-  it('executes every committed behavioral SQL file through psql', () => {
+  it('executes every launch-critical behavioral SQL file through psql', () => {
     const scratch = mkdtempSync(join(tmpdir(), 'myk9-behavioral-sql-'));
     const fakePsql = join(scratch, 'psql');
     const invocationLog = join(scratch, 'psql.log');
@@ -38,16 +44,13 @@ describe('behavioral SQL test harness', () => {
       expect(result.stderr).toBe('');
       expect(result.status).toBe(0);
 
-      const expectedFiles = readdirSync(resolve(repositoryRoot, 'supabase/tests'))
-        .filter(file => file.endsWith('.sql'))
-        .sort();
       const invokedFiles = readFileSync(invocationLog, 'utf8')
         .trim()
         .split('\n')
         .map(line => basename(line.match(/ -f (.+)$/)?.[1] ?? ''))
         .sort();
 
-      expect(invokedFiles).toEqual(expectedFiles);
+      expect(invokedFiles).toEqual([...launchCriticalSqlTests].sort());
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }

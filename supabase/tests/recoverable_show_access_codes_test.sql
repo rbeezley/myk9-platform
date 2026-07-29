@@ -43,7 +43,7 @@ values (
   '00000000-0000-0000-0000-000000000904',
   '00000000-0000-0000-0000-000000000903',
   'Container Novice',
-  'no-status'
+  'upcoming'
 );
 
 insert into public.dogs (id, name, call_name, breed, owner_id, co_owner_id)

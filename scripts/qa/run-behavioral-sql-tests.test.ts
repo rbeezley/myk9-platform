@@ -110,6 +110,12 @@ describe('behavioral SQL test harness', () => {
       'id, name, organization, start_date, end_date, club_id, status'
     );
     expect(recoverableAccessFixture).not.toContain('id, name, type, organization');
+    expect(recoverableAccessFixture).toContain(
+      'insert into public.classes (id, trial_id, name, status)'
+    );
+    expect(recoverableAccessFixture).not.toContain(
+      'insert into public.classes (id, trial_id, show_id, name, status)'
+    );
   });
 
   it.each([

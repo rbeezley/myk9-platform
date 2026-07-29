@@ -38,11 +38,10 @@ values (
   current_date
 );
 
-insert into public.classes (id, trial_id, show_id, name, status)
+insert into public.classes (id, trial_id, name, status)
 values (
   '00000000-0000-0000-0000-000000000904',
   '00000000-0000-0000-0000-000000000903',
-  '00000000-0000-0000-0000-000000000902',
   'Container Novice',
   'no-status'
 );

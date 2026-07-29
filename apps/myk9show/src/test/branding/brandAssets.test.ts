@@ -72,6 +72,13 @@ describe('myK9Show brand assets', () => {
     expect(statSync(join(appRoot, 'public/logo.webp')).size).toBeGreaterThan(1_000);
   });
 
+  it('encodes the transparent WebP losslessly to avoid dark-mode edge fringing', () => {
+    const webp = readFileSync(join(appRoot, 'public/logo.webp'));
+
+    expect(webp.subarray(0, 4).toString('ascii')).toBe('RIFF');
+    expect(webp.includes(Buffer.from('VP8L'))).toBe(true);
+  });
+
   it('uses the approved mark in the public landing header', () => {
     const header = readFileSync(
       join(appRoot, 'src/components/landing/v2/LandingHeader.tsx'),

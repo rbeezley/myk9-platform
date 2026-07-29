@@ -137,8 +137,20 @@ const AppHeader: React.FC = () => {
                   <Menu className="h-5 w-5" />
                 </Button>
               )}
-            <Link to="/" className="flex min-h-11 min-w-0 items-center">
-              <span className="truncate text-lg font-bold text-foreground tracking-tight">
+            <Link
+              to="/"
+              aria-label="myK9Show home"
+              className="flex min-h-11 min-w-0 items-center gap-2"
+            >
+              <img
+                src="/brand-mark-64.png"
+                alt=""
+                aria-hidden="true"
+                width="28"
+                height="28"
+                className="h-7 w-7 shrink-0 object-contain"
+              />
+              <span className="max-[359px]:hidden truncate text-lg font-bold text-foreground tracking-tight">
                 myK9Show
               </span>
             </Link>

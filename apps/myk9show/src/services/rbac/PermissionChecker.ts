@@ -421,10 +421,6 @@ export class PermissionChecker {
     }
   }
 
-  setCacheTimeout(timeout: number): void {
-    this.cacheTimeout = timeout;
-  }
-
   getCacheSize(): number {
     return this.permissionCache.size;
   }

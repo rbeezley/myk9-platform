@@ -296,13 +296,6 @@ export type ScopedPermission = {
   };
 };
 
-// Hook types
-export interface UseRBACOptions {
-  refreshInterval?: number;
-  cacheTimeout?: number;
-  enableRealTimeUpdates?: boolean;
-}
-
 export interface RBACContextValue {
   // Permission checking
   hasPermission: (permission: string, scope?: { type: string; id: string }) => boolean;

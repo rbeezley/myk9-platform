@@ -4,7 +4,7 @@
  * Created: December 2024
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAuthContext } from './useAuthContext';
 import { rbacService } from '@/services/rbac/RBACService';
 import {
@@ -146,59 +146,6 @@ export function useRBAC(): RBACContextValue {
     // Actions
     refresh,
     clearCache,
-  };
-}
-
-/**
- * Simple permission checking hook
- */
-export function usePermission(
-  permission: string,
-  scope?: { type: string; id: string }
-): {
-  hasPermission: boolean;
-  isLoading: boolean;
-  checkPermission: () => Promise<boolean>;
-} {
-  const { user } = useAuthContext();
-  const [hasPermission, setHasPermission] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Stabilize scope reference to prevent infinite re-render loops
-  // when scope is passed as an object literal
-  const scopeKey = scope ? `${scope.type}:${scope.id}` : '';
-
-  const checkPermission = useCallback(async (): Promise<boolean> => {
-    if (!user?.id) {
-      setHasPermission(false);
-      setIsLoading(false);
-      return false;
-    }
-
-    try {
-      setIsLoading(true);
-      const scopeObj = scopeKey
-        ? { type: scopeKey.split(':')[0], id: scopeKey.split(':')[1] }
-        : undefined;
-      const result = await rbacService.checkPermission(user.id, permission, scopeObj);
-      setHasPermission(result);
-      return result;
-    } catch {
-      setHasPermission(false);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id, permission, scopeKey]);
-
-  useEffect(() => {
-    checkPermission();
-  }, [checkPermission]);
-
-  return {
-    hasPermission,
-    isLoading,
-    checkPermission,
   };
 }
 

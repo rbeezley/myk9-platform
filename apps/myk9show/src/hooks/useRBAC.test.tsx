@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useRBAC, usePermission, useRole, useIsAdmin } from './useRBAC';
+import { useRBAC, useRole, useIsAdmin } from './useRBAC';
 
 vi.mock('./useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -267,22 +267,6 @@ describe('useRBAC — hasPermission cache', () => {
     expect(granted).toBe(true);
     expect(context.checkPermissionAsync).toHaveBeenCalledWith('show:create', undefined);
     expect(result.current.hasPermission('show:create')).toBe(false);
-  });
-});
-
-describe('usePermission', () => {
-  it('no user -> hasPermission false, isLoading resolves to false', async () => {
-    mockUser(null);
-    const { result } = renderHook(() => usePermission('dog:read'));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.hasPermission).toBe(false);
-  });
-
-  it('user present -> queries rbacService.checkPermission and reflects the result', async () => {
-    mockUser('user-1');
-    mockRbacService.checkPermission.mockResolvedValue(true);
-    const { result } = renderHook(() => usePermission('dog:read'));
-    await waitFor(() => expect(result.current.hasPermission).toBe(true));
   });
 });
 

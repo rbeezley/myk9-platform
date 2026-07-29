@@ -369,6 +369,16 @@ describe('AuthContext', () => {
             <span data-testid="permission-scope">
               {auth.rbacScopedPermissions[0]?.scope_type}:{auth.rbacScopedPermissions[0]?.scope_id}
             </span>
+            <span data-testid="same-club-permission">
+              {auth
+                .hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-1' })
+                .toString()}
+            </span>
+            <span data-testid="different-club-permission">
+              {auth
+                .hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-2' })
+                .toString()}
+            </span>
             <span data-testid="last-refreshed">{auth.rbacLastRefreshed ?? 'none'}</span>
             <button type="button" onClick={() => void auth.refreshPermissions()}>
               Refresh access
@@ -382,6 +392,8 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(screen.getByTestId('detailed-role')).toHaveTextContent(UserRole.SECRETARY);
         expect(screen.getByTestId('permission-scope')).toHaveTextContent('club:club-1');
+        expect(screen.getByTestId('same-club-permission')).toHaveTextContent('true');
+        expect(screen.getByTestId('different-club-permission')).toHaveTextContent('false');
         expect(screen.getByTestId('last-refreshed')).not.toHaveTextContent('none');
       });
 

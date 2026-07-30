@@ -22,6 +22,7 @@ const subscriptionEntitlementFixture = readFileSync(
 );
 const launchCriticalSqlTests = [
   'club_secretary_grant_test.sql',
+  'rbac_access_lookup_authorization_test.sql',
   'myk9_114_entry_access_context_test.sql',
   'pull_refund_decision_rls_test.sql',
   'recoverable_show_access_codes_test.sql',

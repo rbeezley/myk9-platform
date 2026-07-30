@@ -1,5 +1,9 @@
 BEGIN;
 
+-- Rollback: recreate these functions from
+-- 20260729160000_optimize_rbac_auth_lookup.sql, then reapply the
+-- authenticated-only revokes from 20260613100000_security_revoke_anon_grants.sql.
+
 -- The complete-access RPCs are authenticated-only, but their SECURITY DEFINER
 -- bodies must also authorize the target user_id. Site admins retain the
 -- deliberate ability to inspect another user's access context.
@@ -16,6 +20,9 @@ AS $$
     )
     OR (SELECT public.is_site_admin());
 $$;
+
+COMMENT ON FUNCTION private.can_inspect_rbac_user(UUID) IS
+  'Allows self access-context lookups and deliberate site-admin inspection of another user.';
 
 REVOKE ALL ON FUNCTION private.can_inspect_rbac_user(UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION private.can_inspect_rbac_user(UUID)
@@ -82,6 +89,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON FUNCTION public.get_user_permissions(UUID, TEXT, UUID) IS
+  'Raises 42501 when user_id is not the caller or a site-admin inspection target.';
+
 CREATE OR REPLACE FUNCTION public.user_has_permission(
   user_id UUID,
   permission_name TEXT,
@@ -143,6 +153,9 @@ BEGIN
 END;
 $$;
 
+COMMENT ON FUNCTION public.user_has_permission(UUID, TEXT, TEXT, UUID) IS
+  'Raises 42501 for non-self targets; do not call from RLS policies with another user_id.';
+
 CREATE OR REPLACE FUNCTION public.get_user_roles(user_id UUID)
 RETURNS TABLE (
   user_role_id UUID,
@@ -189,6 +202,9 @@ BEGIN
   WHERE ur.auth_user_id = get_user_roles.user_id;
 END;
 $$;
+
+COMMENT ON FUNCTION public.get_user_roles(UUID) IS
+  'Raises 42501 when user_id is not the caller or a site-admin inspection target.';
 
 CREATE OR REPLACE FUNCTION public.get_effective_permissions(
   user_id UUID,
@@ -275,6 +291,9 @@ BEGIN
   );
 END;
 $$;
+
+COMMENT ON FUNCTION public.get_effective_permissions(UUID, TEXT, UUID) IS
+  'Raises 42501 when user_id is not the caller or a site-admin inspection target.';
 
 REVOKE ALL ON FUNCTION public.get_user_permissions(UUID, TEXT, UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.get_user_permissions(UUID, TEXT, UUID) FROM anon;

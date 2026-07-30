@@ -1,6 +1,8 @@
 import type { CDPSession, Page } from '@playwright/test';
 import type { LoadObservation, PlatformObservation, WorkflowFailureDetail } from './loadEvaluation';
+import type { GeneratorShardObservation } from './loadGeneratorSampler';
 import type { LoadWorkloadKind } from './loadScenario';
+import type { LoadSessionLifecycleObservation } from './loadSessionLifecycle';
 
 interface RequestAttempt {
   entryId?: string;
@@ -159,6 +161,8 @@ export class LoadMetrics {
   buildObservation(input: {
     concurrentSessions: number;
     ringsideSessions: number;
+    sessionLifecycle: LoadSessionLifecycleObservation;
+    generator: GeneratorShardObservation;
     elapsedMs: number;
     maxReplicationQueueDepth: number;
     finalReplicationQueueDepth: number;
@@ -190,6 +194,8 @@ export class LoadMetrics {
     return {
       concurrentSessions: input.concurrentSessions,
       ringsideSessions: input.ringsideSessions,
+      sessionLifecycle: input.sessionLifecycle,
+      generator: { shards: [input.generator] },
       requestCount: this.requestCount,
       failedRequestCount: this.failedRequestCount,
       workflowFailures: this.workflowFailures,

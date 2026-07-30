@@ -10,6 +10,7 @@ import {
   LOAD_SHOW_ENTRY_COUNT,
   LOAD_SHOW_ID,
 } from './loadFixture';
+import { startLoadGeneratorSampler, type LoadGeneratorSampler } from './loadGeneratorSampler';
 import { LoadMetrics, type LoadMetricSamples } from './loadMetrics';
 import {
   readPendingMutationCount,
@@ -19,12 +20,14 @@ import {
 } from './loadReplicationProbe';
 import { startLoadPlatformSampler, type LoadPlatformSampler } from './loadPlatformSampler';
 import type { LoadScenario } from './loadScenario';
+import { LoadSessionLifecycle } from './loadSessionLifecycle';
 import { scheduledStartDelayMs, selectShardAssignments, type LoadShard } from './loadShard';
 import type { ResolvedLoadTarget } from './loadTarget';
 
 const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
 const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
 const SESSION_PREPARATION_CONCURRENCY = 10;
+const BROWSER_CONTEXT_CLOSE_TIMEOUT_MS = 2_000;
 const PLATFORM_BASELINE_LEAD_MS = 15_000;
 const CONTENTION_FIRST_SESSION = 50;
 const CONTENTION_SESSION_COUNT = 5;
@@ -62,22 +65,25 @@ export async function runBrowserLoad(
   const assignments = options.shard
     ? selectShardAssignments(allAssignments, options.shard)
     : allAssignments;
-  const secretaryState = await createAuthState(browser, target.baseUrl, 'secretary');
-  const exhibitorState = await createAuthState(browser, target.baseUrl, 'exhibitor');
   const contexts: BrowserContext[] = [];
   const scoredEntryIds = new Set<string>();
   let platformSampler: LoadPlatformSampler | undefined;
+  let generatorSampler: LoadGeneratorSampler | undefined;
   let maxQueueDepth = 0;
   let finalQueueDepth = 0;
   let queueTelemetryFailures = 0;
-  let activeSessions = 0;
-  let peakSessions = 0;
-  let activeRingsideSessions = 0;
-  let peakRingsideSessions = 0;
+  const lifecycle = new LoadSessionLifecycle(assignments);
   const durationMs = options.smoke ? 30_000 : scenario.durationMs;
   const rampUpMs = options.smoke ? 0 : scenario.rampUpMs;
 
   try {
+    generatorSampler = await startLoadGeneratorSampler({
+      browser,
+      shardIndex: options.shard?.index ?? 0,
+      expectedStartAtMs: options.shard?.startAtMs,
+    });
+    const secretaryState = await createAuthState(browser, target.baseUrl, 'secretary');
+    const exhibitorState = await createAuthState(browser, target.baseUrl, 'exhibitor');
     const preparedSessions = await mapWithConcurrency(
       assignments,
       SESSION_PREPARATION_CONCURRENCY,
@@ -90,6 +96,7 @@ export async function runBrowserLoad(
         return { assignment, context, page };
       }
     );
+    generatorSampler.markContextsPrepared();
     const collectPlatform = !options.smoke && (!options.shard || options.shard.index === 0);
     if (collectPlatform && options.shard) {
       await delay(Math.max(0, options.shard.startAtMs - Date.now() - PLATFORM_BASELINE_LEAD_MS));
@@ -98,6 +105,7 @@ export async function runBrowserLoad(
       ? await startLoadPlatformSampler(process.env, scenario.targets.databaseConnectionCap)
       : undefined;
     if (options.shard) await delay(scheduledStartDelayMs(options.shard));
+    lifecycle.markPrepared(assertAllSessionsOpenAtStart(preparedSessions));
     const startedAtMs = Date.now();
     const startAtMs = options.shard?.startAtMs ?? startedAtMs;
     const endsAt = startAtMs + durationMs;
@@ -108,12 +116,7 @@ export async function runBrowserLoad(
           startAtMs + (assignment.sequence / allAssignments.length) * rampUpMs;
         const delayMs = Math.max(0, assignmentStartsAt - Date.now());
         if (delayMs > 0) await delay(delayMs);
-        activeSessions += 1;
-        peakSessions = Math.max(peakSessions, activeSessions);
-        if (assignment.kind === 'ringside-scoring') {
-          activeRingsideSessions += 1;
-          peakRingsideSessions = Math.max(peakRingsideSessions, activeRingsideSessions);
-        }
+        lifecycle.markStarted(assignment);
 
         try {
           const result = await runPrimaryWorkflow(
@@ -124,6 +127,7 @@ export async function runBrowserLoad(
             options.smoke === true,
             entryId => scoredEntryIds.add(entryId)
           );
+          lifecycle.markCompleted(assignment);
           result.scoredEntryIds.forEach(entryId => scoredEntryIds.add(entryId));
           maxQueueDepth = Math.max(maxQueueDepth, result.maxQueueDepth);
           if (!options.smoke && assignment.kind !== 'ringside-scoring') {
@@ -131,6 +135,7 @@ export async function runBrowserLoad(
           }
         } catch (error) {
           if (options.smoke) throw error;
+          lifecycle.markFailed(assignment);
           metrics.recordWorkflowFailure({
             workload: assignment.kind,
             route: pageRoute(page),
@@ -145,8 +150,6 @@ export async function runBrowserLoad(
           } catch {
             queueTelemetryFailures += 1;
           }
-          activeSessions -= 1;
-          if (assignment.kind === 'ringside-scoring') activeRingsideSessions -= 1;
         }
       })
     );
@@ -158,10 +161,16 @@ export async function runBrowserLoad(
     await metrics.settle();
     const persistedScores = await countPersistedScores([...scoredEntryIds]);
     const platform = await platformSampler?.stop();
+    platformSampler = undefined;
+    const generator = await generatorSampler.stop();
+    generatorSampler = undefined;
     const elapsedMs = Date.now() - startAtMs;
+    const sessionLifecycle = lifecycle.observation();
     const observation = metrics.buildObservation({
-      concurrentSessions: peakSessions,
-      ringsideSessions: peakRingsideSessions,
+      concurrentSessions: sessionLifecycle.preparedSessions,
+      ringsideSessions: sessionLifecycle.preparedRingsideSessions,
+      sessionLifecycle,
+      generator,
       elapsedMs,
       maxReplicationQueueDepth: maxQueueDepth,
       finalReplicationQueueDepth: finalQueueDepth,
@@ -180,8 +189,48 @@ export async function runBrowserLoad(
     };
   } finally {
     await platformSampler?.stop().catch(() => undefined);
-    await Promise.all(contexts.map(context => context.close().catch(() => undefined)));
+    await generatorSampler?.stop().catch(() => undefined);
+    await closeBrowserContexts(contexts);
   }
+}
+
+export async function closeBrowserContexts(
+  contexts: readonly Pick<BrowserContext, 'close'>[],
+  timeoutMs = BROWSER_CONTEXT_CLOSE_TIMEOUT_MS
+): Promise<void> {
+  await Promise.all(
+    contexts.map(async context => {
+      let timer: NodeJS.Timeout | undefined;
+      const timeout = new Promise<void>(resolve => {
+        timer = setTimeout(resolve, timeoutMs);
+      });
+      await Promise.race([
+        Promise.resolve()
+          .then(() => context.close())
+          .catch(() => undefined),
+        timeout,
+      ]);
+      if (timer) clearTimeout(timer);
+    })
+  );
+}
+
+export function assertAllSessionsOpenAtStart(
+  sessions: readonly {
+    assignment: LoadSessionAssignment;
+    page: Pick<Page, 'isClosed'>;
+  }[]
+): LoadSessionAssignment[] {
+  const openAssignments = sessions
+    .filter(session => !session.page.isClosed())
+    .map(session => session.assignment);
+  const missing = sessions.length - openAssignments.length;
+  if (missing > 0) {
+    throw new Error(
+      `${missing} prepared browser session${missing === 1 ? ' was' : 's were'} no longer open at synchronized start.`
+    );
+  }
+  return openAssignments;
 }
 
 export async function mapWithConcurrency<T, TResult>(
@@ -257,7 +306,7 @@ async function createAuthState(browser: Browser, baseURL: string, role: 'secreta
     await waitForReplicatedEntry(page, warmFixture.entryId, warmFixture.classId);
     return await context.storageState({ indexedDB: true });
   } finally {
-    await context.close();
+    await closeBrowserContexts([context]);
   }
 }
 

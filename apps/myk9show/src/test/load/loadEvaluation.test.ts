@@ -2,10 +2,57 @@ import { describe, expect, it } from 'vitest';
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import { G9_NORMAL_SCENARIO, LOAD_SCENARIOS } from './loadScenario';
 
+function activityIntervals(sessionCount: number, ringsideCount: number) {
+  return Array.from({ length: sessionCount }, (_, sequence) => ({
+    sequence,
+    ringside: sequence < ringsideCount,
+    startedAtMs: 1_000,
+    finishedAtMs: 2_000,
+  }));
+}
+
 function passingObservation(overrides: Partial<LoadObservation> = {}): LoadObservation {
   return {
     concurrentSessions: 100,
     ringsideSessions: 55,
+    sessionLifecycle: {
+      configuredSessions: 100,
+      preparedSessions: 100,
+      startedWorkflows: 100,
+      completedWorkflows: 100,
+      failedWorkflows: 0,
+      peakActiveWorkflows: 100,
+      configuredRingsideSessions: 55,
+      preparedRingsideSessions: 55,
+      startedRingsideWorkflows: 55,
+      completedRingsideWorkflows: 55,
+      failedRingsideWorkflows: 0,
+      peakActiveRingsideWorkflows: 55,
+      activityIntervals: activityIntervals(100, 55),
+    },
+    generator: {
+      shards: Array.from({ length: 4 }, (_, shardIndex) => ({
+        shardIndex,
+        logicalCpuCount: 2,
+        samplingDurationMs: 600_000,
+        sampleCount: 600,
+        hostSampleCoveragePercent: 100,
+        hostCpuP95Percent: 70,
+        hostCpuPeakPercent: 85,
+        hostMemoryPeakPercent: 72,
+        hostLoad1mPeak: 3.5,
+        eventLoopDelayP95Ms: 20,
+        eventLoopDelayMaxMs: 80,
+        browserControlP95Ms: 50,
+        browserControlMaxMs: 200,
+        browserControlAttempts: 600,
+        browserControlSamples: 600,
+        browserControlFailures: 0,
+        browserControlAttemptCoveragePercent: 100,
+        contextPreparationMs: 45_000,
+        startHeadroomMs: 120_000,
+      })),
+    },
     requestCount: 36_000,
     failedRequestCount: 720,
     workflowFailures: 0,
@@ -66,6 +113,16 @@ describe('load result evaluation', () => {
     ['persistence reconciliation', { persistedScores: 54 }],
     ['platform metrics', { platform: undefined }],
     ['connection cap', { platform: { ...passingObservation().platform!, connectionCap: 61 } }],
+    ['generator evidence', { generator: undefined }],
+    [
+      'prepared sessions',
+      {
+        sessionLifecycle: {
+          ...passingObservation().sessionLifecycle,
+          preparedSessions: 99,
+        },
+      },
+    ],
   ] satisfies Array<[string, Partial<LoadObservation>]>)(
     'fails Normal when %s misses',
     (_name, overrides) => {
@@ -84,6 +141,21 @@ describe('load result evaluation', () => {
       passingObservation({
         concurrentSessions: 250,
         ringsideSessions: 125,
+        sessionLifecycle: {
+          configuredSessions: 250,
+          preparedSessions: 250,
+          startedWorkflows: 250,
+          completedWorkflows: 250,
+          failedWorkflows: 0,
+          peakActiveWorkflows: 250,
+          configuredRingsideSessions: 125,
+          preparedRingsideSessions: 125,
+          startedRingsideWorkflows: 125,
+          completedRingsideWorkflows: 125,
+          failedRingsideWorkflows: 0,
+          peakActiveRingsideWorkflows: 125,
+          activityIntervals: activityIntervals(250, 125),
+        },
         errorRate: 0.09,
         throughputRps: 110,
         availabilityPercent: 99.2,
@@ -113,5 +185,53 @@ describe('load result evaluation', () => {
 
     expect(result.passed).toBe(true);
     expect(result.failures).not.toContain('Page p95 exceeded or was missing.');
+  });
+
+  it('fails closed when a runner supplies only a token sample', () => {
+    const passing = passingObservation();
+    const shards = passing.generator.shards.map(shard =>
+      shard.shardIndex === 1
+        ? {
+            ...shard,
+            sampleCount: 1,
+            hostSampleCoveragePercent: 100,
+            browserControlAttempts: 1,
+            browserControlSamples: 1,
+            browserControlAttemptCoveragePercent: 100,
+          }
+        : shard
+    );
+
+    const result = evaluateLoadResult(
+      G9_NORMAL_SCENARIO,
+      passingObservation({ generator: { shards } })
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.failures).toContain(
+      'Required per-runner generator evidence was missing or incomplete.'
+    );
+    expect(result.derived.generatorAttributionValid).toBe(false);
+  });
+
+  it('identifies a saturated runner and invalidates backend latency attribution', () => {
+    const passing = passingObservation();
+    const shards = passing.generator.shards.map(shard =>
+      shard.shardIndex === 2 ? { ...shard, hostCpuP95Percent: 95 } : shard
+    );
+
+    const result = evaluateLoadResult(
+      G9_NORMAL_SCENARIO,
+      passingObservation({ generator: { shards } })
+    );
+
+    expect(result.passed).toBe(false);
+    expect(result.failures).toContain(
+      'Generator saturation made backend latency attribution invalid on runner shard(s): 2.'
+    );
+    expect(result.derived).toMatchObject({
+      generatorAttributionValid: false,
+      saturatedGeneratorShards: [2],
+    });
   });
 });

@@ -1,6 +1,6 @@
 import type { LoadSessionAssignment } from './loadAssignments';
 
-const REQUIRED_SHARD_COUNT = 4;
+export const DISTRIBUTED_G9_SHARD_COUNT = 4;
 const MAX_START_LATENESS_MS = 5_000;
 const SHARD_ENV_KEYS = [
   'LOAD_TEST_SHARD_COUNT',
@@ -30,8 +30,10 @@ export function loadShardFromEnv(
   const index = Number(env.LOAD_TEST_SHARD_INDEX);
   const runId = env.LOAD_TEST_RUN_ID ?? '';
   const startAtMs = Number(env.LOAD_TEST_START_AT);
-  if (count !== REQUIRED_SHARD_COUNT) {
-    throw new Error(`Distributed G9 load requires exactly ${REQUIRED_SHARD_COUNT} shards.`);
+  if (count !== DISTRIBUTED_G9_SHARD_COUNT) {
+    throw new Error(
+      `Distributed G9 load requires exactly ${DISTRIBUTED_G9_SHARD_COUNT} shards.`
+    );
   }
   if (!Number.isInteger(index) || index < 0 || index >= count) {
     throw new Error('Distributed load shard index is outside the configured range.');

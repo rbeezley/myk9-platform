@@ -14,7 +14,9 @@ describe('show-day load scenarios', () => {
     expect(totalSessions).toBe(100);
     expect(ringsideSessions).toBeGreaterThanOrEqual(50);
     expect(G9_NORMAL_SCENARIO.targets.databaseConnectionCap).toBe(60);
-    expect(G9_NORMAL_SCENARIO.browserBehaviorVersion).toBe('connected-devices-v2');
+    expect(G9_NORMAL_SCENARIO.browserBehaviorVersion).toBe(
+      'connected-devices-v3-generator-evidence'
+    );
     expect(G9_NORMAL_SCENARIO.gate).toBe('G9');
     expect(Object.isFrozen(G9_NORMAL_SCENARIO)).toBe(true);
     expect(validateScenarioDefinition(G9_NORMAL_SCENARIO)).toEqual([]);

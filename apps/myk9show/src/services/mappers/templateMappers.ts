@@ -20,8 +20,6 @@ import type {
   DbShowTemplate,
   DbShowTemplateInsert,
   DbShowTemplateUpdate,
-  DbTemplateField,
-  DbTemplateFieldInsert,
 } from '@/types/database-mappings';
 import type { Json } from '@/types/supabase';
 
@@ -69,14 +67,6 @@ interface ShowTemplateData {
   validation?: ShowTemplateDefinition['validation'];
   customFields?: ShowFieldDefinition[];
 }
-
-/**
- * Extended DbClassTemplate that includes the optional `template_fields` relation
- * returned by Supabase when using `.select('*, template_fields(*)')`.
- */
-type DbClassTemplateWithFields = DbClassTemplate & {
-  template_fields?: DbTemplateField[];
-};
 
 // ===== HELPER FUNCTIONS =====
 
@@ -168,17 +158,15 @@ export const mapClassTemplateToUpdate = (
 /**
  * Convert database class template result to ClassTemplate type
  */
-export const mapDatabaseToClassTemplate = (
-  dbTemplate: DbClassTemplateWithFields
-): ClassTemplate => {
+export const mapDatabaseToClassTemplate = (dbTemplate: DbClassTemplate): ClassTemplate => {
   const templateData = parseClassTemplateData(dbTemplate.template_data);
 
-  // Fields can come from template_fields relation or template_data JSON
-  const templateFields: ClassTemplateField[] = Array.isArray(dbTemplate.template_fields)
-    ? dbTemplate.template_fields.map(mapDatabaseToClassTemplateField)
-    : Array.isArray(templateData.fields)
-      ? templateData.fields
-      : [];
+  // Fields come from the template_data JSON. This previously also read a
+  // `template_fields` relation, but that table is dropped and its parent
+  // `class_templates` went with migration 032, so the branch was unreachable.
+  const templateFields: ClassTemplateField[] = Array.isArray(templateData.fields)
+    ? templateData.fields
+    : [];
 
   return {
     id: dbTemplate.id,
@@ -195,49 +183,6 @@ export const mapDatabaseToClassTemplate = (
     ...(dbTemplate.default_max_entries != null
       ? { maxEntriesDefault: dbTemplate.default_max_entries }
       : {}),
-  };
-};
-
-/**
- * Convert database template field to ClassTemplateField
- */
-export const mapDatabaseToClassTemplateField = (dbField: DbTemplateField): ClassTemplateField => {
-  // Field values may be stored in validation_rules JSON
-  const validationRules = dbField.validation_rules as Record<string, Json | undefined> | null;
-  const fieldValues = (
-    Array.isArray(validationRules?.options) ? validationRules.options : []
-  ) as string[];
-
-  return {
-    name: dbField.field_name,
-    type: dbField.field_type as ClassTemplateField['type'],
-    values: fieldValues,
-    ...(dbField.is_required != null ? { optional: !dbField.is_required } : {}),
-  };
-};
-
-/**
- * Convert ClassTemplateField to DbTemplateFieldInsert
- *
- * Actual template_fields columns: created_at, default_value, field_label,
- * field_name, field_type, id, is_required, sort_order, template_id,
- * template_type, validation_rules
- */
-export const mapClassTemplateFieldToInsert = (
-  field: ClassTemplateField,
-  templateId: string,
-  order: number
-): DbTemplateFieldInsert => {
-  return {
-    template_id: templateId,
-    template_type: 'class',
-    field_name: field.name,
-    field_type: field.type,
-    field_label: field.name.charAt(0).toUpperCase() + field.name.slice(1),
-    is_required: !field.optional,
-    default_value: null,
-    sort_order: order,
-    validation_rules: { options: field.values } as unknown as Json,
   };
 };
 
@@ -354,59 +299,12 @@ export const mapDatabaseToShowTemplate = (dbTemplate: DbShowTemplate): ShowTempl
   };
 };
 
-// ===== TEMPLATE FIELD MAPPERS =====
-
-/**
- * Convert ShowFieldDefinition to DbTemplateFieldInsert
- */
-export const mapShowFieldToTemplateField = (
-  field: ShowFieldDefinition,
-  templateId: string,
-  order: number
-): DbTemplateFieldInsert => {
-  return {
-    template_id: templateId,
-    template_type: 'show',
-    field_name: field.name,
-    field_type: field.type,
-    field_label: field.name.charAt(0).toUpperCase() + field.name.slice(1),
-    is_required: field.required,
-    default_value: field.defaultValue != null ? String(field.defaultValue) : null,
-    sort_order: order,
-    validation_rules: {
-      ...(field.options ? { options: field.options } : {}),
-      ...(field.showWhen ? { showWhen: field.showWhen } : {}),
-    } as unknown as Json,
-  };
-};
-
-/**
- * Convert DbTemplateField to ShowFieldDefinition
- */
-export const mapTemplateFieldToShowField = (dbField: DbTemplateField): ShowFieldDefinition => {
-  const validationRules = dbField.validation_rules as Record<string, Json | undefined> | null;
-
-  return {
-    name: dbField.field_name,
-    type: dbField.field_type as ShowFieldDefinition['type'],
-    required: dbField.is_required ?? false,
-    ...(validationRules?.options ? { options: validationRules.options as string[] } : {}),
-    ...(dbField.default_value != null ? { defaultValue: dbField.default_value } : {}),
-    ...(dbField.field_label != null ? { description: dbField.field_label } : {}),
-    ...(validationRules?.showWhen
-      ? { showWhen: validationRules.showWhen as NonNullable<ShowFieldDefinition['showWhen']> }
-      : {}),
-  };
-};
-
 // ===== UTILITY MAPPERS =====
 
 /**
  * Convert array of database class templates to ClassTemplate array
  */
-export const mapDatabaseClassTemplatesArray = (
-  dbTemplates: DbClassTemplateWithFields[]
-): ClassTemplate[] => {
+export const mapDatabaseClassTemplatesArray = (dbTemplates: DbClassTemplate[]): ClassTemplate[] => {
   return dbTemplates.map(mapDatabaseToClassTemplate);
 };
 

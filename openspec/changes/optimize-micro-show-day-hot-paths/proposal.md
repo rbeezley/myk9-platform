@@ -11,6 +11,10 @@ Follow-up user request: `"proceed"` — implement the app and rehearsal remediat
 post-RBAC G9 run exposed show-wide realtime fan-out, mount-time account-entry refetches, and
 one-second hard-reload amplification.
 
+MYK9-126 follow-up user request: `"proceed"` — separate standard GitHub-runner saturation from
+remaining backend latency, correct the session-lifecycle evidence, then rerun the unchanged G9
+workload before considering a compute upgrade.
+
 ## What Changes
 
 - Deduplicate and briefly cache a user's complete RBAC access context within each app instance so
@@ -30,6 +34,11 @@ one-second hard-reload amplification.
   refetching `get_account_today_entries`.
 - Correct the G9 browser behavior so connected sessions stay open instead of hard-reloading every
   second, distribute scoring sessions across classes, and record exact workflow failure reasons.
+- Record per-runner host CPU, memory, event-loop delay, browser-control responsiveness, context
+  preparation, and synchronized-start headroom so backend latency is not judged from a saturated
+  generator.
+- Distinguish configured, prepared/open, started, completed, failed, and peak-active workflows
+  instead of treating a workflow's lifetime as the number of concurrent browser sessions.
 - Rerun the corrected, still 100-session/55-ringside G9 scenario on Micro after deployment and
   record whether the database remains healthy and all capacity thresholds pass.
 
@@ -67,6 +76,7 @@ traffic.
 - The show-day Broadcast signal, at-show realtime refresh adapter, and account-today subscription
   lifecycle
 - The G9 browser runner, metrics, shard aggregation, and evidence renderer
+- The distributed runner resource sampler and session-lifecycle evidence contract
 - A backward-compatible additive migration that includes affected class IDs in Broadcast signals
 - The existing manual G9 workflow, evidence artifact, and MYK9-109 tracking
 - The remote Supabase project only after an explicit migration/deployment approval

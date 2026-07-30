@@ -43,6 +43,46 @@ const ANON_ENTRY_COLUMN_ALLOWLIST = [
   'created_at',
 ];
 
+/**
+ * The scent-work hide secrets anon must never reach on `classes` (MYK9-116).
+ *
+ * Asserted as a denylist rather than an exact allowlist: unlike `entries`, the anon
+ * allowlist on `classes` is "every column except these three", so it grows whenever a
+ * genuinely public column is added. What must never drift is the exclusion.
+ */
+const FORBIDDEN_ANON_CLASS_COLUMNS = ['num_hides', 'has_blank', 'hides_known'];
+
+/**
+ * Columns the anon-reachable class readers DO select, so a future migration cannot
+ * quietly narrow the allowlist and 42501 the public show pages. Sourced from
+ * `services/database/classes/reads.ts` (CLASS_COLUMNS) and
+ * `services/database/classes/publicReads.ts` (PUBLIC_CLASS_SELECT), plus the TV board
+ * columns in `services/database/tv-display/postgrest.ts`.
+ */
+const REQUIRED_ANON_CLASS_COLUMNS = [
+  'id',
+  'trial_id',
+  'name',
+  'status',
+  'start_time',
+  'description',
+  'class_number',
+  'element',
+  'level',
+  'section',
+  'entry_fee',
+  'max_entries',
+  'jump_heights',
+  'display_order',
+  'results_released_at',
+  'created_at',
+  'updated_at',
+  'deleted_at',
+  'total_entries_count',
+  'scored_count',
+  'is_scoring_finalized',
+];
+
 /** The scored/PII columns anon must never be able to read directly. */
 const FORBIDDEN_ANON_COLUMNS = [
   'final_placement',
@@ -304,9 +344,10 @@ function selectPoliciesAdmittingAnon(table: string): string[] {
   });
 }
 
-const TRACKED = ['entries', 'dogs', 'people'];
+const TRACKED = ['entries', 'dogs', 'people', 'classes'];
 const { state, tableWideSources, unmodelled } = foldAnonGrants(TRACKED);
 const entries = state.get('entries');
+const classes = state.get('classes');
 
 describe('the evaluator itself', () => {
   /**
@@ -345,6 +386,46 @@ describe('anon grant contract on public.entries', () => {
       expect([...(entries?.columns ?? [])], `anon must not reach entries.${column}`).not.toContain(
         column
       );
+    }
+  });
+});
+
+/**
+ * MYK9-116 / SA-2026-07-29-01. Unlike dogs/people below, `classes_select` DOES admit anon
+ * (published shows are public), so the column grant here is a live data path — the
+ * exclusion is the only thing standing between a competitor and the hide count.
+ */
+describe('anon grant contract on public.classes', () => {
+  it('leaves anon with a column-scoped grant, never a table-wide one', () => {
+    expect(
+      classes?.tableWide,
+      `anon must not hold a table-wide SELECT on public.classes — that reaches ` +
+        `${FORBIDDEN_ANON_CLASS_COLUMNS.join('/')}. Table-wide grants seen in: ` +
+        `${tableWideSources.get('classes')?.join(', ') || '(none)'}`
+    ).toBe(false);
+    expect(
+      classes && classes.columns.size > 0,
+      'anon must retain a column grant or every public show page 42501s'
+    ).toBe(true);
+  });
+
+  it('withholds the scent-work hide secrets', () => {
+    for (const column of FORBIDDEN_ANON_CLASS_COLUMNS) {
+      expect(
+        [...(classes?.columns ?? [])],
+        `anon must not reach classes.${column} — a competitor could learn it before running`
+      ).not.toContain(column);
+    }
+  });
+
+  it('keeps every column the anon-reachable class readers select', () => {
+    // A narrower allowlist is not "safer" here: PostgREST 42501s the whole request, and
+    // getAllClasses swallows that into a silently empty public class list.
+    for (const column of REQUIRED_ANON_CLASS_COLUMNS) {
+      expect(
+        [...(classes?.columns ?? [])],
+        `classes.${column} must stay granted or the public show/class pages break`
+      ).toContain(column);
     }
   });
 });

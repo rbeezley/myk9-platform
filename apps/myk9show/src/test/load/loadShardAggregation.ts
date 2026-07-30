@@ -6,13 +6,13 @@ import type { LoadObservation, WorkflowFailureDetail } from './loadEvaluation';
 import { percentile, type LoadMetricSamples } from './loadMetrics';
 import type { LoadScenario } from './loadScenario';
 import { scenarioSessionCount } from './loadScenario';
-import type { LoadShard } from './loadShard';
+import { DISTRIBUTED_G9_SHARD_COUNT, type LoadShard } from './loadShard';
+import { calculatePeakActiveWorkflows } from './loadSessionLifecycle';
 
-const REQUIRED_SHARD_COUNT = 4;
 const MAX_START_SKEW_MS = 5_000;
 
 export interface LoadShardArtifact {
-  schemaVersion: 1;
+  schemaVersion: 2;
   runId: string;
   startAtMs: number;
   startedAtMs: number;
@@ -35,7 +35,7 @@ export function buildLoadShardArtifact(input: {
   result: BrowserLoadResult;
 }): LoadShardArtifact {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     runId: input.shard.runId,
     startAtMs: input.result.startAtMs,
     startedAtMs: input.result.startedAtMs,
@@ -81,12 +81,65 @@ export function aggregateLoadShardArtifacts(
     page: artifacts.flatMap(artifact => [...artifact.samples.pageDurationsMs]),
   };
   const platform = observations.find(observation => observation.platform)?.platform;
+  const activityIntervals = observations.flatMap(observation => [
+    ...observation.sessionLifecycle.activityIntervals,
+  ]);
+  const globalPeaks = calculatePeakActiveWorkflows(activityIntervals);
+  const sessionLifecycle = {
+    configuredSessions: sum(
+      observations,
+      observation => observation.sessionLifecycle.configuredSessions
+    ),
+    preparedSessions: sum(
+      observations,
+      observation => observation.sessionLifecycle.preparedSessions
+    ),
+    startedWorkflows: sum(
+      observations,
+      observation => observation.sessionLifecycle.startedWorkflows
+    ),
+    completedWorkflows: sum(
+      observations,
+      observation => observation.sessionLifecycle.completedWorkflows
+    ),
+    failedWorkflows: sum(observations, observation => observation.sessionLifecycle.failedWorkflows),
+    peakActiveWorkflows: globalPeaks.total,
+    configuredRingsideSessions: sum(
+      observations,
+      observation => observation.sessionLifecycle.configuredRingsideSessions
+    ),
+    preparedRingsideSessions: sum(
+      observations,
+      observation => observation.sessionLifecycle.preparedRingsideSessions
+    ),
+    startedRingsideWorkflows: sum(
+      observations,
+      observation => observation.sessionLifecycle.startedRingsideWorkflows
+    ),
+    completedRingsideWorkflows: sum(
+      observations,
+      observation => observation.sessionLifecycle.completedRingsideWorkflows
+    ),
+    failedRingsideWorkflows: sum(
+      observations,
+      observation => observation.sessionLifecycle.failedRingsideWorkflows
+    ),
+    peakActiveRingsideWorkflows: globalPeaks.ringside,
+    activityIntervals,
+  };
+  const generator = {
+    shards: observations
+      .flatMap(observation => [...observation.generator.shards])
+      .sort((left, right) => left.shardIndex - right.shardIndex),
+  };
 
   return {
     target: artifacts[0].target,
     observation: {
       concurrentSessions: sum(observations, observation => observation.concurrentSessions),
       ringsideSessions: sum(observations, observation => observation.ringsideSessions),
+      sessionLifecycle,
+      generator,
       requestCount,
       failedRequestCount,
       workflowFailures,
@@ -143,8 +196,8 @@ function mergeWorkflowFailureDetails(
 }
 
 function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: LoadScenario): void {
-  if (artifacts.length !== REQUIRED_SHARD_COUNT) {
-    throw new Error(`Expected exactly ${REQUIRED_SHARD_COUNT} load shard artifacts.`);
+  if (artifacts.length !== DISTRIBUTED_G9_SHARD_COUNT) {
+    throw new Error(`Expected exactly ${DISTRIBUTED_G9_SHARD_COUNT} load shard artifacts.`);
   }
   const first = artifacts[0];
   const indexes = new Set<number>();
@@ -153,14 +206,20 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
 
   for (const artifact of artifacts) {
     if (
-      artifact.schemaVersion !== 1 ||
-      artifact.shard.count !== REQUIRED_SHARD_COUNT ||
+      artifact.schemaVersion !== 2 ||
+      artifact.shard.count !== DISTRIBUTED_G9_SHARD_COUNT ||
       artifact.runId !== first.runId ||
       artifact.startAtMs !== first.startAtMs ||
       artifact.scenarioId !== scenario.id ||
       JSON.stringify(artifact.target) !== JSON.stringify(first.target)
     ) {
       throw new Error('Load shard manifests do not describe one synchronized rehearsal.');
+    }
+    if (
+      artifact.observation.generator?.shards.length !== 1 ||
+      artifact.observation.generator.shards[0]?.shardIndex !== artifact.shard.index
+    ) {
+      throw new Error(`Load shard ${artifact.shard.index} generator evidence was missing.`);
     }
     if (Math.abs(artifact.startedAtMs - artifact.startAtMs) > MAX_START_SKEW_MS) {
       throw new Error(`Load shard ${artifact.shard.index} missed the synchronized start.`);

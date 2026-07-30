@@ -48,10 +48,6 @@ export type DbShowTemplate = Tables['show_templates']['Row'];
 export type DbShowTemplateInsert = Tables['show_templates']['Insert'];
 export type DbShowTemplateUpdate = Tables['show_templates']['Update'];
 
-export type DbTemplateField = Tables['template_fields']['Row'];
-export type DbTemplateFieldInsert = Tables['template_fields']['Insert'];
-export type DbTemplateFieldUpdate = Tables['template_fields']['Update'];
-
 // Health records types
 export type DbHealthRecord = Tables['health_records']['Row'];
 export type DbHealthRecordInsert = Tables['health_records']['Insert'];
@@ -242,7 +238,6 @@ export const TABLE_NAMES = {
 
   // Templates
   SHOW_TEMPLATES: 'show_templates',
-  TEMPLATE_FIELDS: 'template_fields',
 
   // Health records
   HEALTH_RECORDS: 'health_records',

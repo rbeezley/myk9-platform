@@ -39,9 +39,17 @@ manual-only and uses four standard public-repository `ubuntu-latest` runners.
 Each runner serves the checked-out frontend locally, prepares 25 isolated
 browser sessions, connects to the same remote Supabase project, and waits for
 one shared UTC start barrier. This does not require a paid runner or Vercel.
-Page p95 remains informational because it includes standard-runner saturation;
-scoring/API latency and database telemetry are the backend capacity gates until
-the evidence also records clean generator CPU/headroom.
+Page p95 remains informational because it includes browser-runner scheduling.
+Every shard now records whole-runner CPU/memory/load, Node event-loop delay,
+Chromium control latency, context-preparation time, and synchronized-start
+headroom. G9 fails closed if that evidence is missing. Scoring/API thresholds
+remain unchanged, but their result must be interpreted alongside the per-runner
+evidence before latency is attributed solely to Supabase.
+The renderer marks a runner saturated when host CPU p95 is at least 90%, memory
+peak is at least 95%, event-loop p95 is at least 100 ms, browser-control p95 is
+at least 1 second, or browser-control failures reach 5%. Host and browser
+sampling coverage must each reach 80%. An incomplete or saturated runner makes
+browser-derived backend-latency attribution invalid and prevents a G9 pass.
 Create the `load-rehearsal` GitHub environment with a required reviewer before
 the first dispatch so the prepare job cannot seed the remote target unattended.
 The prepare job also verifies that `authenticated` can execute
@@ -75,7 +83,13 @@ The prepare job requires the operator to type the approved project ref and
 performs the canonical reseed. Four shards then run 25 unique global
 assignments each. Shard 0 owns the single platform sampler. The aggregate job
 requires all four matching artifacts, concatenates sanitized raw timings for
-exact global percentiles, evaluates G9 once, and uploads JSON/Markdown evidence.
+exact global percentiles, preserves each runner's generator evidence separately,
+evaluates G9 once, and uploads JSON/Markdown evidence. Session evidence reports
+configured, prepared/open, started, completed, failed, and peak-active workflows;
+an early workflow failure no longer reduces the prepared concurrency count.
+Each workflow also records a high-resolution epoch interval, so aggregation
+computes the actual cross-runner simultaneous peak instead of summing unrelated
+shard-local maxima.
 The separate `if: always()` cleanup job reseeds and verifies `514|504|0` after
 success or failure.
 
@@ -90,7 +104,7 @@ create a bounded contention sample; every other scoring target is disjoint.
 It passes only when all of these are present and passing:
 
 - scoring-write and API p95 at or below 200 ms;
-- page p95 at or below 3 seconds;
+- page p95 recorded as informational and interpreted with generator health;
 - error rate at or below 5%;
 - throughput at or above 50 requests/second;
 - availability at or above 99.5%;

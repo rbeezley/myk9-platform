@@ -169,6 +169,74 @@ Non-scoring workflows remain mounted until the scenario deadline after completin
 action. Scoring sessions keep the same eight scores per session but rotate their class order by
 session so all 55 simulated judges do not hit one class in lockstep.
 
+### 12. [ADDED] Generator health is part of capacity evidence
+
+Each shard will sample the whole runner host, not only the Node coordinator process, because the
+Chromium child processes carry most of the browser load. The shard artifact will record host CPU
+p95/peak, memory peak, one-minute load peak, Node event-loop delay p95/max, a dedicated Chromium
+control-round-trip p95/max/failure count, sample count, context-preparation duration, and
+synchronized-start headroom.
+
+The sampler starts before browser-context preparation and stops after all workflows and queue
+checks finish. A dedicated blank probe page avoids coupling browser responsiveness to any
+particular app route while still traversing Playwright, CDP, and Chromium scheduling. Shard
+aggregation preserves each runner independently; it does not average away one saturated runner.
+Host sampling and Chromium probing use independent one-second schedules, and every Chromium probe
+and cleanup wait is bounded at two seconds so an unresponsive browser cannot prevent the shard
+artifact from being written. Evidence records elapsed sampling duration, expected-versus-observed
+host coverage, and expected-versus-attempted browser-control coverage; both must reach 80%.
+A timed-out probe is retired after its first failure so the sampler does not queue additional CDP
+requests behind an operation Chromium has stopped servicing.
+
+The first instrumented run uses explicit diagnostic thresholds: host CPU p95 at least 90%, memory
+peak at least 95%, event-loop p95 at least 100 ms, browser-control p95 at least one second, or a
+browser-control failure rate of at least 5% identifies a saturated shard. Incomplete or saturated
+generator evidence invalidates browser-derived backend-latency attribution and prevents G9 from
+passing. The Markdown result names each affected shard and reason.
+
+The G9 evaluator fails closed when any shard lacks generator evidence or reports incomplete
+session preparation. Resource measurements are diagnostic on the first instrumented run: the
+evidence renderer identifies sustained runner pressure, but backend thresholds remain unchanged.
+If the four-runner experiment shows generator saturation, the same 100 sessions will be
+distributed across additional free public runners and compared without changing the workload,
+duration, roles, or thresholds.
+
+### 13. [ADDED] Session concurrency means open browser sessions
+
+The previous `concurrentSessions` counter incremented after each ramp delay and decremented as soon
+as a workflow completed or failed. That measured overlapping workflow lifetime, not the browser
+sessions that had already been prepared and remained open. A fast failure could therefore turn
+100 open contexts into a reported peak of 73.
+
+The corrected evidence records configured assignments; prepared/open contexts at synchronized
+start; workflows started, completed, and failed; high-resolution epoch start/finish intervals;
+peak simultaneously active workflows; and the same lifecycle counts for ringside sessions.
+Aggregation merges the intervals from every runner and calculates the cross-runner peak with a
+half-open interval sweep, rather than summing shard-local maxima that may occur at different times.
+
+`concurrentSessions` remains the gate-compatible field but is sourced from prepared/open contexts.
+`ringsideSessions` is likewise sourced from prepared ringside contexts. The lifecycle breakdown
+makes failures visible instead of using them to falsify the concurrency measurement.
+
+### 14. [ADDED] Latency remediation follows a valid measurement
+
+The latest corrected-behavior run kept Supabase CPU below 61% and connections at 37/60, but API and
+scoring p95 still failed while all four two-vCPU runners produced similar page timeouts. The first
+MYK9-126 implementation therefore makes generator validity measurable before changing database or
+page behavior again.
+
+After the instrumented four-runner comparison:
+
+- if generator headroom is insufficient, preserve the exact 100-session workload and fan it out
+  across more free runners before attributing browser-observed p95 to Supabase;
+- if generator headroom is clean, profile the entries replica query, ringside wrapper,
+  authenticated entry-results read, and account-today fan-out from the same run;
+- in either case, use workflow-stage evidence to reproduce submit-button, dog-card, run-schedule,
+  and Show Desk readiness failures under a bounded focused test before changing app code.
+
+This sequencing avoids optimizing a timing artifact and avoids buying compute while Micro retains
+measured CPU and connection headroom.
+
 ## Risks / Trade-offs
 
 - [Client permissions can be up to five minutes old] → Database authorization stays authoritative;
@@ -197,6 +265,13 @@ session so all 55 simulated judges do not hit one class in lockstep.
   scheduled invalidation, and unsubscribe all tables when the final consumer unmounts.
 - [Correcting the harness changes the comparison] → Label the prior run diagnostic and the
   corrected behavior as a new experiment while keeping the G9 concurrency and thresholds intact.
+- [Host metrics vary across GitHub runner images] → Record raw per-shard evidence, use portable
+  Node/OS counters with explicit missing-data failures, and compare topology only within the same
+  workflow and workload contract.
+- [The browser probe perturbs the load] → Use one dedicated blank page per runner at a low sampling
+  cadence and record the probe count/failures.
+- [Prepared contexts could be mistaken for successful work] → Keep concurrency and workflow
+  success as separate required fields; a prepared session does not erase its workflow failure.
 
 ## Migration Plan
 
@@ -216,6 +291,11 @@ session so all 55 simulated judges do not hit one class in lockstep.
    migration.
 9. After a separate load-window approval, run the corrected G9 scenario on Micro and restore the
    canonical fixture/grant state.
+10. Add assertion-first contracts for generator telemetry, per-shard preservation, and the
+    configured/prepared/started/completed/failed session lifecycle.
+11. Run an instrumented four-runner G9 comparison after merge and deployment.
+12. Only if the generator evidence shows saturation, distribute the unchanged workload across more
+    free runners; otherwise proceed directly to the measured backend/page hot paths.
 
 Rollback:
 

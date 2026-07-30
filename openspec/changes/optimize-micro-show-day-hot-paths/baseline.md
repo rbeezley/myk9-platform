@@ -114,3 +114,33 @@ This is valid evidence that G9 failed and that RBAC was not the remaining domina
 most workflows failed and the runner repeatedly restarted the app, it is diagnostic rather than a
 realistic capacity ceiling. The corrected run retains the G9 concurrency, duration, roles, fixture,
 and thresholds but is recorded as a new experiment.
+
+## Corrected connected-device run
+
+Recorded: 2026-07-30
+
+- Workflow run:
+  <https://github.com/rbeezley/myk9-platform/actions/runs/30529213561>
+- Evidence artifact:
+  <https://github.com/rbeezley/myk9-platform/actions/runs/30529213561/artifacts/8754681848>
+- Compute tier: Supabase Micro
+- Configured sessions: 100 total / 55 ringside
+- Old peak-active-workflow measurement: 73 total / 55 ringside
+- Requests: 168,086 total / 0 failed HTTP requests / 88 workflow failures
+- Scoring p95: 2,026.4 ms; API p95: 1,152.9 ms
+- Peak CPU: 60.42%; peak disk busy: 75.81%; connections: 37/60
+- Scoring attempts: 69; SQLSTATE `40001`: 0
+- Replication queue maximum/final: 0/0
+- Persisted scores expected/observed: 3/3
+- Canonical cleanup: `514|504|0`
+
+The original 100% CPU/restart storm did not recur. The four shards nevertheless reported a
+uniform 21–23 workflow failures each and 25–36 second page p95 while each standard two-vCPU runner
+drove 25 Chromium contexts. Runner CPU, memory, event-loop delay, and Chromium responsiveness were
+not measured, so the browser-observed latency cannot yet be separated cleanly from generator
+saturation.
+
+The `73/100` value was also not a count of prepared browser contexts. The counter incremented only
+after each ramp delay and decremented when a workflow finished or failed even though its browser
+context remained open until final cleanup. MYK9-126 corrects that evidence contract before the next
+capacity decision.

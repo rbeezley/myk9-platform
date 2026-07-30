@@ -31,6 +31,21 @@ const SPORT_ID = 'scent-work';
 
 const read = (file: string) => readFileSync(join(MIGRATIONS, file), 'utf8');
 
+/**
+ * Migration SQL with comments removed.
+ *
+ * `proves` predicates MUST match against this rather than the raw file. These migrations
+ * quote their own SQL in their rationale headers, so a predicate like
+ * `/timer_mode = 'single'/` would happily match the comment describing the change even if
+ * someone deleted the statement performing it — the guard would then be asserting that
+ * the migration is well documented, not that it does anything.
+ */
+function executableSql(file: string): string {
+  return read(file)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ') // block comments
+    .replace(/--[^\n]*/g, ' '); // line comments
+}
+
 /** `organization` → its `<org>_id` variable name inside the 030 DO block. */
 const ORG_ID_VAR: Readonly<Record<RegistryId, string>> = {
   AKC: 'akc_id',
@@ -112,7 +127,10 @@ const seeded = parseSeededTemplates(seedSql);
 interface ClassRuleDelta {
   migration: string;
   why: string;
-  /** Asserts the migration's SQL really performs this delta. Throws with detail if not. */
+  /**
+   * Asserts the migration really performs this delta. Receives COMMENT-STRIPPED SQL —
+   * see `executableSql` for why matching the raw file would be self-defeating.
+   */
   proves: (sql: string) => void;
   apply: (tuples: ClassTuple[]) => ClassTuple[];
 }
@@ -158,6 +176,18 @@ const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleD
         expect(sql).toMatch(/odors = '\{\}'::text\[\]/);
         expect(sql).toMatch(/hide_count_fixed = 1/);
         // Must not change the class SET — no inserts, no deletes, no level relabelling.
+        expect(sql).not.toMatch(/INSERT INTO/i);
+        expect(sql).not.toMatch(/DELETE FROM/i);
+        expect(sql).not.toMatch(/SET[^;]*\blevel\s*=/i);
+      },
+      apply: tuples => tuples,
+    },
+    {
+      migration: '20260730210000_fix_ukc_hd_hides_known.sql',
+      why: "marks HD hide counts as rules-set — the count is 1 by rule at every level, never a judge's choice; no class is added or removed",
+      proves: sql => {
+        expect(sql).toMatch(/hides_known = TRUE/i);
+        expect(sql).toMatch(/element = 'Handler Discrimination'/);
         expect(sql).not.toMatch(/INSERT INTO/i);
         expect(sql).not.toMatch(/DELETE FROM/i);
         expect(sql).not.toMatch(/SET[^;]*\blevel\s*=/i);
@@ -242,8 +272,9 @@ describe('registry ↔ database parity', () => {
   it('verifies each delta against its migration SQL', () => {
     for (const [id, deltas] of Object.entries(CLASS_RULE_DELTAS)) {
       for (const delta of deltas ?? []) {
-        const sql = read(delta.migration);
-        expect(sql.length, `${delta.migration} is empty`).toBeGreaterThan(0);
+        const sql = executableSql(delta.migration);
+        // A migration that is all rationale and no statements must not pass.
+        expect(sql.trim().length, `${delta.migration} has no executable SQL`).toBeGreaterThan(0);
         // Throws with vitest's diff if the SQL stopped doing what the delta models.
         delta.proves(sql);
         expect(delta.why.length, `${id} ${delta.migration} has no rationale`).toBeGreaterThan(0);

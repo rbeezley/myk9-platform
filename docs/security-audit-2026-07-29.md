@@ -1,761 +1,556 @@
 # Security Audit — 2026-07-29
 
-**Mode:** Full Audit
-**Source:** `claude` (scheduled task `claude-security-audit`)
-**Baseline SHA:** `39ed30dc803a016563768945c5fc672ea4311af2` (`main`, clean working tree)
-**Checklist version:** `.claude/skills/security-audit/references/checklist.md` @ `84e656142`
-**Applied database verified:** project ref `sojmvhhwsjxmfistvzbe` (staging)
-**Finding handling:** `quality-finding-lifecycle`
-**Previous Claude full audit:** [`docs/security-audit-2026-07-11.md`](security-audit-2026-07-11.md)
+- **Mode:** Full Audit (`/security-audit --full`)
+- **Detecting task:** `daily-security-audit` / `nightly-full-security-audit`
+- **Source:** Codex, with an independent `/codex:review`
+- **Baseline SHA:** `58bd0b91d5f15e5d2d1d0f5ac3c398ade8558e56` (`main` = `origin/main`; clean before this report)
+- **Prior same-day baseline:** `39ed30dc803a016563768945c5fc672ea4311af2`
+- **Checklist:** `.agents/skills/security-audit/references/checklist.md` (`sha256:4a1258e1963db8be`)
+- **Finding contract:** `quality-finding-lifecycle`
 
----
+**Method:** static source audit. The same-day prior report's read-only database evidence was reconciled,
+but live HTTP/database probes were not repeated because the security-audit skill excludes runtime testing.
 
 ## Summary
 
-| Severity (source) | Count  |
-| ----------------- | ------ |
-| CRITICAL          | 0      |
-| HIGH              | 2      |
-| MEDIUM            | 5      |
-| LOW               | 3      |
-| **Total**         | **10** |
+| Source severity | Count |
+| --- | ---: |
+| CRITICAL | 0 |
+| HIGH | 3 |
+| MEDIUM | 4 |
+| LOW | 1 |
+| INFO | 2 |
+| **Total current ledger** | **10** |
 
 | Canonical launch severity | Count |
-| ------------------------- | ----- |
-| P0                        | 1     |
-| P1                        | 1     |
-| P2                        | 5     |
-| P3                        | 3     |
+| --- | ---: |
+| P0 | 1 |
+| P1 | 2 |
+| P2 | 4 |
+| P3 | 3 |
 
-| Lifecycle status | Count                                                |
-| ---------------- | ---------------------------------------------------- |
-| new              | 9                                                    |
-| unchanged        | 1 (recurrence of SA-027)                             |
-| resolved         | 7 (entire 2026-07-11 baseline)                       |
-| duplicate        | 0                                                    |
-| rejected         | 1 (self-rejected during verification — see Rejected) |
-| blocked          | 1 coverage gap (see Coverage Gaps)                   |
+| Lifecycle transition | Count | Meaning |
+| --- | ---: | --- |
+| new | 3 | SA-2026-07-29-11 through -13 |
+| unchanged | 7 | Reconfirmed findings/informational records |
+| resolved | 0 | No finding was closed from code alone |
+| duplicate | 1 | SA-2026-07-29-09 is the prior alias for canonical SA-027 |
+| rejected | 3 | SA-2026-07-29-04, -07, and -10 |
+| blocked | 0 findings | Five coverage gaps are recorded separately |
 
-| Classification                     | Count |
-| ---------------------------------- | ----- |
-| security exposure                  | 5     |
-| RBAC / privilege scope             | 2     |
-| defense-in-depth (latent)          | 2     |
-| product defect (security-adjacent) | 1     |
+Auto-fixable: **3 of 10** (SA-2026-07-29-03, SA-2026-07-29-08, and
+SA-2026-07-29-13). **7 require a design or policy decision.**
 
-Auto-fixable: **4 of 10** (SA-…-03, -04, -07, -08). The rest need a design decision.
+Classification counts: security/data exposure **4**; authorization/integrity **2**; AI cost abuse
+**2**; informational hardening **2**.
 
-**Headline:** one confirmed, replayed unauthenticated exploit — an anonymous client can read the
-**secret scent-work hide count and blank-area flag** for classes explicitly marked
-`hides_known = false`, before those classes run. Everything else is latent or scope-tightening.
+### CRITICAL/HIGH at a glance
 
-**Posture is otherwise strong.** All 119 public tables have RLS **enabled and forced**; every
-sensitive table returns `42501` to a cold anon session; all 35 edge functions have a real
-authorization gate; no wildcard CORS; no hardcoded secrets; Stripe webhook signatures, price
-allowlist, and refund authorization are correct.
-
----
+- **SA-2026-07-29-01 — HIGH/P0:** cold anon can read undisclosed scent-work hide counts and blank
+  flags before a class runs. Independently **confirmed**. Existing issue:
+  [MYK9-116](https://linear.app/myk9-platform/issue/MYK9-116).
+- **SA-2026-07-29-02 — HIGH/P1:** a self-service anonymous Auth user receives the
+  `authenticated` database role and reaches unconditional reads including volunteer PII and audit
+  data. Independently **confirmed**. Existing issue:
+  [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117).
+- **SA-2026-07-29-11 — HIGH/P1:** any authenticated identity, including an anonymous Auth user,
+  can invoke paid premium generation for every public-status show without a manager role.
+  Independently **confirmed**. Issue:
+  [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125).
 
 ## Findings
 
-### [HIGH] SA-2026-07-29-01: Anon reads the secret scent-work hide count and blank-area flag for unrun classes
-
-- **Canonical severity:** **P0** — score/result integrity (scorecard: "score/result corruption")
-- **Source severity:** HIGH · **Status:** new · **Confidence:** high (exploit replayed)
-- **Category:** 1 RLS Policy Integrity / 5 Data Exposure
-- **Affected roles:** anon (unauthenticated) **and** every authenticated account
-- **Route/object:** `public.classes` columns `num_hides`, `has_blank`, `hides_known`
-- **First seen:** 2026-07-29 · **Runs:** 1
-
-**Evidence — cold anon session, anon key only, no auth:**
-
-```
-GET /rest/v1/classes?select=id,name,level,element,hides_known,num_hides,has_blank,status
-    &hides_known=is.false
-→ 200
-[ { "name": "Exterior Excellent", "level": "Excellent", "hides_known": false,
-    "num_hides": 2, "has_blank": false, "status": "upcoming" },
-  { "name": "Buried Master",      "level": "Master",    "hides_known": false,
-    "num_hides": 3, "has_blank": true,  "status": "upcoming" } ]
-```
-
-Applied-database cause — two orthogonal grants both permit it:
-
-```sql
--- table-level: anon holds SELECT on every column of classes
-pg_class.relacl → anon=r/postgres
--- RLS: PUBLIC-role policy, no column restriction, any non-draft show
-classes_select  FOR SELECT TO PUBLIC USING (
-  deleted_at IS NULL AND trial_id IN (
-    SELECT t.id FROM trials t JOIN shows s ON s.id = t.show_id
-    WHERE s.status = ANY (ARRAY['published','upcoming','in_progress','completed'])
-      AND s.deleted_at IS NULL OR is_club_admin(...) OR ... ))
-```
-
-Data confirms the "secret" case is real and populated:
-
-```sql
-select hides_known, count(*), count(num_hides), count(*) filter (where has_blank)
-from public.classes where deleted_at is null group by hides_known;
---  false | 2 | 2 | 1      ← flagged unknown, yet the count is stored and readable
---  true  | 7 | 7 | 0
-```
-
-**Risk:** `hides_known = false` is the schema's own encoding of "the number of hides is not
-disclosed to competitors" — the AKC Scent Work Excellent/Master convention, where a blank area is
-also possible at Master. Any competitor (or anyone with the public anon key, which ships in the
-browser bundle) can read the exact hide count and whether the area is blank **before running**.
-That is a decisive competitive advantage and invalidates the results of every affected class. It
-needs no account, no passcode, and no preconditions.
-
-**Aggravating:** `authenticated` also holds full table SELECT and the same PUBLIC policy applies, so
-every logged-in exhibitor has the identical read. There is no results-release or visibility-cascade
-predicate on these columns, unlike `entries` scored columns.
-
-**Mitigating:** no client code consumes these columns — `grep -rn 'num_hides|hides_known|has_blank'`
-across `apps/myk9show/src` and `packages` returns **zero** non-test hits. The exposure is pure
-surplus privilege, so tightening it carries no UI regression risk.
-
-**Fix:** apply the same revoke + column-allowlist pattern already used for `entries` in
-[`20260616120000_public_results_release_gate.sql`](../supabase/migrations/20260616120000_public_results_release_gate.sql):
-
-1. `REVOKE SELECT ON public.classes FROM anon;` then `GRANT SELECT (…)` on a safe allowlist that
-   **excludes** `num_hides`, `has_blank`, `hides_known`.
-2. For `authenticated`, gate those three columns behind show-official authority (a view, or
-   `resolve_class_result_visibility`-style cascade) rather than a blanket table grant.
-3. Add a contract test asserting anon cannot select `num_hides` — mirroring the existing
-   anon-entries grant contract test.
-
-**Auto-fixable:** No — requires a product decision on which roles may see hide counts and when
-(judge and steward plausibly need them at ringside; exhibitors must not).
-
----
-
-### [HIGH] SA-2026-07-29-02: Self-service anonymous sign-in reaches 32 unconditional read policies, including `volunteers` PII
-
-- **Canonical severity:** **P1** — security exposure, latent today, escalates to **P0** on the first
-  real volunteer or activity row
-- **Source severity:** HIGH · **Status:** new · **Confidence:** high on the defect, **blocked** on the
-  end-to-end replay (see Coverage Gaps)
-- **Category:** 3 RBAC & Privilege Escalation / 5 Data Exposure
-- **Route/object:** GoTrue anonymous sign-in + 32 `public` SELECT policies
-- **First seen:** 2026-07-29 · **Runs:** 1
-
-**Evidence — anonymous sign-in is enabled, verified read-only from a cold session:**
-
-```
-GET https://<project>.supabase.co/auth/v1/settings   → 200
-{ "external": { "anonymous_users": true, "email": true, "google": true, … },
-  "disable_signup": false, … }
-```
-
-Anyone can therefore call `signInAnonymously()` and receive a JWT with `role: authenticated`. That
-role's reads are then bounded only by RLS. Enumerating the policies that impose **no** ownership or
-role predicate (`USING (true)`, or `auth.uid() IS NOT NULL`, for PUBLIC or `authenticated`) returns
-**32 SELECT policies**. The escalation delta beyond what plain `anon` already sees:
-
-| Table                                                                               | Policy predicate         | Exposed                                             |
-| ----------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------- |
-| `volunteers`                                                                        | `USING (true)`           | **`name`, `email`, `phone`, `notes`**               |
-| `volunteer_class_assignments` / `volunteer_general_assignments` / `volunteer_roles` | `USING (true)`           | rosters, `role_name`, `notes`                       |
-| `activity_log`                                                                      | `auth.uid() IS NOT NULL` | full platform audit trail, `actor_name`, `metadata` |
-| `roles`, `permissions`, `role_permissions`                                          | `USING (true)`           | complete RBAC model enumeration                     |
-| `offline_scoring`                                                                   | `USING (true)`           | offline scoring records                             |
-| `trial_checklist_state`                                                             | `auth.uid() IS NOT NULL` | every secretary's trial-prep checklist              |
-| `show_announcements`                                                                | `auth.uid() IS NOT NULL` | all announcements, all shows, `author_name`         |
-| `judge_qualifications`                                                              | `USING (true)`           | judge qualifications, `notes`                       |
-| `organization_agreements`, `performance_metrics`                                    | `USING (true)`           | agreements, `metric_name`, `metadata`               |
-
-**The intended guard already exists and was applied to exactly two tables.**
-[`20260712160000_exclude_anon_from_platform_settings_sync_conflicts_select.sql`](../supabase/migrations/20260712160000_exclude_anon_from_platform_settings_sync_conflicts_select.sql)
-added `((auth.jwt() ->> 'is_anonymous')::boolean) IS NOT TRUE` to `platform_settings` and
-`sync_conflicts`. The remaining 32 policies never received it. This is a completeness gap in a known
-remediation, not an unrecognised risk.
-
-**Anonymous sign-in is load-bearing — do not disable it.** `validate-passcode` documents the
-contract at [`index.ts:236`](../supabase/functions/validate-passcode/index.ts): _"A passcode user (no
-account) signs in anonymously client-side first"_, and the function stamps the server-validated
-`(show, role)` into `app_metadata`, which `private.entry_results_caller_context()` reads as
-`claim_kind` / `claim_show_id` / `claim_role`. Turning the setting off would break QR/passcode
-ringside access. The fix must be at the policy layer.
-
-**Currently latent:** every table listed above has **0 rows** on staging, and
-`select count(*) from auth.users where is_anonymous` = **0**. Nothing is leaking today. The defect is
-that no code change is needed for it to leak — only data entry.
-
-**Risk:** at launch, a volunteer roster with names, emails, and phone numbers becomes readable by
-any internet user who calls one unauthenticated endpoint. The RBAC-model disclosure also hands an
-attacker the full role/permission map — the same class of issue as the July 3 plan
-[`plan-role-map-disclosure.md`](security-audit-2026-07/plan-role-map-disclosure.md), which remains
-open for `roles` / `permissions` / `role_permissions`.
-
-**Fix:** introduce one helper and use it everywhere an unconditional read is intended for real
-accounts:
-
-```sql
-CREATE OR REPLACE FUNCTION public.is_real_account() RETURNS boolean
-  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT auth.uid() IS NOT NULL
-     AND coalesce(((auth.jwt() ->> 'is_anonymous')::boolean), false) IS NOT TRUE;
-$$;
-```
-
-Then replace `auth.uid() IS NOT NULL` with `public.is_real_account()`, and add
-`AND public.is_real_account()` to the `USING (true)` policies. `volunteers` additionally warrants a
-show/club scope rather than any-account visibility. Verify with `pg_policy` after push, then replay
-an anonymous session.
-
-**Auto-fixable:** No — `volunteers` needs a scoping decision, not just an anonymity guard.
-
----
-
-### [MEDIUM] SA-2026-07-29-03: `judge_assignments` exposes judge `fee` and `notes` to anon
-
-- **Canonical severity:** **P2** · **Source severity:** MEDIUM · **Status:** new · **Confidence:** high
-- **Category:** 5 Data Exposure
-- **Route/object:** `public.judge_assignments` (`fee`, `notes`)
-
-**Evidence — cold anon session:**
-
-```
-GET /rest/v1/judge_assignments?select=id,show_id,person_id,fee,notes,status → 200, 5 rows
-  fee column returned to anon: true   notes column returned to anon: true
-  non-null fees currently: 0
-```
-
-```sql
-pg_class.relacl        → anon=r/postgres          -- all columns
-judge_assignments_select FOR SELECT TO PUBLIC USING (true)   -- no show/club predicate at all
-```
-
-**Risk:** judge compensation is confidential between club and judge, and `notes` is unbounded free
-text. `USING (true)` means every assignment on the platform, not just published shows. Currently
-0 populated fees, so nothing leaks yet — it will the first time a club records one, with no code
-change.
-
-**Fix:** `REVOKE SELECT ON public.judge_assignments FROM anon;` then
-`GRANT SELECT (id, person_id, show_id, trial_id, class_id, status) TO anon;`. Published judge panels
-are public information; fees and notes are not. Consider also narrowing `USING (true)` to
-published-show scope, matching `classes_select`.
-
-**Auto-fixable:** Yes — mechanical revoke + allowlist, matching the established `entries` pattern.
-
----
-
-### [MEDIUM] SA-2026-07-29-04: anon holds a column SELECT grant on `people.email` with no reachable read path
-
-- **Canonical severity:** **P2** (defense-in-depth) · **Source severity:** MEDIUM · **Status:** new
-- **Confidence:** high · **Category:** 1 RLS Policy Integrity
-
-**Evidence — `pg_attribute.attacl` (invisible to `pg_class.relacl`):**
-
-```
-people.id         → anon=r/postgres
-people.first_name → anon=r/postgres
-people.last_name  → anon=r/postgres
-people.email      → anon=r/postgres        ← PII
-```
-
-`people` has **no** PUBLIC or anon SELECT policy, so RLS alone yields nothing:
-
-```
-GET /rest/v1/people?select=id,first_name,last_name,email  → 200, 0 rows
-GET /rest/v1/people?select=*                              → 401 42501
-```
-
-No anon-reachable embed exercises the grant either: `shows→people` and `clubs→people` return
-`PGRST200` (no such relationship), `judge_assignments→people` returns `people: NULL`, and
-`entries→people!handler_id` is `42501` because `entries.handler_id` carries no anon grant.
-
-**Risk:** this is precisely the `dog_favorites` pattern recorded in CLAUDE.md LESSONS — a table where
-"RLS had masked the gap because every policy was `TO authenticated`". A single future PUBLIC-role
-SELECT policy on `people`, or one new anon-readable FK into it, turns this into a full email
-harvest. The grant is currently doing no work, so it is pure standing risk.
-
-**Fix:** `REVOKE SELECT (id, first_name, last_name, email) ON public.people FROM anon;`. If a
-specific embed genuinely needs it, add a `-- RATIONALE:` comment naming that embed and a test that
-proves it; migration `20260725180000_anon_people_email_embed_and_public_functions` implies an embed
-was intended, but no such path is reachable today.
-
-**Auto-fixable:** Yes — revoke; verify the public show/results pages in a cold session afterwards.
-
----
-
-### [MEDIUM] SA-2026-07-29-05: CORS preview-origin regex can be satisfied by a third-party `*.vercel.app` project
-
-- **Canonical severity:** **P2** · **Source severity:** MEDIUM · **Status:** new
-- **Confidence:** medium (claimability not verified — see below) · **Category:** 2 Edge Function Auth
-- **Location:** [`supabase/functions/_shared/http/cors.ts:29-32`](../supabase/functions/_shared/http/cors.ts)
-
-```ts
-const MYK9SHOW_ORIGIN_PATTERNS: readonly RegExp[] = [
-  /^https:\/\/myk9-platform-myk9show-[a-z0-9-]+\.vercel\.app$/i,
-];
-```
-
-**Risk:** the pattern matches any `*.vercel.app` host beginning `myk9-platform-myk9show-`. Vercel
-`*.vercel.app` subdomains are globally namespaced with no prefix reservation, so a third party who
-creates a project named `myk9-platform-myk9show-<anything>` obtains an origin the allowlist accepts.
-Every root edge function using `MYK9SHOW_ORIGINS` inherits this.
-
-**Mitigating (caps this at P2, not higher):** `Access-Control-Allow-Credentials` is never set, and
-the app authenticates with bearer tokens rather than cookies. An attacker page cannot read a
-victim's token from another origin, so it cannot borrow a session — it can only make calls with a
-token it already holds. The `stripe-*` functions use their own exact-match `ALLOWED_ORIGINS` list
-with no regex, so the money path is unaffected.
-
-**Confidence caveat:** I did not attempt to register a matching Vercel project — that would mean
-interacting with a third-party service, outside an audit's remit. The finding rests on Vercel's
-documented global `*.vercel.app` namespacing.
-
-**Fix:** drive preview origins from an env-var allowlist, or tighten the pattern to include the team
-slug that Vercel appends to real preview deployments
-(`/^https:\/\/myk9-platform-myk9show-[a-z0-9]+-<team-slug>\.vercel\.app$/`).
-
-**Auto-fixable:** No — needs the correct Vercel team slug / preview-URL shape as input.
-
----
-
-### [MEDIUM] SA-2026-07-29-06: `is_show_official()` grants stewards judge-assignment writes and email-log reads
-
-- **Canonical severity:** **P2** · **Source severity:** MEDIUM · **Status:** new · **Confidence:** high
-- **Category:** 3 RBAC & Privilege Escalation
-- **Route/object:** `is_show_official()`, `judge_assignments_{insert,update,delete}`, `email_log_select`
-
-The platform carries two divergent "show authority" predicates:
-
-```sql
-can_manage_show(uuid)  = is_club_admin(club) OR is_trial_secretary(club) OR is_platform_admin()
-                         -- no steward, no judge
-is_show_official(uuid) = site_admin
-                      OR (r.name IN ('secretary','chairman','steward') AND ur.show_id = check_show_id)
-                      OR (r.name IN ('secretary','chairman','steward')
-                          AND ur.show_id IS NULL AND ur.club_id = shows.club_id)
-                         -- includes steward, excludes club_admin
-```
-
-The 2026-07-28 RLS consolidation
-([`20260728131000_split_showday_manage_read_rls.sql`](../supabase/migrations/20260728131000_split_showday_manage_read_rls.sql))
-wired `is_show_official(s.id)` into `judge_assignments_insert`, `_update`, and `_delete`. Combined
-with `email_log_select`, which also uses `is_show_official`, a **steward** can:
-
-- create, modify, and delete judge assignments for their show, and
-- read `email_log` rows for that show's enrollments.
-
-**Risk:** a steward is a ring helper. Assigning and removing judges is a secretary / club-admin
-function with contractual consequences, and email logs carry delivery content for other people's
-enrollments. This is over-broad role scope rather than an anonymous-attacker path, hence P2.
-
-**Related, deliberate:** judges appear in **neither** predicate, so `entries_update`
-(`can_manage_show`) rejects judge score writes at the table level — the standing gap recorded in
-memory as _At-Show Judge Write RLS Gap_. Judge scoring authority lives entirely in the ringside
-passcode-claim RPC path. That is a coherent design; it is called out here so the two predicates'
-role sets are understood together, not as a separate defect.
-
-**Fix:** split the predicate by intent — add `is_show_office_staff()` (site_admin, secretary,
-chairman, club_admin) for administrative writes and email-log reads; keep `is_show_official` for
-day-of operational reads where a steward legitimately belongs. Re-point the three
-`judge_assignments` write policies and `email_log_select` at the new helper.
-
-**Auto-fixable:** No — role-model design decision.
-
----
-
-### [MEDIUM] SA-2026-07-29-07: show-branding storage policies read `shows.name` instead of the object path, so the secretary limb is dead
-
-- **Canonical severity:** **P2** (product defect, security-adjacent — fail-closed) · **Source severity:** MEDIUM
-- **Status:** new · **Confidence:** high (predicate replayed in SQL) · **Category:** 1 RLS Policy Integrity
-- **Location:** [`supabase/migrations/059_club_and_show_branding.sql:53`](../supabase/migrations/059_club_and_show_branding.sql) and its UPDATE / DELETE twins
-
-All three policies contain the same correlated-name bug:
-
-```sql
-EXISTS (
-  SELECT 1 FROM shows s
-  WHERE s.id = ((storage.foldername(s.name))[2])::uuid   -- ← s.name is the SHOW TITLE
-    AND is_trial_secretary(s.club_id)
-)
-```
-
-Inside the subquery, `s.name` resolves to `shows.name` (the show's title), not
-`storage.objects.name` (the upload path). The sibling club policy gets this right with
-`storage.foldername(objects.name)`.
-
-**Evidence — replayed read-only against the applied database:**
-
-```sql
-select count(*) from public.shows s
- where s.id::text = coalesce((storage.foldername(s.name))[2],'00000000-…');
--- 0   ← the secretary limb never matches
--- foldername(name) returns {} for slash-free titles, so [2] is NULL
-```
-
-**Impact:**
-
-1. **Availability / correctness:** the secretary limb is unreachable, so show-branding
-   upload/update/delete falls through to `OR is_platform_admin()`. Secretaries cannot manage their
-   own show branding; only a platform admin can. It fails _closed_, so this is not an escalation.
-2. **Latent hard error:** if any show title ever contains `/`, `storage.foldername` returns a
-   non-empty array and `[2]::uuid` raises `22P02 invalid input syntax for type uuid`, failing the
-   entire storage request. No current show title contains `/` (`names_with_slash = 0`), so this has
-   not fired yet. Titles like `Spring Trial 3/4` are entirely plausible.
-
-**Fix:** new migration replacing all three policies, changing `storage.foldername(s.name)` to
-`storage.foldername(objects.name)` and moving the extraction out of the correlated subquery:
-
-```sql
-AND ( EXISTS ( SELECT 1 FROM public.shows s
-               WHERE s.id = ((storage.foldername(objects.name))[2])::uuid
-                 AND (SELECT public.is_trial_secretary(s.club_id)) )
-      OR (SELECT public.is_platform_admin()) )
-```
-
-**Auto-fixable:** No — changes who can write to a storage bucket; wants an explicit review and an
-upload smoke test as a secretary.
-
-**Note:** the remaining storage policies are correct. `profiles/` and `dogs/` validate
-`(storage.foldername(name))[2] = (SELECT auth.uid())::text` exactly as the checklist requires, and
-the `clubs/` and `premium-published` policies use the object path properly.
-
----
-
-### [LOW] SA-2026-07-29-08: `entries_anon_select_for_tv` has no `deleted_at IS NULL` predicate
-
-- **Canonical severity:** **P3** · **Source severity:** LOW · **Status:** new · **Confidence:** high
-- **Category:** 1 RLS Policy Integrity (soft-delete)
-
-```sql
-entries_anon_select_for_tv FOR SELECT TO anon USING (
-  show_id IN ( SELECT id FROM shows
-               WHERE status = ANY (ARRAY['published','upcoming','in_progress','completed'])
-                 AND deleted_at IS NULL ) )
--- filters the SHOW's deleted_at, never the ENTRY's
-```
-
-**Risk:** soft-deleted entries remain anon-visible in public running orders and results.
-`entries.deleted_at` is not in the anon column allowlist, so an anon consumer cannot even detect or
-filter them client-side. The checklist requires `deleted_at IS NULL` on SELECT policies for
-soft-deletable tables. Cosmetic/data-integrity rather than a disclosure of protected data.
-
-**Fix:** `AND deleted_at IS NULL` in the policy. Confirm `view_public_entry_results` applies the same
-predicate.
-
-**Auto-fixable:** Yes.
-
----
-
-### [LOW] SA-2026-07-29-09: 21 SECURITY DEFINER functions pin `search_path=public` rather than `search_path=''`
-
-- **Canonical severity:** **P3** · **Source severity:** LOW · **Status:** **unchanged — recurrence of
-  SA-027** (2026-07-10) · **Confidence:** high · **Runs:** 2 (2026-07-10, 2026-07-29)
-- **Category:** 3 RBAC & Privilege Escalation
-
-Affected: `assert_active_waitlist_offer_payment_link`, `check_class_availability`,
-`check_login_rate_limit`, `get_admin_user_list` (`public, auth`), `get_my_onboarding_requests`
-(`public, pg_catalog`), `handle_entry_scoring_state_change`, `hard_delete_show`,
-`promote_waitlist_entry{,_from_cron,_internal}`, `recalculate_class_placements`,
-`record_entry_status_history`, `record_login_attempt`, `refresh_class_scoring_state`,
-`resolve_class_result_visibility`, `restrict_payment_status_update`,
-`restrict_subscription_column_updates`, `soft_delete_{class,dog,show}`,
-`update_thread_last_message_at`.
-
-**Not exploitable — verified:**
-
-```sql
-select rolname, has_schema_privilege(rolname,'public','CREATE') from pg_roles
- where rolname in ('anon','authenticated','service_role');
--- anon=false  authenticated=false  service_role=false
--- pg_namespace public nspacl → "=U/pg_database_owner" (USAGE only, no CREATE for PUBLIC)
-```
-
-No API role can create shadowing objects in `public`, so the classic search-path hijack is closed at
-the schema-ACL layer. **Positive:** zero SECURITY DEFINER functions lack an explicit `search_path`
-altogether — the hardened idiom is otherwise universal.
-
-**Fix:** convert to `SET search_path = ''` with fully-qualified references, as the newer functions do.
-Consistency and depth, not an open hole. Reasonable to accept and close as `deferred` with a reason.
-
-**Auto-fixable:** No — each conversion needs its body fully qualified and retested.
-
----
-
-### [LOW] SA-2026-07-29-10: 4 of 6 `rls_enabled_no_policy` tables lack the disposition comment their siblings carry
-
-- **Canonical severity:** **P3** · **Source severity:** LOW · **Status:** new · **Confidence:** high
-- **Category:** 1 RLS Policy Integrity (documentation)
-
-`login_attempts`, `premium_generation_attempts`, `show_money_locks`, and `show_passcodes` are
-RLS-enabled with zero policies and `service_role`-only grants — correct deny-all-by-default, and all
-four return `42501` to a cold anon probe. But
-[`20260728120000_advisor_grant_regrowth_guard.sql`](../supabase/migrations/20260728120000_advisor_grant_regrowth_guard.sql)
-added an explicit `COMMENT ON TABLE … 'advisor rls_enabled_no_policy INFO ACCEPTED 2026-07-28
-(MYK9-108)'` disposition for only `stripe_order_refunds` and `waitlist_notification_events`.
-
-**Risk:** none directly. The four undocumented tables will keep resurfacing as unexplained advisor
-INFO entries, and a future reader cannot distinguish "deliberately deny-all" from "policy forgotten"
-— the exact ambiguity the comments were introduced to remove.
-
-**Fix:** extend the same `COMMENT ON TABLE` disposition to the four remaining tables.
-
-**Auto-fixable:** Yes — comment-only migration.
-
----
-
-## Rejected during verification
-
-- **"23 `/admin/*` routes are unguarded"** — **rejected.** An initial JSX heuristic counted 26
-  `<Route>` against 1 `<ProtectedRoute>` in
-  [`routes/adminRoutes.tsx`](../apps/myk9show/src/routes/adminRoutes.tsx). Direct reading shows every
-  admin route wraps its element in the `adminGuard()` helper
-  (`<ProtectedRoute requiredRole={UserRole.SITE_ADMIN}>`, line 144-146). The single occurrence is the
-  helper definition. Coverage is complete; the scan was wrong, not the code. Recorded so a future run
-  does not re-raise it.
-- **`send-results` uses `app_metadata` for authorization** — **rejected.** The grep hit is a comment
-  in [`send-results/authz.ts`](../supabase/functions/send-results/authz.ts) that states the opposite
-  intent (_"authorize against the DB role table, not JWT app_metadata claims"_). The function queries
-  `user_roles` with an active-and-not-expired filter. Correct.
-
----
+### [HIGH] SA-2026-07-29-01: Anon reads secret hide counts and blank flags for unrun classes
+
+- **Classification/status:** security exposure; **unchanged**
+- **Canonical/source severity:** **P0 / HIGH**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **2**
+- **Affected role/workflow:** unauthenticated competitor; scent-work class preparation and scoring
+- **Route/object/files:** `public.classes`; migration
+  `supabase/migrations/108_tv_display_anon_access.sql:50-66`;
+  `supabase/migrations/002_shows_and_events.sql:161-163`;
+  `supabase/migrations/033_add_class_rule_columns.sql:7-10`
+- **Existing references:** MYK9-116; prior version of this report
+- **Independent review:** **confirmed HIGH/P0**
+
+**Observed evidence.** The final `classes_select` policy exposes every non-deleted class belonging
+to a public-status show. The applied-database proof recorded by the prior same-day audit showed
+`anon` table-level SELECT and returned populated `num_hides` and `has_blank` values for upcoming
+classes whose `hides_known` value was false. No current-main change touches the policy or grants.
+
+**Attack path.** With the browser-shipped anon key and no account or passcode, request
+`classes?select=id,name,hides_known,num_hides,has_blank&hides_known=is.false`. The response reveals
+the exact count and whether the area is blank before the competitor runs.
+
+**Expected vs observed.** Competitors must not receive undisclosed search configuration; the base
+table returns it because RLS controls rows, not sensitive columns.
+
+**Impact/confidence:** decisive score/result integrity advantage; **high confidence**. Client code
+does not need these columns, so this is surplus public privilege.
+
+**Next action:** decide which ringside roles may read the fields and add a column allowlist or
+claim-aware view. **Auto-fixable: No.**
+
+**Closure proof:** a cold-anon query for `num_hides` must fail or return no protected fields; an
+exhibitor account must also be denied before release; authorized judge/steward workflows and public
+show pages must pass regression tests.
+
+### [HIGH] SA-2026-07-29-02: Anonymous Auth users reach unconditional authenticated reads
+
+- **Classification/status:** cross-tenant data exposure; **unchanged**
+- **Canonical/source severity:** **P1 / HIGH**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **2**
+- **Affected role/workflow:** any internet user; account-less ringside session
+- **Route/object/files:** Supabase anonymous sign-in;
+  `apps/myk9show/src/pages/ringsideAnonSession.ts:47-75`;
+  `supabase/migrations/20260712160000_exclude_anon_from_platform_settings_sync_conflicts_select.sql`;
+  `supabase/migrations/20260727130000_rls_initplan_wrap_auth_calls.sql:74-78`; unconditional policies
+  on volunteers, activity logs, RBAC catalogs, scoring/checklist, announcements, and reference tables
+- **Existing references:** MYK9-117; MYK9-93; MYK9-22
+- **Independent review:** **confirmed HIGH/P1**
+
+**Observed evidence.** Anonymous sign-in is load-bearing for passcode ringside access and gives the
+session the PostgreSQL `authenticated` role. Thirty-two SELECT policies catalogued in the prior
+same-day audit use `USING (true)` or `auth.uid() IS NOT NULL`; most do not exclude
+`is_anonymous=true`. `volunteers` includes name, email, phone, and notes; `activity_log` includes
+actor IDs/names and metadata. The repository already has the correct `is_anonymous IS NOT TRUE`
+pattern, but only on two tables.
+
+**Attack path.** Obtain an anonymous Auth JWT (a CAPTCHA may increase effort but does not change the
+database role), then query an affected REST table. The composed replay was not run because it would
+create a persistent `auth.users` row; both authorization halves are present in source and the Auth
+setting was verified by the prior same-day audit.
+
+**Expected vs observed.** An anonymous ringside identity should read only data authorized by its
+server-stamped `(kind, show_id, ringside_role, passcode_generation)` claim. A bare anonymous identity
+instead inherits broad account reads.
+
+**Impact/confidence:** volunteer PII, audit metadata, and platform-wide operational data become
+internet-readable as rows are populated; **high confidence**, with the end-to-end replay blocked.
+
+**Next action:** add a reusable real-account predicate, apply it to every unconditional
+authenticated read, and separately show/club-scope volunteers. Do not disable anonymous sign-in.
+**Auto-fixable: No.**
+
+**Closure proof:** in a disposable environment, a bare anonymous session must receive zero rows or
+`42501` from volunteers/activity/RBAC catalogs while a valid stamped passcode session still passes
+the complete ringside read/write flow.
+
+### [HIGH] SA-2026-07-29-11: `generate-premium` mistakes public show visibility for manager authorization
+
+- **Classification/status:** authorization bypass and AI cost abuse; **new**
+- **Canonical/source severity:** **P1 / HIGH**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **1**
+- **Affected role/workflow:** anonymous Auth user or ordinary authenticated user; premium generation
+- **Route/object/files:** `supabase/functions/generate-premium/index.ts:17-75,149-183`;
+  `supabase/functions/generate-premium/premiumRateLimit.ts:3-58`;
+  `supabase/migrations/20260606204100_include_show_scoped_secretary_drafts.sql:10-23`;
+  `supabase/migrations/20260712120000_premium_generation_throttle.sql:38-108`
+- **Existing references:** [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125);
+  related resolved SA-025 and MYK9-22
+- **Independent review:** **confirmed HIGH/P1**
+
+**Observed evidence.** The function accepts every valid JWT. Its authorization comment says the
+`shows` SELECT returns a row only for a site admin, club admin, or secretary, but the current
+`shows_select` policy deliberately returns every published/upcoming/in-progress/completed show to
+everyone. The function then invokes Sonnet. Its limiter allows five attempts per `user.id + show_id`
+per 15 minutes, so switching among public show IDs bypasses a user-wide ceiling even before changing
+accounts. Anonymous Auth session rotation also resets the identity key.
+
+**Attack path.**
+
+1. Obtain any authenticated JWT, including a self-service anonymous one.
+2. Enumerate public show IDs through the intended public `shows_select` policy.
+3. POST each ID to `generate-premium`; each show permits five paid generations per identity.
+4. Rotate public shows and, if desired, anonymous sessions to continue.
+
+No club/show role, subscription, entry, or passcode is required. Template RLS may return no template,
+but the paid model call still runs.
+
+**Expected vs observed.** Premium generation is an office/manager operation and unauthorized callers
+must be rejected before rate-limit accounting or Anthropic. The endpoint currently treats row
+visibility as management authority.
+
+**Impact/confidence:** externally triggerable model spend and resource consumption; no protected
+tenant data was found in the returned show payload; **high confidence**.
+
+**Next action:** reject anonymous identities, use an explicit server-side show-manager predicate,
+and add an account-wide cost ceiling in addition to the per-show limiter. **Auto-fixable: No.**
+
+**Closure proof:** edge tests must prove anonymous and authenticated non-manager callers receive
+403 before the limiter/model call; authorized secretary/club-admin/site-admin calls must work; a
+cross-show quota test must enforce the chosen account-wide ceiling.
+
+### [MEDIUM] SA-2026-07-29-03: Public judge assignments expose `fee` and `notes`
+
+- **Classification/status:** confidential data exposure; **unchanged**
+- **Canonical/source severity:** **P2 / MEDIUM**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **2**
+- **Affected role/workflow:** cold anon; judge contracting and public show details
+- **Route/object/files:** `public.judge_assignments`; migration
+  `supabase/migrations/006_rls_policies.sql:269`;
+  policy rationale in `supabase/migrations/20260725150000_anon_tighten_permissive_selects.sql:80-81`
+- **Existing references:** none
+- **Independent review:** **confirmed MEDIUM/P2**
+
+The policy intentionally publishes who judges which ring, but table-level anon SELECT also publishes
+the confidential `fee` and unrestricted `notes` columns. The prior applied-database query returned
+those columns; current fees were null, so exploitation requires a club to populate them.
+
+**Attack path:** cold-anon REST SELECT of `judge_assignments?select=show_id,person_id,fee,notes`.
+**Expected:** public judge identity/schedule only. **Impact:** judge compensation or internal notes
+become public. **Confidence:** high.
+
+**Next action:** revoke table SELECT and grant a safe public column allowlist. **Auto-fixable: Yes.**
+
+**Closure proof:** cold anon receives `42501` for `fee`/`notes`, while the public judge panel still
+renders from allowlisted fields.
+
+### [MEDIUM] SA-2026-07-29-06: `is_show_official()` gives stewards office-administration authority
+
+- **Classification/status:** role-scope authorization flaw; **unchanged, scope broadened**
+- **Canonical/source severity:** **P2 / MEDIUM**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **2**
+- **Affected role/workflow:** active account steward; show administration
+- **Route/object/files:** `supabase/migrations/163_mailin_enrollment_rls_and_club_secretary.sql:49-101`;
+  `supabase/migrations/20260728131000_split_showday_manage_read_rls.sql:5-70`;
+  `supabase/migrations/130_rename_registrations_to_enrollments.sql:39-49`;
+  `docs/INTENT.md:55-59,189-231`
+- **Existing references:** none
+- **Independent review:** **confirmed MEDIUM/P2**, and confirmed enrollment access in addition to the
+  prior judge-assignment/email-log scope
+
+`is_show_official()` explicitly includes active, unexpired stewards. Policies use it to let the
+caller insert/update/delete judge assignments, read show email logs, and insert/update/select
+enrollments. Migration 163 says the enrollment policies exist so secretaries and club admins can
+enter mail submissions, yet the helper also admits stewards. The product intent confines stewards to
+ring flow. Anonymous passcode claims do not satisfy this helper; the affected principal is a
+persisted steward role.
+
+**Attack path:** an authenticated active show/club-scoped steward submits direct PostgREST writes to
+judge assignments or enrollments for that show. RLS accepts them through `is_show_official()`.
+
+**Expected vs observed:** stewards manage run order/check-in; office staff manage contracts,
+enrollments, and communications. **Impact:** show-scoped entry and judge-panel integrity plus
+operational-data access. **Confidence:** high.
+
+**Next action:** split office-management and show-day-read predicates, then repoint each policy by
+intent. **Auto-fixable: No.**
+
+**Closure proof:** a real steward token must fail judge-assignment and enrollment mutations and
+email-log reads, while ringside run-order/check-in remains functional; secretary, club admin, and
+site admin paths must pass.
+
+### [MEDIUM] SA-2026-07-29-12: AskQ accepts disposable anonymous identities and has a racy quota
+
+- **Classification/status:** AI cost abuse; **new**
+- **Canonical/source severity:** **P2 / MEDIUM**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **1**
+- **Affected role/workflow:** anonymous Auth user; AskQ rules/help queries
+- **Route/object/files:** `supabase/functions/ask-myk9show/index.ts:41,93-199,309-398`;
+  atomic precedent `supabase/migrations/20260724180000_reserve_operator_support_query.sql:15-96`
+- **Existing references:** related MYK9-22 and MYK9-26; no duplicate Linear issue found
+- **Independent review:** **confirmed MEDIUM/P2**
+
+AskQ accepts any `auth.getUser()` result without rejecting `is_anonymous`. An anonymous user has no
+person row, so it receives the free quota of 10 model calls per day. Rotating anonymous identities
+resets that quota. For one identity, the implementation counts rows and then inserts a provisional
+row in separate operations; concurrent requests can observe the same count, and insert errors are
+ignored. The operator-support endpoint already uses an advisory-lock reservation RPC, proving the
+atomic pattern is available.
+
+**Attack path:** obtain/rotate anonymous Auth sessions, send rules/help questions that need no show
+relationship, and burst parallel requests before provisional rows become visible.
+
+**Expected vs observed:** paid AI access should require an accountable identity and an atomic quota.
+**Impact:** model spend and resource consumption. AskQ show-data tools were separately traced and
+fail closed to a verified show relationship, so no tenant-data exposure was found. **Confidence:** high.
+
+**Next action:** reject bare anonymous users or bind AI access to a durable entitlement, then reserve
+quota atomically. **Auto-fixable: No.**
+
+**Closure proof:** anonymous JWTs must be rejected before logging/model calls; parallel requests at
+the limit must allow exactly the remaining slots; ordinary authenticated AskQ and verified show
+scoping must still pass.
+
+### [MEDIUM] SA-2026-07-29-13: RBAC SECURITY DEFINER RPCs disclose arbitrary users' access context
+
+- **Classification/status:** cross-user authorization metadata disclosure; **new**
+- **Canonical/source severity:** **P2 / MEDIUM**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **1**
+- **Affected role/workflow:** any authenticated account, including anonymous Auth; RBAC lookup
+- **Route/object/files:** `supabase/migrations/20260729160000_optimize_rbac_auth_lookup.sql:18-271`;
+  `apps/myk9show/src/services/rbac/PermissionChecker.ts:103-223`;
+  `apps/myk9show/src/context/useRbacLifecycle.ts:73-168`
+- **Existing references:** MYK9-114 covers performance only and is not a duplicate
+- **Independent review:** **confirmed MEDIUM/P2**
+
+Four SECURITY DEFINER functions—`get_user_permissions`, `user_has_permission`, `get_user_roles`,
+and `get_effective_permissions`—accept a caller-supplied `user_id`, bypass table RLS, and grant
+EXECUTE to `authenticated`. None requires `user_id = auth.uid()` or a site-admin exception.
+`get_user_roles` returns role and show/club scope, granter UUID, grant time, expiry, and activity.
+
+**Attack path.** A normal user can obtain an auth UUID from their own role's `granted_by` value or,
+when populated, the broadly readable `activity_log.actor_id`. Calling the four RPCs with that UUID
+reveals the target's roles, scopes, and effective permissions. Anonymous Auth users can use the same
+RPCs when they obtain a target UUID.
+
+**Expected vs observed:** non-admin callers should resolve only their own access context. **Impact:**
+cross-user and cross-tenant authorization reconnaissance; no role write or server-side privilege
+escalation was found because mutations retain independent admin RLS. **Confidence:** high.
+
+**Next action:** enforce self-or-site-admin inside every function and keep the existing fail-closed
+client behavior. **Auto-fixable: Yes.**
+
+**Closure proof:** an exhibitor calling each RPC with another user's UUID must receive `42501`;
+self-lookups and approved admin inspection must pass; role mutation policies must remain admin-only.
+
+### [LOW] SA-2026-07-29-08: Public entries policy omits entry-level soft delete
+
+- **Classification/status:** stale public data exposure; **unchanged**
+- **Canonical/source severity:** **P3 / LOW**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **2**
+- **Affected role/workflow:** cold anon; TV/running-order reads
+- **Route/object/files:** `supabase/migrations/108_tv_display_anon_access.sql:12-21`
+- **Existing references:** none
+- **Independent review:** **confirmed LOW/P3**
+
+`entries_anon_select_for_tv` checks the show's `deleted_at`, not the entry's. A soft-deleted entry in
+a public-status show remains reachable through the safe anon column allowlist, exposing stale
+identity/scheduling data but not protected payment/score columns.
+
+**Next action:** add `entries.deleted_at IS NULL`. **Auto-fixable: Yes.**
+
+**Closure proof:** a soft-deleted entry must be absent from cold-anon REST, public views, TV display,
+and replication-backed public reads.
+
+### [INFO] SA-2026-07-29-05: Preview CORS regex is broad but no victim attack path exists
+
+- **Classification/status:** informational hardening; **unchanged, downgraded MEDIUM → INFO**
+- **Canonical/source severity:** **P3 / INFO**
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-29; 2026-07-29; **2**
+- **Location:** `supabase/functions/_shared/http/cors.ts:29-47`
+- **Independent review:** **downgraded to INFO/P3**
+
+The regex accepts any matching `myk9-platform-myk9show-*.vercel.app` origin. No function enables
+credentialed cookies, and protected calls require bearer tokens an attacker origin cannot read.
+Server-side callers are not constrained by CORS. No unauthorized data/capability path was
+established, so this is not a vulnerability.
+
+**Next action:** optionally replace the regex with environment-provided exact preview origins.
+**Auto-fixable: No** without the deployment-origin policy. Closure is an allowlist contract test.
+
+### [INFO] SA-027: SECURITY DEFINER functions use `search_path=public`
+
+- **Classification/status:** informational hardening; **unchanged**
+- **Canonical/source severity:** **P3 / INFO** (downgraded from LOW)
+- **Baseline / first seen / last seen / runs:** `58bd0b91d`; 2026-07-10; 2026-07-29; **3**
+- **Alias:** SA-2026-07-29-09 is **duplicate** of this canonical ID
+- **Independent review:** **duplicate confirmed; INFO/P3**
+
+Twenty-one SECURITY DEFINER functions pin `search_path=public` instead of the repository's newer
+empty-path idiom. The same-day applied-database evidence showed `anon`, `authenticated`, and
+`service_role` lack `CREATE` on `public`; therefore they cannot place a shadowing object and no
+exploit path exists. Keep as accepted consistency hardening, not an open vulnerability.
+
+**Next action/closure:** either document the accepted schema-ACL dependency or fully qualify each
+body and set `search_path=''`, with focused tests. **Auto-fixable: No.**
+
+## Rejected and duplicate transitions
+
+| Prior ID/candidate | Current status | Evidence |
+| --- | --- | --- |
+| SA-2026-07-29-04 (`people.email` anon column grant) | **rejected** | Migration `20260725180000` explicitly limits the grant to public embeds; `people_select` remains `TO authenticated`, so direct/embed rows are null. Revocation previously broke the public show route. No current email disclosure path. |
+| SA-2026-07-29-07 (show-branding storage predicate) | **rejected as security** | The unqualified `name` binds to the inner show title, making the secretary limb fail closed. This remains a P2 product/correctness defect, not unauthorized access, and belongs outside the security ledger. |
+| SA-2026-07-29-09 | **duplicate** | Reuse canonical SA-027. |
+| SA-2026-07-29-10 (missing advisor comments) | **rejected** | Current source already comments all six no-policy tables in migrations `20260712130000`, `20260712170000`, and `20260728120000`. A live mismatch would be deployment drift, not missing source. |
+| Anonymous session → RBAC RPC chain | **duplicate attack leg** | Covered by SA-2026-07-29-02 (bare anonymous role) and SA-2026-07-29-13 (arbitrary-user RPCs), not a third defect. |
+| Admin routes unguarded | **rejected, retained** | `adminGuard()` wraps the routes in `ProtectedRoute`. |
+| `send-results` trusts `app_metadata` | **rejected, retained** | Authorization queries active/unexpired `user_roles`; the grep hit was a comment. |
 
 ## Categories Checked
 
-| Category                      | Scope examined                                                                                             | Findings | Notes                                               |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------- |
-| 1 RLS Policy Integrity        | 119 public tables, 13 `storage.objects` policies, 2 buckets, applied `pg_policy` + `relacl` + `attacl`     | 5        | RLS enabled **and forced** on 100% of public tables |
-| 2 Edge Function Auth          | 35 functions (23 root + 12 app) + 4 shared helpers                                                         | 1        | every function gated; no wildcard CORS              |
-| 3 RBAC & Privilege Escalation | `user_roles`/`roles`/`permissions`/`role_permissions` policies, 5 helper function bodies, 224 advisors     | 3        | privileged-table writes are admin-only              |
-| 4 Client Auth Patterns        | route guard coverage across 6 route files, secret grep, dev-flag grep                                      | 0        | `ProtectedRoute` on all gated routes                |
-| 5 Data Exposure               | cold anon probe (41 endpoints + 6 embeds), logging/toast grep                                              | 3        | every sensitive table `42501` to anon               |
-| 6 Payment Security            | `stripe-webhook`, `stripe-checkout`, `stripe-refund-entry`, `stripe-refund-show`, `stripe-customer-portal` | 0        | see Verified Solid                                  |
-| 7 Input Validation            | `dangerouslySetInnerHTML`, redirect validation, param handling                                             | 0        | zero `dangerouslySetInnerHTML` in the app           |
+| Category | Scope examined | Findings | Incomplete/blocked |
+| --- | --- | ---: | --- |
+| RLS Policy Integrity | 429 migration files inventoried; final policies/grants/helpers and prior 119-table applied proof reconciled | 01, 02, 03, 08 | Applied DB not re-queried |
+| Edge Function Auth | all 35 `index.ts` entrypoints inventoried; complete implicated functions/shared helpers read | 11, 12; INFO 05 | No live model/anonymous invocation |
+| RBAC & Privilege Escalation | roles/permissions/user_roles policies; final helper bodies; client callers; current-main RBAC delta | 06, 13; INFO SA-027 | No role-token live replay |
+| Client Auth Patterns | auth lifecycle, anonymous-session flow, 15 route files, current Auth/RBAC delta | 02 | Static only |
+| Data Exposure | AskQ service-role tools and scope helper; grants/policies; public/replication paths; error/logging sinks | 01, 02, 03, 08, 13 | Public bucket object inventory not replayed |
+| Payment Security | 9 Stripe/refund/payout entrypoints plus shared locks/calculators and withdrawal snapshots | 0 | No paid/refund/payout smoke |
+| Input Validation | request parsing, UUID/redirect validation, HTML sinks, uploads/forms/params inventory | 0 | Static only |
 
----
+### Focus areas with no concrete finding
 
-## Verified solid (independently re-proved this run)
+- **AskQ tenant data:** caller JWT is verified; requested show context is accepted only after an
+  active show role or owned-dog entry check; every service-role tool applies `showScope`, which
+  fails closed to an impossible UUID. The only AskQ finding is quota/cost abuse.
+- **Anonymous passcode claims (PRs #951-954):** `validate-passcode` stamps server-derived
+  `app_metadata` only onto anonymous users; generation is atomic and revocable; the ringside view
+  and `ringside_update_entry` recheck show, role, and generation. Judge/steward field write lists are
+  explicit and cross-show claims fail closed.
+- **Judge writes:** assigned judges and passcode judges use the scoped ringside RPC. The separate
+  steward-account overreach is SA-2026-07-29-06.
+- **Multi-registry support (PRs #1040-1056):** registry helpers, generated catalogs, mapper chains,
+  premium ordering, move-ups, landing/email surfaces, and current trial `registry_id` consumers were
+  traced. No registry value crossed an authorization boundary or widened tenant scope.
+- **Withdrawal snapshots/refunds:** checkout/payment-link amounts remain server authoritative;
+  webhook snapshot stamping resolves policy server-side; a missing snapshot forces manual handling;
+  refund endpoints authorize the caller as secretary/club admin/site admin and recheck payout state
+  under the show money lock.
+- **Stripe/payout:** webhook signatures use the correct platform/Connect secrets; price IDs and
+  redirect origins are allowlisted; customer/Connect records are livemode-scoped; payout cron uses a
+  constant-time secret check, recomputes amounts under a money lock, and reconciles Stripe transfers
+  by `transfer_group` before sending. No concrete payment manipulation path was found.
+- **Replication boundaries:** core ringside reads/writes stay on the claim-aware view/RPC and
+  replication layer. No direct client PostgREST bypass of the score-write whitelist was found.
 
-- **RLS coverage is total.** All 119 `public` base tables report
-  `relrowsecurity = true AND relforcerowsecurity = true`. This closes SA-021 by direct measurement,
-  not by trusting the migration.
-- **Cold anon surface is tight.** 30 of 41 probed endpoints return `401 / 42501`, including
-  `user_roles`, `roles`, `permissions`, `role_permissions`, `show_passcodes`, `stripe_customers`,
-  `stripe_orders`, `stripe_subscriptions`, `club_stripe_accounts`, `login_attempts`,
-  `platform_settings`, `onboarding_requests`, `support_tickets`, `health_records`,
-  `exhibitor_profiles`, `show_money_locks`, `ringside_sessions`, and
-  `view_authenticated_entry_results`.
-- **The `entries` revoke + column-allowlist design holds.** `select=*`, `total_score`,
-  `payment_status`, `stripe_payment_intent_id`, `handler_id`, and `deleted_at` all return `42501` to
-  anon while the safe allowlist returns rows. The `entries→dogs` embed returns `dogs: NULL` rather
-  than leaking or hard-erroring — the embed-grant trap is handled correctly.
-- **Edge function authorization is uniform and fail-closed.** All 35 functions carry a real gate:
-  JWT via the shared envelope, Stripe signature, Svix signature, or a shared secret.
-  `requirePushWebhookSecret` throws `503` when `PUSH_WEBHOOK_SECRET` is unset (fail-closed) and
-  compares with `timingSafeEqual` — SA-028 and SA-029 confirmed closed at the source.
-- **Stripe.** `constructEventAsync` with separate platform and Connect secrets; subscription
-  `price_id` validated against `VALID_PRICE_IDS` (SA-024 closed); entry amounts derived server-side
-  from cart rows, never the request body; `isAllowedRedirectUrl` compares `new URL(url).origin`
-  against an exact allowlist (no prefix bug); `stripe-refund-entry` evaluates authorization **as the
-  caller** via `is_show_secretary` / `is_club_admin` / `is_site_admin` RPCs on an anon-key client
-  carrying the caller's `Authorization` header — the correct pattern — under a show money lock with
-  per-entry idempotency keys and an operator alert when a refund succeeds but stamping fails.
-- **Privileged-table writes.** `user_roles` INSERT/UPDATE/DELETE all require `is_site_admin()`;
-  `roles` / `permissions` / `role_permissions` all require `is_platform_admin()`; `stripe_*` writes
-  are admin-only with self-scoped reads. No RLS privilege-escalation path found.
-- **Client hygiene.** No hardcoded `sk_`/`whsec_`/service-role keys, no secret-shaped `VITE_` vars,
-  zero `dangerouslySetInnerHTML`, no PII in `console.*`, no raw `error.details`/`hint`/`code` in
-  toasts.
-- **Deliberate advisor dispositions.** The 2 ERROR-level `security_definer_view` entries
-  (`view_public_entry_results`, `view_authenticated_entry_results`) are the intended architecture —
-  owner-run views that `CASE`-null protected columns per the release cascade, documented in
-  `20260616120000` and `20260728210000`. Correctly `REVOKE`d from anon where applicable. Not findings.
-- **10 anon-executable SECURITY DEFINER functions** are the RLS helper predicates
-  (`is_club_admin`, `is_platform_admin`, `get_my_person_id`, …). Anon must hold EXECUTE for
-  PUBLIC-role policies to evaluate; all return false/null for anon. Structurally required.
+## Verification
 
----
+Focused static-contract verification passed:
 
-## Previous Audit Comparison (vs [2026-07-11](security-audit-2026-07-11.md))
+- **16 test files / 110 tests passed** across RBAC lookup, premium throttling, passcode claim
+  revocation, withdrawal-policy snapshots/refunds, AskQ show scope, Stripe checkout/payment links,
+  livemode separation, capacity, and webhook entry reconciliation.
+- `git diff --check` and the final docs status check are recorded after report generation.
 
-The 2026-07-11 baseline held 1 MEDIUM + 6 LOW. **All 7 are resolved**, and per the lifecycle rule
-that a merge is not resolution, each is marked resolved only where a replay or source read confirmed
-it this run.
+## Previous Audit Comparison
 
-| Baseline ID | Title                                                             | Status       | Closure proof used this run                                                                                            |
-| ----------- | ----------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| SA-021      | `FORCE ROW LEVEL SECURITY` missing on 5 tables                    | **resolved** | SQL replay: `relforcerowsecurity = true` on all 119 public tables                                                      |
-| SA-023      | `resend-webhook` inline HMAC instead of shared helper             | **resolved** | source: imports `verifyStandardWebhookSignature` from `_shared/standardWebhookSignature.ts`                            |
-| SA-024      | `validate-passcode` rate limiter fails OPEN                       | **resolved** | source: limiter gate returns before validation; documented live 401/429/503 proof in the 2026-07-12 remediation record |
-| SA-025      | `generate-premium` no per-user rate limit                         | **resolved** | `premium_generation_attempts` exists, RLS-forced, `service_role`-only; `42501` to anon                                 |
-| SA-028      | Push webhook secret compared with `!==`                           | **resolved** | source: `pushWebhookAuth.ts` uses `timingSafeEqual`                                                                    |
-| SA-029      | Push webhook secret fell back to `SUPABASE_SERVICE_ROLE_KEY`      | **resolved** | source: reads only `PUSH_WEBHOOK_SECRET`, `503` when unset                                                             |
-| SA-030      | `getCurrentUserId()` read dev-mock localStorage without DEV guard | **resolved** | grep: no unguarded dev-mock localStorage read remains in `apps/myk9show/src`                                           |
+The prior contents of this report audited baseline `39ed30dc8`. Current `main` adds the RBAC
+optimization in PR #1522 and the prior report commit. The only security-relevant code delta is the
+RBAC client/RPC rewrite; its arbitrary-user behavior is SA-2026-07-29-13. No RLS table, Stripe,
+ringside, AskQ, or registry authorization source changed between baselines.
 
-Also confirmed closed from the 2026-07-10 audit: **SA-020** (`send-results` had no role check) —
-now gated by `assertSendResultsAuthorization` against `user_roles` with a server-side recipient map
-and body-supplied addresses ignored.
+| Prior tracked item | Transition |
+| --- | --- |
+| SA-2026-07-29-01, -02, -03, -06, -08 | **unchanged**, independently confirmed |
+| SA-2026-07-29-05 | **unchanged**, downgraded to INFO |
+| SA-2026-07-29-04, -07, -10 | **rejected** for the reasons above |
+| SA-2026-07-29-09 | **duplicate** of unchanged canonical SA-027 |
+| SA-2026-07-29-11, -12, -13 | **new**, independently confirmed |
 
-Carried forward as recurrence: **SA-027** → SA-2026-07-29-09 (`search_path=public`), second
-consecutive appearance.
+Historical closures SA-020, SA-021, SA-023, SA-024, SA-025, SA-028, SA-029, and SA-030 retain their
+prior resolved status and prior replay proof. They were not marked resolved again from source
+inspection. SA-025 remains resolved: the premium limiter exists and is atomic; SA-2026-07-29-11 is
+the distinct authorization/identity-key bypass around its intended threat model.
 
-Still open from the 2026-07-03 remediation set, re-confirmed present:
-**role-map disclosure** (`roles` / `permissions` / `role_permissions` remain
-`FOR SELECT TO authenticated USING (true)`) — folded into SA-2026-07-29-02, whose anonymous-sign-in
-finding makes it materially worse than when first written.
+## Independent `/codex:review` disposition
 
-**Net direction:** the previously-open surface is fully remediated. The new findings are not
-regressions of prior work — they are older standing grants (`classes`, `judge_assignments`,
-`people.email`, storage `059`) that earlier audits had not reached, plus one completeness gap in the
-July 12 anonymous-exclusion remediation.
+| Item | Verdict |
+| --- | --- |
+| 01 | confirmed HIGH/P0 |
+| 02 | confirmed HIGH/P1 |
+| 03 | confirmed MEDIUM/P2 |
+| 04 | rejected: no reachable disclosure; documented embed dependency |
+| 05 | downgraded INFO/P3 |
+| 06 | confirmed MEDIUM/P2; broadened to enrollments |
+| 07 | confirmed fail-closed product defect; rejected as security |
+| 08 | confirmed LOW/P3 |
+| 09 | duplicate SA-027; INFO/P3 |
+| 10 | rejected: comments already exist |
+| 11 | confirmed HIGH/P1 |
+| 12 | confirmed MEDIUM/P2 |
+| 13 | confirmed MEDIUM/P2 |
 
----
+The independent review also confirmed AskQ's tenant scope, ringside claim/write boundaries, and
+Stripe refund/withdrawal/payout source paths had no concrete contradictory authorization path.
 
 ## Coverage Gaps (not passes)
 
-1. **Anonymous-session end-to-end replay — blocked.** SA-2026-07-29-02's exploit chain
-   (`signInAnonymously()` → read `volunteers` / `activity_log` / `roles`) was **not** executed.
-   Completing it requires creating an anonymous `auth.users` row, which is a write that cannot be
-   rolled back, and the task mandates read-only verification. Both halves are independently proven —
-   the capability (`"anonymous_users": true` from `/auth/v1/settings`) and the policy text (32
-   unconditional SELECT policies from `pg_policy`) — so the defect is confirmed; only the single
-   composed replay is outstanding.
-   **Proof that would close it:** in a disposable environment, `signInAnonymously()`, then
-   `GET /rest/v1/volunteers?select=name,email,phone` and confirm rows return.
-2. **Authenticated-role probing not performed.** All live probes used the anon key. Per-role reads
-   for exhibitor / secretary / judge / steward were reasoned from policy text and helper function
-   bodies, not exercised with a signed-in session. A logged-in probe would raise confidence on
-   SA-2026-07-29-06 in particular.
-3. **`storage.objects` read policies not enumerated.** Both buckets are `public = true`, so object
-   reads bypass RLS by design and were not probed for object-level disclosure. Only the 13
-   write-path policies were reviewed. Whether `premium-published` and `images` _should_ be public
-   buckets was not assessed.
-4. **Out of skill scope, not performed:** dependency / supply-chain scanning, git-history secret
-   scanning, penetration testing, and load testing.
-5. **Vercel subdomain claimability (SA-2026-07-29-05) not empirically confirmed** — deliberately, as
-   it would require registering a third-party project.
+1. **Applied database and HTTP probes were not rerun.** Static audit is the security skill's scope.
+   The prior same-day live proof was reconciled, and the current code delta adds no table/policy, but
+   deployment drift remains unmeasured.
+2. **No composed anonymous-session exploit replay.** Creating an anonymous Auth row is an external
+   write. Use a disposable environment to close SA-2026-07-29-02 and the AI-session legs.
+3. **No real exhibitor/secretary/judge/steward token matrix.** SA-2026-07-29-06 and -13 are proven
+   from final policy/function bodies, not live role tokens.
+4. **Public storage objects were not inventoried or fetched.** Bucket-publicity intent remains
+   outside this static source proof.
+5. **Out of skill scope:** dependency/supply-chain scanning, git-history secret scanning,
+   penetration testing, and load testing.
 
----
+**Highest-value follow-up:** run a disposable-environment replay covering anonymous users and the
+complete role-token matrix.
 
-## Linear — batch approved and filed 2026-07-29
+## Linear reconciliation and approval gate
 
-Two confirmed, non-duplicate findings met the P0/P1 gate. Batch approval was granted by the user and
-both issues were filed against team **MyK9-platform**:
+Read-only Linear reconciliation found:
 
-| Finding               | Issue                                                                                                                              | Priority | State |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- | ----- |
-| SA-2026-07-29-01 (P0) | [MYK9-116](https://linear.app/myk9-platform/issue/MYK9-116/anon-can-read-secret-scent-work-hide-counts-classesnum-hides-has-blank) | Urgent   | Todo  |
-| SA-2026-07-29-02 (P1) | [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117/anonymous-sign-in-reaches-32-unconditional-rls-read-policies-including) | High     | Todo  |
+| Finding | Issue | Priority/state |
+| --- | --- | --- |
+| SA-2026-07-29-01 | [MYK9-116](https://linear.app/myk9-platform/issue/MYK9-116) | Urgent / Todo |
+| SA-2026-07-29-02 | [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117) | High / Todo |
+| SA-2026-07-29-11 | [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125) | High / Todo |
 
-Both are labelled `Bug`, linked to each other, and reference MYK9-93 (the completed anon RLS/grant
-sweep that did not reach these tables). Deduplication was performed against open and completed Linear
-issues before creation — no existing issue covered either symptom.
+After batch approval on 2026-07-30, one issue was created for the only new HIGH finding:
+[MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125). No other issue or comment was created
+or modified.
 
-The draft text below is retained as the authoritative record of what was filed.
+### Approved Linear issue — SA-2026-07-29-11
 
-### Draft 1 — P0 · filed as MYK9-116
+**Title:** Require show-manager authorization before paid premium generation
 
-**Title:** Anon can read secret scent-work hide counts (`classes.num_hides`, `has_blank`) before classes run
+**Problem.** `generate-premium` treats a successful `shows` SELECT as authorization, but
+`shows_select` intentionally exposes every public-status show. Any authenticated or anonymous Auth
+identity can therefore invoke the paid Anthropic path without a club/show role.
 
-**Problem.** `public.classes` grants `anon` table-level SELECT on every column, and `classes_select`
-is a PUBLIC-role policy with no column restriction. `num_hides` and `has_blank` are therefore
-readable by any unauthenticated client for classes explicitly flagged `hides_known = false`.
+**Attack path and evidence.** Obtain any JWT; enumerate public show IDs; POST each ID to
+`generate-premium`. Source: `supabase/functions/generate-premium/index.ts:17-75,149-183`;
+`supabase/migrations/20260606204100_include_show_scoped_secretary_drafts.sql:10-23`. The limiter is
+five attempts per user/show/15 minutes, so show rotation and anonymous-session rotation bypass an
+account-wide budget.
 
-**Impact.** Score/result integrity. A competitor can learn the exact hide count and whether an area
-is blank before running an Excellent or Master class, using only the public anon key that ships in
-the browser bundle. Affected classes' results are invalid. Every authenticated exhibitor has the
-same read.
+**Expected secure behavior.** Anonymous and ordinary authenticated users are rejected before
+limiter accounting or Anthropic. Only the approved show-management roles can generate.
 
-**Evidence.** Cold anon `GET /rest/v1/classes?select=…&hides_known=is.false` → `200` returning
-`Exterior Excellent num_hides=2` and `Buried Master num_hides=3 has_blank=true`, both
-`status=upcoming`. Applied DB: `pg_class.relacl → anon=r/postgres`; `classes_select FOR SELECT TO
-PUBLIC`. Baseline SHA `39ed30dc8`.
+**Impact/severity.** Externally triggerable model spend and resource abuse; HIGH/P1. No protected
+tenant-data disclosure was found.
 
-**Reproduction.** With the project's publishable anon key and no auth session, request
-`/rest/v1/classes?select=id,name,level,hides_known,num_hides,has_blank&hides_known=is.false`.
+**Likely root cause.** An inline authorization assumption drifted from the deliberately public
+`shows_select` policy; the limiter was designed for trusted callers and scopes only user + show.
 
-**Expected.** Anon (and non-official authenticated users) cannot read `num_hides`, `has_blank`, or
-`hides_known` for classes where the hide count is undisclosed.
+**Recommended approach.** Reject `user.is_anonymous`, authorize with an explicit current-user
+show-manager helper (site admin, club admin, secretary per product decision), and add an
+account-wide cost ceiling.
 
 **Acceptance criteria.**
 
-- `REVOKE SELECT ON public.classes FROM anon` plus a `GRANT SELECT (…)` allowlist excluding
-  `num_hides`, `has_blank`, `hides_known`.
-- Authenticated access to those columns limited to show officials (view or cascade helper).
-- Contract test asserting anon receives `42501` for `select=num_hides`.
-- Public show / results / TV pages verified unchanged in a cold session.
+- Anonymous Auth and authenticated non-manager calls return 403.
+- Denied calls do not invoke the limiter or Anthropic.
+- Authorized secretary/club-admin/site-admin calls still generate.
+- Per-account quota cannot be multiplied by switching public shows.
+- Public show browsing remains unchanged.
+- Add edge/source contract tests for each role and model-call non-invocation.
 
-**Verification.** Post-push: `pg_class.relacl` + `pg_attribute.attacl` for `classes`; replay the
-cold anon query and confirm `42501`; run the new contract test.
+**Regression proof.** Disposable-role replay for anonymous, exhibitor, secretary, club admin, and
+site admin; parallel/cross-show quota test; one operator-approved authorized staging generation only
+if paid smoke is desired.
 
-**Scope.** `supabase/migrations/` (new migration), `public.classes`. No client change expected — no
-non-test source reads these columns.
+**Relevant references.** This report; resolved SA-025;
+`supabase/functions/generate-premium/index.ts`;
+`supabase/functions/generate-premium/premiumRateLimit.ts`;
+`supabase/migrations/20260712120000_premium_generation_throttle.sql`;
+MYK9-22 and MYK9-117 (related anonymous-identity controls, not duplicates).
 
-**Suggested priority:** Urgent.
+**Suggested Linear priority:** High.
 
-### Draft 2 — P1 · filed as MYK9-117
+**Approval status:** approved and created as
+[MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125) on 2026-07-30.
 
-**Title:** Anonymous sign-in reaches 32 unconditional RLS read policies, including `volunteers` name/email/phone
+## Finding ledger
 
-**Problem.** GoTrue anonymous sign-in is enabled (`/auth/v1/settings → "anonymous_users": true`) and
-is load-bearing for passcode ringside access. 32 `public` SELECT policies impose no ownership or
-role predicate (`USING (true)` or `auth.uid() IS NOT NULL`), so an anonymous session is treated as a
-fully trusted account. The `is_anonymous IS NOT TRUE` guard from migration `20260712160000` was
-applied only to `platform_settings` and `sync_conflicts`.
-
-**Impact.** Any internet user can obtain an `authenticated` JWT and read `volunteers`
-(`name`, `email`, `phone`, `notes`), `activity_log` (full audit trail), `roles` / `permissions` /
-`role_permissions` (complete RBAC map), `offline_scoring`, `trial_checklist_state`,
-`show_announcements`, `judge_qualifications`, `organization_agreements`, `performance_metrics`.
-Latent today — all listed tables have 0 rows on staging and 0 anonymous users exist — and requires
-no code change to become live PII exposure at launch.
-
-**Evidence.** `GET /auth/v1/settings` → `"anonymous_users": true`. `pg_policy` enumeration of 32
-matching SELECT policies. `information_schema.columns`: `volunteers` carries `name, email, phone,
-notes`. Guard precedent: `20260712160000_exclude_anon_from_platform_settings_sync_conflicts_select.sql`.
-Baseline SHA `39ed30dc8`.
-
-**Reproduction (needs a disposable environment — not run, see report Coverage Gaps).**
-`signInAnonymously()`, then `GET /rest/v1/volunteers?select=name,email,phone`.
-
-**Expected.** An anonymous (passcode-scoped) session reads only what its stamped
-`app_metadata` claim authorizes — never platform-wide rosters, audit logs, or the RBAC model.
-
-**Acceptance criteria.**
-
-- Add `public.is_real_account()` (`auth.uid() IS NOT NULL AND is_anonymous IS NOT TRUE`).
-- Replace `auth.uid() IS NOT NULL` and augment `USING (true)` across the 32 policies.
-- `volunteers` scoped to the relevant show/club rather than any account.
-- Do **not** disable anonymous sign-in — `validate-passcode` depends on it.
-- Regression test: passcode ringside access still works end to end.
-
-**Verification.** Post-push `pg_policy` diff; anonymous-session replay confirming `volunteers`,
-`activity_log`, and `roles` return zero rows; passcode ringside smoke test.
-
-**Scope.** `supabase/migrations/`, 32 policies across ~15 tables.
-
-**Suggested priority:** High.
-
-### Optional triage (recurring P2) — no draft prepared
-
-- SA-2026-07-29-09 (`search_path=public`, 2nd consecutive run) — reasonable to close as `deferred`
-  with the schema-ACL evidence as the accepted-risk rationale.
-
-All other P2/P3 findings are report-only per the lifecycle policy.
-
----
-
-## Automation memory ledger
-
-```
-SA-2026-07-29-01 | P0 | HIGH   | new       | 2026-07-29/2026-07-29 | 1 | MYK9-116 | cold-anon GET classes?hides_known=is.false → num_hides/has_blank returned for unrun Excellent+Master | anon 42501 on select=num_hides after revoke+allowlist
-SA-2026-07-29-02 | P1 | HIGH   | new       | 2026-07-29/2026-07-29 | 1 | MYK9-117 | /auth/v1/settings anonymous_users=true + 32 unconditional SELECT policies incl volunteers(name,email,phone) | signInAnonymously then volunteers read returns 0 rows
-SA-2026-07-29-03 | P2 | MEDIUM | new       | 2026-07-29/2026-07-29 | 1 | unassigned | cold-anon judge_assignments returns fee+notes columns (0 populated); policy USING(true) + anon=r | anon 42501 on select=fee after revoke+allowlist
-SA-2026-07-29-04 | P2 | MEDIUM | new       | 2026-07-29/2026-07-29 | 1 | unassigned | pg_attribute.attacl people.email anon=r with no reachable read path (0 rows, no embed) | attacl shows no anon grant on people after revoke
-SA-2026-07-29-05 | P2 | MEDIUM | new       | 2026-07-29/2026-07-29 | 1 | unassigned | cors.ts preview regex matches any myk9-platform-myk9show-*.vercel.app | pattern includes team slug or env allowlist
-SA-2026-07-29-06 | P2 | MEDIUM | new       | 2026-07-29/2026-07-29 | 1 | unassigned | is_show_official includes steward; wired to judge_assignments write policies + email_log_select | judge_assignments writes re-pointed at office-staff predicate
-SA-2026-07-29-07 | P2 | MEDIUM | new       | 2026-07-29/2026-07-29 | 1 | unassigned | storage 059 show-branding policies use storage.foldername(s.name); SQL replay secretary_limb_matches=0 | secretary upload to images/shows/<id> succeeds post-fix
-SA-2026-07-29-08 | P3 | LOW    | new       | 2026-07-29/2026-07-29 | 1 | unassigned | entries_anon_select_for_tv lacks entry-level deleted_at IS NULL | soft-deleted entry absent from cold-anon entries read
-SA-2026-07-29-09 | P3 | LOW    | unchanged | 2026-07-10/2026-07-29 | 2 | unassigned | 21 secdef fns search_path=public; not exploitable (CREATE on public false for all API roles) | proconfig search_path='' or documented deferral
-SA-2026-07-29-10 | P3 | LOW    | new       | 2026-07-29/2026-07-29 | 1 | unassigned | login_attempts/premium_generation_attempts/show_money_locks/show_passcodes lack advisor disposition COMMENT | COMMENT ON TABLE present for all 6
-RESOLVED: SA-021, SA-023, SA-024, SA-025, SA-028, SA-029, SA-030 (2026-07-11 baseline), SA-020 (2026-07-10) — each with replay or source proof recorded above
-REJECTED: admin-routes-unguarded (adminGuard helper wraps all 26); send-results-app_metadata (comment match, queries user_roles)
-BLOCKED:  anonymous-session composed replay (write required, read-only mandate); authenticated-role live probing; storage object read policies; bucket public=true assessment
+```text
+SA-2026-07-29-01 | P0 | HIGH   | unchanged | 2026-07-29/2026-07-29 | 2 | MYK9-116 | anon reads populated num_hides/has_blank where hides_known=false | cold-anon and exhibitor protected-field denial plus authorized ringside regression
+SA-2026-07-29-02 | P1 | HIGH   | unchanged | 2026-07-29/2026-07-29 | 2 | MYK9-117 | anonymous Auth receives authenticated DB role across unconditional reads | disposable anonymous replay returns zero/42501 while stamped ringside passes
+SA-2026-07-29-03 | P2 | MEDIUM | unchanged | 2026-07-29/2026-07-29 | 2 | unassigned | public judge_assignments includes fee/notes | protected-column 42501 plus public panel regression
+SA-2026-07-29-05 | P3 | INFO   | unchanged | 2026-07-29/2026-07-29 | 2 | unassigned | broad preview CORS regex, no victim-token path | exact-origin policy contract or accepted rationale
+SA-2026-07-29-06 | P2 | MEDIUM | unchanged | 2026-07-29/2026-07-29 | 2 | unassigned | active steward can mutate judge assignments/enrollments and read email logs | steward denied office operations while ringside flow passes
+SA-2026-07-29-08 | P3 | LOW    | unchanged | 2026-07-29/2026-07-29 | 2 | unassigned | anon entries policy omits entry.deleted_at | soft-deleted entry absent across REST/views/TV/replication
+SA-027            | P3 | INFO   | unchanged | 2026-07-10/2026-07-29 | 3 | unassigned | search_path=public not exploitable under current schema ACL | empty-path conversion tests or accepted-risk documentation
+SA-2026-07-29-11 | P1 | HIGH   | new       | 2026-07-29/2026-07-29 | 1 | MYK9-125 | any Auth user invokes paid generation across public shows | role matrix 403/success plus cross-show quota proof
+SA-2026-07-29-12 | P2 | MEDIUM | new       | 2026-07-29/2026-07-29 | 1 | unassigned | AskQ accepts disposable anon identities and count/insert races | anonymous denial and atomic concurrency proof
+SA-2026-07-29-13 | P2 | MEDIUM | new       | 2026-07-29/2026-07-29 | 1 | unassigned | arbitrary-user SECURITY DEFINER RBAC lookups | non-admin cross-user 42501, self/admin success
+REJECTED: SA-2026-07-29-04, SA-2026-07-29-07 (as security), SA-2026-07-29-10
+DUPLICATE: SA-2026-07-29-09 -> SA-027
+HISTORICAL RESOLVED: SA-020, SA-021, SA-023, SA-024, SA-025, SA-028, SA-029, SA-030
 ```

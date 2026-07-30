@@ -117,18 +117,21 @@ the original hard-reload workload.
 ### 8. [ADDED] Route show-day invalidation to affected classes
 
 The database Broadcast trigger will continue to emit an advisory show-scoped signal with no entry
-or result data, but it will add the affected old/new class UUIDs. The client signal parser will
-preserve that routing metadata. A class or combined-class page will ignore signals whose class IDs
-do not intersect the page it renders.
+or result data. It will encode each affected old/new class UUID in the existing `id` field as
+`scope:<uuid>`. The client signal parser will decode that routing metadata. A class or
+combined-class page will ignore signals whose class IDs do not intersect the page it renders.
 
-During rolling deployment, signals without class routing remain valid and trigger the existing
-show-wide fallback. This prevents an app/database deployment-order race from leaving a ringside
+The payload intentionally remains limited to the legacy `table` and `id` keys. During rolling
+deployment, already-deployed clients accept that shape and use their existing show-wide fallback;
+new clients decode the scope envelope. Older unscoped signals remain valid and also trigger the
+show-wide fallback. This prevents either app/database deployment order from leaving a ringside
 device stale.
 
 A class that moves between trials keeps the same UUID, so its old/new class IDs cannot identify
-both trial scopes. That update therefore emits an unscoped signal plus the legacy-compatible `id`
-field, allowing each show topic to remove the stale local snapshot before complete reconciliation.
-Hard deletes and the production `deleted_at` transition use the same reset path.
+both trial scopes. That update therefore emits `reconcile:<uuid>` in the legacy-compatible `id`
+field, allowing new clients on each show topic to remove the stale local snapshot before complete
+reconciliation while older clients perform their safe full-sync fallback. Hard deletes and the
+production `deleted_at` transition use the same reset path.
 
 Alternative considered: put changed entry rows in Broadcast and write them directly into IndexedDB.
 That would duplicate the authoritative replication merge/conflict path, increase the data exposed
@@ -183,11 +186,11 @@ session so all 55 simulated judges do not hit one class in lockstep.
   or a separately reviewed availability control.
 - [Remote query plans differ from local/source expectations] → Inventory indexes and capture
   before/after `EXPLAIN (ANALYZE, BUFFERS)` on the remote project before rerunning load.
-- [A scoped signal is missing during rolling deployment] → Treat missing class IDs as an old signal
-  and use the complete show sync.
-- [A class moves between trials, is deleted, or is absent locally] → Emit an unscoped signal plus
-  the class ID for trial moves and hard/soft deletes, remove the stale local snapshot, and fall back
-  to complete show sync whenever one trial scope cannot be resolved.
+- [A scoped signal crosses a rolling deployment] → Keep the payload limited to legacy `table` and
+  `id` keys; old clients accept it and full-sync, while new clients decode the scoped ID envelope.
+- [A class moves between trials, is deleted, or is absent locally] → Emit a `reconcile:<uuid>`
+  envelope for trial moves and hard/soft deletes, remove the stale local snapshot, and fall back to
+  complete show sync whenever one trial scope cannot be resolved.
 - [Realtime refresh becomes stale or starves] → Preserve the leading debounce, one trailing refresh
   during an in-flight sync, foreground full refresh, and the independent periodic replication pass.
 - [Shared account-entry subscriptions leak] → Reference-count them by query client/user, cancel

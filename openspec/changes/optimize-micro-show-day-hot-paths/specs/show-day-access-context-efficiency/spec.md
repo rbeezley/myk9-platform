@@ -145,7 +145,8 @@ scope SHALL fall back to the complete show sync.
 
 #### Scenario: A rolling-deployment signal has no class scope
 
-- **WHEN** a client receives an older unscoped signal or cannot resolve the signaled class locally
+- **WHEN** an older client receives the legacy-compatible `table`/`id` payload, or a newer client
+  receives an older unscoped signal or cannot resolve the signaled class locally
 - **THEN** it performs the complete show sync so ringside freshness is preserved
 
 ### Requirement: Account-today subscriptions do not refetch on attachment

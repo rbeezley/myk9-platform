@@ -35,6 +35,24 @@ interface DatabaseShowChangeSignal {
   class_ids?: string[];
 }
 
+function parseDatabaseSignalId(id: string | undefined): Pick<ShowChangeSignal, 'id' | 'classIds'> {
+  if (!id) return {};
+
+  const scopePrefix = 'scope:';
+  if (id.startsWith(scopePrefix) && id.length > scopePrefix.length) {
+    return { classIds: [id.slice(scopePrefix.length)] };
+  }
+
+  const reconcilePrefix = 'reconcile:';
+  if (id.startsWith(reconcilePrefix) && id.length > reconcilePrefix.length) {
+    return { id: id.slice(reconcilePrefix.length) };
+  }
+
+  // Older clients accept a plain id but treat the signal as unscoped. Preserve
+  // that fallback for legacy payloads instead of interpreting a row id as a reset.
+  return {};
+}
+
 function parseShowChangeSignal(value: unknown): ShowChangeSignal | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
@@ -58,9 +76,12 @@ function parseShowChangeSignal(value: unknown): ShowChangeSignal | null {
   }
 
   const databaseSignal = record as unknown as DatabaseShowChangeSignal;
+  const parsedId = parseDatabaseSignalId(
+    typeof record.id === 'string' ? record.id : undefined
+  );
   return {
     table: databaseSignal.table,
-    ...(typeof record.id === 'string' && { id: record.id }),
+    ...parsedId,
     ...(databaseSignal.class_ids &&
       databaseSignal.class_ids.length > 0 && { classIds: databaseSignal.class_ids }),
   };

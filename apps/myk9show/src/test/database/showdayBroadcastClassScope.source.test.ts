@@ -24,7 +24,9 @@ describe('show-day Broadcast class-scope migration', () => {
     expect(migration).toContain('NEW.class_id');
     expect(migration).toContain('OLD.id');
     expect(migration).toContain('NEW.id');
-    expect(migration).toContain("'class_ids'");
+    expect(migration).toContain("'scope:%s'");
+    expect(migration).toContain("'reconcile:%s'");
+    expect(migration).not.toContain("'class_ids'");
     expect(migration).not.toContain('to_jsonb(OLD)');
     expect(migration).not.toContain('to_jsonb(NEW)');
   });
@@ -40,7 +42,8 @@ describe('show-day Broadcast class-scope migration', () => {
     expect(migration).toContain('v_requires_full_sync := true');
     expect(migration).toContain('v_reconcile_class_id := OLD.id');
     expect(migration).toContain('v_reconcile_class_id := NEW.id');
-    expect(migration).toContain('WHEN v_requires_full_sync THEN NULL::uuid[]');
+    expect(migration).toContain('WHEN v_requires_full_sync THEN');
+    expect(migration).toContain("'id', v_signal_id");
   });
 
   it('preserves the advisory trigger and non-fatal failure contract', () => {

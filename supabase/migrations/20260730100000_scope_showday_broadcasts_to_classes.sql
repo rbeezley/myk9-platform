@@ -1,6 +1,6 @@
--- Keep show-day Broadcast advisory and show-scoped, but include only the old/new
--- class UUIDs needed for clients to ignore unrelated changes. Trial moves force
--- an unscoped reconciliation; deletions include only the affected identifier.
+-- Keep show-day Broadcast advisory and show-scoped. Encode targeted routing in
+-- the existing id field so already-deployed clients accept the payload and use
+-- their full-sync fallback while newer clients can ignore unrelated changes.
 -- Row/result data remains authoritative through the replication pull.
 
 CREATE OR REPLACE FUNCTION public.broadcast_showday_change()
@@ -16,7 +16,7 @@ DECLARE
   v_new_class_id uuid;
   v_reconcile_class_id uuid;
   v_topic text;
-  v_class_ids uuid[];
+  v_signal_id text;
   v_requires_full_sync boolean := false;
 BEGIN
   IF TG_TABLE_NAME = 'entries' THEN
@@ -63,12 +63,13 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  FOR v_topic, v_class_ids IN
-    SELECT
+  FOR v_topic, v_signal_id IN
+    SELECT DISTINCT
       format('show:%s:changes', scoped.show_id),
       CASE
-        WHEN v_requires_full_sync THEN NULL::uuid[]
-        ELSE array_agg(DISTINCT scoped.class_id) FILTER (WHERE scoped.class_id IS NOT NULL)
+        WHEN v_requires_full_sync THEN format('reconcile:%s', v_reconcile_class_id)
+        WHEN scoped.class_id IS NOT NULL THEN format('scope:%s', scoped.class_id)
+        ELSE 'unscoped'
       END
     FROM (
       SELECT v_old_show_id AS show_id, v_old_class_id AS class_id
@@ -76,15 +77,13 @@ BEGIN
       SELECT v_new_show_id AS show_id, v_new_class_id AS class_id
     ) AS scoped
     WHERE scoped.show_id IS NOT NULL
-    GROUP BY scoped.show_id
   LOOP
     BEGIN
       PERFORM realtime.send(
-        jsonb_strip_nulls(jsonb_build_object(
+        jsonb_build_object(
           'table', TG_TABLE_NAME,
-          'class_ids', to_jsonb(v_class_ids),
-          'id', v_reconcile_class_id
-        )),
+          'id', v_signal_id
+        ),
         'showday_change',
         v_topic,
         true
@@ -113,4 +112,4 @@ REVOKE EXECUTE ON FUNCTION public.broadcast_showday_change()
   FROM PUBLIC, anon, authenticated;
 
 COMMENT ON FUNCTION public.broadcast_showday_change() IS
-  'Broadcasts advisory show-day invalidations with affected class UUIDs; row data remains replication-authoritative.';
+  'Broadcasts advisory show-day invalidations using a legacy-compatible scoped id envelope; row data remains replication-authoritative.';

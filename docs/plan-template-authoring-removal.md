@@ -373,10 +373,24 @@ show-creation wizard e2e path (it consumes `buildRuleMap`, the highest-risk cons
 - [x] `/admin/templates` renders read-only; `/new`, `/:id/edit`, `/:id/test` no longer route. (PR 2)
 - [x] No write path to `sport_templates` / `sport_class_rules` / `sport_titles` exists outside a migration. (PR 2)
 - [x] `templateStore` exposes no mutation actions; `loadTemplatesFromDB` is the only load entry point. (PR 2)
-- [ ] Registry↔DB parity test green for AKC, UKC, ASCA. (PR 3)
+- [x] Registry↔DB parity test green for AKC, UKC, ASCA. (PR 3) — it reports one asymmetry,
+      ASCA "Champion", pinned in `KNOWN_UNSEEDED_ELEMENTS` as **intentional**: Champion is a
+      real fifth level (June 2026 rules, Ch. 9, motion SC.26.01) but is titling/invitational and
+      deliberately not schedulable, per the 2026-07-01 decision recorded in
+      `20260701130000_seed_asca_level_c_classes.sql`. It is also points-based with mixed
+      search areas, which `sport_class_rules` cannot express. > **I got this wrong mid-PR and had to revert.** I searched only > `docs/rulebooks/asca-scent-detection-rules.txt`, found no Champion, concluded the > registry was wrong, and deleted the level and element. That extract predates the > amendment — its §9 is Faults. The source of record is > `docs/design_handoff_heritage/Multi-Registry Scoping.md` §9.2–9.3, which I never opened. > Codex caught it. `asca.ts` now carries a DO-NOT-DELETE comment naming both documents. > **Lesson: a rulebook extract with no edition date is not authoritative, and absence in > one source is not evidence when a newer source of record exists.**
 - [x] Show-creation wizard creates classes with scoring fields baked in, unchanged — `buildRuleMap` and `sportTemplateService` never touched.
-- [x] Full gate green: typecheck (incl. `typecheck:tests`), eslint `--max-warnings 0`, 14,753 unit tests passing.
-- [ ] `template_fields` dropped, with its four dead field mappers. (PR 4)
+- [x] Full gate green: typecheck (incl. `typecheck:tests`), eslint `--max-warnings 0`, 14,815 unit tests passing.
+- [x] `template_fields` dropped, with its four dead field mappers. (PR 4, migration applied to staging 2026-07-30)
+- [x] ASCA **Level C titles** — I briefly reported these as missing. **That was wrong; no PR 5 is
+      needed.** All 20 are seeded and correct: `SCNc-C` … `SCEv-C` as `title_type='elite'` with
+      `required_legs=10` (matching §3.2.2's "7 additional, 10 total"), plus the four combined
+      `SCN4-C` … `SCE4-C` as `title_type='champion'`. Verified against the live database.
+      The false alarm came from two bad greps: an `awk` range that never matched the real ASCA
+      block (it begins at line 210 via `sport_code = 'asca-scent-detection'`), and a count of
+      `SCN|SCA|SCE|SCM` that returned AKC's Container title codes — which are also prefixes of
+      ASCA's. **Lesson: when two registries share a code namespace, scope by
+      `sport_template_id`, never by string prefix.**
 
 ## 7 · Estimate
 
@@ -395,7 +409,7 @@ Suggested PR split:
 | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | §4.0 Q2 deletions + Q3 orphan stylesheet                                     | **none** — nothing reachable is touched; land independently. **Shipped: [#1523](https://github.com/rbeezley/myk9-platform/pull/1523)** |
 | 2   | Phases 2–5 **plus the dependent test rewrites from Phase 6**                 | low — typecheck-guided. **Shipped: [#1525](https://github.com/rbeezley/myk9-platform/pull/1525)**, −5,840 lines                        |
-| 3   | Registry↔DB parity test (new coverage only)                                  | low                                                                                                                                    |
+| 3   | Registry↔DB parity test (new coverage only)                                  | low. **Shipped: [#1531](https://github.com/rbeezley/myk9-platform/pull/1531)** — found the phantom ASCA Champion                       |
 | 4   | `template_fields` DROP + dead field mappers + type aliases + fixture removal | low — must land after PR 2                                                                                                             |
 
 > **The dependent test rewrites cannot be deferred to PR 3.** `pnpm typecheck` runs

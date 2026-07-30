@@ -383,10 +383,15 @@ show-creation wizard e2e path (it consumes `buildRuleMap`, the highest-risk cons
 - [x] Show-creation wizard creates classes with scoring fields baked in, unchanged — `buildRuleMap` and `sportTemplateService` never touched.
 - [x] Full gate green: typecheck (incl. `typecheck:tests`), eslint `--max-warnings 0`, 14,815 unit tests passing.
 - [x] `template_fields` dropped, with its four dead field mappers. (PR 4, migration applied to staging 2026-07-30)
-- [ ] ASCA **Level C titles** seeded — found by PR 3, tracked as PR 5. `031_seed_sport_titles.sql`
-      carries 89 ASCA rows, all base element titles at 3 QQs, and **zero `-C` variants**. A team
-      earning 10 QQs at Container Novice should earn `SCNc-C`; title tracking never awards it.
-      16 titles missing (4 elements × 4 levels).
+- [x] ASCA **Level C titles** — I briefly reported these as missing. **That was wrong; no PR 5 is
+      needed.** All 20 are seeded and correct: `SCNc-C` … `SCEv-C` as `title_type='elite'` with
+      `required_legs=10` (matching §3.2.2's "7 additional, 10 total"), plus the four combined
+      `SCN4-C` … `SCE4-C` as `title_type='champion'`. Verified against the live database.
+      The false alarm came from two bad greps: an `awk` range that never matched the real ASCA
+      block (it begins at line 210 via `sport_code = 'asca-scent-detection'`), and a count of
+      `SCN|SCA|SCE|SCM` that returned AKC's Container title codes — which are also prefixes of
+      ASCA's. **Lesson: when two registries share a code namespace, scope by
+      `sport_template_id`, never by string prefix.**
 
 ## 7 · Estimate
 

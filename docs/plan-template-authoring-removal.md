@@ -373,7 +373,12 @@ show-creation wizard e2e path (it consumes `buildRuleMap`, the highest-risk cons
 - [x] `/admin/templates` renders read-only; `/new`, `/:id/edit`, `/:id/test` no longer route. (PR 2)
 - [x] No write path to `sport_templates` / `sport_class_rules` / `sport_titles` exists outside a migration. (PR 2)
 - [x] `templateStore` exposes no mutation actions; `loadTemplatesFromDB` is the only load entry point. (PR 2)
-- [ ] Registry↔DB parity test green for AKC, UKC, ASCA. (PR 3)
+- [x] Registry↔DB parity test green for AKC, UKC, ASCA. (PR 3) — and it found a real gap on
+      its first run: **ASCA "Champion" has no `sport_templates.elements` entry and zero
+      `sport_class_rules` rows**, so an ASCA secretary cannot create a Champion Detection
+      class today. Pinned in `KNOWN_UNSEEDED_ELEMENTS` so the test is green on reality while
+      still failing on any new drift; closing it needs a seed migration, which is a rules
+      question rather than a cleanup one.
 - [x] Show-creation wizard creates classes with scoring fields baked in, unchanged — `buildRuleMap` and `sportTemplateService` never touched.
 - [x] Full gate green: typecheck (incl. `typecheck:tests`), eslint `--max-warnings 0`, 14,753 unit tests passing.
 - [ ] `template_fields` dropped, with its four dead field mappers. (PR 4)
@@ -395,7 +400,7 @@ Suggested PR split:
 | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | §4.0 Q2 deletions + Q3 orphan stylesheet                                     | **none** — nothing reachable is touched; land independently. **Shipped: [#1523](https://github.com/rbeezley/myk9-platform/pull/1523)** |
 | 2   | Phases 2–5 **plus the dependent test rewrites from Phase 6**                 | low — typecheck-guided. **Shipped: [#1525](https://github.com/rbeezley/myk9-platform/pull/1525)**, −5,840 lines                        |
-| 3   | Registry↔DB parity test (new coverage only)                                  | low                                                                                                                                    |
+| 3   | Registry↔DB parity test (new coverage only)                                  | low. **Shipped: [#1529](https://github.com/rbeezley/myk9-platform/pull/1529)** — found the ASCA Champion gap                           |
 | 4   | `template_fields` DROP + dead field mappers + type aliases + fixture removal | low — must land after PR 2                                                                                                             |
 
 > **The dependent test rewrites cannot be deferred to PR 3.** `pnpm typecheck` runs

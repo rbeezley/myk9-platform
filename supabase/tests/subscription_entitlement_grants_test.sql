@@ -181,9 +181,21 @@ BEGIN
 END;
 $$;
 
--- Non-admin direct writes: INSERT errors; UPDATE/DELETE affect zero rows.
+-- Non-admin direct writes are refused outright, all three of them.
+--
+-- This used to assert something weaker: INSERT errored, while UPDATE and DELETE
+-- merely "affected zero rows". That asymmetry existed because 20260724120000
+-- granted authenticated full CRUD on this table, so only RLS stood in the way —
+-- an INSERT trips the WITH CHECK and raises 42501, but an UPDATE or DELETE with
+-- no matching policy simply matches nothing and reports success.
+--
+-- The MYK9-93 audit (20260730190000) found those write grants were dead: the
+-- table's only policy, seg_admin_select, covers SELECT. It revoked INSERT,
+-- UPDATE and DELETE from authenticated, so all three now fail at the grant
+-- layer before reaching the table. That is strictly stronger — a write that
+-- never reaches the table cannot depend on a policy being written correctly —
+-- so the assertions are tightened to match rather than relaxed to accommodate.
 DO $$
-DECLARE v_rows integer;
 BEGIN
   BEGIN
     INSERT INTO public.subscription_entitlement_grants
@@ -195,15 +207,19 @@ BEGIN
     RAISE NOTICE 'PASS non-admin direct INSERT is denied';
   END;
 
-  UPDATE public.subscription_entitlement_grants SET ends_at = now() + interval '999 days';
-  GET DIAGNOSTICS v_rows = ROW_COUNT;
-  IF v_rows <> 0 THEN RAISE EXCEPTION 'FAIL non-admin UPDATE changed % rows', v_rows; END IF;
-  RAISE NOTICE 'PASS non-admin direct UPDATE changes no rows';
+  BEGIN
+    UPDATE public.subscription_entitlement_grants SET ends_at = now() + interval '999 days';
+    RAISE EXCEPTION 'FAIL non-admin direct UPDATE was permitted to reach the table';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS non-admin direct UPDATE is denied';
+  END;
 
-  DELETE FROM public.subscription_entitlement_grants;
-  GET DIAGNOSTICS v_rows = ROW_COUNT;
-  IF v_rows <> 0 THEN RAISE EXCEPTION 'FAIL non-admin DELETE removed % rows', v_rows; END IF;
-  RAISE NOTICE 'PASS non-admin direct DELETE removes no rows';
+  BEGIN
+    DELETE FROM public.subscription_entitlement_grants;
+    RAISE EXCEPTION 'FAIL non-admin direct DELETE was permitted to reach the table';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'PASS non-admin direct DELETE is denied';
+  END;
 END;
 $$;
 

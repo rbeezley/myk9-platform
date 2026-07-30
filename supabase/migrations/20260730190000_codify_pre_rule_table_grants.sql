@@ -586,6 +586,23 @@ GRANT USAGE, SELECT, UPDATE ON SEQUENCE public.ringside_conflict_seq TO service_
 -- grants. Safe as a blanket revoke -- sequences have no column-level ACLs.
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
 
+-- Close the regrowth path, or the three fixes above are a one-off repair
+-- rather than a rule. 20260725160000 revoked the SEQUENCES default privilege
+-- for anon only, and 20260728120000 covered TABLES and FUNCTIONS for anon and
+-- authenticated -- SEQUENCES for authenticated was never revoked. Without
+-- this, the next migration that creates a sequence gets authenticated
+-- USAGE/SELECT on the live project and nothing on a rebuild, reproducing
+-- exactly the enrollments failure described above. The behavioural test's
+-- relkind='S' coverage guard then forces the new sequence to be given an
+-- explicit decision here.
+--
+-- Same limitation as 20260728120000: this only reaches defaults owned by the
+-- repository migration role. The hosted supabase_admin role carries its own
+-- unsafe defaults that the linked postgres role can neither assume nor alter,
+-- so post-push ACL monitoring remains a required gate.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE ALL ON SEQUENCES FROM PUBLIC, anon, authenticated;
+
 COMMENT ON SCHEMA public IS
   'myK9Show application schema. Table grants for anon, authenticated and '
   'service_role are codified in migrations as of 20260730190000 (MYK9-93), so '

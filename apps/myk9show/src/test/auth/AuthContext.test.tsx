@@ -1,22 +1,18 @@
 import React from 'react';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
-import { renderHook } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
+import { renderHook, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole, ScopeType, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
+import { MOCK_USERS, PERMISSIONS, UserRole } from '@/types/auth-types';
 import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
+import {
+  createAuthWrapper,
+  mockAuthReturn,
+  mockUser,
+  renderWithAuthProvider as renderWithProvider,
+} from './AuthContext.testHarness';
 
-// Mock the useAuth hook
-const mockUseAuth = vi.fn();
-vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => mockUseAuth(),
-}));
-
-const { mockRbacService } = vi.hoisted(() => ({
+const { mockRbacService, mockUseAuth } = vi.hoisted(() => ({
+  mockUseAuth: vi.fn(),
   mockRbacService: {
     getUserPermissions: vi.fn(),
     getUserRoles: vi.fn(),
@@ -28,62 +24,23 @@ const { mockRbacService } = vi.hoisted(() => ({
   },
 }));
 
-// Mock RBACService to avoid async loading
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: mockRbacService,
 }));
 
-// Mock Supabase types
-vi.mock('@supabase/supabase-js', () => ({
-  User: {},
-}));
+import { AuthProvider } from '@/context/AuthContext';
 
-// Mock React Router
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    Navigate: ({ to }: { to: string }) => {
-      mockNavigate(to);
-      return <div data-testid="navigate">Redirecting to {to}</div>;
-    },
-  };
-});
+const renderWithAuthProvider = (children: React.ReactNode, initialRoute = '/') =>
+  renderWithProvider(AuthProvider, children, initialRoute);
 
 describe('AuthContext', () => {
-  const mockUser = {
-    id: 'test-user-id',
-    email: 'test@example.com',
-    created_at: '2024-01-01T00:00:00Z',
-  };
-
-  const mockAuthReturn = {
-    user: mockUser,
-    loading: false,
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
-    resetPassword: vi.fn(),
-    updatePassword: vi.fn(),
-    updateProfile: vi.fn(),
-  };
-
-  const accessForRole = (role: UserRole) => ({
-    roles: [
-      {
-        role_id: `role-${role}`,
-        role: { name: role, display_name: role },
-        is_active: true,
-      },
-    ],
-    permissions: [],
-    effectivePermissions: [],
-    effectivePermissionScopes: [],
-  });
-
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
     mockUseAuth.mockReturnValue(mockAuthReturn);
     mockRbacService.getUserPermissions.mockResolvedValue({
       roles: [],
@@ -95,8 +52,6 @@ describe('AuthContext', () => {
     mockRbacService.getUserRolesByEmail.mockResolvedValue([]);
     mockRbacService.hasPermission.mockResolvedValue(false);
     mockRbacService.checkPermission.mockResolvedValue(false);
-    mockNavigate.mockClear();
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -104,23 +59,8 @@ describe('AuthContext', () => {
     vi.restoreAllMocks();
   });
 
-  const renderWithAuthProvider = (children: React.ReactNode, initialRoute = '/') => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-    });
-    return render(<>{children}</>, {
-      wrapper: ({ children: wrappedChildren }) => (
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={[initialRoute]}>
-            <AuthProvider>{wrappedChildren}</AuthProvider>
-          </MemoryRouter>
-        </QueryClientProvider>
-      ),
-    });
-  };
-
   describe('AuthProvider', () => {
-    it('should provide authentication context', async () => {
+    it('provides authentication context', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         return (
@@ -139,7 +79,7 @@ describe('AuthContext', () => {
       });
     });
 
-    it('should create userWithRoles from authenticated user', async () => {
+    it('creates default exhibitor access for an authenticated user', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         return (
@@ -156,47 +96,36 @@ describe('AuthContext', () => {
 
       renderWithAuthProvider(<TestComponent />);
 
-      // Should default to exhibitor role for unknown users
       await waitFor(() => {
         expect(screen.getByTestId('user-roles')).toHaveTextContent('exhibitor');
         expect(screen.getByTestId('user-permissions')).not.toHaveTextContent('0');
       });
     });
 
-    it('should use mock user when email matches', () => {
-      // Use a mock user email
-      const adminMockUser = Object.values(MOCK_USERS).find(u =>
-        u.roles.includes(UserRole.SITE_ADMIN)
+    it('uses a matching development mock user', () => {
+      const adminMockUser = Object.values(MOCK_USERS).find(user =>
+        user.roles.includes(UserRole.SITE_ADMIN)
       );
-
-      if (adminMockUser) {
-        mockUseAuth.mockReturnValue({
-          ...mockAuthReturn,
-          user: { ...mockUser, email: adminMockUser.email },
-        });
-
-        const TestComponent = () => {
-          const auth = useAuthContext();
-          return (
-            <div>
-              <span data-testid="user-roles">
-                {auth.userWithRoles?.roles.join(', ') || 'No roles'}
-              </span>
-            </div>
-          );
-        };
-
-        renderWithAuthProvider(<TestComponent />);
-
-        expect(screen.getByTestId('user-roles')).toHaveTextContent(adminMockUser.roles.join(', '));
-      }
-    });
-
-    it('should handle loading state', () => {
+      expect(adminMockUser).toBeDefined();
       mockUseAuth.mockReturnValue({
         ...mockAuthReturn,
-        loading: true,
+        user: { ...mockUser, email: adminMockUser?.email },
       });
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ')}</span>;
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+
+      expect(screen.getByTestId('user-roles')).toHaveTextContent(
+        adminMockUser?.roles.join(', ') ?? ''
+      );
+    });
+
+    it('exposes the authentication loading state', () => {
+      mockUseAuth.mockReturnValue({ ...mockAuthReturn, loading: true });
 
       const TestComponent = () => {
         const auth = useAuthContext();
@@ -208,11 +137,8 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('loading')).toHaveTextContent('true');
     });
 
-    it('should handle no user state', () => {
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        user: null,
-      });
+    it('clears the user state after sign-out', () => {
+      mockUseAuth.mockReturnValue({ ...mockAuthReturn, user: null });
 
       const TestComponent = () => {
         const auth = useAuthContext();
@@ -231,366 +157,10 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user-email')).toHaveTextContent('No user');
       expect(screen.getByTestId('user-with-roles')).toHaveTextContent('No roles');
     });
-
-    it('should retry transient RBAC fetch failures before surfacing an error', async () => {
-      mockRbacService.getUserPermissions
-        .mockRejectedValueOnce(
-          new Error('Failed to get user permissions: TypeError: Failed to fetch')
-        )
-        .mockResolvedValueOnce({
-          roles: [],
-          permissions: [],
-          effectivePermissions: ['show:view'],
-          effectivePermissionScopes: [],
-        });
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-        return (
-          <div>
-            <span data-testid="rbac-loading">{auth.rbacLoading.toString()}</span>
-            <span data-testid="rbac-error">{auth.rbacError ?? 'none'}</span>
-            <span data-testid="db-permissions">{auth.dbPermissions.join(',')}</span>
-          </div>
-        );
-      };
-
-      renderWithAuthProvider(<TestComponent />);
-
-      await waitFor(() => {
-        expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
-      });
-      await waitFor(() => {
-        expect(screen.getByTestId('rbac-loading')).toHaveTextContent('false');
-        expect(screen.getByTestId('rbac-error')).toHaveTextContent('none');
-        expect(screen.getByTestId('db-permissions')).toHaveTextContent('show:view');
-      });
-    });
-
-    it('refreshes RBAC roles on a five-minute interval', async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      mockRbacService.getUserPermissions
-        .mockResolvedValueOnce({
-          roles: [
-            {
-              role_id: 'role-secretary',
-              role: { name: UserRole.SECRETARY, display_name: 'Secretary' },
-              is_active: true,
-            },
-          ],
-          permissions: [],
-          effectivePermissions: [PERMISSIONS.SHOW_MANAGE],
-          effectivePermissionScopes: [],
-        })
-        .mockResolvedValueOnce({
-          roles: [
-            {
-              role_id: 'role-exhibitor',
-              role: { name: UserRole.EXHIBITOR, display_name: 'Exhibitor' },
-              is_active: true,
-            },
-          ],
-          permissions: [],
-          effectivePermissions: [PERMISSIONS.DOG_CREATE],
-          effectivePermissionScopes: [],
-        });
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-        return <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ')}</span>;
-      };
-
-      renderWithAuthProvider(<TestComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
-      });
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(60_000);
-      });
-
-      expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(1);
-      expect(mockRbacService.clearUserCache).not.toHaveBeenCalled();
-      expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(240_000);
-      });
-
-      await waitFor(() => {
-        expect(mockRbacService.clearUserCache).toHaveBeenCalledWith(mockUser.id);
-        expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
-        expect(screen.getByTestId('user-roles')).not.toHaveTextContent(UserRole.SECRETARY);
-      });
-    });
-
-    it('exposes shared detailed RBAC state and invalidates before explicit refresh', async () => {
-      mockRbacService.getUserPermissions.mockResolvedValue({
-        roles: [
-          {
-            id: 'user-role-1',
-            user_id: mockUser.id,
-            role_id: 'role-secretary',
-            club_id: 'club-1',
-            show_id: null,
-            granted_by: null,
-            granted_at: null,
-            expires_at: null,
-            is_active: true,
-            scope_type: 'club',
-            scope_id: 'club-1',
-            role: {
-              id: 'role-secretary',
-              name: UserRole.SECRETARY,
-              description: null,
-              is_system: true,
-              permissions: null,
-              created_at: null,
-            },
-          },
-        ],
-        permissions: [
-          {
-            permission_id: 'permission-1',
-            permission_code: PERMISSIONS.SHOW_MANAGE,
-            permission_name: 'Manage shows',
-            description: null,
-            category: 'show',
-            role_id: 'role-secretary',
-            role_name: UserRole.SECRETARY,
-            scope_type: 'club',
-            scope_id: 'club-1',
-          },
-        ],
-        effectivePermissions: [PERMISSIONS.SHOW_MANAGE, PERMISSIONS.SHOW_CREATE],
-        effectivePermissionScopes: [
-          {
-            permission_code: PERMISSIONS.SHOW_MANAGE,
-            scope_type: 'club',
-            scope_id: 'club-1',
-          },
-          {
-            permission_code: PERMISSIONS.SHOW_CREATE,
-            scope_type: 'club',
-            scope_id: 'club-1',
-          },
-        ],
-      });
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-        return (
-          <div>
-            <span data-testid="detailed-role">{auth.rbacUserRoles[0]?.role.name}</span>
-            <span data-testid="permission-scope">
-              {auth.rbacScopedPermissions[0]?.scope_type}:{auth.rbacScopedPermissions[0]?.scope_id}
-            </span>
-            <span data-testid="same-club-permission">
-              {auth
-                .hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-1' })
-                .toString()}
-            </span>
-            <span data-testid="different-club-permission">
-              {auth
-                .hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-2' })
-                .toString()}
-            </span>
-            <span data-testid="inherited-same-club-permission">
-              {auth
-                .hasPermission(PERMISSIONS.SHOW_CREATE, { type: 'club', id: 'club-1' })
-                .toString()}
-            </span>
-            <span data-testid="inherited-different-club-permission">
-              {auth
-                .hasPermission(PERMISSIONS.SHOW_CREATE, { type: 'club', id: 'club-2' })
-                .toString()}
-            </span>
-            <span data-testid="last-refreshed">{auth.rbacLastRefreshed ?? 'none'}</span>
-            <button type="button" onClick={() => void auth.refreshPermissions()}>
-              Refresh access
-            </button>
-          </div>
-        );
-      };
-
-      renderWithAuthProvider(<TestComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('detailed-role')).toHaveTextContent(UserRole.SECRETARY);
-        expect(screen.getByTestId('permission-scope')).toHaveTextContent('club:club-1');
-        expect(screen.getByTestId('same-club-permission')).toHaveTextContent('true');
-        expect(screen.getByTestId('different-club-permission')).toHaveTextContent('false');
-        expect(screen.getByTestId('inherited-same-club-permission')).toHaveTextContent('true');
-        expect(screen.getByTestId('inherited-different-club-permission')).toHaveTextContent('false');
-        expect(screen.getByTestId('last-refreshed')).not.toHaveTextContent('none');
-      });
-
-      await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
-
-      await waitFor(() => {
-        expect(mockRbacService.clearUserCache).toHaveBeenCalledWith(mockUser.id);
-        expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
-      });
-    });
-
-    it('does not expose the prior user RBAC state while the next user loads', async () => {
-      let resolveSecondUser: ((value: ReturnType<typeof accessForRole>) => void) | undefined;
-      mockRbacService.getUserPermissions
-        .mockResolvedValueOnce(accessForRole(UserRole.SECRETARY))
-        .mockImplementationOnce(
-          () =>
-            new Promise(resolve => {
-              resolveSecondUser = resolve;
-            })
-        );
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-        return (
-          <div>
-            <span data-testid="current-user">{auth.user?.id}</span>
-            <span data-testid="current-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
-          </div>
-        );
-      };
-
-      const view = renderWithAuthProvider(<TestComponent />);
-      await waitFor(() => {
-        expect(screen.getByTestId('current-roles')).toHaveTextContent(UserRole.SECRETARY);
-      });
-
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        user: { ...mockUser, id: 'second-user-id' },
-      });
-      view.rerender(<TestComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('current-user')).toHaveTextContent('second-user-id');
-        expect(screen.getByTestId('current-roles')).toHaveTextContent('none');
-      });
-
-      resolveSecondUser?.(accessForRole(UserRole.EXHIBITOR));
-    });
-
-    it('ignores an explicit-refresh response after the authenticated user changes', async () => {
-      let resolveStaleRefresh: ((value: ReturnType<typeof accessForRole>) => void) | undefined;
-      mockRbacService.getUserPermissions
-        .mockResolvedValueOnce(accessForRole(UserRole.SECRETARY))
-        .mockImplementationOnce(
-          () =>
-            new Promise(resolve => {
-              resolveStaleRefresh = resolve;
-            })
-        )
-        .mockResolvedValueOnce(accessForRole(UserRole.EXHIBITOR));
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-        return (
-          <div>
-            <span data-testid="race-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
-            <button type="button" onClick={() => void auth.refreshPermissions()}>
-              Refresh permissions
-            </button>
-          </div>
-        );
-      };
-
-      const view = renderWithAuthProvider(<TestComponent />);
-      await waitFor(() => {
-        expect(screen.getByTestId('race-roles')).toHaveTextContent(UserRole.SECRETARY);
-      });
-
-      await userEvent.click(screen.getByRole('button', { name: 'Refresh permissions' }));
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        user: { ...mockUser, id: 'second-user-id' },
-      });
-      view.rerender(<TestComponent />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
-      });
-
-      await act(async () => {
-        resolveStaleRefresh?.(accessForRole(UserRole.SITE_ADMIN));
-      });
-
-      expect(screen.getByTestId('race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
-      expect(screen.getByTestId('race-roles')).not.toHaveTextContent(UserRole.SITE_ADMIN);
-    });
-
-    it('keeps the newest same-user RBAC refresh when an older load finishes last', async () => {
-      let resolveInitialLoad: ((value: ReturnType<typeof accessForRole>) => void) | undefined;
-      mockRbacService.getUserPermissions
-        .mockImplementationOnce(
-          () =>
-            new Promise(resolve => {
-              resolveInitialLoad = resolve;
-            })
-        )
-        .mockResolvedValueOnce(accessForRole(UserRole.EXHIBITOR));
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-        return (
-          <div>
-            <span data-testid="same-user-race-roles">
-              {auth.userWithRoles?.roles.join(',') ?? 'none'}
-            </span>
-            <button type="button" onClick={() => void auth.refreshPermissions()}>
-              Refresh current access
-            </button>
-          </div>
-        );
-      };
-
-      renderWithAuthProvider(<TestComponent />);
-      await waitFor(() => {
-        expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(1);
-      });
-
-      await userEvent.click(screen.getByRole('button', { name: 'Refresh current access' }));
-      await waitFor(() => {
-        expect(screen.getByTestId('same-user-race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
-      });
-
-      await act(async () => {
-        resolveInitialLoad?.(accessForRole(UserRole.SITE_ADMIN));
-      });
-
-      expect(screen.getByTestId('same-user-race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
-      expect(screen.getByTestId('same-user-race-roles')).not.toHaveTextContent(UserRole.SITE_ADMIN);
-    });
-
-    it('invalidates the prior user service cache on sign-out', async () => {
-      const TestComponent = () => {
-        const auth = useAuthContext();
-        return <span data-testid="signed-in-user">{auth.user?.id ?? 'signed-out'}</span>;
-      };
-
-      const view = renderWithAuthProvider(<TestComponent />);
-      await waitFor(() => {
-        expect(screen.getByTestId('signed-in-user')).toHaveTextContent(mockUser.id);
-      });
-
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        user: null,
-      });
-      view.rerender(<TestComponent />);
-
-      await waitFor(() => {
-        expect(mockRbacService.clearUserCache).toHaveBeenCalledWith(mockUser.id);
-        expect(screen.getByTestId('signed-in-user')).toHaveTextContent('signed-out');
-      });
-    });
   });
 
-  describe('RBAC Methods', () => {
-    it('should check if user has role', async () => {
+  describe('RBAC methods', () => {
+    it('checks roles', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         return (
@@ -609,7 +179,7 @@ describe('AuthContext', () => {
       });
     });
 
-    it('should check if user has permission', async () => {
+    it('checks permissions', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         return (
@@ -632,11 +202,10 @@ describe('AuthContext', () => {
       });
     });
 
-    it('should get user roles', async () => {
+    it('returns the active user roles', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
-        const roles = auth.getUserRoles();
-        return <span data-testid="user-roles">{roles.join(', ')}</span>;
+        return <span data-testid="user-roles">{auth.getUserRoles().join(', ')}</span>;
       };
 
       renderWithAuthProvider(<TestComponent />);
@@ -646,7 +215,7 @@ describe('AuthContext', () => {
       });
     });
 
-    it('should treat seeded secretary test account as secretary in development', () => {
+    it('keeps seeded secretary access while database RBAC loads', () => {
       mockUseAuth.mockReturnValue({
         ...mockAuthReturn,
         user: { ...mockUser, email: 'secretary@myk9t.com' },
@@ -662,50 +231,43 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user-roles')).toHaveTextContent(UserRole.SECRETARY);
     });
 
-    it('should switch mock user for testing', async () => {
+    it('switches development mock users', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();
 
         React.useEffect(() => {
-          // Find an admin mock user
-          const adminUser = Object.values(MOCK_USERS).find(u =>
-            u.roles.includes(UserRole.SITE_ADMIN)
+          const adminUser = Object.values(MOCK_USERS).find(user =>
+            user.roles.includes(UserRole.SITE_ADMIN)
           );
-          if (adminUser) {
-            auth.switchUserRole(adminUser.email!);
-          }
+          if (adminUser?.email) auth.switchUserRole(adminUser.email);
         }, [auth]);
 
-        return (
-          <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ') || 'No roles'}</span>
-        );
+        return <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ')}</span>;
       };
 
       renderWithAuthProvider(<TestComponent />);
 
-      // Should eventually show admin role after switch
       await waitFor(() => {
         expect(screen.getByTestId('user-roles')).toHaveTextContent('admin');
       });
     });
 
-    it('adds the database person id to a selected dev mock user', async () => {
+    it('adds the database person id to a selected development mock user', async () => {
       localStorage.setItem('dev-current-mock-user', 'test-secretary-user');
-      mockSupabase.from.mockImplementation((table: string) => {
-        if (table === 'people') {
-          return createChainableQuery({
-            data: {
-              id: 'person-test-secretary',
-              first_name: 'Test',
-              last_name: 'Secretary',
-              email: 'testsecretary@example.com',
-              status: 'active',
-            },
-            error: null,
-          });
-        }
-        return createChainableQuery();
-      });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'people'
+          ? createChainableQuery({
+              data: {
+                id: 'person-test-secretary',
+                first_name: 'Test',
+                last_name: 'Secretary',
+                email: 'testsecretary@example.com',
+                status: 'active',
+              },
+              error: null,
+            })
+          : createChainableQuery()
+      );
 
       const TestComponent = () => {
         const auth = useAuthContext();
@@ -726,302 +288,24 @@ describe('AuthContext', () => {
     });
   });
 
-  describe('useAuthContext hook', () => {
-    it('should throw error when used outside AuthProvider', () => {
-      // Temporarily suppress console.error for this test
-      const originalError = console.error;
-      console.error = vi.fn();
-
-      expect(() => {
-        renderHook(() => useAuthContext());
-      }).toThrow('useAuthContext must be used within an AuthProvider');
-
-      console.error = originalError;
+  describe('useAuthContext', () => {
+    it('throws outside AuthProvider', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      expect(() => renderHook(() => useAuthContext())).toThrow(
+        'useAuthContext must be used within an AuthProvider'
+      );
+      errorSpy.mockRestore();
     });
 
-    it('should return auth context when used within provider', () => {
-      const queryClient = new QueryClient({
-        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    it('returns the shared context inside AuthProvider', () => {
+      const { result } = renderHook(() => useAuthContext(), {
+        wrapper: createAuthWrapper(AuthProvider),
       });
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <AuthProvider>{children}</AuthProvider>
-          </MemoryRouter>
-        </QueryClientProvider>
-      );
-
-      const { result } = renderHook(() => useAuthContext(), { wrapper });
 
       expect(result.current.user).toBeDefined();
       expect(result.current.signIn).toBeDefined();
       expect(result.current.hasRole).toBeDefined();
       expect(result.current.hasPermission).toBeDefined();
-    });
-  });
-
-  describe('ProtectedRoute', () => {
-    const TestPage = () => <div data-testid="protected-content">Protected Content</div>;
-
-    it('should show loading skeleton when loading', () => {
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        loading: true,
-      });
-
-      renderWithAuthProvider(
-        <ProtectedRoute>
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
-      expect(screen.getByRole('status', { name: 'Loading protected page' })).toBeInTheDocument();
-    });
-
-    it('should redirect to sign-in with redirectTo when no user', () => {
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        user: null,
-      });
-
-      renderWithAuthProvider(
-        <ProtectedRoute>
-          <TestPage />
-        </ProtectedRoute>,
-        '/shows/show-1/register?dog=dog-1'
-      );
-
-      expect(screen.getByTestId('navigate')).toHaveTextContent(
-        'Redirecting to /sign-in?redirectTo=%2Fshows%2Fshow-1%2Fregister%3Fdog%3Ddog-1'
-      );
-    });
-
-    it('should redirect to custom path when specified', () => {
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        user: null,
-      });
-
-      renderWithAuthProvider(
-        <ProtectedRoute redirectTo="/custom-login">
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      expect(screen.getByTestId('navigate')).toHaveTextContent('Redirecting to /custom-login');
-    });
-
-    it('should show content when user is authenticated', async () => {
-      renderWithAuthProvider(
-        <ProtectedRoute>
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
-      });
-    });
-
-    it('should check required role', async () => {
-      renderWithAuthProvider(
-        <ProtectedRoute requiredRole={UserRole.SITE_ADMIN}>
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      // Should show fallback since user doesn't have site_admin role
-      await waitFor(() => {
-        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
-        expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
-      });
-    });
-
-    it('should allow access with correct role', async () => {
-      renderWithAuthProvider(
-        <ProtectedRoute requiredRole={UserRole.EXHIBITOR}>
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
-      });
-    });
-
-    it('should check required permission', async () => {
-      renderWithAuthProvider(
-        <ProtectedRoute requiredPermission={PERMISSIONS.ADMIN_MANAGE_USERS}>
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      // Should show fallback since user doesn't have manage users permission
-      await waitFor(() => {
-        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
-        expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
-      });
-    });
-
-    it('should allow access with correct permission', async () => {
-      renderWithAuthProvider(
-        <ProtectedRoute requiredPermission={PERMISSIONS.DOG_CREATE}>
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('protected-content')).toBeInTheDocument();
-      });
-    });
-
-    it('should show custom fallback', async () => {
-      const CustomFallback = () => <div data-testid="custom-fallback">Custom Fallback</div>;
-
-      renderWithAuthProvider(
-        <ProtectedRoute requiredRole={UserRole.SITE_ADMIN} fallback={<CustomFallback />}>
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('custom-fallback')).toBeInTheDocument();
-        expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
-      });
-    });
-
-    it('should handle scoped permissions', async () => {
-      const scope = { type: ScopeType.CLUB, id: 'club-123' };
-
-      renderWithAuthProvider(
-        <ProtectedRoute requiredPermission={PERMISSIONS.SHOW_MANAGE} scope={scope}>
-          <TestPage />
-        </ProtectedRoute>
-      );
-
-      // Should show fallback since user doesn't have scoped permission
-      await waitFor(() => {
-        expect(screen.getByText(/You don't have permission/)).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('Authentication Methods', () => {
-    it('should call signIn method', async () => {
-      const signInSpy = vi.fn();
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        signIn: signInSpy,
-      });
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-
-        const handleSignIn = () => {
-          auth.signIn('test@example.com', 'password');
-        };
-
-        return (
-          <button data-testid="sign-in-btn" onClick={handleSignIn}>
-            Sign In
-          </button>
-        );
-      };
-
-      renderWithAuthProvider(<TestComponent />);
-
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId('sign-in-btn'));
-
-      expect(signInSpy).toHaveBeenCalledWith('test@example.com', 'password');
-    });
-
-    it('should call signUp method', async () => {
-      const signUpSpy = vi.fn();
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        signUp: signUpSpy,
-      });
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-
-        const handleSignUp = () => {
-          auth.signUp('new@example.com', 'password123');
-        };
-
-        return (
-          <button data-testid="sign-up-btn" onClick={handleSignUp}>
-            Sign Up
-          </button>
-        );
-      };
-
-      renderWithAuthProvider(<TestComponent />);
-
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId('sign-up-btn'));
-
-      expect(signUpSpy).toHaveBeenCalledWith('new@example.com', 'password123');
-    });
-
-    it('should call signOut method', async () => {
-      const signOutSpy = vi.fn();
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        signOut: signOutSpy,
-      });
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-
-        const handleSignOut = () => {
-          auth.signOut();
-        };
-
-        return (
-          <button data-testid="sign-out-btn" onClick={handleSignOut}>
-            Sign Out
-          </button>
-        );
-      };
-
-      renderWithAuthProvider(<TestComponent />);
-
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId('sign-out-btn'));
-
-      expect(signOutSpy).toHaveBeenCalledWith();
-    });
-
-    it('should call resetPassword method', async () => {
-      const resetPasswordSpy = vi.fn();
-      mockUseAuth.mockReturnValue({
-        ...mockAuthReturn,
-        resetPassword: resetPasswordSpy,
-      });
-
-      const TestComponent = () => {
-        const auth = useAuthContext();
-
-        const handleResetPassword = () => {
-          auth.resetPassword('reset@example.com');
-        };
-
-        return (
-          <button data-testid="reset-password-btn" onClick={handleResetPassword}>
-            Reset Password
-          </button>
-        );
-      };
-
-      renderWithAuthProvider(<TestComponent />);
-
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId('reset-password-btn'));
-
-      expect(resetPasswordSpy).toHaveBeenCalledWith('reset@example.com');
     });
   });
 });

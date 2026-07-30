@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildActiveRoleScopes,
   getUniqueActiveRoleNames,
-  type UserRoleWithDetails,
-} from '@/context/AuthContext';
+} from '@/context/authContextHelpers';
+import type { UserRoleWithDetails } from '@/context/authContextTypes';
 import { ScopeType, UserRole } from '@/types/auth-types';
 
 describe('buildActiveRoleScopes', () => {

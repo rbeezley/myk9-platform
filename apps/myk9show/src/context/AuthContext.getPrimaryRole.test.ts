@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPrimaryRole } from './AuthContext';
+import { getPrimaryRole } from './authContextHelpers';
 import { UserRole } from '@/types/auth-types';
 
 // getPrimaryRole is not exercised directly by src/test/auth/AuthContext.test.tsx

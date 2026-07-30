@@ -58,7 +58,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'u1' } }),
 }));
 vi.mock('@/store/templateStore', () => ({
-  useTemplateStore: () => ({ templates: [], initializeDefaultTemplates: vi.fn() }),
+  useTemplateStore: () => ({ templates: [], loadTemplatesFromDB: vi.fn() }),
 }));
 vi.mock('@/hooks/useTrialTemplates', () => ({
   useTrialTemplates: () => ({ handleSaveClassesFromTemplate: vi.fn() }),
@@ -140,6 +140,8 @@ describe('TrialManagementDialogs', () => {
   it('omits the entry-count warning when the class has no entries', () => {
     const ref = renderDialogs({ entryCountByClass: new Map() });
     act(() => ref.current?.openDeleteClass(makeClass()));
-    expect(screen.getByTestId('delete-class-dialog')).not.toHaveTextContent('This will also delete');
+    expect(screen.getByTestId('delete-class-dialog')).not.toHaveTextContent(
+      'This will also delete'
+    );
   });
 });

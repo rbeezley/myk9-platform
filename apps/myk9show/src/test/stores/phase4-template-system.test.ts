@@ -25,15 +25,18 @@ describe('Phase 4 Template System Tests', () => {
   });
 
   describe('Template Store Configuration', () => {
-    it('should have properly configured template store', () => {
+    it('should expose the template store as read-only', () => {
       const store = useTemplateStore.getState();
 
-      // Verify store structure
-      expect(typeof store.createTemplate).toBe('function');
-      expect(typeof store.updateTemplate).toBe('function');
-      expect(typeof store.deleteTemplate).toBe('function');
+      // Sport rules change by migration, so the store reads but never writes.
       expect(typeof store.getTemplate).toBe('function');
+      expect(typeof store.loadTemplatesFromDB).toBe('function');
       expect(Array.isArray(store.templates)).toBe(true);
+
+      const asRecord = store as unknown as Record<string, unknown>;
+      expect(asRecord.createTemplate).toBeUndefined();
+      expect(asRecord.updateTemplate).toBeUndefined();
+      expect(asRecord.deleteTemplate).toBeUndefined();
     });
 
     it('should have properly configured class template store', () => {
@@ -67,19 +70,21 @@ describe('Phase 4 Template System Tests', () => {
   });
 
   describe('Template Store Operations', () => {
-    it('should handle template CRUD operations', () => {
-      const store = useTemplateStore.getState();
-
-      const testTemplate: Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'> = {
-        templateName: 'Test Template',
+    it('should handle template queries', () => {
+      // Templates arrive from the DB via loadTemplatesFromDB; seed state directly.
+      const template1: ClassTemplate = {
+        id: 'akc-conformation',
+        createdAt: new Date(),
+        createdBy: 'seed',
+        templateName: 'AKC Template',
         organization: Organization.AKC,
-        trialType: TrialType.SCENT_WORK,
+        trialType: TrialType.CONFORMATION,
         status: TemplateStatus.ACTIVE,
-        type: TemplateType.CUSTOM,
-        description: 'Test template description',
+        type: TemplateType.OFFICIAL,
+        description: 'AKC test template',
         version: '1.0',
-        isOfficial: false,
-        isCustom: true,
+        isOfficial: true,
+        isCustom: false,
         isActive: true,
         fieldSpecifications: [],
         classDefinitions: [],
@@ -88,72 +93,20 @@ describe('Phase 4 Template System Tests', () => {
         updatedAt: new Date(),
       };
 
-      // Test create
-      const created = store.createTemplate(testTemplate, 'test-user');
-      expect(created.templateName).toBe('Test Template');
-      expect(created.id).toBeDefined();
+      const template2: ClassTemplate = {
+        ...template1,
+        id: 'ukc-agility',
+        templateName: 'UKC Template',
+        organization: Organization.UKC,
+        trialType: TrialType.AGILITY,
+        type: TemplateType.CUSTOM,
+        description: 'UKC test template',
+        isOfficial: false,
+        isCustom: true,
+      };
 
-      // Test get
-      const retrieved = store.getTemplate(created.id);
-      expect(retrieved).toEqual(created);
-
-      // Test update
-      const updated = store.updateTemplate(
-        created.id,
-        { description: 'Updated description' },
-        'test-user'
-      );
-      expect(updated).toBe(true);
-
-      const retrievedUpdated = store.getTemplate(created.id);
-      expect(retrievedUpdated?.description).toBe('Updated description');
-    });
-
-    it('should handle template queries', () => {
+      useTemplateStore.setState({ templates: [template1, template2], error: null });
       const store = useTemplateStore.getState();
-
-      // Create test templates
-      const template1 = store.createTemplate(
-        {
-          templateName: 'AKC Template',
-          organization: Organization.AKC,
-          trialType: TrialType.CONFORMATION,
-          status: TemplateStatus.ACTIVE,
-          type: TemplateType.OFFICIAL,
-          description: 'AKC test template',
-          version: '1.0',
-          isOfficial: true,
-          isCustom: false,
-          isActive: true,
-          fieldSpecifications: [],
-          classDefinitions: [],
-          validationRules: [],
-          defaults: {},
-          updatedAt: new Date(),
-        },
-        'test-user'
-      );
-
-      const template2 = store.createTemplate(
-        {
-          templateName: 'UKC Template',
-          organization: Organization.UKC,
-          trialType: TrialType.AGILITY,
-          status: TemplateStatus.ACTIVE,
-          type: TemplateType.CUSTOM,
-          description: 'UKC test template',
-          version: '1.0',
-          isOfficial: false,
-          isCustom: true,
-          isActive: true,
-          fieldSpecifications: [],
-          classDefinitions: [],
-          validationRules: [],
-          defaults: {},
-          updatedAt: new Date(),
-        },
-        'test-user'
-      );
 
       // Test organization filtering
       const akcTemplates = store.getTemplatesByOrganization(Organization.AKC);
@@ -166,6 +119,9 @@ describe('Phase 4 Template System Tests', () => {
 
       const customTemplates = store.getCustomTemplates();
       expect(customTemplates.some(t => t.id === template2.id)).toBe(true);
+
+      // And the read path resolves by id
+      expect(store.getTemplate(template1.id)).toEqual(template1);
     });
   });
 
@@ -319,27 +275,28 @@ describe('Phase 4 Template System Tests', () => {
       const classTemplateStore = useClassTemplateStore.getState();
       const showTemplateStore = useShowTemplateStore.getState();
 
-      // Create templates in different stores
-      const mainTemplate = templateStore.createTemplate(
-        {
-          templateName: 'Integration Test Template',
-          organization: Organization.AKC,
-          trialType: TrialType.AGILITY,
-          status: TemplateStatus.ACTIVE,
-          type: TemplateType.CUSTOM,
-          description: 'Integration test',
-          version: '1.0',
-          isOfficial: false,
-          isCustom: true,
-          isActive: true,
-          fieldSpecifications: [],
-          classDefinitions: [],
-          validationRules: [],
-          defaults: {},
-          updatedAt: new Date(),
-        },
-        'test-user'
-      );
+      // The sport-rule store is read-only: seed it, then create in the writable stores.
+      const mainTemplate: ClassTemplate = {
+        id: 'integration-akc-agility',
+        createdAt: new Date(),
+        createdBy: 'seed',
+        templateName: 'Integration Test Template',
+        organization: Organization.AKC,
+        trialType: TrialType.AGILITY,
+        status: TemplateStatus.ACTIVE,
+        type: TemplateType.CUSTOM,
+        description: 'Integration test',
+        version: '1.0',
+        isOfficial: false,
+        isCustom: true,
+        isActive: true,
+        fieldSpecifications: [],
+        classDefinitions: [],
+        validationRules: [],
+        defaults: {},
+        updatedAt: new Date(),
+      };
+      useTemplateStore.setState({ templates: [mainTemplate], error: null });
 
       const classTemplate = classTemplateStore.addTemplate({
         name: 'Integration Class Template',

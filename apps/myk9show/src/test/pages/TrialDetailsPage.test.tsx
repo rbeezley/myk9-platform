@@ -49,7 +49,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 vi.mock('@/store/templateStore', () => ({
-  useTemplateStore: () => ({ templates: [], initializeDefaultTemplates: vi.fn() }),
+  useTemplateStore: () => ({ templates: [], loadTemplatesFromDB: vi.fn() }),
 }));
 
 let mockShows: Array<Record<string, unknown>> = [];

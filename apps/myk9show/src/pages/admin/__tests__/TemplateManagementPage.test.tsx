@@ -1,15 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { screen } from '@/test/utils/testUtils';
 import { render } from '@/test/utils/testUtils';
 import TemplateManagementPage from '../TemplateManagementPage';
-import type { ClassTemplate, TemplateFilter } from '@/types/template.types';
+import type { ClassTemplate } from '@/types/template.types';
 
-const initializeDefaultTemplates = vi.hoisted(() => vi.fn());
-const clearCorruptedData = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const clearError = vi.hoisted(() => vi.fn());
-const deleteTemplate = vi.hoisted(() => vi.fn());
-const searchTemplates = vi.hoisted(() => vi.fn());
-const cleanupDuplicateTemplates = vi.hoisted(() => vi.fn());
 
 const templates = vi.hoisted<ClassTemplate[]>(() => [
   {
@@ -33,23 +28,10 @@ const templates = vi.hoisted<ClassTemplate[]>(() => [
   },
 ]);
 
-vi.mock('@/services/LoggingService', () => ({
-  logger: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
 vi.mock('@/store/templateStore', () => ({
   useTemplateStore: () => ({
-    searchTemplates,
-    clearError,
     error: null,
-    clearCorruptedData,
-    initializeDefaultTemplates,
-    deleteTemplate,
+    clearError,
   }),
 }));
 
@@ -60,45 +42,45 @@ vi.mock('@/hooks/useTemplates', () => ({
   }),
 }));
 
-vi.mock('@/utils/cleanup-duplicate-templates', () => ({
-  cleanupDuplicateTemplates,
-}));
-
 describe('TemplateManagementPage', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    searchTemplates.mockImplementation((_filter: TemplateFilter) => templates);
-    cleanupDuplicateTemplates.mockReturnValue(1);
+  it('lists the seeded sport rules', () => {
+    render(<TemplateManagementPage />);
+
+    expect(screen.getByRole('heading', { name: /sport rules/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('AKC Scent Work')).toBeInTheDocument();
   });
 
-  it('keeps template maintenance actions behind advanced maintenance copy', async () => {
-    const { user } = render(<TemplateManagementPage />);
+  it('explains that rules are changed by migration, not here', () => {
+    render(<TemplateManagementPage />);
 
-    expect(screen.getByRole('button', { name: /create template/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /force initialize/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /reset templates/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /clean duplicates/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByText('Advanced maintenance'));
-
-    expect(screen.getByText('Reload defaults')).toBeInTheDocument();
-    expect(screen.getByText(/Use only when template data is corrupted/i)).toBeInTheDocument();
-    expect(screen.getByText(/without changing the canonical template list/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /force initialize/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /reset templates/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /clean duplicates/i })).toBeInTheDocument();
+    expect(screen.getByRole('note', { name: /how sport rules are changed/i })).toHaveTextContent(
+      /read-only/i
+    );
   });
 
-  it('runs advanced maintenance actions from the disclosure', async () => {
-    const { user } = render(<TemplateManagementPage />);
+  // INTENT: this page must never regain authoring controls. Sport rules are
+  // reference data — a bad row affects every future show, so they change by
+  // reviewed migration. See docs/plan-template-authoring-removal.md.
+  it('offers no authoring affordances', () => {
+    render(<TemplateManagementPage />);
 
-    await user.click(screen.getByText('Advanced maintenance'));
-    await user.click(screen.getByRole('button', { name: /force initialize/i }));
-    await user.click(screen.getByRole('button', { name: /clean duplicates/i }));
-    await user.click(screen.getByRole('button', { name: /reset templates/i }));
-
-    expect(initializeDefaultTemplates).toHaveBeenCalledWith(true);
-    expect(cleanupDuplicateTemplates).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Reset All Templates')).toBeInTheDocument();
+    for (const label of [
+      /create template/i,
+      /new template/i,
+      /edit template/i,
+      /test template/i,
+      /delete/i,
+      /import/i,
+      /export/i,
+      /advanced maintenance/i,
+      /reload defaults/i,
+      /reset templates/i,
+      /clean duplicates/i,
+    ]) {
+      expect(
+        screen.queryByRole('button', { name: label }),
+        `"${label}" must not be offered on a read-only page`
+      ).toBeNull();
+    }
   });
 });

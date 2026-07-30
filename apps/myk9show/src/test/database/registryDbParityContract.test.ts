@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { getRegistry, getSport } from '@/features/registries';
 import { generateScentWorkClasses } from '@/features/registries/scentWork';
@@ -99,39 +99,88 @@ const seedSql = read('030_seed_sport_templates.sql');
 const seeded = parseSeededTemplates(seedSql);
 
 /**
- * Class tuples as they stand AFTER every migration that touches `sport_class_rules`.
+ * Every migration that mutates `sport_class_rules`, and how it changes the class set.
  *
- * 030 is parsed; later migrations are replayed as explicit deltas, because they use
- * `INSERT … SELECT` and `UPDATE`/`DELETE` rather than literal tuples a parser can read.
- *
- * MAINTENANCE: a new migration that adds, removes, or relabels class rules must be
- * replayed here. That is deliberate friction — this test is the thing that notices when
- * the wizard's catalog stops matching the registry, so it has to know the current state.
+ * The seed's literal tuples are parseable; later migrations use `INSERT … SELECT` and
+ * `UPDATE`/`DELETE`, which a static parser cannot evaluate. So each is modelled as a
+ * delta — but the model is NOT taken on trust. `mutatesClassRules()` below enumerates
+ * every migration that touches the table and fails if one is unaccounted for, and each
+ * delta declares a `proves` predicate asserting its own migration's SQL actually does
+ * what the delta claims. Without those two guards this file would be asserting its
+ * author's intent rather than the database's contents.
  */
+interface ClassRuleDelta {
+  migration: string;
+  why: string;
+  /** Asserts the migration's SQL really performs this delta. Throws with detail if not. */
+  proves: (sql: string) => void;
+  apply: (tuples: ClassTuple[]) => ClassTuple[];
+}
+
+const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleDelta[]>>> = {
+  ASCA: [
+    {
+      migration: '20260701130000_seed_asca_level_c_classes.sql',
+      why: 'clones every base ASCA row into a parallel section=C continuation class',
+      proves: sql => {
+        expect(sql).toMatch(/INSERT INTO public\.sport_class_rules/i);
+        expect(sql).toMatch(/'C'\s+AS\s+section|section\s*=\s*'C'|,\s*'C',/i);
+        expect(sql).toMatch(/FROM\s+public\.sport_class_rules/i);
+      },
+      apply: tuples => [...tuples, ...tuples.map(t => ({ ...t, section: 'C' }))],
+    },
+  ],
+  UKC: [
+    {
+      migration: '20260730180000_fix_ukc_hd_levels.sql',
+      why: "HD runs Novice/Advanced/Excellent/Master — 030 seeded it from the grid-element list, mislabelling rank 3 'Superior' and adding a nonexistent Elite",
+      proves: sql => {
+        expect(sql).toMatch(/SET level = 'Excellent'/);
+        expect(sql).toMatch(/AND level = 'Superior'/);
+        expect(sql).toMatch(/DELETE FROM public\.sport_class_rules/i);
+        expect(sql).toMatch(/AND level = 'Elite'/);
+        expect(sql).toMatch(/element = 'Handler Discrimination'/);
+      },
+      apply: tuples =>
+        tuples
+          .filter(t => !(t.element === 'Handler Discrimination' && t.level === 'Elite'))
+          .map(t =>
+            t.element === 'Handler Discrimination' && t.level === 'Superior'
+              ? { ...t, level: 'Excellent' }
+              : t
+          ),
+    },
+    {
+      migration: '20260730200000_fix_ukc_hd_scoring_rules.sql',
+      why: 'corrects HD scoring columns only (single timer, no odor, one hide) — no class is added or removed',
+      proves: sql => {
+        expect(sql).toMatch(/timer_mode = 'single'/);
+        expect(sql).toMatch(/odors = '\{\}'::text\[\]/);
+        expect(sql).toMatch(/hide_count_fixed = 1/);
+        // Must not change the class SET — no inserts, no deletes, no level relabelling.
+        expect(sql).not.toMatch(/INSERT INTO/i);
+        expect(sql).not.toMatch(/DELETE FROM/i);
+        expect(sql).not.toMatch(/SET[^;]*\blevel\s*=/i);
+      },
+      apply: tuples => tuples,
+    },
+  ],
+};
+
+/** Migration filenames that write to `sport_class_rules`, newest last. */
+function migrationsMutatingClassRules(): string[] {
+  return readdirSync(MIGRATIONS)
+    .filter(f => f.endsWith('.sql'))
+    .filter(f => {
+      const sql = read(f);
+      return /(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(public\.)?sport_class_rules/i.test(sql);
+    })
+    .sort();
+}
+
 function seededClassesFor(id: RegistryId): ClassTuple[] {
-  let tuples = parseSeededClasses(seedSql, ORG_ID_VAR[id]);
-
-  if (id === 'ASCA') {
-    // 20260701130000_seed_asca_level_c_classes.sql — clones every base ASCA row into a
-    // parallel `section = 'C'` continuation class ("the same methods and standards are
-    // used for judging and scoring the Level C classes as the base level classes").
-    tuples = [...tuples, ...tuples.map(t => ({ ...t, section: 'C' }))];
-  }
-
-  if (id === 'UKC') {
-    // 20260730180000_fix_ukc_hd_levels.sql — HD runs Novice/Advanced/Excellent/Master
-    // (rulebook Ch. 11 §2). 030 seeded it from the grid-element level list, so rank 3 was
-    // labelled Superior and a nonexistent Elite was added.
-    tuples = tuples
-      .filter(t => !(t.element === 'Handler Discrimination' && t.level === 'Elite'))
-      .map(t =>
-        t.element === 'Handler Discrimination' && t.level === 'Superior'
-          ? { ...t, level: 'Excellent' }
-          : t
-      );
-  }
-
-  return tuples;
+  const base = parseSeededClasses(seedSql, ORG_ID_VAR[id]);
+  return (CLASS_RULE_DELTAS[id] ?? []).reduce((acc, delta) => delta.apply(acc), base);
 }
 
 /** Levels reachable from the grid elements, in the sport's own progression order. */
@@ -169,6 +218,39 @@ const UNSEEDED_ELEMENTS: Readonly<Partial<Record<RegistryId, readonly string[]>>
 };
 
 describe('registry ↔ database parity', () => {
+  // ── Guards on the delta model itself ────────────────────────────────────────
+  // Without these, everything below asserts what this file's author believed the
+  // migrations do, not what they actually do.
+
+  it('accounts for every migration that writes to sport_class_rules', () => {
+    const modelled = new Set([
+      '030_seed_sport_templates.sql',
+      ...Object.values(CLASS_RULE_DELTAS)
+        .flat()
+        .map(d => d?.migration),
+    ]);
+
+    const unaccounted = migrationsMutatingClassRules().filter(f => !modelled.has(f));
+
+    expect(
+      unaccounted,
+      'A migration writes to sport_class_rules but is not modelled in CLASS_RULE_DELTAS. ' +
+        'Add a delta (with a `proves` predicate) so this contract still reflects the database.'
+    ).toEqual([]);
+  });
+
+  it('verifies each delta against its migration SQL', () => {
+    for (const [id, deltas] of Object.entries(CLASS_RULE_DELTAS)) {
+      for (const delta of deltas ?? []) {
+        const sql = read(delta.migration);
+        expect(sql.length, `${delta.migration} is empty`).toBeGreaterThan(0);
+        // Throws with vitest's diff if the SQL stopped doing what the delta models.
+        delta.proves(sql);
+        expect(delta.why.length, `${id} ${delta.migration} has no rationale`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it('parses the seed (guards against a vacuous pass)', () => {
     expect(Object.keys(seeded).sort()).toEqual(['AKC', 'ASCA', 'UKC']);
     for (const id of REGISTRY_IDS) {

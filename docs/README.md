@@ -82,6 +82,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                                             | Active    | Plan: Result Reveal + Share Card                                             |
 | [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                                           | Active    | Site Admin MCP V1 Implementation Plan                                        |
 | [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                                                 | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                          |
+| [plan-template-authoring-removal.md](plan-template-authoring-removal.md)                                         | Active    | Template Authoring Removal — keep the data model, delete the editor          |
 | [security-audit-2026-07/README.md](security-audit-2026-07/README.md)                                             | Active    | Security Audit Remediation — July 2026 (17 findings; 0 P0/P1; 6 plans)       |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                                             | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                               |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                                           | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)                  |

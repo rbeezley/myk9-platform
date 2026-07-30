@@ -150,7 +150,11 @@ const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleD
   ],
   UKC: [
     {
-      migration: '20260730180000_fix_ukc_hd_levels.sql',
+      // Renamed from 20260730180000: that version collided with
+      // 20260730180000_codify_people_dogs_read_grants.sql, which merged to main
+      // independently. Timestamped migrations only avoid collisions if two authors
+      // working the same afternoon pick different round numbers — and they did not.
+      migration: '20260730190000_fix_ukc_hd_levels.sql',
       why: "HD runs Novice/Advanced/Excellent/Master — 030 seeded it from the grid-element list, mislabelling rank 3 'Superior' and adding a nonexistent Elite",
       proves: sql => {
         expect(sql).toMatch(/SET level = 'Excellent'/);

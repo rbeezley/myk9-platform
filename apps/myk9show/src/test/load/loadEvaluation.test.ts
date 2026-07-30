@@ -9,6 +9,7 @@ function passingObservation(overrides: Partial<LoadObservation> = {}): LoadObser
     requestCount: 36_000,
     failedRequestCount: 720,
     workflowFailures: 0,
+    workflowFailureDetails: [],
     scoringWriteP95Ms: 180,
     apiP95Ms: 190,
     pageP95Ms: 2_500,

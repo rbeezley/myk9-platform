@@ -83,3 +83,34 @@ The post-change result must use the same Micro tier, canonical fixture, four-sha
 100-session workload, ringside minimum, duration, workflow mix, evaluator, and thresholds. A
 lighter workload or compute upgrade is a different experiment and cannot prove this optimization
 fixed the baseline.
+
+## Post-RBAC diagnostic run
+
+Recorded: 2026-07-30
+
+- Workflow run:
+  <https://github.com/rbeezley/myk9-platform/actions/runs/30506504877>
+- Compute tier: Supabase Micro
+- Configured sessions: 100 total / 55 ringside
+- Measured peak: 67 total / 54 ringside
+- Requests: 274,941 total / 5 failed HTTP requests / 97 workflow failures
+- Scoring p95: 1,503.6 ms; API p95: 1,337.2 ms
+- Peak CPU: 81.98%; peak disk busy: 97.41%; connections: 35/60
+- Scoring attempts: 81; SQLSTATE `40001`: 0
+- Canonical cleanup: `514|504|0`; post-run CPU/I/O returned to 0%
+
+RBAC calls no longer dominated (121 calls for each primary access RPC). The remaining measured
+shape was:
+
+- 668 authenticated entry-replica pulls versus 31 sampled scoring RPC calls, or 21.5 entry pulls
+  per scoring write;
+- 2,637 incremental class pulls;
+- 949 `get_account_today_entries` calls, or 9.49 calls per configured session;
+- one-second hard reloads for every non-scoring browser after its first workflow;
+- all scoring sessions beginning on the same class index; and
+- workflow exceptions reduced to an undifferentiated count, preventing exact timeout attribution.
+
+This is valid evidence that G9 failed and that RBAC was not the remaining dominant cost. Because
+most workflows failed and the runner repeatedly restarted the app, it is diagnostic rather than a
+realistic capacity ceiling. The corrected run retains the G9 concurrency, duration, roles, fixture,
+and thresholds but is recorded as a new experiment.

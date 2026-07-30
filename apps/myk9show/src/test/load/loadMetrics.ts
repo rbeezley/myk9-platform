@@ -1,5 +1,6 @@
 import type { CDPSession, Page } from '@playwright/test';
-import type { LoadObservation, PlatformObservation } from './loadEvaluation';
+import type { LoadObservation, PlatformObservation, WorkflowFailureDetail } from './loadEvaluation';
+import type { LoadWorkloadKind } from './loadScenario';
 
 interface RequestAttempt {
   entryId?: string;
@@ -40,6 +41,11 @@ interface CdpLoadingEvent {
   requestId: string;
 }
 
+const MAX_WORKFLOW_FAILURE_GROUPS = 100;
+const WORKFLOW_FAILURE_OVERFLOW_KEY = '["overflow"]';
+const MAX_FAILURE_MESSAGE_LENGTH = 300;
+const MAX_FAILURE_ROUTE_LENGTH = 200;
+
 export class LoadMetrics {
   private readonly apiDurations: number[] = [];
   private readonly scoringDurations: number[] = [];
@@ -49,6 +55,7 @@ export class LoadMetrics {
   private failedRequestCount = 0;
   private serializationFailures = 0;
   private workflowFailures = 0;
+  private readonly workflowFailureDetails = new Map<string, WorkflowFailureDetail>();
   private readonly responseTasks = new Set<Promise<void>>();
 
   async attach(page: Page): Promise<void> {
@@ -102,8 +109,39 @@ export class LoadMetrics {
     this.pageDurations.push(durationMs);
   }
 
-  recordWorkflowFailure(): void {
+  recordWorkflowFailure(input: {
+    workload: LoadWorkloadKind;
+    route: string;
+    error: unknown;
+  }): void {
     this.workflowFailures += 1;
+    const route = input.route.slice(0, MAX_FAILURE_ROUTE_LENGTH);
+    const message = normalizeFailureMessage(input.error).slice(0, MAX_FAILURE_MESSAGE_LENGTH);
+    const key = JSON.stringify([input.workload, route, message]);
+    const existing = this.workflowFailureDetails.get(key);
+    if (existing) {
+      existing.count += 1;
+      return;
+    }
+    if (this.workflowFailureDetails.size >= MAX_WORKFLOW_FAILURE_GROUPS - 1) {
+      const overflow = this.workflowFailureDetails.get(WORKFLOW_FAILURE_OVERFLOW_KEY);
+      if (overflow) overflow.count += 1;
+      else {
+        this.workflowFailureDetails.set(WORKFLOW_FAILURE_OVERFLOW_KEY, {
+          workload: input.workload,
+          route: '(additional routes)',
+          message: 'Additional unique workflow failures were grouped.',
+          count: 1,
+        });
+      }
+      return;
+    }
+    this.workflowFailureDetails.set(key, {
+      workload: input.workload,
+      route,
+      message,
+      count: 1,
+    });
   }
 
   async settle(): Promise<void> {
@@ -155,6 +193,7 @@ export class LoadMetrics {
       requestCount: this.requestCount,
       failedRequestCount: this.failedRequestCount,
       workflowFailures: this.workflowFailures,
+      workflowFailureDetails: [...this.workflowFailureDetails.values()],
       scoringWriteP95Ms: percentile(this.scoringDurations, 95),
       apiP95Ms: percentile(this.apiDurations, 95),
       pageP95Ms: percentile(this.pageDurations, 95),
@@ -190,6 +229,16 @@ export class LoadMetrics {
       .catch(() => undefined)
       .finally(() => this.responseTasks.delete(task));
     this.responseTasks.add(task);
+  }
+}
+
+function normalizeFailureMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error) ?? String(error);
+  } catch {
+    return String(error);
   }
 }
 

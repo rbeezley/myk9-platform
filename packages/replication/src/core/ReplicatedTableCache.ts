@@ -14,6 +14,14 @@ import type { Logger } from '../dependencies';
 import { REPLICATION_STORES } from './DatabaseManager';
 import { NOTIFY_DEBOUNCE_MS } from '../constants';
 
+export interface ReplicatedTableSubscriptionOptions {
+  /**
+   * Emit the current IndexedDB snapshot after subscribing.
+   * Defaults to true for backward compatibility.
+   */
+  emitCurrent?: boolean;
+}
+
 /**
  * Cache manager for a replicated table
  * Handles TTL, eviction, stats, and subscriptions
@@ -284,16 +292,21 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   /**
    * Subscribe to changes
    */
-  subscribe(callback: (data: T[]) => void): () => void {
+  subscribe(
+    callback: (data: T[]) => void,
+    options: ReplicatedTableSubscriptionOptions = {}
+  ): () => void {
     let isActive = true;
     this.listeners.add(callback);
-    this.getAllData()
-      .then(data => {
-        if (isActive) {
-          callback(data);
-        }
-      })
-      .catch(this.logger.error);
+    if (options.emitCurrent !== false) {
+      this.getAllData()
+        .then(data => {
+          if (isActive) {
+            callback(data);
+          }
+        })
+        .catch(this.logger.error);
+    }
     return () => {
       isActive = false;
       this.listeners.delete(callback);

@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { BrowserLoadResult } from './loadBrowserRunner';
 import type { LoadEvidenceTarget } from './loadEvidence';
-import type { LoadObservation } from './loadEvaluation';
+import type { LoadObservation, WorkflowFailureDetail } from './loadEvaluation';
 import { percentile, type LoadMetricSamples } from './loadMetrics';
 import type { LoadScenario } from './loadScenario';
 import { scenarioSessionCount } from './loadScenario';
@@ -69,6 +69,9 @@ export function aggregateLoadShardArtifacts(
   const requestCount = sum(observations, observation => observation.requestCount);
   const failedRequestCount = sum(observations, observation => observation.failedRequestCount);
   const workflowFailures = sum(observations, observation => observation.workflowFailures);
+  const workflowFailureDetails = mergeWorkflowFailureDetails(
+    observations.flatMap(observation => [...observation.workflowFailureDetails])
+  );
   const availabilityDenominator = requestCount + workflowFailures;
   const failures = failedRequestCount + workflowFailures;
   const elapsedMs = Math.max(...artifacts.map(artifact => artifact.elapsedMs));
@@ -87,6 +90,7 @@ export function aggregateLoadShardArtifacts(
       requestCount,
       failedRequestCount,
       workflowFailures,
+      workflowFailureDetails,
       scoringWriteP95Ms: percentile(samples.scoring, 95),
       apiP95Ms: percentile(samples.api, 95),
       pageP95Ms: percentile(samples.page, 95),
@@ -117,6 +121,25 @@ export function aggregateLoadShardArtifacts(
       platform,
     },
   };
+}
+
+function mergeWorkflowFailureDetails(
+  details: readonly WorkflowFailureDetail[]
+): WorkflowFailureDetail[] {
+  const merged = new Map<string, WorkflowFailureDetail>();
+  for (const detail of details) {
+    const key = JSON.stringify([detail.workload, detail.route, detail.message]);
+    const existing = merged.get(key);
+    if (existing) existing.count += detail.count;
+    else merged.set(key, { ...detail });
+  }
+  return [...merged.values()].sort(
+    (left, right) =>
+      right.count - left.count ||
+      left.workload.localeCompare(right.workload) ||
+      left.route.localeCompare(right.route) ||
+      left.message.localeCompare(right.message)
+  );
 }
 
 function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: LoadScenario): void {

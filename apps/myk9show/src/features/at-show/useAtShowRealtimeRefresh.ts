@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { subscribeToShowChanges } from '@/features/show-live-sync/showChangeSignal';
+import {
+  subscribeToShowChanges,
+  type ShowChangeSignal,
+} from '@/features/show-live-sync/showChangeSignal';
+import { syncAtShowChangeSignals } from './atShowDataAdapter';
 
 const DEBOUNCE_MS = 1500;
 
@@ -17,13 +21,23 @@ const DEBOUNCE_MS = 1500;
  */
 export function useAtShowRealtimeRefresh(
   showId: string | undefined,
-  refresh: (forceSync?: boolean) => Promise<void>
+  classIds: readonly string[],
+  refresh: (forceSync?: boolean) => Promise<void>,
+  synchronize: (
+    showId: string,
+    signals: readonly ShowChangeSignal[]
+  ) => Promise<void> = syncAtShowChangeSignals
 ): void {
   // Latest-ref pattern: the channel subscribes once per show, not per render.
   const refreshRef = useRef(refresh);
   useEffect(() => {
     refreshRef.current = refresh;
   });
+  const synchronizeRef = useRef(synchronize);
+  useEffect(() => {
+    synchronizeRef.current = synchronize;
+  });
+  const classScopeKey = [...classIds].sort().join(':');
 
   useEffect(() => {
     if (!showId) return;
@@ -31,27 +45,52 @@ export function useAtShowRealtimeRefresh(
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let inFlight = false;
     let pendingWhileInFlight = false;
+    let pendingFullRefresh = false;
+    let pendingSignals: ShowChangeSignal[] = [];
+    const watchedClassIds = new Set(classScopeKey ? classScopeKey.split(':') : []);
 
     const runRefresh = async () => {
       if (inFlight) {
         pendingWhileInFlight = true;
         return;
       }
+      const signals = pendingSignals;
+      pendingSignals = [];
+      const forceFullSync = pendingFullRefresh;
+      pendingFullRefresh = false;
+      if (!forceFullSync && signals.length === 0) return;
       inFlight = true;
       try {
-        await refreshRef.current(true);
+        if (forceFullSync) {
+          await refreshRef.current(true);
+        } else {
+          try {
+            await synchronizeRef.current(showId, signals);
+          } finally {
+            await refreshRef.current(false);
+          }
+        }
       } catch {
         /* non-fatal — next event or pull-to-refresh recovers */
       } finally {
         inFlight = false;
-        if (pendingWhileInFlight) {
+        if (pendingWhileInFlight || pendingFullRefresh || pendingSignals.length > 0) {
           pendingWhileInFlight = false;
           void runRefresh();
         }
       }
     };
 
-    const nudge = () => {
+    const nudge = (signal: ShowChangeSignal) => {
+      if (
+        signal.classIds &&
+        signal.classIds.length > 0 &&
+        watchedClassIds.size > 0 &&
+        !signal.classIds.some(classId => watchedClassIds.has(classId))
+      ) {
+        return;
+      }
+      pendingSignals.push(signal);
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => void runRefresh(), DEBOUNCE_MS);
     };
@@ -59,7 +98,9 @@ export function useAtShowRealtimeRefresh(
     const unsubscribe = subscribeToShowChanges(showId, nudge);
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void runRefresh();
+      if (document.visibilityState !== 'visible') return;
+      pendingFullRefresh = true;
+      void runRefresh();
     };
     document.addEventListener('visibilitychange', onVisible);
 
@@ -68,5 +109,5 @@ export function useAtShowRealtimeRefresh(
       if (debounceTimer) clearTimeout(debounceTimer);
       unsubscribe();
     };
-  }, [showId]);
+  }, [classScopeKey, showId]);
 }

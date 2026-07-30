@@ -126,15 +126,16 @@ export async function runBrowserLoad(
           );
           result.scoredEntryIds.forEach(entryId => scoredEntryIds.add(entryId));
           maxQueueDepth = Math.max(maxQueueDepth, result.maxQueueDepth);
-          while (!options.smoke && assignment.kind !== 'ringside-scoring' && Date.now() < endsAt) {
-            const reloadStarted = performance.now();
-            await page.reload({ waitUntil: 'domcontentloaded', timeout: 45_000 });
-            metrics.recordPageDuration(performance.now() - reloadStarted);
-            await delay(1_000);
+          if (!options.smoke && assignment.kind !== 'ringside-scoring') {
+            await delay(connectedSessionHoldMs(endsAt, Date.now()));
           }
         } catch (error) {
           if (options.smoke) throw error;
-          metrics.recordWorkflowFailure();
+          metrics.recordWorkflowFailure({
+            workload: assignment.kind,
+            route: pageRoute(page),
+            error,
+          });
         } finally {
           try {
             const queueDepth = await readPendingMutationCount(page);
@@ -152,7 +153,6 @@ export async function runBrowserLoad(
     const rejectedSessions = sessionResults.filter(
       (result): result is PromiseRejectedResult => result.status === 'rejected'
     );
-    rejectedSessions.forEach(() => metrics.recordWorkflowFailure());
     if (options.smoke && rejectedSessions[0]) throw rejectedSessions[0].reason;
 
     await metrics.settle();
@@ -218,8 +218,25 @@ export function scoringEntryNumber(sessionIndex: number, classIndex: number): nu
   const isContentionSession =
     sessionIndex >= CONTENTION_FIRST_SESSION &&
     sessionIndex < CONTENTION_FIRST_SESSION + CONTENTION_SESSION_COUNT;
-  if (isContentionSession && classIndex === 0) return CONTENTION_ENTRY_NUMBER;
-  return sessionIndex * LOAD_CLASS_IDS.length + classIndex + 1;
+  if (isContentionSession) {
+    if (classIndex === 0) return CONTENTION_ENTRY_NUMBER;
+    return sessionIndex * LOAD_CLASS_IDS.length + classIndex + 1;
+  }
+  const rotatedClassIndex = (sessionIndex + classIndex) % LOAD_CLASS_IDS.length;
+  return sessionIndex * LOAD_CLASS_IDS.length + rotatedClassIndex + 1;
+}
+
+export function connectedSessionHoldMs(endsAt: number, now: number): number {
+  return Math.max(0, endsAt - now);
+}
+
+function pageRoute(page: Page): string {
+  try {
+    const url = new URL(page.url());
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return page.url();
+  }
 }
 
 async function createAuthState(browser: Browser, baseURL: string, role: 'secretary' | 'exhibitor') {

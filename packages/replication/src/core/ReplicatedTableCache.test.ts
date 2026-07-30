@@ -205,6 +205,17 @@ describe('ReplicatedTableCacheManager', () => {
       expect(typeof unsubscribe).toBe('function');
     });
 
+    it('can omit the current snapshot while retaining future notifications', async () => {
+      const callback = vi.fn();
+      cacheManager.subscribe(callback, { emitCurrent: false });
+
+      await new Promise(r => setTimeout(r, 50));
+      expect(callback).not.toHaveBeenCalled();
+
+      await cacheManager.notifyListeners();
+      expect(callback).toHaveBeenCalled();
+    });
+
     it('should not call callback after unsubscribe', async () => {
       const callback = vi.fn();
       const unsubscribe = cacheManager.subscribe(callback);

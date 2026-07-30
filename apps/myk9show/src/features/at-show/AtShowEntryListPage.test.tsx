@@ -18,7 +18,7 @@ import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
-import { createAtShowDataDependencies } from './atShowDataAdapter';
+import { createAtShowDataDependencies, syncAtShowChangeSignals } from './atShowDataAdapter';
 import { AtShowRoutes } from '@/routes/atShowRoutes';
 import {
   replicatedShowsTable,
@@ -32,6 +32,7 @@ import {
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedClassesTable: {
+    batchDelete: vi.fn(),
     getClassById: vi.fn(),
     sync: vi.fn(),
     subscribe: vi.fn(() => vi.fn()),
@@ -201,6 +202,51 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('empty-show');
     expect(replicatedClassesTable.sync).not.toHaveBeenCalled();
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('empty-show');
+  });
+
+  it('syncs only entries for a scoped entry signal', async () => {
+    await syncAtShowChangeSignals('show-1', [{ table: 'entries', classIds: ['class-1'] }]);
+
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedTrialsTable.sync).not.toHaveBeenCalled();
+    expect(replicatedClassesTable.sync).not.toHaveBeenCalled();
+  });
+
+  it('syncs only the known trial for a scoped class signal', async () => {
+    await syncAtShowChangeSignals('show-1', [{ table: 'classes', classIds: ['class-1'] }]);
+
+    expect(replicatedClassesTable.getClassById).toHaveBeenCalledWith('class-1');
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
+    expect(replicatedEntriesTable.sync).not.toHaveBeenCalled();
+    expect(replicatedTrialsTable.sync).not.toHaveBeenCalled();
+  });
+
+  it('falls back to complete show sync for an unscoped signal', async () => {
+    await syncAtShowChangeSignals('show-1', [{ table: 'entries' }]);
+
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+  });
+
+  it('resets a moved or deleted class locally before complete reconciliation', async () => {
+    await syncAtShowChangeSignals('show-1', [{ table: 'classes', id: 'class-1' }]);
+
+    expect(replicatedClassesTable.batchDelete).toHaveBeenCalledWith(['class-1']);
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+  });
+
+  it('falls back to complete show sync when a signaled class is not local yet', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValueOnce(null);
+
+    await syncAtShowChangeSignals('show-1', [
+      { table: 'classes', classIds: ['new-class'] },
+    ]);
+
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
   });
 
   it('does not write in-ring status when a pending card is tapped for viewing', async () => {

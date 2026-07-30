@@ -128,7 +128,10 @@ export {
   waitForActiveTransactions,
 } from './core/DatabaseManager';
 
-export { ReplicatedTableCacheManager } from './core/ReplicatedTableCache';
+export {
+  ReplicatedTableCacheManager,
+  type ReplicatedTableSubscriptionOptions,
+} from './core/ReplicatedTableCache';
 export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
 export { isQuotaExceededError, withQuotaEviction } from './quota-eviction';

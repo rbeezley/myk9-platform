@@ -1,5 +1,5 @@
 /**
- * Tests for useAtShowRealtimeRefresh — realtime nudge → debounced forceSync.
+ * Tests for useAtShowRealtimeRefresh — realtime nudge → targeted sync + local refresh.
  *
  * The debounce contract matters most: a judge scoring a class fires a burst of
  * entry UPDATEs; the list must coalesce that into ONE sync, not N.
@@ -20,10 +20,11 @@ vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 
 const SHOW = 'show-1';
+const CLASS = 'class-1';
 let changeHandler: ShowChangeListener | undefined;
 let unsubscribe: ReturnType<typeof subscribeToShowChanges>;
 
-const emitChange = () => changeHandler?.({ table: 'entries' });
+const emitChange = () => changeHandler?.({ table: 'entries', classIds: [CLASS] });
 
 describe('useAtShowRealtimeRefresh', () => {
   beforeEach(() => {
@@ -42,9 +43,10 @@ describe('useAtShowRealtimeRefresh', () => {
     vi.clearAllMocks();
   });
 
-  it('coalesces a burst of entry updates into one debounced forceSync refresh', async () => {
+  it('coalesces a burst of entry updates into one debounced targeted sync', async () => {
     const refresh = vi.fn(() => Promise.resolve());
-    renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
+    const synchronize = vi.fn(() => Promise.resolve());
+    renderHook(() => useAtShowRealtimeRefresh(SHOW, [CLASS], refresh, synchronize));
     expect(subscribeToShowChanges).toHaveBeenCalledWith(SHOW, expect.any(Function));
 
     act(() => {
@@ -56,25 +58,66 @@ describe('useAtShowRealtimeRefresh', () => {
       vi.advanceTimersByTime(1500);
       await Promise.resolve();
     });
+    expect(synchronize).toHaveBeenCalledOnce();
+    expect(synchronize).toHaveBeenCalledWith(SHOW, [
+      { table: 'entries', classIds: [CLASS] },
+      { table: 'entries', classIds: [CLASS] },
+      { table: 'entries', classIds: [CLASS] },
+      { table: 'entries', classIds: [CLASS] },
+      { table: 'entries', classIds: [CLASS] },
+    ]);
     expect(refresh).toHaveBeenCalledTimes(1);
-    expect(refresh).toHaveBeenCalledWith(true);
+    expect(refresh).toHaveBeenCalledWith(false);
   });
 
   it('also refreshes on class updates', async () => {
     const refresh = vi.fn(() => Promise.resolve());
-    renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
+    const synchronize = vi.fn(() => Promise.resolve());
+    renderHook(() => useAtShowRealtimeRefresh(SHOW, [CLASS], refresh, synchronize));
 
-    act(emitChange);
+    act(() => changeHandler?.({ table: 'classes', classIds: [CLASS] }));
     await act(async () => {
       vi.advanceTimersByTime(1500);
       await Promise.resolve();
     });
+    expect(synchronize).toHaveBeenCalledWith(SHOW, [{ table: 'classes', classIds: [CLASS] }]);
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores scoped signals for a different class', async () => {
+    const refresh = vi.fn(() => Promise.resolve());
+    const synchronize = vi.fn(() => Promise.resolve());
+    renderHook(() => useAtShowRealtimeRefresh(SHOW, [CLASS], refresh, synchronize));
+
+    act(() => changeHandler?.({ table: 'entries', classIds: ['class-2'] }));
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+      await Promise.resolve();
+    });
+
+    expect(synchronize).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('accepts legacy unscoped signals as a full-sync fallback', async () => {
+    const refresh = vi.fn(() => Promise.resolve());
+    const synchronize = vi.fn(() => Promise.resolve());
+    renderHook(() => useAtShowRealtimeRefresh(SHOW, [CLASS], refresh, synchronize));
+
+    act(() => changeHandler?.({ table: 'entries' }));
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+      await Promise.resolve();
+    });
+
+    expect(synchronize).toHaveBeenCalledWith(SHOW, [{ table: 'entries' }]);
+    expect(refresh).toHaveBeenCalledWith(false);
   });
 
   it('refreshes immediately when the app returns to the foreground', async () => {
     const refresh = vi.fn(() => Promise.resolve());
-    renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
+    const synchronize = vi.fn(() => Promise.resolve());
+    renderHook(() => useAtShowRealtimeRefresh(SHOW, [CLASS], refresh, synchronize));
 
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -82,6 +125,40 @@ describe('useAtShowRealtimeRefresh', () => {
     });
     // jsdom's visibilityState is 'visible' by default → counts as foregrounding.
     expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledWith(true);
+    expect(synchronize).not.toHaveBeenCalled();
+  });
+
+  it('serializes a foreground full refresh behind an in-flight Broadcast refresh', async () => {
+    let resolveRealtimeRefresh: () => void = () => {};
+    const refresh = vi
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise<void>(resolve => (resolveRealtimeRefresh = resolve))
+      )
+      .mockResolvedValue(undefined);
+    const synchronize = vi.fn(() => Promise.resolve());
+    renderHook(() => useAtShowRealtimeRefresh(SHOW, [CLASS], refresh, synchronize));
+
+    act(emitChange);
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+      await Promise.resolve();
+    });
+    expect(refresh).toHaveBeenCalledWith(false);
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await Promise.resolve();
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveRealtimeRefresh();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(refresh).toHaveBeenNthCalledWith(2, true);
   });
 
   it('queues at most one follow-up while a refresh is in flight', async () => {
@@ -90,7 +167,8 @@ describe('useAtShowRealtimeRefresh', () => {
       .fn()
       .mockImplementationOnce(() => new Promise<void>(resolve => (resolveFirst = resolve)))
       .mockImplementation(() => Promise.resolve());
-    renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
+    const synchronize = vi.fn(() => Promise.resolve());
+    renderHook(() => useAtShowRealtimeRefresh(SHOW, [CLASS], refresh, synchronize));
 
     // First nudge starts a refresh that hangs.
     act(emitChange);
@@ -120,7 +198,10 @@ describe('useAtShowRealtimeRefresh', () => {
 
   it('tears down the channel and stops refreshing after unmount', async () => {
     const refresh = vi.fn(() => Promise.resolve());
-    const { unmount } = renderHook(() => useAtShowRealtimeRefresh(SHOW, refresh));
+    const synchronize = vi.fn(() => Promise.resolve());
+    const { unmount } = renderHook(() =>
+      useAtShowRealtimeRefresh(SHOW, [CLASS], refresh, synchronize)
+    );
     unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
 
@@ -137,7 +218,7 @@ describe('useAtShowRealtimeRefresh', () => {
 
   it('does nothing without a showId', () => {
     const refresh = vi.fn(() => Promise.resolve());
-    renderHook(() => useAtShowRealtimeRefresh(undefined, refresh));
+    renderHook(() => useAtShowRealtimeRefresh(undefined, [CLASS], refresh, vi.fn()));
     expect(subscribeToShowChanges).not.toHaveBeenCalled();
   });
 });

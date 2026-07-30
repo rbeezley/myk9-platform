@@ -46,6 +46,23 @@ describe('ReplicatedTable subscription lifecycle', () => {
     await databaseManager.reset();
   });
 
+  it('can subscribe to future changes without emitting the current snapshot', async () => {
+    const table = makeTable('changes-only');
+    await table.set('1', { id: '1', name: 'Rex' });
+    await new Promise(r => setTimeout(r, 250));
+    const callback = vi.fn();
+
+    table.subscribe(callback, { emitCurrent: false });
+    await new Promise(r => setTimeout(r, 50));
+
+    expect(callback).not.toHaveBeenCalled();
+
+    await table.set('2', { id: '2', name: 'Mabel' });
+    await new Promise(r => setTimeout(r, 250));
+
+    expect(callback).toHaveBeenCalled();
+  });
+
   // -------------------------------------------------------------------------
   // Test 1: The IDB listener subscription is torn down when unsubscribe is called.
   //

@@ -95,6 +95,10 @@ describe('showChangeSignal', () => {
     fake.channels[0].emit({ table: 'entries' } satisfies ShowChangeSignal);
     fake.channels[0].emit({
       table: 'classes',
+      class_ids: ['c54ff90a-a859-40d8-b7e7-54d7b57601a3', 'a1111111-a859-40d8-b7e7-54d7b57601a3'],
+    });
+    fake.channels[0].emit({
+      table: 'classes',
       id: 'c54ff90a-a859-40d8-b7e7-54d7b57601a3',
     });
     fake.channels[0].emit({ table: 'paperwork_prints' });
@@ -104,12 +108,30 @@ describe('showChangeSignal', () => {
     expect(fake.channel).toHaveBeenCalledTimes(1);
     expect(first.mock.calls).toEqual([
       [{ table: 'entries' }],
-      [{ table: 'classes' }],
+      [
+        {
+          table: 'classes',
+          classIds: [
+            'c54ff90a-a859-40d8-b7e7-54d7b57601a3',
+            'a1111111-a859-40d8-b7e7-54d7b57601a3',
+          ],
+        },
+      ],
+      [{ table: 'classes', id: 'c54ff90a-a859-40d8-b7e7-54d7b57601a3' }],
       [{ table: 'paperwork_prints' }],
     ]);
     expect(second.mock.calls).toEqual([
       [{ table: 'entries' }],
-      [{ table: 'classes' }],
+      [
+        {
+          table: 'classes',
+          classIds: [
+            'c54ff90a-a859-40d8-b7e7-54d7b57601a3',
+            'a1111111-a859-40d8-b7e7-54d7b57601a3',
+          ],
+        },
+      ],
+      [{ table: 'classes', id: 'c54ff90a-a859-40d8-b7e7-54d7b57601a3' }],
       [{ table: 'paperwork_prints' }],
     ]);
   });

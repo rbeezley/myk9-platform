@@ -28,7 +28,10 @@ import type { MutationManager } from '../MutationManager';
 import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
-import { ReplicatedTableCacheManager } from './ReplicatedTableCache';
+import {
+  ReplicatedTableCacheManager,
+  type ReplicatedTableSubscriptionOptions,
+} from './ReplicatedTableCache';
 import { ReplicatedTableBatchManager } from './ReplicatedTableBatch';
 import { ReplicatedTableQueryManager } from './ReplicatedTableQuery';
 import { RowLockRegistry } from './RowLockRegistry';
@@ -879,8 +882,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   // --- Cache Management ---
 
-  subscribe(callback: (data: T[]) => void): () => void {
-    return this.cacheManager.subscribe(callback);
+  subscribe(
+    callback: (data: T[]) => void,
+    options?: ReplicatedTableSubscriptionOptions
+  ): () => void {
+    return this.cacheManager.subscribe(callback, options);
   }
 
   protected async notifyListeners(): Promise<void> {

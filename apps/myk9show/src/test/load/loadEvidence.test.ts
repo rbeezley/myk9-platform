@@ -9,6 +9,14 @@ const observation: LoadObservation = {
   requestCount: 36_000,
   failedRequestCount: 10,
   workflowFailures: 0,
+  workflowFailureDetails: [
+    {
+      workload: 'secretary-check-in',
+      route: '/at-show/show-1/class/class-1',
+      message: 'Checked-in button timed out',
+      count: 3,
+    },
+  ],
   scoringWriteP95Ms: 180,
   apiP95Ms: 190,
   pageP95Ms: 2_500,
@@ -69,11 +77,19 @@ describe('load evidence', () => {
     expect(evidence).toMatchObject({
       seedSize: 514,
       target: { mode: 'e2e', projectRef: 'approved', computeTier: 'Small' },
-      scenario: { durationMs: 600_000, configuredSessions: 100, configuredRingsideSessions: 55 },
+      scenario: {
+        durationMs: 600_000,
+        configuredSessions: 100,
+        configuredRingsideSessions: 55,
+        browserBehaviorVersion: 'connected-devices-v2',
+      },
       supportedCeiling: '55 concurrent ringside sessions on a show of 514 entries',
     });
     const serialized = JSON.stringify(evidence);
     expect(serialized).not.toContain('supabase.co');
     expect(renderLoadEvidenceMarkdown(evidence)).toContain('Result: PASS');
+    expect(renderLoadEvidenceMarkdown(evidence)).toContain(
+      'secretary-check-in ×3 — Checked-in button timed out'
+    );
   });
 });

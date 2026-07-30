@@ -157,7 +157,7 @@ export const AtShowEntryListPage: React.FC = () => {
   );
 
   // ── Realtime: scoring/check-in changes elsewhere re-sync this list ─────
-  useAtShowRealtimeRefresh(showId, refresh);
+  useAtShowRealtimeRefresh(showId, classId ? [classId] : [], refresh);
 
   // ── Shim-owned entry mirror state (see uiState hook ownership note) ────
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);

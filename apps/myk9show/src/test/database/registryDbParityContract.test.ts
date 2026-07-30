@@ -79,20 +79,6 @@ const seeded = parseSeededTemplates(readFileSync(SEED_MIGRATION, 'utf8'));
 
 const REGISTRY_IDS: readonly RegistryId[] = ['AKC', 'UKC', 'ASCA'];
 
-/**
- * Registry elements that are deliberately NOT seeded as `sport_templates.elements`.
- *
- * ASCA "Champion" (Champion Detection Level) is modeled in the registry as a standalone
- * one-level element, but no `sport_templates.elements` entry and no `sport_class_rules`
- * rows exist for it — so a secretary cannot currently create an ASCA Champion class.
- * That is a real gap, not a modeling choice; it is pinned here so the parity test can be
- * green on today's reality while still failing on any NEW divergence. Closing it means
- * seeding the element plus its class rules, then deleting this entry.
- */
-const KNOWN_UNSEEDED_ELEMENTS: Readonly<Partial<Record<RegistryId, readonly string[]>>> = {
-  ASCA: ['Champion'],
-};
-
 describe('registry ↔ sport_templates parity', () => {
   it('parses every seeded template (guards against a vacuous pass)', () => {
     expect(Object.keys(seeded).sort()).toEqual(['AKC', 'ASCA', 'UKC']);
@@ -107,11 +93,9 @@ describe('registry ↔ sport_templates parity', () => {
     const row = seeded[id];
 
     it('seeds exactly the registry element labels', () => {
-      const expectedElements = sport.elements
-        .map(e => e.label)
-        .filter(label => !(KNOWN_UNSEEDED_ELEMENTS[id] ?? []).includes(label));
-
-      expect([...row.elements].sort()).toEqual([...expectedElements].sort());
+      // Exact equality, no allowlist. If a registry gains an element, it must be seeded
+      // in the same change — there is no "known gap" escape hatch to hide behind.
+      expect([...row.elements].sort()).toEqual([...sport.elements.map(e => e.label)].sort());
     });
 
     it('seeds the grid-element levels, in progression order', () => {
@@ -140,20 +124,28 @@ describe('registry ↔ sport_templates parity', () => {
     });
   });
 
-  it('documents every known gap, and no more', () => {
-    // If a gap is closed, its entry must be deleted — an allowlist that outlives the
-    // problem it describes silently re-permits the drift it was meant to expose.
-    for (const [id, labels] of Object.entries(KNOWN_UNSEEDED_ELEMENTS)) {
-      const sport = getSport(getRegistry(id as RegistryId), SPORT_ID);
-      const registryLabels = sport.elements.map(e => e.label);
+  it('has no ASCA "Champion" on either side', () => {
+    // Regression guard. asca.ts once carried a Champion level and a standalone Champion
+    // element, on the assumption that ASCA's "Level C" meant Champion. It does not:
+    // §3.2.2 of the rulebook defines Level C as a continuation track — 3 qualifying scores
+    // earn the base element title, 7 more (10 total) earn the Level C element title
+    // (SCNc-C, SCNi-C, …). Earning it makes a team a champion OF that element and level;
+    // it is not a separate class anyone enters. ASCA's competition levels are §5 Novice,
+    // §6 Open, §7 Advanced, §8 Excellent, then §9 Faults — there is no fifth.
+    const asca = getSport(getRegistry('ASCA'), SPORT_ID);
 
-      for (const label of labels ?? []) {
-        expect(registryLabels, `${id} no longer defines "${label}"`).toContain(label);
-        expect(
-          seeded[id].elements,
-          `${id} now seeds "${label}" — remove it from KNOWN_UNSEEDED_ELEMENTS`
-        ).not.toContain(label);
-      }
-    }
+    expect(asca.levels.map(l => l.label)).not.toContain('Champion');
+    expect(asca.elements.map(e => e.label)).not.toContain('Champion');
+    expect(seeded.ASCA.levels).not.toContain('Champion');
+    expect(seeded.ASCA.elements).not.toContain('Champion');
+
+    // The continuation track it was confused with is still modeled, on all four levels.
+    const levelCLevels = asca.elements
+      .filter(e => e.variantsByLevel)
+      .flatMap(e => Object.entries(e.variantsByLevel ?? {}))
+      .filter(([, variants]) => variants.some(v => v.kind === 'continuation'))
+      .map(([levelKey]) => levelKey);
+
+    expect([...new Set(levelCLevels)].sort()).toEqual(['advanced', 'excellent', 'novice', 'open']);
   });
 });

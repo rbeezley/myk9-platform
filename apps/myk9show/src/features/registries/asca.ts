@@ -32,14 +32,20 @@ function levelCForLevels(levelKeys: readonly string[]): Record<string, readonly 
   return out;
 }
 
-// Levels are disjoint from AKC/UKC: 'Open' and 'Champion' are ASCA-only. Champion is a separate
-// points-based level (no Level C), modeled as a standalone element below.
+// 'Open' is ASCA-only; the other three labels are shared with AKC/UKC. These four are the
+// complete set — the rulebook's competition levels are §5 Novice, §6 Open, §7 Advanced,
+// §8 Excellent, and then §9 is Faults. There is no fifth level.
+//
+// There was previously a 'Champion' level here, on the assumption that "Level C" meant
+// Champion. It does not: §3.2.2 defines Level C as a CONTINUATION track — 3 qualifying
+// scores earn the base element title, 7 more (10 total) earn the Level C element title
+// (SCNc-C, SCNi-C, …). That is already modeled by the LEVEL_C variant above, and no
+// Champion Detection Level exists. Do not re-add one.
 const ASCA_LEVELS: readonly LevelSpec[] = [
   { key: 'novice', label: 'Novice', order: 1 },
   { key: 'open', label: 'Open', order: 2 },
   { key: 'advanced', label: 'Advanced', order: 3 },
   { key: 'excellent', label: 'Excellent', order: 4 },
-  { key: 'champion', label: 'Champion', order: 5 },
 ];
 
 const BASE_LEVELS = ['novice', 'open', 'advanced', 'excellent']; // the four levels that carry Level C
@@ -64,19 +70,13 @@ function gridElement(key: string, label: string, columnHeader: string): ElementS
   };
 }
 
+// Four elements, every one of them a grid element. ASCA has no standalone off-grid element
+// (unlike AKC's Detective or the Handler Discrimination both AKC and UKC run).
 const ASCA_ELEMENTS: readonly ElementSpec[] = [
   gridElement('container', 'Container', 'Cont.'),
   gridElement('interior', 'Interior', 'Int.'),
   gridElement('exterior', 'Exterior', 'Ext.'),
   gridElement('vehicle', 'Vehicle', 'Veh.'),
-  // Champion Detection Level: a single standalone class — points-based, mixed search areas (not
-  // broken out by element), no Level C. Modeled as a one-level element whose level matches it.
-  {
-    key: 'champion',
-    label: 'Champion',
-    grid: false,
-    levels: ['champion'],
-  },
 ];
 
 const ascaScentDetection: RegistrySport = {

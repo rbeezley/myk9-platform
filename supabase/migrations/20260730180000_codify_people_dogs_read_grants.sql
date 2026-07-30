@@ -22,3 +22,13 @@
 
 GRANT SELECT ON public.people TO authenticated;
 GRANT SELECT ON public.dogs TO authenticated;
+
+-- Anon decision (required by the grant-decision contract): re-affirm the
+-- column-scoped anon allowlists from 20260725170000 unchanged — anon gets
+-- exactly the embed columns, never table-wide SELECT. Do NOT use REVOKE ALL
+-- here: it would destroy these column grants (the MYK9-93 trap). The live
+-- project also carries an untracked anon grant on people.email beyond this
+-- allowlist; that discrepancy is deliberately NOT codified here and is left
+-- to the MYK9-93 drift audit.
+GRANT SELECT (id, name, call_name, breed, image_url) ON public.dogs   TO anon;
+GRANT SELECT (id, first_name, last_name)             ON public.people TO anon;

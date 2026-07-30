@@ -370,13 +370,13 @@ show-creation wizard e2e path (it consumes `buildRuleMap`, the highest-risk cons
 
 ## 6 · Definition of done
 
-- `/admin/templates` renders read-only; `/new`, `/:id/edit`, `/:id/test` return 404.
-- No write path to `sport_templates` / `sport_class_rules` / `sport_titles` exists outside a migration.
-- `templateStore` exposes no mutation actions; `loadTemplatesFromDB` is the only load entry point.
-- Registry↔DB parity test green for AKC, UKC, ASCA.
-- Show-creation wizard creates classes with scoring fields baked in, unchanged.
-- Full gate green.
-- `template_fields` dropped (follow-up PR).
+- [x] `/admin/templates` renders read-only; `/new`, `/:id/edit`, `/:id/test` no longer route. (PR 2)
+- [x] No write path to `sport_templates` / `sport_class_rules` / `sport_titles` exists outside a migration. (PR 2)
+- [x] `templateStore` exposes no mutation actions; `loadTemplatesFromDB` is the only load entry point. (PR 2)
+- [ ] Registry↔DB parity test green for AKC, UKC, ASCA. (PR 3)
+- [x] Show-creation wizard creates classes with scoring fields baked in, unchanged — `buildRuleMap` and `sportTemplateService` never touched.
+- [x] Full gate green: typecheck (incl. `typecheck:tests`), eslint `--max-warnings 0`, 14,753 unit tests passing.
+- [ ] `template_fields` dropped, with its four dead field mappers. (PR 4)
 
 ## 7 · Estimate
 
@@ -391,12 +391,12 @@ estimate because §4.0 Q2 found ~1,137 lines of mutually-referential dead code a
 
 Suggested PR split:
 
-| PR  | Contents                                                                       | Risk                                                                                                                                   |
-| --- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | §4.0 Q2 deletions + Q3 orphan stylesheet                                       | **none** — nothing reachable is touched; land independently. **Shipped: [#1523](https://github.com/rbeezley/myk9-platform/pull/1523)** |
-| 2   | Phases 2–5 **plus the dependent test rewrites from Phase 6**                   | low — typecheck-guided                                                                                                                 |
-| 3   | Registry↔DB parity test (new coverage only) + the stale cross-browser e2e path | low                                                                                                                                    |
-| 4   | `template_fields` DROP + dead field mappers + type aliases + fixture removal   | low — must land after PR 2                                                                                                             |
+| PR  | Contents                                                                     | Risk                                                                                                                                   |
+| --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | §4.0 Q2 deletions + Q3 orphan stylesheet                                     | **none** — nothing reachable is touched; land independently. **Shipped: [#1523](https://github.com/rbeezley/myk9-platform/pull/1523)** |
+| 2   | Phases 2–5 **plus the dependent test rewrites from Phase 6**                 | low — typecheck-guided. **Shipped: [#1525](https://github.com/rbeezley/myk9-platform/pull/1525)**, −5,840 lines                        |
+| 3   | Registry↔DB parity test (new coverage only)                                  | low                                                                                                                                    |
+| 4   | `template_fields` DROP + dead field mappers + type aliases + fixture removal | low — must land after PR 2                                                                                                             |
 
 > **The dependent test rewrites cannot be deferred to PR 3.** `pnpm typecheck` runs
 > `typecheck:tests` against `tsconfig.test.json`, and both `templateStore.test.ts` and
@@ -405,3 +405,30 @@ Suggested PR split:
 > in PR 2 while their tests wait for PR 3 makes PR 2 unable to pass CI. Every rewrite in
 > Phase 6 that names a deleted symbol ships **in PR 2**; PR 3 carries only genuinely new,
 > independent coverage.
+>
+> **Confirmed during PR 2.** With the app code fully clean, `pnpm typecheck` still reported
+> 30 errors — every one in a test file. The split would have deadlocked exactly as predicted.
+
+### What PR 2 taught the plan
+
+Two §3 entries were wrong in the same direction — **more was already dead than the importer
+graph showed at plan time**:
+
+- `TemplateList.tsx` was marked "reduce — strip action props." It had **zero consumers**;
+  `TemplateManagementPage` renders its own inline grid. Deleted outright.
+- `admin/` still holds `ClassDefinitionTable.tsx` and `FieldBuilder.tsx` (zero consumers) plus
+  a `FieldConfigurator` cluster reachable only from the deleted `TemplateForm`. **Left in
+  place** so PR 2 stayed scoped to the plan — a follow-up sweep, not scope creep.
+
+Two verification lessons worth carrying to Phases 3–4 elsewhere:
+
+- **Typecheck catches deleted _bindings_; only tests catch deleted _identifiers-as-data_.**
+  `pnpm typecheck` passed immediately after PR 2's eleven file deletions while three tests
+  were still red, because everything that broke was a string — route paths in
+  `resolveExamplePath`, nav titles in the sidebar config. The plan's "typecheck-guided"
+  framing for Phase 2 was too narrow.
+- **Renaming a store action requires grepping mocks separately.** After the scoped tests went
+  green, the full suite still failed 8 tests in two files that `vi.mock` the store with
+  `initializeDefaultTemplates`. Typecheck cannot see inside a mock's object literal, and
+  neither file imports the symbol, so no blast-radius grep would have found them. Run the
+  full suite before claiming a rename is done.

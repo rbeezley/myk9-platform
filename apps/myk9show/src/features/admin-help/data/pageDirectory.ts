@@ -22,7 +22,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/health',
     title: 'System Health',
-    description: 'Latest daily go-live parity check: overall status, per-check pills, and recent run history. A stale or missing run is surfaced as a failure.',
+    description:
+      'Latest daily go-live parity check: overall status, per-check pills, and recent run history. A stale or missing run is surfaced as a failure.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',
@@ -116,51 +117,14 @@ export const pageDirectory: readonly PageEntry[] = [
   },
   {
     path: '/admin/templates',
-    title: 'Template Management',
-    description: 'Maintain organization/sport templates (AKC, UKC, ASCA) and class definitions.',
+    title: 'Sport Rules',
+    description:
+      'Read-only view of the sport rules (AKC, UKC, ASCA) currently seeded in the database. Rules are changed by migration, not here.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: [
-      '/admin/templates/new',
-      '/admin/templates/:templateId/edit',
-      '/admin/templates/:templateId/test',
-    ],
-  },
-  {
-    path: '/admin/templates/new',
-    title: 'New Template',
-    description: 'Create a new organization/sport template.',
-    roles: [UserRole.SITE_ADMIN],
-    classification: 'critical-path',
-    category: 'Admin',
-    status: 'working',
-    linksTo: [
-      '/admin/templates',
-      '/admin/templates/:templateId/edit',
-      '/admin/templates/:templateId/test',
-    ],
-  },
-  {
-    path: '/admin/templates/:templateId/edit',
-    title: 'Edit Template',
-    description: 'Edit an existing organization/sport template.',
-    roles: [UserRole.SITE_ADMIN],
-    classification: 'critical-path',
-    category: 'Admin',
-    status: 'working',
-    linksTo: ['/admin/templates', '/admin/templates/:templateId/test'],
-  },
-  {
-    path: '/admin/templates/:templateId/test',
-    title: 'Template Testing',
-    description: 'Preview how a template renders and validates in the show wizard.',
-    roles: [UserRole.SITE_ADMIN],
-    classification: 'park',
-    category: 'Admin',
-    status: 'working',
-    linksTo: ['/admin/templates'],
+    linksTo: [],
   },
   {
     path: '/admin/sync',
@@ -175,7 +139,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/deleted-items',
     title: 'Deleted Items',
-    description: 'Restore soft-deleted records or permanently delete records that should not be recovered.',
+    description:
+      'Restore soft-deleted records or permanently delete records that should not be recovered.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',
@@ -477,7 +442,7 @@ export const pageDirectory: readonly PageEntry[] = [
     path: '/exhibitor/payments',
     title: 'My Payments',
     description:
-      'Chronological list of the exhibitor\'s online entry payments with status and Stripe reference; receipts live per-entry under My Shows.',
+      "Chronological list of the exhibitor's online entry payments with status and Stripe reference; receipts live per-entry under My Shows.",
     roles: [UserRole.EXHIBITOR, UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Payments',

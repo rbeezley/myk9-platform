@@ -65,12 +65,6 @@ describe('resolveExamplePath', () => {
     expect(resolveExamplePath('/admin/permissions/roles/:roleId/clone', fullIds)).toBe(
       '/admin/permissions/roles/ROLE_1/clone'
     );
-    expect(resolveExamplePath('/admin/templates/:templateId/edit', fullIds)).toBe(
-      '/admin/templates/TEMPLATE_1/edit'
-    );
-    expect(resolveExamplePath('/admin/templates/:templateId/test', fullIds)).toBe(
-      '/admin/templates/TEMPLATE_1/test'
-    );
   });
 
   it('resolves exhibitor check-in and tv display patterns', () => {

@@ -31,20 +31,10 @@ const SupportInboxPage = createEnhancedLazy(() => import('@/pages/admin/SupportI
   displayName: 'SupportInboxPage',
 });
 
-// Medium priority: Template management (common workflow)
+// Medium priority: read-only sport-rules viewer
 const TemplateManagementPage = createEnhancedLazy(
   () => import('@/pages/admin/TemplateManagementPage'),
   { ...RouteLazyPresets.mediumPriority, displayName: 'TemplateManagementPage' }
-);
-
-const TemplateEditorPage = createEnhancedLazy(() => import('@/pages/admin/TemplateEditorPage'), {
-  ...RouteLazyPresets.mediumPriority,
-  displayName: 'TemplateEditorPage',
-});
-
-const TemplateTestingPage = createEnhancedLazy(
-  () => import('@/pages/admin/TemplateTestingPage').then(m => ({ default: m.TemplateTestingPage })),
-  { ...RouteLazyPresets.mediumPriority, displayName: 'TemplateTestingPage' }
 );
 
 // System management (medium priority)
@@ -187,43 +177,13 @@ export const AdminRoutes = () => (
       )}
     />
 
-    {/* Template Management */}
+    {/* Sport Rules (read-only) */}
     <Route
       path="/admin/templates"
       element={adminGuard(
         <SuspenseWrapper>
           <PageTransition>
             <TemplateManagementPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-    <Route
-      path="/admin/templates/new"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <TemplateEditorPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-    <Route
-      path="/admin/templates/:templateId/edit"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <TemplateEditorPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
-    />
-    <Route
-      path="/admin/templates/:templateId/test"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <TemplateTestingPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

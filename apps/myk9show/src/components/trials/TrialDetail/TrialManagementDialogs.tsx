@@ -53,13 +53,16 @@ export interface TrialManagementDialogsProps {
 export const TrialManagementDialogs = forwardRef<
   TrialManagementDialogsHandle,
   TrialManagementDialogsProps
->(function TrialManagementDialogs({ currentTrial, parentShow, existingClasses, entryCountByClass }, ref) {
+>(function TrialManagementDialogs(
+  { currentTrial, parentShow, existingClasses, entryCountByClass },
+  ref
+) {
   const { showId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { trials, updateTrial, deleteTrial: deleteTrialAsync } = useTrialStore();
   const { addClass, updateClass, deleteClass } = useClassStoreCompat();
-  const { templates, initializeDefaultTemplates } = useTemplateStore();
+  const { templates, loadTemplatesFromDB } = useTemplateStore();
 
   const showOrganization = parentShow?.organization;
 
@@ -74,8 +77,8 @@ export const TrialManagementDialogs = forwardRef<
   // Templates power the "Add Classes" panel; load them once on mount so the
   // panel never opens to an empty list. Initializer is idempotent.
   useEffect(() => {
-    initializeDefaultTemplates();
-  }, [initializeDefaultTemplates]);
+    loadTemplatesFromDB();
+  }, [loadTemplatesFromDB]);
 
   const { handleSaveClassesFromTemplate } = useTrialTemplates({
     currentTrial,
@@ -179,7 +182,8 @@ export const TrialManagementDialogs = forwardRef<
       >
         <div className="py-2 text-foreground space-y-3">
           <p>
-            Are you sure you want to delete <b>{currentTrial?.type || currentTrial?.trialNumber}</b>?
+            Are you sure you want to delete <b>{currentTrial?.type || currentTrial?.trialNumber}</b>
+            ?
           </p>
           <p className="text-muted-foreground text-sm">
             This will permanently delete the trial along with all of its classes and entries.

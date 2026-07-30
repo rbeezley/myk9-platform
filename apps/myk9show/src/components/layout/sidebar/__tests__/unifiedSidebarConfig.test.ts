@@ -18,7 +18,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
       'Onboarding',
       'Roles & Permissions',
       'Payments',
-      'Templates',
+      'Sport Rules',
     ]);
   });
 
@@ -59,14 +59,14 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     }
   });
 
-  it('admin sidebar links Templates to the guarded management surface', () => {
+  it('admin sidebar links Sport Rules to the guarded read-only surface', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
     const item = config.groups
       .find(group => group.title === 'Admin')
-      ?.items.find(navItem => navItem.title === 'Templates');
+      ?.items.find(navItem => navItem.title === 'Sport Rules');
 
     expect(item?.href).toBe('/admin/templates');
-    expect(item?.description).toBe('Class and show templates');
+    expect(item?.description).toBe('Seeded class rules by registry (read-only)');
   });
 
   it('pure site-admin sidebar stays focused on admin operations', () => {

@@ -18,7 +18,6 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
       'sport_class_rules',
       'sport_templates',
       'sport_titles',
-      'template_fields',
       'trial_visibility_overrides',
       'trials',
       'user_guide',

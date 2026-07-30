@@ -62,7 +62,6 @@ export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   sport_templates: 'r',
   sport_titles: 'r',
   show_templates: 'r',
-  template_fields: 'r',
   user_guide: 'r',
   // Published show data, further row-filtered by RLS on show status.
   shows: 'r',

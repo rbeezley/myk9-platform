@@ -8,7 +8,9 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
   it('is ok on the post-MYK9-93 baseline', () => {
     const check = anonGrantsCheck(anonGrants(), PROBED_AT);
     expect(check.status).toBe('ok');
-    expect(check.detail).toContain('22 table grants (1 write)');
+    // 21, not 22: template_fields was dropped (20260730120000), taking its anon
+    // read grant with it.
+    expect(check.detail).toContain('21 table grants (1 write)');
     expect(check.detail).toContain('23 column grants');
   });
 

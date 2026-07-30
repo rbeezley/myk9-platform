@@ -373,15 +373,20 @@ show-creation wizard e2e path (it consumes `buildRuleMap`, the highest-risk cons
 - [x] `/admin/templates` renders read-only; `/new`, `/:id/edit`, `/:id/test` no longer route. (PR 2)
 - [x] No write path to `sport_templates` / `sport_class_rules` / `sport_titles` exists outside a migration. (PR 2)
 - [x] `templateStore` exposes no mutation actions; `loadTemplatesFromDB` is the only load entry point. (PR 2)
-- [x] Registry↔DB parity test green for AKC, UKC, ASCA. (PR 3) — and it found a real gap on
-      its first run: **ASCA "Champion" has no `sport_templates.elements` entry and zero
-      `sport_class_rules` rows**, so an ASCA secretary cannot create a Champion Detection
-      class today. Pinned in `KNOWN_UNSEEDED_ELEMENTS` so the test is green on reality while
-      still failing on any new drift; closing it needs a seed migration, which is a rules
-      question rather than a cleanup one.
+- [x] Registry↔DB parity test green for AKC, UKC, ASCA, with **no allowlist**. (PR 3) — and it
+      found a real bug on its first run. It reported ASCA "Champion" missing from the database;
+      the rulebook showed the database was right and the TypeScript was wrong. `Champion` came
+      from reading "Level C" as "Level Champion", when §3.2.2 defines Level C as a continuation
+      track (3 qualifying scores earn the base element title, 7 more earn `SCNc-C` etc.).
+      Removed the phantom level and element; the ASCA catalog drops 33 → 32 classes, matching
+      the 32 seeded `sport_class_rules` rows exactly.
 - [x] Show-creation wizard creates classes with scoring fields baked in, unchanged — `buildRuleMap` and `sportTemplateService` never touched.
-- [x] Full gate green: typecheck (incl. `typecheck:tests`), eslint `--max-warnings 0`, 14,753 unit tests passing.
-- [ ] `template_fields` dropped, with its four dead field mappers. (PR 4)
+- [x] Full gate green: typecheck (incl. `typecheck:tests`), eslint `--max-warnings 0`, 14,815 unit tests passing.
+- [x] `template_fields` dropped, with its four dead field mappers. (PR 4, migration applied to staging 2026-07-30)
+- [ ] ASCA **Level C titles** seeded — found by PR 3, tracked as PR 5. `031_seed_sport_titles.sql`
+      carries 89 ASCA rows, all base element titles at 3 QQs, and **zero `-C` variants**. A team
+      earning 10 QQs at Container Novice should earn `SCNc-C`; title tracking never awards it.
+      16 titles missing (4 elements × 4 levels).
 
 ## 7 · Estimate
 
@@ -400,7 +405,7 @@ Suggested PR split:
 | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | §4.0 Q2 deletions + Q3 orphan stylesheet                                     | **none** — nothing reachable is touched; land independently. **Shipped: [#1523](https://github.com/rbeezley/myk9-platform/pull/1523)** |
 | 2   | Phases 2–5 **plus the dependent test rewrites from Phase 6**                 | low — typecheck-guided. **Shipped: [#1525](https://github.com/rbeezley/myk9-platform/pull/1525)**, −5,840 lines                        |
-| 3   | Registry↔DB parity test (new coverage only)                                  | low. **Shipped: [#1529](https://github.com/rbeezley/myk9-platform/pull/1529)** — found the ASCA Champion gap                           |
+| 3   | Registry↔DB parity test (new coverage only)                                  | low. **Shipped: [#1531](https://github.com/rbeezley/myk9-platform/pull/1531)** — found the phantom ASCA Champion                       |
 | 4   | `template_fields` DROP + dead field mappers + type aliases + fixture removal | low — must land after PR 2                                                                                                             |
 
 > **The dependent test rewrites cannot be deferred to PR 3.** `pnpm typecheck` runs

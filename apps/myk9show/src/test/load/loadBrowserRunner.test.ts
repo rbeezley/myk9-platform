@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { mapWithConcurrency, scoringEntryNumber } from './loadBrowserRunner';
+import {
+  connectedSessionHoldMs,
+  mapWithConcurrency,
+  scoringEntryNumber,
+} from './loadBrowserRunner';
 
 describe('scoringEntryNumber', () => {
   it('creates one bounded five-session overlap while keeping other scores disjoint', () => {
@@ -9,9 +15,32 @@ describe('scoringEntryNumber', () => {
 
     expect(firstTargets.filter(entryNumber => entryNumber === 401)).toHaveLength(5);
     expect(new Set(firstTargets).size).toBe(51);
-    expect(firstTargets.slice(49)).toEqual([393, 401, 401, 401, 401, 401]);
+    expect(firstTargets.slice(49)).toEqual([394, 401, 401, 401, 401, 401]);
     expect(scoringEntryNumber(51, 1)).toBe(410);
     expect(scoringEntryNumber(52, 1)).toBe(418);
+    expect(firstTargets.slice(0, 8).map(entryNumber => (entryNumber - 1) % 8)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7,
+    ]);
+    for (let sessionIndex = 0; sessionIndex < 55; sessionIndex += 1) {
+      const sessionTargets = Array.from({ length: 8 }, (_, classIndex) =>
+        scoringEntryNumber(sessionIndex, classIndex)
+      );
+      expect(new Set(sessionTargets).size).toBe(8);
+    }
+  });
+});
+
+describe('connectedSessionHoldMs', () => {
+  it('keeps a completed non-scoring device mounted until the scenario deadline', () => {
+    expect(connectedSessionHoldMs(10_000, 2_500)).toBe(7_500);
+    expect(connectedSessionHoldMs(10_000, 10_500)).toBe(0);
+  });
+
+  it('keeps passive sessions connected without hard browser reloads', () => {
+    const source = readFileSync(resolve(__dirname, 'loadBrowserRunner.ts'), 'utf8');
+
+    expect(source).toContain('await delay(connectedSessionHoldMs(endsAt, Date.now()))');
+    expect(source).not.toContain('page.reload(');
   });
 });
 

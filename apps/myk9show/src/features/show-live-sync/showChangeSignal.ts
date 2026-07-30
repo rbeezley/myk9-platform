@@ -7,6 +7,10 @@ export type ShowChangeTable = 'entries' | 'classes' | 'paperwork_prints';
 
 export interface ShowChangeSignal {
   table: ShowChangeTable;
+  /** Legacy-compatible row identifier used to reset a moved or deleted local class snapshot. */
+  id?: string;
+  /** Old/new class scopes affected by the advisory change. Missing means legacy/unscoped. */
+  classIds?: readonly string[];
 }
 
 export type ShowChangeStatus = 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR';
@@ -26,18 +30,61 @@ export function showChangesTopic(showId: string): string {
   return `show:${showId}:changes`;
 }
 
-function isShowChangeSignal(value: unknown): value is ShowChangeSignal {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+interface DatabaseShowChangeSignal {
+  table: ShowChangeTable;
+  class_ids?: string[];
+}
+
+function parseDatabaseSignalId(id: string | undefined): Pick<ShowChangeSignal, 'id' | 'classIds'> {
+  if (!id) return {};
+
+  const scopePrefix = 'scope:';
+  if (id.startsWith(scopePrefix) && id.length > scopePrefix.length) {
+    return { classIds: [id.slice(scopePrefix.length)] };
+  }
+
+  const reconcilePrefix = 'reconcile:';
+  if (id.startsWith(reconcilePrefix) && id.length > reconcilePrefix.length) {
+    return { id: id.slice(reconcilePrefix.length) };
+  }
+
+  // Older clients accept a plain id but treat the signal as unscoped. Preserve
+  // that fallback for legacy payloads instead of interpreting a row id as a reset.
+  return {};
+}
+
+function parseShowChangeSignal(value: unknown): ShowChangeSignal | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
   const record = value as Record<string, unknown>;
   const keys = Object.keys(record);
-  return (
-    keys.every(key => key === 'table' || key === 'id') &&
-    (record.table === 'entries' ||
-      record.table === 'classes' ||
-      record.table === 'paperwork_prints') &&
-    (record.id === undefined || typeof record.id === 'string')
+  if (!keys.every(key => key === 'table' || key === 'id' || key === 'class_ids')) return null;
+  if (
+    record.table !== 'entries' &&
+    record.table !== 'classes' &&
+    record.table !== 'paperwork_prints'
+  ) {
+    return null;
+  }
+  if (record.id !== undefined && typeof record.id !== 'string') return null;
+  if (
+    record.class_ids !== undefined &&
+    (!Array.isArray(record.class_ids) ||
+      !record.class_ids.every(classId => typeof classId === 'string'))
+  ) {
+    return null;
+  }
+
+  const databaseSignal = record as unknown as DatabaseShowChangeSignal;
+  const parsedId = parseDatabaseSignalId(
+    typeof record.id === 'string' ? record.id : undefined
   );
+  return {
+    table: databaseSignal.table,
+    ...parsedId,
+    ...(databaseSignal.class_ids &&
+      databaseSignal.class_ids.length > 0 && { classIds: databaseSignal.class_ids }),
+  };
 }
 
 export function createShowChangeSignalRegistry(client: ShowChangeClient) {
@@ -71,8 +118,8 @@ export function createShowChangeSignalRegistry(client: ShowChangeClient) {
           createdEntry.channel = channel;
           channel
             .on('broadcast', { event: SHOWDAY_CHANGE_EVENT }, message => {
-              if (!isShowChangeSignal(message.payload)) return;
-              const signal: ShowChangeSignal = { table: message.payload.table };
+              const signal = parseShowChangeSignal(message.payload);
+              if (!signal) return;
               for (const currentListener of listeners) currentListener(signal);
             })
             .subscribe(status => {

@@ -2,6 +2,7 @@ import {
   scenarioRingsideSessionCount,
   scenarioSessionCount,
   type LoadScenario,
+  type LoadWorkloadKind,
 } from './loadScenario';
 
 export interface StatementDelta {
@@ -20,12 +21,20 @@ export interface PlatformObservation {
   statementDeltas: readonly StatementDelta[];
 }
 
+export interface WorkflowFailureDetail {
+  workload: LoadWorkloadKind;
+  route: string;
+  message: string;
+  count: number;
+}
+
 export interface LoadObservation {
   concurrentSessions: number;
   ringsideSessions: number;
   requestCount: number;
   failedRequestCount: number;
   workflowFailures: number;
+  workflowFailureDetails: readonly WorkflowFailureDetail[];
   scoringWriteP95Ms: number;
   apiP95Ms: number;
   pageP95Ms: number;

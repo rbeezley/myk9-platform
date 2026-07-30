@@ -113,3 +113,61 @@ show-day persistent data and MUST NOT change ringside scoring, OCC, queue, or re
 
 - **WHEN** a ringside user reads replicated show data and submits a score
 - **THEN** the established offline-first read and durable mutation paths remain in use
+
+### Requirement: Show-day invalidation is routed and table-specific
+
+Show-day Broadcast signals SHALL identify the affected old/new class scope without including entry
+or result data. At-show class pages SHALL ignore scoped signals for unrelated classes and SHALL
+sync only the replicated table path named by a relevant signal. Missing or locally unresolvable
+scope SHALL fall back to the complete show sync.
+
+#### Scenario: An entry changes in another class
+
+- **WHEN** a class-list device receives an entry signal whose class IDs do not include its class
+- **THEN** it performs no remote replication pull
+
+#### Scenario: An entry changes in the displayed class
+
+- **WHEN** a class-list device receives a relevant entry signal
+- **THEN** it syncs the show-scoped authenticated entry replica
+- **AND** it does not also sync trials and every class
+
+#### Scenario: A known class changes
+
+- **WHEN** a class-list device receives a relevant class signal and can resolve its local trial
+- **THEN** it syncs only that trial's class scope before refetching local page data
+
+#### Scenario: A class moves trials or is hard-deleted
+
+- **WHEN** a class changes trial scope, is soft-deleted, or is hard-deleted
+- **THEN** the signal forces complete show reconciliation instead of trusting the stale local trial
+- **AND** the affected class ID is removed from the local replica before reconciliation
+
+#### Scenario: A rolling-deployment signal has no class scope
+
+- **WHEN** an older client receives the legacy-compatible `table`/`id` payload, or a newer client
+  receives an older unscoped signal or cannot resolve the signaled class locally
+- **THEN** it performs the complete show sync so ringside freshness is preserved
+
+### Requirement: Account-today subscriptions do not refetch on attachment
+
+The account-today query SHALL perform one initial authoritative load per query client/user and
+SHALL NOT treat each replication subscription's current snapshot as a data change. Multiple hook
+consumers for the same query SHALL share one subscription lifecycle, and actual table-change
+notifications SHALL be coalesced before invalidation.
+
+#### Scenario: Two account-today consumers mount
+
+- **WHEN** two hooks for the same signed-in user mount in one app/query-client instance
+- **THEN** one set of entry/class/trial/show subscriptions is installed
+- **AND** attachment does not immediately invalidate or repeat the initial RPC
+
+#### Scenario: Replicated dependencies change
+
+- **WHEN** one or more subscribed tables notify actual changes
+- **THEN** the shared lifecycle schedules one coalesced account-today invalidation
+
+#### Scenario: The final consumer unmounts
+
+- **WHEN** the last hook consumer releases the shared subscription
+- **THEN** all table subscriptions and scheduled invalidation work are removed

@@ -19,6 +19,17 @@ function shardArtifact(index: number): LoadShardArtifact {
     requestCount: 9_000,
     failedRequestCount: 0,
     workflowFailures: 0,
+    workflowFailureDetails:
+      index === 1 || index === 2
+        ? [
+            {
+              workload: 'run-order-read',
+              route: '/at-show/show-1/class/class-1',
+              message: 'Dog card timed out',
+              count: index === 1 ? 2 : 3,
+            },
+          ]
+        : [],
     scoringWriteP95Ms: scoringDurationsMs.at(-2) ?? Number.POSITIVE_INFINITY,
     apiP95Ms: scoringDurationsMs.at(-2) ?? Number.POSITIVE_INFINITY,
     pageP95Ms: 1_000,
@@ -94,6 +105,14 @@ describe('distributed load aggregation', () => {
       persistedScores: 440,
       maxReplicationQueueDepth: 4,
       finalReplicationQueueDepth: 0,
+      workflowFailureDetails: [
+        {
+          workload: 'run-order-read',
+          route: '/at-show/show-1/class/class-1',
+          message: 'Dog card timed out',
+          count: 5,
+        },
+      ],
       platform: { peakConnections: 40, connectionCap: 60 },
     });
   });

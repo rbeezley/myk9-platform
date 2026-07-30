@@ -100,6 +100,75 @@ The post-deployment run will reuse the same seed, 100-session composition, four 
 Micro tier, and evaluator thresholds. A changed workload cannot establish that these optimizations
 fixed the baseline failure.
 
+### 7. [ADDED] Treat the post-RBAC run as diagnostic, not a capacity ceiling
+
+The post-RBAC run proved the RBAC lifecycle no longer dominates, but 97 workflows failed and the
+runner replaced normal connected-device behavior with a hard browser reload every second. The run
+therefore remains valid evidence that G9 failed, but it is not a valid ceiling for realistic
+show-day behavior and cannot decide whether Micro is adequate.
+
+The corrected scenario keeps the same seed, 100 sessions, 55 ringside sessions, four shards,
+ten-minute duration, workload roles, and evaluator thresholds. Its behavioral correction is
+explicitly versioned in the evidence: non-scoring devices perform their assigned action and remain
+connected, while scoring sessions are distributed across class order instead of moving in
+lockstep. This is a new capacity experiment, not a claim that the earlier RBAC-only change fixed
+the original hard-reload workload.
+
+### 8. [ADDED] Route show-day invalidation to affected classes
+
+The database Broadcast trigger will continue to emit an advisory show-scoped signal with no entry
+or result data. It will encode each affected old/new class UUID in the existing `id` field as
+`scope:<uuid>`. The client signal parser will decode that routing metadata. A class or
+combined-class page will ignore signals whose class IDs do not intersect the page it renders.
+
+The payload intentionally remains limited to the legacy `table` and `id` keys. During rolling
+deployment, already-deployed clients accept that shape and use their existing show-wide fallback;
+new clients decode the scope envelope. Older unscoped signals remain valid and also trigger the
+show-wide fallback. This prevents either app/database deployment order from leaving a ringside
+device stale.
+
+A class that moves between trials keeps the same UUID, so its old/new class IDs cannot identify
+both trial scopes. That update therefore emits `reconcile:<uuid>` in the legacy-compatible `id`
+field, allowing new clients on each show topic to remove the stale local snapshot before complete
+reconciliation while older clients perform their safe full-sync fallback. Hard deletes and the
+production `deleted_at` transition use the same reset path.
+
+Alternative considered: put changed entry rows in Broadcast and write them directly into IndexedDB.
+That would duplicate the authoritative replication merge/conflict path, increase the data exposed
+through the advisory channel, and weaken offline reconciliation.
+
+### 9. [ADDED] Sync only the table path named by a relevant signal
+
+For an entry signal, the at-show adapter will sync the show-scoped authenticated entry view and
+then refetch the page from IndexedDB. It will not also sync trials and every class. For a class
+signal, it will sync only the trial scope belonging to the affected locally known classes; an
+unknown class or old unscoped signal falls back to the complete show sync.
+
+Existing in-flight coalescing remains in place, and offline failures remain non-fatal: cached data
+continues to render and the next signal, foreground refresh, background sync, or manual refresh
+recovers.
+
+### 10. [ADDED] Subscription attachment is not a data change
+
+`ReplicatedTable.subscribe` will gain an optional `emitCurrent` setting that defaults to the current
+behavior. `useAccountTodayEntries` will opt out of the initial snapshot callbacks because its React
+Query performs the initial authoritative load itself. Its four table subscriptions will be shared
+per query client/user and change notifications will be briefly coalesced, so two hook consumers on
+one page do not install duplicate invalidation lifecycles.
+
+Actual replication changes still invalidate the account-today query. Unmounting the final consumer
+removes all four subscriptions and any scheduled invalidation.
+
+### 11. [ADDED] Rehearsal failures are operator-actionable
+
+The load runner will record workload kind, current route, normalized error message, and occurrence
+count for every failed workflow. Shard aggregation will merge those summaries and the Markdown
+evidence will render them. The runner will no longer silently reduce a failure to one integer.
+
+Non-scoring workflows remain mounted until the scenario deadline after completing their assigned
+action. Scoring sessions keep the same eight scores per session but rotate their class order by
+session so all 55 simulated judges do not hit one class in lockstep.
+
 ## Risks / Trade-offs
 
 - [Client permissions can be up to five minutes old] → Database authorization stays authoritative;
@@ -117,6 +186,17 @@ fixed the baseline failure.
   or a separately reviewed availability control.
 - [Remote query plans differ from local/source expectations] → Inventory indexes and capture
   before/after `EXPLAIN (ANALYZE, BUFFERS)` on the remote project before rerunning load.
+- [A scoped signal crosses a rolling deployment] → Keep the payload limited to legacy `table` and
+  `id` keys; old clients accept it and full-sync, while new clients decode the scoped ID envelope.
+- [A class moves between trials, is deleted, or is absent locally] → Emit a `reconcile:<uuid>`
+  envelope for trial moves and hard/soft deletes, remove the stale local snapshot, and fall back to
+  complete show sync whenever one trial scope cannot be resolved.
+- [Realtime refresh becomes stale or starves] → Preserve the leading debounce, one trailing refresh
+  during an in-flight sync, foreground full refresh, and the independent periodic replication pass.
+- [Shared account-entry subscriptions leak] → Reference-count them by query client/user, cancel
+  scheduled invalidation, and unsubscribe all tables when the final consumer unmounts.
+- [Correcting the harness changes the comparison] → Label the prior run diagnostic and the
+  corrected behavior as a new experiment while keeping the G9 concurrency and thresholds intact.
 
 ## Migration Plan
 
@@ -129,13 +209,29 @@ fixed the baseline failure.
 5. Deploy the merged app through the normal main-branch path.
 6. After a separate explicit load-window approval, run unchanged G9 on Micro and restore the
    canonical fixture/grant state.
+7. Add red-to-green contracts for scoped Broadcast payloads, relevant-class filtering,
+   table-specific sync, non-emitting account subscriptions, shared invalidation, connected-session
+   behavior, distributed scoring class order, and failure-detail aggregation.
+8. Deploy the merged app and, after separate explicit approval, apply the additive Broadcast
+   migration.
+9. After a separate load-window approval, run the corrected G9 scenario on Micro and restore the
+   canonical fixture/grant state.
 
 Rollback:
 
 - Revert the app commit to restore the previous RBAC lifecycle.
 - Recreate the four functions from migration 065 if the direct predicate changes results or plans.
+- Revert the app commit and restore the prior Broadcast function definition if scoped routing or
+  table-specific refresh regresses ringside freshness.
 - No data rows or columns are transformed, so rollback requires no data recovery.
 
 ## Open Questions
 
-None. Whether Micro is sufficient remains an evidence question answered by the unchanged G9 rerun.
+None. Whether Micro is sufficient remains an evidence question answered by the corrected G9 rerun.
+
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: This changes show-day realtime/replication behavior, a shared replication API,
+  a database trigger function, and the launch-blocking distributed capacity harness.

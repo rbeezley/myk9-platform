@@ -26,6 +26,7 @@ export interface LoadRunEvidence {
   seedSize: typeof LOAD_SHOW_ENTRY_COUNT;
   scenario: {
     id: LoadScenario['id'];
+    browserBehaviorVersion: LoadScenario['browserBehaviorVersion'];
     durationMs: number;
     configuredSessions: number;
     configuredRingsideSessions: number;
@@ -55,6 +56,7 @@ export function buildLoadEvidence(input: {
     seedSize: LOAD_SHOW_ENTRY_COUNT,
     scenario: {
       id: input.scenario.id,
+      browserBehaviorVersion: input.scenario.browserBehaviorVersion,
       durationMs: input.scenario.durationMs,
       configuredSessions: scenarioSessionCount(input.scenario),
       configuredRingsideSessions,
@@ -72,6 +74,14 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
       ? '- None'
       : evidence.evaluation.failures.map(failure => `- ${failure}`).join('\n');
   const platform = evidence.observation.platform;
+  const workflowFailures =
+    evidence.observation.workflowFailureDetails.length === 0
+      ? '- None'
+      : evidence.observation.workflowFailureDetails
+          .map(
+            detail => `- ${detail.workload} ×${detail.count} — ${detail.message} (${detail.route})`
+          )
+          .join('\n');
 
   return `# MYK9-109 load rehearsal evidence
 
@@ -80,6 +90,7 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Target: ${evidence.target.mode} / ${evidence.target.projectRef}
 - Compute tier: ${evidence.target.computeTier}
 - Scenario: ${evidence.scenario.id}, ${evidence.scenario.durationMs} ms
+- Browser behavior: ${evidence.scenario.browserBehaviorVersion}
 - Seed: ${evidence.seedSize} entries
 - Supported ceiling: ${evidence.supportedCeiling}
 - Measured peak sessions: ${evidence.observation.concurrentSessions}
@@ -96,6 +107,10 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Platform CPU/IO peak: ${platform?.peakCpuPercent ?? 'missing'} / ${platform?.peakIoPercent ?? 'missing'}%
 - Database connections peak/cap: ${platform?.peakConnections ?? 'missing'} / ${platform?.connectionCap ?? 'missing'}
 - pg_stat_statements deltas: ${platform?.statementDeltas.length ?? 0}
+
+## Workflow failure details
+
+${workflowFailures}
 
 ## Failures
 

@@ -14,9 +14,17 @@ import {
   type AccountTodayEntryId,
 } from './accountTodayEntries.helpers';
 import type { HydratedAccountTodayEntry } from './showTodayBanner.helpers';
+import { createAccountTodayEntriesSubscriptionRegistry } from './accountTodayEntriesSubscriptions';
 
 export const accountTodayEntriesQueryKey = (userId: string | undefined) =>
   ['account-today-entries', userId ?? 'anonymous'] as const;
+
+const accountTodaySubscriptions = createAccountTodayEntriesSubscriptionRegistry([
+  replicatedEntriesTable,
+  replicatedClassesTable,
+  replicatedTrialsTable,
+  replicatedShowsTable,
+]);
 
 interface UseAccountTodayEntriesOptions {
   enabled?: boolean;
@@ -55,14 +63,7 @@ export function useAccountTodayEntries(options: UseAccountTodayEntriesOptions = 
 
   useEffect(() => {
     if (!enabled) return;
-    const invalidate = () => void queryClient.invalidateQueries({ queryKey });
-    const unsubscribes = [
-      replicatedEntriesTable.subscribe(invalidate),
-      replicatedClassesTable.subscribe(invalidate),
-      replicatedTrialsTable.subscribe(invalidate),
-      replicatedShowsTable.subscribe(invalidate),
-    ];
-    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+    return accountTodaySubscriptions.retain(queryClient, queryKey);
   }, [enabled, queryClient, queryKey]);
 
   return useQuery({

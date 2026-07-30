@@ -28,6 +28,7 @@ export interface LoadTargets {
 export interface LoadScenario {
   readonly id: LoadScenarioId;
   readonly name: string;
+  readonly browserBehaviorVersion: 'connected-devices-v2';
   readonly gate: 'G9' | null;
   readonly informational: boolean;
   readonly durationMs: number;
@@ -50,6 +51,7 @@ function freezeScenario(scenario: LoadScenario): LoadScenario {
 export const G9_NORMAL_SCENARIO = freezeScenario({
   id: 'normal',
   name: 'G9 Normal show-day load',
+  browserBehaviorVersion: 'connected-devices-v2',
   gate: 'G9',
   informational: false,
   durationMs: 10 * 60 * 1_000,

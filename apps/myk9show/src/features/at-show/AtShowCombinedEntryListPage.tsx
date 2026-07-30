@@ -135,7 +135,11 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   });
 
   // ── Realtime: scoring/check-in changes elsewhere re-sync this list ─────
-  useAtShowRealtimeRefresh(showId, refresh);
+  useAtShowRealtimeRefresh(
+    showId,
+    [classIdA, classIdB].filter((classId): classId is string => !!classId),
+    refresh
+  );
 
   // ── Shim-owned state (mirrors CombinedEntryListUiState) ────────────────
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);

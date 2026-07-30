@@ -30,6 +30,7 @@ import {
   composeClassTitle,
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
+import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
 
 const atShowSyncsInFlight = new Map<string, Promise<void>>();
 
@@ -55,6 +56,58 @@ function syncAtShowData(showId: string): Promise<void> {
   };
   void operation.then(release, release);
   return operation;
+}
+
+/**
+ * Pull only the authoritative replica path named by relevant Broadcast signals.
+ * Legacy/unscoped signals retain the complete-sync fallback during rolling deploys.
+ */
+export async function syncAtShowChangeSignals(
+  showId: string,
+  signals: readonly ShowChangeSignal[]
+): Promise<void> {
+  const relevant = signals.filter(
+    signal => signal.table === 'entries' || signal.table === 'classes'
+  );
+  if (relevant.length === 0) return;
+  const classIdsRequiringLocalReset = [
+    ...new Set(
+      relevant.flatMap(signal =>
+        signal.table === 'classes' &&
+        signal.id &&
+        (!signal.classIds || signal.classIds.length === 0)
+          ? [signal.id]
+          : []
+      )
+    ),
+  ];
+  if (classIdsRequiringLocalReset.length > 0) {
+    await replicatedClassesTable.batchDelete(classIdsRequiringLocalReset);
+  }
+  if (relevant.some(signal => !signal.classIds || signal.classIds.length === 0)) {
+    await syncAtShowData(showId);
+    return;
+  }
+
+  const includesEntries = relevant.some(signal => signal.table === 'entries');
+  const classSignals = relevant.filter(signal => signal.table === 'classes');
+  const classIds = [...new Set(classSignals.flatMap(signal => signal.classIds ?? []))];
+  const trialIds = new Set<string>();
+
+  for (const classId of classIds) {
+    const cls = await replicatedClassesTable.getClassById(classId);
+    const trialId = cls?.trialId ?? cls?.trial_id;
+    if (!trialId) {
+      await syncAtShowData(showId);
+      return;
+    }
+    trialIds.add(trialId);
+  }
+
+  await Promise.all([
+    ...(includesEntries ? [replicatedEntriesTable.sync(showId)] : []),
+    ...[...trialIds].map(trialId => replicatedClassesTable.sync(trialId)),
+  ]);
 }
 
 /**

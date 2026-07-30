@@ -19,7 +19,6 @@ import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
-import { ScopeType, UserRole } from '@/types/auth-types';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 import {
   OFFICER_POSITION_ORDER,
@@ -36,9 +35,10 @@ import {
   addClubOfficer,
   removeClubOfficer,
   getClubShowManagerIds,
+  setClubShowManagerAccess,
 } from '@/services/database/club-memberships';
-import { rbacService } from '@/services/rbac/RBACService';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
 
@@ -165,23 +165,20 @@ const ClubMembersPage: React.FC = () => {
   });
 
   const toggleShowAccessMutation = useMutation({
-    mutationFn: async ({ personId, grant }: { personId: string; grant: boolean }) => {
-      if (grant) {
-        await rbacService.ensureUserHasRole(personId, UserRole.SECRETARY, { clubId: clubId! });
-      } else {
-        await rbacService.revokeRole({
-          userId: personId,
-          roleName: UserRole.SECRETARY,
-          scopeType: ScopeType.CLUB,
-          scopeId: clubId!,
-        });
-      }
-    },
+    mutationFn: ({ personId, grant }: { personId: string; grant: boolean }) =>
+      setClubShowManagerAccess({ personId, clubId: clubId!, grant }),
     onSuccess: (_, { personId, grant }) => {
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      const memberName = members.find(member => member.personId === personId)?.personName;
+      notifications.success(
+        `Show access ${grant ? 'granted to' : 'revoked from'} ${memberName || 'the member'}.`
+      );
       logger.info(`Show access ${grant ? 'granted to' : 'revoked from'} ${personId}`, 'club-admin');
     },
     onError: (error, { grant }) => {
+      notifications.error(
+        `We couldn't ${grant ? 'grant' : 'revoke'} show access. Check your club access and try again.`
+      );
       logger.error(`Failed to ${grant ? 'grant' : 'revoke'} show access`, 'club-admin', {
         error: error instanceof Error ? error.message : String(error),
       });

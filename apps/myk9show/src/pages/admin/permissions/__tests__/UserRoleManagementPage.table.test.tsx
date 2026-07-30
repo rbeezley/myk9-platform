@@ -87,6 +87,8 @@ vi.mock('@/services/rbac/RBACService', () => ({
     ]),
     revokeUserRole: vi.fn().mockResolvedValue(undefined),
     assignRole: vi.fn().mockResolvedValue(undefined),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 

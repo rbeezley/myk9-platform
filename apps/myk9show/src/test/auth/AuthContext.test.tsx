@@ -79,6 +79,7 @@ describe('AuthContext', () => {
     ],
     permissions: [],
     effectivePermissions: [],
+    effectivePermissionScopes: [],
   });
 
   beforeEach(() => {
@@ -88,6 +89,7 @@ describe('AuthContext', () => {
       roles: [],
       permissions: [],
       effectivePermissions: [],
+      effectivePermissionScopes: [],
     });
     mockRbacService.getUserRoles.mockResolvedValue([]);
     mockRbacService.getUserRolesByEmail.mockResolvedValue([]);
@@ -239,6 +241,7 @@ describe('AuthContext', () => {
           roles: [],
           permissions: [],
           effectivePermissions: ['show:view'],
+          effectivePermissionScopes: [],
         });
 
       const TestComponent = () => {
@@ -277,6 +280,7 @@ describe('AuthContext', () => {
           ],
           permissions: [],
           effectivePermissions: [PERMISSIONS.SHOW_MANAGE],
+          effectivePermissionScopes: [],
         })
         .mockResolvedValueOnce({
           roles: [
@@ -288,6 +292,7 @@ describe('AuthContext', () => {
           ],
           permissions: [],
           effectivePermissions: [PERMISSIONS.DOG_CREATE],
+          effectivePermissionScopes: [],
         });
 
       const TestComponent = () => {

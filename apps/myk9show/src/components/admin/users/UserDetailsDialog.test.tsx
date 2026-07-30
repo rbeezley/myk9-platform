@@ -50,6 +50,8 @@ vi.mock('@/hooks/queries/useUsersQuery', () => ({
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
     ensureUserHasRole: vi.fn().mockResolvedValue(undefined),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 

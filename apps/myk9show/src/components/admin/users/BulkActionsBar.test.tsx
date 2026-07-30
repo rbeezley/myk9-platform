@@ -50,6 +50,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
     getAllRoles: vi.fn(() => Promise.resolve([])),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 

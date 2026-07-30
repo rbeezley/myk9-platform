@@ -138,6 +138,7 @@ export interface AuthContextType {
   dbPermissions: string[];
   dbRoles: Array<{ id: string; name: string; display_name: string }>;
   rbacUserRoles: RbacUserRoleWithDetails[];
+  /** Direct grant details for RBAC UI; authorization uses effective permission scopes. */
   rbacScopedPermissions: PermissionWithRole[];
   rbacLoading: boolean;
   rbacError: string | null;
@@ -371,7 +372,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId,
           userRoles: mapRbacRoles(data.roles),
           effectivePermissions: data.effectivePermissions,
-          effectivePermissionScopes: data.effectivePermissionScopes ?? data.permissions,
+          effectivePermissionScopes: data.effectivePermissionScopes,
           scopedPermissions: data.permissions,
           isLoading: false,
           loaded: true,
@@ -608,7 +609,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId,
         userRoles: mapRbacRoles(data.roles),
         effectivePermissions: data.effectivePermissions,
-        effectivePermissionScopes: data.effectivePermissionScopes ?? data.permissions,
+        effectivePermissionScopes: data.effectivePermissionScopes,
         scopedPermissions: data.permissions,
         isLoading: false,
         loaded: true,

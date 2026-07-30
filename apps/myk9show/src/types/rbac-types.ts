@@ -179,10 +179,13 @@ export interface PermissionCheckResponse {
 }
 
 export interface UserPermissionsResponse {
+  /** Direct grant rows with role and scope details. */
   permissions: PermissionWithRole[];
   roles: UserRoleWithDetails[];
+  /** Direct and inherited permission codes. */
   effectivePermissions: string[];
-  effectivePermissionScopes?: EffectivePermissionScope[];
+  /** Direct and inherited scope rows used for authorization checks. */
+  effectivePermissionScopes: EffectivePermissionScope[];
 }
 
 // Permission template types

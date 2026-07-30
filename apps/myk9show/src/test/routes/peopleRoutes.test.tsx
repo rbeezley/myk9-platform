@@ -31,6 +31,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
       roles: [],
       permissions: [],
       effectivePermissions: [],
+      effectivePermissionScopes: [],
     }),
     getUserRoles: vi.fn().mockResolvedValue([]),
     getUserRolesByEmail: vi.fn().mockResolvedValue([]),

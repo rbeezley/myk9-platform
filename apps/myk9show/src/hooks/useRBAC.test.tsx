@@ -15,6 +15,7 @@ const { mockRbacService } = vi.hoisted(() => ({
     createRole: vi.fn(),
     updateRole: vi.fn(),
     clearUserCache: vi.fn(),
+    clearAllCache: vi.fn(),
   },
 }));
 

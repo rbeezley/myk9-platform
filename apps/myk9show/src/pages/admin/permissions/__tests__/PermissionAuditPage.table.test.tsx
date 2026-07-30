@@ -41,6 +41,8 @@ vi.mock('@/services/rbac/RBACService', () => ({
         created_at: new Date(Date.now() - 172800000).toISOString(),
       },
     ]),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 

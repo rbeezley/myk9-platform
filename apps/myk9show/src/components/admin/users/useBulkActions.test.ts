@@ -30,6 +30,8 @@ vi.mock('@/services/rbac/RBACService', () => ({
     getAllRoles: (...args: unknown[]) => getAllRolesMock(...args),
     ensureUserHasRole: (...args: unknown[]) => ensureUserHasRoleMock(...args),
     revokeRole: (...args: unknown[]) => revokeRoleMock(...args),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 

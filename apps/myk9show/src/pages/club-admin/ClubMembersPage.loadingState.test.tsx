@@ -51,6 +51,8 @@ vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
     ensureUserHasRole: vi.fn(),
     revokeRole: vi.fn(),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 

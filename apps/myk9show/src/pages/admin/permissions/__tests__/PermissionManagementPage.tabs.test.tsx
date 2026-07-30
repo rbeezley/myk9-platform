@@ -23,6 +23,8 @@ vi.mock('@/services/rbac/RBACService', () => ({
         created_at: null,
       },
     ]),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 

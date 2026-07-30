@@ -2,6 +2,54 @@ import type { CDPSession, Page } from '@playwright/test';
 import { describe, expect, it, vi } from 'vitest';
 import { LoadMetrics, percentile } from './loadMetrics';
 
+function sessionEvidence(ringsideSessions: 0 | 1) {
+  return {
+    sessionLifecycle: {
+      configuredSessions: 1,
+      preparedSessions: 1,
+      startedWorkflows: 1,
+      completedWorkflows: 1,
+      failedWorkflows: 0,
+      peakActiveWorkflows: 1,
+      configuredRingsideSessions: ringsideSessions,
+      preparedRingsideSessions: ringsideSessions,
+      startedRingsideWorkflows: ringsideSessions,
+      completedRingsideWorkflows: ringsideSessions,
+      failedRingsideWorkflows: 0,
+      peakActiveRingsideWorkflows: ringsideSessions,
+      activityIntervals: [
+        {
+          sequence: 0,
+          ringside: ringsideSessions === 1,
+          startedAtMs: 1,
+          finishedAtMs: 2,
+        },
+      ],
+    },
+    generator: {
+      shardIndex: 0,
+      logicalCpuCount: 2,
+      samplingDurationMs: 1_000,
+      sampleCount: 1,
+      hostSampleCoveragePercent: 100,
+      hostCpuP95Percent: 1,
+      hostCpuPeakPercent: 1,
+      hostMemoryPeakPercent: 1,
+      hostLoad1mPeak: 1,
+      eventLoopDelayP95Ms: 1,
+      eventLoopDelayMaxMs: 1,
+      browserControlP95Ms: 1,
+      browserControlMaxMs: 1,
+      browserControlAttempts: 1,
+      browserControlSamples: 1,
+      browserControlFailures: 0,
+      browserControlAttemptCoveragePercent: 100,
+      contextPreparationMs: 1,
+      startHeadroomMs: 1,
+    },
+  };
+}
+
 describe('load metrics', () => {
   it('uses nearest-rank percentiles without mutating samples', () => {
     const samples = [100, 20, 80, 40, 60];
@@ -49,6 +97,7 @@ describe('load metrics', () => {
     const observation = metrics.buildObservation({
       concurrentSessions: 1,
       ringsideSessions: 0,
+      ...sessionEvidence(0),
       elapsedMs: 1_000,
       maxReplicationQueueDepth: 0,
       finalReplicationQueueDepth: 0,
@@ -76,6 +125,7 @@ describe('load metrics', () => {
     const observation = metrics.buildObservation({
       concurrentSessions: 1,
       ringsideSessions: 1,
+      ...sessionEvidence(1),
       elapsedMs: 1_000,
       maxReplicationQueueDepth: 0,
       finalReplicationQueueDepth: 0,
@@ -108,6 +158,7 @@ describe('load metrics', () => {
     const observation = metrics.buildObservation({
       concurrentSessions: 1,
       ringsideSessions: 0,
+      ...sessionEvidence(0),
       elapsedMs: 1_000,
       maxReplicationQueueDepth: 0,
       finalReplicationQueueDepth: 0,

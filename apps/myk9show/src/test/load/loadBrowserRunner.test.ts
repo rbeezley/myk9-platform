@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { LoadSessionAssignment } from './loadAssignments';
 import {
+  assertAllSessionsOpenAtStart,
+  closeBrowserContexts,
   connectedSessionHoldMs,
   mapWithConcurrency,
   scoringEntryNumber,
@@ -41,6 +44,50 @@ describe('connectedSessionHoldMs', () => {
 
     expect(source).toContain('await delay(connectedSessionHoldMs(endsAt, Date.now()))');
     expect(source).not.toContain('page.reload(');
+  });
+});
+
+describe('prepared session readiness', () => {
+  const assignment: LoadSessionAssignment = {
+    sequence: 0,
+    index: 0,
+    kind: 'ringside-scoring',
+  };
+
+  it('returns assignments whose browser pages are still open at synchronized start', () => {
+    expect(
+      assertAllSessionsOpenAtStart([
+        {
+          assignment,
+          page: { isClosed: () => false },
+        },
+      ])
+    ).toEqual([assignment]);
+  });
+
+  it('fails closed when a prepared browser page closed before synchronized start', () => {
+    expect(() =>
+      assertAllSessionsOpenAtStart([
+        {
+          assignment,
+          page: { isClosed: () => true },
+        },
+      ])
+    ).toThrow('1 prepared browser session was no longer open');
+  });
+});
+
+describe('browser context cleanup', () => {
+  it('does not let an unresponsive Chromium context suppress the shard artifact', async () => {
+    const responsiveClose = vi.fn().mockResolvedValue(undefined);
+    const stuckClose = vi.fn(() => new Promise<void>(() => undefined));
+    const startedAt = performance.now();
+
+    await closeBrowserContexts([{ close: responsiveClose }, { close: stuckClose }], 5);
+
+    expect(responsiveClose).toHaveBeenCalledOnce();
+    expect(stuckClose).toHaveBeenCalledOnce();
+    expect(performance.now() - startedAt).toBeLessThan(100);
   });
 });
 

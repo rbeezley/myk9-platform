@@ -14,6 +14,7 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('runs-on: ubuntu-latest');
     expect(workflow).toMatch(/shard:\s*\[0,\s*1,\s*2,\s*3\]/);
     expect(workflow).toMatch(/LOAD_TEST_SHARD_COUNT:\s*['"]?4['"]?/);
+    expect(workflow).toContain('Run synchronized 25-session shard with generator telemetry');
   });
 
   it('fails closed on target confirmation and always restores the canonical seed', () => {

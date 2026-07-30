@@ -180,7 +180,7 @@ begin
       true
     );
 
-    select count(*) into row_count
+    select count(e.id) into row_count
     from public.entries e
     where e.id in (
       '00000000-0000-0000-0000-000000126031',
@@ -211,7 +211,7 @@ begin
     true
   );
 
-  select count(*) into row_count
+  select count(e.id) into row_count
   from public.entries e
   where e.id in (
     '00000000-0000-0000-0000-000000126031',
@@ -241,7 +241,7 @@ begin
     true
   );
 
-  select count(*) into row_count
+  select count(e.id) into row_count
   from public.entries e
   where e.id in (
     '00000000-0000-0000-0000-000000126031',

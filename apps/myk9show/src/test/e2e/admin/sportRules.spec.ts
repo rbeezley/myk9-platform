@@ -58,11 +58,30 @@ test.describe('Admin Sport Rules (read-only)', () => {
     const searchBox = page.getByRole('textbox', { name: /search sport rules/i });
     await expect(searchBox).toBeVisible();
 
-    // Searching for a string no seeded registry uses empties the grid.
+    // The search box must actually accumulate input — the component this page
+    // replaced hardcoded `value=""`, so typing silently did nothing.
     await searchBox.fill('zzzz-no-such-registry');
+    await expect(searchBox).toHaveValue('zzzz-no-such-registry');
     await expect(page.getByText(/no sport rules match those filters/i)).toBeVisible();
 
     await page.getByRole('button', { name: /clear filters/i }).click();
     await expect(page.getByText(/no sport rules match those filters/i)).toHaveCount(0);
+  });
+
+  test('opens a registry and shows its seeded rule columns', async ({ page }) => {
+    // Card is a real <button>, so it is reachable and activatable by keyboard —
+    // the cards this replaced were <div onClick> and pointer-only.
+    const firstCard = page.getByRole('button', { name: /view \d+ class rules for/i }).first();
+    await expect(firstCard).toBeVisible();
+    await firstCard.press('Enter');
+
+    // Columns that only exist on the raw sport_class_rules rows. If this page ever
+    // regresses to the mapped ClassTemplate shape, these disappear.
+    await expect(page.getByRole('columnheader', { name: /timer/i })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /odors/i })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /max time/i })).toBeVisible();
+
+    await page.getByRole('button', { name: /back to all sport rules/i }).click();
+    await expect(page.locator('main h1')).toContainText('Sport Rules');
   });
 });

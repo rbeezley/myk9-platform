@@ -35,7 +35,6 @@ GRANT ALL PRIVILEGES ON TABLE
   public.shows,
   public.sport_class_rules,
   public.sport_templates,
-  public.template_fields,
   public.trial_visibility_overrides,
   public.trials,
   public.user_roles,

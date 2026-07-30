@@ -8037,48 +8037,6 @@ export type Database = {
         }
         Relationships: []
       }
-      template_fields: {
-        Row: {
-          created_at: string | null
-          default_value: string | null
-          field_label: string | null
-          field_name: string
-          field_type: string
-          id: string
-          is_required: boolean | null
-          sort_order: number | null
-          template_id: string
-          template_type: string
-          validation_rules: Json | null
-        }
-        Insert: {
-          created_at?: string | null
-          default_value?: string | null
-          field_label?: string | null
-          field_name: string
-          field_type: string
-          id?: string
-          is_required?: boolean | null
-          sort_order?: number | null
-          template_id: string
-          template_type: string
-          validation_rules?: Json | null
-        }
-        Update: {
-          created_at?: string | null
-          default_value?: string | null
-          field_label?: string | null
-          field_name?: string
-          field_type?: string
-          id?: string
-          is_required?: boolean | null
-          sort_order?: number | null
-          template_id?: string
-          template_type?: string
-          validation_rules?: Json | null
-        }
-        Relationships: []
-      }
       training_goals: {
         Row: {
           completed_at: string | null

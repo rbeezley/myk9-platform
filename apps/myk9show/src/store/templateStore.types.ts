@@ -1,10 +1,4 @@
-import {
-  ClassTemplate,
-  TemplateFilter,
-  Organization,
-  TrialType,
-  TemplateImportExport,
-} from '@/types/template.types';
+import { ClassTemplate, TemplateFilter, Organization, TrialType } from '@/types/template.types';
 
 export interface TemplateStoreState {
   templates: ClassTemplate[];
@@ -23,23 +17,16 @@ export interface TemplateStoreState {
   templatesFetchedAt: number | null;
 }
 
+/**
+ * Read-only store over the sport-rule templates seeded in the database.
+ *
+ * There are deliberately NO mutation actions here. Sport rules are reference data
+ * changed by migration, never from the client — see
+ * docs/plan-template-authoring-removal.md. The former CRUD actions only ever wrote
+ * to the persisted Zustand cache and were overwritten on the next load, because
+ * TEMPLATE_REVALIDATE_TTL_MS is 0.
+ */
 export interface TemplateStoreActions {
-  // CRUD Operations
-  createTemplate: (
-    template: Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>,
-    userId: string
-  ) => ClassTemplate;
-  updateTemplate: (id: string, updates: Partial<ClassTemplate>, userId: string) => boolean;
-  deleteTemplate: (id: string) => boolean;
-  duplicateTemplate: (id: string, newName: string, userId: string) => ClassTemplate | null;
-
-  // Advanced template operations
-  createEditableCopy: (id: string, userId: string, newName?: string) => ClassTemplate | null;
-  promoteToOfficial: (id: string, userId: string) => boolean;
-  deprecateTemplate: (id: string, userId: string, successorId?: string) => boolean;
-  createNewVersion: (id: string, versionNumber: string, userId: string) => ClassTemplate | null;
-  canEdit: (template: ClassTemplate) => { canEdit: boolean; reason?: string };
-
   // Queries
   getTemplate: (id: string) => ClassTemplate | undefined;
   getTemplatesByOrganization: (org: Organization) => ClassTemplate[];
@@ -58,16 +45,16 @@ export interface TemplateStoreActions {
   setActiveTemplate: (id: string | null) => void;
   clearActiveTemplate: () => void;
 
-  // Import/Export
-  exportTemplate: (id: string, userId: string) => TemplateImportExport | null;
-  importTemplate: (data: TemplateImportExport, userId: string) => ClassTemplate | null;
-
   // Utility
   clearError: () => void;
   resetStore: () => void;
 
-  // Initialize with default templates
-  initializeDefaultTemplates: (force?: boolean) => void;
+  /**
+   * Load templates from the database. Despite the former name
+   * (`initializeDefaultTemplates`) this never seeded anything locally — it is and
+   * always was the DB fetch. `force` re-fetches even when already initialized.
+   */
+  loadTemplatesFromDB: (force?: boolean) => void;
 
   /**
    * Revalidate cached templates against the DB (stale-while-revalidate).
@@ -78,9 +65,6 @@ export interface TemplateStoreActions {
 
   // Lazy loading method
   ensureTemplatesLoaded: () => Promise<void>;
-
-  // Emergency function to clear corrupted data
-  clearCorruptedData: () => Promise<void>;
 }
 
 export type TemplateStore = TemplateStoreState & TemplateStoreActions;

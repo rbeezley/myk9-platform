@@ -29,10 +29,6 @@ function routePatternToRegex(routePattern: string): RegExp {
 export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/dashboard': () => import('@/pages/admin/AdminDashboard'),
   '/admin/templates': () => import('@/pages/admin/TemplateManagementPage'),
-  '/admin/templates/new': () => import('@/pages/admin/TemplateEditorPage'),
-  '/admin/templates/:templateId/edit': () => import('@/pages/admin/TemplateEditorPage'),
-  '/admin/templates/:templateId/test': () =>
-    import('@/pages/admin/TemplateTestingPage').then(m => ({ default: m.TemplateTestingPage })),
   '/admin/health': () => import('@/pages/admin/SystemHealthPage'),
   '/admin/sync': () => import('@/pages/sync/SyncMonitoringPage'),
   '/admin/role-requests': () => import('@/pages/admin/RoleRequestsPage'),
@@ -179,7 +175,7 @@ export const routeCategories = {
 export const navigationPatterns = {
   // Admin workflow patterns
   adminDashboard: ['/admin/health', '/admin/support', '/admin/permissions'],
-  templateManagement: ['/admin/templates/new', '/admin/dashboard'],
+  templateManagement: ['/admin/dashboard'],
   permissionManagement: ['/admin/permissions/roles', '/admin/permissions/users'],
 
   // Exhibitor workflow patterns

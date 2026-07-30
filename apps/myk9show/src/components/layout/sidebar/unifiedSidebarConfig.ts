@@ -185,10 +185,10 @@ export function buildUnifiedSidebarConfig(
             description: 'Platform fee + payout ledger',
           },
           {
-            title: 'Templates',
+            title: 'Sport Rules',
             href: '/admin/templates',
             icon: FileText,
-            description: 'Class and show templates',
+            description: 'Seeded class rules by registry (read-only)',
           },
         ],
       });

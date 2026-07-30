@@ -7,8 +7,6 @@ import {
 } from '@/test/utils/mockData';
 import { Organization, TrialType } from '@/types/template.types';
 
-const TEST_USER = 'test-user';
-
 // Mock localStorage
 const mockLocalStorage = {
   getItem: vi.fn(),
@@ -36,101 +34,53 @@ describe('Template Store', () => {
     vi.clearAllMocks();
   });
 
-  describe('Template CRUD Operations', () => {
-    test('creates a new template', () => {
-      const store = useTemplateStore.getState();
-      const template = createMockTemplate();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
+  describe('Read-only contract', () => {
+    // Sport rules are reference data changed by migration. The store must expose no
+    // way to mutate them from the client — see docs/plan-template-authoring-removal.md.
+    test('exposes no mutation actions', () => {
+      const store = useTemplateStore.getState() as unknown as Record<string, unknown>;
 
-      const createdTemplate = store.createTemplate(templateData, TEST_USER);
-
-      const state = useTemplateStore.getState();
-      expect(state.templates).toHaveLength(1);
-      expect(state.templates[0].templateName).toBe(template.templateName);
-      expect(state.templates[0].organization).toBe(template.organization);
-      expect(state.templates[0].id).toBe(createdTemplate.id);
+      for (const action of [
+        'createTemplate',
+        'updateTemplate',
+        'deleteTemplate',
+        'duplicateTemplate',
+        'createEditableCopy',
+        'promoteToOfficial',
+        'deprecateTemplate',
+        'createNewVersion',
+        'importTemplate',
+        'exportTemplate',
+        'clearCorruptedData',
+      ]) {
+        expect(store[action], `${action} must not exist on the read-only store`).toBeUndefined();
+      }
     });
 
-    test('updates an existing template', () => {
+    test('loadTemplatesFromDB is the only load entry point', () => {
       const store = useTemplateStore.getState();
-      const template = createMockTemplate({ templateName: 'Original Name' });
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-
-      const createdTemplate = store.createTemplate(templateData, TEST_USER);
-      store.updateTemplate(createdTemplate.id, { templateName: 'Updated Name' }, TEST_USER);
-
-      const state = useTemplateStore.getState();
-      const updatedTemplate = state.templates.find(t => t.id === createdTemplate.id);
-      expect(updatedTemplate?.templateName).toBe('Updated Name');
-      expect(updatedTemplate?.updatedAt).toBeDefined();
+      expect(typeof store.loadTemplatesFromDB).toBe('function');
+      expect(typeof store.ensureTemplatesLoaded).toBe('function');
+      expect(typeof store.refreshTemplatesFromDB).toBe('function');
     });
+  });
 
-    test('deletes a template', () => {
-      const store = useTemplateStore.getState();
-      const template = createMockTemplate();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-
-      const createdTemplate = store.createTemplate(templateData, TEST_USER);
-      expect(useTemplateStore.getState().templates).toHaveLength(1);
-
-      store.deleteTemplate(createdTemplate.id);
-      expect(useTemplateStore.getState().templates).toHaveLength(0);
-    });
-
-    test('duplicates a template with new ID and version', () => {
-      const store = useTemplateStore.getState();
-      const original = createMockTemplate({
-        templateName: 'Original Template',
-        version: '1.0.0',
-      });
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = original;
-
-      const createdOriginal = store.createTemplate(templateData, TEST_USER);
-      const duplicated = store.duplicateTemplate(
-        createdOriginal.id,
-        'Duplicated Template',
-        TEST_USER
-      );
-
-      // Ensure duplication was successful
-      expect(duplicated).not.toBeNull();
-
-      const state = useTemplateStore.getState();
-      expect(state.templates).toHaveLength(2);
-
-      // Find the duplicated template in the store
-      const duplicate = duplicated ? state.templates.find(t => t.id === duplicated.id) : null;
-      expect(duplicate?.templateName).toBe('Duplicated Template');
-      expect(duplicate?.isOfficial).toBe(false);
-      expect(duplicate?.isCustom).toBe(true);
-      expect(duplicate?.id).not.toBe(createdOriginal.id); // IDs should be different
-    });
-
+  describe('Active Template', () => {
     test('sets active template', () => {
-      const store = useTemplateStore.getState();
       const template = createMockTemplate();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
+      useTemplateStore.setState({ templates: [template] });
 
-      const createdTemplate = store.createTemplate(templateData, TEST_USER);
-      store.setActiveTemplate(createdTemplate.id);
+      useTemplateStore.getState().setActiveTemplate(template.id);
 
-      const state = useTemplateStore.getState();
-      expect(state.activeTemplate?.id).toBe(createdTemplate.id);
+      expect(useTemplateStore.getState().activeTemplate?.id).toBe(template.id);
     });
 
     test('clears active template', () => {
-      const store = useTemplateStore.getState();
       const template = createMockTemplate();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
+      useTemplateStore.setState({ templates: [template] });
 
-      const createdTemplate = store.createTemplate(templateData, TEST_USER);
-      store.setActiveTemplate(createdTemplate.id);
+      const store = useTemplateStore.getState();
+      store.setActiveTemplate(template.id);
       expect(useTemplateStore.getState().activeTemplate).toBeTruthy();
 
       store.clearActiveTemplate();
@@ -140,7 +90,6 @@ describe('Template Store', () => {
 
   describe('Template Queries', () => {
     beforeEach(() => {
-      const store = useTemplateStore.getState();
       const templates = [
         createMockTemplate({
           id: 'akc-1',
@@ -162,7 +111,7 @@ describe('Template Store', () => {
         }),
       ];
 
-      templates.forEach(template => store.createTemplate(template, TEST_USER));
+      useTemplateStore.setState({ templates, error: null });
     });
 
     test('gets templates by organization', () => {
@@ -233,117 +182,49 @@ describe('Template Store', () => {
     });
   });
 
-  describe('Template Import/Export', () => {
-    test('imports template data', () => {
+  describe('Seeded template shape', () => {
+    test('holds distinct entries that share a name across registries', () => {
+      // The AKC and UKC seeds both carry a "Scent Work" sport; the store must keep
+      // them as separate rows rather than collapsing them by name.
+      const templates = [
+        createMockTemplate({
+          id: 'akc-same-name',
+          templateName: 'Same Name',
+          organization: Organization.AKC,
+          trialType: TrialType.SCENT_WORK,
+        }),
+        createMockTemplate({
+          id: 'ukc-same-name',
+          templateName: 'Same Name',
+          organization: Organization.UKC,
+          trialType: TrialType.SCENT_WORK,
+        }),
+      ];
+
+      useTemplateStore.setState({ templates, error: null });
+
       const store = useTemplateStore.getState();
-      const templateData = createMockTemplate();
-
-      // Create a proper TemplateImportExport object
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...exportData } = templateData;
-      const importData = {
-        template: exportData,
-        exportedAt: new Date(),
-        exportedBy: TEST_USER,
-        exportFormat: '1.0' as const,
-      };
-
-      const importedTemplate = store.importTemplate(importData, TEST_USER);
-
-      // Ensure import was successful
-      expect(importedTemplate).not.toBeNull();
-
-      if (importedTemplate) {
-        expect(importedTemplate.templateName).toBe(templateData.templateName);
-        expect(importedTemplate.id).not.toBe(templateData.id);
-      }
+      expect(store.templates).toHaveLength(2);
+      expect(store.getTemplatesByOrganization(Organization.AKC)).toHaveLength(1);
+      expect(store.getTemplatesByOrganization(Organization.UKC)).toHaveLength(1);
     });
 
-    test('exports template data', () => {
-      const store = useTemplateStore.getState();
-      const template = createMockTemplate();
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-
-      const createdTemplate = store.createTemplate(templateData, TEST_USER);
-      const exported = store.exportTemplate(createdTemplate.id, TEST_USER);
-
-      // The exported data should contain the template without id, createdAt, and createdBy
-      // and include exportedAt, exportedBy, and exportFormat
-      expect(exported).toBeDefined();
-      expect(exported?.template.templateName).toBe(template.templateName);
-      expect(exported?.exportFormat).toBe('1.0');
-    });
-
-    test('imports AKC Scent Work template successfully', () => {
-      const store = useTemplateStore.getState();
+    test('carries the seeded AKC Scent Work class definitions', () => {
       const akcTemplate = createAKCScentWorkTemplate();
+      useTemplateStore.setState({ templates: [akcTemplate], error: null });
 
-      // Create a proper TemplateImportExport object
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...exportData } = akcTemplate;
-      const importData = {
-        template: exportData,
-        exportedAt: new Date(),
-        exportedBy: TEST_USER,
-        exportFormat: '1.0' as const,
-      };
+      const loaded = useTemplateStore.getState().getTemplate(akcTemplate.id);
 
-      const importedTemplate = store.importTemplate(importData, TEST_USER);
-
-      // Ensure import was successful
-      expect(importedTemplate).not.toBeNull();
-
-      if (importedTemplate) {
-        expect(importedTemplate.organization).toBe(Organization.AKC);
-        expect(importedTemplate.trialType).toBe(TrialType.SCENT_WORK);
-        expect(importedTemplate.classDefinitions.length).toBeGreaterThan(0);
-      }
-    });
-  });
-
-  describe('Template Validation', () => {
-    test('allows duplicate names across different org/type', () => {
-      const store = useTemplateStore.getState();
-      const template1 = createMockTemplate({
-        templateName: 'Same Name',
-        organization: Organization.AKC,
-        trialType: TrialType.SCENT_WORK,
-      });
-      const template2 = createMockTemplate({
-        templateName: 'Same Name',
-        organization: Organization.UKC,
-        trialType: TrialType.SCENT_WORK,
-      });
-
-      store.createTemplate(template1, TEST_USER);
-      expect(() => store.createTemplate(template2, TEST_USER)).not.toThrow();
-
-      expect(useTemplateStore.getState().templates).toHaveLength(2);
+      expect(loaded?.organization).toBe(Organization.AKC);
+      expect(loaded?.trialType).toBe(TrialType.SCENT_WORK);
+      expect(loaded?.classDefinitions.length).toBeGreaterThan(0);
     });
   });
 
   describe('Performance with Large Templates', () => {
-    test('handles large number of templates efficiently', () => {
-      const store = useTemplateStore.getState();
-      const templates = createMockTemplates(100);
-
-      const startTime = performance.now();
-      templates.forEach(template => store.createTemplate(template, TEST_USER));
-      const endTime = performance.now();
-
-      expect(endTime - startTime).toBeLessThan(1000); // Should complete in under 1 second
-      expect(useTemplateStore.getState().templates).toHaveLength(100);
-    });
-
     test('searches large template sets efficiently', () => {
+      useTemplateStore.setState({ templates: createMockTemplates(100), error: null });
       const store = useTemplateStore.getState();
-      const templates = createMockTemplates(100);
-      templates.forEach(template => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id, createdAt, createdBy, ...templateData } = template;
-        store.createTemplate(templateData, TEST_USER);
-      });
 
       const startTime = performance.now();
       store.setSearchQuery('Template 5');

@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { logger } from '@/services/LoggingService';
-import { useTemplateStore } from '@/store/templateStore';
-import { useTemplates } from '@/hooks/useTemplates';
-import { Organization, TrialType, TemplateFilter } from '@/types/template.types';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState, useMemo } from 'react';
+import { useSportTemplatesWithRulesQuery } from '@/hooks/queries/useSportTemplates';
+import type { SportTemplateRow, SportClassRuleRow } from '@/types/sport-template-types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,572 +10,341 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Plus, Filter, MoreVertical, Edit, TestTube, Trash2, FileText } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { FileText, Info, ArrowLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import '@/styles/myk9-template-management.css';
-import { cleanupDuplicateTemplates } from '@/utils/cleanup-duplicate-templates';
 import { CardGridSkeleton } from '@/components/common/SkeletonLoaders';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-// Dialogs temporarily removed to fix import issues
-// import { ExportTemplatesDialog } from '@/components/templates/ExportTemplatesDialog';
-// import { AutoSaveTemplatesDialog } from '@/components/templates/AutoSaveTemplatesDialog';
-// import { DirectSaveTemplatesDialog } from '@/components/templates/DirectSaveTemplatesDialog';
 
-const TemplateManagementPage: React.FC = () => {
-  logger.debug('Template page loaded', 'templates');
-  const navigate = useNavigate();
-  const {
-    searchTemplates,
-    clearError,
-    error,
-    clearCorruptedData,
-    initializeDefaultTemplates,
-    deleteTemplate,
-  } = useTemplateStore();
-  const { templates, isLoading } = useTemplates(); // Use lazy loading hook
+type SportTemplateWithRules = SportTemplateRow & { sport_class_rules: SportClassRuleRow[] };
 
-  // Debug template duplication
-  logger.debug('All templates', 'templates', {
-    templates: templates.map(t => ({ id: t.id, name: t.templateName, isOfficial: t.isOfficial })),
-  });
+const ALL = 'all';
 
-  // Clean duplicates on mount
-  useEffect(() => {
-    const uniqueTemplates = templates.filter(
-      (template, index, array) => array.findIndex(t => t.id === template.id) === index
+/** "180s", "180–300s", or "—" */
+function formatMaxTime(rule: SportClassRuleRow): string {
+  if (rule.max_time_seconds_fixed != null) return `${rule.max_time_seconds_fixed}s`;
+  const { max_time_seconds_min: min, max_time_seconds_max: max } = rule;
+  if (min != null && max != null) return min === max ? `${min}s` : `${min}–${max}s`;
+  if (min != null) return `≥${min}s`;
+  if (max != null) return `≤${max}s`;
+  return '—';
+}
+
+/** "1", "1–3", or "—" */
+function formatRange(fixed: number | null, min: number | null, max: number | null): string {
+  if (fixed != null) return String(fixed);
+  if (min != null && max != null) return min === max ? String(min) : `${min}–${max}`;
+  if (min != null) return `≥${min}`;
+  if (max != null) return `≤${max}`;
+  return '—';
+}
+
+const RulesTable: React.FC<{ template: SportTemplateWithRules }> = ({ template }) => {
+  const rules = [...template.sport_class_rules].sort(
+    (a, b) => a.display_order - b.display_order || a.class_name.localeCompare(b.class_name)
+  );
+
+  if (rules.length === 0) {
+    return (
+      <div className="myk9-template-empty">
+        <h3 className="myk9-template-empty-title">No class rules seeded</h3>
+        <p className="myk9-template-empty-description">
+          This registry has a <code>sport_templates</code> row but no <code>sport_class_rules</code>
+          . A seed migration is missing or incomplete.
+        </p>
+      </div>
     );
+  }
 
-    if (uniqueTemplates.length < templates.length) {
-      logger.info('Found duplicate templates, cleaning', 'templates', {
-        duplicateCount: templates.length - uniqueTemplates.length,
-      });
-      // This would need to be implemented in the store
-    }
-  }, [templates]);
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <caption className="sr-only">
+          Seeded class rules for {template.organization} {template.sport_name}
+        </caption>
+        <thead>
+          <tr className="border-b text-left">
+            <th scope="col" className="p-2">
+              Class
+            </th>
+            <th scope="col" className="p-2">
+              Element
+            </th>
+            <th scope="col" className="p-2">
+              Level
+            </th>
+            <th scope="col" className="p-2">
+              Section
+            </th>
+            <th scope="col" className="p-2">
+              Max time
+            </th>
+            <th scope="col" className="p-2">
+              Hides
+            </th>
+            <th scope="col" className="p-2">
+              Areas
+            </th>
+            <th scope="col" className="p-2">
+              Timer
+            </th>
+            <th scope="col" className="p-2">
+              Distractions
+            </th>
+            <th scope="col" className="p-2">
+              Blank
+            </th>
+            <th scope="col" className="p-2">
+              Odors
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rules.map(rule => (
+            <tr key={rule.id} className="border-b last:border-0">
+              <th scope="row" className="p-2 text-left font-medium">
+                {rule.class_name}
+              </th>
+              <td className="p-2">{rule.element}</td>
+              <td className="p-2">{rule.level ?? '—'}</td>
+              <td className="p-2">{rule.section ?? '—'}</td>
+              <td className="p-2">{formatMaxTime(rule)}</td>
+              <td className="p-2">
+                {formatRange(rule.hide_count_fixed, rule.hide_count_min, rule.hide_count_max)}
+                {rule.hides_known ? ' (known)' : ''}
+              </td>
+              <td className="p-2">{rule.area_count}</td>
+              <td className="p-2">{rule.timer_mode}</td>
+              <td className="p-2">
+                {rule.distraction_count_min === rule.distraction_count_max
+                  ? rule.distraction_count_min
+                  : `${rule.distraction_count_min}–${rule.distraction_count_max}`}
+              </td>
+              <td className="p-2">{rule.has_blank ? 'yes' : 'no'}</td>
+              <td className="p-2">{rule.odors.length > 0 ? rule.odors.join(', ') : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
-  const [filter, setFilter] = useState<TemplateFilter>({
-    searchTerm: '',
-    // Optional properties are omitted rather than set to undefined
-    // to satisfy exactOptionalPropertyTypes
-  });
+/**
+ * Read-only view of the sport rules actually seeded in `sport_templates` /
+ * `sport_class_rules`.
+ *
+ * INTENT: This page has no create/edit/delete affordances, and it reads the DATABASE
+ * directly via useSportTemplatesWithRulesQuery — never the templateStore, which falls
+ * back to bundled fixtures when a fetch fails and would present mock data as seeded
+ * truth. Its whole job is telling you whether a migration landed, so it must fail
+ * loudly rather than show something plausible. See
+ * docs/plan-template-authoring-removal.md.
+ */
+const TemplateManagementPage: React.FC = () => {
+  const { data, isLoading, isError, error, refetch, isFetching } =
+    useSportTemplatesWithRulesQuery();
 
-  const [filteredTemplates, setFilteredTemplates] = useState(templates);
-  const [showAdvancedMaintenance, setShowAdvancedMaintenance] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [organization, setOrganization] = useState<string>(ALL);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Delete confirmation dialog state
-  const [deleteDialog, setDeleteDialog] = useState<{
-    open: boolean;
-    template: (typeof templates)[0] | null;
-  }>({
-    open: false,
-    template: null,
-  });
+  const templates = useMemo<SportTemplateWithRules[]>(() => data ?? [], [data]);
 
-  const [showResetDialog, setShowResetDialog] = useState(false);
+  const organizations = useMemo(
+    () => Array.from(new Set(templates.map(t => t.organization))).sort(),
+    [templates]
+  );
 
-  // Dialog states temporarily removed
-  // const [showExportDialog, setShowExportDialog] = useState(false);
-  // const [showAutoSaveDialog, setShowAutoSaveDialog] = useState(false);
-  // const [showDirectSaveDialog, setShowDirectSaveDialog] = useState(false);
-
-  // Update filtered templates when filter changes
-  useEffect(() => {
-    const results = searchTemplates(filter);
-    queueMicrotask(() => {
-      setFilteredTemplates(results);
+  const visible = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return templates.filter(template => {
+      if (organization !== ALL && template.organization !== organization) return false;
+      if (!term) return true;
+      return (
+        template.sport_name.toLowerCase().includes(term) ||
+        template.organization.toLowerCase().includes(term) ||
+        template.sport_code.toLowerCase().includes(term)
+      );
     });
-  }, [filter, templates, searchTemplates]);
+  }, [templates, searchTerm, organization]);
 
-  const handleFilterChange = (
-    key: keyof TemplateFilter,
-    value: string | boolean | Organization | TrialType | undefined
-  ) => {
-    setFilter(prev => ({
-      ...prev,
-      [key]: value === 'all' ? undefined : value,
-    }));
-  };
+  const hasFilters = searchTerm !== '' || organization !== ALL;
+  // Gate on !isError: TanStack Query retains the previous `data` when a background
+  // refetch fails, so without this an admin could sit on a rule table that no longer
+  // reflects the database while the failure went unreported.
+  const selected = isError ? null : (templates.find(t => t.id === selectedId) ?? null);
 
-  const handleCreateNew = () => {
-    navigate('/admin/templates/new');
-  };
+  if (selected) {
+    return (
+      <div className="myk9-template-page">
+        <div className="myk9-template-container">
+          <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to all sport rules
+          </Button>
 
-  const handleEditTemplate = (templateId: string) => {
-    navigate(`/admin/templates/${templateId}/edit`);
-  };
+          <div className="myk9-template-header">
+            <h1 className="myk9-template-title">
+              {selected.organization} {selected.sport_name}
+            </h1>
+            <p className="myk9-template-subtitle">
+              <code>{selected.sport_code}</code> · {selected.sport_class_rules.length} class rules ·{' '}
+              {selected.elements.length} elements · {selected.levels.length} levels · sections:{' '}
+              {selected.section_mode}
+            </p>
+          </div>
 
-  const handleTestTemplate = (templateId: string) => {
-    navigate(`/admin/templates/${templateId}/test`);
-  };
-
-  const handleDeleteTemplate = (templateId: string) => {
-    const template = templates.find(t => t.id === templateId);
-    if (!template) {
-      logger.warn('Template not found', 'templates', { templateId });
-      return;
-    }
-
-    if (template.isOfficial) {
-      logger.warn('Attempted to delete official template - blocked', 'templates');
-      return;
-    }
-
-    // Open confirmation dialog
-    setDeleteDialog({
-      open: true,
-      template: template,
-    });
-  };
-
-  const handleConfirmDelete = () => {
-    if (!deleteDialog.template) return;
-
-    logger.info('Attempting to delete template', 'templates', {
-      templateId: deleteDialog.template.id,
-    });
-    const success = deleteTemplate(deleteDialog.template.id);
-    logger.debug('Delete result', 'templates', { success });
-
-    if (!success) {
-      logger.error('Failed to delete template', 'templates', {
-        templateId: deleteDialog.template.id,
-      });
-    } else {
-      logger.info('Template deleted successfully', 'templates', {
-        templateId: deleteDialog.template.id,
-      });
-    }
-
-    // Close dialog
-    setDeleteDialog({ open: false, template: null });
-  };
-
-  const organizations: Organization[] = Object.values(Organization);
-  const trialTypes: TrialType[] = Object.values(TrialType);
-
-  const officialCount = templates.filter(t => t.isOfficial && t.isActive).length;
-  const customCount = templates.filter(t => t.isCustom && t.isActive).length;
-  const totalCount = templates.filter(t => t.isActive).length;
-
-  // Debug logging
-  React.useEffect(() => {
-    logger.debug('TemplateManagementPage - Total templates', 'templates', {
-      count: templates.length,
-    });
-    logger.debug('Templates by show type', 'templates', {
-      byTrialType: templates.reduce(
-        (acc, t) => {
-          const type = String(t.trialType);
-          acc[type] = (acc[type] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>
-      ),
-    });
-  }, [templates]);
+          <RulesTable template={selected} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="myk9-template-page">
       <div className="myk9-template-container">
-        {/* Header */}
-        <div className="myk9-template-header">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0">
-              <h1 className="myk9-template-title">Template Management</h1>
-              <p className="myk9-template-subtitle">
-                Create and manage class templates for different organizations and show types
+        <div className="myk9-template-header flex items-start justify-between gap-4">
+          <div>
+            <h1 className="myk9-template-title">Sport Rules</h1>
+            <p className="myk9-template-subtitle">
+              The class rules currently seeded in the database, by registry.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            {isFetching ? 'Re-reading…' : 'Re-read database'}
+          </Button>
+        </div>
+
+        <div
+          className="myk9-filter-section flex items-start gap-3"
+          role="note"
+          aria-label="How sport rules are changed"
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p className="myk9-template-description">
+            This view is read-only and reads the database directly. Sport rules are reference data —
+            a change affects every future show, so they are edited by reviewed migration rather than
+            in the app. Use this page to confirm what a migration actually seeded.
+          </p>
+        </div>
+
+        {isError && (
+          <div className="myk9-filter-section flex items-start gap-3" role="alert">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-medium">Could not read sport rules from the database.</p>
+              <p className="myk9-template-description">
+                Nothing is shown below rather than falling back to cached or bundled data — this
+                page would be useless if it could not be trusted.{' '}
+                {error instanceof Error ? error.message : String(error)}
               </p>
             </div>
-            <div className="flex w-full flex-wrap gap-2 md:w-auto md:justify-end">
-              <Button onClick={handleCreateNew} className="myk9-button-primary flex-1 sm:flex-none">
-                <Plus className="h-4 w-4" />
-                Create Template
-              </Button>
-            </div>
           </div>
-        </div>
-
-        <div className="mb-6 rounded-lg border border-dashed bg-muted/20 p-4">
-          <button
-            type="button"
-            className="text-sm font-medium text-foreground"
-            aria-expanded={showAdvancedMaintenance}
-            aria-controls="template-advanced-maintenance"
-            onClick={() => setShowAdvancedMaintenance(current => !current)}
-          >
-            Advanced maintenance
-          </button>
-          {showAdvancedMaintenance && (
-            <div id="template-advanced-maintenance" className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="space-y-2 rounded-md border bg-background p-3">
-                <p className="text-sm font-medium">Reload defaults</p>
-                <p className="text-sm text-muted-foreground">
-                  Re-adds official templates when the local template cache is missing expected rows.
-                </p>
-                <Button
-                  onClick={() => {
-                    logger.info('Force initializing templates', 'templates');
-                    initializeDefaultTemplates(true);
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  Force Initialize
-                </Button>
-              </div>
-
-              <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-                <p className="text-sm font-medium">Reset local templates</p>
-                <p className="text-sm text-muted-foreground">
-                  Clears local template data before loading defaults. Use only when template data is
-                  corrupted.
-                </p>
-                <Button onClick={() => setShowResetDialog(true)} variant="destructive" size="sm">
-                  Reset Templates
-                </Button>
-              </div>
-
-              <div className="space-y-2 rounded-md border bg-background p-3">
-                <p className="text-sm font-medium">Clean duplicate cache rows</p>
-                <p className="text-sm text-muted-foreground">
-                  Removes duplicate locally cached templates without changing the canonical template
-                  list.
-                </p>
-                <Button
-                  onClick={() => {
-                    const removed = cleanupDuplicateTemplates();
-                    logger.info('Cleaned up duplicate templates', 'templates', { removed });
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  Clean Duplicates
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Error Display */}
-        {error && (
-          <Card className="border-destructive/20 bg-destructive/10 mb-6">
-            <CardContent className="pt-4">
-              <div className="flex justify-between items-center">
-                <p className="text-destructive">{error}</p>
-                <Button variant="ghost" size="sm" onClick={clearError}>
-                  Dismiss
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         )}
 
-        {/* Stats Section */}
-        <div className="myk9-stats-section">
-          <div className="myk9-stats-grid">
-            <div className="myk9-stat-card">
-              <div className="myk9-stat-title">Total Templates</div>
-              <div className="myk9-stat-number">{totalCount}</div>
-              <div className="myk9-stat-description">Active templates</div>
-            </div>
+        {!isError && (
+          <div className="myk9-filter-section">
+            <h2 className="myk9-filter-title">Filters</h2>
+            <div className="myk9-filter-grid">
+              <Input
+                className="myk9-filter-input"
+                placeholder="Search by sport, registry, or code"
+                aria-label="Search sport rules"
+                value={searchTerm}
+                onChange={event => setSearchTerm(event.target.value)}
+              />
 
-            <div className="myk9-stat-card">
-              <div className="myk9-stat-title">Official</div>
-              <div className="myk9-stat-number">{officialCount}</div>
-              <div className="myk9-stat-description">Official templates</div>
-            </div>
+              <Select value={organization} onValueChange={setOrganization}>
+                <SelectTrigger aria-label="Filter by registry">
+                  <SelectValue placeholder="All registries" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All registries</SelectItem>
+                  {organizations.map(org => (
+                    <SelectItem key={org} value={org}>
+                      {org}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <div className="myk9-stat-card">
-              <div className="myk9-stat-title">Custom</div>
-              <div className="myk9-stat-number">{customCount}</div>
-              <div className="myk9-stat-description">Custom templates</div>
-            </div>
-
-            <div className="myk9-stat-card">
-              <div className="myk9-stat-title">Inactive</div>
-              <div className="myk9-stat-number">{templates.length - totalCount}</div>
-              <div className="myk9-stat-description">Inactive templates</div>
+              {hasFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setOrganization(ALL);
+                  }}
+                >
+                  Clear filters
+                </Button>
+              )}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Filters Section */}
-        <div className="myk9-filter-section">
-          <h2 className="myk9-filter-title">
-            <Filter className="h-5 w-5" />
-            Filter Templates
-          </h2>
-          <div className="myk9-filter-grid">
-            {/* Search */}
-            <Input
-              placeholder="Search templates..."
-              value={filter.searchTerm}
-              onChange={e => handleFilterChange('searchTerm', e.target.value)}
-              className="myk9-filter-input"
-            />
-
-            {/* Organization */}
-            <Select
-              value={filter.organization}
-              onValueChange={value => handleFilterChange('organization', value as Organization)}
-            >
-              <SelectTrigger className="myk9-filter-input">
-                <SelectValue placeholder="Organization" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Organizations</SelectItem>
-                {organizations.map(org => (
-                  <SelectItem key={org} value={org}>
-                    {org}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Show Type */}
-            <Select
-              value={filter.trialType}
-              onValueChange={value => handleFilterChange('trialType', value as TrialType)}
-            >
-              <SelectTrigger className="myk9-filter-input">
-                <SelectValue placeholder="Show Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Show Types</SelectItem>
-                {trialTypes.map(type => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Template Type */}
-            <Select
-              value={filter.isOfficial === undefined ? 'all' : filter.isOfficial ? 'true' : 'false'}
-              onValueChange={value =>
-                handleFilterChange('isOfficial', value === 'all' ? undefined : value === 'true')
-              }
-            >
-              <SelectTrigger className="myk9-filter-input">
-                <SelectValue placeholder="Template Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="true">Official Only</SelectItem>
-                <SelectItem value="false">Custom Only</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Active Status */}
-            <Select
-              value={filter.isActive === undefined ? 'all' : filter.isActive ? 'true' : 'false'}
-              onValueChange={value =>
-                handleFilterChange('isActive', value === 'all' ? undefined : value === 'true')
-              }
-            >
-              <SelectTrigger className="myk9-filter-input">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="true">Active Only</SelectItem>
-                <SelectItem value="false">Inactive Only</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Active Filters */}
-          {(filter.searchTerm ||
-            filter.organization ||
-            filter.trialType ||
-            filter.isActive !== undefined ||
-            filter.isOfficial !== undefined) && (
-            <div className="flex gap-2 mt-4 flex-wrap">
-              <span className="text-sm text-muted-foreground">Active filters:</span>
-              {filter.searchTerm && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Search: "{filter.searchTerm}"
-                  <button
-                    onClick={() => handleFilterChange('searchTerm', '')}
-                    className="ml-1 hover:bg-destructive/10 rounded-full"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {filter.organization && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Org: {filter.organization}
-                  <button
-                    onClick={() => handleFilterChange('organization', undefined)}
-                    className="ml-1 hover:bg-destructive/10 rounded-full"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {filter.trialType && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Type: {filter.trialType}
-                  <button
-                    onClick={() => handleFilterChange('trialType', undefined)}
-                    className="ml-1 hover:bg-destructive/10 rounded-full"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {filter.isActive !== undefined && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Status: {filter.isActive ? 'Active' : 'Inactive'}
-                  <button
-                    onClick={() => handleFilterChange('isActive', undefined)}
-                    className="ml-1 hover:bg-destructive/10 rounded-full"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {filter.isOfficial !== undefined && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  {filter.isOfficial ? 'Official' : 'Custom'}
-                  <button
-                    onClick={() => handleFilterChange('isOfficial', undefined)}
-                    className="ml-1 hover:bg-destructive/10 rounded-full"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setFilter({ searchTerm: '' })}
-                className="text-xs"
-              >
-                Clear All
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Template List */}
         <div className="myk9-templates-section">
           {isLoading ? (
-            <div role="status" aria-label="Loading templates">
+            <div role="status" aria-label="Loading sport rules">
               <CardGridSkeleton items={6} />
             </div>
-          ) : (
+          ) : isError ? null : (
             <div className="myk9-templates-grid">
-              {filteredTemplates.map(template => (
-                <div key={template.id} className="myk9-template-card">
+              {visible.map(template => (
+                <button
+                  key={template.id}
+                  type="button"
+                  className="myk9-template-card text-left"
+                  onClick={() => setSelectedId(template.id)}
+                  aria-label={`View ${template.sport_class_rules.length} class rules for ${template.organization} ${template.sport_name}`}
+                >
                   <div className="myk9-template-card-header">
                     <div className="myk9-template-card-icon">
                       <FileText className="h-6 w-6" />
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild nativeButton>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => handleEditTemplate(template.id)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Template
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleTestTemplate(template.id)}>
-                          <TestTube className="mr-2 h-4 w-4" />
-                          Test Template
-                        </DropdownMenuItem>
-                        {!template.isOfficial && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem asChild>
-                              <button
-                                className="flex w-full items-center px-2 py-1.5 text-sm text-destructive hover:bg-accent hover:text-destructive cursor-pointer"
-                                onClick={() => {
-                                  logger.debug('Delete button clicked', 'templates', {
-                                    templateId: template.id,
-                                    templateName: template.templateName,
-                                  });
-                                  handleDeleteTemplate(template.id);
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </button>
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </div>
 
                   <div className="myk9-template-card-content">
-                    <h3 className="myk9-template-card-title">{template.templateName}</h3>
+                    <h3 className="myk9-template-card-title">{template.sport_name}</h3>
                     <p className="myk9-template-card-organization">{template.organization}</p>
-                    <p className="myk9-template-card-showtype">
-                      {template.trialType.replace('_', ' ')}
-                    </p>
+                    <p className="myk9-template-card-showtype">{template.sport_code}</p>
 
                     <div className="myk9-template-card-meta">
-                      <span className="myk9-template-card-version">v{template.version}</span>
+                      <span className="myk9-template-card-version">
+                        {template.sport_class_rules.length} class rules
+                      </span>
                       <span className="myk9-template-card-date">
-                        {template.updatedAt
-                          ? new Date(template.updatedAt).toLocaleDateString()
-                          : 'No date'}
+                        {new Date(template.updated_at).toLocaleDateString()}
                       </span>
                     </div>
 
                     <div className="myk9-template-card-badges">
-                      <span
-                        className={`myk9-template-badge ${template.isActive ? 'active' : 'inactive'}`}
-                      >
-                        {template.isActive ? 'Active' : 'Inactive'}
+                      <span className="myk9-template-badge active">
+                        {template.elements.length} elements
                       </span>
-                      <span
-                        className={`myk9-template-badge ${template.isOfficial ? 'official' : 'custom'}`}
-                      >
-                        {template.isOfficial ? 'Official' : 'Custom'}
+                      <span className="myk9-template-badge active">
+                        {template.levels.length} levels
                       </span>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
 
-              {filteredTemplates.length === 0 && (
+              {visible.length === 0 && (
                 <div className="myk9-template-empty">
-                  <div className="myk9-template-empty-icon">📋</div>
-                  <h3 className="myk9-template-empty-title">No templates found</h3>
+                  <h3 className="myk9-template-empty-title">
+                    {templates.length === 0
+                      ? 'No sport rules are seeded'
+                      : 'No sport rules match those filters'}
+                  </h3>
                   <p className="myk9-template-empty-description">
-                    Create your first template or adjust your filters to see existing templates.
+                    {templates.length === 0
+                      ? 'The sport_templates table returned no active rows. Sport rules arrive via database migration.'
+                      : 'Clear the filters to see every seeded registry.'}
                   </p>
                 </div>
               )}
@@ -586,93 +352,6 @@ const TemplateManagementPage: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Reset Templates Confirmation Dialog */}
-      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset All Templates</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will clear ALL templates and reload defaults. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                await clearCorruptedData();
-                setTimeout(() => initializeDefaultTemplates(true), 500);
-                setShowResetDialog(false);
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Reset All
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialog.open}
-        onOpenChange={open => setDeleteDialog(prev => ({ ...prev, open }))}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-destructive" />
-              Delete Template
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{deleteDialog.template?.templateName}"?
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4">
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-destructive" viewBox="0 0 20 20" fill="currentColor">
-                    <path
-                      fillRule="evenodd"
-                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-destructive">
-                    This action cannot be undone
-                  </h3>
-                  <p className="mt-2 text-sm text-destructive">
-                    This will permanently delete the template and all its configurations. Any shows
-                    or classes using this template will not be affected.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialog({ open: false, template: null })}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Template
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialogs temporarily removed to fix import issues */}
     </div>
   );
 };

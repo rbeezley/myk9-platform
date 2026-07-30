@@ -34,6 +34,29 @@ export function useSportTemplateAsClassTemplate(sportCode: string, enabled = tru
   });
 }
 
+/**
+ * All active sport templates with their raw `sport_class_rules` rows, unmapped.
+ *
+ * Use this when you need the ACTUAL database rows — `mapSportTemplateToClassTemplate`
+ * discards most rule columns (it hardcodes `fieldSpecifications`/`validationRules` to
+ * empty and folds rules into `classDefinitions.fieldOverrides`), so the mapped shape
+ * cannot show timer mode, odors, hide counts, or max times. The /admin/templates
+ * verifier reads this hook rather than the mapped one or the fallback-prone store.
+ */
+export function useSportTemplatesWithRulesQuery() {
+  return useQuery({
+    queryKey: [...queryKeys.sportTemplates, 'with-rules'],
+    queryFn: fetchAllSportTemplatesWithRules,
+    ...cacheStrategies.static,
+    // Deliberately NOT static-cached. Sport rules are static in production, but the
+    // reader of this query is the /admin/templates migration verifier: an admin checks
+    // it, runs a migration, and checks again. cacheStrategies.static would call the
+    // pre-migration result fresh for 30 minutes and answer the question wrong.
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+}
+
 /** All active templates + rules, each mapped to ClassTemplate. */
 export function useAllSportTemplatesAsClassTemplates() {
   return useQuery<ClassTemplate[]>({

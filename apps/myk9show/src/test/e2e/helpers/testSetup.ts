@@ -93,38 +93,6 @@ export class TestSetup {
   }
 
   /**
-   * Create a test template via UI
-   */
-  async createTestTemplate(templateName: string = 'E2E Test Template') {
-    await this.goToTemplateManagement();
-
-    // Click create template button
-    await this.page.click('[data-testid="create-template-button"]');
-
-    // Fill template basic info
-    await this.page.fill('[data-testid="template-name"]', templateName);
-    await this.page.selectOption('[data-testid="organization-select"]', 'AKC');
-    await this.page.selectOption('[data-testid="show-type-select"]', 'SCENT_WORK');
-    await this.page.fill('[data-testid="template-description"]', 'E2E test template description');
-
-    // Add a simple field
-    await this.page.click('[data-testid="add-field-button"]');
-    await this.page.fill('[data-testid="field-name-0"]', 'maxEntries');
-    await this.page.selectOption('[data-testid="field-type-0"]', 'admin-set');
-    await this.page.selectOption('[data-testid="data-type-0"]', 'number');
-    await this.page.fill('[data-testid="display-name-0"]', 'Maximum Entries');
-    await this.page.fill('[data-testid="default-value-0"]', '30');
-
-    // Save template
-    await this.page.click('[data-testid="save-template-button"]');
-
-    // Wait for success message
-    await expect(this.page.locator('[data-testid="success-message"]')).toBeVisible();
-
-    return templateName;
-  }
-
-  /**
    * Clear all test data
    */
   async clearTestData() {

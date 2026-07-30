@@ -34,25 +34,12 @@ describe('Template System Performance Benchmarks', () => {
       });
     });
 
-    test('creates 100 templates within 200ms', () => {
-      const store = useTemplateStore.getState();
-      const templates = createMockTemplates(100);
-
-      performanceBenchmark(
-        'Create 100 templates',
-        () => {
-          templates.forEach(template => store.createTemplate(template, 'test-user'));
-        },
-        200
-      );
-    });
-
     test('searches 1000 templates within 50ms', () => {
       const store = useTemplateStore.getState();
 
-      // Setup: Add 100 templates
-      const templates = createMockTemplates(100);
-      templates.forEach(t => store.createTemplate(t, 'test-user'));
+      // Setup: seed 100 templates directly. The store is read-only — templates
+      // arrive from the DB via loadTemplatesFromDB, so tests set state directly.
+      useTemplateStore.setState({ templates: createMockTemplates(100), error: null });
 
       performanceBenchmark(
         'Template filtering performance',
@@ -88,11 +75,10 @@ describe('Template System Performance Benchmarks', () => {
       );
     });
 
-    test('updates template among 500 templates within 20ms', () => {
-      // Bulk-set to avoid O(n²) from sequential createTemplate calls
+    test('looks up a template among 500 within 20ms', () => {
       const templates = createMockTemplates(500).map((t, i) => ({
         ...t,
-        id: `template-update-${i}`,
+        id: `template-lookup-${i}`,
         createdAt: new Date(),
         updatedAt: new Date(),
       }));
@@ -100,37 +86,11 @@ describe('Template System Performance Benchmarks', () => {
       const store = useTemplateStore.getState();
 
       performanceBenchmark(
-        'Template update performance',
+        'Template lookup performance',
         () => {
-          store.updateTemplate(
-            templates[250].id,
-            { templateName: 'Updated Template Name' },
-            'test-user'
-          );
+          store.getTemplate(templates[250].id);
         },
         20
-      );
-    });
-
-    test('deletes template among 500 templates within 25ms', () => {
-      // Bulk-set to avoid O(n²) from sequential createTemplate calls
-      const templates = createMockTemplates(500).map((t, i) => ({
-        ...t,
-        id: `template-delete-${i}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-      useTemplateStore.setState({ templates, error: null });
-      const store = useTemplateStore.getState();
-
-      const targetId = templates[250].id;
-
-      performanceBenchmark(
-        'Template delete performance',
-        () => {
-          store.deleteTemplate(targetId);
-        },
-        35
       );
     });
   });
@@ -230,6 +190,5 @@ describe('Template System Performance Benchmarks', () => {
         expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024); // 50MB
       }
     });
-
   });
 });

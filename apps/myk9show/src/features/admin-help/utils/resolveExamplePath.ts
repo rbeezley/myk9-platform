@@ -68,16 +68,6 @@ const PATTERN_RESOLVERS: Record<string, Resolver> = {
     ids => `/admin/permissions/roles/${ids.roleId}/clone`,
     ['roleId']
   ),
-
-  // Admin — templates
-  '/admin/templates/:templateId/edit': makeResolver(
-    ids => `/admin/templates/${ids.templateId}/edit`,
-    ['templateId']
-  ),
-  '/admin/templates/:templateId/test': makeResolver(
-    ids => `/admin/templates/${ids.templateId}/test`,
-    ['templateId']
-  ),
 };
 
 /**

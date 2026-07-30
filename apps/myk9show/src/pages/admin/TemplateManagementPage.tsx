@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FileText, Info, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { FileText, Info, ArrowLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import '@/styles/myk9-template-management.css';
 import { CardGridSkeleton } from '@/components/common/SkeletonLoaders';
 
@@ -140,7 +140,8 @@ const RulesTable: React.FC<{ template: SportTemplateWithRules }> = ({ template }
  * docs/plan-template-authoring-removal.md.
  */
 const TemplateManagementPage: React.FC = () => {
-  const { data, isLoading, isError, error } = useSportTemplatesWithRulesQuery();
+  const { data, isLoading, isError, error, refetch, isFetching } =
+    useSportTemplatesWithRulesQuery();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [organization, setOrganization] = useState<string>(ALL);
@@ -167,7 +168,10 @@ const TemplateManagementPage: React.FC = () => {
   }, [templates, searchTerm, organization]);
 
   const hasFilters = searchTerm !== '' || organization !== ALL;
-  const selected = templates.find(t => t.id === selectedId) ?? null;
+  // Gate on !isError: TanStack Query retains the previous `data` when a background
+  // refetch fails, so without this an admin could sit on a rule table that no longer
+  // reflects the database while the failure went unreported.
+  const selected = isError ? null : (templates.find(t => t.id === selectedId) ?? null);
 
   if (selected) {
     return (
@@ -198,11 +202,20 @@ const TemplateManagementPage: React.FC = () => {
   return (
     <div className="myk9-template-page">
       <div className="myk9-template-container">
-        <div className="myk9-template-header">
-          <h1 className="myk9-template-title">Sport Rules</h1>
-          <p className="myk9-template-subtitle">
-            The class rules currently seeded in the database, by registry.
-          </p>
+        <div className="myk9-template-header flex items-start justify-between gap-4">
+          <div>
+            <h1 className="myk9-template-title">Sport Rules</h1>
+            <p className="myk9-template-subtitle">
+              The class rules currently seeded in the database, by registry.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            {isFetching ? 'Re-reading…' : 'Re-read database'}
+          </Button>
         </div>
 
         <div

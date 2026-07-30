@@ -48,6 +48,12 @@ export function useSportTemplatesWithRulesQuery() {
     queryKey: [...queryKeys.sportTemplates, 'with-rules'],
     queryFn: fetchAllSportTemplatesWithRules,
     ...cacheStrategies.static,
+    // Deliberately NOT static-cached. Sport rules are static in production, but the
+    // reader of this query is the /admin/templates migration verifier: an admin checks
+    // it, runs a migration, and checks again. cacheStrategies.static would call the
+    // pre-migration result fresh for 30 minutes and answer the question wrong.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 

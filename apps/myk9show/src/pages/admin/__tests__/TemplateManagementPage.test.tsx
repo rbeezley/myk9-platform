@@ -55,10 +55,20 @@ const template: SportTemplateRow & { sport_class_rules: SportClassRuleRow[] } = 
   sport_class_rules: [rule],
 };
 
-const loaded = { data: [template], isLoading: false, isError: false, error: null };
+const refetch = vi.hoisted(() => vi.fn());
+
+const loaded = {
+  data: [template],
+  isLoading: false,
+  isError: false,
+  error: null,
+  isFetching: false,
+  refetch,
+};
 
 describe('TemplateManagementPage', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     useSportTemplatesWithRulesQuery.mockReturnValue(loaded);
   });
 
@@ -134,6 +144,36 @@ describe('TemplateManagementPage', () => {
         `"${label}" must not be offered on a read-only page`
       ).toBeNull();
     }
+  });
+
+  it('lets an admin re-read the database after running a migration', async () => {
+    const { user } = render(<TemplateManagementPage />);
+
+    await user.click(screen.getByRole('button', { name: /re-read database/i }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  // A background refetch can fail while TanStack Query still holds the previous data.
+  // The detail view must not keep showing rules that may no longer match the database.
+  it('drops out of a selected rule table when a later read fails', async () => {
+    const { user, rerender } = render(<TemplateManagementPage />);
+
+    await user.click(
+      screen.getByRole('button', { name: /view 1 class rules for AKC Scent Work/i })
+    );
+    expect(screen.getByRole('rowheader', { name: 'Container Novice' })).toBeInTheDocument();
+
+    // Data retained, but the refetch failed — exactly TanStack's behaviour.
+    useSportTemplatesWithRulesQuery.mockReturnValue({
+      ...loaded,
+      isError: true,
+      error: new Error('connection lost'),
+    });
+    rerender(<TemplateManagementPage />);
+
+    expect(screen.queryByRole('rowheader', { name: 'Container Novice' })).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not read sport rules/i);
   });
 
   it('opens the rule table with the real seeded columns', async () => {

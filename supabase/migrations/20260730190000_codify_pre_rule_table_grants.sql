@@ -17,6 +17,12 @@
 --     production grants arwdDxtm. On a rebuilt database every client read of
 --     those tables fails 42501 before RLS is ever consulted.
 --   * 112 tables get no service_role grant from migrations.
+--   * The same drift exists one level down, on SEQUENCES: no migration has
+--     ever granted a sequence privilege, so all three public sequences reach a
+--     rebuild owner-only. Section 7 covers them. This is not cosmetic --
+--     granting authenticated INSERT on enrollments (section 3) makes an
+--     invoker-run trigger's nextval() reachable, and a rebuilt database fails
+--     the insert on the sequence instead of the table.
 --   * The drift runs both ways, though only once: on ringside_sessions a
 --     rebuild is WIDER than production, because 20260530210555 re-grants a
 --     SELECT that the live project does not have. Section 5 revokes it.
@@ -531,6 +537,54 @@ REVOKE SELECT ON TABLE public.ringside_sessions FROM authenticated;
 -- (20260717122000), waitlist_notification_events (20260713010000). Verified
 -- individually rather than assumed -- ringside_sessions was in this list until
 -- the rebuild diff caught it.
+
+-- ===========================================================================
+-- 7. Sequences — the same drift, one level down.
+--
+--    NO migration in the corpus has ever GRANTed a sequence privilege; every
+--    sequence statement is a REVOKE. The live project holds its sequence
+--    grants entirely from `ALTER DEFAULT PRIVILEGES`, which auto-grants
+--    USAGE/SELECT on every new sequence to anon and authenticated. So a
+--    migrations-only rebuild leaves all three public sequences owner-only.
+--
+--    That is load-bearing, not cosmetic, and section 3 above is what exposes
+--    it: granting authenticated INSERT on public.enrollments makes an
+--    otherwise-unreachable sequence dependency reachable. enrollments carries a
+--    BEFORE INSERT trigger, set_confirmation_number, running
+--    generate_confirmation_number() (054_registrations_table.sql:31) -- plpgsql
+--    with NO SECURITY DEFINER, so it executes as the invoker and calls
+--    nextval('registration_confirmation_seq'). Without USAGE the insert fails
+--    on a rebuild even though the table grant is present; the failure just
+--    moves from the table to the sequence.
+-- ===========================================================================
+
+-- The one sequence a client role legitimately advances, via that trigger.
+-- UPDATE is withheld: it permits setval(), which would let a caller rewind the
+-- confirmation counter and mint duplicate confirmation numbers. Nothing needs
+-- it, and RLS does not gate sequence operations any more than it gates TRUNCATE.
+GRANT USAGE, SELECT ON SEQUENCE public.registration_confirmation_seq
+  TO authenticated, service_role;
+GRANT UPDATE ON SEQUENCE public.registration_confirmation_seq TO service_role;
+REVOKE UPDATE ON SEQUENCE public.registration_confirmation_seq FROM authenticated;
+
+-- frontend_logs.id is GENERATED ALWAYS AS IDENTITY (025_frontend_logs.sql:6).
+-- An identity column's sequence is owned by the column and needs no privilege
+-- of its own, and section 6 revoked authenticated from the table outright, so
+-- authenticated has no business here at all. service_role keeps the live set.
+REVOKE ALL ON SEQUENCE public.frontend_logs_id_seq FROM anon, authenticated;
+GRANT USAGE, SELECT, UPDATE ON SEQUENCE public.frontend_logs_id_seq TO service_role;
+
+-- ringside_conflict_seq is advanced only inside SECURITY DEFINER functions,
+-- which run as the owner, and read back through system_health_probe. Client
+-- roles were revoked deliberately (20260711160000) and stay revoked; this
+-- re-asserts that and codifies the service_role grant the live project holds.
+REVOKE ALL ON SEQUENCE public.ringside_conflict_seq FROM anon, authenticated;
+GRANT USAGE, SELECT, UPDATE ON SEQUENCE public.ringside_conflict_seq TO service_role;
+
+-- Anon decision for sequences: none, on any of them. Re-affirms
+-- 20260725160000, which revoked both the default privilege and the existing
+-- grants. Safe as a blanket revoke -- sequences have no column-level ACLs.
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
 
 COMMENT ON SCHEMA public IS
   'myK9Show application schema. Table grants for anon, authenticated and '

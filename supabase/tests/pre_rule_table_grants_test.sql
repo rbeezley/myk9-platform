@@ -421,4 +421,111 @@ BEGIN
 END;
 $$;
 
+-- ===========================================================================
+-- F. Sequences. Same drift class as the tables: no migration ever granted a
+--    sequence privilege, so before 20260730190000 a rebuild left all three
+--    owner-only. The enrollments one is load-bearing -- see the behavioural
+--    probe below, which is the assertion that actually matters here.
+-- ===========================================================================
+DO $$
+DECLARE
+  v_row record;
+  v_bad text := '';
+BEGIN
+  FOR v_row IN
+    WITH expected(seq, role_name, privs) AS (VALUES
+      ('registration_confirmation_seq','anon',''),
+      ('registration_confirmation_seq','authenticated','SELECT,USAGE'),
+      ('registration_confirmation_seq','service_role','SELECT,UPDATE,USAGE'),
+      ('frontend_logs_id_seq','anon',''),
+      ('frontend_logs_id_seq','authenticated',''),
+      ('frontend_logs_id_seq','service_role','SELECT,UPDATE,USAGE'),
+      ('ringside_conflict_seq','anon',''),
+      ('ringside_conflict_seq','authenticated',''),
+      ('ringside_conflict_seq','service_role','SELECT,UPDATE,USAGE')
+    ),
+    actual AS (
+      SELECT e.seq, e.role_name, e.privs AS want,
+             array_to_string(
+               ARRAY(
+                 SELECT p
+                 FROM unnest(ARRAY['SELECT','UPDATE','USAGE']) AS p
+                 WHERE has_sequence_privilege(e.role_name, format('public.%I', e.seq), p)
+               ), ','
+             ) AS got
+      FROM expected e
+    )
+    SELECT * FROM actual WHERE got IS DISTINCT FROM want
+  LOOP
+    v_bad := v_bad || format(E'\n  %s / %s: got [%s] want [%s]',
+      v_row.seq, v_row.role_name, v_row.got, v_row.want);
+  END LOOP;
+
+  IF v_bad <> '' THEN
+    RAISE EXCEPTION 'FAIL sequence grant(s) drifted from the codified intent:%', v_bad;
+  END IF;
+  RAISE NOTICE 'PASS all three sequences grant exactly the codified privileges';
+END;
+$$;
+
+-- Coverage guard for sequences, mirroring the table one.
+DO $$
+DECLARE v_missing text;
+BEGIN
+  SELECT string_agg(c.relname, ', ' ORDER BY c.relname) INTO v_missing
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public'
+    AND c.relkind = 'S'
+    AND c.relname NOT IN (
+      'registration_confirmation_seq','frontend_logs_id_seq','ringside_conflict_seq'
+    );
+
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION
+      'FAIL public sequence(s) absent from the grant contract: %. New sequences inherit anon/authenticated USAGE from ALTER DEFAULT PRIVILEGES on the live project -- give them an explicit decision.',
+      v_missing;
+  END IF;
+  RAISE NOTICE 'PASS the grant contract covers every public sequence';
+END;
+$$;
+
+-- The assertion this section exists for. public.enrollments has a BEFORE INSERT
+-- trigger calling nextval('registration_confirmation_seq') from a plpgsql
+-- function with NO security definer, so it runs as the invoker. If authenticated
+-- loses USAGE, every enrollment insert fails on a rebuilt database even though
+-- the table grant is present -- the failure just moves from table to sequence.
+DO $$
+DECLARE v_next bigint;
+BEGIN
+  SET LOCAL ROLE authenticated;
+  BEGIN
+    v_next := nextval('public.registration_confirmation_seq');
+    RESET ROLE;
+    RAISE NOTICE 'PASS authenticated can advance registration_confirmation_seq (enrollment inserts survive a rebuild)';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RESET ROLE;
+    RAISE EXCEPTION
+      'FAIL authenticated cannot nextval registration_confirmation_seq -- enrollment INSERT will fail on a migrations-only rebuild';
+  END;
+END;
+$$;
+
+-- ...but must not be able to rewind it, which would mint duplicate
+-- confirmation numbers. setval requires UPDATE, which is deliberately withheld.
+DO $$
+BEGIN
+  SET LOCAL ROLE authenticated;
+  BEGIN
+    PERFORM setval('public.registration_confirmation_seq', 1, false);
+    RESET ROLE;
+    RAISE EXCEPTION
+      'FAIL authenticated can setval registration_confirmation_seq -- confirmation numbers can be replayed';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RESET ROLE;
+    RAISE NOTICE 'PASS authenticated cannot setval registration_confirmation_seq';
+  END;
+END;
+$$;
+
 ROLLBACK;

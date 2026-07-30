@@ -100,6 +100,7 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.grant_club_secretary(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.grant_club_secretary(uuid, uuid) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';

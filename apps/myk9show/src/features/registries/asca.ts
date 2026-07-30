@@ -32,20 +32,26 @@ function levelCForLevels(levelKeys: readonly string[]): Record<string, readonly 
   return out;
 }
 
-// 'Open' is ASCA-only; the other three labels are shared with AKC/UKC. These four are the
-// complete set — the rulebook's competition levels are §5 Novice, §6 Open, §7 Advanced,
-// §8 Excellent, and then §9 is Faults. There is no fifth level.
+// Levels are disjoint from AKC/UKC: 'Open' and 'Champion' are ASCA-only. Champion is a separate
+// points-based level (no Level C), modeled as a standalone element below.
 //
-// There was previously a 'Champion' level here, on the assumption that "Level C" meant
-// Champion. It does not: §3.2.2 defines Level C as a CONTINUATION track — 3 qualifying
-// scores earn the base element title, 7 more (10 total) earn the Level C element title
-// (SCNc-C, SCNi-C, …). That is already modeled by the LEVEL_C variant above, and no
-// Champion Detection Level exists. Do not re-add one.
+// DO NOT DELETE Champion because the rulebook extract seems to lack it. The copy at
+// docs/rulebooks/asca-scent-detection-rules.txt PREDATES the amendment that added it — that
+// extract's §9 is Faults, whereas the June 2026 rules add Chapter 9 "Champion Detection
+// Level" (motion SC.26.01). The source of record is
+// docs/design_handoff_heritage/Multi-Registry Scoping.md §9.2–9.3, which documents all five
+// levels and Champion's points-based scoring. This was deleted once on the strength of the
+// stale extract and had to be reverted.
+//
+// Champion is also NOT seeded into sport_templates, by decision rather than omission — see
+// 20260701130000_seed_asca_level_c_classes.sql: it is titling/invitational, not a
+// separately-scheduled class. registryDbParityContract.test.ts pins that asymmetry.
 const ASCA_LEVELS: readonly LevelSpec[] = [
   { key: 'novice', label: 'Novice', order: 1 },
   { key: 'open', label: 'Open', order: 2 },
   { key: 'advanced', label: 'Advanced', order: 3 },
   { key: 'excellent', label: 'Excellent', order: 4 },
+  { key: 'champion', label: 'Champion', order: 5 },
 ];
 
 const BASE_LEVELS = ['novice', 'open', 'advanced', 'excellent']; // the four levels that carry Level C
@@ -70,13 +76,19 @@ function gridElement(key: string, label: string, columnHeader: string): ElementS
   };
 }
 
-// Four elements, every one of them a grid element. ASCA has no standalone off-grid element
-// (unlike AKC's Detective or the Handler Discrimination both AKC and UKC run).
 const ASCA_ELEMENTS: readonly ElementSpec[] = [
   gridElement('container', 'Container', 'Cont.'),
   gridElement('interior', 'Interior', 'Int.'),
   gridElement('exterior', 'Exterior', 'Ext.'),
   gridElement('vehicle', 'Vehicle', 'Veh.'),
+  // Champion Detection Level: a single standalone class — points-based, mixed search areas (not
+  // broken out by element), no Level C. Modeled as a one-level element whose level matches it.
+  {
+    key: 'champion',
+    label: 'Champion',
+    grid: false,
+    levels: ['champion'],
+  },
 ];
 
 const ascaScentDetection: RegistrySport = {

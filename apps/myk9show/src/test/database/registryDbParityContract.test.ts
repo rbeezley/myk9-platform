@@ -79,6 +79,29 @@ const seeded = parseSeededTemplates(readFileSync(SEED_MIGRATION, 'utf8'));
 
 const REGISTRY_IDS: readonly RegistryId[] = ['AKC', 'UKC', 'ASCA'];
 
+/**
+ * Registry elements deliberately NOT seeded as `sport_templates.elements`.
+ *
+ * ASCA "Champion" (Champion Detection Level) is real — it arrived with the June 2026 ASCA
+ * Scent Detection Program Rules, Chapter 9, motion SC.26.01. See
+ * `docs/design_handoff_heritage/Multi-Registry Scoping.md` §9.2–9.3, the source of record.
+ * Note the rulebook extract at `docs/rulebooks/asca-scent-detection-rules.txt` PREDATES the
+ * amendment (its §9 is Faults), so its silence on Champion is not evidence of absence.
+ *
+ * It is absent from the wizard template by decision, not omission:
+ * `20260701130000_seed_asca_level_c_classes.sql` records the 2026-07-01 product call —
+ * "Level C IS a separately-scheduled class and should be seedable; Champion is
+ * titling/invitational and is intentionally NOT seeded here (it stays a config-only
+ * construct)". Champion is also points-based with mixed, non-element-split search areas,
+ * which `sport_class_rules` (max time / hide count / timer mode / odors) cannot express.
+ *
+ * So this entry pins an intentional asymmetry, not a bug. Seeding Champion would need a
+ * scoring model first; if that ever happens, delete this entry.
+ */
+const KNOWN_UNSEEDED_ELEMENTS: Readonly<Partial<Record<RegistryId, readonly string[]>>> = {
+  ASCA: ['Champion'],
+};
+
 describe('registry ↔ sport_templates parity', () => {
   it('parses every seeded template (guards against a vacuous pass)', () => {
     expect(Object.keys(seeded).sort()).toEqual(['AKC', 'ASCA', 'UKC']);
@@ -93,16 +116,22 @@ describe('registry ↔ sport_templates parity', () => {
     const row = seeded[id];
 
     it('seeds exactly the registry element labels', () => {
-      // Exact equality, no allowlist. If a registry gains an element, it must be seeded
-      // in the same change — there is no "known gap" escape hatch to hide behind.
-      expect([...row.elements].sort()).toEqual([...sport.elements.map(e => e.label)].sort());
+      const expectedElements = sport.elements
+        .map(e => e.label)
+        .filter(label => !(KNOWN_UNSEEDED_ELEMENTS[id] ?? []).includes(label));
+
+      expect([...row.elements].sort()).toEqual([...expectedElements].sort());
     });
 
     it('seeds the grid-element levels, in progression order', () => {
-      // The DB `levels` column is a flat list describing the main progression. The
-      // registry additionally carries element-specific levels that never belong here:
-      // AKC "Detective", UKC "Excellent" (Handler Discrimination's rank-3 label), and
-      // ASCA "Champion" all exist only to give a standalone element its own level slot.
+      // The DB `levels` column is a flat list of the levels the WIZARD offers, which is
+      // the grid elements' level set. The registry carries more than that, for two
+      // different reasons:
+      //   - AKC "Detective" and UKC "Excellent" (Handler Discrimination's rank-3 label)
+      //     exist only to give a standalone element its own level slot.
+      //   - ASCA "Champion" is a genuine fifth progression level (June 2026 rules, Ch. 9),
+      //     but is titling/invitational and deliberately not schedulable — see
+      //     KNOWN_UNSEEDED_ELEMENTS above.
       expect(row.levels).toEqual(gridLevelLabels(sport));
     });
 
@@ -124,28 +153,20 @@ describe('registry ↔ sport_templates parity', () => {
     });
   });
 
-  it('has no ASCA "Champion" on either side', () => {
-    // Regression guard. asca.ts once carried a Champion level and a standalone Champion
-    // element, on the assumption that ASCA's "Level C" meant Champion. It does not:
-    // §3.2.2 of the rulebook defines Level C as a continuation track — 3 qualifying scores
-    // earn the base element title, 7 more (10 total) earn the Level C element title
-    // (SCNc-C, SCNi-C, …). Earning it makes a team a champion OF that element and level;
-    // it is not a separate class anyone enters. ASCA's competition levels are §5 Novice,
-    // §6 Open, §7 Advanced, §8 Excellent, then §9 Faults — there is no fifth.
-    const asca = getSport(getRegistry('ASCA'), SPORT_ID);
+  it('documents every known gap, and no more', () => {
+    // If a gap is closed, its entry must be deleted — an allowlist that outlives the
+    // problem it describes silently re-permits the drift it was meant to expose.
+    for (const [id, labels] of Object.entries(KNOWN_UNSEEDED_ELEMENTS)) {
+      const sport = getSport(getRegistry(id as RegistryId), SPORT_ID);
+      const registryLabels = sport.elements.map(e => e.label);
 
-    expect(asca.levels.map(l => l.label)).not.toContain('Champion');
-    expect(asca.elements.map(e => e.label)).not.toContain('Champion');
-    expect(seeded.ASCA.levels).not.toContain('Champion');
-    expect(seeded.ASCA.elements).not.toContain('Champion');
-
-    // The continuation track it was confused with is still modeled, on all four levels.
-    const levelCLevels = asca.elements
-      .filter(e => e.variantsByLevel)
-      .flatMap(e => Object.entries(e.variantsByLevel ?? {}))
-      .filter(([, variants]) => variants.some(v => v.kind === 'continuation'))
-      .map(([levelKey]) => levelKey);
-
-    expect([...new Set(levelCLevels)].sort()).toEqual(['advanced', 'excellent', 'novice', 'open']);
+      for (const label of labels ?? []) {
+        expect(registryLabels, `${id} no longer defines "${label}"`).toContain(label);
+        expect(
+          seeded[id].elements,
+          `${id} now seeds "${label}" — remove it from KNOWN_UNSEEDED_ELEMENTS`
+        ).not.toContain(label);
+      }
+    }
   });
 });

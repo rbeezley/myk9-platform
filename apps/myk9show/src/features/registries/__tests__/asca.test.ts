@@ -37,8 +37,8 @@ describe('ASCA Scent Detection — generated class catalog', () => {
   const classes = generateScentWorkClasses(getScentWorkSport('ASCA'));
   const names = classes.map(c => c.className);
 
-  it('produces 32 classes (4 elements × 4 levels × {base + Level C})', () => {
-    expect(classes).toHaveLength(32);
+  it('produces 33 classes (4 elements × 4 base levels × {base + Level C} + Champion)', () => {
+    expect(classes).toHaveLength(33);
   });
 
   it('keeps BOTH the base class and the Level C class for each base level (continuation)', () => {
@@ -60,27 +60,14 @@ describe('ASCA Scent Detection — generated class catalog', () => {
   it('uses ASCA-only level vocabulary (Open) and excludes AKC/UKC-only elements', () => {
     expect(names.some(n => n.includes('Open'))).toBe(true);
     expect(classes.some(c => c.element === 'Vehicle')).toBe(true);
-    expect(
-      classes.some(c => c.element === 'Buried' || c.element === 'Handler Discrimination')
-    ).toBe(false);
+    expect(classes.some(c => c.element === 'Buried' || c.element === 'Handler Discrimination')).toBe(
+      false
+    );
   });
 
-  it('has no Champion class — "Level C" is a continuation track, not a Champion level', () => {
-    // This previously asserted a standalone Champion class, modeled on the assumption that
-    // ASCA's "Level C" meant Champion. Rulebook §3.2.2 says otherwise: 3 qualifying scores
-    // earn the base element title, 7 more (10 total) earn the Level C element title
-    // (SCNc-C, SCNi-C, …). Earning that makes a team a champion OF that element and level —
-    // it is not a class anyone enters. Competition levels run §5 Novice → §8 Excellent,
-    // then §9 is Faults.
-    expect(classes.some(c => c.element === 'Champion')).toBe(false);
-    expect(names.some(n => n.includes('Champion'))).toBe(false);
-
-    // Every level is a real, enterable level with both a base and a Level C class.
-    expect([...new Set(classes.map(c => c.level))].sort()).toEqual([
-      'Advanced',
-      'Excellent',
-      'Novice',
-      'Open',
-    ]);
+  it('Champion is a single standalone class with no level, no section, and no Level C', () => {
+    const champion = classes.filter(c => c.element === 'Champion');
+    expect(champion).toEqual([{ element: 'Champion', className: 'Champion' }]);
+    expect(names).not.toContain('Champion Level C');
   });
 });

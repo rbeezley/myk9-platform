@@ -373,13 +373,12 @@ show-creation wizard e2e path (it consumes `buildRuleMap`, the highest-risk cons
 - [x] `/admin/templates` renders read-only; `/new`, `/:id/edit`, `/:id/test` no longer route. (PR 2)
 - [x] No write path to `sport_templates` / `sport_class_rules` / `sport_titles` exists outside a migration. (PR 2)
 - [x] `templateStore` exposes no mutation actions; `loadTemplatesFromDB` is the only load entry point. (PR 2)
-- [x] Registry↔DB parity test green for AKC, UKC, ASCA, with **no allowlist**. (PR 3) — and it
-      found a real bug on its first run. It reported ASCA "Champion" missing from the database;
-      the rulebook showed the database was right and the TypeScript was wrong. `Champion` came
-      from reading "Level C" as "Level Champion", when §3.2.2 defines Level C as a continuation
-      track (3 qualifying scores earn the base element title, 7 more earn `SCNc-C` etc.).
-      Removed the phantom level and element; the ASCA catalog drops 33 → 32 classes, matching
-      the 32 seeded `sport_class_rules` rows exactly.
+- [x] Registry↔DB parity test green for AKC, UKC, ASCA. (PR 3) — it reports one asymmetry,
+      ASCA "Champion", pinned in `KNOWN_UNSEEDED_ELEMENTS` as **intentional**: Champion is a
+      real fifth level (June 2026 rules, Ch. 9, motion SC.26.01) but is titling/invitational and
+      deliberately not schedulable, per the 2026-07-01 decision recorded in
+      `20260701130000_seed_asca_level_c_classes.sql`. It is also points-based with mixed
+      search areas, which `sport_class_rules` cannot express. > **I got this wrong mid-PR and had to revert.** I searched only > `docs/rulebooks/asca-scent-detection-rules.txt`, found no Champion, concluded the > registry was wrong, and deleted the level and element. That extract predates the > amendment — its §9 is Faults. The source of record is > `docs/design_handoff_heritage/Multi-Registry Scoping.md` §9.2–9.3, which I never opened. > Codex caught it. `asca.ts` now carries a DO-NOT-DELETE comment naming both documents. > **Lesson: a rulebook extract with no edition date is not authoritative, and absence in > one source is not evidence when a newer source of record exists.**
 - [x] Show-creation wizard creates classes with scoring fields baked in, unchanged — `buildRuleMap` and `sportTemplateService` never touched.
 - [x] Full gate green: typecheck (incl. `typecheck:tests`), eslint `--max-warnings 0`, 14,815 unit tests passing.
 - [x] `template_fields` dropped, with its four dead field mappers. (PR 4, migration applied to staging 2026-07-30)

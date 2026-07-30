@@ -19,3 +19,29 @@ export async function getClubShowManagerIds(clubId: string): Promise<Set<string>
   if (error) throw error;
   return new Set(((data as Array<{ user_id: string }> | null) ?? []).map(row => row.user_id));
 }
+
+interface SetClubShowManagerAccessRequest {
+  clubId: string;
+  personId: string;
+  grant: boolean;
+}
+
+/**
+ * Grant or revoke the club-scoped SECRETARY role used for show management.
+ *
+ * Direct user_roles writes are site-admin-only. These SECURITY DEFINER RPCs
+ * authorize the current club admin, enforce club scope, and write the audit log.
+ */
+export async function setClubShowManagerAccess({
+  clubId,
+  personId,
+  grant,
+}: SetClubShowManagerAccessRequest): Promise<void> {
+  const functionName = grant ? 'grant_club_secretary' : 'revoke_club_secretary';
+  const { error } = await supabase.rpc(functionName, {
+    p_club_id: clubId,
+    p_person_id: personId,
+  });
+
+  if (error) throw error;
+}

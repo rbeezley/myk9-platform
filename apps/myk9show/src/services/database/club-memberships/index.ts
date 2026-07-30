@@ -7,4 +7,4 @@ export { getClubMembers, addClubMember, updateClubMember, removeClubMember } fro
 
 export { getClubOfficers, addClubOfficer, removeClubOfficer } from './officers';
 
-export { getClubShowManagerIds } from './show-managers';
+export { getClubShowManagerIds, setClubShowManagerAccess } from './show-managers';

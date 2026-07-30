@@ -50,6 +50,8 @@ vi.mock('@/hooks/queries/useUsersQuery', () => ({
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
     ensureUserHasRole: vi.fn().mockResolvedValue(undefined),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 
@@ -90,8 +92,11 @@ function makeAuthContext(isAdmin: boolean) {
     isJudge: false,
     dbPermissions: [],
     dbRoles: [],
+    rbacUserRoles: [],
+    rbacScopedPermissions: [],
     rbacLoading: false,
     rbacError: null,
+    rbacLastRefreshed: null,
     refreshPermissions: vi.fn().mockResolvedValue(undefined),
     firstName: null,
     lastName: null,

@@ -50,6 +50,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
     getAllRoles: vi.fn(() => Promise.resolve([])),
+    clearAllCache: vi.fn(),
+    clearUserCache: vi.fn(),
   },
 }));
 
@@ -150,8 +152,11 @@ describe('BulkActionsBar', () => {
       isJudge: false,
       dbPermissions: [],
       dbRoles: [],
+      rbacUserRoles: [],
+      rbacScopedPermissions: [],
       rbacLoading: false,
       rbacError: null,
+      rbacLastRefreshed: null,
       refreshPermissions: vi.fn().mockResolvedValue(undefined),
       firstName: null,
       lastName: null,
@@ -454,8 +459,11 @@ describe('BulkActionsBar', () => {
         isJudge: false,
         dbPermissions: [],
         dbRoles: [],
+        rbacUserRoles: [],
+        rbacScopedPermissions: [],
         rbacLoading: false,
         rbacError: null,
+        rbacLastRefreshed: null,
         refreshPermissions: vi.fn().mockResolvedValue(undefined),
         firstName: null,
         lastName: null,

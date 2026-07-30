@@ -22,7 +22,7 @@
 
 import { useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { getPrimaryRole } from '@/context/AuthContext';
+import { getPrimaryRole } from '@/context/authContextHelpers';
 import { useRingsideGrantStore, selectGrantRoleForShow } from '@/store/ringsideGrantStore';
 import { useCurrentUserPerson } from '@/hooks/useProfileForm';
 import { features } from '@/config/features';

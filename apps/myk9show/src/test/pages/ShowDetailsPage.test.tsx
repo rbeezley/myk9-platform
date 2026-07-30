@@ -22,6 +22,15 @@ const mockAuthContext = {
   isSecretary: false,
   isAdmin: false,
   hasRole: vi.fn(() => false),
+  hasPermission: vi.fn(() => false),
+  checkPermissionAsync: vi.fn().mockResolvedValue(false),
+  refreshPermissions: vi.fn().mockResolvedValue(undefined),
+  dbPermissions: [],
+  rbacUserRoles: [],
+  rbacScopedPermissions: [],
+  rbacLoading: false,
+  rbacError: null,
+  rbacLastRefreshed: null,
   personId: 'person-1',
 };
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -533,9 +542,7 @@ describe('ShowDetailsPage', () => {
     const secondary = screen.getByTestId('hero-secondary-actions');
     expect(within(secondary).getByRole('button', { name: /see classes/i })).toBeInTheDocument();
     // Still alongside the primary entry action — the deep-link is additive.
-    expect(
-      within(secondary).getByRole('button', { name: 'Add Classes' })
-    ).toBeInTheDocument();
+    expect(within(secondary).getByRole('button', { name: 'Add Classes' })).toBeInTheDocument();
   });
 
   it('omits the "See classes" link when the show has no classes assigned', () => {

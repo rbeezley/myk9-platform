@@ -98,6 +98,12 @@ export interface PermissionWithRole {
   scope_id: string | null;
 }
 
+export interface EffectivePermissionScope {
+  permission_code: string;
+  scope_type: string;
+  scope_id: string | null;
+}
+
 // Service types
 export interface PermissionCheck {
   permission: string;
@@ -173,9 +179,13 @@ export interface PermissionCheckResponse {
 }
 
 export interface UserPermissionsResponse {
+  /** Direct grant rows with role and scope details. */
   permissions: PermissionWithRole[];
   roles: UserRoleWithDetails[];
+  /** Direct and inherited permission codes. */
   effectivePermissions: string[];
+  /** Direct and inherited scope rows used for authorization checks. */
+  effectivePermissionScopes: EffectivePermissionScope[];
 }
 
 // Permission template types
@@ -295,13 +305,6 @@ export type ScopedPermission = {
     id: string;
   };
 };
-
-// Hook types
-export interface UseRBACOptions {
-  refreshInterval?: number;
-  cacheTimeout?: number;
-  enableRealTimeUpdates?: boolean;
-}
 
 export interface RBACContextValue {
   // Permission checking

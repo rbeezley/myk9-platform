@@ -10,7 +10,6 @@
  */
 
 import React, { createContext, ReactNode, useCallback, useMemo, useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -19,203 +18,47 @@ import { logger } from '@/services/LoggingService';
 import {
   UserWithRoles,
   UserRole,
-  RoleScope,
   Permission,
   Scope,
-  ScopeType,
   MOCK_USERS,
   DEFAULT_ROLE_PERMISSIONS,
-  USER_ROLE_HIERARCHY,
 } from '../types/auth-types';
 import { ProtectedRouteProps, ConvenienceRouteProps } from './authUtils';
 import { useResetSavedViewsOnAccountChange } from '@/features/operational-views/useResetSavedViewsOnAccountChange';
 import { useResetRecentSearchesOnAccountChange } from '@/hooks/useResetRecentSearchesOnAccountChange';
-import { rbacService } from '@/services/rbac/RBACService';
-import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
-import { PermissionWithRole } from '@/types/rbac-types';
 import { ensureError } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
 import { buildSignInPathForRedirect } from '@/pages/SignInPage.helpers';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import type { AuthContextType } from './authContextTypes';
+import {
+  buildActiveRoleScopes,
+  buildDevUserWithMockRoles,
+  DEV_AUTH_ROLE_ALIASES,
+  getUniqueActiveRoleNames,
+} from './authContextHelpers';
+import { toDbRoles, useRbacAdminActions, useRbacLifecycle } from './useRbacLifecycle';
 
-// Type for user role with details from RBAC service
-export interface UserRoleWithDetails {
-  role_id: string;
-  role?: {
-    name?: string;
-    display_name?: string;
-  };
-  scope_type?: string | null;
-  scope_id?: string | null;
-  assigned_at?: string;
-  is_active: boolean;
-}
-
-/**
- * Determine the primary (highest-privilege) role from a set of roles.
- */
-// eslint-disable-next-line react-refresh/only-export-components
-export function getPrimaryRole(roles: UserRole[]): UserRole {
-  for (const role of USER_ROLE_HIERARCHY) {
-    if (roles.includes(role)) return role;
-  }
-  return UserRole.EXHIBITOR;
-}
-
-/**
- * Unified Auth Context Type
- * Combines original auth + RBAC + enhanced features
- */
-export interface AuthContextType {
-  // Original auth properties
-  user: User | null;
-  userWithRoles: UserWithRoles | null;
-  loading: boolean;
-  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
-  signUp: (
-    email: string,
-    password: string,
-    metadata?: { firstName?: string; lastName?: string; roles?: string[] },
-    captchaToken?: string,
-    redirectTo?: string
-  ) => Promise<void>;
-  resendConfirmationEmail: (
-    email: string,
-    captchaToken?: string,
-    redirectTo?: string
-  ) => Promise<void>;
-  signOut: () => Promise<void>;
-  signInWithGoogle: (redirectTo?: string) => Promise<void>;
-  resetPassword: (email: string, captchaToken?: string) => Promise<void>;
-  updatePassword: (newPassword: string) => Promise<void>;
-  updateProfile: (updates: {
-    email?: string;
-    password?: string;
-    data?: Record<string, unknown>;
-  }) => Promise<void>;
-
-  // RBAC methods
-  hasRole: (role: UserRole | string) => boolean;
-  hasPermission: (
-    permission: Permission | string,
-    scope?: Scope | { type: string; id: string }
-  ) => boolean;
-  getUserRoles: () => UserRole[];
-
-  // Development testing
-  switchUserRole: (email: string) => void;
-
-  // Async permission checking (database-driven)
-  checkPermissionAsync: (
-    permission: string,
-    scope?: { type: string; id: string }
-  ) => Promise<boolean>;
-
-  // Convenience role checks
-  isAdmin: boolean;
-  isSecretary: boolean;
-  isExhibitor: boolean;
-  isJudge: boolean;
-
-  // Database-driven permissions state
-  dbPermissions: string[];
-  dbRoles: Array<{ id: string; name: string; display_name: string }>;
-  rbacLoading: boolean;
-  rbacError: string | null;
-
-  // Admin functions (only available to admins)
-  assignRole?: (
-    userId: string,
-    roleName: string,
-    scope?: { type: string; id: string }
-  ) => Promise<void>;
-  revokeRole?: (
-    userId: string,
-    roleName: string,
-    scope?: { type: string; id: string }
-  ) => Promise<void>;
-
-  // Cache management
-  refreshPermissions: () => Promise<void>;
-
-  firstName: string | null;
-  lastName: string | null;
-}
+export type { AuthContextType, UserRoleWithDetails } from './authContextTypes';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function mapRbacRoles(roles: UserRoleWithDetails[]): UserRoleWithDetails[] {
-  return roles.map(role => {
-    const { scope_type, ...rest } = role;
-    return {
-      ...rest,
-      ...(scope_type && { scope_type }),
-    };
-  });
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function buildActiveRoleScopes(roles: UserRoleWithDetails[], userId: string): RoleScope[] {
-  return roles
-    .filter(ur => ur.is_active && ur.scope_type && ur.scope_id)
-    .map(ur => ({
-      userId,
-      roleId: ur.role?.name || ur.role_id,
-      scopeType: ur.scope_type! as ScopeType,
-      scopeId: ur.scope_id!,
-      createdAt: new Date(ur.assigned_at || Date.now()),
-    }));
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function getUniqueActiveRoleNames(roles: UserRoleWithDetails[]): UserRole[] {
-  const validRoleNames = new Set(Object.values(UserRole));
-  return Array.from(
-    new Set(
-      roles
-        .filter(ur => ur.is_active)
-        .map(ur => ur.role?.name)
-        .filter((name): name is UserRole => !!name && validRoleNames.has(name as UserRole))
-    )
-  );
-}
-
-const DEV_AUTH_ROLE_ALIASES: Record<string, keyof typeof MOCK_USERS> = {
-  'secretary@myk9t.com': 'secretary-user',
-  'clubadmin@myk9t.com': 'club-admin-user',
-  'admin@myk9t.com': 'site-admin-user',
-  'judge@myk9t.com': 'judge-user',
-};
-
-function buildDevUserWithMockRoles(
-  authUser: User,
-  mockUser: UserWithRoles,
-  databaseUserId?: string
-): UserWithRoles {
-  return {
-    ...authUser,
-    roles: mockUser.roles,
-    permissions: mockUser.permissions,
-    scopes: mockUser.scopes.map(scope => ({ ...scope, userId: authUser.id })),
-    ...(databaseUserId ? { databaseUserId } : {}),
-  } as UserWithRoles;
-}
-
-function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === 'AbortError') return true;
-  if (error instanceof Error) {
-    return error.name === 'AbortError' || /AbortError|signal is aborted/i.test(error.message);
-  }
-  return false;
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => window.setTimeout(resolve, ms));
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const {
+    belongsToCurrentUser: rbacBelongsToCurrentUser,
+    userRoles: currentRbacRoles,
+    effectivePermissions: currentEffectivePermissions,
+    effectivePermissionScopes: currentEffectivePermissionScopes,
+    scopedPermissions: currentScopedPermissions,
+    isLoading: rbacIsLoading,
+    loaded: rbacLoaded,
+    error: rbacError,
+    lastRefreshed: rbacLastRefreshed,
+    refreshPermissions,
+    checkPermissionAsync,
+  } = useRbacLifecycle(auth.user?.id);
 
   // Personal saved views (operational-views-and-display-presets, tasks.md
   // 3.3) are device-local and namespaced by user id — clear the PRIOR user's
@@ -235,16 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return localStorage.getItem('dev-current-mock-user');
     }
     return null;
-  });
-
-  // Database RBAC state
-  const [rbacData, setRbacData] = useState({
-    userRoles: [] as UserRoleWithDetails[],
-    effectivePermissions: [] as string[],
-    scopedPermissions: [] as PermissionWithRole[],
-    isLoading: false,
-    loaded: false,
-    error: null as string | null,
   });
 
   // Get user profile data from public.people table
@@ -292,64 +125,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [userProfile?.status]);
 
-  // Load database RBAC data when user changes
-  useEffect(() => {
-    if (!auth.user?.id) {
-      setRbacData({
-        userRoles: [],
-        effectivePermissions: [],
-        scopedPermissions: [],
-        isLoading: false,
-        loaded: false,
-        error: null,
-      });
-      return;
-    }
-
-    let stale = false;
-    const userId = auth.user.id;
-
-    const loadRbacData = async (attempt = 0) => {
-      try {
-        setRbacData(prev => ({ ...prev, isLoading: true, error: null }));
-        const data = await rbacService.getUserPermissions(userId);
-        if (stale) return;
-        setRbacData({
-          userRoles: mapRbacRoles(data.roles),
-          effectivePermissions: data.effectivePermissions,
-          scopedPermissions: data.permissions,
-          isLoading: false,
-          loaded: true,
-          error: null,
-        });
-      } catch (error) {
-        if (stale) return;
-        if ((isAbortError(error) || isTransientBrowserFetchError(error)) && attempt < 3) {
-          await delay(250 * (attempt + 1));
-          if (!stale) await loadRbacData(attempt + 1);
-          return;
-        }
-        logger.error('Failed to load RBAC data:', 'app', {}, ensureError(error));
-        setRbacData(prev => ({
-          ...prev,
-          isLoading: false,
-          loaded: true,
-          error: error instanceof Error ? error.message : 'Failed to load permissions',
-        }));
-      }
-    };
-
-    loadRbacData();
-    const rbacRefreshInterval = window.setInterval(() => {
-      void loadRbacData();
-    }, 60 * 1000);
-
-    return () => {
-      stale = true;
-      window.clearInterval(rbacRefreshInterval);
-    };
-  }, [auth.user?.id]);
-
   // Build userWithRoles - priority: mock user > database RBAC > default exhibitor
   // Deps use primitive/stable values (IDs, not object references) to avoid re-creating
   // this object when Supabase returns a new User reference for the same identity.
@@ -362,21 +137,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Priority 1: Database RBAC (from rbacService) — only use once loaded
-    if (rbacData.loaded && !rbacData.error) {
-      const activeRoles = getUniqueActiveRoleNames(rbacData.userRoles);
+    if (rbacBelongsToCurrentUser && rbacLoaded && !rbacError) {
+      const activeRoles = getUniqueActiveRoleNames(currentRbacRoles);
 
       // If RBAC loaded but user has no valid roles, grant exhibitor as default
       const roles = activeRoles.length > 0 ? activeRoles : [UserRole.EXHIBITOR];
       const permissions =
         activeRoles.length > 0
-          ? (rbacData.effectivePermissions as Permission[])
+          ? (currentEffectivePermissions as Permission[])
           : DEFAULT_ROLE_PERMISSIONS[UserRole.EXHIBITOR];
 
       return {
         ...auth.user,
         roles,
         permissions,
-        scopes: buildActiveRoleScopes(rbacData.userRoles, auth.user.id),
+        scopes: buildActiveRoleScopes(currentRbacRoles, auth.user.id),
         databaseUserId: userProfile?.id,
       } as UserWithRoles;
     }
@@ -401,10 +176,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // RBAC not yet loaded (or failed) — return null to keep loading state
-    // The loading flag (rbacData.isLoading) prevents ProtectedRoute from showing fallback
+    // The RBAC loading flag prevents ProtectedRoute from showing fallback
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.user?.id, auth.user?.email, currentMockUser, rbacData, userProfile?.id]);
+  }, [
+    auth.user?.id,
+    auth.user?.email,
+    currentMockUser,
+    currentEffectivePermissions,
+    currentRbacRoles,
+    rbacBelongsToCurrentUser,
+    rbacError,
+    rbacLoaded,
+    userProfile?.id,
+  ]);
 
   /**
    * Check if user has a specific role
@@ -414,14 +199,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!userWithRoles) return false;
 
       // Check database RBAC roles (active only)
-      if (rbacData.userRoles.length > 0) {
-        return rbacData.userRoles.some(ur => ur.role?.name === role && ur.is_active);
+      if (currentRbacRoles.length > 0) {
+        return currentRbacRoles.some(ur => ur.role?.name === role && ur.is_active);
       }
 
       // Fallback for mock users and default exhibitor
       return userWithRoles.roles.includes(role as UserRole);
     },
-    [userWithRoles, rbacData.userRoles]
+    [currentRbacRoles, userWithRoles]
   );
 
   /**
@@ -434,8 +219,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const permCode = permission as string;
 
       // Database-driven permission check
-      if (rbacData.effectivePermissions.length > 0) {
-        if (!rbacData.effectivePermissions.includes(permCode)) {
+      if (currentEffectivePermissions.length > 0) {
+        if (!currentEffectivePermissions.includes(permCode)) {
           return false;
         }
 
@@ -444,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (scope) {
           const scopeType = (scope as { type: string }).type;
           const scopeId = (scope as { id: string }).id;
-          return rbacData.scopedPermissions.some(
+          return currentEffectivePermissionScopes.some(
             sp =>
               sp.permission_code === permCode &&
               (sp.scope_type === 'global' ||
@@ -469,29 +254,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [userWithRoles, rbacData.effectivePermissions, rbacData.scopedPermissions]
-  );
-
-  /**
-   * Async permission checking (database-driven)
-   */
-  const checkPermissionAsync = useCallback(
-    async (permission: string, scope?: { type: string; id: string }): Promise<boolean> => {
-      if (!auth.user?.id) return false;
-      return await rbacService.checkPermission(auth.user.id, permission, scope);
-    },
-    [auth.user?.id]
+    [currentEffectivePermissionScopes, currentEffectivePermissions, userWithRoles]
   );
 
   /**
    * Get all user roles
    */
   const getUserRoles = useCallback((): UserRole[] => {
-    if (rbacData.userRoles.length > 0) {
-      return getUniqueActiveRoleNames(rbacData.userRoles);
+    if (currentRbacRoles.length > 0) {
+      return getUniqueActiveRoleNames(currentRbacRoles);
     }
     return userWithRoles?.roles || [];
-  }, [rbacData.userRoles, userWithRoles]);
+  }, [currentRbacRoles, userWithRoles]);
 
   /**
    * Switch to a different mock user for testing (development only)
@@ -506,95 +280,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  /**
-   * Refresh permissions from database
-   */
-  const refreshPermissions = useCallback(async (): Promise<void> => {
-    if (!auth.user?.id) return;
-
-    try {
-      const data = await rbacService.getUserPermissions(auth.user.id);
-      setRbacData({
-        userRoles: mapRbacRoles(data.roles),
-        effectivePermissions: data.effectivePermissions,
-        scopedPermissions: data.permissions,
-        isLoading: false,
-        loaded: true,
-        error: null,
-      });
-    } catch (error) {
-      logger.error('Failed to refresh RBAC data:', 'app', {}, ensureError(error));
-      setRbacData(prev => ({
-        ...prev,
-        isLoading: false,
-        loaded: true,
-        error: error instanceof Error ? error.message : 'Failed to refresh permissions',
-      }));
-    }
-  }, [auth.user?.id]);
-
   // Convenience role checks
   const isAdmin = hasRole(UserRole.SITE_ADMIN);
   const isSecretary = hasRole(UserRole.SECRETARY);
   const isExhibitor = hasRole(UserRole.EXHIBITOR);
   const isJudge = hasRole(UserRole.JUDGE);
 
-  // Admin functions (only available to admins)
-  const assignRole = useMemo(
-    () =>
-      isAdmin
-        ? async (
-            userId: string,
-            roleName: string,
-            scope?: { type: string; id: string }
-          ): Promise<void> => {
-            await rbacService.assignRole({
-              userId,
-              roleName,
-              scopeType: scope?.type,
-              scopeId: scope?.id,
-            });
-            await refreshPermissions();
-          }
-        : undefined,
-    [isAdmin, refreshPermissions]
-  );
-
-  const revokeRole = useMemo(
-    () =>
-      isAdmin
-        ? async (
-            userId: string,
-            roleName: string,
-            scope?: { type: string; id: string }
-          ): Promise<void> => {
-            await rbacService.revokeRole({
-              userId,
-              roleName,
-              scopeType: scope?.type,
-              scopeId: scope?.id,
-            });
-            await refreshPermissions();
-          }
-        : undefined,
-    [isAdmin, refreshPermissions]
-  );
-
-  const dbRoles = useMemo(
-    () =>
-      rbacData.userRoles.map(ur => ({
-        id: ur.role_id,
-        name: ur.role?.name || '',
-        display_name: ur.role?.display_name || ur.role?.name || '',
-      })),
-    [rbacData.userRoles]
-  );
+  const { assignRole, revokeRole } = useRbacAdminActions(isAdmin, refreshPermissions);
+  const dbRoles = useMemo(() => toDbRoles(currentRbacRoles), [currentRbacRoles]);
 
   const value: AuthContextType = useMemo(
     () => ({
       ...auth,
       userWithRoles,
-      loading: auth.loading || (rbacData.isLoading && !userWithRoles),
+      loading:
+        auth.loading ||
+        (!!auth.user && !rbacBelongsToCurrentUser) ||
+        (rbacIsLoading && !userWithRoles),
 
       // RBAC methods
       hasRole,
@@ -614,10 +316,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isJudge,
 
       // Database state
-      dbPermissions: rbacData.effectivePermissions,
+      dbPermissions: currentEffectivePermissions,
       dbRoles,
-      rbacLoading: rbacData.isLoading,
-      rbacError: rbacData.error,
+      rbacUserRoles: currentRbacRoles,
+      rbacScopedPermissions: currentScopedPermissions,
+      rbacLoading: !!auth.user && (!rbacBelongsToCurrentUser || rbacIsLoading),
+      rbacError: rbacBelongsToCurrentUser ? rbacError : null,
+      rbacLastRefreshed: rbacBelongsToCurrentUser ? rbacLastRefreshed : null,
 
       // Admin functions
       ...(assignRole !== undefined && { assignRole }),
@@ -637,9 +342,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       auth.user,
       auth.loading,
       userWithRoles,
-      rbacData.isLoading,
-      rbacData.effectivePermissions,
-      rbacData.error,
+      rbacBelongsToCurrentUser,
+      rbacIsLoading,
+      rbacError,
+      rbacLastRefreshed,
+      currentEffectivePermissions,
+      currentRbacRoles,
+      currentScopedPermissions,
       hasRole,
       hasPermission,
       getUserRoles,

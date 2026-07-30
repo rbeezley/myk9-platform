@@ -297,10 +297,6 @@ export class RBACService {
     this.permissionChecker.clearAllCache();
   }
 
-  setCacheTimeout(timeout: number): void {
-    this.permissionChecker.setCacheTimeout(timeout);
-  }
-
   // ==========================================================================
   // Organization Overrides (placeholder - requires DB schema)
   // ==========================================================================

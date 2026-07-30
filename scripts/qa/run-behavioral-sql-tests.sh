@@ -29,6 +29,7 @@ TEST_FILES=(
   "$TEST_DIR/club_secretary_grant_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"
+  "$TEST_DIR/pre_rule_table_grants_test.sql"
   "$TEST_DIR/pull_refund_decision_rls_test.sql"
   "$TEST_DIR/recoverable_show_access_codes_test.sql"
   "$TEST_DIR/subscription_entitlement_grants_test.sql"

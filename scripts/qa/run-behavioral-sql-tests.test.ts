@@ -24,6 +24,7 @@ const launchCriticalSqlTests = [
   'club_secretary_grant_test.sql',
   'entries_manager_policy_hashable_test.sql',
   'myk9_114_entry_access_context_test.sql',
+  'pre_rule_table_grants_test.sql',
   'pull_refund_decision_rls_test.sql',
   'recoverable_show_access_codes_test.sql',
   'subscription_entitlement_grants_test.sql',

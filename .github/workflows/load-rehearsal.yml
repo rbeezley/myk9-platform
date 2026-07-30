@@ -156,7 +156,7 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
 
-      - name: Run synchronized 25-session shard
+      - name: Run synchronized 25-session shard with generator telemetry
         working-directory: apps/myk9show
         run: pnpm test:load:playwright
         env:

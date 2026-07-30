@@ -97,9 +97,54 @@
       runner, metrics, shard aggregation, and evidence tests
 - [x] 10.2 Run package and myK9Show typechecks, relevant lint/build checks, and OpenSpec validation
 - [x] 10.3 Run independent implementation review and resolve all blocking findings
-- [ ] 10.4 After explicit approval, commit, push, open a MYK9-109 follow-up PR, and run CI/review
-- [ ] 10.5 After explicit approval, merge the PR and verify the main-branch app deployment
-- [ ] 10.6 After separate explicit approval, apply/verify the Broadcast migration, run corrected G9
+- [x] 10.4 After explicit approval, commit, push, open a MYK9-109 follow-up PR, and run CI/review
+- [x] 10.5 After explicit approval, merge the PR and verify the main-branch app deployment
+- [x] 10.6 After separate explicit approval, apply/verify the Broadcast migration, run corrected G9
       on Micro, restore the fixture/grant state, and update MYK9-109 with complete evidence
-- [ ] 10.7 Close G9/MYK9-109 only on a complete pass; otherwise keep the failing dimensions open
+- [x] 10.7 Close G9/MYK9-109 only on a complete pass; otherwise keep the failing dimensions open
       and archive/cleanup only when the change's implementation and evidence gates are satisfied
+
+## 11. MYK9-126 Evidence Contract
+
+- [x] 11.1 Record the corrected-behavior G9 failure, including CPU/connection headroom, latency,
+      workflow timeouts, query deltas, and the ambiguity in the old active-session counter
+- [x] 11.2 Add failing contracts for whole-runner CPU/memory/load, event-loop delay, Chromium
+      responsiveness, preparation duration, synchronized-start headroom, and per-shard preservation
+- [x] 11.3 Add failing contracts proving configured/prepared/started/completed/failed/peak-active
+      lifecycle counts reconcile without early workflow failures reducing open-session concurrency
+- [x] 11.4 Update the evidence renderer and evaluator to fail closed on missing generator or
+      preparation evidence without weakening any existing G9 target
+
+## 12. Generator and Session Instrumentation
+
+- [x] 12.1 Implement a bounded runner sampler that covers context preparation through workflow
+      completion and measures the whole runner host plus a dedicated Chromium control probe
+- [x] 12.2 Record the session lifecycle independently from workflow success and source gate
+      concurrency from prepared/open browser contexts
+- [x] 12.3 Preserve every shard's generator/lifecycle evidence through artifact aggregation and
+      render it in JSON/Markdown evidence
+- [x] 12.4 Update the manual workflow and README contracts so topology, headroom evidence, and the
+      unchanged 100-session/55-ringside workload cannot drift silently
+
+## 13. Local Verification
+
+- [x] 13.1 Run focused sampler, lifecycle, evaluation, shard aggregation, evidence, and workflow
+      contract tests
+- [x] 13.2 Run the load unit suite, myK9Show typecheck, relevant lint/build checks, and OpenSpec
+      validation
+- [x] 13.3 Run independent implementation review and resolve all blocking findings
+
+## 14. Valid Generator Comparison and Remaining Latency
+
+- [ ] 14.1 After explicit approval, commit, push, open the MYK9-126 PR, and run CI/review
+- [ ] 14.2 After explicit approval, merge the PR and verify the main-branch deployment
+- [ ] 14.3 After a separate explicit load-window approval, run instrumented four-runner G9 on
+      Micro and restore the canonical fixture/grant state
+- [ ] 14.4 If generator saturation is confirmed, distribute the unchanged 100 sessions across
+      additional free runners and record an apples-to-apples comparison
+- [ ] 14.5 With valid generator evidence, profile and remediate the remaining entries/scoring/
+      entry-results/account-today backend long tail and page-readiness timeouts
+- [ ] 14.6 Rerun full G9 on Micro; record a defensible ceiling or schedule a compute upgrade only if
+      generator-separated evidence requires it
+- [ ] 14.7 Keep G9/MYK9-109 open on any failing dimension; update MYK9-126 and archive/cleanup only
+      after its implementation and evidence gates are satisfied

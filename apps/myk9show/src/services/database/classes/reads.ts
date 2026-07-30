@@ -27,7 +27,10 @@ import { buildMapFromArray } from '../_shared/maps';
 // ---------------------------------------------------------------------------
 
 async function loadTrialsMap(): Promise<Map<string, ReplicatedTrial>> {
-  return loadLookupMap(() => replicatedTrialsTable.getAll(), t => t.id);
+  return loadLookupMap(
+    () => replicatedTrialsTable.getAll(),
+    t => t.id
+  );
 }
 
 async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
@@ -87,12 +90,99 @@ function mapClassesWithJoins(
 // PostgREST fallback wrappers (original implementations)
 // ---------------------------------------------------------------------------
 
+/**
+ * Explicit column list for the PostgREST class reads below. MYK9-116.
+ *
+ * These readers are the cold-replication-store fallback, and a logged-out guest
+ * ALWAYS lands here (guest sync never runs), so they execute as the Postgres
+ * `anon` role on public show / class-details / results routes.
+ *
+ * `20260730140000_anon_classes_hide_column_allowlist.sql` replaced anon's
+ * table-wide SELECT on `classes` with a column allowlist that withholds the
+ * scent-work hide secrets. PostgREST expands `select=*` to every column in the
+ * TABLE, not every column the caller is granted — so a `*` here is a hard 42501
+ * for every guest, and on `getAllClasses` it degrades silently to an empty class
+ * list. Name the columns instead.
+ *
+ * Deliberately omits `num_hides`, `has_blank` and `hides_known`: a competitor
+ * must not learn the hide count or whether an area is blank before running the
+ * class. No consumer of these readers reads them — ringside scoring gets
+ * `hidesKnown` from the replication store, which syncs as `authenticated`.
+ *
+ * Written as a single LITERAL string, never `columns.join()`: supabase-js parses
+ * the select in the TYPE system, so interpolating a `string`-typed value
+ * collapses the literal type and every caller's row type degrades to
+ * `ParserError`.
+ *
+ * Keep in sync with the SQL allowlist; `reads.anonColumns.test.ts` asserts set
+ * equality against the migration, and `anonEntriesGrantContract.test.ts` guards
+ * the other direction (no later migration re-granting anon a table-wide SELECT).
+ */
+const CLASS_COLUMN_SELECT = `id,
+      trial_id,
+      name,
+      description,
+      level,
+      element,
+      section,
+      competition_type,
+      entry_fee,
+      max_entries,
+      allow_waitlist,
+      max_dogs_per_handler,
+      breed_restrictions,
+      jump_heights,
+      age_min,
+      age_max,
+      height_min,
+      height_max,
+      handler_age_min,
+      handler_age_max,
+      start_time,
+      estimated_duration,
+      actual_start_time,
+      actual_end_time,
+      status,
+      time_limit_seconds,
+      num_areas,
+      max_faults,
+      qualifying_threshold,
+      is_scoring_finalized,
+      results_released_at,
+      dogs_ahead_notification_count,
+      total_entries_count,
+      checked_in_count,
+      scored_count,
+      created_at,
+      updated_at,
+      deleted_at,
+      deleted_by,
+      class_number,
+      timer_mode,
+      distraction_count,
+      is_results_reviewed,
+      judge_name,
+      time_limit_area2_seconds,
+      time_limit_area3_seconds,
+      display_order,
+      results_released_by,
+      version,
+      status_source,
+      reopened_after_closeout_at,
+      revised_expected_start`;
+
+/** The granted columns, for the contract test that pins them against the SQL allowlist. */
+export const CLASS_COLUMNS = CLASS_COLUMN_SELECT.split(',').map(column => column.trim());
+
+/** The hide secrets withheld from anon. Exported so the column test can assert absence. */
+export const CLASS_HIDE_SECRET_COLUMNS = ['num_hides', 'has_blank', 'hides_known'] as const;
+
 async function postgrestGetAllClasses() {
   const { data, error } = await supabase
     .from('classes')
     .select(
       `
-      *,
+      ${CLASS_COLUMN_SELECT},
       trial:trials (
         id,
         name,
@@ -124,7 +214,7 @@ async function postgrestGetClassById(id: string) {
     .from('classes')
     .select(
       `
-      *,
+      ${CLASS_COLUMN_SELECT},
       trial:trials (
         id,
         name,
@@ -166,7 +256,7 @@ async function postgrestGetClassesByTrialId(trialId: string) {
     .from('classes')
     .select(
       `
-      *,
+      ${CLASS_COLUMN_SELECT},
       entries (
         id
       ),
@@ -192,7 +282,7 @@ async function postgrestSearchClasses(searchTerm: string, limit: number) {
     .from('classes')
     .select(
       `
-      *,
+      ${CLASS_COLUMN_SELECT},
       trial:trials (
         id,
         name,
@@ -252,7 +342,10 @@ export const getAllClasses = async () => {
           return { data: [], error: null };
         }
       }
-      const sortedClasses = sortedCopy(classes, compareStringAscNullsLast(cls => cls.startTime));
+      const sortedClasses = sortedCopy(
+        classes,
+        compareStringAscNullsLast(cls => cls.startTime)
+      );
       const data = mapClassesWithJoins(sortedClasses, trialsMap, entryCountsMap);
       return { data, error: null };
     },
@@ -324,7 +417,10 @@ export const getClassesByTrialId = async (trialId: string) => {
         return await postgrestGetClassesByTrialId(trialId);
       }
 
-      const sortedClasses = sortedCopy(classes, compareStringAscNullsLast(cls => cls.startTime));
+      const sortedClasses = sortedCopy(
+        classes,
+        compareStringAscNullsLast(cls => cls.startTime)
+      );
       const data = sortedClasses.map(cls =>
         mapReplicatedClassToDbRow(cls, { entryCount: entryCountsMap.get(cls.id) ?? 0 })
       );
@@ -478,7 +574,10 @@ export const searchClasses = async (searchTerm: string, limit = 50) => {
           (cls.level && cls.level.toLowerCase().includes(term)) ||
           (cls.description && cls.description.toLowerCase().includes(term))
       );
-      const sortedClasses = sortedCopy(filtered, compareStringAscNullsLast(cls => cls.startTime));
+      const sortedClasses = sortedCopy(
+        filtered,
+        compareStringAscNullsLast(cls => cls.startTime)
+      );
       const data = sortedClasses.slice(0, limit).map(cls => mapReplicatedClassToDbRow(cls));
       return { data, error: null };
     },

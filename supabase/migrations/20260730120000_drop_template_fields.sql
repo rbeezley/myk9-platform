@@ -1,0 +1,27 @@
+-- =============================================================================
+-- Drop public.template_fields
+-- =============================================================================
+-- `template_fields` was created in 20250724194100 as an extension of
+-- `class_templates`. Migration 032 dropped `class_templates` and deliberately kept
+-- `template_fields` on a "may be used by other features" hunch. Nothing ever used
+-- it: no runtime read or write exists anywhere in the codebase, only type aliases
+-- and mapper helpers that are removed in the same PR as this migration.
+--
+-- Verified against the live database before writing this migration:
+--   row_count        0
+--   inbound FKs      none
+--   outbound FKs     none (the class_templates FK went with migration 032's CASCADE)
+--   dependent views  none
+--   owned sequences  none
+--   policies         template_fields_{select,insert,update,delete}  (dropped by CASCADE)
+--   table ACL        postgres/authenticated/service_role full, anon=r
+--
+-- The anon read grant is why this matters beyond tidiness: an unused table left
+-- readable by `anon` is surface area with no owner. Dropping it removes the grant
+-- along with the table.
+--
+-- CASCADE is required to take the four RLS policies with it; there are no other
+-- dependents, so nothing else can be caught by it.
+-- =============================================================================
+
+DROP TABLE IF EXISTS public.template_fields CASCADE;

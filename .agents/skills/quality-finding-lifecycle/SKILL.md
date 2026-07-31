@@ -10,9 +10,15 @@ handling; the calling audit still owns its domain methodology.
 
 ## Required sources
 
-Read `AGENTS.md`, `docs/goals/fall-2026-launch-readiness-scorecard.md`,
+Read the running harness's instruction file — `AGENTS.md` under Codex, `CLAUDE.md` under Claude
+Code; this skill is one shared file, reached from both `.agents/skills/` and the `.claude/skills/`
+symlink. Then read `docs/goals/fall-2026-launch-readiness-scorecard.md`,
 `docs/qa/findings.md`, the calling automation's prior memory, relevant recent reports, and current
 Linear issues when access is available. Treat secretary/show-day reliability as the tie-breaker.
+
+When the audit's scope is a **commit range**, read its stream row in `docs/qa/audit-boundary.md` to
+compute the window, and stamp that row on exit — including on a clean run. Private memory is not a
+sufficient cursor: it cannot be read by whichever automation covers the stream next.
 
 ## Reconcile before creating
 

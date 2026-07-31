@@ -7,6 +7,7 @@
 import type { SportTitleRow } from '@/types/sport-template-types';
 import type { ExhibitorResult } from '@/hooks/queries/useExhibitorResults';
 import type { ManualResult } from '@/types/manual-result-types';
+import type { LevelsForElements } from '@/features/registries/elementLevels';
 
 // ========================================
 // TYPES
@@ -51,13 +52,20 @@ export interface TitleProgressResult {
 
 export function mapExhibitorResultToLeg(result: ExhibitorResult): QualifyingLeg | null {
   if (result.resultStatus !== 'qualified') return null;
-  if (!result.classElement || !result.classLevel) return null;
+  if (!result.classElement) return null;
+
+  // A standalone class has no level of its own: `generateScentWorkClasses` names it after the
+  // element and 030 seeds `sport_class_rules.level` as NULL (AKC Detective is the only such
+  // class today). Dropping those results made SWD unearnable from platform scoring. Key them
+  // by the element label — what the registry offers as that element's sole level, and what the
+  // manual-entry path writes — so both entry paths produce the same `Detective::Detective` leg.
+  const level = result.classLevel || result.classElement;
 
   return {
     id: result.id,
     source: 'platform',
     element: result.classElement,
-    level: result.classLevel,
+    level,
     trial_date: result.showDate,
     show_name: result.showName,
   };
@@ -86,17 +94,94 @@ export function mapManualResultToLeg(result: ManualResult): QualifyingLeg | null
 // ========================================
 
 /**
- * Infer the level from a title's full_name by matching against the sport's levels.
- * E.g. "Scent Work Container Novice" with levels ["Novice","Advanced","Excellent","Master"]
- * returns "Novice".
+ * The levels a title's element(s) can be at.
+ *
+ * A flat array is the degenerate case — every element in the sport shares one level set. That
+ * is false for UKC (Handler Discrimination runs Excellent at rank 3, where the grid elements
+ * run Superior, and HD has no Elite) and for AKC (Detective's only level is 'Detective'), so
+ * real callers pass a resolver built from the registry config. See
+ * `@/features/registries/elementLevels`.
  */
-export function inferLevelFromTitle(title: SportTitleRow, sortedLevels: string[]): string | null {
-  const name = title.full_name;
-  // sortedLevels should already be sorted longest-first by the caller
-  for (const level of sortedLevels) {
-    if (name.includes(level)) return level;
+export type LevelLookup = readonly string[] | LevelsForElements;
+
+function toResolver(lookup: LevelLookup): LevelsForElements {
+  return typeof lookup === 'function' ? lookup : () => lookup;
+}
+
+/** A character that may not sit directly against a level label — i.e. a "word" character. */
+const WORD_CHAR = /[\p{L}\p{N}_]/u;
+
+function isWordChar(char: string): boolean {
+  return char !== '' && WORD_CHAR.test(char);
+}
+
+/**
+ * The neighbouring characters must be read as whole code points, not UTF-16 code units — an
+ * astral-plane letter next to a label (`𐐀Open`) would otherwise present as a lone surrogate,
+ * which `\p{L}` rejects, and the boundary check would wrongly accept the match.
+ */
+function codePointBefore(text: string, index: number): string {
+  if (index <= 0) return '';
+  const unit = text.charCodeAt(index - 1);
+  const isLowSurrogate = unit >= 0xdc00 && unit <= 0xdfff;
+  return isLowSurrogate && index >= 2 ? text.slice(index - 2, index) : (text[index - 1] ?? '');
+}
+
+function codePointAt(text: string, index: number): string {
+  const cp = index < text.length ? text.codePointAt(index) : undefined;
+  return cp === undefined ? '' : String.fromCodePoint(cp);
+}
+
+/**
+ * Index of `needle` in `haystack` on whole-word boundaries, or -1.
+ *
+ * Boundaries are checked against the neighbouring characters rather than with a regex, because
+ * neither regex option works here. `\b` is ASCII-only, so an org-supplied label like "Élite" on
+ * the flat-fallback path would never match it; Unicode lookbehind would, but Safari 14.1 is an
+ * explicit build target (vite.config.ts) and does not support it — and since the pattern would
+ * be built by `new RegExp` at runtime, that fails as a SyntaxError in the browser rather than
+ * at build time.
+ */
+function wordIndexOf(haystack: string, needle: string): number {
+  if (!needle) return -1;
+
+  for (let from = 0; from <= haystack.length;) {
+    const index = haystack.indexOf(needle, from);
+    if (index < 0) return -1;
+
+    const before = codePointBefore(haystack, index);
+    const after = codePointAt(haystack, index + needle.length);
+    if (!isWordChar(before) && !isWordChar(after)) return index;
+
+    from = index + 1;
   }
-  return null;
+  return -1;
+}
+
+/**
+ * Infer the level from a title's full_name, matching only against the levels its own
+ * element(s) actually offer. Candidates are scoped to `required_elements`; see
+ * `@/features/registries/elementLevels` for why a sport-wide list is wrong.
+ *
+ * Matching picks the EARLIEST whole-word occurrence, ties broken by the longer label. Both
+ * halves matter. Whole-word stops a short label matching inside a longer word; earliest-wins
+ * keeps the leading qualifier, which is the one that names the class — UKC's
+ * "Master Handler Discrimination Excellent" (MHDX) is a Master-level continuation whose
+ * trailing "Excellent" is a grade, not its level, and a longest-first scan would misread it.
+ */
+export function inferLevelFromTitle(title: SportTitleRow, lookup: LevelLookup): string | null {
+  const name = title.full_name;
+  const candidates = toResolver(lookup)(title.required_elements);
+
+  let best: { level: string; index: number } | null = null;
+  for (const level of candidates) {
+    const index = wordIndexOf(name, level);
+    if (index < 0) continue;
+    const better =
+      !best || index < best.index || (index === best.index && level.length > best.level.length);
+    if (better) best = { level, index };
+  }
+  return best?.level ?? null;
 }
 
 // ========================================
@@ -106,10 +191,20 @@ export function inferLevelFromTitle(title: SportTitleRow, sortedLevels: string[]
 export function computeTitleProgress(
   legs: QualifyingLeg[],
   titles: SportTitleRow[],
-  levels: string[]
+  levels: LevelLookup
 ): TitleProgressResult[] {
-  // Pre-sort levels longest-first once (avoids re-sorting per inferLevelFromTitle call)
-  const sortedLevels = [...levels].sort((a, b) => b.length - a.length);
+  // Memoize by title: `findMatchingSubTitle` re-infers a level for every candidate it scans,
+  // so a title's level is otherwise derived many times over.
+  const resolve = toResolver(levels);
+  const levelByTitle = new Map<SportTitleRow, string | null>();
+  const levelOf = (title: SportTitleRow): string | null => {
+    let level = levelByTitle.get(title);
+    if (level === undefined) {
+      level = inferLevelFromTitle(title, resolve);
+      levelByTitle.set(title, level);
+    }
+    return level;
+  };
 
   // Step 1: Index legs by element::level
   const legIndex = new Map<string, QualifyingLeg[]>();
@@ -131,7 +226,7 @@ export function computeTitleProgress(
   for (const title of titles) {
     if (title.required_legs <= 0) continue;
 
-    const inferredLevel = inferLevelFromTitle(title, sortedLevels);
+    const inferredLevel = levelOf(title);
     const isMultiElement = title.required_elements.length > 1;
 
     let matchingLegs: QualifyingLeg[] = [];
@@ -183,7 +278,7 @@ export function computeTitleProgress(
   for (const title of titles) {
     if (title.required_legs !== 0) continue;
 
-    const inferredLevel = inferLevelFromTitle(title, sortedLevels);
+    const inferredLevel = levelOf(title);
 
     // Find the element titles that correspond to each required_element at this level
     // Cache sub-title lookups to avoid calling findMatchingSubTitle twice per element
@@ -192,7 +287,7 @@ export function computeTitleProgress(
     const subTitleByElement = new Map<string, SportTitleRow>();
 
     for (const element of title.required_elements) {
-      const subTitle = findMatchingSubTitle(title, element, inferredLevel, titles, sortedLevels);
+      const subTitle = findMatchingSubTitle(title, element, inferredLevel, titles, levelOf);
       if (subTitle) {
         subTitleByElement.set(element, subTitle);
         requiredElementTitleIds.push(subTitle.abbreviation);
@@ -299,7 +394,7 @@ function findMatchingSubTitle(
   element: string,
   inferredLevel: string | null,
   allTitles: SportTitleRow[],
-  sortedLevels: string[]
+  levelOf: (title: SportTitleRow) => string | null
 ): SportTitleRow | undefined {
   const subTitleType = getSubTitleType(parentTitle.title_type);
 
@@ -308,8 +403,7 @@ function findMatchingSubTitle(
     if (t.title_type !== subTitleType) return false;
     if (t.required_elements.length !== 1) return false;
     if (t.required_elements[0] !== element) return false;
-    const tLevel = inferLevelFromTitle(t, sortedLevels);
-    return tLevel === inferredLevel;
+    return levelOf(t) === inferredLevel;
   });
 }
 

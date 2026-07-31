@@ -6,6 +6,7 @@ import {
   mapManualResultToLeg,
   type QualifyingLeg,
 } from '../titleEngine';
+import { levelResolverForTemplate } from '@/features/registries/elementLevels';
 import type { SportTitleRow } from '@/types/sport-template-types';
 import type { ExhibitorResult } from '@/hooks/queries/useExhibitorResults';
 import type { ManualResult } from '@/types/manual-result-types';
@@ -196,6 +197,40 @@ describe('titleEngine', () => {
         showDate: '2025-01-15',
       };
       expect(mapExhibitorResultToLeg(result)).toBeNull();
+    });
+
+    it('keys a standalone class by its element when the class has no level', () => {
+      // AKC Detective is the only class seeded with `sport_class_rules.level = NULL` — the
+      // registry names a standalone class after its element. These used to be dropped, which
+      // made SWD unearnable from platform scoring however many Detective legs a dog had.
+      const result: ExhibitorResult = {
+        id: 'r1',
+        dogId: 'd1',
+        dogName: 'Rex',
+        dogCallName: 'Rex',
+        showId: 's1',
+        classId: 'c1',
+        className: 'Detective',
+        classLevel: null,
+        classElement: 'Detective',
+        resultText: 'Q',
+        resultStatus: 'qualified',
+        searchTimeSeconds: 400,
+        totalFaults: 0,
+        finalPlacement: 1,
+        scoringCompletedAt: '2026-05-01',
+        showName: 'May Trial',
+        showDate: '2026-05-01',
+      };
+
+      expect(mapExhibitorResultToLeg(result)).toEqual({
+        id: 'r1',
+        source: 'platform',
+        element: 'Detective',
+        level: 'Detective',
+        trial_date: '2026-05-01',
+        show_name: 'May Trial',
+      });
     });
   });
 
@@ -698,6 +733,276 @@ describe('titleEngine', () => {
       // AN is locked (NN not earned) → last
       expect(abbreviations.indexOf('NI')).toBeLessThan(abbreviations.indexOf('NC'));
       expect(abbreviations.indexOf('AN')).toBe(abbreviations.length - 1);
+    });
+  });
+
+  // ========================================
+  // PER-ELEMENT LEVELS
+  // ========================================
+
+  /**
+   * Everything above passes a flat level array — the degenerate case where a sport's elements
+   * happen to share one level set — and must keep working unchanged. These cover the elements
+   * where a flat array is simply wrong. Source: UKC rulebook Ch. 11 §2.
+   */
+  describe('per-element levels', () => {
+    // What `sport_templates.levels` holds — the GRID elements' set, by contract
+    // (src/test/database/registryDbParityContract.test.ts). Note: no 'Excellent'.
+    const UKC_FLAT_LEVELS = ['Novice', 'Advanced', 'Superior', 'Master', 'Elite'];
+    const AKC_FLAT_LEVELS = ['Novice', 'Advanced', 'Excellent', 'Master'];
+
+    const ukcLevels = levelResolverForTemplate({ sport_code: 'ukc-nosework' }, UKC_FLAT_LEVELS);
+    const akcLevels = levelResolverForTemplate({ sport_code: 'akc-scent-work' }, AKC_FLAT_LEVELS);
+
+    const EHD = makeTitle({
+      abbreviation: 'EHD',
+      full_name: 'Excellent Handler Discrimination',
+      required_legs: 3,
+      required_elements: ['Handler Discrimination'],
+      sport_template_id: 'tmpl-ukc',
+    });
+
+    describe('UKC Excellent Handler Discrimination', () => {
+      it('infers the Excellent level the flat list cannot see', () => {
+        expect(inferLevelFromTitle(EHD, UKC_FLAT_LEVELS)).toBe(null); // the bug
+        expect(inferLevelFromTitle(EHD, ukcLevels)).toBe('Excellent');
+      });
+
+      it('counts Handler Discrimination::Excellent legs toward EHD', () => {
+        const legs = [
+          makeLeg('Handler Discrimination', 'Excellent', '2026-03-01'),
+          makeLeg('Handler Discrimination', 'Excellent', '2026-03-02'),
+          makeLeg('Handler Discrimination', 'Excellent', '2026-03-03'),
+        ];
+
+        const earned = computeTitleProgress(legs, [EHD], ukcLevels)[0];
+        expect(earned.earnedLegs).toBe(3);
+        expect(earned.isEarned).toBe(true);
+        expect(earned.earnedDate).toBe('2026-03-03');
+      });
+
+      it('counted nothing before the fix — the flat list is the regression guard', () => {
+        const legs = [
+          makeLeg('Handler Discrimination', 'Excellent', '2026-03-01'),
+          makeLeg('Handler Discrimination', 'Excellent', '2026-03-02'),
+          makeLeg('Handler Discrimination', 'Excellent', '2026-03-03'),
+        ];
+
+        const stale = computeTitleProgress(legs, [EHD], UKC_FLAT_LEVELS)[0];
+        expect(stale.earnedLegs).toBe(0);
+        expect(stale.isEarned).toBe(false);
+      });
+
+      it('will not resolve an HD title to Superior or Elite', () => {
+        // Those levels exist for the grid elements but UKC does not run them for HD, so a
+        // title scoped to HD must never key legs at them.
+        const hdSuperior = makeTitle({
+          abbreviation: 'SHD?',
+          full_name: 'Superior Handler Discrimination',
+          required_elements: ['Handler Discrimination'],
+          sport_template_id: 'tmpl-ukc',
+        });
+        expect(inferLevelFromTitle(hdSuperior, ukcLevels)).toBe(null);
+      });
+
+      it('leaves the grid elements on Superior — Excellent is HD-only', () => {
+        const superiorContainer = makeTitle({
+          abbreviation: 'SC',
+          full_name: 'Superior Container',
+          required_legs: 2,
+          required_elements: ['Container'],
+          sport_template_id: 'tmpl-ukc',
+        });
+        expect(inferLevelFromTitle(superiorContainer, ukcLevels)).toBe('Superior');
+
+        const legs = [
+          makeLeg('Container', 'Superior', '2026-04-01'),
+          makeLeg('Container', 'Superior', '2026-04-02'),
+        ];
+        expect(computeTitleProgress(legs, [superiorContainer], ukcLevels)[0].isEarned).toBe(true);
+      });
+    });
+
+    describe('trailing level words are grades, not levels', () => {
+      it('reads MHDX as Master, not Excellent', () => {
+        // 'Master Handler Discrimination Excellent' is the Excellent-GRADE continuation of
+        // MHD — a Master-level title. Now that Excellent is a candidate for this element, a
+        // longest-label-first scan would misread it; earliest-match keeps it at Master.
+        const mhdx = makeTitle({
+          abbreviation: 'MHDX',
+          full_name: 'Master Handler Discrimination Excellent',
+          title_type: 'continuation',
+          required_legs: 10,
+          required_elements: ['Handler Discrimination'],
+          sport_template_id: 'tmpl-ukc',
+        });
+        expect(inferLevelFromTitle(mhdx, ukcLevels)).toBe('Master');
+      });
+
+      it('reads EHDS as Excellent', () => {
+        const ehds = makeTitle({
+          abbreviation: 'EHDS',
+          full_name: 'Excellent Handler Discrimination Supreme',
+          title_type: 'continuation',
+          required_legs: 10,
+          required_elements: ['Handler Discrimination'],
+          sport_template_id: 'tmpl-ukc',
+        });
+        expect(inferLevelFromTitle(ehds, ukcLevels)).toBe('Excellent');
+      });
+    });
+
+    describe('AKC Detective — a standalone element whose only level is its own name', () => {
+      const SWD = makeTitle({
+        abbreviation: 'SWD',
+        full_name: 'Scent Work Detective',
+        title_type: 'elite',
+        required_legs: 2,
+        required_elements: ['Detective'],
+      });
+
+      it('infers Detective, where the flat list infers nothing', () => {
+        expect(inferLevelFromTitle(SWD, AKC_FLAT_LEVELS)).toBe(null); // the bug
+        expect(inferLevelFromTitle(SWD, akcLevels)).toBe('Detective');
+      });
+
+      it('counts Detective::Detective legs toward SWD', () => {
+        const legs = [
+          makeLeg('Detective', 'Detective', '2026-05-01'),
+          makeLeg('Detective', 'Detective', '2026-05-02'),
+        ];
+        const result = computeTitleProgress(legs, [SWD], akcLevels)[0];
+        expect(result.earnedLegs).toBe(2);
+        expect(result.isEarned).toBe(true);
+      });
+
+      it('closes the loop: a platform-scored Detective run counts toward SWD', () => {
+        // The leg shape here comes from `mapExhibitorResultToLeg`, not hand-built — a
+        // Detective class carries no level, so this is the only way the two halves agree.
+        const platformLeg = mapExhibitorResultToLeg({
+          id: 'r1',
+          dogId: 'd1',
+          dogName: 'Rex',
+          dogCallName: 'Rex',
+          showId: 's1',
+          classId: 'c1',
+          className: 'Detective',
+          classLevel: null,
+          classElement: 'Detective',
+          resultText: 'Q',
+          resultStatus: 'qualified',
+          searchTimeSeconds: 400,
+          totalFaults: 0,
+          finalPlacement: 1,
+          scoringCompletedAt: '2026-05-01',
+          showName: 'May Trial',
+          showDate: '2026-05-01',
+        });
+
+        expect(platformLeg).not.toBeNull();
+        const result = computeTitleProgress(
+          [platformLeg!, makeLeg('Detective', 'Detective', '2026-05-02')],
+          [SWD],
+          akcLevels
+        )[0];
+        expect(result.earnedLegs).toBe(2);
+        expect(result.isEarned).toBe(true);
+      });
+    });
+
+    describe('registries whose elements do share one level set are unaffected', () => {
+      it('AKC element titles resolve identically flat and element-scoped', () => {
+        for (const title of AKC_ELEMENT_TITLES) {
+          expect(inferLevelFromTitle(title, akcLevels)).toBe(
+            inferLevelFromTitle(title, AKC_FLAT_LEVELS)
+          );
+        }
+      });
+
+      it('AKC progress is byte-for-byte unchanged', () => {
+        const legs = [
+          makeLeg('Container', 'Novice', '2025-01-01'),
+          makeLeg('Container', 'Novice', '2025-01-02'),
+          makeLeg('Container', 'Novice', '2025-01-03'),
+          makeLeg('Interior', 'Novice', '2025-02-01'),
+        ];
+        expect(computeTitleProgress(legs, AKC_ELEMENT_TITLES, akcLevels)).toEqual(
+          computeTitleProgress(legs, AKC_ELEMENT_TITLES, AKC_FLAT_LEVELS)
+        );
+      });
+
+      it('ASCA element titles resolve identically flat and element-scoped', () => {
+        const ASCA_FLAT_LEVELS = ['Novice', 'Open', 'Advanced', 'Excellent'];
+        const ascaLevels = levelResolverForTemplate(
+          { sport_code: 'asca-scent-detection' },
+          ASCA_FLAT_LEVELS
+        );
+        const titles = [
+          makeTitle({
+            abbreviation: 'SCOc',
+            full_name: 'Scent Detection Open Containers',
+            required_elements: ['Container'],
+          }),
+          makeTitle({
+            abbreviation: 'SCEv',
+            full_name: 'Scent Detection Excellent Vehicles',
+            required_elements: ['Vehicle'],
+          }),
+        ];
+        for (const title of titles) {
+          expect(inferLevelFromTitle(title, ascaLevels)).toBe(
+            inferLevelFromTitle(title, ASCA_FLAT_LEVELS)
+          );
+        }
+        expect(inferLevelFromTitle(titles[0], ascaLevels)).toBe('Open');
+        expect(inferLevelFromTitle(titles[1], ascaLevels)).toBe('Excellent');
+      });
+    });
+
+    it('still matches a level label that whole-word anchoring cannot express', () => {
+      // `\b` is ASCII-only, so anchoring "Élite" would match nothing at all. Labels on the
+      // flat-fallback path are arbitrary org-supplied strings, so they fall back to a plain
+      // substring search rather than silently resolving to null.
+      const title = makeTitle({
+        abbreviation: 'X',
+        full_name: 'Nosework Élite',
+        required_elements: ['Container'],
+      });
+      expect(inferLevelFromTitle(title, ['Novice', 'Élite'])).toBe('Élite');
+    });
+
+    it('treats an astral-plane letter as a word character on either side', () => {
+      // A surrogate pair must be read as one code point; per UTF-16 unit it looks like two
+      // non-letters and the boundary check would wrongly accept the match.
+      for (const name of ['Nosework 𐐀Open', 'Nosework Open𐐀']) {
+        const title = makeTitle({ abbreviation: 'X', full_name: name });
+        expect(inferLevelFromTitle(title, ['Open'])).toBe(null);
+      }
+      expect(
+        inferLevelFromTitle(makeTitle({ abbreviation: 'X', full_name: 'Nosework Open 𐐀' }), [
+          'Open',
+        ])
+      ).toBe('Open');
+    });
+
+    it('keeps non-ASCII labels bounded — no match inside a longer word', () => {
+      const title = makeTitle({
+        abbreviation: 'X',
+        full_name: 'Nosework SuperÉlite',
+        required_elements: ['Container'],
+      });
+      expect(inferLevelFromTitle(title, ['Novice', 'Élite'])).toBe(null);
+    });
+
+    it('matches whole words only', () => {
+      // 'Open' must not match inside 'Opening'; a partial hit would key legs at a level no
+      // class uses, which reads as "0 legs" rather than as an error.
+      const title = makeTitle({
+        abbreviation: 'X',
+        full_name: 'Scent Detection Opening Containers',
+        required_elements: ['Container'],
+      });
+      expect(inferLevelFromTitle(title, ['Novice', 'Open', 'Advanced'])).toBe(null);
     });
   });
 });

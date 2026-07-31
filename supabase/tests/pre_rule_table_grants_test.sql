@@ -38,7 +38,10 @@ BEGIN
     ('chatbot_feedback','INSERT','','SELECT,INSERT,UPDATE,DELETE'),
     ('chatbot_query_log','','','SELECT,INSERT,UPDATE,DELETE'),
     ('class_visibility_overrides','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
-    ('classes','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
+    -- No table-level SELECT for authenticated: 20260731160000 replaced it with a
+    -- 54-column allowlist withholding num_hides (MYK9-127). Writes are untouched,
+    -- so a secretary can still SET the hide count, just not read it back.
+    ('classes','INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('club_access_requests','SELECT,UPDATE','','SELECT,INSERT,UPDATE,DELETE'),
     ('club_members','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('club_officers','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
@@ -274,6 +277,7 @@ BEGIN
   FOR v_row IN
     WITH expected(tbl, role_name, n) AS (VALUES
       ('classes','anon',52),
+      ('classes','authenticated',54),
       ('entries','anon',14),
       ('entries','authenticated',54),
       ('dogs','anon',5),
@@ -334,6 +338,32 @@ BEGIN
     RAISE EXCEPTION 'FAIL anon can read withheld column(s): %', v_leaked;
   END IF;
   RAISE NOTICE 'PASS anon still cannot read the withheld scent-work, scoring and payment columns';
+END;
+$$;
+
+-- classes.num_hides is withheld from `authenticated` too (20260731160000,
+-- MYK9-127): anonymous sign-in resolves to the authenticated role, so gating anon
+-- alone left the leak one signup away. Officials read it through
+-- get_show_class_hide_counts(show_id), never off the class row.
+--
+-- hides_known and has_blank are deliberately NOT asserted here: sport_class_rules
+-- is anon-readable and publishes the rulebook per element+level, so those two are
+-- derivable from public data and withholding them would protect nothing.
+DO $$
+BEGIN
+  IF has_column_privilege('authenticated', 'public.classes'::regclass, 'num_hides', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL authenticated can read classes.num_hides -- competitors see judge-set hide counts';
+  END IF;
+
+  IF NOT has_column_privilege('authenticated', 'public.classes'::regclass, 'hides_known', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL authenticated lost classes.hides_known -- the at-show Hides row breaks';
+  END IF;
+
+  IF NOT has_column_privilege('authenticated', 'public.classes'::regclass, 'id', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL authenticated lost classes.id -- a REVOKE took the column allowlist with it';
+  END IF;
+
+  RAISE NOTICE 'PASS authenticated cannot read the judge-set hide count but keeps the rest of the class';
 END;
 $$;
 

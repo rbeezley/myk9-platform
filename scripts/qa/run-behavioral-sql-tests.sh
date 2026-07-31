@@ -25,8 +25,12 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
+# Explicit, not a glob: a test file added to supabase/tests/ without a line here
+# never executes and reads as coverage. Register new tests here AND in
+# launchCriticalSqlTests in run-behavioral-sql-tests.test.ts.
 TEST_FILES=(
   "$TEST_DIR/club_secretary_grant_test.sql"
+  "$TEST_DIR/create_show_with_children_tenant_isolation_test.sql"
   "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"

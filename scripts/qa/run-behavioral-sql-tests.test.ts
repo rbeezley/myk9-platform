@@ -20,8 +20,13 @@ const subscriptionEntitlementFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/subscription_entitlement_grants_test.sql'),
   'utf8'
 );
+// Deliberately a second copy of the runner's TEST_FILES list rather than an import
+// of it: the assertion below is what stops a launch-critical test being quietly
+// dropped from the harness. Registering a test means editing BOTH this list and
+// scripts/qa/run-behavioral-sql-tests.sh.
 const launchCriticalSqlTests = [
   'club_secretary_grant_test.sql',
+  'create_show_with_children_tenant_isolation_test.sql',
   'rbac_access_lookup_authorization_test.sql',
   'entries_manager_policy_hashable_test.sql',
   'myk9_114_entry_access_context_test.sql',

@@ -86,6 +86,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [security-audit-2026-07/README.md](security-audit-2026-07/README.md)                                             | Active    | Security Audit Remediation — July 2026 (17 findings; 0 P0/P1; 6 plans)       |
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                                             | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                               |
 | [plan-ringside-occ-admission-control.md](plan-ringside-occ-admission-control.md)                                 | Active    | Ringside OCC admission control — MYK9-115 conflict-storm breaker             |
+| [plan-weekly-findings-remediation-2026-07-31.md](plan-weekly-findings-remediation-2026-07-31.md)                 | Active    | Weekly Findings Remediation — 2026-07-31 (3 P0 / 5 P1; phased opsx roadmap)  |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                                           | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)                  |
 | [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md)                       | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan                 |
 | [plan-workflow-process-consolidation.md](plan-workflow-process-consolidation.md)                                 | Active    | Workflow & process consolidation — PLAYBOOK.md, CLAUDE.md slim, skills audit |

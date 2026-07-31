@@ -156,6 +156,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | Doc                                                  | Status    | Title                 |
 | ---------------------------------------------------- | --------- | --------------------- |
 | [qa/assets.md](qa/assets.md)                         | Reference | QA Asset Inventory    |
+| [qa/audit-boundary.md](qa/audit-boundary.md)         | Reference | Audit Boundary Cursor |
 | [qa/discovery-workflow.md](qa/discovery-workflow.md) | Reference | QA Discovery Workflow |
 | [qa/e2e-suite-map.md](qa/e2e-suite-map.md)           | Reference | E2E Suite Map         |
 | [qa/findings.md](qa/findings.md)                     | Active    | QA Findings Registry  |

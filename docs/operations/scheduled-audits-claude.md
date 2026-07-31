@@ -9,19 +9,28 @@ diff them. Each task's stored prompt names this file as its source of truth.
 
 Live task definitions are under `~/.claude/scheduled-tasks/<taskId>/SKILL.md` (not in this repo).
 
-## Why only three
+## Two kinds of task here
 
 The Codex set has 13 nightly tasks. Duplicating all of them doubles finding intake without adding
 triage throughput, and for deterministic checks (migration drift, coverage, commit review,
 performance regression, capacity rehearsal) a second model produces either the same answer or a
 wrong one that now needs arbitration.
 
-Claude runs only where a second model's *judgment* diverges usefully — security and role UX — plus
-one reconciliation task whose entire job is comparing the two models' output. A finding both models
-flag is high-confidence; a finding only one flags is where the signal is. That comparison only
-works if both write into the same ledger with a source tag.
+So the tasks below fall into two categories, and the distinction decides how each is scheduled:
 
-## Shared contract — applies to all three tasks
+**Complements (tasks 1–3) run alongside Codex.** Claude runs where a second model's *judgment*
+diverges usefully — security and role UX — plus one reconciliation task whose entire job is
+comparing the two models' output. A finding both models flag is high-confidence; a finding only one
+flags is where the signal is. That comparison only works if both write into the same ledger with a
+source tag. These are deliberately at a *different cadence* from their Codex counterparts.
+
+**Substitutes (task 4) replace Codex.** When the Codex budget runs out, a stream stops entirely.
+A substitute is a deliberate clone — same cadence, same scope, same window — enabled only while its
+Codex counterpart is dark, and disabled again when it returns. Differentiating a substitute would
+defeat it: the point is continuity of the *same* coverage, not a second opinion. The two must never
+run concurrently; see "Failover discipline" below.
+
+## Shared contract — applies to all four tasks
 
 Every prompt below inherits these rules. They are repeated inside each prompt so the tasks stay
 self-contained when pasted into a scheduler.
@@ -51,11 +60,12 @@ to prevent.
 So treat the times below as an **ordering preference, not a guarantee**, and pick times you are
 plausibly at the keyboard for rather than times that are merely quiet.
 
-| Task                        | Cadence          | Time (local) | Rationale                                     |
-| --------------------------- | ---------------- | ------------ | --------------------------------------------- |
-| `claude-findings-reconcile` | Weekly, Thursday | 6:00 AM      | Must land before Codex's Friday 6:00 AM review |
-| `claude-security-audit`     | Weekly, Saturday | 3:00 AM      | Clear of Codex judge-ux-walk (Sat 12:15 AM)    |
-| `claude-role-ux-walk`       | Weekly, Sunday   | 3:00 AM      | Clear of Codex club-admin-ux-walk (Sun 12:15 AM) |
+| Task                          | Cadence          | Time (local) | Rationale                                        |
+| ----------------------------- | ---------------- | ------------ | ------------------------------------------------ |
+| `claude-findings-reconcile`   | Weekly, Thursday | 6:00 AM      | Must land before Codex's Friday 6:00 AM review    |
+| `claude-security-audit`       | Weekly, Saturday | 3:00 AM      | Clear of Codex judge-ux-walk (Sat 12:15 AM)       |
+| `claude-role-ux-walk`         | Weekly, Sunday   | 3:00 AM      | Clear of Codex club-admin-ux-walk (Sun 12:15 AM)  |
+| `claude-daily-commit-review`  | Daily            | 7:00 AM      | Substitute — mirrors the Codex daily commit review |
 
 Only the first row's timing is load-bearing: `claude-findings-reconcile` must run *before* the
 Codex "Weekly quality findings review" so that review consumes an already-reconciled, deduplicated
@@ -73,7 +83,26 @@ with its `cronExpression`, then `update_scheduled_task` with `enabled: false`. C
 "ad-hoc" instead (omitting the cron entirely) also prevents automatic runs, but throws away the
 schedule — prefer create-then-disable so unpausing is a single toggle.
 
-All three tasks are currently **paused**.
+All four tasks are currently **paused** — tasks 1–3 for token cost, task 4 because a substitute is
+paused by definition until its Codex counterpart goes dark.
+
+### Failover discipline (task 4)
+
+`claude-daily-commit-review` is a substitute, not a complement. Two rules:
+
+1. **Never enabled at the same time as the Codex daily commit review.** Both stamp the same
+   `daily-commit-review` row in `docs/qa/audit-boundary.md`, and concurrent runs over the same range
+   mint competing IDs for one defect. Enable Claude only after confirming Codex is dark; disable it
+   before Codex resumes.
+2. **The handoff is manual and lossy.** Nothing detects that the Codex budget ran out — you notice a
+   missing report and flip the switch, so a gap day is likely. That is acceptable for a backup, but
+   the gap must be *reported*, not silently absorbed: the boundary cursor makes the uncovered range
+   visible, and the first Claude run names it.
+
+The cursor is what makes the handoff work in either direction. Both automations read the row to
+compute their window and stamp it on exit, so whichever one runs next resumes the other's thread
+instead of starting a private one. The Codex daily prompt needs the matching read/stamp step added
+on its side — the cursor only works if both ends honor it.
 
 ### Before unpausing: pre-approve the tools
 
@@ -261,10 +290,88 @@ Output:
 Do not edit source outside `docs/`. Do not open a PR. Do not merge or push.
 ```
 
+## Task 4 — `claude-daily-commit-review` (failover)
+
+**Cadence:** Daily, 7:00 AM. **Paused unless the Codex daily commit review is dark.**
+
+**Why this one is a clone, not a differentiated view:** tasks 1–3 exist to disagree with Codex. This
+one exists to *be* Codex for a few days. Narrowing its scope to "what Claude sees differently" would
+leave the ordinary regression coverage — the actual reason the stream exists — unrun during exactly
+the window it is meant to protect. Same window, same scope, same output shape.
+
+Four things differ from the Codex prompt, all mechanical: it reads `CLAUDE.md` rather than
+`AGENTS.md`; it reads and stamps the shared boundary cursor instead of relying on private memory; it
+runs in its own worktree; and its Linear step is drafts-only, because a scheduled run is
+non-interactive and there is nobody to give batch approval at 7 AM.
+
+```
+Review the commits merged into myk9-platform since the last recorded review boundary.
+
+You are the FAILOVER for the Codex daily commit review. Assume Codex has not run. Produce the
+ordinary regression review, not a second opinion — this is substitute coverage, not a differing view.
+
+Work in a dedicated git worktree off a clean checkout of `main`, never the primary checkout.
+
+Window: read the `daily-commit-review` row in `docs/qa/audit-boundary.md`. Start from
+`Last reviewed SHA` (exclusive) through current `main`. If the row is `unset`, review the previous
+24 hours and say so. If there is a gap between that row's window end and the start of your window,
+report it as a coverage gap — do not silently absorb it.
+
+Use the `quality-finding-lifecycle` skill as the authoritative finding contract. Follow CLAUDE.md
+(not AGENTS.md — this is the Claude-side task), including reading `docs/INTENT.md` before any
+UX-facing review and verifying actual TypeScript schemas and interfaces instead of guessing.
+
+Identify bugs, regressions, security issues, broken tests, missing high-risk tests, and UX or
+product-intent violations introduced by those commits.
+
+Before reporting a candidate, read the complete relevant implementation and check subsequent
+commits, merged PRs, current `main`, `docs/qa/findings.md`, this automation's prior memory, and
+Linear for an existing fix or duplicate. Exclude already-fixed candidates and reference existing
+findings or Linear issues instead of creating duplicates. Run focused verification when practical.
+Treat test, harness, environment, and inconclusive failures separately from confirmed product
+defects.
+
+Assign every finding a stable ID, reusing an existing QA or Linear ID when available; otherwise
+`NCR-YYYY-MM-DD-NN`. Record the full evidence record the lifecycle skill requires: status, canonical
+P0-P3 severity from `docs/goals/fall-2026-launch-readiness-scorecard.md` with the source label kept
+separately, first/last seen, consecutive-run count, baseline SHA, affected role/workflow, exact file
+and line references, reproduction or proof, user impact, confidence, and the proof required for
+closure. Tag every finding `source: claude`.
+
+Never mark a finding resolved from a code change alone — a merge is not resolution; require passing
+focused proof. Promote the same confirmed finding after two consecutive runs instead of repeatedly
+presenting it as new.
+
+Output:
+- Report only unresolved or newly resolved items, grouped by canonical severity. If nothing remains,
+  say so clearly.
+- Include counts for new, unchanged, resolved, duplicate, rejected, and blocked findings; fixes
+  found in subsequent commits; existing QA/Linear references; Linear drafts prepared; checks run;
+  baseline SHA; window covered; and verification limits.
+- Prepare Linear-ready drafts for confirmed non-duplicate P0/P1 findings — problem statement,
+  evidence, expected vs. actual, impact, likely root cause, recommended approach, acceptance
+  criteria, required proof, and relevant commits/PRs/files/related issues. This run is
+  non-interactive, so batch approval is unavailable: preserve every draft in the report and memory
+  and create nothing. Do not create, update, or close any Linear issue.
+- Keep P2 and P3 findings report-only unless recurring or worsening.
+- Stamp the `daily-commit-review` row in `docs/qa/audit-boundary.md` with the newest commit you
+  actually reviewed, the window end, `claude-daily-commit-review`, and the run date. Stamp it even
+  on a clean run. Do not stamp a range you did not finish.
+- Append the compact lifecycle ledger to automation memory so the next run — Claude or Codex — can
+  compare state.
+
+Do not modify application code. Do not open a PR. Do not merge or push anything. The only file this
+task may write outside its report is the boundary row in `docs/qa/audit-boundary.md`.
+```
+
 ## Maintenance
 
 - When a Codex task changes scope, revisit whether the Claude counterpart still adds a differing
   view or has become redundant. Redundant tasks should be deleted, not left running.
+- A substitute must track the task it substitutes for. When the Codex daily commit review changes
+  scope, update task 4 in the same pass — a stale clone is worse than no backup, because it reports
+  coverage it is no longer providing. If that Codex stream is retired outright, delete task 4 rather
+  than leaving an orphan backup for a stream that no longer exists.
 - If `claude-findings-reconcile` reports agreements approaching 100% for several weeks, the two
   models have converged and one of the paired tasks can be retired.
 - If the reconcile report is consistently the only one anyone reads, that is the signal to cut

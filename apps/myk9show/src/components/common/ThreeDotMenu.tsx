@@ -8,7 +8,7 @@
  * profile/list surfaces that pass these named callbacks.
  */
 import React from 'react';
-import { Eye, Pencil, Camera, Activity, Award, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Camera, Activity, Award, Send, Trash2 } from 'lucide-react';
 import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 
 interface ThreeDotMenuProps {
@@ -17,9 +17,14 @@ interface ThreeDotMenuProps {
   onEditPhoto?: (() => void) | undefined;
   onChangeStatus?: (() => void) | undefined;
   onManageQualifications?: (() => void) | undefined;
+  /** Send or resend a sign-in invitation (MYK9-134). Omit to hide the item. */
+  onSendInvitation?: (() => void) | undefined;
   onDelete?: (() => void) | undefined;
   viewLabel?: string | undefined;
   editLabel?: string | undefined;
+  /** Wording differs for someone who already has an account vs one who does not. */
+  sendInvitationLabel?: string | undefined;
+  sendInvitationDisabled?: boolean | undefined;
   showManageQualifications?: boolean | undefined;
   /** Hide the Edit item (use when a separate Edit button is rendered alongside) */
   hideEdit?: boolean | undefined;
@@ -31,9 +36,12 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   onEditPhoto,
   onChangeStatus,
   onManageQualifications,
+  onSendInvitation,
   onDelete,
   viewLabel = 'View',
   editLabel = 'Edit Profile',
+  sendInvitationLabel = 'Send Invitation',
+  sendInvitationDisabled = false,
   showManageQualifications = false,
   hideEdit = false,
 }) => {
@@ -62,6 +70,16 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
       label: 'Manage Qualifications',
       icon: <Award />,
       onSelect: onManageQualifications,
+      separatorBefore: true,
+    });
+  }
+  if (onSendInvitation) {
+    actions.push({
+      id: 'send-invitation',
+      label: sendInvitationLabel,
+      icon: <Send />,
+      onSelect: onSendInvitation,
+      disabled: sendInvitationDisabled,
       separatorBefore: true,
     });
   }

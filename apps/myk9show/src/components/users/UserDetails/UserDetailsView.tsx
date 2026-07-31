@@ -21,6 +21,7 @@ import HeroProfileCard from './HeroProfileCard';
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import JudgeAvailabilityCard from './JudgeAvailabilityCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
+import { useSendUserInvitation } from './useSendUserInvitation';
 import '@/styles/myk9-user-details.css';
 import '@/styles/myk9-show-details.css';
 
@@ -38,6 +39,13 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const { people } = useRoleBasedPeople();
 
   const dogCount = ownerDogs.length;
+
+  // MYK9-134: giving an existing person sign-in access. `user_id` is the mapped
+  // people.auth_user_id — absent means this record is a contact only and nobody
+  // can log in as them.
+  const { sendInvitation, isSending } = useSendUserInvitation();
+  const hasSignInAccount = Boolean(person.user_id);
+  const canInvite = hasPermission('admin:manage');
 
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -287,6 +295,19 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             onEditPhoto={() => setIsPhotoModalOpen(true)}
             onEdit={() => setIsEditModalOpen(true)}
             onDelete={() => setIsDeleteDialogOpen(true)}
+            onSendInvitation={
+              canInvite
+                ? () =>
+                    sendInvitation({
+                      personId: person.id,
+                      email: person.email,
+                      firstName,
+                      roleNames: (person.roles ?? []).map(String),
+                    })
+                : undefined
+            }
+            sendInvitationLabel={hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation'}
+            sendInvitationDisabled={isSending}
           />
         }
         properties={properties}

@@ -971,6 +971,20 @@ describe('titleEngine', () => {
       expect(inferLevelFromTitle(title, ['Novice', 'Élite'])).toBe('Élite');
     });
 
+    it('treats an astral-plane letter as a word character on either side', () => {
+      // A surrogate pair must be read as one code point; per UTF-16 unit it looks like two
+      // non-letters and the boundary check would wrongly accept the match.
+      for (const name of ['Nosework 𐐀Open', 'Nosework Open𐐀']) {
+        const title = makeTitle({ abbreviation: 'X', full_name: name });
+        expect(inferLevelFromTitle(title, ['Open'])).toBe(null);
+      }
+      expect(
+        inferLevelFromTitle(makeTitle({ abbreviation: 'X', full_name: 'Nosework Open 𐐀' }), [
+          'Open',
+        ])
+      ).toBe('Open');
+    });
+
     it('keeps non-ASCII labels bounded — no match inside a longer word', () => {
       const title = makeTitle({
         abbreviation: 'X',

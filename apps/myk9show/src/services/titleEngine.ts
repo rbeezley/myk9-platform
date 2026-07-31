@@ -116,6 +116,23 @@ function isWordChar(char: string): boolean {
 }
 
 /**
+ * The neighbouring characters must be read as whole code points, not UTF-16 code units — an
+ * astral-plane letter next to a label (`𐐀Open`) would otherwise present as a lone surrogate,
+ * which `\p{L}` rejects, and the boundary check would wrongly accept the match.
+ */
+function codePointBefore(text: string, index: number): string {
+  if (index <= 0) return '';
+  const unit = text.charCodeAt(index - 1);
+  const isLowSurrogate = unit >= 0xdc00 && unit <= 0xdfff;
+  return isLowSurrogate && index >= 2 ? text.slice(index - 2, index) : (text[index - 1] ?? '');
+}
+
+function codePointAt(text: string, index: number): string {
+  const cp = index < text.length ? text.codePointAt(index) : undefined;
+  return cp === undefined ? '' : String.fromCodePoint(cp);
+}
+
+/**
  * Index of `needle` in `haystack` on whole-word boundaries, or -1.
  *
  * Boundaries are checked against the neighbouring characters rather than with a regex, because
@@ -132,8 +149,8 @@ function wordIndexOf(haystack: string, needle: string): number {
     const index = haystack.indexOf(needle, from);
     if (index < 0) return -1;
 
-    const before = index > 0 ? (haystack[index - 1] ?? '') : '';
-    const after = haystack[index + needle.length] ?? '';
+    const before = codePointBefore(haystack, index);
+    const after = codePointAt(haystack, index + needle.length);
     if (!isWordChar(before) && !isWordChar(after)) return index;
 
     from = index + 1;

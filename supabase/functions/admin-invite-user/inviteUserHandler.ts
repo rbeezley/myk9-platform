@@ -136,8 +136,16 @@ export async function inviteUserHandler(
   // an absolute URL to a browser despite starting with a slash.
   const requestedPath = body.redirectPath ?? '';
   const isSameOriginPath = requestedPath.startsWith('/') && !requestedPath.startsWith('//');
-  const redirectPath = isSameOriginPath ? requestedPath : '/auth/callback';
-  const redirectTo = `${deps.siteUrl}${redirectPath}`;
+  const wantsCustomDestination = isSameOriginPath && !requestedPath.startsWith('/auth/callback');
+
+  // The destination must travel as `returnTo` ON the callback URL, not as the
+  // callback URL itself: buildAuthActionUrl only carries redirect params
+  // forward when the supplied URL's pathname is exactly /auth/callback, so
+  // passing `${siteUrl}/admin/users` would silently drop the destination and
+  // land a re-invite on `/`.
+  const redirectTo = wantsCustomDestination
+    ? `${deps.siteUrl}/auth/callback?returnTo=${encodeURIComponent(requestedPath)}`
+    : `${deps.siteUrl}/auth/callback`;
 
   let outcome: InviteOutcome = 'invited';
   let { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({

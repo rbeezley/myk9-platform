@@ -283,37 +283,83 @@ describe('inviteUserHandler — failure modes', () => {
   });
 });
 
-describe('inviteUserHandler — redirect safety', () => {
-  it('honours a relative redirect path', async () => {
+describe('inviteUserHandler — redirect handling', () => {
+  /** The URL actually placed in the delivered email. */
+  function deliveredLink(sendEmail: { mock: { calls: unknown[][] } }): string {
+    const payload = JSON.parse((sendEmail.mock.calls[0][0] as { body: string }).body);
+    const match = /href="([^"]+auth\/callback[^"]*)"/.exec(payload.html as string);
+    return (match?.[1] ?? '').replace(/&amp;/g, '&');
+  }
+
+  it('carries a relative destination through as returnTo on the callback', async () => {
     const { supabase, generateLink } = makeSupabase();
-    const { deps } = makeDeps();
+    const { deps, sendEmail } = makeDeps();
 
     await invoke(supabase, deps, { email: 'a@b.test', redirectPath: '/admin/users' });
 
+    // buildAuthActionUrl only forwards redirect params from an /auth/callback
+    // URL, so the destination has to ride ON the callback rather than replace it.
     expect(generateLink).toHaveBeenCalledWith(
-      expect.objectContaining({ options: { redirectTo: 'https://app.test/admin/users' } })
+      expect.objectContaining({
+        options: { redirectTo: 'https://app.test/auth/callback?returnTo=%2Fadmin%2Fusers' },
+      })
     );
+    // Assert the FINAL emailed URL, not just the generateLink argument — the
+    // regression this covers was the destination being dropped when the link
+    // was rebuilt.
+    expect(deliveredLink(sendEmail)).toContain('returnTo=%2Fadmin%2Fusers');
   });
 
   it('refuses an absolute redirect — the link is a single-use credential', async () => {
     const { supabase, generateLink } = makeSupabase();
-    const { deps } = makeDeps();
+    const { deps, sendEmail } = makeDeps();
 
     await invoke(supabase, deps, { email: 'a@b.test', redirectPath: 'https://evil.test/steal' });
 
     expect(generateLink).toHaveBeenCalledWith(
       expect.objectContaining({ options: { redirectTo: 'https://app.test/auth/callback' } })
     );
+    expect(deliveredLink(sendEmail)).not.toContain('evil.test');
   });
 
   it('refuses a protocol-relative redirect', async () => {
     const { supabase, generateLink } = makeSupabase();
-    const { deps } = makeDeps();
+    const { deps, sendEmail } = makeDeps();
 
     await invoke(supabase, deps, { email: 'a@b.test', redirectPath: '//evil.test/steal' });
 
     expect(generateLink).toHaveBeenCalledWith(
       expect.objectContaining({ options: { redirectTo: 'https://app.test/auth/callback' } })
     );
+    expect(deliveredLink(sendEmail)).not.toContain('evil.test');
+  });
+
+  it('does not nest the callback inside itself when none was requested', async () => {
+    const { supabase, generateLink } = makeSupabase();
+    const { deps } = makeDeps();
+
+    await invoke(supabase, deps, { email: 'a@b.test', redirectPath: '/auth/callback' });
+
+    expect(generateLink).toHaveBeenCalledWith(
+      expect.objectContaining({ options: { redirectTo: 'https://app.test/auth/callback' } })
+    );
+  });
+
+  it('keeps the destination on a re-invite, which is where it actually matters', async () => {
+    // A first invite always lands on password setup, so returnTo only changes
+    // behaviour for the magiclink re-invite path.
+    const { supabase } = makeSupabase({
+      linkResults: [
+        { data: null, error: { code: 'email_exists' } },
+        { data: MAGIC_LINK, error: null },
+      ],
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await invoke(supabase, deps, { email: 'a@b.test', redirectPath: '/admin/users' });
+
+    const link = deliveredLink(sendEmail);
+    expect(link).toContain('returnTo=%2Fadmin%2Fusers');
+    expect(link).toContain('type=magiclink');
   });
 });

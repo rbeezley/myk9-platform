@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -24,14 +24,20 @@ const subscriptionEntitlementFixture = readFileSync(
 // of it: the assertion below is what stops a launch-critical test being quietly
 // dropped from the harness. Registering a test means editing BOTH this list and
 // scripts/qa/run-behavioral-sql-tests.sh.
+//
+// Keep both EXHAUSTIVE over supabase/tests/ — that agreement check cannot catch a
+// file added to neither list, so the directory-coverage test below does.
 const launchCriticalSqlTests = [
+  'class_status_auto_derivation_test.sql',
   'club_secretary_grant_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',
-  'rbac_access_lookup_authorization_test.sql',
   'entries_manager_policy_hashable_test.sql',
+  'entry_status_history_rls_test.sql',
   'myk9_114_entry_access_context_test.sql',
+  'paperwork_prints_rls_test.sql',
   'pre_rule_table_grants_test.sql',
   'pull_refund_decision_rls_test.sql',
+  'rbac_access_lookup_authorization_test.sql',
   'recoverable_show_access_codes_test.sql',
   'subscription_entitlement_grants_test.sql',
 ];
@@ -76,6 +82,18 @@ describe('behavioral SQL test harness', () => {
     expect(pullRefundFixture).toContain(
       "IF SQLERRM <> 'refund decisions are written only through set_entry_refund_decision'"
     );
+  });
+
+  it('registers every SQL file that lives in supabase/tests', () => {
+    // The two-list agreement check below catches a test being REMOVED from the
+    // harness. It cannot catch one that was never added, because a file absent
+    // from both lists keeps them equal. Four tests stayed dormant that way
+    // (MYK9-130); this reads the directory so the omission fails loudly.
+    const onDisk = readdirSync(resolve(repositoryRoot, 'supabase/tests'))
+      .filter(entry => entry.endsWith('.sql'))
+      .sort();
+
+    expect(onDisk).toEqual([...launchCriticalSqlTests].sort());
   });
 
   it('executes every launch-critical behavioral SQL file through psql', () => {

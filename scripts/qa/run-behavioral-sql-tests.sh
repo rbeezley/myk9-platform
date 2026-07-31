@@ -28,14 +28,22 @@ fi
 # Explicit, not a glob: a test file added to supabase/tests/ without a line here
 # never executes and reads as coverage. Register new tests here AND in
 # launchCriticalSqlTests in run-behavioral-sql-tests.test.ts.
+#
+# This list is EXHAUSTIVE, not curated: every .sql file in supabase/tests/ must
+# appear. The contract test asserts the two lists agree with EACH OTHER, so a
+# file absent from BOTH still passes green — that gap left four tests dormant
+# until 2026-07-31 (MYK9-130). A directory-coverage assertion now closes it.
 TEST_FILES=(
+  "$TEST_DIR/class_status_auto_derivation_test.sql"
   "$TEST_DIR/club_secretary_grant_test.sql"
   "$TEST_DIR/create_show_with_children_tenant_isolation_test.sql"
-  "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
+  "$TEST_DIR/entry_status_history_rls_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"
+  "$TEST_DIR/paperwork_prints_rls_test.sql"
   "$TEST_DIR/pre_rule_table_grants_test.sql"
   "$TEST_DIR/pull_refund_decision_rls_test.sql"
+  "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
   "$TEST_DIR/recoverable_show_access_codes_test.sql"
   "$TEST_DIR/subscription_entitlement_grants_test.sql"
 )

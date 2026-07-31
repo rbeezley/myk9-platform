@@ -12,10 +12,21 @@ VALUES
   ('00000000-0000-0000-0000-000000000602', 'Show Two', 'Secretary', '00000000-0000-0000-0000-000000000502'),
   ('00000000-0000-0000-0000-000000000603', 'Unauthorised', 'Viewer', '00000000-0000-0000-0000-000000000503');
 
-INSERT INTO public.shows (id, name, type, start_date, end_date)
+INSERT INTO public.clubs (id, name)
 VALUES
-  ('00000000-0000-0000-0000-000000000101', 'History RLS Show One', 'All-Breed', CURRENT_DATE, CURRENT_DATE),
-  ('00000000-0000-0000-0000-000000000102', 'History RLS Show Two', 'All-Breed', CURRENT_DATE, CURRENT_DATE);
+  ('00000000-0000-0000-0000-000000000701', 'History RLS Club One'),
+  ('00000000-0000-0000-0000-000000000702', 'History RLS Club Two');
+
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000000101', 'History RLS Show One', 'AKC',
+    CURRENT_DATE, CURRENT_DATE, '00000000-0000-0000-0000-000000000701'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000102', 'History RLS Show Two', 'AKC',
+    CURRENT_DATE, CURRENT_DATE, '00000000-0000-0000-0000-000000000702'
+  );
 
 INSERT INTO public.trials (id, show_id, name, date)
 VALUES
@@ -27,13 +38,21 @@ VALUES
   ('00000000-0000-0000-0000-000000000301', '00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000201', 'submitted'),
   ('00000000-0000-0000-0000-000000000302', '00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000202', 'submitted');
 
-INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000000601', id, '00000000-0000-0000-0000-000000000101', true, '00000000-0000-0000-0000-000000000501'
+-- club_id is mandatory for secretary/club_admin grants
+-- (public.enforce_club_id_for_scoped_roles).
+INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000000601', id,
+  '00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000701',
+  true, '00000000-0000-0000-0000-000000000501'
 FROM public.roles
 WHERE name = 'secretary';
 
-INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000000602', id, '00000000-0000-0000-0000-000000000102', true, '00000000-0000-0000-0000-000000000502'
+INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000000602', id,
+  '00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000702',
+  true, '00000000-0000-0000-0000-000000000502'
 FROM public.roles
 WHERE name = 'secretary';
 

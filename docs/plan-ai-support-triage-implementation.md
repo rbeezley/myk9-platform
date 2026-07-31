@@ -38,29 +38,31 @@ Resend REST API, GitHub Actions cron.
 
 ## File Structure
 
-| File | Responsibility |
-| --- | --- |
-| `scripts/support-triage/types.ts` | Shared types. No logic. |
-| `scripts/support-triage/carveOuts.ts` | Pure predicates deciding a ticket may never auto-send. |
-| `scripts/support-triage/answers.ts` | Operator-owned canned answer registry + lookup. |
-| `scripts/support-triage/cluster.ts` | Pure cluster detection over open tickets. |
-| `scripts/support-triage/classify.ts` | The single Claude call, with enum-constrained output. |
-| `scripts/support-triage/gateway.ts` | All Supabase reads and the guarded operator-message insert. |
-| `scripts/support-triage/state.ts` | JSON file tracking which tickets have been drafted. |
-| `scripts/support-triage/notify.ts` | Resend email for drafts and cluster alerts. |
-| `scripts/support-triage/run.ts` | Orchestrator: one pass. |
-| `.github/workflows/support-triage.yml` | The 15-minute cron. |
+| File                                   | Responsibility                                              |
+| -------------------------------------- | ----------------------------------------------------------- |
+| `scripts/support-triage/types.ts`      | Shared types. No logic.                                     |
+| `scripts/support-triage/carveOuts.ts`  | Pure predicates deciding a ticket may never auto-send.      |
+| `scripts/support-triage/answers.ts`    | Operator-owned canned answer registry + lookup.             |
+| `scripts/support-triage/cluster.ts`    | Pure cluster detection over open tickets.                   |
+| `scripts/support-triage/classify.ts`   | The single Claude call, with enum-constrained output.       |
+| `scripts/support-triage/gateway.ts`    | All Supabase reads and the guarded operator-message insert. |
+| `scripts/support-triage/state.ts`      | JSON file tracking which tickets have been drafted.         |
+| `scripts/support-triage/notify.ts`     | Resend email for drafts and cluster alerts.                 |
+| `scripts/support-triage/run.ts`        | Orchestrator: one pass.                                     |
+| `.github/workflows/support-triage.yml` | The 15-minute cron.                                         |
 
 ---
 
 ### Task 1: Types and carve-out predicates
 
 **Files:**
+
 - Create: `scripts/support-triage/types.ts`
 - Create: `scripts/support-triage/carveOuts.ts`
 - Test: `scripts/support-triage/carveOuts.test.ts`
 
 **Interfaces:**
+
 - Consumes: `isPaymentOrRefundQuestion` from
   `supabase/functions/_shared/askq/supportPaymentPolicy.ts` — imported with the `.ts`
   extension, exactly as `apps/myk9show/src/features/support/supportDeflection.ts`
@@ -263,10 +265,12 @@ git add scripts/support-triage/types.ts scripts/support-triage/carveOuts.ts scri
 ### Task 2: Canned answer registry
 
 **Files:**
+
 - Create: `scripts/support-triage/answers.ts`
 - Test: `scripts/support-triage/answers.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `interface CannedAnswer { id: string; label: string; whenToUse: string; reply: string; autoSend: boolean }`
   - `CANNED_ANSWERS: CannedAnswer[]`
@@ -296,9 +300,7 @@ describe('canned answer registry', () => {
   });
 
   it('returns null for an id that exists but is not promoted', () => {
-    const answers = [
-      { id: 'draft-only', label: 'x', whenToUse: 'x', reply: 'x', autoSend: false },
-    ];
+    const answers = [{ id: 'draft-only', label: 'x', whenToUse: 'x', reply: 'x', autoSend: false }];
     expect(findAutoSendableAnswer('draft-only', answers)).toBeNull();
   });
 
@@ -311,7 +313,13 @@ describe('canned answer registry', () => {
 
   it('renders a catalogue naming every answer id', () => {
     const answers = [
-      { id: 'armband-lookup', label: 'Armband', whenToUse: 'Asks where to find armband', reply: 'x', autoSend: false },
+      {
+        id: 'armband-lookup',
+        label: 'Armband',
+        whenToUse: 'Asks where to find armband',
+        reply: 'x',
+        autoSend: false,
+      },
     ];
     const catalogue = answerCatalogue(answers);
     expect(catalogue).toContain('armband-lookup');
@@ -390,10 +398,12 @@ git add scripts/support-triage/answers.ts scripts/support-triage/answers.test.ts
 ### Task 3: Cluster detection
 
 **Files:**
+
 - Create: `scripts/support-triage/cluster.ts`
 - Test: `scripts/support-triage/cluster.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SupportTicket` from `./types`.
 - Produces:
   - `interface TicketCluster { showId: string | null; ticketIds: string[]; newestCreatedAt: string }`
@@ -544,10 +554,12 @@ git add scripts/support-triage/cluster.ts scripts/support-triage/cluster.test.ts
 ### Task 4: The classifier
 
 **Files:**
+
 - Create: `scripts/support-triage/classify.ts`
 - Test: `scripts/support-triage/classify.test.ts`
 
 **Interfaces:**
+
 - Consumes: `answerCatalogue` from `./answers`; `TicketThread` from `./types`.
 - Produces:
   - `type Classification = { kind: 'canned'; answerId: string } | { kind: 'novel'; draft: string; clusterLabel: string }`
@@ -673,8 +685,7 @@ import { CANNED_ANSWERS, answerCatalogue, type CannedAnswer } from './answers';
 import type { TicketThread } from './types';
 
 export type Classification =
-  | { kind: 'canned'; answerId: string }
-  | { kind: 'novel'; draft: string; clusterLabel: string };
+  { kind: 'canned'; answerId: string } | { kind: 'novel'; draft: string; clusterLabel: string };
 
 export interface ClassifyDeps {
   createMessage: (request: unknown) => Promise<{ content: Array<{ type: string; text?: string }> }>;
@@ -801,10 +812,12 @@ git add scripts/support-triage/classify.ts scripts/support-triage/classify.test.
 ### Task 5: Supabase gateway
 
 **Files:**
+
 - Create: `scripts/support-triage/gateway.ts`
 - Test: `scripts/support-triage/gateway.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SupportMessage`, `SupportTicket`, `TicketThread` from `./types`.
 - Produces:
   - `interface SupportDataSource { openTickets(): Promise<SupportTicket[]>; messagesFor(ticketIds: string[]): Promise<SupportMessage[]>; insertOperatorMessage(ticketId: string, senderId: string, body: string): Promise<void> }`
@@ -904,10 +917,12 @@ describe('sendOperatorReply', () => {
   it('skips when the live thread gained an operator answer since the pass began', async () => {
     const source = {
       openTickets: vi.fn(),
-      messagesFor: vi.fn().mockResolvedValue([
-        message({ id: 'm1' }),
-        message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
-      ]),
+      messagesFor: vi
+        .fn()
+        .mockResolvedValue([
+          message({ id: 'm1' }),
+          message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
+        ]),
       insertOperatorMessage: vi.fn(),
     };
     const result = await sendOperatorReply(
@@ -978,10 +993,7 @@ export function createSupabaseSource(url: string, serviceRoleKey: string): Suppo
   };
 }
 
-export function buildThreads(
-  tickets: SupportTicket[],
-  messages: SupportMessage[]
-): TicketThread[] {
+export function buildThreads(tickets: SupportTicket[], messages: SupportMessage[]): TicketThread[] {
   const byTicket = new Map<string, SupportMessage[]>();
   for (const message of messages) {
     byTicket.set(message.ticket_id, [...(byTicket.get(message.ticket_id) ?? []), message]);
@@ -1014,7 +1026,9 @@ export async function sendOperatorReply(
 
 function latestMessage(messages: SupportMessage[]): SupportMessage | null {
   if (messages.length === 0) return null;
-  return [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at))[messages.length - 1];
+  return [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at))[
+    messages.length - 1
+  ];
 }
 ```
 
@@ -1034,10 +1048,12 @@ git add scripts/support-triage/gateway.ts scripts/support-triage/gateway.test.ts
 ### Task 6: Pass state file
 
 **Files:**
+
 - Create: `scripts/support-triage/state.ts`
 - Test: `scripts/support-triage/state.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `interface TriageState { draftedMessageIds: string[]; alertedClusterKeys: string[] }`
   - `readState(path: string): Promise<TriageState>`
@@ -1169,10 +1185,12 @@ git add scripts/support-triage/state.ts scripts/support-triage/state.test.ts && 
 ### Task 7: Operator notifications
 
 **Files:**
+
 - Create: `scripts/support-triage/notify.ts`
 - Test: `scripts/support-triage/notify.test.ts`
 
 **Interfaces:**
+
 - Consumes: `TicketCluster` from `./cluster`; `SupportTicket` from `./types`.
 - Produces:
   - `interface NotifyConfig { apiKey: string; from: string; to: string; appUrl: string }`
@@ -1317,7 +1335,9 @@ export function renderClusterEmail(
     html: [
       `<p>${count} open tickets reference show <code>${escapeHtml(String(cluster.showId))}</code> within the last hour. This may be an outage rather than ${count} separate questions.</p>`,
       '<ul>',
-      ...cluster.ticketIds.map(id => `<li><a href="${ticketLink(appUrl, id)}">${escapeHtml(id)}</a></li>`),
+      ...cluster.ticketIds.map(
+        id => `<li><a href="${ticketLink(appUrl, id)}">${escapeHtml(id)}</a></li>`
+      ),
       '</ul>',
     ].join('\n'),
   };
@@ -1377,10 +1397,12 @@ git add scripts/support-triage/notify.ts scripts/support-triage/notify.test.ts &
 ### Task 8: Orchestrator
 
 **Files:**
+
 - Create: `scripts/support-triage/run.ts`
 - Test: `scripts/support-triage/run.test.ts`
 
 **Interfaces:**
+
 - Consumes: everything above.
 - Produces:
   - `interface RunDeps { source: SupportDataSource; classify: (thread: TicketThread) => Promise<Classification>; notify: (subject: string, html: string) => Promise<void>; state: TriageState; now: Date; appUrl: string; operatorUserId: string; answers?: CannedAnswer[]; maxAutoSends?: number }`
@@ -1439,9 +1461,7 @@ function makeSource(tickets: SupportTicket[], messages: SupportMessage[]) {
     openTickets: vi.fn().mockResolvedValue(tickets),
     messagesFor: vi
       .fn()
-      .mockImplementation(async (ids: string[]) =>
-        messages.filter(m => ids.includes(m.ticket_id))
-      ),
+      .mockImplementation(async (ids: string[]) => messages.filter(m => ids.includes(m.ticket_id))),
     insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
   };
 }
@@ -1489,10 +1509,7 @@ describe('runPass', () => {
   });
 
   it('never auto-sends a carved-out ticket even when a promoted answer matches', async () => {
-    const source = makeSource(
-      [ticket('t1', { is_show_day_priority: true })],
-      [message('t1')]
-    );
+    const source = makeSource([ticket('t1', { is_show_day_priority: true })], [message('t1')]);
     const classify = vi.fn();
     const summary = await runPass({
       ...baseDeps(),
@@ -1794,6 +1811,7 @@ git add scripts/support-triage/run.ts scripts/support-triage/run.test.ts && git 
 ### Task 9: Scheduling, scripts, and documentation
 
 **Files:**
+
 - Create: `.github/workflows/support-triage.yml`
 - Create: `scripts/support-triage/README.md`
 - Modify: `package.json` (scripts block)
@@ -1819,7 +1837,14 @@ In `package.json`, add these two entries to the `scripts` object, immediately af
 ```json
     "support:triage": "tsx scripts/support-triage/run.ts",
     "support:triage:test": "vitest run scripts/support-triage/*.test.ts",
+    "support:triage:typecheck": "tsc --noEmit -p scripts/support-triage/tsconfig.json",
 ```
+
+> **Why a dedicated typecheck script:** `pnpm typecheck` runs Turbo per workspace
+> package, and `scripts/` is not in one — so nothing in this directory is typechecked
+> by the normal command. Vitest transpiles without typechecking, so passing tests
+> prove nothing about types here. Done in Task 1–3 execution: root `typescript` and
+> `@types/node` added as devDependencies, plus `scripts/support-triage/tsconfig.json`.
 
 - [ ] **Step 3: Ignore the state file**
 
@@ -1897,7 +1922,7 @@ jobs:
 
 Create `scripts/support-triage/README.md`:
 
-```markdown
+````markdown
 # Support triage agent
 
 Runs every 15 minutes on GitHub Actions. Reads the open support queue, drafts replies,
@@ -1922,16 +1947,16 @@ and emails them to the operator. Design: [`docs/plan-ai-support-triage.md`](../.
 
 ## Required GitHub secrets
 
-| Secret | Value |
-| --- | --- |
-| `SUPABASE_URL` | `https://sojmvhhwsjxmfistvzbe.supabase.co` |
+| Secret                      | Value                                                                            |
+| --------------------------- | -------------------------------------------------------------------------------- |
+| `SUPABASE_URL`              | `https://sojmvhhwsjxmfistvzbe.supabase.co`                                       |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key. Grants full table access — this workflow is the only consumer. |
-| `ANTHROPIC_API_KEY` | Anthropic API key. |
-| `RESEND_API_KEY` | Same Resend key the edge functions use. |
-| `SUPPORT_OPERATOR_USER_ID` | The `auth.users.id` that auto-sent messages are attributed to. |
-| `SUPPORT_OPERATOR_EMAIL` | Where drafts and cluster alerts go. |
-| `SUPPORT_TRIAGE_FROM_EMAIL` | A verified Resend sender. |
-| `MYK9_APP_URL` | Base URL used to build ticket deep links. |
+| `ANTHROPIC_API_KEY`         | Anthropic API key.                                                               |
+| `RESEND_API_KEY`            | Same Resend key the edge functions use.                                          |
+| `SUPPORT_OPERATOR_USER_ID`  | The `auth.users.id` that auto-sent messages are attributed to.                   |
+| `SUPPORT_OPERATOR_EMAIL`    | Where drafts and cluster alerts go.                                              |
+| `SUPPORT_TRIAGE_FROM_EMAIL` | A verified Resend sender.                                                        |
+| `MYK9_APP_URL`              | Base URL used to build ticket deep links.                                        |
 
 ## Running locally
 
@@ -1939,7 +1964,9 @@ and emails them to the operator. Design: [`docs/plan-ai-support-triage.md`](../.
 pnpm support:triage:test          # unit tests
 SUPABASE_URL=... pnpm support:triage   # one real pass
 ```
-```
+````
+
+````
 
 - [ ] **Step 7: Register the docs**
 
@@ -1948,7 +1975,7 @@ immediately above the `plan-ai-support-triage.md` row:
 
 ```markdown
 | [plan-ai-support-triage-implementation.md](plan-ai-support-triage-implementation.md)                             | Active    | AI Support Triage — implementation plan                                     |
-```
+````
 
 - [ ] **Step 8: Verify the repo is still green**
 

@@ -25,8 +25,11 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
+# This list is explicit, not a glob: a test file added to supabase/tests/ without
+# a line here is never executed and reads as covered. Register new tests below.
 TEST_FILES=(
   "$TEST_DIR/club_secretary_grant_test.sql"
+  "$TEST_DIR/create_show_with_children_tenancy_test.sql"
   "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"

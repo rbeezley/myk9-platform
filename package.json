@@ -66,6 +66,7 @@
     "@fission-ai/openspec": "^1.6.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
+    "@supabase/supabase-js": "^2.110.7",
     "@types/node": "^22",
     "globals": "^17.7.0",
     "prettier": "^3.9.6",

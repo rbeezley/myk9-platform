@@ -1,11 +1,14 @@
-/** Healthy applied ACL facts from migrations 20260725160000–20260725180000. */
+/**
+ * Healthy applied ACL facts from migrations 20260725160000–20260725180000, plus the
+ * `classes` column allowlist from 20260730140000 (MYK9-116). `classes` appears ONLY in
+ * `columns` — its table-level SELECT was revoked so the hide columns could be withheld.
+ */
 export const anonGrants = (over: Record<string, unknown> = {}) => ({
   tables: [
     ...[
       'achievements',
       'armbands',
       'class_visibility_overrides',
-      'classes',
       'clubs',
       'judge_assignments',
       'rule_organizations',
@@ -26,6 +29,67 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
     { name: 'view_public_entry_results', kind: 'v', privs: 'r' },
   ],
   columns: [
+    // Restated rather than imported from ANON_COLUMN_ALLOWLIST: a fixture that derives
+    // from the thing it validates cannot catch an edit to that list. num_hides, has_blank
+    // and hides_known are absent on purpose.
+    ...[
+      'id',
+      'trial_id',
+      'name',
+      'description',
+      'level',
+      'element',
+      'section',
+      'competition_type',
+      'entry_fee',
+      'max_entries',
+      'allow_waitlist',
+      'max_dogs_per_handler',
+      'breed_restrictions',
+      'jump_heights',
+      'age_min',
+      'age_max',
+      'height_min',
+      'height_max',
+      'handler_age_min',
+      'handler_age_max',
+      'start_time',
+      'estimated_duration',
+      'actual_start_time',
+      'actual_end_time',
+      'status',
+      'time_limit_seconds',
+      'num_areas',
+      'max_faults',
+      'qualifying_threshold',
+      'is_scoring_finalized',
+      'results_released_at',
+      'dogs_ahead_notification_count',
+      'total_entries_count',
+      'checked_in_count',
+      'scored_count',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+      'deleted_by',
+      'class_number',
+      'timer_mode',
+      'distraction_count',
+      'is_results_reviewed',
+      'judge_name',
+      'time_limit_area2_seconds',
+      'time_limit_area3_seconds',
+      'display_order',
+      'results_released_by',
+      'version',
+      'status_source',
+      'reopened_after_closeout_at',
+      'revised_expected_start',
+    ].map(column => ({
+      name: 'classes',
+      column,
+      privs: 'r',
+    })),
     ...['id', 'name', 'call_name', 'breed', 'image_url'].map(column => ({
       name: 'dogs',
       column,

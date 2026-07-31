@@ -108,30 +108,37 @@ function toResolver(lookup: LevelLookup): LevelsForElements {
   return typeof lookup === 'function' ? lookup : () => lookup;
 }
 
-/** Escape a level label for use inside a RegExp. */
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+/** A character that may not sit directly against a level label — i.e. a "word" character. */
+const WORD_CHAR = /[\p{L}\p{N}_]/u;
 
-/** Compiled word-boundary matchers, keyed by level label. The label vocabulary is fixed and tiny. */
-const wordMatchers = new Map<string, RegExp>();
+function isWordChar(char: string): boolean {
+  return char !== '' && WORD_CHAR.test(char);
+}
 
 /**
  * Index of `needle` in `haystack` on whole-word boundaries, or -1.
  *
- * Boundaries are Unicode-aware lookarounds rather than `\b`, which is ASCII-only: an
- * org-supplied label like "Élite" on the flat-fallback path would never match under `\b`,
- * while a plain substring search would wrongly match it inside "SuperÉlite".
+ * Boundaries are checked against the neighbouring characters rather than with a regex, because
+ * neither regex option works here. `\b` is ASCII-only, so an org-supplied label like "Élite" on
+ * the flat-fallback path would never match it; Unicode lookbehind would, but Safari 14.1 is an
+ * explicit build target (vite.config.ts) and does not support it — and since the pattern would
+ * be built by `new RegExp` at runtime, that fails as a SyntaxError in the browser rather than
+ * at build time.
  */
 function wordIndexOf(haystack: string, needle: string): number {
   if (!needle) return -1;
-  let matcher = wordMatchers.get(needle);
-  if (!matcher) {
-    const escaped = escapeRegExp(needle);
-    matcher = new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'u');
-    wordMatchers.set(needle, matcher);
+
+  for (let from = 0; from <= haystack.length;) {
+    const index = haystack.indexOf(needle, from);
+    if (index < 0) return -1;
+
+    const before = index > 0 ? (haystack[index - 1] ?? '') : '';
+    const after = haystack[index + needle.length] ?? '';
+    if (!isWordChar(before) && !isWordChar(after)) return index;
+
+    from = index + 1;
   }
-  return matcher.exec(haystack)?.index ?? -1;
+  return -1;
 }
 
 /**

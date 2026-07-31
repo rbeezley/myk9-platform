@@ -52,13 +52,20 @@ export interface TitleProgressResult {
 
 export function mapExhibitorResultToLeg(result: ExhibitorResult): QualifyingLeg | null {
   if (result.resultStatus !== 'qualified') return null;
-  if (!result.classElement || !result.classLevel) return null;
+  if (!result.classElement) return null;
+
+  // A standalone class has no level of its own: `generateScentWorkClasses` names it after the
+  // element and 030 seeds `sport_class_rules.level` as NULL (AKC Detective is the only such
+  // class today). Dropping those results made SWD unearnable from platform scoring. Key them
+  // by the element label — what the registry offers as that element's sole level, and what the
+  // manual-entry path writes — so both entry paths produce the same `Detective::Detective` leg.
+  const level = result.classLevel || result.classElement;
 
   return {
     id: result.id,
     source: 'platform',
     element: result.classElement,
-    level: result.classLevel,
+    level,
     trial_date: result.showDate,
     show_name: result.showName,
   };
@@ -114,7 +121,12 @@ function wordIndexOf(haystack: string, needle: string): number {
   if (!needle) return -1;
   let matcher = wordMatchers.get(needle);
   if (!matcher) {
-    matcher = new RegExp(`\\b${escapeRegExp(needle)}\\b`);
+    // `\b` is ASCII-only, so a label whose first or last character isn't an ASCII word
+    // character (an org-defined "Élite" on the flat-fallback path) would never match. Those
+    // fall back to a plain substring search rather than silently matching nothing.
+    const escaped = escapeRegExp(needle);
+    const anchorable = /^\w/.test(needle) && /\w$/.test(needle);
+    matcher = new RegExp(anchorable ? `\\b${escaped}\\b` : escaped);
     wordMatchers.set(needle, matcher);
   }
   return matcher.exec(haystack)?.index ?? -1;

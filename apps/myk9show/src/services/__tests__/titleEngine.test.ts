@@ -198,6 +198,40 @@ describe('titleEngine', () => {
       };
       expect(mapExhibitorResultToLeg(result)).toBeNull();
     });
+
+    it('keys a standalone class by its element when the class has no level', () => {
+      // AKC Detective is the only class seeded with `sport_class_rules.level = NULL` — the
+      // registry names a standalone class after its element. These used to be dropped, which
+      // made SWD unearnable from platform scoring however many Detective legs a dog had.
+      const result: ExhibitorResult = {
+        id: 'r1',
+        dogId: 'd1',
+        dogName: 'Rex',
+        dogCallName: 'Rex',
+        showId: 's1',
+        classId: 'c1',
+        className: 'Detective',
+        classLevel: null,
+        classElement: 'Detective',
+        resultText: 'Q',
+        resultStatus: 'qualified',
+        searchTimeSeconds: 400,
+        totalFaults: 0,
+        finalPlacement: 1,
+        scoringCompletedAt: '2026-05-01',
+        showName: 'May Trial',
+        showDate: '2026-05-01',
+      };
+
+      expect(mapExhibitorResultToLeg(result)).toEqual({
+        id: 'r1',
+        source: 'platform',
+        element: 'Detective',
+        level: 'Detective',
+        trial_date: '2026-05-01',
+        show_name: 'May Trial',
+      });
+    });
   });
 
   describe('mapManualResultToLeg', () => {
@@ -838,6 +872,39 @@ describe('titleEngine', () => {
           makeLeg('Detective', 'Detective', '2026-05-02'),
         ];
         const result = computeTitleProgress(legs, [SWD], akcLevels)[0];
+        expect(result.earnedLegs).toBe(2);
+        expect(result.isEarned).toBe(true);
+      });
+
+      it('closes the loop: a platform-scored Detective run counts toward SWD', () => {
+        // The leg shape here comes from `mapExhibitorResultToLeg`, not hand-built — a
+        // Detective class carries no level, so this is the only way the two halves agree.
+        const platformLeg = mapExhibitorResultToLeg({
+          id: 'r1',
+          dogId: 'd1',
+          dogName: 'Rex',
+          dogCallName: 'Rex',
+          showId: 's1',
+          classId: 'c1',
+          className: 'Detective',
+          classLevel: null,
+          classElement: 'Detective',
+          resultText: 'Q',
+          resultStatus: 'qualified',
+          searchTimeSeconds: 400,
+          totalFaults: 0,
+          finalPlacement: 1,
+          scoringCompletedAt: '2026-05-01',
+          showName: 'May Trial',
+          showDate: '2026-05-01',
+        });
+
+        expect(platformLeg).not.toBeNull();
+        const result = computeTitleProgress(
+          [platformLeg!, makeLeg('Detective', 'Detective', '2026-05-02')],
+          [SWD],
+          akcLevels
+        )[0];
         expect(result.earnedLegs).toBe(2);
         expect(result.isEarned).toBe(true);
       });

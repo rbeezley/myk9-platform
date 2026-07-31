@@ -53,6 +53,12 @@ vi.mock('@/components/admin/users/UserFilters', () => ({
   UserFilters: () => <div data-testid="user-filters">Filters</div>,
 }));
 
+// This page suite is about the page (filters, table, selection), so the dialog
+// is stubbed. Be aware of what that costs: this mock is why MYK9-131 shipped —
+// "Create User" produced an account with no auth identity while this file
+// passed 8/8. Creation behaviour is covered against the REAL component in
+// components/admin/users/CreateUserDialog.test.tsx. Assert creation there, not
+// by un-stubbing here.
 vi.mock('@/components/admin/users/CreateUserDialog', () => ({
   CreateUserDialog: () => null,
 }));

@@ -1,0 +1,206 @@
+// supabase/functions/admin-invite-user/inviteUserHandler.ts
+//
+// PRA-2026-07-31-01 / MYK9-131.
+//
+// WHY THIS EXISTS. `/admin/users` → "Create User" defaulted "Send Invitation
+// Email" to on, but submission only inserted an unclaimed `people` row.
+// `sendInviteEmail` never reached a service, so the operator saw a success
+// state while the recipient got nothing and had no auth identity at all.
+//
+// Everything downstream of the invite already existed — this is a wiring gap,
+// not a missing feature:
+//
+//   1. this function creates the auth user (via generateLink type 'invite'),
+//   2. `handle_new_user()` (20260625000000) fires AFTER INSERT on auth.users,
+//      matches the admin-created `people` row on LOWER(email) where
+//      auth_user_id IS NULL, and adopts it,
+//   3. `propagate_people_auth_user_id_trigger` (migration 159) copies the new
+//      auth uid into the `user_roles` rows the dialog already wrote.
+//
+// Migration 159's own header describes exactly this scenario ("a pre-assigned
+// secretary or club admin ... people row created with auth_user_id = NULL").
+// The roles assigned before the identity exists therefore resolve the moment
+// the invite is accepted. Nothing here needs a migration.
+//
+// DELIVERY: generateLink + Resend, NOT auth.admin.inviteUserByEmail().
+// inviteUserByEmail makes GoTrue send the mail, and GoTrue hard-caps sends at
+// ~2/hour while the Custom SMTP slot is empty — the Resend *hook* does not lift
+// that cap, because the throttle fires before the hook runs (see
+// docs/operations/supabase-auth-email.md). Onboarding a club's staff would die
+// on the third invite. generateLink returns the link without sending, so
+// delivering it through Resend ourselves bypasses GoTrue's counter entirely.
+// This is the same pattern send-waitlist-invite already uses in production.
+//
+// Deps are injected rather than read from Deno.env inside the handler so this
+// module stays loadable under vitest (see admin-generate-reset-link for the
+// same extract-for-testability split).
+
+import type { HandlerCtx } from '../_shared/http/handler.ts';
+import type { ResendEmailRequestInit } from '../_shared/resendEmail.ts';
+import { HttpError } from '../_shared/http/responses.ts';
+import { buildAdminInviteHtml } from './inviteEmail.ts';
+
+export interface InviteUserRequest {
+  email?: string;
+  firstName?: string;
+  roleLabels?: string[];
+  redirectPath?: string;
+}
+
+/** What actually happened, so the UI can tell the operator the truth. */
+export type InviteOutcome = 'invited' | 'reinvited';
+
+export interface InviteUserResult {
+  ok: true;
+  outcome: InviteOutcome;
+}
+
+export interface InviteUserDeps {
+  resendApiKey: string | undefined;
+  siteUrl: string;
+  fromEmail: string;
+  /** Injected so tests never touch the network. Satisfied by sendResendEmailWithRetry. */
+  sendEmail: (init: ResendEmailRequestInit) => Promise<Response>;
+}
+
+/**
+ * Only a site admin may mint an identity. Same gate as admin-generate-reset-link
+ * and admin-delete-user — `ctx.supabase` is the SERVICE ROLE client, so RLS is
+ * not doing this for us and the check must be explicit.
+ */
+async function assertSiteAdmin(
+  supabase: HandlerCtx<InviteUserRequest>['supabase'],
+  authUserId: string
+): Promise<string> {
+  const { data: callerPerson, error: callerError } = await supabase
+    .from('people')
+    .select('id')
+    .eq('auth_user_id', authUserId)
+    .is('deleted_at', null)
+    .single();
+
+  if (callerError || !callerPerson) {
+    throw new HttpError(403, 'Caller not found');
+  }
+
+  const { data: rbacRoles } = await supabase
+    .from('user_roles')
+    .select('role:roles(name)')
+    .eq('user_id', callerPerson.id)
+    .eq('is_active', true);
+
+  const isSiteAdmin =
+    rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??
+    false;
+
+  if (!isSiteAdmin) {
+    throw new HttpError(403, 'Unauthorized: requires site_admin role');
+  }
+
+  return callerPerson.id;
+}
+
+/** GoTrue signals "this email already has an auth user" in several shapes. */
+function isAlreadyRegistered(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === 'email_exists') return true;
+  const message = (error.message ?? '').toLowerCase();
+  return message.includes('already been registered') || message.includes('already registered');
+}
+
+export async function inviteUserHandler(
+  { body, user, supabase }: HandlerCtx<InviteUserRequest>,
+  deps: InviteUserDeps
+): Promise<InviteUserResult> {
+  if (!user) {
+    throw new HttpError(401, 'Authentication failed');
+  }
+
+  await assertSiteAdmin(supabase, user.id);
+
+  if (!deps.resendApiKey) {
+    // Fail loudly rather than reporting a send that cannot happen — reporting
+    // success without delivery is the exact bug this function exists to fix.
+    throw new HttpError(500, 'RESEND_API_KEY not configured');
+  }
+
+  const email = body.email?.trim().toLowerCase();
+  if (!email) {
+    throw new HttpError(400, 'email is required');
+  }
+
+  // Only allow same-origin destinations; a caller-supplied absolute URL would
+  // make this an open redirect that leaks a single-use credential. `//host` is
+  // rejected alongside `https://host` — it is protocol-relative, so it reads as
+  // an absolute URL to a browser despite starting with a slash.
+  const requestedPath = body.redirectPath ?? '';
+  const isSameOriginPath = requestedPath.startsWith('/') && !requestedPath.startsWith('//');
+  const redirectPath = isSameOriginPath ? requestedPath : '/auth/callback';
+  const redirectTo = `${deps.siteUrl}${redirectPath}`;
+
+  let outcome: InviteOutcome = 'invited';
+  let { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: 'invite',
+    email,
+    options: { redirectTo },
+  });
+
+  if (isAlreadyRegistered(linkError)) {
+    // The address already has an auth identity. Do not mint a second one —
+    // idempotency is the point. Send a sign-in link instead so an invite that
+    // expired before acceptance is still recoverable, and tell the caller the
+    // outcome differed so the UI can say so rather than claiming a new invite.
+    outcome = 'reinvited';
+    ({ data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+      options: { redirectTo },
+    }));
+  }
+
+  const actionLink = linkData?.properties?.action_link;
+  if (linkError || !actionLink) {
+    console.error('generateLink failed', linkError);
+    throw new HttpError(500, linkError?.message ?? 'Failed to generate invitation link');
+  }
+
+  const html = buildAdminInviteHtml({
+    firstName: body.firstName ?? '',
+    actionUrl: actionLink,
+    inviterName: '',
+    roleLabels: body.roleLabels ?? [],
+  });
+
+  const response = await deps.sendEmail({
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${deps.resendApiKey}`,
+      // Deterministic per (address, outcome) so a double-submitted create sends
+      // once, while a later deliberate re-invite still gets through on its own
+      // key. Without this, sendResendEmailWithRetry generates a random key and
+      // every replay is a fresh send.
+      'Idempotency-Key': `admin-invite-${outcome}-${email}`,
+    },
+    body: JSON.stringify({
+      from: deps.fromEmail,
+      to: email,
+      subject: "You've been invited to myK9Show",
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error('resend send failed', response.status, detail);
+    // The auth identity now exists but no email went out. 502 so the UI can
+    // tell the operator the account was created and the invite was NOT sent,
+    // rather than silently implying delivery.
+    throw new HttpError(502, 'Invitation email failed to send');
+  }
+
+  // Deliberately does NOT return the action link (unlike admin-generate-reset-link):
+  // an invitation link is a single-use credential for an identity nobody has
+  // claimed yet, and it has no reason to travel back through the browser.
+  return { ok: true, outcome };
+}

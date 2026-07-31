@@ -202,12 +202,10 @@ export function useAdminUsersQuery(showDeleted: boolean) {
           throw new Error(error.message);
         }
 
-        return (data ?? []).map(
-          (row: Record<string, unknown>): AdminUser => ({
-            ...mapDbUserToUser(row as unknown as DbUser),
-            lastSignInAt: (row.last_sign_in_at as string) || null,
-          })
-        );
+        return (data ?? []).map((row: Record<string, unknown>): AdminUser => ({
+          ...mapDbUserToUser(row as unknown as DbUser),
+          lastSignInAt: (row.last_sign_in_at as string) || null,
+        }));
       } catch (err) {
         const error = ensureError(err);
         logger.error('Failed to fetch admin user list', 'query', {}, error);
@@ -268,6 +266,12 @@ export function useCreateUserMutation() {
         if (!oldData) return [newUser];
         return [...oldData, newUser];
       });
+
+      // useAdminUsersQuery reads [...users.all, 'admin', { showDeleted }], which
+      // the exact-key invalidate above does not reach — so a newly created user
+      // stayed missing from /admin/users until something else refetched.
+      // useUpdateUserMutation already does this.
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.users.all, 'admin'] });
     },
   });
 }

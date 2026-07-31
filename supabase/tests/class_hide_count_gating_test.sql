@@ -1,5 +1,7 @@
--- Behavioral test for 20260731160000_gate_class_hide_counts_from_competitors.sql
--- (SA-2026-07-29-01 / MYK9-127).
+-- Behavioral test for 20260731160000_add_show_class_hide_counts_rpc.sql and
+-- 20260731170000_gate_class_hide_counts_from_competitors.sql
+-- (SA-2026-07-29-01 / MYK9-127). Both halves must be applied — A adds the
+-- officials-only accessor, B revokes the column.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \

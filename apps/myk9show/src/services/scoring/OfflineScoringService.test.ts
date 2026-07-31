@@ -290,11 +290,15 @@ describe('OfflineScoringService', () => {
   describe('score removal and server reconciliation', () => {
     it('deleteScore removes the cached score and queues a deletion for sync', async () => {
       await service.submitScore(baseScore());
+      // submitScore already queued an update, so the deletion must be observed
+      // as an INCREASE — asserting `pending >= 1` would pass even if
+      // queueDeletionForSync were never called.
+      const pendingAfterSubmit = service.getSyncQueueStatus().pending;
 
       await service.deleteScore('entry-1', 'class-1', 'judge-1');
 
       expect(service.getScore('entry-1', 'class-1', 'judge-1')).toBeNull();
-      expect(service.getSyncQueueStatus().pending).toBeGreaterThanOrEqual(1);
+      expect(service.getSyncQueueStatus().pending).toBe(pendingAfterSubmit + 1);
     });
 
     it('getScoreById finds a score by its id field', async () => {
@@ -379,20 +383,25 @@ describe('OfflineScoringService', () => {
       await expect(service.cleanup()).resolves.toBeUndefined();
     });
 
-    it('prunes sync queue items whose deletion was attempted and are older than 24 hours', async () => {
+    // NOTE: this asserts RETENTION, not pruning. Everything the service queues
+    // through its public API starts at attempts=0, and `retainSyncQueueItems`
+    // keeps 0-attempt items regardless of age — so cleanup's pruning branch is
+    // unreachable from here. That branch is covered directly in
+    // offline-scoring-service-helpers.test.ts ("retains fresh queue items and
+    // old unattempted queue items during cleanup"), where an attempted stale
+    // item can be constructed. See MYK9 follow-up on retainSyncQueueItems.
+    it('retains never-attempted queue items across cleanup even when older than 24 hours', async () => {
       vi.useFakeTimers({ now });
       try {
         await service.submitScore(baseScore());
         await service.deleteScore('entry-1', 'class-1', 'judge-1');
-        expect(service.getSyncQueueStatus().pending).toBeGreaterThanOrEqual(1);
+        const pendingBeforeCleanup = service.getSyncQueueStatus().pending;
+        expect(pendingBeforeCleanup).toBeGreaterThan(0);
 
         vi.setSystemTime(new Date(now.getTime() + 25 * 60 * 60 * 1000));
         await service.cleanup();
 
-        // Unattempted (0-attempt) items are retained regardless of age by the
-        // current sync-queue-cleanup policy (see retainSyncQueueItems), so the
-        // deletion item queued above survives the 24h cutoff.
-        expect(service.getSyncQueueStatus().pending).toBeGreaterThanOrEqual(1);
+        expect(service.getSyncQueueStatus().pending).toBe(pendingBeforeCleanup);
       } finally {
         vi.useRealTimers();
       }

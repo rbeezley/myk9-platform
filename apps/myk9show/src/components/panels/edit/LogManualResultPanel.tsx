@@ -14,6 +14,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useSportTemplatesQuery } from '@/hooks/queries/useSportTemplates';
 import { useCreateManualResultMutation } from '@/hooks/queries/useManualResultsDatabase';
+import { levelOptionsForTemplate } from './LogManualResultPanel.helpers';
 import type { ManualResultStatus } from '@/types/manual-result-types';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -88,6 +89,12 @@ const LogResultForm: React.FC = () => {
   const selectedTemplate = useMemo(
     () => orgTemplates.find(t => t.id === selectedTemplateId) ?? null,
     [orgTemplates, selectedTemplateId]
+  );
+
+  const selectedElement = form?.data.element ?? '';
+  const levelOptions = useMemo(
+    () => levelOptionsForTemplate(selectedTemplate, selectedElement),
+    [selectedTemplate, selectedElement]
   );
 
   // Compute sport display label from current template ID (avoids UUID-in-trigger bug)
@@ -173,7 +180,17 @@ const LogResultForm: React.FC = () => {
             <FormField label="Element" fieldId="element" required error={form.getError('element')}>
               <Select
                 value={form.data.element ?? ''}
-                onValueChange={val => form.setValue('element', val)}
+                onValueChange={val => {
+                  form.setValue('element', val);
+                  // Elements do not share a level set. Drop a level the new element can't run
+                  // rather than submitting an element/level pair that has no class.
+                  if (
+                    form.data.level &&
+                    !levelOptionsForTemplate(selectedTemplate, val).includes(form.data.level)
+                  ) {
+                    form.setValue('level', '');
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select element" />
@@ -195,7 +212,7 @@ const LogResultForm: React.FC = () => {
                 <SelectValue placeholder="Select level" />
               </SelectTrigger>
               <SelectContent>
-                {selectedTemplate.levels.map(lv => (
+                {levelOptions.map(lv => (
                   <SelectItem key={lv} value={lv}>
                     {lv}
                   </SelectItem>

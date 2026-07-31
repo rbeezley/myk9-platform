@@ -12,6 +12,7 @@ import {
   type QualifyingLeg,
   type TitleProgressResult,
 } from '@/services/titleEngine';
+import { levelResolverForTemplate } from '@/features/registries/elementLevels';
 
 export function useTitleProgress(dogId: string) {
   const {
@@ -76,7 +77,12 @@ export function useTitleProgress(dogId: string) {
       const sportLegs = allLegs.filter(
         leg => !leg.sport_template_id || leg.sport_template_id === template.id
       );
-      const progress = computeTitleProgress(sportLegs, sportTitles, template.levels);
+      // Levels come from the registry config, per element — NOT from `template.levels`, which
+      // is only the grid elements' set. UKC "Excellent Handler Discrimination" and AKC
+      // "Detective" have no level in that flat column, so titles for those elements could
+      // never resolve a level and never counted a leg.
+      const levels = levelResolverForTemplate(template, template.levels);
+      const progress = computeTitleProgress(sportLegs, sportTitles, levels);
       if (progress.length > 0) {
         result[template.id] = progress;
       }

@@ -88,6 +88,26 @@ describe('useSendUserInvitation', () => {
     );
   });
 
+  it('names the address the backend actually delivered to', async () => {
+    // Drifted contact email: the toast must not claim the new address.
+    mockSupabase.functions.invoke.mockResolvedValue({
+      data: { outcome: 'reinvited', deliveredTo: 'old.address@example.test' },
+      error: null,
+    });
+    const { result } = renderHook(() => useSendUserInvitation(), { wrapper });
+
+    act(() => result.current.sendInvitation(ARGS));
+
+    await waitFor(() =>
+      expect(notifications.success).toHaveBeenCalledWith(
+        expect.stringContaining('old.address@example.test')
+      )
+    );
+    expect(notifications.success).not.toHaveBeenCalledWith(
+      expect.stringContaining('pat@example.test')
+    );
+  });
+
   it('refuses to call the function when there is no email on file', async () => {
     const { result } = renderHook(() => useSendUserInvitation(), { wrapper });
 

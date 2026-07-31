@@ -29,6 +29,8 @@ export interface SendInvitationArgs {
 
 interface InviteResponse {
   outcome?: 'invited' | 'reinvited';
+  /** The address the link actually went to — may differ from the contact email. */
+  deliveredTo?: string;
 }
 
 export function useSendUserInvitation() {
@@ -57,10 +59,15 @@ export function useSendUserInvitation() {
       return { data: data as InviteResponse | null, email };
     },
     onSuccess: ({ data, email }) => {
+      // Name the address the backend ACTUALLY delivered to. It differs from the
+      // contact email whenever that address drifted from the auth identity, and
+      // announcing the wrong one would be the same lie this feature exists to
+      // stop telling.
+      const deliveredTo = data?.deliveredTo ?? email;
       notifications.success(
         data?.outcome === 'reinvited'
-          ? `Sign-in link sent to ${email}.`
-          : `Invitation sent to ${email}.`
+          ? `Sign-in link sent to ${deliveredTo}.`
+          : `Invitation sent to ${deliveredTo}.`
       );
       // The person now has an auth identity, so the sign-in state shown on the
       // page is stale.

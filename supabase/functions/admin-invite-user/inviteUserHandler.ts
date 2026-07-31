@@ -61,6 +61,13 @@ export type InviteOutcome = 'invited' | 'reinvited';
 export interface InviteUserResult {
   ok: true;
   outcome: InviteOutcome;
+  /**
+   * The address the link was ACTUALLY sent to. It differs from the requested
+   * email whenever the contact address drifted from the auth identity, and the
+   * UI must show this rather than what it asked for — telling an operator the
+   * link went somewhere it did not is the failure MYK9-131 was about.
+   */
+  deliveredTo: string;
 }
 
 export interface InviteUserDeps {
@@ -150,13 +157,20 @@ export function resolveInviteRedirect(siteUrl: string, safePath: string): string
  * 500 on what the operator asked to be a resend.
  *
  * Resolving through `auth_user_id` makes a resend depend on identity, not on an
- * editable field. Returns null when the person has no identity yet, which is
- * the ordinary first-invite case.
+ * editable field.
+ *
+ * FAILS CLOSED. A lookup error must NOT read as "no identity": that would fall
+ * back to inviting the editable contact email and re-enter the exact
+ * duplicate-identity path above, on a transient database blip. `none` is
+ * reserved for a person genuinely without an identity — the ordinary
+ * first-invite case.
  */
+type IdentityLookup = { status: 'none' } | { status: 'found'; email: string } | { status: 'error' };
+
 async function resolveIdentityEmail(
   supabase: HandlerCtx<InviteUserRequest>['supabase'],
   personId: string
-): Promise<string | null> {
+): Promise<IdentityLookup> {
   const { data: person, error } = await supabase
     .from('people')
     .select('auth_user_id')
@@ -164,14 +178,18 @@ async function resolveIdentityEmail(
     .is('deleted_at', null)
     .maybeSingle();
 
-  if (error || !person?.auth_user_id) return null;
+  if (error) return { status: 'error' };
+  if (!person) return { status: 'error' };
+  if (!person.auth_user_id) return { status: 'none' };
 
   const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(
     person.auth_user_id
   );
-  if (authError) return null;
+  // An identity that exists but has no email cannot receive a link either —
+  // that is a broken state, not an invitation opportunity.
+  if (authError || !authUser?.user?.email) return { status: 'error' };
 
-  return authUser?.user?.email ?? null;
+  return { status: 'found', email: authUser.user.email };
 }
 
 /** GoTrue signals "this email already has an auth user" in several shapes. */
@@ -205,7 +223,17 @@ export async function inviteUserHandler(
 
   // An existing identity wins over the request's contact email — see
   // resolveIdentityEmail for why they can disagree.
-  const identityEmail = body.personId ? await resolveIdentityEmail(supabase, body.personId) : null;
+  const lookup: IdentityLookup = body.personId
+    ? await resolveIdentityEmail(supabase, body.personId)
+    : { status: 'none' };
+
+  if (lookup.status === 'error') {
+    // Abort rather than guess. Falling back to the contact email here is what
+    // creates the duplicate identity this resolution exists to prevent.
+    throw new HttpError(503, 'Could not verify this account. Please try again.');
+  }
+
+  const identityEmail = lookup.status === 'found' ? lookup.email : null;
   const email = identityEmail ?? requestedEmail;
 
   // Only allow same-origin destinations; a caller-supplied absolute URL would
@@ -313,5 +341,5 @@ export async function inviteUserHandler(
   // Deliberately does NOT return the action link (unlike admin-generate-reset-link):
   // an invitation link is a single-use credential for an identity nobody has
   // claimed yet, and it has no reason to travel back through the browser.
-  return { ok: true, outcome };
+  return { ok: true, outcome, deliveredTo: email };
 }

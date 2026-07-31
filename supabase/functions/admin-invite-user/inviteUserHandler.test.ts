@@ -170,7 +170,11 @@ describe('inviteUserHandler — invitation', () => {
 
     const result = await invoke(supabase, deps, { email: 'New.Secretary@Example.test' });
 
-    expect(result).toEqual({ ok: true, outcome: 'invited' });
+    expect(result).toEqual({
+      ok: true,
+      outcome: 'invited',
+      deliveredTo: 'new.secretary@example.test',
+    });
     expect(generateLink).toHaveBeenCalledTimes(1);
     expect(generateLink).toHaveBeenCalledWith({
       type: 'invite',
@@ -234,7 +238,11 @@ describe('inviteUserHandler — idempotency', () => {
 
     // Reported distinctly so the UI can say "already had an account" instead of
     // claiming a fresh invite went out.
-    expect(result).toEqual({ ok: true, outcome: 'reinvited' });
+    expect(result).toEqual({
+      ok: true,
+      outcome: 'reinvited',
+      deliveredTo: 'new.secretary@example.test',
+    });
     expect(generateLink).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'magiclink' }));
   });
 
@@ -247,7 +255,7 @@ describe('inviteUserHandler — idempotency', () => {
     });
     const { deps } = makeDeps();
 
-    await expect(invoke(supabase, deps)).resolves.toEqual({ ok: true, outcome: 'reinvited' });
+    await expect(invoke(supabase, deps)).resolves.toMatchObject({ outcome: 'reinvited' });
   });
 
   it('uses a different idempotency key for a re-invite so it is not swallowed', async () => {
@@ -451,7 +459,7 @@ describe('inviteUserHandler — identity vs contact email (MYK9-134)', () => {
     expect(generateLink).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'magiclink', email: 'old.address@example.test' })
     );
-    expect(result).toEqual({ ok: true, outcome: 'reinvited' });
+    expect(result).toMatchObject({ outcome: 'reinvited', deliveredTo: 'old.address@example.test' });
   });
 
   it('does not attempt an invite for someone who already has an identity', async () => {
@@ -485,7 +493,7 @@ describe('inviteUserHandler — identity vs contact email (MYK9-134)', () => {
     expect(generateLink).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'invite', email: 'fresh@example.test' })
     );
-    expect(result).toEqual({ ok: true, outcome: 'invited' });
+    expect(result).toMatchObject({ outcome: 'invited', deliveredTo: 'fresh@example.test' });
   });
 
   it('ignores identity resolution entirely when no personId is supplied', async () => {
@@ -496,5 +504,51 @@ describe('inviteUserHandler — identity vs contact email (MYK9-134)', () => {
     await invoke(supabase, deps, { email: 'brand.new@example.test' });
 
     expect(getUserById).not.toHaveBeenCalled();
+  });
+});
+
+describe('inviteUserHandler — truthful delivery address + fail-closed lookup', () => {
+  it('reports the identity address it actually delivered to, not the one asked for', async () => {
+    // The operator must not be told the link went to the address they see on
+    // the person record when it went to the drifted auth address.
+    const { supabase } = makeSupabase({
+      targetPerson: { auth_user_id: 'auth-1' },
+      identityUser: { user: { email: 'old.address@example.test' } },
+      linkResults: [{ data: MAGIC_LINK, error: null }],
+    });
+    const { deps } = makeDeps();
+
+    const result = await invoke(supabase, deps, {
+      email: 'new.address@example.test',
+      personId: 'person-1',
+    });
+
+    expect(result.deliveredTo).toBe('old.address@example.test');
+  });
+
+  it('aborts when the person lookup errors instead of inviting the contact email', async () => {
+    // Failing open here re-enters the duplicate-identity path this resolution
+    // exists to prevent — on a transient database blip.
+    const { supabase, generateLink } = makeSupabase({ targetPerson: null });
+    const { deps, sendEmail } = makeDeps();
+
+    await expect(
+      invoke(supabase, deps, { email: 'pat@example.test', personId: 'person-1' })
+    ).rejects.toMatchObject({ status: 503 });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('aborts when the identity exists but has no email', async () => {
+    const { supabase, generateLink } = makeSupabase({
+      targetPerson: { auth_user_id: 'auth-1' },
+      identityUser: { user: null },
+    });
+    const { deps } = makeDeps();
+
+    await expect(
+      invoke(supabase, deps, { email: 'pat@example.test', personId: 'person-1' })
+    ).rejects.toMatchObject({ status: 503 });
+    expect(generateLink).not.toHaveBeenCalled();
   });
 });

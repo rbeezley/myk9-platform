@@ -5,6 +5,7 @@ import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
+import { resolvePremiumGenerationAuthorization } from './authz.ts';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -28,9 +29,7 @@ handle<GeneratePremiumPayload>(
       throw new HttpError(500, 'Service configuration error');
     }
 
-    // Step 3: Create user-scoped client. All reads in this function go through
-    // RLS, so authorization is enforced by the same policies as the rest of the
-    // app — no separate role-name allowlist to drift from migrations 156/163.
+    // Step 3: Create user-scoped client for reads that should respect RLS.
     // The envelope's `supabase` is service-role and bypasses RLS, so we build a
     // user-scoped client here using the caller's Authorization header.
     const authHeader = req.headers.get('authorization')!;
@@ -46,10 +45,31 @@ handle<GeneratePremiumPayload>(
       throw new HttpError(400, 'show_id is required');
     }
 
-    // Step 6: Fetch show data with nested relations.
-    // RLS gates this query — if the user isn't a site admin, club admin, or
-    // secretary for the show's club, no row is returned and we treat that the
-    // same as "not found." This collapses authorization into a single check.
+    // Step 5b: Authorize BEFORE anything costly. This endpoint spends money, so
+    // the check runs ahead of the show fetch, the rate limiter and the model
+    // call — a denied caller costs one round trip and is never recorded as an
+    // attempt. See authz.ts for why the old "RLS gates the show fetch" reasoning
+    // was wrong (SA-2026-07-29-11 / MYK9-125).
+    const authz = await resolvePremiumGenerationAuthorization({
+      user,
+      showId: show_id,
+      client: userClient,
+    });
+
+    if (!authz.authorized) {
+      if (authz.reason === 'check-failed') {
+        console.error('Premium authorization check failed:', { show_id });
+      }
+      throw new HttpError(
+        403,
+        authz.reason === 'anonymous'
+          ? 'Premium generation requires a full account'
+          : 'Not authorized to generate a premium for this show'
+      );
+    }
+
+    // Step 6: Fetch show data with nested relations. Authorization already
+    // happened above; a miss here is a genuine not-found.
     const { data: show, error: showError } = await userClient
       .from('shows')
       .select(

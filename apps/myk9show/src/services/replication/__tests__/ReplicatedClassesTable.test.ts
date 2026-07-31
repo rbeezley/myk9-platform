@@ -198,8 +198,15 @@ describe('ReplicatedClassesTable', () => {
         await classesTable.sync('trial-1');
 
         expect(mockSupabaseFrom).toHaveBeenCalledWith('classes');
-        expect(mockSupabaseSelect).toHaveBeenCalledWith(
-          '*, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
+        // Named columns, never `*`: authenticated has no SELECT on num_hides
+        // (20260731160000, MYK9-127), so a star select 42501s for every user.
+        // Assert that explicitly — a regression here is a silent sync outage.
+        const selectArg = mockSupabaseSelect.mock.calls[0]?.[0] as string;
+        expect(selectArg).not.toContain('*,');
+        expect(selectArg).not.toContain('num_hides');
+        expect(selectArg).toContain('hides_known');
+        expect(selectArg).toContain(
+          'judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
         );
         expect(mockSupabaseGt).toHaveBeenCalledWith('updated_at', expect.any(String));
         expect(mockSupabaseOrder).toHaveBeenCalledWith('updated_at', { ascending: true });

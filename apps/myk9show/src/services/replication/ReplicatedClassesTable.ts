@@ -20,6 +20,8 @@ import {
   resolveVisibilityForClassRows,
   type ResolvedClassVisibility,
 } from './resolveClassVisibility';
+import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
+import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -438,8 +440,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('classes')
+          // Not `*`: authenticated has no SELECT on num_hides (20260731160000), so a
+          // star select now fails 42501 for every user. The count comes back through
+          // resolveHideCountsForClassRows below, for officials only.
           .select(
-            '*, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))'
+            `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))`
           )
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });
@@ -469,8 +474,21 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           return new Map<string, ResolvedClassVisibility>();
         });
 
+        // num_hides is no longer on the class row (20260731160000). Officials get it
+        // from the show-scoped RPC and it is merged here, so a judge's device still
+        // has the count offline; an exhibitor's map is empty and their IndexedDB
+        // never receives it.
+        const hideCountByClassId = await resolveHideCountsForClassRows(rows).catch(() => {
+          logger.warn(
+            `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,
+            'replication'
+          );
+          return new Map<string, number>();
+        });
+
         return rows.map(row => ({
           ...row,
+          num_hides: hideCountByClassId.get(String(row.id)) ?? null,
           _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
           _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
         }));

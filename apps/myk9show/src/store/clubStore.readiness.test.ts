@@ -187,4 +187,70 @@ describe('clubStore.ensureClubsReady', () => {
     expect(retry.status).toBe('fresh');
     expect(replication.sync).toHaveBeenCalledTimes(2);
   });
+
+  // QA-CLUB-PAYMENTS-041. Consumers conditionally MOUNT on this readiness
+  // (useValidatedClubContext -> ClubPaymentsPage), so a revalidation that dips
+  // back to 'loading' unmounts their subtree and destroys local state. It
+  // presented as the payment-setup buttons "doing nothing": the checklist opened
+  // and was immediately discarded by a remount.
+  describe('does not flap readiness back to loading once data is on screen', () => {
+    async function settleReady() {
+      localRows = [clubRow];
+      const first = await useClubStore.getState().ensureClubsReady();
+      expect(first.status).toBe('fresh');
+      expect(useClubStore.getState().clubReadiness).toBe('fresh');
+    }
+
+    it('keeps readiness at fresh across a repeat call', async () => {
+      await settleReady();
+
+      const seen: string[] = [];
+      const unsubscribe = useClubStore.subscribe(state => seen.push(state.clubReadiness));
+
+      await useClubStore.getState().ensureClubsReady();
+      unsubscribe();
+
+      expect(seen).not.toContain('loading');
+      expect(useClubStore.getState().clubReadiness).toBe('fresh');
+    });
+
+    it('keeps readiness at fresh across a forced refresh', async () => {
+      await settleReady();
+
+      const seen: string[] = [];
+      const unsubscribe = useClubStore.subscribe(state => seen.push(state.clubReadiness));
+
+      await useClubStore.getState().ensureClubsReady({ force: true });
+      unsubscribe();
+
+      // force re-syncs, but the treasurer's card must stay mounted while it does.
+      expect(seen).not.toContain('loading');
+      expect(replication.sync).toHaveBeenCalled();
+    });
+
+    it('still announces loading on the initial load, when there is nothing to show', async () => {
+      const seen: string[] = [];
+      const unsubscribe = useClubStore.subscribe(state => seen.push(state.clubReadiness));
+
+      localRows = [clubRow];
+      await useClubStore.getState().ensureClubsReady();
+      unsubscribe();
+
+      expect(seen).toContain('loading');
+    });
+
+    it('still announces loading when retrying from an unavailable state', async () => {
+      // No usable data: the operator asked for a retry and should see progress.
+      useClubStore.setState({ clubs: [], clubReadiness: 'unavailable' });
+
+      const seen: string[] = [];
+      const unsubscribe = useClubStore.subscribe(state => seen.push(state.clubReadiness));
+
+      localRows = [clubRow];
+      await useClubStore.getState().ensureClubsReady({ force: true });
+      unsubscribe();
+
+      expect(seen).toContain('loading');
+    });
+  });
 });

@@ -95,6 +95,7 @@ describe('sendOperatorReply', () => {
       openTickets: vi.fn(),
       messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
       insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
+      updateTicketStatus: vi.fn().mockResolvedValue(undefined),
     };
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -120,6 +121,7 @@ describe('sendOperatorReply', () => {
           message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
         ]),
       insertOperatorMessage: vi.fn(),
+      updateTicketStatus: vi.fn(),
     };
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -136,6 +138,7 @@ describe('sendOperatorReply', () => {
       openTickets: vi.fn(),
       messagesFor: vi.fn().mockResolvedValue([]),
       insertOperatorMessage: vi.fn(),
+      updateTicketStatus: vi.fn(),
     };
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -147,11 +150,99 @@ describe('sendOperatorReply', () => {
     expect(source.insertOperatorMessage).not.toHaveBeenCalled();
   });
 
+  it('aborts when the guard rejects the freshly-read thread', async () => {
+    // The exhibitor came back with a carve-out trigger while we were classifying.
+    const source = {
+      openTickets: vi.fn(),
+      messagesFor: vi.fn().mockResolvedValue([
+        message({ id: 'm1', created_at: '2026-08-01T10:00:00.000Z' }),
+        message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
+        message({
+          id: 'm3',
+          body: 'Actually I want a refund',
+          created_at: '2026-08-01T10:10:00.000Z',
+        }),
+      ]),
+      insertOperatorMessage: vi.fn(),
+      updateTicketStatus: vi.fn(),
+    };
+    const result = await sendOperatorReply(
+      { ticket: TICKET, messages: [message({ id: 'm1' })] },
+      'Here you go.',
+      'operator-1',
+      source,
+      () => false
+    );
+    expect(result).toBe('skipped_guard_rejected');
+    expect(source.insertOperatorMessage).not.toHaveBeenCalled();
+  });
+
+  it('passes the freshly-read thread to the guard, not the stale copy', async () => {
+    const fresh = [
+      message({ id: 'm1', created_at: '2026-08-01T10:00:00.000Z' }),
+      message({ id: 'm3', body: 'new reply', created_at: '2026-08-01T10:10:00.000Z' }),
+    ];
+    const source = {
+      openTickets: vi.fn(),
+      messagesFor: vi.fn().mockResolvedValue(fresh),
+      insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
+      updateTicketStatus: vi.fn().mockResolvedValue(undefined),
+    };
+    const guard = vi.fn().mockReturnValue(true);
+    await sendOperatorReply(
+      { ticket: TICKET, messages: [message({ id: 'm1' })] },
+      'Here you go.',
+      'operator-1',
+      source,
+      guard
+    );
+    expect(guard).toHaveBeenCalledTimes(1);
+    expect(guard.mock.calls[0][0].messages.map((m: { id: string }) => m.id)).toEqual(['m1', 'm3']);
+  });
+
+  it('marks the ticket waiting after a successful send', async () => {
+    const source = {
+      openTickets: vi.fn(),
+      messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
+      insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
+      updateTicketStatus: vi.fn().mockResolvedValue(undefined),
+    };
+    await sendOperatorReply(
+      { ticket: TICKET, messages: [message({ id: 'm1' })] },
+      'Here you go.',
+      'operator-1',
+      source
+    );
+    expect(source.updateTicketStatus).toHaveBeenCalledWith('ticket-1', 'waiting');
+  });
+
+  it('does not mark the ticket waiting when the send was skipped', async () => {
+    const source = {
+      openTickets: vi.fn(),
+      messagesFor: vi
+        .fn()
+        .mockResolvedValue([
+          message({ id: 'm1' }),
+          message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
+        ]),
+      insertOperatorMessage: vi.fn(),
+      updateTicketStatus: vi.fn(),
+    };
+    await sendOperatorReply(
+      { ticket: TICKET, messages: [message({ id: 'm1' })] },
+      'Here you go.',
+      'operator-1',
+      source
+    );
+    expect(source.updateTicketStatus).not.toHaveBeenCalled();
+  });
+
   it('re-reads the live thread rather than trusting the in-memory copy', async () => {
     const source = {
       openTickets: vi.fn(),
       messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
       insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
+      updateTicketStatus: vi.fn().mockResolvedValue(undefined),
     };
     await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },

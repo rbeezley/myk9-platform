@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { renderClusterEmail, renderDraftEmail, sendEmail } from './notify';
+import {
+  renderCapReachedEmail,
+  renderCarveOutEmail,
+  renderClusterEmail,
+  renderDraftEmail,
+  sendEmail,
+} from './notify';
 import type { SupportTicket } from './types';
 
 const TICKET: SupportTicket = {
@@ -63,6 +69,42 @@ describe('renderDraftEmail', () => {
   it('url-encodes the ticket id in the deep link', () => {
     const email = renderDraftEmail({ ...TICKET, id: 'a b&c' }, 'draft', 'label', CONFIG.appUrl);
     expect(email.html).toContain('ticketId=a%20b%26c');
+  });
+});
+
+describe('renderCarveOutEmail', () => {
+  it('names the reason and links the ticket, with no draft', () => {
+    const email = renderCarveOutEmail(TICKET, 'payment_or_refund', CONFIG.appUrl);
+    expect(email.subject).toContain('needs you');
+    expect(email.html).toContain('Payment or refund');
+    expect(email.html).toContain('/admin/support?ticketId=ticket-1');
+    expect(email.html).toContain('No draft was generated');
+  });
+
+  it('escapes exhibitor-supplied text in the subject', () => {
+    const email = renderCarveOutEmail(
+      { ...TICKET, subject: '<script>alert(1)</script>' },
+      'show_day_priority',
+      CONFIG.appUrl
+    );
+    expect(email.html).not.toContain('<script>');
+  });
+
+  it('has wording for every carve-out reason', () => {
+    for (const reason of ['payment_or_refund', 'show_day_priority', 'repeat_question'] as const) {
+      const email = renderCarveOutEmail(TICKET, reason, CONFIG.appUrl);
+      expect(email.html).not.toContain('undefined');
+    }
+  });
+});
+
+describe('renderCapReachedEmail', () => {
+  it('states how many were sent and that sending resumes', () => {
+    const email = renderCapReachedEmail(3, CONFIG.appUrl);
+    expect(email.subject).toContain('cap reached');
+    expect(email.html).toContain('3 automatic replies');
+    expect(email.html).toContain('resume');
+    expect(email.html).toContain('https://app.example.com/admin/support');
   });
 });
 

@@ -1,5 +1,5 @@
 import type { TicketCluster } from './cluster';
-import type { SupportTicket } from './types';
+import type { CarveOutReason, SupportTicket } from './types';
 
 export interface NotifyConfig {
   apiKey: string;
@@ -26,6 +26,45 @@ export function renderDraftEmail(
       `<blockquote style="white-space:pre-wrap">${escapeHtml(draft)}</blockquote>`,
       `<p><a href="${link}">Open this ticket in the support inbox</a></p>`,
       '<p style="color:#666">Nothing was sent to the exhibitor. Review and reply from the inbox.</p>',
+    ].join('\n'),
+  };
+}
+
+const CARVE_OUT_REASONS: Record<CarveOutReason, string> = {
+  payment_or_refund: 'Payment or refund — needs your judgement, never auto-answered.',
+  show_day_priority: 'Show-day priority — flagged urgent, never auto-answered.',
+  repeat_question:
+    'The exhibitor replied again after an earlier answer — auto-answering would read as being brushed off.',
+};
+
+// INTENT: Carved-out tickets are never sent to the model, so there is no draft to show.
+// The operator gets the reason and a link instead.
+export function renderCarveOutEmail(
+  ticket: SupportTicket,
+  reason: CarveOutReason,
+  appUrl: string
+): { subject: string; html: string } {
+  return {
+    subject: `[myK9 support — needs you] ${ticket.subject}`,
+    html: [
+      `<p><strong>Held for you:</strong> ${escapeHtml(CARVE_OUT_REASONS[reason])}</p>`,
+      `<p><strong>Subject:</strong> ${escapeHtml(ticket.subject)}</p>`,
+      `<p><a href="${ticketLink(appUrl, ticket.id)}">Open this ticket in the support inbox</a></p>`,
+      '<p style="color:#666">No draft was generated and nothing was sent to the exhibitor.</p>',
+    ].join('\n'),
+  };
+}
+
+export function renderCapReachedEmail(
+  autoSent: number,
+  appUrl: string
+): { subject: string; html: string } {
+  return {
+    subject: '[myK9 support] auto-send cap reached — remaining tickets skipped',
+    html: [
+      `<p>The triage agent sent ${autoSent} automatic replies this pass and stopped at its cap.</p>`,
+      '<p>Further matching tickets were skipped entirely — not sent, and not drafted. The cap resets on the next pass, so sending will resume in about 15 minutes unless you intervene.</p>',
+      `<p><a href="${appUrl.replace(/\/$/, '')}/admin/support">Open the support inbox</a></p>`,
     ].join('\n'),
   };
 }

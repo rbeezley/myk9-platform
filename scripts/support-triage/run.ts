@@ -9,7 +9,13 @@ import {
   sendOperatorReply,
   type SupportDataSource,
 } from './gateway';
-import { renderClusterEmail, renderDraftEmail, sendEmail } from './notify';
+import {
+  renderCapReachedEmail,
+  renderCarveOutEmail,
+  renderClusterEmail,
+  renderDraftEmail,
+  sendEmail,
+} from './notify';
 import { clusterKey, readState, writeState, type TriageState } from './state';
 import type { TicketThread } from './types';
 
@@ -61,15 +67,32 @@ export async function runPass(deps: RunDeps): Promise<RunSummary> {
   };
 
   for (const thread of threads) {
+    const latest = latestExhibitorMessageId(thread);
     const carveOut = carveOutFor(thread);
-    if (carveOut) summary.carvedOut += 1;
+
+    // INTENT: A carved-out ticket can never auto-send, so there is nothing for the
+    // model to decide. Skipping the call here also keeps payment-related ticket text
+    // out of the API entirely.
+    if (carveOut) {
+      summary.carvedOut += 1;
+      if (latest && !drafted.has(latest)) {
+        const email = renderCarveOutEmail(thread.ticket, carveOut, deps.appUrl);
+        await deps.notify(email.subject, email.html);
+        drafted.add(latest);
+        summary.drafted += 1;
+      }
+      continue;
+    }
+
+    // Already drafted on an earlier pass and still unanswered — the operator has the
+    // draft. Skipping before classify avoids a model call per ticket per 15 minutes,
+    // for as long as the ticket stays open.
+    if (!latest || drafted.has(latest)) continue;
 
     const classification = await deps.classify(thread);
 
-    // INTENT: A carved-out ticket can never reach the send path, regardless of what
-    // the model returned. The check lives here in code, not in the model prompt.
     const promoted =
-      carveOut === null && classification.kind === 'canned'
+      classification.kind === 'canned'
         ? findAutoSendableAnswer(classification.answerId, answers)
         : null;
 
@@ -78,18 +101,19 @@ export async function runPass(deps: RunDeps): Promise<RunSummary> {
         summary.capReached = true;
         continue;
       }
+      // INTENT: The carve-out above was evaluated against a snapshot taken before the
+      // classification round-trip. Re-check it against the freshly-read thread so a
+      // carve-out trigger that arrived mid-pass still blocks the send.
       const result = await sendOperatorReply(
         thread,
         promoted.reply,
         deps.operatorUserId,
-        deps.source
+        deps.source,
+        fresh => carveOutFor(fresh) === null
       );
       if (result === 'sent') summary.autoSent += 1;
       continue;
     }
-
-    const latest = latestExhibitorMessageId(thread);
-    if (!latest || drafted.has(latest)) continue;
 
     const draftText =
       classification.kind === 'novel'
@@ -104,7 +128,18 @@ export async function runPass(deps: RunDeps): Promise<RunSummary> {
     summary.drafted += 1;
   }
 
-  for (const cluster of detectClusters(tickets, deps.now)) {
+  // INTENT: The cap exists to bound a runaway, and a runaway is exactly when the
+  // operator most needs to hear about it. Without this the only signal is a line in a
+  // CI log nobody reads.
+  if (summary.capReached) {
+    const email = renderCapReachedEmail(summary.autoSent, deps.appUrl);
+    await deps.notify(email.subject, email.html);
+  }
+
+  // Cluster over tickets still awaiting a reply, not every open ticket — a ticket the
+  // agent already answered is not evidence that users are currently blocked.
+  const unanswered = threads.map(thread => thread.ticket);
+  for (const cluster of detectClusters(unanswered, deps.now)) {
     const key = clusterKey(cluster.showId, cluster.newestCreatedAt);
     if (alerted.has(key)) continue;
     const email = renderClusterEmail(cluster, deps.appUrl);
@@ -177,7 +212,10 @@ async function main(): Promise<void> {
 // exactly where the operator can still see them.
 if (process.env.VITEST !== 'true' && process.argv[1]?.includes('support-triage')) {
   main().catch((error: unknown) => {
-    console.error('support-triage pass failed:', error);
+    // Log message and stack only. Some SDK error objects carry request headers as
+    // properties; logging the object wholesale could put a credential in CI output.
+    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+    console.error('support-triage pass failed:', detail);
     process.exitCode = 1;
   });
 }

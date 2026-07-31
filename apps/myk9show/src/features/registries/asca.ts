@@ -34,6 +34,18 @@ function levelCForLevels(levelKeys: readonly string[]): Record<string, readonly 
 
 // Levels are disjoint from AKC/UKC: 'Open' and 'Champion' are ASCA-only. Champion is a separate
 // points-based level (no Level C), modeled as a standalone element below.
+//
+// DO NOT DELETE Champion because the rulebook extract seems to lack it. The copy at
+// docs/rulebooks/asca-scent-detection-rules.txt PREDATES the amendment that added it — that
+// extract's §9 is Faults, whereas the June 2026 rules add Chapter 9 "Champion Detection
+// Level" (motion SC.26.01). The source of record is
+// docs/design_handoff_heritage/Multi-Registry Scoping.md §9.2–9.3, which documents all five
+// levels and Champion's points-based scoring. This was deleted once on the strength of the
+// stale extract and had to be reverted.
+//
+// Champion is also NOT seeded into sport_templates, by decision rather than omission — see
+// 20260701130000_seed_asca_level_c_classes.sql: it is titling/invitational, not a
+// separately-scheduled class. registryDbParityContract.test.ts pins that asymmetry.
 const ASCA_LEVELS: readonly LevelSpec[] = [
   { key: 'novice', label: 'Novice', order: 1 },
   { key: 'open', label: 'Open', order: 2 },

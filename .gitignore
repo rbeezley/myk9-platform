@@ -93,3 +93,6 @@ tmpclaude-*-cwd
 .agents/*
 !.agents/agents/
 !.agents/agents/**
+
+# Local support-triage pass state (regenerated every run; safe to delete)
+.support-triage/

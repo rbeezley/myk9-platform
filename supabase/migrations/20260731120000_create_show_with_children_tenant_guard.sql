@@ -32,6 +32,11 @@
 --   * Class: on conflict, require the existing class's trial_id to equal the
 --            trial_id the payload claims, so a class cannot be re-parented.
 --
+-- All three lookups take FOR UPDATE. Nothing later in this function mutates a
+-- conflicting class's trial_id, so that third lock is defence in depth rather
+-- than a live race -- but the three checks are one rule applied at three depths
+-- and a reader should not have to work out why one of them is weaker.
+--
 -- RETRY SEMANTICS (the explicit decision this fix required).
 -- Idempotent replay is validated on GRAPH OWNERSHIP, not on full payload
 -- equality. A conflicting node is accepted when it already sits in the same
@@ -260,7 +265,8 @@ BEGIN
     IF v_inserted_class_id IS NULL THEN
       SELECT trial_id INTO v_existing_trial_id
       FROM public.classes
-      WHERE id = v_class_id;
+      WHERE id = v_class_id
+      FOR UPDATE;
 
       IF v_existing_trial_id IS NULL OR v_existing_trial_id IS DISTINCT FROM v_class_trial_id THEN
         RAISE EXCEPTION 'class % does not belong to trial %', v_class_id, v_class_trial_id

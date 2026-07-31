@@ -971,6 +971,15 @@ describe('titleEngine', () => {
       expect(inferLevelFromTitle(title, ['Novice', 'Élite'])).toBe('Élite');
     });
 
+    it('keeps non-ASCII labels bounded — no match inside a longer word', () => {
+      const title = makeTitle({
+        abbreviation: 'X',
+        full_name: 'Nosework SuperÉlite',
+        required_elements: ['Container'],
+      });
+      expect(inferLevelFromTitle(title, ['Novice', 'Élite'])).toBe(null);
+    });
+
     it('matches whole words only', () => {
       // 'Open' must not match inside 'Opening'; a partial hit would key legs at a level no
       // class uses, which reads as "0 legs" rather than as an error.

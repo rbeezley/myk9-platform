@@ -116,17 +116,19 @@ function escapeRegExp(value: string): string {
 /** Compiled word-boundary matchers, keyed by level label. The label vocabulary is fixed and tiny. */
 const wordMatchers = new Map<string, RegExp>();
 
-/** Index of `needle` in `haystack` on whole-word boundaries, or -1. */
+/**
+ * Index of `needle` in `haystack` on whole-word boundaries, or -1.
+ *
+ * Boundaries are Unicode-aware lookarounds rather than `\b`, which is ASCII-only: an
+ * org-supplied label like "Élite" on the flat-fallback path would never match under `\b`,
+ * while a plain substring search would wrongly match it inside "SuperÉlite".
+ */
 function wordIndexOf(haystack: string, needle: string): number {
   if (!needle) return -1;
   let matcher = wordMatchers.get(needle);
   if (!matcher) {
-    // `\b` is ASCII-only, so a label whose first or last character isn't an ASCII word
-    // character (an org-defined "Élite" on the flat-fallback path) would never match. Those
-    // fall back to a plain substring search rather than silently matching nothing.
     const escaped = escapeRegExp(needle);
-    const anchorable = /^\w/.test(needle) && /\w$/.test(needle);
-    matcher = new RegExp(anchorable ? `\\b${escaped}\\b` : escaped);
+    matcher = new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'u');
     wordMatchers.set(needle, matcher);
   }
   return matcher.exec(haystack)?.index ?? -1;

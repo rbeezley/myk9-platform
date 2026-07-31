@@ -10,10 +10,17 @@ import { levelOptionsForTemplate } from '../LogManualResultPanel.helpers';
  * no-element-selected case, and the one UI-facing regression pin.
  */
 
-// A seeded row, narrowed to the fields the helper reads. `levels` is the flat column.
+// Seeded rows, narrowed to the fields the helper reads. `levels` is the flat column.
 const UKC = {
   sport_code: 'ukc-nosework',
   levels: ['Novice', 'Advanced', 'Superior', 'Master', 'Elite'],
+  elements: ['Container', 'Interior', 'Exterior', 'Vehicle', 'Handler Discrimination'],
+};
+
+const ASCA = {
+  sport_code: 'asca-scent-detection',
+  levels: ['Novice', 'Open', 'Advanced', 'Excellent'],
+  elements: ['Container', 'Interior', 'Exterior', 'Vehicle'],
 };
 
 describe('levelOptionsForTemplate', () => {
@@ -25,11 +32,18 @@ describe('levelOptionsForTemplate', () => {
     expect(options).not.toEqual(UKC.levels);
   });
 
-  it('offers the sport’s full set before an element is chosen, so the picker is never empty', () => {
+  it('spans every element the template offers before one is chosen', () => {
     const options = levelOptionsForTemplate(UKC, '');
-    expect(options).toContain('Superior');
-    expect(options).toContain('Excellent');
+    expect(options).toContain('Superior'); // grid elements
+    expect(options).toContain('Excellent'); // Handler Discrimination
     expect(options).toContain('Elite');
+  });
+
+  it('does not offer a registry level the template has no class for', () => {
+    // ASCA 'Champion' is a real registry level held back from `sport_templates` by decision —
+    // titling/invitational, not a scheduled class. Offering it would let a result be saved
+    // against a level with no class and no title to credit it.
+    expect(levelOptionsForTemplate(ASCA, '')).toEqual(['Novice', 'Open', 'Advanced', 'Excellent']);
   });
 
   it('offers nothing when no template is chosen', () => {

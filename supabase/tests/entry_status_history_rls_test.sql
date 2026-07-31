@@ -12,10 +12,10 @@ VALUES
   ('00000000-0000-0000-0000-000000000602', 'Show Two', 'Secretary', '00000000-0000-0000-0000-000000000502'),
   ('00000000-0000-0000-0000-000000000603', 'Unauthorised', 'Viewer', '00000000-0000-0000-0000-000000000503');
 
-INSERT INTO public.shows (id, name, type, start_date, end_date)
+INSERT INTO public.shows (id, name, organization, start_date, end_date)
 VALUES
-  ('00000000-0000-0000-0000-000000000101', 'History RLS Show One', 'All-Breed', CURRENT_DATE, CURRENT_DATE),
-  ('00000000-0000-0000-0000-000000000102', 'History RLS Show Two', 'All-Breed', CURRENT_DATE, CURRENT_DATE);
+  ('00000000-0000-0000-0000-000000000101', 'History RLS Show One', 'AKC', CURRENT_DATE, CURRENT_DATE),
+  ('00000000-0000-0000-0000-000000000102', 'History RLS Show Two', 'AKC', CURRENT_DATE, CURRENT_DATE);
 
 INSERT INTO public.trials (id, show_id, name, date)
 VALUES

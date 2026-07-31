@@ -25,13 +25,23 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
+# This list is EXHAUSTIVE, not curated: every .sql file in supabase/tests/ must
+# appear here. Adding a test file without registering it is silent — the harness
+# contract test in run-behavioral-sql-tests.test.ts asserts these two lists agree
+# with each other, so a file absent from BOTH still passes green. That gap left
+# four tests dormant until 2026-07-31 (MYK9-130). Keep this list and
+# `launchCriticalSqlTests` in run-behavioral-sql-tests.test.ts in sync.
 TEST_FILES=(
+  "$TEST_DIR/class_status_auto_derivation_test.sql"
   "$TEST_DIR/club_secretary_grant_test.sql"
-  "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
+  "$TEST_DIR/create_show_with_children_tenant_isolation_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
+  "$TEST_DIR/entry_status_history_rls_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"
+  "$TEST_DIR/paperwork_prints_rls_test.sql"
   "$TEST_DIR/pre_rule_table_grants_test.sql"
   "$TEST_DIR/pull_refund_decision_rls_test.sql"
+  "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
   "$TEST_DIR/recoverable_show_access_codes_test.sql"
   "$TEST_DIR/subscription_entitlement_grants_test.sql"
 )

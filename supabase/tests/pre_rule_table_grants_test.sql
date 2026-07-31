@@ -1,8 +1,8 @@
--- MYK9-93: the codified table-grant contract (20260730190000).
+-- MYK9-93: the codified table-grant contract (20260730220000).
 --
 -- This test is the reason the codification migration cannot silently rot. It
 -- runs against a migrations-only database, which is precisely the environment
--- the drift used to break: before 20260730190000, 90 public tables reached a
+-- the drift used to break: before 20260730220000, 90 public tables reached a
 -- rebuilt database with NO authenticated grant at all, so every client read
 -- failed 42501 before RLS was ever consulted, while production worked fine on
 -- pre-migration-era grants that existed in no migration file.
@@ -423,7 +423,7 @@ $$;
 
 -- ===========================================================================
 -- F. Sequences. Same drift class as the tables: no migration ever granted a
---    sequence privilege, so before 20260730190000 a rebuild left all three
+--    sequence privilege, so before 20260730220000 a rebuild left all three
 --    owner-only. The enrollments one is load-bearing -- see the behavioural
 --    probe below, which is the assertion that actually matters here.
 -- ===========================================================================

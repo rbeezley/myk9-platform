@@ -605,7 +605,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
 
 COMMENT ON SCHEMA public IS
   'myK9Show application schema. Table grants for anon, authenticated and '
-  'service_role are codified in migrations as of 20260730190000 (MYK9-93), so '
+  'service_role are codified in migrations as of 20260730220000 (MYK9-93), so '
   'a migrations-only rebuild reproduces the live ACLs. Verify any change '
   'against pg_class.relacl AND pg_attribute.attacl; never REVOKE ALL on '
   'classes, dogs, people or entries, which carry column allowlists.';

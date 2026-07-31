@@ -189,7 +189,7 @@ $$;
 -- an INSERT trips the WITH CHECK and raises 42501, but an UPDATE or DELETE with
 -- no matching policy simply matches nothing and reports success.
 --
--- The MYK9-93 audit (20260730190000) found those write grants were dead: the
+-- The MYK9-93 audit (20260730220000) found those write grants were dead: the
 -- table's only policy, seg_admin_select, covers SELECT. It revoked INSERT,
 -- UPDATE and DELETE from authenticated, so all three now fail at the grant
 -- layer before reaching the table. That is strictly stronger — a write that

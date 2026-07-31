@@ -47,6 +47,25 @@ const rollbackPath = resolve(
   '../../../../../openspec/changes/archive/2026-07-28-consolidate-permissive-rls-policies/rollback.sql'
 );
 
+/**
+ * Later migrations that intentionally change policies on the reviewed tables.
+ *
+ * The tripwire below exists so nobody edits these policies without the
+ * consolidation model being re-reviewed. Recording the migration here IS that
+ * review — it is not a bypass, and the tripwire keeps firing for every file not
+ * listed. Each entry states which reviewed tables it touches and what it changes,
+ * so the next reader can tell at a glance whether the consolidation still holds.
+ */
+const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
+  '20260731180000_exclude_anonymous_sessions_from_account_reads.sql':
+    'MYK9-117 / SA-2026-07-29-02. Adds public.is_real_account() to unconditional SELECT ' +
+    'policies so an anonymous (ringside passcode) session cannot read volunteer PII, the ' +
+    'RBAC catalog or audit data. From this inventory it touches offline_scoring, volunteers, ' +
+    'volunteer_roles, volunteer_class_assignments and volunteer_general_assignments. SELECT ' +
+    'policies only — no INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper changes, so ' +
+    'the consolidation counts this test pins are unaffected.',
+};
+
 const tableCases: TableCase[] = [
   {
     table: 'dogs',
@@ -467,6 +486,28 @@ describe('MYK9-112 permissive-policy consolidation contract', () => {
     expect(actual).toEqual(intentionalPolicyOverlaps);
   });
 
+  it('keeps the reviewed-exception list free of stale entries', () => {
+    // An exception list nobody validates rots into a silent hole: rename or drop
+    // the migration and the tripwire stays disarmed for a file that no longer
+    // exists. Every entry must name a real migration that really does contain
+    // policy DDL on a reviewed table — otherwise it should not be excepted.
+    const existing = new Set(readdirSync(migrationsDir).filter(file => file.endsWith('.sql')));
+    const affected = tableCases.map(entry => entry.table).join('|');
+    const policyDdl = new RegExp(
+      `(?:create|alter|drop)\\s+policy[\\s\\S]{0,160}?on\\s+(?:public\\.)?(?:${affected})\\b`,
+      'i'
+    );
+
+    for (const [file, reason] of Object.entries(reviewedLaterPolicyDdl)) {
+      expect(existing.has(file), `${file}: excepted but no such migration`).toBe(true);
+      expect(reason.length, `${file}: exception needs a reason`).toBeGreaterThan(40);
+      expect(
+        readFileSync(join(migrationsDir, file), 'utf8'),
+        `${file}: excepted but contains no policy DDL on a reviewed table — drop the exception`
+      ).toMatch(policyDdl);
+    }
+  });
+
   it('rejects later policy DDL on the reviewed tables until the model is updated', () => {
     const lastMigration = availabilityMigration;
     const affected = tableCases.map(entry => entry.table).join('|');
@@ -476,6 +517,7 @@ describe('MYK9-112 permissive-policy consolidation contract', () => {
     );
     const laterFiles = readdirSync(migrationsDir)
       .filter(file => file.endsWith('.sql') && file > lastMigration)
+      .filter(file => !(file in reviewedLaterPolicyDdl))
       .sort();
 
     for (const file of laterFiles) {

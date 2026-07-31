@@ -9,10 +9,23 @@ VALUES
   ('00000000-0000-0000-0000-000000000712', 'Second', 'Secretary', '00000000-0000-0000-0000-000000000702'),
   ('00000000-0000-0000-0000-000000000713', 'Other', 'User', '00000000-0000-0000-0000-000000000703');
 
-INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
+-- Separate clubs so the cross-Show denial below cannot be satisfied by a
+-- club-scoped grant leaking across the two Shows.
+INSERT INTO public.clubs (id, name)
 VALUES
-  ('00000000-0000-0000-0000-000000000721', 'Paperwork Show', 'AKC', CURRENT_DATE, CURRENT_DATE, false),
-  ('00000000-0000-0000-0000-000000000722', 'Other Show', 'AKC', CURRENT_DATE, CURRENT_DATE, false);
+  ('00000000-0000-0000-0000-000000000761', 'Paperwork Club'),
+  ('00000000-0000-0000-0000-000000000762', 'Other Paperwork Club');
+
+INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000000721', 'Paperwork Show', 'AKC',
+    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000761'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000722', 'Other Show', 'AKC',
+    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000762'
+  );
 
 INSERT INTO public.trials (id, show_id, name, date)
 VALUES ('00000000-0000-0000-0000-000000000731', '00000000-0000-0000-0000-000000000721', 'Trial 1', CURRENT_DATE);
@@ -20,8 +33,12 @@ VALUES ('00000000-0000-0000-0000-000000000731', '00000000-0000-0000-0000-0000000
 INSERT INTO public.classes (id, trial_id, name, status)
 VALUES ('00000000-0000-0000-0000-000000000741', '00000000-0000-0000-0000-000000000731', 'Container Novice', 'upcoming');
 
-INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
-SELECT person_id, role_id, '00000000-0000-0000-0000-000000000721', true, auth_id
+-- club_id is mandatory for secretary/club_admin grants
+-- (public.enforce_club_id_for_scoped_roles).
+INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
+SELECT
+  person_id, role_id, '00000000-0000-0000-0000-000000000721',
+  '00000000-0000-0000-0000-000000000761', true, auth_id
 FROM (
   VALUES
     ('00000000-0000-0000-0000-000000000711'::uuid, '00000000-0000-0000-0000-000000000701'::uuid),

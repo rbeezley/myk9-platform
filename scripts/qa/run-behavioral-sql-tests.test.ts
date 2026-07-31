@@ -20,9 +20,13 @@ const subscriptionEntitlementFixture = readFileSync(
   resolve(repositoryRoot, 'supabase/tests/subscription_entitlement_grants_test.sql'),
   'utf8'
 );
-// Deliberate second copy of TEST_FILES in run-behavioral-sql-tests.sh. Keep both
-// in sync, and keep both EXHAUSTIVE over supabase/tests/ — the directory-coverage
-// test below is what catches a file added to neither list.
+// Deliberately a second copy of the runner's TEST_FILES list rather than an import
+// of it: the assertion below is what stops a launch-critical test being quietly
+// dropped from the harness. Registering a test means editing BOTH this list and
+// scripts/qa/run-behavioral-sql-tests.sh.
+//
+// Keep both EXHAUSTIVE over supabase/tests/ — that agreement check cannot catch a
+// file added to neither list, so the directory-coverage test below does.
 const launchCriticalSqlTests = [
   'class_status_auto_derivation_test.sql',
   'club_secretary_grant_test.sql',

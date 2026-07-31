@@ -25,12 +25,14 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
+# Explicit, not a glob: a test file added to supabase/tests/ without a line here
+# never executes and reads as coverage. Register new tests here AND in
+# launchCriticalSqlTests in run-behavioral-sql-tests.test.ts.
+#
 # This list is EXHAUSTIVE, not curated: every .sql file in supabase/tests/ must
-# appear here. Adding a test file without registering it is silent — the harness
-# contract test in run-behavioral-sql-tests.test.ts asserts these two lists agree
-# with each other, so a file absent from BOTH still passes green. That gap left
-# four tests dormant until 2026-07-31 (MYK9-130). Keep this list and
-# `launchCriticalSqlTests` in run-behavioral-sql-tests.test.ts in sync.
+# appear. The contract test asserts the two lists agree with EACH OTHER, so a
+# file absent from BOTH still passes green — that gap left four tests dormant
+# until 2026-07-31 (MYK9-130). A directory-coverage assertion now closes it.
 TEST_FILES=(
   "$TEST_DIR/class_status_auto_derivation_test.sql"
   "$TEST_DIR/club_secretary_grant_test.sql"

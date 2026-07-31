@@ -21,8 +21,15 @@ interface MockOptions {
   linkResults?: Array<{ data: unknown; error: { message?: string; code?: string } | null }>;
 }
 
-const INVITE_LINK = { properties: { action_link: 'https://app.test/invite?token=abc' } };
-const MAGIC_LINK = { properties: { action_link: 'https://app.test/magic?token=xyz' } };
+// generateLink returns BOTH action_link and hashed_token. The handler must use
+// hashed_token: action_link points at GoTrue's /verify, which lands the
+// recipient with a URL fragment that AuthCallbackPage does not parse.
+const INVITE_LINK = {
+  properties: { action_link: 'https://gotrue.test/verify?token=raw', hashed_token: 'hash-abc' },
+};
+const MAGIC_LINK = {
+  properties: { action_link: 'https://gotrue.test/verify?token=raw2', hashed_token: 'hash-xyz' },
+};
 
 function makeSupabase(opts: MockOptions = {}) {
   const results = opts.linkResults ?? [{ data: INVITE_LINK, error: null }];
@@ -159,7 +166,12 @@ describe('inviteUserHandler — invitation', () => {
     const init = sendEmail.mock.calls[0][0] as { body: string; headers: Record<string, string> };
     const payload = JSON.parse(init.body);
     expect(payload.to).toBe('new.secretary@example.test');
-    expect(payload.html).toContain('https://app.test/invite?token=abc');
+    // The app's own callback with the query shape AuthCallbackPage parses —
+    // NOT GoTrue's action_link, which redirects with a fragment instead.
+    expect(payload.html).toContain('/auth/callback?');
+    expect(payload.html).toContain('token_hash=hash-abc');
+    expect(payload.html).toContain('type=invite');
+    expect(payload.html).not.toContain('gotrue.test');
     expect(init.headers['Idempotency-Key']).toBe('admin-invite-invited-new.secretary@example.test');
   });
 
@@ -263,7 +275,7 @@ describe('inviteUserHandler — failure modes', () => {
     });
   });
 
-  it('treats a link response with no action_link as a failure', async () => {
+  it('treats a link response with no hashed_token as a failure', async () => {
     const { supabase } = makeSupabase({ linkResults: [{ data: { properties: {} }, error: null }] });
     const { deps } = makeDeps();
 

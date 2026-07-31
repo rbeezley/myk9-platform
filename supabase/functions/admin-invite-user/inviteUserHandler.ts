@@ -38,6 +38,7 @@
 import type { HandlerCtx } from '../_shared/http/handler.ts';
 import type { ResendEmailRequestInit } from '../_shared/resendEmail.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { buildAuthActionUrl } from '../send-auth-email/actionUrl.ts';
 import { buildAdminInviteHtml } from './inviteEmail.ts';
 
 export interface InviteUserRequest {
@@ -158,11 +159,31 @@ export async function inviteUserHandler(
     }));
   }
 
-  const actionLink = linkData?.properties?.action_link;
-  if (linkError || !actionLink) {
+  // Email OUR callback URL built from hashed_token — NOT properties.action_link.
+  //
+  // action_link points at GoTrue's own /verify endpoint, which verifies
+  // server-side and 302s to redirect_to with the session in the URL *fragment*
+  // (#access_token=...&type=invite). AuthCallbackPage only parses the
+  // `?token_hash=&type=` query shape, so an action_link invite lands in its
+  // OAuth branch and routes to `/` — signing the recipient in once and
+  // stranding them, because an invited account has no password yet.
+  //
+  // buildAuthActionUrl produces the query shape the callback page already
+  // understands, and is the same helper send-auth-email uses to render every
+  // other auth email in this repo.
+  const tokenHash = linkData?.properties?.hashed_token;
+  if (linkError || !tokenHash) {
     console.error('generateLink failed', linkError);
     throw new HttpError(500, linkError?.message ?? 'Failed to generate invitation link');
   }
+
+  const actionLink = buildAuthActionUrl(deps.siteUrl, {
+    tokenHash,
+    // A re-invite is a magiclink, which verifies without demanding a password;
+    // a first invite must land on password setup.
+    actionType: outcome === 'reinvited' ? 'magiclink' : 'invite',
+    redirectTo,
+  });
 
   const html = buildAdminInviteHtml({
     firstName: body.firstName ?? '',

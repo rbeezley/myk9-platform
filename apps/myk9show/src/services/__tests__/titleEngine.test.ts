@@ -959,6 +959,18 @@ describe('titleEngine', () => {
       });
     });
 
+    it('still matches a level label that whole-word anchoring cannot express', () => {
+      // `\b` is ASCII-only, so anchoring "Élite" would match nothing at all. Labels on the
+      // flat-fallback path are arbitrary org-supplied strings, so they fall back to a plain
+      // substring search rather than silently resolving to null.
+      const title = makeTitle({
+        abbreviation: 'X',
+        full_name: 'Nosework Élite',
+        required_elements: ['Container'],
+      });
+      expect(inferLevelFromTitle(title, ['Novice', 'Élite'])).toBe('Élite');
+    });
+
     it('matches whole words only', () => {
       // 'Open' must not match inside 'Opening'; a partial hit would key legs at a level no
       // class uses, which reads as "0 legs" rather than as an error.

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration 20260730220000: carry the scent-work hide count through show creation
+-- Migration 20260730230000: carry the scent-work hide count through show creation
 --
 -- PROBLEM: `create_show_with_children` copies the rule-derived scoring fields
 -- (timer_mode, hides_known, distraction_count, num_areas, time_limit_seconds)

@@ -15,6 +15,7 @@ import {
   getOfflineScoringStatistics,
   getPendingScoresFromCache,
   getSyncQueueStatus,
+  MAX_SYNC_ATTEMPTS,
   retainSyncQueueItems,
 } from './offline-scoring-service-helpers';
 
@@ -232,29 +233,46 @@ describe('offline scoring service helpers', () => {
     });
   });
 
-  it('preserves current sync queue status policy', () => {
+  it('counts items with retry budget as pending and exhausted items as failed', () => {
     expect(
       getSyncQueueStatus([
-        queueItem({ id: 'fresh', attempts: 0 }),
-        queueItem({ id: 'attempted', attempts: 1 }),
-        queueItem({ id: 'failed', attempts: 3 }),
+        queueItem({ id: 'unattempted', attempts: 0 }),
+        queueItem({ id: 'mid-retry', attempts: 1 }),
+        queueItem({ id: 'last-chance', attempts: 2 }),
+        queueItem({ id: 'exhausted', attempts: 3 }),
+        queueItem({ id: 'over-exhausted', attempts: 5 }),
       ])
-    ).toEqual({ pending: 1, failed: 2 });
+    ).toEqual({ pending: 3, failed: 2 });
   });
 
-  it('retains fresh queue items and old unattempted queue items during cleanup', () => {
+  it('drops queue items only once they are both retry-exhausted and past the cutoff', () => {
     const cutoff = new Date('2026-06-13T12:00:00.000Z');
     const old = new Date('2026-06-13T10:00:00.000Z');
     const fresh = new Date('2026-06-13T13:00:00.000Z');
 
+    // Never attempted: kept regardless of age — an unsynced judge score is the only copy.
     const oldUnattempted = queueItem({ id: 'old-unattempted', attempts: 0, timestamp: old });
-    const oldAttempted = queueItem({ id: 'old-attempted', attempts: 1, timestamp: old });
-    const freshAttempted = queueItem({ id: 'fresh-attempted', attempts: 2, timestamp: fresh });
+    // Retries remaining: kept despite being old (this regressed before MAX_SYNC_ATTEMPTS).
+    const oldMidRetry = queueItem({ id: 'old-mid-retry', attempts: 1, timestamp: old });
+    // Exhausted but fresh: kept, still inside the cutoff window.
+    const freshExhausted = queueItem({ id: 'fresh-exhausted', attempts: 3, timestamp: fresh });
+    // Exhausted and old: the only prunable shape.
+    const oldExhausted = queueItem({ id: 'old-exhausted', attempts: 3, timestamp: old });
 
-    expect(retainSyncQueueItems([oldUnattempted, oldAttempted, freshAttempted], cutoff)).toEqual([
-      oldUnattempted,
-      freshAttempted,
-    ]);
+    expect(
+      retainSyncQueueItems([oldUnattempted, oldMidRetry, freshExhausted, oldExhausted], cutoff)
+    ).toEqual([oldUnattempted, oldMidRetry, freshExhausted]);
+  });
+
+  it('bounds queue growth: a queue of exhausted, aged items prunes to empty', () => {
+    const cutoff = new Date('2026-06-13T12:00:00.000Z');
+    const old = new Date('2026-06-13T10:00:00.000Z');
+
+    const exhausted = Array.from({ length: 50 }, (_, i) =>
+      queueItem({ id: `exhausted-${i}`, attempts: MAX_SYNC_ATTEMPTS, timestamp: old })
+    );
+
+    expect(retainSyncQueueItems(exhausted, cutoff)).toEqual([]);
   });
 
   it('calculates offline scoring statistics', () => {

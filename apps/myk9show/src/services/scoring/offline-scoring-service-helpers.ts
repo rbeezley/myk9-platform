@@ -199,13 +199,26 @@ export function buildSessionSyncQueueItem({
   };
 }
 
+/**
+ * Retry budget for an offline sync queue item. `SyncQueueItem` carries no
+ * per-item override, so the budget is uniform across the scoring queue.
+ * Matches the retry ceilings used elsewhere in the sync layer
+ * (`backgroundSyncService`, `BatchProcessor`).
+ */
+export const MAX_SYNC_ATTEMPTS = 3;
+
+/** An item that has failed fewer than `MAX_SYNC_ATTEMPTS` times is still retriable. */
+export function hasRetryBudget(item: SyncQueueItem): boolean {
+  return (item.attempts || 0) < MAX_SYNC_ATTEMPTS;
+}
+
 export function getSyncQueueStatus(queue: readonly SyncQueueItem[]): {
   pending: number;
   failed: number;
   lastSync?: Date;
 } {
-  const pending = queue.filter(item => (item.attempts || 0) < (item.attempts || 3)).length;
-  const failed = queue.filter(item => (item.attempts || 0) >= (item.attempts || 3)).length;
+  const pending = queue.filter(hasRetryBudget).length;
+  const failed = queue.length - pending;
 
   return { pending, failed };
 }
@@ -214,9 +227,13 @@ export function retainSyncQueueItems(
   queue: readonly SyncQueueItem[],
   cutoff: Date
 ): SyncQueueItem[] {
+  // INTENT: an item is dropped only once it has BOTH exhausted its retry budget
+  // and aged past the cutoff. A judge's score that still has retries left is never
+  // discarded for merely being old — on show day, an unsynced score is the only
+  // copy of that result. Do not "simplify" this to an age-only cutoff.
   return queue.filter(
     item =>
-      (item.attempts || 0) < (item.attempts || 3) ||
+      hasRetryBudget(item) ||
       new Date((item as { timestamp: string | number | Date }).timestamp) > cutoff
   );
 }

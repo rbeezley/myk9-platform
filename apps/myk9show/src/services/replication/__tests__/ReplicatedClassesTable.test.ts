@@ -783,6 +783,68 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).toHaveProperty('status_source', 'manual');
     });
 
+    it('omits num_hides from an UPDATE that did not set hideCount (stale cache must not clear it)', async () => {
+      // A class cached in IndexedDB before hideCount existed carries
+      // hideCount: undefined. Emitting num_hides: null on an unrelated edit
+      // (rename, fee, ordering) would clear a correct server-side hide count,
+      // and the bumped updated_at would then propagate the loss back on sync.
+      const queueMutation = vi.spyOn(
+        classesTable as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await classesTable.set('class-hide-1', createMockClass({ id: 'class-hide-1' }));
+      await classesTable.updateClass('class-hide-1', { name: 'Renamed Class' });
+
+      const payload = queueMutation.mock.calls[0]?.[2] as Record<string, unknown>;
+      expect(payload).not.toHaveProperty('num_hides');
+      expect(payload).toHaveProperty('name', 'Renamed Class');
+    });
+
+    it('writes num_hides on an UPDATE that explicitly sets hideCount', async () => {
+      const queueMutation = vi.spyOn(
+        classesTable as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await classesTable.set('class-hide-2', createMockClass({ id: 'class-hide-2' }));
+      await classesTable.updateClass('class-hide-2', { hideCount: 3 });
+
+      const payload = queueMutation.mock.calls[0]?.[2] as Record<string, unknown>;
+      expect(payload).toHaveProperty('num_hides', 3);
+    });
+
+    it('keeps the explicit num_hides null on the INSERT path (DEFAULT 1 must not apply)', async () => {
+      const queueMutation = vi.spyOn(
+        classesTable as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      await classesTable.createClass(createMockClass({ id: 'class-hide-3', hideCount: undefined }));
+
+      const payload = queueMutation.mock.calls[0]?.[2] as Record<string, unknown>;
+      expect(queueMutation.mock.calls[0]?.[0]).toBe('INSERT');
+      expect(payload).toHaveProperty('num_hides', null);
+    });
+
     it('rebuildUpdatePayload leaves server-owned intent restoration to the mutation queue', () => {
       // The resend path rebuilds a full row from local data and cannot know the
       // original mutation's `updates`, so it strips all server-owned keys. The
@@ -821,6 +883,7 @@ describe('ReplicatedClassesTable', () => {
         'status_source',
         'is_scoring_finalized',
         'reopened_after_closeout_at',
+        'num_hides',
       ]);
     });
 
@@ -853,6 +916,30 @@ describe('ReplicatedClassesTable', () => {
       } as unknown as Database['public']['Tables']['classes']['Row']);
 
       expect(domain.statusSource).toBe('manual');
+    });
+
+    it('round-trips the scent-work hide count num_hides↔hideCount', () => {
+      const domain = rowToClass({
+        ...createDbRow({ id: '1' }),
+        num_hides: 3,
+      } as unknown as Database['public']['Tables']['classes']['Row']);
+      expect(domain.hideCount).toBe(3);
+
+      const dbRow = (
+        classesTable as unknown as {
+          toSupabaseRow: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).toSupabaseRow(createMockClass({ hideCount: 3 }));
+      expect(dbRow.num_hides).toBe(3);
+    });
+
+    it('writes num_hides: null when the class has no hide count (classes.num_hides DEFAULTs to 1)', () => {
+      const dbRow = (
+        classesTable as unknown as {
+          toSupabaseRow: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).toSupabaseRow(createMockClass({ hideCount: undefined }));
+      expect(dbRow.num_hides).toBeNull();
     });
 
     it('defaults reopened_after_closeout_at to null when the DB row omits it', () => {

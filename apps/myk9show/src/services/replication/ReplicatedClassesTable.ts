@@ -118,6 +118,14 @@ export interface ReplicatedClass {
   timerMode?: string | undefined;
   hidesKnown?: boolean | undefined;
   distractionCount?: number | undefined;
+  /**
+   * `classes.num_hides` — the scent-work hide count. Undefined means "not pinned
+   * by the rule" (the judge sets it at the ring); it is NOT a synonym for 1, the
+   * column's DB default, which is why toSupabaseRow writes an explicit null.
+   * Secret from competitors — see CLASS_HIDE_SECRET_COLUMNS. Replication runs as
+   * `authenticated`, so carrying it here does not widen who can read it.
+   */
+  hideCount?: number | undefined;
 
   // Scent Work specific fields (snake_case for Compatibility with older hooks)
   trial_id?: string | undefined;
@@ -166,8 +174,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     handlerAgeMin: row.handler_age_min ?? undefined,
     handlerAgeMax: row.handler_age_max ?? undefined,
     startTime: row.start_time ?? undefined,
-    revisedExpectedStart:
-      (dbRow.revised_expected_start as string | null | undefined) ?? null,
+    revisedExpectedStart: (dbRow.revised_expected_start as string | null | undefined) ?? null,
     estimatedDuration: row.estimated_duration ?? undefined,
 
     // CamelCase fields
@@ -227,6 +234,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,
     hidesKnown: (dbRow.hides_known as boolean | undefined) ?? undefined,
     distractionCount: (dbRow.distraction_count as number | undefined) ?? undefined,
+    hideCount: (dbRow.num_hides as number | null | undefined) ?? undefined,
 
     // Snake_case fields (compatibility)
     trial_id: row.trial_id ?? undefined,
@@ -252,12 +260,22 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
  * values on every unrelated `updateClass`, clobbering server-derived state until
  * the next inbound sync heals it. Each is written ONLY when the caller explicitly
  * included its source key in the update (see stripUnsetServerOwnedKeys).
+ *
+ * `num_hides` joins them for the mirror-image reason: it is baked in at creation
+ * from the sport rule, not server-derived, but a row cached before `hideCount`
+ * existed reads back as `undefined`, and incremental sync never refetches an
+ * unchanged class to heal it. Emitting `num_hides: null` on an unrelated edit
+ * would clear a correct hide count — and the write's own `updated_at` bump would
+ * then propagate the loss back on the next sync. INSERTs are unaffected (they do
+ * not strip), so a newly created class still writes its explicit null instead of
+ * silently taking the column's DEFAULT 1.
  */
 const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof ReplicatedClass]> = [
   ['status', 'classStatus'],
   ['status_source', 'statusSource'],
   ['is_scoring_finalized', 'isScoringFinalized'],
   ['reopened_after_closeout_at', 'reopenedAfterCloseoutAt'],
+  ['num_hides', 'hideCount'],
 ];
 
 const LEGACY_OMITTED_CLASS_KEYS_SERVER_WINS: readonly string[] = SERVER_OWNED_CLASS_COLUMNS.map(
@@ -354,6 +372,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       timer_mode: cls.timerMode ?? null,
       hides_known: cls.hidesKnown ?? null,
       distraction_count: cls.distractionCount ?? null,
+      num_hides: cls.hideCount ?? null,
       // `status` is emitted unconditionally so INSERT paths always seed a value.
       // For UPDATEs, updateClass strips it (and the other server-owned keys) via
       // stripUnsetServerOwnedKeys unless the mutation explicitly set classStatus.

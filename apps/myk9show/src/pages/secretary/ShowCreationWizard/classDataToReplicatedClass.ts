@@ -27,6 +27,9 @@ export function classDataToReplicatedClass(
       hidesKnown: rule.hides_known,
       distractionCount: rule.distraction_count_min,
       areaCount: rule.area_count,
+      // Only a FIXED rule pins a hide count. A hide_count_min/max band leaves it
+      // judge-set, so it stays undefined here (hides_known records which case).
+      hideCount: rule.hide_count_fixed ?? undefined,
       timeLimitSeconds: rule.max_time_seconds_fixed ?? undefined,
     }),
   };

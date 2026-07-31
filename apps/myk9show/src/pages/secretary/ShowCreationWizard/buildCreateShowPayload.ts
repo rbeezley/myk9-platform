@@ -65,6 +65,14 @@ export interface ClassRpcPayload {
   hides_known: boolean | null;
   distraction_count: number | null;
   num_areas: number | null;
+  /**
+   * Scent-work hide count, copied from the rule's `hide_count_fixed`. Null when
+   * the rule expresses a min/max band — `classes.num_hides` is a single integer,
+   * so a banded rule stays judge-set (`hides_known` records which case applies).
+   * Sent explicitly rather than omitted: `classes.num_hides` carries a DEFAULT 1,
+   * so an absent key would persist a wrong hide count of 1 instead of "unset".
+   */
+  num_hides: number | null;
   time_limit_seconds: number | null;
   /**
    * Per-class judge UUID. When set, the create_show_with_children RPC writes a
@@ -175,6 +183,7 @@ export function buildCreateShowPayload(
       hides_known: rule?.hides_known ?? null,
       distraction_count: rule?.distraction_count_min ?? null,
       num_areas: rule?.area_count ?? null,
+      num_hides: rule?.hide_count_fixed ?? null,
       time_limit_seconds: rule?.max_time_seconds_fixed ?? null,
       judge_id: cls.judgeId || null,
     };
@@ -239,6 +248,7 @@ export function buildCreateShowPayload(
     hidesKnown: c.hides_known ?? undefined,
     distractionCount: c.distraction_count ?? undefined,
     areaCount: c.num_areas ?? undefined,
+    hideCount: c.num_hides ?? undefined,
     timeLimitSeconds: c.time_limit_seconds ?? undefined,
     _version: 1,
     _lastModified: new Date(),

@@ -185,7 +185,30 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * timeout so concurrent callers cannot create duplicate sync work.
    */
   ensureClubsReady: async ({ requestedClubId, force = false } = {}) => {
-    set({ clubReadiness: 'loading' });
+    // Only announce 'loading' when there is nothing usable to show yet.
+    //
+    // Consumers conditionally MOUNT on this readiness — useValidatedClubContext
+    // returns { status: 'loading' } (so clubId is undefined) whenever it is
+    // 'loading', and ClubPaymentsPage renders <ClubPaymentsCard> only when
+    // clubId is set. Flipping a ready store back to 'loading' therefore unmounts
+    // that subtree and destroys its local state.
+    //
+    // This is a shared action: UnifiedAppLayout, useBrowseClubsData and
+    // ClubDetailPage all call it. Any of them firing while a treasurer is part
+    // way through the payment-setup checklist unmounted the card and reset
+    // showChecklist to false, which presents as "the button did nothing"
+    // (QA-CLUB-PAYMENTS-041). The `await` below guarantees React renders the dip,
+    // and the fast path at `clubSessionIsFresh` returns 'fresh' immediately after
+    // — so the flap happened even when no work was needed.
+    //
+    // Mirrors what loadClubs already does with `isLoading`: a background refresh
+    // does not get a spinner when cached data is on screen.
+    const currentReadiness = get().clubReadiness;
+    const hasUsableData =
+      (currentReadiness === 'fresh' || currentReadiness === 'offline') && get().clubs.length > 0;
+    if (!hasUsableData) {
+      set({ clubReadiness: 'loading' });
+    }
     await get().loadClubs();
 
     const cachedClubs = get().clubs;

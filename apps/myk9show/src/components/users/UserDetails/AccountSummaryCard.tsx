@@ -56,28 +56,21 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
                          hover:scale-105 transition-all duration-300"
           >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
-              Sign-In Access
+              Account Status
             </span>
-            {/* INTENT: report whether this person can actually log in. This tile
-                previously rendered a hardcoded "Active" badge for everyone,
-                including contact records with no auth identity at all — the same
-                "the UI says it worked" failure as MYK9-131. `user_id` is the
-                mapped people.auth_user_id. MYK9-134. */}
-            {person.user_id ? (
-              <Badge
-                className="bg-gradient-to-r from-green-500/20 to-green-500/10
+            {/* NOTE: this hardcoded badge is wrong — it claims "Active" for
+                contact records with no auth identity. It is left as-is
+                DELIBERATELY: nothing renders this component (its only importer
+                is a test), so the live fix belongs in UserDetailsView's
+                `properties`, where it now lives. Editing dead code here would
+                only make the duplicate look maintained. See MYK9-134 — this
+                component and UserDetailsDialog should both be deleted. */}
+            <Badge
+              className="bg-gradient-to-r from-green-500/20 to-green-500/10
                             text-success border border-green-500/30 font-medium"
-              >
-                Can sign in
-              </Badge>
-            ) : (
-              <Badge
-                variant="outline"
-                className="bg-warning/10 border-warning/30 text-warning font-medium"
-              >
-                No account
-              </Badge>
-            )}
+            >
+              Active
+            </Badge>
           </div>
 
           <div

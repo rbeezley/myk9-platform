@@ -138,6 +138,27 @@ describe('UserDetailsView — invitation action', () => {
     );
   });
 
+  it('shows "No account" on the RENDERED page for a person who cannot sign in', () => {
+    // Asserted against UserDetailsView's own `properties`, not AccountSummaryCard:
+    // nothing renders that card, so a test there would pass while the page kept
+    // showing a literal "Active" — the very trap MYK9-134 is about.
+    renderView(makeUser());
+
+    expect(screen.getByText('No account')).toBeInTheDocument();
+  });
+
+  it('shows "Can sign in" on the rendered page once an identity exists', () => {
+    renderView(makeUser({ user_id: 'auth-uuid' }));
+
+    expect(screen.getByText('Can sign in')).toBeInTheDocument();
+  });
+
+  it('never claims a blanket "Active" status on the rendered page', () => {
+    renderView(makeUser());
+
+    expect(screen.queryByText('Active')).not.toBeInTheDocument();
+  });
+
   it('hides the action from a caller without admin:manage', async () => {
     hasPermission.mockReturnValue(false);
     renderView(makeUser());

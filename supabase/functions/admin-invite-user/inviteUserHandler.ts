@@ -46,6 +46,13 @@ export interface InviteUserRequest {
   firstName?: string;
   roleLabels?: string[];
   redirectPath?: string;
+  /**
+   * The `people` row this invitation is for, when resending to someone who
+   * already exists. Makes the resend authoritative on the AUTH IDENTITY rather
+   * than the contact email — see resolveIdentityEmail. Optional: the create
+   * flow has no person to resolve yet.
+   */
+  personId?: string;
 }
 
 /** What actually happened, so the UI can tell the operator the truth. */
@@ -128,6 +135,45 @@ export function resolveInviteRedirect(siteUrl: string, safePath: string): string
   return `${callback}?returnTo=${encodeURIComponent(safePath)}`;
 }
 
+/**
+ * The email of the auth identity this person ALREADY has, if any.
+ *
+ * MYK9-134. Nothing syncs `people.email` to `auth.users.email` — verified
+ * against the applied database: no trigger on either table does it, while
+ * UserEditPanel edits the contact email freely. So the two drift the moment an
+ * admin corrects someone's address.
+ *
+ * Inviting by the drifted contact email would ask GoTrue to mint a SECOND
+ * identity. `handle_new_user` then cannot adopt the existing `people` row (its
+ * link branch requires `auth_user_id IS NULL`), falls through to its INSERT
+ * branch, and dies on the `people_email_unique` index — surfacing as an opaque
+ * 500 on what the operator asked to be a resend.
+ *
+ * Resolving through `auth_user_id` makes a resend depend on identity, not on an
+ * editable field. Returns null when the person has no identity yet, which is
+ * the ordinary first-invite case.
+ */
+async function resolveIdentityEmail(
+  supabase: HandlerCtx<InviteUserRequest>['supabase'],
+  personId: string
+): Promise<string | null> {
+  const { data: person, error } = await supabase
+    .from('people')
+    .select('auth_user_id')
+    .eq('id', personId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (error || !person?.auth_user_id) return null;
+
+  const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(
+    person.auth_user_id
+  );
+  if (authError) return null;
+
+  return authUser?.user?.email ?? null;
+}
+
 /** GoTrue signals "this email already has an auth user" in several shapes. */
 function isAlreadyRegistered(error: { message?: string; code?: string } | null): boolean {
   if (!error) return false;
@@ -152,10 +198,15 @@ export async function inviteUserHandler(
     throw new HttpError(500, 'RESEND_API_KEY not configured');
   }
 
-  const email = body.email?.trim().toLowerCase();
-  if (!email) {
+  const requestedEmail = body.email?.trim().toLowerCase();
+  if (!requestedEmail) {
     throw new HttpError(400, 'email is required');
   }
+
+  // An existing identity wins over the request's contact email — see
+  // resolveIdentityEmail for why they can disagree.
+  const identityEmail = body.personId ? await resolveIdentityEmail(supabase, body.personId) : null;
+  const email = identityEmail ?? requestedEmail;
 
   // Only allow same-origin destinations; a caller-supplied absolute URL would
   // make this an open redirect that leaks a single-use credential. `//host` is
@@ -175,9 +226,12 @@ export async function inviteUserHandler(
   // would throw away.
   const redirectTo = resolveInviteRedirect(deps.siteUrl, isSameOriginPath ? requestedPath : '');
 
-  let outcome: InviteOutcome = 'invited';
+  // A resolved identity email is proof the person already has an account, so go
+  // straight to a sign-in link rather than attempting an invite that is
+  // guaranteed to come back "already registered".
+  let outcome: InviteOutcome = identityEmail ? 'reinvited' : 'invited';
   let { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-    type: 'invite',
+    type: identityEmail ? 'magiclink' : 'invite',
     email,
     options: { redirectTo },
   });

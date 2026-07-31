@@ -42,7 +42,14 @@ describe('useSendUserInvitation', () => {
 
     await waitFor(() =>
       expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-invite-user', {
-        body: { email: 'pat@example.test', firstName: 'Pat', roleLabels: ['secretary'] },
+        body: {
+          email: 'pat@example.test',
+          firstName: 'Pat',
+          roleLabels: ['secretary'],
+          // Without this the backend cannot resolve an account whose contact
+          // email drifted from its auth email.
+          personId: 'p1',
+        },
       })
     );
   });

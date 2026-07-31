@@ -224,7 +224,11 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
                 })
               : null,
           },
-          { label: 'Status', value: 'Active' },
+          // INTENT: report whether this person can actually sign in. This was a
+          // literal 'Active' for everyone, including contact records with no
+          // auth identity at all — the same "the UI says it worked" failure as
+          // MYK9-131. `user_id` is the mapped people.auth_user_id. MYK9-134.
+          { label: 'Sign-In Access', value: person.user_id ? 'Can sign in' : 'No account' },
           {
             label: 'Roles',
             value: person.roles?.length ? person.roles.join(', ') : null,

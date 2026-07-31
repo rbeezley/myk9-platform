@@ -38,12 +38,20 @@ export function useSendUserInvitation() {
   const inFlight = useRef(false);
 
   const mutation = useMutation({
-    mutationFn: async ({ email, firstName, roleNames }: SendInvitationArgs) => {
+    mutationFn: async ({ personId, email, firstName, roleNames }: SendInvitationArgs) => {
       if (!email) {
         throw new Error('NO_EMAIL');
       }
       const { data, error } = await supabase.functions.invoke('admin-invite-user', {
-        body: { email, firstName: firstName ?? '', roleLabels: roleNames ?? [] },
+        body: {
+          email,
+          firstName: firstName ?? '',
+          roleLabels: roleNames ?? [],
+          // Nothing syncs people.email to auth.users.email, so a person whose
+          // address was edited after signup can no longer be found by it. The
+          // function resolves the identity from this instead. MYK9-134.
+          personId,
+        },
       });
       if (error) throw error;
       return { data: data as InviteResponse | null, email };

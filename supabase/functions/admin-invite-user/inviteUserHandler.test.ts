@@ -13,6 +13,7 @@ function chain<T>(data: T, error: unknown = null) {
   query.eq = vi.fn(self);
   query.is = vi.fn(self);
   query.single = vi.fn(async () => ({ data, error }));
+  query.maybeSingle = vi.fn(async () => ({ data, error }));
   query.then = ((resolve: (value: { data: T; error: unknown }) => unknown) =>
     Promise.resolve({ data, error }).then(resolve)) as never;
   return query;
@@ -20,6 +21,10 @@ function chain<T>(data: T, error: unknown = null) {
 
 interface MockOptions {
   callerPerson?: { id: string } | null;
+  /** The target person row returned for body.personId (MYK9-134). */
+  targetPerson?: { auth_user_id: string | null } | null;
+  /** auth.admin.getUserById result for that person's identity. */
+  identityUser?: { user: { email: string } | null } | null;
   rbacRoles?: Array<{ role: { name: string } | null }> | null;
   /** Queued generateLink results, consumed in call order. */
   linkResults?: Array<{ data: unknown; error: { message?: string; code?: string } | null }>;
@@ -40,8 +45,20 @@ function makeSupabase(opts: MockOptions = {}) {
   let call = 0;
   const generateLink = vi.fn(async () => results[Math.min(call++, results.length - 1)]);
 
+  const getUserById = vi.fn(async () => ({
+    data: opts.identityUser === undefined ? { user: null } : opts.identityUser,
+    error: null,
+  }));
+
+  let peopleCall = 0;
   const from = vi.fn((table: string) => {
     if (table === 'people') {
+      // First people query is the caller's site_admin check; the second (only
+      // issued when body.personId is set) is the invite target.
+      const isTarget = peopleCall++ > 0;
+      if (isTarget) {
+        return chain(opts.targetPerson === undefined ? null : opts.targetPerson);
+      }
       return chain(opts.callerPerson === undefined ? { id: 'caller-1' } : opts.callerPerson);
     }
     if (table === 'user_roles') {
@@ -52,7 +69,11 @@ function makeSupabase(opts: MockOptions = {}) {
     throw new Error(`unexpected table ${table}`);
   });
 
-  return { supabase: { from, auth: { admin: { generateLink } } }, generateLink };
+  return {
+    supabase: { from, auth: { admin: { generateLink, getUserById } } },
+    generateLink,
+    getUserById,
+  };
 }
 
 function makeDeps(overrides: Partial<InviteUserDeps> = {}) {
@@ -406,5 +427,74 @@ describe('resolveInviteRedirect', () => {
     ['/shows/abc?tab=entries', 'https://app.test/auth/callback?returnTo=%2Fshows%2Fabc%3Ftab%3Dentries'],
   ])('resolves %s', (input, expected) => {
     expect(resolveInviteRedirect(SITE, input)).toBe(expected);
+  });
+});
+
+describe('inviteUserHandler — identity vs contact email (MYK9-134)', () => {
+  it('sends to the AUTH identity email when the contact email has drifted', async () => {
+    // Nothing syncs people.email to auth.users.email. Inviting the drifted
+    // contact address would ask GoTrue to mint a SECOND identity, which
+    // handle_new_user then cannot adopt (its link branch needs auth_user_id
+    // IS NULL) — it falls to INSERT and dies on people_email_unique.
+    const { supabase, generateLink } = makeSupabase({
+      targetPerson: { auth_user_id: 'auth-1' },
+      identityUser: { user: { email: 'old.address@example.test' } },
+      linkResults: [{ data: MAGIC_LINK, error: null }],
+    });
+    const { deps } = makeDeps();
+
+    const result = await invoke(supabase, deps, {
+      email: 'new.address@example.test',
+      personId: 'person-1',
+    });
+
+    expect(generateLink).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'magiclink', email: 'old.address@example.test' })
+    );
+    expect(result).toEqual({ ok: true, outcome: 'reinvited' });
+  });
+
+  it('does not attempt an invite for someone who already has an identity', async () => {
+    const { supabase, generateLink } = makeSupabase({
+      targetPerson: { auth_user_id: 'auth-1' },
+      identityUser: { user: { email: 'pat@example.test' } },
+      linkResults: [{ data: MAGIC_LINK, error: null }],
+    });
+    const { deps } = makeDeps();
+
+    await invoke(supabase, deps, { email: 'pat@example.test', personId: 'person-1' });
+
+    // One call, and never type:'invite' — that would come back "already
+    // registered" and waste a round trip.
+    expect(generateLink).toHaveBeenCalledTimes(1);
+    expect(generateLink).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'invite' }));
+  });
+
+  it('falls back to the requested email when the person has no identity yet', async () => {
+    const { supabase, generateLink, getUserById } = makeSupabase({
+      targetPerson: { auth_user_id: null },
+    });
+    const { deps } = makeDeps();
+
+    const result = await invoke(supabase, deps, {
+      email: 'fresh@example.test',
+      personId: 'person-1',
+    });
+
+    expect(getUserById).not.toHaveBeenCalled();
+    expect(generateLink).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'invite', email: 'fresh@example.test' })
+    );
+    expect(result).toEqual({ ok: true, outcome: 'invited' });
+  });
+
+  it('ignores identity resolution entirely when no personId is supplied', async () => {
+    // The create flow has no person to resolve yet.
+    const { supabase, getUserById } = makeSupabase();
+    const { deps } = makeDeps();
+
+    await invoke(supabase, deps, { email: 'brand.new@example.test' });
+
+    expect(getUserById).not.toHaveBeenCalled();
   });
 });

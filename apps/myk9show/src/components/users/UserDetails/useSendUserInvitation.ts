@@ -56,18 +56,25 @@ export function useSendUserInvitation() {
         },
       });
       if (error) throw error;
-      return { data: data as InviteResponse | null, email };
+      // The request email is deliberately NOT returned: the toast must have no
+      // way to name it, since it can differ from where the link actually went.
+      return { data: data as InviteResponse | null };
     },
-    onSuccess: ({ data, email }) => {
+    onSuccess: ({ data }) => {
       // Name the address the backend ACTUALLY delivered to. It differs from the
       // contact email whenever that address drifted from the auth identity, and
       // announcing the wrong one would be the same lie this feature exists to
       // stop telling.
-      const deliveredTo = data?.deliveredTo ?? email;
+      //
+      // No fallback to the contact email when the field is missing. The app and
+      // the edge function deploy INDEPENDENTLY — Vercel ships on merge while
+      // `supabase functions deploy` is manual — so a newer UI can legitimately
+      // meet an older function that does not report a destination. Saying
+      // nothing is honest; guessing the contact address is not.
+      const deliveredTo = data?.deliveredTo;
+      const sentWhat = data?.outcome === 'reinvited' ? 'Sign-in link' : 'Invitation';
       notifications.success(
-        data?.outcome === 'reinvited'
-          ? `Sign-in link sent to ${deliveredTo}.`
-          : `Invitation sent to ${deliveredTo}.`
+        deliveredTo ? `${sentWhat} sent to ${deliveredTo}.` : `${sentWhat} sent.`
       );
       // The person now has an auth identity, so the sign-in state shown on the
       // page is stale.

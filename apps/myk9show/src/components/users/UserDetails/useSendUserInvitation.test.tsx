@@ -56,7 +56,7 @@ describe('useSendUserInvitation', () => {
 
   it('says "invitation" for a first-time invite', async () => {
     mockSupabase.functions.invoke.mockResolvedValue({
-      data: { outcome: 'invited' },
+      data: { outcome: 'invited', deliveredTo: 'pat@example.test' },
       error: null,
     });
     const { result } = renderHook(() => useSendUserInvitation(), { wrapper });
@@ -74,7 +74,7 @@ describe('useSendUserInvitation', () => {
     // The outcome the edge function reports back; claiming "invitation sent"
     // here would be the MYK9-131 failure all over again.
     mockSupabase.functions.invoke.mockResolvedValue({
-      data: { outcome: 'reinvited' },
+      data: { outcome: 'reinvited', deliveredTo: 'pat@example.test' },
       error: null,
     });
     const { result } = renderHook(() => useSendUserInvitation(), { wrapper });
@@ -103,6 +103,25 @@ describe('useSendUserInvitation', () => {
         expect.stringContaining('old.address@example.test')
       )
     );
+    expect(notifications.success).not.toHaveBeenCalledWith(
+      expect.stringContaining('pat@example.test')
+    );
+  });
+
+  it('names no address at all when the backend does not report one', async () => {
+    // The app and the edge function deploy independently — Vercel ships on
+    // merge, `supabase functions deploy` is manual — so a newer UI can meet an
+    // older function. Falling back to the contact email here would recreate the
+    // misleading toast for a drifted address.
+    mockSupabase.functions.invoke.mockResolvedValue({
+      data: { outcome: 'reinvited' },
+      error: null,
+    });
+    const { result } = renderHook(() => useSendUserInvitation(), { wrapper });
+
+    act(() => result.current.sendInvitation(ARGS));
+
+    await waitFor(() => expect(notifications.success).toHaveBeenCalledWith('Sign-in link sent.'));
     expect(notifications.success).not.toHaveBeenCalledWith(
       expect.stringContaining('pat@example.test')
     );

@@ -855,6 +855,30 @@ describe('ReplicatedClassesTable', () => {
       expect(domain.statusSource).toBe('manual');
     });
 
+    it('round-trips the scent-work hide count num_hides↔hideCount', () => {
+      const domain = rowToClass({
+        ...createDbRow({ id: '1' }),
+        num_hides: 3,
+      } as unknown as Database['public']['Tables']['classes']['Row']);
+      expect(domain.hideCount).toBe(3);
+
+      const dbRow = (
+        classesTable as unknown as {
+          toSupabaseRow: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).toSupabaseRow(createMockClass({ hideCount: 3 }));
+      expect(dbRow.num_hides).toBe(3);
+    });
+
+    it('writes num_hides: null when the class has no hide count (classes.num_hides DEFAULTs to 1)', () => {
+      const dbRow = (
+        classesTable as unknown as {
+          toSupabaseRow: (cls: ReplicatedClass) => Record<string, unknown>;
+        }
+      ).toSupabaseRow(createMockClass({ hideCount: undefined }));
+      expect(dbRow.num_hides).toBeNull();
+    });
+
     it('defaults reopened_after_closeout_at to null when the DB row omits it', () => {
       const domain = rowToClass(createDbRow({ id: '1' }));
       expect(domain.reopenedAfterCloseoutAt).toBeNull();

@@ -271,6 +271,60 @@ describe('buildCreateShowPayload', () => {
     expect(cls.time_limit_seconds).toBe(180);
   });
 
+  it('bakes num_hides from a fixed hide_count rule and mirrors it locally as hideCount', () => {
+    const trialWithClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-1',
+          customizations: { element: 'Buried', level: 'Master', className: 'Buried Master' },
+        },
+      ],
+    };
+    const ruleMap = makeRuleMap('tmpl-1|Buried|Master', {
+      hides_known: false,
+      hide_count_fixed: 3,
+    });
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      baseShow,
+      [trialWithClass],
+      {},
+      ruleMap,
+      'unpublished'
+    );
+    expect(rpcInput.p_classes[0]!.num_hides).toBe(3);
+    expect(localEntities.classes[0]!.hideCount).toBe(3);
+  });
+
+  it('sends num_hides: null for a banded hide_count rule so the judge sets it', () => {
+    const trialWithClass: WizardTrial = {
+      ...baseTrial,
+      classes: [
+        {
+          templateId: 'tmpl-1',
+          customizations: { element: 'Interior', level: 'Excellent', className: 'Interior Exc' },
+        },
+      ],
+    };
+    // A min/max band means the rule does not pin a single count; num_hides is a
+    // single integer, so leaving it null keeps it judge-set rather than guessing.
+    const ruleMap = makeRuleMap('tmpl-1|Interior|Excellent', {
+      hides_known: false,
+      hide_count_fixed: null,
+      hide_count_min: 2,
+      hide_count_max: 3,
+    });
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      baseShow,
+      [trialWithClass],
+      {},
+      ruleMap,
+      'unpublished'
+    );
+    expect(rpcInput.p_classes[0]!.num_hides).toBeNull();
+    expect(localEntities.classes[0]!.hideCount).toBeUndefined();
+  });
+
   it('uses null for rule fields when ruleMap has no matching entry', () => {
     const trialWithClass: WizardTrial = {
       ...baseTrial,
@@ -292,6 +346,9 @@ describe('buildCreateShowPayload', () => {
     expect(cls.timer_mode).toBeNull();
     expect(cls.hides_known).toBeNull();
     expect(cls.distraction_count).toBeNull();
+    // Explicit null, not omitted — classes.num_hides carries a DEFAULT 1, so an
+    // absent key would silently persist a wrong hide count of 1.
+    expect(cls.num_hides).toBeNull();
   });
 
   it('produces an empty p_trials and p_classes array when no trials are passed', () => {

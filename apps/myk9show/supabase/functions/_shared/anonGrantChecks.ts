@@ -51,6 +51,8 @@ interface AnonDefaultRow {
  * table-level SELECT, so its presence in the probe's table list at all is a failure.
  * `dogs` and `people` are likewise column-only — those grants exist purely so anon
  * PostgREST embeds resolve to null instead of 42501; RLS admits them zero rows.
+ * `classes` moved to the column allowlist in 20260730140000 so the three scent-work hide
+ * columns stay unreachable; a table-level grant on it is now a failure too.
  */
 export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   // Public reference data.
@@ -66,7 +68,6 @@ export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   // Published show data, further row-filtered by RLS on show status.
   shows: 'r',
   trials: 'r',
-  classes: 'r',
   armbands: 'r',
   judge_assignments: 'r',
   clubs: 'r',
@@ -83,11 +84,68 @@ export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
 /**
  * Exact table → column allowlist for anon's column-level grants.
  *
- * These are intentionally copied from migrations 20260725170000 and 20260725180000.
- * A table name alone is not enough: adding a sensitive column to one of these tables
- * must make the health check fail just as adding a new table would.
+ * These are intentionally copied from migrations 20260725170000, 20260725180000 and
+ * 20260730140000. A table name alone is not enough: adding a sensitive column to one of
+ * these tables must make the health check fail just as adding a new table would.
  */
 export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> = {
+  // 20260730140000 replaced anon's table-wide `classes` grant with this allowlist. The
+  // omissions are the point: num_hides, has_blank and hides_known are undisclosed
+  // scent-work search configuration and must never appear here.
+  classes: [
+    'actual_end_time',
+    'actual_start_time',
+    'age_max',
+    'age_min',
+    'allow_waitlist',
+    'breed_restrictions',
+    'checked_in_count',
+    'class_number',
+    'competition_type',
+    'created_at',
+    'deleted_at',
+    'deleted_by',
+    'description',
+    'display_order',
+    'distraction_count',
+    'dogs_ahead_notification_count',
+    'element',
+    'entry_fee',
+    'estimated_duration',
+    'handler_age_max',
+    'handler_age_min',
+    'height_max',
+    'height_min',
+    'id',
+    'is_results_reviewed',
+    'is_scoring_finalized',
+    'judge_name',
+    'jump_heights',
+    'level',
+    'max_dogs_per_handler',
+    'max_entries',
+    'max_faults',
+    'name',
+    'num_areas',
+    'qualifying_threshold',
+    'reopened_after_closeout_at',
+    'results_released_at',
+    'results_released_by',
+    'revised_expected_start',
+    'scored_count',
+    'section',
+    'start_time',
+    'status',
+    'status_source',
+    'time_limit_area2_seconds',
+    'time_limit_area3_seconds',
+    'time_limit_seconds',
+    'timer_mode',
+    'total_entries_count',
+    'trial_id',
+    'updated_at',
+    'version',
+  ],
   entries: [
     'id',
     'class_id',
@@ -173,9 +231,12 @@ export function anonGrantsCheck(rawFacts: unknown, probedAt: string): SnapshotCh
     }
   }
 
-  // entries must stay column-scoped. Its absence from the table list IS the invariant.
-  if (tableRows.some(row => row.name === 'entries')) {
-    problems.push('entries has a TABLE-level anon grant — the release-gate allowlist is bypassed');
+  // Column-scoped tables must stay column-scoped. Absence from the table list IS the
+  // invariant — a table-level grant re-exposes every column the allowlist withholds.
+  for (const name of ANON_COLUMN_TABLES) {
+    if (tableRows.some(row => row.name === name)) {
+      problems.push(`${name} has a TABLE-level anon grant — the column allowlist is bypassed`);
+    }
   }
 
   const seenColumns = new Set<string>();

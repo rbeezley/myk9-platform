@@ -1,11 +1,18 @@
-/** Healthy applied ACL facts from migrations 20260725160000–20260725180000. */
+/**
+ * Healthy applied ACL facts from migrations 20260725160000–20260725180000 and
+ * 20260730140000.
+ *
+ * Keep these names spelled out rather than derived from the allowlist constants — a
+ * fixture built from the thing under test cannot detect drift in it. This file falling
+ * behind `classes` moving to a column allowlist is exactly what let the unit tests stay
+ * green while the applied check went red for 52 columns (MYK9-132).
+ */
 export const anonGrants = (over: Record<string, unknown> = {}) => ({
   tables: [
     ...[
       'achievements',
       'armbands',
       'class_visibility_overrides',
-      'classes',
       'clubs',
       'judge_assignments',
       'rule_organizations',
@@ -26,6 +33,64 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
     { name: 'view_public_entry_results', kind: 'v', privs: 'r' },
   ],
   columns: [
+    ...[
+      'actual_end_time',
+      'actual_start_time',
+      'age_max',
+      'age_min',
+      'allow_waitlist',
+      'breed_restrictions',
+      'checked_in_count',
+      'class_number',
+      'competition_type',
+      'created_at',
+      'deleted_at',
+      'deleted_by',
+      'description',
+      'display_order',
+      'distraction_count',
+      'dogs_ahead_notification_count',
+      'element',
+      'entry_fee',
+      'estimated_duration',
+      'handler_age_max',
+      'handler_age_min',
+      'height_max',
+      'height_min',
+      'id',
+      'is_results_reviewed',
+      'is_scoring_finalized',
+      'judge_name',
+      'jump_heights',
+      'level',
+      'max_dogs_per_handler',
+      'max_entries',
+      'max_faults',
+      'name',
+      'num_areas',
+      'qualifying_threshold',
+      'reopened_after_closeout_at',
+      'results_released_at',
+      'results_released_by',
+      'revised_expected_start',
+      'scored_count',
+      'section',
+      'start_time',
+      'status',
+      'status_source',
+      'time_limit_area2_seconds',
+      'time_limit_area3_seconds',
+      'time_limit_seconds',
+      'timer_mode',
+      'total_entries_count',
+      'trial_id',
+      'updated_at',
+      'version',
+    ].map(column => ({
+      name: 'classes',
+      column,
+      privs: 'r',
+    })),
     ...['id', 'name', 'call_name', 'breed', 'image_url'].map(column => ({
       name: 'dogs',
       column,

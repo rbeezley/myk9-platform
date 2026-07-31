@@ -8,10 +8,11 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
   it('is ok on the post-MYK9-93 baseline', () => {
     const check = anonGrantsCheck(anonGrants(), PROBED_AT);
     expect(check.status).toBe('ok');
-    // 21, not 22: template_fields was dropped (20260730120000), taking its anon
-    // read grant with it.
-    expect(check.detail).toContain('21 table grants (1 write)');
-    expect(check.detail).toContain('23 column grants');
+    // 20, not 22: template_fields was dropped (20260730120000) and classes lost its
+    // table-level grant to the hide-column allowlist (20260730140000), taking their
+    // anon read grants with them.
+    expect(check.detail).toContain('20 table grants (1 write)');
+    expect(check.detail).toContain('75 column grants');
   });
 
   it('fails when a table not on the allowlist gains an anon grant', () => {
@@ -36,7 +37,38 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
     grants.tables.push({ name: 'entries', kind: 'r', privs: 'r' });
     const check = anonGrantsCheck(grants, PROBED_AT);
     expect(check.status).toBe('fail');
-    expect(check.detail).toContain('release-gate allowlist is bypassed');
+    expect(check.detail).toContain('entries has a TABLE-level anon grant');
+  });
+
+  // SA-2026-07-30-02: the monitor used to expect `classes: 'r'` at table level, so it
+  // failed the secure state and passed the insecure one — a re-granted table-wide SELECT
+  // hands anon back num_hides, has_blank and hides_known (MYK9-116).
+  it('fails when classes gains a table-level grant', () => {
+    const grants = anonGrants();
+    grants.tables.push({ name: 'classes', kind: 'r', privs: 'r' });
+    const check = anonGrantsCheck(grants, PROBED_AT);
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('classes has a TABLE-level anon grant');
+  });
+
+  it('fails when a scent-work hide column is granted to anon', () => {
+    for (const column of ['num_hides', 'has_blank', 'hides_known']) {
+      const grants = anonGrants();
+      grants.columns.push({ name: 'classes', column, privs: 'r' });
+      const check = anonGrantsCheck(grants, PROBED_AT);
+      expect(check.status).toBe('fail');
+      expect(check.detail).toContain(`unexpected column grant classes.${column}`);
+    }
+  });
+
+  it('fails when an expected classes column grant disappears', () => {
+    const grants = anonGrants();
+    grants.columns = grants.columns.filter(
+      row => !(row.name === 'classes' && row.column === 'status')
+    );
+    const check = anonGrantsCheck(grants, PROBED_AT);
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('missing anon column grant classes.status');
   });
 
   it('fails when a column grant appears on an unexpected table', () => {

@@ -15,9 +15,9 @@
  * nothing. This reads what the database actually has, so drift from ANY source surfaces
  * on /admin/health within a day.
  *
- * Both halves matter. `public.entries` deliberately carries a column-level allowlist with
- * NO table-level SELECT: a table-only check would call a blanket re-grant healthy, which
- * is precisely the regression MYK9-93 itself shipped and had to repair.
+ * Both halves matter. `public.entries` and `public.classes` deliberately carry column-level
+ * allowlists with NO table-level SELECT: a table-only check would call a blanket re-grant
+ * healthy, which is precisely the regression MYK9-93 itself shipped and had to repair.
  */
 
 import type { SnapshotCheck } from './systemHealthChecks.ts';
@@ -45,12 +45,14 @@ interface AnonDefaultRow {
 
 /**
  * Table name → the exact aclitem privilege letters anon may hold. Mirrors migrations
- * 20260725160000 / 170000 / 180000.
+ * 20260725160000 / 170000 / 180000, 20260730140000 and 20260730220000.
  *
- * `public.entries` is deliberately ABSENT: it carries a 14-column grant and must have no
- * table-level SELECT, so its presence in the probe's table list at all is a failure.
- * `dogs` and `people` are likewise column-only — those grants exist purely so anon
- * PostgREST embeds resolve to null instead of 42501; RLS admits them zero rows.
+ * Every key of ANON_COLUMN_ALLOWLIST is deliberately ABSENT here: those tables carry
+ * column grants and must have no table-level SELECT, so their presence in the probe's
+ * table list at all is a failure (enforced below over ANON_COLUMN_TABLES).
+ * `entries` is the public-results release gate and `classes` withholds the scent-work
+ * hide counts (MYK9-116); `dogs` and `people` are column-only so anon PostgREST embeds
+ * resolve to null instead of 42501, with RLS admitting them zero rows.
  */
 export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   // Public reference data.
@@ -66,7 +68,6 @@ export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   // Published show data, further row-filtered by RLS on show status.
   shows: 'r',
   trials: 'r',
-  classes: 'r',
   armbands: 'r',
   judge_assignments: 'r',
   clubs: 'r',
@@ -83,11 +84,70 @@ export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
 /**
  * Exact table → column allowlist for anon's column-level grants.
  *
- * These are intentionally copied from migrations 20260725170000 and 20260725180000.
- * A table name alone is not enough: adding a sensitive column to one of these tables
- * must make the health check fail just as adding a new table would.
+ * These are intentionally copied from migrations 20260725170000, 20260725180000 and
+ * 20260730140000, all restated verbatim in 20260730220000. A table name alone is not
+ * enough: adding a sensitive column to one of these tables must make the health check
+ * fail just as adding a new table would.
  */
 export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> = {
+  // Every classes column EXCEPT num_hides, has_blank and hides_known — the scent-work
+  // hide secrets a competitor must not learn before running the class (MYK9-116).
+  // Their absence from this list is the invariant; a new column added to the table is
+  // NOT auto-granted to anon, so drift here means someone granted it deliberately.
+  classes: [
+    'id',
+    'trial_id',
+    'name',
+    'description',
+    'level',
+    'element',
+    'section',
+    'competition_type',
+    'entry_fee',
+    'max_entries',
+    'allow_waitlist',
+    'max_dogs_per_handler',
+    'breed_restrictions',
+    'jump_heights',
+    'age_min',
+    'age_max',
+    'height_min',
+    'height_max',
+    'handler_age_min',
+    'handler_age_max',
+    'start_time',
+    'estimated_duration',
+    'actual_start_time',
+    'actual_end_time',
+    'status',
+    'time_limit_seconds',
+    'num_areas',
+    'max_faults',
+    'qualifying_threshold',
+    'is_scoring_finalized',
+    'results_released_at',
+    'dogs_ahead_notification_count',
+    'total_entries_count',
+    'checked_in_count',
+    'scored_count',
+    'created_at',
+    'updated_at',
+    'deleted_at',
+    'deleted_by',
+    'class_number',
+    'timer_mode',
+    'distraction_count',
+    'is_results_reviewed',
+    'judge_name',
+    'time_limit_area2_seconds',
+    'time_limit_area3_seconds',
+    'display_order',
+    'results_released_by',
+    'version',
+    'status_source',
+    'reopened_after_closeout_at',
+    'revised_expected_start',
+  ],
   entries: [
     'id',
     'class_id',
@@ -173,9 +233,13 @@ export function anonGrantsCheck(rawFacts: unknown, probedAt: string): SnapshotCh
     }
   }
 
-  // entries must stay column-scoped. Its absence from the table list IS the invariant.
-  if (tableRows.some(row => row.name === 'entries')) {
-    problems.push('entries has a TABLE-level anon grant — the release-gate allowlist is bypassed');
+  // The column-allowlist tables must stay column-scoped. Their absence from the table
+  // list IS the invariant: Postgres cannot subtract a column from a table-wide grant, so
+  // any table-level SELECT here hands anon the withheld columns back wholesale.
+  for (const name of ANON_COLUMN_TABLES) {
+    if (tableRows.some(row => row.name === name)) {
+      problems.push(`${name} has a TABLE-level anon grant — the column allowlist is bypassed`);
+    }
   }
 
   const seenColumns = new Set<string>();

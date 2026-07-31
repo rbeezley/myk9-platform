@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { inviteUserHandler, type InviteUserDeps } from './inviteUserHandler.ts';
+import {
+  inviteUserHandler,
+  resolveInviteRedirect,
+  type InviteUserDeps,
+} from './inviteUserHandler.ts';
 
 function chain<T>(data: T, error: unknown = null) {
   const query: Record<string, unknown> = {};
@@ -334,6 +338,30 @@ describe('inviteUserHandler — redirect handling', () => {
     expect(deliveredLink(sendEmail)).not.toContain('evil.test');
   });
 
+  it('preserves a destination already encoded on a callback path', async () => {
+    // A prefix test on '/auth/callback' would treat this as the bare callback
+    // and throw the destination away.
+    const { supabase, generateLink } = makeSupabase({
+      linkResults: [
+        { data: null, error: { code: 'email_exists' } },
+        { data: MAGIC_LINK, error: null },
+      ],
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await invoke(supabase, deps, {
+      email: 'a@b.test',
+      redirectPath: '/auth/callback?returnTo=%2Fadmin%2Fusers',
+    });
+
+    expect(generateLink).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        options: { redirectTo: 'https://app.test/auth/callback?returnTo=%2Fadmin%2Fusers' },
+      })
+    );
+    expect(deliveredLink(sendEmail)).toContain('returnTo=%2Fadmin%2Fusers');
+  });
+
   it('does not nest the callback inside itself when none was requested', async () => {
     const { supabase, generateLink } = makeSupabase();
     const { deps } = makeDeps();
@@ -361,5 +389,22 @@ describe('inviteUserHandler — redirect handling', () => {
     const link = deliveredLink(sendEmail);
     expect(link).toContain('returnTo=%2Fadmin%2Fusers');
     expect(link).toContain('type=magiclink');
+  });
+});
+
+describe('resolveInviteRedirect', () => {
+  const SITE = 'https://app.test';
+
+  it.each([
+    ['', 'https://app.test/auth/callback'],
+    ['/admin/users', 'https://app.test/auth/callback?returnTo=%2Fadmin%2Fusers'],
+    ['/auth/callback', 'https://app.test/auth/callback'],
+    [
+      '/auth/callback?returnTo=%2Fadmin%2Fusers',
+      'https://app.test/auth/callback?returnTo=%2Fadmin%2Fusers',
+    ],
+    ['/shows/abc?tab=entries', 'https://app.test/auth/callback?returnTo=%2Fshows%2Fabc%3Ftab%3Dentries'],
+  ])('resolves %s', (input, expected) => {
+    expect(resolveInviteRedirect(SITE, input)).toBe(expected);
   });
 });

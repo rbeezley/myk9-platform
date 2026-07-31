@@ -101,6 +101,33 @@ async function assertSiteAdmin(
   return callerPerson.id;
 }
 
+/**
+ * Where the invitation link should land, as a URL GoTrue will accept and
+ * buildAuthActionUrl will carry forward intact.
+ *
+ * `safePath` must already have been vetted as same-origin ('' for none).
+ * Exported for direct testing: the branch that matters is a path that IS the
+ * callback but carries its own destination.
+ */
+export function resolveInviteRedirect(siteUrl: string, safePath: string): string {
+  const callback = `${siteUrl}/auth/callback`;
+  if (!safePath) return callback;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(safePath, siteUrl);
+  } catch {
+    return callback;
+  }
+
+  // Already a callback URL — keep it whole, including any returnTo it carries.
+  if (parsed.pathname === '/auth/callback') {
+    return parsed.toString();
+  }
+
+  return `${callback}?returnTo=${encodeURIComponent(safePath)}`;
+}
+
 /** GoTrue signals "this email already has an auth user" in several shapes. */
 function isAlreadyRegistered(error: { message?: string; code?: string } | null): boolean {
   if (!error) return false;
@@ -136,16 +163,17 @@ export async function inviteUserHandler(
   // an absolute URL to a browser despite starting with a slash.
   const requestedPath = body.redirectPath ?? '';
   const isSameOriginPath = requestedPath.startsWith('/') && !requestedPath.startsWith('//');
-  const wantsCustomDestination = isSameOriginPath && !requestedPath.startsWith('/auth/callback');
 
   // The destination must travel as `returnTo` ON the callback URL, not as the
   // callback URL itself: buildAuthActionUrl only carries redirect params
   // forward when the supplied URL's pathname is exactly /auth/callback, so
   // passing `${siteUrl}/admin/users` would silently drop the destination and
   // land a re-invite on `/`.
-  const redirectTo = wantsCustomDestination
-    ? `${deps.siteUrl}/auth/callback?returnTo=${encodeURIComponent(requestedPath)}`
-    : `${deps.siteUrl}/auth/callback`;
+  //
+  // Compare the parsed pathname, not a prefix — `/auth/callback?returnTo=...`
+  // starts with the callback path but carries a destination that a prefix test
+  // would throw away.
+  const redirectTo = resolveInviteRedirect(deps.siteUrl, isSameOriginPath ? requestedPath : '');
 
   let outcome: InviteOutcome = 'invited';
   let { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({

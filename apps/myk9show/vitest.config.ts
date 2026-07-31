@@ -54,6 +54,7 @@ export default defineConfig({
       '../../supabase/functions/generate-premium/*.test.ts',
       '../../supabase/functions/admin-delete-user/*.test.ts',
       '../../supabase/functions/admin-generate-reset-link/*.test.ts',
+      '../../supabase/functions/admin-invite-user/*.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
     ],
     exclude: [

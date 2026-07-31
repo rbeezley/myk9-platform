@@ -17,7 +17,7 @@ const AuthCallbackPage = () => {
 
   const params = useMemo(() => {
     const tokenHash = searchParams.get('token_hash');
-    const type = searchParams.get('type') as 'signup' | 'recovery' | 'magiclink' | null;
+    const type = searchParams.get('type') as 'signup' | 'recovery' | 'magiclink' | 'invite' | null;
     return tokenHash && type ? { tokenHash, type } : null;
   }, [searchParams]);
   const redirectTarget = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
@@ -44,7 +44,12 @@ const AuthCallbackPage = () => {
           setError('This link may have expired. Please request a new one.');
           return;
         }
-        if (params.type === 'recovery') {
+        // `invite` belongs with `recovery`, not with the general case: an
+        // admin-invited account (MYK9-131) has NO password. Falling through to
+        // redirectTarget would sign them in once and strand them — they could
+        // never sign in again after that session expired, despite the
+        // invitation email telling them to choose a password.
+        if (params.type === 'recovery' || params.type === 'invite') {
           navigate('/reset-password', { replace: true });
         } else {
           navigate(redirectTarget, { replace: true });

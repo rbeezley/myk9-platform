@@ -75,6 +75,19 @@ describe('AuthCallbackPage', () => {
       );
     });
 
+    it('redirects to reset-password on successful invite verification', async () => {
+      // MYK9-131. An admin-invited account has no password, so an invite must
+      // land on password setup like a recovery does. Falling through to the
+      // default target would sign them in once and strand them after that
+      // session expired — while the invitation email told them to choose a
+      // password. A returnTo is supplied here to prove it does NOT win.
+      mockVerifyOtp.mockResolvedValue({ data: { user: {} }, error: null });
+      renderWithRouter('?token_hash=abc&type=invite&returnTo=%2Fadmin%2Fusers');
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith('/reset-password', { replace: true })
+      );
+    });
+
     it('shows error state when verification fails', async () => {
       mockVerifyOtp.mockResolvedValue({ data: {}, error: { message: 'Token expired' } });
       renderWithRouter(

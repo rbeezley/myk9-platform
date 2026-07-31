@@ -5,26 +5,30 @@
  * - Complete user creation form
  * - Role assignment during creation (fetched dynamically from DB)
  * - Form validation with Zod schema
- * - Password generation options
- * - Email invitation sending
+ * - Supabase Auth invitation so the new person can actually sign in
+ *
+ * MYK9-131 / PRA-2026-07-31-01. This dialog used to collect a password
+ * (auto-generate toggle + custom field), a membership id and a list of club
+ * affiliations, and to default "Send Invitation Email" to on — while
+ * `handleCreate` inserted a `people` row and nothing else. Every one of those
+ * inputs was dropped on the floor, so the operator saw a success state for an
+ * account that had no auth identity and could never log in.
+ *
+ * The dead inputs are gone rather than implemented:
+ *  - passwords: an admin-chosen password has no safe delivery channel, and the
+ *    invite flow lets the recipient set their own. Invitation is now the only
+ *    path to an identity.
+ *  - membership id / club affiliations: `people` has no column for either, and
+ *    club membership is already modelled through user_roles club scoping.
+ *
+ * `street_address` and `country` WERE storable all along and are now saved.
  */
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
-import {
-  User as UserIcon,
-  Mail,
-  MapPin,
-  Building2,
-  Shield,
-  Save,
-  X,
-  AlertCircle,
-  Eye,
-  EyeOff,
-  Key,
-} from 'lucide-react';
+import { User as UserIcon, Mail, MapPin, Shield, Save, AlertCircle, Send } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,41 +54,19 @@ interface CreateUserDialogProps {
   onUserCreated: (user: User) => void;
 }
 
-const createUserSchema = z
-  .object({
-    firstName: z.string().min(1, 'Please enter a first name'),
-    lastName: z.string().min(1, 'Please enter a last name'),
-    email: commonValidations.emailRequired,
-    phone: z.string(),
-    address: z.string(),
-    city: z.string(),
-    state: z.string(),
-    zipCode: z.string(),
-    country: z.string(),
-    membershipId: z.string(),
-    clubAffiliations: z.array(z.string()),
-    roles: z.array(z.string()).min(1, 'Please select at least one role'),
-    sendInviteEmail: z.boolean(),
-    generatePassword: z.boolean(),
-    customPassword: z.string(),
-  })
-  .superRefine((data, ctx) => {
-    if (!data.generatePassword) {
-      if (!data.customPassword.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Please enter a password',
-          path: ['customPassword'],
-        });
-      } else if (data.customPassword.length < 8) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Password must be at least 8 characters long',
-          path: ['customPassword'],
-        });
-      }
-    }
-  });
+const createUserSchema = z.object({
+  firstName: z.string().min(1, 'Please enter a first name'),
+  lastName: z.string().min(1, 'Please enter a last name'),
+  email: commonValidations.emailRequired,
+  phone: z.string(),
+  address: z.string(),
+  city: z.string(),
+  state: z.string(),
+  zipCode: z.string(),
+  country: z.string(),
+  roles: z.array(z.string()).min(1, 'Please select at least one role'),
+  sendInviteEmail: z.boolean(),
+});
 
 type CreateUserFormData = z.infer<typeof createUserSchema>;
 
@@ -98,12 +80,8 @@ const INITIAL_FORM_DATA: CreateUserFormData = {
   state: '',
   zipCode: '',
   country: '',
-  membershipId: '',
-  clubAffiliations: [],
   roles: ['exhibitor'],
   sendInviteEmail: true,
-  generatePassword: true,
-  customPassword: '',
 };
 
 export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
@@ -113,8 +91,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 }) => {
   const form = useFormValidation(createUserSchema, INITIAL_FORM_DATA);
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [newClub, setNewClub] = useState('');
+  const [inviting, setInviting] = useState(false);
 
   const createUserMutation = useCreateUserMutation();
 
@@ -136,42 +113,97 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     if (!open) {
       resetForm(INITIAL_FORM_DATA);
       setGeneralError(null);
-      setNewClub('');
     }
   }, [open, resetForm]);
 
   // Handle form submission
   const handleCreate = form.handleSubmit(async (validatedData: CreateUserFormData) => {
     setGeneralError(null);
+
+    let newUser: User;
     try {
-      // Create the person (without roles -- roles go to user_roles table)
-      const newUser = await createUserMutation.mutateAsync({
+      // Create the person (without roles -- roles go to user_roles table).
+      // auth_user_id stays NULL here; handle_new_user() adopts this row by
+      // LOWER(email) when the invitation is accepted, and migration 159's
+      // trigger then backfills the user_roles rows written just below.
+      newUser = await createUserMutation.mutateAsync({
         first_name: validatedData.firstName,
         last_name: validatedData.lastName,
         email: validatedData.email,
         phone: validatedData.phone || null,
+        street_address: validatedData.address || null,
         city: validatedData.city || null,
         state: validatedData.state || null,
         zip_code: validatedData.zipCode || null,
+        country: validatedData.country || null,
       });
-
-      // Assign selected roles via RBAC service (handles dedup + reactivation)
-      if (newUser?.id && validatedData.roles.length > 0) {
-        for (const roleName of validatedData.roles) {
-          try {
-            await rbacService.ensureUserHasRole(newUser.id, roleName);
-          } catch (err) {
-            logger.error('Failed to assign role:', 'admin', { roleName }, err as Error);
-          }
-        }
-      }
-
-      onUserCreated(newUser);
-      onOpenChange(false);
     } catch (error) {
       logger.error('Failed to create user:', 'admin', {}, error as Error);
-      setGeneralError('Failed to create user. Please try again.');
+      // people.email carries a case-insensitive partial unique index, so a
+      // repeat submission lands here rather than creating a duplicate person.
+      const isDuplicate = /duplicate key|already exists|23505/i.test(String(error));
+      setGeneralError(
+        isDuplicate
+          ? 'Someone with that email address already exists. Open their record to change roles or resend access.'
+          : 'Failed to create user. Please try again.'
+      );
+      return;
     }
+
+    // Assign selected roles via RBAC service (handles dedup + reactivation)
+    if (newUser?.id && validatedData.roles.length > 0) {
+      for (const roleName of validatedData.roles) {
+        try {
+          await rbacService.ensureUserHasRole(newUser.id, roleName);
+        } catch (err) {
+          logger.error('Failed to assign role:', 'admin', { roleName }, err as Error);
+        }
+      }
+    }
+
+    if (!validatedData.sendInviteEmail) {
+      // Say plainly that the record cannot sign in yet. The old dialog let the
+      // operator believe otherwise; that is the bug.
+      toast.success(`${validatedData.email} added. No invitation sent — they cannot sign in yet.`);
+      onUserCreated(newUser);
+      onOpenChange(false);
+      return;
+    }
+
+    setInviting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-invite-user', {
+        body: {
+          email: validatedData.email,
+          firstName: validatedData.firstName,
+          roleLabels: validatedData.roles,
+        },
+      });
+      if (error) throw error;
+
+      if (data?.outcome === 'reinvited') {
+        toast.success(`${validatedData.email} already had an account — sent them a sign-in link.`);
+      } else {
+        toast.success(`Invitation sent to ${validatedData.email}.`);
+      }
+    } catch (err) {
+      logger.error(
+        'Failed to send invitation:',
+        'admin',
+        { email: validatedData.email },
+        err as Error
+      );
+      // The person row exists; only delivery failed. Report both halves rather
+      // than a bare failure, so the operator knows not to re-create them.
+      toast.error(
+        `${validatedData.email} was added, but the invitation could not be sent. Use Resend access from their record.`
+      );
+    } finally {
+      setInviting(false);
+    }
+
+    onUserCreated(newUser);
+    onOpenChange(false);
   });
 
   // Handle role changes
@@ -187,23 +219,10 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     form.touchField('roles');
   };
 
-  // Handle club affiliations
-  const addClub = () => {
-    if (newClub.trim() && !form.data.clubAffiliations.includes(newClub.trim())) {
-      form.setValue('clubAffiliations', [...form.data.clubAffiliations, newClub.trim()]);
-      setNewClub('');
-    }
-  };
-
-  const removeClub = (club: string) => {
-    form.setValue(
-      'clubAffiliations',
-      form.data.clubAffiliations.filter(c => c !== club)
-    );
-  };
-
   // Pre-compute errors for fields referenced multiple times
   const rolesError = form.getError('roles');
+
+  const submitting = createUserMutation.isPending || inviting;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -266,15 +285,6 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     />
                   </FormField>
                 </div>
-
-                <FormField label="Membership ID" fieldId="membershipId">
-                  <Input
-                    id="membershipId"
-                    value={form.data.membershipId}
-                    onChange={e => form.setValue('membershipId', e.target.value)}
-                    placeholder="Optional membership identifier"
-                  />
-                </FormField>
               </CardContent>
             </Card>
 
@@ -372,43 +382,6 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               </CardContent>
             </Card>
 
-            {/* Club Affiliations */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Club Affiliations
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  {form.data.clubAffiliations.map(club => (
-                    <div
-                      key={club}
-                      className="flex items-center justify-between p-2 border rounded"
-                    >
-                      <span>{club}</span>
-                      <Button variant="ghost" size="sm" onClick={() => removeClub(club)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Add club affiliation"
-                      value={newClub}
-                      onChange={e => setNewClub(e.target.value)}
-                      onKeyPress={e => e.key === 'Enter' && addClub()}
-                    />
-                    <Button onClick={addClub} disabled={!newClub.trim()}>
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Role Assignment */}
             <Card>
               <CardHeader>
@@ -466,88 +439,57 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  Account Setup
+                  <Send className="h-5 w-5" />
+                  Account Access
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div>
-                    <Label className="font-medium">Auto-generate Password</Label>
+                    <Label htmlFor="sendInviteEmail" className="font-medium">
+                      Send Invitation Email
+                    </Label>
                     <p className="text-sm text-muted-foreground">
-                      Generate secure password automatically
+                      Emails a single-use link so they can accept and choose their own password
                     </p>
                   </div>
                   <Switch
-                    checked={form.data.generatePassword}
-                    onCheckedChange={checked => {
-                      form.setValues({
-                        generatePassword: checked,
-                        customPassword: checked ? '' : form.data.customPassword,
-                      });
-                    }}
-                  />
-                </div>
-
-                {!form.data.generatePassword && (
-                  <FormField
-                    label="Custom Password"
-                    fieldId="customPassword"
-                    required
-                    error={form.getError('customPassword')}
-                  >
-                    <div className="relative">
-                      <Input
-                        id="customPassword"
-                        type={showPassword ? 'text' : 'password'}
-                        value={form.data.customPassword}
-                        onChange={e => form.setValue('customPassword', e.target.value)}
-                        onBlur={() => form.touchField('customPassword')}
-                        className="pr-10"
-                        {...form.getFieldProps('customPassword')}
-                        placeholder="Enter secure password"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </FormField>
-                )}
-
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <Label className="font-medium">Send Invitation Email</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Send welcome email with login instructions
-                    </p>
-                  </div>
-                  <Switch
+                    id="sendInviteEmail"
                     checked={form.data.sendInviteEmail}
                     onCheckedChange={checked => form.setValue('sendInviteEmail', checked)}
                   />
                 </div>
+
+                {/* INTENT: state the consequence of declining the invitation. The
+                    operator previously had no way to tell that the record they
+                    just created could not sign in (MYK9-131). */}
+                {!form.data.sendInviteEmail && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Without an invitation this person is a contact record only — they will not be
+                      able to sign in. You can invite them later from their record.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
           </div>
         </SheetBody>
 
         <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={createUserMutation.isPending}>
+          <Button onClick={handleCreate} disabled={submitting}>
             <Save className="h-4 w-4 mr-2" />
-            {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+            {inviting
+              ? 'Sending invitation...'
+              : createUserMutation.isPending
+                ? 'Creating...'
+                : form.data.sendInviteEmail
+                  ? 'Create & Invite'
+                  : 'Create User'}
           </Button>
         </SheetFooter>
       </SheetContent>

@@ -53,6 +53,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                                             | Reference | Launch-Milestone QA Checklist                                                |
 | [launch/go-live-2026-07-11.md](launch/go-live-2026-07-11.md)                                                     | Active    | Go-Live Gate Review — 2026-07-11                                             |
 | [launch/go-live-2026-07-26.md](launch/go-live-2026-07-26.md)                                                     | Active    | Go-Live Gate Review — 2026-07-26 (delta: CI/advisor drift + owner gates)     |
+| [plan-ai-support-triage.md](plan-ai-support-triage.md)                                                           | Active    | AI Support Triage — external scheduled agent (design spec)                   |
 | [plan-stripe-golive-enforcement.md](plan-stripe-golive-enforcement.md)                                           | Active    | Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8             |
 | [navigation-ia.md](navigation-ia.md)                                                                             | Reference | Navigation & IA Sketch — Fall 2026                                           |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)                                   | Active    | Active-Docs Triage — 2026-06-14                                              |

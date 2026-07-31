@@ -28,6 +28,7 @@ const subscriptionEntitlementFixture = readFileSync(
 // Keep both EXHAUSTIVE over supabase/tests/ — that agreement check cannot catch a
 // file added to neither list, so the directory-coverage test below does.
 const launchCriticalSqlTests = [
+  'class_hide_count_gating_test.sql',
   'class_status_auto_derivation_test.sql',
   'club_secretary_grant_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',

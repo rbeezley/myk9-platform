@@ -177,6 +177,35 @@ export const CLASS_COLUMNS = CLASS_COLUMN_SELECT.split(',').map(column => column
 /** The hide secrets withheld from anon. Exported so the column test can assert absence. */
 export const CLASS_HIDE_SECRET_COLUMNS = ['num_hides', 'has_blank', 'hides_known'] as const;
 
+/**
+ * What `authenticated` may read (20260731160000, MYK9-127) — the anon allowlist
+ * plus `has_blank` and `hides_known`.
+ *
+ * Only `num_hides` is withheld from signed-in users, and only because a judge-set
+ * count is a decisive pre-run advantage. `hides_known` is NOT secret:
+ * `sport_class_rules` is anon-readable and publishes the rulebook per
+ * element+level, so wherever `hides_known` is true the count is derivable from
+ * public data anyway — and competitors legitimately need to know whether a count
+ * is disclosed at all.
+ *
+ * Any `select('*')` on `classes` now fails 42501 for every signed-in user, so
+ * this is the replacement at each authenticated call site.
+ */
+export const CLASS_AUTHENTICATED_COLUMN_SELECT = `${CLASS_COLUMN_SELECT},
+      has_blank,
+      hides_known`;
+
+/** Pinned by the contract test against the SQL grant. */
+export const CLASS_AUTHENTICATED_COLUMNS = CLASS_AUTHENTICATED_COLUMN_SELECT.split(',').map(
+  column => column.trim()
+);
+
+/**
+ * Withheld from `authenticated` as well — officials read it through
+ * `get_show_class_hide_counts(show_id)`, never off the class row.
+ */
+export const CLASS_OFFICIAL_ONLY_COLUMNS = ['num_hides'] as const;
+
 async function postgrestGetAllClasses() {
   const { data, error } = await supabase
     .from('classes')
@@ -458,8 +487,10 @@ export const createClass = async (classData: DbClassInsert) => {
         },
       ])
       .select(
+        // Not `*`: authenticated has no SELECT on num_hides (20260731160000), and a
+        // returning-clause `*` would fail 42501 even though the write itself is allowed.
         `
-        *,
+        ${CLASS_AUTHENTICATED_COLUMN_SELECT},
         trial:trials (
           id,
           name,
@@ -498,8 +529,10 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
       })
       .eq('id', id)
       .select(
+        // Not `*`: authenticated has no SELECT on num_hides (20260731160000), and a
+        // returning-clause `*` would fail 42501 even though the write itself is allowed.
         `
-        *,
+        ${CLASS_AUTHENTICATED_COLUMN_SELECT},
         trial:trials (
           id,
           name,

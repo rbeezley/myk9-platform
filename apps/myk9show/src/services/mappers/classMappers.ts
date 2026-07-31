@@ -45,7 +45,15 @@ interface JoinedResult {
 }
 
 /** DbClass with optional joined relations from Supabase queries */
-export interface DbClassWithRelations extends DbClass {
+export interface DbClassWithRelations extends Omit<DbClass, 'num_hides'> {
+  /**
+   * Optional because `authenticated` cannot SELECT it (20260731160000, MYK9-127):
+   * no ordinary class read returns it, and officials fetch it separately via
+   * `get_show_class_hide_counts(show_id)`. The generated `DbClass` still types it
+   * as required because the column exists — this interface describes what a query
+   * actually comes back with.
+   */
+  num_hides?: number | null;
   trial?: JoinedTrial | null;
   entry?: unknown[];
 }

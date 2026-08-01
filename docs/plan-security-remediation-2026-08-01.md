@@ -131,6 +131,22 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
 10. **MYK9-151:** inventory surviving SECURITY DEFINER functions and choose qualified empty-path
     conversion or an owned accepted-risk/ACL-monitoring contract.
 
+### Phase 4 decision review — 2026-08-01
+
+- **MYK9-150 / SA-2026-07-29-05:** the current CORS helper allows dynamically named Vercel
+  previews only when the canonical preview base origin is present in the list. The regex is
+  anchored to `https://...vercel.app`, does not match lookalike suffixes, and no reviewed function
+  enables credentialed cookies; bearer authorization remains the real gate. Recommendation:
+  retain the preview workflow and document accepted INFO risk, adding malicious-lookalike contract
+  tests if the owner wants a durable guard. Switching to exact origins requires deployment-origin
+  inventory and coordination, so it is not an autonomous remediation.
+- **MYK9-151 / SA-027:** the 21 surviving `SECURITY DEFINER` functions use `search_path=public`,
+  but the applied evidence cited by the audit shows client roles lack `CREATE` on `public`, so no
+  current shadow-object attack path exists. A blanket empty-path migration would require reading
+  every body and qualifying any unqualified reference. Recommendation: retain accepted-risk
+  status with schema-ACL monitoring, and convert each function when it is next edited; do not
+  bulk-rewrite without an owner-approved hardening batch.
+
 ## Testing and closure gates
 
 - Write assertion-first regression tests for each value-sensitive authorization or ACL change.

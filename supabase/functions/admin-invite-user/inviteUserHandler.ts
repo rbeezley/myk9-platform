@@ -38,6 +38,7 @@
 import type { HandlerCtx } from '../_shared/http/handler.ts';
 import type { ResendEmailRequestInit } from '../_shared/resendEmail.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { buildAuthActionUrl } from '../send-auth-email/actionUrl.ts';
 import { buildAdminInviteHtml } from './inviteEmail.ts';
 
@@ -98,11 +99,13 @@ async function assertSiteAdmin(
     throw new HttpError(403, 'Caller not found');
   }
 
-  const { data: rbacRoles } = await supabase
-    .from('user_roles')
-    .select('role:roles(name)')
-    .eq('user_id', callerPerson.id)
-    .eq('is_active', true);
+  const { data: rbacRoles, error: rbacError } = await applyActiveRoleValidity(
+    supabase.from('user_roles').select('role:roles(name)').eq('user_id', callerPerson.id)
+  );
+
+  if (rbacError) {
+    throw new HttpError(500, 'Failed to verify caller role');
+  }
 
   const isSiteAdmin =
     rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??

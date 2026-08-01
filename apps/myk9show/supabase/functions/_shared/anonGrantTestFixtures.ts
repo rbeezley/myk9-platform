@@ -1,7 +1,8 @@
 /**
  * Healthy applied ACL facts from migrations 20260725160000–20260725180000, plus the
- * `classes` column allowlist from 20260730140000 (MYK9-116). `classes` appears ONLY in
- * `columns` — its table-level SELECT was revoked so the hide columns could be withheld.
+ * `classes` column allowlist from 20260730140000 (MYK9-116), plus the public judge-assignment
+ * columns from MYK9-146. Column-scoped tables appear ONLY in `columns` — their table-level
+ * SELECT was revoked so private columns remain withheld.
  */
 export const anonGrants = (over: Record<string, unknown> = {}) => ({
   tables: [
@@ -10,7 +11,6 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
       'armbands',
       'class_visibility_overrides',
       'clubs',
-      'judge_assignments',
       'rule_organizations',
       'rule_sports',
       'rulebooks',
@@ -117,6 +117,22 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
       'created_at',
     ].map(column => ({
       name: 'entries',
+      column,
+      privs: 'r',
+    })),
+    ...[
+      'id',
+      'person_id',
+      'show_id',
+      'trial_id',
+      'class_id',
+      'status',
+      'invited_at',
+      'confirmed_at',
+      'created_at',
+      'updated_at',
+    ].map(column => ({
+      name: 'judge_assignments',
       column,
       privs: 'r',
     })),

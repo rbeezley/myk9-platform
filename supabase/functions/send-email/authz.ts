@@ -1,6 +1,7 @@
 import type { User } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import type {
   EntryDecisionRecipientSource,
   SupportNotificationRecipientSource,
@@ -50,10 +51,6 @@ interface SupabaseQuery<T = unknown> extends PromiseLike<SupabaseQueryResult<T>>
   or(filters: string): SupabaseQuery<T>;
   maybeSingle(): Promise<SupabaseQueryResult<T>>;
 }
-
-// Only count role assignments that are active AND not past their expiry — an
-// assignment can stay is_active=true after expires_at passes. Repo standard.
-const ACTIVE_ROLE_NOT_EXPIRED = 'expires_at.is.null,expires_at.gt.now()';
 
 export interface SendEmailSupabaseClient {
   from(table: string): SupabaseQuery;
@@ -147,12 +144,12 @@ export async function assertSendEmailAuthorization(args: {
     throw new HttpError(404, 'Registration not found');
   }
 
-  const { data: callerRoles, error: callerRolesError } = await args.supabase
-    .from('user_roles')
-    .select(SEND_EMAIL_CALLER_ROLE_SELECT)
-    .eq('auth_user_id', args.user.id)
-    .eq('is_active', true)
-    .or(ACTIVE_ROLE_NOT_EXPIRED);
+  const { data: callerRoles, error: callerRolesError } = await applyActiveRoleValidity(
+    args.supabase
+      .from('user_roles')
+      .select(SEND_EMAIL_CALLER_ROLE_SELECT)
+      .eq('auth_user_id', args.user.id)
+  );
 
   if (callerRolesError) {
     throw new HttpError(500, 'Failed to verify email authorization');
@@ -201,12 +198,12 @@ async function assertSupportNotificationAuthorization(args: {
   }
 
   if (ticket.owner_id !== args.user?.id) {
-    const { data: callerRoles, error: callerRolesError } = await args.supabase
-      .from('user_roles')
-      .select(SEND_EMAIL_CALLER_ROLE_SELECT)
-      .eq('auth_user_id', args.user?.id)
-      .eq('is_active', true)
-      .or(ACTIVE_ROLE_NOT_EXPIRED);
+    const { data: callerRoles, error: callerRolesError } = await applyActiveRoleValidity(
+      args.supabase
+        .from('user_roles')
+        .select(SEND_EMAIL_CALLER_ROLE_SELECT)
+        .eq('auth_user_id', args.user?.id)
+    );
 
     if (callerRolesError) {
       throw new HttpError(500, 'Failed to verify support email authorization');

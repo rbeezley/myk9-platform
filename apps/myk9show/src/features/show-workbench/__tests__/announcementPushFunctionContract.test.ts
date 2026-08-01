@@ -41,7 +41,15 @@ describe('push-trigger-announcement function contract', () => {
     expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
     expect(source).toContain('beforeBody: requirePushWebhookSecret');
     expect(source).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
-    expect(source).toContain(".eq('is_active', true)");
+    // Role-validity (is_active + expiry) filtering runs through the shared
+    // role-validity helper rather than an inlined predicate. Assert the helper
+    // actually wraps the user_roles query, not merely that it's imported.
+    expect(source).toContain("from '../_shared/roleValidity.ts'");
+    const callIndex = source.indexOf('applyActiveRoleValidity(');
+    expect(callIndex).toBeGreaterThan(source.indexOf('import'));
+    const userRolesIndex = source.indexOf("from('user_roles')", callIndex);
+    expect(userRolesIndex).toBeGreaterThan(callIndex);
+    expect(userRolesIndex - callIndex).toBeLessThan(200);
     expect(source.indexOf('beforeBody: requirePushWebhookSecret')).toBeLessThan(
       source.indexOf('webpush.sendNotification')
     );
@@ -169,7 +177,9 @@ describe('class-status and scoring push audience contracts', () => {
     expect(source).toContain('entry.dog?.owner?.auth_user_id');
     expect(source).toContain('entry.dog?.co_owner?.auth_user_id');
     expect(source).toContain('entry.handler?.auth_user_id');
-    expect(source).toContain(".not('entry_status', 'in', '(\"withdrawn\",\"scratched\",\"absent\")')");
+    expect(source).toContain(
+      '.not(\'entry_status\', \'in\', \'("withdrawn","scratched","absent")\')'
+    );
     expect(source).toContain(".not('check_in_status', 'eq', 'pulled')");
     expect(source).not.toContain(".select('user_id')");
     expect(source).not.toContain(".not('entry_status', 'eq', 'pulled')");

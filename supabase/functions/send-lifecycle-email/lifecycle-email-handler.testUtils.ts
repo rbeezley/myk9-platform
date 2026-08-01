@@ -15,6 +15,7 @@ function makeQuery(
       resultRows = resultRows.filter(row => row[column] === value);
       return query;
     }),
+    or: vi.fn(() => query),
     in: vi.fn((column: string, values: readonly unknown[]) => {
       resultRows = resultRows.filter(row => values.includes(row[column]));
       return query;

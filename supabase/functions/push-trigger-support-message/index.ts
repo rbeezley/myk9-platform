@@ -104,13 +104,16 @@ async function getOwnerRecipient(supabase: SupabaseClient, ownerId: string) {
 }
 
 async function getSiteAdminRecipients(supabase: SupabaseClient) {
-  const { data } = await applyActiveRoleValidity(
+  const { data, error } = await applyActiveRoleValidity(
     supabase
       .from('user_roles')
       .select('people!inner(auth_user_id, email, first_name, last_name), roles!inner(name)')
       .eq('roles.name', 'site_admin')
       .not('people.auth_user_id', 'is', null)
   );
+  if (error) {
+    throw new HttpError(500, 'Audience resolution failed');
+  }
   const people = ((data ?? []) as Array<{ people: RecipientRow | RecipientRow[] | null }>)
     .map(row => (Array.isArray(row.people) ? row.people[0] : row.people))
     .filter((row): row is RecipientRow => !!row);

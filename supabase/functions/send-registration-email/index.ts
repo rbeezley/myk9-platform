@@ -184,7 +184,7 @@ handle<SendRegistrationEmailPayload>(
       if (callerPerson) {
         // Check secretary role for show's club
         if (registration.show?.club_id) {
-          const { data: secretaryRole } = await applyActiveRoleValidity(
+          const { data: secretaryRole, error: secretaryRoleError } = await applyActiveRoleValidity(
             supabase
               .from('user_roles')
               .select('id, role:roles!inner(name)')
@@ -192,18 +192,24 @@ handle<SendRegistrationEmailPayload>(
               .eq('club_id', registration.show.club_id)
               .eq('roles.name', 'trial_secretary')
           ).maybeSingle();
+          if (secretaryRoleError) {
+            throw new HttpError(500, 'Failed to verify sender role');
+          }
           isSecretary = !!secretaryRole;
         }
 
         // Check platform admin role via database (SA-014: not JWT claims)
         if (!isSecretary) {
-          const { data: adminRole } = await applyActiveRoleValidity(
+          const { data: adminRole, error: adminRoleError } = await applyActiveRoleValidity(
             supabase
               .from('user_roles')
               .select('id, role:roles!inner(name)')
               .eq('user_id', callerPerson.id)
               .in('roles.name', ['site_admin', 'platform_admin'])
           ).maybeSingle();
+          if (adminRoleError) {
+            throw new HttpError(500, 'Failed to verify sender role');
+          }
           isAdmin = !!adminRole;
         }
       }

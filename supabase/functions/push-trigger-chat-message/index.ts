@@ -59,7 +59,7 @@ handle<WebhookPayload>(
         .single();
 
       if (show) {
-        const { data: secretaries } = await applyActiveRoleValidity(
+        const { data: secretaries, error: secretariesError } = await applyActiveRoleValidity(
           supabase
             .from('user_roles')
             .select('id, club_id, people!inner(auth_user_id), roles!inner(name)')
@@ -69,13 +69,17 @@ handle<WebhookPayload>(
         );
 
         // Also include platform admins
-        const { data: admins } = await applyActiveRoleValidity(
+        const { data: admins, error: adminsError } = await applyActiveRoleValidity(
           supabase
             .from('user_roles')
             .select('id, people!inner(auth_user_id), roles!inner(name)')
             .eq('roles.name', 'platform_admin')
             .not('people.auth_user_id', 'is', null)
         );
+
+        if (secretariesError || adminsError) {
+          throw new HttpError(500, 'Audience resolution failed');
+        }
 
         const allRecipients = [...(secretaries || []), ...(admins || [])];
         const authIds = allRecipients.map((r: any) => r.people?.auth_user_id).filter(Boolean);

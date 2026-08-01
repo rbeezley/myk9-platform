@@ -33,9 +33,13 @@ export async function deleteUserHandler({ body, user, supabase }: HandlerCtx<Del
   }
 
   // 2. Check site_admin via RBAC
-  const { data: rbacRoles } = await applyActiveRoleValidity(
+  const { data: rbacRoles, error: rbacError } = await applyActiveRoleValidity(
     supabase.from('user_roles').select('role:roles(name)').eq('user_id', callerPerson.id)
   );
+
+  if (rbacError) {
+    throw new HttpError(500, 'Failed to verify caller role');
+  }
 
   const isSiteAdmin =
     rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??

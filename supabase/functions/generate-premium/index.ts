@@ -109,7 +109,7 @@ handle<GeneratePremiumPayload>(
 
     // Step 7b: Resolve secretary from user_roles (migration 099 moved officials
     // off shows.secretary/secretary_email into the user_roles + people tables).
-    const { data: secretaryRoleRow } = await applyActiveRoleValidity(
+    const { data: secretaryRoleRow, error: secretaryRoleError } = await applyActiveRoleValidity(
       userClient
         .from('user_roles')
         .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
@@ -118,6 +118,9 @@ handle<GeneratePremiumPayload>(
     )
       .limit(1)
       .maybeSingle();
+    if (secretaryRoleError) {
+      throw new HttpError(500, 'Failed to resolve show secretary');
+    }
     const secretaryPerson =
       (
         secretaryRoleRow as {
@@ -138,7 +141,7 @@ handle<GeneratePremiumPayload>(
     // Resolve the show chairman the same way (user_roles → people). The chairman
     // is often a non-login contact, so surface full contact info (name/email/phone)
     // for the premium and official reports.
-    const { data: chairmanRoleRow } = await applyActiveRoleValidity(
+    const { data: chairmanRoleRow, error: chairmanRoleError } = await applyActiveRoleValidity(
       userClient
         .from('user_roles')
         .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
@@ -147,6 +150,9 @@ handle<GeneratePremiumPayload>(
     )
       .limit(1)
       .maybeSingle();
+    if (chairmanRoleError) {
+      throw new HttpError(500, 'Failed to resolve show chairman');
+    }
     const chairmanPerson =
       (
         chairmanRoleRow as {

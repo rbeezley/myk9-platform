@@ -22,6 +22,7 @@ interface MockOptions {
   callerPerson?: { id: string } | null;
   callerError?: unknown;
   rbacRoles?: Array<{ role: { name: string } | null }> | null;
+  rbacError?: unknown;
   targetPerson?: {
     id: string;
     first_name: string;
@@ -63,7 +64,8 @@ function makeSupabase(opts: MockOptions = {}) {
     }
     if (table === 'user_roles') {
       return chain(
-        opts.rbacRoles === undefined ? [{ role: { name: 'site_admin' } }] : opts.rbacRoles
+        opts.rbacRoles === undefined ? [{ role: { name: 'site_admin' } }] : opts.rbacRoles,
+        opts.rbacError ?? null
       );
     }
     throw new Error(`unexpected table ${table}`);
@@ -116,6 +118,20 @@ describe('deleteUserHandler', () => {
         supabase: supabase as never,
       } as never)
     ).rejects.toThrow('Unauthorized: requires site_admin role');
+  });
+
+  it('fails closed when the role lookup errors', async () => {
+    const { supabase, deleteEq, deleteUser } = makeSupabase({ rbacError: { message: 'timeout' } });
+
+    await expect(
+      deleteUserHandler({
+        body: { personId: 'target-1' },
+        user: { id: 'auth-caller' },
+        supabase: supabase as never,
+      } as never)
+    ).rejects.toMatchObject({ status: 500, message: 'Failed to verify caller role' });
+    expect(deleteEq).not.toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
   });
 
   it('rejects a missing personId with 400', async () => {

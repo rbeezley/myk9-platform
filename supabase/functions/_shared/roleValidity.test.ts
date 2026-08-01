@@ -17,6 +17,7 @@ describe('role validity', () => {
 
   it.each([
     { is_active: false, expires_at: null, expected: false },
+    { is_active: true, expires_at: '2026-08-01T11:59:59.999Z', expected: false },
     { is_active: true, expires_at: '2026-08-01T12:00:00.000Z', expected: false },
     { is_active: true, expires_at: '2026-08-01T12:00:01.000Z', expected: true },
     { is_active: true, expires_at: null, expected: true },

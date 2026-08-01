@@ -1,5 +1,7 @@
 # Security Findings Remediation Plan — 2026-08-01
 
+> **Status:** Active
+
 ## Goal
 
 Work the active security backlog in exploitability order while preserving the finding lifecycle

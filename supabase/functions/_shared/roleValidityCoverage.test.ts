@@ -12,6 +12,10 @@ const ROLE_VALIDITY_PATHS = [
   '../push-trigger-chat-message/index.ts',
   '../push-trigger-support-message/index.ts',
   '../generate-premium/index.ts',
+  '../send-email/authz.ts',
+  '../send-results/authz.ts',
+  '../push-trigger-announcement/index.ts',
+  '../ask-myk9show/index.ts',
 ];
 
 describe('privileged Edge role-validity coverage', () => {

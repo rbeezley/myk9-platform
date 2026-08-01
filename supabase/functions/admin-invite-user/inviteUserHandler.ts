@@ -99,9 +99,13 @@ async function assertSiteAdmin(
     throw new HttpError(403, 'Caller not found');
   }
 
-  const { data: rbacRoles } = await applyActiveRoleValidity(
+  const { data: rbacRoles, error: rbacError } = await applyActiveRoleValidity(
     supabase.from('user_roles').select('role:roles(name)').eq('user_id', callerPerson.id)
   );
+
+  if (rbacError) {
+    throw new HttpError(500, 'Failed to verify caller role');
+  }
 
   const isSiteAdmin =
     rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??

@@ -27,6 +27,7 @@ interface MockOptions {
   /** auth.admin.getUserById result for that person's identity. */
   identityUser?: { user: { email: string } | null } | null;
   rbacRoles?: Array<{ role: { name: string } | null }> | null;
+  rbacError?: unknown;
   /** Queued generateLink results, consumed in call order. */
   linkResults?: Array<{ data: unknown; error: { message?: string; code?: string } | null }>;
 }
@@ -64,7 +65,8 @@ function makeSupabase(opts: MockOptions = {}) {
     }
     if (table === 'user_roles') {
       return chain(
-        opts.rbacRoles === undefined ? [{ role: { name: 'site_admin' } }] : opts.rbacRoles
+        opts.rbacRoles === undefined ? [{ role: { name: 'site_admin' } }] : opts.rbacRoles,
+        opts.rbacError ?? null
       );
     }
     throw new Error(`unexpected table ${table}`);
@@ -127,6 +129,18 @@ describe('inviteUserHandler — authorization', () => {
     const { deps } = makeDeps();
 
     await expect(invoke(supabase, deps)).rejects.toThrow('Unauthorized: requires site_admin role');
+  });
+
+  it('fails closed when the role lookup errors', async () => {
+    const { supabase, generateLink } = makeSupabase({ rbacError: { message: 'timeout' } });
+    const { deps, sendEmail } = makeDeps();
+
+    await expect(invoke(supabase, deps)).rejects.toMatchObject({
+      status: 500,
+      message: 'Failed to verify caller role',
+    });
+    expect(generateLink).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it('does not generate a link or send mail for an unauthorized caller', async () => {

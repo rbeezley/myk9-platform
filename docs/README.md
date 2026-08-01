@@ -65,6 +65,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                                             | Active    | Data Access Module Drift Plan                                                |
 | [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                                         | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)               |
 | [plan-show-details-step-extraction/README.md](plan-show-details-step-extraction/README.md)                       | Active    | Show Details Step Extraction (ShowDetailsStep.tsx hotspot follow-up)         |
+| [plan-security-remediation-2026-08-01.md](plan-security-remediation-2026-08-01.md)                               | Active    | Security Findings Remediation — 2026-08-01 (ordered exploitability work)     |
 | [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                                         | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)          |
 | [plan-entry-payment-request.md](plan-entry-payment-request.md)                                                   | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)          |
 | [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                                               | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)         |

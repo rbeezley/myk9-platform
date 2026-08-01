@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import type {
   AskQQuestionMode,
   AskQShowRequest,
@@ -277,13 +278,13 @@ Deno.serve(async (req: Request) => {
     if (showId && showData?.name) {
       const dogIds = dogs.map(d => d.id);
       const [{ count: roleCount }, { count: entryCount }] = await Promise.all([
-        serviceClient
-          .from('user_roles')
-          .select('*', { count: 'exact', head: true })
-          .eq('auth_user_id', user.id)
-          .eq('show_id', showId)
-          .eq('is_active', true)
-          .or('expires_at.is.null,expires_at.gt.now()'),
+        applyActiveRoleValidity(
+          serviceClient
+            .from('user_roles')
+            .select('*', { count: 'exact', head: true })
+            .eq('auth_user_id', user.id)
+            .eq('show_id', showId)
+        ),
         dogIds.length > 0
           ? serviceClient
               .from('entries')

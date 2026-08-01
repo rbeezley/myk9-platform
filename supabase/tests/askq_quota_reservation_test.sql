@@ -155,7 +155,11 @@ BEGIN
 
   IF allowed IS DISTINCT FROM false OR log_id IS NOT NULL OR remaining <> 0
      OR daily_limit <> 10 OR resets_at IS NULL THEN
-    RAISE EXCEPTION 'FAIL eleventh reservation was not denied';
+    -- Report the values, not just the verdict: five conditions share this
+    -- branch, and "was not denied" cannot say which one moved.
+    RAISE EXCEPTION
+      'FAIL eleventh reservation: allowed=%, log_id=%, remaining=%, limit=%, resets_at=%',
+      allowed, log_id, remaining, daily_limit, resets_at;
   END IF;
 
   PERFORM set_config('request.jwt.claim.sub', premium_id::text, true);

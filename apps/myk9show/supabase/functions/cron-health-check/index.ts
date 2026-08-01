@@ -80,21 +80,30 @@ async function secretMatches(provided: string | null): Promise<boolean> {
   return diff === 0;
 }
 
-/** Previous snapshot's ringside conflict counter, for the delta check. Any
- * failure (no rows, query error, malformed checks) yields null = no baseline;
+/** Previous snapshot's ringside conflict counter AND the time it was taken. The
+ * timestamp is what lets the check report a rate rather than a bare delta — a
+ * 24h delta of 1.4M reads as a broken counter, 992/min reads as a storm. Any
+ * failure (no rows, query error, malformed checks) yields nulls = no baseline;
  * the check then records a fresh baseline instead of failing. */
-async function fetchPreviousConflictCounter(): Promise<number | null> {
+async function fetchPreviousConflictBaseline(): Promise<{
+  counter: number | null;
+  at: string | null;
+}> {
   try {
     const { data, error } = await supabase
       .from('system_health_snapshots')
-      .select('checks')
+      .select('checks, created_at')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (error || !data) return null;
-    return extractConflictCounter((data as { checks?: unknown }).checks);
+    if (error || !data) return { counter: null, at: null };
+    const row = data as { checks?: unknown; created_at?: unknown };
+    return {
+      counter: extractConflictCounter(row.checks),
+      at: typeof row.created_at === 'string' ? row.created_at : null,
+    };
   } catch {
-    return null;
+    return { counter: null, at: null };
   }
 }
 
@@ -130,13 +139,14 @@ async function runHealthSnapshot(): Promise<Response> {
     );
   }
 
-  const previousConflictCounter = await fetchPreviousConflictCounter();
+  const previous = await fetchPreviousConflictBaseline();
 
   const snapshot = buildSnapshot(facts, {
     now: Date.now(),
     source: DEFAULT_SOURCE,
     runDurationMs: Date.now() - startedAt,
-    previousConflictCounter,
+    previousConflictCounter: previous.counter,
+    previousSnapshotAt: previous.at,
   });
   await insertSnapshot(snapshot);
 

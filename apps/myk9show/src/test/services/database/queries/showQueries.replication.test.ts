@@ -221,7 +221,8 @@ describe('showQueries (replication)', () => {
       const ja = row.judge_assignments as Record<string, unknown>[];
       expect(ja).toHaveLength(1);
       expect(ja[0].person_id).toBe('person-1');
-      expect(ja[0].fee).toBe(200);
+      expect(ja[0]).not.toHaveProperty('fee');
+      expect(ja[0]).not.toHaveProperty('notes');
       expect(ja[0].judge).toBeNull(); // people not replicated yet
     });
 

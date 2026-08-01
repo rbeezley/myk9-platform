@@ -64,7 +64,8 @@ BEGIN
     ('frontend_logs','','','SELECT,INSERT,UPDATE,DELETE'),
     ('genetic_screenings','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('health_records','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
-    ('judge_assignments','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
+    -- MYK9-146: fee/notes are column-restricted; writes remain table-level.
+    ('judge_assignments','INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('judge_availability','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('judge_certifications','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('judge_qualifications','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
@@ -96,6 +97,11 @@ BEGIN
     ('push_notification_queue','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('push_subscriptions','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('result_submissions','SELECT,INSERT','','SELECT,INSERT,UPDATE,DELETE'),
+    -- MYK9-115 breaker state and its audit trail. No client grants by design:
+    -- these are read inside SECURITY DEFINER functions, and a client that could
+    -- write ringside_containment could switch off the conflict-storm breaker.
+    ('ringside_containment','','','SELECT'),
+    ('ringside_containment_audit','','','SELECT'),
     ('ringside_sessions','','','SELECT,INSERT,UPDATE,DELETE'),
     ('role_permissions','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('role_requests','SELECT,UPDATE','','SELECT,INSERT,UPDATE,DELETE'),
@@ -212,7 +218,8 @@ BEGIN
       'organization_agreements','paperwork_prints','pedigree_ancestors','people',
       'performance_metrics','permission_audit_log','permissions','platform_settings',
       'platform_waitlist','premium_generation_attempts','premium_generations','promo_codes',
-      'push_notification_queue','push_subscriptions','result_submissions','ringside_sessions',
+      'push_notification_queue','push_subscriptions','result_submissions',
+      'ringside_containment','ringside_containment_audit','ringside_sessions',
       'role_permissions','role_requests','roles','rule_organizations','rule_sports','rulebooks',
       'rules','rules_feedback','rules_query_log','secretary_tasks','show_announcement_reads',
       'show_announcements','show_incidents','show_lifecycle_email_attempts',
@@ -280,6 +287,8 @@ BEGIN
       ('classes','authenticated',54),
       ('entries','anon',14),
       ('entries','authenticated',54),
+      ('judge_assignments','anon',10),
+      ('judge_assignments','authenticated',12),
       ('dogs','anon',5),
       ('people','anon',4),
       ('dog_registrations','authenticated',1),
@@ -310,7 +319,7 @@ BEGIN
   IF v_bad <> '' THEN
     RAISE EXCEPTION 'FAIL column allowlist damaged -- a REVOKE took column grants with it:%', v_bad;
   END IF;
-  RAISE NOTICE 'PASS all six column allowlists intact';
+  RAISE NOTICE 'PASS all column allowlists intact';
 END;
 $$;
 
@@ -361,6 +370,11 @@ BEGIN
 
   IF NOT has_column_privilege('authenticated', 'public.classes'::regclass, 'id', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL authenticated lost classes.id -- a REVOKE took the column allowlist with it';
+  END IF;
+
+  IF has_column_privilege('authenticated', 'public.judge_assignments'::regclass, 'fee', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.judge_assignments'::regclass, 'notes', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL authenticated can read judge assignment fee/notes outside the manager RPC';
   END IF;
 
   RAISE NOTICE 'PASS authenticated cannot read the judge-set hide count but keeps the rest of the class';
@@ -472,7 +486,13 @@ BEGIN
       ('frontend_logs_id_seq','service_role','SELECT,UPDATE,USAGE'),
       ('ringside_conflict_seq','anon',''),
       ('ringside_conflict_seq','authenticated',''),
-      ('ringside_conflict_seq','service_role','SELECT,UPDATE,USAGE')
+      ('ringside_conflict_seq','service_role','SELECT,UPDATE,USAGE'),
+      -- Owner-only. The identity sequence behind ringside_containment_audit is
+      -- advanced by SECURITY DEFINER functions writing as the table owner, so
+      -- no client role — and not service_role either — needs a privilege here.
+      ('ringside_containment_audit_id_seq','anon',''),
+      ('ringside_containment_audit_id_seq','authenticated',''),
+      ('ringside_containment_audit_id_seq','service_role','')
     ),
     actual AS (
       SELECT e.seq, e.role_name, e.privs AS want,
@@ -494,7 +514,7 @@ BEGIN
   IF v_bad <> '' THEN
     RAISE EXCEPTION 'FAIL sequence grant(s) drifted from the codified intent:%', v_bad;
   END IF;
-  RAISE NOTICE 'PASS all three sequences grant exactly the codified privileges';
+  RAISE NOTICE 'PASS every public sequence grants exactly the codified privileges';
 END;
 $$;
 
@@ -508,7 +528,8 @@ BEGIN
   WHERE n.nspname = 'public'
     AND c.relkind = 'S'
     AND c.relname NOT IN (
-      'registration_confirmation_seq','frontend_logs_id_seq','ringside_conflict_seq'
+      'registration_confirmation_seq','frontend_logs_id_seq','ringside_conflict_seq',
+      'ringside_containment_audit_id_seq'
     );
 
   IF v_missing IS NOT NULL THEN

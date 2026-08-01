@@ -15,12 +15,16 @@
 BEGIN;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-0000000f0c01', 'Anon Scope Test Club');
+VALUES ('00000000-0000-0000-0000-0000000f0c01', 'Anon Scope Test Club'),
+       ('00000000-0000-0000-0000-0000000f0c02', 'Anon Scope Other Club');
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
                           accept_check_payments, accept_cash_payments)
 VALUES ('00000000-0000-0000-0000-0000000f0510', 'Anon Scope Test Show', 'AKC',
         current_date + 10, current_date + 11, '00000000-0000-0000-0000-0000000f0c01',
+        'published', true, true),
+       ('00000000-0000-0000-0000-0000000f0511', 'Anon Scope Other Show', 'AKC',
+        current_date + 10, current_date + 11, '00000000-0000-0000-0000-0000000f0c02',
         'published', true, true);
 
 INSERT INTO public.volunteers (id, show_id, name, email, phone)
@@ -43,6 +47,29 @@ VALUES
   -- The passcode/ringside identity: a genuine anonymous auth user.
   ('00000000-0000-0000-0000-0000000f0003','00000000-0000-0000-0000-000000000000','authenticated',
    'authenticated', NULL,'', now(), now(), now(), '{}','{}', false, false, true);
+
+INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
+VALUES ('00000000-0000-0000-0000-0000000f0510', 'judge', 'anon-scope-test-hash',
+        '2026-01-01T00:00:00Z'),
+       ('00000000-0000-0000-0000-0000000f0510', 'exhibitor', 'anon-scope-exhibitor-hash',
+        '2026-01-01T00:00:00Z'),
+       ('00000000-0000-0000-0000-0000000f0511', 'judge', 'anon-scope-other-hash',
+        '2026-01-01T00:00:00Z');
+
+INSERT INTO public.show_announcements (
+  id, show_id, author_id, author_role, author_name, title, content
+)
+VALUES (
+  '00000000-0000-0000-0000-0000000f0701',
+  '00000000-0000-0000-0000-0000000f0510',
+  '00000000-0000-0000-0000-0000000f0002',
+  'secretary', 'Show Manager', 'Ring update', 'Ring 1 is ready.'
+), (
+  '00000000-0000-0000-0000-0000000f0702',
+  '00000000-0000-0000-0000-0000000f0511',
+  '00000000-0000-0000-0000-0000000f0002',
+  'secretary', 'Show Manager', 'Other ring update', 'Other ring is ready.'
+);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-0000000f0112', id, '00000000-0000-0000-0000-0000000f0c01', true,
@@ -88,6 +115,71 @@ BEGIN
 
   SELECT count(*) INTO n FROM public.show_announcements;
   IF n <> 0 THEN RAISE EXCEPTION 'FAIL anonymous session read % announcement(s)', n; END IF;
+
+  -- A valid ringside claim may read only its stamped show. This is the
+  -- show-day path that account-wide anonymous-read hardening must preserve.
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object(
+      'sub', anon_user,
+      'role', 'authenticated',
+      'is_anonymous', true,
+      'app_metadata', jsonb_build_object(
+        'kind', 'ringside_passcode',
+        'show_id', v_show_id,
+        'ringside_role', 'judge',
+        'passcode_generation', '2026-01-01T00:00:00Z'
+      )
+    )::text,
+    true
+  );
+
+  SELECT count(*) INTO n FROM public.show_announcements;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL valid ringside claim read % announcement(s), expected 1', n;
+  END IF;
+
+  -- A valid claim for another show must not widen the read to this show.
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object(
+      'sub', anon_user,
+      'role', 'authenticated',
+      'is_anonymous', true,
+      'app_metadata', jsonb_build_object(
+        'kind', 'ringside_passcode',
+        'show_id', '00000000-0000-0000-0000-0000000f0511',
+        'ringside_role', 'judge',
+        'passcode_generation', '2026-01-01T00:00:00Z'
+      )
+    )::text,
+    true
+  );
+
+  SELECT count(*) INTO n FROM public.show_announcements;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL cross-show ringside claim read % announcement(s), expected 1', n;
+  END IF;
+
+  -- Exhibitor passcodes are show participants, not announcement authors. They
+  -- receive the read-only show communication channel without write access.
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object(
+      'sub', anon_user,
+      'role', 'authenticated',
+      'is_anonymous', true,
+      'app_metadata', jsonb_build_object(
+        'kind', 'ringside_passcode',
+        'show_id', v_show_id,
+        'ringside_role', 'exhibitor',
+        'passcode_generation', '2026-01-01T00:00:00Z'
+      )
+    )::text,
+    true
+  );
+
+  SELECT count(*) INTO n FROM public.show_announcements;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL exhibitor ringside claim read % announcement(s), expected 1', n;
+  END IF;
 
   ----------------------------------------------------------------------------
   -- 2. The passcode session must NOT lose its ringside reads. Anonymous
@@ -138,7 +230,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL show manager saw % volunteer row(s), expected 1', n;
   END IF;
 
-  RAISE NOTICE 'PASS anonymous session denied volunteers/activity_log/roles/permissions/checklists/announcements while keeping shows and rulebook; real account keeps RBAC but not foreign rosters; show manager sees its own roster';
+  RAISE NOTICE 'PASS anonymous account-wide reads denied; current ringside claim reads only its show announcements; shows/rulebook and real-account roster behavior preserved';
 END;
 $$;
 

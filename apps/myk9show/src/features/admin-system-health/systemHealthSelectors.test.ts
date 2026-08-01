@@ -177,6 +177,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'warn',
       detail: 'Queue is stale',
       checkedAt: null,
+      verification: 'proven' as const,
     });
 
     expect(remediation).toMatchObject({
@@ -193,6 +194,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'fail',
       detail: 'Last payout run failed',
       checkedAt: null,
+      verification: 'proven' as const,
     });
 
     expect(remediation).toMatchObject({
@@ -209,6 +211,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'unknown',
       detail: 'No metadata mapped',
       checkedAt: null,
+      verification: 'proven' as const,
     });
 
     expect(remediation).toMatchObject({
@@ -224,6 +227,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'unknown' as const,
       detail: 'Coverage incomplete: not checked here',
       checkedAt: null,
+      verification: 'proven' as const,
     };
 
     expect(isCoverageIncomplete(check)).toBe(true);
@@ -237,6 +241,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'ok' as const,
       detail: 'All role coverage checks complete',
       checkedAt: '2026-07-04T12:00:00Z',
+      verification: 'proven' as const,
     };
 
     expect(isCoverageIncomplete(check)).toBe(false);

@@ -77,6 +77,14 @@ interface DataTableProps<TData> {
    * Ignored when a custom `toolbar` is supplied.
    */
   showSearch?: boolean;
+  /**
+   * Whether the default toolbar renders its built-in "Export CSV" button.
+   * Defaults to `true`. Set to `false` when the page owns export — the built-in
+   * one exports the rows the table was handed, which is only the current page
+   * on a surface that paginates outside the table, so two exports side by side
+   * silently disagree about scope.
+   */
+  showExport?: boolean;
   emptyState?: ReactNode;
   noResultsMessage?: ReactNode;
   loading?: boolean;
@@ -191,7 +199,11 @@ function isInteractiveElement(target: EventTarget | null, boundary: Element): bo
   const interactive = target.closest(
     'a,button,input,select,textarea,[role="button"],[role="menuitem"],[tabindex]:not([tabindex="-1"])'
   );
-  return Boolean(interactive && interactive !== boundary);
+  // The match must be INSIDE the row. `closest` walks the whole ancestor chain,
+  // so without this a table nested in the standard `role="region" tabIndex={0}`
+  // scroll wrapper matched that wrapper on every click and swallowed the row
+  // handler entirely — /admin/users shipped that way.
+  return Boolean(interactive && interactive !== boundary && boundary.contains(interactive));
 }
 
 export function DataTable<TData>({
@@ -214,6 +226,7 @@ export function DataTable<TData>({
   },
   toolbar,
   showSearch = true,
+  showExport = true,
   emptyState,
   noResultsMessage,
   loading = false,
@@ -379,15 +392,17 @@ export function DataTable<TData>({
             <DataTableToolbar table={table}>
               {showSearch && <DataTableSearch />}
               <DataTableColumnToggle />
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => exportTableCsv(table, tableId)}
-              >
-                <Download className="h-3.5 w-3.5 mr-1" />
-                Export CSV
-              </Button>
+              {showExport && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => exportTableCsv(table, tableId)}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Export CSV
+                </Button>
+              )}
               {!controlledDensity && (
                 <Button
                   variant="outline"

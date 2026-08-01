@@ -1,112 +1,238 @@
 /**
- * AdminDashboard Page
+ * AdminDashboard — the site admin's home.
  *
- * System administration dashboard with platform management, statistics,
- * and system health monitoring.
+ * INTENT: serves the Site Admin — "The platform is healthy" role (docs/INTENT.md
+ * §2): oversight, not micromanagement. It answers "is anything wrong, and what
+ * do I do about it?" in one screen, and every number on it is measured rather
+ * than estimated.
+ *
+ * Three things are deliberately ABSENT, and each was a design element that had
+ * no source (docs/plan-admin-dashboard-data-contract.md):
+ *
+ *  - No uptime / API p95 / error-rate tiles. Those live in Sentry behind an API
+ *    token and need a cached edge-function proxy first. A tile is a promise that
+ *    a number is measured.
+ *  - No traffic chart. Nothing collects requests per minute, and its second
+ *    series was myK9Q — an app deleted from this monorepo.
+ *  - No separate event log. Its only populated source is operator_alerts, which
+ *    already drives "Needs a look" below; rendering the same rows twice on one
+ *    screen is the duplication this phase exists to remove.
+ *
+ * If you are about to add one of these back, the question to answer first is
+ * "what reads the number", not "where does the block go".
  */
 
-import React from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, Settings, Users } from 'lucide-react';
+import { Settings, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
-
-// Import from module
+import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
+import { useOperatorAlerts } from '@/features/admin-system-health/useOperatorAlerts';
 import {
-  useAdminDashboardData,
-  calculateDashboardStats,
-  PlatformHealthSummary,
-  PlatformAdministrationSection,
-  PlatformStatisticsSection,
-} from './AdminDashboard/index';
+  deriveEffectiveStatus,
+  formatCheckedAgo,
+} from '@/features/admin-system-health/systemHealthSelectors';
+import { summarizeChecks, statusLabel } from '@/features/admin-system-health/checkHistorySelectors';
+import { useAdminOverview } from '@/features/admin-overview/useAdminOverview';
+import { deriveTriage, type TriageCategory } from '@/features/admin-overview/triageSelectors';
+import { BoardCard, BoardSkeleton, Eyebrow, StatusDot } from './SystemHealth/HealthBoardPrimitives';
+import { NeedsALookSection } from './AdminDashboard/NeedsALookSection';
 
-/**
- * Error state display component
- */
-function DashboardError() {
+function StatTile({
+  label,
+  value,
+  context,
+  href,
+}: {
+  label: string;
+  value: string | number;
+  context: string;
+  href: string;
+}) {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-6">
-          <AlertCircle className="h-8 w-8 text-destructive" />
-        </div>
-        <h2 className="text-xl font-semibold mb-3">Error Loading Dashboard</h2>
-        <p className="font-medium text-muted-foreground">
-          Unable to load dashboard data. Please try again later.
-        </p>
-      </div>
-    </div>
+    <Link
+      to={href}
+      className="rounded-[13px] border border-border bg-card px-4 py-3.5 transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1.5 font-mono text-[25px] font-semibold leading-none tabular-nums text-foreground">
+        {value}
+      </p>
+      <p className="mt-1.5 text-[11px] text-muted-foreground">{context}</p>
+    </Link>
   );
 }
 
-/**
- * Dashboard header with title and action buttons
- */
-function DashboardHeader({ firstName }: { firstName: string | null }) {
-  return (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12">
-      <div>
-        <DashboardGreeting
-          firstName={firstName}
-          subtitle="Admin console for platform management, user administration, and system oversight"
-          className="text-4xl tracking-tight mb-3"
-        />
-      </div>
-      <div className="flex w-full flex-col gap-3 mt-6 sm:flex-row sm:flex-wrap md:mt-0 md:w-auto md:justify-end">
-        <Button variant="outline" className="w-full sm:w-auto" asChild>
-          <Link to="/admin/users">
-            <Users className="h-4 w-4 mr-2" />
-            Manage Users
-          </Link>
-        </Button>
-        <Button className="w-full sm:w-auto" asChild>
-          <Link to="/admin/permissions">
-            <Settings className="h-4 w-4 mr-2" />
-            Permissions
-          </Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-const AdminDashboard: React.FC = () => {
+export default function AdminDashboard() {
   const { firstName } = useAuthContext();
-  // Get dashboard data
-  const dashboardData = useAdminDashboardData();
+  const [now] = useState(() => Date.now());
+  const [triageFilter, setTriageFilter] = useState<TriageCategory | 'all'>('all');
 
-  // Calculate derived statistics
-  const stats = calculateDashboardStats(dashboardData);
+  const health = useSystemHealthSnapshots();
+  const alerts = useOperatorAlerts();
+  const overview = useAdminOverview(now);
+  const latest = health.data?.latest ?? null;
+  const checks = useMemo(() => latest?.checks ?? [], [latest]);
+  const summary = useMemo(() => summarizeChecks(checks), [checks]);
+  const effective = deriveEffectiveStatus(latest, now);
+  const openAlerts = useMemo(() => alerts.data ?? [], [alerts.data]);
+  const triage = useMemo(() => deriveTriage(checks, openAlerts, now), [checks, openAlerts, now]);
 
-  // Show error state if data loading failed
-  if (dashboardData.hasError) {
-    return <DashboardError />;
-  }
+  const counts = overview.data;
+  // An errored count must never render as a zero, and "—" alone is not an error
+  // state — it looks like a number that has not arrived. Say what failed.
+  const countsError = overview.error
+    ? overview.error instanceof Error
+      ? overview.error.message
+      : 'The count query failed.'
+    : null;
+  const checksLabel =
+    effective.isEmpty || effective.isStale ? '—' : `${summary.passing}/${summary.total}`;
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-8 pt-8 pb-12 max-w-8xl">
-        {/* Header */}
-        <DashboardHeader firstName={firstName} />
+      <div className="container mx-auto max-w-6xl px-6 pb-10 pt-8">
+        <header className="mb-[22px] flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <DashboardGreeting
+            firstName={firstName}
+            subtitle="Platform oversight. Every number here is measured; times are Eastern."
+            className="text-[25px] tracking-[-0.018em]"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/users">
+                <Users className="mr-2 h-4 w-4" />
+                Manage users
+              </Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link to="/admin/permissions">
+                <Settings className="mr-2 h-4 w-4" />
+                Permissions
+              </Link>
+            </Button>
+          </div>
+        </header>
 
-        {/* Platform Health Summary */}
-        <PlatformHealthSummary />
+        {health.isLoading ? (
+          <BoardSkeleton rows={4} />
+        ) : (
+          <div className="flex flex-col gap-[18px]">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatTile
+                label="Checks passing"
+                value={checksLabel}
+                context={
+                  effective.isEmpty
+                    ? 'no run recorded'
+                    : effective.isStale
+                      ? 'last run is stale'
+                      : `checked ${formatCheckedAgo(latest?.createdAt ?? null, now)}`
+                }
+                href="/admin/health"
+              />
+              <StatTile
+                label="Open alerts"
+                value={alerts.isLoading ? '—' : openAlerts.length}
+                context={openAlerts.length === 0 ? 'nothing unresolved' : 'awaiting a human'}
+                href="/admin/health"
+              />
+              <StatTile
+                label="Live shows"
+                value={counts ? counts.liveShows : '—'}
+                context="published and running today"
+                href="/shows"
+              />
+              <StatTile
+                label="Entries today"
+                value={counts ? counts.entriesToday : '—'}
+                context="since midnight Eastern"
+                href="/admin/health"
+              />
+            </div>
 
-        {/* Platform Administration Section */}
-        <PlatformAdministrationSection userCount={dashboardData.users.length} />
+            <div className="grid grid-cols-1 items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="min-w-0">
+                <NeedsALookSection
+                  items={triage}
+                  filter={triageFilter}
+                  onFilterChange={setTriageFilter}
+                  now={now}
+                />
+              </div>
 
-        {/* Platform Statistics Section */}
-        <PlatformStatisticsSection
-          isLoading={dashboardData.isLoading}
-          totalUsers={stats.totalUsers}
-          activeShows={stats.activeShows}
-          totalShows={stats.totalShows}
-          totalDogs={stats.totalDogs}
-        />
+              <aside className="flex flex-col gap-[18px]">
+                <BoardCard>
+                  <Eyebrow>Today at a glance</Eyebrow>
+                  <dl className="mt-3 grid grid-cols-2 gap-y-3">
+                    {[
+                      ['Entries', counts?.entriesToday],
+                      ['Signups', counts?.signupsToday],
+                      ['Shows created', counts?.showsCreatedToday],
+                      ['Live shows', counts?.liveShows],
+                    ].map(([label, value]) => (
+                      <div key={String(label)}>
+                        <dt className="text-[11px] text-muted-foreground">{label}</dt>
+                        <dd className="mt-0.5 font-mono text-[19px] font-semibold tabular-nums text-foreground">
+                          {value ?? '—'}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {/* Fees processed is the fourth number the design asks for. It
+                      has no clean source — money lives in Stripe and there is no
+                      payments table — so it is left out rather than approximated. */}
+                  <p className="mt-3 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                    {countsError ? (
+                      <span className="text-destructive">
+                        Counts didn&apos;t load: {countsError}
+                      </span>
+                    ) : (
+                      'Day boundary is Eastern, matching show schedules.'
+                    )}
+                  </p>
+                </BoardCard>
+
+                <BoardCard>
+                  <Eyebrow>Services</Eyebrow>
+                  {/* Derived from the SAME snapshot /admin/health reads. Querying
+                      this twice with different logic is how two pages start
+                      disagreeing about whether the platform is up. */}
+                  <ul className="mt-2.5 space-y-2">
+                    {checks.length === 0 ? (
+                      <li className="text-[11.5px] text-muted-foreground">
+                        No checks in the last run.
+                      </li>
+                    ) : (
+                      checks.map(check => (
+                        <li key={check.key} className="flex items-center gap-2">
+                          <StatusDot status={check.status} />
+                          <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+                            {check.label}
+                          </span>
+                          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                            {statusLabel(check.status, check.verification)}
+                          </span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                  <Link
+                    to="/admin/health"
+                    className="mt-3 inline-block border-t border-border pt-2.5 text-[11.5px] font-medium text-foreground hover:underline"
+                  >
+                    Open system health →
+                  </Link>
+                </BoardCard>
+              </aside>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-};
-
-export default AdminDashboard;
+}

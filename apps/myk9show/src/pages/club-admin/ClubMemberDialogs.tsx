@@ -10,6 +10,16 @@ import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { Plus, Shield, Search, X, MoreVertical, Trash2, KeyRound } from 'lucide-react';
 import type { User } from '@/types/user-types';
 import type { ClubMember } from '@/types/club-membership-types';
@@ -46,13 +56,19 @@ export const STATUS_BADGE_CLASSES: Record<MembershipStatus, string> = {
 
 // --- Member Action Menu ---
 
-// The action rows are plain buttons in a disclosure popup, NOT an ARIA menu:
-// we deliberately don't claim role="menu"/"menuitem" because the roving-focus
-// keyboard contract (Arrow/Home/End) isn't implemented here. Tab still reaches
-// every button and click-outside closes the popup. min-h-11 holds each row at
-// the 44px touch-target floor (text-sm + py-2.5 alone is only 40px).
-const MENU_ITEM_BASE =
-  'flex min-h-11 w-full items-center px-3 py-2.5 text-left text-sm transition-colors';
+// This menu used to be hand-rolled: `useState` + `absolute right-0 top-full`,
+// which pins the popup below the trigger UNCONDITIONALLY. Measured on staging
+// at 1280x600, the last row's trigger sat at y=532 with 24px of space below it
+// while the popup is 573px tall, so it rendered 20px of itself and 553px off
+// the bottom of the screen — an unreachable sliver. Nothing in that markup
+// could ever have flipped or bounded it. DropdownMenu portals to the body and
+// carries the collision + max-height handling that makes the last row usable.
+//
+// min-h-11 holds each row at the 44px touch-target floor (text-sm + py-2.5
+// alone is only 40px).
+const MENU_ITEM_BASE = 'min-h-11 px-3 py-2.5 text-sm';
+
+const MENU_LABEL_BASE = 'px-3 py-1.5 text-xs uppercase tracking-wider text-muted-foreground';
 
 interface ActionMenuProps {
   member: ClubMember;
@@ -70,118 +86,83 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
   onChangeStatus,
   onRemove,
   onToggleShowAccess,
-}) => {
-  const [open, setOpen] = useState(false);
+}) => (
+  <DropdownMenu>
+    <DropdownMenuTrigger
+      className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={`Actions for ${member.personName || 'member'}`}
+    >
+      <MoreVertical className="h-4 w-4" />
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuGroup>
+        <DropdownMenuLabel className={MENU_LABEL_BASE}>Change Type</DropdownMenuLabel>
+        {(Object.entries(MEMBERSHIP_TYPE_LABELS) as [MembershipType, string][]).map(
+          ([type, label]) => (
+            <DropdownMenuItem
+              key={type}
+              onClick={() => onChangeType(member.id, type)}
+              disabled={member.membershipType === type}
+              className={MENU_ITEM_BASE}
+            >
+              {label}
+              {member.membershipType === type && (
+                <span className="ml-1 text-xs text-muted-foreground">(current)</span>
+              )}
+            </DropdownMenuItem>
+          )
+        )}
+      </DropdownMenuGroup>
 
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={`Actions for ${member.personName || 'member'}`}
-        aria-expanded={open}
+      <DropdownMenuSeparator />
+
+      <DropdownMenuGroup>
+        <DropdownMenuLabel className={MENU_LABEL_BASE}>Change Status</DropdownMenuLabel>
+        {(Object.entries(MEMBERSHIP_STATUS_LABELS) as [MembershipStatus, string][]).map(
+          ([status, label]) => (
+            <DropdownMenuItem
+              key={status}
+              onClick={() => onChangeStatus(member.id, status)}
+              disabled={member.membershipStatus === status}
+              className={MENU_ITEM_BASE}
+            >
+              {label}
+              {member.membershipStatus === status && (
+                <span className="ml-1 text-xs text-muted-foreground">(current)</span>
+              )}
+            </DropdownMenuItem>
+          )
+        )}
+      </DropdownMenuGroup>
+
+      <DropdownMenuSeparator />
+
+      <DropdownMenuGroup>
+        <DropdownMenuLabel className={MENU_LABEL_BASE}>Show Access</DropdownMenuLabel>
+        <DropdownMenuItem
+          onClick={() => onToggleShowAccess(member.personId, !hasShowAccess)}
+          className={cn(
+            MENU_ITEM_BASE,
+            hasShowAccess ? 'text-warning focus:bg-warning/10' : 'text-success focus:bg-success/10'
+          )}
+        >
+          <KeyRound className="h-3.5 w-3.5" />
+          {hasShowAccess ? 'Revoke Show Access' : 'Grant Show Access'}
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+
+      <DropdownMenuSeparator />
+
+      <DropdownMenuItem
+        onClick={() => onRemove(member.id)}
+        className={cn(MENU_ITEM_BASE, 'text-destructive focus:bg-destructive/10')}
       >
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border/50 bg-card shadow-xl backdrop-blur-xl py-1">
-            {/* Change Type submenu */}
-            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Change Type
-            </div>
-            {(Object.entries(MEMBERSHIP_TYPE_LABELS) as [MembershipType, string][]).map(
-              ([type, label]) => (
-                <button
-                  key={type}
-                  onClick={() => {
-                    onChangeType(member.id, type);
-                    setOpen(false);
-                  }}
-                  disabled={member.membershipType === type}
-                  className={`${MENU_ITEM_BASE} ${
-                    member.membershipType === type
-                      ? 'text-muted-foreground/50 cursor-default'
-                      : 'hover:bg-muted/50 text-foreground'
-                  }`}
-                >
-                  {label}
-                  {member.membershipType === type && (
-                    <span className="ml-1 text-xs text-muted-foreground">(current)</span>
-                  )}
-                </button>
-              )
-            )}
-
-            <div className="my-1 border-t border-border/30" />
-
-            {/* Change Status submenu */}
-            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Change Status
-            </div>
-            {(Object.entries(MEMBERSHIP_STATUS_LABELS) as [MembershipStatus, string][]).map(
-              ([status, label]) => (
-                <button
-                  key={status}
-                  onClick={() => {
-                    onChangeStatus(member.id, status);
-                    setOpen(false);
-                  }}
-                  disabled={member.membershipStatus === status}
-                  className={`${MENU_ITEM_BASE} ${
-                    member.membershipStatus === status
-                      ? 'text-muted-foreground/50 cursor-default'
-                      : 'hover:bg-muted/50 text-foreground'
-                  }`}
-                >
-                  {label}
-                  {member.membershipStatus === status && (
-                    <span className="ml-1 text-xs text-muted-foreground">(current)</span>
-                  )}
-                </button>
-              )
-            )}
-
-            <div className="my-1 border-t border-border/30" />
-
-            {/* Show Access */}
-            <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Show Access
-            </div>
-            <button
-              onClick={() => {
-                onToggleShowAccess(member.personId, !hasShowAccess);
-                setOpen(false);
-              }}
-              className={`${MENU_ITEM_BASE} gap-2 ${
-                hasShowAccess
-                  ? 'text-warning hover:bg-warning/10'
-                  : 'text-success hover:bg-success/10'
-              }`}
-            >
-              <KeyRound className="h-3.5 w-3.5" />
-              {hasShowAccess ? 'Revoke Show Access' : 'Grant Show Access'}
-            </button>
-
-            <div className="my-1 border-t border-border/30" />
-
-            <button
-              onClick={() => {
-                onRemove(member.id);
-                setOpen(false);
-              }}
-              className={`${MENU_ITEM_BASE} gap-2 text-destructive hover:bg-destructive/10`}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Remove Member
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
+        <Trash2 className="h-3.5 w-3.5" />
+        Remove Member
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+);
 
 // --- Add Member Dialog ---
 

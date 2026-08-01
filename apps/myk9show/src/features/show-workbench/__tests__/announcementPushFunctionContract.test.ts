@@ -41,11 +41,15 @@ describe('push-trigger-announcement function contract', () => {
     expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
     expect(source).toContain('beforeBody: requirePushWebhookSecret');
     expect(source).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
-    // Role validity moved out of this file into the shared helper (MYK9-147),
-    // so pin the helper rather than the literal predicate it now owns. The
-    // predicate is asserted in supabase/functions/_shared/roleValidity.test.ts.
+    // Role-validity (is_active + expiry) filtering runs through the shared
+    // role-validity helper rather than an inlined predicate. Assert the helper
+    // actually wraps the user_roles query, not merely that it's imported.
     expect(source).toContain("from '../_shared/roleValidity.ts'");
-    expect(source).toContain('applyActiveRoleValidity');
+    const callIndex = source.indexOf('applyActiveRoleValidity(');
+    expect(callIndex).toBeGreaterThan(source.indexOf('import'));
+    const userRolesIndex = source.indexOf("from('user_roles')", callIndex);
+    expect(userRolesIndex).toBeGreaterThan(callIndex);
+    expect(userRolesIndex - callIndex).toBeLessThan(200);
     expect(source.indexOf('beforeBody: requirePushWebhookSecret')).toBeLessThan(
       source.indexOf('webpush.sendNotification')
     );

@@ -1,10 +1,17 @@
--- MYK9-148 follow-up: reserve_askq_query read a column that does not exist.
+-- MYK9-148 follow-up: resolve AskQ Premium through the one server authority.
 --
 -- 20260801170000 computed the daily limit from `people.subscription_tier`.
 -- That column has never been on `people` — it lives on `exhibitor_profiles`
 -- (009_online_entry_system.sql). In SQL that is a hard failure, so EVERY call to
 -- reserve_askq_query raised `column p.subscription_tier does not exist` and AskQ
 -- was unusable for all accounts.
+--
+-- 20260801200000 repointed the read at `exhibitor_profiles.subscription_tier`,
+-- which stopped the error. This migration supersedes that lookup: an inline
+-- `subscription_tier = 'premium'` still answers a narrower question than the
+-- product does. It misses the `pro` tier, ignores `subscription_expires_at`
+-- (so a lapsed subscription keeps the raised limit forever), and cannot see
+-- entitlement grants at all.
 --
 -- The Edge function it replaced had the same wrong column, but reached it
 -- through PostgREST, where the failed select was swallowed into a null row and

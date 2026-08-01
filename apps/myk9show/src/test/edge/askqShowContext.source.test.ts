@@ -23,25 +23,16 @@ describe('ask-myk9show show context contract', () => {
   });
 
   it('verifies show-scoped officials through denormalized auth_user_id and show_id', () => {
-    const roleCheck = sliceBetween("from('user_roles')", 'dogIds.length > 0');
+    const roleCheck = sliceBetween('applyActiveRoleValidity(', 'dogIds.length > 0');
 
     expect(roleCheck).toContain(".eq('auth_user_id', user.id)");
     expect(roleCheck).toContain(".eq('show_id', showId)");
+    // is_active + expiry filtering is applied via the shared role-validity
+    // helper rather than inlined, so assert the helper is wired in.
+    expect(source).toContain("from '../_shared/roleValidity.ts'");
+    expect(roleCheck).toContain("from('user_roles')");
     expect(roleCheck).not.toContain(".eq('user_id', user.id)");
     expect(roleCheck).not.toContain(".eq('scope_type'");
     expect(roleCheck).not.toContain(".eq('scope_id'");
-  });
-
-  it('applies role validity through the shared helper, not an inline predicate', () => {
-    // The `is_active` + expiry predicate used to be pinned here as literals.
-    // MYK9-147 moved it into `applyActiveRoleValidity` so privileged Edge
-    // handlers cannot drift to an is_active-only check one file at a time;
-    // pinning the literals here would now forbid the very consolidation that
-    // fixed them. What matters is that the role count goes through the helper —
-    // the predicate itself is asserted in supabase/functions/_shared/
-    // roleValidity.test.ts, and helper adoption across every privileged handler
-    // in roleValidityCoverage.test.ts.
-    expect(source).toContain("from '../_shared/roleValidity.ts'");
-    expect(source).toMatch(/applyActiveRoleValidity\(\s*serviceClient\s*\.from\('user_roles'\)/);
   });
 });

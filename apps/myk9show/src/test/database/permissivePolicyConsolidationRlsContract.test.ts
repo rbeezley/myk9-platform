@@ -65,12 +65,16 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'policies only — no INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper changes, so ' +
     'the consolidation counts this test pins are unaffected.',
   '20260801160000_remove_steward_office_writes.sql':
-    'MYK9-147. Replaces judge_assignments_insert/update/delete and enrollments_insert/update ' +
-    'with same-named policies whose predicate narrows from show-official (which includes ' +
-    'stewards) to the new is_show_office_manager (site admin, club admin, or current ' +
-    'show/club secretary). The split shape this test pins is preserved exactly — same policy ' +
-    'names, same roles, same one-policy-per-command structure; only the authority inside each ' +
-    'predicate tightens, so the consolidation counts are unaffected.',
+    'MYK9-147. Adds public.is_show_office_manager() and replaces the office-write arm on ' +
+    'judge_assignments (judge_assignments_insert/update/delete) and enrollments ' +
+    '(enrollments_insert/update) so steward/chairman show-official access no longer satisfies ' +
+    'those mutation policies — only site admin, club admin, or the current show/club secretary ' +
+    'do. Policy names and command/role topology are unchanged (the same INSERT/UPDATE/DELETE ' +
+    'policies remain on the same tables, to the same authenticated/public roles); only the ' +
+    'USING/WITH CHECK predicate swaps an is_show_official()-derived manager check for ' +
+    'is_show_office_manager(). enrollments SELECT, and every other reviewed table, are ' +
+    'untouched. No grant, RLS-mode, or existing-helper change, so the consolidation counts and ' +
+    'overlap groups this test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

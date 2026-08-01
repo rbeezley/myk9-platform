@@ -42,11 +42,10 @@ VALUES (
 INSERT INTO public.people (id, first_name, last_name)
 VALUES ('00000000-0000-0000-0000-000000149005', 'TV', 'Handler');
 
--- Two dogs, because `entries_dog_class_unique_idx` is UNIQUE on
--- (dog_id, class_id) for every entry that is not withdrawn or scratched, and it
--- does NOT exclude soft-deleted rows. Entering one dog twice in one class —
--- once live, once soft-deleted — violates it before the test can assert
--- anything. The soft-deleted entry gets its own dog instead.
+-- Two dogs, because entries_dog_class_unique_idx is
+-- UNIQUE (dog_id, class_id) WHERE entry_status NOT IN ('withdrawn','scratched').
+-- It does NOT exclude soft-deleted rows, so two 'confirmed' entries for one dog
+-- in one class collide on INSERT, before the soft-delete below ever runs.
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
 VALUES
   (

@@ -18,6 +18,10 @@ interface HeroProfileCardProps {
   onEditPhoto: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  /** Send/resend a sign-in invitation (MYK9-134). Omit to hide the menu item. */
+  onSendInvitation?: (() => void) | undefined;
+  sendInvitationLabel?: string | undefined;
+  sendInvitationDisabled?: boolean | undefined;
 }
 
 const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
@@ -30,6 +34,9 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   onEditPhoto,
   onEdit,
   onDelete,
+  onSendInvitation,
+  sendInvitationLabel,
+  sendInvitationDisabled,
 }) => {
   return (
     <Card
@@ -53,6 +60,9 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
           onEdit={onEdit}
           onDelete={onDelete}
           onEditPhoto={onEditPhoto}
+          onSendInvitation={onSendInvitation}
+          sendInvitationLabel={sendInvitationLabel}
+          sendInvitationDisabled={sendInvitationDisabled}
           editLabel="Edit Person"
           hideEdit
         />

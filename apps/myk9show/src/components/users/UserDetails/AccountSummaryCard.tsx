@@ -58,6 +58,13 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
               Account Status
             </span>
+            {/* NOTE: this hardcoded badge is wrong — it claims "Active" for
+                contact records with no auth identity. It is left as-is
+                DELIBERATELY: nothing renders this component (its only importer
+                is a test), so the live fix belongs in UserDetailsView's
+                `properties`, where it now lives. Editing dead code here would
+                only make the duplicate look maintained. See MYK9-134 — this
+                component and UserDetailsDialog should both be deleted. */}
             <Badge
               className="bg-gradient-to-r from-green-500/20 to-green-500/10
                             text-success border border-green-500/30 font-medium"

@@ -1,11 +1,100 @@
 import { describe, expect, it } from 'vitest';
 import {
   classifyEmptyUpdateResult,
+  ContainmentError,
+  CONTAINMENT_DEFAULT_RETRY_AFTER_MS,
   getConflictServerVersion,
   getReturnedServerVersion,
+  isContainmentError,
   isVersionConflictError,
   OccRejectionError,
+  parseContainmentRetryAfterMs,
 } from './mutation-occ';
+
+// MYK9-115 Task 3. The server has raised RS429 while contained since
+// 2026-07-31; until now no client recognised it, so a contained scoring write
+// fell through the generic retry path, exhausted its budget and dead-lettered
+// without ever advancing its OCC token.
+describe('isContainmentError', () => {
+  it('matches the RS429 PostgREST error shape', () => {
+    expect(
+      isContainmentError({ code: 'RS429', message: 'Ringside scoring contained; retries paused' })
+    ).toBe(true);
+  });
+
+  it('does not match ordinary version conflicts or other errors', () => {
+    expect(
+      isContainmentError({
+        code: '40001',
+        message: 'Version conflict updating entry x (expected 1)',
+      })
+    ).toBe(false);
+    expect(isContainmentError(new Error('network'))).toBe(false);
+    expect(isContainmentError(null)).toBe(false);
+    expect(isContainmentError(undefined)).toBe(false);
+  });
+
+  it('RS429 is not classified as a version conflict', () => {
+    // Containment and conflict need different handling: a conflict retries with
+    // a fresh token, containment must PAUSE. Routing RS429 into the OCC path
+    // would hammer the very breaker that is asking the client to stop.
+    expect(
+      isContainmentError({ code: 'RS429', message: 'Ringside scoring contained; retries paused' })
+    ).toBe(true);
+    expect(
+      isVersionConflictError({
+        code: 'RS429',
+        message: 'Ringside scoring contained; retries paused',
+      })
+    ).toBe(false);
+  });
+
+  it('is not fooled by the containment message alone without the code', () => {
+    expect(isContainmentError({ message: 'Ringside scoring contained; retries paused' })).toBe(
+      false
+    );
+  });
+});
+
+describe('ContainmentError', () => {
+  it('carries the authoritative version and a retry-after', () => {
+    const err = new ContainmentError('entries', 'row-1', 7, 60_000);
+    expect(err.currentServerVersion).toBe(7);
+    expect(err.retryAfterMs).toBe(60_000);
+    expect(err.tableName).toBe('entries');
+    expect(err.rowId).toBe('row-1');
+    expect(err.name).toBe('ContainmentError');
+  });
+
+  it('is not an OccRejectionError, so the conflict handler cannot claim it', () => {
+    const err = new ContainmentError('entries', 'row-1', 7, 60_000);
+    expect(err).not.toBeInstanceOf(OccRejectionError);
+    expect(isVersionConflictError(err)).toBe(false);
+  });
+});
+
+describe('parseContainmentRetryAfterMs', () => {
+  it('reads seconds from the HINT and converts to ms', () => {
+    expect(parseContainmentRetryAfterMs({ hint: 'retry_after=60' })).toBe(60_000);
+    expect(parseContainmentRetryAfterMs({ hint: 'retry_after=5' })).toBe(5_000);
+  });
+
+  it('falls back to the default rather than retrying immediately', () => {
+    // A missing or junk hint must never collapse to 0 — that would turn the
+    // breaker's "pause" into a tight retry loop.
+    expect(parseContainmentRetryAfterMs({ hint: undefined })).toBe(
+      CONTAINMENT_DEFAULT_RETRY_AFTER_MS
+    );
+    expect(parseContainmentRetryAfterMs({})).toBe(CONTAINMENT_DEFAULT_RETRY_AFTER_MS);
+    expect(parseContainmentRetryAfterMs({ hint: 'nonsense' })).toBe(
+      CONTAINMENT_DEFAULT_RETRY_AFTER_MS
+    );
+    expect(parseContainmentRetryAfterMs({ hint: 'retry_after=-5' })).toBe(
+      CONTAINMENT_DEFAULT_RETRY_AFTER_MS
+    );
+    expect(parseContainmentRetryAfterMs(null)).toBe(CONTAINMENT_DEFAULT_RETRY_AFTER_MS);
+  });
+});
 
 describe('OccRejectionError', () => {
   it('preserves the current error message and metadata', () => {

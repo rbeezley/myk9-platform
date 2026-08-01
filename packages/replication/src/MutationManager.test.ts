@@ -673,6 +673,126 @@ describe('MutationManager', () => {
       });
     });
 
+    // MYK9-115 Task 4. Before this, RS429 fell through the generic retry path:
+    // the score exhausted its retry budget and dead-lettered while the breaker
+    // was doing its job, so containment turned into data the judge had to
+    // re-enter. Containment must PARK the work, not lose it.
+    describe('RS429 containment', () => {
+      const rs429 = {
+        code: 'RS429',
+        message: 'Ringside scoring contained; retries paused',
+        details: '9',
+        hint: 'retry_after=60',
+      };
+
+      const queueRpcMutation = (id: string, rowId = 'entry-1') =>
+        mockDb.put(
+          REPLICATION_STORES.PENDING_MUTATIONS,
+          makeMutation({
+            id,
+            tableName: 'entries',
+            operation: 'UPDATE',
+            rowId,
+            data: { id: rowId, run_order: 3 },
+            serverVersion: 5,
+            rpc: { name: 'ringside_update_entry', fields: { run_order: 3 } },
+          })
+        );
+
+      it('parks the score instead of failing it, and keeps it queued', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await queueRpcMutation('mut-contained');
+
+        const results = await manager.uploadPendingMutations();
+
+        // Not reported as a failure, and still in the outbox for later.
+        expect(results.filter(r => r.success === false)).toHaveLength(0);
+        expect(await manager.getPendingCount()).toBe(1);
+      });
+
+      it('stops sending further RPC writes while the window is open', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await queueRpcMutation('mut-a', 'entry-1');
+        await queueRpcMutation('mut-b', 'entry-2');
+
+        await manager.uploadPendingMutations();
+
+        // The first call trips containment; the second mutation must be held
+        // rather than hammering the breaker that just asked us to stop.
+        expect(vi.mocked(mockSupabase.rpc)).toHaveBeenCalledTimes(1);
+        expect(await manager.getPendingCount()).toBe(2);
+      });
+
+      it('announces the pause so the UI can tell the judge their work is safe', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await queueRpcMutation('mut-evt');
+        await manager.uploadPendingMutations();
+
+        const dispatched = vi
+          .mocked(window.dispatchEvent)
+          .mock.calls.map(([event]) => event as CustomEvent<{ until: number }>)
+          .filter(event => event.type === 'replication:containment');
+
+        expect(dispatched).toHaveLength(1);
+        expect(dispatched[0]!.detail.until).toBeGreaterThan(Date.now());
+      });
+
+      it('advances the OCC token from the RS429 DETAIL, so the retry is not born stale', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
+          tableName: 'entries',
+          id: 'entry-1',
+          data: { id: 'entry-1' },
+          serverVersion: 5,
+          syncStatus: 'synced',
+          lastModified: Date.now(),
+        });
+        await queueRpcMutation('mut-token');
+
+        await manager.uploadPendingMutations();
+
+        const row = (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, [
+          'entries',
+          'entry-1',
+        ])) as { serverVersion?: number } | undefined;
+        expect(row?.serverVersion).toBe(9);
+      });
+
+      it('resumes once the window elapses', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await queueRpcMutation('mut-resume');
+        await manager.uploadPendingMutations();
+        expect(vi.mocked(mockSupabase.rpc)).toHaveBeenCalledTimes(1);
+
+        // Still inside the 60s window — no further attempt.
+        await manager.uploadPendingMutations();
+        expect(vi.mocked(mockSupabase.rpc)).toHaveBeenCalledTimes(1);
+
+        // Past it: the head of the queue becomes the probe.
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: 10, error: null } as never);
+        await vi.advanceTimersByTimeAsync(61_000);
+        await manager.uploadPendingMutations();
+
+        expect(vi.mocked(mockSupabase.rpc)).toHaveBeenCalledTimes(2);
+        expect(await manager.getPendingCount()).toBe(0);
+      });
+
+      it('does not pause non-RPC writes — this is a ringside brownout, not an outage', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await queueRpcMutation('mut-rpc-contained');
+        await mockDb.put(
+          REPLICATION_STORES.PENDING_MUTATIONS,
+          makeMutation({ id: 'mut-direct', tableName: 'dogs', rowId: 'dog-1' })
+        );
+
+        await manager.uploadPendingMutations();
+
+        // The direct-update mutation went through; only the RPC one is held.
+        expect(vi.mocked(mockSupabase.from)).toHaveBeenCalledWith('dogs');
+        expect(await manager.getPendingCount()).toBe(1);
+      });
+    });
+
     it('routes a tagged INSERT through exact RPC args, not a direct table insert', async () => {
       vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: 'dog-1', error: null } as never);
       await mockDb.put(

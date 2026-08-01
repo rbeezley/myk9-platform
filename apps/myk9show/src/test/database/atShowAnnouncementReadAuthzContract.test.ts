@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -8,13 +8,22 @@ import { describe, expect, it } from 'vitest';
 // the Postgres `authenticated` role but has no account/person record. The
 // claim is stamped server-side by validate-passcode and revoked when the
 // passcode generation changes.
-const ringsideReadMigration = readFileSync(
-  resolve(
-    __dirname,
-    '../../../../../supabase/migrations/20260801110000_restore_ringside_announcement_read_authz.sql'
-  ),
-  'utf8'
-);
+const migrationsDir = resolve(__dirname, '../../../../../supabase/migrations');
+const policyMigrations = readdirSync(migrationsDir)
+  .filter(fileName => fileName.endsWith('.sql'))
+  .sort()
+  .filter(fileName => {
+    const sql = readFileSync(resolve(migrationsDir, fileName), 'utf8');
+    return (
+      sql.includes('show_announcements_select') ||
+      sql.includes('"Authenticated users can read announcements"')
+    );
+  });
+const latestPolicyMigration = policyMigrations.at(-1);
+if (!latestPolicyMigration) {
+  throw new Error('No migration defining the show_announcements SELECT policy was found');
+}
+const ringsideReadMigration = readFileSync(resolve(migrationsDir, latestPolicyMigration), 'utf8');
 
 describe('show_announcements read authz — anon ringside-passcode contract', () => {
   it('replaces the account-only policy with the latest policy', () => {
@@ -41,6 +50,24 @@ describe('show_announcements read authz — anon ringside-passcode contract', ()
     expect(ringsideReadMigration).toContain(
       "nullif((SELECT auth.jwt() -> 'app_metadata' ->> 'show_id'), '') = show_announcements.show_id::text"
     );
+  });
+
+  it('intentionally admits every validated show-participant passcode role', () => {
+    expect(ringsideReadMigration).toContain(
+      'claim for any validated passcode role (including exhibitor)'
+    );
+    expect(ringsideReadMigration).not.toContain('ringside_role');
+  });
+
+  it('keeps claim-based authorization limited to SELECT policy statements', () => {
+    const claimPolicyStatements = ringsideReadMigration
+      .split(/(?=CREATE POLICY\b|ALTER POLICY\b)/i)
+      .filter(statement => statement.includes('auth.jwt()') || statement.includes('app_metadata'));
+
+    expect(claimPolicyStatements.length).toBeGreaterThan(0);
+    for (const statement of claimPolicyStatements) {
+      expect(statement).toMatch(/CREATE POLICY\s+show_announcements_select[\s\S]*FOR SELECT/i);
+    }
   });
 
   it('does not restore the old account-wide auth.uid-only read', () => {

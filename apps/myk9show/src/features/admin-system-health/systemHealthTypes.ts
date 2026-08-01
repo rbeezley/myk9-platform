@@ -15,6 +15,14 @@ export type HealthStatus = 'ok' | 'warn' | 'fail';
  */
 export type CheckStatus = HealthStatus | 'unknown';
 
+/**
+ * Whether an amber check is amber because it *cannot* prove anything
+ * (`unprovable` — the board calls this "Unverified") or because it looked and
+ * found a real degradation (`proven` — "Needs a look"). Written by the runner;
+ * absent on older snapshots, which read as `proven`.
+ */
+export type CheckVerification = 'proven' | 'unprovable';
+
 /** One normalized check row, parsed from an entry of the snapshot's `checks` array. */
 export interface HealthCheck {
   key: string;
@@ -23,6 +31,7 @@ export interface HealthCheck {
   detail: string;
   /** ISO timestamp the check ran, or null if the writer omitted it. */
   checkedAt: string | null;
+  verification: CheckVerification;
 }
 
 /** A normalized snapshot row. */

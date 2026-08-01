@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fireEvent } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 import SystemHealthPage from './SystemHealthPage';
 import type { SystemHealthSnapshot } from '@/features/admin-system-health/systemHealthTypes';
@@ -56,6 +57,7 @@ function freshSnapshot(overrides: Partial<SystemHealthSnapshot> = {}): SystemHea
         status: 'ok',
         detail: 'local and remote agree',
         checkedAt: nowIso,
+        verification: 'proven' as const,
       },
       {
         key: 'edge-fns',
@@ -63,6 +65,7 @@ function freshSnapshot(overrides: Partial<SystemHealthSnapshot> = {}): SystemHea
         status: 'warn',
         detail: 'one function drifted',
         checkedAt: nowIso,
+        verification: 'proven' as const,
       },
     ],
     runDurationMs: 1500,
@@ -92,14 +95,37 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText('All systems healthy')).toBeInTheDocument();
+    // The verdict leads with a plain-language answer, not a status word.
+    expect(screen.getByText(/nothing is failing/i)).toBeInTheDocument();
     expect(screen.getByText('Migration parity')).toBeInTheDocument();
     expect(screen.getByText('local and remote agree')).toBeInTheDocument();
     expect(screen.getByText('Edge-function parity')).toBeInTheDocument();
-    // relative freshness label rendered per check
-    expect(screen.getAllByText(/checked .* ago/i).length).toBeGreaterThan(0);
-    // run duration is surfaced in the banner meta line (fixture is 1500ms)
-    expect(screen.getByText(/took 1\.5s/)).toBeInTheDocument();
+    // run duration is surfaced on the freshness band (fixture is 1500ms)
+    expect(screen.getByText(/last run took 1\.5s/)).toBeInTheDocument();
+  });
+
+  it('derives every count from one array, so no two badges can disagree', () => {
+    const latest = freshSnapshot(); // one ok + one warn
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+
+    // Verdict chips and filter tabs read the same summary.
+    expect(screen.getByRole('tab', { name: /^All 2$/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Failing 0$/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Unverified 1$/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Passing 1$/ })).toBeInTheDocument();
+  });
+
+  it('filters the list to the tab the admin picked', () => {
+    const latest = freshSnapshot();
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+    fireEvent.click(screen.getByRole('tab', { name: /^Failing 0$/ }));
+
+    expect(screen.queryByText('Migration parity')).not.toBeInTheDocument();
+    expect(screen.getByText(/nothing in this bucket/i)).toBeInTheDocument();
   });
 
   it('shows a stale warning when the latest run is older than the threshold', () => {
@@ -109,9 +135,9 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText('Health run overdue')).toBeInTheDocument();
-    // stale forces the overall headline to the failure copy despite stored 'ok'
-    expect(screen.getByText('Attention needed')).toBeInTheDocument();
+    // Staleness is a first-class band, and it outranks the stored 'ok'.
+    expect(screen.getByRole('alert')).toHaveTextContent(/describe then, not now/i);
+    expect(screen.getByText(/too old to answer/i)).toBeInTheDocument();
   });
 
   it('shows an empty state when no snapshot exists', () => {
@@ -119,8 +145,10 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText('No health run recorded yet')).toBeInTheDocument();
-    expect(screen.getByText(/daily health job may not be running/i)).toBeInTheDocument();
+    expect(screen.getByText('No health run has ever been recorded')).toBeInTheDocument();
+    expect(screen.getByText(/never written a snapshot/i)).toBeInTheDocument();
+    // An empty board must not render counts that read as "all clear".
+    expect(screen.queryByText('passing')).not.toBeInTheDocument();
   });
 
   it('shows an error state when the query fails', () => {
@@ -128,7 +156,7 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText(/couldn.t load system health/i)).toBeInTheDocument();
+    expect(screen.getByText(/system health didn.t load/i)).toBeInTheDocument();
   });
 
   it('still renders OperatorAlertsSection when the snapshot query errors — money-path alerts must not hide behind an unrelated snapshots outage', () => {
@@ -136,7 +164,7 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText(/couldn.t load system health/i)).toBeInTheDocument();
+    expect(screen.getByText(/system health didn.t load/i)).toBeInTheDocument();
     expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
   });
 
@@ -158,18 +186,31 @@ describe('SystemHealthPage', () => {
     expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
   });
 
-  it('renders the recent-run history strip', () => {
-    const a = freshSnapshot({ id: 'a', overallStatus: 'ok' });
-    const b = freshSnapshot({ id: 'b', overallStatus: 'fail' });
-    mockedHook.mockReturnValue(hookState({ data: { latest: a, history: [a, b] } }));
+  it('renders a per-check history strip, oldest run first', () => {
+    const older = freshSnapshot({
+      id: 'older',
+      createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+      checks: [
+        {
+          key: 'migrations',
+          label: 'Migration parity',
+          status: 'fail',
+          detail: 'drifted',
+          checkedAt: null,
+          verification: 'proven' as const,
+        },
+      ],
+    });
+    const latest = freshSnapshot({ id: 'newer' });
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest, older] } }));
 
     render(<SystemHealthPage />);
 
-    const strip = screen.getByLabelText('Recent run history');
-    expect(strip).toBeInTheDocument();
-    expect(screen.getByLabelText(/OK run/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Fail run/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/daily-health-check/i).length).toBeGreaterThan(0);
+    // The strip belongs to the check, not the page, and reads oldest -> newest
+    // so its right-hand bar is the same run the row's badge describes.
+    expect(
+      screen.getByRole('img', { name: /Migration parity: last 2 runs, oldest first/i })
+    ).toHaveAccessibleName(/fail, ok/i);
   });
 
   it('renders degraded health checks with owner actions', () => {
@@ -181,12 +222,18 @@ describe('SystemHealthPage', () => {
           status: 'warn',
           detail: 'Queue is stale',
           checkedAt: new Date().toISOString(),
+          verification: 'proven' as const,
         },
       ],
     });
     mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
 
     render(<SystemHealthPage />);
+
+    // Owner and next step live in the expanded detail — the row is a summary
+    // until the admin drills in.
+    expect(screen.queryByText('Sync Monitoring')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Replication queue/i }));
 
     expect(screen.getByText('Sync Monitoring')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Open Sync/i })).toHaveAttribute('href', '/admin/sync');
@@ -202,6 +249,7 @@ describe('SystemHealthPage', () => {
           status: 'unknown',
           detail: 'Coverage incomplete: not checked here',
           checkedAt: null,
+          verification: 'proven' as const,
         },
       ],
     });
@@ -209,11 +257,38 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText('Coverage incomplete')).toBeInTheDocument();
+    // A check whose own coverage is incomplete cannot report success, so it
+    // carries the amber word rather than being downgraded to a plain warning.
+    expect(screen.getByText('Unverified')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Manual check/i }));
     expect(screen.getByText('Operations Runbook')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Open Admin Help/i })).toHaveAttribute(
       'href',
       '/admin/help'
     );
+  });
+
+  it('names the unprovable checks on the Coverage card', () => {
+    const latest = freshSnapshot({
+      checks: [
+        {
+          key: 'payout_cron',
+          label: 'Nightly payout job',
+          status: 'warn',
+          detail: 'dispatched, but the Edge Function response is never read',
+          checkedAt: new Date().toISOString(),
+          verification: 'unprovable' as const,
+        },
+      ],
+    });
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+
+    // Named on the row and again on the Coverage card — the card exists to say
+    // what the checks can't prove, so repeating the label there is the point.
+    expect(screen.getAllByText(/Nightly payout job/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/silent failure would still look green/i)).toBeInTheDocument();
   });
 });

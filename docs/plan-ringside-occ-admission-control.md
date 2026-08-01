@@ -2,6 +2,38 @@
 
 > **Status:** Active
 
+> **Current state, 2026-07-31 — do not trust the checkboxes below.** Tasks 1 and 2 were
+> executed **directly against the live database** without ever committing their migration
+> files, so every box reads unchecked while the schema is two tasks ahead of the repo. The
+> breaker has been doing real work in that state: it tripped at 2026-07-31T00:27Z on a
+> measured 2,884 conflicts/min and ended a 34.4M-event OCC storm driven by the load-rehearsal
+> harness. The counter that reported it was accurate — see the INTENT block in
+> `apps/myk9show/supabase/functions/_shared/systemHealthChecks.ts` before concluding otherwise.
+>
+> Caught up since:
+>
+> - `supabase/migrations/20260731190000_ringside_containment_state.sql` — Task 1 steps 3 and 5's
+>   objects, written idempotently and verified column-for-column against the live definitions.
+> - `supabase/migrations/20260731200000_ringside_update_entry_containment_gate.sql` — Task 2's
+>   RS429 gate, rebuilt from `20260712101000` and diffed against live.
+> - `supabase/migrations/20260731210000_health_probe_payout_ledger_and_containment.sql` — Task 1
+>   step 4's probe field (plus unrelated payout-ledger facts), the one part of Tasks 1–2 that had
+>   **not** been applied to the live database.
+>
+> Still outstanding, in priority order:
+>
+> 1. **`supabase/tests/ringside_containment_test.sql` does not exist** (Task 1 step 1, Task 2
+>    step 1) and is registered in neither allowlist. The three migrations above ship with no
+>    behavioral coverage.
+> 2. **Tasks 3–5 are unbuilt, and that is a live functional gap, not just missing polish.** The
+>    server raises `RS429` today and no client knows what it is. While the breaker is contained,
+>    a conflicting scoring write returns an unrecognized SQLSTATE to an outbox that has no
+>    handling for it. Pre-launch that costs nothing; during a real show it would be worse than
+>    the storm the breaker exists to stop. Either finish Tasks 3–5 or keep the breaker armed.
+> 3. The breaker is **still `contained`** as of 2026-08-01T02:22Z. Rearm with
+>    `select public.ringside_containment_rearm('<reason>')` (site-admin gated) once the load
+>    harness is confirmed stopped — the conflict sequence has been flat at 34,421,500 for 25h+.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Bound the rate at which a wedged ringside client can burn database CPU with OCC conflicts, with a persisted, operator-visible, operator-rearmed containment state.

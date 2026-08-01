@@ -11,7 +11,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
-import { easternDayStartIso } from './easternDay';
+import { easternDateKey, easternDayStartIso } from './easternDay';
 
 export interface AdminOverviewCounts {
   /** Published shows whose date range covers today (Eastern). */
@@ -48,21 +48,35 @@ function countFrom(result: { count: number | null; error: unknown }): number {
 
 async function fetchOverviewCounts(now: number): Promise<AdminOverviewCounts> {
   const dayStart = easternDayStartIso(now);
-  const nowIso = new Date(now).toISOString();
 
-  // "Live" = published and today falls inside the show's dates. The previous
-  // dashboard filtered status 'active'/'upcoming' — values `shows.status` does
-  // not have — so it reported 0 live shows while a show was running.
+  // `shows.start_date` / `end_date` are timestamptz holding DATE-ONLY values at
+  // UTC midnight. Comparing them against an instant is wrong in both directions:
+  // at noon UTC the Eastern day starts at 04:00Z, so a show ending today at
+  // 00:00Z falls below the bound and vanishes; and after 20:00 EDT "now" has
+  // crossed into the next UTC day, so tomorrow's show counts as live. Compare
+  // against the stored midnight of the Eastern calendar date instead.
+  const easternMidnightUtc = `${easternDateKey(now)}T00:00:00.000Z`;
+
+  // "Live" = published, not deleted, and today falls inside the show's dates.
+  // The previous dashboard filtered status 'active'/'upcoming' — values
+  // `shows.status` does not have — so it reported 0 live shows while a show
+  // was running. `deleted_at` is required because the site-admin RLS policy
+  // deliberately exposes soft-deleted rows.
   const [liveShows, entriesToday, signupsToday, showsCreatedToday] = await Promise.all([
     supabase
       .from('shows')
       .select(COUNT_COLUMN, HEAD_COUNT)
       .eq('status', 'published')
-      .lte('start_date', nowIso)
-      .gte('end_date', dayStart),
+      .is('deleted_at', null)
+      .lte('start_date', easternMidnightUtc)
+      .gte('end_date', easternMidnightUtc),
     supabase.from('entries').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
     supabase.from('people').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
-    supabase.from('shows').select(COUNT_COLUMN, HEAD_COUNT).gte('created_at', dayStart),
+    supabase
+      .from('shows')
+      .select(COUNT_COLUMN, HEAD_COUNT)
+      .is('deleted_at', null)
+      .gte('created_at', dayStart),
   ]);
 
   return {

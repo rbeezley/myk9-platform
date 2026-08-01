@@ -89,12 +89,76 @@ function ageMs(openedAt: string | null, now: number): number {
  * Sort is severity, then oldest first — never alphabetical, because the top of
  * this list is meant to be the next thing you do.
  */
+export interface TriageSources {
+  /** True when no snapshot exists at all. */
+  healthMissing?: boolean;
+  /** True when the newest snapshot is older than the staleness window. */
+  healthStale?: boolean;
+  /** The health query itself failed — its checks are unknown, not passing. */
+  healthUnavailable?: boolean;
+  /** The alerts query failed — the alert set is unknown, not empty. */
+  alertsUnavailable?: boolean;
+  /** Newest snapshot time, for the age column on a staleness row. */
+  lastRunAt?: string | null;
+}
+
 export function deriveTriage(
   checks: HealthCheck[],
   alerts: OperatorAlert[],
-  now: number
+  now: number,
+  sources: TriageSources = {}
 ): TriageItem[] {
   const items: TriageItem[] = [];
+
+  // A missing, stale or unreadable health run is itself the finding. Without
+  // these rows the queue iterates an empty `checks` array and reports "nothing
+  // is waiting on you" at the exact moment the platform cannot say whether
+  // anything is wrong — the failure mode this whole redesign exists to remove.
+  if (sources.healthUnavailable) {
+    items.push({
+      id: 'source:health-unavailable',
+      severity: 'Critical',
+      category: 'service',
+      title: 'System health could not be read',
+      detail:
+        'The snapshot query failed, so no check below is known to be passing. This is not an all-clear.',
+      openedAt: null,
+      action: { label: 'Open system health', href: '/admin/health' },
+    });
+  } else if (sources.healthMissing) {
+    items.push({
+      id: 'source:health-missing',
+      severity: 'Critical',
+      category: 'service',
+      title: 'No health run has ever been recorded',
+      detail: 'The nightly runner has never written a snapshot.',
+      openedAt: null,
+      action: { label: 'Open system health', href: '/admin/health' },
+    });
+  } else if (sources.healthStale) {
+    items.push({
+      id: 'source:health-stale',
+      severity: 'High',
+      category: 'service',
+      title: 'Health results are too old to trust',
+      detail:
+        'The last run is older than the window it covers, so a failure since then would not appear here.',
+      openedAt: sources.lastRunAt ?? null,
+      action: { label: 'Open system health', href: '/admin/health' },
+    });
+  }
+
+  if (sources.alertsUnavailable) {
+    items.push({
+      id: 'source:alerts-unavailable',
+      severity: 'High',
+      category: 'service',
+      title: 'Unresolved alerts could not be read',
+      detail: 'The alerts query failed. An empty alert list here would be a guess, not a fact.',
+      openedAt: null,
+      action: { label: 'Open system health', href: '/admin/health' },
+    });
+  }
 
   for (const check of checks) {
     if (check.status === 'ok') continue;

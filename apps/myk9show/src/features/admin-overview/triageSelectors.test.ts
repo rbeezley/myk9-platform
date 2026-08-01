@@ -129,6 +129,57 @@ describe('deriveTriage', () => {
   });
 });
 
+// Codex review of PR #1566: the queue iterated `latest?.checks`, so a missing,
+// stale or unreadable health run produced an EMPTY queue — "nothing is waiting
+// on you" at the moment the platform cannot say whether anything is wrong.
+describe('deriveTriage — an unknown source is not an all-clear', () => {
+  const passing = [check({ status: 'ok' })];
+
+  it('an unreadable health query is Critical, not silence', () => {
+    const items = deriveTriage(passing, [], NOW, { healthUnavailable: true });
+    expect(items).toHaveLength(1);
+    expect(items[0].severity).toBe('Critical');
+    expect(items[0].detail).toMatch(/not an all-clear/i);
+  });
+
+  it('a health run that never happened is Critical', () => {
+    const items = deriveTriage([], [], NOW, { healthMissing: true });
+    expect(items[0].id).toBe('source:health-missing');
+    expect(items[0].severity).toBe('Critical');
+  });
+
+  it('a stale run is High and carries the run time as its age', () => {
+    const items = deriveTriage(passing, [], NOW, {
+      healthStale: true,
+      lastRunAt: hoursAgo(30),
+    });
+    expect(items[0].id).toBe('source:health-stale');
+    expect(items[0].severity).toBe('High');
+    expect(items[0].openedAt).toBe(hoursAgo(30));
+  });
+
+  it('an unreadable alerts query is its own row', () => {
+    const items = deriveTriage(passing, [], NOW, { alertsUnavailable: true });
+    expect(items.map(i => i.id)).toContain('source:alerts-unavailable');
+  });
+
+  it('reports the query failure rather than also claiming the run is missing', () => {
+    const items = deriveTriage([], [], NOW, { healthUnavailable: true, healthMissing: true });
+    expect(items.map(i => i.id)).toEqual(['source:health-unavailable']);
+  });
+
+  it('adds nothing when every source is healthy', () => {
+    expect(
+      deriveTriage(passing, [], NOW, {
+        healthUnavailable: false,
+        healthMissing: false,
+        healthStale: false,
+        alertsUnavailable: false,
+      })
+    ).toEqual([]);
+  });
+});
+
 describe('summarizeTriage', () => {
   it('the total equals the rows, so one counter serves every badge', () => {
     const items = deriveTriage(

@@ -26,6 +26,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Settings, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
@@ -40,29 +41,53 @@ import { deriveTriage, type TriageCategory } from '@/features/admin-overview/tri
 import { BoardCard, BoardSkeleton, Eyebrow, StatusDot } from './SystemHealth/HealthBoardPrimitives';
 import { NeedsALookSection } from './AdminDashboard/NeedsALookSection';
 
+/**
+ * `href` is optional on purpose. A tile that navigates somewhere unrelated to
+ * its number is worse than a tile that does not navigate — "Entries today" has
+ * no site-admin entries surface to open, so it stays inert rather than sending
+ * the admin to a page that cannot explain the figure.
+ */
 function StatTile({
   label,
   value,
   context,
   href,
+  isError,
 }: {
   label: string;
   value: string | number;
   context: string;
-  href: string;
+  href?: string;
+  isError?: boolean;
 }) {
-  return (
-    <Link
-      to={href}
-      className="rounded-[13px] border border-border bg-card px-4 py-3.5 transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
+  const body = (
+    <>
       <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </p>
       <p className="mt-1.5 font-mono text-[25px] font-semibold leading-none tabular-nums text-foreground">
         {value}
       </p>
-      <p className="mt-1.5 text-[11px] text-muted-foreground">{context}</p>
+      <p
+        className={cn('mt-1.5 text-[11px]', isError ? 'text-destructive' : 'text-muted-foreground')}
+      >
+        {context}
+      </p>
+    </>
+  );
+
+  const shell = 'rounded-[13px] border border-border bg-card px-4 py-3.5';
+  if (!href) return <div className={shell}>{body}</div>;
+
+  return (
+    <Link
+      to={href}
+      className={cn(
+        shell,
+        'transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+      )}
+    >
+      {body}
     </Link>
   );
 }
@@ -80,7 +105,34 @@ export default function AdminDashboard() {
   const summary = useMemo(() => summarizeChecks(checks), [checks]);
   const effective = deriveEffectiveStatus(latest, now);
   const openAlerts = useMemo(() => alerts.data ?? [], [alerts.data]);
-  const triage = useMemo(() => deriveTriage(checks, openAlerts, now), [checks, openAlerts, now]);
+
+  // A failed source is UNKNOWN, not empty. `?? []` above is a rendering
+  // convenience; without these flags the queue would iterate the empty array and
+  // announce "nothing is waiting on you" at the moment the platform has no idea
+  // whether anything is wrong.
+  const healthUnavailable = Boolean(health.error);
+  const alertsUnavailable = Boolean(alerts.error);
+
+  const triage = useMemo(
+    () =>
+      deriveTriage(checks, openAlerts, now, {
+        healthUnavailable,
+        alertsUnavailable,
+        healthMissing: !healthUnavailable && effective.isEmpty,
+        healthStale: !healthUnavailable && effective.isStale,
+        lastRunAt: latest?.createdAt ?? null,
+      }),
+    [
+      checks,
+      openAlerts,
+      now,
+      healthUnavailable,
+      alertsUnavailable,
+      effective.isEmpty,
+      effective.isStale,
+      latest,
+    ]
+  );
 
   const counts = overview.data;
   // An errored count must never render as a zero, and "—" alone is not an error
@@ -125,33 +177,47 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatTile
                 label="Checks passing"
-                value={checksLabel}
+                value={healthUnavailable ? '—' : checksLabel}
+                isError={healthUnavailable}
                 context={
-                  effective.isEmpty
-                    ? 'no run recorded'
-                    : effective.isStale
-                      ? 'last run is stale'
-                      : `checked ${formatCheckedAgo(latest?.createdAt ?? null, now)}`
+                  healthUnavailable
+                    ? "couldn't read the snapshot"
+                    : effective.isEmpty
+                      ? 'no run recorded'
+                      : effective.isStale
+                        ? 'last run is stale'
+                        : `checked ${formatCheckedAgo(latest?.createdAt ?? null, now)}`
                 }
                 href="/admin/health"
               />
               <StatTile
                 label="Open alerts"
-                value={alerts.isLoading ? '—' : openAlerts.length}
-                context={openAlerts.length === 0 ? 'nothing unresolved' : 'awaiting a human'}
+                value={alertsUnavailable || alerts.isLoading ? '—' : openAlerts.length}
+                isError={alertsUnavailable}
+                context={
+                  alertsUnavailable
+                    ? "couldn't read alerts"
+                    : openAlerts.length === 0
+                      ? 'nothing unresolved'
+                      : 'awaiting a human'
+                }
                 href="/admin/health"
               />
               <StatTile
                 label="Live shows"
                 value={counts ? counts.liveShows : '—'}
-                context="published and running today"
+                isError={Boolean(countsError)}
+                context={countsError ? "couldn't read shows" : 'published and running today'}
                 href="/shows"
               />
+              {/* No href: there is no site-admin entries surface to open, and
+                  sending the admin to an unrelated page is worse than an inert
+                  tile. Give it a destination when one exists. */}
               <StatTile
                 label="Entries today"
                 value={counts ? counts.entriesToday : '—'}
-                context="since midnight Eastern"
-                href="/admin/health"
+                isError={Boolean(countsError)}
+                context={countsError ? "couldn't read entries" : 'since midnight Eastern'}
               />
             </div>
 

@@ -69,6 +69,13 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
   passes. Closure remains blocked on applied `relacl`/`attacl`, cold-anon and ordinary REST
   42501 probes, manager-positive RPC/REST evidence, public-panel runtime replay, and disposable
   deployed proof. Independent ACL and app reviews found no code blocker.
+- **MYK9-149:** local implementation is complete in the current remediation worktree. Migration
+  `20260801150000_exclude_soft_deleted_entries_from_anon_tv.sql` adds the missing
+  `entries.deleted_at IS NULL` predicate to the anonymous TV/running-order policy while retaining
+  the public-show scope. Added a source contract and registered behavioral SQL fixture proving a
+  live entry remains visible while a soft-deleted sibling is hidden; TV query tests, behavioral
+  runner registration, app typecheck, and `git diff --check` pass. Closure remains blocked on
+  applied cold-anon REST, public TV/runtime, public-view, and replication-backed proof.
 
 ### Phase 0 — Baseline and proof harness
 

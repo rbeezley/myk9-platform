@@ -64,6 +64,13 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'volunteer_roles, volunteer_class_assignments and volunteer_general_assignments. SELECT ' +
     'policies only — no INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper changes, so ' +
     'the consolidation counts this test pins are unaffected.',
+  '20260801160000_remove_steward_office_writes.sql':
+    'MYK9-147. Replaces judge_assignments_insert/update/delete and enrollments_insert/update ' +
+    'with same-named policies whose predicate narrows from show-official (which includes ' +
+    'stewards) to the new is_show_office_manager (site admin, club admin, or current ' +
+    'show/club secretary). The split shape this test pins is preserved exactly — same policy ' +
+    'names, same roles, same one-policy-per-command structure; only the authority inside each ' +
+    'predicate tightens, so the consolidation counts are unaffected.',
 };
 
 const tableCases: TableCase[] = [

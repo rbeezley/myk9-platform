@@ -1,6 +1,13 @@
 -- MYK9-148 behavioral contract: anonymous identities cannot reserve AskQ
 -- capacity, while a real free account receives exactly ten sequential daily
--- reservations and the eleventh is denied. All fixtures roll back.
+-- reservations and the eleventh is denied. A premium account receives fifty.
+-- All fixtures roll back.
+--
+-- The premium case is not decoration. The original limiter read
+-- `people.subscription_tier`, a column that does not exist on that table, so
+-- premium accounts silently got the free quota through PostgREST and a hard
+-- error once the same expression moved into SQL. Only an assertion on the
+-- premium limit can tell those apart from a working implementation.
 
 BEGIN;
 
@@ -10,12 +17,24 @@ VALUES (
   'MYK9-148', 'Account', 'myk9-148-account@example.test', NULL
 );
 
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES (
+  '00000000-0000-0000-0000-000000148012',
+  'MYK9-148', 'Premium', 'myk9-148-premium@example.test', NULL
+);
+
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
   is_super_admin, is_sso_user, is_anonymous
 )
 VALUES
+  (
+    '00000000-0000-0000-0000-000000148103',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9-148-premium@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  ),
   (
     '00000000-0000-0000-0000-000000148101',
     '00000000-0000-0000-0000-000000000000',
@@ -33,12 +52,29 @@ UPDATE public.people
 SET auth_user_id = '00000000-0000-0000-0000-000000148101'
 WHERE id = '00000000-0000-0000-0000-000000148011';
 
+UPDATE public.people
+SET auth_user_id = '00000000-0000-0000-0000-000000148103'
+WHERE id = '00000000-0000-0000-0000-000000148012';
+
+-- Paid Premium requires a NON-NULL future expiry — has_effective_premium_access
+-- treats premium-with-null-expiry as expired, matching the client gate.
+INSERT INTO public.exhibitor_profiles (
+  person_id, auth_user_id, subscription_tier, subscription_expires_at
+)
+VALUES (
+  '00000000-0000-0000-0000-000000148012',
+  '00000000-0000-0000-0000-000000148103',
+  'premium',
+  now() + interval '30 days'
+);
+
 SET LOCAL ROLE authenticated;
 
 DO $$
 DECLARE
   account_id CONSTANT uuid := '00000000-0000-0000-0000-000000148101';
   anonymous_id CONSTANT uuid := '00000000-0000-0000-0000-000000148102';
+  premium_id CONSTANT uuid := '00000000-0000-0000-0000-000000148103';
   allowed boolean;
   log_id uuid;
   remaining integer;
@@ -101,7 +137,24 @@ BEGIN
     RAISE EXCEPTION 'FAIL eleventh reservation was not denied';
   END IF;
 
-  RAISE NOTICE 'PASS MYK9-148 anonymous denial and exactly ten free-account reservations';
+  PERFORM set_config('request.jwt.claim.sub', premium_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', premium_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  SELECT r.allowed, r.log_id, r.remaining, r.daily_limit, r.resets_at
+    INTO allowed, log_id, remaining, daily_limit, resets_at
+  FROM public.reserve_askq_query('premium-account question') AS r;
+
+  IF allowed IS DISTINCT FROM true OR daily_limit <> 50 OR remaining <> 49 THEN
+    RAISE EXCEPTION
+      'FAIL premium reservation returned allowed=%, remaining=%, limit=%',
+      allowed, remaining, daily_limit;
+  END IF;
+
+  RAISE NOTICE 'PASS MYK9-148 anonymous denial, ten free-account reservations, fifty for premium';
 END;
 $$;
 

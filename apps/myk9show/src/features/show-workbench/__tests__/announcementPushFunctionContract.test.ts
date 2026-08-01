@@ -41,7 +41,11 @@ describe('push-trigger-announcement function contract', () => {
     expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
     expect(source).toContain('beforeBody: requirePushWebhookSecret');
     expect(source).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
-    expect(source).toContain(".eq('is_active', true)");
+    // Role validity moved out of this file into the shared helper (MYK9-147),
+    // so pin the helper rather than the literal predicate it now owns. The
+    // predicate is asserted in supabase/functions/_shared/roleValidity.test.ts.
+    expect(source).toContain("from '../_shared/roleValidity.ts'");
+    expect(source).toContain('applyActiveRoleValidity');
     expect(source.indexOf('beforeBody: requirePushWebhookSecret')).toBeLessThan(
       source.indexOf('webpush.sendNotification')
     );
@@ -169,7 +173,9 @@ describe('class-status and scoring push audience contracts', () => {
     expect(source).toContain('entry.dog?.owner?.auth_user_id');
     expect(source).toContain('entry.dog?.co_owner?.auth_user_id');
     expect(source).toContain('entry.handler?.auth_user_id');
-    expect(source).toContain(".not('entry_status', 'in', '(\"withdrawn\",\"scratched\",\"absent\")')");
+    expect(source).toContain(
+      '.not(\'entry_status\', \'in\', \'("withdrawn","scratched","absent")\')'
+    );
     expect(source).toContain(".not('check_in_status', 'eq', 'pulled')");
     expect(source).not.toContain(".select('user_id')");
     expect(source).not.toContain(".not('entry_status', 'eq', 'pulled')");

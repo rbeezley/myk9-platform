@@ -44,7 +44,16 @@ function makeShow(overrides: Partial<Show> = {}): Show {
 }
 
 function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // LOCAL components, not toISOString(). The hook compares local date parts
+  // (see the "UTC/local boundary regression" test below), so a UTC-formatted
+  // fixture describes a different day than the one intended: at 19:00 local on
+  // the 31st in UTC-5, toISOString() yields the 1st of the NEXT month, and the
+  // show labelled "this month" genuinely belongs to next month.
+  //
+  // Fires only in the evening of a month's last day in a negative-offset zone —
+  // never on CI, which runs in UTC — so it reads as an unreproducible local
+  // flake. Found 2026-07-31.
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // Far-future anchor show — gives applyFilters a stable "I've run" signal when

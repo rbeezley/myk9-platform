@@ -43,12 +43,13 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/permissions',
     title: 'Roles & Permissions',
-    description: 'Grant roles (secretary, club admin, exhibitor, site admin) to users.',
+    description:
+      'Roles, permissions, the assignment ledger, and the audit log. Grant roles to users from User Management.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: ['/admin/permissions/roles', '/admin/permissions/users', '/admin/permissions/audit'],
+    linksTo: ['/admin/permissions/roles', '/admin/permissions/audit'],
   },
   {
     path: '/admin/permissions/roles',
@@ -94,17 +95,6 @@ export const pageDirectory: readonly PageEntry[] = [
     category: 'Admin',
     status: 'working',
     linksTo: ['/admin/permissions/roles'],
-  },
-  {
-    path: '/admin/permissions/users',
-    title: 'User Role Assignment',
-    description:
-      'Read-only ledger of every role grant (tabbed into Permissions page). Assign roles from User Management.',
-    roles: [UserRole.SITE_ADMIN],
-    classification: 'park',
-    category: 'Admin',
-    status: 'working',
-    linksTo: ['/admin/permissions', '/admin/users'],
   },
   {
     path: '/admin/permissions/audit',

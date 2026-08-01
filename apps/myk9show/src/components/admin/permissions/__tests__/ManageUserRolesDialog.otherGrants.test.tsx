@@ -14,6 +14,7 @@ type Row = {
 };
 
 let mockUserRoleRows: Row[] = [];
+let capturedUserRolesSelect: string | null = null;
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -29,11 +30,14 @@ vi.mock('@/services/database/supabaseClient', () => ({
         };
       }
       return {
-        select: () => ({
-          eq: () => ({
-            eq: () => Promise.resolve({ data: mockUserRoleRows, error: null }),
-          }),
-        }),
+        select: (columns: string) => {
+          capturedUserRolesSelect = columns;
+          return {
+            eq: () => ({
+              eq: () => Promise.resolve({ data: mockUserRoleRows, error: null }),
+            }),
+          };
+        },
       };
     },
   },
@@ -66,6 +70,7 @@ describe('ManageUserRolesDialog — other grants', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRoleRows = [];
+    capturedUserRolesSelect = null;
   });
 
   it('stays out of the way when every grant is editable here', async () => {
@@ -133,5 +138,22 @@ describe('ManageUserRolesDialog — other grants', () => {
       'href',
       '/admin/permissions?tab=assignments'
     );
+  });
+
+  it('requests the show and expiry columns the other-grants block depends on', async () => {
+    mockUserRoleRows = [
+      {
+        id: 'ur-5',
+        role_id: 'role-1',
+        club_id: 'club-1',
+        show_id: null,
+        expires_at: null,
+        roles: { name: 'secretary' },
+      },
+    ];
+    renderDialog();
+    await screen.findByText(/manage roles/i);
+    expect(capturedUserRolesSelect).toContain('show_id');
+    expect(capturedUserRolesSelect).toContain('expires_at');
   });
 });

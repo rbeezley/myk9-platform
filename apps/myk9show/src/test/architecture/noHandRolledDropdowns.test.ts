@@ -42,15 +42,14 @@ const ALLOWED = new Map<string, string>([
  * bug the club-members menu had; none has been measured or fixed. This list may
  * only shrink. Adding to it is the thing this test exists to prevent.
  *
- * The two shared data-table primitives are the highest priority: they are used
- * across many pages, so one fix there covers every table. The remaining four
- * are full-width (`left-0 right-0`) search and notification panels — same
- * overflow exposure, but `DropdownMenu` is the wrong replacement for them, so
- * they need their own treatment rather than a mechanical swap.
+ * All five remaining entries are search, autocomplete, or notification panels —
+ * same overflow exposure, but `DropdownMenu` is the WRONG replacement. A
+ * `role="menu"` promises a roving-focus contract where Arrow keys move a single
+ * focus point and Tab exits; that is right for a list of commands and wrong for
+ * a list of suggestions you type against, where the input must keep focus.
+ * Each needs a Popover or Combobox, not a mechanical swap.
  */
 const PRE_EXISTING = new Set<string>([
-  'components/ui/data-table/data-table-column-toggle.tsx',
-  'components/ui/data-table/data-table-filter.tsx',
   'components/shows/ArmbandLookup.tsx',
   'components/shows/RegistrationWorkflow/HandlerSelectionDialog.tsx',
   'components/conflict/ConflictNotifications.tsx',

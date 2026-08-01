@@ -8,7 +8,8 @@
  */
 
 import React from 'react';
-import { X, Calendar } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { X, Calendar, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -262,6 +263,7 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
 
       {/* Deleted rows + reset */}
       <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-3 min-h-11 text-sm text-foreground cursor-pointer">
           <input
             type="checkbox"
@@ -271,6 +273,18 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           />
           Include removed users
         </label>
+        {filters.showDeleted && (
+          // Removed people can be restored from the rows above; this is the
+          // cross-entity sweep (dogs, shows, clubs) the roster can't cover.
+          <Link
+            to="/admin/deleted-items"
+            className="inline-flex items-center gap-1.5 min-h-11 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            <Archive className="h-4 w-4" aria-hidden="true" />
+            All deleted items
+          </Link>
+        )}
+        </div>
         <Button
           variant="outline"
           onClick={resetFilters}

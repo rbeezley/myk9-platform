@@ -199,7 +199,11 @@ function isInteractiveElement(target: EventTarget | null, boundary: Element): bo
   const interactive = target.closest(
     'a,button,input,select,textarea,[role="button"],[role="menuitem"],[tabindex]:not([tabindex="-1"])'
   );
-  return Boolean(interactive && interactive !== boundary);
+  // The match must be INSIDE the row. `closest` walks the whole ancestor chain,
+  // so without this a table nested in the standard `role="region" tabIndex={0}`
+  // scroll wrapper matched that wrapper on every click and swallowed the row
+  // handler entirely — /admin/users shipped that way.
+  return Boolean(interactive && interactive !== boundary && boundary.contains(interactive));
 }
 
 export function DataTable<TData>({

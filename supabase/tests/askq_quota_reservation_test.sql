@@ -1,6 +1,13 @@
 -- MYK9-148 behavioral contract: anonymous identities cannot reserve AskQ
 -- capacity, while a real free account receives exactly ten sequential daily
--- reservations and the eleventh is denied. All fixtures roll back.
+-- reservations and the eleventh is denied. A premium account receives fifty,
+-- and a LAPSED premium account is back to ten. All fixtures roll back.
+--
+-- The premium cases are not decoration. The daily limit has now been wrong
+-- twice — read from a column that does not exist on `people` (silently free
+-- through PostgREST, a hard error once the same expression moved into SQL) —
+-- and the free-account path passed throughout both. Only an assertion on the
+-- premium limit can tell a working implementation from those.
 
 BEGIN;
 
@@ -10,12 +17,35 @@ VALUES (
   'MYK9-148', 'Account', 'myk9-148-account@example.test', NULL
 );
 
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000148012',
+    'MYK9-148', 'Premium', 'myk9-148-premium@example.test', NULL
+  ),
+  (
+    '00000000-0000-0000-0000-000000148013',
+    'MYK9-148', 'Lapsed', 'myk9-148-lapsed@example.test', NULL
+  );
+
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
   is_super_admin, is_sso_user, is_anonymous
 )
 VALUES
+  (
+    '00000000-0000-0000-0000-000000148103',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9-148-premium@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  ),
+  (
+    '00000000-0000-0000-0000-000000148104',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9-148-lapsed@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  ),
   (
     '00000000-0000-0000-0000-000000148101',
     '00000000-0000-0000-0000-000000000000',
@@ -33,12 +63,49 @@ UPDATE public.people
 SET auth_user_id = '00000000-0000-0000-0000-000000148101'
 WHERE id = '00000000-0000-0000-0000-000000148011';
 
+-- UPSERT, not INSERT: `handle_new_user` fires on each auth.users insert above,
+-- adopts the pre-seeded people row BY EMAIL (migration 131) and creates its
+-- exhibitor_profiles row, so a plain INSERT collides with the unique
+-- auth_user_id. As service_role because trg_restrict_subscription_columns
+-- (migration 109) is BEFORE UPDATE and rejects subscription writes from anyone
+-- else — selling someone Premium is a service-role act, so the fixture performs
+-- it as one rather than weakening the guard.
+SET LOCAL ROLE service_role;
+
+INSERT INTO public.exhibitor_profiles (
+  person_id, auth_user_id, subscription_tier, subscription_expires_at
+)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000148012',
+    '00000000-0000-0000-0000-000000148103',
+    'premium',
+    now() + interval '30 days'
+  ),
+  -- Lapsed: still says 'premium', expired yesterday. has_effective_premium_access
+  -- requires a future expiry, matching the client gate, so this account is FREE.
+  (
+    '00000000-0000-0000-0000-000000148013',
+    '00000000-0000-0000-0000-000000148104',
+    'premium',
+    now() - interval '1 day'
+  )
+ON CONFLICT (auth_user_id) DO UPDATE
+SET subscription_tier = EXCLUDED.subscription_tier,
+    subscription_expires_at = EXCLUDED.subscription_expires_at;
+
+-- Back to the owner before switching to the caller role: service_role is not a
+-- member of authenticated, so SET ROLE would fail from inside it.
+RESET ROLE;
+
 SET LOCAL ROLE authenticated;
 
 DO $$
 DECLARE
   account_id CONSTANT uuid := '00000000-0000-0000-0000-000000148101';
   anonymous_id CONSTANT uuid := '00000000-0000-0000-0000-000000148102';
+  premium_id CONSTANT uuid := '00000000-0000-0000-0000-000000148103';
+  lapsed_id CONSTANT uuid := '00000000-0000-0000-0000-000000148104';
   allowed boolean;
   log_id uuid;
   remaining integer;
@@ -104,7 +171,43 @@ BEGIN
     RAISE EXCEPTION 'FAIL eleventh reservation was not denied';
   END IF;
 
-  RAISE NOTICE 'PASS MYK9-148 anonymous denial and exactly ten free-account reservations';
+  PERFORM set_config('request.jwt.claim.sub', premium_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', premium_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  SELECT r.allowed, r.daily_limit, r.remaining
+    INTO allowed, daily_limit, remaining
+  FROM public.reserve_askq_query('premium-account question') AS r;
+
+  IF allowed IS DISTINCT FROM true OR daily_limit <> 50 OR remaining <> 49 THEN
+    RAISE EXCEPTION
+      'FAIL premium reservation returned allowed=%, remaining=%, limit=%',
+      allowed, remaining, daily_limit;
+  END IF;
+
+  -- A tier string alone must not buy capacity: this account still reads
+  -- 'premium' but its subscription expired, so the server has to agree with the
+  -- client gate and treat it as free.
+  PERFORM set_config('request.jwt.claim.sub', lapsed_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', lapsed_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  SELECT r.allowed, r.daily_limit
+    INTO allowed, daily_limit
+  FROM public.reserve_askq_query('lapsed-premium question') AS r;
+
+  IF allowed IS DISTINCT FROM true OR daily_limit <> 10 THEN
+    RAISE EXCEPTION
+      'FAIL lapsed premium got limit=% (expected the free 10)', daily_limit;
+  END IF;
+
+  RAISE NOTICE 'PASS MYK9-148 anonymous denial, ten free reservations, fifty for premium, ten for lapsed premium';
 END;
 $$;
 

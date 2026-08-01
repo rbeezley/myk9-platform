@@ -80,7 +80,7 @@ describe('ClubMembersPage show access', () => {
     render(<ClubMembersPage />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(screen.getByRole('button', { name: 'Grant Show Access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Grant Show Access' }));
 
     await waitFor(() => {
       expect(setClubShowManagerAccess).toHaveBeenCalledWith({
@@ -98,7 +98,7 @@ describe('ClubMembersPage show access', () => {
     render(<ClubMembersPage />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(screen.getByRole('button', { name: 'Grant Show Access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Grant Show Access' }));
 
     await waitFor(() => {
       expect(notificationError).toHaveBeenCalledWith(
@@ -114,7 +114,7 @@ describe('ClubMembersPage show access', () => {
     render(<ClubMembersPage />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(screen.getByRole('button', { name: 'Revoke Show Access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
 
     await waitFor(() => {
       expect(setClubShowManagerAccess).toHaveBeenCalledWith({
@@ -133,7 +133,7 @@ describe('ClubMembersPage show access', () => {
     render(<ClubMembersPage />);
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
-    await user.click(screen.getByRole('button', { name: 'Revoke Show Access' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
 
     await waitFor(() => {
       expect(notificationError).toHaveBeenCalledWith(

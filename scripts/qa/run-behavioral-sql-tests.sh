@@ -35,6 +35,7 @@ fi
 # until 2026-07-31 (MYK9-130). A directory-coverage assertion now closes it.
 TEST_FILES=(
   "$TEST_DIR/anonymous_session_read_scope_test.sql"
+  "$TEST_DIR/askq_quota_reservation_test.sql"
   "$TEST_DIR/class_hide_count_gating_test.sql"
   "$TEST_DIR/class_status_auto_derivation_test.sql"
   "$TEST_DIR/club_secretary_grant_test.sql"

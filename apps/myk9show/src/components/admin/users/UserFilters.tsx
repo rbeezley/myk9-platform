@@ -26,7 +26,11 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
 import { UserFilter } from '@/pages/admin/UserManagementPage';
-import { DEFAULT_USER_FILTER } from '@/pages/admin/UserManagementPage.types';
+import {
+  DEFAULT_USER_FILTER,
+  USER_ROLE_FILTER_VALUES,
+  USER_STATUS_FILTER_VALUES,
+} from '@/pages/admin/UserManagementPage.types';
 
 interface UserFiltersProps {
   filters: UserFilter;
@@ -34,22 +38,34 @@ interface UserFiltersProps {
   roleStats: Record<string, number>;
 }
 
-// Role display configuration
-const ROLE_OPTIONS = [
-  { value: 'all', label: 'All Roles' },
-  { value: 'exhibitor', label: 'Exhibitor' },
-  { value: 'handler', label: 'Handler' },
-  { value: 'judge', label: 'Judge' },
-  { value: 'secretary', label: 'Secretary' },
-  { value: 'steward', label: 'Steward' },
-  { value: 'admin', label: 'Admin' },
-] as const;
+// Labels for the shared filter values. The VALUES live in
+// UserManagementPage.types so the URL codec validates against the same list this
+// dropdown offers — a role the codec rejects must not be selectable here.
+const ROLE_LABELS: Record<(typeof USER_ROLE_FILTER_VALUES)[number], string> = {
+  all: 'All Roles',
+  exhibitor: 'Exhibitor',
+  handler: 'Handler',
+  judge: 'Judge',
+  secretary: 'Secretary',
+  steward: 'Steward',
+  admin: 'Admin',
+};
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Status' },
-  { value: 'active', label: 'Active' },
-  { value: 'suspended', label: 'Suspended' },
-] as const;
+const STATUS_LABELS: Record<(typeof USER_STATUS_FILTER_VALUES)[number], string> = {
+  all: 'All Status',
+  active: 'Active',
+  suspended: 'Suspended',
+};
+
+const ROLE_OPTIONS = USER_ROLE_FILTER_VALUES.map(value => ({
+  value,
+  label: ROLE_LABELS[value],
+}));
+
+const STATUS_OPTIONS = USER_STATUS_FILTER_VALUES.map(value => ({
+  value,
+  label: STATUS_LABELS[value],
+}));
 
 const FIELD_CLASS =
   'h-11 rounded-xl border-border bg-background focus:border-primary focus:ring-2 focus:ring-ring transition-colors';
@@ -264,26 +280,26 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
       {/* Deleted rows + reset */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-3 min-h-11 text-sm text-foreground cursor-pointer">
-          <input
-            type="checkbox"
-            checked={filters.showDeleted}
-            onChange={e => updateFilter('showDeleted', e.target.checked)}
-            className="h-5 w-5 rounded border-input accent-primary cursor-pointer"
-          />
-          Include removed users
-        </label>
-        {filters.showDeleted && (
-          // Removed people can be restored from the rows above; this is the
-          // cross-entity sweep (dogs, shows, clubs) the roster can't cover.
-          <Link
-            to="/admin/deleted-items"
-            className="inline-flex items-center gap-1.5 min-h-11 text-sm font-medium text-primary underline-offset-4 hover:underline"
-          >
-            <Archive className="h-4 w-4" aria-hidden="true" />
-            All deleted items
-          </Link>
-        )}
+          <label className="flex items-center gap-3 min-h-11 text-sm text-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filters.showDeleted}
+              onChange={e => updateFilter('showDeleted', e.target.checked)}
+              className="h-5 w-5 rounded border-input accent-primary cursor-pointer"
+            />
+            Include removed users
+          </label>
+          {filters.showDeleted && (
+            // Removed people can be restored from the rows above; this is the
+            // cross-entity sweep (dogs, shows, clubs) the roster can't cover.
+            <Link
+              to="/admin/deleted-items"
+              className="inline-flex items-center gap-1.5 min-h-11 text-sm font-medium text-primary underline-offset-4 hover:underline"
+            >
+              <Archive className="h-4 w-4" aria-hidden="true" />
+              All deleted items
+            </Link>
+          )}
         </div>
         <Button
           variant="outline"

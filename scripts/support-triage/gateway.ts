@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-import type { SupportMessage, SupportTicket, TicketThread } from './types';
+import type { SupportMessage, SupportTicket, TicketOwner, TicketThread } from './types';
 
 export interface SupportDataSource {
   openTickets(): Promise<SupportTicket[]>;
   messagesFor(ticketIds: string[]): Promise<SupportMessage[]>;
   insertOperatorMessage(ticketId: string, senderId: string, body: string): Promise<void>;
   updateTicketStatus(ticketId: string, status: SupportTicket['status']): Promise<void>;
+  ownersFor(authUserIds: string[]): Promise<TicketOwner[]>;
 }
 
 const TICKET_COLUMNS = 'id, owner_id, subject, status, is_show_day_priority, show_id, created_at';
@@ -41,6 +42,16 @@ export function createSupabaseSource(url: string, serviceRoleKey: string): Suppo
         .from('support_ticket_messages')
         .insert({ ticket_id: ticketId, sender_id: senderId, body, is_from_operator: true });
       if (error) throw new Error(`Failed to insert operator message: ${error.message}`);
+    },
+
+    async ownersFor(authUserIds) {
+      if (authUserIds.length === 0) return [];
+      const { data, error } = await client
+        .from('people')
+        .select('auth_user_id, first_name, last_name, email')
+        .in('auth_user_id', authUserIds);
+      if (error) throw new Error(`Failed to read ticket owners: ${error.message}`);
+      return (data ?? []) as TicketOwner[];
     },
 
     async updateTicketStatus(ticketId, status) {

@@ -1,5 +1,5 @@
 import type { TicketCluster } from './cluster';
-import type { CarveOutReason, SupportTicket } from './types';
+import type { CarveOutReason, SupportTicket, TicketOwner } from './types';
 
 export interface NotifyConfig {
   apiKey: string;
@@ -10,16 +10,28 @@ export interface NotifyConfig {
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
+// INTENT: The operator cannot tell who is asking from the inbox — it renders only the
+// first 8 characters of the owner UUID (SupportInboxPage.tsx). Naming the exhibitor here
+// is often what determines the right answer. See MYK9-139 for the inbox-side fix.
+function ownerLine(owner: TicketOwner | null): string {
+  if (!owner) return '<p><strong>From:</strong> unknown exhibitor</p>';
+  const name = [owner.first_name, owner.last_name].filter(Boolean).join(' ').trim();
+  const parts = [name || 'Name not on file', owner.email ?? 'no email on file'];
+  return `<p><strong>From:</strong> ${escapeHtml(parts.join(' — '))}</p>`;
+}
+
 export function renderDraftEmail(
   ticket: SupportTicket,
   draft: string,
   clusterLabel: string,
-  appUrl: string
+  appUrl: string,
+  owner: TicketOwner | null = null
 ): { subject: string; html: string } {
   const link = ticketLink(appUrl, ticket.id);
   return {
     subject: `[myK9 support draft] ${ticket.subject}`,
     html: [
+      ownerLine(owner),
       `<p><strong>Topic:</strong> ${escapeHtml(clusterLabel)}</p>`,
       `<p><strong>Subject:</strong> ${escapeHtml(ticket.subject)}</p>`,
       '<p><strong>Suggested reply:</strong></p>',
@@ -43,10 +55,13 @@ export function renderCarveOutEmail(
   ticket: SupportTicket,
   reason: CarveOutReason,
   appUrl: string
+,
+  owner: TicketOwner | null = null
 ): { subject: string; html: string } {
   return {
     subject: `[myK9 support — needs you] ${ticket.subject}`,
     html: [
+      ownerLine(owner),
       `<p><strong>Held for you:</strong> ${escapeHtml(CARVE_OUT_REASONS[reason])}</p>`,
       `<p><strong>Subject:</strong> ${escapeHtml(ticket.subject)}</p>`,
       `<p><a href="${ticketLink(appUrl, ticket.id)}">Open this ticket in the support inbox</a></p>`,

@@ -26,6 +26,23 @@ export interface SelectedUser {
   user: User;
 }
 
+/**
+ * The values each filter accepts. One source for the `<Select>` options and for
+ * the URL codec's validation — a role that isn't here is not a role the roster
+ * can filter by, however it arrived.
+ */
+export const USER_ROLE_FILTER_VALUES = [
+  'all',
+  'exhibitor',
+  'handler',
+  'judge',
+  'secretary',
+  'steward',
+  'admin',
+] as const;
+
+export const USER_STATUS_FILTER_VALUES = ['all', 'active', 'suspended'] as const;
+
 export const DEFAULT_USER_FILTER: UserFilter = {
   role: 'all',
   status: 'all',

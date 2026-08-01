@@ -28,7 +28,9 @@ const makeUser = (overrides: Partial<AdminUser>): AdminUser =>
 const live = makeUser({ id: 'live-1', firstName: 'Grace', lastName: 'Hopper' });
 const removed = makeUser({ id: 'gone-1', deletedAt: '2026-07-30T00:00:00Z' });
 
-function renderTable(onUserClick = vi.fn()) {
+function renderTable() {
+  const onViewUser = vi.fn();
+  const onEditUser = vi.fn();
   const result = render(
     <UserTable
       users={[live, removed]}
@@ -36,7 +38,8 @@ function renderTable(onUserClick = vi.fn()) {
       selectedUsers={[]}
       onSelectUser={vi.fn()}
       onSelectAll={vi.fn()}
-      onUserClick={onUserClick}
+      onViewUser={onViewUser}
+      onEditUser={onEditUser}
       currentPage={1}
       totalPages={1}
       totalFilteredUsers={2}
@@ -44,26 +47,40 @@ function renderTable(onUserClick = vi.fn()) {
       pageSize={25}
     />
   );
-  return { ...result, onUserClick };
+  return { ...result, onViewUser, onEditUser };
 }
 
 const rowFor = (name: string) => screen.getByText(name).closest('tr') as HTMLTableRowElement;
 
 describe('UserTable removed rows', () => {
-  it('does not open the edit panel when a removed row is clicked', async () => {
-    const { user, onUserClick } = renderTable();
+  it('does nothing at all when a removed row is clicked', async () => {
+    // Neither destination exists for them: /people/:id can't load a
+    // soft-deleted person, and editing one isn't a real operation.
+    const { user, onViewUser, onEditUser } = renderTable();
 
     await user.click(rowFor('Ada Lovelace'));
 
-    expect(onUserClick).not.toHaveBeenCalled();
+    expect(onViewUser).not.toHaveBeenCalled();
+    expect(onEditUser).not.toHaveBeenCalled();
   });
 
-  it('still opens the edit panel for a live row', async () => {
-    const { user, onUserClick } = renderTable();
+  it('drills down to the record — not the editor — for a live row', async () => {
+    const { user, onViewUser, onEditUser } = renderTable();
 
     await user.click(screen.getByText('Grace Hopper'));
 
-    expect(onUserClick).toHaveBeenCalledWith(live);
+    expect(onViewUser).toHaveBeenCalledWith(live);
+    expect(onEditUser).not.toHaveBeenCalled();
+  });
+
+  it('keeps the editor on the row menu', async () => {
+    const { user, onViewUser, onEditUser } = renderTable();
+
+    await user.click(screen.getByRole('button', { name: /actions for grace hopper/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /edit user/i }));
+
+    expect(onEditUser).toHaveBeenCalledWith(live);
+    expect(onViewUser).not.toHaveBeenCalled();
   });
 
   it('does not advertise a removed row as clickable', () => {

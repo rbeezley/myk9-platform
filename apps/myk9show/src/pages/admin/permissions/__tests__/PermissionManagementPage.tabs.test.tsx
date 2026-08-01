@@ -79,7 +79,7 @@ describe('PermissionManagementPage tab consolidation', () => {
 
   it('labels the current-user role count instead of implying platform active users', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
-    expect(screen.getByText('Your Active Roles')).toBeInTheDocument();
+    expect(screen.getByText('Your Role Grants')).toBeInTheDocument();
     expect(screen.queryByText('Active Users')).not.toBeInTheDocument();
   });
 

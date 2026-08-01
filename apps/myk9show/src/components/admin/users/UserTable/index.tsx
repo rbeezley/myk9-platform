@@ -1,11 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { type ColumnDef } from '@tanstack/react-table';
+import { type ColumnDef, type SortingState } from '@tanstack/react-table';
 import { DataTable } from '@/components/ui/data-table';
-import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
 import { useUserStore } from '@/store/userStore';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePermanentDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { AdminDeleteUserDialog } from '../AdminDeleteUserDialog';
@@ -13,14 +11,13 @@ import '@/styles/myk9-table.css';
 
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Mail, Phone, MapPin, Calendar, Building2, Search, Users } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 
 import { User } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { formatRelativeTime } from '@/lib/timeUtils';
-import { DENSITY_CONFIG, APPLE_FONT_STYLE, ROLE_CONFIG } from './types';
+import { DENSITY_CONFIG, ROLE_CONFIG, UNKNOWN_ROLE_CHIP } from './types';
 import type { UserTableProps } from './types';
-import { EmptyState } from '@/components/common/EmptyState';
 import { Pagination } from './Pagination';
 import { RowActions } from './RowActions';
 import {
@@ -29,7 +26,6 @@ import {
   getUserStatus,
   getStatusConfig,
   getDeletedStatusConfig,
-  getAvatarGradient,
   highlightSearchTerm,
 } from './utils';
 
@@ -42,11 +38,15 @@ function formatLastLogin(dateString: string | null | undefined): string {
   return formatRelativeTime(new Date(dateString));
 }
 
-function isStaleLogin(dateString: string | null | undefined, thresholdDays = 180): boolean {
+const STALE_LOGIN_DAYS = 180;
+
+function isStaleLogin(dateString: string | null | undefined, thresholdDays = STALE_LOGIN_DAYS) {
   if (!dateString) return false;
   const diffMs = Date.now() - new Date(dateString).getTime();
   return diffMs > thresholdDays * 86400000;
 }
+
+const CHIP_CLASS = 'text-xs font-medium px-3 py-1 rounded-full border-0';
 
 // ---------------------------------------------------------------------------
 // Column factory — accepts closure values so cells can use them
@@ -72,33 +72,44 @@ function buildColumns(
 
   return [
     // ── Select checkbox ──────────────────────────────────────────────────
+    // `interactive` keeps the row a real table row: without it DataTable makes
+    // every <tr> a role="button", which flattens row/column semantics for a
+    // screen reader and swallows the checkbox inside the row's own label.
     {
       id: '_select',
       enableSorting: false,
+      meta: { interactive: true },
       header: () => (
-        <input
-          type="checkbox"
-          aria-label="Select all users on this page"
-          checked={allSelected}
-          ref={el => {
-            if (el) el.indeterminate = someSelected && !allSelected;
-          }}
-          onChange={e => onSelectAll(e.target.checked)}
-          className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
-        />
+        // The padding, not the box, carries the touch target: 20px visual,
+        // 44px hit area.
+        <label className="inline-flex items-center justify-center p-3 -m-3 cursor-pointer">
+          <input
+            type="checkbox"
+            aria-label="Select all users on this page"
+            checked={allSelected}
+            ref={el => {
+              if (el) el.indeterminate = someSelected && !allSelected;
+            }}
+            onChange={e => onSelectAll(e.target.checked)}
+            className="h-5 w-5 rounded border-input accent-primary cursor-pointer"
+          />
+        </label>
       ),
       cell: ({ row }) => {
         const user = row.original;
         return (
-          <span onClick={e => e.stopPropagation()}>
+          <label
+            className="inline-flex items-center justify-center p-3 -m-3 cursor-pointer"
+            onClick={e => e.stopPropagation()}
+          >
             <input
               type="checkbox"
               aria-label={`Select ${getUserFullName(user)}`}
               checked={isUserSelected(user.id)}
               onChange={e => onSelectUser(user, e.target.checked)}
-              className="h-4 w-4 rounded border-input accent-primary cursor-pointer"
+              className="h-5 w-5 rounded border-input accent-primary cursor-pointer"
             />
-          </span>
+          </label>
         );
       },
     },
@@ -112,7 +123,6 @@ function buildColumns(
       cell: ({ row }) => {
         const user = row.original;
         const initials = getUserInitials(user);
-        const avatarGradient = getAvatarGradient(initials);
         const fullName = getUserFullName(user);
         const status = getUserStatus(user);
         const statusConfig = user.deletedAt ? getDeletedStatusConfig() : getStatusConfig(status);
@@ -120,43 +130,25 @@ function buildColumns(
         return (
           <div className={`flex items-center ${density.spacing}`}>
             <div className="relative">
-              <Avatar
-                className={`${density.avatarSize} ring-2 ring-white/50 ring-offset-2 ring-offset-background shadow-sm`}
-              >
-                <AvatarFallback
-                  className={`${density.fontSize} font-[650] bg-gradient-to-br ${avatarGradient} text-white shadow-inner`}
-                >
+              <Avatar className={`${density.avatarSize} ring-1 ring-border`}>
+                <AvatarFallback className={`${density.fontSize} font-semibold bg-muted text-foreground`}>
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              {statusConfig && (
-                <div
-                  className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-background bg-gradient-to-br flex items-center justify-center"
-                  style={{ backgroundColor: statusConfig.background }}
-                >
-                  <statusConfig.icon
-                    className="h-2.5 w-2.5"
-                    style={{ color: statusConfig.color }}
-                  />
-                </div>
-              )}
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${statusConfig.dotClass}`}
+                aria-hidden="true"
+              />
             </div>
 
-            <div className="min-w-0 flex-1">
-              <div
-                className={`font-[590] text-foreground truncate ${density.fontSize} leading-tight`}
-              >
+            <div className="min-w-0 flex-1 max-w-[220px]">
+              <div className={`font-semibold text-foreground truncate ${density.fontSize}`}>
                 {!user.firstName && !user.lastName ? (
-                  <span className="italic text-muted-foreground">&mdash; &mdash;</span>
+                  <span className="italic text-muted-foreground">No name on file</span>
                 ) : (
                   highlightSearchTerm(fullName, searchTerm)
                 )}
               </div>
-              {user.membershipId && (
-                <div className="text-xs text-muted-foreground font-[500] mt-1 tracking-wide">
-                  ID: {highlightSearchTerm(user.membershipId, searchTerm)}
-                </div>
-              )}
             </div>
           </div>
         );
@@ -170,37 +162,23 @@ function buildColumns(
       accessorFn: (row: AdminUser) => row.email?.toLowerCase() ?? '',
       cell: ({ row }) => {
         const user = row.original;
+        if (!user.email && !user.phone) {
+          return <span className="text-sm text-muted-foreground">No contact details</span>;
+        }
         return (
-          <div className="space-y-2">
+          <div className="space-y-1.5 max-w-[280px]">
             {user.email && (
               <div className={`flex items-center ${density.spacing} text-sm min-w-0`}>
-                <div className="h-6 w-6 shrink-0 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-500/5 flex items-center justify-center border border-blue-500/20">
-                  <Mail className="h-3 w-3 text-blue-500" />
-                </div>
-                <span className="truncate font-[500] text-foreground">
+                <Mail className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="truncate text-foreground">
                   {highlightSearchTerm(user.email, searchTerm)}
                 </span>
               </div>
             )}
             {user.phone && (
               <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
-                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-green-500/10 to-green-500/5 flex items-center justify-center border border-green-500/20">
-                  <Phone className="h-3 w-3 text-green-500" />
-                </div>
-                <span className="font-[500]">{highlightSearchTerm(user.phone, searchTerm)}</span>
-              </div>
-            )}
-            {(user.city || user.state) && (
-              <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
-                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-orange-500/10 to-orange-500/5 flex items-center justify-center border border-orange-500/20">
-                  <MapPin className="h-3 w-3 text-orange-500" />
-                </div>
-                <span className="font-[500]">
-                  {highlightSearchTerm(
-                    [user.city, user.state].filter(Boolean).join(', '),
-                    searchTerm
-                  )}
-                </span>
+                <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{highlightSearchTerm(user.phone, searchTerm)}</span>
               </div>
             )}
           </div>
@@ -215,47 +193,29 @@ function buildColumns(
       accessorFn: (row: AdminUser) => row.roles?.[0] ?? '',
       cell: ({ row }) => {
         const user = row.original;
+        const roles = user.roles ?? [];
+        if (roles.length === 0) {
+          return (
+            <Badge variant="outline" className={`${CHIP_CLASS} border border-border text-muted-foreground`}>
+              No role
+            </Badge>
+          );
+        }
         return (
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {user.roles?.map(role => {
-                const roleConfig = ROLE_CONFIG[role as keyof typeof ROLE_CONFIG];
-                return (
-                  <Badge
-                    key={role}
-                    variant="outline"
-                    className="text-xs font-[590] px-3 py-1 rounded-full border-0 transition-all duration-200"
-                    style={{
-                      backgroundColor: roleConfig?.background || 'rgba(142, 142, 147, 0.1)',
-                      color: roleConfig?.color || '#8E8E93',
-                    }}
-                  >
-                    {roleConfig?.icon && <roleConfig.icon className="h-3 w-3 mr-1" />}
-                    {roleConfig?.label || role}
-                  </Badge>
-                );
-              }) || (
+          <div className="flex flex-wrap gap-2">
+            {roles.map(role => {
+              const roleConfig = ROLE_CONFIG[role as keyof typeof ROLE_CONFIG];
+              return (
                 <Badge
+                  key={role}
                   variant="outline"
-                  className="text-xs font-[590] px-3 py-1 rounded-full border border-border/60 text-muted-foreground"
+                  className={`${CHIP_CLASS} ${roleConfig?.chipClass ?? UNKNOWN_ROLE_CHIP}`}
                 >
-                  No Role
+                  {roleConfig?.icon && <roleConfig.icon className="h-3 w-3 mr-1" />}
+                  {roleConfig?.label || role}
                 </Badge>
-              )}
-            </div>
-
-            {user.clubAffiliations && user.clubAffiliations.length > 0 && (
-              <div className={`flex items-center ${density.spacing} text-xs text-muted-foreground min-w-0`}>
-                <div className="h-5 w-5 shrink-0 rounded-md bg-gradient-to-br from-purple-500/10 to-purple-500/5 flex items-center justify-center border border-purple-500/20">
-                  <Building2 className="h-3 w-3 text-purple-500" />
-                </div>
-                <span className="truncate font-[500]">
-                  {user.clubAffiliations.length === 1
-                    ? highlightSearchTerm(user.clubAffiliations[0], searchTerm)
-                    : `${user.clubAffiliations.length} clubs`}
-                </span>
-              </div>
-            )}
+              );
+            })}
           </div>
         );
       },
@@ -270,14 +230,13 @@ function buildColumns(
         const user = row.original;
         const stale = isStaleLogin(user.lastSignInAt);
         return (
-          <div className={`flex items-center ${density.spacing} text-sm text-muted-foreground`}>
-            <div className="h-5 w-5 rounded-md bg-gradient-to-br from-gray-500/10 to-gray-500/5 flex items-center justify-center border border-gray-500/20">
-              <Calendar className="h-3 w-3 text-gray-500" />
-            </div>
-            <span className={`font-[500] ${stale ? 'text-destructive' : ''}`}>
-              {formatLastLogin(user.lastSignInAt)}
-            </span>
-          </div>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {formatLastLogin(user.lastSignInAt)}
+            {stale && (
+              // Colour alone can't carry this — the word does the work.
+              <span className="ml-2 text-destructive">(inactive)</span>
+            )}
+          </span>
         );
       },
     },
@@ -294,11 +253,7 @@ function buildColumns(
         return (
           <Badge
             variant="outline"
-            className="text-xs font-[590] px-3 py-1 rounded-full border-0 flex items-center gap-1.5 transition-all duration-200"
-            style={{
-              backgroundColor: statusConfig.background,
-              color: statusConfig.color,
-            }}
+            className={`${CHIP_CLASS} ${statusConfig.chipClass} inline-flex items-center gap-1.5`}
           >
             <statusConfig.icon className="h-3 w-3" />
             {statusConfig.label}
@@ -311,11 +266,8 @@ function buildColumns(
     {
       id: '_actions',
       enableSorting: false,
-      header: () => (
-        <span className="font-[650] text-sm text-muted-foreground uppercase tracking-[0.04em]">
-          Actions
-        </span>
-      ),
+      meta: { interactive: true },
+      header: () => <span className="sr-only">Actions</span>,
       cell: ({ row }) => {
         const user = row.original;
         return (
@@ -353,27 +305,27 @@ export const UserTable: React.FC<UserTableProps> = ({
   pageSize,
   onPageSizeChange,
   searchTerm = '',
-  onClearSearch,
   densityMode = 'comfortable',
+  sort = null,
+  onSortChange,
 }) => {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { deleteUser } = useUserStore();
-  const { isAdmin } = useAuthContext();
   const permanentDeleteMutation = usePermanentDeleteUserMutation();
   const navigate = useNavigate();
 
   // Handle row actions
-  const handleViewUser = (user: User) => navigate(`/people/${user.id}`);
-  const handleEditUser = (user: User) => onUserClick(user);
-  const handleDeleteUser = (user: User) => setDeleteTarget(user);
+  const handleViewUser = useCallback((user: User) => navigate(`/people/${user.id}`), [navigate]);
+  const handleEditUser = useCallback((user: User) => onUserClick(user), [onUserClick]);
+  const handleDeleteUser = useCallback((user: User) => setDeleteTarget(user), []);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
       await deleteUser(deleteTarget.id);
-      toast.success(`${deleteTarget.firstName} ${deleteTarget.lastName} has been deleted`);
+      toast.success(`${getUserFullName(deleteTarget)} was removed. Restore from Deleted Items.`);
       setDeleteTarget(null);
     } catch (err) {
       // Surface the actionable guard message (e.g. "owns dogs") if the DB blocked
@@ -389,9 +341,7 @@ export const UserTable: React.FC<UserTableProps> = ({
     setIsDeleting(true);
     try {
       await permanentDeleteMutation.mutateAsync({ id: deleteTarget.id });
-      toast.success(
-        `${deleteTarget.firstName} ${deleteTarget.lastName} has been permanently deleted`
-      );
+      toast.success(`${getUserFullName(deleteTarget)} was permanently deleted`);
       setDeleteTarget(null);
     } catch (err) {
       toast.error(getUserFriendlyError(err, 'Failed to permanently delete user'));
@@ -415,47 +365,46 @@ export const UserTable: React.FC<UserTableProps> = ({
         handleDeleteUser,
         onManageRoles
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedUsers, onSelectUser, onSelectAll, users, searchTerm, densityMode]
+    [
+      selectedUsers,
+      onSelectUser,
+      onSelectAll,
+      users,
+      searchTerm,
+      densityMode,
+      handleViewUser,
+      handleEditUser,
+      handleDeleteUser,
+      onManageRoles,
+    ]
   );
 
-  const emptyState = (
-    <EmptyState
-      icon={searchTerm ? Search : Users}
-      title={searchTerm ? 'No Matching Users' : 'No Users Found'}
-      description={
-        searchTerm
-          ? `No users match "${searchTerm}". Try adjusting your search terms or filters.`
-          : 'There are no users to display. Users will appear here once they are added to the system.'
-      }
-      action={
-        searchTerm && onClearSearch
-          ? { label: 'Clear Search', onClick: onClearSearch, variant: 'outline' }
-          : null
-      }
-      variant={searchTerm ? 'filter' : 'default'}
-    />
+  // Sorting state is mirrored from the page, which sorts the whole filtered set.
+  const sorting: SortingState = useMemo(
+    () => (sort ? [{ id: sort.id, desc: sort.desc }] : []),
+    [sort]
   );
 
-  // Empty state (before DataTable so we keep the bespoke design)
-  if (!isLoading && !users.length) {
-    return (
-      <div className="space-y-6" style={APPLE_FONT_STYLE}>
-        {emptyState}
-      </div>
-    );
-  }
+  const handleSortingChange = useCallback(
+    (next: SortingState) => {
+      if (!onSortChange) return;
+      const first = next[0];
+      onSortChange(first ? { id: first.id, desc: first.desc } : null);
+    },
+    [onSortChange]
+  );
 
   return (
-    <div className="space-y-6" style={APPLE_FONT_STYLE}>
-      {/* Table — use large pageSize so DataTable never shows its own pagination */}
+    <div className="space-y-6">
       <div
-        className="max-w-full overflow-x-auto rounded-[20px]"
+        className="max-w-full overflow-x-auto rounded-xl"
         aria-label="Users table scroll area"
         role="region"
         tabIndex={0}
       >
         <div className="myk9-table-container min-w-[760px]">
+          {/* pageSize is deliberately huge: the page already sliced these rows,
+              so the table must render all of them and never paginate again. */}
           <DataTable
             tableId="adminUsers"
             columns={columns}
@@ -464,7 +413,9 @@ export const UserTable: React.FC<UserTableProps> = ({
             loading={isLoading}
             onRowClick={user => onUserClick(user)}
             className="myk9-table"
-            emptyState={emptyState}
+            manualSorting
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
           />
         </div>
       </div>
@@ -475,35 +426,21 @@ export const UserTable: React.FC<UserTableProps> = ({
         totalPages={totalPages}
         pageSize={pageSize}
         totalUsers={totalFilteredUsers}
-        searchTerm={searchTerm}
         onPageChange={onPageChange}
         {...(onPageSizeChange ? { onPageSizeChange } : {})}
       />
 
-      {isAdmin ? (
-        <AdminDeleteUserDialog
-          open={!!deleteTarget}
-          onOpenChange={open => {
-            if (!open) setDeleteTarget(null);
-          }}
-          onSoftDelete={confirmDelete}
-          onPermanentDelete={confirmPermanentDelete}
-          entityName={deleteTarget ? `${deleteTarget.firstName} ${deleteTarget.lastName}` : ''}
-          isDeleting={isDeleting}
-          {...(deleteTarget ? { personId: deleteTarget.id } : {})}
-        />
-      ) : (
-        <DeleteConfirmationDialog
-          open={!!deleteTarget}
-          onOpenChange={open => {
-            if (!open) setDeleteTarget(null);
-          }}
-          onConfirm={confirmDelete}
-          entityName={deleteTarget ? `${deleteTarget.firstName} ${deleteTarget.lastName}` : ''}
-          entityType="User"
-          isDeleting={isDeleting}
-        />
-      )}
+      <AdminDeleteUserDialog
+        open={!!deleteTarget}
+        onOpenChange={open => {
+          if (!open) setDeleteTarget(null);
+        }}
+        onSoftDelete={confirmDelete}
+        onPermanentDelete={confirmPermanentDelete}
+        entityName={deleteTarget ? getUserFullName(deleteTarget) : ''}
+        isDeleting={isDeleting}
+        {...(deleteTarget ? { personId: deleteTarget.id } : {})}
+      />
     </div>
   );
 };

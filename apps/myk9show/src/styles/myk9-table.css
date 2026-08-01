@@ -1,28 +1,23 @@
-/* myK9 Table Styles */
+/* myK9 admin table styles
+ *
+ * Used only by the admin User Management table (`components/admin/users/
+ * UserTable`), which applies exactly five of these classes: -container, the
+ * table itself, -actions-trigger, -dropdown-content and -dropdown-item.
+ *
+ * Rules for -header-cell / -cell / -row / -skeleton / -dense / -comfortable
+ * used to live here too. Nothing ever applied those class names, so their
+ * hardcoded Apple-blue selected-row tint and 11px uppercase header text were
+ * dead — they were removed rather than retokenised. The live rules below speak
+ * design tokens, so the table follows the user's accent and both themes.
+ */
 
 /* Main table container */
 .myk9-table-container {
   background: var(--card);
-  border: 0.5px solid var(--border);
-  border-radius: 20px;
-  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   overflow: hidden;
   position: relative;
-}
-
-.myk9-table-container::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 20px;
-  padding: 0.5px;
-  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  opacity: 0.3;
-  pointer-events: none;
 }
 
 /* Table styling */
@@ -33,243 +28,18 @@
   border-spacing: 0 !important;
 }
 
-/* Table header */
-.myk9-table-header {
-  background: rgba(var(--muted-rgb, 248 250 252), 0.3) !important;
-  border-bottom: 0.5px solid var(--border) !important;
-}
-
-.myk9-table-header-row {
-  border: none !important;
-  background: transparent !important;
-}
-
-.myk9-table-header-cell {
-  padding: 16px 24px !important;
-  font-size: 11px !important;
-  font-weight: 590 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.06em !important;
-  color: var(--muted-foreground) !important;
-  border: none !important;
-  background: transparent !important;
-  text-align: left !important;
-  height: auto !important;
-}
-
-.myk9-table-header-cell:first-child {
-  padding-left: 32px !important;
-}
-
-.myk9-table-header-cell:last-child {
-  padding-right: 32px !important;
-}
-
-/* Table body */
-.myk9-table-body {
-  background: transparent !important;
-}
-
-/* Table rows */
-.myk9-table-row {
-  border: none !important;
-  border-bottom: none !important;
-  background: transparent !important;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-  cursor: pointer !important;
-  box-shadow: inset 0 -1px 0 0 rgba(0, 0, 0, 0.15) !important;
-  position: relative !important;
-}
-
-.myk9-table-row:hover {
-  background: rgba(var(--muted-rgb, 248 250 252), 0.4) !important;
-}
-
-.myk9-table-row:last-child {
-  border-bottom: none !important;
-}
-
-.myk9-table-row.selected {
-  background: rgba(0, 122, 255, 0.08) !important;
-  border-color: rgba(0, 122, 255, 0.2) !important;
-}
-
-/* Table cells */
-.myk9-table-cell {
-  padding: 16px 24px !important;
-  border: none !important;
-  background: transparent !important;
-  vertical-align: middle !important;
-  font-size: 15px !important;
-  line-height: 1.4 !important;
-}
-
-.myk9-table-cell:first-child {
-  padding-left: 32px !important;
-}
-
-.myk9-table-cell:last-child {
-  padding-right: 32px !important;
-}
-
-/* Sticky actions column (last column) */
-.myk9-table-cell:last-child,
-.myk9-table-header-cell:last-child {
-  position: sticky !important;
-  right: 0 !important;
-  z-index: 1 !important;
-  background: var(--card) !important;
-  box-shadow: -4px 0 8px -4px rgba(0, 0, 0, 0.1) !important;
-}
-
-.myk9-table-row:hover .myk9-table-cell:last-child {
-  background: var(--card) !important;
-}
-
-.myk9-table-row.selected .myk9-table-cell:last-child {
-  background: color-mix(in srgb, var(--card) 92%, #007aff) !important;
-}
-
-/* Sticky checkbox column (first column) */
-.myk9-table-cell:first-child,
-.myk9-table-header-cell:first-child {
-  position: sticky !important;
-  left: 0 !important;
-  z-index: 1 !important;
-  background: var(--card) !important;
-}
-
-.myk9-table-row:hover .myk9-table-cell:first-child {
-  background: var(--card) !important;
-}
-
-.myk9-table-row.selected .myk9-table-cell:first-child {
-  background: color-mix(in srgb, var(--card) 92%, #007aff) !important;
-}
-
-/* Checkbox styling - myK9 inspired */
-.myk9-table-checkbox {
-  width: 18px !important;
-  height: 18px !important;
-  min-width: 18px !important;
-  min-height: 18px !important;
-  border: 1.5px solid var(--border) !important;
-  border-radius: 4px !important;
-  background: var(--background) !important;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-  box-shadow: none !important;
-  cursor: pointer !important;
-  padding: 0 !important;
-  appearance: none !important;
-}
-
-.myk9-table-checkbox:hover {
-  border-color: rgba(0, 122, 255, 0.5) !important;
-  background: rgba(0, 122, 255, 0.05) !important;
-}
-
-/* Base UI uses data-checked, not data-state="checked" */
-.myk9-table-checkbox[data-checked],
-.myk9-table-checkbox[data-state='checked'] {
-  background: #007aff !important;
-  border-color: #007aff !important;
-  color: white !important;
-}
-
-.myk9-table-checkbox[data-indeterminate],
-.myk9-table-checkbox[data-state='indeterminate'] {
-  background: rgba(0, 122, 255, 0.1) !important;
-  border-color: rgba(0, 122, 255, 0.5) !important;
-}
-
-/* Focus styles */
-.myk9-table-checkbox:focus-visible {
-  outline: 2px solid rgba(0, 122, 255, 0.3) !important;
-  outline-offset: 2px !important;
-}
-
-/* Loading skeleton styling */
-.myk9-table-skeleton-row {
-  border-bottom: 0.5px solid var(--border) !important;
-  background: transparent !important;
-}
-
-.myk9-table-skeleton-cell {
-  padding: 16px 24px !important;
-}
-
-.myk9-table-skeleton-content {
-  background: var(--muted) !important;
-  border-radius: 8px !important;
-  animation: myk9-skeleton-shimmer 1.5s ease-in-out infinite !important;
-}
-
-@keyframes myk9-skeleton-shimmer {
-  0% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 0.8;
-  }
-  100% {
-    opacity: 0.6;
-  }
-}
-
-/* Dense/Compact variations */
-.myk9-table-dense .myk9-table-cell,
-.myk9-table-dense .myk9-table-header-cell {
-  padding-top: 12px !important;
-  padding-bottom: 12px !important;
-}
-
-.myk9-table-comfortable .myk9-table-cell,
-.myk9-table-comfortable .myk9-table-header-cell {
-  padding-top: 20px !important;
-  padding-bottom: 20px !important;
-}
-
-/* Avatar styling in tables */
-.myk9-table-avatar {
-  border: 1.5px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Badge styling in tables */
-.myk9-table-badge {
-  padding: 4px 8px !important;
-  border-radius: 50px !important;
-  font-size: 11px !important;
-  font-weight: 590 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.02em !important;
-  border: 0.5px solid transparent !important;
-}
-
-.myk9-table-badge.active {
-  background: rgba(52, 199, 89, 0.1) !important;
-  color: #34c759 !important;
-  border-color: rgba(52, 199, 89, 0.2) !important;
-}
-
-.myk9-table-badge.inactive {
-  background: rgba(142, 142, 147, 0.1) !important;
-  color: #8e8e93 !important;
-  border-color: rgba(142, 142, 147, 0.2) !important;
-}
-
-/* Action menu button */
+/* Action menu button — 44px, the platform touch-target floor (was 32px) */
 .myk9-table-actions-trigger {
-  background: rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 0.5px solid var(--border) !important;
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
   border-radius: 8px !important;
-  padding: 6px !important;
   color: var(--muted-foreground) !important;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  transition:
+    background-color 150ms ease-out,
+    color 150ms ease-out !important;
   cursor: pointer !important;
-  width: 32px !important;
-  height: 32px !important;
+  width: 44px !important;
+  height: 44px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -278,41 +48,39 @@
 .myk9-table-actions-trigger:hover {
   background: var(--muted) !important;
   color: var(--foreground) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Dropdown menu styling */
 .myk9-table-dropdown-content {
-  background: var(--card) !important;
-  border: 0.5px solid var(--border) !important;
-  border-radius: 16px !important;
+  background: var(--popover) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
   padding: 8px !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12) !important;
-  backdrop-filter: blur(40px) !important;
+  box-shadow: 0 12px 32px rgb(61 37 22 / 0.12) !important;
   min-width: 200px !important;
 }
 
 .myk9-table-dropdown-item {
   border-radius: 8px !important;
   padding: 12px 16px !important;
-  font-size: 15px !important;
+  font-size: 1rem !important;
   font-weight: 500 !important;
-  color: var(--foreground) !important;
-  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  color: var(--popover-foreground) !important;
+  transition: background-color 150ms ease-out !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   gap: 12px !important;
+  min-height: 44px !important;
 }
 
 .myk9-table-dropdown-item:hover {
-  background: rgba(0, 122, 255, 0.1) !important;
-  color: #007aff !important;
+  background: var(--accent) !important;
+  color: var(--accent-foreground) !important;
 }
 
 /* Theme destructive token (AA on card/popover surfaces in both themes) — not a
-   hard-coded #ff3b30, which was only ~3.4:1 on the card. --destructive-strong is
+   hard-coded Apple red, which was only ~3.4:1 on the card. --destructive-strong is
    the documented choice for small text on popover/card surfaces (see index.css). */
 .myk9-table-dropdown-item.destructive {
   color: rgb(var(--destructive-strong)) !important;
@@ -321,41 +89,4 @@
 .myk9-table-dropdown-item.destructive:hover {
   background: rgb(var(--destructive-strong) / 0.1) !important;
   color: rgb(var(--destructive-strong)) !important;
-}
-
-/* Dark mode adjustments */
-.dark .myk9-table-container {
-  backdrop-filter: blur(40px) !important;
-}
-
-.dark .myk9-table-row {
-  box-shadow: inset 0 -1px 0 0 rgba(255, 255, 255, 0.2) !important;
-}
-
-.dark .myk9-table-actions-trigger {
-  background: rgba(30, 30, 30, 0.9) !important;
-}
-
-.dark .myk9-table-actions-trigger:hover {
-  background: rgba(60, 60, 60, 1) !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .myk9-table-cell,
-  .myk9-table-header-cell {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-    font-size: 14px !important;
-  }
-
-  .myk9-table-cell:first-child,
-  .myk9-table-header-cell:first-child {
-    padding-left: 20px !important;
-  }
-
-  .myk9-table-cell:last-child,
-  .myk9-table-header-cell:last-child {
-    padding-right: 20px !important;
-  }
 }

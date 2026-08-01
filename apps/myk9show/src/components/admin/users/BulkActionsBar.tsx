@@ -22,8 +22,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
+import { getUserFullName } from './UserTable/utils';
 import { BulkRoleDialog } from './BulkRoleDialog';
 import type { BulkActionsBarProps } from './BulkActionsBar.types';
 import { useBulkActions } from './useBulkActions';
@@ -34,7 +34,6 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   onBulkComplete,
   onUsersDeleted,
 }) => {
-  const { isAdmin } = useAuthContext();
   const {
     currentDialog,
     setCurrentDialog,
@@ -58,48 +57,47 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     <>
       {/* Bulk Actions Bar */}
       <Card
-        className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10 backdrop-blur-xl
-                       rounded-2xl shadow-sm"
+        className="border-primary/30 bg-primary/5 rounded-xl"
+        role="region"
+        aria-label="Bulk actions"
       >
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
+              <div className="flex items-center gap-2">
                 <Badge
                   variant="default"
-                  className="gap-2 px-4 py-2 rounded-full bg-primary/20 text-primary
-                                                  border-0 font-[590] text-sm"
+                  className="gap-2 px-4 py-2 rounded-full bg-primary/20 text-primary border-0 text-sm"
                 >
                   <Users className="h-4 w-4" />
                   {selectedUsers.length} selected
                 </Badge>
                 <Button
                   variant="ghost"
-                  size="sm"
                   onClick={onClearSelection}
-                  className="h-8 w-8 p-0 rounded-xl hover:bg-primary/20 transition-colors duration-200"
+                  aria-label="Clear selection"
+                  className="h-11 w-11 p-0 rounded-xl hover:bg-primary/20"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
 
-              <div className="text-sm text-muted-foreground font-[500]">
-                Selected users:{' '}
+              <p className="text-sm text-muted-foreground truncate max-w-full sm:max-w-md">
+                <span className="sr-only">Selected users: </span>
                 {selectedUsers
                   .slice(0, 3)
-                  .map(u => `${u.user.firstName} ${u.user.lastName}`)
+                  .map(u => getUserFullName(u.user))
                   .join(', ')}
                 {selectedUsers.length > 3 && ` and ${selectedUsers.length - 3} more`}
-              </div>
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {/* Change roles */}
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => setCurrentDialog('role')}
-                className="h-10 px-4 rounded-xl font-[590]"
+                className="h-11 px-4 rounded-xl"
               >
                 <Shield className="h-4 w-4 mr-2" />
                 Change roles
@@ -108,10 +106,9 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
               {/* Delete */}
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => setCurrentDialog('delete')}
-                className="h-10 px-4 rounded-xl border-destructive/30 bg-destructive/10 text-destructive font-[590]
-                           hover:bg-destructive/20 hover:text-destructive transition-all duration-300"
+                className="h-11 px-4 rounded-xl border-destructive/30 bg-destructive/10 text-destructive
+                           hover:bg-destructive/20 hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
@@ -121,74 +118,26 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
         </CardContent>
       </Card>
 
-      {/* Delete Dialog -- Admin sees soft/permanent options, others see standard confirmation */}
-      {isAdmin ? (
-        <AdminDeleteUserDialog
-          open={currentDialog === 'delete'}
-          onOpenChange={() => closeDialog()}
-          onSoftDelete={handleBulkDelete}
-          onPermanentDelete={handleBulkPermanentDelete}
-          entityName={
-            selectedUsers
-              .slice(0, 3)
-              .map(u => `${u.user.firstName} ${u.user.lastName}`)
-              .join(', ') +
-            (selectedUsers.length > 3 ? ` and ${selectedUsers.length - 3} more` : '')
-          }
-          isDeleting={isProcessing}
-          bulkCount={selectedUsers.length}
-        />
-      ) : (
-        <Dialog open={currentDialog === 'delete'} onOpenChange={() => closeDialog()}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Users</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete {selectedUsers.length} selected user
-                {selectedUsers.length !== 1 ? 's' : ''}? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  This will permanently delete all user data including profiles, registrations, and
-                  history.
-                </AlertDescription>
-              </Alert>
-
-              <div className="space-y-2">
-                <Label>Users to be deleted:</Label>
-                <div className="max-h-32 overflow-y-auto space-y-1">
-                  {selectedUsers.map(item => (
-                    <div key={item.id} className="text-sm p-2 bg-muted rounded">
-                      {item.user.firstName} {item.user.lastName} ({item.user.email})
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={closeDialog}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleBulkDelete} disabled={isProcessing}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                {isProcessing ? 'Deleting...' : 'Delete Users'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Delete dialog — offers the reversible removal and the permanent one,
+          and describes each accurately. (A second, non-admin dialog used to sit
+          behind an `isAdmin` branch here; /admin/users is SITE_ADMIN-guarded so
+          it was unreachable, and its copy called the reversible delete
+          permanent.) */}
+      <AdminDeleteUserDialog
+        open={currentDialog === 'delete'}
+        onOpenChange={() => closeDialog()}
+        onSoftDelete={handleBulkDelete}
+        onPermanentDelete={handleBulkPermanentDelete}
+        entityName={
+          selectedUsers
+            .slice(0, 3)
+            .map(u => getUserFullName(u.user))
+            .join(', ') + (selectedUsers.length > 3 ? ` and ${selectedUsers.length - 3} more` : '')
+        }
+        isDeleting={isProcessing}
+        bulkCount={selectedUsers.length}
+        errorMessage={error}
+      />
 
       {/* Cascade Delete Confirmation Dialog */}
       <Dialog open={currentDialog === 'cascadeConfirm'} onOpenChange={() => closeDialog()}>
@@ -263,7 +212,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                     const user = selectedUsers.find(u => u.id === userId);
                     return user ? (
                       <div key={userId} className="text-sm p-2 bg-muted rounded">
-                        {user.user.firstName} {user.user.lastName} ({user.user.email})
+                        {getUserFullName(user.user)}
+                        {user.user.email ? ` (${user.user.email})` : ''}
                       </div>
                     ) : null;
                   })}

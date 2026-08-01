@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { User } from '@/types/user-types';
@@ -77,7 +78,9 @@ vi.mock('../UserManagementStats', () => ({
 
 vi.mock('../UserManagementPage.helpers', () => ({
   filterUsers: (users: User[]) => users,
+  sortUsers: (users: User[]) => users,
   calculateRoleStats: () => ({}),
+  countActiveUsers: (users: User[]) => users.length,
   exportUsersCSV: vi.fn(),
 }));
 
@@ -143,9 +146,12 @@ describe('UserManagementPage (shared primitives migration)', () => {
     expect(screen.getByTestId('user-stats')).toBeInTheDocument();
   });
 
-  it('renders SearchBar with correct placeholder', () => {
+  // The placeholder may only promise fields `filterUsers` actually searches.
+  // `get_admin_user_list` returns no membership ID, so the old "or ID" promise
+  // could never match anything.
+  it('renders SearchBar promising only the fields that are searched', () => {
     renderPage();
-    const searchInput = screen.getByPlaceholderText('Search by name, email, or ID...');
+    const searchInput = screen.getByPlaceholderText('Search by name, email, or phone...');
     expect(searchInput).toBeInTheDocument();
   });
 
@@ -166,8 +172,38 @@ describe('UserManagementPage (shared primitives migration)', () => {
     });
   });
 
-  it('shows results count', () => {
+  it('shows results count in a live region, so filtering announces itself', () => {
     renderPage();
-    expect(screen.getByText(/1 of 1 user/)).toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status.textContent).toContain('Showing 1 of 1 user');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+  });
+
+  it('renders a visible page title, not only a screen-reader one', () => {
+    renderPage();
+    expect(screen.getByRole('heading', { level: 1, name: 'User Management' })).toBeVisible();
+  });
+
+  // Regression: the empty state was gated on there being active filters, and
+  // the table on there being rows — so a platform with zero users rendered the
+  // toolbar and then nothing at all.
+  it('shows a first-run empty state when there are no users and no filters', () => {
+    mockQueryReturn = { ...mockQueryReturn, data: [] };
+
+    renderPage();
+
+    expect(screen.getByText('No users yet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create the first user/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('user-table')).not.toBeInTheDocument();
+  });
+
+  it('shows a filtered empty state once a search is entered', async () => {
+    mockQueryReturn = { ...mockQueryReturn, data: [] };
+
+    renderPage();
+    await userEvent.type(screen.getByPlaceholderText(/search by name/i), 'zzz');
+
+    expect(screen.getByText('No users match your filters')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /clear filters/i })).toBeInTheDocument();
   });
 });

@@ -30,71 +30,72 @@ export interface UserTableProps {
   pageSize: number;
   onPageSizeChange?: (size: number) => void;
   searchTerm?: string;
-  onClearSearch?: () => void;
   densityMode?: DensityMode;
+  /**
+   * Sorting is owned by the page, not the table: the table only ever holds the
+   * current page's rows, so sorting here would reorder 25 of 1,000 rows and
+   * call it "oldest login".
+   */
+  sort?: import('@/pages/admin/UserManagementPage.types').UserSort | null;
+  onSortChange?: (sort: import('@/pages/admin/UserManagementPage.types').UserSort | null) => void;
 }
 
 // Role config entry
 export interface RoleConfigEntry {
   label: string;
-  variant: 'default' | 'secondary' | 'destructive' | 'outline';
-  color: string;
-  background: string;
+  /**
+   * A `--chip-*` background/foreground pair. Each pair ships a light and a dark
+   * value, so a chip stays legible in both themes — the inline Apple hexes this
+   * replaced rendered at 2.0-3.6:1 in light mode and inverted in dark.
+   */
+  chipClass: string;
   icon?: React.ComponentType<{ className?: string }>;
 }
 
-// Enhanced role configuration with Premium styling
+const chip = (hue: string) => `bg-[color:var(--chip-${hue}-bg)] text-[color:var(--chip-${hue}-fg)]`;
+
+// One chip hue per role, so a role is recognisable at a glance without the
+// colour carrying meaning on its own (the label always states the role).
 export const ROLE_CONFIG: Record<UserRoleType, RoleConfigEntry> = {
   exhibitor: {
     label: 'Exhibitor',
-    variant: 'default',
-    color: '#007AFF',
-    background: 'rgba(0, 122, 255, 0.1)',
+    chipClass: chip('blue'),
     icon: UserIcon,
   },
   judge: {
     label: 'Judge',
-    variant: 'outline',
-    color: '#5856D6',
-    background: 'rgba(88, 86, 214, 0.1)',
+    chipClass: chip('teal'),
     icon: CheckCircle2,
   },
   secretary: {
     label: 'Secretary',
-    variant: 'secondary',
-    color: '#FF9500',
-    background: 'rgba(255, 149, 0, 0.1)',
+    chipClass: chip('amber'),
     icon: Edit,
   },
   steward: {
     label: 'Steward',
-    variant: 'outline',
-    color: '#8E8E93',
-    background: 'rgba(142, 142, 147, 0.1)',
+    chipClass: chip('stone'),
     icon: Settings,
   },
   chairman: {
     label: 'Chairman',
-    variant: 'outline',
-    color: '#AF52DE',
-    background: 'rgba(175, 82, 222, 0.1)',
+    chipClass: chip('purple'),
     icon: Crown,
   },
   club_admin: {
     label: 'Club Admin',
-    variant: 'secondary',
-    color: '#FF9500',
-    background: 'rgba(255, 149, 0, 0.1)',
+    chipClass: chip('green'),
     icon: Settings,
   },
   site_admin: {
     label: 'Site Admin',
-    variant: 'destructive',
-    color: '#FF3B30',
-    background: 'rgba(255, 59, 48, 0.1)',
+    chipClass: chip('red'),
     icon: Settings,
   },
 };
+
+/** Fallback for a role the config doesn't know about. */
+export const UNKNOWN_ROLE_CHIP = chip('stone');
 
 // Density mode configurations
 export interface DensityConfig {
@@ -129,8 +130,6 @@ export const DENSITY_CONFIG: Record<DensityMode, DensityConfig> = {
   },
 };
 
-// System font style (shared across components)
-export const APPLE_FONT_STYLE = {
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
-} as const;
+// (The former APPLE_FONT_STYLE constant forced the Apple system font stack over
+// Montserrat, which DESIGN.md specifies for all working UI. Removed — the table
+// inherits the app font like every other surface.)

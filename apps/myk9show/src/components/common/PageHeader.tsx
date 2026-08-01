@@ -13,12 +13,24 @@ interface PageHeaderProps {
   title: string;
   actions?: React.ReactNode;
   className?: string;
+  /**
+   * Render the page title visibly instead of screen-reader-only. Opt-in so
+   * existing pages that paint their own title are untouched; use it on pages
+   * where the largest visible heading would otherwise be a section label.
+   */
+  showTitle?: boolean;
 }
 
-export function PageHeader({ breadcrumbs, title, actions, className }: PageHeaderProps) {
+export function PageHeader({
+  breadcrumbs,
+  title,
+  actions,
+  className,
+  showTitle = false,
+}: PageHeaderProps) {
   return (
     <div className={cn('space-y-1', className)}>
-      <h1 className="sr-only">{title}</h1>
+      {!showTitle && <h1 className="sr-only">{title}</h1>}
       <div className="flex items-center justify-between">
         <nav
           aria-label="Breadcrumb"
@@ -50,6 +62,7 @@ export function PageHeader({ breadcrumbs, title, actions, className }: PageHeade
         </nav>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
+      {showTitle && <h1 className="text-2xl font-semibold text-foreground">{title}</h1>}
     </div>
   );
 }

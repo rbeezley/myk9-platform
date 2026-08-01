@@ -1,9 +1,12 @@
 /**
- * Pagination - Premium pagination controls
+ * Pagination controls for the admin user table.
+ *
+ * Wraps at narrow widths and treats "no results" as page 1 of 1, so the Next
+ * and Last buttons can never walk the caller to page 0.
  */
 
 import React from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -13,7 +16,6 @@ interface PaginationProps {
   totalPages: number;
   pageSize: number;
   totalUsers: number;
-  searchTerm: string;
   onPageChange: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
 }
@@ -23,28 +25,44 @@ export const Pagination: React.FC<PaginationProps> = ({
   totalPages,
   pageSize,
   totalUsers,
-  searchTerm,
   onPageChange,
   onPageSizeChange,
 }) => {
-  if (totalPages <= 1 && !onPageSizeChange) return null;
+  // An empty result set still has one (empty) page. Without this floor,
+  // `currentPage === totalPages` is `1 === 0`, which leaves Next/Last enabled
+  // and lets the caller be paged to 0.
+  const lastPage = Math.max(1, totalPages);
+  const page = Math.min(Math.max(1, currentPage), lastPage);
 
-  const paginationButtonClass =
-    'h-9 w-9 p-0 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300 ease-apple';
+  if (lastPage <= 1 && !onPageSizeChange) return null;
+
+  const navButtonClass = 'h-11 w-11 p-0 rounded-xl border border-border bg-background';
+
+  const firstShown = totalUsers === 0 ? 0 : Math.min((page - 1) * pageSize + 1, totalUsers);
+  const lastShown = Math.min(page * pageSize, totalUsers);
+
+  const pageNumbers = Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
+    if (lastPage <= 5 || page <= 3) return i + 1;
+    if (page >= lastPage - 2) return lastPage - 4 + i;
+    return page - 2 + i;
+  });
 
   return (
-    <div className="flex items-center justify-between pt-6 pb-2">
-      {/* Results Summary & Page Size */}
-      <div className="flex items-center gap-3">
+    <nav
+      aria-label="User list pagination"
+      className="flex flex-wrap items-center justify-between gap-4 pt-6 pb-2"
+    >
+      {/* Results summary & page size */}
+      <div className="flex flex-wrap items-center gap-3">
         {onPageSizeChange && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground font-[500]">
-            <span>Rows</span>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <label htmlFor="users-per-page">Rows</label>
             <select
+              id="users-per-page"
               value={pageSize}
               onChange={e => onPageSizeChange(Number(e.target.value))}
-              aria-label="Rows per page"
-              className="h-8 px-2 rounded-lg border border-border/50 bg-background/50 text-foreground
-                         text-sm font-[590] cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-11 px-3 rounded-lg border border-border bg-background text-foreground
+                         text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
             >
               {PAGE_SIZE_OPTIONS.map(size => (
                 <option key={size} value={size}>
@@ -54,83 +72,48 @@ export const Pagination: React.FC<PaginationProps> = ({
             </select>
           </div>
         )}
-        <div className="text-sm text-muted-foreground font-[500]">
-          Showing{' '}
-          <span className="font-[590] text-foreground">
-            {totalUsers === 0 ? 0 : Math.min((currentPage - 1) * pageSize + 1, totalUsers)}
-          </span>{' '}
-          to{' '}
-          <span className="font-[590] text-foreground">
-            {Math.min(currentPage * pageSize, totalUsers)}
-          </span>{' '}
-          of <span className="font-[590] text-foreground">{totalUsers}</span> users
-        </div>
-        {searchTerm && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="h-1 w-1 rounded-full bg-muted-foreground/60" />
-            <Search className="h-3 w-3" />
-            <span>filtered by &quot;{searchTerm}&quot;</span>
-          </div>
-        )}
+        <p className="text-sm text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{firstShown}</span> to{' '}
+          <span className="font-semibold text-foreground">{lastShown}</span> of{' '}
+          <span className="font-semibold text-foreground">{totalUsers}</span>
+        </p>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="flex items-center gap-1">
-        {/* First Page */}
+      {/* Pagination controls */}
+      <div className="flex flex-wrap items-center gap-1">
         <Button
           variant="outline"
-          size="sm"
           onClick={() => onPageChange(1)}
-          disabled={currentPage === 1}
-          className={paginationButtonClass}
-          title="First page"
+          disabled={page === 1}
+          className={navButtonClass}
           aria-label="Go to first page"
         >
           <ChevronsLeft className="h-4 w-4" />
         </Button>
 
-        {/* Previous Page */}
         <Button
           variant="outline"
-          size="sm"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className={paginationButtonClass}
-          title="Previous page"
+          onClick={() => onPageChange(page - 1)}
+          disabled={page === 1}
+          className={navButtonClass}
           aria-label="Go to previous page"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        {/* Page Numbers */}
         <div className="flex items-center gap-1 mx-2">
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let pageNum;
-            if (totalPages <= 5) {
-              pageNum = i + 1;
-            } else if (currentPage <= 3) {
-              pageNum = i + 1;
-            } else if (currentPage >= totalPages - 2) {
-              pageNum = totalPages - 4 + i;
-            } else {
-              pageNum = currentPage - 2 + i;
-            }
-
-            const isActive = currentPage === pageNum;
-
+          {pageNumbers.map(pageNum => {
+            const isActive = page === pageNum;
             return (
               <Button
                 key={pageNum}
                 variant={isActive ? 'default' : 'outline'}
-                size="sm"
-                className={`w-9 h-9 p-0 rounded-xl font-[590] transition-all duration-300 ease-apple ${
-                  isActive
-                    ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md border-0 scale-105'
-                    : 'border border-border/50 bg-background/50 backdrop-blur-sm'
+                className={`h-11 w-11 p-0 rounded-xl font-semibold ${
+                  isActive ? '' : 'border border-border bg-background'
                 }`}
                 onClick={() => onPageChange(pageNum)}
-                title={`Page ${pageNum}`}
                 aria-label={`Go to page ${pageNum}`}
+                aria-current={isActive ? 'page' : undefined}
               >
                 {pageNum}
               </Button>
@@ -138,32 +121,26 @@ export const Pagination: React.FC<PaginationProps> = ({
           })}
         </div>
 
-        {/* Next Page */}
         <Button
           variant="outline"
-          size="sm"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className={paginationButtonClass}
-          title="Next page"
+          onClick={() => onPageChange(page + 1)}
+          disabled={page === lastPage}
+          className={navButtonClass}
           aria-label="Go to next page"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
 
-        {/* Last Page */}
         <Button
           variant="outline"
-          size="sm"
-          onClick={() => onPageChange(totalPages)}
-          disabled={currentPage === totalPages}
-          className={paginationButtonClass}
-          title="Last page"
+          onClick={() => onPageChange(lastPage)}
+          disabled={page === lastPage}
+          className={navButtonClass}
           aria-label="Go to last page"
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>
       </div>
-    </div>
+    </nav>
   );
 };

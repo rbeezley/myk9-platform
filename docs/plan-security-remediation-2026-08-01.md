@@ -45,6 +45,12 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
 - **MYK9-125:** existing authorization code is present, but closure remains blocked on the
   authorized paid-path smoke, account-wide quota proof, and role matrix. No paid invocation was
   attempted.
+- **MYK9-147:** local implementation committed in `308c91a0d`. The new office-manager predicate
+  accepts only current site-admin, club-admin, or show/club secretary roles; judge-assignment and
+  enrollment write policies no longer use the steward-inclusive `is_show_official()` predicate.
+  Source and behavioral-test registration contracts pass, and monorepo typecheck passes. Applied
+  SQL/PostgREST replay is still required before resolution; the Linear state update could not be
+  sent because the Linear transport returned an HTTP error.
 
 ### Phase 0 — Baseline and proof harness
 

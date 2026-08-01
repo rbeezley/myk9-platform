@@ -51,5 +51,5 @@ jobs:
           # myk9show.com and used by the existing edge functions. Kept in plain sight
           # so the workflow is readable without console access.
           SUPPORT_TRIAGE_FROM_EMAIL: 'myK9Show Support <notifications@myk9show.com>'
-          MYK9_APP_URL: 'https://myk9-platform-myk9show.vercel.app'
+          MYK9_APP_URL: 'https://myk9show.com'
         run: pnpm support:triage

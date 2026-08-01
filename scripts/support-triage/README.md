@@ -65,8 +65,7 @@ access:
 
 - `SUPPORT_TRIAGE_FROM_EMAIL` — `notifications@myk9show.com`, the sender already verified
   in Resend and used by the existing edge functions.
-- `MYK9_APP_URL` — the staging URL, used only to build ticket deep links. **Change this at
-  launch** when you start working from a production domain.
+- `MYK9_APP_URL` — `https://myk9show.com`, used only to build ticket deep links.
 
 Until every secret exists, each scheduled run fails fast and emails nothing.
 

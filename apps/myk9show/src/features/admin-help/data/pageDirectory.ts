@@ -107,6 +107,17 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: [],
   },
   {
+    path: '/admin/permissions/users',
+    title: 'User Role Assignment (redirect)',
+    description:
+      'Old bookmark. Redirects to the Assignments tab on Roles & Permissions, which lists every role grant. Grant roles from User Management.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'park',
+    category: 'Admin',
+    status: 'working',
+    linksTo: ['/admin/permissions', '/admin/users'],
+  },
+  {
     path: '/admin/templates',
     title: 'Sport Rules',
     description:

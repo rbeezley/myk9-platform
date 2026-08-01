@@ -81,6 +81,17 @@ describe('the table inherits the app font (Montserrat), never SF Pro', () => {
 });
 
 describe('accessibility pins', () => {
+  it('chip dismiss controls keep a 44px hit area', () => {
+    // 24px box + 10px padding each side = 44px, with a matching negative margin
+    // so the chip does not grow. Dropping to p-2 silently returns it to 40px.
+    expect(filtersSrc).toContain('-m-2.5 box-content p-2.5');
+  });
+
+  it('the row action trigger and menu items are 44px', () => {
+    expect(tableCss).toContain('width: 44px');
+    expect(tableCss).toContain('min-height: 44px');
+  });
+
   it('both checkboxes expose an accessible label', () => {
     expect(tableSrc).toContain('aria-label="Select all users on this page"');
     expect(tableSrc).toContain('aria-label={`Select ${getUserFullName(user)}`}');

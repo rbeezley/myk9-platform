@@ -61,11 +61,12 @@ const CHIP_GREEN = 'bg-[color:var(--chip-green-bg)] text-[color:var(--chip-green
 const CHIP_STONE = 'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)]';
 
 /**
- * Dismiss control inside a chip. 24px visually, but the negative margin plus
- * padding gives it a 40px hit area without stretching the chip.
+ * Dismiss control inside a chip. 24px visually; `box-content` plus 10px of
+ * padding makes the hit area exactly 44px, and the matching negative margin
+ * keeps the chip itself from growing around it.
  */
 const CHIP_DISMISS_CLASS =
-  'h-6 w-6 -m-2 box-content p-2 rounded-full hover:bg-foreground/10 focus-visible:ring-2 focus-visible:ring-ring';
+  'h-6 w-6 -m-2.5 box-content p-2.5 rounded-full hover:bg-foreground/10 focus-visible:ring-2 focus-visible:ring-ring';
 
 export const UserFilters: React.FC<UserFiltersProps> = ({
   filters,
@@ -287,7 +288,10 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           <span className="text-sm font-medium text-muted-foreground">Active filters:</span>
 
           {filters.role !== 'all' && (
-            <Badge variant="secondary" className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_BLUE)}>
+            <Badge
+              variant="secondary"
+              className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_BLUE)}
+            >
               Role: {ROLE_OPTIONS.find(r => r.value === filters.role)?.label}
               <Button
                 variant="ghost"
@@ -301,7 +305,10 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           )}
 
           {filters.status !== 'all' && (
-            <Badge variant="secondary" className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_GREEN)}>
+            <Badge
+              variant="secondary"
+              className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_GREEN)}
+            >
               Status: {STATUS_OPTIONS.find(s => s.value === filters.status)?.label}
               <Button
                 variant="ghost"
@@ -315,7 +322,10 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           )}
 
           {filters.showDeleted && (
-            <Badge variant="secondary" className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_STONE)}>
+            <Badge
+              variant="secondary"
+              className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_STONE)}
+            >
               Including removed users
               <Button
                 variant="ghost"
@@ -329,7 +339,10 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           )}
 
           {filters.dateRange.start && (
-            <Badge variant="secondary" className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_STONE)}>
+            <Badge
+              variant="secondary"
+              className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_STONE)}
+            >
               From: {format(filters.dateRange.start, 'MMM d, yyyy')}
               <Button
                 variant="ghost"
@@ -343,7 +356,10 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
           )}
 
           {filters.dateRange.end && (
-            <Badge variant="secondary" className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_STONE)}>
+            <Badge
+              variant="secondary"
+              className={cn('gap-2 px-3 py-2 rounded-full border-0', CHIP_STONE)}
+            >
               To: {format(filters.dateRange.end, 'MMM d, yyyy')}
               <Button
                 variant="ghost"

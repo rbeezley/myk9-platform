@@ -8,6 +8,7 @@ function chain<T>(data: T, error: unknown = null) {
   query.select = vi.fn(self);
   query.eq = vi.fn(self);
   query.is = vi.fn(self);
+  query.or = vi.fn(self);
   query.single = vi.fn(async () => ({ data, error }));
   query.then = ((resolve: (value: { data: T; error: unknown }) => unknown) =>
     Promise.resolve({ data, error }).then(resolve)) as never;

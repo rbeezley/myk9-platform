@@ -8,6 +8,7 @@
 
 import type { HandlerCtx } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 
 export interface DeleteUserRequest {
   personId: string;
@@ -32,11 +33,9 @@ export async function deleteUserHandler({ body, user, supabase }: HandlerCtx<Del
   }
 
   // 2. Check site_admin via RBAC
-  const { data: rbacRoles } = await supabase
-    .from('user_roles')
-    .select('role:roles(name)')
-    .eq('user_id', callerPerson.id)
-    .eq('is_active', true);
+  const { data: rbacRoles } = await applyActiveRoleValidity(
+    supabase.from('user_roles').select('role:roles(name)').eq('user_id', callerPerson.id)
+  );
 
   const isSiteAdmin =
     rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??

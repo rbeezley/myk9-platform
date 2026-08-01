@@ -12,6 +12,7 @@ function chain<T>(data: T, error: unknown = null) {
   query.select = vi.fn(self);
   query.eq = vi.fn(self);
   query.is = vi.fn(self);
+  query.or = vi.fn(self);
   query.single = vi.fn(async () => ({ data, error }));
   query.maybeSingle = vi.fn(async () => ({ data, error }));
   query.then = ((resolve: (value: { data: T; error: unknown }) => unknown) =>
@@ -432,7 +433,10 @@ describe('resolveInviteRedirect', () => {
       '/auth/callback?returnTo=%2Fadmin%2Fusers',
       'https://app.test/auth/callback?returnTo=%2Fadmin%2Fusers',
     ],
-    ['/shows/abc?tab=entries', 'https://app.test/auth/callback?returnTo=%2Fshows%2Fabc%3Ftab%3Dentries'],
+    [
+      '/shows/abc?tab=entries',
+      'https://app.test/auth/callback?returnTo=%2Fshows%2Fabc%3Ftab%3Dentries',
+    ],
   ])('resolves %s', (input, expected) => {
     expect(resolveInviteRedirect(SITE, input)).toBe(expected);
   });

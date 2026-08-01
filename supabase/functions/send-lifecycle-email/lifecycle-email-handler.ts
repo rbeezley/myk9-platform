@@ -1,4 +1,5 @@
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 
 export interface SendLifecycleEmailPayload {
@@ -325,11 +326,12 @@ async function assertCanSendForShow(
   userId: string,
   show: ShowRow
 ) {
-  const { data, error } = (await supabase
-    .from('user_roles')
-    .select('id, club_id, show_id, auth_user_id, is_active, roles!inner(name)')
-    .eq('auth_user_id', userId)
-    .eq('is_active', true)) as QueryResult<RoleRow[]>;
+  const { data, error } = (await applyActiveRoleValidity(
+    supabase
+      .from('user_roles')
+      .select('id, club_id, show_id, auth_user_id, is_active, expires_at, roles!inner(name)')
+      .eq('auth_user_id', userId)
+  )) as QueryResult<RoleRow[]>;
   if (error) throw new HttpError(500, 'Failed to verify sender role');
 
   const canSend = (data ?? []).some(role => callerRoleAuthorizesLifecycleShow(role, show));

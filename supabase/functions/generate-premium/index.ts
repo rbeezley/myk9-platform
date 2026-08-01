@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { runPremiumGenerationAttempt } from './premiumRateLimit.ts';
 import { resolvePremiumGenerationAuthorization } from './authz.ts';
 
@@ -108,12 +109,13 @@ handle<GeneratePremiumPayload>(
 
     // Step 7b: Resolve secretary from user_roles (migration 099 moved officials
     // off shows.secretary/secretary_email into the user_roles + people tables).
-    const { data: secretaryRoleRow } = await userClient
-      .from('user_roles')
-      .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
-      .eq('show_id', show_id)
-      .eq('is_active', true)
-      .eq('roles.name', 'secretary')
+    const { data: secretaryRoleRow } = await applyActiveRoleValidity(
+      userClient
+        .from('user_roles')
+        .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
+        .eq('show_id', show_id)
+        .eq('roles.name', 'secretary')
+    )
       .limit(1)
       .maybeSingle();
     const secretaryPerson =
@@ -136,12 +138,13 @@ handle<GeneratePremiumPayload>(
     // Resolve the show chairman the same way (user_roles → people). The chairman
     // is often a non-login contact, so surface full contact info (name/email/phone)
     // for the premium and official reports.
-    const { data: chairmanRoleRow } = await userClient
-      .from('user_roles')
-      .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
-      .eq('show_id', show_id)
-      .eq('is_active', true)
-      .eq('roles.name', 'chairman')
+    const { data: chairmanRoleRow } = await applyActiveRoleValidity(
+      userClient
+        .from('user_roles')
+        .select('people:user_id(first_name, last_name, email, phone), roles!inner(name)')
+        .eq('show_id', show_id)
+        .eq('roles.name', 'chairman')
+    )
       .limit(1)
       .maybeSingle();
     const chairmanPerson =

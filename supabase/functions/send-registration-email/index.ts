@@ -6,6 +6,7 @@ import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { formatUsShowDateRange } from './dateFormat.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -183,26 +184,26 @@ handle<SendRegistrationEmailPayload>(
       if (callerPerson) {
         // Check secretary role for show's club
         if (registration.show?.club_id) {
-          const { data: secretaryRole } = await supabase
-            .from('user_roles')
-            .select('id, role:roles!inner(name)')
-            .eq('user_id', callerPerson.id)
-            .eq('is_active', true)
-            .eq('club_id', registration.show.club_id)
-            .eq('roles.name', 'trial_secretary')
-            .maybeSingle();
+          const { data: secretaryRole } = await applyActiveRoleValidity(
+            supabase
+              .from('user_roles')
+              .select('id, role:roles!inner(name)')
+              .eq('user_id', callerPerson.id)
+              .eq('club_id', registration.show.club_id)
+              .eq('roles.name', 'trial_secretary')
+          ).maybeSingle();
           isSecretary = !!secretaryRole;
         }
 
         // Check platform admin role via database (SA-014: not JWT claims)
         if (!isSecretary) {
-          const { data: adminRole } = await supabase
-            .from('user_roles')
-            .select('id, role:roles!inner(name)')
-            .eq('user_id', callerPerson.id)
-            .eq('is_active', true)
-            .in('roles.name', ['site_admin', 'platform_admin'])
-            .maybeSingle();
+          const { data: adminRole } = await applyActiveRoleValidity(
+            supabase
+              .from('user_roles')
+              .select('id, role:roles!inner(name)')
+              .eq('user_id', callerPerson.id)
+              .in('roles.name', ['site_admin', 'platform_admin'])
+          ).maybeSingle();
           isAdmin = !!adminRole;
         }
       }

@@ -14,12 +14,12 @@
 
 Yes, and it is not justified. Four surfaces write `public.user_roles`, with three different capability sets:
 
-| Surface                                                                                                  | Grain      | Club scope     | Show scope | Expiry  | Reachable from                            |
-| -------------------------------------------------------------------------------------------------------- | ---------- | -------------- | ---------- | ------- | ----------------------------------------- |
-| `/admin/users` → `ManageUserRolesDialog` (`UserManagementPage.tsx:363`)                                   | person     | yes, multi-club | no         | no      | sidebar                                   |
-| `/admin/users` → `BulkRoleDialog` (`BulkActionsBar.tsx:238`)                                             | person × N | yes            | no         | no      | sidebar                                   |
-| `/admin/permissions/users` → `UserRoleAssignmentDialog` (`UserRoleManagementPage.tsx:509`)                | grant      | yes            | **yes**    | **yes** | not in sidebar; 2 cards on `/admin/permissions` |
-| `/admin/role-requests` → `approve_role_request` RPC (`RoleRequestsPage.tsx:88`)                           | grant      | yes            | yes        | no      | sidebar                                   |
+| Surface                                                                                    | Grain      | Club scope      | Show scope | Expiry  | Reachable from                                  |
+| ------------------------------------------------------------------------------------------ | ---------- | --------------- | ---------- | ------- | ----------------------------------------------- |
+| `/admin/users` → `ManageUserRolesDialog` (`UserManagementPage.tsx:363`)                    | person     | yes, multi-club | no         | no      | sidebar                                         |
+| `/admin/users` → `BulkRoleDialog` (`BulkActionsBar.tsx:238`)                               | person × N | yes             | no         | no      | sidebar                                         |
+| `/admin/permissions/users` → `UserRoleAssignmentDialog` (`UserRoleManagementPage.tsx:509`) | grant      | yes             | **yes**    | **yes** | not in sidebar; 2 cards on `/admin/permissions` |
+| `/admin/role-requests` → `approve_role_request` RPC (`RoleRequestsPage.tsx:88`)            | grant      | yes             | yes        | no      | sidebar                                         |
 
 The first two and the third answer the same user question — "give this person a role" — with different powers, so which page the admin happens to open changes what they can grant. That is the defect.
 
@@ -91,12 +91,12 @@ The support action then lands on the affordance that resolves it, per INTENT's _
 
 ### 3.5 Cross-links
 
-| From                            | To                        | Form                                                        |
-| ------------------------------- | ------------------------- | ----------------------------------------------------------- |
-| `/admin/users` page header      | `/admin/role-requests`    | "Role requests" header action                                |
-| `/admin/permissions` quick action | `/admin/users`          | "Assign User Roles" card repointed (was `/admin/permissions/users`) |
-| `/admin/permissions` stat card  | `?tab=assignments`        | "Your Active Roles" becomes a platform-wide "Role Assignments" count |
-| `/admin/role-requests`          | `/admin/users`            | already exists (`RoleRequestsPage.tsx:133`) — unchanged      |
+| From                              | To                     | Form                                                                 |
+| --------------------------------- | ---------------------- | -------------------------------------------------------------------- |
+| `/admin/users` page header        | `/admin/role-requests` | "Role requests" header action                                        |
+| `/admin/permissions` quick action | `/admin/users`         | "Assign User Roles" card repointed (was `/admin/permissions/users`)  |
+| `/admin/permissions` stat card    | `?tab=assignments`     | "Your Active Roles" becomes a platform-wide "Role Assignments" count |
+| `/admin/role-requests`            | `/admin/users`         | already exists (`RoleRequestsPage.tsx:133`) — unchanged              |
 
 ### 3.6 Directory and registry
 
@@ -133,16 +133,16 @@ The support action then lands on the affordance that resolves it, per INTENT's _
 
 A phase is not complete until its tests pass.
 
-| # | Test                                                                                        | Location                                                          |
-| - | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1 | Assignments panel renders rows, role summary, and revoke confirm (rewrite of the existing page test) | `components/admin/permissions/__tests__/RoleAssignmentsPanel.test.tsx` |
-| 2 | Panel exposes no assign affordance; the toolbar link targets `/admin/users`                 | same file                                                          |
-| 3 | `/admin/permissions/users` redirects to `/admin/permissions` with the assignments tab active | `pages/admin/permissions/__tests__/`                              |
-| 4 | `/admin/users?userId=<id>` opens `ManageUserRolesDialog` for that user                        | `pages/admin/__tests__/UserManagementPage.deepLink.test.tsx`       |
-| 5 | `/admin/users?userId=<unknown>` is a no-op — roster renders, no dialog, no error             | same file                                                          |
-| 6 | "Other grants" block renders show-scoped and expiring rows, and is absent when none exist    | `components/admin/permissions/__tests__/ManageUserRolesDialog.test.tsx` |
-| 7 | Support diagnostic actions emit the new `/admin/users?userId=` href                          | `pages/admin/supportDiagnosticActions.test.ts` (update)            |
-| 8 | Route health covers `/admin/permissions?tab=assignments`                                     | `test/e2e/route-health-by-role.spec.ts` (update)                   |
+| #   | Test                                                                                                 | Location                                                                |
+| --- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 1   | Assignments panel renders rows, role summary, and revoke confirm (rewrite of the existing page test) | `components/admin/permissions/__tests__/RoleAssignmentsPanel.test.tsx`  |
+| 2   | Panel exposes no assign affordance; the toolbar link targets `/admin/users`                          | same file                                                               |
+| 3   | `/admin/permissions/users` redirects to `/admin/permissions` with the assignments tab active         | `pages/admin/permissions/__tests__/`                                    |
+| 4   | `/admin/users?userId=<id>` opens `ManageUserRolesDialog` for that user                               | `pages/admin/__tests__/UserManagementPage.deepLink.test.tsx`            |
+| 5   | `/admin/users?userId=<unknown>` is a no-op — roster renders, no dialog, no error                     | same file                                                               |
+| 6   | "Other grants" block renders show-scoped and expiring rows, and is absent when none exist            | `components/admin/permissions/__tests__/ManageUserRolesDialog.test.tsx` |
+| 7   | Support diagnostic actions emit the new `/admin/users?userId=` href                                  | `pages/admin/supportDiagnosticActions.test.ts` (update)                 |
+| 8   | Route health covers `/admin/permissions?tab=assignments`                                             | `test/e2e/route-health-by-role.spec.ts` (update)                        |
 
 **Deleted test:** `pages/admin/permissions/__tests__/UserRoleManagementPage.table.test.tsx` — superseded by #1.
 
@@ -154,12 +154,13 @@ A phase is not complete until its tests pass.
 
 ## 6. Risks
 
-| Risk                                                                              | Mitigation                                                                                       |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Deleting `UserRoleAssignmentDialog` removes the only UI able to set expiry         | Accepted: 0 rows use it. `approve_role_request` and direct SQL remain. Reopen if a real need appears. |
-| An admin's muscle memory for `/admin/permissions/users` breaks                     | Redirect preserves the URL; the tab is one click from the same hub                                |
-| Show-scoped grants become invisible                                               | § 3.3 "Other grants" block is specifically the guard against this                                 |
-| `ManageUserRolesDialog` grows past a comfortable size with the new block            | It is 370 lines; the block is small. If it passes 500, extract `OtherGrantsList` as a sibling.     |
+| Risk                                                                       | Mitigation                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deleting `UserRoleAssignmentDialog` removes the only UI able to set expiry | Accepted: 0 rows use it. `approve_role_request` and direct SQL remain. Reopen if a real need appears.                                                                                                                                                                                                                                                                                                                                                                            |
+| An admin's muscle memory for `/admin/permissions/users` breaks             | Redirect preserves the URL; the tab is one click from the same hub                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Show-scoped grants become invisible                                        | § 3.3 "Other grants" block is specifically the guard against this                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Show-scoped grants are silently destroyed                                  | **Partly mitigated.** `ManageUserRolesDialog` now locks any role holding a grant it cannot edit, so the single-user path cannot wipe one. `BulkRoleDialog` on the same page still revokes without a scope filter (`bulkRoleRunner.ts` `replaceRolesForUser` / `removeRolesFromUser` never read `show_id` or `expires_at`), so bulk **Replace** or **Remove** can still destroy such a grant. Zero such rows exist in live data; tracked as a follow-up, not closed by this plan. |
+| `ManageUserRolesDialog` grows past a comfortable size with the new block   | It is 370 lines; the block is small. If it passes 500, extract `OtherGrantsList` as a sibling.                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ---
 

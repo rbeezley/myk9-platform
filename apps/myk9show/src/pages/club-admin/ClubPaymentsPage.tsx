@@ -9,14 +9,18 @@
 import React from 'react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useClubStore } from '@/store/clubStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 import { ClubContextGate } from '@/components/club-admin/ClubContextGate';
+import { ClubSwitcher } from '@/components/club-admin/ClubSwitcher';
 import { ClubPaymentsCard } from '@/features/payments/ClubPaymentsCard';
 
 const ClubPaymentsPage: React.FC = () => {
   const clubContext = useCurrentValidatedClubContext();
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
   const selectClub = useClubStore(state => state.selectClub);
+  const { user } = useAuthContext();
+  const handleSelectClub = (id: string) => selectClub(id, user?.id ?? null);
 
   React.useEffect(() => {
     void ensureClubsReady();
@@ -33,13 +37,20 @@ const ClubPaymentsPage: React.FC = () => {
       </div>
 
       {clubContext.status === 'ready' ? (
-        <ClubPaymentsCard clubId={clubContext.clubId} />
+        <>
+          <ClubSwitcher
+            clubs={clubContext.clubs}
+            selectedClubId={clubContext.clubId}
+            onSelectClub={handleSelectClub}
+          />
+          <ClubPaymentsCard clubId={clubContext.clubId} />
+        </>
       ) : (
         <ClubContextGate
           context={clubContext}
           surface="payments"
           onRetry={() => void ensureClubsReady({ force: true })}
-          onSelectClub={selectClub}
+          onSelectClub={handleSelectClub}
         />
       )}
     </div>

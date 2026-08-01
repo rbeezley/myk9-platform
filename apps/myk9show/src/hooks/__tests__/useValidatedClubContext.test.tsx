@@ -22,7 +22,7 @@ describe('selectValidatedClubContext — club admin', () => {
         clubs,
         readiness: 'fresh',
       })
-    ).toEqual({ status: 'ready', clubId: 'club-a', clubName: 'Alpha Club' });
+    ).toEqual({ status: 'ready', clubId: 'club-a', clubName: 'Alpha Club', clubs: [clubs[0]] });
   });
 
   it('deduplicates repeated scopes for one live club', () => {
@@ -33,7 +33,7 @@ describe('selectValidatedClubContext — club admin', () => {
         clubs,
         readiness: 'fresh',
       })
-    ).toEqual({ status: 'ready', clubId: 'club-a', clubName: 'Alpha Club' });
+    ).toEqual({ status: 'ready', clubId: 'club-a', clubName: 'Alpha Club', clubs: [clubs[0]] });
   });
 
   it('does not select the first club when no scope is live', () => {
@@ -69,7 +69,7 @@ describe('selectValidatedClubContext — club admin', () => {
         readiness: 'fresh',
         selectedClubId: 'club-b',
       })
-    ).toEqual({ status: 'ready', clubId: 'club-b', clubName: 'Beta Club' });
+    ).toEqual({ status: 'ready', clubId: 'club-b', clubName: 'Beta Club', clubs });
   });
 
   it('ignores a selection the caller is not scoped to', () => {
@@ -97,7 +97,7 @@ describe('selectValidatedClubContext — site admin (MYK9-138)', () => {
         clubs: [clubs[0]],
         readiness: 'fresh',
       })
-    ).toEqual({ status: 'ready', clubId: 'club-a', clubName: 'Alpha Club' });
+    ).toEqual({ status: 'ready', clubId: 'club-a', clubName: 'Alpha Club', clubs: [clubs[0]] });
   });
 
   it('offers every live club to a site admin', () => {
@@ -120,7 +120,7 @@ describe('selectValidatedClubContext — site admin (MYK9-138)', () => {
         readiness: 'fresh',
         selectedClubId: 'club-b',
       })
-    ).toEqual({ status: 'ready', clubId: 'club-b', clubName: 'Beta Club' });
+    ).toEqual({ status: 'ready', clubId: 'club-b', clubName: 'Beta Club', clubs });
   });
 
   it('is not narrowed by its own club_admin scopes', () => {
@@ -189,5 +189,62 @@ describe('selectValidatedClubContext — readiness and eligibility', () => {
         readiness: 'offline',
       })
     ).toEqual({ status: 'unavailable' });
+  });
+});
+
+describe('selectValidatedClubContext — switching and session scope (MYK9-138)', () => {
+  const twoClubAdmin = {
+    roles: [UserRole.CLUB_ADMIN],
+    scopes: [scope('club-a'), scope('club-b')],
+    clubs,
+    readiness: 'fresh' as const,
+  };
+
+  it('carries every candidate on ready so the page can offer a switcher', () => {
+    // Without this the selection is a ONE-WAY DOOR: the gate never renders
+    // again and the operator must reload the app to manage another club.
+    const result = selectValidatedClubContext({ ...twoClubAdmin, selectedClubId: 'club-a' });
+    expect(result).toMatchObject({ status: 'ready', clubId: 'club-a' });
+    expect(result.status === 'ready' && result.clubs).toEqual(clubs);
+  });
+
+  it('carries the single candidate on ready too, so the switcher can hide itself', () => {
+    const result = selectValidatedClubContext({
+      roles: [UserRole.CLUB_ADMIN],
+      scopes: [scope('club-a')],
+      clubs,
+      readiness: 'fresh',
+    });
+    expect(result.status === 'ready' && result.clubs).toHaveLength(1);
+  });
+
+  it('ignores a selection made by a DIFFERENT user', () => {
+    // The club store is a singleton and is not reset on sign-out, so without
+    // this the next operator silently inherits the previous one's club.
+    expect(
+      selectValidatedClubContext({
+        ...twoClubAdmin,
+        selectedClubId: 'club-b',
+        selectedClubUserId: 'user-1',
+        currentUserId: 'user-2',
+      })
+    ).toEqual({ status: 'choose', clubs });
+  });
+
+  it('honours a selection made by the same user', () => {
+    expect(
+      selectValidatedClubContext({
+        ...twoClubAdmin,
+        selectedClubId: 'club-b',
+        selectedClubUserId: 'user-1',
+        currentUserId: 'user-1',
+      })
+    ).toMatchObject({ status: 'ready', clubId: 'club-b' });
+  });
+
+  it('honours an unattributed selection, so the store default is not a blocker', () => {
+    expect(
+      selectValidatedClubContext({ ...twoClubAdmin, selectedClubId: 'club-b' })
+    ).toMatchObject({ status: 'ready', clubId: 'club-b' });
   });
 });

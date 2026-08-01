@@ -19,8 +19,10 @@ import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
 import { ClubContextGate } from '@/components/club-admin/ClubContextGate';
+import { ClubSwitcher } from '@/components/club-admin/ClubSwitcher';
 import {
   OFFICER_POSITION_ORDER,
   type MembershipType,
@@ -54,6 +56,8 @@ const ClubMembersPage: React.FC = () => {
   const queryClient = useQueryClient();
   const clubContext = useCurrentValidatedClubContext();
   const selectClub = useClubStore(state => state.selectClub);
+  const { user } = useAuthContext();
+  const handleSelectClub = (id: string) => selectClub(id, user?.id ?? null);
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
   const { people, loadUsers } = useUserStore();
 
@@ -213,7 +217,7 @@ const ClubMembersPage: React.FC = () => {
           context={clubContext}
           surface="members"
           onRetry={() => void ensureClubsReady({ force: true })}
-          onSelectClub={selectClub}
+          onSelectClub={handleSelectClub}
         />
       </PageTransition>
     );
@@ -295,10 +299,19 @@ const ClubMembersPage: React.FC = () => {
               </div>
             </div>
           </div>
-          <Button onClick={() => setShowAddMember(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Member
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Renders nothing for a single club. Without it, choosing a club is
+                a one-way door — the gate never shows again (MYK9-138). */}
+            <ClubSwitcher
+              clubs={clubContext.clubs}
+              selectedClubId={clubContext.clubId}
+              onSelectClub={handleSelectClub}
+            />
+            <Button onClick={() => setShowAddMember(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Member
+            </Button>
+          </div>
         </div>
 
         {/* Tabs */}

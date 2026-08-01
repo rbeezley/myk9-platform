@@ -20,7 +20,12 @@ export type ValidatedClubContext =
    * error — see the note in selectValidatedClubContext.
    */
   | { status: 'choose'; clubs: ClubSummary[] }
-  | { status: 'ready'; clubId: string; clubName: string };
+  /**
+   * A single club is resolved. `clubs` is every club the caller could act on —
+   * more than one means the page must offer a way to switch, or selecting one
+   * becomes a one-way door (MYK9-138).
+   */
+  | { status: 'ready'; clubId: string; clubName: string; clubs: ClubSummary[] };
 
 export interface ValidatedClubContextInput {
   roles: UserRole[];
@@ -29,6 +34,14 @@ export interface ValidatedClubContextInput {
   readiness: ClubReadinessStatus;
   /** The club the operator picked, when more than one is available. */
   selectedClubId?: string | null | undefined;
+  /**
+   * Who made that selection, and who is asking now. A selection must never
+   * survive a change of user: the club store is a singleton that is not reset
+   * on sign-out, so without this the next operator silently inherits the
+   * previous one's club instead of being asked (MYK9-138).
+   */
+  selectedClubUserId?: string | null | undefined;
+  currentUserId?: string | null | undefined;
 }
 
 /**
@@ -55,6 +68,8 @@ export function selectValidatedClubContext({
   clubs,
   readiness,
   selectedClubId,
+  selectedClubUserId,
+  currentUserId,
 }: ValidatedClubContextInput): ValidatedClubContext {
   const isSiteAdmin = roles.includes(UserRole.SITE_ADMIN);
   const isClubAdmin = roles.includes(UserRole.CLUB_ADMIN);
@@ -81,32 +96,61 @@ export function selectValidatedClubContext({
   }
 
   if (candidates.length === 1) {
-    return { status: 'ready', clubId: candidates[0].id, clubName: candidates[0].name };
+    return {
+      status: 'ready',
+      clubId: candidates[0].id,
+      clubName: candidates[0].name,
+      clubs: candidates,
+    };
   }
 
-  const selected = selectedClubId ? candidates.find(club => club.id === selectedClubId) : undefined;
+  // Ignore a selection made by a different user — see selectedClubUserId.
+  const selectionBelongsToCaller = !selectedClubUserId || selectedClubUserId === currentUserId;
+  const selected =
+    selectedClubId && selectionBelongsToCaller
+      ? candidates.find(club => club.id === selectedClubId)
+      : undefined;
   if (selected) {
-    return { status: 'ready', clubId: selected.id, clubName: selected.name };
+    return { status: 'ready', clubId: selected.id, clubName: selected.name, clubs: candidates };
   }
 
   return { status: 'choose', clubs: candidates };
 }
 
 export function useValidatedClubContext(input: ValidatedClubContextInput): ValidatedClubContext {
-  const { roles, scopes, clubs, readiness, selectedClubId } = input;
+  const { roles, scopes, clubs, readiness, selectedClubId, selectedClubUserId, currentUserId } =
+    input;
   return useMemo(
-    () => selectValidatedClubContext({ roles, scopes, clubs, readiness, selectedClubId }),
-    [roles, scopes, clubs, readiness, selectedClubId]
+    () =>
+      selectValidatedClubContext({
+        roles,
+        scopes,
+        clubs,
+        readiness,
+        selectedClubId,
+        selectedClubUserId,
+        currentUserId,
+      }),
+    [roles, scopes, clubs, readiness, selectedClubId, selectedClubUserId, currentUserId]
   );
 }
 
 export function useCurrentValidatedClubContext(): ValidatedClubContext {
-  const { getUserRoles, userWithRoles } = useAuthContext();
+  const { getUserRoles, userWithRoles, user } = useAuthContext();
   const roles = getUserRoles();
   const scopes = userWithRoles?.scopes ?? [];
   const clubs = useClubStore(state => state.clubs);
   const readiness = useClubStore(state => state.clubReadiness);
   const selectedClubId = useClubStore(state => state.selectedClubId);
+  const selectedClubUserId = useClubStore(state => state.selectedClubUserId);
 
-  return useValidatedClubContext({ roles, scopes, clubs, readiness, selectedClubId });
+  return useValidatedClubContext({
+    roles,
+    scopes,
+    clubs,
+    readiness,
+    selectedClubId,
+    selectedClubUserId,
+    currentUserId: user?.id ?? null,
+  });
 }

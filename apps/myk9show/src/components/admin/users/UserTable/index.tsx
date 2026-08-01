@@ -306,7 +306,8 @@ export const UserTable: React.FC<UserTableProps> = ({
   selectedUsers,
   onSelectUser,
   onSelectAll,
-  onUserClick,
+  onViewUser,
+  onEditUser,
   onManageRoles,
   currentPage,
   totalPages,
@@ -328,8 +329,6 @@ export const UserTable: React.FC<UserTableProps> = ({
   const navigate = useNavigate();
 
   // Handle row actions
-  const handleViewUser = useCallback((user: User) => navigate(`/people/${user.id}`), [navigate]);
-  const handleEditUser = useCallback((user: User) => onUserClick(user), [onUserClick]);
   const handleDeleteUser = useCallback((user: User) => setDeleteTarget(user), []);
 
   const handleRestoreUser = useCallback(
@@ -400,8 +399,8 @@ export const UserTable: React.FC<UserTableProps> = ({
         users,
         searchTerm,
         densityMode,
-        handleViewUser,
-        handleEditUser,
+        onViewUser,
+        onEditUser,
         handleDeleteUser,
         handleRestoreUser,
         onManageRoles
@@ -413,8 +412,8 @@ export const UserTable: React.FC<UserTableProps> = ({
       users,
       searchTerm,
       densityMode,
-      handleViewUser,
-      handleEditUser,
+      onViewUser,
+      onEditUser,
       handleDeleteUser,
       handleRestoreUser,
       onManageRoles,
@@ -463,7 +462,7 @@ export const UserTable: React.FC<UserTableProps> = ({
             // itself is inert — its menu carries Restore / Delete permanently.
             onRowClick={user => {
               if (user.deletedAt) return;
-              onUserClick(user);
+              onViewUser(user);
             }}
             // …and it must not *look* clickable either. DataTable applies
             // cursor-pointer whenever onRowClick is set; this wins the merge

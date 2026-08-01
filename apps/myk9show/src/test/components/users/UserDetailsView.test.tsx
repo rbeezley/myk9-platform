@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 import type { User } from '@/types/dog-types';
@@ -90,6 +91,16 @@ const createMockUser = (overrides: Partial<User> = {}): User => ({
   dogs: [],
   ...overrides,
 });
+
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <div>
+      <span data-testid="probe-path">{location.pathname}</span>
+      <span data-testid="probe-search">{location.search}</span>
+    </div>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -303,6 +314,62 @@ describe('UserDetailsView', () => {
       // Address section values
       expect(screen.getByText('Springfield')).toBeInTheDocument();
       expect(screen.getByText('62701')).toBeInTheDocument();
+    });
+  });
+
+  describe('Breadcrumb origin', () => {
+    // The breadcrumb navigates with buttons rather than anchors, so "where does
+    // it go" can only be asserted by going there.
+    const renderFrom = (state: unknown) =>
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={[{ pathname: '/people/user-123', state }]}>
+            <Routes>
+              <Route path="/people/:id" element={<UserDetailsView person={createMockUser()} />} />
+              <Route path="/admin/users" element={<LocationProbe />} />
+              <Route path="/people" element={<LocationProbe />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+    const adminOrigin = {
+      backTo: {
+        href: '/admin/users?q=ada&role=judge',
+        label: 'Users',
+        parent: { label: 'Admin', href: '/admin' },
+      },
+    };
+
+    it('claims the People trail on a direct visit', () => {
+      renderFrom(undefined);
+
+      expect(screen.getByRole('button', { name: 'People' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Users' })).not.toBeInTheDocument();
+    });
+
+    it('names the admin trail when the roster sent us here', () => {
+      renderFrom(adminOrigin);
+
+      expect(screen.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Users' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'People' })).not.toBeInTheDocument();
+    });
+
+    it('goes back to the exact roster, filters intact', async () => {
+      const user = userEvent.setup();
+      renderFrom(adminOrigin);
+
+      await user.click(screen.getByRole('button', { name: 'Users' }));
+
+      expect(screen.getByTestId('probe-path')).toHaveTextContent('/admin/users');
+      expect(screen.getByTestId('probe-search')).toHaveTextContent('?q=ada&role=judge');
+    });
+
+    it('ignores an off-site origin', () => {
+      renderFrom({ backTo: { href: 'https://evil.example', label: 'Users' } });
+
+      expect(screen.getByRole('button', { name: 'People' })).toBeInTheDocument();
     });
   });
 

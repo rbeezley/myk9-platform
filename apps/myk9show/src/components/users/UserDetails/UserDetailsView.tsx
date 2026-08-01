@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Mail, MapPin, Settings, PawPrint } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
@@ -10,6 +10,7 @@ import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { buildRecordBreadcrumb, readRecordBackTo } from '@/components/common/recordBackTo';
 import { UserRole } from '@/types/auth-types';
 import { User as UserType } from '@/types/user-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -31,6 +32,7 @@ interface UserDetailsViewProps {
 
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: currentUser, hasPermission } = useAuthContext();
   const { loadUsers } = useUserStore();
   const { dogs: ownerDogs } = useOwnerDogsWithQuery(person.id);
@@ -52,6 +54,19 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isQualificationsPanelOpen, setIsQualificationsPanelOpen] = useState(false);
   const { firstName, lastName, fullName } = extractPersonName(person);
+
+  // Name the list the user actually came in through — a site admin arriving from
+  // /admin/users gets Admin > Users > {name}, and "Users" returns to that exact
+  // roster, filters and page intact.
+  const breadcrumbItems = useMemo(
+    () =>
+      buildRecordBreadcrumb(
+        readRecordBackTo(location.state),
+        { label: 'People', href: '/people' },
+        fullName
+      ),
+    [location.state, fullName]
+  );
 
   const [formData, setFormData] = useState(buildFormData(person));
   const [isDragging, setIsDragging] = useState(false);
@@ -279,15 +294,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       <RecordPageLayout
         className="py-20"
         storageKey="myk9:person"
-        breadcrumb={
-          <Breadcrumb
-            showHomeIcon
-            items={[
-              { label: 'People', href: '/people' },
-              { label: fullName, isCurrentPage: true },
-            ]}
-          />
-        }
+        breadcrumb={<Breadcrumb showHomeIcon items={breadcrumbItems} />}
         hero={
           <HeroProfileCard
             person={person}

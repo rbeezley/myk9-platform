@@ -1,13 +1,13 @@
 -- MYK9-148 behavioral contract: anonymous identities cannot reserve AskQ
 -- capacity, while a real free account receives exactly ten sequential daily
--- reservations and the eleventh is denied. A premium account receives fifty.
--- All fixtures roll back.
+-- reservations and the eleventh is denied. A premium account receives fifty,
+-- and a LAPSED premium account is back to ten. All fixtures roll back.
 --
--- The premium case is not decoration. The original limiter read
--- `people.subscription_tier`, a column that does not exist on that table, so
--- premium accounts silently got the free quota through PostgREST and a hard
--- error once the same expression moved into SQL. Only an assertion on the
--- premium limit can tell those apart from a working implementation.
+-- The premium cases are not decoration. The daily limit has now been wrong
+-- twice — read from a column that does not exist on `people` (silently free
+-- through PostgREST, a hard error once the same expression moved into SQL) —
+-- and the free-account path passed throughout both. Only an assertion on the
+-- premium limit can tell a working implementation from those.
 
 BEGIN;
 
@@ -22,6 +22,10 @@ VALUES
   (
     '00000000-0000-0000-0000-000000148012',
     'MYK9-148', 'Premium', 'myk9-148-premium@example.test', NULL
+  ),
+  (
+    '00000000-0000-0000-0000-000000148013',
+    'MYK9-148', 'Lapsed', 'myk9-148-lapsed@example.test', NULL
   ),
   (
     '00000000-0000-0000-0000-000000148014',
@@ -41,15 +45,21 @@ VALUES
     now(), now(), '{}', '{}', false, false, false
   ),
   (
-    '00000000-0000-0000-0000-000000148101',
+    '00000000-0000-0000-0000-000000148104',
     '00000000-0000-0000-0000-000000000000',
-    'authenticated', 'authenticated', 'myk9-148-account@example.test', '', now(),
+    'authenticated', 'authenticated', 'myk9-148-lapsed@example.test', '', now(),
     now(), now(), '{}', '{}', false, false, false
   ),
   (
     '00000000-0000-0000-0000-000000148105',
     '00000000-0000-0000-0000-000000000000',
     'authenticated', 'authenticated', 'myk9-148-granted@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  ),
+  (
+    '00000000-0000-0000-0000-000000148101',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9-148-account@example.test', '', now(),
     now(), now(), '{}', '{}', false, false, false
   ),
   (
@@ -63,19 +73,15 @@ UPDATE public.people
 SET auth_user_id = '00000000-0000-0000-0000-000000148101'
 WHERE id = '00000000-0000-0000-0000-000000148011';
 
-UPDATE public.people
-SET auth_user_id = '00000000-0000-0000-0000-000000148103'
-WHERE id = '00000000-0000-0000-0000-000000148012';
-
+-- The granted account holds NO paid tier at all — its Premium comes only from
+-- an active entitlement grant (a founding member). 20260801210000 moved the
+-- limit onto has_effective_premium_access precisely so this account counts as
+-- Premium, and nothing here covered it. grant_type's CHECK allows only
+-- 'founding' | 'complimentary'.
 UPDATE public.people
 SET auth_user_id = '00000000-0000-0000-0000-000000148105'
 WHERE id = '00000000-0000-0000-0000-000000148014';
 
--- The granted account holds NO paid tier at all. Its Premium comes only from an
--- active entitlement grant — a founding member. This is the case the whole
--- migration exists for: an inline `subscription_tier = 'premium'` read cannot
--- see this row and charges the account the free quota. grant_type's CHECK
--- allows only 'founding' | 'complimentary'.
 INSERT INTO public.subscription_entitlement_grants (
   person_id, grant_type, starts_at, ends_at, reason
 )
@@ -85,31 +91,33 @@ VALUES (
   'MYK9-148 behavioural fixture'
 );
 
--- Paid Premium requires a NON-NULL future expiry — has_effective_premium_access
--- treats premium-with-null-expiry as expired, matching the client gate.
---
--- UPSERT, not INSERT: `handle_new_user` fires on the auth.users insert above,
--- adopts the pre-seeded people row by email (migration 131) and creates its
--- exhibitor_profiles row. A plain INSERT collides with the unique auth_user_id
--- and aborts the test before it reaches the premium assertion. The INSERT arm
--- still covers an environment where the trigger did not run.
---
--- As service_role: `trg_restrict_subscription_columns` (migration 109) is
--- BEFORE UPDATE and rejects subscription-column writes from anyone else, which
--- is exactly the conflict arm this upsert lands on. Selling someone Premium is
--- a service-role act, so the fixture performs it as one rather than weakening
--- the guard.
+-- UPSERT, not INSERT: `handle_new_user` fires on each auth.users insert above,
+-- adopts the pre-seeded people row BY EMAIL (migration 131) and creates its
+-- exhibitor_profiles row, so a plain INSERT collides with the unique
+-- auth_user_id. As service_role because trg_restrict_subscription_columns
+-- (migration 109) is BEFORE UPDATE and rejects subscription writes from anyone
+-- else — selling someone Premium is a service-role act, so the fixture performs
+-- it as one rather than weakening the guard.
 SET LOCAL ROLE service_role;
 
 INSERT INTO public.exhibitor_profiles (
   person_id, auth_user_id, subscription_tier, subscription_expires_at
 )
-VALUES (
-  '00000000-0000-0000-0000-000000148012',
-  '00000000-0000-0000-0000-000000148103',
-  'premium',
-  now() + interval '30 days'
-)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000148012',
+    '00000000-0000-0000-0000-000000148103',
+    'premium',
+    now() + interval '30 days'
+  ),
+  -- Lapsed: still says 'premium', expired yesterday. has_effective_premium_access
+  -- requires a future expiry, matching the client gate, so this account is FREE.
+  (
+    '00000000-0000-0000-0000-000000148013',
+    '00000000-0000-0000-0000-000000148104',
+    'premium',
+    now() - interval '1 day'
+  )
 ON CONFLICT (auth_user_id) DO UPDATE
 SET subscription_tier = EXCLUDED.subscription_tier,
     subscription_expires_at = EXCLUDED.subscription_expires_at;
@@ -125,6 +133,7 @@ DECLARE
   account_id CONSTANT uuid := '00000000-0000-0000-0000-000000148101';
   anonymous_id CONSTANT uuid := '00000000-0000-0000-0000-000000148102';
   premium_id CONSTANT uuid := '00000000-0000-0000-0000-000000148103';
+  lapsed_id CONSTANT uuid := '00000000-0000-0000-0000-000000148104';
   granted_id CONSTANT uuid := '00000000-0000-0000-0000-000000148105';
   allowed boolean;
   log_id uuid;
@@ -165,9 +174,9 @@ BEGIN
     true
   );
 
-  -- REVERSE counts DOWN from the first bound to the second, so `REVERSE 0..9`
-  -- ran zero iterations: the ten reservations this test exists to prove were
-  -- never made, and the "eleventh" call was really the first.
+  -- plpgsql REVERSE counts DOWN from the first bound to the second, so
+  -- `REVERSE 0..9` runs zero iterations and silently skips all ten
+  -- reservations — which is why the eleventh call was still being allowed.
   FOR expected_remaining IN REVERSE 9..0 LOOP
     SELECT r.allowed, r.log_id, r.remaining, r.daily_limit, r.resets_at
       INTO allowed, log_id, remaining, daily_limit, resets_at
@@ -188,11 +197,7 @@ BEGIN
 
   IF allowed IS DISTINCT FROM false OR log_id IS NOT NULL OR remaining <> 0
      OR daily_limit <> 10 OR resets_at IS NULL THEN
-    -- Report the values, not just the verdict: five conditions share this
-    -- branch, and "was not denied" cannot say which one moved.
-    RAISE EXCEPTION
-      'FAIL eleventh reservation: allowed=%, log_id=%, remaining=%, limit=%, resets_at=%',
-      allowed, log_id, remaining, daily_limit, resets_at;
+    RAISE EXCEPTION 'FAIL eleventh reservation was not denied';
   END IF;
 
   PERFORM set_config('request.jwt.claim.sub', premium_id::text, true);
@@ -202,19 +207,41 @@ BEGIN
     true
   );
 
-  SELECT r.allowed, r.log_id, r.remaining, r.daily_limit, r.resets_at
-    INTO allowed, log_id, remaining, daily_limit, resets_at
+  SELECT r.allowed, r.daily_limit, r.remaining
+    INTO allowed, daily_limit, remaining
   FROM public.reserve_askq_query('premium-account question') AS r;
 
-  IF allowed IS DISTINCT FROM true OR daily_limit IS DISTINCT FROM 50
-     OR remaining IS DISTINCT FROM 49 THEN
+  IF allowed IS DISTINCT FROM true OR daily_limit <> 50 OR remaining <> 49 THEN
     RAISE EXCEPTION
       'FAIL premium reservation returned allowed=%, remaining=%, limit=%',
       allowed, remaining, daily_limit;
   END IF;
 
-  -- Entitlement grant, no paid tier. Fails against any inline
-  -- subscription_tier read, which is the point of the helper.
+  -- A tier string alone must not buy capacity: this account still reads
+  -- 'premium' but its subscription expired, so the server has to agree with the
+  -- client gate and treat it as free.
+  PERFORM set_config('request.jwt.claim.sub', lapsed_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', lapsed_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  SELECT r.allowed, r.daily_limit
+    INTO allowed, daily_limit
+  FROM public.reserve_askq_query('lapsed-premium question') AS r;
+
+  IF allowed IS DISTINCT FROM true OR daily_limit <> 10 THEN
+    RAISE EXCEPTION
+      'FAIL lapsed premium got limit=% (expected the free 10)', daily_limit;
+  END IF;
+
+  -- The converse of the lapsed case: no tier string at all, but an active
+  -- entitlement grant. The lapsed account above proves an expiry is honoured;
+  -- only this one proves the SECOND source of Premium is consulted. A predicate
+  -- that read exhibitor_profiles with a correct expiry check — and nothing else
+  -- — would satisfy every other assertion in this file and still put every
+  -- founding member on the free quota.
   PERFORM set_config('request.jwt.claim.sub', granted_id::text, true);
   PERFORM set_config(
     'request.jwt.claims',
@@ -232,7 +259,7 @@ BEGIN
       allowed, daily_limit;
   END IF;
 
-  RAISE NOTICE 'PASS MYK9-148 anonymous denial, ten free reservations, fifty for paid premium and for an entitlement grant';
+  RAISE NOTICE 'PASS MYK9-148 anonymous denial, ten free reservations, fifty for premium, ten for lapsed premium, fifty for an entitlement grant';
 END;
 $$;
 

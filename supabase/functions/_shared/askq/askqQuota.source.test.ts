@@ -10,9 +10,9 @@ const reservationSource = readFileSync(resolve(__dirname, './askqRateLimit.ts'),
  *
  * Pinning `20260801170000` meant this contract kept validating a superseded
  * definition: that version computed the daily limit from a column that does not
- * exist, and the pin stayed green while every live call raised. A replacement is
- * how Postgres functions change here, so the contract has to follow the
- * replacement chain the same way a reviewer must.
+ * exist, and this pin stayed green while every live call raised. A replacement
+ * is how Postgres functions change here, so the contract has to follow the
+ * replacement chain the way a reviewer must.
  */
 const migrationsDir = resolve(__dirname, '../../../migrations');
 const reserveMigrations = readdirSync(migrationsDir)
@@ -74,21 +74,21 @@ describe('AskQ quota and anonymous-identity contract', () => {
     );
   });
 
-  it('reads the premium tier from the entitlement authority, not a raw column', () => {
-    // `people.subscription_tier` does not exist — the column lives on
-    // exhibitor_profiles — and reading it made every reservation raise.
-    // has_effective_premium_access is the documented server authority and also
-    // honours founding/complimentary grants a raw tier read would miss.
+  it('takes the premium limit from the entitlement authority, not a raw tier column', () => {
+    // Two failure modes have already shipped from reading a tier column
+    // directly: `people.subscription_tier` (which does not exist) and
+    // `exhibitor_profiles.subscription_tier` (which ignores expiry and grants,
+    // so a lapsed subscriber keeps 50/day and a founding member gets 10).
+    // has_effective_premium_access is the documented single server authority.
     //
     // Comments are stripped first: a migration is entitled to describe the bug
-    // it fixes, and quoting the old error must not read as committing it.
+    // it fixes without that reading as committing it.
     const executableSql = migrationSource
       .split('\n')
       .filter(line => !line.trimStart().startsWith('--'))
       .join('\n');
 
     expect(executableSql).toContain('public.has_effective_premium_access(');
-    expect(executableSql).not.toMatch(/\bp\.subscription_tier\b/);
-    expect(executableSql).not.toMatch(/FROM\s+public\.people\s+p[\s\S]{0,120}subscription_tier/i);
+    expect(executableSql).not.toMatch(/\bsubscription_tier\b/);
   });
 });

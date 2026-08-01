@@ -39,6 +39,9 @@ const REGRESSION_SPECS = [
   '**/my-entries-page-ui.spec.ts',
   '**/cross-role-workflows.spec.ts',
   '**/simple-connectivity.spec.ts',
+  // Admin-authed: Nightly supplies every E2E_* credential, PR smoke only gets
+  // E2E_SECRETARY_*, so this cannot live in PR_SMOKE_SPECS.
+  '**/admin/userRosterDrilldown.spec.ts',
 ];
 
 // PR Smoke: 3 stable specs — connectivity, secretary regression proof, and the

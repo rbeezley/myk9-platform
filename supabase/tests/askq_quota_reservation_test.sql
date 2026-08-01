@@ -64,6 +64,14 @@ WHERE id = '00000000-0000-0000-0000-000000148012';
 -- exhibitor_profiles row. A plain INSERT collides with the unique auth_user_id
 -- and aborts the test before it reaches the premium assertion. The INSERT arm
 -- still covers an environment where the trigger did not run.
+--
+-- As service_role: `trg_restrict_subscription_columns` (migration 109) is
+-- BEFORE UPDATE and rejects subscription-column writes from anyone else, which
+-- is exactly the conflict arm this upsert lands on. Selling someone Premium is
+-- a service-role act, so the fixture performs it as one rather than weakening
+-- the guard.
+SET LOCAL ROLE service_role;
+
 INSERT INTO public.exhibitor_profiles (
   person_id, auth_user_id, subscription_tier, subscription_expires_at
 )
@@ -76,6 +84,10 @@ VALUES (
 ON CONFLICT (auth_user_id) DO UPDATE
 SET subscription_tier = EXCLUDED.subscription_tier,
     subscription_expires_at = EXCLUDED.subscription_expires_at;
+
+-- Back to the owner before switching to the caller role: service_role is not a
+-- member of authenticated, so SET ROLE would fail from inside it.
+RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 

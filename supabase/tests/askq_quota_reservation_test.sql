@@ -26,6 +26,10 @@ VALUES
   (
     '00000000-0000-0000-0000-000000148013',
     'MYK9-148', 'Lapsed', 'myk9-148-lapsed@example.test', NULL
+  ),
+  (
+    '00000000-0000-0000-0000-000000148014',
+    'MYK9-148', 'Granted', 'myk9-148-granted@example.test', NULL
   );
 
 INSERT INTO auth.users (
@@ -47,6 +51,12 @@ VALUES
     now(), now(), '{}', '{}', false, false, false
   ),
   (
+    '00000000-0000-0000-0000-000000148105',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9-148-granted@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  ),
+  (
     '00000000-0000-0000-0000-000000148101',
     '00000000-0000-0000-0000-000000000000',
     'authenticated', 'authenticated', 'myk9-148-account@example.test', '', now(),
@@ -62,6 +72,24 @@ VALUES
 UPDATE public.people
 SET auth_user_id = '00000000-0000-0000-0000-000000148101'
 WHERE id = '00000000-0000-0000-0000-000000148011';
+
+-- The granted account holds NO paid tier at all — its Premium comes only from
+-- an active entitlement grant (a founding member). 20260801210000 moved the
+-- limit onto has_effective_premium_access precisely so this account counts as
+-- Premium, and nothing here covered it. grant_type's CHECK allows only
+-- 'founding' | 'complimentary'.
+UPDATE public.people
+SET auth_user_id = '00000000-0000-0000-0000-000000148105'
+WHERE id = '00000000-0000-0000-0000-000000148014';
+
+INSERT INTO public.subscription_entitlement_grants (
+  person_id, grant_type, starts_at, ends_at, reason
+)
+VALUES (
+  '00000000-0000-0000-0000-000000148014', 'founding',
+  now() - interval '1 day', now() + interval '365 days',
+  'MYK9-148 behavioural fixture'
+);
 
 -- UPSERT, not INSERT: `handle_new_user` fires on each auth.users insert above,
 -- adopts the pre-seeded people row BY EMAIL (migration 131) and creates its
@@ -106,6 +134,7 @@ DECLARE
   anonymous_id CONSTANT uuid := '00000000-0000-0000-0000-000000148102';
   premium_id CONSTANT uuid := '00000000-0000-0000-0000-000000148103';
   lapsed_id CONSTANT uuid := '00000000-0000-0000-0000-000000148104';
+  granted_id CONSTANT uuid := '00000000-0000-0000-0000-000000148105';
   allowed boolean;
   log_id uuid;
   remaining integer;
@@ -207,7 +236,30 @@ BEGIN
       'FAIL lapsed premium got limit=% (expected the free 10)', daily_limit;
   END IF;
 
-  RAISE NOTICE 'PASS MYK9-148 anonymous denial, ten free reservations, fifty for premium, ten for lapsed premium';
+  -- The converse of the lapsed case: no tier string at all, but an active
+  -- entitlement grant. The lapsed account above proves an expiry is honoured;
+  -- only this one proves the SECOND source of Premium is consulted. A predicate
+  -- that read exhibitor_profiles with a correct expiry check — and nothing else
+  -- — would satisfy every other assertion in this file and still put every
+  -- founding member on the free quota.
+  PERFORM set_config('request.jwt.claim.sub', granted_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', granted_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  SELECT r.allowed, r.daily_limit
+    INTO allowed, daily_limit
+  FROM public.reserve_askq_query('granted-account question') AS r;
+
+  IF allowed IS DISTINCT FROM true OR daily_limit IS DISTINCT FROM 50 THEN
+    RAISE EXCEPTION
+      'FAIL entitlement-grant account returned allowed=%, limit=% (expected true, 50)',
+      allowed, daily_limit;
+  END IF;
+
+  RAISE NOTICE 'PASS MYK9-148 anonymous denial, ten free reservations, fifty for premium, ten for lapsed premium, fifty for an entitlement grant';
 END;
 $$;
 

@@ -13,14 +13,19 @@
 -- failing for EVERY authenticated caller since 20260801170000 was applied,
 -- and the behavioural SQL test has been red on main since it merged.
 --
--- Tier semantics now match the established premium predicate used by
--- can_use_premium_entitlement (20260724120000): tier IN ('premium','pro') AND
--- a subscription that has not expired. The original comment said "premium
--- receives 50", but an expired subscription must not keep the raised limit,
--- and `pro` is a paid tier the CHECK constraint has always allowed.
+-- Rather than re-implement the tier predicate, this calls the authoritative
+-- helper public.has_effective_premium_access(person_id, evaluated_at)
+-- (20260724120000). Hand-rolling it here was how the first version drifted;
+-- an inline copy also silently misses the second source of premium access,
+-- subscription_entitlement_grants, so founding-member grants would have been
+-- charged the free quota. The helper covers tier IN ('premium','pro') with a
+-- live expiry AND active entitlement grants, and its
+-- `p_person_id = get_my_person_id()` gate is satisfied because we only ever
+-- evaluate the calling account.
 --
--- exhibitor_profiles carries auth_user_id directly, so no join through people
--- is needed.
+-- The clock is read AFTER the advisory lock, as the original did: a caller
+-- that waits on the lock could otherwise cross subscription expiry or UTC
+-- midnight and be classified against a stale instant.
 
 CREATE OR REPLACE FUNCTION public.reserve_askq_query(p_query text)
 RETURNS TABLE (
@@ -42,6 +47,7 @@ DECLARE
   v_daily_limit integer;
   v_used integer;
   v_log_id uuid;
+  v_person_id uuid;
 BEGIN
   v_user_id := auth.uid();
   IF v_user_id IS NULL THEN
@@ -54,24 +60,23 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  v_now := clock_timestamp();
-
-  SELECT CASE
-           WHEN ep.subscription_tier IN ('premium', 'pro')
-                AND ep.subscription_expires_at IS NOT NULL
-                AND ep.subscription_expires_at > v_now
-           THEN 50
-           ELSE 10
-         END
-    INTO v_daily_limit
-  FROM public.exhibitor_profiles ep
-  WHERE ep.auth_user_id = v_user_id
-  LIMIT 1;
-  v_daily_limit := COALESCE(v_daily_limit, 10);
-
   PERFORM pg_advisory_xact_lock(
     hashtextextended('askq:' || v_user_id::text, 0)
   );
+
+  v_now := clock_timestamp();
+
+  SELECT p.id INTO v_person_id
+  FROM public.people p
+  WHERE p.auth_user_id = v_user_id
+  LIMIT 1;
+
+  v_daily_limit := CASE
+    WHEN v_person_id IS NOT NULL
+         AND public.has_effective_premium_access(v_person_id, v_now)
+    THEN 50
+    ELSE 10
+  END;
 
   v_day_start := (v_now AT TIME ZONE 'UTC')::date AT TIME ZONE 'UTC';
   v_resets_at := v_day_start + interval '1 day';
@@ -119,6 +124,6 @@ REVOKE ALL ON FUNCTION public.reserve_askq_query(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reserve_askq_query(text) TO authenticated;
 
 COMMENT ON FUNCTION public.reserve_askq_query(text) IS
-  'MYK9-148: atomically reserves one real-account AskQ quota slot per UTC day; anonymous identities are denied. Premium/pro tier read from exhibitor_profiles.';
+  'MYK9-148: atomically reserves one real-account AskQ quota slot per UTC day; anonymous identities are denied. Premium quota resolved via has_effective_premium_access (paid tier or entitlement grant).';
 
 NOTIFY pgrst, 'reload schema';

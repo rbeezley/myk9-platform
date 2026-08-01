@@ -124,7 +124,9 @@ VALUES
   ('00000000-0000-0000-0000-000000148012', 'MYK9-148', 'Premium',
    'myk9-148-premium@example.test', NULL),
   ('00000000-0000-0000-0000-000000148013', 'MYK9-148', 'Expired',
-   'myk9-148-expired@example.test', NULL);
+   'myk9-148-expired@example.test', NULL),
+  ('00000000-0000-0000-0000-000000148014', 'MYK9-148', 'Granted',
+   'myk9-148-granted@example.test', NULL);
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -139,12 +141,32 @@ VALUES
   ('00000000-0000-0000-0000-000000148104',
    '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'myk9-148-expired@example.test', '', now(), now(), now(), '{}', '{}',
+   false, false, false),
+  ('00000000-0000-0000-0000-000000148105',
+   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'myk9-148-granted@example.test', '', now(), now(), now(), '{}', '{}',
    false, false, false);
 
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000000148103'
 WHERE id = '00000000-0000-0000-0000-000000148012';
 UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000000148104'
 WHERE id = '00000000-0000-0000-0000-000000148013';
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000000148105'
+WHERE id = '00000000-0000-0000-0000-000000148014';
+
+-- The granted account holds NO paid tier — its premium access comes only from
+-- an active entitlement grant (a founding member). An inline
+-- exhibitor_profiles-only predicate would charge it the free quota, which is
+-- why reserve_askq_query delegates to has_effective_premium_access.
+INSERT INTO public.subscription_entitlement_grants (
+  person_id, grant_type, starts_at, ends_at, reason
+)
+VALUES (
+  -- grant_type CHECK allows only 'founding' | 'complimentary'.
+  '00000000-0000-0000-0000-000000148014', 'founding',
+  now() - interval '1 day', now() + interval '365 days',
+  'MYK9-148 behavioural fixture'
+);
 
 -- handle_new_user() already created an exhibitor_profiles row for each auth
 -- user, so this UPDATEs rather than INSERTs, and
@@ -168,6 +190,7 @@ DO $$
 DECLARE
   premium_id CONSTANT uuid := '00000000-0000-0000-0000-000000148103';
   expired_id CONSTANT uuid := '00000000-0000-0000-0000-000000148104';
+  granted_id CONSTANT uuid := '00000000-0000-0000-0000-000000148105';
   daily_limit integer;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', premium_id::text, true);
@@ -180,7 +203,7 @@ BEGIN
   SELECT r.daily_limit INTO daily_limit
   FROM public.reserve_askq_query('premium question') AS r;
 
-  IF daily_limit <> 50 THEN
+  IF daily_limit IS DISTINCT FROM 50 THEN
     RAISE EXCEPTION 'FAIL active premium got daily_limit=%, expected 50', daily_limit;
   END IF;
 
@@ -195,11 +218,26 @@ BEGIN
   FROM public.reserve_askq_query('expired question') AS r;
 
   -- An expired subscription must not keep the raised limit.
-  IF daily_limit <> 10 THEN
+  IF daily_limit IS DISTINCT FROM 10 THEN
     RAISE EXCEPTION 'FAIL expired premium got daily_limit=%, expected 10', daily_limit;
   END IF;
 
-  RAISE NOTICE 'PASS MYK9-148 premium tier resolves from exhibitor_profiles and honours expiry';
+  PERFORM set_config('request.jwt.claim.sub', granted_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', granted_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  SELECT r.daily_limit INTO daily_limit
+  FROM public.reserve_askq_query('granted question') AS r;
+
+  IF daily_limit IS DISTINCT FROM 50 THEN
+    RAISE EXCEPTION
+      'FAIL entitlement-grant account got daily_limit=%, expected 50', daily_limit;
+  END IF;
+
+  RAISE NOTICE 'PASS MYK9-148 premium quota honours paid tier, expiry, and entitlement grants';
 END;
 $$;
 

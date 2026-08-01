@@ -4,8 +4,13 @@ import { describe, expect, it } from 'vitest';
 
 const endpointSource = readFileSync(resolve(__dirname, '../../ask-myk9show/index.ts'), 'utf8');
 const reservationSource = readFileSync(resolve(__dirname, './askqRateLimit.ts'), 'utf8');
+// Must track the LATEST definition of reserve_askq_query, not the file whose
+// name reads canonical. 20260801170000 was superseded by 20260801200000, which
+// repaired a column reference that made every call raise 42703 — pinned to the
+// old file, this contract would have gone on validating a definition the
+// database no longer runs.
 const migrationSource = readFileSync(
-  resolve(__dirname, '../../../migrations/20260801170000_reserve_askq_query.sql'),
+  resolve(__dirname, '../../../migrations/20260801200000_fix_reserve_askq_query_tier_source.sql'),
   'utf8'
 );
 

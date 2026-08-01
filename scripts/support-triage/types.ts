@@ -23,3 +23,11 @@ export interface TicketThread {
   ticket: SupportTicket;
   messages: SupportMessage[];
 }
+
+/** The person who opened a ticket, resolved from public.people. */
+export interface TicketOwner {
+  auth_user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}

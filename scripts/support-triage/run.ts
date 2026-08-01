@@ -17,7 +17,7 @@ import {
   sendEmail,
 } from './notify';
 import { clusterKey, readState, writeState, type TriageState } from './state';
-import type { TicketThread } from './types';
+import type { TicketOwner, TicketThread } from './types';
 
 export interface RunDeps {
   source: SupportDataSource;
@@ -53,6 +53,13 @@ export async function runPass(deps: RunDeps): Promise<RunSummary> {
   const messages = await deps.source.messagesFor(tickets.map(ticket => ticket.id));
   const threads = buildThreads(tickets, messages).filter(needsReply);
 
+  // One lookup for the whole pass, so naming the exhibitor in an email costs no
+  // per-ticket round-trip.
+  const owners = new Map<string, TicketOwner>();
+  for (const owner of await deps.source.ownersFor(threads.map(t => t.ticket.owner_id))) {
+    owners.set(owner.auth_user_id, owner);
+  }
+
   const drafted = new Set(deps.state.draftedMessageIds);
   const alerted = new Set(deps.state.alertedClusterKeys);
 
@@ -76,7 +83,12 @@ export async function runPass(deps: RunDeps): Promise<RunSummary> {
     if (carveOut) {
       summary.carvedOut += 1;
       if (latest && !drafted.has(latest)) {
-        const email = renderCarveOutEmail(thread.ticket, carveOut, deps.appUrl);
+        const email = renderCarveOutEmail(
+          thread.ticket,
+          carveOut,
+          deps.appUrl,
+          owners.get(thread.ticket.owner_id) ?? null
+        );
         await deps.notify(email.subject, email.html);
         drafted.add(latest);
         summary.drafted += 1;
@@ -122,7 +134,13 @@ export async function runPass(deps: RunDeps): Promise<RunSummary> {
     const label =
       classification.kind === 'novel' ? classification.clusterLabel : classification.answerId;
 
-    const email = renderDraftEmail(thread.ticket, draftText, label, deps.appUrl);
+    const email = renderDraftEmail(
+      thread.ticket,
+      draftText,
+      label,
+      deps.appUrl,
+      owners.get(thread.ticket.owner_id) ?? null
+    );
     await deps.notify(email.subject, email.html);
     drafted.add(latest);
     summary.drafted += 1;

@@ -96,6 +96,7 @@ describe('sendOperatorReply', () => {
       messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
       insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
       updateTicketStatus: vi.fn().mockResolvedValue(undefined),
+      ownersFor: vi.fn().mockResolvedValue([]),
     };
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -122,6 +123,7 @@ describe('sendOperatorReply', () => {
         ]),
       insertOperatorMessage: vi.fn(),
       updateTicketStatus: vi.fn(),
+      ownersFor: vi.fn().mockResolvedValue([]),
     };
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -139,6 +141,7 @@ describe('sendOperatorReply', () => {
       messagesFor: vi.fn().mockResolvedValue([]),
       insertOperatorMessage: vi.fn(),
       updateTicketStatus: vi.fn(),
+      ownersFor: vi.fn().mockResolvedValue([]),
     };
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -165,6 +168,7 @@ describe('sendOperatorReply', () => {
       ]),
       insertOperatorMessage: vi.fn(),
       updateTicketStatus: vi.fn(),
+      ownersFor: vi.fn().mockResolvedValue([]),
     };
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -187,6 +191,7 @@ describe('sendOperatorReply', () => {
       messagesFor: vi.fn().mockResolvedValue(fresh),
       insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
       updateTicketStatus: vi.fn().mockResolvedValue(undefined),
+      ownersFor: vi.fn().mockResolvedValue([]),
     };
     const guard = vi.fn().mockReturnValue(true);
     await sendOperatorReply(
@@ -206,6 +211,7 @@ describe('sendOperatorReply', () => {
       messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
       insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
       updateTicketStatus: vi.fn().mockResolvedValue(undefined),
+      ownersFor: vi.fn().mockResolvedValue([]),
     };
     await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -227,6 +233,7 @@ describe('sendOperatorReply', () => {
         ]),
       insertOperatorMessage: vi.fn(),
       updateTicketStatus: vi.fn(),
+      ownersFor: vi.fn().mockResolvedValue([]),
     };
     await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -243,6 +250,7 @@ describe('sendOperatorReply', () => {
       messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
       insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
       updateTicketStatus: vi.fn().mockResolvedValue(undefined),
+      ownersFor: vi.fn().mockResolvedValue([]),
     };
     await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },

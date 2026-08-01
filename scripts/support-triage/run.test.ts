@@ -48,6 +48,7 @@ function makeSource(tickets: SupportTicket[], messages: SupportMessage[]) {
       .mockImplementation(async (ids: string[]) => messages.filter(m => ids.includes(m.ticket_id))),
     insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
     updateTicketStatus: vi.fn().mockResolvedValue(undefined),
+    ownersFor: vi.fn().mockResolvedValue([]),
   };
 }
 
@@ -354,6 +355,64 @@ describe('runPass', () => {
       notify: vi.fn().mockResolvedValue(undefined),
     });
     expect(summary.clustersAlerted).toBe(0);
+  });
+
+  it('names the exhibitor in the draft email', async () => {
+    const source = makeSource([ticket('t1')], [message('t1')]);
+    source.ownersFor = vi.fn().mockResolvedValue([
+      {
+        auth_user_id: 'owner-t1',
+        first_name: 'Jane',
+        last_name: 'Handler',
+        email: 'jane@example.com',
+      },
+    ]);
+    const notify = vi.fn().mockResolvedValue(undefined);
+    await runPass({
+      ...baseDeps(),
+      source,
+      answers: [],
+      classify: vi.fn().mockResolvedValue({ kind: 'novel', draft: 'x', clusterLabel: 'y' }),
+      notify,
+    });
+    expect(source.ownersFor).toHaveBeenCalledWith(['owner-t1']);
+    const html = notify.mock.calls[0][1] as string;
+    expect(html).toContain('Jane Handler');
+    expect(html).toContain('jane@example.com');
+  });
+
+  it('still drafts when the exhibitor cannot be resolved', async () => {
+    const source = makeSource([ticket('t1')], [message('t1')]);
+    const notify = vi.fn().mockResolvedValue(undefined);
+    const summary = await runPass({
+      ...baseDeps(),
+      source,
+      answers: [],
+      classify: vi.fn().mockResolvedValue({ kind: 'novel', draft: 'x', clusterLabel: 'y' }),
+      notify,
+    });
+    expect(summary.drafted).toBe(1);
+    expect(notify.mock.calls[0][1] as string).toContain('unknown exhibitor');
+  });
+
+  it('names the exhibitor on a carved-out ticket too', async () => {
+    const source = makeSource([ticket('t1', { is_show_day_priority: true })], [message('t1')]);
+    source.ownersFor = vi
+      .fn()
+      .mockResolvedValue([
+        { auth_user_id: 'owner-t1', first_name: 'Jane', last_name: null, email: null },
+      ]);
+    const notify = vi.fn().mockResolvedValue(undefined);
+    await runPass({
+      ...baseDeps(),
+      source,
+      answers: PROMOTED,
+      classify: vi.fn(),
+      notify,
+    });
+    const html = notify.mock.calls[0][1] as string;
+    expect(html).toContain('Jane');
+    expect(html).toContain('no email on file');
   });
 
   it('does nothing at all on an empty queue', async () => {

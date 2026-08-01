@@ -30,6 +30,22 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
 
 ## Execution phases
 
+## Current progress — 2026-08-01
+
+- **MYK9-145:** implementation slice complete locally in commits `690f38f37` and
+  `9299997a7`. The shared active/unexpired role contract now covers privileged Edge checks,
+  role-derived fanout, AskQ relationship checks, and email/results authorization. The full
+  `supabase/functions` Vitest suite passes (88 files / 875 tests); the monorepo typecheck passes
+  (26/26 tasks). The issue remains **In Progress** because disposable deployed expiry/revocation
+  replay and the required per-handler side-effect matrix are still outstanding.
+- **MYK9-127:** implementation is intentionally paused at the cache-isolation decision gate. The
+  existing merged wire/ACL fix does not prove that protected hide counts cannot persist in the
+  shared IndexedDB after sign-out, role change, expiry, or passcode leave. A purge/namespace choice
+  must preserve authorized offline scoring before code changes continue.
+- **MYK9-125:** existing authorization code is present, but closure remains blocked on the
+  authorized paid-path smoke, account-wide quota proof, and role matrix. No paid invocation was
+  attempted.
+
 ### Phase 0 — Baseline and proof harness
 
 - Confirm the worktree is on the remediation branch and the baseline is current `main`.

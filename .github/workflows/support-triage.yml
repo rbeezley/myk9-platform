@@ -1,0 +1,55 @@
+name: Support Triage
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: support-triage
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck the triage scripts
+        run: pnpm support:triage:typecheck
+
+      # State is an optimisation only — a cache miss causes redundant draft emails,
+      # never a duplicate reply to an exhibitor (the send path re-reads the thread).
+      - name: Restore triage state
+        uses: actions/cache@v4
+        with:
+          path: .support-triage
+          key: support-triage-state-${{ github.run_id }}
+          restore-keys: support-triage-state-
+
+      - name: Run one triage pass
+        env:
+          # Reuses the existing VITE_SUPABASE_URL secret rather than adding a second
+          # secret holding the same value — two copies drift when one is rotated.
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SUPPORT_OPERATOR_USER_ID: ${{ secrets.SUPPORT_OPERATOR_USER_ID }}
+          SUPPORT_OPERATOR_EMAIL: ${{ secrets.SUPPORT_OPERATOR_EMAIL }}
+          # Not secrets — a public URL and the Resend sender already verified for
+          # myk9show.com and used by the existing edge functions. Kept in plain sight
+          # so the workflow is readable without console access.
+          SUPPORT_TRIAGE_FROM_EMAIL: 'myK9Show Support <notifications@myk9show.com>'
+          MYK9_APP_URL: 'https://myk9show.com'
+        run: pnpm support:triage

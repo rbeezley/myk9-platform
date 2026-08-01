@@ -135,7 +135,10 @@ BEGIN
     true
   );
 
-  FOR expected_remaining IN REVERSE 0..9 LOOP
+  -- REVERSE counts DOWN from the first bound to the second, so `REVERSE 0..9`
+  -- ran zero iterations: the ten reservations this test exists to prove were
+  -- never made, and the "eleventh" call was really the first.
+  FOR expected_remaining IN REVERSE 9..0 LOOP
     SELECT r.allowed, r.log_id, r.remaining, r.daily_limit, r.resets_at
       INTO allowed, log_id, remaining, daily_limit, resets_at
     FROM public.reserve_askq_query('free-account question') AS r;

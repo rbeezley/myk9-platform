@@ -112,33 +112,55 @@ they need plumbing into the client bundle at build time. Small, but not free.
 
 ### Stat tiles
 
-| Tile       | Verdict     | Source / what it would take                                                                                                                                                                                                                                                                                                                     |
-| ---------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Uptime     | **ABSENT**  | No uptime monitor is canonical because none is wired. Sentry is integrated in code (`services/observability/sentry.ts`, `VITE_SENTRY_DSN`) but **no DSN is present in `apps/myk9show/.env` or `.env.local`** — whether it is set in Vercel needs confirming. Sentry Cron check-ins do exist for the nightly jobs (`DAILY_HEALTH_MONITOR_SLUG`). |
-| API p95    | **ABSENT**  | Nothing measures HTTP latency. `pg_stat_statements` measures database time, which is not the same number and should not be labelled as if it were.                                                                                                                                                                                              |
-| Error rate | **ABSENT**  | Sentry, if the DSN is set. Otherwise nothing.                                                                                                                                                                                                                                                                                                   |
-| Live shows | **PARTIAL** | Queryable, but "live" needs defining — see the correction above.                                                                                                                                                                                                                                                                                |
-| Queue      | **ABSENT**  | Client-side only. See the correction above.                                                                                                                                                                                                                                                                                                     |
-| Online now | **ABSENT**  | No source. `ringside_sessions` is 0 rows and passcode-scoped, not a general presence signal; `auth.sessions` is not exposed through PostgREST.                                                                                                                                                                                                  |
+| Tile       | Verdict              | Source / what it would take                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Uptime     | **PARTIAL — Sentry** | Sentry is live (owner-confirmed 2026-07-31). No dedicated uptime monitor exists, but Sentry **Cron** check-ins already run for the nightly jobs (`sentryCronCheckIn.ts`, `DAILY_HEALTH_MONITOR_SLUG`) — that is job reliability, not site reachability. A real uptime % needs a Sentry Uptime monitor pointed at the app URL: configuration, not code. Until one exists, label the tile for what it actually measures. |
+| API p95    | **PARTIAL — Sentry** | Browser tracing is wired (`tracesSampleRate`, `VITE_SENTRY_TRACES_SAMPLE_RATE`). That gives **client-observed** transaction duration — the honest number to show, and not the same as server API latency, since it includes the user's network. Check the deployed sample rate before trusting it: a low rate makes the tail unreliable, and the tail is the percentile being displayed.                               |
+| Error rate | **EXISTS — Sentry**  | Both halves are instrumented — browser (`services/observability/sentry.ts`, `main.tsx`) and edge functions (`npm:@sentry/deno`, e.g. `cron-health-check`). Errors over sessions is a standard Sentry query.                                                                                                                                                                                                            |
+| Live shows | **PARTIAL**          | Queryable, but "live" needs defining — see the correction above.                                                                                                                                                                                                                                                                                                                                                       |
+| Queue      | **ABSENT**           | Client-side only. See the correction above.                                                                                                                                                                                                                                                                                                                                                                            |
+| Online now | **ABSENT**           | No source. `ringside_sessions` is 0 rows and passcode-scoped, not a general presence signal; `auth.sessions` is not exposed through PostgREST.                                                                                                                                                                                                                                                                         |
 
-**Recommendation: ship four tiles, not six.** Uptime, API p95 and error rate all depend on
-infrastructure telemetry this project does not currently collect, and a tile is a promise that a
-number is measured. The four that can be honest today: checks passing (`6/6` from the snapshot),
-unresolved alerts, live shows, entries today.
+**Recommendation: four tiles now, six after one piece of plumbing.**
 
-If you want the missing three properly, the decision is _one_ question — is Sentry live in
-production? — and the answer unlocks error rate and, via Sentry Cron, a defensible uptime
-figure. p95 needs Vercel analytics regardless.
+Four are honest today and cost nothing new: checks passing (`6/6` from the snapshot), unresolved
+alerts, live shows, entries today. All four are a single Supabase read.
+
+Error rate and API p95 are real, but they live in **Sentry, behind an API token** — and that is
+the entire cost of those two tiles. The DSN is public and safe in the browser; a Sentry API token
+is not, so the dashboard cannot query Sentry directly. It needs:
+
+- an edge function proxying the two Sentry queries, holding the token as an edge secret;
+- caching, because Sentry's API is rate-limited and these tiles want a ~1-minute refresh;
+- a per-tile stale/error state, since an external dependency fails differently from a query.
+
+Call it half a day, and it is the same proxy for both tiles and any later Sentry panel. Worth
+doing — but it is a different shape of work from the rest of this page, so schedule it rather
+than discovering it mid-build.
+
+Uptime is the odd one out. Nothing currently measures site reachability; a Sentry Uptime monitor
+takes minutes to configure, but until someone adds it an "uptime" tile would be reporting
+cron-job reliability under a label that means something else.
 
 ### Traffic chart — **CUT**
 
-Requests per minute, split web / myK9Q. No source: not in the database, not collected anywhere
-in the app. The only candidate is Vercel Web Analytics, which is reachable through the Vercel MCP
-connector but is a per-request external call, not something a dashboard tile can poll at 30s.
+Requests per minute, as two series: web and myK9Q.
+
+**The second series measures a deleted application.** `apps/myk9q` was removed from the monorepo
+once ringside moved into myK9Show `/at-show` (see CLAUDE.md, "Current development phase"). Half
+this chart cannot ever have data, and a two-series chart with one flat line at zero is worse than
+no chart.
+
+The first series has no source either. Sentry being live does not rescue it: Sentry reports
+transaction volume for sampled sessions, not requests per minute, and reading it per-range would
+mean three more proxied queries behind the same token. Vercel Web Analytics is the closer fit and
+is reachable through the Vercel MCP connector, but it is an external per-request call, not
+something a chart can poll at 30s.
 
 The handoff's own instruction applies — _"If this doesn't exist, ship the page without it rather
-than faking it."_ Cut it. It is also the single largest block on the page, so cutting it changes
-the layout, not just the data; decide before building, not after.
+than faking it."_ **Cut it.** It is the single largest block on the page, so cutting it changes
+the layout, not just the data; decide before building, not after. If a traffic visual is wanted
+later, one series from Vercel analytics on a slow refresh is a defensible page of its own.
 
 ### Services — **derive, do not re-query**
 
@@ -193,16 +215,22 @@ this whole document and they serve a second admin who does not exist yet.
 
 ---
 
-## The one question only you can answer
+## Sentry — answered 2026-07-31
 
-**Is Sentry live in production?** Everything in the "no source" column below traces back to it:
+**Sentry is live in production** (owner-confirmed). That settles error rate outright and makes
+API p95 available with a caveat about sampling. It does not settle uptime, which nothing
+currently measures, and it does not rescue the traffic chart.
 
-- Yes → error rate and uptime become real, and API p95 stays the only gap.
-- No → cut the three infrastructure tiles and the traffic chart, and the dashboard becomes an
-  honest four-tile page over data this project actually holds.
+What follows from it, in the order worth doing:
 
-Either answer is fine. What is not fine is building the six-tile design and filling three of them
-with something that looks measured.
+1. **Add a Sentry Uptime monitor** against the production URL. Minutes of configuration, and it
+   is the only way the uptime tile can mean what it says.
+2. **Build the Sentry proxy edge function** (token as an edge secret, cached, per-tile stale
+   state). Unblocks error rate and p95 together.
+3. **Check the deployed `VITE_SENTRY_TRACES_SAMPLE_RATE`** before shipping p95. A low sample rate
+   does not weaken a p95 gracefully — it makes the tail noise, and the tail is the whole number.
+
+None of the three blocks `/admin/health`, which is why that page still goes first.
 
 ---
 
@@ -218,5 +246,7 @@ Unchanged from the handoff, with the sources now attached:
 4. `/admin/dashboard`, four tiles, services derived from the health snapshot, event log from
    alerts, no traffic chart.
 5. Triage, read-only.
+6. Sentry proxy edge function, then the fifth and sixth tiles (error rate, API p95) — additive,
+   and deliberately last because it is the only step with an external dependency.
 
 Delete `SystemHealthService.ts` and `analytics/MonitoringDashboard.tsx` as part of step 4.

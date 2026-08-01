@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import DelightfulError from '@/components/ui/DelightfulError';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useReplicationContainment } from '@/hooks/useReplicationContainment';
 import { cn } from '@/lib/utils';
 import { badgeClass, getSyncLabel, getSyncTier } from './atShowChrome.helpers';
 
@@ -55,6 +56,42 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
     Offline ready
   </span>
 );
+
+/**
+ * Shown while the server has asked this device to pause score uploads
+ * (MYK9-115 admission control).
+ *
+ * INTENT: calm, not alarming. The scores ARE saved and the outbox resumes by
+ * itself — the only real risk here is a judge who sees the queue stop draining,
+ * assumes the work is lost, and starts re-entering it. So the copy leads with
+ * safety and names the cause as the server, not the device or the network.
+ *
+ * There is deliberately NO retry control. The server is shedding load; a
+ * "retry now" button would let a worried judge hammer the breaker protecting
+ * the show. Contrast SyncIndicator's error state, where retrying IS the fix.
+ */
+export const ContainmentBanner: React.FC<{ className?: string }> = ({ className }) => {
+  const { active } = useReplicationContainment();
+  if (!active) return null;
+
+  return (
+    <div
+      role="status"
+      data-testid="at-show-containment-banner"
+      className={cn(
+        'at-show-containment-banner flex items-start gap-2 rounded-lg px-3 py-2 text-sm font-medium',
+        badgeClass('warning'),
+        className
+      )}
+    >
+      <CloudUpload size={16} className="mt-0.5 shrink-0" aria-hidden />
+      <span>
+        <strong className="font-semibold">Score sync paused</strong> — the server asked this device
+        to wait. Your scores are saved here and will sync automatically in about a minute.
+      </span>
+    </div>
+  );
+};
 
 export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   status,
@@ -117,7 +154,10 @@ export const RefreshIndicator: React.FC<RefreshIndicatorProps> = ({
   if (!isRefreshing) return null;
   return (
     <div
-      className={cn('at-show-refresh-indicator text-center text-xs text-muted-foreground', className)}
+      className={cn(
+        'at-show-refresh-indicator text-center text-xs text-muted-foreground',
+        className
+      )}
       data-position={position ?? 'top'}
     >
       {message ?? 'Refreshing…'}
@@ -212,8 +252,17 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   </Sheet>
 );
 
+// The containment banner rides here rather than in a slot of its own.
+// `EntryListLayoutSlots` (@myk9/ringside) has no banner slot, and widening that
+// shared interface — plus every consumer that supplies it — is a larger change
+// than one message warrants. This is the body wrapper: always mounted, full
+// width, directly above the entry list, which is where a judge is looking.
+// If a second full-width notice ever needs this spot, add the slot properly.
 export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, className }) => (
-  <div className={cn('at-show-pull-to-refresh', className)}>{children}</div>
+  <div className={cn('at-show-pull-to-refresh', className)}>
+    <ContainmentBanner className="mb-2" />
+    {children}
+  </div>
 );
 
 export const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry, className }) => (

@@ -98,12 +98,13 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/permissions/users',
     title: 'User Role Assignment',
-    description: 'Assign and revoke roles per user.',
+    description:
+      'Read-only ledger of every role grant (tabbed into Permissions page). Assign roles from User Management.',
     roles: [UserRole.SITE_ADMIN],
-    classification: 'critical-path',
+    classification: 'park',
     category: 'Admin',
     status: 'working',
-    linksTo: ['/admin/permissions'],
+    linksTo: ['/admin/permissions', '/admin/users'],
   },
   {
     path: '/admin/permissions/audit',

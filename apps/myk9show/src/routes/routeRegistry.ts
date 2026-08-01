@@ -41,7 +41,6 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/permissions/roles/new': () => import('@/pages/admin/permissions/CreateRolePage'),
   '/admin/permissions/roles/:roleId': () => import('@/pages/admin/permissions/RoleEditPage'),
   '/admin/permissions/roles/:roleId/clone': () => import('@/pages/admin/permissions/CloneRolePage'),
-  '/admin/permissions/users': () => import('@/pages/admin/permissions/UserRoleManagementPage'),
   '/admin/permissions/audit': () => import('@/pages/admin/permissions/PermissionAuditPage'),
 
   '/admin/deleted-items': () =>
@@ -176,7 +175,7 @@ export const navigationPatterns = {
   // Admin workflow patterns
   adminDashboard: ['/admin/health', '/admin/support', '/admin/permissions'],
   templateManagement: ['/admin/dashboard'],
-  permissionManagement: ['/admin/permissions/roles', '/admin/permissions/users'],
+  permissionManagement: ['/admin/permissions/roles'],
 
   // Exhibitor workflow patterns
   exhibitorDashboard: ['/shows', '/exhibitor/entries', '/dogs', '/exhibitor/show-day'],

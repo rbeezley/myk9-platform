@@ -17,10 +17,10 @@ import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
  * remediation, design.md "R1").
  *
  * Anon ringside-passcode sessions are Supabase anonymous-auth sessions
- * (Postgres role `authenticated`, non-null auth.uid()), and
- * `show_announcements`'s SELECT policy already admits any authenticated
- * caller (`auth.uid() is not null`, migration 057) — no RLS change needed
- * for this read. See atShowAnnouncementReadAuthzContract.test.ts.
+ * (Postgres role `authenticated`, non-null auth.uid()). Their server-stamped,
+ * generation-aware claim admits only announcements for the claimed show;
+ * ordinary anonymous sessions remain denied. See
+ * atShowAnnouncementReadAuthzContract.test.ts.
  */
 export function AtShowAnnouncementFeed({
   showId,

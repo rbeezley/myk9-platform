@@ -290,7 +290,13 @@ function asCount(value: unknown): number {
 function parsePayoutLedger(raw: unknown): PayoutLedgerFacts | null {
   if (!raw || typeof raw !== 'object') return null;
   const f = raw as Record<string, unknown>;
-  if (typeof f.total !== 'number') return null;
+  // EVERY count must be present. Validating only `total` and letting asCount
+  // coerce the rest to zero means a truncated probe payload with total=5 and no
+  // `failed` key renders "all 5 payouts settled" — a silent green produced by a
+  // broken probe, which is the exact failure this check exists to prevent.
+  for (const key of ['total', 'failed', 'in_flight', 'stale_in_flight']) {
+    if (typeof f[key] !== 'number' || !Number.isFinite(f[key] as number)) return null;
+  }
   return {
     total: asCount(f.total),
     failed: asCount(f.failed),

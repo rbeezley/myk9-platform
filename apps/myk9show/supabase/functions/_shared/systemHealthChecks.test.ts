@@ -580,6 +580,17 @@ describe('payout_ledger check (TICKET-2)', () => {
     expect(check.detail).toBe('no payouts recorded yet');
   });
 
+  // Codex review of PR #1557: validating only `total` let asCount coerce the
+  // rest to zero, so a truncated probe payload rendered "all N payouts settled".
+  it('a partial payload with a positive total warns instead of reporting settled', () => {
+    const check = find(
+      buildSnapshot(facts({ payout_ledger: { total: 5 } }), { now: NOW }),
+      'payout_ledger'
+    );
+    expect(check.status).toBe('warn');
+    expect(check.detail).not.toContain('settled');
+  });
+
   it('a missing or malformed ledger fact warns — never a silent green', () => {
     for (const bad of [undefined, null, 'nope', 42, {}]) {
       const check = find(

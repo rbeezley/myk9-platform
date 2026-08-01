@@ -139,6 +139,11 @@ function count(n: number): string {
 export function verdictHeadline(summary: CheckSummary, isStale: boolean, isEmpty: boolean): string {
   if (isEmpty) return 'No health run has ever been recorded';
   if (isStale) return 'These results are too old to answer “is it broken now?”';
+  // A fresh run that recorded ZERO checks is not health, it is silence. The
+  // snapshot table's CHECK allows an empty array, and deriveEffectiveStatus only
+  // treats a MISSING snapshot as empty — so without this branch the page would
+  // say "Everything's running" directly above "No checks have been recorded".
+  if (summary.total === 0) return 'The last run recorded no checks at all';
   if (summary.failing === 1) return 'One check is failing';
   if (summary.failing > 1) return `${count(summary.failing)} checks are failing`;
   if (summary.unverified > 0) return 'Nothing is failing, but not everything is proven';
@@ -152,6 +157,9 @@ export function verdictExplanation(summary: CheckSummary, isStale: boolean, isEm
   }
   if (isStale) {
     return 'The last run is older than the window it covers, so a failure since then would not appear here. Re-run the checks before trusting anything below.';
+  }
+  if (summary.total === 0) {
+    return 'The runner wrote a snapshot but it contained no checks — the run completed without evaluating anything, which tells you nothing about the platform.';
   }
   if (summary.failing > 0) {
     const rest =

@@ -177,6 +177,16 @@ describe('verdict', () => {
     expect(verdictExplanation(s(), true, false)).toContain('would not appear here');
   });
 
+  // Codex review of PR #1557: the snapshot CHECK allows an empty checks array,
+  // and deriveEffectiveStatus only calls a MISSING snapshot empty. A fresh run
+  // that evaluated nothing must not read as a clean bill of health.
+  it('a fresh run that recorded zero checks is silence, not health', () => {
+    const none = s({ passing: 0, total: 0 });
+    expect(verdictHeadline(none, false, false)).toBe('The last run recorded no checks at all');
+    expect(verdictExplanation(none, false, false)).toContain('without evaluating anything');
+    expect(verdictHeadline(none, false, false)).not.toContain("Everything's running");
+  });
+
   it('an empty board says so rather than reading as healthy', () => {
     expect(verdictHeadline(s({ passing: 0, total: 0 }), false, true)).toContain(
       'ever been recorded'

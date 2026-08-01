@@ -40,8 +40,26 @@ import {
 } from './SystemHealth/HealthBoardPrimitives';
 import { HealthCheckRow } from './SystemHealth/HealthCheckRow';
 
-/** The runner's schedule, stated so the freshness band can be specific. */
-const SCHEDULE_LABEL = 'Runs nightly at 03:00 ET';
+/** The `daily-health-check` pg_cron entry: `0 7 * * *`, i.e. 07:00 UTC. */
+const SCHEDULE_UTC_HOUR = 7;
+
+/**
+ * The schedule in Eastern, derived rather than written down. 07:00 UTC is 03:00
+ * ET in summer and 02:00 ET in winter, so a hardcoded label is wrong for five
+ * months of the year — and this page's whole argument is that it tells you the
+ * truth about time.
+ */
+function scheduleLabel(now: number): string {
+  const at = new Date(now);
+  at.setUTCHours(SCHEDULE_UTC_HOUR, 0, 0, 0);
+  const eastern = at.toLocaleTimeString('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `Runs nightly at ${eastern} ET`;
+}
 
 /**
  * Surfaces with no automated check at all. A derived registry would be better,
@@ -109,7 +127,7 @@ function FreshnessBand({
             be worse than none — it would imply a re-check that never happened.
             A real one needs a site-admin-gated trigger on cron-health-check. */}
         <p className="mt-0.5 text-[11.5px] opacity-80">
-          {SCHEDULE_LABEL}
+          {scheduleLabel(now)}
           {duration && ` · last run took ${duration}`}
         </p>
       </div>

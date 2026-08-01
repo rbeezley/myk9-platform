@@ -42,14 +42,26 @@ VALUES (
 INSERT INTO public.people (id, first_name, last_name)
 VALUES ('00000000-0000-0000-0000-000000149005', 'TV', 'Handler');
 
+-- Two dogs, because entries_dog_class_unique_idx is
+-- UNIQUE (dog_id, class_id) WHERE entry_status NOT IN ('withdrawn','scratched').
+-- It does NOT exclude soft-deleted rows, so two 'confirmed' entries for one dog
+-- in one class collide on INSERT, before the soft-delete below ever runs.
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
-VALUES (
-  '00000000-0000-0000-0000-000000149006',
-  'TV Dog',
-  'TV',
-  'Beagle',
-  '00000000-0000-0000-0000-000000149005'
-);
+VALUES
+  (
+    '00000000-0000-0000-0000-000000149006',
+    'TV Dog',
+    'TV',
+    'Beagle',
+    '00000000-0000-0000-0000-000000149005'
+  ),
+  (
+    '00000000-0000-0000-0000-000000149009',
+    'TV Dog Two',
+    'TV2',
+    'Beagle',
+    '00000000-0000-0000-0000-000000149005'
+  );
 
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, armband,
@@ -70,7 +82,7 @@ VALUES
   ),
   (
     '00000000-0000-0000-0000-000000149008',
-    '00000000-0000-0000-0000-000000149006',
+    '00000000-0000-0000-0000-000000149009',
     '00000000-0000-0000-0000-000000149004',
     '00000000-0000-0000-0000-000000149002',
     '00000000-0000-0000-0000-000000149003',

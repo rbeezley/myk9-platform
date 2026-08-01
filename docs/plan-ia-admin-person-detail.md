@@ -40,7 +40,7 @@ Three affordances on `/admin/users` resolve to two destinations. The fix is **no
    - Removed user: Open profile page · **Restore** · **Delete permanently…** (no Edit, no Manage roles — editing a removed person is not a real operation)
 2. Restore calls the existing restore path used by `DeletedEntitiesTab` for `people` — `restoreUser` in `services/database/users` (an admin-gated `restore_person` RPC). No extraction was needed; both surfaces call the same function.
 3. The post-delete toast ("… was removed. Restore from Deleted Items.") gains an action that navigates to `/admin/deleted-items`.
-4. `UserFilters`' "Including removed users" summary chip links to `/admin/deleted-items`.
+4. `UserFilters` links to `/admin/deleted-items` while removed rows are shown (implemented next to the checkbox rather than inside the dismissible summary chip — the chip's job is to clear the filter).
 
 **Testing (phase is not complete until these pass):**
 
@@ -81,8 +81,9 @@ Three affordances on `/admin/users` resolve to two destinations. The fix is **no
 **Scope:**
 
 1. `/people/:id` replaces its generic `StandardDialog` delete with `AdminDeleteUserDialog`, so both shells offer the same options (soft/permanent) and the same owns-live-dogs guard. Permission-gate the permanent option to `admin:manage`; a secretary on `/people/:id` sees soft delete only.
-2. `/people/:id` renders a removed-state banner when `deletedAt` is set: what happened, when, and a Restore action (same shared service as Phase A). Suspended accounts get the equivalent treatment.
-3. The `/admin/deleted-items` People section links each entry to `/people/:id`.
+2. **A read path for removed people comes first.** `people_select` is `deleted_at IS NULL AND auth.uid() IS NOT NULL` (migration `20260602010000`), so `/people/:id` cannot load a soft-deleted person for any role. The banner is meaningless until an admin-gated `SECURITY DEFINER` read RPC exists — mirror `restore_person`, and audit its grants against the applied DB (CLAUDE.md § Database Migrations), not just the migration text.
+3. Then `/people/:id` renders a removed-state banner when `deletedAt` is set: what happened, when, and a Restore action (same shared service as Phase A). Suspended accounts get the equivalent treatment.
+4. The `/admin/deleted-items` People section links each entry to `/people/:id`.
 
 **Testing:**
 
@@ -118,11 +119,12 @@ Three affordances on `/admin/users` resolve to two destinations. The fix is **no
 
 - Phases are strictly ordered: B changes what a row click does, which Phase A's tests assume is still the panel; C's banner reuses A's restore service; D moves an action into menus that B and C have settled.
 - Each phase is one PR, each PR gets a Codex review (CLAUDE.md § review policy).
-- No migrations, no RLS changes, no edge functions — this is entirely client-side IA work against existing services.
+- Phases A, B and D are entirely client-side against existing services. **Phase C is not** — it needs a new admin-gated read RPC for soft-deleted people (see its scope), so it carries a migration and a grant audit.
 
 ## Change log
 
-| Date       | Change                                                                                                                                                                                                                                                                                                                                                                                                                       | Source       |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| 2026-08-01 | Plan produced from the IA review; scope excludes F8 (role-assignment paths)                                                                                                                                                                                                                                                                                                                                                  | This session |
-| 2026-08-01 | Phase A implemented. Two deviations: (a) the row menu's old "Manage roles falls back to the profile page when no handler is passed" behaviour was dropped — a menu item labelled _Manage roles_ that opens a profile page is a lie; it is now omitted instead. (b) A **removed** row's click opens the profile page rather than the edit panel, so the row agrees with its own menu. Live rows keep the panel until Phase B. | This session |
+| Date       | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Source                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| 2026-08-01 | Plan produced from the IA review; scope excludes F8 (role-assignment paths)                                                                                                                                                                                                                                                                                                                                                                                                                | This session           |
+| 2026-08-01 | Phase A implemented. Two deviations: (a) the row menu's old "Manage roles falls back to the profile page when no handler is passed" behaviour was dropped — a menu item labelled _Manage roles_ that opens a profile page is a lie; it is now omitted instead. (b) A **removed** row's click is inert — see the correction below. Live rows keep the panel until Phase B.                                                                                                                  | This session           |
+| 2026-08-01 | Codex review (P1) on PR #1556: routing a removed row to `/people/:id` is a dead end — `people_select` is `deleted_at IS NULL`, so no role can read a soft-deleted person. Corrected: the removed-row menu drops "Open profile page" entirely (Restore · Delete permanently only) and the row click is inert. This also re-scoped **Phase C**, which assumed the profile page could render a removed person; it now needs an admin-gated read RPC first, and is no longer client-side-only. | Codex review, PR #1556 |

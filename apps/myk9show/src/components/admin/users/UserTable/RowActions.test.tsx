@@ -31,7 +31,7 @@ describe('buildUserRowActions', () => {
   });
 
   it('offers restore and permanent delete for a removed user', () => {
-    expect(ids(removedUser)).toEqual(['view', 'restore', 'delete']);
+    expect(ids(removedUser)).toEqual(['restore', 'delete']);
   });
 
   it('never offers edit or role management on a removed user', () => {
@@ -39,6 +39,12 @@ describe('buildUserRowActions', () => {
     // the admin can restore it or clear it out.
     expect(ids(removedUser)).not.toContain('edit');
     expect(ids(removedUser)).not.toContain('roles');
+  });
+
+  it('never links a removed user to their profile page', () => {
+    // people_select is `deleted_at IS NULL`, so /people/:id cannot load a
+    // soft-deleted person for any role. Offering the link would be a dead end.
+    expect(ids(removedUser)).not.toContain('view');
   });
 
   it('names permanent deletion on a removed row, not plain "Delete user"', () => {
@@ -56,10 +62,10 @@ describe('buildUserRowActions', () => {
     const h = handlers();
     for (const action of buildUserRowActions(removedUser, h)) action.onSelect();
 
-    expect(h.onView).toHaveBeenCalledWith(removedUser);
     expect(h.onRestore).toHaveBeenCalledWith(removedUser);
     expect(h.onDelete).toHaveBeenCalledWith(removedUser);
     expect(h.onEdit).not.toHaveBeenCalled();
+    expect(h.onView).not.toHaveBeenCalled();
   });
 });
 

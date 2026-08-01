@@ -37,8 +37,10 @@ export function buildUserRowActions(user: User, handlers: UserRowActionHandlers)
   };
 
   if (isRemoved) {
+    // No profile link: `people_select` is `deleted_at IS NULL`, so /people/:id
+    // cannot load a soft-deleted person for any role — the page would hang or
+    // bounce. Restore first, then the profile is reachable again.
     return [
-      view,
       {
         id: 'restore',
         label: 'Restore user',

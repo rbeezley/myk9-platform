@@ -135,7 +135,9 @@ function buildColumns(
           <div className={`flex items-center ${density.spacing}`}>
             <div className="relative">
               <Avatar className={`${density.avatarSize} ring-1 ring-border`}>
-                <AvatarFallback className={`${density.fontSize} font-semibold bg-muted text-foreground`}>
+                <AvatarFallback
+                  className={`${density.fontSize} font-semibold bg-muted text-foreground`}
+                >
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -200,7 +202,10 @@ function buildColumns(
         const roles = user.roles ?? [];
         if (roles.length === 0) {
           return (
-            <Badge variant="outline" className={`${CHIP_CLASS} border border-border text-muted-foreground`}>
+            <Badge
+              variant="outline"
+              className={`${CHIP_CLASS} border border-border text-muted-foreground`}
+            >
               No role
             </Badge>
           );
@@ -448,10 +453,13 @@ export const UserTable: React.FC<UserTableProps> = ({
             data={users}
             pageSize={9999}
             loading={isLoading}
-            // A removed person has no editable state, so the row opens their
-            // profile instead of the edit panel — the same destination the row
-            // menu offers. Live rows keep the panel until Phase B moves them.
-            onRowClick={user => (user.deletedAt ? handleViewUser(user) : onUserClick(user))}
+            // A removed person has neither an editable state nor a readable
+            // profile (`people_select` is `deleted_at IS NULL`), so the row
+            // itself is inert — its menu carries Restore / Delete permanently.
+            onRowClick={user => {
+              if (user.deletedAt) return;
+              onUserClick(user);
+            }}
             className="myk9-table"
             manualSorting
             sorting={sorting}

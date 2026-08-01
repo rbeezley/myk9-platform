@@ -39,14 +39,33 @@ function walk(dir: string): string[] {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       out.push(...walk(full));
-    } else if (entry.endsWith('.tsx') && !entry.includes('.test.')) {
+    } else if (entry.endsWith('.tsx') && !isTestModule(full)) {
       out.push(full);
     }
   }
   return out;
 }
 
-/** Every non-test source file, read once. */
+/**
+ * True for anything that is test scaffolding rather than application code.
+ *
+ * `.test.` alone is not enough: Playwright specs are `.spec.ts(x)`, and
+ * `src/test/` holds fixtures, mocks and helpers. Counting any of those as an
+ * importer would let a component that ONLY tests reference pass the check —
+ * the exact "reachable only from tests" shape this guard exists to catch.
+ */
+function isTestModule(path: string): boolean {
+  const p = path.replace(/\\/g, '/');
+  return (
+    p.includes('.test.') ||
+    p.includes('.spec.') ||
+    p.includes('/src/test/') ||
+    p.includes('/__tests__/') ||
+    p.includes('/__mocks__/')
+  );
+}
+
+/** Every APPLICATION source file, read once. */
 function sourceFiles(): Array<{ path: string; text: string }> {
   const out: Array<{ path: string; text: string }> = [];
   const stack = [SRC];
@@ -56,7 +75,7 @@ function sourceFiles(): Array<{ path: string; text: string }> {
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) {
         if (entry !== 'node_modules') stack.push(full);
-      } else if (/\.(ts|tsx)$/.test(entry) && !entry.includes('.test.')) {
+      } else if (/\.(ts|tsx)$/.test(entry) && !isTestModule(full)) {
         out.push({ path: full, text: readFileSync(full, 'utf8') });
       }
     }
@@ -72,6 +91,24 @@ describe('user-management components are reachable', () => {
   it('watches a non-empty set of components', () => {
     // Guards against the check silently covering nothing if a directory moves.
     expect(components.length).toBeGreaterThan(3);
+  });
+
+  it('counts only application modules as importers', () => {
+    // The guard is worthless if test scaffolding satisfies it: a component
+    // referenced ONLY by a Playwright spec or a fixture under src/test is
+    // exactly the "reachable only from tests" case being detected.
+    expect(all.some(f => isTestModule(f.path))).toBe(false);
+
+    for (const p of [
+      '/a/b/Foo.test.tsx',
+      '/a/b/Foo.spec.ts',
+      '/x/src/test/utils/testUtils.tsx',
+      '/x/__tests__/Foo.tsx',
+      '/x/__mocks__/supabase.ts',
+    ]) {
+      expect(isTestModule(p), p).toBe(true);
+    }
+    expect(isTestModule('/x/src/components/users/UserDetailsView.tsx')).toBe(false);
   });
 
   it.each(components.map(path => [relative(SRC, path), path]))(

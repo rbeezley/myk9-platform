@@ -131,7 +131,9 @@ function buildColumns(
           <div className={`flex items-center ${density.spacing}`}>
             <div className="relative">
               <Avatar className={`${density.avatarSize} ring-1 ring-border`}>
-                <AvatarFallback className={`${density.fontSize} font-semibold bg-muted text-foreground`}>
+                <AvatarFallback
+                  className={`${density.fontSize} font-semibold bg-muted text-foreground`}
+                >
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -196,7 +198,10 @@ function buildColumns(
         const roles = user.roles ?? [];
         if (roles.length === 0) {
           return (
-            <Badge variant="outline" className={`${CHIP_CLASS} border border-border text-muted-foreground`}>
+            <Badge
+              variant="outline"
+              className={`${CHIP_CLASS} border border-border text-muted-foreground`}
+            >
               No role
             </Badge>
           );
@@ -404,7 +409,12 @@ export const UserTable: React.FC<UserTableProps> = ({
       >
         <div className="myk9-table-container min-w-[760px]">
           {/* pageSize is deliberately huge: the page already sliced these rows,
-              so the table must render all of them and never paginate again. */}
+              so the table must render all of them and never paginate again.
+              That slicing is also why search and export are turned off here —
+              both built-ins operate on the rows the table was handed, so they
+              would silently cover only the current page while the toolbar above
+              searches, and the header button exports, the whole filtered set.
+              Columns and density stay: they are genuinely per-table. */}
           <DataTable
             tableId="adminUsers"
             columns={columns}
@@ -416,6 +426,8 @@ export const UserTable: React.FC<UserTableProps> = ({
             manualSorting
             sorting={sorting}
             onSortingChange={handleSortingChange}
+            showSearch={false}
+            showExport={false}
           />
         </div>
       </div>

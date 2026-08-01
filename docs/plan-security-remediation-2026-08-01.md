@@ -76,6 +76,11 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
   live entry remains visible while a soft-deleted sibling is hidden; TV query tests, behavioral
   runner registration, app typecheck, and `git diff --check` pass. Closure remains blocked on
   applied cold-anon REST, public TV/runtime, public-view, and replication-backed proof.
+- **MYK9-132:** closure evidence is now present. The latest applied scheduled snapshot at
+  `2026-08-01T07:00:05.276371Z` reports `anon_grants: ok` — 20 table grants (1 write) and 75
+  column grants, all on the allowlist. The snapshot's unrelated `payout_cron: warn` remains a
+  separate operational finding. Keep the Linear issue open until its external status is updated
+  under the shared-system approval gate.
 
 ### Phase 0 — Baseline and proof harness
 
@@ -115,8 +120,9 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
 
 7. **MYK9-149:** add the entry soft-delete predicate to public access and verify REST, TV, public
    views, and replication behavior.
-8. **MYK9-132:** observe the next real scheduled health snapshot after the checker fix. Do not close
-   from fixture or source tests alone.
+8. **MYK9-132:** observe the next real scheduled health snapshot after the checker fix. The
+   2026-08-01 07:00 UTC snapshot is now the required applied proof; do not substitute fixture or
+   source tests for this evidence.
 
 ### Phase 4 — INFO hardening decisions
 

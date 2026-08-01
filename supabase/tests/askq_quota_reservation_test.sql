@@ -18,10 +18,15 @@ VALUES (
 );
 
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
-VALUES (
-  '00000000-0000-0000-0000-000000148012',
-  'MYK9-148', 'Premium', 'myk9-148-premium@example.test', NULL
-);
+VALUES
+  (
+    '00000000-0000-0000-0000-000000148012',
+    'MYK9-148', 'Premium', 'myk9-148-premium@example.test', NULL
+  ),
+  (
+    '00000000-0000-0000-0000-000000148014',
+    'MYK9-148', 'Granted', 'myk9-148-granted@example.test', NULL
+  );
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -42,6 +47,12 @@ VALUES
     now(), now(), '{}', '{}', false, false, false
   ),
   (
+    '00000000-0000-0000-0000-000000148105',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated', 'authenticated', 'myk9-148-granted@example.test', '', now(),
+    now(), now(), '{}', '{}', false, false, false
+  ),
+  (
     '00000000-0000-0000-0000-000000148102',
     '00000000-0000-0000-0000-000000000000',
     'authenticated', 'authenticated', 'myk9-148-anon@example.test', '', now(),
@@ -55,6 +66,24 @@ WHERE id = '00000000-0000-0000-0000-000000148011';
 UPDATE public.people
 SET auth_user_id = '00000000-0000-0000-0000-000000148103'
 WHERE id = '00000000-0000-0000-0000-000000148012';
+
+UPDATE public.people
+SET auth_user_id = '00000000-0000-0000-0000-000000148105'
+WHERE id = '00000000-0000-0000-0000-000000148014';
+
+-- The granted account holds NO paid tier at all. Its Premium comes only from an
+-- active entitlement grant — a founding member. This is the case the whole
+-- migration exists for: an inline `subscription_tier = 'premium'` read cannot
+-- see this row and charges the account the free quota. grant_type's CHECK
+-- allows only 'founding' | 'complimentary'.
+INSERT INTO public.subscription_entitlement_grants (
+  person_id, grant_type, starts_at, ends_at, reason
+)
+VALUES (
+  '00000000-0000-0000-0000-000000148014', 'founding',
+  now() - interval '1 day', now() + interval '365 days',
+  'MYK9-148 behavioural fixture'
+);
 
 -- Paid Premium requires a NON-NULL future expiry — has_effective_premium_access
 -- treats premium-with-null-expiry as expired, matching the client gate.
@@ -96,6 +125,7 @@ DECLARE
   account_id CONSTANT uuid := '00000000-0000-0000-0000-000000148101';
   anonymous_id CONSTANT uuid := '00000000-0000-0000-0000-000000148102';
   premium_id CONSTANT uuid := '00000000-0000-0000-0000-000000148103';
+  granted_id CONSTANT uuid := '00000000-0000-0000-0000-000000148105';
   allowed boolean;
   log_id uuid;
   remaining integer;
@@ -176,13 +206,33 @@ BEGIN
     INTO allowed, log_id, remaining, daily_limit, resets_at
   FROM public.reserve_askq_query('premium-account question') AS r;
 
-  IF allowed IS DISTINCT FROM true OR daily_limit <> 50 OR remaining <> 49 THEN
+  IF allowed IS DISTINCT FROM true OR daily_limit IS DISTINCT FROM 50
+     OR remaining IS DISTINCT FROM 49 THEN
     RAISE EXCEPTION
       'FAIL premium reservation returned allowed=%, remaining=%, limit=%',
       allowed, remaining, daily_limit;
   END IF;
 
-  RAISE NOTICE 'PASS MYK9-148 anonymous denial, ten free-account reservations, fifty for premium';
+  -- Entitlement grant, no paid tier. Fails against any inline
+  -- subscription_tier read, which is the point of the helper.
+  PERFORM set_config('request.jwt.claim.sub', granted_id::text, true);
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', granted_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  SELECT r.allowed, r.daily_limit
+    INTO allowed, daily_limit
+  FROM public.reserve_askq_query('granted-account question') AS r;
+
+  IF allowed IS DISTINCT FROM true OR daily_limit IS DISTINCT FROM 50 THEN
+    RAISE EXCEPTION
+      'FAIL entitlement-grant account returned allowed=%, limit=% (expected true, 50)',
+      allowed, daily_limit;
+  END IF;
+
+  RAISE NOTICE 'PASS MYK9-148 anonymous denial, ten free reservations, fifty for paid premium and for an entitlement grant';
 END;
 $$;
 

@@ -1,6 +1,6 @@
 # Role Assignment Consolidation — one place to grant, one place to read
 
-> **Status:** Active
+> **Status:** Complete
 
 **Date:** 2026-08-01
 **Origin:** IA finding from the impeccable-playbook run on `/admin/users` ([#1553](https://github.com/rbeezley/myk9-platform/pull/1553)), whose scope was deliberately mechanical-only. IA was left for this document.

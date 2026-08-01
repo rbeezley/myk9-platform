@@ -102,7 +102,9 @@ describe('ManageUserRolesDialog — other grants', () => {
     ];
     renderDialog();
     expect(await screen.findByText(/other grants/i)).toBeInTheDocument();
-    expect(screen.getByText(/show-9/)).toBeInTheDocument();
+    // Plain-English copy: no raw show id shown to a non-technical admin.
+    expect(screen.queryByText(/show-9/)).not.toBeInTheDocument();
+    expect(screen.getByText(/for one show/i)).toBeInTheDocument();
   });
 
   it('lists an expiring grant it cannot edit', async () => {
@@ -155,5 +157,45 @@ describe('ManageUserRolesDialog — other grants', () => {
     await screen.findByText(/manage roles/i);
     expect(capturedUserRolesSelect).toContain('show_id');
     expect(capturedUserRolesSelect).toContain('expires_at');
+  });
+
+  it('disables the checkbox for a role carrying a grant it cannot edit', async () => {
+    mockUserRoleRows = [
+      {
+        id: 'ur-6',
+        role_id: 'role-1',
+        club_id: null,
+        show_id: 'show-9',
+        expires_at: null,
+        roles: { name: 'judge' },
+      },
+    ];
+    renderDialog();
+    await screen.findByText(/other grants/i);
+    const judgeCheckbox = screen.getByRole('checkbox', { name: /judge/i });
+    expect(judgeCheckbox).toHaveAttribute('aria-disabled', 'true');
+    // Two elements share this phrase (the label note and the section blurb) —
+    // scope to the label's own note span so this stays specific to the checkbox.
+    expect(
+      screen.getByText(/managed on the assignments ledger/i, { selector: 'span' })
+    ).toBeInTheDocument();
+  });
+
+  it('leaves a role with only ordinary grants enabled and toggleable', async () => {
+    mockUserRoleRows = [
+      {
+        id: 'ur-7',
+        role_id: 'role-1',
+        club_id: 'club-1',
+        show_id: null,
+        expires_at: null,
+        roles: { name: 'secretary' },
+      },
+    ];
+    renderDialog();
+    await screen.findByText(/manage roles/i);
+    const secretaryCheckbox = await screen.findByRole('checkbox', { name: /secretary/i });
+    expect(secretaryCheckbox).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByText(/managed on the assignments ledger/i)).not.toBeInTheDocument();
   });
 });

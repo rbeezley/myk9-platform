@@ -269,6 +269,13 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
   // becoming invisible now that /admin/permissions/users is retired.
   const otherGrants = currentAssignments.filter(a => a.showId !== null || a.expiresAt !== null);
 
+  // A role with any uneditable grant must not be touchable here at all: revoking
+  // an unscoped role wipes every row for that role (no scope filter), and
+  // removing a club from a scoped role revokes by role+club regardless of
+  // show/expiry — either path would silently destroy the grant this dialog
+  // just told the admin it can't manage. Lock the whole role read-only instead.
+  const rolesWithOtherGrants = new Set(otherGrants.map(grant => grant.roleName));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
@@ -296,6 +303,7 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
             const availableToAdd = clubs.filter(c => !assignedClubs.includes(c.id));
 
             const isLocked = LOCKED_ROLES.has(roleName);
+            const isOtherGranted = rolesWithOtherGrants.has(roleName);
 
             return (
               <div key={roleName} className="space-y-2">
@@ -304,16 +312,21 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
                     id={`role-${roleName}`}
                     checked={isLocked ? true : checked}
                     onCheckedChange={c => handleToggle(roleName, !!c)}
-                    disabled={isLoading || isLocked}
+                    disabled={isLoading || isLocked || isOtherGranted}
                   />
                   <Label
                     htmlFor={`role-${roleName}`}
                     className={
-                      isLocked ? 'font-medium text-muted-foreground' : 'cursor-pointer font-medium'
+                      isLocked || isOtherGranted
+                        ? 'font-medium text-muted-foreground'
+                        : 'cursor-pointer font-medium'
                     }
                   >
                     {ROLE_LABELS[roleName] ?? roleName}
                     {isLocked && <span className="ml-2 text-xs">(always assigned)</span>}
+                    {!isLocked && isOtherGranted && (
+                      <span className="ml-2 text-xs">(managed on the assignments ledger)</span>
+                    )}
                   </Label>
                 </div>
 
@@ -325,20 +338,22 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
                         {assignedClubs.map(clubId => (
                           <Badge key={clubId} variant="secondary" className="gap-1 pr-1">
                             {clubName(clubId)}
-                            <button
-                              onClick={() => handleRemoveClub(roleName, clubId)}
-                              className="ml-0.5 rounded hover:text-destructive"
-                              aria-label={`Remove ${clubName(clubId)}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+                            {!isOtherGranted && (
+                              <button
+                                onClick={() => handleRemoveClub(roleName, clubId)}
+                                className="ml-0.5 rounded hover:text-destructive"
+                                aria-label={`Remove ${clubName(clubId)}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
                           </Badge>
                         ))}
                       </div>
                     )}
 
                     {/* Add another club */}
-                    {availableToAdd.length > 0 && (
+                    {!isOtherGranted && availableToAdd.length > 0 && (
                       <Select onValueChange={v => handleAddClub(roleName, v)}>
                         <SelectTrigger className="h-8 text-sm w-full">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -356,9 +371,11 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
                       </Select>
                     )}
 
-                    {assignedClubs.length === 0 && availableToAdd.length === 0 && (
-                      <p className="text-xs text-muted-foreground">No clubs available.</p>
-                    )}
+                    {!isOtherGranted &&
+                      assignedClubs.length === 0 &&
+                      availableToAdd.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No clubs available.</p>
+                      )}
                   </div>
                 )}
               </div>
@@ -379,7 +396,7 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
                   <span className="font-medium text-foreground">
                     {ROLE_LABELS[grant.roleName] ?? grant.roleName}
                   </span>
-                  {grant.showId && <> — show {grant.showId}</>}
+                  {grant.showId && <> — for one show</>}
                   {grant.expiresAt && (
                     <> — expires {new Date(grant.expiresAt).toLocaleDateString()}</>
                   )}

@@ -8,6 +8,7 @@ function chain(result: QueryResult) {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
     is: vi.fn(() => query),
+    or: vi.fn(() => query),
     in: vi.fn(() => query),
     upsert: vi.fn(() => query),
     insert: vi.fn(() => query),
@@ -226,6 +227,7 @@ function makeChunkSupabase(recipientCount: number) {
       select: vi.fn(() => query),
       eq: vi.fn(() => query),
       is: vi.fn(() => query),
+      or: vi.fn(() => query),
       in: vi.fn((column: string, values: readonly unknown[]) => {
         if (column === 'user_id') inUserIdChunkSizes.push(values.length);
         return query;

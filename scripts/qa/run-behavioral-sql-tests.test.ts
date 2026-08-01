@@ -29,11 +29,15 @@ const subscriptionEntitlementFixture = readFileSync(
 // file added to neither list, so the directory-coverage test below does.
 const launchCriticalSqlTests = [
   'anonymous_session_read_scope_test.sql',
+  'askq_quota_reservation_test.sql',
   'class_hide_count_gating_test.sql',
   'class_status_auto_derivation_test.sql',
   'club_secretary_grant_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',
   'entries_manager_policy_hashable_test.sql',
+  'anon_tv_entry_soft_delete_test.sql',
+  'judge_assignment_private_read_test.sql',
+  'office_admin_rls_test.sql',
   'entry_status_history_rls_test.sql',
   'myk9_114_entry_access_context_test.sql',
   'paperwork_prints_rls_test.sql',

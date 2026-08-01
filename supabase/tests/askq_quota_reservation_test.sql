@@ -58,6 +58,12 @@ WHERE id = '00000000-0000-0000-0000-000000148012';
 
 -- Paid Premium requires a NON-NULL future expiry — has_effective_premium_access
 -- treats premium-with-null-expiry as expired, matching the client gate.
+--
+-- UPSERT, not INSERT: `handle_new_user` fires on the auth.users insert above,
+-- adopts the pre-seeded people row by email (migration 131) and creates its
+-- exhibitor_profiles row. A plain INSERT collides with the unique auth_user_id
+-- and aborts the test before it reaches the premium assertion. The INSERT arm
+-- still covers an environment where the trigger did not run.
 INSERT INTO public.exhibitor_profiles (
   person_id, auth_user_id, subscription_tier, subscription_expires_at
 )
@@ -66,7 +72,10 @@ VALUES (
   '00000000-0000-0000-0000-000000148103',
   'premium',
   now() + interval '30 days'
-);
+)
+ON CONFLICT (auth_user_id) DO UPDATE
+SET subscription_tier = EXCLUDED.subscription_tier,
+    subscription_expires_at = EXCLUDED.subscription_expires_at;
 
 SET LOCAL ROLE authenticated;
 

@@ -63,6 +63,15 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('askq:' || v_user_id::text, 0)
+  );
+
+  -- The clock is read AFTER the lock, as 20260801170000 did. A caller that
+  -- queues behind another reservation can wait across UTC midnight or across a
+  -- subscription expiry; a timestamp taken before the wait would then bill the
+  -- request to the previous day, return an already-past resets_at, and judge
+  -- entitlement against an instant that has passed.
   v_now := clock_timestamp();
 
   SELECT p.id
@@ -79,10 +88,6 @@ BEGIN
     THEN 50
     ELSE 10
   END;
-
-  PERFORM pg_advisory_xact_lock(
-    hashtextextended('askq:' || v_user_id::text, 0)
-  );
 
   v_day_start := (v_now AT TIME ZONE 'UTC')::date AT TIME ZONE 'UTC';
   v_resets_at := v_day_start + interval '1 day';

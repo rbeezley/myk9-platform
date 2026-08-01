@@ -101,6 +101,17 @@ describe('UserManagementPage ?userId= deep link', () => {
     expect(screen.queryByTestId('manage-roles-dialog')).not.toBeInTheDocument();
   });
 
+  it('matches on the auth user_id when the people id differs — the shape supportDiagnosticActions emits when no people row is linked', async () => {
+    mockQueryReturn = {
+      data: [makeUser({ id: 'people-1', user_id: 'auth-user-abc' })],
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    };
+    renderAt('/admin/users?userId=auth-user-abc');
+    expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
+  });
+
   it('is a quiet no-op for an unknown userId — roster still renders', async () => {
     renderAt('/admin/users?userId=nobody-here');
     expect(await screen.findByTestId('user-table')).toBeInTheDocument();

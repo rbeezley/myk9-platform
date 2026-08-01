@@ -65,4 +65,10 @@ describe('PermissionManagementPage — assignments tab', () => {
     expect(screen.queryByText('Your Active Roles')).not.toBeInTheDocument();
     expect(screen.getByText('Your Role Grants')).toBeInTheDocument();
   });
+
+  it('gives each quick-action link an accessible name that contains its visible "Get Started" text (WCAG 2.5.3 Label in Name)', async () => {
+    render(<PermissionManagementPage />);
+    const link = await screen.findByRole('link', { name: /assign user roles/i });
+    expect(link).toHaveAccessibleName(/get started/i);
+  });
 });

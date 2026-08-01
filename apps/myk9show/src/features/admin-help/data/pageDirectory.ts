@@ -49,7 +49,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: ['/admin/permissions/roles', '/admin/permissions/audit'],
+    linksTo: ['/admin/permissions/roles', '/admin/permissions/audit', '/admin/users'],
   },
   {
     path: '/admin/permissions/roles',

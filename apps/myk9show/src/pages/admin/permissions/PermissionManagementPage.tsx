@@ -260,7 +260,7 @@ const PermissionManagementPage: React.FC = () => {
                             <Link
                               to={action.link}
                               className="text-primary font-medium"
-                              aria-label={action.title}
+                              aria-label={`${action.title}: Get Started`}
                             >
                               Get Started <ArrowRight className="h-4 w-4 ml-1" />
                             </Link>

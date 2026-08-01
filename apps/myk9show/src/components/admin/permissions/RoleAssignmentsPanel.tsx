@@ -53,6 +53,16 @@ function getUserLabel(row: UserRole): { label: string; missingReason?: string } 
   };
 }
 
+// The row's only real scope signal is show_id/club_id — scope_type/scope_id
+// are virtual fields RoleManager.getAllUserRoles() never populates. Derive
+// what we actually have so the badge matches live data instead of always
+// reading "Global".
+function getScopeLabel(row: UserRole): string {
+  if (row.show_id) return `Show: ${row.show_id}`;
+  if (row.club_id) return `Club: ${row.club_id}`;
+  return 'Global';
+}
+
 function getRoleLabel(row: UserRole): { label: string; code?: string; missingReason?: string } {
   if (row.role?.display_name || row.role?.name) {
     return { label: row.role.display_name ?? row.role.name, code: row.role.name };
@@ -106,16 +116,15 @@ function makeColumns(
       id: 'scope',
       header: 'Scope',
       meta: { responsiveHide: 'md' } satisfies DataTableColumnMeta,
-      accessorFn: row =>
-        row.scope_type && row.scope_id ? `${row.scope_type}: ${row.scope_id}` : 'Global',
-      cell: ({ row }) =>
-        row.original.scope_type && row.original.scope_id ? (
-          <Badge variant="outline">
-            {row.original.scope_type}: {row.original.scope_id}
-          </Badge>
-        ) : (
+      accessorFn: row => getScopeLabel(row),
+      cell: ({ row }) => {
+        const scope = getScopeLabel(row.original);
+        return scope === 'Global' ? (
           <Badge variant="secondary">Global</Badge>
-        ),
+        ) : (
+          <Badge variant="outline">{scope}</Badge>
+        );
+      },
     },
     {
       accessorKey: 'is_active',
@@ -282,7 +291,7 @@ export const RoleAssignmentsPanel: React.FC = () => {
         </div>
         <Button asChild variant="outline">
           <Link to="/admin/users">
-            User Management
+            Assign roles in User Management
             <ArrowRight className="h-4 w-4 ml-2" />
           </Link>
         </Button>

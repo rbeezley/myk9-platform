@@ -142,7 +142,11 @@ const UserManagementPage: React.FC = () => {
   // Unknown ids are a quiet no-op: the admin still gets the roster, and the
   // support ticket may simply name someone who was since deleted.
   const deepLinkUser = useMemo(
-    () => (deepLinkUserId ? (users.find(user => user.id === deepLinkUserId) ?? null) : null),
+    () =>
+      deepLinkUserId
+        ? (users.find(user => user.id === deepLinkUserId || user.user_id === deepLinkUserId) ??
+          null)
+        : null,
     [deepLinkUserId, users]
   );
 

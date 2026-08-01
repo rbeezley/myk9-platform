@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const endpointSource = readFileSync(resolve(__dirname, '../../ask-myk9show/index.ts'), 'utf8');
 const reservationSource = readFileSync(resolve(__dirname, './askqRateLimit.ts'), 'utf8');
 const migrationSource = readFileSync(
-  resolve(__dirname, '../../../migrations/20260801130000_reserve_askq_query.sql'),
+  resolve(__dirname, '../../../migrations/20260801170000_reserve_askq_query.sql'),
   'utf8'
 );
 

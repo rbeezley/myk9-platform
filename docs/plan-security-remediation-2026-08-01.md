@@ -60,7 +60,7 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
   blocked on applied SQL, premium/reset checks, model non-invocation evidence, and a disposable
   parallel burst proving the exact concurrent quota; no Linear state mutation was performed.
 - **MYK9-146:** local implementation is complete in the current remediation worktree. Migration
-  `20260801140000_withhold_judge_assignment_private_columns.sql` removes table-wide anon and
+  `20260801180000_withhold_judge_assignment_private_columns.sql` removes table-wide anon and
   authenticated SELECT, restores only safe assignment columns, and exposes protected fee/notes
   through the show-scoped `get_manager_judge_assignments()` RPC. Public show/timeline queries and
   replication now request only the safe shape; stale offline collection reads redact fee/notes,
@@ -70,7 +70,7 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
   42501 probes, manager-positive RPC/REST evidence, public-panel runtime replay, and disposable
   deployed proof. Independent ACL and app reviews found no code blocker.
 - **MYK9-149:** local implementation is complete in the current remediation worktree. Migration
-  `20260801150000_exclude_soft_deleted_entries_from_anon_tv.sql` adds the missing
+  `20260801190000_exclude_soft_deleted_entries_from_anon_tv.sql` adds the missing
   `entries.deleted_at IS NULL` predicate to the anonymous TV/running-order policy while retaining
   the public-show scope. Added a source contract and registered behavioral SQL fixture proving a
   live entry remains visible while a soft-deleted sibling is hidden; TV query tests, behavioral

@@ -1,5 +1,5 @@
 -- MYK9-149 / SA-2026-07-29-08: soft-deleted entries must not remain on the
--- anonymous TV/running-order surface after an entry is withdrawn or removed.
+-- anonymous TV/running-order surface after an entry is withdrawn (migration 20260801190000).
 -- The existing show predicate hides deleted shows, but it did not apply the
 -- entries row's own soft-delete marker.
 

@@ -1,4 +1,4 @@
--- MYK9-147: separate office administration from show-day steward access.
+-- MYK9-147: separate office administration from show-day steward access (migration 20260801160000).
 --
 -- is_show_official() intentionally includes stewards for ringside reads and
 -- show-day operations. It must not be reused for enrollment or judge-contract

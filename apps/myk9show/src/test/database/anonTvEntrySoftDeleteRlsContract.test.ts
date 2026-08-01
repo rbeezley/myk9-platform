@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const migration = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260801150000_exclude_soft_deleted_entries_from_anon_tv.sql'
+    '../../../../../supabase/migrations/20260801190000_exclude_soft_deleted_entries_from_anon_tv.sql'
   ),
   'utf8'
 );

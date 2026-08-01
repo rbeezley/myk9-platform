@@ -1,5 +1,5 @@
 -- MYK9-146: keep judge fees and internal assignment notes out of public and
--- ordinary authenticated reads while preserving the public judge panel.
+-- ordinary authenticated reads (migration 20260801180000) while preserving the public judge panel.
 --
 -- RLS cannot hide individual columns. The prior table-wide SELECT grants made
 -- `select=fee,notes` available to a cold anon or unrelated authenticated user,

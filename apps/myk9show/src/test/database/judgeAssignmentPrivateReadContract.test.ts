@@ -6,7 +6,7 @@ const repoRoot = resolve(__dirname, '../../../../..');
 const migration = readFileSync(
   join(
     repoRoot,
-    'supabase/migrations/20260801140000_withhold_judge_assignment_private_columns.sql'
+    'supabase/migrations/20260801180000_withhold_judge_assignment_private_columns.sql'
   ),
   'utf8'
 );

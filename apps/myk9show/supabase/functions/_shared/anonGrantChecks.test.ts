@@ -8,11 +8,9 @@ describe('anonGrantsCheck — exact applied ACL drift', () => {
   it('is ok on the post-MYK9-93 baseline', () => {
     const check = anonGrantsCheck(anonGrants(), PROBED_AT);
     expect(check.status).toBe('ok');
-    // 20, not 22: template_fields was dropped (20260730120000) and classes lost its
-    // table-level grant to the hide-column allowlist (20260730140000), taking their
-    // anon read grants with them.
-    expect(check.detail).toContain('20 table grants (1 write)');
-    expect(check.detail).toContain('75 column grants');
+    // 19 table grants: judge_assignments moved to its ten-column allowlist in MYK9-146.
+    expect(check.detail).toContain('19 table grants (1 write)');
+    expect(check.detail).toContain('85 column grants');
   });
 
   it('fails when a table not on the allowlist gains an anon grant', () => {

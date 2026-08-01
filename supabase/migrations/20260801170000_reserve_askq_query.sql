@@ -1,4 +1,4 @@
--- MYK9-148: atomically reserve the normal AskQ daily quota.
+-- MYK9-148: atomically reserve the normal AskQ daily quota (migration 20260801170000).
 --
 -- The reservation is keyed to the authenticated account and the UTC calendar
 -- day. All chatbot_query_log rows for that account count toward the same

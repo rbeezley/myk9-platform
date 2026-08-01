@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = resolve(__dirname, '../../../../..');
 const migrationPath = join(
   repoRoot,
-  'supabase/migrations/20260801120000_remove_steward_office_writes.sql'
+  'supabase/migrations/20260801160000_remove_steward_office_writes.sql'
 );
 
 function policyBlock(source: string, policyName: string, nextPolicyName: string): string {

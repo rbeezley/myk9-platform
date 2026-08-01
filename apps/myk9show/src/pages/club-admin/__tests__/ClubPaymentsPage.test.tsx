@@ -45,7 +45,10 @@ describe('ClubPaymentsPage — club scope-gating', () => {
     render(<ClubPaymentsPage />);
 
     expect(screen.queryByTestId('club-payments-card')).not.toBeInTheDocument();
-    expect(screen.getByText(/could not verify your club access yet/i)).toBeInTheDocument();
+    // MYK9-138: this previously asserted the CONNECTIVITY message, codifying the
+    // bug — an exhibitor is not blocked by their network, they lack the role.
+    expect(screen.getByText(/club administrator access/i)).toBeInTheDocument();
+    expect(screen.queryByText(/connection/i)).not.toBeInTheDocument();
   });
 
   it('a secretary scoped to a club (not club_admin) sees no club financials', () => {

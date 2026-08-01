@@ -8,16 +8,15 @@
 
 import React from 'react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useClubStore } from '@/store/clubStore';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
+import { ClubContextGate } from '@/components/club-admin/ClubContextGate';
 import { ClubPaymentsCard } from '@/features/payments/ClubPaymentsCard';
 
 const ClubPaymentsPage: React.FC = () => {
   const clubContext = useCurrentValidatedClubContext();
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
-  const clubId = clubContext.status === 'ready' ? clubContext.clubId : undefined;
+  const selectClub = useClubStore(state => state.selectClub);
 
   React.useEffect(() => {
     void ensureClubsReady();
@@ -33,23 +32,15 @@ const ClubPaymentsPage: React.FC = () => {
         </p>
       </div>
 
-      {clubId ? (
-        <ClubPaymentsCard clubId={clubId} />
+      {clubContext.status === 'ready' ? (
+        <ClubPaymentsCard clubId={clubContext.clubId} />
       ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-8 text-center text-muted-foreground">
-            <p>
-              {clubContext.status === 'ambiguous'
-                ? 'More than one club is linked to your account. Ask an administrator to correct the club access before managing payments.'
-                : clubContext.status === 'missing'
-                  ? 'Your club access needs to be configured before you can manage payments.'
-                  : 'We could not verify your club access yet. Check your connection and try again.'}
-            </p>
-            {(clubContext.status === 'unavailable' || clubContext.status === 'loading') && (
-              <Button onClick={() => void ensureClubsReady({ force: true })}>Try again</Button>
-            )}
-          </CardContent>
-        </Card>
+        <ClubContextGate
+          context={clubContext}
+          surface="payments"
+          onRetry={() => void ensureClubsReady({ force: true })}
+          onSelectClub={selectClub}
+        />
       )}
     </div>
   );

@@ -1,23 +1,21 @@
 /**
- * User Management Page - Comprehensive admin interface for managing users
+ * User Management - the site admin's roster of every person on the platform.
  *
- * Features:
- * - Advanced search and filtering
- * - User profile management with RBAC
- * - Bulk operations
- * - User creation and management
- * - Audit logging integration
+ * Search, filter, and sort the roster; open a person to edit them, assign roles,
+ * or remove them; act on many at once with the bulk bar. Deletes here are
+ * reversible from Admin > Deleted Items.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { Filter, Plus, Download, Search } from 'lucide-react';
+import { Filter, Plus, Download, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 // Hooks and services
 import { useAdminUsersQuery, useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { User } from '@/types/user-types';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 // Components
 import { UserTable } from '@/components/admin/users/UserTable';
 import { UserFilters } from '@/components/admin/users/UserFilters';
@@ -26,9 +24,18 @@ import { BulkActionsBar } from '@/components/admin/users/BulkActionsBar';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
 import { ManageUserRolesDialog } from '@/components/admin/permissions/ManageUserRolesDialog';
 // Extracted modules
-import type { UserFilter, SelectedUser } from './UserManagementPage.types';
-import { DEFAULT_USER_FILTER } from './UserManagementPage.types';
-import { filterUsers, calculateRoleStats, exportUsersCSV } from './UserManagementPage.helpers';
+import type { UserFilter, UserSort, SelectedUser } from './UserManagementPage.types';
+import {
+  DEFAULT_USER_FILTER,
+  countActiveUserFilters,
+  hasActiveUserFilters,
+} from './UserManagementPage.types';
+import {
+  filterUsers,
+  sortUsers,
+  calculateRoleStats,
+  exportUsersCSV,
+} from './UserManagementPage.helpers';
 import { UserManagementStats } from './UserManagementStats';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -44,6 +51,7 @@ const UserManagementPage: React.FC = () => {
   // State management
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<UserFilter>(DEFAULT_USER_FILTER);
+  const [sort, setSort] = useState<UserSort | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -57,63 +65,89 @@ const UserManagementPage: React.FC = () => {
   const { data: users = [], isLoading, error, refetch } = useAdminUsersQuery(filters.showDeleted);
   const updateUserMutation = useUpdateUserMutation();
 
-  // Debug logging
-  logger.debug('UserManagementPage render:', 'admin', {
-    isLoading,
-    userCount: users.length,
-    error,
-  });
-
-  // Filter, search, and pagination
+  // Filter, sort, then paginate — in that order, so a sort covers every match
+  // rather than reordering the 25 rows that happen to be on screen.
   const filteredUsers = useMemo(
     () => filterUsers(users, searchTerm, filters),
     [users, searchTerm, filters]
   );
-  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+  const sortedUsers = useMemo(() => sortUsers(filteredUsers, sort), [filteredUsers, sort]);
+  const totalPages = Math.ceil(sortedUsers.length / pageSize);
   // Clamp the active page so it never exceeds the available pages (e.g. after
   // a search narrows results while the user is on a later page).
   const clampedPage = Math.min(currentPage, Math.max(1, totalPages));
-  const paginatedUsers = filteredUsers.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
+  const paginatedUsers = sortedUsers.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
   const roleStats = useMemo(() => calculateRoleStats(users), [users]);
 
-  const hasActiveFilters =
-    searchTerm.trim() !== '' ||
-    filters.role !== 'all' ||
-    filters.status !== 'all' ||
-    !!filters.clubAffiliation;
+  const hasActiveFilters = hasActiveUserFilters(filters, searchTerm);
+  const activeFilterCount = countActiveUserFilters(filters);
+
+  // Only selections the current filters still show can be acted on. Derived
+  // rather than reconciled in an effect, so narrowing a filter can never leave
+  // the bulk bar pointed at people who are off-screen, and widening it back
+  // restores the selection instead of having silently discarded it.
+  const visibleSelection = useMemo(() => {
+    if (selectedUsers.length === 0) return selectedUsers;
+    const visibleIds = new Set(filteredUsers.map(user => user.id));
+    return selectedUsers.filter(item => visibleIds.has(item.id));
+  }, [selectedUsers, filteredUsers]);
 
   // Selection handlers
-  const handleSelectUser = (user: User, selected: boolean) => {
-    if (selected) {
-      setSelectedUsers(prev => [...prev, { id: user.id, user }]);
-    } else {
-      setSelectedUsers(prev => prev.filter(item => item.id !== user.id));
-    }
-  };
+  const handleSelectUser = useCallback((user: User, selected: boolean) => {
+    setSelectedUsers(prev =>
+      selected
+        ? prev.some(item => item.id === user.id)
+          ? prev
+          : [...prev, { id: user.id, user }]
+        : prev.filter(item => item.id !== user.id)
+    );
+  }, []);
 
-  const handleSelectAll = (selected: boolean) => {
-    if (selected) {
-      setSelectedUsers(paginatedUsers.map(user => ({ id: user.id, user })));
-    } else {
-      setSelectedUsers([]);
-    }
-  };
+  // Select-all covers the current page, and merges with (rather than replaces)
+  // selections made on other pages.
+  const handleSelectAll = useCallback(
+    (selected: boolean) => {
+      const pageIds = new Set(paginatedUsers.map(user => user.id));
+      setSelectedUsers(prev => {
+        const withoutPage = prev.filter(item => !pageIds.has(item.id));
+        return selected
+          ? [...withoutPage, ...paginatedUsers.map(user => ({ id: user.id, user }))]
+          : withoutPage;
+      });
+    },
+    [paginatedUsers]
+  );
 
-  const clearSelection = () => setSelectedUsers([]);
-  const removeDeletedUsers = (deletedUserIds: string[]) => {
+  const clearSelection = useCallback(() => setSelectedUsers([]), []);
+  const removeDeletedUsers = useCallback((deletedUserIds: string[]) => {
     if (deletedUserIds.length === 0) return;
     setSelectedUsers(prev => prev.filter(item => !deletedUserIds.includes(item.id)));
-  };
+  }, []);
 
   // User action handlers
-  const handleUserClick = (user: User) => {
+  const handleUserClick = useCallback((user: User) => {
     setSelectedUser(user);
     setShowUserEditPanel(true);
-  };
+  }, []);
 
-  const handleManageRoles = (user: User) => {
+  const handleManageRoles = useCallback((user: User) => {
     setRoleAssignTarget(user);
-  };
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSearchTerm('');
+    setFilters(DEFAULT_USER_FILTER);
+  }, []);
+
+  const handleSortChange = useCallback((next: UserSort | null) => {
+    setSort(next);
+    setCurrentPage(1);
+  }, []);
+
+  const handlePageSizeChange = useCallback((size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  }, []);
 
   const handleEditPanelSave = async (userData: Partial<User>) => {
     if (!selectedUser) return;
@@ -127,7 +161,7 @@ const UserManagementPage: React.FC = () => {
       notifications.success('User updated successfully');
     } catch (err) {
       logger.error('Failed to update user:', 'pages', {}, err as Error);
-      notifications.error('Failed to update user');
+      notifications.error(getUserFriendlyError(err, 'Failed to update user'));
       throw err;
     }
   };
@@ -143,7 +177,7 @@ const UserManagementPage: React.FC = () => {
 
   const actionButtons = (
     <>
-      <Button variant="outline" onClick={() => exportUsersCSV(filteredUsers)}>
+      <Button variant="outline" onClick={() => exportUsersCSV(sortedUsers)}>
         <Download className="h-4 w-4 mr-2" />
         Export Users
       </Button>
@@ -154,144 +188,145 @@ const UserManagementPage: React.FC = () => {
     </>
   );
 
+  const showEmptyState = !isLoading && sortedUsers.length === 0;
+
   return (
     <PageShell>
       {/* Error state */}
       {error && !isLoading && (
-        <ErrorState message="Failed to load users." onRetry={() => refetch()} />
+        <ErrorState
+          message="Failed to load users."
+          description={getUserFriendlyError(error, 'Check your connection and try again.')}
+          onRetry={() => refetch()}
+        />
       )}
 
       {/* Normal content */}
       {!error && (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title="User Management" actions={actionButtons} />
-
-          {/* Statistics */}
-          <UserManagementStats
-            users={users}
-            filteredUsers={filteredUsers}
-            roleStats={roleStats}
-            selectedUsers={selectedUsers}
+          <PageHeader
+            breadcrumbs={breadcrumbs}
+            title="User Management"
+            showTitle
+            actions={actionButtons}
           />
 
+          {/* Statistics */}
+          <UserManagementStats users={users} filteredUsers={sortedUsers} roleStats={roleStats} />
+
           {/* Bulk Actions Bar */}
-          {selectedUsers.length > 0 && (
+          {visibleSelection.length > 0 && (
             <BulkActionsBar
-              selectedUsers={selectedUsers}
+              selectedUsers={visibleSelection}
               onClearSelection={clearSelection}
               onBulkComplete={deletedUserIds => {
                 removeDeletedUsers(deletedUserIds ?? []);
               }}
               onUsersDeleted={deletedUserIds => {
                 removeDeletedUsers(deletedUserIds);
-                logger.debug('Users deleted:', 'admin', { data: deletedUserIds });
               }}
             />
           )}
 
           {/* Search & Filters toolbar */}
-          <div className="bg-card/30 border border-border/40 rounded-2xl p-4 space-y-3 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <div className="flex-1 w-full sm:max-w-md">
                 <SearchBar
                   value={searchTerm}
                   onChange={setSearchTerm}
-                  placeholder="Search by name, email, or ID..."
+                  placeholder="Search by name, email, or phone..."
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant={showFilters ? 'default' : 'outline'}
-                  size="sm"
                   onClick={() => setShowFilters(!showFilters)}
                   aria-expanded={showFilters}
                   aria-controls="user-filters-panel"
-                  className="h-10 px-4 rounded-xl"
+                  className="h-11 px-4 rounded-xl"
                 >
                   <Filter className="h-4 w-4 mr-2" />
                   Filters
-                  {(filters.role !== 'all' ||
-                    filters.status !== 'all' ||
-                    !!filters.clubAffiliation) && (
+                  {activeFilterCount > 0 && (
                     <Badge
                       variant="secondary"
-                      aria-hidden="true"
-                      className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full"
+                      className="ml-2 h-6 min-w-6 px-1.5 flex items-center justify-center rounded-full"
                     >
-                      !
+                      <span className="sr-only">Active filters: </span>
+                      {activeFilterCount}
                     </Badge>
                   )}
                 </Button>
-                {selectedUsers.length > 0 && (
+                {visibleSelection.length > 0 && (
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={clearSelection}
-                    className="h-10 px-4 rounded-xl"
+                    className="h-11 px-4 rounded-xl"
                   >
-                    Clear Selection ({selectedUsers.length})
+                    Clear Selection ({visibleSelection.length})
                   </Button>
                 )}
               </div>
             </div>
 
             {showFilters && (
-              <div id="user-filters-panel" className="pt-3 border-t border-border/30">
+              <div id="user-filters-panel" className="pt-3 border-t border-border">
                 <UserFilters filters={filters} onFiltersChange={setFilters} roleStats={roleStats} />
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2 border-t border-border/20">
-              <span className="text-sm text-muted-foreground">
-                {filteredUsers.length} of {users.length} user{users.length !== 1 ? 's' : ''}
-                {hasActiveFilters && ' (filtered)'}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                Page {clampedPage} of {totalPages || 1}
-              </span>
-            </div>
+            <p
+              className="pt-2 border-t border-border text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              {`Showing ${sortedUsers.length} of ${users.length} user${users.length !== 1 ? 's' : ''}`}
+              {hasActiveFilters && ' (filtered)'}
+            </p>
           </div>
 
-          {/* Empty state for zero-result filters */}
-          {filteredUsers.length === 0 && !isLoading && hasActiveFilters && (
-            <EmptyState
-              icon={Search}
-              title="No users match your filters"
-              description="Try adjusting your search or filter criteria."
-              action={{
-                label: 'Clear Filters',
-                onClick: () => {
-                  setSearchTerm('');
-                  setFilters(DEFAULT_USER_FILTER);
-                },
-              }}
-              variant="filter"
-            />
-          )}
+          {/* Empty states — zero users at all, or zero matches for the filters */}
+          {showEmptyState &&
+            (hasActiveFilters ? (
+              <EmptyState
+                icon={Search}
+                title="No users match your filters"
+                description="Try a different search term, or clear the filters to see everyone."
+                action={{ label: 'Clear filters', onClick: clearFilters }}
+                variant="filter"
+              />
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="No users yet"
+                description="Nobody has an account on the platform yet."
+                action={{
+                  label: 'Create the first user',
+                  onClick: () => setShowCreateDialog(true),
+                }}
+              />
+            ))}
 
           {/* User Table */}
-          {(filteredUsers.length > 0 || isLoading) && (
+          {!showEmptyState && (
             <UserTable
               users={paginatedUsers}
               isLoading={isLoading}
-              selectedUsers={selectedUsers}
+              selectedUsers={visibleSelection}
               onSelectUser={handleSelectUser}
               onSelectAll={handleSelectAll}
               onUserClick={handleUserClick}
               onManageRoles={handleManageRoles}
               currentPage={clampedPage}
               totalPages={totalPages}
-              totalFilteredUsers={filteredUsers.length}
+              totalFilteredUsers={sortedUsers.length}
               onPageChange={setCurrentPage}
-              onClearSearch={() => {
-                setSearchTerm('');
-                setFilters(DEFAULT_USER_FILTER);
-              }}
+              searchTerm={searchTerm}
+              sort={sort}
+              onSortChange={handleSortChange}
               pageSize={pageSize}
-              onPageSizeChange={size => {
-                setPageSize(size);
-                setCurrentPage(1);
-              }}
+              onPageSizeChange={handlePageSizeChange}
             />
           )}
         </>

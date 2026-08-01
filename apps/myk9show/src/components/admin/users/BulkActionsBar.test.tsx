@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BulkActionsBar } from './BulkActionsBar';
 import {
@@ -102,6 +102,18 @@ const defaultProps = {
   onUsersDeleted: vi.fn(),
 };
 
+/**
+ * The "Selected users:" label is screen-reader-only, so the visible names and
+ * their label live in two elements. Read the paragraph's full text instead of
+ * matching a single text node.
+ */
+function selectedUsersText(): string {
+  const paragraph = screen
+    .getAllByText((_, element) => element?.tagName === 'P')
+    .find(element => element.textContent?.startsWith('Selected users:'));
+  return paragraph?.textContent ?? '';
+}
+
 describe('BulkActionsBar', () => {
   const mockMutateAsync = vi.fn();
 
@@ -187,7 +199,7 @@ describe('BulkActionsBar', () => {
     render(<BulkActionsBar {...defaultProps} />);
 
     expect(screen.getByText('2 selected')).toBeInTheDocument();
-    expect(screen.getByText(/Selected users: John Doe, Jane Smith/)).toBeInTheDocument();
+    expect(selectedUsersText()).toBe('Selected users: John Doe, Jane Smith');
   });
 
   it('does not render when no users are selected', () => {
@@ -200,7 +212,7 @@ describe('BulkActionsBar', () => {
     render(<BulkActionsBar {...defaultProps} />);
 
     expect(screen.getByText('2 selected')).toBeInTheDocument();
-    expect(screen.getByText(/Selected users: John Doe, Jane Smith/)).toBeInTheDocument();
+    expect(selectedUsersText()).toBe('Selected users: John Doe, Jane Smith');
   });
 
   it('truncates user list when more than 3 users selected', () => {
@@ -235,56 +247,54 @@ describe('BulkActionsBar', () => {
     render(<BulkActionsBar {...defaultProps} selectedUsers={manyUsers} />);
 
     expect(screen.getByText('4 selected')).toBeInTheDocument();
-    expect(
-      screen.getByText(/Selected users: John Doe, Jane Smith, Bob Johnson and 1 more/)
-    ).toBeInTheDocument();
+    expect(selectedUsersText()).toBe(
+      'Selected users: John Doe, Jane Smith, Bob Johnson and 1 more'
+    );
   });
 
   it('calls onClearSelection when clear button is clicked', () => {
     const mockClear = vi.fn();
     render(<BulkActionsBar {...defaultProps} onClearSelection={mockClear} />);
 
-    // The clear button is the one with just the X icon and no text
-    const buttons = screen.getAllByRole('button');
-    const clearButton = buttons.find(
-      button =>
-        button.className.includes('h-8 w-8 p-0') &&
-        button.querySelector('svg')?.classList.contains('lucide-x')
-    );
-
-    expect(clearButton).toBeTruthy();
-    fireEvent.click(clearButton!);
+    // Found by its accessible name, not its size classes — the icon-only button
+    // is 44px now, and a class-based query breaks on every restyle.
+    fireEvent.click(screen.getByRole('button', { name: /clear selection/i }));
 
     expect(mockClear).toHaveBeenCalledOnce();
   });
 
+  // Every user of /admin/users is a SITE_ADMIN (the route is role-guarded), so
+  // these run against the admin dialog — the only one that can be reached. A
+  // second, non-admin dialog used to render here behind an `isAdmin` branch and
+  // told the reader a restorable delete "cannot be undone"; it was removed.
   describe('Bulk Delete functionality', () => {
-    it('opens delete confirmation dialog when delete button is clicked', () => {
+    it('opens the delete dialog with both delete modes described accurately', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
-      expect(screen.getAllByText('Delete Users')).toHaveLength(2); // Title and button
+      expect(screen.getByText('Delete Users')).toBeInTheDocument();
       expect(
-        screen.getByText(/Are you sure you want to delete 2 selected users/)
+        screen.getByText(/Records are preserved and can be restored later/)
       ).toBeInTheDocument();
+      expect(screen.getByText(/Removes all data and the login account/)).toBeInTheDocument();
     });
 
-    it('shows user details in delete confirmation dialog', () => {
+    it('names the users being deleted', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
-      fireEvent.click(deleteButton);
+      fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      expect(screen.getByText('John Doe (john.doe@example.com)')).toBeInTheDocument();
-      expect(screen.getByText('Jane Smith (jane.smith@example.com)')).toBeInTheDocument();
+      // Scoped to the dialog: the bulk bar behind it lists the same names.
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByText('John Doe, Jane Smith')).toBeInTheDocument();
     });
 
     it('cancels delete operation when cancel button is clicked', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
@@ -307,11 +317,11 @@ describe('BulkActionsBar', () => {
       );
 
       // Open delete dialog
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
       // Confirm deletion
-      const confirmButton = screen.getByRole('button', { name: /delete users/i });
+      const confirmButton = screen.getByRole('button', { name: /^deactivate$/i });
       fireEvent.click(confirmButton);
 
       await waitFor(() => {
@@ -333,11 +343,11 @@ describe('BulkActionsBar', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       // Open delete dialog
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
       // Confirm deletion
-      const confirmButton = screen.getByRole('button', { name: /delete users/i });
+      const confirmButton = screen.getByRole('button', { name: /^deactivate$/i });
       fireEvent.click(confirmButton);
 
       await waitFor(() => {
@@ -354,11 +364,11 @@ describe('BulkActionsBar', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       // Open delete dialog
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
       // Confirm deletion
-      const confirmButton = screen.getByRole('button', { name: /delete users/i });
+      const confirmButton = screen.getByRole('button', { name: /^deactivate$/i });
       fireEvent.click(confirmButton);
 
       // Check loading state
@@ -381,11 +391,11 @@ describe('BulkActionsBar', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       // Open delete dialog
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
       // Confirm deletion
-      const confirmButton = screen.getByRole('button', { name: /delete users/i });
+      const confirmButton = screen.getByRole('button', { name: /^deactivate$/i });
       fireEvent.click(confirmButton);
 
       await waitFor(() => {
@@ -417,7 +427,7 @@ describe('BulkActionsBar', () => {
     it('has proper ARIA labels', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       expect(deleteButton).toBeInTheDocument();
 
       // Check that buttons are accessible
@@ -428,7 +438,7 @@ describe('BulkActionsBar', () => {
     it('supports keyboard navigation', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       deleteButton.focus();
       expect(deleteButton).toHaveFocus();
     });
@@ -473,7 +483,7 @@ describe('BulkActionsBar', () => {
     it('shows AdminDeleteUserDialog with soft/permanent options for admins', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
       // Should show the admin dialog with radio options
@@ -486,7 +496,7 @@ describe('BulkActionsBar', () => {
 
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
       // Deactivate is default
@@ -521,7 +531,7 @@ describe('BulkActionsBar', () => {
 
       render(<BulkActionsBar {...defaultProps} />);
 
-      const deleteButton = screen.getByRole('button', { name: /delete/i });
+      const deleteButton = screen.getByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteButton);
 
       const permanentRadio = screen.getByLabelText(/Permanently delete/);

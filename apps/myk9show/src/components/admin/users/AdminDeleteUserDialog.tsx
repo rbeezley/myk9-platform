@@ -26,6 +26,12 @@ interface AdminDeleteUserDialogProps {
   bulkCount?: number;
   /** The person being deleted. Drives the owns-dogs guard (single delete only). */
   personId?: string;
+  /**
+   * A failure from the delete the caller just ran. Shown in place so the reason
+   * ("owns registered dogs", "has show entries") stays attached to the action —
+   * the dialog stays open on failure, so an error rendered elsewhere is unseen.
+   */
+  errorMessage?: string | null;
 }
 
 export function AdminDeleteUserDialog({
@@ -37,6 +43,7 @@ export function AdminDeleteUserDialog({
   isDeleting,
   bulkCount,
   personId,
+  errorMessage,
 }: AdminDeleteUserDialogProps) {
   const [mode, setMode] = useState<DeleteMode>('soft');
 
@@ -76,9 +83,8 @@ export function AdminDeleteUserDialog({
               Can&apos;t delete {entityName}
             </DialogTitle>
             <DialogDescription>
-              This person still owns {dogs.length} live{' '}
-              {dogs.length === 1 ? 'dog' : 'dogs'}. Deleting them would leave{' '}
-              {dogs.length === 1 ? 'it' : 'them'} without an owner.
+              This person still owns {dogs.length} live {dogs.length === 1 ? 'dog' : 'dogs'}.
+              Deleting them would leave {dogs.length === 1 ? 'it' : 'them'} without an owner.
             </DialogDescription>
           </DialogHeader>
 
@@ -121,6 +127,13 @@ export function AdminDeleteUserDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {errorMessage && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Soft Delete Option */}
           <label
             className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors
@@ -137,7 +150,7 @@ export function AdminDeleteUserDialog({
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <UserX className="h-4 w-4 text-orange-500" />
+                <UserX className="h-4 w-4 text-warning" />
                 <span className="font-medium">Deactivate</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">

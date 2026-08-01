@@ -83,6 +83,13 @@ interface DataTableProps<TData> {
   globalFilter?: string;
   onGlobalFilterChange?: (value: string) => void;
   manualSorting?: boolean;
+  /**
+   * Controlled sorting. Pass alongside `manualSorting` when the caller sorts
+   * the data itself — a table that only holds one page of rows can only sort
+   * that page, which misreports any sort on a multi-page list.
+   */
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
   className?: string;
   getRowClassName?: (data: TData) => string;
   /**
@@ -213,12 +220,15 @@ export function DataTable<TData>({
   globalFilter: controlledGlobalFilter,
   onGlobalFilterChange,
   manualSorting = false,
+  sorting: controlledSorting,
+  onSortingChange,
   className,
   getRowClassName,
   density: controlledDensity,
 }: DataTableProps<TData>) {
   const resolvedPageSizeOptions = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
-  const [sorting, setSorting] = useState<SortingState>(initialSorting ?? []);
+  const [internalSorting, setInternalSorting] = useState<SortingState>(initialSorting ?? []);
+  const sorting = controlledSorting ?? internalSorting;
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(tableId);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -298,7 +308,11 @@ export function DataTable<TData>({
     manualSorting,
     getRowId,
     onPaginationChange: setPagination,
-    onSortingChange: setSorting,
+    onSortingChange: updater => {
+      const next = typeof updater === 'function' ? updater(sorting) : updater;
+      if (!controlledSorting) setInternalSorting(next);
+      onSortingChange?.(next);
+    },
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: updater => {
       const next = typeof updater === 'function' ? updater(columnVisibility) : updater;
@@ -337,7 +351,9 @@ export function DataTable<TData>({
   };
 
   const resetTableView = () => {
-    setSorting(initialSorting ?? []);
+    const resetSorting = initialSorting ?? [];
+    if (!controlledSorting) setInternalSorting(resetSorting);
+    onSortingChange?.(resetSorting);
     setColumnFilters([]);
     setColumnVisibility({});
     setRowSelection({});

@@ -5,16 +5,27 @@ interface ErrorStateProps {
   message: string;
   onRetry?: () => void;
   className?: string;
+  /**
+   * What the reader should do about it. Defaults to the connection advice,
+   * which is wrong (and faintly insulting) for a permission or server error —
+   * pass the real reason when the caller knows it.
+   */
+  description?: string;
 }
 
-export function ErrorState({ message, onRetry, className }: ErrorStateProps) {
+export function ErrorState({
+  message,
+  onRetry,
+  className,
+  description = 'Check your connection and try again.',
+}: ErrorStateProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center py-16 text-center', className)}>
       <div className="bg-destructive/10 rounded-full p-4 mb-4">
         <AlertCircle className="h-10 w-10 text-destructive" />
       </div>
       <h3 className="text-lg font-semibold mb-2">{message}</h3>
-      <p className="text-muted-foreground mb-6">Check your connection and try again.</p>
+      <p className="text-muted-foreground mb-6">{description}</p>
       {onRetry && (
         <button
           onClick={onRetry}

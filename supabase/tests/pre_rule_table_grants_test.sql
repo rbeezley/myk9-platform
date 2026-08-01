@@ -64,7 +64,8 @@ BEGIN
     ('frontend_logs','','','SELECT,INSERT,UPDATE,DELETE'),
     ('genetic_screenings','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('health_records','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
-    ('judge_assignments','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
+    -- MYK9-146: fee/notes are column-restricted; writes remain table-level.
+    ('judge_assignments','INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('judge_availability','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('judge_certifications','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('judge_qualifications','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
@@ -280,6 +281,8 @@ BEGIN
       ('classes','authenticated',54),
       ('entries','anon',14),
       ('entries','authenticated',54),
+      ('judge_assignments','anon',10),
+      ('judge_assignments','authenticated',12),
       ('dogs','anon',5),
       ('people','anon',4),
       ('dog_registrations','authenticated',1),
@@ -310,7 +313,7 @@ BEGIN
   IF v_bad <> '' THEN
     RAISE EXCEPTION 'FAIL column allowlist damaged -- a REVOKE took column grants with it:%', v_bad;
   END IF;
-  RAISE NOTICE 'PASS all six column allowlists intact';
+  RAISE NOTICE 'PASS all column allowlists intact';
 END;
 $$;
 
@@ -361,6 +364,11 @@ BEGIN
 
   IF NOT has_column_privilege('authenticated', 'public.classes'::regclass, 'id', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL authenticated lost classes.id -- a REVOKE took the column allowlist with it';
+  END IF;
+
+  IF has_column_privilege('authenticated', 'public.judge_assignments'::regclass, 'fee', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.judge_assignments'::regclass, 'notes', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL authenticated can read judge assignment fee/notes outside the manager RPC';
   END IF;
 
   RAISE NOTICE 'PASS authenticated cannot read the judge-set hide count but keeps the rest of the class';

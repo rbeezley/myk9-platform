@@ -49,7 +49,7 @@ export const TrialPipelineDetail: React.FC = () => {
       if (!showId) return 0;
       const { count } = await supabase
         .from('judge_assignments')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('show_id', showId);
       return count ?? 0;
     },

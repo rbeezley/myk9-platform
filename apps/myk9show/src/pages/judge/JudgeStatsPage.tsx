@@ -103,9 +103,9 @@ const JudgeStatsPage: React.FC = () => {
             />
             <StatCard
               title="Total Fees"
-              value={`$${(stats?.totalFees ?? 0).toFixed(0)}`}
+              value={stats?.totalFees == null ? '—' : `$${stats.totalFees.toFixed(0)}`}
               icon={DollarSign}
-              subtitle={`${currentYear} earnings`}
+              subtitle={stats?.totalFees == null ? 'Show manager only' : `${currentYear} earnings`}
               color="emerald"
             />
           </>

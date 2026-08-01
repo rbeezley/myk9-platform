@@ -73,13 +73,10 @@ export async function postgrestGetAllShows() {
         status,
         invited_at,
         confirmed_at,
-        fee,
-        notes,
         judge:people!judge_assignments_person_id_fkey(
           id,
           first_name,
-          last_name,
-          email
+          last_name
         )
       )
     `
@@ -330,13 +327,10 @@ export async function postgrestGetShowById(id: string) {
         status,
         invited_at,
         confirmed_at,
-        fee,
-        notes,
         judge:people!judge_assignments_person_id_fkey(
           id,
           first_name,
-          last_name,
-          email
+          last_name
         )
       )
     `

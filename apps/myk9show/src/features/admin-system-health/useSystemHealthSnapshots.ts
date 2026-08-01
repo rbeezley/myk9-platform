@@ -13,7 +13,7 @@ import { parseSnapshot } from './systemHealthSelectors';
 import type { SystemHealthSnapshot, SystemHealthSnapshotRow } from './systemHealthTypes';
 
 /** How many recent runs the history strip shows. */
-export const HISTORY_LIMIT = 7;
+export const HISTORY_LIMIT = 12;
 
 export interface SystemHealthData {
   /** Most recent snapshot, or null when the table is empty. */
@@ -31,9 +31,7 @@ async function fetchSystemHealth(): Promise<SystemHealthData> {
 
   if (error) throw error;
 
-  const history = (data ?? []).map((row) =>
-    parseSnapshot(row as SystemHealthSnapshotRow)
-  );
+  const history = (data ?? []).map(row => parseSnapshot(row as SystemHealthSnapshotRow));
   return { latest: history[0] ?? null, history };
 }
 

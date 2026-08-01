@@ -33,6 +33,18 @@ export interface SnapshotCheck {
    * conflict counter, so the NEXT run can diff against it). The board's
    * tolerant parser ignores unknown keys. */
   counter_value?: number;
+  /**
+   * Whether an amber result means "we looked and it is degraded" (`proven`) or
+   * "this check cannot prove anything either way" (`unprovable`).
+   *
+   * The board renders three buckets — passing / amber / failing — and the design
+   * calls the amber one **Unverified**. That word is only true for some of what
+   * lands there: a dispatch-only payout check genuinely cannot know, but an
+   * overdue cron job is a *proven* degradation and calling it "Unverified" would
+   * misreport it. Rather than overload `status`, the runner says which it means
+   * and the board picks the honest word. Absent = `proven`.
+   */
+  verification?: 'proven' | 'unprovable';
   /** Events observed in THIS run's window, where `counter_value` is the running
    * total. Named apart from `counter_value` deliberately: the two were conflated
    * in one prose string ("N conflicts since previous snapshot (counter M)"),
@@ -244,12 +256,16 @@ function payoutCronCheck(
   }
   // TICKET-2: dispatch-only success is Unverified on the money path, never OK.
   const { status, detail } = evaluateJob(job, now, staleAfterMs, true);
+  // Amber here is the genuine "cannot prove it either way" case; amber from an
+  // overdue or never-run job is a proven degradation and keeps the default.
+  const unprovable = status === 'warn' && job.lastStatus === 'succeeded';
   return {
     key: 'payout_cron',
     label: 'Nightly payout job',
     status,
     detail: `${PAYOUT_CRON_JOB} ${detail}`,
     checked_at: job.lastRunAt ?? probedAt,
+    ...(unprovable ? { verification: 'unprovable' as const } : {}),
   };
 }
 
@@ -308,7 +324,12 @@ function payoutLedgerCheck(facts: RawProbeFacts, probedAt: string): SnapshotChec
   const ledger = parsePayoutLedger(facts.payout_ledger);
 
   if (!ledger) {
-    return { ...base, status: 'warn', detail: 'probe did not report payout_ledger' };
+    return {
+      ...base,
+      status: 'warn',
+      detail: 'probe did not report payout_ledger',
+      verification: 'unprovable',
+    };
   }
   if (ledger.failed > 0) {
     const reasons = ledger.failureReasons.length
@@ -517,6 +538,7 @@ function ringsideConflictsCheck(
       ...base,
       status: 'warn',
       detail: `probe did not report ringside_conflict_counter.${containedNote}`,
+      verification: 'unprovable',
     };
   }
   if (previousCounter === null || previousCounter === undefined) {

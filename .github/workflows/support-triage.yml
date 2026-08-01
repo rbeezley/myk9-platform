@@ -39,12 +39,17 @@ jobs:
 
       - name: Run one triage pass
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # Reuses the existing VITE_SUPABASE_URL secret rather than adding a second
+          # secret holding the same value — two copies drift when one is rotated.
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           SUPPORT_OPERATOR_USER_ID: ${{ secrets.SUPPORT_OPERATOR_USER_ID }}
           SUPPORT_OPERATOR_EMAIL: ${{ secrets.SUPPORT_OPERATOR_EMAIL }}
-          SUPPORT_TRIAGE_FROM_EMAIL: ${{ secrets.SUPPORT_TRIAGE_FROM_EMAIL }}
-          MYK9_APP_URL: ${{ secrets.MYK9_APP_URL }}
+          # Not secrets — a public URL and the Resend sender already verified for
+          # myk9show.com and used by the existing edge functions. Kept in plain sight
+          # so the workflow is readable without console access.
+          SUPPORT_TRIAGE_FROM_EMAIL: 'myK9Show Support <notifications@myk9show.com>'
+          MYK9_APP_URL: 'https://myk9-platform-myk9show.vercel.app'
         run: pnpm support:triage

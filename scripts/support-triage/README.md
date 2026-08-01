@@ -10,12 +10,16 @@ and emails them to the operator. Design rationale:
   the model's entire output is an answer id from `answers.ts`, constrained by a JSON
   schema enum and re-validated locally.
 - It **never** auto-sends on a payment/refund question, a show-day-priority ticket, or a
-  ticket where the exhibitor already replied to an operator answer.
-- It sends at most 3 auto-replies per pass. Exceeding that sends nothing further.
+  ticket where the exhibitor already replied to an operator answer. Those tickets skip
+  the model entirely and get a reason-only email.
+- The carve-out is re-checked against a fresh read of the thread immediately before
+  sending, so a trigger that arrives mid-pass still blocks the send.
+- It sends at most 3 auto-replies per pass. Exceeding that sends nothing further and
+  emails you that the cap engaged.
 - `CANNED_ANSWERS` starts empty, so today it auto-sends nothing at all — every ticket
   produces a draft email and nothing reaches an exhibitor.
-- It interrupts you only for a cluster (3+ open tickets on one show within an hour).
-  There is no daily digest.
+- It interrupts you only for a cluster (3+ tickets awaiting a reply on one show within an
+  hour). There is no daily digest.
 
 ## Promoting an answer
 
@@ -35,18 +39,34 @@ not semantic. Phrasings that avoid those keywords — "can I get my money back" 
 caught by the payment carve-out. Pinned by a regression test in `carveOuts.test.ts`.
 This is inert while `CANNED_ANSWERS` is empty; revisit before promoting the first answer.
 
+Also open: [MYK9-135](https://linear.app/myk9-platform/issue/MYK9-135/support-triage-auto-send-make-the-send-guard-atomic)
+— the send guard is check-then-insert rather than atomic.
+
 ## Required GitHub secrets
 
-| Secret                      | Value                                                                             |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| `SUPABASE_URL`              | `https://sojmvhhwsjxmfistvzbe.supabase.co`                                        |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key. Bypasses RLS — this workflow is the only consumer.              |
-| `ANTHROPIC_API_KEY`         | Anthropic API key.                                                                |
-| `RESEND_API_KEY`            | The same Resend key the edge functions use.                                       |
-| `SUPPORT_OPERATOR_USER_ID`  | The `auth.users.id` that auto-sent messages are attributed to.                    |
-| `SUPPORT_OPERATOR_EMAIL`    | Where drafts and cluster alerts go.                                               |
-| `SUPPORT_TRIAGE_FROM_EMAIL` | A verified Resend sender.                                                         |
-| `MYK9_APP_URL`              | Base URL for ticket deep links, e.g. `https://myk9-platform-myk9show.vercel.app`. |
+Four to add. Two more values the workflow needs are already covered.
+
+| Secret                      | Status      | Value                                                                                |
+| --------------------------- | ----------- | ------------------------------------------------------------------------------------ |
+| `ANTHROPIC_API_KEY`         | **add**     | Anthropic API key.                                                                   |
+| `RESEND_API_KEY`            | **add**     | The same Resend key the edge functions use.                                          |
+| `SUPPORT_OPERATOR_EMAIL`    | **add**     | Where drafts and cluster alerts go.                                                  |
+| `SUPPORT_OPERATOR_USER_ID`  | **add**     | The `auth.users.id` auto-sent messages are attributed to.                            |
+| `SUPABASE_SERVICE_ROLE_KEY` | already set | Service-role key. Bypasses RLS — this workflow is the only consumer.                 |
+| `VITE_SUPABASE_URL`         | already set | Reused as `SUPABASE_URL`; a second secret holding the same value drifts on rotation. |
+
+```bash
+gh secret set ANTHROPIC_API_KEY
+```
+
+Two further values are **deliberately not secrets** — they are plain `env:` entries in
+`.github/workflows/support-triage.yml`, so the workflow is readable without console
+access:
+
+- `SUPPORT_TRIAGE_FROM_EMAIL` — `notifications@myk9show.com`, the sender already verified
+  in Resend and used by the existing edge functions.
+- `MYK9_APP_URL` — the staging URL, used only to build ticket deep links. **Change this at
+  launch** when you start working from a production domain.
 
 Until every secret exists, each scheduled run fails fast and emails nothing.
 

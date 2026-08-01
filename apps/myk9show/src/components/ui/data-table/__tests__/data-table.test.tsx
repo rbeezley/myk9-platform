@@ -80,6 +80,38 @@ describe('DataTable', () => {
     );
   });
 
+  it('calls onRowClick inside a focusable scroll region', async () => {
+    // The interactive-element guard used to scan the whole ancestor chain, so a
+    // table wrapped in the standard `role="region" tabIndex={0}` scroll area
+    // matched that wrapper and swallowed every row click (/admin/users shipped
+    // this way). The guard only means "did the click land on something
+    // interactive *inside the row*".
+    const handleClick = vi.fn();
+    const { user } = render(
+      <div role="region" tabIndex={0} aria-label="Table scroll area">
+        <DataTable columns={columns} data={testData} onRowClick={handleClick} />
+      </div>
+    );
+    await user.click(screen.getByText('Alice'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('still ignores clicks on interactive cells inside the row', async () => {
+    const handleClick = vi.fn();
+    const withButton = [
+      ...columns,
+      {
+        id: 'action',
+        cell: () => <button type="button">Act</button>,
+      },
+    ];
+    const { user } = render(
+      <DataTable columns={withButton} data={testData} onRowClick={handleClick} />
+    );
+    await user.click(screen.getAllByRole('button', { name: 'Act' })[0]!);
+    expect(handleClick).not.toHaveBeenCalled();
+  });
+
   it('applies cursor-pointer class when onRowClick is set', () => {
     render(<DataTable columns={columns} data={testData} onRowClick={() => {}} />);
     const row = screen.getByText('Alice').closest('tr');

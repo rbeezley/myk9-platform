@@ -460,6 +460,10 @@ export const UserTable: React.FC<UserTableProps> = ({
               if (user.deletedAt) return;
               onUserClick(user);
             }}
+            // …and it must not *look* clickable either. DataTable applies
+            // cursor-pointer whenever onRowClick is set; this wins the merge
+            // back for the rows the handler ignores.
+            getRowClassName={user => (user.deletedAt ? 'cursor-default' : '')}
             className="myk9-table"
             manualSorting
             sorting={sorting}

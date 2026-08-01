@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { type ColumnDef, type SortingState } from '@tanstack/react-table';
 import { DataTable } from '@/components/ui/data-table';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
 import { usePermanentDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
+import { restoreUser } from '@/services/database/users';
+import { queryKeys } from '@/lib/queryClient';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { AdminDeleteUserDialog } from '../AdminDeleteUserDialog';
 import '@/styles/myk9-table.css';
@@ -62,6 +65,7 @@ function buildColumns(
   onViewUser: (user: User) => void,
   onEditUser: (user: User) => void,
   onDeleteUser: (user: User) => void,
+  onRestoreUser: (user: User) => void,
   onManageRolesUser?: (user: User) => void
 ): ColumnDef<AdminUser, unknown>[] {
   const density = DENSITY_CONFIG[densityMode];
@@ -277,6 +281,7 @@ function buildColumns(
               onView={onViewUser}
               onEdit={onEditUser}
               onDelete={onDeleteUser}
+              onRestore={onRestoreUser}
               {...(onManageRolesUser ? { onManageRoles: onManageRolesUser } : {})}
             />
           </span>
@@ -311,8 +316,10 @@ export const UserTable: React.FC<UserTableProps> = ({
 }) => {
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const { deleteUser } = useUserStore();
   const permanentDeleteMutation = usePermanentDeleteUserMutation();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   // Handle row actions
@@ -320,12 +327,40 @@ export const UserTable: React.FC<UserTableProps> = ({
   const handleEditUser = useCallback((user: User) => onUserClick(user), [onUserClick]);
   const handleDeleteUser = useCallback((user: User) => setDeleteTarget(user), []);
 
+  const handleRestoreUser = useCallback(
+    async (user: User) => {
+      if (restoringId) return;
+      setRestoringId(user.id);
+      try {
+        // Same service the Deleted Items page calls — one restore path, so the
+        // two surfaces can't drift (docs/plan-ia-admin-person-detail.md, Phase A).
+        const { error } = await restoreUser(user.id);
+        if (error) throw error;
+        // The admin list is keyed under users.all, so this refreshes both the
+        // with-removed and without-removed variants.
+        await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+        toast.success(`${getUserFullName(user)} was restored`);
+      } catch (err) {
+        toast.error(getUserFriendlyError(err, 'Failed to restore user'));
+      } finally {
+        setRestoringId(null);
+      }
+    },
+    [restoringId, queryClient]
+  );
+
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
       await deleteUser(deleteTarget.id);
-      toast.success(`${getUserFullName(deleteTarget)} was removed. Restore from Deleted Items.`);
+      toast.success(`${getUserFullName(deleteTarget)} was removed`, {
+        description: 'They can be restored from this list or from Deleted Items.',
+        action: {
+          label: 'Deleted Items',
+          onClick: () => navigate('/admin/deleted-items'),
+        },
+      });
       setDeleteTarget(null);
     } catch (err) {
       // Surface the actionable guard message (e.g. "owns dogs") if the DB blocked
@@ -363,6 +398,7 @@ export const UserTable: React.FC<UserTableProps> = ({
         handleViewUser,
         handleEditUser,
         handleDeleteUser,
+        handleRestoreUser,
         onManageRoles
       ),
     [
@@ -375,6 +411,7 @@ export const UserTable: React.FC<UserTableProps> = ({
       handleViewUser,
       handleEditUser,
       handleDeleteUser,
+      handleRestoreUser,
       onManageRoles,
     ]
   );
@@ -411,7 +448,10 @@ export const UserTable: React.FC<UserTableProps> = ({
             data={users}
             pageSize={9999}
             loading={isLoading}
-            onRowClick={user => onUserClick(user)}
+            // A removed person has no editable state, so the row opens their
+            // profile instead of the edit panel — the same destination the row
+            // menu offers. Live rows keep the panel until Phase B moves them.
+            onRowClick={user => (user.deletedAt ? handleViewUser(user) : onUserClick(user))}
             className="myk9-table"
             manualSorting
             sorting={sorting}
@@ -439,6 +479,7 @@ export const UserTable: React.FC<UserTableProps> = ({
         onPermanentDelete={confirmPermanentDelete}
         entityName={deleteTarget ? getUserFullName(deleteTarget) : ''}
         isDeleting={isDeleting}
+        alreadyRemoved={Boolean(deleteTarget?.deletedAt)}
         {...(deleteTarget ? { personId: deleteTarget.id } : {})}
       />
     </div>

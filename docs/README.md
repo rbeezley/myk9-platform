@@ -44,6 +44,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [codex-review-playbook.md](codex-review-playbook.md)                                                             | Reference | Codex review playbook                                                        |
 | [entitlement-operations.md](entitlement-operations.md)                                                           | Reference | Entitlement Operations                                                       |
 | [feature-audit-2026.md](feature-audit-2026.md)                                                                   | Reference | Feature Audit — Fall 2026                                                    |
+| [ia-review-admin-person-detail.md](ia-review-admin-person-detail.md)                                             | Active    | IA Review: Admin Person Detail + Soft-Delete Lifecycle                       |
 | [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                                         | Active    | IA Review: Entry-Status Surfaces (cross-role)                                |
 | [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)                               | Active    | IA Review: Secretary Entry Management (cognitive-load track)                 |
 | [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                                               | Active    | Improve Audit — June 2026 (remaining plans 003–006)                          |
@@ -60,6 +61,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)                                   | Active    | Active-Docs Triage — 2026-06-14                                              |
 | [plan-anon-grant-rls-tightening.md](plan-anon-grant-rls-tightening.md)                                           | Active    | MYK9-93 — Anon grant & RLS tightening (launch gate)                          |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                                                 | Active    | Architecture Deepening Plan                                                  |
+| [plan-ia-admin-person-detail.md](plan-ia-admin-person-detail.md)                                                 | Active    | Admin Person Detail + Soft-Delete Lifecycle Consolidation (4 phases)         |
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                                                     | Active    | ASCA Level C — seed continuation classes into the wizard template            |
 | [plan-askq-revival.md](plan-askq-revival.md)                                                                     | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                                             | Active    | Data Access Module Drift Plan                                                |

@@ -23,12 +23,14 @@ describe('ask-myk9show show context contract', () => {
   });
 
   it('verifies show-scoped officials through denormalized auth_user_id and show_id', () => {
-    const roleCheck = sliceBetween("from('user_roles')", 'dogIds.length > 0');
+    const roleCheck = sliceBetween('applyActiveRoleValidity(', 'dogIds.length > 0');
 
     expect(roleCheck).toContain(".eq('auth_user_id', user.id)");
     expect(roleCheck).toContain(".eq('show_id', showId)");
-    expect(roleCheck).toContain(".eq('is_active', true)");
-    expect(roleCheck).toContain(".or('expires_at.is.null,expires_at.gt.now()')");
+    // is_active + expiry filtering is applied via the shared role-validity
+    // helper rather than inlined, so assert the helper is wired in.
+    expect(source).toContain("from '../_shared/roleValidity.ts'");
+    expect(roleCheck).toContain("from('user_roles')");
     expect(roleCheck).not.toContain(".eq('user_id', user.id)");
     expect(roleCheck).not.toContain(".eq('scope_type'");
     expect(roleCheck).not.toContain(".eq('scope_id'");

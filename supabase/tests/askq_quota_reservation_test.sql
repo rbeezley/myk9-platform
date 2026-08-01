@@ -78,7 +78,10 @@ BEGIN
     true
   );
 
-  FOR expected_remaining IN REVERSE 0..9 LOOP
+  -- plpgsql REVERSE counts DOWN from the first bound to the second, so
+  -- `REVERSE 0..9` runs zero iterations and silently skips all ten
+  -- reservations — which is why the eleventh call was still being allowed.
+  FOR expected_remaining IN REVERSE 9..0 LOOP
     SELECT r.allowed, r.log_id, r.remaining, r.daily_limit, r.resets_at
       INTO allowed, log_id, remaining, daily_limit, resets_at
     FROM public.reserve_askq_query('free-account question') AS r;

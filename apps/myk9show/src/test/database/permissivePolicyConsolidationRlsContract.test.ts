@@ -64,6 +64,13 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'volunteer_roles, volunteer_class_assignments and volunteer_general_assignments. SELECT ' +
     'policies only — no INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper changes, so ' +
     'the consolidation counts this test pins are unaffected.',
+  '20260801160000_remove_steward_office_writes.sql':
+    'MYK9-147. Adds public.is_show_office_manager() and replaces the INSERT/UPDATE/DELETE ' +
+    'policies on judge_assignments and enrollments so stewards — who is_show_official() ' +
+    'deliberately includes for ringside reads — can no longer mutate enrollments or judge ' +
+    'contracts. From this inventory it touches judge_assignments and enrollments, and only ' +
+    'their write policies: no SELECT policy is created, altered or dropped, so the SELECT ' +
+    'consolidation counts this test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

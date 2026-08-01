@@ -42,14 +42,27 @@ VALUES (
 INSERT INTO public.people (id, first_name, last_name)
 VALUES ('00000000-0000-0000-0000-000000149005', 'TV', 'Handler');
 
+-- Two dogs, because entries_dog_class_unique_idx (003_entries_and_scoring) is
+-- unique on (dog_id, class_id) for any entry_status outside
+-- withdrawn/scratched — and it does NOT exclude soft-deleted rows. Putting the
+-- live and the soft-deleted entry on the same dog violates it before the test
+-- can assert anything.
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
-VALUES (
-  '00000000-0000-0000-0000-000000149006',
-  'TV Dog',
-  'TV',
-  'Beagle',
-  '00000000-0000-0000-0000-000000149005'
-);
+VALUES
+  (
+    '00000000-0000-0000-0000-000000149006',
+    'TV Dog',
+    'TV',
+    'Beagle',
+    '00000000-0000-0000-0000-000000149005'
+  ),
+  (
+    '00000000-0000-0000-0000-000000149009',
+    'TV Dog Two',
+    'Deuce',
+    'Beagle',
+    '00000000-0000-0000-0000-000000149005'
+  );
 
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, armband,
@@ -70,7 +83,7 @@ VALUES
   ),
   (
     '00000000-0000-0000-0000-000000149008',
-    '00000000-0000-0000-0000-000000149006',
+    '00000000-0000-0000-0000-000000149009',
     '00000000-0000-0000-0000-000000149004',
     '00000000-0000-0000-0000-000000149002',
     '00000000-0000-0000-0000-000000149003',

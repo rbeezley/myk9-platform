@@ -6,7 +6,8 @@
  * reversible from Admin > Deleted Items.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { Filter, Plus, Download, Search, Users } from 'lucide-react';
@@ -60,6 +61,11 @@ const UserManagementPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [roleAssignTarget, setRoleAssignTarget] = useState<User | null>(null);
+  const [searchParams] = useSearchParams();
+  // Support diagnostics deep-link here with ?userId= so the admin lands on the
+  // affordance that fixes the ticket, not just a page that describes it.
+  // Consumed once: a ref, not state, so closing the dialog cannot re-open it.
+  const deepLinkConsumed = useRef(false);
 
   // Data fetching with error handling
   const { data: users = [], isLoading, error, refetch } = useAdminUsersQuery(filters.showDeleted);
@@ -133,6 +139,16 @@ const UserManagementPage: React.FC = () => {
   const handleManageRoles = useCallback((user: User) => {
     setRoleAssignTarget(user);
   }, []);
+
+  const deepLinkUserId = searchParams.get('userId');
+  useEffect(() => {
+    if (deepLinkConsumed.current || !deepLinkUserId || users.length === 0) return;
+    deepLinkConsumed.current = true;
+    // Unknown ids are a quiet no-op: the admin still gets the roster, and the
+    // support ticket may simply name someone who was since deleted.
+    const match = users.find(user => user.id === deepLinkUserId);
+    if (match) setRoleAssignTarget(match);
+  }, [deepLinkUserId, users]);
 
   const clearFilters = useCallback(() => {
     setSearchTerm('');

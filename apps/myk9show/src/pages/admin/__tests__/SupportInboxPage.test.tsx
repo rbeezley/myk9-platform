@@ -103,7 +103,7 @@ describe('SupportInboxPage', () => {
     );
     expect(screen.getByRole('link', { name: /Open user access/i })).toHaveAttribute(
       'href',
-      '/admin/permissions/users?userId=owner-1'
+      '/admin/users?userId=owner-1'
     );
     expect(screen.getByText('Next checks')).toBeInTheDocument();
   });

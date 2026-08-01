@@ -59,6 +59,14 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('askq:' || v_user_id::text, 0)
+  );
+
+  -- AFTER the lock. A request can wait here, and if it waited across UTC
+  -- midnight a timestamp captured earlier would bill it to yesterday's budget
+  -- and report yesterday's reset. One clock read serves the entitlement
+  -- evaluation, the day window, and the row's created_at, so all three agree.
   v_now := clock_timestamp();
 
   SELECT p.id
@@ -76,9 +84,6 @@ BEGIN
     ELSE 10
   END;
 
-  PERFORM pg_advisory_xact_lock(
-    hashtextextended('askq:' || v_user_id::text, 0)
-  );
   v_day_start := (v_now AT TIME ZONE 'UTC')::date AT TIME ZONE 'UTC';
   v_resets_at := v_day_start + interval '1 day';
 

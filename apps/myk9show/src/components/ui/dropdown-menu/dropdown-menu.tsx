@@ -71,7 +71,7 @@ const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof MenuPrimitive.Popup>,
   React.ComponentPropsWithoutRef<typeof MenuPrimitive.Popup>
 >(({ className, ...props }, ref) => (
-  <MenuPrimitive.Positioner collisionPadding={8}>
+  <MenuPrimitive.Positioner collisionPadding={8} collisionAvoidance={{ side: 'flip', align: 'shift' }}>
     <MenuPrimitive.Popup
       ref={ref}
       className={cn(
@@ -103,6 +103,14 @@ const DropdownMenuContent = React.forwardRef<
       sideOffset={sideOffset}
       align={align}
       collisionPadding={8}
+      // Base UI defaults to `side: 'shift'`, which squeezes the popup into
+      // whatever space the preferred side has instead of moving it. For a row
+      // menu near the bottom of a table that space can be ~9px, so
+      // --available-height becomes 9px and the menu renders as an unusable
+      // sliver — the max-height fallback never applies, because the variable IS
+      // set. Flipping above the trigger uses the (ample) space on the other
+      // side instead. MYK9-138.
+      collisionAvoidance={{ side: 'flip', align: 'shift' }}
       className="z-[9999]"
     >
       <MenuPrimitive.Popup

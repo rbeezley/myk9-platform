@@ -67,7 +67,19 @@ describe('dropdown popups are bounded and scrollable', () => {
     const positioners = source.split('<MenuPrimitive.Positioner').slice(1);
     expect(positioners.length).toBeGreaterThanOrEqual(2);
     for (const p of positioners) {
-      expect(p.slice(0, 220)).toMatch(/collisionPadding/);
+      expect(p.slice(0, 700)).toMatch(/collisionPadding/);
+    }
+  });
+
+  it('flips every popup instead of squeezing it into the preferred side', () => {
+    // Base UI defaults to `side: 'shift'`. Measured on the deployed app: the
+    // last row's menu button had NINE pixels below it, so --available-height
+    // resolved to 9px and the menu rendered as an unusable sliver. The
+    // max-height fallback cannot help — the variable IS set, just tiny. Only
+    // flipping to the opposite side finds real space.
+    const positioners = source.split('<MenuPrimitive.Positioner').slice(1);
+    for (const p of positioners) {
+      expect(p.slice(0, 700)).toMatch(/collisionAvoidance=\{\{[^}]*side:\s*'flip'/);
     }
   });
 });

@@ -92,6 +92,12 @@ function clubToReplicated(club: Club): ReplicatedClub {
 export interface ClubStoreState {
   clubs: Club[];
   selectedClubId: string;
+  /**
+   * The auth user who chose selectedClubId. This store is a singleton and is
+   * not reset on sign-out, so consumers must ignore a selection made by a
+   * different user rather than silently inheriting it (MYK9-138).
+   */
+  selectedClubUserId: string | null;
   isLoading: boolean;
   isSyncing: boolean;
   error: string | null;
@@ -104,7 +110,7 @@ export interface ClubStoreState {
     requestedClubId?: string | undefined;
     force?: boolean;
   }) => Promise<ClubReadinessResult>;
-  selectClub: (id: string) => void;
+  selectClub: (id: string, userId?: string | null) => void;
   addClub: (club: Club) => Promise<string | undefined>;
   updateClub: (club: Club) => Promise<void>;
   removeClub: (clubId: string) => Promise<void>;
@@ -119,6 +125,7 @@ export interface ClubStoreState {
 export const useClubStore = create<ClubStoreState>()((set, get) => ({
   clubs: [],
   selectedClubId: '',
+  selectedClubUserId: null,
   isLoading: false,
   isSyncing: false,
   error: null,
@@ -269,7 +276,8 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
     }
   },
 
-  selectClub: (id: string) => set({ selectedClubId: id }),
+  selectClub: (id: string, userId: string | null = null) =>
+    set({ selectedClubId: id, selectedClubUserId: userId }),
 
   /**
    * Add a new club (saves to local cache, queued for sync)
@@ -318,6 +326,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       set(state => ({
         clubs: state.clubs.filter(c => c.id !== clubId),
         selectedClubId: state.selectedClubId === clubId ? '' : state.selectedClubId,
+        selectedClubUserId: state.selectedClubId === clubId ? null : state.selectedClubUserId,
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to remove club';

@@ -8,16 +8,19 @@
 
 import React from 'react';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useClubStore } from '@/store/clubStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
+import { ClubContextGate } from '@/components/club-admin/ClubContextGate';
+import { ClubSwitcher } from '@/components/club-admin/ClubSwitcher';
 import { ClubPaymentsCard } from '@/features/payments/ClubPaymentsCard';
 
 const ClubPaymentsPage: React.FC = () => {
   const clubContext = useCurrentValidatedClubContext();
   const ensureClubsReady = useClubStore(state => state.ensureClubsReady);
-  const clubId = clubContext.status === 'ready' ? clubContext.clubId : undefined;
+  const selectClub = useClubStore(state => state.selectClub);
+  const { user } = useAuthContext();
+  const handleSelectClub = (id: string) => selectClub(id, user?.id ?? null);
 
   React.useEffect(() => {
     void ensureClubsReady();
@@ -33,23 +36,22 @@ const ClubPaymentsPage: React.FC = () => {
         </p>
       </div>
 
-      {clubId ? (
-        <ClubPaymentsCard clubId={clubId} />
+      {clubContext.status === 'ready' ? (
+        <>
+          <ClubSwitcher
+            clubs={clubContext.clubs}
+            selectedClubId={clubContext.clubId}
+            onSelectClub={handleSelectClub}
+          />
+          <ClubPaymentsCard clubId={clubContext.clubId} />
+        </>
       ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-8 text-center text-muted-foreground">
-            <p>
-              {clubContext.status === 'ambiguous'
-                ? 'More than one club is linked to your account. Ask an administrator to correct the club access before managing payments.'
-                : clubContext.status === 'missing'
-                  ? 'Your club access needs to be configured before you can manage payments.'
-                  : 'We could not verify your club access yet. Check your connection and try again.'}
-            </p>
-            {(clubContext.status === 'unavailable' || clubContext.status === 'loading') && (
-              <Button onClick={() => void ensureClubsReady({ force: true })}>Try again</Button>
-            )}
-          </CardContent>
-        </Card>
+        <ClubContextGate
+          context={clubContext}
+          surface="payments"
+          onRetry={() => void ensureClubsReady({ force: true })}
+          onSelectClub={handleSelectClub}
+        />
       )}
     </div>
   );

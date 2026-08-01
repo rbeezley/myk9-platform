@@ -71,11 +71,14 @@ const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof MenuPrimitive.Popup>,
   React.ComponentPropsWithoutRef<typeof MenuPrimitive.Popup>
 >(({ className, ...props }, ref) => (
-  <MenuPrimitive.Positioner>
+  <MenuPrimitive.Positioner collisionPadding={8}>
     <MenuPrimitive.Popup
       ref={ref}
       className={cn(
-        'z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+        // MYK9-138: `overflow-hidden` with no max-height clipped a tall submenu
+        // outright — worse than the parent menu, which at least overflowed
+        // visibly. Bounded and scrollable, with the same fallback.
+        'z-50 max-h-[var(--available-height,calc(100dvh_-_4rem))] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
         className
       )}
       {...props}
@@ -96,11 +99,23 @@ const DropdownMenuContent = React.forwardRef<
   DropdownMenuContentProps
 >(({ className, sideOffset = 4, align = 'center', ...props }, ref) => (
   <MenuPrimitive.Portal>
-    <MenuPrimitive.Positioner sideOffset={sideOffset} align={align} className="z-[9999]">
+    <MenuPrimitive.Positioner
+      sideOffset={sideOffset}
+      align={align}
+      collisionPadding={8}
+      className="z-[9999]"
+    >
       <MenuPrimitive.Popup
         ref={ref}
         className={cn(
-          'z-[9999] max-h-[var(--available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+          // MYK9-138. The fallback is load-bearing: `max-h-[var(--available-height)]`
+          // with the variable UNSET is an invalid declaration, so the menu had no
+          // max-height at all, `overflow-y-auto` never engaged (the content fit its
+          // own box), and a menu taller than the viewport simply ran off-screen with
+          // no way to scroll. A club member's row menu has ~10 items across three
+          // sections, so its lower actions — including "Grant Show Access" — were
+          // unreachable for any row low on the page.
+          'z-[9999] max-h-[var(--available-height,calc(100dvh_-_4rem))] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
           'data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
           className
         )}

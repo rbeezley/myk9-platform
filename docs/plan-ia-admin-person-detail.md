@@ -78,6 +78,7 @@ Three affordances on `/admin/users` resolve to two destinations. The fix is **no
 
 ## Phase C — One delete dialog, and a page that admits removal (F3, F5)
 
+**Tracked by:** [MYK9-153](https://linear.app/myk9-platform/issue/MYK9-153/no-surface-in-the-app-can-show-a-removed-persons-record)
 **Entry trigger:** Phase B merged.
 
 **Scope:**
@@ -99,6 +100,7 @@ Three affordances on `/admin/users` resolve to two destinations. The fix is **no
 
 ## Phase D — Lifecycle out of the edit form (F7)
 
+**Tracked by:** [MYK9-154](https://linear.app/myk9-platform/issue/MYK9-154/suspending-an-account-means-saving-a-profile-form)
 **Entry trigger:** Phase C merged.
 
 **Scope:**

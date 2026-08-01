@@ -86,10 +86,23 @@ describe('DataTable', () => {
     // matched that wrapper and swallowed every row click (/admin/users shipped
     // this way). The guard only means "did the click land on something
     // interactive *inside the row*".
+    //
+    // The interactive column is load-bearing: without it the row itself gets
+    // tabIndex=0, `closest` stops at the row, and the old guard passed anyway.
+    // /admin/users has interactive cells (checkbox, actions), which suppress the
+    // row tabindex and let the scan escape to the wrapper.
     const handleClick = vi.fn();
+    const withInteractiveCell = [
+      ...columns,
+      {
+        id: 'select',
+        meta: { interactive: true },
+        cell: () => <input type="checkbox" aria-label="Select row" />,
+      },
+    ];
     const { user } = render(
       <div role="region" tabIndex={0} aria-label="Table scroll area">
-        <DataTable columns={columns} data={testData} onRowClick={handleClick} />
+        <DataTable columns={withInteractiveCell} data={testData} onRowClick={handleClick} />
       </div>
     );
     await user.click(screen.getByText('Alice'));

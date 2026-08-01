@@ -107,15 +107,19 @@ describe('UserManagementPage ?userId= deep link', () => {
     expect(screen.queryByTestId('manage-roles-dialog')).not.toBeInTheDocument();
   });
 
-  it('does not reopen the dialog after the admin closes it', async () => {
+  it('does not reopen the dialog after the admin closes it, even after a refetch', async () => {
     const userEvent = (await import('@testing-library/user-event')).default;
     const typist = userEvent.setup();
     renderAt('/admin/users?userId=user-1');
     await typist.click(await screen.findByRole('button', { name: /close roles dialog/i }));
     expect(screen.queryByTestId('manage-roles-dialog')).not.toBeInTheDocument();
-    // Typing re-renders the page with ?userId= still in the URL. The dialog must
-    // stay closed — this is what the consumed-once ref buys, and asserting it
-    // with a real re-render (not an unmount) is the only way to prove it.
+
+    // Give the page a brand-new `users` array identity that still contains the
+    // same matching user — the shape a refetch produces — then force a
+    // re-render by typing in the search box. Closing the dialog already
+    // stripped ?userId= from the URL, so there is nothing left for a re-render
+    // to resurrect the dialog from, regardless of what `users` looks like.
+    mockQueryReturn = { ...mockQueryReturn, data: [makeUser()] };
     await typist.type(screen.getByPlaceholderText(/search by name/i), 'jane');
     expect(screen.queryByTestId('manage-roles-dialog')).not.toBeInTheDocument();
   });

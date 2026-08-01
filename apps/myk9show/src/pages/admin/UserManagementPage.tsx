@@ -6,7 +6,7 @@
  * reversible from Admin > Deleted Items.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
@@ -61,11 +61,10 @@ const UserManagementPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [roleAssignTarget, setRoleAssignTarget] = useState<User | null>(null);
-  const [searchParams] = useSearchParams();
   // Support diagnostics deep-link here with ?userId= so the admin lands on the
   // affordance that fixes the ticket, not just a page that describes it.
-  // Consumed once: a ref, not state, so closing the dialog cannot re-open it.
-  const deepLinkConsumed = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkUserId = searchParams.get('userId');
 
   // Data fetching with error handling
   const { data: users = [], isLoading, error, refetch } = useAdminUsersQuery(filters.showDeleted);
@@ -140,15 +139,34 @@ const UserManagementPage: React.FC = () => {
     setRoleAssignTarget(user);
   }, []);
 
-  const deepLinkUserId = searchParams.get('userId');
-  useEffect(() => {
-    if (deepLinkConsumed.current || !deepLinkUserId || users.length === 0) return;
-    deepLinkConsumed.current = true;
-    // Unknown ids are a quiet no-op: the admin still gets the roster, and the
-    // support ticket may simply name someone who was since deleted.
-    const match = users.find(user => user.id === deepLinkUserId);
-    if (match) setRoleAssignTarget(match);
-  }, [deepLinkUserId, users]);
+  // Unknown ids are a quiet no-op: the admin still gets the roster, and the
+  // support ticket may simply name someone who was since deleted.
+  const deepLinkUser = useMemo(
+    () => (deepLinkUserId ? (users.find(user => user.id === deepLinkUserId) ?? null) : null),
+    [deepLinkUserId, users]
+  );
+
+  // Row-click selection wins over the deep link; the deep link only fills in
+  // when nothing has been explicitly selected.
+  const roleDialogTarget = roleAssignTarget ?? deepLinkUser;
+
+  // Closing clears whichever source opened the dialog. When the deep link was
+  // the source, strip ?userId= from the URL so the dialog cannot be resurrected
+  // by a refetch, a filter change, or any other re-render — there is nothing
+  // left in the URL to reopen it from.
+  const closeRoleDialog = useCallback(() => {
+    setRoleAssignTarget(null);
+    if (deepLinkUserId) {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          next.delete('userId');
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [deepLinkUserId, setSearchParams]);
 
   const clearFilters = useCallback(() => {
     setSearchTerm('');
@@ -375,13 +393,13 @@ const UserManagementPage: React.FC = () => {
       )}
 
       {/* Manage Roles Dialog */}
-      {roleAssignTarget && (
+      {roleDialogTarget && (
         <ManageUserRolesDialog
-          open={!!roleAssignTarget}
+          open={!!roleDialogTarget}
           onOpenChange={open => {
-            if (!open) setRoleAssignTarget(null);
+            if (!open) closeRoleDialog();
           }}
-          user={roleAssignTarget}
+          user={roleDialogTarget}
           onSaved={refetch}
         />
       )}

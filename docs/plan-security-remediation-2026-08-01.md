@@ -51,6 +51,14 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
   Source and behavioral-test registration contracts pass, and monorepo typecheck passes. Applied
   SQL/PostgREST replay is still required before resolution; the Linear state update could not be
   sent because the Linear transport returned an HTTP error.
+- **MYK9-148:** local implementation committed in `8cb10cf5a`. Anonymous AskQ identities are
+  rejected before quota/model work, and a caller-scoped `reserve_askq_query(text)` RPC now locks
+  the account/day budget, inserts the audit row, and returns the authoritative limit/remaining
+  values. The migration preserves the existing `people.subscription_tier` premium semantics and
+  UTC reset boundary. AskQ function tests pass (90 files / 886 tests), the monorepo typecheck
+  passes (26/26 tasks), and the source/behavioral SQL contracts are registered. Closure remains
+  blocked on applied SQL, premium/reset checks, model non-invocation evidence, and a disposable
+  parallel burst proving the exact concurrent quota; no Linear state mutation was performed.
 
 ### Phase 0 — Baseline and proof harness
 

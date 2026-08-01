@@ -38,11 +38,7 @@ const StubRefresh: ComponentType<RefreshIndicatorProps> = ({ isRefreshing }) => 
   <span data-testid="refresh" data-refreshing={String(isRefreshing)} />
 );
 const StubFilter: ComponentType<FilterTriggerButtonProps> = ({ onClick, hasActiveFilters }) => (
-  <button
-    data-testid="filter"
-    data-has-active={String(hasActiveFilters)}
-    onClick={onClick}
-  />
+  <button data-testid="filter" data-has-active={String(hasActiveFilters)} onClick={onClick} />
 );
 const StubPopover: ComponentType<ClassDetailsPopoverProps> = ({ isOpen, data }) =>
   isOpen ? (
@@ -187,6 +183,39 @@ describe('EntryListHeader', () => {
     expect(screen.queryByText('Scoresheet')).toBeNull();
   });
 
+  it('keeps the actions menu trigger touch-safe at every viewport', () => {
+    renderHeader();
+
+    const trigger = screen.getByRole('button', { name: /actions menu/i });
+    expect(trigger.className).toContain('min-h-11');
+    expect(trigger.className).toContain('min-w-11');
+    expect(trigger.className).toContain('sm:min-h-12');
+    expect(trigger.className).toContain('focus-visible:ring-2');
+  });
+
+  it('keeps class details open after a click moves the pointer away', () => {
+    renderHeader({ classInfo: { ...baseClassInfo, judgeName: 'J. Smith' } as ClassInfo });
+    const trigger = screen.getByRole('button', { name: /Container Novice/i });
+
+    fireEvent.mouseEnter(trigger);
+    fireEvent.click(trigger);
+    fireEvent.mouseLeave(trigger);
+
+    expect(screen.getByTestId('popover')).not.toBeNull();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it.each(['Enter', ' '])('opens class details with the %s key', key => {
+    renderHeader({ classInfo: { ...baseClassInfo, judgeName: 'J. Smith' } as ClassInfo });
+    const trigger = screen.getByRole('button', { name: /Container Novice/i });
+
+    fireEvent.keyDown(trigger, { key });
+
+    expect(screen.getByTestId('popover')).not.toBeNull();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(trigger.getAttribute('aria-controls')).toBe('class-details-popover');
+  });
+
   describe('popover timeLimitSeconds is always number | undefined', () => {
     // `judgeName` makes `hasExtraInfo` true so the info trigger renders and
     // the popover can be opened.
@@ -215,7 +244,7 @@ describe('EntryListHeader', () => {
     // so an un-guarded path would slip it past the slot's type check.
     it.each(['TBD', 'TBDs', 'NaNs', ''])(
       'collapses the non-numeric value %p to undefined',
-      (junk) => {
+      junk => {
         const popover = openPopover(withTimeLimit(junk));
         expect(popover.getAttribute('data-time-limit-type')).toBe('undefined');
         expect(popover.getAttribute('data-time-limit')).not.toBe('NaN');

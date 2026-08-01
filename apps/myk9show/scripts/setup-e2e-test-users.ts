@@ -4,11 +4,18 @@
  * Each canonical account uses its own env-provided password; never print or
  * commit credentials.
  *
- * Usage: pnpm exec tsx scripts/setup-e2e-test-users.ts
+ * Usage:
+ *   pnpm exec tsx scripts/setup-e2e-test-users.ts --dry-run
+ *   pnpm exec tsx scripts/setup-e2e-test-users.ts --apply
  */
 
 import { createClient, type User } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
+import {
+  planRoleReconciliation,
+  resolveSetupMode,
+  type ScopedRoleGrant,
+} from './setup-e2e-test-users.helpers';
 
 dotenv.config({ path: '.env' });
 dotenv.config({ path: '.env.local' });
@@ -28,6 +35,8 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const authOnly = process.env.MYK9_E2E_AUTH_ONLY === 'true';
+const setupMode = authOnly ? 'apply' : resolveSetupMode(process.argv.slice(2));
+const isPreview = setupMode === 'preview';
 
 interface TestUser {
   email: string;
@@ -46,7 +55,7 @@ type TestUserResult =
   | { success: true; email: string; userId: string }
   | { success: false; email: string; error: string };
 
-const TEST_USERS: TestUser[] = [
+const CANONICAL_TEST_USERS: TestUser[] = [
   {
     email: 'e2e-exhibitor@test.myk9.com',
     passwordEnv: 'E2E_DEMO_EXHIBITOR_PASSWORD',
@@ -69,6 +78,13 @@ const TEST_USERS: TestUser[] = [
     roles: ['judge'],
   },
   {
+    email: 'e2e-judge-empty@test.myk9.com',
+    passwordEnv: 'E2E_JUDGE_PASSWORD',
+    firstName: 'Test',
+    lastName: 'Judge No Assignments',
+    roles: ['judge'],
+  },
+  {
     email: 'e2e-admin@test.myk9.com',
     passwordEnv: 'E2E_ADMIN_PASSWORD',
     firstName: 'Test',
@@ -76,6 +92,7 @@ const TEST_USERS: TestUser[] = [
     roles: ['site_admin', 'secretary', 'club_admin', 'chairman', 'exhibitor'],
   },
 ];
+const TEST_USERS = CANONICAL_TEST_USERS;
 
 for (const user of TEST_USERS) {
   if (!process.env[user.passwordEnv]) {
@@ -144,6 +161,80 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+async function desiredRoleGrants(roleNames: readonly string[]): Promise<ScopedRoleGrant[]> {
+  const desired: ScopedRoleGrant[] = [];
+
+  for (const roleName of roleNames) {
+    const roleId = await getRoleId(roleName);
+    if (!roleId) throw new Error(`Required role '${roleName}' was not found`);
+    const scope = await getRoleScope(roleName);
+    desired.push({ roleId, clubId: scope.club_id, showId: scope.show_id });
+  }
+
+  return desired;
+}
+
+async function reconcileRoles(
+  peopleId: string,
+  authUserId: string,
+  roleNames: readonly string[]
+): Promise<void> {
+  const desired = await desiredRoleGrants(roleNames);
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('id, role_id, club_id, show_id, is_active')
+    .eq('user_id', peopleId);
+
+  if (error) throw new Error(`Role inventory failed: ${error.message}`);
+
+  const plan = planRoleReconciliation(
+    (data ?? []).map(grant => ({
+      id: grant.id,
+      roleId: grant.role_id,
+      clubId: grant.club_id,
+      showId: grant.show_id,
+      isActive: grant.is_active,
+    })),
+    desired
+  );
+
+  console.log(
+    `  Role plan: deactivate ${plan.deactivateIds.length}, reactivate ${plan.reactivateIds.length}, insert ${plan.insert.length}`
+  );
+  if (isPreview) return;
+
+  if (plan.deactivateIds.length > 0) {
+    const { error: deactivateError } = await supabase
+      .from('user_roles')
+      .update({ is_active: false })
+      .in('id', plan.deactivateIds);
+    if (deactivateError) throw new Error(`Role deactivation failed: ${deactivateError.message}`);
+  }
+
+  if (plan.reactivateIds.length > 0) {
+    const { error: reactivateError } = await supabase
+      .from('user_roles')
+      .update({ is_active: true, auth_user_id: authUserId, expires_at: null })
+      .in('id', plan.reactivateIds);
+    if (reactivateError) throw new Error(`Role reactivation failed: ${reactivateError.message}`);
+  }
+
+  if (plan.insert.length > 0) {
+    const { error: insertError } = await supabase.from('user_roles').insert(
+      plan.insert.map(grant => ({
+        user_id: peopleId,
+        role_id: grant.roleId,
+        club_id: grant.clubId,
+        show_id: grant.showId,
+        is_active: true,
+        auth_user_id: authUserId,
+        granted_at: new Date().toISOString(),
+      }))
+    );
+    if (insertError) throw new Error(`Role insertion failed: ${insertError.message}`);
+  }
+}
+
 async function createTestUser(user: TestUser): Promise<TestUserResult> {
   const { email, passwordEnv, firstName, lastName, roles } = user;
   const password = process.env[passwordEnv];
@@ -165,17 +256,23 @@ async function createTestUser(user: TestUser): Promise<TestUserResult> {
       console.log(`  Auth user exists: ${existingUser.id}`);
       userId = existingUser.id;
 
-      const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
-        password,
-        email_confirm: true,
-        user_metadata: { first_name: firstName, last_name: lastName },
-      });
+      if (!isPreview) {
+        const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+          password,
+          email_confirm: true,
+          user_metadata: { first_name: firstName, last_name: lastName },
+        });
 
-      if (updateError) {
-        throw new Error(`Auth password update failed: ${updateError.message}`);
+        if (updateError) {
+          throw new Error(`Auth password update failed: ${updateError.message}`);
+        }
+        console.log(`  Auth password reset from ${passwordEnv}`);
       }
-      console.log(`  Auth password reset from ${passwordEnv}`);
     } else {
+      if (isPreview) {
+        console.log('  Auth user missing: would create');
+        return { success: true, email, userId: '' };
+      }
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email,
         password,
@@ -206,78 +303,37 @@ async function createTestUser(user: TestUser): Promise<TestUserResult> {
 
     if (profile) {
       peopleId = profile.id;
-      const { error: updateError } = await supabase
-        .from('people')
-        .update({ first_name: firstName, last_name: lastName, email })
-        .eq('auth_user_id', userId);
+      if (!isPreview) {
+        const { error: updateError } = await supabase
+          .from('people')
+          .update({ first_name: firstName, last_name: lastName, email })
+          .eq('auth_user_id', userId);
 
-      if (updateError) {
-        console.warn(`  Could not update people profile: ${updateError.message}`);
-      } else {
+        if (updateError) {
+          throw new Error(`People profile update failed: ${updateError.message}`);
+        }
         console.log('  People profile updated');
       }
     } else {
+      if (isPreview) {
+        console.log('  People profile missing: would create');
+        return { success: true, email, userId };
+      }
       const { data: newProfile, error: insertError } = await supabase
         .from('people')
         .insert({ auth_user_id: userId, first_name: firstName, last_name: lastName, email })
         .select('id')
         .single();
 
-      if (insertError) {
-        console.warn(`  Could not create people profile: ${insertError.message}`);
-      } else {
-        peopleId = newProfile?.id;
-        console.log('  People profile created');
-      }
+      if (insertError) throw new Error(`People profile creation failed: ${insertError.message}`);
+      peopleId = newProfile?.id;
+      console.log('  People profile created');
     }
 
     if (!peopleId) {
-      console.warn('  No people profile ID - cannot assign RBAC roles');
+      throw new Error('No people profile ID - cannot reconcile RBAC roles');
     } else {
-      for (const roleName of roles) {
-        const roleId = await getRoleId(roleName);
-        if (!roleId) {
-          console.warn(`  Skipping role '${roleName}' - not found in roles table`);
-          continue;
-        }
-
-        const scope = await getRoleScope(roleName);
-        let existingRoleQuery = supabase
-          .from('user_roles')
-          .select('id')
-          .eq('user_id', peopleId)
-          .eq('role_id', roleId)
-          .eq('is_active', true);
-
-        existingRoleQuery =
-          scope.club_id === null
-            ? existingRoleQuery.is('club_id', null)
-            : existingRoleQuery.eq('club_id', scope.club_id);
-        existingRoleQuery =
-          scope.show_id === null
-            ? existingRoleQuery.is('show_id', null)
-            : existingRoleQuery.eq('show_id', scope.show_id);
-
-        const { data: existingRole } = await existingRoleQuery.maybeSingle();
-
-        if (existingRole) {
-          console.log(`  Role '${roleName}' already assigned`);
-        } else {
-          const { error: roleError } = await supabase.from('user_roles').insert({
-            user_id: peopleId,
-            role_id: roleId,
-            auth_user_id: userId,
-            ...scope,
-            granted_at: new Date().toISOString(),
-          });
-
-          if (roleError) {
-            console.warn(`  Could not assign role '${roleName}': ${roleError.message}`);
-          } else {
-            console.log(`  Role '${roleName}' assigned via user_roles`);
-          }
-        }
-      }
+      await reconcileRoles(peopleId, userId, roles);
     }
 
     return { success: true, email, userId };
@@ -292,6 +348,7 @@ async function main(): Promise<void> {
   console.log('========================================');
   console.log('E2E Test User Setup');
   console.log('========================================');
+  console.log(`Mode: ${setupMode}`);
   console.log(
     "Passwords: loaded from each account's E2E_*_PASSWORD env var; values are not printed"
   );

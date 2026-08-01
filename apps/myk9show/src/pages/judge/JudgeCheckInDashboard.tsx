@@ -9,23 +9,19 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { StatusIcon } from '@/components/status';
 import { useJudgeAssignments } from '@/hooks/queries/useJudgeAssignments';
 import { splitJudgeAssignments } from '@/pages/judgeStatsUtils';
-import {
-  Users,
-  Clock,
-  AlertTriangle,
-  ArrowRight,
-  MapPin,
-  Calendar,
-} from 'lucide-react';
+import { Users, Clock, AlertTriangle, ArrowRight, MapPin, Calendar } from 'lucide-react';
 import { formatRingLabel } from '@/utils/ringLabel';
 
 interface RingAssignment {
-  ringNumber: string;
+  /** Stable internal selection key; never shown in the judge workflow. */
+  ringKey: string;
+  ringNumber: string | null;
   judgeName: string;
   className: string;
   startTime: Date;
-  totalEntries: number;
-  checkedInCount: number;
+  totalEntries: number | null;
+  checkedInCount: number | null;
+  entryCountsAvailable: boolean;
   conflictCount: number;
   atGateCount: number;
   isActive: boolean;
@@ -44,12 +40,14 @@ const JudgeCheckInDashboard: React.FC = () => {
   } = useJudgeAssignments();
   const todayAssignments = splitJudgeAssignments(assignments, todayBucketNowMs).today;
   const ringAssignments: RingAssignment[] = todayAssignments.map(assignment => ({
-    ringNumber: assignment.ringNumber ? String(assignment.ringNumber) : assignment.classId,
+    ringKey: assignment.id,
+    ringNumber: assignment.ringNumber ? String(assignment.ringNumber) : null,
     judgeName: 'Judge',
     className: assignment.name,
     startTime: assignment.scheduledTime,
-    totalEntries: assignment.totalEntries,
-    checkedInCount: assignment.checkedInEntries,
+    totalEntries: assignment.entryCountsAvailable === false ? null : assignment.totalEntries,
+    checkedInCount: assignment.entryCountsAvailable === false ? null : assignment.checkedInEntries,
+    entryCountsAvailable: assignment.entryCountsAvailable !== false,
     conflictCount: 0,
     atGateCount: 0,
     isActive: assignment.status === 'in-progress',
@@ -61,8 +59,8 @@ const JudgeCheckInDashboard: React.FC = () => {
     { label: 'Check-In Management', href: '/judge/check-in', isCurrentPage: true },
   ];
 
-  const handleRingSelect = (ringNumber: string) => {
-    setSelectedRing(ringNumber);
+  const handleRingSelect = (ringKey: string) => {
+    setSelectedRing(ringKey);
     setViewMode('ring-detail');
   };
 
@@ -71,9 +69,11 @@ const JudgeCheckInDashboard: React.FC = () => {
     setViewMode('overview');
   };
 
-  const getStatusColor = (checked: number, total: number, conflicts: number) => {
+  const getStatusColor = (checked: number | null, total: number | null, conflicts: number) => {
     if (conflicts > 0) return 'border-destructive/20 bg-destructive/10 ';
-    if (total === 0) return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
+    if (total === null || checked === null || total === 0) {
+      return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
+    }
     const percentage = (checked / total) * 100;
     if (percentage >= 80) return 'border-green-200 bg-success/10 ';
     if (percentage >= 50) return 'border-yellow-200 bg-warning/10 ';
@@ -81,19 +81,33 @@ const JudgeCheckInDashboard: React.FC = () => {
   };
 
   // Calculate overall stats
+  const entryCountsAvailable = ringAssignments.every(ring => ring.entryCountsAvailable);
   const overallStats = ringAssignments.reduce(
     (acc, ring) => ({
-      totalEntries: acc.totalEntries + ring.totalEntries,
-      checkedIn: acc.checkedIn + ring.checkedInCount,
+      totalEntries:
+        entryCountsAvailable && ring.totalEntries !== null
+          ? (acc.totalEntries ?? 0) + ring.totalEntries
+          : null,
+      checkedIn:
+        entryCountsAvailable && ring.checkedInCount !== null
+          ? (acc.checkedIn ?? 0) + ring.checkedInCount
+          : null,
       conflicts: acc.conflicts + ring.conflictCount,
       atGate: acc.atGate + ring.atGateCount,
     }),
-    { totalEntries: 0, checkedIn: 0, conflicts: 0, atGate: 0 }
+    {
+      totalEntries: entryCountsAvailable ? 0 : null,
+      checkedIn: entryCountsAvailable ? 0 : null,
+      conflicts: 0,
+      atGate: 0,
+    }
   );
 
   if (viewMode === 'ring-detail' && selectedRing) {
-    const ringAssignment = ringAssignments.find(r => r.ringNumber === selectedRing);
-    const selectedRingLabel = formatRingLabel(selectedRing) ?? 'Ring Assignment';
+    const ringAssignment = ringAssignments.find(r => r.ringKey === selectedRing);
+    const selectedRingLabel = ringAssignment?.ringNumber
+      ? (formatRingLabel(ringAssignment.ringNumber) ?? ringAssignment.ringNumber)
+      : (ringAssignment?.className ?? 'Ring Assignment');
 
     return (
       <div className="bg-background">
@@ -121,7 +135,7 @@ const JudgeCheckInDashboard: React.FC = () => {
 
             {/* Ring Check-In Interface */}
             <JudgeCheckInInterface
-              ringNumber={selectedRing}
+              ringNumber={ringAssignment?.ringNumber ?? ringAssignment?.className ?? selectedRingLabel}
               judgeName={ringAssignment?.judgeName || 'Judge'}
             />
           </div>
@@ -156,7 +170,11 @@ const JudgeCheckInDashboard: React.FC = () => {
             </Button>
 
             {/* Multi-Ring Gate Steward Interface */}
-            <GateStewardInterface assignedRings={ringAssignments.map(r => r.ringNumber)} />
+            <GateStewardInterface
+              assignedRings={ringAssignments.map(r =>
+                r.ringNumber ? (formatRingLabel(r.ringNumber) ?? r.ringNumber) : r.className
+              )}
+            />
           </div>
         </div>
       </div>
@@ -210,9 +228,11 @@ const JudgeCheckInDashboard: React.FC = () => {
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{overallStats.totalEntries}</div>
+                    <div className="text-2xl font-bold">{overallStats.totalEntries ?? '—'}</div>
                     <p className="text-xs text-muted-foreground">
-                      Across {ringAssignments.length} rings
+                      {overallStats.totalEntries === null
+                        ? 'Entry totals unavailable'
+                        : `Across ${ringAssignments.length} rings`}
                     </p>
                   </CardContent>
                 </Card>
@@ -223,11 +243,13 @@ const JudgeCheckInDashboard: React.FC = () => {
                     <StatusIcon family="entry" status="checked-in" size="sm" decorative />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{overallStats.checkedIn}</div>
+                    <div className="text-2xl font-bold">{overallStats.checkedIn ?? '—'}</div>
                     <p className="text-xs text-muted-foreground">
-                      {overallStats.totalEntries > 0
-                        ? `${Math.round((overallStats.checkedIn / overallStats.totalEntries) * 100)}% ready`
-                        : 'No entries yet'}
+                      {overallStats.totalEntries === null || overallStats.checkedIn === null
+                        ? 'Entry totals unavailable'
+                        : overallStats.totalEntries > 0
+                          ? `${Math.round((overallStats.checkedIn / overallStats.totalEntries) * 100)}% ready`
+                          : 'No entries yet'}
                     </p>
                   </CardContent>
                 </Card>
@@ -289,13 +311,13 @@ const JudgeCheckInDashboard: React.FC = () => {
 
                     return (
                       <Card
-                        key={ring.ringNumber}
+                        key={ring.ringKey}
                         className={`transition-all duration-200 hover:shadow-md cursor-pointer ${getStatusColor(
                           ring.checkedInCount,
                           ring.totalEntries,
                           ring.conflictCount
                         )}`}
-                        onClick={() => handleRingSelect(ring.ringNumber)}
+                        onClick={() => handleRingSelect(ring.ringKey)}
                       >
                         <CardContent className="p-6">
                           <div className="flex items-center justify-between">
@@ -321,7 +343,9 @@ const JudgeCheckInDashboard: React.FC = () => {
                                   </span>
                                   <span className="flex items-center gap-1">
                                     <Users className="h-4 w-4" />
-                                    {ring.totalEntries} entries
+                                    {ring.totalEntries === null
+                                      ? 'Entry totals unavailable'
+                                      : `${ring.totalEntries} entries`}
                                   </span>
                                 </div>
                               </div>
@@ -332,7 +356,7 @@ const JudgeCheckInDashboard: React.FC = () => {
                               <div className="grid grid-cols-3 gap-4 text-center">
                                 <div>
                                   <div className="text-lg font-bold text-green-600">
-                                    {ring.checkedInCount}
+                                    {ring.checkedInCount ?? '—'}
                                   </div>
                                   <div className="text-xs text-muted-foreground">Checked In</div>
                                 </div>

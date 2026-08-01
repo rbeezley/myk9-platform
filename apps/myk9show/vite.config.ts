@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { execSync } from 'node:child_process';
 import { saveTemplatesPlugin } from './vite-plugins/saveTemplatesPlugin.js';
+import { auditServerIdentityPlugin } from './vite-plugins/auditServerIdentityPlugin.js';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -35,6 +36,7 @@ function resolveGitInfo(): { sha: string; message: string } {
 }
 
 const gitInfo = resolveGitInfo();
+const auditIdentityPlugin = auditServerIdentityPlugin(process.env.VITE_AUDIT_SERVER_ID?.trim());
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -46,6 +48,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    ...(auditIdentityPlugin ? [auditIdentityPlugin] : []),
     saveTemplatesPlugin() as PluginOption,
     // PWA Configuration - injectManifest strategy for custom service worker with push support
     VitePWA({

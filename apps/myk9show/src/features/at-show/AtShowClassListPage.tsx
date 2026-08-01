@@ -172,7 +172,7 @@ export const AtShowClassListPage: React.FC = () => {
   const { groups, nextUpByClassId, organization, showName, clubId, isLoading, error, refresh } =
     useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
-  const { hasRole } = useAuthContext();
+  const { hasRole, user } = useAuthContext();
   const {
     assignedClassIds,
     error: assignmentError,
@@ -180,14 +180,32 @@ export const AtShowClassListPage: React.FC = () => {
     retry: retryAssignments,
   } = useMyAtShowJudgeAssignments(showId);
 
+  // A signed-in judge must stay inside the classes they are responsible for.
+  // Broader staff roles still need the full picker for show-day coordination,
+  // while anonymous passcode sessions are explicitly show-wide by design.
+  const isJudgeOnly =
+    Boolean(user && !user.is_anonymous && hasRole(UserRole.JUDGE)) &&
+    ![
+      UserRole.SITE_ADMIN,
+      UserRole.SECRETARY,
+      UserRole.CLUB_ADMIN,
+      UserRole.CHAIRMAN,
+      UserRole.STEWARD,
+    ].some(hasRole);
+
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
     () =>
-      groups.map(g => ({
-        trial: g.trial,
-        classes: sortClassesForAtShowScan(groupSectionedClasses(g.classes, organization)),
-      })),
-    [groups, organization]
+      groups
+        .map(g => ({
+          ...g,
+          classes: isJudgeOnly ? g.classes.filter(cls => assignedClassIds.has(cls.id)) : g.classes,
+        }))
+        .map(g => ({
+          trial: g.trial,
+          classes: sortClassesForAtShowScan(groupSectionedClasses(g.classes, organization)),
+        })),
+    [assignedClassIds, groups, isJudgeOnly, organization]
   );
 
   // Filter before A/B grouping so a judge assigned to only one section never
@@ -315,6 +333,32 @@ export const AtShowClassListPage: React.FC = () => {
             Try again
           </Button>
           <BackToRingsideExitButton showId={showId} clubId={clubId} />
+        </div>
+      </div>
+    );
+  }
+
+  if (isJudgeOnly && !assignmentsLoading && assignedClassIds.size === 0) {
+    return (
+      <div className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
+        <AlertCircle className="h-12 w-12 text-muted-foreground" />
+        <p className="text-lg font-medium">
+          {assignmentError ? "We couldn't load your judge assignments" : 'No classes assigned yet'}
+        </p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          {assignmentError
+            ? 'Check your connection and try again. Your classes will appear here once assignments are available.'
+            : 'Your secretary has not assigned you to a class for this show yet. Ask them to add your judge assignment.'}
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {assignmentError && (
+            <Button variant="outline" className="min-h-11" onClick={retryAssignments}>
+              Try again
+            </Button>
+          )}
+          <Button className="min-h-11" onClick={() => navigate('/judge/dashboard')}>
+            Back to Judge Dashboard
+          </Button>
         </div>
       </div>
     );

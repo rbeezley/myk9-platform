@@ -16,6 +16,8 @@ export interface JudgeClass {
   totalEntries: number;
   checkedInEntries: number;
   completedEntries: number;
+  /** False when the entry replica is cold or unavailable; snapshot counts must not be shown as facts. */
+  entryCountsAvailable?: boolean;
   status: 'pending' | 'in-progress' | 'completed';
 }
 
@@ -110,8 +112,8 @@ export function splitJudgeAssignments(
 
 export interface JudgeDashboardStats {
   completedCount: number;
-  totalEntries: number;
-  judgedEntries: number;
+  totalEntries: number | null;
+  judgedEntries: number | null;
   completionRate: number | null;
   nextClass: JudgeClass | undefined;
   minutesUntilNext: number | null;
@@ -122,9 +124,17 @@ export function deriveJudgeDashboardStats(
   now: number
 ): JudgeDashboardStats {
   const completedCount = assignments.filter(c => c.status === 'completed').length;
-  const totalEntries = assignments.reduce((sum, c) => sum + c.totalEntries, 0);
-  const judgedEntries = assignments.reduce((sum, c) => sum + c.completedEntries, 0);
-  const completionRate = totalEntries > 0 ? Math.round((judgedEntries / totalEntries) * 100) : null;
+  const entryCountsAvailable = assignments.every(c => c.entryCountsAvailable !== false);
+  const totalEntries = entryCountsAvailable
+    ? assignments.reduce((sum, c) => sum + c.totalEntries, 0)
+    : null;
+  const judgedEntries = entryCountsAvailable
+    ? assignments.reduce((sum, c) => sum + c.completedEntries, 0)
+    : null;
+  const completionRate =
+    totalEntries !== null && totalEntries > 0 && judgedEntries !== null
+      ? Math.round((judgedEntries / totalEntries) * 100)
+      : null;
   const nextClass = assignments
     .filter(c => c.status !== 'completed')
     .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())[0];

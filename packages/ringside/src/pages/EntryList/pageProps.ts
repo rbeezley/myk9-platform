@@ -250,6 +250,8 @@ export interface DogCardProps {
   onClick?: () => void;
   className?: string;
   statusBorder?: DogCardStatusBorder;
+  /** Explicit keyboard/touch-safe primary action for an actionable entry. */
+  primaryAction?: ReactNode;
   actionButton?: ReactNode;
   favoriteButton?: ReactNode;
   resultBadges?: ReactNode;

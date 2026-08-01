@@ -62,6 +62,7 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
 }) => {
   const ringLabel = formatRingLabel(judgeClass.ringNumber);
   const isCompleted = judgeClass.status === 'completed';
+  const entryCountsAvailable = judgeClass.entryCountsAvailable !== false;
 
   return (
     <div className="group relative overflow-hidden flex items-center justify-between p-4 sm:p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]">
@@ -98,9 +99,11 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
             </span>
             <span>&bull;</span>
             <span>
-              {isCompleted
-                ? `${judgeClass.totalEntries} entries judged`
-                : `${judgeClass.completedEntries}/${judgeClass.totalEntries} entries`}
+              {!entryCountsAvailable
+                ? 'Entry totals unavailable'
+                : isCompleted
+                  ? `${judgeClass.totalEntries} entries judged`
+                  : `${judgeClass.completedEntries}/${judgeClass.totalEntries} entries`}
             </span>
           </div>
         </div>
@@ -109,7 +112,7 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
         {getStatusBadge(judgeClass.status)}
         {!isCompleted && onStartJudging && (
           <Button
-            size="sm"
+            size="touch"
             onClick={() => onStartJudging(judgeClass)}
             className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
           >
@@ -120,7 +123,7 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
         {isCompleted && onViewResults && (
           <Button
             variant="outline"
-            size="sm"
+            size="touch"
             onClick={() => onViewResults(judgeClass)}
             className="relative border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
           >
@@ -214,6 +217,7 @@ const JudgeDashboard: React.FC = () => {
               to the ring: this deep-links into ringside for today's active show. */}
           {nextClass && (
             <Button
+              size="touch"
               onClick={() => navigate(`/at-show/${nextClass.showId}`)}
               className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
             >
@@ -259,9 +263,11 @@ const JudgeDashboard: React.FC = () => {
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                {totalEntries}
+                {totalEntries ?? '—'}
               </div>
-              <p className="text-sm text-muted-foreground font-medium">{judgedEntries} judged</p>
+              <p className="text-sm text-muted-foreground font-medium">
+                {judgedEntries === null ? 'Entry totals unavailable' : `${judgedEntries} judged`}
+              </p>
             </CardContent>
           </GlassCard>
 

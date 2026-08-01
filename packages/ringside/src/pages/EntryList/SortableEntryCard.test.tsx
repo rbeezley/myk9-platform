@@ -31,6 +31,7 @@ const StubDogCard: ComponentType<DogCardProps> = ({
   className,
   statusBorder,
   actionButton,
+  primaryAction,
   dragHandle,
   favoriteButton,
   resultBadges,
@@ -45,6 +46,7 @@ const StubDogCard: ComponentType<DogCardProps> = ({
     <span>{callName}</span>
     {dragHandle && <div data-testid="drag-handle-slot">{dragHandle}</div>}
     {actionButton && <div data-testid="action-button-slot">{actionButton}</div>}
+    {primaryAction && <div data-testid="primary-action-slot">{primaryAction}</div>}
     {favoriteButton && <div data-testid="favorite-button-slot">{favoriteButton}</div>}
     {resultBadges && <div data-testid="result-badges-slot">{resultBadges}</div>}
   </div>
@@ -261,6 +263,90 @@ describe('SortableEntryCard', () => {
     );
     fireEvent.click(screen.getByTestId('dog-card'));
     expect(onEntryClick).toHaveBeenCalledWith(baseEntry);
+  });
+
+  it('exposes a named Score action that activates the existing entry route', () => {
+    const onEntryClick = vi.fn();
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={onEntryClick}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    const scoreButton = screen.getByRole('button', { name: 'Score Rex' });
+    expect(scoreButton).toBeTruthy();
+    fireEvent.click(scoreButton);
+
+    expect(onEntryClick).toHaveBeenCalledTimes(1);
+    expect(onEntryClick).toHaveBeenCalledWith(baseEntry);
+  });
+
+  it('keeps the primary action keyboard-focusable with a visible focus treatment', () => {
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    const scoreButton = screen.getByRole('button', { name: 'Score Rex' });
+    scoreButton.focus();
+
+    expect(document.activeElement).toBe(scoreButton);
+    expect(scoreButton.getAttribute('type')).toBe('button');
+    expect(scoreButton.className).toContain('min-h-11');
+    expect(scoreButton.className).toContain('focus-visible:ring-2');
+  });
+
+  it('labels an in-ring entry action Resume and does not duplicate card activation', () => {
+    const onEntryClick = vi.fn();
+    const inRing: Entry = { ...baseEntry, inRing: true, status: 'in-ring' };
+    renderInDndContext(
+      <SortableEntryCard
+        entry={inRing}
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={onEntryClick}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resume Rex' }));
+
+    expect(onEntryClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the explicit score action out of the DOM when scoring is denied', () => {
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={false}
+        hasPermission={denyAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Score Rex' })).toBeNull();
   });
 
   it('toggles favorite without firing card navigation', () => {

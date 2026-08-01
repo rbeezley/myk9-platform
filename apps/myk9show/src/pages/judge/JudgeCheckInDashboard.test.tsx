@@ -100,6 +100,18 @@ describe('JudgeCheckInDashboard', () => {
     expect(screen.getByRole('button', { name: /multi-ring view/i })).toBeEnabled();
   });
 
+  it('uses the class name instead of a raw class id when no ring number is assigned', () => {
+    const rawClassId = 'dec1a55e-0000-0000-0000-000000000033';
+    mockAssignments({
+      assignments: [assignment({ classId: rawClassId, name: 'Interior Advanced' })],
+    });
+
+    render(<JudgeCheckInDashboard />, { initialRoute: '/judge/check-in' });
+
+    expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
+    expect(screen.queryByText(rawClassId)).not.toBeInTheDocument();
+  });
+
   it('renders a true empty state after loading finishes with no assignments', () => {
     mockAssignments({ assignments: [] });
 
@@ -107,5 +119,15 @@ describe('JudgeCheckInDashboard', () => {
 
     expect(screen.getByText(/no ring assignments/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /multi-ring view/i })).toBeDisabled();
+  });
+
+  it('does not present a cold entry replica as a confident zero', () => {
+    mockAssignments({ assignments: [assignment({ entryCountsAvailable: false })] });
+
+    render(<JudgeCheckInDashboard />, { initialRoute: '/judge/check-in' });
+
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/entry totals unavailable/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText('0 entries')).not.toBeInTheDocument();
   });
 });

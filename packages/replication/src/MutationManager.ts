@@ -66,6 +66,9 @@ export class MutationManager {
   private logger: Logger;
   private queueStore: MutationQueueStore;
   private uploadRunner: MutationUploadRunner;
+  /** Prevent startup/reconnect restore from racing an active queue flush. */
+  private restoreInFlight: Promise<void> | null = null;
+  private uploadInFlight: Promise<SyncResult[]> | null = null;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     this.logger = options.logger ?? noopLogger;
@@ -340,7 +343,20 @@ export class MutationManager {
    * we fall back to it alone when Web Locks is unavailable (older engines, tests).
    */
   async uploadPendingMutations(): Promise<SyncResult[]> {
-    return this.uploadRunner.uploadPendingMutations();
+    if (this.uploadInFlight) return this.uploadInFlight;
+
+    // A restore may have already read the backup while this upload was
+    // requested. Finish it first so the upload sees every restored mutation.
+    if (this.restoreInFlight) await this.restoreInFlight;
+    if (this.uploadInFlight) return this.uploadInFlight;
+
+    const upload = this.uploadRunner.uploadPendingMutations();
+    this.uploadInFlight = upload;
+    try {
+      return await upload;
+    } finally {
+      if (this.uploadInFlight === upload) this.uploadInFlight = null;
+    }
   }
 
   // ========================================
@@ -394,6 +410,22 @@ export class MutationManager {
    * Only restores mutations not already present in IndexedDB.
    */
   async restoreMutationsFromLocalStorage(): Promise<void> {
+    if (this.restoreInFlight) return this.restoreInFlight;
+
+    // Never restore a stale backup into a queue that is being flushed. The
+    // flush owns deletion and its pass-level backup; restore follows it.
+    if (this.uploadInFlight) await this.uploadInFlight;
+
+    const restore = this.restoreMutationsFromLocalStorageInternal();
+    this.restoreInFlight = restore;
+    try {
+      await restore;
+    } finally {
+      if (this.restoreInFlight === restore) this.restoreInFlight = null;
+    }
+  }
+
+  private async restoreMutationsFromLocalStorageInternal(): Promise<void> {
     if (typeof window === 'undefined') return;
 
     try {

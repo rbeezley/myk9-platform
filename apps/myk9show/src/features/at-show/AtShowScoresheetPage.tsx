@@ -246,6 +246,10 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     },
     [navigate, showId, classId]
   );
+  const handleCorrectScore = useCallback(() => {
+    setSavedEntryId(null);
+    navigate(`/at-show/${showId}/class/${classId}/score/${entryId}`);
+  }, [navigate, showId, classId, entryId]);
 
   const {
     entry,
@@ -256,9 +260,9 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialNumber,
     isLoading,
     error,
-    isInitialSyncPending,
     loadedClassId,
     loadedEntryId,
+    retry,
     submit,
     isSyncing,
     hasSyncError,
@@ -298,16 +302,13 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         classId={classId}
         scoredEntryId={savedEntryId}
         onBackToList={onBack}
+        onCorrectScore={handleCorrectScore}
         onPickEntry={handlePickEntry}
       />
     );
   }
 
-  if (
-    isLoading ||
-    (!isLoadedRoute && hasAnyScoresheetState) ||
-    (isInitialSyncPending && (!entry || !classInfo || !rules || error))
-  ) {
+  if (isLoading || (!isLoadedRoute && hasAnyScoresheetState)) {
     return <AtShowScoresheetSkeleton />;
   }
 
@@ -318,10 +319,13 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         <p className="text-lg font-medium text-destructive">
           {error || 'Failed to load scoresheet'}
         </p>
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Entry List
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button onClick={retry}>Retry</Button>
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Entry List
+          </Button>
+        </div>
       </div>
     );
   }

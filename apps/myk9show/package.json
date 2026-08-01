@@ -34,6 +34,7 @@
     "coverage:ratchet:update": "pnpm coverage:ratchet -- --update-baseline",
     "coverage:ratchet:test": "vitest run scripts/coverage-ratchet.test.ts",
     "test:e2e": "playwright test && node scripts/auto-cleanup-after-test.js",
+    "test:e2e:audit": "playwright test --config=playwright.audit.config.ts",
     "test:e2e:ui": "playwright test --ui && node scripts/auto-cleanup-after-test.js",
     "test:e2e:ci": "npx playwright test --config=playwright.ci.config.ts",
     "test:e2e:regression": "cross-env PLAYWRIGHT_REGRESSION=true npx playwright test --config=playwright.ci.config.ts",

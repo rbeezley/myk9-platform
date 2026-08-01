@@ -72,6 +72,16 @@ describe('deriveJudgeDashboardStats', () => {
     expect(completionRate).toBeNull();
   });
 
+  it('does not report snapshot totals while canonical entry counts are unavailable', () => {
+    const classes = [
+      makeClass({ totalEntries: 20, completedEntries: 5, entryCountsAvailable: false }),
+    ];
+    const { totalEntries, judgedEntries, completionRate } = deriveJudgeDashboardStats(classes, NOW);
+    expect(totalEntries).toBeNull();
+    expect(judgedEntries).toBeNull();
+    expect(completionRate).toBeNull();
+  });
+
   it('picks the earliest non-completed class as nextClass', () => {
     const classes = [
       makeClass({

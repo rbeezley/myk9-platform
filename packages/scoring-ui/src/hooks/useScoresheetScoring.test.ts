@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { useScoresheetScoring } from './useScoresheetScoring';
 import type { ResolvedClassRules } from '../types';
@@ -161,6 +161,31 @@ describe('useScoresheetScoring', () => {
     const validation = result.current.validate();
     expect(validation.valid).toBe(true);
     expect(validation.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('coalesces concurrent submit attempts into one score submission', async () => {
+    let finishSubmit: (() => void) | undefined;
+    const onSubmit = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finishSubmit = resolve;
+        })
+    );
+    const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
+    act(() => result.current.setQualifying('Q'));
+
+    let first: Promise<void> | undefined;
+    let second: Promise<void> | undefined;
+    act(() => {
+      first = result.current.handleSubmit(onSubmit);
+      second = result.current.handleSubmit(onSubmit);
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    finishSubmit?.();
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
   });
 
   it('resets all state', () => {

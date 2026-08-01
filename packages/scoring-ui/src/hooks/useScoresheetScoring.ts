@@ -7,7 +7,7 @@
  * Used by both LiveScoresheet (judge) and EntryScoresheet (secretary).
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 import type { AreaScore, ScoreData, ExtendedResult, ResolvedClassRules } from '../types';
 
@@ -87,6 +87,9 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   const [faultCount, setFaultCount] = useState(existingScore?.faultCount ?? 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // React state updates after the current event. A ref closes the gap where a
+  // rapid double tap can enter handleSubmit twice before isSubmitting renders.
+  const submitInFlightRef = useRef(false);
 
   const setQualifying = useCallback((value: ExtendedResult | '') => {
     setQualifyingRaw(value);
@@ -178,9 +181,11 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
   const handleSubmit = useCallback(
     async (onSubmit: (data: ScoreData) => void | Promise<void>, extra?: Partial<ScoreData>) => {
+      if (submitInFlightRef.current) return;
       const validation = validate();
       if (!validation.valid) return;
 
+      submitInFlightRef.current = true;
       setIsSubmitting(true);
       setSubmitError(null);
       try {
@@ -188,6 +193,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       } catch (err) {
         setSubmitError(err instanceof Error ? err.message : 'Score submission failed');
       } finally {
+        submitInFlightRef.current = false;
         setIsSubmitting(false);
       }
     },

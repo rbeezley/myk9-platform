@@ -16,6 +16,10 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = resolve(__dirname, '../../../../..');
 const HEARTLAND_CLUB_ID = 'dededede-0000-0000-0000-000000000001';
 const HEARTLAND_SHOW_ID = 'dededede-0000-0000-0000-000000000010';
+const setupSource = readFileSync(
+  join(repoRoot, 'apps/myk9show/scripts/setup-e2e-test-users.ts'),
+  'utf8'
+);
 
 function readSeed(): string {
   return readFileSync(join(repoRoot, 'supabase/seed-demo.sql'), 'utf8');
@@ -131,5 +135,22 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     // The canonical judge gets class-level rows.
     expect(insertCols).toContain('e2e-judge@test.myk9.com');
     expect(seed).toContain('dededede-0000-0000-0000-0000000000b5');
+  });
+
+  it('provides assigned, unassigned, and no-assignment judge subjects', () => {
+    expect(setupSource).toMatch(
+      /email: 'e2e-judge-empty@test\.myk9\.com',[\s\S]*?passwordEnv: 'E2E_JUDGE_PASSWORD',[\s\S]*?roles: \['judge'\]/
+    );
+
+    const assignmentBlock = seed.slice(
+      seed.indexOf('INSERT INTO public.judge_assignments'),
+      seed.indexOf('-- 12. GAP FIXTURE', seed.indexOf('INSERT INTO public.judge_assignments'))
+    );
+
+    expect(assignmentBlock).toContain('e2e-judge@test.myk9.com');
+    expect(assignmentBlock).toContain('dec1a55e-0000-0000-0000-000000000031');
+    expect(assignmentBlock).not.toContain('e2e-judge-empty@test.myk9.com');
+    expect(seed).toContain('dec1a55e-0000-0000-0000-000000000036');
+    expect(assignmentBlock).not.toContain('dec1a55e-0000-0000-0000-000000000036');
   });
 });

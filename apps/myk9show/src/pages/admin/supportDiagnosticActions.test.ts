@@ -50,6 +50,14 @@ describe('buildSupportInvestigationModel', () => {
         }),
       ])
     );
+    expect(model.nextChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'permissions-users',
+          href: '/admin/users?userId=db-1',
+        }),
+      ])
+    );
   });
 
   it('routes sync issues to sync monitoring and health next checks', () => {

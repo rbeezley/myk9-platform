@@ -147,7 +147,7 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
     addUnique(nextChecks, {
       id: 'permissions-users',
       label: 'Review user roles',
-      href: '/admin/users',
+      href: userId ? `/admin/users?userId=${encodeId(userId)}` : '/admin/users',
     });
   }
 

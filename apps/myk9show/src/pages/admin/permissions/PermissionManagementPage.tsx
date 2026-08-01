@@ -15,6 +15,7 @@ import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs
 
 const PERMISSION_TABS: PrimaryTabDef[] = [
   { id: 'overview', label: 'Overview' },
+  { id: 'assignments', label: 'Assignments' },
   { id: 'permissions', label: 'Permissions' },
   { id: 'audit', label: 'Permission Audit' },
 ];
@@ -34,6 +35,7 @@ import { useRBAC } from '@/hooks/useRBAC';
 import { rbacService } from '@/services/rbac/RBACService';
 import { RBACMigrationStatus } from '@/components/rbac/RBACMigrationStatus';
 import { PermissionInventory } from '@/components/admin/permissions/PermissionInventory';
+import { RoleAssignmentsPanel } from '@/components/admin/permissions/RoleAssignmentsPanel';
 import type { Permission } from '@/types/rbac-types';
 import PermissionAuditPage from './PermissionAuditPage';
 
@@ -43,7 +45,7 @@ const PermissionManagementPage: React.FC = () => {
   const [permissions, setPermissions] = useState<Permission[] | null>(null);
   const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useUrlTab(
-    ['overview', 'permissions', 'audit'] as const,
+    ['overview', 'assignments', 'permissions', 'audit'] as const,
     'overview'
   );
 
@@ -87,11 +89,11 @@ const PermissionManagementPage: React.FC = () => {
       link: '/admin/permissions?tab=permissions',
     },
     {
-      title: 'Your Active Roles',
+      title: 'Role Assignments',
       value: userRoles.length.toString(),
-      description: 'Role assignments on your account',
+      description: 'Role grants on your account',
       icon: Users,
-      link: '/admin/permissions/users',
+      link: '/admin/permissions?tab=assignments',
     },
     {
       title: 'Your Permissions',
@@ -111,9 +113,9 @@ const PermissionManagementPage: React.FC = () => {
     },
     {
       title: 'Assign User Roles',
-      description: 'Manage user role assignments',
+      description: 'Grant and revoke roles from User Management',
       icon: Users,
-      link: '/admin/permissions/users',
+      link: '/admin/users',
     },
     {
       title: 'View Audit Log',
@@ -255,7 +257,11 @@ const PermissionManagementPage: React.FC = () => {
                             variant="ghost"
                             className="p-0 h-auto hover:bg-primary/10"
                           >
-                            <Link to={action.link} className="text-primary font-medium">
+                            <Link
+                              to={action.link}
+                              className="text-primary font-medium"
+                              aria-label={action.title}
+                            >
                               Get Started <ArrowRight className="h-4 w-4 ml-1" />
                             </Link>
                           </Button>
@@ -348,6 +354,10 @@ const PermissionManagementPage: React.FC = () => {
             </div>
           </div>
         </div>
+      </TabsContent>
+
+      <TabsContent value="assignments">
+        <RoleAssignmentsPanel />
       </TabsContent>
 
       <TabsContent value="permissions">

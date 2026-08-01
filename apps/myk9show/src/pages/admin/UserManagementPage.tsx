@@ -7,10 +7,10 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { Filter, Plus, Download, Search, Users } from 'lucide-react';
+import { Filter, Plus, Download, Search, Users, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 // Hooks and services
@@ -211,6 +211,12 @@ const UserManagementPage: React.FC = () => {
 
   const actionButtons = (
     <>
+      <Button variant="outline" asChild>
+        <Link to="/admin/role-requests">
+          <ShieldCheck className="h-4 w-4 mr-2" />
+          Role Requests
+        </Link>
+      </Button>
       <Button variant="outline" onClick={() => exportUsersCSV(sortedUsers)}>
         <Download className="h-4 w-4 mr-2" />
         Export Users

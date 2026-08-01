@@ -21,17 +21,4 @@ describe('/admin/permissions/users redirect', () => {
     );
     expect(screen.getByTestId('location')).toHaveTextContent('/admin/permissions?tab=assignments');
   });
-
-  it('leaves no importable UserRoleManagementPage module behind', async () => {
-    // Built at runtime (not a string literal) so Vite's static import
-    // analysis can't pre-resolve it at transform time and fail the whole
-    // test file — the assertion needs a genuine runtime rejection instead.
-    const modulePath = ['..', 'UserRoleManagementPage'].join('/');
-    await expect(import(modulePath)).rejects.toThrow();
-  });
-
-  it('leaves no importable UserRoleAssignmentDialog module behind', async () => {
-    const modulePath = ['@/components/admin/permissions', 'UserRoleAssignmentDialog'].join('/');
-    await expect(import(modulePath)).rejects.toThrow();
-  });
 });

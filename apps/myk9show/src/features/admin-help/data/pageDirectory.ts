@@ -161,12 +161,12 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/users',
     title: 'User Management',
-    description: 'Search, review, and manage platform user accounts.',
+    description: 'Search, review, and manage platform user accounts. Grant and revoke roles here.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: [],
+    linksTo: ['/admin/role-requests', '/admin/permissions'],
   },
   {
     path: '/admin/role-requests',
@@ -176,7 +176,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: [],
+    linksTo: ['/admin/users'],
   },
   {
     path: '/admin/payouts',

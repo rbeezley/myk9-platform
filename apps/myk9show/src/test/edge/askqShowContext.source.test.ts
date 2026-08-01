@@ -23,12 +23,15 @@ describe('ask-myk9show show context contract', () => {
   });
 
   it('verifies show-scoped officials through denormalized auth_user_id and show_id', () => {
-    const roleCheck = sliceBetween("from('user_roles')", 'dogIds.length > 0');
+    // Slice from the WRAPPER, not from `from('user_roles')` — #1561 moved the
+    // `is_active` / `expires_at` predicate into applyActiveRoleValidity(), and
+    // the call sits outside the query chain. Starting the slice at the table
+    // name would put the guard out of view and read as if it were missing.
+    const roleCheck = sliceBetween('applyActiveRoleValidity(', 'dogIds.length > 0');
 
+    expect(roleCheck).toContain("from('user_roles')");
     expect(roleCheck).toContain(".eq('auth_user_id', user.id)");
     expect(roleCheck).toContain(".eq('show_id', showId)");
-    expect(roleCheck).toContain(".eq('is_active', true)");
-    expect(roleCheck).toContain(".or('expires_at.is.null,expires_at.gt.now()')");
     expect(roleCheck).not.toContain(".eq('user_id', user.id)");
     expect(roleCheck).not.toContain(".eq('scope_type'");
     expect(roleCheck).not.toContain(".eq('scope_id'");

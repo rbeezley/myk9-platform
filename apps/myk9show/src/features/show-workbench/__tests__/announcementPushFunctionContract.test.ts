@@ -41,7 +41,12 @@ describe('push-trigger-announcement function contract', () => {
     expect(source).toContain("from '../_shared/pushWebhookAuth.ts'");
     expect(source).toContain('beforeBody: requirePushWebhookSecret');
     expect(source).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
-    expect(source).toContain(".eq('is_active', true)");
+    // #1561 moved the `is_active` / `expires_at` predicate out of this file and
+    // into applyActiveRoleValidity(). Assert the helper is applied rather than
+    // the literal it replaced — roleValidityCoverage.test.ts enforces the same
+    // contract across all 13 privileged Edge paths.
+    expect(source).toContain("from '../_shared/roleValidity.ts'");
+    expect(source).toContain('applyActiveRoleValidity(');
     expect(source.indexOf('beforeBody: requirePushWebhookSecret')).toBeLessThan(
       source.indexOf('webpush.sendNotification')
     );
@@ -169,7 +174,9 @@ describe('class-status and scoring push audience contracts', () => {
     expect(source).toContain('entry.dog?.owner?.auth_user_id');
     expect(source).toContain('entry.dog?.co_owner?.auth_user_id');
     expect(source).toContain('entry.handler?.auth_user_id');
-    expect(source).toContain(".not('entry_status', 'in', '(\"withdrawn\",\"scratched\",\"absent\")')");
+    expect(source).toContain(
+      '.not(\'entry_status\', \'in\', \'("withdrawn","scratched","absent")\')'
+    );
     expect(source).toContain(".not('check_in_status', 'eq', 'pulled')");
     expect(source).not.toContain(".select('user_id')");
     expect(source).not.toContain(".not('entry_status', 'eq', 'pulled')");

@@ -28,6 +28,19 @@ export function resolveSetupMode(args: readonly string[]): SetupMode {
   return preview ? 'preview' : 'apply';
 }
 
+/**
+ * Auth-only setup is the CI default, but an explicit --dry-run must always
+ * remain a non-mutating preview. This keeps the safety flag authoritative even
+ * when MYK9_E2E_AUTH_ONLY=true is inherited from the test runner.
+ */
+export function resolveEffectiveSetupMode(args: readonly string[], authOnly: boolean): SetupMode {
+  if (args.includes('--dry-run') || args.includes('--apply')) {
+    return resolveSetupMode(args);
+  }
+  if (authOnly) return 'apply';
+  return resolveSetupMode(args);
+}
+
 function grantKey(grant: ScopedRoleGrant): string {
   return [grant.roleId, grant.clubId ?? '', grant.showId ?? ''].join(':');
 }

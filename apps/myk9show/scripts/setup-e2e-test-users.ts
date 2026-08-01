@@ -7,13 +7,17 @@
  * Usage:
  *   pnpm exec tsx scripts/setup-e2e-test-users.ts --dry-run
  *   pnpm exec tsx scripts/setup-e2e-test-users.ts --apply
+ *
+ * WARNING: --apply reconciles each canonical user's role grants and deactivates
+ * stale grants. Run --dry-run first and review the role plan before mutating
+ * the shared Supabase project.
  */
 
 import { createClient, type User } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import {
   planRoleReconciliation,
-  resolveSetupMode,
+  resolveEffectiveSetupMode,
   type ScopedRoleGrant,
 } from './setup-e2e-test-users.helpers';
 
@@ -35,7 +39,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const authOnly = process.env.MYK9_E2E_AUTH_ONLY === 'true';
-const setupMode = authOnly ? 'apply' : resolveSetupMode(process.argv.slice(2));
+const setupMode = resolveEffectiveSetupMode(process.argv.slice(2), authOnly);
 const isPreview = setupMode === 'preview';
 
 interface TestUser {
@@ -79,7 +83,7 @@ const CANONICAL_TEST_USERS: TestUser[] = [
   },
   {
     email: 'e2e-judge-empty@test.myk9.com',
-    passwordEnv: 'E2E_JUDGE_PASSWORD',
+    passwordEnv: 'E2E_JUDGE_EMPTY_PASSWORD',
     firstName: 'Test',
     lastName: 'Judge No Assignments',
     roles: ['judge'],

@@ -263,6 +263,16 @@ export class MutationUploadRunner {
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, uploadedMutation.id);
           uploadedMutationIds.add(uploadedMutation.id);
 
+          // Keep the localStorage backup aligned with the queue after each
+          // successful delete/version bump. A crash before the pass-level
+          // backup below must not restore a mutation that already reached the
+          // server.
+          try {
+            await this.writeBackup();
+          } catch (err) {
+            this.logger.warn('[MutationManager] Per-mutation backup failed:', err);
+          }
+
           results.push({
             success: true,
             tableName: uploadedMutation.tableName,

@@ -56,7 +56,11 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getEntriesByClass: vi.fn(), sync: vi.fn() },
+  replicatedEntriesTable: {
+    getEntriesByClass: vi.fn(),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => () => undefined),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: vi.fn() },
@@ -358,6 +362,9 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
   });
 
   it('submits the score via submitScoreOptimistically with the entry identity', async () => {
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
     renderPage();
     await screen.findByTestId('live-scoresheet');
 
@@ -368,6 +375,24 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
         expect.objectContaining({ entryId: 'entry-1', classId: 'class-1', armband: 105 })
       )
     );
+  });
+
+  it('rehydrates the saved entry when correcting a score from Quick Advance', async () => {
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Score saved')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /correct this score/i }));
+
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(2);
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledTimes(2);
   });
 
   it('navigates back to the at-show entry list', async () => {

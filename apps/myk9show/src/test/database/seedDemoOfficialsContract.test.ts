@@ -139,7 +139,7 @@ describe('seed-demo officials + RBAC completeness contract', () => {
 
   it('provides assigned, unassigned, and no-assignment judge subjects', () => {
     expect(setupSource).toMatch(
-      /email: 'e2e-judge-empty@test\.myk9\.com',[\s\S]*?passwordEnv: 'E2E_JUDGE_PASSWORD',[\s\S]*?roles: \['judge'\]/
+      /email: 'e2e-judge-empty@test\.myk9\.com',[\s\S]*?passwordEnv: 'E2E_JUDGE_EMPTY_PASSWORD',[\s\S]*?roles: \['judge'\]/
     );
 
     const assignmentBlock = seed.slice(

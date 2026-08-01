@@ -115,6 +115,9 @@ export interface JudgeDashboardStats {
   totalEntries: number | null;
   judgedEntries: number | null;
   completionRate: number | null;
+  entryCountsStatus: 'complete' | 'partial' | 'unavailable';
+  entryCountsAvailableAssignments: number;
+  entryCountsAssignmentCount: number;
   nextClass: JudgeClass | undefined;
   minutesUntilNext: number | null;
 }
@@ -124,13 +127,22 @@ export function deriveJudgeDashboardStats(
   now: number
 ): JudgeDashboardStats {
   const completedCount = assignments.filter(c => c.status === 'completed').length;
-  const entryCountsAvailable = assignments.every(c => c.entryCountsAvailable !== false);
-  const totalEntries = entryCountsAvailable
-    ? assignments.reduce((sum, c) => sum + c.totalEntries, 0)
-    : null;
-  const judgedEntries = entryCountsAvailable
-    ? assignments.reduce((sum, c) => sum + c.completedEntries, 0)
-    : null;
+  const availableAssignments = assignments.filter(c => c.entryCountsAvailable !== false);
+  const unavailableAssignments = assignments.length - availableAssignments.length;
+  const entryCountsStatus =
+    unavailableAssignments === 0
+      ? 'complete'
+      : availableAssignments.length > 0
+        ? 'partial'
+        : 'unavailable';
+  const totalEntries =
+    entryCountsStatus === 'unavailable'
+      ? null
+      : availableAssignments.reduce((sum, c) => sum + c.totalEntries, 0);
+  const judgedEntries =
+    entryCountsStatus === 'unavailable'
+      ? null
+      : availableAssignments.reduce((sum, c) => sum + c.completedEntries, 0);
   const completionRate =
     totalEntries !== null && totalEntries > 0 && judgedEntries !== null
       ? Math.round((judgedEntries / totalEntries) * 100)
@@ -146,6 +158,9 @@ export function deriveJudgeDashboardStats(
     totalEntries,
     judgedEntries,
     completionRate,
+    entryCountsStatus,
+    entryCountsAvailableAssignments: availableAssignments.length,
+    entryCountsAssignmentCount: assignments.length,
     nextClass,
     minutesUntilNext,
   };

@@ -130,4 +130,24 @@ describe('JudgeCheckInDashboard', () => {
     expect(screen.getAllByText(/entry totals unavailable/i).length).toBeGreaterThan(0);
     expect(screen.queryByText('0 entries')).not.toBeInTheDocument();
   });
+
+  it('labels aggregate totals as partial when one class replica is cold', () => {
+    mockAssignments({
+      assignments: [
+        assignment({ id: 'warm', totalEntries: 20, checkedInEntries: 14 }),
+        assignment({
+          id: 'cold',
+          name: 'Exterior Novice A',
+          totalEntries: 30,
+          checkedInEntries: 20,
+          entryCountsAvailable: false,
+        }),
+      ],
+    });
+
+    render(<JudgeCheckInDashboard />, { initialRoute: '/judge/check-in' });
+
+    expect(screen.getByText('20')).toBeInTheDocument();
+    expect(screen.getAllByText(/partial totals · 1 of 2 classes synced/i)).toHaveLength(2);
+  });
 });

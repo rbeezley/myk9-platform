@@ -180,9 +180,10 @@ export const AtShowClassListPage: React.FC = () => {
     retry: retryAssignments,
   } = useMyAtShowJudgeAssignments(showId);
 
-  // A signed-in judge must stay inside the classes they are responsible for.
-  // Broader staff roles still need the full picker for show-day coordination,
-  // while anonymous passcode sessions are explicitly show-wide by design.
+  // For a judge-only account, keep the picker focused on assigned classes.
+  // This is a UI scope; route guards, RLS, and canScore remain the security
+  // gates. Broader staff roles still need the full picker for show-day
+  // coordination, while anonymous passcode sessions are show-wide by design.
   const isJudgeOnly =
     Boolean(user && !user.is_anonymous && hasRole(UserRole.JUDGE)) &&
     ![

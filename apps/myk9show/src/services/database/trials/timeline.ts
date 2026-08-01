@@ -156,7 +156,6 @@ function mapClassToTrialTimelineRow(
 async function postgrestGetShowScheduleTimelineRows(
   showId: string
 ): Promise<{ data: ShowScheduleTimelineRow[]; error: null }> {
-  const entryCountsMap = await postgrestGetEntryCountsByShow(showId);
   const { data, error } = await supabase
     .from('trials')
     .select(
@@ -187,6 +186,16 @@ async function postgrestGetShowScheduleTimelineRows(
     .is('deleted_at', null);
 
   if (error) throw createDatabaseError(error, 'trial', 'select_schedule_timeline');
+
+  const classIds = (data ?? []).flatMap(trial =>
+    ((trial.classes as Array<{ id: string; deleted_at: string | null }> | null) ?? [])
+      .filter(cls => cls.deleted_at === null)
+      .map(cls => cls.id)
+  );
+  const entryCountsMap = await postgrestGetEntryCountsByClassIds(
+    classIds,
+    'select_schedule_entry_counts'
+  );
 
   const rows: ShowScheduleTimelineRow[] = [];
   for (const trial of data ?? []) {
@@ -232,7 +241,6 @@ async function postgrestGetShowScheduleTimelineRows(
 async function postgrestGetTrialTimelineRows(
   trialId: string
 ): Promise<{ data: TrialTimelineRow[]; error: null }> {
-  const entryCountsMap = await postgrestGetEntryCountsByTrial(trialId);
   const { data, error } = await supabase
     .from('classes')
     .select(
@@ -256,6 +264,12 @@ async function postgrestGetTrialTimelineRows(
     .is('deleted_at', null);
 
   if (error) throw createDatabaseError(error, 'trial', 'select_trial_timeline');
+
+  const classIds = (data ?? []).map(cls => cls.id);
+  const entryCountsMap = await postgrestGetEntryCountsByClassIds(
+    classIds,
+    'select_trial_entry_counts'
+  );
 
   return {
     data: (data ?? []).map(cls => {
@@ -283,26 +297,24 @@ async function postgrestGetTrialTimelineRows(
   };
 }
 
-async function postgrestGetEntryCountsByShow(showId: string): Promise<Map<string, number>> {
-  const { data, error } = await supabase
-    .from('entries')
-    .select('class_id, deleted_at')
-    .eq('show_id', showId)
-    .is('deleted_at', null);
+async function postgrestGetEntryCountsByClassIds(
+  classIds: readonly string[],
+  operation: string
+): Promise<Map<string, number>> {
+  const counts = await Promise.all(
+    classIds.map(async classId => {
+      const { count, error } = await supabase
+        .from('entries')
+        .select('class_id', { count: 'exact', head: true })
+        .eq('class_id', classId)
+        .is('deleted_at', null);
 
-  if (error) throw createDatabaseError(error, 'entry', 'select_schedule_entry_counts');
-  return buildEntryCountsByClassMap((data ?? []) as EntryClassCountRow[]);
-}
+      if (error) throw createDatabaseError(error, 'entry', operation);
+      return [classId, count ?? 0] as const;
+    })
+  );
 
-async function postgrestGetEntryCountsByTrial(trialId: string): Promise<Map<string, number>> {
-  const { data, error } = await supabase
-    .from('entries')
-    .select('class_id, deleted_at')
-    .eq('trial_id', trialId)
-    .is('deleted_at', null);
-
-  if (error) throw createDatabaseError(error, 'entry', 'select_trial_entry_counts');
-  return buildEntryCountsByClassMap((data ?? []) as EntryClassCountRow[]);
+  return new Map(counts);
 }
 
 export const getShowScheduleTimelineRows = async (

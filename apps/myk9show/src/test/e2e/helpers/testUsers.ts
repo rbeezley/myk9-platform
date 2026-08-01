@@ -48,7 +48,7 @@ export const TEST_USERS: Record<string, TestUser> = {
 
   JUDGE_WITHOUT_ASSIGNMENTS: {
     email: 'e2e-judge-empty@test.myk9.com',
-    password: process.env.E2E_JUDGE_PASSWORD ?? '',
+    password: process.env.E2E_JUDGE_EMPTY_PASSWORD ?? '',
     role: 'judge',
     description: 'Isolated judge-only account with no assignments',
   },

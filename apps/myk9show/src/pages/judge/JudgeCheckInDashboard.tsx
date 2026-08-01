@@ -81,23 +81,30 @@ const JudgeCheckInDashboard: React.FC = () => {
   };
 
   // Calculate overall stats
-  const entryCountsAvailable = ringAssignments.every(ring => ring.entryCountsAvailable);
+  const availableRingAssignments = ringAssignments.filter(ring => ring.entryCountsAvailable);
+  const unavailableRingCount = ringAssignments.length - availableRingAssignments.length;
+  const entryCountsStatus =
+    unavailableRingCount === 0
+      ? 'complete'
+      : availableRingAssignments.length > 0
+        ? 'partial'
+        : 'unavailable';
   const overallStats = ringAssignments.reduce(
     (acc, ring) => ({
       totalEntries:
-        entryCountsAvailable && ring.totalEntries !== null
+        entryCountsStatus !== 'unavailable' && ring.totalEntries !== null
           ? (acc.totalEntries ?? 0) + ring.totalEntries
-          : null,
+          : acc.totalEntries,
       checkedIn:
-        entryCountsAvailable && ring.checkedInCount !== null
+        entryCountsStatus !== 'unavailable' && ring.checkedInCount !== null
           ? (acc.checkedIn ?? 0) + ring.checkedInCount
-          : null,
+          : acc.checkedIn,
       conflicts: acc.conflicts + ring.conflictCount,
       atGate: acc.atGate + ring.atGateCount,
     }),
     {
-      totalEntries: entryCountsAvailable ? 0 : null,
-      checkedIn: entryCountsAvailable ? 0 : null,
+      totalEntries: entryCountsStatus === 'unavailable' ? null : 0,
+      checkedIn: entryCountsStatus === 'unavailable' ? null : 0,
       conflicts: 0,
       atGate: 0,
     }
@@ -135,7 +142,9 @@ const JudgeCheckInDashboard: React.FC = () => {
 
             {/* Ring Check-In Interface */}
             <JudgeCheckInInterface
-              ringNumber={ringAssignment?.ringNumber ?? ringAssignment?.className ?? selectedRingLabel}
+              ringNumber={
+                ringAssignment?.ringNumber ?? ringAssignment?.className ?? selectedRingLabel
+              }
               judgeName={ringAssignment?.judgeName || 'Judge'}
             />
           </div>
@@ -230,9 +239,11 @@ const JudgeCheckInDashboard: React.FC = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">{overallStats.totalEntries ?? '—'}</div>
                     <p className="text-xs text-muted-foreground">
-                      {overallStats.totalEntries === null
+                      {entryCountsStatus === 'unavailable'
                         ? 'Entry totals unavailable'
-                        : `Across ${ringAssignments.length} rings`}
+                        : entryCountsStatus === 'partial'
+                          ? `Partial totals · ${availableRingAssignments.length} of ${ringAssignments.length} classes synced`
+                          : `Across ${ringAssignments.length} classes`}
                     </p>
                   </CardContent>
                 </Card>
@@ -245,11 +256,15 @@ const JudgeCheckInDashboard: React.FC = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">{overallStats.checkedIn ?? '—'}</div>
                     <p className="text-xs text-muted-foreground">
-                      {overallStats.totalEntries === null || overallStats.checkedIn === null
+                      {entryCountsStatus === 'unavailable'
                         ? 'Entry totals unavailable'
-                        : overallStats.totalEntries > 0
-                          ? `${Math.round((overallStats.checkedIn / overallStats.totalEntries) * 100)}% ready`
-                          : 'No entries yet'}
+                        : entryCountsStatus === 'partial'
+                          ? `Partial totals · ${availableRingAssignments.length} of ${ringAssignments.length} classes synced`
+                          : overallStats.totalEntries !== null &&
+                              overallStats.checkedIn !== null &&
+                              overallStats.totalEntries > 0
+                            ? `${Math.round((overallStats.checkedIn / overallStats.totalEntries) * 100)}% ready`
+                            : 'No entries yet'}
                     </p>
                   </CardContent>
                 </Card>

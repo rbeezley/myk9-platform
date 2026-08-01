@@ -226,6 +226,35 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
     }
   });
 
+  it('allows restore to continue after an in-flight upload rejects', async () => {
+    let rejectDatabase!: (error: Error) => void;
+    let databaseOpenAttempts = 0;
+    (databaseManager.getDatabase as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      databaseOpenAttempts += 1;
+      if (databaseOpenAttempts === 1) {
+        return new Promise((_, reject) => {
+          rejectDatabase = reject;
+        });
+      }
+      return Promise.reject(new Error('IndexedDB unavailable during restore'));
+    });
+
+    const { client } = createMockSupabaseClient();
+    const manager = createManager(client);
+    try {
+      const uploadPromise = manager.uploadPendingMutations();
+      await Promise.resolve();
+
+      const restorePromise = manager.restoreMutationsFromLocalStorage();
+      rejectDatabase(new Error('IndexedDB unavailable during upload'));
+
+      await expect(uploadPromise).rejects.toThrow('IndexedDB unavailable during upload');
+      await expect(restorePromise).resolves.toBeUndefined();
+    } finally {
+      manager.destroy();
+    }
+  });
+
   it('warns loudly when a pass skips every pending mutation (nothing uploaded, nothing failed)', async () => {
     // A mutation in backoff is the easiest all-skip case; the warn must fire so
     // a stalled queue is visible in the console (debug logs are filtered out in

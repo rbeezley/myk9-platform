@@ -570,45 +570,45 @@ describe('trialQueries (replication)', () => {
 
     it('uses entry counts in the PostgREST fallback instead of class snapshots', async () => {
       mockTrialsTable.getTrialsByShow.mockRejectedValueOnce(new Error('replica unavailable'));
-      mockSupabase.from.mockImplementation((table: string) =>
-        table === 'trials'
-          ? createChainableQuery({
-              data: [
-                {
-                  id: 'trial-1',
-                  date: '2026-05-01',
-                  trial_number: '1',
-                  planned_start_time: '08:30',
-                  classes: [
-                    {
-                      id: 'class-1',
-                      name: 'Novice Containers',
-                      element: 'Containers',
-                      level: 'Novice',
-                      start_time: '09:00',
-                      status: 'Scheduled',
-                      deleted_at: null,
-                      judge_assignments: [],
-                    },
-                  ],
-                },
-              ],
-              error: null,
-            })
-          : createChainableQuery({
-              data: [
-                { class_id: 'class-1', deleted_at: null },
-                { class_id: 'class-1', deleted_at: null },
-                { class_id: 'class-1', deleted_at: '2026-05-01T12:00:00Z' },
-              ],
-              error: null,
-            })
-      );
+      const entryCountQuery = createChainableQuery({ data: null, count: 2, error: null });
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'trials') {
+          return createChainableQuery({
+            data: [
+              {
+                id: 'trial-1',
+                date: '2026-05-01',
+                trial_number: '1',
+                planned_start_time: '08:30',
+                classes: [
+                  {
+                    id: 'class-1',
+                    name: 'Novice Containers',
+                    element: 'Containers',
+                    level: 'Novice',
+                    start_time: '09:00',
+                    status: 'Scheduled',
+                    deleted_at: null,
+                    judge_assignments: [],
+                  },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return entryCountQuery;
+      });
 
       const result = await getShowScheduleTimelineRows('show-1');
 
       expect(result.error).toBeNull();
       expect(result.data[0].totalEntriesCount).toBe(2);
+      expect(entryCountQuery.select).toHaveBeenCalledWith('class_id', {
+        count: 'exact',
+        head: true,
+      });
+      expect(entryCountQuery.is).toHaveBeenCalledWith('deleted_at', null);
     });
 
     it('falls back when the scoped entry replica is cold instead of reporting zero', async () => {
@@ -642,7 +642,8 @@ describe('trialQueries (replication)', () => {
               error: null,
             })
           : createChainableQuery({
-              data: [{ class_id: 'class-1', deleted_at: null }],
+              data: null,
+              count: 1,
               error: null,
             })
       );
@@ -723,11 +724,8 @@ describe('trialQueries (replication)', () => {
               error: null,
             })
           : createChainableQuery({
-              data: [
-                { class_id: 'class-1', deleted_at: null },
-                { class_id: 'class-1', deleted_at: null },
-                { class_id: 'class-1', deleted_at: '2026-05-01T12:00:00Z' },
-              ],
+              data: null,
+              count: 2,
               error: null,
             })
       );

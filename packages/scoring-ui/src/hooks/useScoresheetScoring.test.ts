@@ -188,6 +188,46 @@ describe('useScoresheetScoring', () => {
     });
   });
 
+  it('keeps a successful submission latched until the scoresheet is reset', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
+    act(() => result.current.setQualifying('Q'));
+
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+    });
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.reset();
+      result.current.setQualifying('Q');
+    });
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears the guard when the submission throws so the judge can retry', async () => {
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
+    act(() => result.current.setQualifying('Q'));
+
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+      await result.current.handleSubmit(onSubmit);
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+  });
+
   it('resets all state', () => {
     const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
     act(() => {

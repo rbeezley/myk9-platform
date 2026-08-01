@@ -173,7 +173,7 @@ export function useAtShowScoresheet({
     };
   }, [showId, classId, entryId, loadAttempt]);
 
-  const submit = async (scoreData: ScoreData) => {
+  const submit = async (scoreData: ScoreData): Promise<void> => {
     if (!entry || !classInfo) return;
     // Clear any prior failure before this attempt.
     setSubmitError(null);
@@ -207,7 +207,11 @@ export function useAtShowScoresheet({
       },
     });
 
-    if (!scoreSaved) return;
+    if (!scoreSaved) {
+      // Signal failure to the scoresheet guard so it can clear its duplicate-
+      // submit latch and allow an immediate retry on the same dog.
+      throw new Error('Score was not saved; please retry.');
+    }
 
     try {
       await recordCompletionIntentIfConfirmed(completionClassId, wasFinalPendingEntry);

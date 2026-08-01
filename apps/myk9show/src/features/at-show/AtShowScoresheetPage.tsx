@@ -246,11 +246,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     },
     [navigate, showId, classId]
   );
-  const handleCorrectScore = useCallback(() => {
-    setSavedEntryId(null);
-    navigate(`/at-show/${showId}/class/${classId}/score/${entryId}`);
-  }, [navigate, showId, classId, entryId]);
-
   const {
     entry,
     classInfo,
@@ -269,6 +264,13 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     submitError,
     clearSubmitError,
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
+  const handleCorrectScore = useCallback(() => {
+    setSavedEntryId(null);
+    // The route is already the scored entry, so navigating to the same URL is
+    // a no-op in React Router. Explicitly rehydrate the replicated row so the
+    // correction sheet reflects the just-saved score rather than stale state.
+    retry();
+  }, [retry]);
   // Requests persistent storage on entering the scoring surface; may surface an
   // iOS "Add to Home Screen" nudge when durable storage isn't granted.
   const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =

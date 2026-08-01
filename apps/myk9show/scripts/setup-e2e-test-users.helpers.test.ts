@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { planRoleReconciliation, resolveSetupMode } from './setup-e2e-test-users.helpers';
+import {
+  planRoleReconciliation,
+  resolveEffectiveSetupMode,
+  resolveSetupMode,
+} from './setup-e2e-test-users.helpers';
 
 describe('planRoleReconciliation', () => {
   it('deactivates stale grants, reactivates declared grants, and inserts missing grants', () => {
@@ -48,5 +52,11 @@ describe('resolveSetupMode', () => {
     expect(resolveSetupMode(['--apply'])).toBe('apply');
     expect(() => resolveSetupMode([])).toThrow(/exactly one/i);
     expect(() => resolveSetupMode(['--dry-run', '--apply'])).toThrow(/exactly one/i);
+  });
+
+  it('lets an explicit dry-run override auth-only apply mode', () => {
+    expect(resolveEffectiveSetupMode(['--dry-run'], true)).toBe('preview');
+    expect(resolveEffectiveSetupMode([], true)).toBe('apply');
+    expect(() => resolveEffectiveSetupMode(['--dry-run', '--apply'], true)).toThrow(/exactly one/i);
   });
 });

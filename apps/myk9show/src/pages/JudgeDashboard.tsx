@@ -178,6 +178,9 @@ const JudgeDashboard: React.FC = () => {
     totalEntries,
     judgedEntries,
     completionRate,
+    entryCountsStatus,
+    entryCountsAvailableAssignments,
+    entryCountsAssignmentCount,
     nextClass,
     minutesUntilNext,
   } = deriveJudgeDashboardStats(buckets.today, now);
@@ -266,7 +269,11 @@ const JudgeDashboard: React.FC = () => {
                 {totalEntries ?? '—'}
               </div>
               <p className="text-sm text-muted-foreground font-medium">
-                {judgedEntries === null ? 'Entry totals unavailable' : `${judgedEntries} judged`}
+                {entryCountsStatus === 'unavailable'
+                  ? 'Entry totals unavailable'
+                  : entryCountsStatus === 'partial'
+                    ? `${judgedEntries} judged · ${entryCountsAvailableAssignments} of ${entryCountsAssignmentCount} classes synced`
+                    : `${judgedEntries} judged`}
               </p>
             </CardContent>
           </GlassCard>
@@ -314,7 +321,11 @@ const JudgeDashboard: React.FC = () => {
                 <span
                   className={`text-sm font-medium ${completionRate !== null ? 'text-success' : 'text-muted-foreground'}`}
                 >
-                  {completionRate !== null ? 'On schedule' : 'No data yet'}
+                  {completionRate === null
+                    ? 'No data yet'
+                    : entryCountsStatus === 'partial'
+                      ? 'Partial data'
+                      : 'On schedule'}
                 </span>
               </div>
             </CardContent>

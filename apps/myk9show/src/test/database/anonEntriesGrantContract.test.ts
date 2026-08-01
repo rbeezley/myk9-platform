@@ -22,8 +22,9 @@ import { describe, expect, it } from 'vitest';
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 
 /**
- * The exact 14-column security boundary established by the release gate
- * (20260616120000) and restored by 20260725170000. Asserted as an exact set: a
+ * The exact 15-column security boundary established by the release gate
+ * (20260616120000) and restored by 20260725170000 plus the public timeline
+ * tombstone filter grant. Asserted as an exact set: a
  * denylist can only catch the sensitive columns someone remembered to enumerate.
  */
 const ANON_ENTRY_COLUMN_ALLOWLIST = [
@@ -41,6 +42,7 @@ const ANON_ENTRY_COLUMN_ALLOWLIST = [
   'entry_status',
   'jump_height',
   'created_at',
+  'deleted_at',
 ];
 
 /**

@@ -35,6 +35,7 @@ describe('deriveJudgeDashboardStats', () => {
     expect(stats.completedCount).toBe(0);
     expect(stats.totalEntries).toBe(0);
     expect(stats.judgedEntries).toBe(0);
+    expect(stats.entryCountsStatus).toBe('complete');
     expect(stats.completionRate).toBeNull();
     expect(stats.nextClass).toBeUndefined();
     expect(stats.minutesUntilNext).toBeNull();
@@ -76,10 +77,28 @@ describe('deriveJudgeDashboardStats', () => {
     const classes = [
       makeClass({ totalEntries: 20, completedEntries: 5, entryCountsAvailable: false }),
     ];
-    const { totalEntries, judgedEntries, completionRate } = deriveJudgeDashboardStats(classes, NOW);
+    const { totalEntries, judgedEntries, completionRate, entryCountsStatus } =
+      deriveJudgeDashboardStats(classes, NOW);
     expect(totalEntries).toBeNull();
     expect(judgedEntries).toBeNull();
     expect(completionRate).toBeNull();
+    expect(entryCountsStatus).toBe('unavailable');
+  });
+
+  it('sums available entry counts and labels a cold class as partial', () => {
+    const classes = [
+      makeClass({ id: 'warm', totalEntries: 10, completedEntries: 4 }),
+      makeClass({ id: 'cold', totalEntries: 20, completedEntries: 5, entryCountsAvailable: false }),
+    ];
+
+    const stats = deriveJudgeDashboardStats(classes, NOW);
+
+    expect(stats.totalEntries).toBe(10);
+    expect(stats.judgedEntries).toBe(4);
+    expect(stats.completionRate).toBe(40);
+    expect(stats.entryCountsStatus).toBe('partial');
+    expect(stats.entryCountsAvailableAssignments).toBe(1);
+    expect(stats.entryCountsAssignmentCount).toBe(2);
   });
 
   it('picks the earliest non-completed class as nextClass', () => {

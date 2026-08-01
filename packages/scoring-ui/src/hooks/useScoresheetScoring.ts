@@ -188,12 +188,19 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       submitInFlightRef.current = true;
       setIsSubmitting(true);
       setSubmitError(null);
+      let submissionAccepted = true;
       try {
         await onSubmit(buildScoreData(extra));
       } catch (err) {
+        submissionAccepted = false;
         setSubmitError(err instanceof Error ? err.message : 'Score submission failed');
       } finally {
-        submitInFlightRef.current = false;
+        // A successful optimistic write may resolve while this scoresheet
+        // remains mounted (for example, the at-show Saved/Correct flow). Keep
+        // the synchronous guard latched until the caller resets or unmounts so
+        // a second tap cannot enqueue the same score. Failed writes throw,
+        // which clears the guard for a retry.
+        if (!submissionAccepted) submitInFlightRef.current = false;
         setIsSubmitting(false);
       }
     },
@@ -201,6 +208,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   );
 
   const reset = useCallback(() => {
+    submitInFlightRef.current = false;
     setAreas(initializeAreas(rules, areaNames));
     setQualifyingRaw('');
     setNonQualifyingReason('');

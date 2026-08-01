@@ -89,9 +89,9 @@ const PermissionManagementPage: React.FC = () => {
       link: '/admin/permissions?tab=permissions',
     },
     {
-      title: 'Role Assignments',
+      title: 'Your Role Grants',
       value: userRoles.length.toString(),
-      description: 'Role grants on your account',
+      description: 'Roles on your account — open the full ledger',
       icon: Users,
       link: '/admin/permissions?tab=assignments',
     },

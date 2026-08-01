@@ -59,10 +59,10 @@ describe('PermissionManagementPage — assignments tab', () => {
     expect(stale).toEqual([]);
   });
 
-  it('labels the assignments stat card for the platform, not the signed-in admin', async () => {
+  it('keeps the personal role-grant card honest and points it at the ledger', async () => {
     render(<PermissionManagementPage />);
     await screen.findByRole('tab', { name: /assignments/i });
     expect(screen.queryByText('Your Active Roles')).not.toBeInTheDocument();
-    expect(screen.getByText('Role Assignments')).toBeInTheDocument();
+    expect(screen.getByText('Your Role Grants')).toBeInTheDocument();
   });
 });

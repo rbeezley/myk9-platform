@@ -77,6 +77,14 @@ interface DataTableProps<TData> {
    * Ignored when a custom `toolbar` is supplied.
    */
   showSearch?: boolean;
+  /**
+   * Whether the default toolbar renders its built-in "Export CSV" button.
+   * Defaults to `true`. Set to `false` when the page owns export — the built-in
+   * one exports the rows the table was handed, which is only the current page
+   * on a surface that paginates outside the table, so two exports side by side
+   * silently disagree about scope.
+   */
+  showExport?: boolean;
   emptyState?: ReactNode;
   noResultsMessage?: ReactNode;
   loading?: boolean;
@@ -214,6 +222,7 @@ export function DataTable<TData>({
   },
   toolbar,
   showSearch = true,
+  showExport = true,
   emptyState,
   noResultsMessage,
   loading = false,
@@ -379,15 +388,17 @@ export function DataTable<TData>({
             <DataTableToolbar table={table}>
               {showSearch && <DataTableSearch />}
               <DataTableColumnToggle />
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => exportTableCsv(table, tableId)}
-              >
-                <Download className="h-3.5 w-3.5 mr-1" />
-                Export CSV
-              </Button>
+              {showExport && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => exportTableCsv(table, tableId)}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Export CSV
+                </Button>
+              )}
               {!controlledDensity && (
                 <Button
                   variant="outline"

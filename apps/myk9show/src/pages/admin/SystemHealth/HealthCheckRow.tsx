@@ -61,7 +61,7 @@ export function HealthCheckRow({
         aria-expanded={isOpen}
         aria-controls={panelId}
         className={cn(
-          'flex w-full items-center gap-3 px-5 py-[13px] text-left transition-colors',
+          'flex w-full min-w-0 items-center gap-3 px-5 py-[13px] text-left transition-colors',
           'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
         )}
       >
@@ -80,11 +80,23 @@ export function HealthCheckRow({
           <HistoryStrip runs={check.history} label={check.label} />
         </span>
 
-        <span className="hidden w-[96px] shrink-0 font-mono text-[11.5px] text-muted-foreground md:block">
+        {/* This is the age of what the check OBSERVED, not of the health run —
+            for a cron check it is the job's own last run. Those legitimately
+            differ (a 03:00 health run reporting a 02:00 payout job), so the
+            column is labelled rather than left as a bare number that looks like
+            it contradicts the freshness band. */}
+        <span
+          title={`Observed ${formatCheckedAgo(check.checkedAt, now)}`}
+          className="hidden w-[96px] shrink-0 font-mono text-[11.5px] text-muted-foreground md:block"
+        >
+          <span className="sr-only">observed </span>
           {formatCheckedAgo(check.checkedAt, now)}
         </span>
 
-        <span className="w-[92px] shrink-0 text-right">
+        {/* 108px, not the design's 92px: the longest status word here is "Needs
+            a look", which wraps to two lines at 92 and knocks the row height out
+            of alignment with its neighbours. */}
+        <span className="flex w-[108px] shrink-0 justify-end whitespace-nowrap">
           <StatusBadge
             variant={statusToBadgeVariant(check.status)}
             size="sm"

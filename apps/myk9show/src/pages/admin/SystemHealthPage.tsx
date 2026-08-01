@@ -270,8 +270,12 @@ export default function SystemHealthPage() {
           />
         )}
 
-        <div className="grid grid-cols-1 items-start gap-[18px] lg:grid-cols-[1fr_340px]">
-          <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_340px]">
+          {/* min-w-0: a grid item defaults to min-width:auto, so without this the
+              track refuses to shrink below the widest row and the checks list
+              overflows its column — clipping the status badge clean off the page
+              rather than truncating the detail text. */}
+          <div className="flex min-w-0 flex-col gap-3">
             <FilterTabs
               ariaLabel="Filter checks by status"
               active={filter}

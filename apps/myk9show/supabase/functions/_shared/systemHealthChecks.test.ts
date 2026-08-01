@@ -37,6 +37,17 @@ const facts = (over: Record<string, unknown> = {}) => ({
   migration_count: 331,
   cron_jobs: [payoutJob()],
   ringside_conflict_counter: 0,
+  ringside_containment: null,
+  payout_ledger: {
+    total: 0,
+    failed: 0,
+    failed_amount_cents: 0,
+    in_flight: 0,
+    stale_in_flight: 0,
+    oldest_in_flight_at: null,
+    last_completed_at: null,
+    failure_reasons: [],
+  },
   anon_grants: anonGrants(),
   ...over,
 });
@@ -61,11 +72,14 @@ describe('buildSnapshot — contract shape', () => {
     const snap = buildSnapshot(facts(), { now: NOW, runDurationMs: 42 });
 
     expect(snap.source).toBe('cron-health-check');
-    expect(snap.overall_status).toBe('ok');
+    // warn, not ok: payout_cron is dispatch-only and can never prove success, so
+    // its ceiling is Unverified (TICKET-2). A fully green board would be a lie.
+    expect(snap.overall_status).toBe('warn');
     expect(snap.run_duration_ms).toBe(42);
     // one entry per check; snake_case checked_at populated (board parser reads it)
     expect(snap.checks.map(c => c.key)).toEqual([
       'payout_cron',
+      'payout_ledger',
       'background_jobs',
       'migrations',
       'ringside_conflicts',
@@ -86,13 +100,15 @@ describe('buildSnapshot — contract shape', () => {
 });
 
 describe('payout_cron check (runbook 5.4)', () => {
-  it('is ok when the payout job ran successfully within the window', () => {
+  // TICKET-2: this check can never observe a failed payout — pg_cron only knows the
+  // request was enqueued. Its best possible outcome is therefore Unverified (warn),
+  // and the outcome question belongs to payout_ledger.
+  it('is Unverified — never ok — when the payout job merely dispatched', () => {
     const snap = buildSnapshot(facts(), { now: NOW });
     const check = find(snap, 'payout_cron');
-    expect(check.status).toBe('ok');
+    expect(check.status).toBe('warn');
     expect(check.detail).toContain(PAYOUT_CRON_JOB);
-    // http-dispatch job: green means "dispatched", not "Edge Function returned 2xx"
-    expect(check.detail).toContain('dispatched');
+    expect(check.detail).toContain('this check cannot fail');
     expect(check.detail).not.toContain('succeeded');
     // checked_at reflects the job's last run, not the probe time
     expect(check.checked_at).toBe(iso(2 * HOUR));
@@ -355,8 +371,12 @@ describe('ringside_conflicts check (2026-07-11 OCC storm)', () => {
   it('quiet delta below the warn threshold is ok', () => {
     const check = find(withCounter(1_500, 1_000), 'ringside_conflicts');
     expect(check.status).toBe('ok');
-    expect(check.detail).toBe('500 conflicts since previous snapshot (counter 1500)');
+    // Delta and running total are named apart — conflating them in one string is
+    // what made an accurate reading look like a broken counter (TICKET-1).
+    expect(check.detail).toContain('500 conflicts this window');
+    expect(check.detail).toContain('running total 1,500');
     expect(check.counter_value).toBe(1_500);
+    expect(check.delta_value).toBe(500);
   });
 
   it('warn threshold boundary: delta of exactly 1,000 warns', () => {
@@ -374,7 +394,7 @@ describe('ringside_conflicts check (2026-07-11 OCC storm)', () => {
   it('first run with no baseline records the counter and reads ok', () => {
     const check = find(withCounter(123, null), 'ringside_conflicts');
     expect(check.status).toBe('ok');
-    expect(check.detail).toContain('baseline recorded (counter 123)');
+    expect(check.detail).toContain('baseline recorded (total 123)');
     expect(check.counter_value).toBe(123);
   });
 
@@ -388,7 +408,7 @@ describe('ringside_conflicts check (2026-07-11 OCC storm)', () => {
   it('counter regression (sequence reset) reads ok with a note, never a false failure', () => {
     const check = find(withCounter(5, 50_000), 'ringside_conflicts');
     expect(check.status).toBe('ok');
-    expect(check.detail).toBe('counter regressed (50000 -> 5), baseline reset');
+    expect(check.detail).toContain('counter regressed (50000 -> 5), baseline reset');
     expect(check.counter_value).toBe(5);
   });
 
@@ -399,8 +419,176 @@ describe('ringside_conflicts check (2026-07-11 OCC storm)', () => {
     });
     const check = find(snap, 'ringside_conflicts');
     expect(check.status).toBe('warn');
-    expect(check.detail).toBe('probe did not report ringside_conflict_counter');
+    expect(check.detail).toContain('probe did not report ringside_conflict_counter');
     expect(check.counter_value).toBeUndefined();
+  });
+});
+
+// TICKET-1. The 2026-07-31 report — "1428120 conflicts since previous snapshot
+// (counter 34421500)" — was TRUE, and was read as a broken counter because it was
+// a bare 24h delta with no rate and no mention of the breaker. These cases pin the
+// context that makes an accurate number legible, and pin that the counter is never
+// second-guessed on the basis of how few dogs are entered.
+describe('ringside_conflicts — rate and containment context (TICKET-1)', () => {
+  const withWindow = (
+    counter: number,
+    previous: number,
+    minutesAgo: number,
+    containment?: Record<string, unknown> | null
+  ) =>
+    find(
+      buildSnapshot(
+        facts({ ringside_conflict_counter: counter, ringside_containment: containment ?? null }),
+        {
+          now: NOW,
+          previousConflictCounter: previous,
+          previousSnapshotAt: iso(minutesAgo * MIN),
+        }
+      ),
+      'ringside_conflicts'
+    );
+
+  const contained = {
+    state: 'contained',
+    tripped_at: '2026-07-31T00:27:00.000Z',
+    trip_reason: 'conflict rate 2884/min exceeded threshold 300/min',
+    backpressure_ms: 250,
+  };
+
+  it('expresses the delta as a rate over the real elapsed window', () => {
+    // 1,440 conflicts over 1,440 minutes is 1/min — quiet, however large the delta.
+    const check = withWindow(1_440, 0, 1_440);
+    expect(check.status).toBe('ok');
+    expect(check.detail).toContain('1/min over 1,440 min');
+    expect(check.delta_value).toBe(1_440);
+  });
+
+  it('a large delta that is a quiet rate does not fail', () => {
+    // 20,000 conflicts is over the absolute FAIL_DELTA, but spread across a week
+    // it is ~2/min. The rate wins when the window is known.
+    expect(withWindow(20_000, 0, 7 * 24 * 60).status).toBe('ok');
+  });
+
+  it('fails at the same rate the MYK9-115 breaker trips (300/min)', () => {
+    expect(withWindow(300 * 60, 0, 60).status).toBe('fail');
+    expect(withWindow(299 * 60, 0, 60).status).toBe('warn');
+    expect(withWindow(59 * 60, 0, 60).status).toBe('ok');
+  });
+
+  it('falls back to absolute-delta thresholds when the window is unknown', () => {
+    const check = find(
+      buildSnapshot(facts({ ringside_conflict_counter: 11_000 }), {
+        now: NOW,
+        previousConflictCounter: 1_000,
+      }),
+      'ringside_conflicts'
+    );
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('rate unknown');
+  });
+
+  it('a tripped breaker fails the check even with zero conflicts this window', () => {
+    const check = withWindow(34_421_500, 34_421_500, 1_440, contained);
+    expect(check.status).toBe('fail');
+    expect(check.delta_value).toBe(0);
+    expect(check.detail).toContain('CONTAINED');
+    expect(check.detail).toContain('2884/min exceeded threshold 300/min');
+    expect(check.detail).toContain('RS429');
+  });
+
+  it('an armed breaker adds no containment noise', () => {
+    const check = withWindow(1_000, 0, 1_440, { state: 'armed', tripped_at: null });
+    expect(check.status).toBe('ok');
+    expect(check.detail).not.toContain('CONTAINED');
+  });
+
+  it('reports a genuinely huge count rather than calling its own counter implausible', () => {
+    // The real 2026-07-29 reading. It must survive as a number: suppressing it as
+    // "counter implausible" would have hidden a 16M-event incident.
+    const check = withWindow(16_619_369, 36, 1_440);
+    expect(check.status).toBe('fail');
+    expect(check.delta_value).toBe(16_619_333);
+    expect(check.detail).toContain('16,619,333 conflicts this window');
+    expect(check.detail).toContain('11,541/min');
+  });
+
+  it('tolerates a malformed containment fact without throwing or greening', () => {
+    for (const bad of [null, undefined, 'nope', 42, {}]) {
+      const check = withWindow(10, 0, 1_440, bad as never);
+      expect(check.status).toBe('ok');
+      expect(check.detail).not.toContain('CONTAINED');
+    }
+  });
+});
+
+// TICKET-2. pg_cron reports 'succeeded' the moment net.http_post enqueues, so the
+// payout_cron check structurally cannot fail. It now says so (Unverified/amber),
+// and a second check reads the ledger's own terminal states.
+describe('payout_ledger check (TICKET-2)', () => {
+  const ledger = (over: Record<string, unknown> = {}) => ({
+    total: 3,
+    failed: 0,
+    failed_amount_cents: 0,
+    in_flight: 0,
+    stale_in_flight: 0,
+    oldest_in_flight_at: null,
+    last_completed_at: iso(3 * HOUR),
+    failure_reasons: [],
+    ...over,
+  });
+  const withLedger = (over: Record<string, unknown> = {}) =>
+    buildSnapshot(facts({ payout_ledger: ledger(over) }), { now: NOW });
+
+  it('is ok when every payout settled', () => {
+    const check = find(withLedger(), 'payout_ledger');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toContain('all 3 payouts settled');
+  });
+
+  it('fails on a failed payout, naming the money and the reason', () => {
+    const snap = withLedger({
+      failed: 2,
+      failed_amount_cents: 418_000,
+      failure_reasons: ['expired bank details'],
+    });
+    const check = find(snap, 'payout_ledger');
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('2 of 3 payouts failed');
+    expect(check.detail).toContain('$4,180.00');
+    expect(check.detail).toContain('expired bank details');
+    expect(snap.overall_status).toBe('fail');
+  });
+
+  it('fails a payout stuck non-terminal past the nightly window', () => {
+    const check = find(
+      withLedger({ in_flight: 1, stale_in_flight: 1, oldest_in_flight_at: iso(30 * HOUR) }),
+      'payout_ledger'
+    );
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain('never reached a terminal state');
+  });
+
+  it('an in-flight payout inside the window is ok, not a failure', () => {
+    const check = find(withLedger({ in_flight: 1 }), 'payout_ledger');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toContain('1 of 3 payouts in flight, none overdue');
+  });
+
+  it('an empty ledger is ok and says so specifically', () => {
+    const check = find(withLedger({ total: 0, last_completed_at: null }), 'payout_ledger');
+    expect(check.status).toBe('ok');
+    expect(check.detail).toBe('no payouts recorded yet');
+  });
+
+  it('a missing or malformed ledger fact warns — never a silent green', () => {
+    for (const bad of [undefined, null, 'nope', 42, {}]) {
+      const check = find(
+        buildSnapshot(facts({ payout_ledger: bad }), { now: NOW }),
+        'payout_ledger'
+      );
+      expect(check.status).toBe('warn');
+      expect(check.detail).toBe('probe did not report payout_ledger');
+    }
   });
 });
 

@@ -24,6 +24,23 @@ import { ACTIVE_JUDGE_ASSIGNMENT_STATUSES } from './assignmentStatus';
 // Helper to access tables not in generated types
 const qualificationsTable = () => untypedFrom('judge_qualifications');
 const certificationsTable = () => untypedFrom('judge_certifications');
+const JUDGE_ASSIGNMENT_PUBLIC_SELECT =
+  'id, person_id, show_id, trial_id, class_id, status, invited_at, confirmed_at, created_at, updated_at, day_capacity_override, version';
+
+type ManagerJudgeAssignmentRpc = {
+  data: Array<Record<string, unknown>> | null;
+  error: { message: string } | null;
+};
+
+function getManagerJudgeAssignments(): Promise<ManagerJudgeAssignmentRpc> {
+  // The RPC is introduced by a migration newer than the generated Supabase
+  // schema. Keep the escape hatch local and type the result at this boundary.
+  return (
+    supabase as unknown as {
+      rpc(name: string): Promise<ManagerJudgeAssignmentRpc>;
+    }
+  ).rpc('get_manager_judge_assignments');
+}
 // `!inner` gates the result to people who HAVE a judge_qualifications row — a
 // judge is defined by their qualifications, not by holding a login/role grant.
 // Most judges never create an account: they exist as a people row + their
@@ -436,7 +453,7 @@ export async function getJudgeRosterSummary(): Promise<RosterSummary> {
         .lte('expiration_date', thirtyDaysFromNow.toISOString().split('T')[0])
         .gte('expiration_date', new Date().toISOString().split('T')[0]),
       assignmentsTable()
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .gte('created_at', monthStart.toISOString()),
     ]);
 
@@ -457,31 +474,58 @@ export async function getJudgeRosterSummary(): Promise<RosterSummary> {
 export async function getJudgeUtilizationStats(
   filters?: JudgeUtilizationFilters
 ): Promise<JudgeUtilizationRow[]> {
-  let query = assignmentsTable().select(
-    '*, people!judge_assignments_person_id_fkey(first_name, last_name), shows!judge_assignments_show_id_fkey(organization)'
+  const { data, error } = await getManagerJudgeAssignments();
+
+  if (error) throw new Error(`Failed to fetch utilization stats: ${error.message}`);
+
+  const rows = (data ?? []).filter(row => {
+    if (filters?.dateRange) {
+      const createdAt = String(row.created_at ?? '');
+      if (createdAt < filters.dateRange.start || createdAt > filters.dateRange.end) return false;
+    }
+    return true;
+  });
+
+  const personIds = [...new Set(rows.map(row => row.person_id).filter(Boolean) as string[])];
+  const showIds = [...new Set(rows.map(row => row.show_id).filter(Boolean) as string[])];
+  const [peopleResult, showsResult] = await Promise.all([
+    personIds.length
+      ? supabase.from('people').select('id, first_name, last_name').in('id', personIds)
+      : Promise.resolve({ data: [], error: null }),
+    showIds.length
+      ? supabase.from('shows').select('id, organization').in('id', showIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (peopleResult.error) {
+    throw new Error(`Failed to fetch utilization judge names: ${peopleResult.error.message}`);
+  }
+  if (showsResult.error) {
+    throw new Error(`Failed to fetch utilization show organizations: ${showsResult.error.message}`);
+  }
+
+  const peopleById = new Map(
+    ((peopleResult.data ?? []) as Array<Record<string, unknown>>).map(person => [
+      person.id as string,
+      person,
+    ])
   );
-
-  if (filters?.dateRange) {
-    query = query
-      .gte('created_at', filters.dateRange.start)
-      .lte('created_at', filters.dateRange.end);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new Error(`Failed to fetch utilization stats: ${error.message}`);
-  }
+  const showsById = new Map(
+    ((showsResult.data ?? []) as Array<Record<string, unknown>>).map(show => [
+      show.id as string,
+      show,
+    ])
+  );
 
   // Aggregate client-side (Supabase REST doesn't support GROUP BY)
   // Single pass: build judge stats and track unique shows per judge
   const byJudge = new Map<string, JudgeUtilizationRow>();
   const showsByJudge = new Map<string, Set<string>>();
 
-  for (const row of (data || []) as Array<Record<string, unknown>>) {
+  for (const row of rows) {
     const personId = row.person_id as string;
-    const people = row.people as Record<string, unknown> | null;
-    const show = row.shows as Record<string, unknown> | null;
+    const people = peopleById.get(personId) ?? null;
+    const show = showsById.get(row.show_id as string) ?? null;
     const status = row.status as string;
     const fee = (row.fee as number) || 0;
     const showId = row.show_id as string;
@@ -559,7 +603,7 @@ export async function getJudgeStats(
 ): Promise<{
   showsJudged: number;
   classesJudged: number;
-  totalFees: number;
+  totalFees: number | null;
   statusBreakdown: Record<string, number>;
 }> {
   const targetYear = year ?? new Date().getFullYear();
@@ -567,7 +611,7 @@ export async function getJudgeStats(
   const yearEnd = `${targetYear}-12-31T23:59:59Z`;
 
   const { data, error } = await assignmentsTable()
-    .select('*')
+    .select(JUDGE_ASSIGNMENT_PUBLIC_SELECT)
     .eq('person_id', personId)
     .gte('created_at', yearStart)
     .lte('created_at', yearEnd);
@@ -580,17 +624,17 @@ export async function getJudgeStats(
   const uniqueShows = new Set(rows.map(r => r.show_id as string));
 
   const statusBreakdown: Record<string, number> = {};
-  let totalFees = 0;
   for (const row of rows) {
     const status = row.status as string;
     statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
-    totalFees += (row.fee as number) || 0;
   }
 
   return {
     showsJudged: uniqueShows.size,
     classesJudged: rows.length,
-    totalFees,
+    // Fees are private manager data. Keep the personal dashboard shape stable
+    // while making the withheld value explicit instead of querying fee.
+    totalFees: null,
     statusBreakdown,
   };
 }
@@ -598,7 +642,9 @@ export async function getJudgeStats(
 /** Upcoming assignments for a judge */
 export async function getJudgeUpcomingAssignments(personId: string): Promise<JudgeAssignmentRow[]> {
   const { data, error } = await assignmentsTable()
-    .select('*, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization)')
+    .select(
+      `${JUDGE_ASSIGNMENT_PUBLIC_SELECT}, shows!judge_assignments_show_id_fkey(name, start_date, end_date, organization)`
+    )
     .eq('person_id', personId)
     .in('status', [...ACTIVE_JUDGE_ASSIGNMENT_STATUSES])
     .order('created_at', { ascending: true });
@@ -619,10 +665,10 @@ export async function getJudgeUpcomingAssignments(personId: string): Promise<Jud
           trial_id: row.trial_id as string | null,
           class_id: row.class_id as string | null,
           status: row.status as string,
-          fee: row.fee as number | null,
+          fee: null,
           invited_at: row.invited_at as string | null,
           confirmed_at: row.confirmed_at as string | null,
-          notes: row.notes as string | null,
+          notes: null,
           show_name: (show?.name as string) || 'Unknown Show',
           show_start_date: (show?.start_date as string) || '',
           show_end_date: (show?.end_date as string) || '',

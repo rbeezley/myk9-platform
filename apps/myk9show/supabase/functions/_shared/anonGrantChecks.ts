@@ -51,8 +51,8 @@ interface AnonDefaultRow {
  * column grants and must have no table-level SELECT, so their presence in the probe's
  * table list at all is a failure (enforced below over ANON_COLUMN_TABLES).
  * `entries` is the public-results release gate and `classes` withholds the scent-work
- * hide counts (MYK9-116); `dogs` and `people` are column-only so anon PostgREST embeds
- * resolve to null instead of 42501, with RLS admitting them zero rows.
+ * hide counts (MYK9-116); `dogs`, `people`, and `judge_assignments` are column-only so
+ * anon PostgREST embeds resolve to null instead of 42501, with RLS admitting them zero rows.
  */
 export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   // Public reference data.
@@ -69,7 +69,6 @@ export const ANON_TABLE_ALLOWLIST: Readonly<Record<string, string>> = {
   shows: 'r',
   trials: 'r',
   armbands: 'r',
-  judge_assignments: 'r',
   clubs: 'r',
   achievements: 'r',
   show_visibility_settings: 'r',
@@ -163,6 +162,18 @@ export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> 
     'entry_status',
     'jump_height',
     'created_at',
+  ],
+  judge_assignments: [
+    'id',
+    'person_id',
+    'show_id',
+    'trial_id',
+    'class_id',
+    'status',
+    'invited_at',
+    'confirmed_at',
+    'created_at',
+    'updated_at',
   ],
   dogs: ['id', 'name', 'call_name', 'breed', 'image_url'],
   people: ['id', 'first_name', 'last_name', 'email'],

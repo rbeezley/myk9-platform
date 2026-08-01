@@ -136,6 +136,19 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
     return this._lastMutationId;
   }
 
+  /**
+   * Do not return private assignment fields from the offline cache. Existing
+   * IndexedDB rows may predate MYK9-146 and still contain fee/notes; redacting
+   * at the public collection boundary prevents those stale values from
+   * reaching ordinary show/judge views while the next sync replaces them.
+   * `get()` remains raw for mutation merge payloads so an office update cannot
+   * accidentally overwrite a fee or note it did not edit.
+   */
+  override async getAll(): Promise<ReplicatedJudgeAssignment[]> {
+    const rows = await super.getAll();
+    return rows.map(row => ({ ...row, fee: null, notes: null }));
+  }
+
   private toSupabaseRow(assignment: ReplicatedJudgeAssignment): Record<string, unknown> {
     const row: Record<string, unknown> = {
       id: assignment.id,
@@ -186,7 +199,10 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
           const { data, error } = await supabase
             .from('judge_assignments')
             .select(
-              `*, classes (
+              `id, person_id, show_id, trial_id, class_id, status,
+               invited_at, confirmed_at, created_at, updated_at,
+               day_capacity_override, version,
+               classes (
                name, element, level, status, start_time, checked_in_count, scored_count,
                total_entries_count, trial_id,
                trials ( date, timezone, show_id )

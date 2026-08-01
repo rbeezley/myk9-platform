@@ -98,9 +98,41 @@ export function parseUserListParams(params: URLSearchParams): UserListParams {
   };
 }
 
-/** Write view state back to the URL, omitting anything still at its default. */
-export function userListParamsToSearch(state: UserListParams): URLSearchParams {
+/** Query keys this module owns. Anything else in the URL belongs to someone else. */
+const LIST_PARAM_KEYS = new Set([
+  'q',
+  'role',
+  'status',
+  'deleted',
+  'from',
+  'to',
+  'sort',
+  'dir',
+  'page',
+  'size',
+]);
+
+/**
+ * Write view state back to the URL, omitting anything still at its default.
+ *
+ * Pass `carryOver` (the current search params) so keys this module does not own
+ * survive. Without it, every filter or search keystroke rebuilds the query
+ * string from list state alone and silently drops foreign params — which is how
+ * the support deep-link's `?userId=` used to vanish the moment an admin typed
+ * in the search box, closing the roles dialog under them.
+ */
+export function userListParamsToSearch(
+  state: UserListParams,
+  carryOver?: URLSearchParams
+): URLSearchParams {
   const params = new URLSearchParams();
+
+  if (carryOver) {
+    for (const [key, value] of carryOver.entries()) {
+      if (!LIST_PARAM_KEYS.has(key)) params.append(key, value);
+    }
+  }
+
   const { searchTerm, filters, sort, page, pageSize } = state;
 
   if (searchTerm.trim()) params.set('q', searchTerm);

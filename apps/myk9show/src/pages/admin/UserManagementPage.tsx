@@ -13,10 +13,10 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { Filter, Plus, Download, Search, Users } from 'lucide-react';
+import { Filter, Plus, Download, Search, Users, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 // Hooks and services
@@ -82,7 +82,9 @@ const UserManagementPage: React.FC = () => {
           // Any change to what's being listed resets to page 1, unless the
           // caller is the pager itself.
           if (patch.page === undefined) next.page = 1;
-          return userListParamsToSearch(next);
+          // Carry `prev` so params the roster does not own — notably the
+          // support deep-link's ?userId= — survive a filter or search change.
+          return userListParamsToSearch(next, prev);
         },
         // Replace, so filing through filters doesn't bury the previous page
         // under a dozen history entries the Back button has to walk out of.
@@ -109,6 +111,10 @@ const UserManagementPage: React.FC = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showUserEditPanel, setShowUserEditPanel] = useState(false);
   const [roleAssignTarget, setRoleAssignTarget] = useState<User | null>(null);
+  // Support diagnostics deep-link here with ?userId= so the admin lands on the
+  // affordance that fixes the ticket, not just a page that describes it.
+  // (`searchParams` is already read above for the roster's own view state.)
+  const deepLinkUserId = searchParams.get('userId');
 
   // Data fetching with error handling
   const { data: users = [], isLoading, error, refetch } = useAdminUsersQuery(filters.showDeleted);
@@ -203,6 +209,41 @@ const UserManagementPage: React.FC = () => {
     setRoleAssignTarget(user);
   }, []);
 
+  // Unknown ids are a quiet no-op: the admin still gets the roster, and the
+  // support ticket may simply name someone who was since deleted. Match on
+  // either id — supportDiagnosticActions falls back to the auth uuid when a
+  // user has no linked people row.
+  const deepLinkUser = useMemo(
+    () =>
+      deepLinkUserId
+        ? (users.find(user => user.id === deepLinkUserId || user.user_id === deepLinkUserId) ??
+          null)
+        : null,
+    [deepLinkUserId, users]
+  );
+
+  // Row-click selection wins over the deep link; the deep link only fills in
+  // when nothing has been explicitly selected.
+  const roleDialogTarget = roleAssignTarget ?? deepLinkUser;
+
+  // Closing clears whichever source opened the dialog. When the deep link was
+  // the source, strip ?userId= from the URL so the dialog cannot be resurrected
+  // by a refetch, a filter change, or any other re-render — there is nothing
+  // left in the URL to reopen it from.
+  const closeRoleDialog = useCallback(() => {
+    setRoleAssignTarget(null);
+    if (deepLinkUserId) {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          next.delete('userId');
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [deepLinkUserId, setSearchParams]);
+
   const clearFilters = useCallback(
     () => updateListParams({ searchTerm: '', filters: DEFAULT_USER_FILTER }),
     [updateListParams]
@@ -251,6 +292,12 @@ const UserManagementPage: React.FC = () => {
 
   const actionButtons = (
     <>
+      <Button variant="outline" asChild>
+        <Link to="/admin/role-requests">
+          <ShieldCheck className="h-4 w-4 mr-2" />
+          Role Requests
+        </Link>
+      </Button>
       <Button variant="outline" onClick={() => exportUsersCSV(sortedUsers)}>
         <Download className="h-4 w-4 mr-2" />
         Export Users
@@ -434,13 +481,13 @@ const UserManagementPage: React.FC = () => {
       )}
 
       {/* Manage Roles Dialog */}
-      {roleAssignTarget && (
+      {roleDialogTarget && (
         <ManageUserRolesDialog
-          open={!!roleAssignTarget}
+          open={!!roleDialogTarget}
           onOpenChange={open => {
-            if (!open) setRoleAssignTarget(null);
+            if (!open) closeRoleDialog();
           }}
-          user={roleAssignTarget}
+          user={roleDialogTarget}
           onSaved={refetch}
         />
       )}

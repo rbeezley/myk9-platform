@@ -84,6 +84,8 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                                       | Active    | Plan: Server-side gate for public/anon scored results                        |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)                                 | Active    | Replication INSERT retry idempotency — investigation verdict (B)             |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                                                 | Active    | Plan: Fix the Deleted Entities (restore) UI                                  |
+| [plan-role-assignment-consolidation.md](plan-role-assignment-consolidation.md)                                   | Active    | Role assignment consolidation — /admin/users grants, /admin/permissions reads |
+| [plan-role-assignment-consolidation-implementation.md](plan-role-assignment-consolidation-implementation.md)     | Active    | Role assignment consolidation — implementation plan (7 tasks)                |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                                             | Active    | Plan: Result Reveal + Share Card                                             |
 | [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                                           | Active    | Site Admin MCP V1 Implementation Plan                                        |
 | [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                                                 | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                          |

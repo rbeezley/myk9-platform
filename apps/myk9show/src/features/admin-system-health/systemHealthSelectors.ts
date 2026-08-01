@@ -59,6 +59,7 @@ function parseCheck(raw: unknown, index: number): HealthCheck {
     status: normalizeCheckStatus(entry.status),
     detail: normalizeString(entry.detail),
     checkedAt: typeof entry.checked_at === 'string' ? entry.checked_at : null,
+    verification: entry.verification === 'unprovable' ? 'unprovable' : 'proven',
   };
 }
 
@@ -82,6 +83,7 @@ function parseChecks(rawChecks: unknown): HealthCheck[] {
       status: 'unknown',
       detail: 'The stored "checks" value is not an array — the health writer is misconfigured.',
       checkedAt: null,
+      verification: 'unprovable',
     },
   ];
 }

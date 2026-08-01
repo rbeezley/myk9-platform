@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Shield, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,6 +37,8 @@ interface CurrentRoleAssignment {
   roleId: string;
   roleName: string;
   clubId: string | null;
+  showId: string | null;
+  expiresAt: string | null;
 }
 
 interface ManageUserRolesDialogProps {
@@ -69,7 +72,7 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('id, role_id, club_id, roles(name)')
+        .select('id, role_id, club_id, show_id, expires_at, roles(name)')
         .eq('user_id', user.id)
         .eq('is_active', true);
       if (error) throw error;
@@ -78,6 +81,8 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
         roleId: row.role_id as string,
         roleName: (row.roles as { name: string } | null)?.name ?? '',
         clubId: (row.club_id as string | null) ?? null,
+        showId: (row.show_id as string | null) ?? null,
+        expiresAt: (row.expires_at as string | null) ?? null,
       }));
     },
     enabled: open,
@@ -259,6 +264,11 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
   const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'this user';
   const isLoading = loadingRoles || loadingClubs;
 
+  // Grants this dialog cannot edit: show-scoped or expiring rows, which only
+  // approve_role_request writes today. Surfacing them read-only keeps them from
+  // becoming invisible now that /admin/permissions/users is retired.
+  const otherGrants = currentAssignments.filter(a => a.showId !== null || a.expiresAt !== null);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
@@ -355,6 +365,32 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
             );
           })}
         </div>
+
+        {otherGrants.length > 0 && (
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="font-medium">Other grants</p>
+            <p className="text-xs text-muted-foreground">
+              These were granted with a show or an end date, so they are managed on the assignments
+              ledger.
+            </p>
+            <ul className="space-y-1">
+              {otherGrants.map(grant => (
+                <li key={grant.userRoleId} className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {ROLE_LABELS[grant.roleName] ?? grant.roleName}
+                  </span>
+                  {grant.showId && <> — show {grant.showId}</>}
+                  {grant.expiresAt && (
+                    <> — expires {new Date(grant.expiresAt).toLocaleDateString()}</>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <Button asChild variant="link" className="h-auto p-0">
+              <Link to="/admin/permissions?tab=assignments">View all assignments</Link>
+            </Button>
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>

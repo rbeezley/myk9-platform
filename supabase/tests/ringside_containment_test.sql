@@ -187,17 +187,32 @@ $$;
 reset role;
 select nextval('public.ringside_conflict_seq') from generate_series(1, 3);
 
+-- The RPC must be CALLED as the admin (that is what is under test), but the
+-- assertions read the state and audit tables directly — which authenticated is
+-- correctly denied. So the call happens in role, the verification does not, and
+-- the results cross the boundary through a temp table.
+create temporary table myk9_115_rearm (step text primary key, result jsonb) on commit drop;
+grant insert on myk9_115_rearm to authenticated;
+
 -- Site admin: state armed, cursor reset, trip metadata cleared, audit written.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000115101', true);
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000115101","role":"authenticated"}', true);
+
+insert into myk9_115_rearm (step, result)
+values ('first', public.ringside_containment_rearm('operator test rearm'));
+-- Idempotent: rearming an armed breaker succeeds and must write no audit row.
+insert into myk9_115_rearm (step, result)
+values ('noop', public.ringside_containment_rearm('noop'));
+
+reset role;
 do $$
 declare
   result jsonb;
   r public.ringside_containment;
 begin
-  result := public.ringside_containment_rearm('operator test rearm');
+  select m.result into strict result from myk9_115_rearm m where m.step = 'first';
   if result->>'state' <> 'armed' or (result->>'was_contained')::boolean is not true then
     raise exception 'FAIL rearm result wrong: %', result;
   end if;
@@ -220,8 +235,7 @@ begin
     raise exception 'FAIL rearm audit row missing';
   end if;
 
-  -- Idempotent: rearming an armed breaker succeeds and writes no audit.
-  result := public.ringside_containment_rearm('noop');
+  select m.result into strict result from myk9_115_rearm m where m.step = 'noop';
   if (result->>'was_contained')::boolean is not false then
     raise exception 'FAIL no-op rearm reported was_contained';
   end if;
@@ -273,6 +287,17 @@ update public.ringside_containment
        trip_conflict_delta = 999, trip_reason = 'gate test',
        backpressure_ms = 0;
 
+-- The base version is read as the SESSION role. `public.entries` grants
+-- authenticated no table-level SELECT — only a column allowlist — so reading it
+-- in role is the same 403 that bit the admin dashboard's count query. The RPC
+-- itself is SECURITY DEFINER and reads the row on the caller's behalf, which is
+-- exactly why ringside works at all.
+create temporary table myk9_115_gate (step text primary key, value text) on commit drop;
+grant insert on myk9_115_gate to authenticated;
+insert into myk9_115_gate (step, value)
+select 'base_version', version::text
+  from public.entries where id = '00000000-0000-0000-0000-000000115033';
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000115101', true);
 select set_config('request.jwt.claims',
@@ -285,8 +310,8 @@ declare
   v_detail text;
   v_sqlstate text;
 begin
-  select version into strict v_version
-    from public.entries where id = '00000000-0000-0000-0000-000000115033';
+  select value::integer into strict v_version
+    from myk9_115_gate where step = 'base_version';
 
   -- A version-CORRECT call must succeed even while contained. If this ever
   -- fails, the breaker has stopped being a conflict shed and become an outage.

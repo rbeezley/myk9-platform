@@ -457,17 +457,10 @@ export const UserTable: React.FC<UserTableProps> = ({
             data={users}
             pageSize={9999}
             loading={isLoading}
-            // A removed person has neither an editable state nor a readable
-            // profile (`people_select` is `deleted_at IS NULL`), so the row
-            // itself is inert — its menu carries Restore / Delete permanently.
-            onRowClick={user => {
-              if (user.deletedAt) return;
-              onViewUser(user);
-            }}
-            // …and it must not *look* clickable either. DataTable applies
-            // cursor-pointer whenever onRowClick is set; this wins the merge
-            // back for the rows the handler ignores.
-            getRowClassName={user => (user.deletedAt ? 'cursor-default' : '')}
+            // Every row opens its record, removed or not. A removed person's
+            // page states that they are removed and offers Restore (MYK9-153);
+            // before that existed the row had nowhere to go and was inert.
+            onRowClick={user => onViewUser(user)}
             className="myk9-table"
             manualSorting
             sorting={sorting}

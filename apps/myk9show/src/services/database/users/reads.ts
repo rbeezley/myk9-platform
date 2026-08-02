@@ -336,6 +336,46 @@ export const getDeletedUsers = async () => {
   }
 };
 
+/**
+ * Read ONE soft-deleted person.
+ *
+ * `people_select` is `deleted_at IS NULL`, so a removed person is invisible to
+ * every role including site admin, and `getUserById` filters them out too. The
+ * admin-gated `get_deleted_people` RPC (migration 20260616140000) is the only
+ * read path there is.
+ *
+ * It returns the whole deleted set and the row is picked here rather than in a
+ * second SECURITY DEFINER function answering the same question. The set is
+ * small by nature — soft-deleted people are a queue that gets emptied, not a
+ * growing table. If that stops being true, a `get_deleted_person(uuid)` RPC is
+ * the drop-in replacement and only this function changes.
+ *
+ * Returns `{ data: null }` for a live person, an unknown id, OR a caller the
+ * RPC refuses — the caller cannot tell those apart, which is the point.
+ */
+export const getDeletedUserById = async (id: string) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase.rpc('get_deleted_people');
+
+    const duration = Date.now() - startTime;
+    logQuery('user', 'select_deleted_by_id', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'user', 'select_deleted_by_id');
+    }
+
+    const rows = (data ?? []) as { id?: string }[];
+    return { data: rows.find(row => row.id === id) ?? null, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'user', 'select_deleted_by_id');
+    logQuery('user', 'select_deleted_by_id', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
 // Legacy hard delete user with proper constraint checking (kept for compatibility)
 export const legacyDeleteUser = async (id: string, cascadeDelete: boolean = false) => {
   const startTime = Date.now();

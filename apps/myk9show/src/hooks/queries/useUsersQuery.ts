@@ -4,6 +4,7 @@ import type { User } from '@/types/user-types';
 import {
   getAllUsers,
   getUserById,
+  getDeletedUserById,
   createUser,
   updateUser,
   deleteUser,
@@ -220,6 +221,30 @@ export function useUserQuery(id: string) {
     queryKey: queryKeys.users.detail(id),
     queryFn: () => UserService.getById(id),
     enabled: !!id,
+  });
+}
+
+/**
+ * The record of a person who has been REMOVED.
+ *
+ * Separate from `useUserQuery` because it is a different read path with a
+ * different audience: `getUserById` filters `deleted_at IS NULL`, and the RLS
+ * behind it hides removed people from every role, so the only way to see one is
+ * the admin-gated RPC. Pass `enabled` false for viewers who have no business
+ * seeing removed people — the RPC refuses them anyway, but asking is noise.
+ *
+ * Resolves to null for a live person or an unknown id, so a caller can treat
+ * "not removed" and "not there" the same way.
+ */
+export function useDeletedUserQuery(id: string, enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.users.detail(id), 'deleted'],
+    queryFn: async (): Promise<User | null> => {
+      const { data, error } = await getDeletedUserById(id);
+      if (error) throw error;
+      return data ? mapDbUserToUser(data as unknown as DbUser) : null;
+    },
+    enabled: !!id && enabled,
   });
 }
 

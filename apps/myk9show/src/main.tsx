@@ -9,11 +9,12 @@ import './index.css';
 import '@myk9/ringside/styles';
 import { ThemeProvider } from './context/ThemeContext';
 import { BrowserRouter } from 'react-router-dom';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
 import { initializeSettings } from './store/settingsStore';
 import { ToastContainer } from '@/components/notifications/ToastContainer';
+import { AppToaster } from '@/components/layout/AppToaster';
 import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
 
 // Initialize settings (applies accent color, theme, etc. from localStorage)
@@ -70,20 +71,7 @@ createRoot(document.getElementById('root')!, {
       <QueryProvider>
         <ThemeProvider>
           <App />
-          <Toaster
-            theme="system"
-            richColors
-            closeButton
-            position="bottom-right"
-            offset={{
-              right: 'max(1rem, env(safe-area-inset-right))',
-              bottom: 'max(1rem, env(safe-area-inset-bottom))',
-            }}
-            mobileOffset={{
-              right: 'max(1rem, env(safe-area-inset-right))',
-              bottom: 'max(1rem, env(safe-area-inset-bottom))',
-            }}
-          />
+          <AppToaster />
           <ToastContainer />
         </ThemeProvider>
       </QueryProvider>

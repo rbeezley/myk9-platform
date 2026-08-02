@@ -21,7 +21,12 @@ const removed = {
 
 const roleBasedPeople = { people: [live], isLoading: false };
 const rbac = { hasPermission: vi.fn(() => true) };
-const deletedQuery = vi.fn(() => ({ data: null as User | null, isLoading: false }));
+const deletedQuery = vi.fn(() => ({
+  data: null as User | null,
+  isLoading: false,
+  error: null as unknown,
+  refetch: vi.fn(),
+}));
 const deletedQuerySpy = vi.fn();
 
 vi.mock('@/hooks/useRoleBasedData', () => ({
@@ -36,7 +41,7 @@ vi.mock('@/hooks/useRBAC', () => ({
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useDeletedUserQuery: (id: string, enabled: boolean) => {
     deletedQuerySpy(id, enabled);
-    return enabled ? deletedQuery() : { data: null, isLoading: false };
+    return enabled ? deletedQuery() : { data: null, isLoading: false, error: null, refetch: vi.fn() };
   },
 }));
 
@@ -69,7 +74,7 @@ describe('PersonDetailPage — removed people', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     rbac.hasPermission = vi.fn(() => true);
-    deletedQuery.mockReturnValue({ data: null, isLoading: false });
+    deletedQuery.mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
   });
 
   it('renders a live person without asking the removed-person read', () => {
@@ -82,7 +87,7 @@ describe('PersonDetailPage — removed people', () => {
   });
 
   it('renders a removed person for an admin instead of bouncing', () => {
-    deletedQuery.mockReturnValue({ data: removed, isLoading: false });
+    deletedQuery.mockReturnValue({ data: removed, isLoading: false, error: null, refetch: vi.fn() });
 
     renderAt('gone-1');
 
@@ -92,7 +97,7 @@ describe('PersonDetailPage — removed people', () => {
 
   it('does not ask for removed people without admin:manage', () => {
     rbac.hasPermission = vi.fn(() => false);
-    deletedQuery.mockReturnValue({ data: removed, isLoading: false });
+    deletedQuery.mockReturnValue({ data: removed, isLoading: false, error: null, refetch: vi.fn() });
 
     renderAt('gone-1');
 
@@ -101,7 +106,7 @@ describe('PersonDetailPage — removed people', () => {
   });
 
   it('still bounces when the id is nobody at all', () => {
-    deletedQuery.mockReturnValue({ data: null, isLoading: false });
+    deletedQuery.mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
 
     renderAt('nobody');
 
@@ -109,12 +114,29 @@ describe('PersonDetailPage — removed people', () => {
   });
 
   it('waits for the removed-person read rather than bouncing mid-flight', () => {
-    deletedQuery.mockReturnValue({ data: null, isLoading: true });
+    deletedQuery.mockReturnValue({ data: null, isLoading: true, error: null, refetch: vi.fn() });
 
     renderAt('gone-1');
 
     // Redirecting while the fallback is still resolving is the bug that makes
     // this page look like it "hangs or bounces" at random.
     expect(screen.queryByTestId('browse')).not.toBeInTheDocument();
+  });
+
+  it('shows an error with a retry when the read fails, rather than bouncing', () => {
+    // A failed RPC is not "no such person". Redirecting turns a network blip
+    // into a missing record and throws away the URL the admin was on.
+    const refetch = vi.fn();
+    deletedQuery.mockReturnValue({
+      data: null,
+      isLoading: false,
+      error: new Error('rpc unavailable'),
+      refetch,
+    });
+
+    renderAt('gone-1');
+
+    expect(screen.queryByTestId('browse')).not.toBeInTheDocument();
+    expect(screen.getByText(/couldn't load this person/i)).toBeInTheDocument();
   });
 });

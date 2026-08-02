@@ -100,6 +100,21 @@ describe('UserDetailsView — removed people', () => {
     await waitFor(() => expect(restoreUser).toHaveBeenCalledWith('p1'));
   });
 
+  it('offers no edit affordances on a removed record', () => {
+    // The banner says the record cannot be edited. Leaving Edit and the photo
+    // button live would make it a liar.
+    renderView(person({ deletedAt: '2026-07-30T00:00:00Z' } as Partial<User>));
+
+    expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /invitation|sign-in link/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps edit affordances on a live record', () => {
+    renderView(person());
+
+    expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+  });
+
   it('explains the removal without offering Restore to a viewer who cannot', () => {
     hasPermission.mockReturnValue(false);
     renderView(person({ deletedAt: '2026-07-30T00:00:00Z' } as Partial<User>));

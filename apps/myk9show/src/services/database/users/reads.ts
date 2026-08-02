@@ -367,7 +367,22 @@ export const getDeletedUserById = async (id: string) => {
     }
 
     const rows = (data ?? []) as { id?: string }[];
-    return { data: rows.find(row => row.id === id) ?? null, error: null };
+    const person = rows.find(row => row.id === id) ?? null;
+    if (!person) return { data: null, error: null };
+
+    // The RPC returns SETOF public.people — the row and nothing else — while
+    // `getUserById` embeds user_roles and judge qualifications. Mapping the bare
+    // row yields an EMPTY role list, which reads as "this person had no roles"
+    // rather than "we didn't ask": a removed judge would silently lose their
+    // badge and judge sections. Fetch the roles alongside, in the shape
+    // extractRoles expects.
+    const { data: roleRows } = await supabase
+      .from('user_roles')
+      .select('role:roles!user_roles_role_id_fkey(name)')
+      .eq('user_id', id)
+      .eq('is_active', true);
+
+    return { data: { ...person, user_roles: roleRows ?? [] }, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_deleted_by_id');

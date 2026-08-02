@@ -5,6 +5,8 @@ import { useDeletedUserQuery } from '@/hooks/queries/useUsersQuery';
 import { useRBAC } from '@/hooks/useRBAC';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
+import { ErrorState } from '@/components/common/ErrorState';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 
 /**
  * PersonDetailPage is a thin wrapper around UserDetailsView for the /people/:id route.
@@ -32,24 +34,41 @@ const PersonDetailPage: React.FC = () => {
   // Only asked once the live lookup has finished and come up empty, so an
   // ordinary page load costs no extra request.
   const canReadRemoved = hasPermission('admin:manage');
-  const { data: removedPerson, isLoading: isLoadingRemoved } = useDeletedUserQuery(
-    id || '',
-    !isLoading && !livePerson && canReadRemoved
-  );
+  const {
+    data: removedPerson,
+    isLoading: isLoadingRemoved,
+    error: removedError,
+    refetch: refetchRemoved,
+  } = useDeletedUserQuery(id || '', !isLoading && !livePerson && canReadRemoved);
 
   const person = livePerson ?? removedPerson ?? null;
   const stillLooking = isLoading || (!livePerson && canReadRemoved && isLoadingRemoved);
 
+  // A FAILED read is not a missing person. Redirecting on error turns a
+  // transient network blip into "no such record" and throws away the URL the
+  // admin was on, so the error gets its own state with a retry.
+  const readFailed = Boolean(removedError) && !livePerson;
+
   // Redirect to the people browse page if person is not found or access is denied.
   useEffect(() => {
-    if (stillLooking || !id) return;
+    if (stillLooking || readFailed || !id) return;
     if (!canAccessPerson || !person) {
       navigate('/people', { replace: true });
     }
-  }, [stillLooking, id, canAccessPerson, person, navigate]);
+  }, [stillLooking, readFailed, id, canAccessPerson, person, navigate]);
 
   if (stillLooking) {
     return <DetailPageSkeleton />;
+  }
+
+  if (readFailed) {
+    return (
+      <ErrorState
+        message="Couldn't load this person."
+        description={getUserFriendlyError(removedError, 'Check your connection and try again.')}
+        onRetry={() => refetchRemoved()}
+      />
+    );
   }
 
   if (!person) return null;

@@ -373,11 +373,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             fullName={fullName}
             photo={formData.photo}
             phone={formData.phone}
+            isRemoved={isRemoved}
             onEditPhoto={() => setIsPhotoModalOpen(true)}
             onEdit={() => setIsEditModalOpen(true)}
             onDelete={() => setIsDeleteDialogOpen(true)}
             onSendInvitation={
-              canInvite
+              !isRemoved && canInvite
                 ? () =>
                     sendInvitation({
                       personId: person.id,

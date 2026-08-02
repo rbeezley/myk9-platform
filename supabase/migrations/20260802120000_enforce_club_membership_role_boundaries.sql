@@ -227,6 +227,33 @@ $$;
 REVOKE ALL ON FUNCTION public.is_show_official(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.is_show_official(uuid) TO anon, authenticated;
 
+CREATE OR REPLACE FUNCTION public.manageable_show_ids()
+RETURNS SETOF uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT s.id
+  FROM public.shows s
+  WHERE (SELECT public.is_club_admin(s.club_id))
+     OR (SELECT public.is_trial_secretary(s.club_id))
+     OR (SELECT public.is_site_admin())
+     OR EXISTS (
+       SELECT 1
+       FROM public.user_roles ur
+       JOIN public.roles r ON r.id = ur.role_id
+       WHERE ur.auth_user_id = auth.uid()
+         AND r.name = 'secretary'
+         AND ur.show_id = s.id
+         AND ur.is_active = true
+         AND (ur.expires_at IS NULL OR ur.expires_at > now())
+     );
+$$;
+
+COMMENT ON FUNCTION public.manageable_show_ids() IS
+  'Set of shows the current caller may manage. Club-scoped secretary rows require active club membership; show-scoped secretary rows remain limited to their assigned show.';
+
 CREATE OR REPLACE FUNCTION public.is_show_office_manager(check_show_id uuid)
 RETURNS boolean
 LANGUAGE sql

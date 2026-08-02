@@ -80,8 +80,13 @@ delete from public.ringside_containment_audit;
 -- ===========================================================================
 
 -- Below threshold: cursor advances, state stays armed, no audit row.
+--
+-- Every read of the sequence coalesces: `pg_sequences.last_value` is NULL until
+-- the first nextval(), and on a migrations-only rebuild it has never been
+-- called. The probe function coalesces for the same reason. Reading it raw
+-- passes against the live database and fails only in CI.
 update public.ringside_containment
-   set last_seq = (select last_value from pg_sequences
+   set last_seq = (select coalesce(last_value, 0) from pg_sequences
                     where schemaname = 'public' and sequencename = 'ringside_conflict_seq'),
        last_sample_at = now() - interval '1 minute';
 select nextval('public.ringside_conflict_seq') from generate_series(1, 10);
@@ -93,7 +98,7 @@ begin
   if r.state <> 'armed' then
     raise exception 'FAIL sampler tripped below threshold';
   end if;
-  if r.last_seq <> (select last_value from pg_sequences
+  if r.last_seq <> (select coalesce(last_value, 0) from pg_sequences
                      where schemaname = 'public' and sequencename = 'ringside_conflict_seq') then
     raise exception 'FAIL sampler did not advance cursor';
   end if;
@@ -196,7 +201,7 @@ begin
   end if;
   -- Resetting the cursor is what stops the stale window insta-retripping the
   -- breaker on the very next sample.
-  if r.last_seq <> (select last_value from pg_sequences
+  if r.last_seq <> (select coalesce(last_value, 0) from pg_sequences
                      where schemaname = 'public' and sequencename = 'ringside_conflict_seq') then
     raise exception 'FAIL rearm did not reset sampler cursor';
   end if;

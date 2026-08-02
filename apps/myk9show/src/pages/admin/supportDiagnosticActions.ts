@@ -142,14 +142,12 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
       id: 'user-roles',
       label: 'Open user access',
       description: userId ?? 'Review user-role assignments.',
-      href: userId
-        ? `/admin/permissions/users?userId=${encodeId(userId)}`
-        : '/admin/permissions/users',
+      href: userId ? `/admin/users?userId=${encodeId(userId)}` : '/admin/users',
     });
     addUnique(nextChecks, {
       id: 'permissions-users',
       label: 'Review user roles',
-      href: '/admin/permissions/users',
+      href: userId ? `/admin/users?userId=${encodeId(userId)}` : '/admin/users',
     });
   }
 

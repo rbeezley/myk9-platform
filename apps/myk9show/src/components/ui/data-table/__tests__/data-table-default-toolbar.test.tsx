@@ -61,11 +61,9 @@ describe('DataTable default toolbar', () => {
   it('persists column visibility to localStorage', async () => {
     const { user } = render(<DataTable tableId="test-persist" columns={columns} data={data} />);
     await user.click(screen.getByRole('button', { name: /toggle columns/i }));
-    const labels = screen.getAllByText('Value');
-    const toggleLabel = labels.find(el => el.closest('label'));
-    if (toggleLabel) {
-      await user.click(toggleLabel);
-    }
+    // Unconditional on purpose: this used to be `if (toggleLabel) { ... }`,
+    // which made the whole test vacuous whenever the item could not be found.
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Value' }));
     const stored = localStorage.getItem('datatable-cols-test-persist');
     expect(stored).toBeTruthy();
     const parsed = JSON.parse(stored!);
@@ -76,11 +74,9 @@ describe('DataTable default toolbar', () => {
     const { user } = render(<DataTable tableId="test-reset" columns={columns} data={pagedData} />);
 
     await user.click(screen.getByRole('button', { name: /toggle columns/i }));
-    const labels = screen.getAllByText('Value');
-    const toggleLabel = labels.find(el => el.closest('label'));
-    if (toggleLabel) {
-      await user.click(toggleLabel);
-    }
+    await user.click(await screen.findByRole('menuitemcheckbox', { name: 'Value' }));
+    // Dismiss the menu so it does not intercept the clicks that follow.
+    await user.keyboard('{Escape}');
 
     await user.click(screen.getByRole('button', { name: /compact density/i }));
     await user.selectOptions(screen.getByLabelText('Rows per page'), '50');

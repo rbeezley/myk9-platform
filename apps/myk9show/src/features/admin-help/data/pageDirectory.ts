@@ -43,12 +43,13 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/permissions',
     title: 'Roles & Permissions',
-    description: 'Grant roles (secretary, club admin, exhibitor, site admin) to users.',
+    description:
+      'Roles, permissions, the assignment ledger, and the audit log. Grant roles to users from User Management.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: ['/admin/permissions/roles', '/admin/permissions/users', '/admin/permissions/audit'],
+    linksTo: ['/admin/permissions/roles', '/admin/permissions/audit', '/admin/users'],
   },
   {
     path: '/admin/permissions/roles',
@@ -96,16 +97,6 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/admin/permissions/roles'],
   },
   {
-    path: '/admin/permissions/users',
-    title: 'User Role Assignment',
-    description: 'Assign and revoke roles per user.',
-    roles: [UserRole.SITE_ADMIN],
-    classification: 'critical-path',
-    category: 'Admin',
-    status: 'working',
-    linksTo: ['/admin/permissions'],
-  },
-  {
     path: '/admin/permissions/audit',
     title: 'Permission Audit',
     description: 'Audit log of role and permission changes (tabbed into Permissions page).',
@@ -114,6 +105,17 @@ export const pageDirectory: readonly PageEntry[] = [
     category: 'Admin',
     status: 'working',
     linksTo: [],
+  },
+  {
+    path: '/admin/permissions/users',
+    title: 'User Role Assignment (redirect)',
+    description:
+      'Old bookmark. Redirects to the Assignments tab on Roles & Permissions, which lists every role grant. Grant roles from User Management.',
+    roles: [UserRole.SITE_ADMIN],
+    classification: 'park',
+    category: 'Admin',
+    status: 'working',
+    linksTo: ['/admin/permissions', '/admin/users'],
   },
   {
     path: '/admin/templates',
@@ -160,12 +162,12 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/users',
     title: 'User Management',
-    description: 'Search, review, and manage platform user accounts.',
+    description: 'Search, review, and manage platform user accounts. Grant and revoke roles here.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: [],
+    linksTo: ['/admin/role-requests', '/admin/permissions'],
   },
   {
     path: '/admin/role-requests',
@@ -175,7 +177,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: [],
+    linksTo: ['/admin/users'],
   },
   {
     path: '/admin/payouts',

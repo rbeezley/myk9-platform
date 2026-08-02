@@ -97,6 +97,40 @@ describe('round trip', () => {
   });
 });
 
+describe('userListParamsToSearch carry-over', () => {
+  const carry = (query: string, state: UserListParams = DEFAULT_USER_LIST_PARAMS) =>
+    userListParamsToSearch(state, new URLSearchParams(query)).toString();
+
+  it('keeps params the roster does not own', () => {
+    // The support deep-link puts ?userId= on this route. Rebuilding the query
+    // from list state alone used to drop it on the first keystroke, closing the
+    // roles dialog under the admin.
+    expect(carry('userId=abc')).toBe('userId=abc');
+  });
+
+  it('keeps a foreign param alongside its own', () => {
+    const result = carry('userId=abc', { ...DEFAULT_USER_LIST_PARAMS, searchTerm: 'ada' });
+    expect(new URLSearchParams(result).get('userId')).toBe('abc');
+    expect(new URLSearchParams(result).get('q')).toBe('ada');
+  });
+
+  it('does not duplicate or stale-carry params it does own', () => {
+    // `q=old` must be replaced by the new state, not appended to it.
+    const result = carry('q=old&userId=abc', { ...DEFAULT_USER_LIST_PARAMS, searchTerm: 'new' });
+    expect(new URLSearchParams(result).getAll('q')).toEqual(['new']);
+  });
+
+  it('drops an owned param that has returned to its default', () => {
+    expect(carry('q=old&userId=abc')).toBe('userId=abc');
+  });
+
+  it('is unchanged when no carry-over is supplied', () => {
+    expect(
+      userListParamsToSearch({ ...DEFAULT_USER_LIST_PARAMS, searchTerm: 'ada' }).toString()
+    ).toBe('q=ada');
+  });
+});
+
 describe('userListHref', () => {
   it('stays clean for an unfiltered roster', () => {
     expect(userListHref(DEFAULT_USER_LIST_PARAMS)).toBe('/admin/users');

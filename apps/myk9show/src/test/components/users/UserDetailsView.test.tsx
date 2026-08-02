@@ -33,6 +33,9 @@ vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useDeleteUserMutation: () => ({
     mutateAsync: vi.fn(),
   }),
+  usePermanentDeleteUserMutation: () => ({
+    mutateAsync: vi.fn(),
+  }),
 }));
 
 vi.mock('@/store/userStore', () => ({

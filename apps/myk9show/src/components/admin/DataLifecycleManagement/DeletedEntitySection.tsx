@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronRight, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import type { DeletedEntity, EntitySectionConfig, EntityType } from './types';
 import { cn } from '@/lib/utils';
@@ -103,7 +104,16 @@ export function DeletedEntitySection({
                   className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{item.name}</p>
+                    {config.recordHref?.(item) ? (
+                      <Link
+                        to={config.recordHref(item)!}
+                        className="font-medium truncate block text-primary underline-offset-4 hover:underline"
+                      >
+                        {item.name}
+                      </Link>
+                    ) : (
+                      <p className="font-medium truncate">{item.name}</p>
+                    )}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       {item.context && (
                         <>

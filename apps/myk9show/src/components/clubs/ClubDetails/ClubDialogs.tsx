@@ -1,5 +1,6 @@
 import React from 'react';
 import { Club } from '@/types/club-types';
+import type { ClubMember } from '@/types/club-membership-types';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import ClubPhotoDialog from '../ClubPhotoDialog';
 import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
@@ -30,6 +31,7 @@ interface ClubDialogsProps {
   // Add member dialog
   showAddMemberDialog: boolean;
   onAddMemberDialogChange: (open: boolean) => void;
+  members: ClubMember[];
 }
 
 export const ClubDialogs: React.FC<ClubDialogsProps> = ({
@@ -53,6 +55,7 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
   isDeleting,
   showAddMemberDialog,
   onAddMemberDialogChange,
+  members,
 }) => {
   return (
     <>
@@ -97,6 +100,7 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
         open={showAddMemberDialog}
         onOpenChange={onAddMemberDialogChange}
         club={club}
+        members={members}
       />
     </>
   );

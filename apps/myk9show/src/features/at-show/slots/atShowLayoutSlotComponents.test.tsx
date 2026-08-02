@@ -13,14 +13,17 @@ import {
 // RS429; without this banner it pauses SILENTLY, and a queue that stops
 // draining with no explanation is indistinguishable from lost work.
 describe('ContainmentBanner', () => {
-  // The hook remembers the last containment deadline at MODULE scope so a
-  // component mounting mid-pause still shows the banner (Codex review of
-  // #1571). That memo outlives a single test file when vitest shares a worker,
-  // so a pause dispatched by useReplicationContainment.test.ts leaks in here and
-  // the "absent by default" case sees a banner. Reset it, like that file does.
-  beforeEach(() => {
-    __resetContainmentMemoForTests();
-  });
+  // The containment deadline lives in module scope so a component mounting
+  // mid-pause still shows the banner — deliberate, and documented in the hook.
+  // The cost is that a pause opened by one case outlives it: `until` is an
+  // absolute timestamp, so it stays in the future for the rest of the file and
+  // the "is absent" case then sees a banner another case raised.
+  //
+  // CI runs with `--sequence.shuffle`, so whether that ordering is reached
+  // varies per run — it passed locally at 5083/5083 on one seed while failing
+  // twice in CI on others. `useReplicationContainment.test.ts` already calls
+  // this reset; this file was the one that did not.
+  beforeEach(__resetContainmentMemoForTests);
 
   const contain = (untilMsFromNow: number) =>
     act(() => {

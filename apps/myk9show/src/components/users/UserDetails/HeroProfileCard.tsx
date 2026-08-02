@@ -18,6 +18,14 @@ interface HeroProfileCardProps {
   onEditPhoto: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  /**
+   * The person is removed. Editing them is not an operation — the record is
+   * readable so an admin can decide whether to restore it (MYK9-153), and a
+   * banner says exactly that, so leaving Edit / photo / invitation live here
+   * would make the banner a liar. Delete stays: for a removed person it means
+   * permanent deletion, which is the other half of that decision.
+   */
+  isRemoved?: boolean;
   /** Send/resend a sign-in invitation (MYK9-134). Omit to hide the menu item. */
   onSendInvitation?: (() => void) | undefined;
   sendInvitationLabel?: string | undefined;
@@ -34,6 +42,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   onEditPhoto,
   onEdit,
   onDelete,
+  isRemoved = false,
   onSendInvitation,
   sendInvitationLabel,
   sendInvitationDisabled,
@@ -53,14 +62,15 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
 
       {/* Actions */}
       <div className="absolute top-6 right-6 z-10 flex items-center gap-1">
-        <Button variant="outline" size="sm" onClick={onEdit}>
-          Edit
-        </Button>
+        {!isRemoved && (
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            Edit
+          </Button>
+        )}
         <ThreeDotMenu
           onEdit={onEdit}
           onDelete={onDelete}
-          onEditPhoto={onEditPhoto}
-          onSendInvitation={onSendInvitation}
+          {...(isRemoved ? {} : { onEditPhoto, onSendInvitation })}
           sendInvitationLabel={sendInvitationLabel}
           sendInvitationDisabled={sendInvitationDisabled}
           editLabel="Edit Person"
@@ -75,7 +85,8 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
           <div className="flex-shrink-0">
             <button
               type="button"
-              onClick={onEditPhoto}
+              onClick={isRemoved ? undefined : onEditPhoto}
+              disabled={isRemoved}
               className="relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="Edit profile photo"
             >

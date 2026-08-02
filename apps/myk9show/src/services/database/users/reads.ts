@@ -336,6 +336,93 @@ export const getDeletedUsers = async () => {
   }
 };
 
+/**
+ * Read ONE soft-deleted person.
+ *
+ * `people_select` is `deleted_at IS NULL`, so a removed person is invisible to
+ * every role including site admin, and `getUserById` filters them out too. The
+ * admin-gated `get_deleted_people` RPC (migration 20260616140000) is the only
+ * read path there is.
+ *
+ * It returns the whole deleted set and the row is picked here rather than in a
+ * second SECURITY DEFINER function answering the same question. The set is
+ * small by nature — soft-deleted people are a queue that gets emptied, not a
+ * growing table. If that stops being true, a `get_deleted_person(uuid)` RPC is
+ * the drop-in replacement and only this function changes.
+ *
+ * Returns `{ data: null }` for a live person, an unknown id, OR a caller the
+ * RPC refuses — the caller cannot tell those apart, which is the point.
+ */
+export const getDeletedUserById = async (id: string) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase.rpc('get_deleted_people');
+
+    const duration = Date.now() - startTime;
+    logQuery('user', 'select_deleted_by_id', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'user', 'select_deleted_by_id');
+    }
+
+    const rows = (data ?? []) as { id?: string }[];
+    const person = rows.find(row => row.id === id) ?? null;
+    if (!person) return { data: null, error: null };
+
+    // The RPC returns SETOF public.people — the row and nothing else — while
+    // `getUserById` embeds user_roles and judge qualifications. Mapping the bare
+    // row yields an EMPTY role list, which reads as "this person had no roles"
+    // rather than "we didn't ask": a removed judge would silently lose their
+    // badge and judge sections. Fetch the roles alongside, in the shape
+    // extractRoles expects.
+    //
+    // NO is_active FILTER, deliberately. `soft_delete_person` (migration
+    // 20260710170000) sets is_active = false on every one of the person's roles,
+    // and `restore_person` does not put them back. Filtering on is_active would
+    // therefore return nothing for precisely the people this function exists to
+    // read — the record would render role-less and look perfectly correct.
+    //
+    // The cost is precision, and the data cannot buy it back: `user_roles` has
+    // no revoked_at and no updated_at, so a grant deactivated BY the removal is
+    // indistinguishable from one revoked a year earlier. Expiry is the one
+    // signal that does exist, and it is applied below. Anything better needs a
+    // column stamped at soft-delete time — a schema change, not a query fix.
+    //
+    // Over-reporting beats under-reporting here: without this the roles are
+    // missing for every removed person, always. With it they are occasionally
+    // generous, on a record that carries a "this person was removed" banner and
+    // no editing affordances, so no reader can mistake a badge for live
+    // authority.
+    const { data: roleRows, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('expires_at, role:roles!user_roles_role_id_fkey(name)')
+      .eq('user_id', id);
+
+    // A failed role read must not pass as a complete record with no roles —
+    // that is the same silent lie, arrived at a different way.
+    if (rolesError) {
+      throw createDatabaseError(rolesError, 'user', 'select_deleted_by_id');
+    }
+
+    // A grant that expired BEFORE they were removed was demonstrably not held at
+    // removal, so drop it. This is the only over-reporting the data lets us fix.
+    const removedAt = (person as { deleted_at?: string | null }).deleted_at;
+    const heldAtRemoval = (roleRows ?? []).filter(row => {
+      const expiresAt = (row as { expires_at?: string | null }).expires_at;
+      if (!expiresAt || !removedAt) return true;
+      return new Date(expiresAt) > new Date(removedAt);
+    });
+
+    return { data: { ...person, user_roles: heldAtRemoval }, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'user', 'select_deleted_by_id');
+    logQuery('user', 'select_deleted_by_id', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
 // Legacy hard delete user with proper constraint checking (kept for compatibility)
 export const legacyDeleteUser = async (id: string, cascadeDelete: boolean = false) => {
   const startTime = Date.now();

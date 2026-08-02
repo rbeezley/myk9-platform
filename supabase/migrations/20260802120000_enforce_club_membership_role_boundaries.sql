@@ -254,6 +254,11 @@ $$;
 COMMENT ON FUNCTION public.manageable_show_ids() IS
   'Set of shows the current caller may manage. Club-scoped secretary rows require active club membership; show-scoped secretary rows remain limited to their assigned show.';
 
+REVOKE ALL ON FUNCTION public.manageable_show_ids() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.manageable_show_ids() FROM anon;
+GRANT EXECUTE ON FUNCTION public.manageable_show_ids() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.manageable_show_ids() TO service_role;
+
 CREATE OR REPLACE FUNCTION public.is_show_office_manager(check_show_id uuid)
 RETURNS boolean
 LANGUAGE sql

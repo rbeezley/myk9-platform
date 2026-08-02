@@ -66,7 +66,6 @@ export function TrialClassesCards({
 
   // Build class details data for info popover
   const getClassDetailsData = (classItem: TrialClass): ClassDetailsData => ({
-    id: classItem.id,
     className: `${classItem.element} ${classItem.level} ${classItem.section}`,
     status: classItem.status,
     judgeName: classItem.judgeName,

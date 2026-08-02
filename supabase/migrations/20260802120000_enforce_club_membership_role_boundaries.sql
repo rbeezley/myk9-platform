@@ -160,7 +160,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.is_trial_secretary(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.is_trial_secretary(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_trial_secretary(uuid) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.is_show_secretary(check_show_id uuid)
 RETURNS boolean
@@ -190,7 +190,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.is_show_secretary(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.is_show_secretary(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_show_secretary(uuid) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.is_show_official(check_show_id uuid)
 RETURNS boolean
@@ -225,7 +225,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.is_show_official(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.is_show_official(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_show_official(uuid) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.is_show_office_manager(check_show_id uuid)
 RETURNS boolean

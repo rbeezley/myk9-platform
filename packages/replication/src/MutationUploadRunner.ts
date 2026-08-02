@@ -13,6 +13,21 @@ import { markPerf, measurePerf } from './perf';
 import type { PendingMutation, ReplicatedRow, SyncResult } from './types';
 import type { MutationQueueStore } from './MutationQueueStore';
 
+/**
+ * RPCs the MYK9-115 breaker actually sheds.
+ *
+ * INTENT: containment is a RINGSIDE SCORING brownout. Gating on "has an rpc"
+ * would also hold `create_dog_with_registrations` and every other unrelated
+ * RPC in the outbox, turning a scoring pause into a general write outage —
+ * which is the blast radius the server-side gate was carefully designed to
+ * avoid. Add a name here only when the server can raise RS429 for it.
+ */
+const CONTAINABLE_RPC_NAMES = new Set(['ringside_update_entry']);
+
+function isContainableRpc(mutation: Pick<PendingMutation, 'rpc'>): boolean {
+  return mutation.rpc !== undefined && CONTAINABLE_RPC_NAMES.has(mutation.rpc.name);
+}
+
 export class MutationUploadRunner {
   private uploadDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private backoffRetryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -209,7 +224,7 @@ export class MutationUploadRunner {
         // sending writes the server has already said it will reject. The
         // earliest-backoff self-schedule below wakes the pass when the window
         // expires, so nothing is stranded.
-        if (mutation.rpc !== undefined && this.containmentUntil !== null) {
+        if (isContainableRpc(mutation) && this.containmentUntil !== null) {
           if (this.containmentUntil > now) {
             skipped.backoff++;
             blockedDependencyIds.add(mutation.id);
@@ -319,6 +334,18 @@ export class MutationUploadRunner {
                 queuedMutation.rowId,
                 error.currentServerVersion
               );
+              // Advancing the replicated ROW is not enough: executeMutation
+              // reads `p_expected_version` from the QUEUED mutation, not from
+              // the row. Without this the pause expires and the runner re-sends
+              // the same stale token forever. The OCC rejection path stamps the
+              // fresh version for exactly this reason (see mutation-occ-rejection).
+              const rebased = await db.get(REPLICATION_STORES.PENDING_MUTATIONS, queuedMutation.id);
+              if (rebased) {
+                await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+                  ...(rebased as PendingMutation),
+                  serverVersion: error.currentServerVersion,
+                });
+              }
             }
             skipped.backoff++;
             blockedDependencyIds.add(queuedMutation.id);

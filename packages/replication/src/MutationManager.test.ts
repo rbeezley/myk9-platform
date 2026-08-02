@@ -777,6 +777,58 @@ describe('MutationManager', () => {
         expect(await manager.getPendingCount()).toBe(0);
       });
 
+      // Codex review of PR #1571. executeMutation reads p_expected_version from
+      // the QUEUED mutation, not the replicated row — so advancing only the row
+      // left the pause expiring into an endless re-send of the same stale token.
+      it('rebases the QUEUED mutation, not just the row, so the retry is not stale', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await queueRpcMutation('mut-rebase');
+
+        await manager.uploadPendingMutations();
+
+        const queued = (await mockDb.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-rebase')) as
+          { serverVersion?: number } | undefined;
+        expect(queued?.serverVersion).toBe(9);
+      });
+
+      it('resends with the rebased token once the pause lifts', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await queueRpcMutation('mut-rebase-send');
+        await manager.uploadPendingMutations();
+
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: 10, error: null } as never);
+        await vi.advanceTimersByTimeAsync(61_000);
+        await manager.uploadPendingMutations();
+
+        expect(vi.mocked(mockSupabase.rpc)).toHaveBeenLastCalledWith(
+          'ringside_update_entry',
+          expect.objectContaining({ p_expected_version: 9 })
+        );
+      });
+
+      it('does not hold unrelated RPCs — containment is a scoring brownout', async () => {
+        vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
+        await queueRpcMutation('mut-ringside');
+        await mockDb.put(
+          REPLICATION_STORES.PENDING_MUTATIONS,
+          makeMutation({
+            id: 'mut-dog-rpc',
+            tableName: 'dogs',
+            operation: 'INSERT',
+            rowId: 'dog-9',
+            data: { id: 'dog-9' },
+            rpc: { name: 'create_dog_with_registrations', args: { p_dog: { id: 'dog-9' } } },
+          })
+        );
+
+        await manager.uploadPendingMutations();
+
+        // Gating on "has an rpc" would have held the dog INSERT too, turning a
+        // ringside pause into a general write outage.
+        const called = vi.mocked(mockSupabase.rpc).mock.calls.map(([name]) => name as string);
+        expect(called).toContain('create_dog_with_registrations');
+      });
+
       it('does not pause non-RPC writes — this is a ringside brownout, not an outage', async () => {
         vi.mocked(mockSupabase.rpc).mockResolvedValue({ data: null, error: rs429 } as never);
         await queueRpcMutation('mut-rpc-contained');

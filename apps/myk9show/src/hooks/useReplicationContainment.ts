@@ -19,8 +19,37 @@ export interface ContainmentState {
  *
  * Listens on `window` directly, matching how the replication layer broadcasts.
  */
+/**
+ * Last containment deadline seen in this tab, so a component that mounts DURING
+ * a pause still shows the banner.
+ *
+ * INTENT: the runner holds the authoritative pause; a window event is a
+ * one-shot broadcast that only reaches whoever is already listening. The at-show
+ * list is routed to and away from constantly — without this, a judge who
+ * navigates away and back mid-pause sees a queue that has silently stopped
+ * draining and no explanation, which is the exact failure the banner exists to
+ * prevent. Module scope is deliberate: it dies with the tab, like the pause.
+ */
+let lastContainmentUntil: number | null = null;
+
+/** Exported for tests, which must not leak a pause between cases. */
+export function __resetContainmentMemoForTests(): void {
+  lastContainmentUntil = null;
+}
+
+function currentContainment(): number | null {
+  if (lastContainmentUntil === null) return null;
+  if (lastContainmentUntil <= Date.now()) {
+    lastContainmentUntil = null;
+    return null;
+  }
+  return lastContainmentUntil;
+}
+
 export function useReplicationContainment(): ContainmentState {
-  const [until, setUntil] = useState<number | null>(null);
+  // Lazy initialiser: seed from the remembered deadline so a late mount is not
+  // blind to a pause already in progress.
+  const [until, setUntil] = useState<number | null>(() => currentContainment());
 
   useEffect(() => {
     const onContainment = (event: Event) => {
@@ -34,6 +63,9 @@ export function useReplicationContainment(): ContainmentState {
       // react-hooks/set-state-in-effect and causes a cascading render; filtering
       // at the source means the effect only ever schedules a timer.
       if (next <= Date.now()) return;
+      if (lastContainmentUntil === null || next > lastContainmentUntil) {
+        lastContainmentUntil = next;
+      }
       // Re-arms extend, never shorten: take the later deadline so a second
       // RS429 mid-pause cannot cut the banner short while uploads are still held.
       setUntil(current => (current === null || next > current ? next : current));
@@ -47,7 +79,13 @@ export function useReplicationContainment(): ContainmentState {
     if (until === null) return;
     // Always a timer, never a synchronous clear — a 0ms timeout still defers to
     // the next tick, so the state update never happens during the effect.
-    const timer = setTimeout(() => setUntil(null), Math.max(until - Date.now(), 0));
+    const timer = setTimeout(
+      () => {
+        lastContainmentUntil = null;
+        setUntil(null);
+      },
+      Math.max(until - Date.now(), 0)
+    );
     return () => clearTimeout(timer);
   }, [until]);
 

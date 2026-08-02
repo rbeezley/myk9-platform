@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useReplicationContainment } from './useReplicationContainment';
+import {
+  __resetContainmentMemoForTests,
+  useReplicationContainment,
+} from './useReplicationContainment';
 
 const containment = (until: number) =>
   new CustomEvent('replication:containment', { detail: { until } });
@@ -8,6 +11,7 @@ const containment = (until: number) =>
 describe('useReplicationContainment', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    __resetContainmentMemoForTests();
   });
 
   afterEach(() => {
@@ -79,6 +83,34 @@ describe('useReplicationContainment', () => {
       );
     });
     expect(result.current.active).toBe(false);
+  });
+
+  // Codex review of PR #1571: a window event is a one-shot broadcast. The
+  // at-show list is routed to and away from constantly, and a judge who
+  // navigates back mid-pause must not see a silently stalled queue.
+  it('shows the pause to a component that mounts after the event fired', () => {
+    const first = renderHook(() => useReplicationContainment());
+    act(() => {
+      window.dispatchEvent(containment(Date.now() + 60_000));
+    });
+    first.unmount();
+
+    const late = renderHook(() => useReplicationContainment());
+    expect(late.result.current.active).toBe(true);
+  });
+
+  it('does not resurrect a pause that has already elapsed', () => {
+    const first = renderHook(() => useReplicationContainment());
+    act(() => {
+      window.dispatchEvent(containment(Date.now() + 5_000));
+    });
+    act(() => {
+      vi.advanceTimersByTime(6_000);
+    });
+    first.unmount();
+
+    const late = renderHook(() => useReplicationContainment());
+    expect(late.result.current.active).toBe(false);
   });
 
   it('stops listening and clears its timer on unmount', () => {

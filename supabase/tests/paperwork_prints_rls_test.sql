@@ -38,11 +38,11 @@ VALUES ('00000000-0000-0000-0000-000000000731', '00000000-0000-0000-0000-0000000
 INSERT INTO public.classes (id, trial_id, name, status)
 VALUES ('00000000-0000-0000-0000-000000000741', '00000000-0000-0000-0000-000000000731', 'Container Novice', 'upcoming');
 
--- club_id is mandatory for secretary/club_admin grants
--- (public.enforce_club_id_for_scoped_roles).
+-- Paperwork management uses can_manage_show(), so these are club-scoped
+-- secretaries with active membership rather than show-scoped assignments.
 INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
 SELECT
-  person_id, role_id, '00000000-0000-0000-0000-000000000721',
+  person_id, role_id, NULL,
   '00000000-0000-0000-0000-000000000761', true, auth_id
 FROM (
   VALUES

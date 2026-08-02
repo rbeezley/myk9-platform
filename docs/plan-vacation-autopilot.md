@@ -39,16 +39,24 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
 
 1. **Kill switch:** read the Vacation Log. `STOP` comment (from Richard) → disable the
    scheduled task, post an acknowledgment, exit.
-2. **Lock — immediately, before any other work.** `mkdir` a lock directory (atomic on
-   POSIX: it succeeds for exactly one caller, so there is no read-then-write race) and
-   write this run's id into it, alongside a `lockedUntil` ~4h out. A run that finds a
-   live lease logs "skipped: another run holds the lease" and exits **without** counting
-   a failure; a run that finds an expired one takes it over. Locking happens here, not
-   after the health check, because **repairing a red base is itself work** — two runs
-   entering that path together would fight over the same branch. **Fencing:** re-read the
-   lock and confirm this run still owns it immediately before any mutating action (merge,
-   worktree removal, Linear status change); if ownership was lost, abandon quietly rather
-   than mutate. Release the lock on every exit path.
+2. **Lease — immediately, before any other work.** `lockedUntil` + `lockOwner` in
+   `state.json`, ~4h out, **released by WRITING `lockedUntil: null`** — never by deleting
+   anything. A run finding a live lease logs "skipped: another run holds the lease" and
+   exits **without** counting a failure; one finding an expired lease takes it over.
+   Locking happens here, not after the health check, because **repairing a red base is
+   itself work** — two runs entering that path together would fight over the same branch.
+   **Fencing:** re-read `lockOwner` immediately before any mutating action (merge,
+   worktree removal, Linear status change); if ownership was lost, abandon quietly.
+
+   > **Why not an atomic `mkdir` lock?** It was tried, and the 2026-08-02 rehearsal
+   > proved it cannot work here: `rmdir`, `rm` and `rm -rf` are all denied by permission
+   > rules on this machine, so the lease could be acquired and never released — the
+   > rehearsal left its lock held. This reverses a P1 Codex finding that (correctly, in
+   > the abstract) asked for atomic acquisition. Atomicity via `mkdir` is only atomic if
+   > the directory can also be removed. Read-then-write is adequate for one machine, one
+   > scheduler, 6h apart: the lease exists to stop a *stalled* run overlapping the next,
+   > not to arbitrate a millisecond race that cannot occur. A 4h lease under a 6h
+   > interval also means an unreleased lease can never block the following run.
 3. **Health:** if `main` CI is red, **repairing it is the run's work item** — not an exit.
    A red base blocks every future run, so fixing it outranks queue work. Red-main runs do
    not count toward the circuit breaker until two consecutive repair attempts fail to turn
@@ -91,9 +99,13 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
      PR-queue-only shape that was explicitly rejected. Log the Vercel failure, judge the
      merge on the Actions checks. A Vercel failure that reads like a real build error,
      rather than a quota/infra message, IS blocking.
-8. **Finish:**
+8. **Log FIRST, then finish.** The moment the outcome is known — merge, PR-stop, or
+   blocked — write the MYK9-158 comment *before* cleanup. The 2026-08-02 rehearsal merged
+   its PR, set Linear to Done, and then ended without ever logging, because logging was
+   the last step. From a beach, a run that did work and left no record is indistinguishable
+   from a run that never fired. Then:
    - Passes the gate + CI green + Codex clear → merge from the main repo dir, then the
-     **non-interactive cleanup** below. Linear issue → Done, log comment.
+     **non-interactive cleanup** below. Linear issue → Done.
    - Otherwise → open PR, label `needs-richard`, state-of-play comment, issue stays In Progress.
 9. **Failure:** clean up the worktree, comment the exact blocker, label `vacation-blocked`
    after the 2nd genuine failure. Quota exhaustion never increments attempt counts.
@@ -129,12 +141,33 @@ runner uses this fixed sequence instead, run from the main checkout:
 2. `git worktree remove .claude/worktrees/vacation-<issue-id>`
 3. Stop. Leave the local branch — deletion is denied, and `branch-janitor` reports it.
 
+## A dirty primary checkout is not an emergency
+
+Uncommitted or untracked files in the primary checkout — audit output, `docs/qa/*`,
+scratch notes — are normal here and cannot affect a run: every worktree is created from
+`origin/main`, never from the working tree. The runner notes them and carries on. Only
+state that affects the run's own work counts as suspect: an unexpected diff inside its
+own worktree, a worktree that vanished mid-run, or `origin/main` moving unaccountably.
+
+This is not hypothetical — on 2026-08-02 roughly 890 lines of uncommitted Codex audit
+output were sitting on `main`. Under the original rule that would have read as "repo
+state looks wrong" to every run, and three runs trip the circuit breaker: the whole plan
+disabled on day one over stray markdown.
+
 ## Denied commands (permission rules on this machine)
 
-`git branch -D` / `-d` and `git checkout -- <path>` are denied and will **pause an
-unattended run on a prompt nobody answers** (both hit on 2026-08-02). The runner must
-never call them: merge with `gh pr merge --squash` without `--delete-branch`, remove the
-worktree, and leave local branches for the Monday `branch-janitor` to report.
+`git branch -D` / `-d`, `git checkout -- <path>`, `rm`, `rm -rf` and `rmdir` are all
+denied and will **pause an unattended run on a prompt nobody answers** — every one of
+them was hit on 2026-08-02. The runner must never call them: merge with `gh pr merge
+--squash` without `--delete-branch`, remove the worktree (`git worktree remove` IS
+permitted), and leave local branches for the Monday `branch-janitor` to report.
+
+**This machine's permission set is a design constraint, not an afterthought.** Three
+separate mechanisms were designed today around commands that turned out to be denied —
+branch cleanup, file restore, and the lock release. Before designing any mechanism that
+removes or restores something, check that the command is actually permitted here. A
+denied command is a visible prompt when a human is watching and a silent stall when
+nobody is.
 
 ## Remote control (phone, Linear app)
 

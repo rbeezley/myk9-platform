@@ -141,13 +141,18 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
         <DropdownMenuLabel className={MENU_LABEL_BASE}>Show Access</DropdownMenuLabel>
         <DropdownMenuItem
           onClick={() => onToggleShowAccess(member.personId, !hasShowAccess)}
+          disabled={!hasShowAccess && member.membershipStatus !== 'active'}
           className={cn(
             MENU_ITEM_BASE,
             hasShowAccess ? 'text-warning focus:bg-warning/10' : 'text-success focus:bg-success/10'
           )}
         >
           <KeyRound className="h-3.5 w-3.5" />
-          {hasShowAccess ? 'Revoke Show Access' : 'Grant Show Access'}
+          {hasShowAccess
+            ? 'Revoke Show Access'
+            : member.membershipStatus === 'active'
+              ? 'Grant Show Access'
+              : 'Grant Show Access (active members only)'}
         </DropdownMenuItem>
       </DropdownMenuGroup>
 

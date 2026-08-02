@@ -102,4 +102,16 @@ describe('MemberActionMenu', () => {
     await screen.findByRole('menu');
     expect(screen.getByRole('menuitem', { name: /full member/i })).toHaveAttribute('data-disabled');
   });
+
+  it('does not allow inactive members to receive club-wide show access', async () => {
+    const { user } = renderMenu({
+      member: { ...baseMember, membershipStatus: 'lapsed' },
+    });
+    await openMenu(user);
+
+    await screen.findByRole('menu');
+    expect(
+      screen.getByRole('menuitem', { name: /grant show access.*active members only/i })
+    ).toHaveAttribute('data-disabled');
+  });
 });

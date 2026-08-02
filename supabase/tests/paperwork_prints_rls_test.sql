@@ -21,15 +21,15 @@ VALUES
   ('00000000-0000-0000-0000-000000000761', '00000000-0000-0000-0000-000000000711', 'active'),
   ('00000000-0000-0000-0000-000000000761', '00000000-0000-0000-0000-000000000712', 'active');
 
-INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id, status)
 VALUES
   (
     '00000000-0000-0000-0000-000000000721', 'Paperwork Show', 'AKC',
-    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000761'
+    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000761', 'published'
   ),
   (
     '00000000-0000-0000-0000-000000000722', 'Other Show', 'AKC',
-    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000762'
+    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000762', 'published'
   );
 
 INSERT INTO public.trials (id, show_id, name, date)

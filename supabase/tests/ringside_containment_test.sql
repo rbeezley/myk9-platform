@@ -293,7 +293,7 @@ update public.ringside_containment
 -- itself is SECURITY DEFINER and reads the row on the caller's behalf, which is
 -- exactly why ringside works at all.
 create temporary table myk9_115_gate (step text primary key, value text) on commit drop;
-grant insert on myk9_115_gate to authenticated;
+grant select, insert on myk9_115_gate to authenticated;
 insert into myk9_115_gate (step, value)
 select 'base_version', version::text
   from public.entries where id = '00000000-0000-0000-0000-000000115033';

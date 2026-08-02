@@ -376,11 +376,24 @@ export const getDeletedUserById = async (id: string) => {
     // rather than "we didn't ask": a removed judge would silently lose their
     // badge and judge sections. Fetch the roles alongside, in the shape
     // extractRoles expects.
-    const { data: roleRows } = await supabase
+    //
+    // NO is_active FILTER, deliberately. `soft_delete_person` (migration
+    // 20260710170000) sets is_active = false on every one of the person's roles,
+    // and `restore_person` does not put them back. Filtering on is_active here
+    // would therefore return nothing for precisely the people this function
+    // exists to read — the fix would fix nothing. What the record should show is
+    // the roles they held when they were removed, and removal is what
+    // deactivated them.
+    const { data: roleRows, error: rolesError } = await supabase
       .from('user_roles')
       .select('role:roles!user_roles_role_id_fkey(name)')
-      .eq('user_id', id)
-      .eq('is_active', true);
+      .eq('user_id', id);
+
+    // A failed role read must not pass as a complete record with no roles —
+    // that is the same silent lie, arrived at a different way.
+    if (rolesError) {
+      throw createDatabaseError(rolesError, 'user', 'select_deleted_by_id');
+    }
 
     return { data: { ...person, user_roles: roleRows ?? [] }, error: null };
   } catch (error) {

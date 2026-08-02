@@ -29,17 +29,14 @@ vi.mock('@/utils/duplicateIdentityErrors', () => ({
 
 import { getDeletedUserById } from './reads';
 
-const rolesQuery = (rows: unknown[]) => {
-  const chain = {
-    select: vi.fn(() => chain),
-    eq: vi.fn(() => chain),
-    then: undefined as unknown,
-  };
-  // Final .eq() resolves to the roles payload.
-  chain.eq = vi
-    .fn()
-    .mockImplementationOnce(() => chain)
-    .mockImplementationOnce(() => Promise.resolve({ data: rows, error: null }));
+const rolesQuery = (result: { data?: unknown[]; error?: unknown }) => {
+  const chain: Record<string, unknown> = {};
+  chain.select = vi.fn(() => chain);
+  // The single .eq(user_id) resolves. There is deliberately no is_active filter
+  // — see the note in getDeletedUserById.
+  chain.eq = vi.fn(() =>
+    Promise.resolve({ data: result.data ?? null, error: result.error ?? null })
+  );
   return chain;
 };
 
@@ -60,7 +57,7 @@ describe('getDeletedUserById', () => {
 
   it('attaches the roles the RPC does not return', async () => {
     rpc.mockResolvedValue({ data: [{ id: 'gone-1', first_name: 'Ada' }], error: null });
-    from.mockReturnValue(rolesQuery([{ role: { name: 'judge' } }]));
+    from.mockReturnValue(rolesQuery({ data: [{ role: { name: 'judge' } }] }));
 
     const { data } = await getDeletedUserById('gone-1');
 
@@ -74,11 +71,40 @@ describe('getDeletedUserById', () => {
 
   it('still returns the person when they genuinely hold no roles', async () => {
     rpc.mockResolvedValue({ data: [{ id: 'gone-1' }], error: null });
-    from.mockReturnValue(rolesQuery([]));
+    from.mockReturnValue(rolesQuery({ data: [] }));
 
     const { data } = await getDeletedUserById('gone-1');
 
     expect(data).toMatchObject({ id: 'gone-1', user_roles: [] });
+  });
+
+  it('asks for roles WITHOUT an is_active filter', async () => {
+    // soft_delete_person deactivates every role on the way out and
+    // restore_person does not put them back, so filtering on is_active would
+    // return nothing for exactly the people this function reads. The record
+    // would render role-less and look correct.
+    rpc.mockResolvedValue({ data: [{ id: 'gone-1' }], error: null });
+    const chain = rolesQuery({ data: [{ role: { name: 'judge' } }] });
+    from.mockReturnValue(chain);
+
+    const { data } = await getDeletedUserById('gone-1');
+
+    const eq = chain.eq as ReturnType<typeof vi.fn>;
+    expect(eq).toHaveBeenCalledTimes(1);
+    expect(eq).toHaveBeenCalledWith('user_id', 'gone-1');
+    expect(data).toMatchObject({ user_roles: [{ role: { name: 'judge' } }] });
+  });
+
+  it('fails the read when the roles query fails', async () => {
+    // A record that renders with no roles because the roles query broke is the
+    // same silent lie as not asking for them.
+    rpc.mockResolvedValue({ data: [{ id: 'gone-1' }], error: null });
+    from.mockReturnValue(rolesQuery({ error: new Error('permission denied') }));
+
+    const { data, error } = await getDeletedUserById('gone-1');
+
+    expect(data).toBeNull();
+    expect(error).toBeTruthy();
   });
 
   it('surfaces an RPC failure instead of reporting "not found"', async () => {

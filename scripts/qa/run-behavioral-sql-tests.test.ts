@@ -45,6 +45,7 @@ const launchCriticalSqlTests = [
   'pull_refund_decision_rls_test.sql',
   'rbac_access_lookup_authorization_test.sql',
   'recoverable_show_access_codes_test.sql',
+  'ringside_containment_test.sql',
   'subscription_entitlement_grants_test.sql',
 ];
 

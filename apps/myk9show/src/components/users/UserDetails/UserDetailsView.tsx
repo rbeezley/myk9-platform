@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Mail, MapPin, Settings, PawPrint } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
@@ -7,10 +7,19 @@ import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { getErrorMessage } from '@myk9/core';
 import { useUserStore } from '@/store/userStore';
 import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
-import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
+import {
+  useUpdateUserMutation,
+  useDeleteUserMutation,
+  usePermanentDeleteUserMutation,
+} from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { buildRecordBreadcrumb, readRecordBackTo } from '@/components/common/recordBackTo';
+import { PersonLifecycleBanner } from './PersonLifecycleBanner';
+import { restoreUser } from '@/services/database/users';
+import { queryKeys } from '@/lib/queryClient';
+import { useQueryClient } from '@tanstack/react-query';
+import { getUserFriendlyError } from '@/utils/errorMessages';
 import { UserRole } from '@/types/auth-types';
 import { User as UserType } from '@/types/user-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -38,9 +47,35 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const { dogs: ownerDogs } = useOwnerDogsWithQuery(person.id);
   const updateUserMutation = useUpdateUserMutation();
   const deleteUserMutation = useDeleteUserMutation();
+  const permanentDeleteMutation = usePermanentDeleteUserMutation();
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const { people } = useRoleBasedPeople();
+  const queryClient = useQueryClient();
 
   const dogCount = ownerDogs.length;
+
+  // A removed person can be read (MYK9-153) but not edited, and the one action
+  // that applies is putting them back. Restore goes through the same service the
+  // roster and Deleted Items use, so the three surfaces cannot drift.
+  const isRemoved = Boolean(person.deletedAt);
+  const canRestore = hasPermission('admin:manage');
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleRestore = useCallback(async () => {
+    if (isRestoring) return;
+    setIsRestoring(true);
+    try {
+      const { error } = await restoreUser(person.id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      loadUsers();
+      notifications.success(`${extractPersonName(person).fullName} was restored`);
+    } catch (err) {
+      notifications.error(getUserFriendlyError(err, 'Failed to restore person'));
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [isRestoring, person, queryClient, loadUsers]);
 
   // MYK9-134: giving an existing person sign-in access. `user_id` is the mapped
   // people.auth_user_id — absent means this record is a contact only and nobody
@@ -94,22 +129,49 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
 
+  const leaveAfterDelete = useCallback(() => {
+    const remainingPeople = people.filter(p => p.id !== person.id);
+    if (remainingPeople.length > 0) {
+      navigate(`/people/${remainingPeople[0].id}`, { replace: true });
+    } else {
+      navigate('/people', { replace: true });
+    }
+  }, [people, person.id, navigate]);
+
   const handleDeleteUser = async () => {
+    setIsDeletingUser(true);
     try {
       logger.debug('Deleting user', 'users', { userId: person.id });
       await deleteUserMutation.mutateAsync({ id: person.id });
       setIsDeleteDialogOpen(false);
       notifications.success('User deleted successfully');
-      const remainingPeople = people.filter(p => p.id !== person.id);
-      if (remainingPeople.length > 0) {
-        navigate(`/people/${remainingPeople[0].id}`, { replace: true });
-      } else {
-        navigate('/people', { replace: true });
-      }
+      leaveAfterDelete();
       logger.info('User deleted successfully', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to delete user', 'users', { userId: person.id }, error as Error);
       notifications.error('Failed to delete user', { description: getErrorMessage(error) });
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
+  const handlePermanentDeleteUser = async () => {
+    setIsDeletingUser(true);
+    try {
+      await permanentDeleteMutation.mutateAsync({ id: person.id });
+      setIsDeleteDialogOpen(false);
+      notifications.success(`${extractPersonName(person).fullName} was permanently deleted`);
+      leaveAfterDelete();
+    } catch (error) {
+      logger.error(
+        'Failed to permanently delete user',
+        'users',
+        { userId: person.id },
+        error as Error
+      );
+      notifications.error(getUserFriendlyError(error, 'Failed to permanently delete user'));
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -295,6 +357,14 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         className="py-20"
         storageKey="myk9:person"
         breadcrumb={<Breadcrumb showHomeIcon items={breadcrumbItems} />}
+        banner={
+          <PersonLifecycleBanner
+            deletedAt={person.deletedAt}
+            status={person.status}
+            {...(isRemoved && canRestore ? { onRestore: handleRestore } : {})}
+            isRestoring={isRestoring}
+          />
+        }
         hero={
           <HeroProfileCard
             person={person}
@@ -303,11 +373,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             fullName={fullName}
             photo={formData.photo}
             phone={formData.phone}
+            isRemoved={isRemoved}
             onEditPhoto={() => setIsPhotoModalOpen(true)}
             onEdit={() => setIsEditModalOpen(true)}
             onDelete={() => setIsDeleteDialogOpen(true)}
             onSendInvitation={
-              canInvite
+              !isRemoved && canInvite
                 ? () =>
                     sendInvitation({
                       personId: person.id,
@@ -332,7 +403,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           name: formData.name,
           photo: formData.photo,
         }}
-        ownedDogCount={dogCount}
         isEditModalOpen={isEditModalOpen}
         setIsEditModalOpen={setIsEditModalOpen}
         isPhotoModalOpen={isPhotoModalOpen}
@@ -354,6 +424,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDeleteUser={handleDeleteUser}
+        onPermanentDeleteUser={handlePermanentDeleteUser}
+        isDeletingUser={isDeletingUser}
+        canPermanentlyDelete={hasPermission('admin:manage')}
         onUserEditSave={handleUserEditSave}
         onQualificationsSaved={handleQualificationsSaved}
         isSavingPhoto={isSavingPhoto}

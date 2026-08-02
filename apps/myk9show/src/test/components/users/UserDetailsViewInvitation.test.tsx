@@ -37,6 +37,7 @@ vi.mock('@/hooks/useRoleBasedData', () => ({ useRoleBasedPeople: () => [] }));
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useUpdateUserMutation: () => ({ mutateAsync: vi.fn() }),
   useDeleteUserMutation: () => ({ mutateAsync: vi.fn() }),
+  usePermanentDeleteUserMutation: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock('@/store/userStore', () => ({ useUserStore: () => ({ loadUsers: vi.fn() }) }));

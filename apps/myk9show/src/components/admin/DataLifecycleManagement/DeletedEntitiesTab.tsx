@@ -324,6 +324,9 @@ export function DeletedEntitiesTab() {
       {
         type: 'person' as EntityType,
         label: 'People',
+        // The only entity here whose removed record is readable — see
+        // EntitySectionConfig.recordHref.
+        recordHref: (item: DeletedEntity) => `/people/${item.id}`,
         icon: Users,
         iconColor: 'text-indigo-600',
         fetchDeleted: () => fetchAndMap(getDeletedUsers, mapPerson),

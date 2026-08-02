@@ -32,6 +32,12 @@ interface AdminDeleteUserDialogProps {
    */
   alreadyRemoved?: boolean;
   /**
+   * Whether the viewer may destroy the record outright. False hides the option
+   * rather than disabling it — a secretary removing someone should not have to
+   * read past a control they cannot use. Defaults to true for the admin roster.
+   */
+  allowPermanent?: boolean;
+  /**
    * A failure from the delete the caller just ran. Shown in place so the reason
    * ("owns registered dogs", "has show entries") stays attached to the action —
    * the dialog stays open on failure, so an error rendered elsewhere is unseen.
@@ -50,6 +56,7 @@ export function AdminDeleteUserDialog({
   personId,
   errorMessage,
   alreadyRemoved = false,
+  allowPermanent = true,
 }: AdminDeleteUserDialogProps) {
   const [mode, setMode] = useState<DeleteMode>(alreadyRemoved ? 'permanent' : 'soft');
 
@@ -57,6 +64,10 @@ export function AdminDeleteUserDialog({
   React.useEffect(() => {
     if (open) setMode(alreadyRemoved ? 'permanent' : 'soft');
   }, [open, alreadyRemoved]);
+
+  // A viewer without the permanent option can only deactivate, whatever the
+  // state says — never leave `mode` pointing at an operation they can't perform.
+  const effectiveMode: DeleteMode = allowPermanent ? mode : 'soft';
 
   // A person who still owns live dogs can't be deleted (it would orphan them) —
   // the DB trigger (migration 20260617130000) enforces it; this is the friendly
@@ -69,7 +80,7 @@ export function AdminDeleteUserDialog({
   const blockedByDogs = checkOwnedDogs && !dogsLoading && (ownedDogs?.length ?? 0) > 0;
 
   const handleConfirm = () => {
-    if (mode === 'soft') {
+    if (effectiveMode === 'soft') {
       onSoftDelete();
     } else {
       onPermanentDelete();
@@ -125,10 +136,12 @@ export function AdminDeleteUserDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5" />
-            {alreadyRemoved ? 'Delete Permanently' : `Delete ${bulkCount ? 'Users' : 'User'}`}
+            {alreadyRemoved && allowPermanent
+              ? 'Delete Permanently'
+              : `Delete ${bulkCount ? 'Users' : 'User'}`}
           </DialogTitle>
           <DialogDescription>
-            {alreadyRemoved ? (
+            {alreadyRemoved && allowPermanent ? (
               <>
                 <strong>{entityName}</strong> is already removed and can still be restored. Deleting
                 permanently is the only step left, and it cannot be undone.
@@ -149,8 +162,9 @@ export function AdminDeleteUserDialog({
             </Alert>
           )}
 
-          {/* Mode choice — hidden once the person is already soft-deleted */}
-          {!alreadyRemoved && (
+          {/* Mode choice — hidden once the person is already soft-deleted, or
+              when the viewer cannot destroy the record at all */}
+          {!alreadyRemoved && allowPermanent && (
             <>
           {/* Soft Delete Option */}
           <label
@@ -205,7 +219,7 @@ export function AdminDeleteUserDialog({
           )}
 
           {/* Warning for permanent delete */}
-          {mode === 'permanent' && (
+          {effectiveMode === 'permanent' && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -221,11 +235,15 @@ export function AdminDeleteUserDialog({
             Cancel
           </Button>
           <Button
-            variant={mode === 'permanent' ? 'destructive' : 'default'}
+            variant={effectiveMode === 'permanent' ? 'destructive' : 'default'}
             onClick={handleConfirm}
             disabled={isDeleting}
           >
-            {isDeleting ? 'Deleting...' : mode === 'soft' ? 'Deactivate' : 'Permanently Delete'}
+            {isDeleting
+              ? 'Deleting...'
+              : effectiveMode === 'soft'
+                ? 'Deactivate'
+                : 'Permanently Delete'}
           </Button>
         </DialogFooter>
       </DialogContent>

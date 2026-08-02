@@ -1,7 +1,6 @@
 import React from 'react';
-import { Trash2 } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
-import StandardDialog from '@/components/common/StandardDialog';
+import { AdminDeleteUserDialog } from '@/components/admin/users/AdminDeleteUserDialog';
 import { JudgeQualificationPanel, UserEditPanel } from '@/components/panels/edit';
 import type { User as UserType } from '@/types/user-types';
 interface UserDetailsDialogsProps {
@@ -10,8 +9,15 @@ interface UserDetailsDialogsProps {
     name: string;
     photo: string;
   };
-  /** Number of dogs this person owns. When > 0, delete is blocked. */
-  ownedDogCount: number;
+  /**
+   * Whether the viewer may destroy the record outright, not merely remove it.
+   * The roster has always offered both; this page offered neither honestly —
+   * its dialog said "permanently remove … cannot be undone" while calling the
+   * SOFT delete. Both surfaces now open the same dialog (MYK9-153, F5).
+   */
+  canPermanentlyDelete: boolean;
+  onPermanentDeleteUser: () => Promise<void>;
+  isDeletingUser: boolean;
   isEditModalOpen: boolean;
   setIsEditModalOpen: (open: boolean) => void;
   isPhotoModalOpen: boolean;
@@ -37,7 +43,9 @@ interface UserDetailsDialogsProps {
 const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   person,
   formData,
-  ownedDogCount,
+  canPermanentlyDelete,
+  onPermanentDeleteUser,
+  isDeletingUser,
   isEditModalOpen,
   setIsEditModalOpen,
   isPhotoModalOpen,
@@ -59,7 +67,9 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   isSavingPhoto,
   onFileInput,
 }) => {
-  const blockedByDogs = ownedDogCount > 0;
+  // The owns-live-dogs guard lives inside AdminDeleteUserDialog, which queries
+  // the dogs itself and names them. This page used to pass a count and render
+  // its own copy of that check — two guards, one of which could go stale.
   return (
     <>
       {/* Edit Person Panel */}
@@ -91,43 +101,19 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
         isSaving={isSavingPhoto ?? false}
       />
 
-      <StandardDialog
+      <AdminDeleteUserDialog
         open={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onSave={onDeleteUser}
-        titleIcon={<Trash2 className="w-5 h-5" />}
-        saveLabel="Delete"
-        saveButtonProps={{
-          variant: 'destructive',
-          ...(blockedByDogs && { disabled: true }),
+        onOpenChange={open => {
+          if (!open) setIsDeleteDialogOpen(false);
         }}
-        {...(blockedByDogs
-          ? {
-              title: 'Cannot delete person',
-              description: `${formData.name} owns ${ownedDogCount} dog${ownedDogCount === 1 ? '' : 's'}. Reassign or delete the dogs before deleting this person.`,
-              cancelLabel: 'Close',
-            }
-          : {
-              title: 'Delete Person',
-              description:
-                'Are you sure you want to delete this person? This action cannot be undone.',
-              cancelLabel: 'Cancel',
-            })}
-      >
-        {blockedByDogs ? (
-          <p className="text-muted-foreground">
-            Visit the{' '}
-            <a href="/dogs" className="text-primary hover:underline">
-              Dogs
-            </a>{' '}
-            page to change ownership or remove these dogs first.
-          </p>
-        ) : (
-          <p className="text-muted-foreground">
-            This will permanently remove {formData.name} from your account.
-          </p>
-        )}
-      </StandardDialog>
+        onSoftDelete={onDeleteUser}
+        onPermanentDelete={onPermanentDeleteUser}
+        entityName={formData.name}
+        isDeleting={isDeletingUser}
+        personId={person.id}
+        allowPermanent={canPermanentlyDelete}
+        alreadyRemoved={Boolean(person.deletedAt)}
+      />
 
       {/* Judge Qualifications Panel */}
       <JudgeQualificationPanel

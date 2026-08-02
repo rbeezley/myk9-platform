@@ -153,6 +153,57 @@ describe('AdminDeleteUserDialog', () => {
     });
   });
 
+  describe('viewer cannot permanently delete', () => {
+    it('offers no choice at all — just deactivate', () => {
+      render(<AdminDeleteUserDialog {...defaultProps} allowPermanent={false} />);
+
+      // Hidden, not disabled: a secretary should not have to read past a
+      // control they cannot use.
+      expect(screen.queryByLabelText(/^Permanently delete$/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/^Deactivate$/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^deactivate$/i })).toBeInTheDocument();
+    });
+
+    it('soft-deletes on confirm', () => {
+      const onSoftDelete = vi.fn();
+      const onPermanentDelete = vi.fn();
+      render(
+        <AdminDeleteUserDialog
+          {...defaultProps}
+          allowPermanent={false}
+          onSoftDelete={onSoftDelete}
+          onPermanentDelete={onPermanentDelete}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /^deactivate$/i }));
+
+      expect(onSoftDelete).toHaveBeenCalledTimes(1);
+      expect(onPermanentDelete).not.toHaveBeenCalled();
+    });
+
+    it('cannot be talked into a permanent delete by an already-removed person', () => {
+      // alreadyRemoved forces the permanent mode; without the permission that
+      // must not become a permanent delete the viewer isn't allowed to make.
+      const onPermanentDelete = vi.fn();
+      const onSoftDelete = vi.fn();
+      render(
+        <AdminDeleteUserDialog
+          {...defaultProps}
+          alreadyRemoved
+          allowPermanent={false}
+          onPermanentDelete={onPermanentDelete}
+          onSoftDelete={onSoftDelete}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /deactivate/i }));
+
+      expect(onPermanentDelete).not.toHaveBeenCalled();
+      expect(onSoftDelete).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('already-removed person', () => {
     it('drops the mode choice — deactivating a removed person is a no-op', () => {
       render(<AdminDeleteUserDialog {...defaultProps} alreadyRemoved />);

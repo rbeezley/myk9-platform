@@ -12,6 +12,7 @@ export {
   permanentDeleteUser,
   restoreUser,
   getDeletedUsers,
+  getDeletedUserById,
   searchUsers,
   getUsersByRole,
   getUsersWithDogCounts,

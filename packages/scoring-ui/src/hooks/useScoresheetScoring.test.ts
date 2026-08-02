@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { useScoresheetScoring } from './useScoresheetScoring';
 import type { ResolvedClassRules } from '../types';
@@ -161,6 +161,71 @@ describe('useScoresheetScoring', () => {
     const validation = result.current.validate();
     expect(validation.valid).toBe(true);
     expect(validation.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('coalesces concurrent submit attempts into one score submission', async () => {
+    let finishSubmit: (() => void) | undefined;
+    const onSubmit = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finishSubmit = resolve;
+        })
+    );
+    const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
+    act(() => result.current.setQualifying('Q'));
+
+    let first: Promise<void> | undefined;
+    let second: Promise<void> | undefined;
+    act(() => {
+      first = result.current.handleSubmit(onSubmit);
+      second = result.current.handleSubmit(onSubmit);
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    finishSubmit?.();
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+  });
+
+  it('keeps a successful submission latched until the scoresheet is reset', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
+    act(() => result.current.setQualifying('Q'));
+
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+    });
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.reset();
+      result.current.setQualifying('Q');
+    });
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears the guard when the submission throws so the judge can retry', async () => {
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
+    act(() => result.current.setQualifying('Q'));
+
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+      await result.current.handleSubmit(onSubmit);
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(2);
   });
 
   it('resets all state', () => {

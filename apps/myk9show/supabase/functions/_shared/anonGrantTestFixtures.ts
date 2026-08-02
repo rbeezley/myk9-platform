@@ -115,6 +115,7 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
       'entry_status',
       'jump_height',
       'created_at',
+      'deleted_at',
     ].map(column => ({
       name: 'entries',
       column,

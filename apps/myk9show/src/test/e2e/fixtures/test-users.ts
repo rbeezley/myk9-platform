@@ -38,6 +38,13 @@ export const TEST_USERS = {
     lastName: 'Judge',
     roles: ['judge'],
   },
+  judgeWithoutAssignments: {
+    email: 'e2e-judge-empty@test.myk9.com',
+    password: process.env.E2E_JUDGE_EMPTY_PASSWORD ?? '',
+    firstName: 'Test',
+    lastName: 'Judge No Assignments',
+    roles: ['judge'],
+  },
   clubAdmin: {
     email: 'e2e-admin@test.myk9.com',
     password: process.env.E2E_ADMIN_PASSWORD ?? '',

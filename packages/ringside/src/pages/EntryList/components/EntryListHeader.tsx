@@ -37,6 +37,20 @@ import type {
   ClassDetailsPopoverProps,
 } from '../pageProps';
 
+function handleClassInfoKeyDown(event: React.KeyboardEvent, onToggle: () => void): void {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  onToggle();
+}
+
+function getClassInfoA11yProps(
+  hasExtraInfo: boolean,
+  isOpen: boolean
+): { 'aria-expanded'?: boolean; 'aria-controls'?: string } {
+  if (!hasExtraInfo) return {};
+  return { 'aria-expanded': isOpen, 'aria-controls': 'class-details-popover' };
+}
+
 export interface EntryListHeaderProps {
   classInfo: ClassInfo | null;
   isRefreshing: boolean;
@@ -97,6 +111,14 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   const [showInfoPopup, setShowInfoPopup] = React.useState(false);
   const classInfoRef = useRef<HTMLDivElement>(null);
 
+  const closeInfoPopup = React.useCallback(() => {
+    setShowInfoPopup(false);
+  }, []);
+
+  const toggleInfoPopup = React.useCallback(() => {
+    setShowInfoPopup(currentlyOpen => !currentlyOpen);
+  }, []);
+
   // Close menus when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -105,7 +127,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         setShowActionsMenu(false);
       }
       if (!target.closest('[data-class-info-trigger]')) {
-        setShowInfoPopup(false);
+        closeInfoPopup();
       }
     };
 
@@ -113,7 +135,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showActionsMenu, showInfoPopup]);
+  }, [closeInfoPopup, showActionsMenu, showInfoPopup]);
 
   // Build trial info string
   const trialInfoParts: string[] = [];
@@ -127,8 +149,9 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
 
   // Check if there's extra info to show in popup
   const statusBadge = getStatusBadge(classInfo?.classStatus);
-  const hasExtraInfo =
-    classInfo?.judgeName || statusBadge || (showSectionsBadge && classInfo?.judgeNameB);
+  const hasExtraInfo = Boolean(
+    classInfo?.judgeName || statusBadge || (showSectionsBadge && classInfo?.judgeNameB)
+  );
 
   // Memoize popover data to reduce inline complexity
   const popoverData = React.useMemo(() => {
@@ -171,22 +194,21 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         currentPage="entries"
       />
       <CompactOfflineIndicator />
-      {/* Class info - hover/tap to show details popup */}
+      {/* Class info - explicit tap/click or keyboard activation to show details popup */}
       <div
         ref={classInfoRef}
         data-class-info-trigger={hasExtraInfo ? '' : undefined}
         className={cn(
-          'absolute left-1/2 top-1/2 flex max-w-[55%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 text-center',
+          'absolute left-1/2 top-1/2 flex min-h-11 max-w-[55%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center',
           hasExtraInfo &&
-            'group cursor-pointer rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent'
+            'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
         )}
-        onClick={hasExtraInfo ? () => setShowInfoPopup(!showInfoPopup) : undefined}
-        onMouseEnter={hasExtraInfo ? () => setShowInfoPopup(true) : undefined}
-        onMouseLeave={hasExtraInfo ? () => setShowInfoPopup(false) : undefined}
+        onClick={hasExtraInfo ? toggleInfoPopup : undefined}
         role={hasExtraInfo ? 'button' : undefined}
         tabIndex={hasExtraInfo ? 0 : undefined}
+        {...getClassInfoA11yProps(hasExtraInfo, showInfoPopup)}
         onKeyDown={
-          hasExtraInfo ? e => e.key === 'Enter' && setShowInfoPopup(!showInfoPopup) : undefined
+          hasExtraInfo ? event => handleClassInfoKeyDown(event, toggleInfoPopup) : undefined
         }
       >
         {/* Class name with small info indicator */}
@@ -217,7 +239,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
       {hasExtraInfo && popoverData && (
         <ClassDetailsPopover
           isOpen={showInfoPopup}
-          onClose={() => setShowInfoPopup(false)}
+          onClose={closeInfoPopup}
           anchorRef={classInfoRef}
           position="bottom"
           showJudgeB={showSectionsBadge}

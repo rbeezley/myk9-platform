@@ -16,4 +16,8 @@ describe('ClassDetailsPopoverSlot touch targets', () => {
     expect(source).toContain('<StatusBadge family="class"');
     expect(source).not.toMatch(/getClassStatusLabel|getClassStatusTier/);
   });
+
+  it('keeps raw class ids out of the default class-details workflow', () => {
+    expect(source).not.toContain('label="Class ID"');
+  });
 });

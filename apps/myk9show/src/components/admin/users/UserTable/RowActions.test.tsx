@@ -30,8 +30,8 @@ describe('buildUserRowActions', () => {
     expect(ids(liveUser)).toEqual(['view', 'edit', 'roles', 'delete']);
   });
 
-  it('offers restore and permanent delete for a removed user', () => {
-    expect(ids(removedUser)).toEqual(['restore', 'delete']);
+  it('offers profile, restore and permanent delete for a removed user', () => {
+    expect(ids(removedUser)).toEqual(['view', 'restore', 'delete']);
   });
 
   it('never offers edit or role management on a removed user', () => {
@@ -41,10 +41,12 @@ describe('buildUserRowActions', () => {
     expect(ids(removedUser)).not.toContain('roles');
   });
 
-  it('never links a removed user to their profile page', () => {
-    // people_select is `deleted_at IS NULL`, so /people/:id cannot load a
-    // soft-deleted person for any role. Offering the link would be a dead end.
-    expect(ids(removedUser)).not.toContain('view');
+  it('links a removed user to their profile page', () => {
+    // This assertion is the reverse of what it was: while /people/:id could not
+    // load a soft-deleted person the link was a dead end and was omitted. The
+    // page now falls through to the admin-gated removed-person read
+    // (MYK9-153), so an admin can read the record before deciding.
+    expect(ids(removedUser)).toContain('view');
   });
 
   it('names permanent deletion on a removed row, not plain "Delete user"', () => {
@@ -62,10 +64,11 @@ describe('buildUserRowActions', () => {
     const h = handlers();
     for (const action of buildUserRowActions(removedUser, h)) action.onSelect();
 
+    expect(h.onView).toHaveBeenCalledWith(removedUser);
     expect(h.onRestore).toHaveBeenCalledWith(removedUser);
     expect(h.onDelete).toHaveBeenCalledWith(removedUser);
+    // Editing a removed person is still not a real operation.
     expect(h.onEdit).not.toHaveBeenCalled();
-    expect(h.onView).not.toHaveBeenCalled();
   });
 });
 

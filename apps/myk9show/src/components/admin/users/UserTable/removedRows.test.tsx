@@ -53,14 +53,15 @@ function renderTable() {
 const rowFor = (name: string) => screen.getByText(name).closest('tr') as HTMLTableRowElement;
 
 describe('UserTable removed rows', () => {
-  it('does nothing at all when a removed row is clicked', async () => {
-    // Neither destination exists for them: /people/:id can't load a
-    // soft-deleted person, and editing one isn't a real operation.
+  it('opens the record when a removed row is clicked', async () => {
+    // Was inert while /people/:id could not load a soft-deleted person. That
+    // page now reads them through the admin-gated RPC (MYK9-153), so the row
+    // has somewhere to go — but still never the editor.
     const { user, onViewUser, onEditUser } = renderTable();
 
     await user.click(rowFor('Ada Lovelace'));
 
-    expect(onViewUser).not.toHaveBeenCalled();
+    expect(onViewUser).toHaveBeenCalledWith(removed);
     expect(onEditUser).not.toHaveBeenCalled();
   });
 
@@ -83,11 +84,10 @@ describe('UserTable removed rows', () => {
     expect(onViewUser).not.toHaveBeenCalled();
   });
 
-  it('does not advertise a removed row as clickable', () => {
+  it('advertises every row as clickable, removed included', () => {
     renderTable();
 
-    expect(rowFor('Ada Lovelace').className).toContain('cursor-default');
-    expect(rowFor('Ada Lovelace').className).not.toContain('cursor-pointer');
+    expect(rowFor('Ada Lovelace').className).toContain('cursor-pointer');
     expect(rowFor('Grace Hopper').className).toContain('cursor-pointer');
   });
 

@@ -2,10 +2,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import {
   classifyEmptyUpdateResult,
+  ContainmentError,
   getConflictServerVersion,
   getReturnedServerVersion,
+  isContainmentError,
   isVersionConflictError,
   OccRejectionError,
+  parseContainmentRetryAfterMs,
 } from './mutation-occ';
 import { TIMEOUT_PRESETS, withTimeout } from './mutation-utils';
 import type { PendingMutation } from './types';
@@ -120,6 +123,19 @@ export async function executeMutation(
           // caller's role (assigned judge / steward / passcode) may be denied.
           // Re-throw as an OccRejectionError so the conflict handler advances
           // the token and backs off.
+          // MYK9-115: containment is checked BEFORE the conflict path. RS429
+          // means the server is shedding load and has asked us to stop; it
+          // carries the authoritative version in DETAIL just like 40001, so the
+          // token still advances — but the upload runner must pause rather than
+          // retry, or the client hammers the breaker that exists to stop it.
+          if (isContainmentError(error)) {
+            throw new ContainmentError(
+              tableName,
+              mutation.rowId,
+              getConflictServerVersion(error),
+              parseContainmentRetryAfterMs(error)
+            );
+          }
           if (isVersionConflictError(error)) {
             const fresh = getConflictServerVersion(error);
             throw new OccRejectionError(

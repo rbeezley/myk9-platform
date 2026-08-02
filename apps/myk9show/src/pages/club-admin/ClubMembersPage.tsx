@@ -31,6 +31,7 @@ import {
 } from '@/types/club-membership-types';
 import {
   getClubMembers,
+  countActiveClubMembers,
   getClubOfficers,
   addClubMember,
   updateClubMember,
@@ -96,6 +97,7 @@ const ClubMembersPage: React.FC = () => {
   });
 
   const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
+  const activeMemberCount = useMemo(() => countActiveClubMembers(members), [members]);
   const officers = useMemo(() => officersQuery.data ?? [], [officersQuery.data]);
   const showManagerIds = useMemo(
     () => showManagersQuery.data ?? new Set<string>(),
@@ -291,7 +293,7 @@ const ClubMembersPage: React.FC = () => {
               </h1>
               <div className="flex items-center gap-2 mt-1">
                 <Badge className="bg-primary/10 text-primary border-primary/20">
-                  {members.length} member{members.length !== 1 ? 's' : ''}
+                  {activeMemberCount} active member{activeMemberCount !== 1 ? 's' : ''}
                 </Badge>
                 <Badge className="bg-muted text-muted-foreground border-border">
                   {officers.length} officer{officers.length !== 1 ? 's' : ''}

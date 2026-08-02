@@ -3,7 +3,14 @@
 // RBAC-scoped show managers (user_roles filtered to secretary + club_id).
 // All callers import from here — never from supabaseClient directly.
 
-export { getClubMembers, addClubMember, updateClubMember, removeClubMember } from './members';
+export {
+  getClubMembers,
+  getActiveClubMembers,
+  countActiveClubMembers,
+  addClubMember,
+  updateClubMember,
+  removeClubMember,
+} from './members';
 
 export { getClubOfficers, addClubOfficer, removeClubOfficer } from './officers';
 

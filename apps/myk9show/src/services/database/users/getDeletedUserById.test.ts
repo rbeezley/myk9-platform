@@ -95,6 +95,43 @@ describe('getDeletedUserById', () => {
     expect(data).toMatchObject({ user_roles: [{ role: { name: 'judge' } }] });
   });
 
+  it('drops a grant that expired before the removal', async () => {
+    // Expiry is the ONE signal that distinguishes "held at removal" from
+    // "lost earlier" — user_roles has no revoked_at or updated_at, so a grant
+    // revoked without an expiry is indistinguishable and is kept.
+    rpc.mockResolvedValue({
+      data: [{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }],
+      error: null,
+    });
+    from.mockReturnValue(
+      rolesQuery({
+        data: [
+          { expires_at: '2026-01-01T00:00:00Z', role: { name: 'steward' } },
+          { expires_at: '2027-01-01T00:00:00Z', role: { name: 'judge' } },
+          { expires_at: null, role: { name: 'exhibitor' } },
+        ],
+      })
+    );
+
+    const { data } = await getDeletedUserById('gone-1');
+
+    const names = (data as { user_roles: { role: { name: string } }[] }).user_roles.map(
+      r => r.role.name
+    );
+    expect(names).toEqual(['judge', 'exhibitor']);
+  });
+
+  it('keeps every grant when the removal has no timestamp', async () => {
+    rpc.mockResolvedValue({ data: [{ id: 'gone-1' }], error: null });
+    from.mockReturnValue(
+      rolesQuery({ data: [{ expires_at: '2020-01-01T00:00:00Z', role: { name: 'judge' } }] })
+    );
+
+    const { data } = await getDeletedUserById('gone-1');
+
+    expect((data as { user_roles: unknown[] }).user_roles).toHaveLength(1);
+  });
+
   it('fails the read when the roles query fails', async () => {
     // A record that renders with no roles because the roles query broke is the
     // same silent lie as not asking for them.

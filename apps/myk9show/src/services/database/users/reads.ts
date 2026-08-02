@@ -379,14 +379,24 @@ export const getDeletedUserById = async (id: string) => {
     //
     // NO is_active FILTER, deliberately. `soft_delete_person` (migration
     // 20260710170000) sets is_active = false on every one of the person's roles,
-    // and `restore_person` does not put them back. Filtering on is_active here
-    // would therefore return nothing for precisely the people this function
-    // exists to read — the fix would fix nothing. What the record should show is
-    // the roles they held when they were removed, and removal is what
-    // deactivated them.
+    // and `restore_person` does not put them back. Filtering on is_active would
+    // therefore return nothing for precisely the people this function exists to
+    // read — the record would render role-less and look perfectly correct.
+    //
+    // The cost is precision, and the data cannot buy it back: `user_roles` has
+    // no revoked_at and no updated_at, so a grant deactivated BY the removal is
+    // indistinguishable from one revoked a year earlier. Expiry is the one
+    // signal that does exist, and it is applied below. Anything better needs a
+    // column stamped at soft-delete time — a schema change, not a query fix.
+    //
+    // Over-reporting beats under-reporting here: without this the roles are
+    // missing for every removed person, always. With it they are occasionally
+    // generous, on a record that carries a "this person was removed" banner and
+    // no editing affordances, so no reader can mistake a badge for live
+    // authority.
     const { data: roleRows, error: rolesError } = await supabase
       .from('user_roles')
-      .select('role:roles!user_roles_role_id_fkey(name)')
+      .select('expires_at, role:roles!user_roles_role_id_fkey(name)')
       .eq('user_id', id);
 
     // A failed role read must not pass as a complete record with no roles —
@@ -395,7 +405,16 @@ export const getDeletedUserById = async (id: string) => {
       throw createDatabaseError(rolesError, 'user', 'select_deleted_by_id');
     }
 
-    return { data: { ...person, user_roles: roleRows ?? [] }, error: null };
+    // A grant that expired BEFORE they were removed was demonstrably not held at
+    // removal, so drop it. This is the only over-reporting the data lets us fix.
+    const removedAt = (person as { deleted_at?: string | null }).deleted_at;
+    const heldAtRemoval = (roleRows ?? []).filter(row => {
+      const expiresAt = (row as { expires_at?: string | null }).expires_at;
+      if (!expiresAt || !removedAt) return true;
+      return new Date(expiresAt) > new Date(removedAt);
+    });
+
+    return { data: { ...person, user_roles: heldAtRemoval }, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_deleted_by_id');

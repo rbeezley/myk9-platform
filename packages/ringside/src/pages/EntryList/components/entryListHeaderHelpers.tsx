@@ -69,6 +69,9 @@ export interface ActionsMenuConfig {
 const ACTION_MENU_ITEM_CLASS =
   'flex w-full cursor-pointer appearance-none items-center gap-3 border-0 bg-transparent px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-muted active:bg-input disabled:cursor-not-allowed disabled:opacity-50';
 
+const ACTION_MENU_TRIGGER_CLASS =
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:bg-input sm:min-h-12 sm:min-w-12';
+
 interface ActionsDropdownMenuProps {
   isOpen: boolean;
   onToggle: () => void;
@@ -129,7 +132,8 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
   return (
     <div className="relative" data-actions-menu>
       <button
-        className="icon-button actions-button"
+        type="button"
+        className={ACTION_MENU_TRIGGER_CLASS}
         onClick={onToggle}
         aria-label="Actions menu"
         title="More Actions"

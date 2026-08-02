@@ -162,6 +162,7 @@ export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> 
     'entry_status',
     'jump_height',
     'created_at',
+    'deleted_at',
   ],
   judge_assignments: [
     'id',

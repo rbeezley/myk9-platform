@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { executeMutation } from './mutation-execute';
-import { OccRejectionError } from './mutation-occ';
+import { ContainmentError, OccRejectionError } from './mutation-occ';
 import { handleOccRejection } from './mutation-occ-rejection';
 import { sortMutationsByDependencies } from './mutation-ordering';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
@@ -13,12 +13,36 @@ import { markPerf, measurePerf } from './perf';
 import type { PendingMutation, ReplicatedRow, SyncResult } from './types';
 import type { MutationQueueStore } from './MutationQueueStore';
 
+/**
+ * RPCs the MYK9-115 breaker actually sheds.
+ *
+ * INTENT: containment is a RINGSIDE SCORING brownout. Gating on "has an rpc"
+ * would also hold `create_dog_with_registrations` and every other unrelated
+ * RPC in the outbox, turning a scoring pause into a general write outage —
+ * which is the blast radius the server-side gate was carefully designed to
+ * avoid. Add a name here only when the server can raise RS429 for it.
+ */
+const CONTAINABLE_RPC_NAMES = new Set(['ringside_update_entry']);
+
+function isContainableRpc(mutation: Pick<PendingMutation, 'rpc'>): boolean {
+  return mutation.rpc !== undefined && CONTAINABLE_RPC_NAMES.has(mutation.rpc.name);
+}
+
 export class MutationUploadRunner {
   private uploadDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private backoffRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private backoffRetryAt: number | null = null;
   private isUploading = false;
   private uploadRequestedWhileRunning = false;
+  /**
+   * Epoch ms until which RPC uploads are paused because the server raised
+   * RS429 (MYK9-115 admission control), or null when not contained.
+   *
+   * INTENT: this gates ONLY RPC mutations. Direct-UPDATE writes to other tables
+   * are not what the breaker is shedding, and pausing the whole outbox would
+   * turn a ringside-scoring brownout into a platform-wide sync outage.
+   */
+  private containmentUntil: number | null = null;
 
   constructor(
     private readonly supabase: SupabaseClient,
@@ -196,6 +220,25 @@ export class MutationUploadRunner {
           continue;
         }
 
+        // MYK9-115: while contained, hold RPC mutations back rather than
+        // sending writes the server has already said it will reject. The
+        // earliest-backoff self-schedule below wakes the pass when the window
+        // expires, so nothing is stranded.
+        if (isContainableRpc(mutation) && this.containmentUntil !== null) {
+          if (this.containmentUntil > now) {
+            skipped.backoff++;
+            blockedDependencyIds.add(mutation.id);
+            if (earliestBackoff === null || this.containmentUntil < earliestBackoff) {
+              earliestBackoff = this.containmentUntil;
+            }
+            continue;
+          }
+          // Window elapsed — clear it and let this pass probe with a real write.
+          // The head-of-queue mutation IS the probe: if the breaker is still
+          // contained the server raises RS429 again and re-arms the pause.
+          this.containmentUntil = null;
+        }
+
         if (mutation.nextRetryAt && mutation.nextRetryAt > now) {
           skipped.backoff++;
           blockedDependencyIds.add(mutation.id);
@@ -248,18 +291,30 @@ export class MutationUploadRunner {
             : queuedMutation;
           await rowSync.markReplicatedRowSynced(db, uploadedMutation, newServerVersion);
           if (newServerVersion !== undefined) {
-            const updated = await this.queueStore.updateMutationServerVersions(
+            await this.queueStore.updateMutationServerVersions(
               uploadedMutation.tableName,
               uploadedMutation.rowId,
               newServerVersion
             );
-            if (updated > 0) {
-              await this.writeBackup();
-            }
           }
 
+          // Remove the completed row before the pass-level backup. A concurrent
+          // startup restore can read localStorage while this upload is in flight;
+          // backing up the still-pending row first would let that restore put a
+          // successfully uploaded mutation back after this delete (a zombie
+          // queue item that replays or remains stuck on mobile reloads).
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, uploadedMutation.id);
           uploadedMutationIds.add(uploadedMutation.id);
+
+          // Keep the localStorage backup aligned with the queue after each
+          // successful delete/version bump. A crash before the pass-level
+          // backup below must not restore a mutation that already reached the
+          // server.
+          try {
+            await this.writeBackup();
+          } catch (err) {
+            this.logger.warn('[MutationManager] Per-mutation backup failed:', err);
+          }
 
           results.push({
             success: true,
@@ -273,6 +328,44 @@ export class MutationUploadRunner {
             `[MutationManager] Mutation ${uploadedMutation.id} uploaded successfully`
           );
         } catch (error) {
+          // MYK9-115. Checked before OccRejectionError: containment is a
+          // back-off instruction, not a lost race. The score is NOT failed and
+          // NOT retried this pass — it stays queued with its OCC token advanced
+          // to the version the server reported, so when the pause lifts the
+          // retry carries a fresh token instead of re-conflicting immediately.
+          if (error instanceof ContainmentError) {
+            const until = now + error.retryAfterMs;
+            if (this.containmentUntil === null || until > this.containmentUntil) {
+              this.containmentUntil = until;
+              uploadEvents.dispatchContainment(this.logger, until);
+            }
+            if (error.currentServerVersion !== undefined) {
+              await rowSync.advanceReplicatedRowServerVersion(
+                db,
+                queuedMutation.tableName,
+                queuedMutation.rowId,
+                error.currentServerVersion
+              );
+              // Advancing the replicated ROW is not enough: executeMutation
+              // reads `p_expected_version` from the QUEUED mutation, not from
+              // the row. Without this the pause expires and the runner re-sends
+              // the same stale token forever. The OCC rejection path stamps the
+              // fresh version for exactly this reason (see mutation-occ-rejection).
+              const rebased = await db.get(REPLICATION_STORES.PENDING_MUTATIONS, queuedMutation.id);
+              if (rebased) {
+                await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+                  ...(rebased as PendingMutation),
+                  serverVersion: error.currentServerVersion,
+                });
+              }
+            }
+            skipped.backoff++;
+            blockedDependencyIds.add(queuedMutation.id);
+            if (earliestBackoff === null || until < earliestBackoff) {
+              earliestBackoff = until;
+            }
+            continue;
+          }
           if (error instanceof OccRejectionError) {
             // OCC conflict handling (token advance, backoff re-queue, lifetime-cap
             // parking) lives in a sibling module to keep this file within the

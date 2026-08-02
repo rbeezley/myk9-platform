@@ -56,7 +56,11 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getEntriesByClass: vi.fn(), sync: vi.fn() },
+  replicatedEntriesTable: {
+    getEntriesByClass: vi.fn(),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => () => undefined),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { get: vi.fn() },
@@ -242,7 +246,18 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
   });
 
-  it('shows syncing copy instead of Class not found while first sync is pending', async () => {
+  it('keeps the skeleton visible while the explicit scoped load is still pending', async () => {
+    vi.mocked(replicatedTrialsTable.sync).mockReturnValue(new Promise(() => undefined));
+
+    renderPage();
+
+    await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
+
+    expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
+    expect(document.querySelector('.animate-spin')).toBeNull();
+  });
+
+  it('leaves the skeleton for a recoverable error after its scoped load finishes', async () => {
     vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
 
     renderPage({
@@ -251,18 +266,31 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       tablesStatus: { classes: 'syncing', entries: 'idle', dogs: 'idle', trials: 'idle' },
     });
 
-    // MYK9-82's pre-flight (`useJudgeAssignedToClass`) resolves one microtask
-    // after mount before `ScoresheetContent` mounts at all — sync it first so
-    // the findByRole below is checking the scoring engine's OWN loading state,
-    // not racing the pre-flight's.
-    await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
-
-    expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
-    expect(document.querySelector('.animate-spin')).toBeNull();
-    expect(screen.queryByText('Class not found')).not.toBeInTheDocument();
+    expect(await screen.findByText('Class not found')).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to Entry List' })).toBeInTheDocument();
   });
 
-  it('does not render a previous scoresheet after route params change during first sync', async () => {
+  it('retries the same scoped hydration path from the recoverable error', async () => {
+    vi.mocked(replicatedClassesTable.getClassById)
+      .mockResolvedValueOnce(null as never)
+      .mockResolvedValue({
+        id: 'class-1',
+        trialId: 'trial-1',
+        element: 'Container',
+        level: 'Novice',
+      } as never);
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(2);
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not render a previous scoresheet after the new route load terminates', async () => {
     vi.mocked(replicatedClassesTable.getClassById).mockImplementation(async (id: string) => {
       if (id === 'class-1') {
         return {
@@ -327,12 +355,16 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     // remounts — sync on it first, same reasoning as the test above.
     await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
 
-    expect(await screen.findByRole('status', { name: 'Loading scoresheet' })).toBeInTheDocument();
-    expect(document.querySelector('.animate-spin')).toBeNull();
+    expect(await screen.findByText('Class not found')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.queryByText('Live scoresheet for #105')).not.toBeInTheDocument();
   });
 
   it('submits the score via submitScoreOptimistically with the entry identity', async () => {
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
     renderPage();
     await screen.findByTestId('live-scoresheet');
 
@@ -343,6 +375,24 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
         expect.objectContaining({ entryId: 'entry-1', classId: 'class-1', armband: 105 })
       )
     );
+  });
+
+  it('rehydrates the saved entry when correcting a score from Quick Advance', async () => {
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Score saved')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /correct this score/i }));
+
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(2);
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledTimes(2);
   });
 
   it('navigates back to the at-show entry list', async () => {

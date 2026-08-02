@@ -51,6 +51,7 @@ vi.mock('@/services/database/club-memberships', () => ({
       joinedDate: '2026-01-01',
     },
   ]),
+  countActiveClubMembers: vi.fn(() => 1),
   getClubOfficers: vi.fn().mockResolvedValue([]),
   getClubShowManagerIds,
   addClubMember: vi.fn(),

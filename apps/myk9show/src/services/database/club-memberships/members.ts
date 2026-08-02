@@ -44,6 +44,15 @@ const MEMBER_SELECT = `
   people!inner(first_name, last_name, email)
 `;
 
+/** The profile roster intentionally represents current, active memberships only. */
+export function getActiveClubMembers(members: ClubMember[]): ClubMember[] {
+  return members.filter(member => member.membershipStatus === 'active');
+}
+
+export function countActiveClubMembers(members: ClubMember[]): number {
+  return getActiveClubMembers(members).length;
+}
+
 export async function getClubMembers(clubId: string): Promise<ClubMember[]> {
   const { data, error } = await supabase
     .from('club_members')

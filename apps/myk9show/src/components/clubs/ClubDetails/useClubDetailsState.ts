@@ -1,4 +1,5 @@
 import { useState, startTransition, useMemo, useCallback, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
@@ -12,6 +13,7 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
+import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import type { ClubTab, ClubShow, StatCard } from './types';
 
 /** Maximum photo file size in bytes (5 MB) */
@@ -156,6 +158,17 @@ export function useClubDetailsState(selectedClub: Club | null) {
     return { upcoming, past };
   }, [selectedClub, shows, now]);
 
+  // Keep the profile roster on the same club_members projection as the club
+  // administration page. The selected club replica may contain stale legacy
+  // memberIds, so it must not drive profile counts or member records.
+  const membersQuery = useQuery({
+    queryKey: ['club-members', selectedClub?.id],
+    queryFn: () => getClubMembers(selectedClub!.id),
+    enabled: Boolean(selectedClub?.id),
+  });
+  const clubMembers = membersQuery.data ?? [];
+  const activeMembers = useMemo(() => getActiveClubMembers(clubMembers), [clubMembers]);
+
   // Stats computation
   const stats: StatCard[] = useMemo(() => {
     if (!selectedClub) return [];
@@ -163,7 +176,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     const upcomingCount = clubShows.upcoming.length;
     const pastCount = clubShows.past.length;
     const totalShows = upcomingCount + pastCount;
-    const memberCount = selectedClub.memberIds?.length || 0;
+    const memberCount = activeMembers.length;
 
     return [
       {
@@ -186,7 +199,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
         tab: 'members' as const,
       },
     ];
-  }, [selectedClub, clubShows]);
+  }, [selectedClub, clubShows, activeMembers.length]);
 
   // --- Handlers ---
 
@@ -445,6 +458,14 @@ export function useClubDetailsState(selectedClub: Club | null) {
     pastShows: clubShows.past,
     // Stats
     stats,
+    // Members — sourced from club_members, with inactive records retained for
+    // cache consistency but only active records exposed to the profile roster.
+    clubMembers,
+    activeMembers,
+    isMembersLoading: membersQuery.isLoading,
+    isMembersRefreshing: membersQuery.isFetching && !membersQuery.isLoading,
+    isMembersError: membersQuery.isError,
+    retryMembers: membersQuery.refetch,
     // Permissions
     canEditClub,
     canManageMembers,

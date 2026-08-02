@@ -18,6 +18,13 @@ values
   ('00000000-0000-0000-0000-000000000917', 'Test', 'MultiRole', '00000000-0000-0000-0000-000000000927'),
   ('00000000-0000-0000-0000-000000000918', 'Test', 'Unrelated', '00000000-0000-0000-0000-000000000928');
 
+insert into public.club_members (club_id, person_id, membership_status)
+values (
+  '00000000-0000-0000-0000-000000000901',
+  '00000000-0000-0000-0000-000000000911',
+  'active'
+);
+
 insert into public.shows (
   id, name, organization, start_date, end_date, club_id, status
 ) values (

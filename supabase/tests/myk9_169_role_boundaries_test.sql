@@ -57,7 +57,7 @@ WHERE r.name = 'club_admin';
 
 -- Existing stale role rows must not remain effective after membership lapses.
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT fixture.person_id, r.id, fixture.club_id, true, fixture.auth_id
+SELECT fixture.person_id, r.id, club.club_id, true, fixture.auth_id
 FROM (
   VALUES
     ('00000000-0000-0000-0000-000000169013'::uuid, '00000000-0000-0000-0000-000000169103'::uuid),

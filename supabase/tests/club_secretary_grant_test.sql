@@ -23,6 +23,13 @@ VALUES
     '00000000-0000-0000-0000-000000000a02'
   );
 
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES (
+  '00000000-0000-0000-0000-000000000a21',
+  '00000000-0000-0000-0000-000000000a12',
+  'active'
+);
+
 INSERT INTO public.user_roles (
   user_id,
   role_id,

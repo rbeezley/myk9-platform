@@ -1,6 +1,7 @@
 import { act } from 'react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { __resetContainmentMemoForTests } from '@/hooks/useReplicationContainment';
 import {
   CompactOfflineIndicator,
   FilterTriggerButton,
@@ -12,6 +13,15 @@ import {
 // RS429; without this banner it pauses SILENTLY, and a queue that stops
 // draining with no explanation is indistinguishable from lost work.
 describe('ContainmentBanner', () => {
+  // The hook remembers the last containment deadline at MODULE scope so a
+  // component mounting mid-pause still shows the banner (Codex review of
+  // #1571). That memo outlives a single test file when vitest shares a worker,
+  // so a pause dispatched by useReplicationContainment.test.ts leaks in here and
+  // the "absent by default" case sees a banner. Reset it, like that file does.
+  beforeEach(() => {
+    __resetContainmentMemoForTests();
+  });
+
   const contain = (untilMsFromNow: number) =>
     act(() => {
       window.dispatchEvent(

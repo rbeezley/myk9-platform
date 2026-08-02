@@ -56,8 +56,13 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
    MYK9-172) showed a red base can arrive at random, with no code change to blame.
 4. **Resume-first:** if a `vacation-*` **worktree** exists, that issue is in-flight —
    reorient from its commits + issue comments and continue it. Never infer in-flight
-   status from a branch. Otherwise pick the next
-   issue: greens before yellows, In Progress before Todo. Backlog is never read.
+   status from a branch. Otherwise pick the next issue. **Ordering: grade first** — every
+   `auto:green` before any `auto:yellow`, because only greens can finish unattended (a
+   yellow always stops at a PR, so building it early buys nothing; an urgent PR opened on
+   day 2 and one opened on day 7 are both waiting on Richard at day 10 either way).
+   Within a grade: Linear priority, then In Progress before Todo, then oldest first —
+   priority above age so that a queue which does not fully drain still spent its runs on
+   the most valuable work. Backlog is never read.
    Only issues carrying an `auto:` label are eligible — unlabeled issues (including the
    Vacation Log, MYK9-158, and anything created mid-vacation) are invisible to the queue.
 5. **Branch naming must survive a retry.** A failed attempt leaves its branch behind

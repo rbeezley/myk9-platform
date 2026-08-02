@@ -83,6 +83,14 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
      component can still touch payments, auth/RBAC/RLS, grants, or session handling. If
      the patch is risky, or if it is unclear whether it is, the answer is PR-stop.
      Uncertainty defaults to not merging.
+   - **Green CI means the GitHub Actions checks — Vercel is not blocking.** Vercel
+     entries are preview deployments and fail for reasons unrelated to the code, most
+     often the account's daily deployment quota (`Resource is limited - try again in 24
+     hours`, hit 2026-08-02 during the rehearsal). Blocking on those would PR-stop every
+     issue for a day or more over an infrastructure limit — degrading the plan to the
+     PR-queue-only shape that was explicitly rejected. Log the Vercel failure, judge the
+     merge on the Actions checks. A Vercel failure that reads like a real build error,
+     rather than a quota/infra message, IS blocking.
 8. **Finish:**
    - Passes the gate + CI green + Codex clear → merge from the main repo dir, then the
      **non-interactive cleanup** below. Linear issue → Done, log comment.

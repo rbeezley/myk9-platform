@@ -18,7 +18,7 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
 | Quota exhaustion   | Not a failure; next run resumes in-flight work (see Resume rule)            |
 | Reporting          | Vacation Log issue in Linear; per-issue comments per CLAUDE.md              |
 | Kill switch        | `STOP` comment on the Vacation Log (checked first, every run)              |
-| Pipeline           | Standard 8-step: implement → /simplify → commit → PR → Codex review → fix → merge → /cleanup |
+| Pipeline           | Standard 8-step: implement → /simplify → commit → PR → Codex review → fix → merge → cleanup (non-interactive; NOT the `/cleanup` skill) |
 | Usage budget       | Subscription limits govern; no artificial cap                               |
 
 ## Vocabulary
@@ -28,7 +28,10 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
 - **Mergeable class** — app code, tests, docs. **Never auto-merged:** DB migrations,
   edge-function deploys, anything touching money/auth/RLS, and all yellows.
 - **Vacation Log** — single Linear issue that is both the run journal and the control channel.
-- **In-flight** — an issue with a leftover vacation worktree/branch; always resumed before new work.
+- **In-flight** — an issue with a leftover `vacation-*` **worktree**. Resume keys on the
+  worktree and NEVER on the branch: branches are deliberately left behind (deletion is
+  denied), so treating a branch as in-flight would make every completed issue look
+  unfinished forever and starve the queue.
 - **needs-richard** (label) — finished-but-unmerged PR awaiting human review.
 - **vacation-blocked** (label) — gave up after 2 genuine failures; blocker documented on the issue.
 
@@ -41,17 +44,29 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
    not count toward the circuit breaker until two consecutive repair attempts fail to turn
    main green. Revised 2026-08-02 after two order-dependent test failures (MYK9-170,
    MYK9-172) showed a red base can arrive at random, with no code change to blame.
-3. **Resume-first:** if a vacation worktree/branch exists, that issue is in-flight —
-   reorient from its commits + issue comments and continue it. Otherwise pick the next
+3. **Lock:** take an exclusive lease (`state.json` `lockedUntil`, ~4h) before selecting
+   work; a run that finds a live lease from another run logs and exits. The 3.5h timebox
+   is under the 6h interval, but a run stalled on a prompt or a hung test breaks that
+   assumption, and two runs on one issue would produce conflicting branches. Expiry makes
+   the lock crash-safe: a dead run's lease lapses on its own.
+4. **Resume-first:** if a `vacation-*` **worktree** exists, that issue is in-flight —
+   reorient from its commits + issue comments and continue it. Never infer in-flight
+   status from a branch. Otherwise pick the next
    issue: greens before yellows, In Progress before Todo. Backlog is never read.
    Only issues carrying an `auto:` label are eligible — unlabeled issues (including the
    Vacation Log, MYK9-158, and anything created mid-vacation) are invisible to the queue.
-4. **Work** in a fresh worktree using the standard 8-step pipeline. Commit checkpoints
+5. **Work** in a fresh worktree using the standard 8-step pipeline. Commit checkpoints
    early and often (crash-only design: quota death is unannounced; the branch is the
    durable state).
-5. **Finish:**
-   - Mergeable class + CI green + Codex clear → merge from the main repo dir, /cleanup,
-     Linear issue → Done, log comment.
+6. **Merge gate — judged on the DIFF, not the label.** `auto:green` grades the *issue*;
+   what may merge is decided by what the implementation actually touches. Deny by default
+   if `git diff --name-only origin/main...HEAD` matches any of: `supabase/migrations/`,
+   `supabase/functions/`, `.github/`, `.claude/`, or any path whose content touches
+   payments/Stripe, auth/RBAC/RLS, or grants. A green issue whose fix happens to land in
+   auth code is a PR-stop, not a merge.
+7. **Finish:**
+   - Passes the gate + CI green + Codex clear → merge from the main repo dir, then the
+     **non-interactive cleanup** below. Linear issue → Done, log comment.
    - Otherwise → open PR, label `needs-richard`, state-of-play comment, issue stays In Progress.
 6. **Failure:** clean up the worktree, comment the exact blocker, label `vacation-blocked`
    after the 2nd genuine failure. Quota exhaustion never increments attempt counts.
@@ -75,6 +90,17 @@ path is the safety net for whatever the sweep misses.
 
 Rule going forward: **run any test you add or touch with `--sequence.shuffle` 6+ times
 before merging.** A single pass proves nothing.
+
+## Non-interactive cleanup — do NOT invoke the `/cleanup` skill
+
+`/cleanup` asks for confirmation before removing worktrees or branches. Unattended, that
+pauses at the end of **every** completed issue — and a worktree left standing is then
+misread as in-flight by the next run, so the plan would stall on its own success. The
+runner uses this fixed sequence instead, run from the main checkout:
+
+1. `gh pr merge --squash <n>` (no `--delete-branch`)
+2. `git worktree remove .claude/worktrees/vacation-<issue-id>`
+3. Stop. Leave the local branch — deletion is denied, and `branch-janitor` reports it.
 
 ## Denied commands (permission rules on this machine)
 

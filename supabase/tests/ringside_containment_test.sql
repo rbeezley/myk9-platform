@@ -181,11 +181,17 @@ begin
 end;
 $$;
 
+-- Advance the sequence as the session role, NOT as authenticated: the client
+-- roles hold no privilege on ringside_conflict_seq (20260730220000), which is
+-- itself part of the design — only the SECURITY DEFINER conflict sites bump it.
+reset role;
+select nextval('public.ringside_conflict_seq') from generate_series(1, 3);
+
 -- Site admin: state armed, cursor reset, trip metadata cleared, audit written.
+set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000115101', true);
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000115101","role":"authenticated"}', true);
-select nextval('public.ringside_conflict_seq') from generate_series(1, 3);
 do $$
 declare
   result jsonb;

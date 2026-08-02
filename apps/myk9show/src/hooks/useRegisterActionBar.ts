@@ -1,53 +1,71 @@
 /**
  * Register a sticky action bar so overlays can stay clear of it.
  *
- * Returns a ref to attach to the bar's outermost element. The bar's measured
- * height is published to the action-bar registry while it is mounted and
- * withdrawn when it unmounts.
+ * Returns a CALLBACK ref to attach to the bar's outermost element. The bar's
+ * measured height is published to the action-bar registry while the node is
+ * attached and withdrawn the moment it detaches.
+ *
+ * A callback ref rather than `useRef` + `useEffect`, because the bars this
+ * serves are conditionally rendered. `SlideOverPanel` returns `null` while
+ * closed, so a panel mounted with `open=false` has no footer node when an
+ * effect would first run — and an effect keyed on a stable id never re-runs
+ * when the panel later opens. The reservation would silently never happen, in
+ * exactly the closed-then-open flow every panel actually uses. React invokes a
+ * callback ref on attach AND detach, so both edges are covered without
+ * threading `open` through.
  *
  * Measuring beats hard-coding: the footer wraps at narrow widths and grows when
  * a validation summary appears, so a constant would be wrong exactly when the
  * bar is tallest and the collision is worst.
  */
-import { useEffect, useId, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import { useActionBarStore } from '@/store/actionBarStore';
 
 export function useRegisterActionBar<T extends HTMLElement = HTMLDivElement>() {
-  const ref = useRef<T | null>(null);
   // useId keeps two instances of the same panel from clobbering each other's
   // entry — an id derived from the component name would not.
   const id = useId();
+  const observerRef = useRef<ResizeObserver | null>(null);
 
-  useEffect(() => {
-    const element = ref.current;
-    const { setHeight, unregister } = useActionBarStore.getState();
+  const setRef = useCallback(
+    (node: T | null) => {
+      const { setHeight, unregister } = useActionBarStore.getState();
 
-    if (!element) {
-      unregister(id);
-      return;
-    }
+      observerRef.current?.disconnect();
+      observerRef.current = null;
 
-    // jsdom and older Safari have no ResizeObserver. Publish the height once so
-    // the offset is still correct for a bar that never changes size, rather
-    // than failing closed and reserving nothing.
-    if (typeof ResizeObserver === 'undefined') {
-      setHeight(id, element.getBoundingClientRect().height);
-      return () => unregister(id);
-    }
+      if (!node) {
+        unregister(id);
+        return;
+      }
 
-    const observer = new ResizeObserver(entries => {
-      const entry = entries[0];
-      if (entry) setHeight(id, entry.contentRect.height);
-    });
+      setHeight(id, node.getBoundingClientRect().height);
 
-    setHeight(id, element.getBoundingClientRect().height);
-    observer.observe(element);
+      // jsdom and older Safari have no ResizeObserver. The height published
+      // above still stands, so a bar that never resizes is handled correctly
+      // rather than failing closed and reserving nothing.
+      if (typeof ResizeObserver === 'undefined') return;
 
-    return () => {
-      observer.disconnect();
-      unregister(id);
-    };
-  }, [id]);
+      const observer = new ResizeObserver(entries => {
+        const entry = entries[0];
+        if (entry) setHeight(id, entry.contentRect.height);
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+    },
+    [id]
+  );
 
-  return ref;
+  // Unmounting the component that owns the bar does not always detach the node
+  // first, so release the reservation here too. Unregister is idempotent.
+  useEffect(
+    () => () => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      useActionBarStore.getState().unregister(id);
+    },
+    [id]
+  );
+
+  return setRef;
 }

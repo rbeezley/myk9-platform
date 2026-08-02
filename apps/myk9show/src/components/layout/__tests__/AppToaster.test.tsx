@@ -88,17 +88,48 @@ describe('AppToaster', () => {
     });
   });
 
-  it('clears a toast when the route changes', async () => {
+  it('clears a STALE toast when the route changes', async () => {
     render(<Harness />);
-    toast('Entry saved');
-    expect(await screen.findByText('Entry saved')).toBeInTheDocument();
+    toast('Enter a show');
+    expect(await screen.findByText('Enter a show')).toBeInTheDocument();
+
+    // Age it past the navigation-feedback grace window: this is the audit's
+    // scenario, a CTA left over from an earlier screen rather than feedback
+    // about the navigation now happening.
+    const realNow = Date.now;
+    vi.spyOn(Date, 'now').mockImplementation(() => realNow() + 5_000);
 
     screen.getByRole('button', { name: 'go' }).click();
 
-    // A CTA from the previous screen must not remain clickable over the next.
+    // It must not remain clickable over the next screen.
     await waitFor(() => {
-      expect(screen.queryByText('Entry saved')).not.toBeInTheDocument();
+      expect(screen.queryByText('Enter a show')).not.toBeInTheDocument();
     });
+    vi.mocked(Date.now).mockRestore();
+  });
+
+  it('keeps a toast raised as part of the navigating action', async () => {
+    // Deleting a record raises "Deleted" and then navigates away in the same
+    // tick. A blanket dismiss on route change swallows the only confirmation
+    // the user ever gets — Codex caught this on the first cut.
+    //
+    // Asserted on the DISMISS CALL, not on the DOM: sonner animates a toast out,
+    // so the node lingers and `getByText` still finds it for a beat. A DOM
+    // assertion here passes against the blanket-dismiss bug — verified, which
+    // is the only reason this test is written this way.
+    render(<Harness />);
+    const dismiss = vi.spyOn(toast, 'dismiss');
+    toast.success('Dog deleted');
+    expect(await screen.findByText('Dog deleted')).toBeInTheDocument();
+
+    screen.getByRole('button', { name: 'go' }).click();
+    await screen.findByText('page b');
+
+    // Nothing is stale, so nothing should be dismissed — and in particular
+    // `dismiss()` must never be called bare, which clears every toast.
+    expect(dismiss).not.toHaveBeenCalledWith();
+    expect(dismiss).not.toHaveBeenCalled();
+    dismiss.mockRestore();
   });
 
   it('keeps a toast raised on the initial render', async () => {

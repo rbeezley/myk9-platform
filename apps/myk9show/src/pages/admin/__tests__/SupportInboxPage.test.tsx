@@ -108,15 +108,18 @@ describe('SupportInboxPage', () => {
     expect(screen.getByText('Next checks')).toBeInTheDocument();
   });
 
-  it('renders the resolved owner identity and keeps the UUID fallback', () => {
+  it('renders a resolved owner identity', () => {
     hookState.tickets = [
       makeTicket({ ownerName: 'Jane Exhibitor', ownerEmail: 'jane@example.com' }),
-      makeTicket({ id: 'ticket-2', ownerId: 'unresolved-owner' }),
     ];
 
     render(<SupportInboxPage />, { initialRoute: '/admin/support?status=all&ticketId=ticket-1' });
 
     expect(screen.getByText(/Owner Jane Exhibitor · jane@example.com/)).toBeInTheDocument();
+  });
+
+  it('keeps the UUID fallback for an unresolved owner', () => {
+    hookState.tickets = [makeTicket({ id: 'ticket-2', ownerId: 'unresolved-owner' })];
 
     render(<SupportInboxPage />, {
       initialRoute: '/admin/support?status=all&ticketId=ticket-2',

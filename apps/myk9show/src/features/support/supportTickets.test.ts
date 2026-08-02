@@ -7,7 +7,7 @@ vi.mock('@/lib/supabase', () => ({
   supabase: { from: mockFrom },
 }));
 
-function makeQuery(result: { data: Record<string, unknown>[]; error: null }) {
+function makeQuery(result: { data: Record<string, unknown>[]; error: { message: string } | null }) {
   const query = {
     select: vi.fn(),
     order: vi.fn(),
@@ -22,7 +22,7 @@ function makeQuery(result: { data: Record<string, unknown>[]; error: null }) {
 
 describe('support tickets', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('builds a concise ticket subject from the first sentence', () => {
@@ -36,6 +36,16 @@ describe('support tickets', () => {
 
     expect(subject).toHaveLength(200);
     expect(subject.endsWith('...')).toBe(true);
+  });
+
+  it('does not fetch people when owner resolution is not requested', async () => {
+    const ticketQuery = makeQuery({ data: [], error: null });
+    mockFrom.mockReturnValue(ticketQuery);
+
+    await listSupportTickets();
+
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(mockFrom).toHaveBeenCalledWith('support_tickets');
   });
 
   it('resolves ticket owners from people and preserves unresolved fallbacks', async () => {
@@ -81,7 +91,7 @@ describe('support tickets', () => {
       table === 'support_tickets' ? ticketQuery : peopleQuery
     );
 
-    const tickets = await listSupportTickets();
+    const tickets = await listSupportTickets(undefined, { resolveOwners: true });
 
     expect(peopleQuery.in).toHaveBeenCalledWith('auth_user_id', ['owner-1', 'owner-unresolved']);
     expect(tickets[0]).toMatchObject({
@@ -90,5 +100,33 @@ describe('support tickets', () => {
     });
     expect(tickets[1]).not.toHaveProperty('ownerName');
     expect(tickets[1]).not.toHaveProperty('ownerEmail');
+  });
+
+  it('falls back to ticket data when the people lookup is unavailable', async () => {
+    const ticketQuery = makeQuery({
+      data: [
+        {
+          id: 'ticket-1',
+          owner_id: 'owner-1',
+          subject: 'Missing armband',
+          status: 'open',
+          is_show_day_priority: true,
+          diagnostics: {},
+          show_id: null,
+          created_at: '2026-08-02T12:00:00.000Z',
+          updated_at: '2026-08-02T12:01:00.000Z',
+        },
+      ],
+      error: null,
+    });
+    const peopleQuery = makeQuery({ data: [], error: { message: 'permission denied' } });
+    mockFrom.mockImplementation((table: string) =>
+      table === 'support_tickets' ? ticketQuery : peopleQuery
+    );
+
+    const tickets = await listSupportTickets(undefined, { resolveOwners: true });
+
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0]).not.toHaveProperty('ownerName');
   });
 });

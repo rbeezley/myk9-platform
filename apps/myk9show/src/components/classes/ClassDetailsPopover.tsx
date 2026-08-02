@@ -6,7 +6,6 @@ import { useIsTouchDevice } from '@myk9/scoring-ui';
 import { StatusBadge } from '@/components/status';
 
 export interface ClassDetailsData {
-  id: string;
   className: string;
   status: string;
   judgeName?: string | undefined;

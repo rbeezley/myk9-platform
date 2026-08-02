@@ -30,7 +30,7 @@ export default function SupportInboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filter = readFilter(searchParams.get('status'));
   const selectedTicketId = searchParams.get('ticketId');
-  const tickets = useSupportTickets();
+  const tickets = useSupportTickets(undefined, { resolveOwners: true });
   const filteredTickets = useMemo(
     () => filterTickets(tickets.data ?? [], filter),
     [filter, tickets.data]

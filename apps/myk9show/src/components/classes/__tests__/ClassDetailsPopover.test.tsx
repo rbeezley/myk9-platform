@@ -11,7 +11,6 @@ describe('ClassDetailsPopover', () => {
     const { user } = render(
       <ClassDetailsPopover
         data={{
-          id: 'dec1a55e-0000-0000-0000-000000000033',
           className: 'Interior Advanced',
           status: 'pending',
           entryCount: 12,

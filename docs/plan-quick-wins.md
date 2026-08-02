@@ -1,5 +1,7 @@
 # Quick Wins Batch Plan
 
+> **Status:** Active
+
 ## Scope
 
 - MYK9-168: reproduce the club payment click finding on staging and close it with evidence if it no longer reproduces.

@@ -39,6 +39,10 @@ export interface SupportTicketMessage {
   createdAt: string;
 }
 
+export interface ListSupportTicketsOptions {
+  resolveOwners?: boolean;
+}
+
 type SupportTableClient = {
   from: (table: 'people' | 'support_tickets' | 'support_ticket_messages') => {
     select: (columns: string) => SupportQueryBuilder;
@@ -104,7 +108,10 @@ export async function createSupportTicket(
   return { id: ticket.id };
 }
 
-export async function listSupportTickets(status?: SupportTicketStatus): Promise<SupportTicket[]> {
+export async function listSupportTickets(
+  status?: SupportTicketStatus,
+  options?: ListSupportTicketsOptions
+): Promise<SupportTicket[]> {
   const client = supabase as unknown as SupportTableClient;
   let query = client
     .from('support_tickets')
@@ -119,6 +126,8 @@ export async function listSupportTickets(status?: SupportTicketStatus): Promise<
   if (error) throw new Error(error.message);
 
   const tickets = (data ?? []).map(mapSupportTicket);
+  if (!options?.resolveOwners) return tickets;
+
   const ownerIds = [...new Set(tickets.map(ticket => ticket.ownerId))];
   if (ownerIds.length === 0) return tickets;
 
@@ -126,7 +135,7 @@ export async function listSupportTickets(status?: SupportTicketStatus): Promise<
     .from('people')
     .select('auth_user_id, first_name, last_name, email')
     .in('auth_user_id', ownerIds);
-  if (peopleError) throw new Error('Could not load support ticket owners.');
+  if (peopleError) return tickets;
 
   const owners = new Map<string, { name: string; email: string }>();
   for (const person of people ?? []) {

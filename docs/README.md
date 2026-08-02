@@ -82,6 +82,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                                               | Active    | Plan: Phase 4 seam render-only read strategy                                 |
 | [plan-pull-management-split.md](plan-pull-management-split.md)                                                   | Active    | Pull Management — separate show-day pull state from refund accounting        |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                                       | Active    | Plan: Server-side gate for public/anon scored results                        |
+| [plan-quick-wins.md](plan-quick-wins.md)                                                                         | Active    | Quick Wins Batch Plan                                                        |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)                                 | Active    | Replication INSERT retry idempotency — investigation verdict (B)             |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                                                 | Active    | Plan: Fix the Deleted Entities (restore) UI                                  |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                                             | Active    | Plan: Result Reveal + Share Card                                             |

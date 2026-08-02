@@ -387,6 +387,15 @@ AS $$
     ci.jwt -> 'app_metadata' ->> 'kind' AS claim_kind,
     nullif(ci.jwt -> 'app_metadata' ->> 'show_id', '') AS claim_show_id,
     ci.jwt -> 'app_metadata' ->> 'ringside_role' AS claim_role,
+    public.ringside_claim_generation_current() AS claim_generation_current
+  FROM caller_identity ci
+  CROSS JOIN role_context rc
+  CROSS JOIN judge_context jc;
+$$;
+
+COMMENT ON FUNCTION private.entry_results_caller_context() IS
+  'Internal MYK9-114/MYK9-169 helper. Club manager context requires a club-admin role or an active club-scoped secretary role; show-scoped officials and judge assignments remain separately scoped.';
+
 NOTIFY pgrst, 'reload schema';
 
 COMMIT;

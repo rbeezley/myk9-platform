@@ -46,6 +46,7 @@ TEST_FILES=(
   "$TEST_DIR/office_admin_rls_test.sql"
   "$TEST_DIR/entry_status_history_rls_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"
+  "$TEST_DIR/myk9_169_role_boundaries_test.sql"
   "$TEST_DIR/paperwork_prints_rls_test.sql"
   "$TEST_DIR/pre_rule_table_grants_test.sql"
   "$TEST_DIR/pull_refund_decision_rls_test.sql"

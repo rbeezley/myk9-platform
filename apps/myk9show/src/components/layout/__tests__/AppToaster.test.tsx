@@ -7,7 +7,7 @@
  * longer explained). Each is asserted separately here, because fixing one and
  * not the other still loses the edit.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -17,6 +17,14 @@ import { useActionBarStore } from '@/store/actionBarStore';
 beforeEach(() => {
   useActionBarStore.setState({ heights: {} });
   toast.dismiss();
+});
+
+// These tests mock Date.now to age a toast past the grace window. Restoring
+// inline is not enough: an assertion that throws first skips the restore and
+// leaks a +5s clock into every later test in the same shard, where it surfaces
+// as an unrelated failure in an unrelated file.
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 /**

@@ -16,6 +16,11 @@ VALUES
   ('00000000-0000-0000-0000-000000000761', 'Paperwork Club'),
   ('00000000-0000-0000-0000-000000000762', 'Other Paperwork Club');
 
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES
+  ('00000000-0000-0000-0000-000000000761', '00000000-0000-0000-0000-000000000711', 'active'),
+  ('00000000-0000-0000-0000-000000000761', '00000000-0000-0000-0000-000000000712', 'active');
+
 INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
 VALUES
   (

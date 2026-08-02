@@ -1,6 +1,7 @@
 import { act } from 'react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
+import { __resetContainmentMemoForTests } from '@/hooks/useReplicationContainment';
 import {
   CompactOfflineIndicator,
   FilterTriggerButton,
@@ -12,6 +13,12 @@ import {
 // RS429; without this banner it pauses SILENTLY, and a queue that stops
 // draining with no explanation is indistinguishable from lost work.
 describe('ContainmentBanner', () => {
+  // The pause is remembered at module scope so a late mount still sees it, which
+  // means a case that contains leaks into whichever case runs next. CI shuffles
+  // (`--sequence.shuffle`), so without this the "absent" case fails whenever it
+  // does not happen to be drawn first.
+  beforeEach(__resetContainmentMemoForTests);
+
   const contain = (untilMsFromNow: number) =>
     act(() => {
       window.dispatchEvent(

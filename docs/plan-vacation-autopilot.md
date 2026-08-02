@@ -39,38 +39,52 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
 
 1. **Kill switch:** read the Vacation Log. `STOP` comment (from Richard) → disable the
    scheduled task, post an acknowledgment, exit.
-2. **Health:** if `main` CI is red, **repairing it is the run's work item** — not an exit.
+2. **Lock — immediately, before any other work.** `mkdir` a lock directory (atomic on
+   POSIX: it succeeds for exactly one caller, so there is no read-then-write race) and
+   write this run's id into it, alongside a `lockedUntil` ~4h out. A run that finds a
+   live lease logs "skipped: another run holds the lease" and exits **without** counting
+   a failure; a run that finds an expired one takes it over. Locking happens here, not
+   after the health check, because **repairing a red base is itself work** — two runs
+   entering that path together would fight over the same branch. **Fencing:** re-read the
+   lock and confirm this run still owns it immediately before any mutating action (merge,
+   worktree removal, Linear status change); if ownership was lost, abandon quietly rather
+   than mutate. Release the lock on every exit path.
+3. **Health:** if `main` CI is red, **repairing it is the run's work item** — not an exit.
    A red base blocks every future run, so fixing it outranks queue work. Red-main runs do
    not count toward the circuit breaker until two consecutive repair attempts fail to turn
    main green. Revised 2026-08-02 after two order-dependent test failures (MYK9-170,
    MYK9-172) showed a red base can arrive at random, with no code change to blame.
-3. **Lock:** take an exclusive lease (`state.json` `lockedUntil`, ~4h) before selecting
-   work; a run that finds a live lease from another run logs and exits. The 3.5h timebox
-   is under the 6h interval, but a run stalled on a prompt or a hung test breaks that
-   assumption, and two runs on one issue would produce conflicting branches. Expiry makes
-   the lock crash-safe: a dead run's lease lapses on its own.
 4. **Resume-first:** if a `vacation-*` **worktree** exists, that issue is in-flight —
    reorient from its commits + issue comments and continue it. Never infer in-flight
    status from a branch. Otherwise pick the next
    issue: greens before yellows, In Progress before Todo. Backlog is never read.
    Only issues carrying an `auto:` label are eligible — unlabeled issues (including the
    Vacation Log, MYK9-158, and anything created mid-vacation) are invisible to the queue.
-5. **Work** in a fresh worktree using the standard 8-step pipeline. Commit checkpoints
+5. **Branch naming must survive a retry.** A failed attempt leaves its branch behind
+   (deletion is denied), so `git worktree add -b claude/vacation-<id>` would fail forever
+   on the second attempt. Attempt N uses `claude/vacation-<id>-aN`; the retry branches
+   from `origin/main` and treats the previous attempt's branch as read-only history to
+   consult, not to extend.
+6. **Work** in a fresh worktree using the standard 8-step pipeline. Commit checkpoints
    early and often (crash-only design: quota death is unannounced; the branch is the
    durable state).
-6. **Merge gate — judged on the DIFF, not the label.** `auto:green` grades the *issue*;
-   what may merge is decided by what the implementation actually touches. Deny by default
-   if `git diff --name-only origin/main...HEAD` matches any of: `supabase/migrations/`,
-   `supabase/functions/`, `.github/`, `.claude/`, or any path whose content touches
-   payments/Stripe, auth/RBAC/RLS, or grants. A green issue whose fix happens to land in
-   auth code is a PR-stop, not a merge.
-7. **Finish:**
+7. **Merge gate — the issue label AND the diff must both allow it.**
+   - The issue must be `auto:green`. Every `auto:yellow` is a PR-stop regardless of how
+     harmless its diff looks — that is what the grade means.
+   - **And** the diff must be clean. Deny by default if `git diff --name-only
+     origin/main...HEAD` touches `supabase/migrations/`, `supabase/functions/`,
+     `.github/`, or `.claude/`.
+   - **Path names are not sufficient.** Read the actual patch: a change to an ordinary
+     component can still touch payments, auth/RBAC/RLS, grants, or session handling. If
+     the patch is risky, or if it is unclear whether it is, the answer is PR-stop.
+     Uncertainty defaults to not merging.
+8. **Finish:**
    - Passes the gate + CI green + Codex clear → merge from the main repo dir, then the
      **non-interactive cleanup** below. Linear issue → Done, log comment.
    - Otherwise → open PR, label `needs-richard`, state-of-play comment, issue stays In Progress.
-6. **Failure:** clean up the worktree, comment the exact blocker, label `vacation-blocked`
+9. **Failure:** clean up the worktree, comment the exact blocker, label `vacation-blocked`
    after the 2nd genuine failure. Quota exhaustion never increments attempt counts.
-7. **Circuit breaker:** 3 consecutive failed runs → disable self, post final log comment.
+10. **Circuit breaker:** 3 consecutive failed runs → disable self, post final log comment.
 
 ## Order-dependent tests — the standing hazard
 

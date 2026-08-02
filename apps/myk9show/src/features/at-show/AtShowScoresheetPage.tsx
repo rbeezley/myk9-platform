@@ -246,7 +246,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     },
     [navigate, showId, classId]
   );
-
   const {
     entry,
     classInfo,
@@ -256,15 +255,22 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialNumber,
     isLoading,
     error,
-    isInitialSyncPending,
     loadedClassId,
     loadedEntryId,
+    retry,
     submit,
     isSyncing,
     hasSyncError,
     submitError,
     clearSubmitError,
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
+  const handleCorrectScore = useCallback(() => {
+    setSavedEntryId(null);
+    // The route is already the scored entry, so navigating to the same URL is
+    // a no-op in React Router. Explicitly rehydrate the replicated row so the
+    // correction sheet reflects the just-saved score rather than stale state.
+    retry();
+  }, [retry]);
   // Requests persistent storage on entering the scoring surface; may surface an
   // iOS "Add to Home Screen" nudge when durable storage isn't granted.
   const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =
@@ -298,16 +304,13 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         classId={classId}
         scoredEntryId={savedEntryId}
         onBackToList={onBack}
+        onCorrectScore={handleCorrectScore}
         onPickEntry={handlePickEntry}
       />
     );
   }
 
-  if (
-    isLoading ||
-    (!isLoadedRoute && hasAnyScoresheetState) ||
-    (isInitialSyncPending && (!entry || !classInfo || !rules || error))
-  ) {
+  if (isLoading || (!isLoadedRoute && hasAnyScoresheetState)) {
     return <AtShowScoresheetSkeleton />;
   }
 
@@ -318,10 +321,13 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         <p className="text-lg font-medium text-destructive">
           {error || 'Failed to load scoresheet'}
         </p>
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Entry List
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button onClick={retry}>Retry</Button>
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Entry List
+          </Button>
+        </div>
       </div>
     );
   }

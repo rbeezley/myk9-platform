@@ -285,7 +285,7 @@ BEGIN
     WITH expected(tbl, role_name, n) AS (VALUES
       ('classes','anon',52),
       ('classes','authenticated',54),
-      ('entries','anon',14),
+      ('entries','anon',15),
       ('entries','authenticated',54),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),

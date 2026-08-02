@@ -6,6 +6,8 @@ import { withReplicationFallback } from '@/services/database/_shared/replication
 import {
   replicatedJudgeAssignmentsTable,
   replicatedClassesTable,
+  replicatedEntriesTable,
+  type ReplicatedEntry,
   type ReplicatedJudgeAssignment,
 } from '@/services/replication';
 import {
@@ -13,6 +15,7 @@ import {
   isActiveJudgeAssignmentStatus,
 } from '@/services/database/judges/assignmentStatus';
 import { zonedWallTimeToInstant, type JudgeClass } from '@/pages/judgeStatsUtils';
+import { buildJudgeEntryCountsByClass, type JudgeEntryCounts } from './judgeEntryCounts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = supabaseClient as any;
@@ -156,6 +159,50 @@ function sortBySchedule(classes: JudgeClass[]): JudgeClass[] {
   return [...classes].sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime());
 }
 
+interface EntryCountsSnapshot {
+  countsByClassId: Map<string, JudgeEntryCounts>;
+}
+
+async function loadEntryCountsForShow(showId: string): Promise<EntryCountsSnapshot | null> {
+  if (!showId) return null;
+
+  // Sync is a read-only replication refresh. If the network is down, a known
+  // local scope can still be used; an unscoped empty cache remains unavailable.
+  try {
+    await replicatedEntriesTable.sync(showId);
+  } catch {
+    // Use whatever scoped rows/metadata are already cached below.
+  }
+
+  try {
+    const [entries, metadata] = await Promise.all([
+      replicatedEntriesTable.getEntriesByShow(showId),
+      replicatedEntriesTable.getSyncMetadata(showId),
+    ]);
+    if (entries.length === 0 && metadata?.totalRows === undefined) return null;
+    return { countsByClassId: buildJudgeEntryCountsByClass(entries as ReplicatedEntry[]) };
+  } catch {
+    return null;
+  }
+}
+
+async function decorateWithCanonicalEntryCounts(assignments: JudgeClass[]): Promise<JudgeClass[]> {
+  const showIds = [...new Set(assignments.map(assignment => assignment.showId).filter(Boolean))];
+  const snapshots = await Promise.all(
+    showIds.map(async showId => [showId, await loadEntryCountsForShow(showId)] as const)
+  );
+  const byShowId = new Map(snapshots);
+
+  return assignments.map(assignment => {
+    const snapshot = byShowId.get(assignment.showId);
+    if (!snapshot) return { ...assignment, entryCountsAvailable: false };
+    const counts =
+      snapshot.countsByClassId.get(assignment.classId) ??
+      ({ totalEntries: 0, checkedInEntries: 0, completedEntries: 0 } satisfies JudgeEntryCounts);
+    return { ...assignment, ...counts, entryCountsAvailable: true };
+  });
+}
+
 async function fetchFromPostgrest(personId: string): Promise<JudgeClass[]> {
   const { data: rows, error } = await supabase
     .from('judge_assignments')
@@ -213,9 +260,9 @@ export async function fetchJudgeAssignments(personId: string): Promise<JudgeClas
         })
         .filter((c): c is JudgeClass => c !== null);
 
-      return sortBySchedule(mine);
+      return sortBySchedule(await decorateWithCanonicalEntryCounts(mine));
     },
-    () => fetchFromPostgrest(personId),
+    async () => decorateWithCanonicalEntryCounts(await fetchFromPostgrest(personId)),
     'judge_assignments',
     'select_dashboard_assignments'
   );

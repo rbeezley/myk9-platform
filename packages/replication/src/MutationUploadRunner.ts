@@ -291,18 +291,30 @@ export class MutationUploadRunner {
             : queuedMutation;
           await rowSync.markReplicatedRowSynced(db, uploadedMutation, newServerVersion);
           if (newServerVersion !== undefined) {
-            const updated = await this.queueStore.updateMutationServerVersions(
+            await this.queueStore.updateMutationServerVersions(
               uploadedMutation.tableName,
               uploadedMutation.rowId,
               newServerVersion
             );
-            if (updated > 0) {
-              await this.writeBackup();
-            }
           }
 
+          // Remove the completed row before the pass-level backup. A concurrent
+          // startup restore can read localStorage while this upload is in flight;
+          // backing up the still-pending row first would let that restore put a
+          // successfully uploaded mutation back after this delete (a zombie
+          // queue item that replays or remains stuck on mobile reloads).
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, uploadedMutation.id);
           uploadedMutationIds.add(uploadedMutation.id);
+
+          // Keep the localStorage backup aligned with the queue after each
+          // successful delete/version bump. A crash before the pass-level
+          // backup below must not restore a mutation that already reached the
+          // server.
+          try {
+            await this.writeBackup();
+          } catch (err) {
+            this.logger.warn('[MutationManager] Per-mutation backup failed:', err);
+          }
 
           results.push({
             success: true,

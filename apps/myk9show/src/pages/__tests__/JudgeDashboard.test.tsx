@@ -107,6 +107,26 @@ describe('JudgeDashboard', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/at-show/show-1');
   });
 
+  it('uses the shared touch-size contract for frequent judge actions', () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({
+        assignments: [
+          makeAssignment(),
+          makeAssignment({ id: 'assignment-completed', status: 'completed' }),
+        ],
+      })
+    );
+
+    render(<JudgeDashboard />);
+
+    for (const action of screen.getAllByRole('button', {
+      name: /open ringside scoring|start judging|view results/i,
+    })) {
+      expect(action.className).toContain('min-h-11');
+      expect(action.className).toContain('sm:min-h-12');
+    }
+  });
+
   it('deep-links Start Judging to the ringside class entry list', async () => {
     mockUseJudgeAssignments.mockReturnValue(hookState({ assignments: [makeAssignment()] }));
 
@@ -124,6 +144,18 @@ describe('JudgeDashboard', () => {
 
     expect(screen.getByText('Not started')).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'Not started' })).not.toBeInTheDocument();
+  });
+
+  it('does not present a cold entry replica as a confident zero', () => {
+    mockUseJudgeAssignments.mockReturnValue(
+      hookState({ assignments: [makeAssignment({ entryCountsAvailable: false })] })
+    );
+
+    render(<JudgeDashboard />);
+
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/entry totals unavailable/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText('0 judged')).not.toBeInTheDocument();
   });
 
   it('labels the action Continue Judging for an in-progress class', () => {

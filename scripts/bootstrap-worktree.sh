@@ -55,17 +55,26 @@ else
   echo "  myK9Show dependencies exist — skipping install" >&2
 fi
 
-# 2. Copy .env files from main repo
-ENV_FILES=(
+# 2. Copy gitignored local config from the main repo.
+#
+# .claude/launch.json is gitignored, so a fresh worktree starts without it and
+# any port setting made in one worktree is invisible to the next. That matters
+# when several agents run at once: every dev server tries port 5173, the second
+# one silently lands on 5174/5175, and it is easy to end up reading a preview
+# served by a different worktree's branch. Carrying the file over means one
+# `"autoPort": true` in the main repo covers every worktree after it.
+LOCAL_FILES=(
   "apps/myk9show/.env"
   "apps/myk9show/.env.local"
   "supabase/.env"
+  ".claude/launch.json"
 )
 
-for env_file in "${ENV_FILES[@]}"; do
-  if [ -f "$MAIN_REPO/$env_file" ] && [ ! -f "$WORKTREE_DIR/$env_file" ]; then
-    cp "$MAIN_REPO/$env_file" "$WORKTREE_DIR/$env_file"
-    echo "  Copied $env_file" >&2
+for local_file in "${LOCAL_FILES[@]}"; do
+  if [ -f "$MAIN_REPO/$local_file" ] && [ ! -f "$WORKTREE_DIR/$local_file" ]; then
+    mkdir -p "$(dirname "$WORKTREE_DIR/$local_file")"
+    cp "$MAIN_REPO/$local_file" "$WORKTREE_DIR/$local_file"
+    echo "  Copied $local_file" >&2
   fi
 done
 

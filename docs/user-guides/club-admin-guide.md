@@ -70,9 +70,9 @@ From the show workbench you can see entry counts, the assigned secretary, and sh
 
 ## Section 3 — Grant Show Access to a Secretary
 
-Show access is managed from the **Members** page, not from the show itself. When you grant a member show access, they can manage any of your club's shows: entries, run order, show-day operations, and AKC results submission.
+Show access is managed from the **Members** page, not from the show itself. When you grant an active member show access, they can manage any of your club's shows: entries, run order, show-day operations, and AKC results submission.
 
-**The person must already be a club member before you can grant show access.** If they are not yet in the members list, add them first (see Section 6).
+**The person must already be an active club member before you can grant club-wide show access.** If they are not yet in the members list, add them first (see Section 6). Lapsed, suspended, and resigned members cannot receive or retain effective club-wide show access.
 
 1. In the sidebar, open **Members**.
 2. Find the person you want to make secretary.
@@ -85,7 +85,7 @@ The member's row now shows a **Show Manager** badge (key icon) indicating active
 
 **To revoke access:** open the same **⋮** menu and click **Revoke Show Access**. The person loses management access immediately — they remain a club member.
 
-> **Note:** Show access is club-wide — a secretary you authorize can manage all of your club's shows, not just one. If you need to restrict access to a specific show, contact your platform administrator.
+> **Note:** Show access is club-wide — an active member you authorize can manage all of your club's shows, not just one. If you need to assign an external professional to one specific show, contact your platform administrator; that show-scoped assignment is separate from club membership. Judges are assigned to shows or classes separately and do not need to be club members.
 
 ---
 

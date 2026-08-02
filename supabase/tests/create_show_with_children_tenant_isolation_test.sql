@@ -34,6 +34,13 @@ VALUES
     NULL
   );
 
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES (
+  '00000000-0000-0000-0000-0000000c0a01',
+  '00000000-0000-0000-0000-0000000c0a11',
+  'active'
+);
+
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-0000000c0a11',

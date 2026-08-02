@@ -45,13 +45,19 @@ test.describe('Club-admin membership + staffing journey', () => {
     await expect(page).toHaveURL(/\/club-admin\/members/);
 
     await page.getByRole('tab', { name: 'Officers' }).click();
-    await expect(page.getByRole('button', { name: 'Assign Officer' })).toBeVisible({
+    const officersPanel = page.getByRole('tabpanel', { name: 'Officers' });
+    const assignOfficerButton = officersPanel
+      .getByRole('button', { name: 'Assign Officer' })
+      .first();
+
+    await expect(assignOfficerButton).toBeVisible({
       timeout: 15_000,
     });
-    await page.getByRole('button', { name: 'Assign Officer' }).click();
+    // The toolbar and empty-state buttons intentionally trigger the same dialog.
+    await assignOfficerButton.click();
 
     await expect(page.getByText('Assign Officer', { exact: true }).last()).toBeVisible();
-    await expect(page.getByText('Position', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Position')).toBeVisible();
 
     await page.getByRole('button', { name: 'Cancel' }).click();
   });

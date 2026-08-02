@@ -142,6 +142,7 @@ const ClubMembersPage: React.FC = () => {
     }) => updateClubMember(data.memberId, data.updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
+      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
     },
   });
 

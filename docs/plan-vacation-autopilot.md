@@ -56,8 +56,13 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
    MYK9-172) showed a red base can arrive at random, with no code change to blame.
 4. **Resume-first:** if a `vacation-*` **worktree** exists, that issue is in-flight —
    reorient from its commits + issue comments and continue it. Never infer in-flight
-   status from a branch. Otherwise pick the next
-   issue: greens before yellows, In Progress before Todo. Backlog is never read.
+   status from a branch. Otherwise pick the next issue. **Ordering: grade first** — every
+   `auto:green` before any `auto:yellow`, because only greens can finish unattended (a
+   yellow always stops at a PR, so building it early buys nothing; an urgent PR opened on
+   day 2 and one opened on day 7 are both waiting on Richard at day 10 either way).
+   Within a grade: Linear priority, then In Progress before Todo, then oldest first —
+   priority above age so that a queue which does not fully drain still spent its runs on
+   the most valuable work. Backlog is never read.
    Only issues carrying an `auto:` label are eligible — unlabeled issues (including the
    Vacation Log, MYK9-158, and anything created mid-vacation) are invisible to the queue.
 5. **Branch naming must survive a retry.** A failed attempt leaves its branch behind
@@ -78,6 +83,14 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
      component can still touch payments, auth/RBAC/RLS, grants, or session handling. If
      the patch is risky, or if it is unclear whether it is, the answer is PR-stop.
      Uncertainty defaults to not merging.
+   - **Green CI means the GitHub Actions checks — Vercel is not blocking.** Vercel
+     entries are preview deployments and fail for reasons unrelated to the code, most
+     often the account's daily deployment quota (`Resource is limited - try again in 24
+     hours`, hit 2026-08-02 during the rehearsal). Blocking on those would PR-stop every
+     issue for a day or more over an infrastructure limit — degrading the plan to the
+     PR-queue-only shape that was explicitly rejected. Log the Vercel failure, judge the
+     merge on the Actions checks. A Vercel failure that reads like a real build error,
+     rather than a quota/infra message, IS blocking.
 8. **Finish:**
    - Passes the gate + CI green + Codex clear → merge from the main repo dir, then the
      **non-interactive cleanup** below. Linear issue → Done, log comment.

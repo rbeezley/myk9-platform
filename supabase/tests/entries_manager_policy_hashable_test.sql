@@ -24,6 +24,11 @@ values
   ('00000000-0000-0000-0000-000000126013', 'Entry', 'Handler', '00000000-0000-0000-0000-000000126103'),
   ('00000000-0000-0000-0000-000000126014', 'Unrelated', 'User', '00000000-0000-0000-0000-000000126104');
 
+insert into public.club_members (club_id, person_id, membership_status)
+values
+  ('00000000-0000-0000-0000-000000126001', '00000000-0000-0000-0000-000000126011', 'active'),
+  ('00000000-0000-0000-0000-000000126001', '00000000-0000-0000-0000-000000126012', 'active');
+
 insert into public.user_roles (
   user_id, role_id, club_id, show_id, is_active, expires_at, auth_user_id
 )

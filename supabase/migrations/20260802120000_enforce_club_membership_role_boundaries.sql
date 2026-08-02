@@ -284,6 +284,7 @@ GRANT EXECUTE ON FUNCTION public.get_club_show_manager_ids(uuid) TO authenticate
 -- predicates. Without this replacement, a show-scoped secretary row whose
 -- club_id is populated would still appear as a club manager in the view.
 DROP VIEW IF EXISTS public.view_authenticated_entry_results;
+DROP FUNCTION IF EXISTS private.entry_results_caller_context();
 
 CREATE OR REPLACE FUNCTION private.entry_results_caller_context()
 RETURNS TABLE (

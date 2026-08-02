@@ -18,6 +18,8 @@ export type SupportTicketStatus = 'open' | 'waiting' | 'resolved';
 export interface SupportTicket {
   id: string;
   ownerId: string;
+  ownerName?: string | undefined;
+  ownerEmail?: string | undefined;
   subject: string;
   status: SupportTicketStatus;
   isShowDayPriority: boolean;
@@ -38,7 +40,7 @@ export interface SupportTicketMessage {
 }
 
 type SupportTableClient = {
-  from: (table: 'support_tickets' | 'support_ticket_messages') => {
+  from: (table: 'people' | 'support_tickets' | 'support_ticket_messages') => {
     select: (columns: string) => SupportQueryBuilder;
     insert: (row: Record<string, unknown>) => {
       select: (columns: string) => {
@@ -55,6 +57,7 @@ type SupportQueryBuilder = PromiseLike<{
 }> & {
   eq: (column: string, value: unknown) => SupportQueryBuilder;
   neq: (column: string, value: unknown) => SupportQueryBuilder;
+  in: (column: string, values: string[]) => SupportQueryBuilder;
   is: (column: string, value: null) => SupportQueryBuilder;
   order: (column: string, options?: { ascending?: boolean }) => SupportQueryBuilder;
 };
@@ -114,7 +117,36 @@ export async function listSupportTickets(status?: SupportTicketStatus): Promise<
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapSupportTicket);
+
+  const tickets = (data ?? []).map(mapSupportTicket);
+  const ownerIds = [...new Set(tickets.map(ticket => ticket.ownerId))];
+  if (ownerIds.length === 0) return tickets;
+
+  const { data: people, error: peopleError } = await client
+    .from('people')
+    .select('auth_user_id, first_name, last_name, email')
+    .in('auth_user_id', ownerIds);
+  if (peopleError) throw new Error('Could not load support ticket owners.');
+
+  const owners = new Map<string, { name: string; email: string }>();
+  for (const person of people ?? []) {
+    const firstName = typeof person.first_name === 'string' ? person.first_name.trim() : '';
+    const lastName = typeof person.last_name === 'string' ? person.last_name.trim() : '';
+    owners.set(String(person.auth_user_id), {
+      name: [firstName, lastName].filter(Boolean).join(' '),
+      email: typeof person.email === 'string' ? person.email.trim() : '',
+    });
+  }
+
+  return tickets.map(ticket => {
+    const owner = owners.get(ticket.ownerId);
+    if (!owner) return ticket;
+    return {
+      ...ticket,
+      ...(owner.name ? { ownerName: owner.name } : {}),
+      ...(owner.email ? { ownerEmail: owner.email } : {}),
+    };
+  });
 }
 
 export async function listSupportTicketMessages(ticketId: string): Promise<SupportTicketMessage[]> {

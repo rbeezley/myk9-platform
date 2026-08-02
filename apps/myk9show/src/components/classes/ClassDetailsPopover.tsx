@@ -104,12 +104,6 @@ function ClassDetailsContent({ data }: { data: ClassDetailsData }) {
           </span>
         </div>
       )}
-
-      {/* Class ID (subtle) */}
-      <div className="flex items-center justify-between pt-2 border-t">
-        <span className="text-xs text-muted-foreground">Class ID</span>
-        <span className="text-xs text-muted-foreground font-mono">{data.id.slice(0, 8)}...</span>
-      </div>
     </div>
   );
 }

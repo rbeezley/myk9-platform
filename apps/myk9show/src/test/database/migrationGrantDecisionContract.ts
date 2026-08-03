@@ -31,6 +31,15 @@ const ANON_EXECUTE_KEEP_LIST: Readonly<Record<string, string>> = {
   'is_trial_secretary(uuid)': 'Anon-readable RLS policies use this trial authorization predicate.',
   'resolve_class_result_visibility(uuid)':
     'The anon-facing public results view calls this release-gate helper.',
+  // Both signatures stay listed: the corpus is replayed in full, and the
+  // one-argument form is still granted by 20260803130000-150000 before
+  // 20260803160000 drops it for the class-id-taking form.
+  'tv_class_entry_counts(uuid)':
+    'Superseded by the (uuid, uuid[]) form in 20260803160000; kept because the replayed corpus still contains the original grants (MYK9-65).',
+  'tv_class_entry_counts(uuid, uuid[])':
+    'The public /tv board counts entries through this definer RPC; an unauthenticated wall display is its primary caller. Exposes no rows anon cannot already read under entries_anon_select_for_tv, and the function re-derives that same show predicate (MYK9-65).',
+  'tv_board_entries(uuid, uuid[])':
+    'The public /tv running order reads through this definer RPC, for the same reason and under the same show predicate as tv_class_entry_counts (MYK9-65).',
 };
 
 const TABLE_GRANT_DECISION_KEEP_LIST: Readonly<Record<string, string>> = {

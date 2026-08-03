@@ -3,6 +3,7 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { withReplicationFallback } from '../_shared/replication-fallback';
+import { fetchEntryCountsByClassIds } from '../_shared/entryCounts';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 
@@ -192,7 +193,7 @@ async function postgrestGetShowScheduleTimelineRows(
       .filter(cls => cls.deleted_at === null)
       .map(cls => cls.id)
   );
-  const entryCountsMap = await postgrestGetEntryCountsByClassIds(
+  const entryCountsMap = await fetchEntryCountsByClassIds(
     classIds,
     'select_schedule_entry_counts'
   );
@@ -266,7 +267,7 @@ async function postgrestGetTrialTimelineRows(
   if (error) throw createDatabaseError(error, 'trial', 'select_trial_timeline');
 
   const classIds = (data ?? []).map(cls => cls.id);
-  const entryCountsMap = await postgrestGetEntryCountsByClassIds(
+  const entryCountsMap = await fetchEntryCountsByClassIds(
     classIds,
     'select_trial_entry_counts'
   );
@@ -295,26 +296,6 @@ async function postgrestGetTrialTimelineRows(
     }),
     error: null,
   };
-}
-
-async function postgrestGetEntryCountsByClassIds(
-  classIds: readonly string[],
-  operation: string
-): Promise<Map<string, number>> {
-  const counts = await Promise.all(
-    classIds.map(async classId => {
-      const { count, error } = await supabase
-        .from('entries')
-        .select('class_id', { count: 'exact', head: true })
-        .eq('class_id', classId)
-        .is('deleted_at', null);
-
-      if (error) throw createDatabaseError(error, 'entry', operation);
-      return [classId, count ?? 0] as const;
-    })
-  );
-
-  return new Map(counts);
 }
 
 export const getShowScheduleTimelineRows = async (

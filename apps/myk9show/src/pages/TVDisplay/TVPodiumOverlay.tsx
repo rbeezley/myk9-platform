@@ -80,7 +80,8 @@ export function TVPodiumOverlay({ queue, onComplete, soundEnabled }: TVPodiumOve
         ))}
       </div>
       <div className="text-center mt-6 text-xs text-zinc-600 tracking-wider">
-        {current.totalEntries} entries &nbsp;&bull;&nbsp; {current.qualifiedCount} qualified
+        {current.totalEntries != null && <>{current.totalEntries} entries &nbsp;&bull;&nbsp; </>}
+        {current.qualifiedCount} qualified
         {current.fastestTime != null && (
           <> &nbsp;&bull;&nbsp; Fastest time: {current.fastestTime.toFixed(1)}s</>
         )}

@@ -877,7 +877,25 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
     const data = [
       ...online.data
         .filter(row => !deleted.has(rowId(row)))
-        .map(row => pendingById.get(rowId(row)) ?? row),
+        .map(row => {
+          const pending = pendingById.get(rowId(row));
+          if (!pending) return row;
+          // Overlay the pending FIELDS rather than swapping the whole row. The
+          // replica maps `class`/`show` from local lookup caches that may be
+          // cold (a row hydrated on its own has neither), while the server row
+          // always carries its joins. `deriveDogActivity` classifies on
+          // `show.start_date`, so dropping the join would push the entry out of
+          // "upcoming" — a false empty produced by the very read meant to
+          // prevent one.
+          const serverRow = row as Record<string, unknown>;
+          const localRow = pending as Record<string, unknown>;
+          return {
+            ...serverRow,
+            ...localRow,
+            class: localRow.class ?? serverRow.class,
+            show: localRow.show ?? serverRow.show,
+          };
+        }),
       ...pendingRows.filter(row => !serverIds.has(rowId(row))),
     ];
     return { data, error: null, verified: true };

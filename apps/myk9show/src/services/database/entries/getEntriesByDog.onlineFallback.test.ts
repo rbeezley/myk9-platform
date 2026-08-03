@@ -226,6 +226,33 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
       expect((result.data[0] as Record<string, unknown>).entry_status).toBe('scratched');
     });
 
+    // The lookup caches here are empty (see the mocks), so the replica maps
+    // class/show to null — exactly the cold-cache case. Swapping the whole row
+    // would drop the server's joins, and deriveDogActivity classifies on
+    // show.start_date, so the entry would fall out of "upcoming": a false empty
+    // produced by the read that exists to prevent one.
+    it('keeps the server joins when overlaying a pending row onto it', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-online-1', _syncStatus: 'pending', entryStatus: 'scratched' }),
+      ]);
+      onlineRows = [
+        {
+          id: 'entry-online-1',
+          dog_id: 'dog-1',
+          class: { id: 'c1', name: 'Container Novice A' },
+          show: { id: 's1', name: 'Heartland', start_date: '2099-08-01' },
+        },
+      ];
+
+      const result = await getEntriesByDog('dog-1');
+
+      const row = result.data[0] as Record<string, Record<string, unknown>>;
+      expect(row.show?.start_date).toBe('2099-08-01');
+      expect(row.class?.name).toBe('Container Novice A');
+      // ...while the unsynced local edit still wins on the fields it owns.
+      expect((row as unknown as Record<string, unknown>).entry_status).toBe('scratched');
+    });
+
     // A local row that is NOT pending and absent from the server was deleted or
     // moved server-side. Re-adding it would be the tombstone bug in reverse.
     it('does not re-add a synced local row the server no longer returns', async () => {

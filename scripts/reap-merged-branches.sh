@@ -132,9 +132,11 @@ while IFS= read -r br; do
     fi
   fi
 
-  if [ -z "$proof" ] &&
-    [ "$(git rev-list --count "origin/$MAIN_BRANCH..$br")" = "0" ]; then
-    proof="ancestor"
+  # -1 on a vanished ref: not "0", so no proof, which is the safe direction.
+  if [ -z "$proof" ]; then
+    ahead="$(git rev-list --count "origin/$MAIN_BRANCH..$br" 2>/dev/null ||
+      echo -1)"
+    [ "$ahead" = "0" ] && proof="ancestor"
   fi
 
   if [ -z "$proof" ]; then
@@ -142,14 +144,21 @@ while IFS= read -r br; do
     continue
   fi
 
-  sha="$(git rev-parse --short "$br")"
+  # Reuse the tip read above rather than re-running rev-parse, which is one
+  # more ref lookup that a concurrent delete could fail.
+  sha="${tip:0:9}"
   if [ "$APPLY" = "1" ]; then
-    git branch -D "$br" >/dev/null
-    echo "reap  $br ($proof, was $sha)"
+    if git branch -D "$br" >/dev/null 2>&1; then
+      echo "reap  $br ($proof, was $sha)"
+      reaped=$((reaped + 1))
+    else
+      echo "keep  $br (vanished mid-run)"
+      kept=$((kept + 1))
+    fi
   else
     echo "would reap  $br ($proof, at $sha)"
+    reaped=$((reaped + 1))
   fi
-  reaped=$((reaped + 1))
 done < <(git branch --format='%(refname:short)')
 
 if [ "$APPLY" = "1" ]; then

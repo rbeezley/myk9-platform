@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SyncableClassData, SyncableEntryData } from '@/store/classStore';
-import { replicatedToEntry } from '@/store/classStore';
+import { mergeEntryData, replicatedToEntry } from '@/store/classStore';
 import { rowToEntry, type EntryRow } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import { buildResultsReadinessSummary } from '../readinessSummary';
 import { fromAny } from '@total-typescript/shoehorn';
@@ -142,6 +142,19 @@ describe('buildResultsReadinessSummary', () => {
       });
 
       expect(buildResultsReadinessSummary([cls()], [absent]).unscoredEntries).toBe(0);
+    });
+
+    it('survives the merge path the subscription actually uses', () => {
+      // initializeSubscription calls mergeEntryData, not replicatedToEntry, and
+      // it re-applies the previous entry's local-only display fields on every
+      // tick. The scoring facts must not be lost in that overlay.
+      const replicated = rowToEntry(fromAny<EntryRow, unknown>(scoredRow));
+      const existing = replicatedToEntry(rowToEntry(fromAny<EntryRow, unknown>(unscoredRow)));
+
+      const merged = mergeEntryData(replicated, existing);
+
+      expect(merged.isScored).toBe(true);
+      expect(buildResultsReadinessSummary([cls()], [merged]).unscoredEntries).toBe(0);
     });
 
     it('reaches safeToSend once every mapped entry is scored and the class is released', () => {

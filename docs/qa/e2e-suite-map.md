@@ -35,13 +35,18 @@ pnpm test:e2e:clean \
 
 Nightly health is the scheduled, read-only routine: deterministic Vitest registration service/store checks followed by the committed Playwright route-health sweep. It does not create entries, score dogs, submit results, or exercise other stateful workflows.
 
-Scheduled Nightly runs must be isolated from the primary checkout:
+Scheduled Nightly runs should use the managed command, which removes its
+temporary worktree when the checks finish:
 
 ```bash
-pnpm qa:nightly:prepare
+pnpm qa:nightly:run
 ```
 
-Run the phases below from the generated detached `origin/main` worktree, using the generated `.qa-nightly.env` values for `PLAYWRIGHT_PORT`, `PLAYWRIGHT_BASE_URL`, and `PLAYWRIGHT_HMR_PORT`. Dirty local WIP in the primary checkout does not block Nightly once this isolated baseline exists. Abort only if the isolated `origin/main` baseline cannot be prepared, dependencies cannot bootstrap, the app cannot bind the generated port, or the global 30-minute wall-clock budget is exceeded.
+The command prepares a detached `origin/main` worktree, runs the health phases,
+and removes the worktree on success or failure. Dirty local WIP in the primary
+checkout does not block Nightly. Use `pnpm qa:nightly:prepare` only when a
+manual multi-phase run needs to continue beyond the managed health command;
+finish that run with the cleanup command printed by preparation.
 
 Run both health phases with:
 

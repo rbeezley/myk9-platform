@@ -40,6 +40,18 @@ done
 repo_root="$(git rev-parse --show-toplevel)"
 timestamp="$(date +%H%M%S)"
 worktree="${QA_NIGHTLY_WORKTREE:-"$repo_root/.worktrees/nightly-qa-$run_date-$timestamp"}"
+worktree_created=0
+
+cleanup_prepare_failure() {
+  local status="$?"
+
+  if [[ "$status" -ne 0 && "$worktree_created" -eq 1 ]]; then
+    bash "$repo_root/scripts/qa/cleanup-nightly-isolated.sh" "$worktree" || true
+  fi
+  exit "$status"
+}
+
+trap cleanup_prepare_failure EXIT
 
 if [[ -z "$port" ]]; then
   port=$((5700 + RANDOM % 1000))
@@ -54,18 +66,20 @@ cd "$repo_root"
 git fetch origin
 baseline_sha="$(git rev-parse origin/main)"
 git worktree add --detach "$worktree" origin/main
+worktree_created=1
 
 env_file="$worktree/.qa-nightly.env"
 {
   printf 'export QA_NIGHTLY_DATE=%q\n' "$run_date"
   printf 'export QA_NIGHTLY_BASELINE_SHA=%q\n' "$baseline_sha"
   printf 'export QA_NIGHTLY_WORKTREE=%q\n' "$worktree"
-  printf 'export QA_NIGHTLY_REPORT_BRANCH=%q\n' "codex/nightly-qa-$run_date"
   printf 'export PLAYWRIGHT_PORT=%q\n' "$port"
   printf 'export PLAYWRIGHT_BASE_URL=%q\n' "http://127.0.0.1:$port"
   printf 'export PLAYWRIGHT_HMR_PORT=%q\n' "$((port + 20000))"
   printf 'export QA_NIGHTLY_GLOBAL_TIMEOUT_SECONDS=%q\n' "1800"
 } > "$env_file"
+
+trap - EXIT
 
 cat <<SUMMARY
 Prepared isolated Nightly QA worktree.
@@ -79,7 +93,9 @@ Use these values for Playwright commands:
   PLAYWRIGHT_BASE_URL=http://127.0.0.1:$port
   PLAYWRIGHT_HMR_PORT=$((port + 20000))
 
-If docs/findings/history need to be recorded, create the report branch inside
-the isolated worktree:
-  git switch -c codex/nightly-qa-$run_date
+The standard health flow cleans up this worktree automatically:
+  pnpm qa:nightly:run
+
+For a manual multi-phase run, remove this worktree when finished:
+  bash "$repo_root/scripts/qa/cleanup-nightly-isolated.sh" "$worktree"
 SUMMARY

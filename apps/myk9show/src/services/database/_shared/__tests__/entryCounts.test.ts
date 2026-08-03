@@ -7,7 +7,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   createDatabaseError: (error: unknown) => error,
 }));
 
-import { fetchEntryCountsByClassIds } from '../entryCounts';
+import { fetchEntryCountsByClassIds, fetchPublicEntryCountsByShow } from '../entryCounts';
 
 /** Captures the filter chain each per-class count query builds. */
 function mockCounts(countByClassId: Record<string, number>) {
@@ -90,6 +90,74 @@ describe('fetchEntryCountsByClassIds', () => {
 
     await expect(fetchEntryCountsByClassIds(['class-a'], 'op')).rejects.toMatchObject({
       message: 'permission denied',
+    });
+  });
+});
+
+describe('fetchPublicEntryCountsByShow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetMockSupabase();
+  });
+
+  function mockCountRpc(result: unknown) {
+    mockSupabase.rpc.mockImplementation(() => Promise.resolve(result));
+  }
+
+  // The point of the definer RPC: the count is derived from the SHOW, so it
+  // cannot vary with who is looking. Reading `entries` directly is what let a
+  // signed-in exhibitor see "3 / 2" on a public board (MYK9-65).
+  it('reads the show-scoped RPC and never touches the entries table', async () => {
+    mockCountRpc({ data: [{ class_id: 'class-a', entry_count: 66 }], error: null });
+
+    const counts = await fetchPublicEntryCountsByShow('show-1', ['class-a'], 'op');
+
+    expect(counts.get('class-a')).toBe(66);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('tv_class_entry_counts', {
+      p_show_id: 'show-1',
+    });
+    expect(mockSupabase.from).not.toHaveBeenCalled();
+  });
+
+  // The server groups by class and omits empty classes rather than echoing back
+  // a caller-supplied id list. Callers still expect every requested id present,
+  // so a class with no entries must read 0 — not `undefined`, which the board
+  // would render as "unavailable" and hide the counter on a perfectly healthy
+  // empty class.
+  it('fills classes the RPC omitted with zero', async () => {
+    mockCountRpc({ data: [{ class_id: 'class-a', entry_count: 4 }], error: null });
+
+    const counts = await fetchPublicEntryCountsByShow('show-1', ['class-a', 'empty-class'], 'op');
+
+    expect([...counts.entries()]).toEqual([
+      ['class-a', 4],
+      ['empty-class', 0],
+    ]);
+  });
+
+  // A class the caller did not ask about must not appear, or a board rendering
+  // one trial would size itself from another trial's classes.
+  it('returns only the requested class ids', async () => {
+    mockCountRpc({
+      data: [
+        { class_id: 'class-a', entry_count: 4 },
+        { class_id: 'other-trial-class', entry_count: 99 },
+      ],
+      error: null,
+    });
+
+    const counts = await fetchPublicEntryCountsByShow('show-1', ['class-a'], 'op');
+
+    expect([...counts.keys()]).toEqual(['class-a']);
+  });
+
+  // Same contract as the session-scoped helper: throw, so the public surface can
+  // render "unavailable" instead of a confident, wrong zero.
+  it('throws rather than reporting zero when the RPC fails', async () => {
+    mockCountRpc({ data: null, error: { message: 'permission denied for function' } });
+
+    await expect(fetchPublicEntryCountsByShow('show-1', ['class-a'], 'op')).rejects.toMatchObject({
+      message: 'permission denied for function',
     });
   });
 });

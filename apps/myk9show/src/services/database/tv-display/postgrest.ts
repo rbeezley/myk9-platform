@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-import { fetchEntryCountsByClassIds } from '../_shared/entryCounts';
+import { fetchPublicEntryCountsByShow } from '../_shared/entryCounts';
 import {
   groupEntriesByClass,
   mapJoinedDog,
@@ -27,29 +27,60 @@ import type {
  * confident, wrong zero.
  */
 async function fetchTVEntryCounts(
+  showId: string,
   classIds: readonly string[]
 ): Promise<Map<string, number> | null> {
   try {
-    return await fetchEntryCountsByClassIds(classIds, 'select_tv_entry_counts');
+    return await fetchPublicEntryCountsByShow(showId, classIds, 'select_tv_entry_counts');
   } catch {
     return null;
   }
 }
 
-function mapPostgrestEntry(raw: Record<string, unknown>): TVEntry {
+/**
+ * The running order behind "up next", read independently of the viewer.
+ *
+ * Read as a plain `entries` select this had the same defect as the totals beside
+ * it — and worse, because it is the board's primary content: `entries_select` is
+ * scoped to managed/handled/owned rows, so a signed-in exhibitor watching a
+ * public screen saw only their own dogs queued. The `dogs` join is part of the
+ * same problem, since an embedded relation is read under the viewer's session
+ * too. Both moved into `tv_board_entries` (MYK9-65, migration 20260803130000).
+ *
+ * The RPC's row type is generated from `RETURNS TABLE`, which carries no
+ * nullability, so every column arrives typed non-null. The columns really are
+ * nullable in `entries`/`dogs`, and `mapRpcEntry` restores that rather than
+ * trusting the generated shape.
+ */
+async function fetchTVBoardEntries(showId: string, classIds: string[]) {
+  const { data, error } = await supabase.rpc('tv_board_entries', {
+    p_show_id: showId,
+    p_class_ids: classIds,
+  });
+
+  if (error) return [];
+  return data ?? [];
+}
+
+type TVBoardEntryRow = Awaited<ReturnType<typeof fetchTVBoardEntries>>[number];
+
+function mapRpcEntry(raw: TVBoardEntryRow): TVEntry {
+  const dogName = (raw.dog_name as string | null) ?? null;
   return {
-    id: raw.id as string,
-    armband: raw.armband as string | null,
-    handler: raw.handler as string | null,
-    runOrder: raw.run_order as number | null,
-    isInRing: (raw.is_in_ring as boolean) ?? false,
-    isScored: (raw.is_scored as boolean) ?? false,
+    id: raw.id,
+    armband: (raw.armband as string | null) ?? null,
+    handler: (raw.handler as string | null) ?? null,
+    runOrder: (raw.run_order as number | null) ?? null,
+    isInRing: raw.is_in_ring ?? false,
+    isScored: raw.is_scored ?? false,
     dog: mapJoinedDog(
-      raw.dogs as {
-        name: string;
-        call_name: string | null;
-        image_url: string | null;
-      } | null
+      dogName === null
+        ? null
+        : {
+            name: dogName,
+            call_name: (raw.dog_call_name as string | null) ?? null,
+            image_url: (raw.dog_image_url as string | null) ?? null,
+          }
     ),
   };
 }
@@ -82,32 +113,22 @@ export async function getPostgrestTVDisplayData(
   }
 
   const classIds = classData.map(c => c.id);
-  const [{ data: entryData }, entryCounts] = await Promise.all([
-    supabase
-      .from('entries')
-      .select(
-        'id, class_id, armband, handler, run_order, is_in_ring, is_scored, dogs(name, call_name, image_url)'
-      )
-      .in('class_id', classIds)
-      // Withdrawn entries must not ride the running order, or the board's own
-      // list disagrees with the total counted beside it.
-      .is('deleted_at', null)
-      .or('is_scored.eq.false,is_in_ring.eq.true')
-      .order('run_order', { ascending: true }),
-    fetchTVEntryCounts(classIds),
+  // Withdrawn entries must not ride the running order, or the board's own list
+  // disagrees with the total counted beside it — the RPC applies that filter,
+  // and the same show predicate, server-side.
+  const [entryData, entryCounts] = await Promise.all([
+    fetchTVBoardEntries(showId, classIds),
+    fetchTVEntryCounts(showId, classIds),
   ]);
 
   const classIdByEntryId = new Map<string, string>(
-    (entryData ?? [])
+    entryData
       .filter(
         (entry): entry is typeof entry & { class_id: string } => typeof entry.class_id === 'string'
       )
       .map(entry => [entry.id, entry.class_id])
   );
-  const entriesByClass = groupEntriesByClass(
-    (entryData ?? []).map(entry => mapPostgrestEntry(entry as Record<string, unknown>)),
-    classIdByEntryId
-  );
+  const entriesByClass = groupEntriesByClass(entryData.map(mapRpcEntry), classIdByEntryId);
 
   return {
     show: mapShow(showData),
@@ -156,7 +177,7 @@ export async function getPostgrestTVDisplayResults(
   if (classError || !classData || classData.length === 0) return [];
 
   const classIds = classData.map(c => c.id);
-  const entryCounts = await fetchTVEntryCounts(classIds);
+  const entryCounts = await fetchTVEntryCounts(showId, classIds);
   // INTENT: The TV display is a public surface. Read results through
   // view_public_entry_results so the result-visibility cascade is enforced by
   // the database — placements/times/quals for classes whose results have not

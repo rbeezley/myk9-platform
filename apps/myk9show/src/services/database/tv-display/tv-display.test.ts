@@ -31,6 +31,9 @@ const activeClassRows = [
   },
 ];
 
+// Shaped as `tv_board_entries` returns them: the dogs join happens server-side
+// inside the SECURITY DEFINER function, so the dog arrives flattened rather than
+// as a PostgREST embed (MYK9-65).
 const activeEntryRows = [
   {
     id: 'entry-next',
@@ -40,12 +43,9 @@ const activeEntryRows = [
     run_order: 2,
     is_in_ring: false,
     is_scored: false,
-    dogs: {
-      name: 'Luna Star',
-      call_name: 'Luna',
-
-      image_url: null,
-    },
+    dog_name: 'Luna Star',
+    dog_call_name: 'Luna',
+    dog_image_url: null,
   },
   {
     id: 'entry-ring',
@@ -55,12 +55,9 @@ const activeEntryRows = [
     run_order: 9,
     is_in_ring: true,
     is_scored: true,
-    dogs: {
-      name: 'Comet Dash',
-      call_name: 'Comet',
-
-      image_url: null,
-    },
+    dog_name: 'Comet Dash',
+    dog_call_name: 'Comet',
+    dog_image_url: null,
   },
 ];
 
@@ -110,44 +107,65 @@ const qualifiedRows = [
   { class_id: 'class-done', search_time_seconds: 40 },
 ];
 
-const COUNT_QUERY_FAILURE = {
-  count: null,
-  error: { message: 'permission denied for table entries' },
+const COUNT_RPC_FAILURE = {
+  data: null,
+  error: { message: 'permission denied for function tv_class_entry_counts' },
 };
 
 /**
- * `entries` is hit twice per board refresh: once for the running order, then
- * once per class as an exact head count. The fixtures deliberately keep a stale
- * `total_entries_count: 10` on the class row — a total that follows the count
- * rather than that column is the whole point of MYK9-65.
+ * The board reads entries through two SECURITY DEFINER RPCs, never through the
+ * `entries` table — that is the fix for MYK9-65, not an implementation detail.
+ * Read as a plain table the counts and the running order both run under the
+ * VIEWER's session, and `entries_select` is scoped to managed/handled/owned rows,
+ * so a signed-in exhibitor watching a public screen saw only their own dogs and a
+ * total of "3 / 2". Anything that routes these reads back through `from('entries')`
+ * reintroduces that, which is why the table-call assertions below are exact.
+ *
+ * The fixtures deliberately keep a stale `total_entries_count: 10` on the class
+ * row — a total that follows the count rather than that column is the original
+ * point of the issue.
  */
+function mockBoardRpcs(options: {
+  entryCount?: number;
+  countFails?: boolean;
+  entryRows?: typeof activeEntryRows;
+}) {
+  const { entryCount, countFails = false, entryRows = [] } = options;
+  mockSupabase.rpc.mockImplementation((name: string) => {
+    if (name === 'tv_board_entries') return Promise.resolve({ data: entryRows, error: null });
+    if (name === 'tv_class_entry_counts') {
+      if (countFails) return Promise.resolve(COUNT_RPC_FAILURE);
+      return Promise.resolve({
+        data:
+          entryCount === undefined
+            ? []
+            : [
+                { class_id: 'class-active', entry_count: entryCount },
+                { class_id: 'class-done', entry_count: entryCount },
+              ],
+        error: null,
+      });
+    }
+    return Promise.resolve({ data: null, error: null });
+  });
+}
+
 function mockActiveDisplayQueries(options: { entryCount?: number; countFails?: boolean } = {}) {
   const { entryCount = 4, countFails = false } = options;
-  let entriesCall = 0;
+  mockBoardRpcs({ entryCount, countFails, entryRows: activeEntryRows });
   mockSupabase.from.mockImplementation((table: string) => {
     if (table === 'shows') return createChainableQuery({ data: showRow, error: null });
     if (table === 'classes') return createChainableQuery({ data: activeClassRows, error: null });
-    if (table === 'entries') {
-      entriesCall += 1;
-      if (entriesCall === 1) return createChainableQuery({ data: activeEntryRows, error: null });
-      return createChainableQuery(
-        countFails ? COUNT_QUERY_FAILURE : { count: entryCount, error: null }
-      );
-    }
     return createChainableQuery();
   });
 }
 
 function mockCompletedResultQueries(options: { entryCount?: number; countFails?: boolean } = {}) {
   const { entryCount = 20, countFails = false } = options;
+  mockBoardRpcs({ entryCount, countFails });
   let resultsCall = 0;
   mockSupabase.from.mockImplementation((table: string) => {
     if (table === 'classes') return createChainableQuery({ data: completedClassRows, error: null });
-    if (table === 'entries') {
-      return createChainableQuery(
-        countFails ? COUNT_QUERY_FAILURE : { count: entryCount, error: null }
-      );
-    }
     // Results are read through the cascade-gated public view, not the raw table.
     if (table === 'view_public_entry_results') {
       resultsCall += 1;
@@ -171,11 +189,12 @@ describe('tv-display database reads', () => {
 
     const result = await getTVDisplayData('show-1');
 
-    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual([
-      'shows',
-      'classes',
-      'entries',
-      'entries',
+    // No `entries` table read: both entry reads go through the definer RPCs, so
+    // the board renders the same numbers for anon and signed-in viewers alike.
+    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual(['shows', 'classes']);
+    expect(mockSupabase.rpc.mock.calls).toEqual([
+      ['tv_board_entries', { p_show_id: 'show-1', p_class_ids: ['class-active'] }],
+      ['tv_class_entry_counts', { p_show_id: 'show-1' }],
     ]);
     expect(result.show).toEqual({
       id: 'show-1',
@@ -219,10 +238,12 @@ describe('tv-display database reads', () => {
 
     expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual([
       'classes',
-      'entries',
       'view_public_entry_results',
       'view_public_entry_results',
     ]);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('tv_class_entry_counts', {
+      p_show_id: 'show-1',
+    });
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       id: 'class-done',

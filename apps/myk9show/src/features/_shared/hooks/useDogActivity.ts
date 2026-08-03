@@ -1,4 +1,5 @@
 import { useEntriesByDogQuery } from '@/hooks/queries/useEntriesDatabase';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { deriveDogActivity, type DogActivityEntry } from '@/features/_shared/dogActivity';
 
 export interface UseDogActivityResult {
@@ -19,6 +20,22 @@ export interface UseDogActivityResult {
    * read is not evidence of an empty calendar, so it must not be drawn as one.
    */
   isError: boolean;
+  /**
+   * Whether an empty result may be presented as "nothing booked".
+   *
+   * `getEntriesByDog` guards the cold-replica case by re-reading online when the
+   * local replica comes back empty — but `readWithReplicationFallback`
+   * deliberately SWALLOWS that verification's failure and returns the original
+   * empty array with `error: null`. React Query therefore resolves successfully,
+   * `isError` stays false, and a dog whose shows simply have not synced is
+   * indistinguishable from a dog with nothing entered. Offline is exactly when
+   * that happens, so surfaces must render an unknown/offline state rather than
+   * the empty copy when this is false.
+   *
+   * Lives on the hook rather than in each surface so Overview and Career cannot
+   * apply the rule differently.
+   */
+  canTrustEmpty: boolean;
   /** Re-run the read — lets an error state offer retry without a page reload. */
   refetch: () => void;
 }
@@ -32,6 +49,7 @@ export interface UseDogActivityResult {
  */
 export function useDogActivity(dogId: string): UseDogActivityResult {
   const { data, isLoading, isError, refetch } = useEntriesByDogQuery(dogId);
+  const isOnline = useOnlineStatus();
 
   // Deliberately not memoised: `deriveDogActivity` defaults `today` to the
   // current date, so caching it across renders would freeze the
@@ -39,5 +57,5 @@ export function useDogActivity(dogId: string): UseDogActivityResult {
   const entries = (data ?? []).map(row => row as unknown as DogActivityEntry);
   const { upcoming, recentResults } = deriveDogActivity(entries);
 
-  return { upcoming, recentResults, isLoading, isError, refetch };
+  return { upcoming, recentResults, isLoading, isError, canTrustEmpty: isOnline, refetch };
 }

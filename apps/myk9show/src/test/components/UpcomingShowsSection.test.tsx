@@ -200,6 +200,38 @@ describe('UpcomingShowsSection', () => {
       expect(screen.getByText("Couldn't load upcoming shows")).toBeInTheDocument();
     });
 
+    // `getEntriesByDog` verifies an empty local replica online, but
+    // read-shape.ts SWALLOWS that verification's failure and returns the empty
+    // array with `error: null` — so offline, `isError` is false and an unsynced
+    // dog looks exactly like an unentered one.
+    it('says it cannot check while offline instead of asserting an empty calendar', () => {
+      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        render(<UpcomingShowsSection {...defaultProps} />);
+
+        expect(screen.queryByText('No Upcoming Shows')).not.toBeInTheDocument();
+        expect(screen.getByText("Can't check for upcoming shows offline")).toBeInTheDocument();
+      } finally {
+        onLine.mockRestore();
+      }
+    });
+
+    it('still lists entries it did load while offline', () => {
+      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        useEntriesByDogQueryMock.mockReturnValue(resolved([entryRow()]));
+
+        render(<UpcomingShowsSection {...defaultProps} />);
+
+        expect(screen.getByText('Heartland Scent Work Classic')).toBeInTheDocument();
+        expect(
+          screen.queryByText("Can't check for upcoming shows offline")
+        ).not.toBeInTheDocument();
+      } finally {
+        onLine.mockRestore();
+      }
+    });
+
     it('retries through the canonical query rather than reloading the page', async () => {
       const refetch = vi.fn();
       useEntriesByDogQueryMock.mockReturnValue({
@@ -245,6 +277,28 @@ describe('UpcomingShowsSection', () => {
       expect(screen.getByText('Spring Classic')).toBeInTheDocument();
       expect(screen.getByText('Austin, TX')).toBeInTheDocument();
       expect(screen.queryByText('Another Dogs Show')).not.toBeInTheDocument();
+    });
+
+    // Rows saved before dog stamping have a blank dogId. Scoping must not
+    // strand them on no page at all.
+    it('keeps unassigned legacy external shows visible', () => {
+      useCompetitionStore.setState({
+        competitions: [
+          {
+            id: '3',
+            name: 'Legacy Unassigned Show',
+            date: '2026-07-01',
+            location: 'Tulsa, OK',
+            status: 'Upcoming',
+            dogId: '',
+          },
+        ],
+      });
+
+      render(<UpcomingShowsSection {...defaultProps} />);
+
+      expect(screen.getByText('Legacy Unassigned Show')).toBeInTheDocument();
+      expect(screen.queryByText('No Upcoming Shows')).not.toBeInTheDocument();
     });
 
     it('still shows the empty state when every external show belongs to another dog', () => {

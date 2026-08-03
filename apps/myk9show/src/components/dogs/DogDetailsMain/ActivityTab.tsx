@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Calendar, CheckCircle2, XCircle, Clock, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -135,7 +135,7 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
 }
 
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
-  const { upcoming, recentResults, isLoading } = useDogActivity(dogId);
+  const { upcoming, recentResults, isLoading, canTrustEmpty } = useDogActivity(dogId);
 
   if (isLoading) {
     return (
@@ -170,7 +170,16 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {upcoming.length === 0 ? (
+          {upcoming.length === 0 && !canTrustEmpty ? (
+            // Offline, an unsynced dog and an unentered dog both read as empty
+            // (see `canTrustEmpty`). Career applies the same rule.
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <WifiOff className="h-8 w-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">
+                You're offline, so {dogName}'s entries may not have loaded.
+              </p>
+            </div>
+          ) : upcoming.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <Clock className="h-8 w-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">No upcoming entries for {dogName}</p>

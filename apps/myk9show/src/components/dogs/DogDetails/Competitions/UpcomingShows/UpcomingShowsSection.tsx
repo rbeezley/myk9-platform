@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, Calendar } from 'lucide-react';
+import { AlertTriangle, Calendar, WifiOff } from 'lucide-react';
 import SectionCard from '@/components/common/SectionCard';
 import { EmptyState } from '@/components/common/EmptyState';
 import AddExternalShowDialog from './AddExternalShowDialog';
@@ -39,7 +39,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
   // Platform entries — the same canonical dog-scoped query the Overview
   // activity card composes, so the two surfaces cannot disagree about what
   // this dog is entered in (MYK9-121).
-  const { upcoming, isLoading, isError, refetch } = useDogActivity(dogId);
+  const { upcoming, isLoading, isError, canTrustEmpty, refetch } = useDogActivity(dogId);
 
   // Externally-tracked shows the owner typed in by hand. Dog-scoped: the store
   // is one flat list across every dog, so without this filter another dog's
@@ -48,8 +48,13 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
   const addCompetition = useCompetitionStore(state => state.addCompetition);
   const editCompetition = useCompetitionStore(state => state.editCompetition);
   const deleteCompetition = useCompetitionStore(state => state.deleteCompetition);
+  // Rows saved before dog stamping carry a blank `dogId` — the dialog's default
+  // is '' and the old save path never filled it in. They belong to no dog, so
+  // there is no page to file them under; hiding them everywhere would silently
+  // strand data the user typed. They surface on every dog page until an edit
+  // claims one (handleSave stamps the current dog), which is the migration path.
   const externalShows = React.useMemo(
-    () => competitions.filter(comp => comp.dogId === dogId),
+    () => competitions.filter(comp => comp.dogId === dogId || !comp.dogId),
     [competitions, dogId]
   );
 
@@ -138,6 +143,23 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
           description="We couldn't reach your entries just now, so this list may be incomplete. Check your connection and try again."
           action={{
             label: 'Retry',
+            onClick: () => refetch(),
+          }}
+          size="sm"
+        />
+      );
+    }
+
+    // Offline, an unsynced dog and an unentered dog produce the same empty
+    // array — see `canTrustEmpty`. Say so rather than assert a clear calendar.
+    if (!hasContent && !canTrustEmpty) {
+      return (
+        <EmptyState
+          icon={WifiOff}
+          title="Can't check for upcoming shows offline"
+          description="You're offline, so this dog's entries may not have loaded. Reconnect to see the full list."
+          action={{
+            label: 'Try again',
             onClick: () => refetch(),
           }}
           size="sm"

@@ -64,17 +64,28 @@ export async function fetchEntryCountsByClassIds(
  * echo back a caller-supplied id list — so they are filled in as 0 here, keeping
  * the "every requested id is present" contract callers already rely on.
  */
+export interface PublicClassCounts {
+  /** Entries the show still expects to run — the board's denominator. */
+  total: number;
+  /** How many of those have been scored — the board's numerator. */
+  scored: number;
+}
+
 export async function fetchPublicEntryCountsByShow(
   showId: string,
   classIds: readonly string[],
   operation: string
-): Promise<Map<string, number>> {
+): Promise<Map<string, PublicClassCounts>> {
   const { data, error } = await supabase.rpc('tv_class_entry_counts', {
     p_show_id: showId,
   });
 
   if (error) throw createDatabaseError(error, 'entry', operation);
 
-  const counted = new Map((data ?? []).map(row => [row.class_id, row.entry_count]));
-  return new Map(classIds.map(classId => [classId, counted.get(classId) ?? 0]));
+  const counted = new Map(
+    (data ?? []).map(row => [row.class_id, { total: row.entry_count, scored: row.scored_count }])
+  );
+  return new Map(
+    classIds.map(classId => [classId, counted.get(classId) ?? { total: 0, scored: 0 }])
+  );
 }

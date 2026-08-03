@@ -12070,6 +12070,7 @@ export type Database = {
         Returns: {
           class_id: string
           entry_count: number
+          scored_count: number
         }[]
       }
       update_entry_handler: {

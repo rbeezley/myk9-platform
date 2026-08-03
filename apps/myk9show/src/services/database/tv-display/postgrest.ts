@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-import { fetchPublicEntryCountsByShow } from '../_shared/entryCounts';
+import { fetchPublicEntryCountsByShow, type PublicClassCounts } from '../_shared/entryCounts';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import {
   groupEntriesByClass,
@@ -30,7 +30,7 @@ import type {
 async function fetchTVEntryCounts(
   showId: string,
   classIds: readonly string[]
-): Promise<Map<string, number> | null> {
+): Promise<Map<string, PublicClassCounts> | null> {
   try {
     return await fetchPublicEntryCountsByShow(showId, classIds, 'select_tv_entry_counts');
   } catch {
@@ -149,8 +149,12 @@ export async function getPostgrestTVDisplayData(
         level: c.level,
         status: c.status,
         judgeName: firstJudge ? `${firstJudge.first_name} ${firstJudge.last_name}`.trim() : null,
-        totalEntries: entryCounts?.get(c.id) ?? null,
-        scoredCount: c.scored_count,
+        totalEntries: entryCounts?.get(c.id)?.total ?? null,
+        // Numerator and denominator come from the same RPC row, so the board
+        // cannot render an impossible ratio. classes.scored_count is only the
+        // fallback when the RPC is unreachable — and the card suppresses the
+        // whole counter in that case, because totalEntries is null (MYK9-65).
+        scoredCount: entryCounts?.get(c.id)?.scored ?? c.scored_count,
         startTime: c.start_time,
         trialDate: trial?.trial_date ?? null,
         trialNumber: toNullableNumber(trial?.trial_number),
@@ -269,7 +273,7 @@ export async function getPostgrestTVDisplayResults(
       element: c.element,
       level: c.level,
       judgeName: firstJudge ? `${firstJudge.first_name} ${firstJudge.last_name}`.trim() : null,
-      totalEntries: entryCounts?.get(c.id) ?? null,
+      totalEntries: entryCounts?.get(c.id)?.total ?? null,
       qualifiedCount: stats?.count ?? 0,
       fastestTime: stats?.fastest ?? null,
       placements: placementsByClass.get(c.id) ?? [],

@@ -127,10 +127,11 @@ const COUNT_RPC_FAILURE = {
  */
 function mockBoardRpcs(options: {
   entryCount?: number;
+  scoredCount?: number;
   countFails?: boolean;
   entryRows?: typeof activeEntryRows;
 }) {
-  const { entryCount, countFails = false, entryRows = [] } = options;
+  const { entryCount, scoredCount = 2, countFails = false, entryRows = [] } = options;
   mockSupabase.rpc.mockImplementation((name: string) => {
     if (name === 'tv_board_entries') return Promise.resolve({ data: entryRows, error: null });
     if (name === 'tv_class_entry_counts') {
@@ -140,8 +141,8 @@ function mockBoardRpcs(options: {
           entryCount === undefined
             ? []
             : [
-                { class_id: 'class-active', entry_count: entryCount },
-                { class_id: 'class-done', entry_count: entryCount },
+                { class_id: 'class-active', entry_count: entryCount, scored_count: scoredCount },
+                { class_id: 'class-done', entry_count: entryCount, scored_count: scoredCount },
               ],
         error: null,
       });
@@ -150,9 +151,11 @@ function mockBoardRpcs(options: {
   });
 }
 
-function mockActiveDisplayQueries(options: { entryCount?: number; countFails?: boolean } = {}) {
-  const { entryCount = 4, countFails = false } = options;
-  mockBoardRpcs({ entryCount, countFails, entryRows: activeEntryRows });
+function mockActiveDisplayQueries(
+  options: { entryCount?: number; scoredCount?: number; countFails?: boolean } = {}
+) {
+  const { entryCount = 4, scoredCount = 2, countFails = false } = options;
+  mockBoardRpcs({ entryCount, scoredCount, countFails, entryRows: activeEntryRows });
   mockSupabase.from.mockImplementation((table: string) => {
     if (table === 'shows') return createChainableQuery({ data: showRow, error: null });
     if (table === 'classes') return createChainableQuery({ data: activeClassRows, error: null });
@@ -209,7 +212,11 @@ describe('tv-display database reads', () => {
       judgeName: 'John Smith',
       // Counted entry rows (4), NOT the class row's stale total_entries_count (10).
       totalEntries: 4,
-      scoredCount: 3,
+      // From the SAME RPC row as the total (2), NOT the class row's
+      // scored_count (3). classes.scored_count is maintained without the
+      // "expected to run" predicate, so mixing it with the filtered total can
+      // render an impossible ratio like "3 / 2" (MYK9-65).
+      scoredCount: 2,
       trialDate: '2026-04-01',
       trialNumber: 1,
     });
@@ -279,7 +286,7 @@ describe('tv-display database reads', () => {
 
     it('reports a scored class with a zero snapshot at its true entry total', async () => {
       // The exact reproduction: 3 scored, snapshot 0 — the board must not say "3 / 0".
-      mockActiveDisplayQueries({ entryCount: 8 });
+      mockActiveDisplayQueries({ entryCount: 8, scoredCount: 3 });
 
       const result = await getTVDisplayData('show-1');
 

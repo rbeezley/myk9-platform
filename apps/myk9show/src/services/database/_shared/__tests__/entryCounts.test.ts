@@ -108,11 +108,16 @@ describe('fetchPublicEntryCountsByShow', () => {
   // cannot vary with who is looking. Reading `entries` directly is what let a
   // signed-in exhibitor see "3 / 2" on a public board (MYK9-65).
   it('reads the show-scoped RPC and never touches the entries table', async () => {
-    mockCountRpc({ data: [{ class_id: 'class-a', entry_count: 66 }], error: null });
+    mockCountRpc({
+      data: [{ class_id: 'class-a', entry_count: 66, scored_count: 4 }],
+      error: null,
+    });
 
     const counts = await fetchPublicEntryCountsByShow('show-1', ['class-a'], 'op');
 
-    expect(counts.get('class-a')).toBe(66);
+    // Numerator and denominator arrive together, from one row of one query, so
+    // the board cannot render a scored count larger than its total (MYK9-65).
+    expect(counts.get('class-a')).toEqual({ total: 66, scored: 4 });
     expect(mockSupabase.rpc).toHaveBeenCalledWith('tv_class_entry_counts', {
       p_show_id: 'show-1',
     });
@@ -125,13 +130,16 @@ describe('fetchPublicEntryCountsByShow', () => {
   // would render as "unavailable" and hide the counter on a perfectly healthy
   // empty class.
   it('fills classes the RPC omitted with zero', async () => {
-    mockCountRpc({ data: [{ class_id: 'class-a', entry_count: 4 }], error: null });
+    mockCountRpc({
+      data: [{ class_id: 'class-a', entry_count: 4, scored_count: 1 }],
+      error: null,
+    });
 
     const counts = await fetchPublicEntryCountsByShow('show-1', ['class-a', 'empty-class'], 'op');
 
     expect([...counts.entries()]).toEqual([
-      ['class-a', 4],
-      ['empty-class', 0],
+      ['class-a', { total: 4, scored: 1 }],
+      ['empty-class', { total: 0, scored: 0 }],
     ]);
   });
 
@@ -140,8 +148,8 @@ describe('fetchPublicEntryCountsByShow', () => {
   it('returns only the requested class ids', async () => {
     mockCountRpc({
       data: [
-        { class_id: 'class-a', entry_count: 4 },
-        { class_id: 'other-trial-class', entry_count: 99 },
+        { class_id: 'class-a', entry_count: 4, scored_count: 0 },
+        { class_id: 'other-trial-class', entry_count: 99, scored_count: 9 },
       ],
       error: null,
     });

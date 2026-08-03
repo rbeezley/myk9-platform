@@ -12,6 +12,11 @@ type FixtureUser = {
   authUserId?: string;
   accessToken?: string;
 };
+type RingsideEntrySnapshot = {
+  run_order: number | null;
+  version: number;
+  show_id: string;
+};
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,6 +32,9 @@ const showId = randomUUID();
 const assignmentId = randomUUID();
 const enrollmentId = randomUUID();
 const handlerId = randomUUID();
+const demoShowId = 'dededede-0000-0000-0000-000000000010';
+const demoClubId = 'dededede-0000-0000-0000-000000000001';
+const demoRingsideEntryId = 'dededede-0000-0000-0000-000000000060';
 const users: Record<'steward' | 'secretary' | 'clubAdmin' | 'siteAdmin', FixtureUser> = {
   steward: fixtureUser('steward'),
   secretary: fixtureUser('secretary'),
@@ -227,6 +235,86 @@ async function expectStewardDenials(): Promise<void> {
     'steward changed enrollment'
   );
 }
+function assertRpcVersion(response: ApiResponse, label: string): number {
+  assertStatus(response, [200], label);
+  assert(typeof response.body === 'number', `${label}: response did not include a version`);
+  return response.body;
+}
+async function expectStewardRingsideReplay(): Promise<void> {
+  const initial = await getRow<RingsideEntrySnapshot>(
+    'entries',
+    demoRingsideEntryId,
+    'run_order,version,show_id'
+  );
+  assert(initial, 'steward ringside fixture entry is missing');
+  assert(initial.show_id === demoShowId, 'steward ringside fixture points at the wrong show');
+
+  const originalRunOrder = initial.run_order;
+  const probeRunOrder = (originalRunOrder ?? 0) + 1000;
+  const token = users.steward.accessToken ?? anonKey;
+  let currentVersion = initial.version;
+  let restored = false;
+
+  try {
+    const update = await userRest(
+      '/rpc/ringside_update_entry',
+      token,
+      jsonInit(
+        'POST',
+        {
+          p_entry_id: demoRingsideEntryId,
+          p_fields: { run_order: probeRunOrder },
+          p_expected_version: initial.version,
+        },
+        anonKey
+      )
+    );
+    currentVersion = assertRpcVersion(update, 'steward ringside update');
+    assert(currentVersion > initial.version, 'steward ringside update did not advance version');
+
+    const persisted = await getRow<RingsideEntrySnapshot>(
+      'entries',
+      demoRingsideEntryId,
+      'run_order,version,show_id'
+    );
+    assert(persisted?.run_order === probeRunOrder, 'steward ringside update did not persist');
+    assert(persisted.version === currentVersion, 'steward ringside version was not persisted');
+
+    const restore = await userRest(
+      '/rpc/ringside_update_entry',
+      token,
+      jsonInit(
+        'POST',
+        {
+          p_entry_id: demoRingsideEntryId,
+          p_fields: { run_order: originalRunOrder },
+          p_expected_version: currentVersion,
+        },
+        anonKey
+      )
+    );
+    currentVersion = assertRpcVersion(restore, 'steward ringside restore');
+    const restoredRow = await getRow<RingsideEntrySnapshot>(
+      'entries',
+      demoRingsideEntryId,
+      'run_order,version,show_id'
+    );
+    assert(restoredRow?.run_order === originalRunOrder, 'steward ringside restore failed');
+    assert(
+      restoredRow.version === currentVersion,
+      'steward ringside restore version was not persisted'
+    );
+    restored = true;
+  } finally {
+    if (!restored) {
+      const rollback = await rest(
+        `/entries?id=eq.${demoRingsideEntryId}`,
+        jsonInit('PATCH', { run_order: originalRunOrder }, serviceRoleKey, 'return=minimal')
+      );
+      assertStatus(rollback, [204], 'steward ringside emergency restore');
+    }
+  }
+}
 async function expectManagerPositives(): Promise<void> {
   for (const [label, user] of Object.entries(users)) {
     if (label === 'steward') continue;
@@ -408,6 +496,14 @@ async function main(): Promise<void> {
               auth_user_id: users.steward.authUserId,
             },
             {
+              user_id: users.steward.personId,
+              role_id: roleIds.get('steward'),
+              club_id: demoClubId,
+              show_id: demoShowId,
+              is_active: true,
+              auth_user_id: users.steward.authUserId,
+            },
+            {
               user_id: users.secretary.personId,
               role_id: roleIds.get('secretary'),
               club_id: clubId,
@@ -486,8 +582,11 @@ async function main(): Promise<void> {
     assert((await callHelper(users.siteAdmin)) === true, 'site-admin helper denied');
 
     await expectStewardDenials();
+    await expectStewardRingsideReplay();
     await expectManagerPositives();
-    console.log('PASS MYK9-147 applied PostgREST steward denials and office-manager positives');
+    console.log(
+      'PASS MYK9-147 applied steward ringside RPC, PostgREST denials, and office-manager positives'
+    );
   } finally {
     await cleanup();
   }

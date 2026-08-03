@@ -9,14 +9,34 @@ export interface ResultsReadinessSummary {
 }
 
 /**
+ * `entries.result_status` values that mean the entry is settled.
+ *
+ * The column is `DEFAULT 'pending'` with
+ * `CHECK (result_status IN ('pending','qualified','nq','absent','excused','withdrawn'))`,
+ * so a merely non-empty `result_status` proves nothing — every untouched entry
+ * carries `'pending'`. Only these terminal values resolve an entry.
+ *
+ * This is an allowlist on purpose: an unrecognised value leaves the entry
+ * counted as outstanding, which blocks closeout visibly. A denylist would let a
+ * status added later silently report a show as ready to send.
+ */
+const TERMINAL_RESULT_STATUSES = new Set(['qualified', 'nq', 'absent', 'excused', 'withdrawn']);
+
+/**
  * Scoring facts as the replication mapper produces them.
  *
  * This is the only check that fires for real show data. `is_scored` is set by
- * scoring; `result_status` covers entries resolved without a score (absent,
- * excused, withdrawn), which are equally "not outstanding" for closeout.
+ * scoring; the terminal statuses cover entries resolved without a score
+ * (absent, excused, withdrawn), which are equally "not outstanding".
  */
 function hasReplicatedResult(entry: SyncableEntryData): boolean {
-  return entry.isScored === true || String(entry.resultStatus ?? '').trim() !== '';
+  if (entry.isScored === true) return true;
+
+  return TERMINAL_RESULT_STATUSES.has(
+    String(entry.resultStatus ?? '')
+      .trim()
+      .toLowerCase()
+  );
 }
 
 /**

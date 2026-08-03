@@ -31,6 +31,13 @@ const scoredRow = {
   total_score: 100,
 };
 
+/**
+ * `entries.result_status` is `DEFAULT 'pending'`, so an untouched entry is NOT
+ * absent this column — it carries a non-empty value that means "no result yet".
+ * Modelling that default is the whole point of this fixture: omitting it is how
+ * a readiness check that merely tests `result_status !== ''` passes review and
+ * still reports every show as ready to send.
+ */
 const unscoredRow = {
   id: 'entry-unscored',
   class_id: 'class-1',
@@ -38,6 +45,7 @@ const unscoredRow = {
   handler: 'Handler',
   entry_status: 'confirmed',
   is_scored: false,
+  result_status: 'pending',
 };
 
 const synced = {
@@ -132,7 +140,31 @@ describe('buildResultsReadinessSummary', () => {
       });
     });
 
-    it('treats result_status alone as a result even when is_scored is unset', () => {
+    it("does not treat the 'pending' result_status default as a result", () => {
+      // entries.result_status is DEFAULT 'pending'. Accepting any non-empty
+      // value here would mark every untouched entry as settled and report the
+      // show safe to send — an inversion worse than the original bug, because
+      // "0 unscored" is plausible where "514 unscored" was visibly wrong.
+      const summary = buildResultsReadinessSummary(
+        [cls({ results_released_at: '2026-08-01T20:00:00Z' })],
+        [storeEntryFromRow(unscoredRow)]
+      );
+
+      expect(summary.unscoredEntries).toBe(1);
+      expect(summary.safeToSend).toBe(false);
+    });
+
+    it('leaves an unrecognised result_status counted as outstanding', () => {
+      const odd = storeEntryFromRow({
+        ...unscoredRow,
+        id: 'entry-odd',
+        result_status: 'some-future-status',
+      });
+
+      expect(buildResultsReadinessSummary([cls()], [odd]).unscoredEntries).toBe(1);
+    });
+
+    it('treats a terminal result_status as a result even when is_scored is unset', () => {
       const absent = storeEntryFromRow({
         id: 'entry-absent',
         class_id: 'class-1',

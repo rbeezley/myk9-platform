@@ -141,7 +141,18 @@ function setupListMocks(
 
 describe('trialQueries (replication)', () => {
   beforeEach(() => {
+    // `vi.clearAllMocks()` clears call history but NOT implementations installed
+    // with mockResolvedValue/mockImplementation, so without the line below each
+    // test inherits whatever the previous one happened to install. Nine tests
+    // here never called `setupListMocks` and were relying on that inheritance.
+    //
+    // CI runs vitest with `--sequence.shuffle` and shards the files three ways,
+    // so the order that exposes this never occurs in a local run: the suite
+    // passes 15k tests locally and fails one shard in CI with no code to blame.
+    // Establishing the baseline here makes every test order-independent; tests
+    // that want something else still override it immediately afterwards.
     vi.clearAllMocks();
+    setupListMocks();
   });
 
   // -----------------------------------------------------------------------
@@ -679,6 +690,17 @@ describe('trialQueries (replication)', () => {
           totalEntriesCount: 12,
         }),
       ]);
+      // getTrialTimelineRows picks its counting path from `trial?.showId`: with
+      // one it counts through getEntriesByShow, without one through
+      // getEntriesByClass. This test used to mock only getEntriesByClass and
+      // never getTrialById, so WHICH path ran depended on what the previous test
+      // left installed — `vi.clearAllMocks()` does not reset implementations.
+      // Under `--sequence.shuffle` that surfaced as a 1-vs-2 count in CI and
+      // never locally. Pin the trial, and mock both readers, so the assertion is
+      // about the count and not about test ordering.
+      // The final assertion below pins the per-class reader, so pin the branch
+      // that reaches it: a trial absent from the replica yields no showId.
+      mockTrialsTable.getTrialById.mockResolvedValue(null);
       mockEntriesTable.getEntriesByClass.mockResolvedValue([
         makeEntry({ id: 'entry-1', classId: 'class-1' }),
         makeEntry({ id: 'entry-2', classId: 'class-1' }),

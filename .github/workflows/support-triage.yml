@@ -31,7 +31,7 @@ jobs:
       # State is an optimisation only — a cache miss causes redundant draft emails,
       # never a duplicate reply to an exhibitor (the send path re-reads the thread).
       - name: Restore triage state
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .support-triage
           key: support-triage-state-${{ github.run_id }}

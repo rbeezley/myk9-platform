@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import webpush from 'npm:web-push@3';
 
+import { assertAudienceQuerySucceeded } from '../_shared/fanoutErrors.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
@@ -21,6 +22,18 @@ interface WebhookPayload {
   type?: 'INSERT';
   table?: string;
   record: ChatMessageRecord;
+}
+
+interface RecipientRoleRow {
+  people?: { auth_user_id?: string | null } | null;
+}
+
+interface PushSubscriptionRow {
+  id: string;
+  endpoint: string;
+  p256dh?: string | null;
+  auth?: string | null;
+  user_id?: string | null;
 }
 
 handle<WebhookPayload>(
@@ -77,12 +90,13 @@ handle<WebhookPayload>(
             .not('people.auth_user_id', 'is', null)
         );
 
-        if (secretariesError || adminsError) {
-          throw new HttpError(500, 'Audience resolution failed');
-        }
+        assertAudienceQuerySucceeded(secretariesError);
+        assertAudienceQuerySucceeded(adminsError);
 
         const allRecipients = [...(secretaries || []), ...(admins || [])];
-        const authIds = allRecipients.map((r: any) => r.people?.auth_user_id).filter(Boolean);
+        const authIds = (allRecipients as RecipientRoleRow[])
+          .map(recipient => recipient.people?.auth_user_id)
+          .filter((authUserId): authUserId is string => Boolean(authUserId));
         recipientUserIds = [...new Set(authIds)];
       }
     } else {
@@ -110,17 +124,15 @@ handle<WebhookPayload>(
       : 'Someone';
 
     // Fetch push subscriptions in chunks
-    const allSubscriptions: any[] = [];
+    const allSubscriptions: PushSubscriptionRow[] = [];
     for (let i = 0; i < recipientUserIds.length; i += CHUNK_SIZE) {
       const chunk = recipientUserIds.slice(i, i + CHUNK_SIZE);
       const { data: subs, error: subscriptionsError } = await supabase
         .from('push_subscriptions')
         .select('id, user_id, endpoint, p256dh, auth')
         .in('user_id', chunk);
-      if (subscriptionsError) {
-        throw new HttpError(500, 'Audience resolution failed');
-      }
-      if (subs) allSubscriptions.push(...subs);
+      assertAudienceQuerySucceeded(subscriptionsError);
+      if (subs) allSubscriptions.push(...(subs as PushSubscriptionRow[]));
     }
 
     if (allSubscriptions.length === 0) {
@@ -161,8 +173,9 @@ handle<WebhookPayload>(
             pushPayload
           );
           sentCount++;
-        } catch (err: any) {
-          if (err.statusCode === 410 || err.statusCode === 404) {
+        } catch (err: unknown) {
+          const statusCode = (err as { statusCode?: number }).statusCode;
+          if (statusCode === 410 || statusCode === 404) {
             expiredEndpointIds.push(sub.id);
           }
         }

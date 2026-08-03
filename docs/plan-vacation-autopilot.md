@@ -223,12 +223,17 @@ here — untested, and dependent on the model choosing to skip — but if it fai
 is an OOM kill, which is the *same* total loss; do-nothing simply does not add a second
 independent path to it.
 
-**Chosen mitigation instead: trim unused plugins.** It is the only lever that reduces
-memory without adding machinery that can break — it shrinks each leaked helper rather
-than introducing a new mechanism. Removed for the vacation window: `stripe`, `playground`,
-`skill-creator`, `frontend-design`, `mobbin`, `magic`, `claude-mem`, `context-mode`.
-Retained because the runner depends on them: `linear` (queue, log, kill switch), `codex`
-(review gate), `superpowers` (process skills), `supabase` (read-only verification).
+**Plugin trim: attempted, and it turned out to be a non-lever.** The intent was to shrink
+each leaked helper without adding machinery that could break. In practice nothing was
+changed, because `claude plugin disable` reports every candidate as already disabled at
+user scope — including `linear`, `codex` and `superpowers`, which were demonstrably in
+use at that moment. The CLI's view does not reflect what the desktop app has loaded, so
+the enabled set could not be established and no saving could be verified. Trimming would
+have to be done in the desktop app's plugin UI, and its benefit is unquantified.
+
+This does not change the plan. The trim was insurance on top of an already-accepted risk,
+not a dependency. The live defenses remain: the 15%-free memory guard, the memory line in
+every log comment, and `STOP` from the phone if the trend degrades.
  A nightly launchd restart was considered and
 rejected as unnecessary complexity for a rate this low — the crash-only design would have
 made it safe, but the arithmetic does not require it. The defenses are:

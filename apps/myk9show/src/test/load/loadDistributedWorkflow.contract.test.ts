@@ -8,13 +8,13 @@ describe('manual distributed load workflow', () => {
     'utf8'
   );
 
-  it('is manual-only and fans out exactly four free runner shards', () => {
+  it('is manual-only and fans out exactly eight free runner shards', () => {
     expect(workflow).toContain('workflow_dispatch:');
     expect(workflow).not.toMatch(/\b(schedule|push|pull_request):/);
     expect(workflow).toContain('runs-on: ubuntu-latest');
-    expect(workflow).toMatch(/shard:\s*\[0,\s*1,\s*2,\s*3\]/);
-    expect(workflow).toMatch(/LOAD_TEST_SHARD_COUNT:\s*['"]?4['"]?/);
-    expect(workflow).toContain('Run synchronized 25-session shard with generator telemetry');
+    expect(workflow).toMatch(/shard:\s*\[0,\s*1,\s*2,\s*3,\s*4,\s*5,\s*6,\s*7\]/);
+    expect(workflow).toMatch(/LOAD_TEST_SHARD_COUNT:\s*['"]?8['"]?/);
+    expect(workflow).toContain('Run synchronized 12/13-session shard with generator telemetry');
   });
 
   it('fails closed on target confirmation and always restores the canonical seed', () => {
@@ -32,6 +32,23 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('514|504|0');
     expect(workflow).toContain(
       "has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer)', 'EXECUTE')"
+    );
+    expect(workflow).toContain('Abort and drain in-flight scoring work');
+    expect(workflow).toContain('scripts/load-cleanup.ts');
+    expect(workflow).toContain('Verify Supabase CPU/IO telemetry source');
+    expect(workflow).toContain('Mark rehearsal ownership window');
+    expect(workflow).toContain('clock_timestamp()');
+    expect(workflow).toContain('LOAD_TEST_OWNED_SINCE_US');
+    expect(workflow).toContain('${{ env.LOAD_TEST_PROJECT_REF }}');
+    expect(workflow).toContain('${{ env.LOAD_TEST_DB_HOST }}');
+    expect(workflow.indexOf('Abort and drain in-flight scoring work')).toBeLessThan(
+      workflow.indexOf('Restore canonical seed')
+    );
+    expect(workflow.indexOf('Mark rehearsal ownership window')).toBeLessThan(
+      workflow.indexOf('Mark canonical restoration required')
+    );
+    expect(workflow.indexOf('Verify Supabase CPU/IO telemetry source')).toBeLessThan(
+      workflow.indexOf('Canonical reseed')
     );
   });
 

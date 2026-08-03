@@ -1,6 +1,6 @@
 import type { LoadSessionAssignment } from './loadAssignments';
 
-export const DISTRIBUTED_G9_SHARD_COUNT = 4;
+export const DISTRIBUTED_G9_SHARD_COUNT = 8;
 const MAX_START_LATENESS_MS = 5_000;
 const SHARD_ENV_KEYS = [
   'LOAD_TEST_SHARD_COUNT',

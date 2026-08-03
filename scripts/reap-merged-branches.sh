@@ -12,10 +12,19 @@
 #   scripts/reap-merged-branches.sh            # dry run, prints what it would do
 #   scripts/reap-merged-branches.sh --apply    # actually delete
 #
-# A branch is deleted ONLY if it is not the main branch, not checked out in any
+# A branch is deleted ONLY if it is not protected, not checked out in any
 # worktree, not an open-PR head, and satisfies at least one of:
-#   (a) its name matches the headRefName of a MERGED pull request, or
+#   (a) a MERGED PR used this branch as its head AND the local tip still equals
+#       that PR's headRefOid, or
 #   (b) its tip is an ancestor of origin/<main>.
+#
+# Proof (a) compares SHAs, not names. Branch names here are template-generated
+# (claude/vacation-myk9-<n>-a1, codex/nightly-qa-<date>) and humans re-create
+# branches after a merge, so a name-only match would call a reused name
+# "merged" while its tip carried new commits — deleting unmerged work while
+# reporting proof. The tip check is what makes the signal trustworthy, and
+# querying per-branch also avoids a global --limit ceiling silently hiding
+# older merged PRs.
 #
 # Commit-subject matching is deliberately NOT a signal. PRs here squash-merge,
 # so a merged branch's individual subjects never appear in main, and a
@@ -40,25 +49,26 @@ cd "$REPO"
 
 git fetch --prune origin --quiet
 
+# Never delete these, whatever the proofs say. staging-release and
+# guides-release are protected deployment refs that Vercel branch-tracking
+# follows (docs/operations/ci-vercel-deploys.md); they point at an older
+# validated SHA on purpose, so they always satisfy the ancestor proof.
+PROTECTED_BRANCHES="${PROTECTED_BRANCHES:-$MAIN_BRANCH
+staging-release
+guides-release}"
+
 # Branches a worktree has checked out. git refuses to delete these anyway;
 # listing them keeps the report honest instead of noisy with failures.
 worktree_branches="$(git worktree list --porcelain |
   sed -n 's|^branch refs/heads/||p' | sort -u)"
 
-# Merged and open PR heads. If gh is missing or fails we fall back to ancestry
-# alone, which is strictly safer (fewer deletions), never less safe.
-merged_heads=""
-open_heads=""
-if command -v gh >/dev/null 2>&1 &&
-  merged_heads="$(gh pr list --state merged --limit 1000 \
-    --json headRefName --jq '.[].headRefName' 2>/dev/null | sort -u)" &&
-  open_heads="$(gh pr list --state open --limit 1000 \
-    --json headRefName --jq '.[].headRefName' 2>/dev/null | sort -u)"; then
-  :
+# gh is queried per branch below, so there is no global --limit to outgrow.
+# Without gh we fall back to ancestry alone, which deletes strictly less.
+HAVE_GH=0
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  HAVE_GH=1
 else
-  echo "warn: gh unavailable or failed; using ancestry proof only" >&2
-  merged_heads=""
-  open_heads=""
+  echo "warn: gh unavailable; using ancestry proof only" >&2
 fi
 
 in_list() { printf '%s\n' "$2" | grep -Fxq -- "$1"; }
@@ -68,7 +78,12 @@ kept=0
 
 while IFS= read -r br; do
   [ -z "$br" ] && continue
-  [ "$br" = "$MAIN_BRANCH" ] && continue
+
+  if in_list "$br" "$PROTECTED_BRANCHES"; then
+    echo "keep  $br (protected branch)"
+    kept=$((kept + 1))
+    continue
+  fi
 
   if in_list "$br" "$worktree_branches"; then
     echo "keep  $br (checked out in a worktree)"
@@ -76,16 +91,32 @@ while IFS= read -r br; do
     continue
   fi
 
-  if [ -n "$open_heads" ] && in_list "$br" "$open_heads"; then
-    echo "keep  $br (open PR head)"
-    kept=$((kept + 1))
-    continue
+  tip="$(git rev-parse "$br")"
+  proof=""
+
+  if [ "$HAVE_GH" = "1" ]; then
+    # One lookup per branch: every PR that ever used this name as its head.
+    prs="$(gh pr list --head "$br" --state all --limit 100 \
+      --json state,headRefOid,number 2>/dev/null || echo '[]')"
+
+    if printf '%s' "$prs" | jq -e '.[] | select(.state == "OPEN")' \
+      >/dev/null 2>&1; then
+      echo "keep  $br (open PR head)"
+      kept=$((kept + 1))
+      continue
+    fi
+
+    # Merged proof requires the local tip to be exactly what was merged.
+    # A reused name whose branch has moved on will not match.
+    if printf '%s' "$prs" | jq -e --arg tip "$tip" \
+      '.[] | select(.state == "MERGED" and .headRefOid == $tip)' \
+      >/dev/null 2>&1; then
+      proof="merged-PR"
+    fi
   fi
 
-  proof=""
-  if [ -n "$merged_heads" ] && in_list "$br" "$merged_heads"; then
-    proof="merged-PR"
-  elif [ "$(git rev-list --count "origin/$MAIN_BRANCH..$br")" = "0" ]; then
+  if [ -z "$proof" ] &&
+    [ "$(git rev-list --count "origin/$MAIN_BRANCH..$br")" = "0" ]; then
     proof="ancestor"
   fi
 

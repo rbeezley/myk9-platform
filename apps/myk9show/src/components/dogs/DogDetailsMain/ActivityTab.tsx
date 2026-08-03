@@ -3,23 +3,15 @@ import { Calendar, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useEntriesByDogQuery } from '@/hooks/queries/useEntriesDatabase';
 import { Link } from 'react-router-dom';
-import {
-  deriveDogActivity,
-  formatActivityDate,
-  type DogActivityEntry,
-} from './ActivityTab.helpers';
+import { formatActivityDate, type DogActivityEntry } from '@/features/_shared/dogActivity';
+import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 
 interface ActivityTabProps {
   dogId: string;
   dogName: string;
   role: 'exhibitor' | 'secretary';
-}
-
-function asEntry(row: Record<string, unknown>): DogActivityEntry {
-  return row as unknown as DogActivityEntry;
 }
 
 function formatTime(seconds: number): string {
@@ -143,12 +135,7 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
 }
 
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
-  const { data: rawEntries, isLoading } = useEntriesByDogQuery(dogId);
-
-  const entries: DogActivityEntry[] = (rawEntries ?? []).map(r =>
-    asEntry(r as Record<string, unknown>)
-  );
-  const { upcoming, recentResults } = deriveDogActivity(entries);
+  const { upcoming, recentResults, isLoading } = useDogActivity(dogId);
 
   if (isLoading) {
     return (

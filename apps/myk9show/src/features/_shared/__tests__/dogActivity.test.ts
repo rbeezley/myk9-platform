@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  deriveDogActivity,
-  formatActivityDate,
-  type DogActivityEntry,
-} from './ActivityTab.helpers';
+import { deriveDogActivity, formatActivityDate, type DogActivityEntry } from '../dogActivity';
 
 const TODAY = new Date(2026, 6, 2);
 

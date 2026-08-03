@@ -168,6 +168,24 @@ outright bugs, and one corrected advice added earlier the same day.
    longer exists. Before merging, the runner confirms the PR head, the CI runs' `headSha`,
    and `mergeStateStatus` all still agree.
 
+### Second Codex round — three more accepted, one declined
+
+8. **Lease release is owner-guarded.** If a run overruns, its lease expires, and a
+   successor takes it over, the first run's unconditional `lockedUntil: null` would wipe
+   the *successor's* live lease and let a third run start alongside it. Release now only
+   clears the lease when `lockOwner` is still yours.
+9. **Cleanup no longer depends on Linear.** Log → clean up → release, with each step
+   independent: a Linear outage must not skip worktree removal, because a surviving
+   worktree is read as in-flight and corrupts the next run's view.
+10. **The failure path logs before cleaning up**, matching the log-first rule the rest of
+    the algorithm already followed.
+11. **Declined: "make lease acquisition atomic."** Raised twice, and still
+    environmentally impossible — every atomic primitive available (`mkdir`, `ln`) requires
+    a delete to release, and all delete commands are denied here. Added instead: a
+    read-after-write check confirming `lockOwner` survived, which closes the realistic
+    window (a manual "Run now" landing on a scheduled fire) without pretending to have
+    compare-and-set.
+
 **Residual risk, stated honestly.** The rehearsal exercised the happy path end-to-end
 (select → work → PR → review → CI → merge → cleanup) and caught four defects. It did NOT
 exercise lease expiry, a Linear outage, stale/in-progress CI, dirty-worktree cleanup, or a

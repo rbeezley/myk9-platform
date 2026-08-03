@@ -790,10 +790,14 @@ export interface DogEntriesReadResult {
   verified: boolean;
 }
 
-// Read this dog's entries from the local replica. Also reports the IDs of rows
-// present locally as soft-delete tombstones — a queued delete not yet synced —
-// so the online read can exclude them and avoid resurrecting a just-deleted
-// entry from a server row that predates the delete.
+// Read this dog's entries from the local replica, and report the two things the
+// server cannot know about:
+//   - `locallyDeletedIds` — rows held as soft-delete tombstones, i.e. a queued
+//     delete not yet synced, so an online read cannot resurrect them from a
+//     server row that predates the delete.
+//   - `pendingIds` — rows with unsynced local writes. `ReplicatedEntriesTable`'s
+//     own `resolveConflict` keeps a `_syncStatus: 'pending'` row over the server
+//     copy for exactly this reason; merging follows that same rule.
 async function replicaGetEntriesByDog(dogId: string) {
   const [allEntries, classesMap, showsMap] = await Promise.all([
     replicatedEntriesTable.getAll(),
@@ -802,17 +806,28 @@ async function replicaGetEntriesByDog(dogId: string) {
   ]);
   const dogEntries = allEntries.filter(e => e.dogId === dogId);
   const locallyDeletedIds = dogEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
-  const sortedEntries = sortedCopy(
-    dogEntries.filter(isLiveEntry),
-    compareDateDesc(getEntryCreatedSortValue)
+  const liveEntries = dogEntries.filter(isLiveEntry);
+  const pendingIds = new Set(
+    liveEntries.filter(e => e._syncStatus === 'pending').map(e => String(e.id))
   );
+  const sortedEntries = sortedCopy(liveEntries, compareDateDesc(getEntryCreatedSortValue));
   const data = sortedEntries.map(entry =>
     mapReplicatedEntryToDbRow(entry, {
       cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
       show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
     })
   );
-  return { data, locallyDeletedIds };
+  return { data, locallyDeletedIds, pendingIds };
+}
+
+const EMPTY_REPLICA_READ = {
+  data: [] as ReturnType<typeof mapReplicatedEntryToDbRow>[],
+  locallyDeletedIds: [] as string[],
+  pendingIds: new Set<string>(),
+};
+
+function rowId(row: unknown): string {
+  return String((row as { id?: unknown }).id);
 }
 
 // Get entries by dog ID.
@@ -837,14 +852,34 @@ async function replicaGetEntriesByDog(dogId: string) {
 // rendered as fact. Safe for this query specifically: its consumers are
 // dog-profile surfaces, not show-day ringside.
 export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResult> => {
-  const local = await replicaGetEntriesByDog(dogId);
+  // Best-effort and deliberately outside the online read's try: the replica
+  // supplies pending writes and tombstones, but unavailable local storage must
+  // not stop the authoritative read from answering.
+  let local = EMPTY_REPLICA_READ;
+  try {
+    local = await replicaGetEntriesByDog(dogId);
+  } catch (error) {
+    logQuery('entries', 'select_by_dog_replica_unavailable', 0, String(error));
+  }
 
   try {
     const online = await postgrestGetEntriesByDog(dogId);
     const deleted = new Set(local.locallyDeletedIds);
-    const data = deleted.size
-      ? online.data.filter(row => !deleted.has(String((row as { id?: unknown }).id)))
-      : online.data;
+    const pendingRows = local.data.filter(row => local.pendingIds.has(rowId(row)));
+    const pendingById = new Map(pendingRows.map(row => [rowId(row), row]));
+    const serverIds = new Set(online.data.map(rowId));
+
+    // The server is authoritative about which rows EXIST, the local replica
+    // about rows whose writes it has not accepted yet. So: drop rows deleted
+    // locally, prefer the pending local copy of a row the server also has (an
+    // unsynced edit must not read as reverted), and append pending rows the
+    // server has never seen (an entry created offline must not vanish).
+    const data = [
+      ...online.data
+        .filter(row => !deleted.has(rowId(row)))
+        .map(row => pendingById.get(rowId(row)) ?? row),
+      ...pendingRows.filter(row => !serverIds.has(rowId(row))),
+    ];
     return { data, error: null, verified: true };
   } catch (error) {
     // Offline, or the read failed. Serve the replica — correct as far as it

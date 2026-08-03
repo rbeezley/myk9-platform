@@ -183,6 +183,84 @@ describe('getEntriesByDog — online-first with a replica fallback', () => {
     });
   });
 
+  describe('unsynced local writes survive an authoritative read', () => {
+    // Online-first must not mean server-only. An entry created offline is not on
+    // the server yet, so a successful online read omits it — returning only
+    // server rows would make the user's own just-created entry vanish.
+    it('keeps a pending local entry the server has never seen', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-created-offline', _syncStatus: 'pending' }),
+      ]);
+      onlineRows = [defaultOnlineRow];
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data.map(r => (r as Record<string, unknown>).id)).toEqual([
+        'entry-online-1',
+        'entry-created-offline',
+      ]);
+    });
+
+    it('keeps a pending local entry even when the server returns nothing', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-created-offline', _syncStatus: 'pending' }),
+      ]);
+      onlineRows = [];
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('entry-created-offline');
+    });
+
+    // Mirrors ReplicatedEntriesTable.resolveConflict: a pending local row wins
+    // over the server copy, so an unsynced edit does not read as reverted.
+    it('prefers the pending local copy of a row the server also has', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-online-1', _syncStatus: 'pending', entryStatus: 'scratched' }),
+      ]);
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).entry_status).toBe('scratched');
+    });
+
+    // A local row that is NOT pending and absent from the server was deleted or
+    // moved server-side. Re-adding it would be the tombstone bug in reverse.
+    it('does not re-add a synced local row the server no longer returns', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([localRow({ id: 'entry-removed-elsewhere' })]);
+      onlineRows = [];
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data).toHaveLength(0);
+      expect(result.verified).toBe(true);
+    });
+  });
+
+  describe('the replica being unavailable does not block the online read', () => {
+    it('still returns authoritative rows when local storage throws', async () => {
+      mockEntriesTable.getAll.mockRejectedValue(new Error('IndexedDB unavailable'));
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
+      expect(result.verified).toBe(true);
+    });
+
+    it('reports an unverified empty when BOTH the replica and the online read fail', async () => {
+      mockEntriesTable.getAll.mockRejectedValue(new Error('IndexedDB unavailable'));
+      onlineError = { message: 'network down' };
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data).toHaveLength(0);
+      expect(result.verified).toBe(false);
+    });
+  });
+
   describe('offline falls back to the replica, and says so', () => {
     it('serves replica rows when the online read fails', async () => {
       onlineError = { message: 'network down' };

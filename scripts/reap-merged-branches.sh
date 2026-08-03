@@ -57,7 +57,12 @@ git fetch --prune origin --quiet
 # This list is NOT configurable. EXTRA_PROTECTED_BRANCHES only ever adds:
 # an override that could drop an entry would let a caller expose main to the
 # ancestor proof, and "delete main" must not be reachable through config.
-PROTECTED_BRANCHES="$MAIN_BRANCH
+#
+# Literal "main" is listed separately from $MAIN_BRANCH, which is only the
+# ancestry target. Otherwise MAIN_BRANCH=release would protect release and
+# leave main deletable the moment it is an ancestor of origin/release.
+PROTECTED_BRANCHES="main
+$MAIN_BRANCH
 staging-release
 guides-release${EXTRA_PROTECTED_BRANCHES:+
 $EXTRA_PROTECTED_BRANCHES}"
@@ -96,7 +101,14 @@ while IFS= read -r br; do
     continue
   fi
 
-  tip="$(git rev-parse "$br")"
+  # The branch list is enumerated once, but each iteration re-reads git. A
+  # concurrent agent reaping a branch mid-run would otherwise abort the whole
+  # pass under `set -e`, leaving it half-done and without a summary.
+  if ! tip="$(git rev-parse --verify --quiet "$br^{commit}")"; then
+    echo "keep  $br (vanished mid-run)"
+    kept=$((kept + 1))
+    continue
+  fi
   proof=""
 
   if [ "$HAVE_GH" = "1" ]; then

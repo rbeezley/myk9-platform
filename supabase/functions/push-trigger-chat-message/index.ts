@@ -65,11 +65,12 @@ handle<WebhookPayload>(
       // Exhibitor sent message -> notify secretaries for this show -> secretary route
       actionUrl = `/secretary/messages/${show_id}`;
 
-      const { data: show } = await supabase
+      const { data: show, error: showError } = await supabase
         .from('shows')
         .select('club_id')
         .eq('id', show_id)
         .single();
+      assertAudienceQuerySucceeded(showError);
 
       if (show) {
         const { data: secretaries, error: secretariesError } = await applyActiveRoleValidity(

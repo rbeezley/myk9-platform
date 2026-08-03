@@ -83,9 +83,8 @@ handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, a
     if (officialError) {
       console.error('push-trigger-announcement: official query failed', officialError.message);
     }
-  if (exhibitorError || officialError) {
-    throw new HttpError(500, 'Audience resolution failed');
-  }
+    assertAudienceQuerySucceeded(exhibitorError);
+    assertAudienceQuerySucceeded(officialError);
 
     const audienceIds = new Set<string>();
     if (exhibitors) {

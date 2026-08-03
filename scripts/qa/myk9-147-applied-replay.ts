@@ -121,7 +121,6 @@ async function createAuthUser(user: FixtureUser): Promise<void> {
     typeof login.body?.access_token === 'string' ? login.body.access_token : undefined;
   assert(user.accessToken, `login ${user.email}: response did not include an access token`);
 }
-
 async function rest<T = unknown>(
   path: string,
   init: RequestInit = {},
@@ -133,7 +132,6 @@ async function rest<T = unknown>(
   }
   return request<T>(`/rest/v1${path}`, { ...init, headers }, key);
 }
-
 async function userRest<T = unknown>(
   path: string,
   accessToken: string,
@@ -149,7 +147,6 @@ async function userRest<T = unknown>(
   }
   return request<T>(`/rest/v1${path}`, { ...init, headers }, accessToken);
 }
-
 async function callHelper(user: FixtureUser): Promise<boolean> {
   const response = await userRest<boolean>(
     '/rpc/is_show_office_manager',
@@ -159,7 +156,6 @@ async function callHelper(user: FixtureUser): Promise<boolean> {
   assertStatus(response, [200], `is_show_office_manager for ${user.email}`);
   return response.body === true;
 }
-
 async function getRow<T extends JsonObject>(
   table: string,
   id: string,
@@ -169,7 +165,6 @@ async function getRow<T extends JsonObject>(
   assertStatus(response, [200], `read ${table} ${id}`);
   return Array.isArray(response.body) && response.body.length > 0 ? response.body[0] : null;
 }
-
 async function expectStewardDenials(): Promise<void> {
   const token = users.steward.accessToken ?? anonKey;
   const insertAssignment = await userRest(
@@ -232,7 +227,6 @@ async function expectStewardDenials(): Promise<void> {
     'steward changed enrollment'
   );
 }
-
 async function expectManagerPositives(): Promise<void> {
   for (const [label, user] of Object.entries(users)) {
     if (label === 'steward') continue;
@@ -262,16 +256,19 @@ async function expectManagerPositives(): Promise<void> {
     assertCreatedId(enrollment, `${label} enrollment insert`);
   }
 }
-
 async function cleanup(): Promise<void> {
   const cleanupFailures: string[] = [];
   const cleanupRequest = async (
     label: string,
-    action: () => Promise<ApiResponse>
+    action: () => Promise<ApiResponse>,
+    requireRows = false
   ): Promise<void> => {
     try {
       const response = await action();
-      if (![200, 204].includes(response.status)) {
+      if (
+        ![200, 204].includes(response.status) ||
+        (requireRows && (!Array.isArray(response.body) || response.body.length === 0))
+      ) {
         cleanupFailures.push(`${label} returned ${response.status}`);
       }
     } catch (error) {
@@ -279,24 +276,31 @@ async function cleanup(): Promise<void> {
     }
   };
 
-  await cleanupRequest('show', () => rest(`/shows?id=eq.${showId}`, { method: 'DELETE' }));
+  const deleteInit: RequestInit = {
+    method: 'DELETE',
+    headers: { Prefer: 'return=representation' },
+  };
+  await cleanupRequest('show', () => rest(`/shows?id=eq.${showId}&select=id`, deleteInit), true);
   const authUserIds = Object.values(users)
     .map(user => user.authUserId)
     .filter((id): id is string => Boolean(id));
   if (authUserIds.length > 0) {
-    await cleanupRequest('roles', () =>
-      rest(`/user_roles?auth_user_id=in.(${authUserIds.join(',')})`, { method: 'DELETE' })
+    await cleanupRequest(
+      'roles',
+      () => rest(`/user_roles?auth_user_id=in.(${authUserIds.join(',')})&select=id`, deleteInit),
+      true
     );
   }
-  await cleanupRequest('people', () =>
-    rest(
-      `/people?id=in.(${[...Object.values(users).map(user => user.personId), handlerId].join(',')})`,
-      {
-        method: 'DELETE',
-      }
-    )
+  await cleanupRequest(
+    'people',
+    () =>
+      rest(
+        `/people?id=in.(${[...Object.values(users).map(user => user.personId), handlerId].join(',')})&select=id`,
+        deleteInit
+      ),
+    true
   );
-  await cleanupRequest('club', () => rest(`/clubs?id=eq.${clubId}`, { method: 'DELETE' }));
+  await cleanupRequest('club', () => rest(`/clubs?id=eq.${clubId}&select=id`, deleteInit), true);
   for (const user of Object.values(users)) {
     if (user.authUserId) {
       await cleanupRequest(`auth user ${user.email}`, () =>
@@ -310,7 +314,6 @@ async function cleanup(): Promise<void> {
   }
   if (cleanupFailures.length > 0) throw new Error(`cleanup failed: ${cleanupFailures.join('; ')}`);
 }
-
 async function main(): Promise<void> {
   try {
     const rolesResponse = await rest<Array<{ id: string; name: string }>>(
@@ -321,7 +324,6 @@ async function main(): Promise<void> {
     for (const role of ['steward', 'secretary', 'club_admin', 'site_admin']) {
       assert(roleIds.has(role), `missing role ${role}`);
     }
-
     assertStatus(
       await rest(
         '/clubs',
@@ -358,7 +360,6 @@ async function main(): Promise<void> {
       [201],
       'people fixtures'
     );
-
     for (const user of Object.values(users)) await createAuthUser(user);
     for (const user of Object.values(users)) {
       assertStatus(
@@ -392,7 +393,6 @@ async function main(): Promise<void> {
       [201],
       'show fixture'
     );
-
     assertStatus(
       await rest(
         '/user_roles',

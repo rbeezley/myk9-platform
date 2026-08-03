@@ -261,6 +261,33 @@ describe('UpcomingShowsSection', () => {
       }
     });
 
+    it('keeps device-saved external shows visible when the platform read fails', () => {
+      useEntriesByDogQueryMock.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        refetch: vi.fn(),
+      });
+      useCompetitionStore.setState({
+        competitions: [
+          {
+            id: '1',
+            name: 'Spring Classic',
+            date: '2026-05-15',
+            location: 'Austin, TX',
+            status: 'Upcoming',
+            dogId: DOG_ID,
+          },
+        ],
+      });
+
+      render(<UpcomingShowsSection {...defaultProps} />);
+
+      expect(screen.getByText('Spring Classic')).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent(/couldn't load your myK9Show entries/i);
+      expect(screen.queryByText('No Upcoming Shows')).not.toBeInTheDocument();
+    });
+
     it('retries through the canonical query rather than reloading the page', async () => {
       const refetch = vi.fn();
       useEntriesByDogQueryMock.mockReturnValue({

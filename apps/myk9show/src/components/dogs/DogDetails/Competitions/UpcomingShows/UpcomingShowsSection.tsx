@@ -114,7 +114,8 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
   // nothing about whether their myK9Show entries loaded, so letting it satisfy
   // `hasContent` would hide the notice and leave "0 entries on myK9Show"
   // reading as a fact.
-  const platformUnresolved = upcoming.length === 0 && !canTrustEmpty;
+  // Same rule ActivityTab applies, so the two surfaces cannot diverge.
+  const platformUnresolved = upcoming.length === 0 && (isError || !canTrustEmpty);
 
   // An unresolved or failed read leaves `upcoming` empty for the same reason a
   // genuinely unentered dog does. Only the third case may draw the empty copy —
@@ -140,8 +141,13 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
       );
     }
 
-    if (isError) {
-      return (
+    // A failed or unverifiable read leaves `upcoming` empty for the same reason
+    // a genuinely unentered dog does, so neither may draw the empty copy. With
+    // nothing else to show, the whole body says so; with external shows saved on
+    // this device, those stay visible under a notice (below) rather than being
+    // replaced by an error — they are still perfectly usable.
+    if (platformUnresolved && !hasContent) {
+      return isError ? (
         <EmptyState
           icon={AlertTriangle}
           title="Couldn't load upcoming shows"
@@ -152,13 +158,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
           }}
           size="sm"
         />
-      );
-    }
-
-    // Offline, an unsynced dog and an unentered dog produce the same empty
-    // array — see `canTrustEmpty`. Say so rather than assert a clear calendar.
-    if (platformUnresolved && !hasContent) {
-      return (
+      ) : (
         <EmptyState
           icon={WifiOff}
           title="Can't check for upcoming shows offline"
@@ -192,10 +192,15 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
       <>
         {platformUnresolved ? (
           <div role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
-            <WifiOff className="h-3.5 w-3.5 flex-shrink-0" />
+            {isError ? (
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+            ) : (
+              <WifiOff className="h-3.5 w-3.5 flex-shrink-0" />
+            )}
             <span>
-              You're offline — myK9Show entries may not have loaded. Showing what's saved on this
-              device.
+              {isError
+                ? "We couldn't load your myK9Show entries just now. Showing what's saved on this device."
+                : "You're offline — myK9Show entries may not have loaded. Showing what's saved on this device."}
             </span>
           </div>
         ) : (

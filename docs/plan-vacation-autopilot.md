@@ -81,6 +81,11 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
 6. **Work** in a fresh worktree using the standard 8-step pipeline. Commit checkpoints
    early and often (crash-only design: quota death is unannounced; the branch is the
    durable state).
+   **Log the outcome the moment it is decided — before cleanup, not after.** The
+   2026-08-02 rehearsal merged, set Linear to Done, then ended without ever writing its
+   Vacation Log comment, because logging sat last. From a beach, a run that did work and
+   left no record is indistinguishable from a run that never fired. Logging is cheap and
+   goes first; cleanup is tidy-up and goes after.
 7. **Merge gate — the issue label AND the diff must both allow it.**
    - The issue must be `auto:green`. Every `auto:yellow` is a PR-stop regardless of how
      harmless its diff looks — that is what the grade means.
@@ -129,6 +134,31 @@ path is the safety net for whatever the sweep misses.
 
 Rule going forward: **run any test you add or touch with `--sequence.shuffle` 6+ times
 before merging.** A single pass proves nothing.
+
+## Memory pressure — the host machine leaks
+
+The Mac Mini has **16 GB** and leaks one helper process per session under
+`~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/`. Their
+lifetime is bound to the **application**, not the session: on 2026-08-02 there were 48
+alive, the oldest exactly matching the app's 4-day uptime, and restarting the app cleared
+every one. Accumulation ran ~12/day under heavy interactive use; the autopilot's 4
+sessions/day is a much lower rate, and the machine started the vacation freshly restarted
+at 71% free with 4 processes.
+
+Decision: **no restart automation.** A nightly launchd restart was considered and
+rejected as unnecessary complexity for a rate this low — the crash-only design would have
+made it safe, but the arithmetic does not require it. The defenses are:
+
+- **Guard:** before starting an issue, check `memory_pressure`'s free percentage. Under
+  **15%**, skip the run — log it, release the lease, exit, and do NOT count a failure. A
+  skipped run is recoverable; an OOM kill mid-merge is not, and nothing would restart the
+  app afterwards.
+- **Never gate on `vm.swapusage` free space.** macOS resizes the swap file dynamically,
+  so free swap is not a headroom signal: immediately after a healthy restart it read
+  1.26 GB free of a 5 GB file while memory was 71% free. Gating on it skips every run.
+- **Report:** every log comment carries the free percentage and the helper-process count,
+  so the trend is visible from the Linear phone app. If it degrades badly, `STOP` is the
+  right call — losing some issues beats an unattended machine thrashing for a week.
 
 ## Non-interactive cleanup — do NOT invoke the `/cleanup` skill
 

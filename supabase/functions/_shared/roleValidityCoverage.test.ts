@@ -25,4 +25,5 @@ describe('privileged Edge role-validity coverage', () => {
     expect(source).toContain("from '../_shared/roleValidity.ts'");
     expect(source).toContain('applyActiveRoleValidity');
   });
+
 });

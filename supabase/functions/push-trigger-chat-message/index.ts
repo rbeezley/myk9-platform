@@ -113,10 +113,13 @@ handle<WebhookPayload>(
     const allSubscriptions: any[] = [];
     for (let i = 0; i < recipientUserIds.length; i += CHUNK_SIZE) {
       const chunk = recipientUserIds.slice(i, i + CHUNK_SIZE);
-      const { data: subs } = await supabase
+      const { data: subs, error: subscriptionsError } = await supabase
         .from('push_subscriptions')
         .select('id, user_id, endpoint, p256dh, auth')
         .in('user_id', chunk);
+      if (subscriptionsError) {
+        throw new HttpError(500, 'Audience resolution failed');
+      }
       if (subs) allSubscriptions.push(...subs);
     }
 

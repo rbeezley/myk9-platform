@@ -140,7 +140,7 @@ handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, a
           'push-trigger-announcement: subscription query failed for chunk',
           subError.message
         );
-        continue;
+        throw new HttpError(500, 'Audience resolution failed');
       }
       if (subs) allSubscriptions.push(...subs);
     }

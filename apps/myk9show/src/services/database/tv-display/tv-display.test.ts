@@ -322,5 +322,37 @@ describe('tv-display database reads', () => {
       expect(result[0].totalEntries).toBeNull();
       expect(result[0].qualifiedCount).toBe(3);
     });
+
+    // `tv_class_entry_counts` drops an entry that was scored and only later
+    // withdrawn/scratched/pulled, so the placements and qualified tally beside
+    // the total have to drop it too. Otherwise the overlay credits a placement
+    // to a dog that is no longer in the show, and the two numbers disagree —
+    // the same count-disagreement MYK9-65 exists to end, on the results tab.
+    it('drops entries withdrawn after scoring from placements and the qualified tally', async () => {
+      mockBoardRpcs({ entryCount: 20 });
+      let resultsCall = 0;
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'classes')
+          return createChainableQuery({ data: completedClassRows, error: null });
+        if (table === 'view_public_entry_results') {
+          resultsCall += 1;
+          return createChainableQuery({
+            data:
+              resultsCall === 1
+                ? [{ ...placementRows[0], entry_status: 'withdrawn' }, placementRows[1]]
+                : [{ ...qualifiedRows[0], check_in_status: 'pulled' }, ...qualifiedRows.slice(1)],
+            error: null,
+          });
+        }
+        return createChainableQuery();
+      });
+
+      const result = await getTVDisplayResults('show-1');
+
+      // The withdrawn first place is gone; the runner-up survives untouched.
+      expect(result[0].placements.map(p => p.placement)).toEqual([2]);
+      // Three qualified rows, one of them pulled after scoring.
+      expect(result[0].qualifiedCount).toBe(2);
+    });
   });
 });

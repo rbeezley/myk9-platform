@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { fetchPublicEntryCountsByShow } from '../_shared/entryCounts';
+import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import {
   groupEntriesByClass,
   mapJoinedDog,
@@ -182,24 +183,49 @@ export async function getPostgrestTVDisplayResults(
   // view_public_entry_results so the result-visibility cascade is enforced by
   // the database — placements/times/quals for classes whose results have not
   // been released arrive NULL and are naturally filtered out below.
-  const { data: placementData } = await supabase
+  const { data: placementRows } = await supabase
     .from('view_public_entry_results')
     .select(
-      'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, dog_name, dog_call_name, dog_image_url'
+      'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, entry_status, check_in_status, dog_name, dog_call_name, dog_image_url'
     )
     .in('class_id', classIds)
     .gte('final_placement', 1)
     .lte('final_placement', 4)
     .order('final_placement', { ascending: true });
 
-  const { data: qualifiedData } = await supabase
+  const { data: qualifiedRows } = await supabase
     .from('view_public_entry_results')
-    .select('class_id, search_time_seconds')
+    .select('class_id, search_time_seconds, entry_status, check_in_status')
     .in('class_id', classIds)
     .eq('result_status', 'qualified');
 
+  // An entry that was scored and only later withdrawn, scratched or pulled is
+  // excluded from `entry_count` by tv_class_entry_counts, so it must drop out of
+  // the placements and qualified tally too — otherwise the overlay reports
+  // "1 entries • 1 qualified" about a dog that is no longer in the show.
+  //
+  // Filtered here with the canonical `isExpectedEntry` rather than as PostgREST
+  // predicates: these columns are free text, so a filter written in query syntax
+  // would be a fourth copy of the rule with its own casing and null handling.
+  // One rule, one implementation — that is the whole point of entryAccounting.
+  // The view returns these columns as `string | null`; EntryAccountingFields
+  // declares them `string | undefined`. Adapt explicitly rather than casting —
+  // a cast here would silently pass `null` into `normalized()` if the shared
+  // interface ever tightened.
+  const isActiveResultRow = (row: {
+    entry_status: string | null;
+    check_in_status: string | null;
+  }) =>
+    isExpectedEntry({
+      entry_status: row.entry_status ?? undefined,
+      check_in_status: row.check_in_status ?? undefined,
+    });
+
+  const placementData = (placementRows ?? []).filter(isActiveResultRow);
+  const qualifiedData = (qualifiedRows ?? []).filter(isActiveResultRow);
+
   const placementsByClass = new Map<string, TVPlacement[]>();
-  for (const p of placementData ?? []) {
+  for (const p of placementData) {
     const classId = p.class_id as string;
     const group = placementsByClass.get(classId) ?? [];
     group.push({
@@ -218,7 +244,7 @@ export async function getPostgrestTVDisplayResults(
   }
 
   const qualifiedByClass = new Map<string, { count: number; fastest: number | null }>();
-  for (const q of qualifiedData ?? []) {
+  for (const q of qualifiedData) {
     const classId = q.class_id as string;
     const current = qualifiedByClass.get(classId) ?? { count: 0, fastest: null };
     current.count++;

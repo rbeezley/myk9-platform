@@ -163,6 +163,30 @@ export function getOrgTitle(element?: string): string {
   return 'Dog Sport';
 }
 
+/**
+ * Printed when an entry carries no handler name.
+ *
+ * A blank cell on a gate sheet is ambiguous — the steward cannot tell "no
+ * handler recorded" from "column is broken", which is exactly how MYK9-119
+ * went unnoticed. Matches the wording `useCheckInReport` already prints.
+ */
+export const UNKNOWN_HANDLER = 'Unknown';
+
+/**
+ * Resolve the handler name for printed paperwork.
+ *
+ * Reads `entries.handler`, the denormalised name the replication layer carries
+ * on the row itself — the same source `useCheckInReportReplication` uses. It is
+ * deliberately NOT the dog's owner: the owner embed is absent offline (which is
+ * what left the column blank), and an owner is not necessarily the handler, so
+ * falling back to one would print a confidently wrong name on the sheet a gate
+ * steward uses to confirm who presented the dog.
+ */
+export function resolveReportHandlerName(handler: unknown): string {
+  const name = typeof handler === 'string' ? handler.trim() : '';
+  return name === '' ? UNKNOWN_HANDLER : name;
+}
+
 export function sortByHandler(entries: ReportEntry[]): ReportEntry[] {
   return [...entries].sort((a, b) => a.handler.localeCompare(b.handler));
 }

@@ -1,6 +1,12 @@
 import { render, screen } from '@testing-library/react';
+import { fromAny } from '@total-typescript/shoehorn';
 import { CheckInSheet } from '../CheckInSheet';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
+import { mapScopedReportEntries } from '@/pages/secretary/ReportsPage/reportDataMapping';
+import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
+import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable';
+import type { EntryRow } from '@/services/replication/ReplicatedEntriesTable.mapper';
+import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 
 const entryBuddy: ReportEntry = {
   id: '1',
@@ -97,6 +103,76 @@ describe('CheckInSheet', () => {
   it('renders entry count in footer', () => {
     render(<CheckInSheet {...baseProps} />);
     expect(screen.getByText('Class Entries: 2')).toBeInTheDocument();
+  });
+
+  describe('HANDLER column, end to end from a database row (MYK9-119)', () => {
+    // The fixtures above hand-build ReportEntry, so they pass however the
+    // mapping behaves — the sheet shipped with every HANDLER cell blank while
+    // these stayed green. This drives the real chain the page uses:
+    // Supabase row -> rowToEntry -> mapReplicatedEntryToDbRow ->
+    // mapScopedReportEntries -> CheckInSheet.
+    const sheetFromRows = (rows: Array<Record<string, unknown>>) => {
+      const entries = mapScopedReportEntries(
+        rows.map(
+          row =>
+            mapReplicatedEntryToDbRow(rowToEntry(fromAny<EntryRow, unknown>(row)), {
+              dog: {
+                id: String(row.dog_id),
+                name: String(row.call_name),
+                callName: String(row.call_name),
+                breed: 'Labrador Retriever',
+              },
+            }) as DbEntry
+        ),
+        [fromAny<DbTrial, unknown>({ id: 'trial-1', date: '2026-08-01', trial_number: 1 })],
+        [{ id: 'class-1', trial_id: 'trial-1', element: 'Container', level: 'Novice' } as DbClass],
+        { kind: 'show', showId: 'show-1' }
+      );
+
+      return render(<CheckInSheet {...baseProps} entries={entries} />);
+    };
+
+    const dbRow = (overrides: Record<string, unknown> = {}) => ({
+      id: 'entry-100',
+      class_id: 'class-1',
+      show_id: 'show-1',
+      dog_id: 'dog-1',
+      call_name: 'Willow',
+      armband: '100',
+      entry_status: 'confirmed',
+      handler_id: 'person-1',
+      handler: 'Test Secretary',
+      ...overrides,
+    });
+
+    it('prints the handler name instead of an empty cell', () => {
+      sheetFromRows([dbRow()]);
+      expect(screen.getByText('Test Secretary')).toBeInTheDocument();
+    });
+
+    it('prints a placeholder, never a blank, when no handler is recorded', () => {
+      sheetFromRows([dbRow({ handler: null, handler_id: null })]);
+
+      const dataRow = screen.getAllByRole('row')[1];
+      expect(dataRow).toHaveTextContent('Unknown');
+    });
+
+    it('leaves no HANDLER cell empty across a multi-entry sheet', () => {
+      sheetFromRows([
+        dbRow(),
+        dbRow({ id: 'entry-103', armband: '103', handler: 'Test Exhibitor' }),
+        dbRow({ id: 'entry-105', armband: '105', handler: null, handler_id: null }),
+      ]);
+
+      // Last column of every data row must carry text — the exact defect was an
+      // entire column of empty cells on paper the gate steward relies on.
+      const handlerCells = screen
+        .getAllByRole('row')
+        .slice(1)
+        .map(row => row.querySelectorAll('td')[5]?.textContent?.trim() ?? '');
+
+      expect(handlerCells).toEqual(['Test Secretary', 'Test Exhibitor', 'Unknown']);
+    });
   });
 
   it('handles empty entries array (shows 0 count)', () => {

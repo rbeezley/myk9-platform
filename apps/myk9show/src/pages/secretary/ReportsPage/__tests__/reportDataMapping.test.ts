@@ -6,6 +6,7 @@ import {
   readTrialRegistryId,
 } from '../reportDataMapping';
 import { calculateFinancialReportTotals } from '@/components/reports/financialReportTotals';
+import { UNKNOWN_HANDLER } from '@/lib/reports/reportUtils';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
 import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable';
@@ -55,6 +56,10 @@ const entry = {
   discount_amount: 5,
   refund_amount: 0,
   comped: false,
+  // Real rows carry the handler on the entry itself. This fixture used to rely
+  // only on the `dog.owner` embed, which the replication path never populates —
+  // the gap that let MYK9-119 ship a blank HANDLER column.
+  handler: 'Jamie Walker',
   dog: {
     call_name: 'Rocket',
     breed: 'Beagle',
@@ -392,6 +397,62 @@ describe('mapScopedReportEntries', () => {
       collected: 50,
       refunded: 20,
       netRetained: 30,
+    });
+  });
+
+  describe('handler resolution (MYK9-119)', () => {
+    // The fixtures above hand-supply `dog.owner`, which the replication path
+    // never produces — that is why the blank HANDLER column survived. These
+    // drive the real chain instead: Supabase row -> rowToEntry ->
+    // mapReplicatedEntryToDbRow, exactly what the Reports page receives.
+    const handlerDbRow = (overrides: Record<string, unknown> = {}) =>
+      mapReplicatedEntryToDbRow(
+        rowToEntry({
+          id: 'entry-handler',
+          class_id: 'class-1',
+          show_id: 'show-1',
+          dog_id: 'dog-1',
+          armband: '100',
+          entry_status: 'confirmed',
+          handler_id: 'person-1',
+          handler: 'Test Secretary',
+          ...overrides,
+        } as Parameters<typeof rowToEntry>[0]),
+        { dog: { id: 'dog-1', name: 'Willow', callName: 'Willow', breed: 'Labrador Retriever' } }
+      ) as DbEntry;
+
+    const handlerOf = (row: DbEntry) =>
+      mapScopedReportEntries([row], trials, classes, { kind: 'show', showId: 'show-1' })[0]
+        ?.handler;
+
+    it('prints the handler name carried on the entry', () => {
+      expect(handlerOf(handlerDbRow())).toBe('Test Secretary');
+    });
+
+    it('renders a clear placeholder rather than an ambiguous blank', () => {
+      // A blank cell on a gate sheet reads as "no handler needed"; the steward
+      // cannot tell it apart from missing data.
+      const handler = handlerOf(handlerDbRow({ handler: null, handler_id: null }));
+
+      expect(handler).not.toBe('');
+      expect(handler).toBe(UNKNOWN_HANDLER);
+    });
+
+    it('does not fall back to the dog owner, who need not be the handler', () => {
+      const row = {
+        ...handlerDbRow({ handler: null, handler_id: null }),
+        dog: {
+          call_name: 'Willow',
+          breed: 'Labrador Retriever',
+          owner: { first_name: 'Dog', last_name: 'Owner' },
+        },
+      } as unknown as DbEntry;
+
+      expect(handlerOf(row)).toBe(UNKNOWN_HANDLER);
+    });
+
+    it('ignores a whitespace-only handler', () => {
+      expect(handlerOf(handlerDbRow({ handler: '   ' }))).toBe(UNKNOWN_HANDLER);
     });
   });
 

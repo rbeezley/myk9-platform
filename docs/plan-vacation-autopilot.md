@@ -203,7 +203,33 @@ every one. Accumulation ran ~12/day under heavy interactive use; the autopilot's
 sessions/day is a much lower rate, and the machine started the vacation freshly restarted
 at 71% free with 4 processes.
 
-Decision: **no restart automation.** A nightly launchd restart was considered and
+Decision: **no restart automation — reconsidered once and reaffirmed.** Codex challenged
+the arithmetic (4 sessions/day × 10 days ≈ 44 helpers, close to the 48 that caused the
+2026-08-02 crisis) and it was re-examined on 2026-08-03. The decision stands on the
+**shape** of each failure rather than its likelihood:
+
+- **Do-nothing fails gradually and visibly.** Memory fills over days, the guard skips
+  runs, the back half of the queue goes undone — and the trend is legible in every log
+  comment. Worst realistic case is 7–8 productive days instead of 10.
+- **A nightly restart fails totally and silently.** One relaunch that does not come back
+  (update dialog, permission prompt, hung quit) ends the vacation from that moment, with
+  no recovery: the login item only fires at login and the machine will not reboot. The
+  absence of log comments looks identical to "no eligible issues."
+
+Automating the restart would introduce a **new total-loss failure mode to prevent a
+partial-loss one**, and hand it ten chances to fire. That is the right trade when someone
+is home to notice, and the wrong one when nobody is. Note the guard is the weak link
+here — untested, and dependent on the model choosing to skip — but if it fails the result
+is an OOM kill, which is the *same* total loss; do-nothing simply does not add a second
+independent path to it.
+
+**Chosen mitigation instead: trim unused plugins.** It is the only lever that reduces
+memory without adding machinery that can break — it shrinks each leaked helper rather
+than introducing a new mechanism. Removed for the vacation window: `stripe`, `playground`,
+`skill-creator`, `frontend-design`, `mobbin`, `magic`, `claude-mem`, `context-mode`.
+Retained because the runner depends on them: `linear` (queue, log, kill switch), `codex`
+(review gate), `superpowers` (process skills), `supabase` (read-only verification).
+ A nightly launchd restart was considered and
 rejected as unnecessary complexity for a rate this low — the crash-only design would have
 made it safe, but the arithmetic does not require it. The defenses are:
 

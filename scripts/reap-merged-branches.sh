@@ -53,9 +53,14 @@ git fetch --prune origin --quiet
 # guides-release are protected deployment refs that Vercel branch-tracking
 # follows (docs/operations/ci-vercel-deploys.md); they point at an older
 # validated SHA on purpose, so they always satisfy the ancestor proof.
-PROTECTED_BRANCHES="${PROTECTED_BRANCHES:-$MAIN_BRANCH
+#
+# This list is NOT configurable. EXTRA_PROTECTED_BRANCHES only ever adds:
+# an override that could drop an entry would let a caller expose main to the
+# ancestor proof, and "delete main" must not be reachable through config.
+PROTECTED_BRANCHES="$MAIN_BRANCH
 staging-release
-guides-release}"
+guides-release${EXTRA_PROTECTED_BRANCHES:+
+$EXTRA_PROTECTED_BRANCHES}"
 
 # Branches a worktree has checked out. git refuses to delete these anyway;
 # listing them keeps the report honest instead of noisy with failures.
@@ -96,11 +101,13 @@ while IFS= read -r br; do
 
   if [ "$HAVE_GH" = "1" ]; then
     # One lookup per branch: every PR that ever used this name as its head.
+    # Formatted through gh's own --jq so a missing standalone jq cannot make
+    # the proof silently unsatisfiable.
     prs="$(gh pr list --head "$br" --state all --limit 100 \
-      --json state,headRefOid,number 2>/dev/null || echo '[]')"
+      --json state,headRefOid --jq '.[] | "\(.state) \(.headRefOid)"' \
+      2>/dev/null || echo '')"
 
-    if printf '%s' "$prs" | jq -e '.[] | select(.state == "OPEN")' \
-      >/dev/null 2>&1; then
+    if printf '%s\n' "$prs" | grep -q '^OPEN '; then
       echo "keep  $br (open PR head)"
       kept=$((kept + 1))
       continue
@@ -108,9 +115,7 @@ while IFS= read -r br; do
 
     # Merged proof requires the local tip to be exactly what was merged.
     # A reused name whose branch has moved on will not match.
-    if printf '%s' "$prs" | jq -e --arg tip "$tip" \
-      '.[] | select(.state == "MERGED" and .headRefOid == $tip)' \
-      >/dev/null 2>&1; then
+    if printf '%s\n' "$prs" | grep -Fxq "MERGED $tip"; then
       proof="merged-PR"
     fi
   fi

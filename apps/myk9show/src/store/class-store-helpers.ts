@@ -75,11 +75,21 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableEntryDat
     armband: replicated.armband || '',
     handler: replicated.handler || '',
     dog: '', // Local-only: need to lookup
+    // `entries` has no `status` column, so this is always the 'Pending'
+    // fallback. Kept for the local/mock shape; read isScored/resultStatus
+    // below for whether the entry actually has a result (MYK9-118).
     status: (replicated.status || 'Pending') as SyncableEntryData['status'],
     score: '', // Local-only
     time: '', // Local-only
     placement: '', // Local-only
     classId: replicated.classId || '',
+    // Authoritative scoring + lifecycle facts, accepting either casing the
+    // mapper emits. See @/features/_shared/entryAccounting for how they combine.
+    isScored: replicated.isScored ?? replicated.is_scored ?? false,
+    resultStatus: replicated.resultStatus ?? replicated.result_status ?? undefined,
+    entryStatus: replicated.entryStatus ?? replicated.entry_status ?? undefined,
+    checkInStatus: replicated.checkInStatus ?? replicated.check_in_status ?? undefined,
+    deletedAt: replicated.deletedAt ?? replicated.deleted_at ?? undefined,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

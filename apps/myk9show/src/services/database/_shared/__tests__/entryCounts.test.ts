@@ -120,6 +120,7 @@ describe('fetchPublicEntryCountsByShow', () => {
     expect(counts.get('class-a')).toEqual({ total: 66, scored: 4 });
     expect(mockSupabase.rpc).toHaveBeenCalledWith('tv_class_entry_counts', {
       p_show_id: 'show-1',
+      p_class_ids: ['class-a'],
     });
     expect(mockSupabase.from).not.toHaveBeenCalled();
   });
@@ -157,6 +158,28 @@ describe('fetchPublicEntryCountsByShow', () => {
     const counts = await fetchPublicEntryCountsByShow('show-1', ['class-a'], 'op');
 
     expect([...counts.keys()]).toEqual(['class-a']);
+  });
+
+  // The RPC echoes back one row per requested class whenever the show is public,
+  // so an empty result cannot mean "all classes are empty" — it means the show is
+  // not publicly visible (a secretary previewing a draft). Reporting that as
+  // unavailable is the difference between a blank counter and a confident,
+  // fabricated "0 / 0" on a venue screen.
+  it('treats an empty result as unavailable, not as zero counts', async () => {
+    mockCountRpc({ data: [], error: null });
+
+    await expect(
+      fetchPublicEntryCountsByShow('draft-show', ['class-a'], 'op')
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('not publicly visible'),
+    });
+  });
+
+  it('makes no request at all when no classes were asked for', async () => {
+    const counts = await fetchPublicEntryCountsByShow('show-1', [], 'op');
+
+    expect(counts.size).toBe(0);
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
   });
 
   // Same contract as the session-scoped helper: throw, so the public surface can

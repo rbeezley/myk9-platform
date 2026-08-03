@@ -197,7 +197,7 @@ describe('tv-display database reads', () => {
     expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual(['shows', 'classes']);
     expect(mockSupabase.rpc.mock.calls).toEqual([
       ['tv_board_entries', { p_show_id: 'show-1', p_class_ids: ['class-active'] }],
-      ['tv_class_entry_counts', { p_show_id: 'show-1' }],
+      ['tv_class_entry_counts', { p_show_id: 'show-1', p_class_ids: ['class-active'] }],
     ]);
     expect(result.show).toEqual({
       id: 'show-1',
@@ -250,6 +250,7 @@ describe('tv-display database reads', () => {
     ]);
     expect(mockSupabase.rpc).toHaveBeenCalledWith('tv_class_entry_counts', {
       p_show_id: 'show-1',
+      p_class_ids: ['class-done'],
     });
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({

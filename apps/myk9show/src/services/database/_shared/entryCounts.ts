@@ -60,9 +60,11 @@ export async function fetchEntryCountsByClassIds(
  * that also removes the failure mode where a single class's count rejecting
  * collapsed every total through `Promise.all`.
  *
- * Classes with no entries are absent from the RPC result — the server will not
- * echo back a caller-supplied id list — so they are filled in as 0 here, keeping
- * the "every requested id is present" contract callers already rely on.
+ * The RPC returns one row per requested class id whenever the show is publicly
+ * visible, zeros included. An EMPTY result therefore means one thing only: this
+ * show is not public — a draft a secretary previewed, say. That is reported as a
+ * failure so the board renders "unavailable" rather than a confident "0 / 0",
+ * which MYK9-65's acceptance criteria rule out explicitly.
  */
 export interface PublicClassCounts {
   /** Entries the show still expects to run — the board's denominator. */
@@ -76,14 +78,25 @@ export async function fetchPublicEntryCountsByShow(
   classIds: readonly string[],
   operation: string
 ): Promise<Map<string, PublicClassCounts>> {
+  if (classIds.length === 0) return new Map();
+
   const { data, error } = await supabase.rpc('tv_class_entry_counts', {
     p_show_id: showId,
+    p_class_ids: [...classIds],
   });
 
   if (error) throw createDatabaseError(error, 'entry', operation);
 
+  if (!data || data.length === 0) {
+    throw createDatabaseError(
+      { message: `no public counts for show ${showId} — show is not publicly visible` },
+      'entry',
+      operation
+    );
+  }
+
   const counted = new Map(
-    (data ?? []).map(row => [row.class_id, { total: row.entry_count, scored: row.scored_count }])
+    data.map(row => [row.class_id, { total: row.entry_count, scored: row.scored_count }])
   );
   return new Map(
     classIds.map(classId => [classId, counted.get(classId) ?? { total: 0, scored: 0 }])

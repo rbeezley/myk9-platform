@@ -12066,7 +12066,7 @@ export type Database = {
         }[]
       }
       tv_class_entry_counts: {
-        Args: { p_show_id: string }
+        Args: { p_class_ids: string[]; p_show_id: string }
         Returns: {
           class_id: string
           entry_count: number

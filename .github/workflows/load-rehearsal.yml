@@ -81,6 +81,23 @@ jobs:
             exit 1
           }
 
+      - name: Verify Supabase CPU/IO telemetry source
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          metrics="$(curl --fail --silent --show-error \
+            --user "username:${SUPABASE_SERVICE_ROLE_KEY}" \
+            "https://${LOAD_TEST_PROJECT_REF}.supabase.co/customer/v1/privileged/metrics")"
+          grep -q 'node_cpu_seconds_total' <<<"$metrics" || {
+            echo "Supabase Metrics API did not provide CPU counters." >&2
+            exit 1
+          }
+          grep -q 'node_disk_io_time_seconds_total' <<<"$metrics" || {
+            echo "Supabase Metrics API did not provide disk IO counters." >&2
+            exit 1
+          }
+
       - name: Mark canonical restoration required
         id: restore
         run: echo "required=true" >>"$GITHUB_OUTPUT"
@@ -128,9 +145,9 @@ jobs:
     timeout-minutes: 55
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 8
       matrix:
-        shard: [0, 1, 2, 3]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
 
     steps:
       - uses: actions/checkout@v7
@@ -156,7 +173,7 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
 
-      - name: Run synchronized 25-session shard with generator telemetry
+      - name: Run synchronized 12/13-session shard with generator telemetry
         working-directory: apps/myk9show
         run: pnpm test:load:playwright
         env:
@@ -168,7 +185,7 @@ jobs:
           LOAD_TEST_SUPABASE_PROJECT_REF: sojmvhhwsjxmfistvzbe
           LOAD_TEST_START_APP: 'true'
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
-          LOAD_TEST_SHARD_COUNT: '4'
+          LOAD_TEST_SHARD_COUNT: '8'
           LOAD_TEST_SHARD_INDEX: ${{ matrix.shard }}
           LOAD_TEST_RUN_ID: ${{ needs.prepare.outputs.run-id }}
           LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}
@@ -243,10 +260,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
+
+      - name: Abort and drain in-flight scoring work
+        env:
+          SUPABASE_DB_URL: postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:5432/postgres
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          pnpm --filter @myk9/show exec tsx scripts/load-cleanup.ts
 
       - name: Restore canonical seed
         env:

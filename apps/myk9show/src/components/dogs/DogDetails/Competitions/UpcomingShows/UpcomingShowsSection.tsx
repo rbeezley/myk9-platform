@@ -110,6 +110,11 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
   };
 
   const hasContent = upcoming.length > 0 || externalShows.length > 0;
+  // Judged on the PLATFORM list alone. An external show the user typed in says
+  // nothing about whether their myK9Show entries loaded, so letting it satisfy
+  // `hasContent` would hide the notice and leave "0 entries on myK9Show"
+  // reading as a fact.
+  const platformUnresolved = upcoming.length === 0 && !canTrustEmpty;
 
   // An unresolved or failed read leaves `upcoming` empty for the same reason a
   // genuinely unentered dog does. Only the third case may draw the empty copy —
@@ -152,7 +157,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
 
     // Offline, an unsynced dog and an unentered dog produce the same empty
     // array — see `canTrustEmpty`. Say so rather than assert a clear calendar.
-    if (!hasContent && !canTrustEmpty) {
+    if (platformUnresolved && !hasContent) {
       return (
         <EmptyState
           icon={WifiOff}
@@ -185,10 +190,20 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
 
     return (
       <>
-        <div className="text-xs text-muted-foreground">
-          {pluralEntries(upcoming.length)} on myK9Show
-          {externalShows.length > 0 ? ` · ${pluralExternal(externalShows.length)}` : ''}
-        </div>
+        {platformUnresolved ? (
+          <div role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+            <WifiOff className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>
+              You're offline — myK9Show entries may not have loaded. Showing what's saved on this
+              device.
+            </span>
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">
+            {pluralEntries(upcoming.length)} on myK9Show
+            {externalShows.length > 0 ? ` · ${pluralExternal(externalShows.length)}` : ''}
+          </div>
+        )}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {upcoming.map(entry => {
             const showName = entry.show?.name ?? 'Unknown show';

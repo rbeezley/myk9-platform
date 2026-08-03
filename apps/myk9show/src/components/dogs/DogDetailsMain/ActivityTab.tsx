@@ -135,7 +135,11 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
 }
 
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
-  const { upcoming, recentResults, isLoading, canTrustEmpty } = useDogActivity(dogId);
+  const { upcoming, recentResults, isLoading, isError, canTrustEmpty, refetch } =
+    useDogActivity(dogId);
+  // An empty list is only "nothing booked" when the read actually resolved.
+  // Career applies the identical rule — see `canTrustEmpty`.
+  const upcomingUnresolved = upcoming.length === 0 && (isError || !canTrustEmpty);
 
   if (isLoading) {
     return (
@@ -170,14 +174,17 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {upcoming.length === 0 && !canTrustEmpty ? (
-            // Offline, an unsynced dog and an unentered dog both read as empty
-            // (see `canTrustEmpty`). Career applies the same rule.
+          {upcomingUnresolved ? (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <WifiOff className="h-8 w-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">
-                You're offline, so {dogName}'s entries may not have loaded.
+                {isError
+                  ? `We couldn't load ${dogName}'s entries just now.`
+                  : `You're offline, so ${dogName}'s entries may not have loaded.`}
               </p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Try again
+              </Button>
             </div>
           ) : upcoming.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-6 text-center">

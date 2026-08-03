@@ -232,6 +232,35 @@ describe('UpcomingShowsSection', () => {
       }
     });
 
+    // An external show is device-local, so it is no evidence the platform read
+    // resolved. Letting it satisfy `hasContent` would print "0 entries on
+    // myK9Show" as though it were a fact.
+    it('flags the unresolved platform read even when an external show is present', () => {
+      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        useCompetitionStore.setState({
+          competitions: [
+            {
+              id: '1',
+              name: 'Spring Classic',
+              date: '2026-05-15',
+              location: 'Austin, TX',
+              status: 'Upcoming',
+              dogId: DOG_ID,
+            },
+          ],
+        });
+
+        render(<UpcomingShowsSection {...defaultProps} />);
+
+        expect(screen.getByText('Spring Classic')).toBeInTheDocument();
+        expect(screen.queryByText('0 entries on myK9Show · 1 external show')).toBeNull();
+        expect(screen.getByRole('status')).toHaveTextContent(/offline/i);
+      } finally {
+        onLine.mockRestore();
+      }
+    });
+
     it('retries through the canonical query rather than reloading the page', async () => {
       const refetch = vi.fn();
       useEntriesByDogQueryMock.mockReturnValue({

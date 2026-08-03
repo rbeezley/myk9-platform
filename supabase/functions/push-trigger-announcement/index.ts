@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import webpush from 'npm:web-push@3';
 
+import { assertAudienceQuerySucceeded } from '../_shared/fanoutErrors.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
@@ -82,9 +83,8 @@ handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, a
     if (officialError) {
       console.error('push-trigger-announcement: official query failed', officialError.message);
     }
-  if (exhibitorError || officialError) {
-    throw new HttpError(500, 'Audience resolution failed');
-  }
+    assertAudienceQuerySucceeded(exhibitorError);
+    assertAudienceQuerySucceeded(officialError);
 
     const audienceIds = new Set<string>();
     if (exhibitors) {
@@ -140,7 +140,7 @@ handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, a
           'push-trigger-announcement: subscription query failed for chunk',
           subError.message
         );
-        continue;
+        assertAudienceQuerySucceeded(subError);
       }
       if (subs) allSubscriptions.push(...subs);
     }

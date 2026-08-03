@@ -23,7 +23,7 @@ const upcomingRow = {
 describe('ActivityTab upcoming-entry status line (2.B)', () => {
   beforeEach(() => {
     useEntriesByDogQueryMock.mockReturnValue({
-      data: [upcomingRow],
+      data: { rows: [upcomingRow], verified: true },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),

@@ -8,9 +8,9 @@
 // this module through `useDogActivity`, so they agree by construction rather
 // than by two components happening to filter the same way.
 //
-// Pair it with `getEntriesByDog`, which verifies online when the local replica
-// is empty — the derivation cannot tell "no entries" from "not synced yet", so
-// the false-empty guard has to live in the read, not here.
+// Pair it with `getEntriesByDog`, which is online-first and reports whether the
+// rows it returned are authoritative — this derivation cannot tell "no entries"
+// from "not synced yet", so that judgement has to live in the read, not here.
 import { getEntryStatusKind, isRemovedStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { toLocalDate } from '@/utils/date-format';
 

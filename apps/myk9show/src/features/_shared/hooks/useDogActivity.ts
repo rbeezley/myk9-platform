@@ -1,5 +1,5 @@
 import { useEntriesByDogQuery } from '@/hooks/queries/useEntriesDatabase';
-import { useOnlineStatus } from '@/lib/networkUtils';
+
 import { deriveDogActivity, type DogActivityEntry } from '@/features/_shared/dogActivity';
 
 export interface UseDogActivityResult {
@@ -23,14 +23,12 @@ export interface UseDogActivityResult {
   /**
    * Whether an empty result may be presented as "nothing booked".
    *
-   * `getEntriesByDog` guards the cold-replica case by re-reading online when the
-   * local replica comes back empty — but `readWithReplicationFallback`
-   * deliberately SWALLOWS that verification's failure and returns the original
-   * empty array with `error: null`. React Query therefore resolves successfully,
-   * `isError` stays false, and a dog whose shows simply have not synced is
-   * indistinguishable from a dog with nothing entered. Offline is exactly when
-   * that happens, so surfaces must render an unknown/offline state rather than
-   * the empty copy when this is false.
+   * This is the read's own provenance, not a guess: `getEntriesByDog` is
+   * online-first and reports `verified`, which is true only when the rows came
+   * from the authoritative online read. Entries replicate per-show, so a dog's
+   * entries span many scopes and an offline result is only ever a lower bound —
+   * it cannot distinguish "no entries" from "that show never synced". Surfaces
+   * must render an unknown state rather than the empty copy when this is false.
    *
    * Lives on the hook rather than in each surface so Overview and Career cannot
    * apply the rule differently.
@@ -43,19 +41,28 @@ export interface UseDogActivityResult {
 /**
  * The one dog-scoped entry query every dog surface should compose.
  *
- * `useEntriesByDogQuery` -> `getEntriesByDog` is replication-backed and
- * verifies online when the local replica comes back empty, so a dog whose
- * entries have not synced does not read as a dog with no entries.
+ * `useEntriesByDogQuery` -> `getEntriesByDog` is online-first with the local
+ * replica as its offline fallback, and reports which one it used. A dog's
+ * entries span many per-show replication scopes, so only the online read can
+ * establish that a dog has nothing coming up.
  */
 export function useDogActivity(dogId: string): UseDogActivityResult {
   const { data, isLoading, isError, refetch } = useEntriesByDogQuery(dogId);
-  const isOnline = useOnlineStatus();
 
   // Deliberately not memoised: `deriveDogActivity` defaults `today` to the
   // current date, so caching it across renders would freeze the
   // upcoming/past boundary at whenever the entry list last changed.
-  const entries = (data ?? []).map(row => row as unknown as DogActivityEntry);
+  const entries = (data?.rows ?? []).map(row => row as unknown as DogActivityEntry);
   const { upcoming, recentResults } = deriveDogActivity(entries);
 
-  return { upcoming, recentResults, isLoading, isError, canTrustEmpty: isOnline, refetch };
+  return {
+    upcoming,
+    recentResults,
+    isLoading,
+    isError,
+    // An unresolved query has no provenance yet, so it cannot vouch for an
+    // empty list either. Surfaces branch on `isLoading` first regardless.
+    canTrustEmpty: data?.verified ?? false,
+    refetch,
+  };
 }

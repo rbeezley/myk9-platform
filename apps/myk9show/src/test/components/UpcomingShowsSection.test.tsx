@@ -82,8 +82,13 @@ function entryRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function resolved(rows: unknown[]) {
-  return { data: rows, isLoading: false, isError: false, refetch: vi.fn() };
+/**
+ * `useEntriesByDogQuery` reports read provenance alongside the rows.
+ * `verified: false` models an offline/failed read served from the local
+ * replica, which for a dog is only ever a lower bound — see getEntriesByDog.
+ */
+function resolved(rows: unknown[], verified = true) {
+  return { data: { rows, verified }, isLoading: false, isError: false, refetch: vi.fn() };
 }
 
 const defaultProps = {
@@ -205,60 +210,46 @@ describe('UpcomingShowsSection', () => {
     // array with `error: null` — so offline, `isError` is false and an unsynced
     // dog looks exactly like an unentered one.
     it('says it cannot check while offline instead of asserting an empty calendar', () => {
-      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-      try {
-        render(<UpcomingShowsSection {...defaultProps} />);
+      useEntriesByDogQueryMock.mockReturnValue(resolved([], false));
 
-        expect(screen.queryByText('No Upcoming Shows')).not.toBeInTheDocument();
-        expect(screen.getByText("Can't check for upcoming shows offline")).toBeInTheDocument();
-      } finally {
-        onLine.mockRestore();
-      }
+      render(<UpcomingShowsSection {...defaultProps} />);
+
+      expect(screen.queryByText('No Upcoming Shows')).not.toBeInTheDocument();
+      expect(screen.getByText("Can't check for upcoming shows offline")).toBeInTheDocument();
     });
 
     it('still lists entries it did load while offline', () => {
-      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-      try {
-        useEntriesByDogQueryMock.mockReturnValue(resolved([entryRow()]));
+      useEntriesByDogQueryMock.mockReturnValue(resolved([entryRow()], false));
 
-        render(<UpcomingShowsSection {...defaultProps} />);
+      render(<UpcomingShowsSection {...defaultProps} />);
 
-        expect(screen.getByText('Heartland Scent Work Classic')).toBeInTheDocument();
-        expect(
-          screen.queryByText("Can't check for upcoming shows offline")
-        ).not.toBeInTheDocument();
-      } finally {
-        onLine.mockRestore();
-      }
+      expect(screen.getByText('Heartland Scent Work Classic')).toBeInTheDocument();
+      expect(screen.queryByText("Can't check for upcoming shows offline")).not.toBeInTheDocument();
     });
 
     // An external show is device-local, so it is no evidence the platform read
     // resolved. Letting it satisfy `hasContent` would print "0 entries on
     // myK9Show" as though it were a fact.
     it('flags the unresolved platform read even when an external show is present', () => {
-      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-      try {
-        useCompetitionStore.setState({
-          competitions: [
-            {
-              id: '1',
-              name: 'Spring Classic',
-              date: '2026-05-15',
-              location: 'Austin, TX',
-              status: 'Upcoming',
-              dogId: DOG_ID,
-            },
-          ],
-        });
+      useEntriesByDogQueryMock.mockReturnValue(resolved([], false));
+      useCompetitionStore.setState({
+        competitions: [
+          {
+            id: '1',
+            name: 'Spring Classic',
+            date: '2026-05-15',
+            location: 'Austin, TX',
+            status: 'Upcoming',
+            dogId: DOG_ID,
+          },
+        ],
+      });
 
-        render(<UpcomingShowsSection {...defaultProps} />);
+      render(<UpcomingShowsSection {...defaultProps} />);
 
-        expect(screen.getByText('Spring Classic')).toBeInTheDocument();
-        expect(screen.queryByText('0 entries on myK9Show · 1 external show')).toBeNull();
-        expect(screen.getByRole('status')).toHaveTextContent(/offline/i);
-      } finally {
-        onLine.mockRestore();
-      }
+      expect(screen.getByText('Spring Classic')).toBeInTheDocument();
+      expect(screen.queryByText('0 entries on myK9Show · 1 external show')).toBeNull();
+      expect(screen.getByRole('status')).toHaveTextContent(/offline/i);
     });
 
     it('keeps device-saved external shows visible when the platform read fails', () => {

@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
- * exhibitor-count-integrity: getEntriesByDog must verify online when the
- * local replica has zero rows for a dog, instead of trusting an empty local
- * result as truth (entries replicate per-show — see the comment above
- * countActiveEntriesByDog in reads.ts documenting the same class of bug).
+ * getEntriesByDog is ONLINE-FIRST, with the local replica as its offline
+ * fallback. Entries replicate per-show, so a dog's entries span many scopes and
+ * a local result is only ever a lower bound — it can never establish that a dog
+ * has no entries. The read reports `verified` so callers can tell an
+ * authoritative empty from an unverifiable one (MYK9-121).
+ *
+ * This file previously asserted the opposite for one case ("does not call
+ * online when the local replica already has the dog's entries"). That was the
+ * bug: a replica holding one PAST entry is non-empty, so the old
+ * `verifyOnlineWhenEmpty` guard never fired, and a caller filtering to
+ * "upcoming" derived a confident false empty while fully online.
  *
  * Isolated from entryQueries.replication.test.ts because that file's shared
  * supabase mock doesn't support the `.eq().is().order()` chain
@@ -46,6 +53,9 @@ const defaultOnlineRow = {
 // Mutable so individual tests can model what the SERVER still returns (e.g. a
 // row whose delete has not yet synced is still live server-side).
 let onlineRows: Array<Record<string, unknown>> = [defaultOnlineRow];
+// Set to model the online read being unavailable — offline, or a failed query.
+let onlineError: { message: string } | null = null;
+let onlineCallCount = 0;
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -53,7 +63,13 @@ vi.mock('@/services/database/supabaseClient', () => ({
       select: () => ({
         eq: () => ({
           is: () => ({
-            order: () => Promise.resolve({ data: onlineRows, error: null }),
+            order: () => {
+              onlineCallCount += 1;
+              return Promise.resolve({
+                data: onlineError ? null : onlineRows,
+                error: onlineError,
+              });
+            },
           }),
         }),
       }),
@@ -68,87 +84,136 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 import { getEntriesByDog } from '@/services/database/entries';
 
-describe('getEntriesByDog — cold local replica verifies online', () => {
+function localRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'entry-local-1',
+    dogId: 'dog-1',
+    classId: null,
+    showId: null,
+    deletedAt: null,
+    entryStatus: 'confirmed',
+    ...overrides,
+  };
+}
+
+describe('getEntriesByDog — online-first with a replica fallback', () => {
   beforeEach(() => {
     onlineRows = [defaultOnlineRow];
-  });
-
-  it('falls back to the online read when the local replica has zero rows for the dog', async () => {
+    onlineError = null;
+    onlineCallCount = 0;
     mockEntriesTable.getAll.mockResolvedValue([]);
-
-    const result = await getEntriesByDog('dog-1');
-
-    expect(result.data).toHaveLength(1);
-    expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
   });
 
-  it('does not call online when the local replica already has the dog’s entries', async () => {
-    mockEntriesTable.getAll.mockResolvedValue([
-      {
-        id: 'entry-local-1',
-        dogId: 'dog-1',
-        classId: null,
-        showId: null,
-        deletedAt: null,
-        entryStatus: 'confirmed',
-      },
-    ]);
+  describe('the online read is authoritative', () => {
+    it('reads online when the local replica has zero rows for the dog', async () => {
+      const result = await getEntriesByDog('dog-1');
 
-    const result = await getEntriesByDog('dog-1');
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
+      expect(result.verified).toBe(true);
+    });
 
-    expect(result.data).toHaveLength(1);
-    expect((result.data[0] as Record<string, unknown>).id).toBe('entry-local-1');
+    // The inversion. A non-empty local replica used to SUPPRESS the online read,
+    // which is what let a partial replica masquerade as complete.
+    it('still reads online when the local replica already has rows for the dog', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([localRow()]);
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(onlineCallCount).toBe(1);
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
+      expect(result.verified).toBe(true);
+    });
+
+    // MYK9-121's actual failure mode, at the read layer: the replica holds one
+    // entry from a show that synced, while a second show never did. The old
+    // empty-only guard saw a non-empty result and never checked the server, so
+    // the unsynced entry stayed invisible — and a caller filtering to "upcoming"
+    // rendered "nothing booked" while fully online.
+    it('surfaces an entry from an unsynced show that the replica cannot know about', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-past-synced', showId: 's1' }),
+      ]);
+      onlineRows = [
+        { id: 'entry-past-synced', dog_id: 'dog-1', class: { id: 'c1' }, show: { id: 's1' } },
+        { id: 'entry-future-unsynced', dog_id: 'dog-1', class: { id: 'c2' }, show: { id: 's2' } },
+      ];
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data.map(r => (r as Record<string, unknown>).id)).toEqual([
+        'entry-past-synced',
+        'entry-future-unsynced',
+      ]);
+      expect(result.verified).toBe(true);
+    });
   });
 
-  it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {
-    // A queued soft-delete not yet synced: isLiveEntry filters the row out, so
-    // the mapped result is empty and the online read runs. The server hasn't
-    // seen the delete yet, so it still returns that same entry as live — it must
-    // NOT reappear.
-    mockEntriesTable.getAll.mockResolvedValue([
-      {
-        id: 'entry-tombstoned',
-        dogId: 'dog-1',
-        classId: null,
-        showId: null,
-        deletedAt: '2026-07-09T00:00:00.000Z',
-        entryStatus: 'confirmed',
-      },
-    ]);
-    onlineRows = [{ id: 'entry-tombstoned', dog_id: 'dog-1', class: { id: 'c1' }, show: { id: 's1' } }];
+  describe('pending local deletes still win over the server', () => {
+    it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {
+      // A queued soft-delete not yet synced. The server has not seen the delete,
+      // so it still returns the row as live — it must NOT reappear.
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-tombstoned', deletedAt: '2026-07-09T00:00:00.000Z' }),
+      ]);
+      onlineRows = [
+        { id: 'entry-tombstoned', dog_id: 'dog-1', class: { id: 'c1' }, show: { id: 's1' } },
+      ];
 
-    const result = await getEntriesByDog('dog-1');
+      const result = await getEntriesByDog('dog-1');
 
-    expect(result.data).toHaveLength(0);
-    expect(result.data.some(r => (r as Record<string, unknown>).id === 'entry-tombstoned')).toBe(
-      false
-    );
+      expect(result.data).toHaveLength(0);
+      expect(result.verified).toBe(true);
+    });
+
+    it('surfaces a live entry in another show while excluding a locally-tombstoned one', async () => {
+      mockEntriesTable.getAll.mockResolvedValue([
+        localRow({ id: 'entry-tombstoned', showId: 's1', deletedAt: '2026-07-09T00:00:00.000Z' }),
+      ]);
+      onlineRows = [
+        { id: 'entry-tombstoned', dog_id: 'dog-1', class: { id: 'c1' }, show: { id: 's1' } },
+        { id: 'entry-live-other-show', dog_id: 'dog-1', class: { id: 'c2' }, show: { id: 's2' } },
+      ];
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('entry-live-other-show');
+    });
   });
 
-  it('surfaces a live entry in an unsynced show while excluding a locally-tombstoned one', async () => {
-    // Cross-scope (Codex #1236): a dog's entries span multiple per-show stores.
-    // The local replica holds a pending delete for one entry; another show has
-    // not synced locally but holds a live entry. The online read must surface
-    // the live entry and drop the deleted one — a coarse local-row count would
-    // wrongly suppress the online read and hide the live entry.
-    mockEntriesTable.getAll.mockResolvedValue([
-      {
-        id: 'entry-tombstoned',
-        dogId: 'dog-1',
-        classId: null,
-        showId: 's1',
-        deletedAt: '2026-07-09T00:00:00.000Z',
-        entryStatus: 'confirmed',
-      },
-    ]);
-    onlineRows = [
-      { id: 'entry-tombstoned', dog_id: 'dog-1', class: { id: 'c1' }, show: { id: 's1' } },
-      { id: 'entry-live-other-show', dog_id: 'dog-1', class: { id: 'c2' }, show: { id: 's2' } },
-    ];
+  describe('offline falls back to the replica, and says so', () => {
+    it('serves replica rows when the online read fails', async () => {
+      onlineError = { message: 'network down' };
+      mockEntriesTable.getAll.mockResolvedValue([localRow()]);
 
-    const result = await getEntriesByDog('dog-1');
+      const result = await getEntriesByDog('dog-1');
 
-    expect(result.data).toHaveLength(1);
-    expect((result.data[0] as Record<string, unknown>).id).toBe('entry-live-other-show');
+      expect(result.data).toHaveLength(1);
+      expect((result.data[0] as Record<string, unknown>).id).toBe('entry-local-1');
+      expect(result.error).toBeNull();
+    });
+
+    // The whole point of the flag: an offline empty is NOT evidence of an empty
+    // calendar, because the replica cannot see shows that never synced.
+    it('marks a failed read unverified so callers cannot present it as fact', async () => {
+      onlineError = { message: 'network down' };
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data).toHaveLength(0);
+      expect(result.verified).toBe(false);
+    });
+
+    it('marks a non-empty offline result unverified too — it is only a lower bound', async () => {
+      onlineError = { message: 'network down' };
+      mockEntriesTable.getAll.mockResolvedValue([localRow()]);
+
+      const result = await getEntriesByDog('dog-1');
+
+      expect(result.data).toHaveLength(1);
+      expect(result.verified).toBe(false);
+    });
   });
 });

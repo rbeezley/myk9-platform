@@ -5,7 +5,7 @@
  * SELECT functions read from the replication store (IndexedDB) with PostgREST fallback.
  * Mutation functions live in writes.ts and secretary.ts.
  */
-import { supabase, createDatabaseError, type DatabaseError } from '../supabaseClient';
+import { supabase, createDatabaseError, logQuery, type DatabaseError } from '../supabaseClient';
 import {
   compareDateDesc,
   compareNumberAscNullsLast,
@@ -776,49 +776,82 @@ export const getEntriesByClassId = async (
   };
 };
 
-// Get entries by dog ID
+/** A dog-entries read, plus whether it came from an authoritative source. */
+export interface DogEntriesReadResult {
+  data: unknown[];
+  error: DatabaseError | null;
+  /**
+   * True when these rows came from the ONLINE read, so an empty list means the
+   * dog really has no entries. False when the online read was unavailable and
+   * the rows came from the local replica, which for this query can only ever be
+   * a lower bound (see below) — callers must not present an empty or filtered
+   * result as fact.
+   */
+  verified: boolean;
+}
+
+// Read this dog's entries from the local replica. Also reports the IDs of rows
+// present locally as soft-delete tombstones — a queued delete not yet synced —
+// so the online read can exclude them and avoid resurrecting a just-deleted
+// entry from a server row that predates the delete.
+async function replicaGetEntriesByDog(dogId: string) {
+  const [allEntries, classesMap, showsMap] = await Promise.all([
+    replicatedEntriesTable.getAll(),
+    loadClassesMap(),
+    loadShowsMap(),
+  ]);
+  const dogEntries = allEntries.filter(e => e.dogId === dogId);
+  const locallyDeletedIds = dogEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
+  const sortedEntries = sortedCopy(
+    dogEntries.filter(isLiveEntry),
+    compareDateDesc(getEntryCreatedSortValue)
+  );
+  const data = sortedEntries.map(entry =>
+    mapReplicatedEntryToDbRow(entry, {
+      cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
+      show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
+    })
+  );
+  return { data, locallyDeletedIds };
+}
+
+// Get entries by dog ID.
 //
-// exhibitor-count-integrity: entries replicate per-show (see
-// countActiveEntriesByDog above), so a dog whose entries haven't synced
-// locally yet returned a false EMPTY result here — and withReplicationFallback
-// only falls back to `postgrest` on a THROW, not on a legitimately-shaped-but-
-// wrong empty array. That produced the audit's "Willow — 3 upcoming classes"
-// (dashboard, summed from the account-level entries the page already loaded)
-// vs. "No upcoming entries for Willow" (this hook, cold local replica)
-// contradiction. Mirrors the same empty-local-replica-verifies-online pattern
-// `services/database/entries/search.ts`'s `getUserEntries` already uses.
-export const getEntriesByDog = async (dogId: string) => {
-  return readWithReplicationFallback({
-    replication: async () => {
-      const [allEntries, classesMap, showsMap] = await Promise.all([
-        replicatedEntriesTable.getAll(),
-        loadClassesMap(),
-        loadShowsMap(),
-      ]);
-      // IDs of this dog's locally-tombstoned entries (a queued delete not yet
-      // synced), reported to the helper's `verifyOnlineWhenEmpty` online read so
-      // it excludes them. A dog's entries span multiple per-show stores, so a
-      // pending delete in one synced show must NOT resurrect from the server,
-      // while a live entry in an unsynced show must still surface — the ID
-      // exclusion does both (a coarse local-row count could not).
-      const dogEntries = allEntries.filter(e => e.dogId === dogId);
-      const locallyDeletedIds = dogEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
-      const filtered = dogEntries.filter(isLiveEntry);
-      const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
-      const data = sortedEntries.map(entry =>
-        mapReplicatedEntryToDbRow(entry, {
-          cls: entry.classId ? (classesMap.get(entry.classId) ?? null) : null,
-          show: entry.showId ? (showsMap.get(entry.showId) ?? null) : null,
-        })
-      );
-      return { data, error: null, locallyDeletedIds };
-    },
-    postgrest: () => postgrestGetEntriesByDog(dogId),
-    table: 'entries',
-    operation: 'select_by_dog',
-    errorData: [],
-    verifyOnlineWhenEmpty: true,
-  });
+// ONLINE-FIRST, deliberately not replication-first — the local replica is the
+// offline fallback here, not the primary. This is the exception ADR-009 allows
+// and the same call `countActiveEntriesByDog` below already made, for the same
+// reason.
+//
+// Entries replicate PER SHOW, so a dog's entries span many replication scopes
+// and you cannot know whether a dog is entered in a show that has never synced.
+// Local state therefore cannot answer "is this list complete?" even in
+// principle — it is only ever a lower bound. The previous design papered over
+// that with `verifyOnlineWhenEmpty`, which re-reads online when the local result
+// is EMPTY. That leaves a hole no connectivity check can see: a dog with a past
+// entry in a synced show and a future entry in an unsynced one returns a
+// NON-empty result, so no verification runs, and a caller filtering to
+// "upcoming" derives a confident false empty while fully online (MYK9-121).
+//
+// Reading online first removes the hole rather than detecting it. `verified`
+// tells callers which source they got, so an unverifiable result is never
+// rendered as fact. Safe for this query specifically: its consumers are
+// dog-profile surfaces, not show-day ringside.
+export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResult> => {
+  const local = await replicaGetEntriesByDog(dogId);
+
+  try {
+    const online = await postgrestGetEntriesByDog(dogId);
+    const deleted = new Set(local.locallyDeletedIds);
+    const data = deleted.size
+      ? online.data.filter(row => !deleted.has(String((row as { id?: unknown }).id)))
+      : online.data;
+    return { data, error: null, verified: true };
+  } catch (error) {
+    // Offline, or the read failed. Serve the replica — correct as far as it
+    // goes, but unverifiable, hence `verified: false`.
+    logQuery('entries', 'select_by_dog_replica_fallback', 0, String(error));
+    return { data: local.data, error: null, verified: false };
+  }
 };
 
 // Count a dog's live (non-soft-deleted) entries.

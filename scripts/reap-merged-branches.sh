@@ -144,9 +144,11 @@ while IFS= read -r br; do
     continue
   fi
 
-  # Reuse the tip read above rather than re-running rev-parse, which is one
-  # more ref lookup that a concurrent delete could fail.
-  sha="${tip:0:9}"
+  # Full SHA, from the tip already read. Re-running `rev-parse --short` is
+  # another ref lookup a concurrent delete could fail, and truncating by hand
+  # can collide; the log exists so a mistaken reap can be recovered, and the
+  # unabbreviated object is what makes that possible.
+  sha="$tip"
   if [ "$APPLY" = "1" ]; then
     if git branch -D "$br" >/dev/null 2>&1; then
       echo "reap  $br ($proof, was $sha)"

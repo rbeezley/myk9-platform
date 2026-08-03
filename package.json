@@ -17,6 +17,7 @@
     "qa:doc-staleness:strict": "node scripts/check-doc-staleness.js --strict",
     "qa:doc-staleness:test": "node --test scripts/check-doc-staleness.test.js",
     "qa:nightly:prepare": "bash scripts/qa/run-nightly-isolated.sh",
+    "qa:nightly:run": "bash scripts/qa/run-nightly.sh",
     "qa:nightly:health": "bash scripts/qa/run-nightly-health.sh",
     "qa:playwright:regression": "bash scripts/qa/run-playwright-regression.sh",
     "qa:isolated-e2e:prepare": "tsx scripts/qa/isolated-e2e-lifecycle.ts prepare",

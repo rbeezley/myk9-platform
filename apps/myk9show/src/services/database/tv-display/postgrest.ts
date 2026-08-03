@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { fetchEntryCountsByClassIds } from '../_shared/entryCounts';
 import {
   groupEntriesByClass,
   mapJoinedDog,
@@ -6,7 +7,34 @@ import {
   toNullableNumber,
   TV_ACTIVE_STATUSES,
 } from './mappers';
-import type { TVCompletedClass, TVDisplayData, TVEntry, TVPlacement } from '@/pages/TVDisplay/types';
+import type {
+  TVCompletedClass,
+  TVDisplayData,
+  TVEntry,
+  TVPlacement,
+} from '@/pages/TVDisplay/types';
+
+/**
+ * Canonical entry totals for the board, or null when they cannot be read.
+ *
+ * The board used to render `classes.total_entries_count`, which no trigger
+ * maintains and which is 0 for every class — so a class with three scored dogs
+ * published "3 / 0" to a room full of exhibitors (MYK9-65).
+ *
+ * Null rather than 0 on failure is the point: `TVClassCard` and
+ * `TVMobileClassCard` already suppress the counter when the total is null, so a
+ * venue screen that cannot reach the database shows nothing instead of a
+ * confident, wrong zero.
+ */
+async function fetchTVEntryCounts(
+  classIds: readonly string[]
+): Promise<Map<string, number> | null> {
+  try {
+    return await fetchEntryCountsByClassIds(classIds, 'select_tv_entry_counts');
+  } catch {
+    return null;
+  }
+}
 
 function mapPostgrestEntry(raw: Record<string, unknown>): TVEntry {
   return {
@@ -41,7 +69,7 @@ export async function getPostgrestTVDisplayData(
   let classQuery = supabase
     .from('classes')
     .select(
-      'id, name, element, level, status, total_entries_count, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number), judge_assignments(people(first_name, last_name))'
+      'id, name, element, level, status, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number), judge_assignments(people(first_name, last_name))'
     )
     .eq('trials.show_id', showId)
     .in('status', [...TV_ACTIVE_STATUSES]);
@@ -54,14 +82,20 @@ export async function getPostgrestTVDisplayData(
   }
 
   const classIds = classData.map(c => c.id);
-  const { data: entryData } = await supabase
-    .from('entries')
-    .select(
-      'id, class_id, armband, handler, run_order, is_in_ring, is_scored, dogs(name, call_name, image_url)'
-    )
-    .in('class_id', classIds)
-    .or('is_scored.eq.false,is_in_ring.eq.true')
-    .order('run_order', { ascending: true });
+  const [{ data: entryData }, entryCounts] = await Promise.all([
+    supabase
+      .from('entries')
+      .select(
+        'id, class_id, armband, handler, run_order, is_in_ring, is_scored, dogs(name, call_name, image_url)'
+      )
+      .in('class_id', classIds)
+      // Withdrawn entries must not ride the running order, or the board's own
+      // list disagrees with the total counted beside it.
+      .is('deleted_at', null)
+      .or('is_scored.eq.false,is_in_ring.eq.true')
+      .order('run_order', { ascending: true }),
+    fetchTVEntryCounts(classIds),
+  ]);
 
   const classIdByEntryId = new Map<string, string>(
     (entryData ?? [])
@@ -93,7 +127,7 @@ export async function getPostgrestTVDisplayData(
         level: c.level,
         status: c.status,
         judgeName: firstJudge ? `${firstJudge.first_name} ${firstJudge.last_name}`.trim() : null,
-        totalEntries: c.total_entries_count,
+        totalEntries: entryCounts?.get(c.id) ?? null,
         scoredCount: c.scored_count,
         startTime: c.start_time,
         trialDate: trial?.trial_date ?? null,
@@ -111,7 +145,7 @@ export async function getPostgrestTVDisplayResults(
   let classQuery = supabase
     .from('classes')
     .select(
-      'id, name, element, level, total_entries_count, trials!inner(show_id), judge_assignments(people(first_name, last_name))'
+      'id, name, element, level, trials!inner(show_id), judge_assignments(people(first_name, last_name))'
     )
     .eq('trials.show_id', showId)
     .eq('is_scoring_finalized', true);
@@ -122,6 +156,7 @@ export async function getPostgrestTVDisplayResults(
   if (classError || !classData || classData.length === 0) return [];
 
   const classIds = classData.map(c => c.id);
+  const entryCounts = await fetchTVEntryCounts(classIds);
   // INTENT: The TV display is a public surface. Read results through
   // view_public_entry_results so the result-visibility cascade is enforced by
   // the database — placements/times/quals for classes whose results have not
@@ -187,7 +222,7 @@ export async function getPostgrestTVDisplayResults(
       element: c.element,
       level: c.level,
       judgeName: firstJudge ? `${firstJudge.first_name} ${firstJudge.last_name}`.trim() : null,
-      totalEntries: c.total_entries_count,
+      totalEntries: entryCounts?.get(c.id) ?? null,
       qualifiedCount: stats?.count ?? 0,
       fastestTime: stats?.fastest ?? null,
       placements: placementsByClass.get(c.id) ?? [],

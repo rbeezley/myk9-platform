@@ -40,13 +40,22 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
 1. **Kill switch:** read the Vacation Log. `STOP` comment (from Richard) → disable the
    scheduled task, post an acknowledgment, exit.
 2. **Lease — immediately, before any other work.** `lockedUntil` + `lockOwner` in
-   `state.json`, ~4h out, **released by WRITING `lockedUntil: null`** — never by deleting
-   anything. A run finding a live lease logs "skipped: another run holds the lease" and
-   exits **without** counting a failure; one finding an expired lease takes it over.
+   `state.json`, **5h** out, **released by WRITING `lockedUntil: null`** — never by
+   deleting anything (all delete commands are denied here). A run finding a live lease
+   logs "skipped: another run holds the lease" and exits **without** counting a failure;
+   one finding an expired lease takes it over. After writing, re-read and confirm
+   `lockOwner` is still yours — if another run won, back off.
    Locking happens here, not after the health check, because **repairing a red base is
    itself work** — two runs entering that path together would fight over the same branch.
    **Fencing:** re-read `lockOwner` immediately before any mutating action (merge,
    worktree removal, Linear status change); if ownership was lost, abandon quietly.
+   **Release is owner-conditional:** clear the lease ONLY if `lockOwner` is still your run
+   id. A run that overran, lost its lease to a successor, and then blindly cleared it
+   would wipe that successor's live lease and admit a third run alongside it.
+   **Exit is a `finally` of three independent steps — log, clean up, release.** An earlier
+   step failing must never skip a later one: if Linear is unreachable the worktree still
+   gets removed (a surviving worktree is read as in-flight and corrupts the next run) and
+   the lease still gets released.
 
    > **Why not an atomic `mkdir` lock?** It was tried, and the 2026-08-02 rehearsal
    > proved it cannot work here: `rmdir`, `rm` and `rm -rf` are all denied by permission
@@ -112,7 +121,9 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
    - Passes the gate + CI green + Codex clear → merge from the main repo dir, then the
      **non-interactive cleanup** below. Linear issue → Done.
    - Otherwise → open PR, label `needs-richard`, state-of-play comment, issue stays In Progress.
-9. **Failure:** clean up the worktree, comment the exact blocker, label `vacation-blocked`
+9. **Failure:** comment the exact blocker **first**, then clean up the worktree — same
+   log-first ordering as everywhere else, because a cleanup that hangs must not swallow
+   the record of why the run failed. Label `vacation-blocked`
    after the 2nd genuine failure. Quota exhaustion never increments attempt counts.
 10. **Circuit breaker:** 3 consecutive failed runs → disable self, post final log comment.
 

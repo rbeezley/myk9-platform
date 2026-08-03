@@ -64,8 +64,9 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
    > the abstract) asked for atomic acquisition. Atomicity via `mkdir` is only atomic if
    > the directory can also be removed. Read-then-write is adequate for one machine, one
    > scheduler, 6h apart: the lease exists to stop a *stalled* run overlapping the next,
-   > not to arbitrate a millisecond race that cannot occur. A 4h lease under a 6h
-   > interval also means an unreleased lease can never block the following run.
+   > not to arbitrate a millisecond race that cannot occur. A 5h lease under a 6h
+   > interval also means an unreleased lease can never block the following run — and 5h,
+   > not 6h, because a lease equal to the interval expires exactly as its successor fires.
 3. **Health:** if `main` CI is red, **repairing it is the run's work item** — not an exit.
    A red base blocks every future run, so fixing it outranks queue work. Red-main runs do
    not count toward the circuit breaker until two consecutive repair attempts fail to turn

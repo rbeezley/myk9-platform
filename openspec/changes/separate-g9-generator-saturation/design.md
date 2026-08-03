@@ -33,11 +33,13 @@ show-day application or its replication-backed mutations.
 ### Cancel, then observe a quiet scoring window
 
 The cleanup job will identify active database sessions whose query text contains the
-controlled `ringside_update_entry` RPC, request cancellation, then poll the database
-until the scoring-worker count is zero and `pg_stat_database.xact_rollback` is unchanged
-for three consecutive samples. It will not run the canonical reseed if either condition
-is not met within a bounded timeout. This is safer than relying on the row-count
-postcondition, which remained true while the retry storm continued.
+controlled `ringside_update_entry` RPC and whose query began after the workflow recorded
+its rehearsal ownership timestamp, request cancellation, then poll the database until
+the total scoring-worker count is zero and `pg_stat_database.xact_rollback` is unchanged
+for three consecutive samples. Pre-existing scoring work is not canceled, but remains in
+the total worker count and therefore blocks reseeding. Cleanup will not run the canonical
+reseed if either condition is not met within a bounded timeout. This is safer than relying
+on the row-count postcondition, which remained true while the retry storm continued.
 
 The predicate is deliberately scoped to the scoring RPC and excludes the cleanup
 connection itself. The operator-approved prelaunch target and existing workflow

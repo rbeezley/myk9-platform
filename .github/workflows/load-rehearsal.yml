@@ -37,6 +37,7 @@ jobs:
     outputs:
       run-id: ${{ steps.window.outputs.run-id }}
       start-at-ms: ${{ steps.window.outputs.start-at-ms }}
+      owned-since-ms: ${{ steps.ownership.outputs.owned-since-ms }}
       restore-required: ${{ steps.restore.outputs.required }}
 
     steps:
@@ -97,6 +98,10 @@ jobs:
             echo "Supabase Metrics API did not provide disk IO counters." >&2
             exit 1
           }
+
+      - name: Mark rehearsal ownership window
+        id: ownership
+        run: echo "owned-since-ms=$(($(date +%s) * 1000))" >>"$GITHUB_OUTPUT"
 
       - name: Mark canonical restoration required
         id: restore
@@ -277,9 +282,10 @@ jobs:
 
       - name: Abort and drain in-flight scoring work
         env:
-          SUPABASE_DB_URL: postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:5432/postgres
+          SUPABASE_DB_URL: postgresql://postgres.${{ env.LOAD_TEST_PROJECT_REF }}@${{ env.LOAD_TEST_DB_HOST }}:5432/postgres
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          LOAD_TEST_OWNED_SINCE_MS: ${{ needs.prepare.outputs.owned-since-ms }}
         run: |
           pnpm --filter @myk9/show exec tsx scripts/load-cleanup.ts
 

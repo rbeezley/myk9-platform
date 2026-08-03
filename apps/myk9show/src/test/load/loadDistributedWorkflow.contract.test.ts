@@ -36,8 +36,15 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('Abort and drain in-flight scoring work');
     expect(workflow).toContain('scripts/load-cleanup.ts');
     expect(workflow).toContain('Verify Supabase CPU/IO telemetry source');
+    expect(workflow).toContain('Mark rehearsal ownership window');
+    expect(workflow).toContain('LOAD_TEST_OWNED_SINCE_MS');
+    expect(workflow).toContain('${{ env.LOAD_TEST_PROJECT_REF }}');
+    expect(workflow).toContain('${{ env.LOAD_TEST_DB_HOST }}');
     expect(workflow.indexOf('Abort and drain in-flight scoring work')).toBeLessThan(
       workflow.indexOf('Restore canonical seed')
+    );
+    expect(workflow.indexOf('Mark rehearsal ownership window')).toBeLessThan(
+      workflow.indexOf('Mark canonical restoration required')
     );
     expect(workflow.indexOf('Verify Supabase CPU/IO telemetry source')).toBeLessThan(
       workflow.indexOf('Canonical reseed')

@@ -135,6 +135,46 @@ path is the safety net for whatever the sweep misses.
 Rule going forward: **run any test you add or touch with `--sequence.shuffle` 6+ times
 before merging.** A single pass proves nothing.
 
+## Hardening from the Codex design review (2026-08-02, post-rehearsal)
+
+Codex reviewed the operating model after the rehearsal passed. Verdict: "good
+architecture, not quite production-ready." All seven findings were accepted; two were
+outright bugs, and one corrected advice added earlier the same day.
+
+1. **Lease raised 4h → 5h.** The 3.5h timebox covers *working the issue*; bootstrap, CI
+   waits, review, merge and cleanup come on top, so a 4h lease could expire while the run
+   was legitimately still going — the exact overlap the lease exists to prevent. 5h stays
+   under the 6h interval so a dead run still frees the slot. Not 6h: a lease equal to the
+   interval expires exactly as its successor starts.
+2. **Health check verifies the SHA.** "Latest run" can be in-progress or for an older
+   commit. The runner now matches `headSha` against `origin/main` and treats
+   pending-for-this-SHA as *skip*, never as green.
+3. **Two or more `vacation-*` worktrees = stop.** Serial execution makes this impossible,
+   so its occurrence means an assumption already broke. Guessing risks resuming the wrong
+   issue; the runner logs all of them and stops.
+4. **Log-and-release is a `finally`.** Every exit path — including tool and network errors
+   — logs then releases. If Linear is unavailable, the lease is still released and the log
+   text is queued in `state.json` as `pendingLog` for the next run to post.
+5. **Never `git add -A` when clearing a dirty worktree.** This corrected advice added
+   hours earlier: the worktree is only nominally isolated and `bootstrap-worktree.sh`
+   copies `.env` into it, so stage-everything could commit a credential or build output.
+   Now `git add -u` (tracked only); if untracked files still block removal, the worktree
+   is left in place and reported rather than force-cleared.
+6. **Red-main repair is fully specified** — its own `vacation-redmain-*` worktree and
+   branch, normal PR + Codex review, auto-merge only under the standard Step 5 gate
+   (in practice: test-only), and MYK9-158 as the record when no Linear issue matches.
+7. **Merge freshness re-checked at the last moment.** `main` moved repeatedly on
+   2026-08-02 while CI ran, which can make a green result a verdict on a base that no
+   longer exists. Before merging, the runner confirms the PR head, the CI runs' `headSha`,
+   and `mergeStateStatus` all still agree.
+
+**Residual risk, stated honestly.** The rehearsal exercised the happy path end-to-end
+(select → work → PR → review → CI → merge → cleanup) and caught four defects. It did NOT
+exercise lease expiry, a Linear outage, stale/in-progress CI, dirty-worktree cleanup, or a
+second run meeting an in-flight worktree. Those paths are now written to **fail safe** —
+each one skips-and-logs or stops-and-logs rather than proceeding on a guess — but they are
+reasoned, not proven.
+
 ## Memory pressure — the host machine leaks
 
 The Mac Mini has **16 GB** and leaks one helper process per session under

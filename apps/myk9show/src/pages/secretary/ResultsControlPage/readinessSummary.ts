@@ -8,7 +8,24 @@ export interface ResultsReadinessSummary {
   safeToSend: boolean;
 }
 
-function hasResult(entry: SyncableEntryData): boolean {
+/**
+ * Scoring facts as the replication mapper produces them.
+ *
+ * This is the only check that fires for real show data. `is_scored` is set by
+ * scoring; `result_status` covers entries resolved without a score (absent,
+ * excused, withdrawn), which are equally "not outstanding" for closeout.
+ */
+function hasReplicatedResult(entry: SyncableEntryData): boolean {
+  return entry.isScored === true || String(entry.resultStatus ?? '').trim() !== '';
+}
+
+/**
+ * The local/mock entry shape, where a result is typed straight onto the entry.
+ * `entries` has no `status` column and `replicatedToEntry` blanks the display
+ * trio, so none of these fields are ever populated from the database — this
+ * branch exists only for locally-authored and seeded-mock entries.
+ */
+function hasLocalResult(entry: SyncableEntryData): boolean {
   const status = String(entry.status ?? '')
     .trim()
     .toLowerCase();
@@ -17,6 +34,10 @@ function hasResult(entry: SyncableEntryData): boolean {
     Boolean(entry.score || entry.time || entry.placement) ||
     (status !== '' && status !== 'pending' && status !== 'no result')
   );
+}
+
+function hasResult(entry: SyncableEntryData): boolean {
+  return hasReplicatedResult(entry) || hasLocalResult(entry);
 }
 
 export function buildResultsReadinessSummary(

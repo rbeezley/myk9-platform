@@ -28,6 +28,16 @@ export interface SyncableEntryData extends EntryData {
    */
   isScored?: boolean | undefined;
   resultStatus?: string | undefined;
+
+  /**
+   * Lifecycle state, needed to tell "still expected to run" from "pulled".
+   * `status` above cannot answer this: `entries` has no `status` column.
+   */
+  entryStatus?: string | undefined;
+  checkInStatus?: string | undefined;
+
+  /** Soft-delete marker; a deleted entry is not outstanding work. */
+  deletedAt?: string | null | undefined;
 }
 
 // Input types for creating/updating classes

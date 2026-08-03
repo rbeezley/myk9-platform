@@ -189,6 +189,25 @@ describe('buildResultsReadinessSummary', () => {
       expect(buildResultsReadinessSummary([cls()], [merged]).unscoredEntries).toBe(0);
     });
 
+    it.each([
+      ['withdrawn', { entry_status: 'withdrawn' }],
+      ['scratched', { entry_status: 'scratched' }],
+      ['cancelled', { entry_status: 'cancelled' }],
+      ['pulled at check-in', { check_in_status: 'pulled' }],
+      ['soft-deleted', { deleted_at: '2026-08-01T12:00:00Z' }],
+    ])('does not let a %s entry block closeout', (_label, overrides) => {
+      // These keep result_status at its 'pending' default, so counting them
+      // would leave safeToSend unreachable for any show with a routine
+      // withdrawal — the same dead end MYK9-118 reports, by another route.
+      const summary = buildResultsReadinessSummary(
+        [cls({ results_released_at: '2026-08-01T20:00:00Z' })],
+        [storeEntryFromRow(scoredRow), storeEntryFromRow({ ...unscoredRow, ...overrides })]
+      );
+
+      expect(summary.unscoredEntries).toBe(0);
+      expect(summary.safeToSend).toBe(true);
+    });
+
     it('reaches safeToSend once every mapped entry is scored and the class is released', () => {
       const summary = buildResultsReadinessSummary(
         [cls({ results_released_at: '2026-08-01T20:00:00Z' })],

@@ -83,9 +83,13 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableEntryDat
     time: '', // Local-only
     placement: '', // Local-only
     classId: replicated.classId || '',
-    // Authoritative scoring facts, accepting either casing the mapper emits.
+    // Authoritative scoring + lifecycle facts, accepting either casing the
+    // mapper emits. See @/features/_shared/entryAccounting for how they combine.
     isScored: replicated.isScored ?? replicated.is_scored ?? false,
     resultStatus: replicated.resultStatus ?? replicated.result_status ?? undefined,
+    entryStatus: replicated.entryStatus ?? replicated.entry_status ?? undefined,
+    checkInStatus: replicated.checkInStatus ?? replicated.check_in_status ?? undefined,
+    deletedAt: replicated.deletedAt ?? replicated.deleted_at ?? undefined,
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

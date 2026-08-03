@@ -1,4 +1,5 @@
 import type { SyncableClassData, SyncableEntryData } from '@/store/classStore';
+import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
 
 export interface ResultsReadinessSummary {
   totalClasses: number;
@@ -6,37 +7,6 @@ export interface ResultsReadinessSummary {
   unscoredEntries: number;
   unreleasedClasses: number;
   safeToSend: boolean;
-}
-
-/**
- * `entries.result_status` values that mean the entry is settled.
- *
- * The column is `DEFAULT 'pending'` with
- * `CHECK (result_status IN ('pending','qualified','nq','absent','excused','withdrawn'))`,
- * so a merely non-empty `result_status` proves nothing — every untouched entry
- * carries `'pending'`. Only these terminal values resolve an entry.
- *
- * This is an allowlist on purpose: an unrecognised value leaves the entry
- * counted as outstanding, which blocks closeout visibly. A denylist would let a
- * status added later silently report a show as ready to send.
- */
-const TERMINAL_RESULT_STATUSES = new Set(['qualified', 'nq', 'absent', 'excused', 'withdrawn']);
-
-/**
- * Scoring facts as the replication mapper produces them.
- *
- * This is the only check that fires for real show data. `is_scored` is set by
- * scoring; the terminal statuses cover entries resolved without a score
- * (absent, excused, withdrawn), which are equally "not outstanding".
- */
-function hasReplicatedResult(entry: SyncableEntryData): boolean {
-  if (entry.isScored === true) return true;
-
-  return TERMINAL_RESULT_STATUSES.has(
-    String(entry.resultStatus ?? '')
-      .trim()
-      .toLowerCase()
-  );
 }
 
 /**
@@ -56,8 +26,17 @@ function hasLocalResult(entry: SyncableEntryData): boolean {
   );
 }
 
-function hasResult(entry: SyncableEntryData): boolean {
-  return hasReplicatedResult(entry) || hasLocalResult(entry);
+/**
+ * Outstanding = the show still expects this entry to run, and it has no result.
+ *
+ * Both halves come from `entryAccounting`, the same rules the server uses to
+ * derive class completion. Deciding this locally is how the page ends up
+ * disagreeing with the server about whether a show is finished.
+ */
+function isOutstanding(entry: SyncableEntryData): boolean {
+  if (!isExpectedEntry(entry)) return false;
+
+  return !isAccountedFor(entry) && !hasLocalResult(entry);
 }
 
 export function buildResultsReadinessSummary(
@@ -66,7 +45,7 @@ export function buildResultsReadinessSummary(
 ): ResultsReadinessSummary {
   const classIds = new Set(classes.map(cls => cls.id));
   const relevantEntries = entries.filter(entry => classIds.has(entry.classId));
-  const unscoredEntries = relevantEntries.filter(entry => !hasResult(entry)).length;
+  const unscoredEntries = relevantEntries.filter(isOutstanding).length;
   const unreleasedClasses = classes.filter(cls => !cls.results_released_at).length;
 
   return {

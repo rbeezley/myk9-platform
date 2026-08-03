@@ -15,28 +15,24 @@ type FixtureUser = {
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 if (!supabaseUrl || !anonKey || !serviceRoleKey) {
   throw new Error(
     'VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY are required'
   );
 }
-
-const prefix = `myk9-147-${Date.now()}`;
+const prefix = `myk9-147-${Date.now()}-${randomUUID().slice(0, 8)}`;
 const password = `M9!${randomUUID()}a`;
 const clubId = randomUUID();
 const showId = randomUUID();
 const assignmentId = randomUUID();
 const enrollmentId = randomUUID();
 const handlerId = randomUUID();
-
 const users: Record<'steward' | 'secretary' | 'clubAdmin' | 'siteAdmin', FixtureUser> = {
   steward: fixtureUser('steward'),
   secretary: fixtureUser('secretary'),
   clubAdmin: fixtureUser('club-admin'),
   siteAdmin: fixtureUser('site-admin'),
 };
-
 function fixtureUser(label: string): FixtureUser {
   return {
     email: `${prefix}-${label}@example.test`,
@@ -71,7 +67,6 @@ async function request<T = unknown>(
     body: (await parseBody(response)) as T | null,
   };
 }
-
 function jsonInit(method: string, body: unknown, key: string, prefer?: string): RequestInit {
   return {
     method,
@@ -93,7 +88,14 @@ function assertStatus(response: ApiResponse, expected: number[], label: string):
     `${label}: expected ${expected.join('/')} got ${response.status}${body}`
   );
 }
-
+function assertCreatedId(response: ApiResponse, label: string): void {
+  assertStatus(response, [201], label);
+  const row = Array.isArray(response.body) ? response.body[0] : null;
+  assert(
+    typeof row === 'object' && row !== null && 'id' in row && typeof row.id === 'string',
+    `${label}: response did not include a created id`
+  );
+}
 async function createAuthUser(user: FixtureUser): Promise<void> {
   const response = await request<JsonObject>(
     '/auth/v1/admin/users',
@@ -180,10 +182,7 @@ async function expectStewardDenials(): Promise<void> {
       'return=representation'
     )
   );
-  assert(
-    insertAssignment.status >= 400,
-    `steward judge-assignment insert unexpectedly returned ${insertAssignment.status}`
-  );
+  assertStatus(insertAssignment, [403], 'steward judge-assignment insert denial');
 
   const updateAssignment = await userRest(
     `/judge_assignments?id=eq.${assignmentId}&select=id,version`,
@@ -220,10 +219,7 @@ async function expectStewardDenials(): Promise<void> {
       'return=representation'
     )
   );
-  assert(
-    insertEnrollment.status >= 400,
-    `steward enrollment insert unexpectedly returned ${insertEnrollment.status}`
-  );
+  assertStatus(insertEnrollment, [403], 'steward enrollment insert denial');
 
   const updateEnrollment = await userRest(
     `/enrollments?id=eq.${enrollmentId}&select=id`,
@@ -251,7 +247,7 @@ async function expectManagerPositives(): Promise<void> {
         'return=representation'
       )
     );
-    assertStatus(assignment, [201], `${label} judge-assignment insert`);
+    assertCreatedId(assignment, `${label} judge-assignment insert`);
 
     const enrollment = await userRest(
       '/enrollments?select=id',
@@ -263,20 +259,23 @@ async function expectManagerPositives(): Promise<void> {
         'return=representation'
       )
     );
-    assertStatus(enrollment, [201], `${label} enrollment insert`);
+    assertCreatedId(enrollment, `${label} enrollment insert`);
   }
 }
 
 async function cleanup(): Promise<void> {
+  const cleanupFailures: string[] = [];
   const cleanupRequest = async (
     label: string,
     action: () => Promise<ApiResponse>
   ): Promise<void> => {
     try {
-      await action();
+      const response = await action();
+      if (![200, 204].includes(response.status)) {
+        cleanupFailures.push(`${label} returned ${response.status}`);
+      }
     } catch (error) {
-      console.error(`cleanup ${label} failed`);
-      if (error instanceof Error) console.error(error.message);
+      cleanupFailures.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -309,6 +308,7 @@ async function cleanup(): Promise<void> {
       );
     }
   }
+  if (cleanupFailures.length > 0) throw new Error(`cleanup failed: ${cleanupFailures.join('; ')}`);
 }
 
 async function main(): Promise<void> {

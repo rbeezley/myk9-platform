@@ -50,7 +50,7 @@ describe('load teardown safety', () => {
     expect(cleanupSource).toContain('cancelScoringWorkers');
     expect(cleanupSource).toContain('pg_cancel_backend');
     expect(cleanupSource).toContain('query_start >= to_timestamp');
-    expect(cleanupSource).toContain('LOAD_TEST_OWNED_SINCE_MS');
+    expect(cleanupSource).toContain('LOAD_TEST_OWNED_SINCE_US');
     expect(cleanupSource).toContain('SUPABASE_DB_URL');
     expect(cleanupSource).toContain('process.exitCode = 1');
   });

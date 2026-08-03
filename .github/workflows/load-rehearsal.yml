@@ -37,7 +37,7 @@ jobs:
     outputs:
       run-id: ${{ steps.window.outputs.run-id }}
       start-at-ms: ${{ steps.window.outputs.start-at-ms }}
-      owned-since-ms: ${{ steps.ownership.outputs.owned-since-ms }}
+      owned-since-us: ${{ steps.ownership.outputs.owned-since-us }}
       restore-required: ${{ steps.restore.outputs.required }}
 
     steps:
@@ -101,7 +101,19 @@ jobs:
 
       - name: Mark rehearsal ownership window
         id: ownership
-        run: echo "owned-since-ms=$(($(date +%s) * 1000))" >>"$GITHUB_OUTPUT"
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          owned_since_us="$(psql \
+            "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:5432/postgres" \
+            -X -v ON_ERROR_STOP=1 -At \
+            -c "SELECT floor(extract(epoch FROM clock_timestamp()) * 1000000)::bigint;")"
+          [[ "$owned_since_us" =~ ^[0-9]{16,17}$ ]] || {
+            echo "Database did not provide a valid rehearsal ownership timestamp." >&2
+            exit 1
+          }
+          echo "owned-since-us=$owned_since_us" >>"$GITHUB_OUTPUT"
 
       - name: Mark canonical restoration required
         id: restore
@@ -285,7 +297,7 @@ jobs:
           SUPABASE_DB_URL: postgresql://postgres.${{ env.LOAD_TEST_PROJECT_REF }}@${{ env.LOAD_TEST_DB_HOST }}:5432/postgres
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          LOAD_TEST_OWNED_SINCE_MS: ${{ needs.prepare.outputs.owned-since-ms }}
+          LOAD_TEST_OWNED_SINCE_US: ${{ needs.prepare.outputs.owned-since-us }}
         run: |
           pnpm --filter @myk9/show exec tsx scripts/load-cleanup.ts
 

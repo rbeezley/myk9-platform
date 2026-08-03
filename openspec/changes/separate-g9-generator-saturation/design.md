@@ -34,7 +34,8 @@ show-day application or its replication-backed mutations.
 
 The cleanup job will identify active database sessions whose query text contains the
 controlled `ringside_update_entry` RPC and whose query began after the workflow recorded
-its rehearsal ownership timestamp, request cancellation, then poll the database until
+its microsecond rehearsal ownership timestamp from the database clock, request
+cancellation, then poll the database until
 the total scoring-worker count is zero and `pg_stat_database.xact_rollback` is unchanged
 for three consecutive samples. Pre-existing scoring work is not canceled, but remains in
 the total worker count and therefore blocks reseeding. Cleanup will not run the canonical

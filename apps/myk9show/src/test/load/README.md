@@ -90,7 +90,7 @@ an early workflow failure no longer reduces the prepared concurrency count.
 Each workflow also records a high-resolution epoch interval, so aggregation
 computes the actual cross-runner simultaneous peak instead of summing unrelated
 shard-local maxima. The separate `if: always()` cleanup job first cancels scoring
-queries that began inside the recorded rehearsal ownership window, requires zero
+queries that began inside the database-clock rehearsal ownership window, requires zero
 scoring workers across the target and three unchanged rollback samples, then reseeds
 and verifies `514|504|0` after success or failure. Pre-existing scoring work is never
 canceled; it blocks reseeding instead. If the quiet-window gate fails, cleanup leaves

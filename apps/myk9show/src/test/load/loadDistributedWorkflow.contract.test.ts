@@ -37,7 +37,8 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('scripts/load-cleanup.ts');
     expect(workflow).toContain('Verify Supabase CPU/IO telemetry source');
     expect(workflow).toContain('Mark rehearsal ownership window');
-    expect(workflow).toContain('LOAD_TEST_OWNED_SINCE_MS');
+    expect(workflow).toContain('clock_timestamp()');
+    expect(workflow).toContain('LOAD_TEST_OWNED_SINCE_US');
     expect(workflow).toContain('${{ env.LOAD_TEST_PROJECT_REF }}');
     expect(workflow).toContain('${{ env.LOAD_TEST_DB_HOST }}');
     expect(workflow.indexOf('Abort and drain in-flight scoring work')).toBeLessThan(

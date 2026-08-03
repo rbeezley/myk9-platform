@@ -3,8 +3,8 @@
 ### Requirement: Cleanup proves scoring work is drained before reseed
 
 The manual cleanup job SHALL request cancellation only for active
-`ringside_update_entry` database workers whose query began inside the recorded rehearsal
-ownership window, then observe all scoring workers on the approved target until their
+`ringside_update_entry` database workers whose query began inside the database-clock
+rehearsal ownership window, then observe all scoring workers on the approved target until their
 count is zero and the database rollback counter is unchanged for a bounded quiet window.
 It MUST fail before reseeding if either condition cannot be proven.
 

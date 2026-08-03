@@ -12,9 +12,9 @@ const POLL_INTERVAL_MS = 5_000;
 
 const databaseUrl = process.env.SUPABASE_DB_URL;
 if (!databaseUrl) throw new Error('Missing SUPABASE_DB_URL for load cleanup.');
-const ownedSinceMs = Number(process.env.LOAD_TEST_OWNED_SINCE_MS);
-if (!Number.isSafeInteger(ownedSinceMs) || ownedSinceMs <= 0) {
-  throw new Error('Missing or invalid LOAD_TEST_OWNED_SINCE_MS for load cleanup.');
+const ownedSinceUs = Number(process.env.LOAD_TEST_OWNED_SINCE_US);
+if (!Number.isSafeInteger(ownedSinceUs) || ownedSinceUs <= 0) {
+  throw new Error('Missing or invalid LOAD_TEST_OWNED_SINCE_US for load cleanup.');
 }
 
 const psqlEnvironment = {
@@ -39,7 +39,7 @@ async function cancelScoringWorkers(): Promise<void> {
       AND datname = current_database()
       AND state <> 'idle'
       AND query ILIKE '%${SCORING_WORKER_QUERY_FRAGMENT}%'
-      AND query_start >= to_timestamp(${ownedSinceMs} / 1000.0);
+      AND query_start >= to_timestamp(${ownedSinceUs} / 1000000.0);
   `);
 }
 

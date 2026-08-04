@@ -37,6 +37,9 @@ const REGRESSION_SPECS = [
   '**/secretary/classCreation.spec.ts',
   '**/browse-shows-to-details.spec.ts',
   '**/my-entries-page-ui.spec.ts',
+  // Exhibitor-authed, so it cannot go in PR_SMOKE_SPECS (that job only receives
+  // E2E_SECRETARY_* credentials). Nightly supplies every E2E_* credential.
+  '**/myEntriesZoomReflow.spec.ts',
   '**/cross-role-workflows.spec.ts',
   '**/simple-connectivity.spec.ts',
   // Admin-authed: Nightly supplies every E2E_* credential, PR smoke only gets

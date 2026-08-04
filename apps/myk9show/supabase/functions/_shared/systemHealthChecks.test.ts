@@ -9,6 +9,7 @@ import {
 } from './systemHealthChecks';
 import { anonGrants } from './anonGrantTestFixtures';
 import { appliedAclFacts } from './appliedAclTestFixtures';
+import { publicSchemaAclFacts } from './publicSchemaAclTestFixtures';
 
 // A fixed "now" so overdue/stale math is deterministic.
 const NOW = Date.parse('2026-07-04T12:00:00.000Z');
@@ -51,6 +52,7 @@ const facts = (over: Record<string, unknown> = {}) => ({
   },
   anon_grants: anonGrants(),
   applied_acl_grants: appliedAclFacts(),
+  public_schema_create_acl: publicSchemaAclFacts(),
   ...over,
 });
 
@@ -87,6 +89,7 @@ describe('buildSnapshot — contract shape', () => {
       'ringside_conflicts',
       'anon_grants',
       'applied_acl_grants',
+      'public_schema_create_acl',
     ]);
     for (const c of snap.checks) {
       expect(typeof c.checked_at).toBe('string');
@@ -103,13 +106,25 @@ describe('buildSnapshot — contract shape', () => {
 
   it('drives the daily snapshot red when applied ACLs drift', () => {
     const applied = appliedAclFacts();
-    applied.forbidden_tables = [
-      { name: 'entries', role: 'authenticated', privs: 'TRUNCATE' },
-    ];
+    applied.forbidden_tables = [{ name: 'entries', role: 'authenticated', privs: 'TRUNCATE' }];
 
     const snap = buildSnapshot(facts({ applied_acl_grants: applied }), { now: NOW });
 
     expect(find(snap, 'applied_acl_grants').status).toBe('fail');
+    expect(snap.overall_status).toBe('fail');
+  });
+
+  it('drives the daily snapshot red when public-schema CREATE is granted', () => {
+    const publicSchemaAcl = publicSchemaAclFacts();
+    publicSchemaAcl.roles = publicSchemaAcl.roles.map(row =>
+      row.role === 'authenticated' ? { ...row, can_create: true } : row
+    );
+
+    const snap = buildSnapshot(facts({ public_schema_create_acl: publicSchemaAcl }), {
+      now: NOW,
+    });
+
+    expect(find(snap, 'public_schema_create_acl').status).toBe('fail');
     expect(snap.overall_status).toBe('fail');
   });
 });

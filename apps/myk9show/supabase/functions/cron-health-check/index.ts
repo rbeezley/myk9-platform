@@ -119,7 +119,13 @@ async function insertSnapshot(row: ReturnType<typeof buildSnapshot>) {
 
 async function runHealthSnapshot(): Promise<Response> {
   const startedAt = Date.now();
-  const { data: facts, error: probeError } = await supabase.rpc('system_health_probe');
+  const [
+    { data: facts, error: probeError },
+    { data: publicSchemaAcl, error: publicSchemaAclError },
+  ] = await Promise.all([
+    supabase.rpc('system_health_probe'),
+    supabase.rpc('public_schema_create_acl_probe'),
+  ]);
 
   if (probeError || facts == null) {
     // Probe failed — still write a visible fail snapshot rather than nothing.
@@ -141,13 +147,21 @@ async function runHealthSnapshot(): Promise<Response> {
 
   const previous = await fetchPreviousConflictBaseline();
 
-  const snapshot = buildSnapshot(facts, {
-    now: Date.now(),
-    source: DEFAULT_SOURCE,
-    runDurationMs: Date.now() - startedAt,
-    previousConflictCounter: previous.counter,
-    previousSnapshotAt: previous.at,
-  });
+  const snapshot = buildSnapshot(
+    {
+      ...(facts as Record<string, unknown>),
+      public_schema_create_acl: publicSchemaAclError
+        ? { error: publicSchemaAclError.message }
+        : publicSchemaAcl,
+    },
+    {
+      now: Date.now(),
+      source: DEFAULT_SOURCE,
+      runDurationMs: Date.now() - startedAt,
+      previousConflictCounter: previous.counter,
+      previousSnapshotAt: previous.at,
+    }
+  );
   await insertSnapshot(snapshot);
 
   console.log(

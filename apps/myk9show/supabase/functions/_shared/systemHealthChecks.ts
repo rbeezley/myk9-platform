@@ -19,6 +19,7 @@
 
 import { anonGrantsCheck } from './anonGrantChecks.ts';
 import { appliedAclCheck } from './appliedAclChecks.ts';
+import { publicSchemaCreateAclCheck } from './publicSchemaAclChecks.ts';
 
 export type HealthStatus = 'ok' | 'warn' | 'fail';
 
@@ -87,6 +88,7 @@ export interface RawProbeFacts {
   payout_ledger?: unknown;
   anon_grants?: unknown;
   applied_acl_grants?: unknown;
+  public_schema_create_acl?: unknown;
 }
 
 export interface BuildSnapshotOptions {
@@ -647,6 +649,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     }),
     anonGrantsCheck(f.anon_grants, probedAt),
     appliedAclCheck(f.applied_acl_grants, probedAt),
+    publicSchemaCreateAclCheck(f.public_schema_create_acl, probedAt),
   ];
 
   return {

@@ -19,6 +19,15 @@ interface SentryTimeSeriesResponse {
   timeSeries?: Array<{ values?: SentryTimeSeriesValue[] }>;
 }
 
+interface SentrySessionsResponse {
+  end?: string;
+  intervals?: string[];
+  groups?: Array<{
+    totals?: Record<string, number | null>;
+    series?: Record<string, Array<number | null>>;
+  }>;
+}
+
 export interface CachedMetric {
   value: number;
   observedAt: string;
@@ -50,19 +59,35 @@ export interface SentryDashboardMetricsDeps {
   cache: SentryMetricCache;
 }
 
-const METRIC_CONFIG: Record<MetricKey, { yAxis: string; unit: SentryMetricResult['unit'] }> = {
-  errorRate: { yAxis: 'failure_rate()', unit: 'percent' },
-  apiP95: { yAxis: 'p95(transaction.duration)', unit: 'milliseconds' },
+const METRIC_CONFIG: Record<
+  MetricKey,
+  { path: string; params: Array<[string, string]>; unit: SentryMetricResult['unit'] }
+> = {
+  errorRate: {
+    path: 'sessions',
+    params: [
+      ['field', 'crash_rate(session)'],
+      ['statsPeriod', SENTRY_QUERY_WINDOW],
+      ['interval', '1h'],
+    ],
+    unit: 'percent',
+  },
+  apiP95: {
+    path: 'events-timeseries',
+    params: [
+      ['dataset', 'spans'],
+      ['statsPeriod', SENTRY_QUERY_WINDOW],
+      ['interval', '3600'],
+      ['yAxis', 'p95(transaction.duration)'],
+    ],
+    unit: 'milliseconds',
+  },
 };
 
-function buildSentryMetricUrl(organization: string, yAxis: string): string {
-  const url = new URL(
-    `${SENTRY_API_BASE_URL}/${encodeURIComponent(organization)}/events-timeseries/`
-  );
-  url.searchParams.set('dataset', 'spans');
-  url.searchParams.set('statsPeriod', SENTRY_QUERY_WINDOW);
-  url.searchParams.set('interval', '3600');
-  url.searchParams.set('yAxis', yAxis);
+function buildSentryMetricUrl(organization: string, key: MetricKey): string {
+  const config = METRIC_CONFIG[key];
+  const url = new URL(`${SENTRY_API_BASE_URL}/${encodeURIComponent(organization)}/${config.path}/`);
+  for (const [name, value] of config.params) url.searchParams.set(name, value);
   return url.toString();
 }
 
@@ -73,7 +98,7 @@ function parseObservedAt(timestamp: number): string {
   return date.toISOString();
 }
 
-function parseMetricResponse(payload: SentryTimeSeriesResponse): {
+function parseTimeseriesMetricResponse(payload: SentryTimeSeriesResponse): {
   value: number;
   observedAt: string;
 } {
@@ -93,6 +118,28 @@ function parseMetricResponse(payload: SentryTimeSeriesResponse): {
   throw new Error('Sentry returned no complete metric value');
 }
 
+function parseSessionsMetricResponse(payload: SentrySessionsResponse): {
+  value: number;
+  observedAt: string;
+} {
+  const field = 'crash_rate(session)';
+  const values = (payload.groups ?? []).flatMap(group => [
+    ...(group.series?.[field] ?? []),
+    ...(typeof group.totals?.[field] === 'number' ? [group.totals[field]] : []),
+  ]);
+  const value = [...values]
+    .reverse()
+    .find(item => typeof item === 'number' && Number.isFinite(item));
+  const observedAt = payload.intervals?.at(-1) ?? payload.end;
+  if (typeof value !== 'number' || !observedAt) {
+    throw new Error('Sentry returned no complete session error-rate value');
+  }
+
+  const date = new Date(observedAt);
+  if (!Number.isFinite(date.getTime())) throw new Error('Invalid Sentry metric timestamp');
+  return { value, observedAt: date.toISOString() };
+}
+
 async function fetchMetric(
   key: MetricKey,
   deps: SentryDashboardMetricsDeps
@@ -101,15 +148,15 @@ async function fetchMetric(
     throw new HttpError(500, 'Sentry metrics are not configured');
   }
 
-  const response = await deps.fetch(
-    buildSentryMetricUrl(deps.organization, METRIC_CONFIG[key].yAxis),
-    {
-      headers: { Authorization: `Bearer ${deps.apiToken}` },
-    }
-  );
+  const response = await deps.fetch(buildSentryMetricUrl(deps.organization, key), {
+    headers: { Authorization: `Bearer ${deps.apiToken}` },
+  });
 
   if (!response.ok) throw new Error(`Sentry returned ${response.status}`);
-  return parseMetricResponse((await response.json()) as SentryTimeSeriesResponse);
+  const payload = await response.json();
+  return key === 'errorRate'
+    ? parseSessionsMetricResponse(payload as SentrySessionsResponse)
+    : parseTimeseriesMetricResponse(payload as SentryTimeSeriesResponse);
 }
 
 async function readMetric(

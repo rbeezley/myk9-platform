@@ -15,6 +15,17 @@ function sentryResponse(value: number, timestamp = 1_700_000_000_000): Response 
   );
 }
 
+function sessionsResponse(value: number): Response {
+  return new Response(
+    JSON.stringify({
+      end: '2023-11-14T22:13:20.000Z',
+      intervals: ['2023-11-14T22:13:20.000Z'],
+      groups: [{ totals: { 'crash_rate(session)': value } }],
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
 function makeAdminSupabase(role = 'site_admin') {
   const query = {
     select: vi.fn(() => query),
@@ -66,7 +77,7 @@ describe('sentryDashboardMetricsHandler', () => {
   it('authorizes site admins and returns normalized metrics without the API token', async () => {
     const fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      return url.includes('failure_rate') ? sentryResponse(2.5) : sentryResponse(640);
+      return url.includes('/sessions/') ? sessionsResponse(2.5) : sentryResponse(640);
     });
 
     const result = await createSentryDashboardMetricsHandler(
@@ -92,18 +103,23 @@ describe('sentryDashboardMetricsHandler', () => {
     });
 
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(String(fetch.mock.calls[0]?.[0])).toContain(
-      '/api/0/organizations/myk9/events-timeseries/'
+    const errorRequest = fetch.mock.calls.find(([input]) => String(input).includes('/sessions/'));
+    const p95Request = fetch.mock.calls.find(([input]) =>
+      String(input).includes('events-timeseries')
     );
-    expect(String(fetch.mock.calls[0]?.[0])).toContain('dataset=spans');
-    expect(fetch.mock.calls[0]?.[1]).toEqual({
+    expect(String(errorRequest?.[0])).toContain('/api/0/organizations/myk9/sessions/');
+    expect(String(errorRequest?.[0])).toContain('field=crash_rate%28session%29');
+    expect(String(p95Request?.[0])).toContain('yAxis=p95%28transaction.duration%29');
+    expect(errorRequest?.[1]).toEqual({
       headers: { Authorization: 'Bearer sentry-secret-token' },
     });
     expect(JSON.stringify(result)).not.toContain('sentry-secret-token');
   });
 
   it('caches both metrics for the configured refresh window', async () => {
-    const fetch = vi.fn(async () => sentryResponse(10));
+    const fetch = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/sessions/') ? sessionsResponse(10) : sentryResponse(10)
+    );
     const deps = makeDeps(fetch);
     const context = makeContext(makeAdminSupabase());
 
@@ -117,10 +133,10 @@ describe('sentryDashboardMetricsHandler', () => {
   it('serves a cached metric as stale when only that upstream query fails', async () => {
     let shouldFailErrorRate = false;
     const fetch = vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input).includes('failure_rate') && shouldFailErrorRate) {
+      if (String(input).includes('/sessions/') && shouldFailErrorRate) {
         throw new Error('Sentry is unavailable');
       }
-      return sentryResponse(String(input).includes('failure_rate') ? 2.5 : 640);
+      return String(input).includes('/sessions/') ? sessionsResponse(2.5) : sentryResponse(640);
     });
     const deps = makeDeps(fetch);
     const context = makeContext(makeAdminSupabase());

@@ -24,6 +24,15 @@ export interface SentryMetricTileState {
   isStale: boolean;
 }
 
+const DEFAULT_TRACES_SAMPLE_RATE = 0.05;
+
+function getTracesSampleRate(): number {
+  const configured = Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE);
+  return Number.isFinite(configured)
+    ? Math.min(1, Math.max(0, configured))
+    : DEFAULT_TRACES_SAMPLE_RATE;
+}
+
 function parseMetricResult(raw: unknown, metricName: string): SentryMetricResult {
   if (!raw || typeof raw !== 'object') throw new Error(`Invalid Sentry ${metricName} metric`);
 
@@ -77,7 +86,7 @@ export function getSentryMetricTileState(
   queryError: unknown
 ): SentryMetricTileState {
   if (isLoading) {
-    return { value: '—', context: 'loading Sentry data', isError: false, isStale: false };
+    return { value: '—', context: 'checking platform metrics', isError: false, isStale: false };
   }
 
   if (queryError || !metric || metric.status === 'unavailable') {
@@ -92,7 +101,7 @@ export function getSentryMetricTileState(
   if (metric.status === 'stale') {
     return {
       value: formatSentryMetricValue(metric),
-      context: 'stale — Sentry query failed',
+      context: 'using an older reading',
       isError: false,
       isStale: true,
     };
@@ -100,7 +109,12 @@ export function getSentryMetricTileState(
 
   return {
     value: formatSentryMetricValue(metric),
-    context: metric.unit === 'milliseconds' ? 'client-observed · sampled traces' : 'last 24 hours',
+    context:
+      metric.unit === 'milliseconds'
+        ? getTracesSampleRate() < 0.1
+          ? `time users experienced · low sampling (${Math.round(getTracesSampleRate() * 100)}%)`
+          : 'time users experienced · sampled visits'
+        : 'last 24 hours',
     isError: false,
     isStale: false,
   };

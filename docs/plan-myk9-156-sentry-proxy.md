@@ -1,5 +1,7 @@
 # MYK9-156 — Sentry proxy for admin dashboard metrics
 
+> **Status:** Active
+
 ## Scope
 
 Add one authenticated Supabase Edge Function that reads Sentry's organization
@@ -30,3 +32,10 @@ metrics.
 - Unit-test client response mapping and dashboard tile labels/error states.
 - Run focused Vitest tests, app typecheck/build/lint, then the full app test
   suite once at the end if it remains within the repository's normal runtime.
+
+## Deployment prerequisites
+
+Before deploying the function, provision `SENTRY_API_TOKEN` and
+`SENTRY_ORGANIZATION_SLUG` as Supabase Edge Function secrets. Never commit their
+values. Before treating the p95 tile as reliable, verify the deployed
+`VITE_SENTRY_TRACES_SAMPLE_RATE`; the dashboard warns when it is below 10%.

@@ -6,7 +6,7 @@
  * do I do about it?" in one screen, and every number on it is measured rather
  * than estimated.
  *
- * Two things are deliberately ABSENT, and each was a design element that had
+ * Three things are deliberately ABSENT, and each was a design element that had
  * no source (docs/plan-admin-dashboard-data-contract.md):
  *
  *  - No uptime tile. Sentry Cron check-ins measure job reliability, not site

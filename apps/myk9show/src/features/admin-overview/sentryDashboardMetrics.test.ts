@@ -61,12 +61,18 @@ describe('sentryDashboardMetrics', () => {
     expect(formatSentryMetricValue(metric({ value: 639.6, unit: 'milliseconds' }))).toBe('640 ms');
   });
 
+  it('warns when the deployed trace sample is too low for a reliable tail', () => {
+    expect(
+      getSentryMetricTileState(metric({ value: 640, unit: 'milliseconds' }), 'API p95', false, null)
+    ).toMatchObject({ context: 'time users experienced · low sampling (5%)' });
+  });
+
   it('keeps stale data visible but explains that it is stale', () => {
     expect(
       getSentryMetricTileState(metric({ status: 'stale' }), 'Error rate', false, null)
     ).toEqual({
       value: '2.5%',
-      context: 'stale — Sentry query failed',
+      context: 'using an older reading',
       isError: false,
       isStale: true,
     });

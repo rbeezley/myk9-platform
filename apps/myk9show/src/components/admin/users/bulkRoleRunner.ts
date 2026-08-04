@@ -15,21 +15,48 @@ import { CLUB_SCOPED_ROLES, LOCKED_ROLES } from '@/services/rbac/roleUiConstants
 import type { BulkRoleMode, BulkRoleSubmitConfig } from './BulkRoleDialog';
 
 interface ActiveAssignmentRow {
+  id: string;
   roleName: string;
   clubId: string | null;
+  showId: string | null;
+  expiresAt: string | null;
 }
 
 async function fetchActiveAssignments(userId: string): Promise<ActiveAssignmentRow[]> {
   const { data, error } = await supabase
     .from('user_roles')
-    .select('id, role_id, club_id, roles(name)')
+    .select('id, role_id, club_id, show_id, expires_at, roles(name)')
     .eq('user_id', userId)
     .eq('is_active', true);
   if (error) throw error;
   return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
     roleName: (row.roles as { name: string } | null)?.name ?? '',
     clubId: (row.club_id as string | null) ?? null,
+    showId: (row.show_id as string | null) ?? null,
+    expiresAt: (row.expires_at as string | null) ?? null,
   }));
+}
+
+function isProtectedAssignment(assignment: ActiveAssignmentRow): boolean {
+  return assignment.showId !== null || assignment.expiresAt !== null;
+}
+
+function getProtectedRoleNames(assignments: ActiveAssignmentRow[]): Set<string> {
+  return new Set(
+    assignments
+      .filter(
+        assignment =>
+          !!assignment.roleName &&
+          isProtectedAssignment(assignment) &&
+          !LOCKED_ROLES.has(assignment.roleName)
+      )
+      .map(assignment => assignment.roleName)
+  );
+}
+
+export interface BulkRoleChangeResult {
+  skippedProtectedGrant: boolean;
 }
 
 async function addRolesToUser(userId: string, roleNames: string[], clubIds: string[]) {
@@ -46,25 +73,39 @@ async function addRolesToUser(userId: string, roleNames: string[], clubIds: stri
   }
 }
 
-async function removeRolesFromUser(userId: string, roleNames: string[], clubIds: string[]) {
-  for (const roleName of roleNames) {
-    if (CLUB_SCOPED_ROLES.has(roleName)) {
-      for (const clubId of clubIds) {
-        await rbacService.revokeRole({
-          userId,
-          roleName,
-          scopeType: 'club',
-          scopeId: clubId,
-        });
-      }
-    } else {
-      await rbacService.revokeRole({ userId, roleName });
+async function removeRolesFromUser(
+  userId: string,
+  roleNames: string[],
+  clubIds: string[]
+): Promise<BulkRoleChangeResult> {
+  const assignments = await fetchActiveAssignments(userId);
+  const protectedRoleNames = getProtectedRoleNames(assignments);
+
+  for (const assignment of assignments) {
+    if (!roleNames.includes(assignment.roleName) || isProtectedAssignment(assignment)) continue;
+    if (
+      CLUB_SCOPED_ROLES.has(assignment.roleName) &&
+      (!assignment.clubId || !clubIds.includes(assignment.clubId))
+    ) {
+      continue;
     }
+    // Revoke by row ID so a role with both ordinary and protected grants never
+    // falls back to RoleManager's broad user+role update.
+    await rbacService.revokeUserRole(assignment.id);
   }
+
+  return {
+    skippedProtectedGrant: roleNames.some(roleName => protectedRoleNames.has(roleName)),
+  };
 }
 
-async function replaceRolesForUser(userId: string, roleNames: string[], clubIds: string[]) {
+async function replaceRolesForUser(
+  userId: string,
+  roleNames: string[],
+  clubIds: string[]
+): Promise<BulkRoleChangeResult> {
   const assignments = await fetchActiveAssignments(userId);
+  const protectedRoleNames = getProtectedRoleNames(assignments);
 
   // Validate → revoke → add ordering (design.md): revoke happens only after the
   // caller has already validated `roleNames` against the canonical role table
@@ -72,6 +113,7 @@ async function replaceRolesForUser(userId: string, roleNames: string[], clubIds:
   // user honestly rather than leaving them half-applied.
   for (const assignment of assignments) {
     if (!assignment.roleName || LOCKED_ROLES.has(assignment.roleName)) continue;
+    if (protectedRoleNames.has(assignment.roleName)) continue;
 
     if (CLUB_SCOPED_ROLES.has(assignment.roleName)) {
       const roleSelected = roleNames.includes(assignment.roleName);
@@ -82,21 +124,20 @@ async function replaceRolesForUser(userId: string, roleNames: string[], clubIds:
         // club_id. Replace must remove that global grant when the target is a
         // club-scoped set; otherwise narrowing a user to selected clubs leaves
         // their old broad access active.
-        await rbacService.revokeRole({ userId, roleName: assignment.roleName });
+        await rbacService.revokeUserRole(assignment.id);
       } else if (!clubInTarget) {
-        await rbacService.revokeRole({
-          userId,
-          roleName: assignment.roleName,
-          scopeType: 'club',
-          scopeId: assignment.clubId,
-        });
+        await rbacService.revokeUserRole(assignment.id);
       }
     } else if (!roleNames.includes(assignment.roleName)) {
-      await rbacService.revokeRole({ userId, roleName: assignment.roleName });
+      await rbacService.revokeUserRole(assignment.id);
     }
   }
 
-  await addRolesToUser(userId, roleNames, clubIds);
+  await addRolesToUser(
+    userId,
+    roleNames.filter(roleName => !protectedRoleNames.has(roleName)),
+    clubIds
+  );
 
   // Locked roles (exhibitor) are hidden in the Replace UI, so they never appear
   // in `roleNames` — mirror the single-user dialog's repair behavior (it forces
@@ -106,23 +147,26 @@ async function replaceRolesForUser(userId: string, roleNames: string[], clubIds:
   for (const lockedRole of LOCKED_ROLES) {
     await rbacService.ensureUserHasRole(userId, lockedRole);
   }
+
+  return {
+    skippedProtectedGrant: protectedRoleNames.size > 0,
+  };
 }
 
 /** Applies one bulk role-change config to a single user. Throws on real failures. */
 export async function applyBulkRoleChangeToUser(
   userId: string,
   config: BulkRoleSubmitConfig
-): Promise<void> {
+): Promise<BulkRoleChangeResult> {
   const { mode, roleNames, clubIds } = config;
   if (mode === 'replace') {
-    await replaceRolesForUser(userId, roleNames, clubIds);
-    return;
+    return replaceRolesForUser(userId, roleNames, clubIds);
   }
   if (mode === 'remove') {
-    await removeRolesFromUser(userId, roleNames, clubIds);
-    return;
+    return removeRolesFromUser(userId, roleNames, clubIds);
   }
   await addRolesToUser(userId, roleNames, clubIds);
+  return { skippedProtectedGrant: false };
 }
 
 export type { BulkRoleMode, BulkRoleSubmitConfig };

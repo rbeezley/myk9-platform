@@ -40,6 +40,7 @@ export function useBulkActions({
   const [error, setError] = useState<string | null>(null);
   const [isRoleProcessing, setIsRoleProcessing] = useState(false);
   const [roleError, setRoleError] = useState<string | null>(null);
+  const [roleNotice, setRoleNotice] = useState<string | null>(null);
 
   // Toast-driven retries fire after later renders may have produced a fresher
   // selection — a closure over the `selectedUsers` prop would still read the
@@ -64,6 +65,7 @@ export function useBulkActions({
     setError(null);
     setCascadeData(null);
     setRoleError(null);
+    setRoleNotice(null);
   }, []);
 
   const handleBulkDelete = useCallback(async () => {
@@ -307,6 +309,7 @@ export function useBulkActions({
   const handleBulkRoleChange = useCallback(
     async (config: BulkRoleSubmitConfig) => {
       setRoleError(null);
+      setRoleNotice(null);
       setIsRoleProcessing(true);
       try {
         // Pre-dispatch validation: the selected role names must all exist in the
@@ -327,11 +330,15 @@ export function useBulkActions({
         // from the selection (e.g. deleted) between the initial attempt and a
         // retry is reported as no-longer-eligible rather than re-attempted.
         const usersAtDispatch = new Set(selectedUsers.map(u => u.id));
+        const protectedGrantUserIds = new Set<string>();
 
         const outcome = await roleDispatch.run(
           selectedUsers,
           async user => {
-            await applyBulkRoleChangeToUser(user.id, config);
+            const result = await applyBulkRoleChangeToUser(user.id, config);
+            if (result.skippedProtectedGrant) {
+              protectedGrantUserIds.add(user.id);
+            }
             await queryClient.invalidateQueries({ queryKey: ['user-roles', user.id] });
             await queryClient.invalidateQueries({
               queryKey: ['user-role-assignments', user.id],
@@ -346,14 +353,25 @@ export function useBulkActions({
             // list is refreshed by invalidating the users query family and the
             // stuck selection is cleared explicitly.
             onFullSuccess: () => {
-              setCurrentDialog(null);
+              const protectedGrantNotice = getProtectedGrantNotice(
+                selectedUsers,
+                protectedGrantUserIds
+              );
+
+              if (protectedGrantNotice) {
+                // Keep the dialog open so the operator sees which selected
+                // people were left unchanged instead of hiding the note in a
+                // toast after closing the only relevant surface.
+                setRoleNotice(protectedGrantNotice);
+              } else {
+                setCurrentDialog(null);
+                onClearSelection?.();
+              }
               void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-              onClearSelection?.();
               onBulkComplete();
             },
             applicableWhen: user =>
-              usersAtDispatch.has(user.id) &&
-              selectedUsersRef.current.some(u => u.id === user.id),
+              usersAtDispatch.has(user.id) && selectedUsersRef.current.some(u => u.id === user.id),
           }
         );
 
@@ -361,6 +379,7 @@ export function useBulkActions({
         // happened, so leave the dialog open and don't touch selection.
         if (outcome === null) return;
         if (outcome.failed.length > 0) {
+          setRoleNotice(getProtectedGrantNotice(selectedUsers, protectedGrantUserIds));
           // Partial success still changed the succeeded users' roles — refresh
           // the admin list so their role chips aren't stale while the failure
           // stays visible for retry (full success refreshes via onFullSuccess).
@@ -395,5 +414,18 @@ export function useBulkActions({
     handleBulkRoleChange,
     isRoleProcessing,
     roleError,
+    roleNotice,
   };
+}
+
+function getProtectedGrantNotice(
+  users: SelectedUser[],
+  protectedGrantUserIds: Set<string>
+): string | null {
+  const labels = users.filter(user => protectedGrantUserIds.has(user.id)).map(labelForUser);
+  if (labels.length === 0) return null;
+  if (labels.length === 1) {
+    return `${labels[0]} has a show-scoped or expiring grant; this bulk action left it unchanged.`;
+  }
+  return `${labels.length} selected people (${labels.join(', ')}) have show-scoped or expiring grants; this bulk action left them unchanged.`;
 }

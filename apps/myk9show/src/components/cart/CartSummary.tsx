@@ -7,7 +7,15 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, AlertTriangle, ShoppingCart, ArrowRight, Loader2, Lock } from 'lucide-react';
+import {
+  CreditCard,
+  AlertTriangle,
+  AlertCircle,
+  ShoppingCart,
+  ArrowRight,
+  Loader2,
+  Lock,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -17,11 +25,24 @@ import { calculatePlatformFeeCents, formatPlatformFeeLabel } from '@/store/cartS
 import { usePlatformFeePercent } from '@/hooks/queries/usePlatformFeePercent';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
+import type { CartFulfillmentView } from '@/features/payments/cartFulfillmentView';
 
 interface CartSummaryProps {
   onCheckout?: () => void;
   onContinueShopping?: () => void;
   isCheckingOut?: boolean;
+  /**
+   * Per-line fulfillment for this cart (MYK9-122). When supplied, only payable
+   * lines are totalled and wait-list requests are disclosed separately, so the
+   * amount shown here is the amount actually charged. Omit to total every line.
+   */
+  fulfillment?: CartFulfillmentView;
+  /**
+   * True when class availability could not be loaded at all. Distinguishes a
+   * permanent failure from the transient "still loading" state, so the button
+   * does not sit on a spinner label forever.
+   */
+  capacityUnavailable?: boolean;
   className?: string;
 }
 
@@ -29,6 +50,8 @@ export function CartSummary({
   onCheckout,
   onContinueShopping,
   isCheckingOut = false,
+  fulfillment,
+  capacityUnavailable = false,
   className,
 }: CartSummaryProps) {
   const navigate = useNavigate();
@@ -91,11 +114,22 @@ export function CartSummary({
   })();
 
   const itemCount = getItemCount();
-  const subtotal = getTotalEntryFees();
+  // MYK9-122: only payable lines may move the amount charged. A full class is a
+  // wait-list REQUEST — it is disclosed on its own line at $0.00 due now, never
+  // folded into the total and then silently dropped at checkout.
+  const payableCount = fulfillment ? fulfillment.payableItems.length : itemCount;
+  const waitlistCount = fulfillment?.waitlistItems.length ?? 0;
+  const blockedCount = fulfillment?.blockedItems.length ?? 0;
+  const subtotal = fulfillment ? fulfillment.payableSubtotalCents : getTotalEntryFees();
   // Recompute fee + total from the live rate (the store bakes the fallback
   // default; the server charges the platform_settings rate this hook reads).
   const platformFee = calculatePlatformFeeCents(subtotal, feePercent);
   const total = subtotal + platformFee;
+  // Availability has not resolved yet, so the payable total is not final.
+  const capacityUnknown = fulfillment ? !fulfillment.capacityKnown : false;
+  const capacityPending = capacityUnknown && !capacityUnavailable;
+  const capacityFailed = capacityUnknown && capacityUnavailable;
+  const waitlistOnly = payableCount === 0 && waitlistCount > 0;
 
   const handleCheckout = () => {
     if (onCheckout) {
@@ -176,14 +210,37 @@ export function CartSummary({
 
         <Separator />
 
+        {/* Full-but-blocked lines stop checkout, so say so before the button is
+            pressed rather than after (MYK9-122). */}
+        {blockedCount > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                {blockedCount === 1 ? 'A class is' : `${blockedCount} classes are`} full and not
+                accepting wait list entries
+              </p>
+              <p className="text-xs mt-0.5">
+                Remove {blockedCount === 1 ? 'it' : 'them'} from your cart to continue to payment.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Totals Breakdown */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">
-              Entry Fees ({itemCount} {itemCount === 1 ? 'entry' : 'entries'})
+              Entry Fees ({payableCount} {payableCount === 1 ? 'entry' : 'entries'})
             </span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
+          {waitlistCount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Wait list requests ({waitlistCount})</span>
+              <span className="text-muted-foreground">No payment due</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">
               Platform Fee ({formatPlatformFeeLabel(feePercent)})
@@ -192,9 +249,18 @@ export function CartSummary({
           </div>
           <Separator />
           <div className="flex justify-between text-lg font-semibold">
-            <span>Total</span>
+            <span>{capacityUnknown ? 'Total (provisional)' : 'Total'}</span>
             <span>{formatCurrency(total)}</span>
           </div>
+          {/* Until availability resolves, no line has been judged against real
+              capacity — so this figure is not yet a claim about what is due. */}
+          {capacityUnknown && (
+            <p className="text-xs text-muted-foreground">
+              {capacityFailed
+                ? 'We could not check which classes are still open, so this amount is not final. Reload to try again.'
+                : 'Still checking which classes are still open. This amount will drop if a class turns out to be full.'}
+            </p>
+          )}
         </div>
 
         {/* Show Info */}
@@ -207,15 +273,15 @@ export function CartSummary({
         )}
 
         {/* Withdrawal refund policy — disclosed before payment */}
-        {cart.show?.id && (
-          <WithdrawalPolicyDisclosure showId={cart.show.id} className="pt-1" />
-        )}
+        {cart.show?.id && <WithdrawalPolicyDisclosure showId={cart.show.id} className="pt-1" />}
       </CardContent>
 
       <CardFooter className="flex-col gap-2 pt-0">
         <Button
           onClick={handleCheckout}
-          disabled={isCheckingOut || itemCount === 0 || entriesClosed}
+          disabled={
+            isCheckingOut || itemCount === 0 || entriesClosed || blockedCount > 0 || capacityUnknown
+          }
           className="w-full"
           size="lg"
         >
@@ -229,18 +295,37 @@ export function CartSummary({
               <Lock className="h-4 w-4 mr-2" />
               Entries closed — cannot pay online
             </>
+          ) : capacityPending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Checking class availability…
+            </>
+          ) : capacityFailed ? (
+            <>
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Class availability unavailable — reload to try again
+            </>
+          ) : blockedCount > 0 ? (
+            <>
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Remove the full {blockedCount === 1 ? 'class' : 'classes'} to continue
+            </>
+          ) : waitlistOnly ? (
+            <>
+              <CreditCard className="h-4 w-4 mr-2" />
+              Join the wait list ({waitlistCount} {waitlistCount === 1 ? 'request' : 'requests'}) —
+              no payment due
+            </>
           ) : (
             <>
               <CreditCard className="h-4 w-4 mr-2" />
-              Pay {formatCurrency(total)} and confirm {itemCount === 1 ? 'entry' : 'entries'}
+              Pay {formatCurrency(total)} and confirm {payableCount === 1 ? 'entry' : 'entries'}
+              {waitlistCount > 0 &&
+                ` · ${waitlistCount} wait list ${waitlistCount === 1 ? 'request' : 'requests'}`}
             </>
           )}
         </Button>
-        <Button
-          variant="outline"
-          onClick={handleContinueShopping}
-          className="min-h-11 w-full"
-        >
+        <Button variant="outline" onClick={handleContinueShopping} className="min-h-11 w-full">
           Continue Shopping
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>

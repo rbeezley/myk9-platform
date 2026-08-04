@@ -39,4 +39,30 @@ describe('CartItemCard', () => {
     const btn = screen.getByRole('button', { name: /removing/i });
     expect(btn).toBeDisabled();
   });
+
+  // MYK9-122: a full class used to render exactly like a payable entry, so the
+  // exhibitor had no way to tell it would not be charged or confirmed.
+  it('renders a wait-list line as $0.00 due now, not as its entry fee', () => {
+    render(<CartItemCard item={baseItem} onRemove={vi.fn()} fulfillment="waitlist" />);
+
+    expect(screen.getByText('Wait list request')).toBeInTheDocument();
+    expect(screen.getByText('$0.00')).toBeInTheDocument();
+    expect(screen.getByText('$45.00 if offered')).toBeInTheDocument();
+    expect(screen.getByText(/no payment is due unless a spot is offered/i)).toBeInTheDocument();
+  });
+
+  it('renders a blocked line with the action that unblocks checkout', () => {
+    render(<CartItemCard item={baseItem} onRemove={vi.fn()} fulfillment="blocked" />);
+
+    expect(screen.getByText('Class full')).toBeInTheDocument();
+    expect(screen.getByText('Cannot be paid')).toBeInTheDocument();
+    expect(screen.getByText(/remove it to continue to payment/i)).toBeInTheDocument();
+  });
+
+  it('still renders an ordinary payable line by default', () => {
+    render(<CartItemCard item={baseItem} onRemove={vi.fn()} />);
+
+    expect(screen.getByText('$45.00')).toBeInTheDocument();
+    expect(screen.queryByText('Wait list request')).not.toBeInTheDocument();
+  });
 });

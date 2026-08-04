@@ -12,18 +12,33 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { CartItemWithDetails } from '@/store/cartStore';
+import type { CartItemFulfillment } from '@/features/payments/cartFulfillmentView';
 
 interface CartItemCardProps {
   item: CartItemWithDetails;
   onRemove: () => void;
   isRemoving?: boolean;
+  /**
+   * How this line will actually be fulfilled at checkout (MYK9-122). Defaults to
+   * 'payable' so callers that have no capacity context are unchanged.
+   */
+  fulfillment?: CartItemFulfillment;
   className?: string;
 }
 
-export function CartItemCard({ item, onRemove, isRemoving = false, className }: CartItemCardProps) {
+export function CartItemCard({
+  item,
+  onRemove,
+  isRemoving = false,
+  fulfillment = 'payable',
+  className,
+}: CartItemCardProps) {
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
   };
+
+  const isWaitlist = fulfillment === 'waitlist';
+  const isBlocked = fulfillment === 'blocked';
 
   const dogName = item.dog?.call_name || item.dog?.name || 'Unknown Dog';
   const dogBreed = getDogBreedLabel({ registrations: item.dog?.registrations });
@@ -49,14 +64,40 @@ export function CartItemCard({ item, onRemove, isRemoving = false, className }: 
             </div>
 
             {/* Class Name and Level */}
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="text-sm font-medium">{className_}</span>
               {classLevel && (
                 <Badge variant="secondary" className="text-xs">
                   {classLevel}
                 </Badge>
               )}
+              {isWaitlist && (
+                <Badge variant="secondary" className="text-xs">
+                  Wait list request
+                </Badge>
+              )}
+              {isBlocked && (
+                <Badge variant="destructive" className="text-xs">
+                  Class full
+                </Badge>
+              )}
             </div>
+
+            {/* INTENT: a full class must never read as a quietly-included entry.
+                Say plainly what will happen and what it costs, at the line
+                itself — not only after the exhibitor commits to checkout. */}
+            {isWaitlist && (
+              <p className="mb-2 text-sm text-muted-foreground">
+                This class is full. We&apos;ll hold your place on the wait list — no payment is due
+                unless a spot is offered.
+              </p>
+            )}
+            {isBlocked && (
+              <p className="mb-2 text-sm text-destructive">
+                This class is full and is not accepting wait list entries. Remove it to continue to
+                payment.
+              </p>
+            )}
 
             {/* Additional Details */}
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -84,7 +125,18 @@ export function CartItemCard({ item, onRemove, isRemoving = false, className }: 
 
           {/* Price and Remove */}
           <div className="flex flex-col items-end gap-2">
-            <span className="text-lg font-semibold">{formatCurrency(item.entry_fee_cents)}</span>
+            {isWaitlist || isBlocked ? (
+              <span className="text-right">
+                <span className="block text-lg font-semibold">$0.00</span>
+                <span className="block text-xs text-muted-foreground">
+                  {isWaitlist
+                    ? `${formatCurrency(item.entry_fee_cents)} if offered`
+                    : 'Cannot be paid'}
+                </span>
+              </span>
+            ) : (
+              <span className="text-lg font-semibold">{formatCurrency(item.entry_fee_cents)}</span>
+            )}
             <Button
               variant="ghost"
               size="sm"

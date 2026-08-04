@@ -40,6 +40,7 @@ export default defineConfig({
       '../../supabase/functions/_shared/roleValidityCoverage.test.ts',
       '../../supabase/functions/push-trigger-waitlist/waitlistNotification.test.ts',
       '../../supabase/functions/_shared/http/__tests__/handler.test.ts',
+      '../../supabase/functions/_shared/http/__tests__/cors.test.ts',
       '../../supabase/functions/_shared/standardWebhookSignature.test.ts',
       '../../supabase/functions/_shared/resendEmail.test.ts',
       '../../supabase/functions/_shared/authEmailFailure.test.ts',

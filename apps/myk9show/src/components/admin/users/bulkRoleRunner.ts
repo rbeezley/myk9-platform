@@ -142,11 +142,7 @@ async function replaceRolesForUser(
     }
   }
 
-  await addRolesToUser(
-    userId,
-    roleNames.filter(roleName => !protectedRoleNames.has(roleName)),
-    clubIds
-  );
+  await addRolesToUser(userId, roleNames, clubIds);
 
   // Locked roles (exhibitor) are hidden in the Replace UI, so they never appear
   // in `roleNames` — mirror the single-user dialog's repair behavior (it forces

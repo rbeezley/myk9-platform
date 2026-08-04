@@ -87,24 +87,32 @@ describe('useBulkActions — protected role grants', () => {
   });
 
   it('keeps a show-scoped grant out of Replace revokes and names the affected person', async () => {
-    getAllRolesMock.mockResolvedValue([role('judge'), role('steward'), role('exhibitor')]);
+    getAllRolesMock.mockResolvedValue([role('secretary'), role('steward'), role('exhibitor')]);
     activeAssignmentsMock.mockResolvedValue({
       data: [
         {
-          id: 'ur-judge-show',
-          role_id: 'judge',
+          id: 'ur-secretary-show',
+          role_id: 'secretary',
           club_id: null,
           show_id: 'show-9',
           expires_at: null,
-          roles: { name: 'judge' },
+          roles: { name: 'secretary' },
         },
         {
-          id: 'ur-judge-ordinary',
-          role_id: 'judge',
-          club_id: null,
+          id: 'ur-secretary-other-club',
+          role_id: 'secretary',
+          club_id: 'club-2',
           show_id: null,
           expires_at: null,
-          roles: { name: 'judge' },
+          roles: { name: 'secretary' },
+        },
+        {
+          id: 'ur-steward-expiring',
+          role_id: 'steward',
+          club_id: null,
+          show_id: null,
+          expires_at: '2026-12-31T23:59:59Z',
+          roles: { name: 'steward' },
         },
       ],
       error: null,
@@ -112,14 +120,18 @@ describe('useBulkActions — protected role grants', () => {
     const { result } = renderBulkActions([selectedUser('u1', 'Alice')]);
 
     await act(async () => {
-      await result.current.handleBulkRoleChange(config({}));
+      await result.current.handleBulkRoleChange(
+        config({ roleNames: ['secretary'], clubIds: ['club-1'] })
+      );
     });
 
     expect(activeAssignmentsSelectMock).toHaveBeenCalledWith(
       'id, role_id, club_id, show_id, expires_at, roles(name)'
     );
-    expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-judge-show');
-    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur-judge-ordinary');
+    expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-secretary-show');
+    expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-steward-expiring');
+    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur-secretary-other-club');
+    expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
     expect(revokeRoleMock).not.toHaveBeenCalled();
     expect(result.current.roleNotice).toMatch(/Alice Test has a role assignment limited to a show/);
   });
@@ -134,6 +146,14 @@ describe('useBulkActions — protected role grants', () => {
           club_id: null,
           show_id: null,
           expires_at: '2026-12-31T23:59:59Z',
+          roles: { name: 'judge' },
+        },
+        {
+          id: 'ur-judge-show',
+          role_id: 'judge',
+          club_id: null,
+          show_id: 'show-9',
+          expires_at: null,
           roles: { name: 'judge' },
         },
         {
@@ -154,6 +174,7 @@ describe('useBulkActions — protected role grants', () => {
     });
 
     expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-judge-expiring');
+    expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-judge-show');
     expect(revokeUserRoleMock).toHaveBeenCalledWith('ur-judge-ordinary');
     expect(revokeRoleMock).not.toHaveBeenCalled();
     expect(result.current.roleNotice).toMatch(/Alice Test has a role assignment limited to a show/);
@@ -174,14 +195,19 @@ describe('useBulkActions — protected role grants', () => {
       ],
       error: null,
     });
-    ensureUserHasRoleMock.mockRejectedValue(new Error('later mutation failed'));
-    const { result } = renderBulkActions([selectedUser('u1', 'Alice')]);
+    ensureUserHasRoleMock.mockImplementation(async (userId: string) => {
+      if (userId === 'u1') throw new Error('later mutation failed');
+      return true;
+    });
+    const { result } = renderBulkActions([selectedUser('u1', 'Alice'), selectedUser('u2', 'Bob')]);
 
     await act(async () => {
       await result.current.handleBulkRoleChange(config({}));
     });
 
-    expect(result.current.roleError).toMatch(/0 of 1 users updated — 1 failed/);
-    expect(result.current.roleNotice).toMatch(/Alice Test has a role assignment limited to a show/);
+    expect(result.current.roleError).toMatch(/1 of 2 users updated — 1 failed/);
+    expect(result.current.roleNotice).toMatch(
+      /2 selected people \(Alice Test, Bob Test\) have role assignments limited to a show/
+    );
   });
 });

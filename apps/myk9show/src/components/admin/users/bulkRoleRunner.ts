@@ -45,12 +45,7 @@ function isProtectedAssignment(assignment: ActiveAssignmentRow): boolean {
 function getProtectedRoleNames(assignments: ActiveAssignmentRow[]): Set<string> {
   return new Set(
     assignments
-      .filter(
-        assignment =>
-          !!assignment.roleName &&
-          isProtectedAssignment(assignment) &&
-          !LOCKED_ROLES.has(assignment.roleName)
-      )
+      .filter(assignment => !!assignment.roleName && isProtectedAssignment(assignment))
       .map(assignment => assignment.roleName)
   );
 }

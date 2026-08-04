@@ -114,6 +114,14 @@ describe('useBulkActions — protected role grants', () => {
           expires_at: '2026-12-31T23:59:59Z',
           roles: { name: 'steward' },
         },
+        {
+          id: 'ur-exhibitor-show',
+          role_id: 'exhibitor',
+          club_id: null,
+          show_id: 'show-9',
+          expires_at: null,
+          roles: { name: 'exhibitor' },
+        },
       ],
       error: null,
     });
@@ -130,6 +138,7 @@ describe('useBulkActions — protected role grants', () => {
     );
     expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-secretary-show');
     expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-steward-expiring');
+    expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-exhibitor-show');
     expect(revokeUserRoleMock).toHaveBeenCalledWith('ur-secretary-other-club');
     expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
     expect(revokeRoleMock).not.toHaveBeenCalled();

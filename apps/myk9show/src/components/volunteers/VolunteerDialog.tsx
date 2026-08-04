@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,23 @@ export function VolunteerDialog({
   const [notes, setNotes] = useState('');
   const [personId, setPersonId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Blur hides the suggestion list on a delay so a click on a suggestion lands
+  // before the list unmounts. That timer MUST be cancelled on unmount: it calls
+  // setState, and if the component (or in tests, the whole environment) is gone
+  // when it fires, React's scheduler dereferences a `window` that no longer
+  // exists. That is an unhandled error, not a caught one — it took CI down on
+  // 2026-08-04 with every one of 15544 tests passing.
+  const dismissSuggestionsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (dismissSuggestionsTimer.current !== null) {
+        clearTimeout(dismissSuggestionsTimer.current);
+      }
+    },
+    []
+  );
 
   // People search for linking to registered users
   const [peopleQuery, setPeopleQuery] = useState('');
@@ -131,7 +148,15 @@ export function VolunteerDialog({
                     setPeopleQuery(e.target.value);
                     setShowSuggestions(true);
                   }}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onBlur={() => {
+                    if (dismissSuggestionsTimer.current !== null) {
+                      clearTimeout(dismissSuggestionsTimer.current);
+                    }
+                    dismissSuggestionsTimer.current = setTimeout(() => {
+                      dismissSuggestionsTimer.current = null;
+                      setShowSuggestions(false);
+                    }, 200);
+                  }}
                   onFocus={() => {
                     if (searchResults.length > 0) setShowSuggestions(true);
                   }}

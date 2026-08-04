@@ -16,6 +16,7 @@ import { queryClient } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { canManageShowSurface } from '@/utils/roleScopes';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { ClassCompactHeader } from '@/components/classes/ClassCompactHeader';
@@ -52,7 +53,7 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isSecretary, isAdmin } = useAuthContext();
+  const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
 
   // Data hook
   const {
@@ -84,6 +85,22 @@ const ClassDetailsPage: React.FC = () => {
   // sessions (mirrors the TV display #753 fix). Secretary/at-show scoring keeps
   // using the live replication store below.
   const isStaff = isSecretary || isAdmin;
+
+  // Operational gate for this page's class-lifecycle controls (Edit Class,
+  // Delete Class). This route is PUBLIC — exhibitors land here from a show
+  // page — so the controls were previously rendered to everyone, contradicting
+  // the read-only copy beside them (MYK9-123). Club-scoped so a club admin
+  // keeps the same class controls they already have one level up on Trial
+  // Details, and no more. `isStaff` above stays secretary/admin-only because it
+  // switches which VIEW renders (run sheet vs exhibitor results), not whether a
+  // mutation is offered.
+  const canManageClass = canManageShowSurface({
+    isSecretary,
+    isAdmin,
+    hasRole,
+    userWithRoles,
+    clubId: parentShow?.clubId,
+  });
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;
@@ -235,10 +252,12 @@ const ClassDetailsPage: React.FC = () => {
             Manage Entries
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={dialogs.openEditClassPanel}>
-          <Pencil className="mr-1.5 h-3.5 w-3.5" />
-          Edit
-        </Button>
+        {canManageClass && (
+          <Button variant="outline" size="sm" onClick={dialogs.openEditClassPanel}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Edit
+          </Button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -256,10 +275,12 @@ const ClassDetailsPage: React.FC = () => {
               <ClipboardList className="mr-2 h-4 w-4" />
               Requirements
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={dialogs.openDeleteDialog} className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Class
-            </DropdownMenuItem>
+            {canManageClass && (
+              <DropdownMenuItem onClick={dialogs.openDeleteDialog} className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Class
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -268,6 +289,7 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.openEditClassPanel,
     dialogs.openDeleteDialog,
     setRequirementsPanelOpen,
+    canManageClass,
     isSecretary,
     isAdmin,
     parentShow,
@@ -356,27 +378,34 @@ const ClassDetailsPage: React.FC = () => {
         ) : null}
 
         {/* Dialogs */}
-        <ClassEditPanel
-          open={dialogs.editClassPanelOpen}
-          onClose={dialogs.closeEditClassPanel}
-          classId={currentClass?.id || ''}
-          className={currentClass?.element || ''}
-          initialClassData={currentClass || {}}
-          {...(parentShow?.id !== undefined && { showId: parentShow.id })}
-          onSave={async classData => {
-            if (currentClass?.id) {
-              const updatedClass = { ...currentClass, ...classData };
-              handleSaveClassEdit(updatedClass);
-            }
-          }}
-        />
+        {/* Class-lifecycle panels are mounted only for staff, not merely left
+            closed: an unmounted panel cannot be opened by a stray handler and
+            never subscribes to class data the viewer should not be editing. */}
+        {canManageClass && (
+          <>
+            <ClassEditPanel
+              open={dialogs.editClassPanelOpen}
+              onClose={dialogs.closeEditClassPanel}
+              classId={currentClass?.id || ''}
+              className={currentClass?.element || ''}
+              initialClassData={currentClass || {}}
+              {...(parentShow?.id !== undefined && { showId: parentShow.id })}
+              onSave={async classData => {
+                if (currentClass?.id) {
+                  const updatedClass = { ...currentClass, ...classData };
+                  handleSaveClassEdit(updatedClass);
+                }
+              }}
+            />
 
-        <DeleteClassDialog
-          open={dialogs.deleteDialogOpen}
-          onOpenChange={dialogs.setDeleteDialogOpen}
-          currentClass={currentClass}
-          onConfirm={handleConfirmDeleteClass}
-        />
+            <DeleteClassDialog
+              open={dialogs.deleteDialogOpen}
+              onOpenChange={dialogs.setDeleteDialogOpen}
+              currentClass={currentClass}
+              onConfirm={handleConfirmDeleteClass}
+            />
+          </>
+        )}
 
         <EditEntryDialog
           open={dialogs.editEntryDialogOpen}

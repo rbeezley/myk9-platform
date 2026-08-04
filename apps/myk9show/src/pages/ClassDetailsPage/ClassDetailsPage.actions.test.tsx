@@ -48,11 +48,11 @@ vi.mock('./SecretaryRunSheet', () => ({
 }));
 
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
-  ClassEditPanel: () => null,
+  ClassEditPanel: () => <div data-testid="class-edit-panel" />,
 }));
 
 vi.mock('./DeleteClassDialog', () => ({
-  DeleteClassDialog: () => null,
+  DeleteClassDialog: () => <div data-testid="delete-class-dialog" />,
 }));
 
 vi.mock('./EditEntryDialog', () => ({
@@ -126,6 +126,8 @@ describe('ClassDetailsPage header actions', () => {
       user: { id: 'secretary-1' },
       isSecretary: true,
       isAdmin: false,
+      hasRole: () => false,
+      userWithRoles: null,
     });
     mockUseClassDetailsDialogs.mockReturnValue({
       editClassPanelOpen: false,
@@ -159,7 +161,12 @@ describe('ClassDetailsPage header actions', () => {
       entriesLoading: false,
       entriesError: null,
       parentTrial: { id: 'trial-1', showId: 'show-1', trialNumber: 'Saturday Trial 1' },
-      parentShow: { id: 'show-1', name: 'Spring Classic', organization: 'AKC' },
+      parentShow: {
+        id: 'show-1',
+        name: 'Spring Classic',
+        organization: 'AKC',
+        clubId: 'club-1',
+      },
       dogs: [],
       updateClass: vi.fn(),
       deleteClass: vi.fn(),
@@ -194,6 +201,90 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(
       '/shows/show-1/entry-management?trial=trial-1&class=class-1'
     );
+  });
+
+  it('offers class-lifecycle controls to a secretary', () => {
+    renderClassDetailsPage();
+
+    expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
+    expect(screen.getByTestId('class-edit-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('delete-class-dialog')).toBeInTheDocument();
+  });
+
+  // MYK9-123: this route is public, so an exhibitor lands here from a show page.
+  // The page tells them it is read-only; the controls have to agree, and the
+  // panels behind them must not even be mounted.
+  describe('viewed by an exhibitor', () => {
+    beforeEach(() => {
+      mockUseAuthContext.mockReturnValue({
+        user: { id: 'exhibitor-1' },
+        isSecretary: false,
+        isAdmin: false,
+        hasRole: () => false,
+        userWithRoles: { id: 'exhibitor-1', scopes: [] },
+      });
+    });
+
+    it('hides Edit Class and Delete Class, and mounts neither panel', () => {
+      renderClassDetailsPage();
+
+      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /delete class/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('class-edit-panel')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('delete-class-dialog')).not.toBeInTheDocument();
+    });
+
+    it('keeps the read-only affordances that are theirs', () => {
+      renderClassDetailsPage();
+
+      expect(screen.getByRole('menuitem', { name: /requirements/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /manage entries/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /open in workbench/i })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('viewed by a club admin', () => {
+    function mockClubAdmin(scopedClubId: string) {
+      mockUseAuthContext.mockReturnValue({
+        user: { id: 'club-admin-1' },
+        isSecretary: false,
+        isAdmin: false,
+        hasRole: (role: string) => role === 'club_admin',
+        userWithRoles: {
+          id: 'club-admin-1',
+          scopes: [
+            {
+              userId: 'club-admin-1',
+              roleId: 'club_admin',
+              scopeType: 'club',
+              scopeId: scopedClubId,
+              createdAt: new Date(),
+            },
+          ],
+        },
+      });
+    }
+
+    it('keeps class controls for an admin of this show’s club', () => {
+      mockClubAdmin('club-1');
+
+      renderClassDetailsPage();
+
+      expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
+    });
+
+    it('denies an admin of a different club', () => {
+      mockClubAdmin('club-2');
+
+      renderClassDetailsPage();
+
+      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /delete class/i })).not.toBeInTheDocument();
+    });
   });
 
   it('does not render a confident empty run sheet when staff entries are unavailable', () => {

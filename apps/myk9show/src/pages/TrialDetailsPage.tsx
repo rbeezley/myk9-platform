@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTrialStore } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole } from '@/types/auth-types';
-import { hasScopedClubRole } from '@/utils/roleScopes';
+import { canManageShowSurface } from '@/utils/roleScopes';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTrialDetailData } from '@/hooks/useTrialDetailData';
 import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
@@ -74,14 +73,15 @@ const TrialDetailsPage: React.FC = () => {
 
   // Public route — exhibitors are now deep-linked here from styled landings.
   // Only staff may see create/edit/manage affordances; everyone else gets a
-  // read-only view. `club_admin` is inherently club-scoped, so a global
-  // hasRole() check would let a Club A admin manage Club B's trial — scope it
-  // to THIS trial's club. Secretary/admin stay global, matching ShowDetailsPage.
-  const canManageTrial =
-    isSecretary ||
-    isAdmin ||
-    (hasRole(UserRole.CLUB_ADMIN) &&
-      hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, parentShow?.clubId));
+  // read-only view. The club scoping (and why a global hasRole() is wrong for
+  // club_admin) lives in canManageShowSurface, shared with Class Details.
+  const canManageTrial = canManageShowSurface({
+    isSecretary,
+    isAdmin,
+    hasRole,
+    userWithRoles,
+    clubId: parentShow?.clubId,
+  });
   const entryManagementShowId = currentTrial?.showId || showId;
 
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a

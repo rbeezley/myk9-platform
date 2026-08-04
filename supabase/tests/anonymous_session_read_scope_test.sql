@@ -138,6 +138,20 @@ BEGIN
     RAISE EXCEPTION 'FAIL valid ringside claim read % announcement(s), expected 1', n;
   END IF;
 
+  SELECT count(*) INTO n
+    FROM public.show_announcements
+   WHERE show_id = v_show_id;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL valid ringside claim read % own-show announcement(s), expected 1', n;
+  END IF;
+
+  SELECT count(*) INTO n
+    FROM public.show_announcements
+   WHERE show_id <> v_show_id;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL valid ringside claim read % cross-show announcement(s), expected 0', n;
+  END IF;
+
   -- A valid claim for another show must not widen the read to this show.
   PERFORM set_config('request.jwt.claims',
     jsonb_build_object(
@@ -154,9 +168,18 @@ BEGIN
     true
   );
 
-  SELECT count(*) INTO n FROM public.show_announcements;
+  SELECT count(*) INTO n
+    FROM public.show_announcements
+   WHERE show_id = v_show_id;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL cross-show ringside claim read % announcement(s) from the other show, expected 0', n;
+  END IF;
+
+  SELECT count(*) INTO n
+    FROM public.show_announcements
+   WHERE show_id = '00000000-0000-0000-0000-0000000f0511';
   IF n <> 1 THEN
-    RAISE EXCEPTION 'FAIL cross-show ringside claim read % announcement(s), expected 1', n;
+    RAISE EXCEPTION 'FAIL cross-show ringside claim read % stamped-show announcement(s), expected 1', n;
   END IF;
 
   -- Exhibitor passcodes are show participants, not announcement authors. They

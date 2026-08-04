@@ -46,8 +46,7 @@ function makeSource(tickets: SupportTicket[], messages: SupportMessage[]) {
     messagesFor: vi
       .fn()
       .mockImplementation(async (ids: string[]) => messages.filter(m => ids.includes(m.ticket_id))),
-    insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
-    updateTicketStatus: vi.fn().mockResolvedValue(undefined),
+    sendOperatorReplyAtomic: vi.fn().mockResolvedValue(true),
     ownersFor: vi.fn().mockResolvedValue([]),
   };
 }
@@ -72,10 +71,11 @@ describe('runPass', () => {
       notify: vi.fn().mockResolvedValue(undefined),
     });
     expect(summary.autoSent).toBe(1);
-    expect(source.insertOperatorMessage).toHaveBeenCalledWith(
+    expect(source.sendOperatorReplyAtomic).toHaveBeenCalledWith(
       't1',
       'operator-1',
-      'Open My Entries to see your armband number.'
+      'Open My Entries to see your armband number.',
+      'm-t1'
     );
   });
 
@@ -91,7 +91,7 @@ describe('runPass', () => {
     });
     expect(summary.autoSent).toBe(0);
     expect(summary.drafted).toBe(1);
-    expect(source.insertOperatorMessage).not.toHaveBeenCalled();
+    expect(source.sendOperatorReplyAtomic).not.toHaveBeenCalled();
   });
 
   it('never auto-sends a show-day ticket even when a promoted answer matches', async () => {
@@ -105,7 +105,7 @@ describe('runPass', () => {
     });
     expect(summary.autoSent).toBe(0);
     expect(summary.carvedOut).toBe(1);
-    expect(source.insertOperatorMessage).not.toHaveBeenCalled();
+    expect(source.sendOperatorReplyAtomic).not.toHaveBeenCalled();
   });
 
   it('never auto-sends a payment ticket even when a promoted answer matches', async () => {
@@ -119,7 +119,7 @@ describe('runPass', () => {
     });
     expect(summary.autoSent).toBe(0);
     expect(summary.carvedOut).toBe(1);
-    expect(source.insertOperatorMessage).not.toHaveBeenCalled();
+    expect(source.sendOperatorReplyAtomic).not.toHaveBeenCalled();
   });
 
   it('skips threads the operator already answered', async () => {
@@ -187,7 +187,7 @@ describe('runPass', () => {
     });
     expect(summary.autoSent).toBe(3);
     expect(summary.capReached).toBe(true);
-    expect(source.insertOperatorMessage).toHaveBeenCalledTimes(3);
+    expect(source.sendOperatorReplyAtomic).toHaveBeenCalledTimes(3);
   });
 
   it('defaults the cap to 3 when none is given', async () => {
@@ -332,7 +332,7 @@ describe('runPass', () => {
       notify: vi.fn().mockResolvedValue(undefined),
     });
     expect(summary.autoSent).toBe(0);
-    expect(source.insertOperatorMessage).not.toHaveBeenCalled();
+    expect(source.sendOperatorReplyAtomic).not.toHaveBeenCalled();
   });
 
   it('does not cluster tickets the operator has already answered', async () => {

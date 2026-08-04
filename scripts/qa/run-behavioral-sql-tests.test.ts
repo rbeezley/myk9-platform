@@ -48,6 +48,7 @@ const launchCriticalSqlTests = [
   'recoverable_show_access_codes_test.sql',
   'ringside_containment_test.sql',
   'subscription_entitlement_grants_test.sql',
+  'support_triage_atomic_send_test.sql',
 ];
 
 describe('behavioral SQL test harness', () => {

@@ -54,6 +54,7 @@ TEST_FILES=(
   "$TEST_DIR/recoverable_show_access_codes_test.sql"
   "$TEST_DIR/ringside_containment_test.sql"
   "$TEST_DIR/subscription_entitlement_grants_test.sql"
+  "$TEST_DIR/support_triage_atomic_send_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

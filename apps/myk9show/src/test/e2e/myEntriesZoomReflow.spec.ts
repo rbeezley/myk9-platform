@@ -70,9 +70,10 @@ test.describe('My Shows reflows under browser zoom', () => {
         await toggle.scrollIntoViewIfNeeded();
         await toggle.click();
       }
-      expect(toggleCount, 'no expandable entry cards found — spec would be vacuous').toBeGreaterThan(
-        0
-      );
+      expect(
+        toggleCount,
+        'no expandable entry cards found — spec would be vacuous'
+      ).toBeGreaterThan(0);
 
       await expect(page.locator('.myk9-entries-action-buttons').first()).toBeVisible();
 
@@ -124,16 +125,51 @@ test.describe('My Shows reflows under browser zoom', () => {
       );
       expect(rowOverflow, `${zoom * 100}%: action row overflows its own box`).toEqual([]);
 
-      // 4. Money and status stay readable — the report claimed "Current Fees
-      //    clipped", so assert the label is present and un-ellipsised.
-      const feesTruncated = await page.evaluate(() =>
-        Array.from(document.querySelectorAll('*'))
-          .filter(el => el.children.length === 0 && /Current Fees/.test(el.textContent || ''))
-          .some(el => el.scrollWidth > el.clientWidth + 1)
-      );
-      expect(feesTruncated, `${zoom * 100}%: "Current Fees" is truncated`).toBe(false);
+      // 4. The rows must actually be wrapping. This is the one assertion that
+      //    fails on the unfixed tree regardless of how many buttons the seed
+      //    data happens to render, so it is what makes this spec a real guard
+      //    rather than a description of the current seed.
+      const wrapModes = await page.evaluate(() => [
+        ...new Set(
+          Array.from(document.querySelectorAll('.myk9-entries-action-buttons')).map(
+            row => getComputedStyle(row).flexWrap
+          )
+        ),
+      ]);
+      expect(wrapModes, `${zoom * 100}%: action rows are not set to wrap`).toEqual(['wrap']);
 
-      // 5. Keyboard focus stays visible — a wrapped control that lands outside
+      // 5. Money stays readable — the report claimed "Current Fees clipped".
+      //    Below 721px `CompactStatsRow` collapses the stat grid behind a
+      //    summary toggle, and a `display:none` element reports zero width, so
+      //    a truncation check alone would pass vacuously at 200%. Expand first,
+      //    then require a real painted box before judging truncation.
+      const statsToggle = page.locator('button[aria-controls="exhibitor-stat-cards"]');
+      if ((await statsToggle.count()) > 0 && (await statsToggle.first().isVisible())) {
+        if ((await statsToggle.first().getAttribute('aria-expanded')) !== 'true') {
+          await statsToggle.first().click();
+        }
+      }
+      await expect(page.getByText('Current Fees', { exact: true }).first()).toBeVisible();
+
+      const fees = await page.evaluate(() => {
+        const label = Array.from(document.querySelectorAll('*')).find(
+          el => el.children.length === 0 && el.textContent?.trim() === 'Current Fees'
+        );
+        if (!label) return { found: false, painted: false, truncated: true };
+        // Judge the whole stat card, not just the label: the amount lives in a
+        // sibling node and is the part that actually matters.
+        const card = label.closest('button') ?? label.parentElement!;
+        const box = card.getBoundingClientRect();
+        const truncated = Array.from(card.querySelectorAll('*')).some(
+          el => el.children.length === 0 && el.scrollWidth > el.clientWidth + 1
+        );
+        return { found: true, painted: box.width > 0 && box.height > 0, truncated };
+      });
+      expect(fees.found, `${zoom * 100}%: "Current Fees" not rendered`).toBe(true);
+      expect(fees.painted, `${zoom * 100}%: "Current Fees" has no painted box`).toBe(true);
+      expect(fees.truncated, `${zoom * 100}%: "Current Fees" card truncates its text`).toBe(false);
+
+      // 6. Keyboard focus stays visible — a wrapped control that lands outside
       //    the viewport would still be reachable but not findable.
       const firstButton = page.locator('.myk9-entries-action-buttons > *').first();
       await firstButton.focus();

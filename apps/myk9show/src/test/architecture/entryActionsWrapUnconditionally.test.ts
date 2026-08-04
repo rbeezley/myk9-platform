@@ -42,53 +42,67 @@ function stripComments(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
+/** Index just past the `}` closing the block that opens at `open`. */
+function endOfBlock(css: string, open: number): number {
+  let depth = 0;
+  for (let cursor = open; cursor < css.length; cursor += 1) {
+    if (css[cursor] === '{') depth += 1;
+    else if (css[cursor] === '}') {
+      depth -= 1;
+      if (depth === 0) return cursor + 1;
+    }
+  }
+  return css.length;
+}
+
+type AtRule = { prelude: string; body: string };
+
 /**
- * Remove every at-rule block (`@media`, `@supports`, `@container`) so what
- * remains is only the unconditional cascade. Brace-matched rather than
- * regex-matched, because these blocks nest.
+ * Split comment-free CSS into its at-rule blocks and everything outside them.
+ *
+ * Brace-matched, never regex-matched. A non-greedy `\{[\s\S]*?\}` stops at the
+ * FIRST nested rule's closing brace, so it reads only the first rule inside a
+ * `@media` and silently ignores the rest — which would make any "this
+ * declaration must not appear in the breakpoint" assertion a false negative
+ * for every rule but the first.
  */
-function stripAtRuleBlocks(source: string): string {
+function partitionAtRules(source: string): { unconditional: string; atRules: AtRule[] } {
   const css = stripComments(source);
-  let out = '';
+  const atRules: AtRule[] = [];
+  let unconditional = '';
   let index = 0;
 
   while (index < css.length) {
     const at = css.indexOf('@', index);
     if (at === -1) {
-      out += css.slice(index);
+      unconditional += css.slice(index);
       break;
     }
 
     const open = css.indexOf('{', at);
     if (open === -1) {
-      out += css.slice(index);
+      unconditional += css.slice(index);
       break;
     }
 
     // At-rules without a block (@import, @charset) end at the semicolon.
     const semicolon = css.indexOf(';', at);
     if (semicolon !== -1 && semicolon < open) {
-      out += css.slice(index, semicolon + 1);
+      unconditional += css.slice(index, semicolon + 1);
       index = semicolon + 1;
       continue;
     }
 
-    out += css.slice(index, at);
-
-    let depth = 0;
-    let cursor = open;
-    for (; cursor < css.length; cursor += 1) {
-      if (css[cursor] === '{') depth += 1;
-      else if (css[cursor] === '}') {
-        depth -= 1;
-        if (depth === 0) break;
-      }
-    }
-    index = cursor + 1;
+    unconditional += css.slice(index, at);
+    const end = endOfBlock(css, open);
+    atRules.push({ prelude: css.slice(at, open), body: css.slice(open + 1, end - 1) });
+    index = end;
   }
 
-  return out;
+  return { unconditional, atRules };
 }
+
+const stripAtRuleBlocks = (source: string): string => partitionAtRules(source).unconditional;
 
 /** Body of the last base rule whose selector list contains `selector`. */
 function baseRuleBody(css: string, selector: string): string | null {
@@ -124,17 +138,25 @@ describe('My Shows entry actions wrap unconditionally (MYK9-124)', () => {
     });
   }
 
-  it('the mobile block no longer needs to grant wrapping', () => {
-    // Once the base rule wraps, a duplicate inside the breakpoint is dead
-    // weight that invites someone to "consolidate" it back to conditional.
-    const mobileBlocks = css.match(/@media[^{]*max-width:\s*768px[^{]*\{[\s\S]*?\n\}/g) ?? [];
-    const stillGrantsWrap = mobileBlocks.some(block =>
-      /\.myk9-entries-action-buttons\s*\{[^}]*flex-wrap:\s*wrap/.test(block)
-    );
+  it('no breakpoint re-grants wrapping to the action rows', () => {
+    // Once the base rule wraps, a duplicate inside a breakpoint is dead weight
+    // that invites someone to "consolidate" it back to being conditional.
+    // Checked across EVERY at-rule, not just max-width:768px — a wrap
+    // reintroduced under any media query is the same regression.
+    const offenders = partitionAtRules(css)
+      .atRules.filter(({ body }) =>
+        MUST_WRAP.some(selector => {
+          const rule = new RegExp(`\\${selector}(?![\\w-])[^{}]*\\{([^{}]*)\\}`);
+          const match = body.match(rule);
+          return match ? /flex-wrap:\s*wrap/.test(match[1]) : false;
+        })
+      )
+      .map(({ prelude }) => prelude.trim().replace(/\s+/g, ' '));
+
     expect(
-      stillGrantsWrap,
-      'flex-wrap:wrap is now unconditional; drop the redundant declaration ' +
-        'from the max-width:768px block so there is one source of truth.'
-    ).toBe(false);
+      offenders,
+      'flex-wrap:wrap is unconditional now; drop the redundant declaration so ' +
+        'there is one source of truth for the wrap contract.'
+    ).toEqual([]);
   });
 });

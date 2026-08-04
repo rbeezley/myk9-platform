@@ -106,7 +106,7 @@ describe('HorizontalProgressIndicator', () => {
   });
 });
 
-describe('HorizontalProgressIndicator — many steps remain discoverable on mobile', () => {
+describe('HorizontalProgressIndicator — steps remain discoverable through tablet widths', () => {
   const SIX_STEPS = [
     { id: 0, label: 'Exhibitor' },
     { id: 1, label: 'Dogs' },
@@ -116,7 +116,7 @@ describe('HorizontalProgressIndicator — many steps remain discoverable on mobi
     { id: 5, label: 'Confirm' },
   ];
 
-  it('keeps every step label visible in a horizontally scrollable list', () => {
+  it('keeps every step label visible without horizontal scrolling', () => {
     render(
       <HorizontalProgressIndicator steps={SIX_STEPS} currentStep={2} completedSteps={[0, 1]} />
     );
@@ -125,8 +125,9 @@ describe('HorizontalProgressIndicator — many steps remain discoverable on mobi
     }
 
     const stepList = screen.getByTestId('wizard-step-list');
-    expect(stepList).toHaveClass('overflow-x-auto');
-    expect(stepList.querySelector('ol')).toHaveClass('md:min-w-0');
-    expect(screen.getByText('Exhibitor').closest('li')).toHaveClass('md:min-w-0');
+    expect(stepList).not.toHaveClass('overflow-x-auto');
+    expect(stepList.querySelector('ol')).toHaveClass('grid-cols-2');
+    expect(stepList.querySelector('ol')).toHaveClass('lg:flex');
+    expect(screen.getByText('Exhibitor').closest('li')).toHaveClass('min-w-0');
   });
 });

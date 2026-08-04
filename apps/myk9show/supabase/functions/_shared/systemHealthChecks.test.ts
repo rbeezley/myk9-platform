@@ -9,10 +9,7 @@ import {
 } from './systemHealthChecks';
 import { anonGrants } from './anonGrantTestFixtures';
 import { appliedAclFacts } from './appliedAclTestFixtures';
-import {
-  healthCheckSourceStaleAfterMs,
-  healthCheckStaleAfterMs,
-} from '../../../src/features/admin-system-health/healthCheckCadence';
+import { healthCheckSourceStaleAfterMs } from '../../../src/features/admin-system-health/healthCheckCadence';
 
 // A fixed "now" so overdue/stale math is deterministic.
 const NOW = Date.parse('2026-07-04T12:00:00.000Z');

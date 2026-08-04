@@ -6,12 +6,11 @@
  * do I do about it?" in one screen, and every number on it is measured rather
  * than estimated.
  *
- * Three things are deliberately ABSENT, and each was a design element that had
+ * Two things are deliberately ABSENT, and each was a design element that had
  * no source (docs/plan-admin-dashboard-data-contract.md):
  *
- *  - No uptime / API p95 / error-rate tiles. Those live in Sentry behind an API
- *    token and need a cached edge-function proxy first. A tile is a promise that
- *    a number is measured.
+ *  - No uptime tile. Sentry Cron check-ins measure job reliability, not site
+ *    reachability, so an uptime tile would mislabel its source.
  *  - No traffic chart. Nothing collects requests per minute, and its second
  *    series was myK9Q — an app deleted from this monorepo.
  *  - No separate event log. Its only populated source is operator_alerts, which
@@ -37,6 +36,8 @@ import {
 } from '@/features/admin-system-health/systemHealthSelectors';
 import { summarizeChecks, statusLabel } from '@/features/admin-system-health/checkHistorySelectors';
 import { useAdminOverview } from '@/features/admin-overview/useAdminOverview';
+import { useSentryDashboardMetrics } from '@/features/admin-overview/useSentryDashboardMetrics';
+import { getSentryMetricTileState } from '@/features/admin-overview/sentryDashboardMetrics';
 import { deriveTriage, type TriageCategory } from '@/features/admin-overview/triageSelectors';
 import { BoardCard, BoardSkeleton, Eyebrow, StatusDot } from './SystemHealth/HealthBoardPrimitives';
 import { NeedsALookSection } from './AdminDashboard/NeedsALookSection';
@@ -53,12 +54,14 @@ function StatTile({
   context,
   href,
   isError,
+  isStale,
 }: {
   label: string;
   value: string | number;
   context: string;
   href?: string;
   isError?: boolean;
+  isStale?: boolean;
 }) {
   const body = (
     <>
@@ -69,7 +72,10 @@ function StatTile({
         {value}
       </p>
       <p
-        className={cn('mt-1.5 text-[11px]', isError ? 'text-destructive' : 'text-muted-foreground')}
+        className={cn(
+          'mt-1.5 text-[11px]',
+          isError ? 'text-destructive' : isStale ? 'text-warning' : 'text-muted-foreground'
+        )}
       >
         {context}
       </p>
@@ -100,6 +106,7 @@ export default function AdminDashboard() {
   const health = useSystemHealthSnapshots();
   const alerts = useOperatorAlerts();
   const overview = useAdminOverview(now);
+  const sentry = useSentryDashboardMetrics();
   const latest = health.data?.latest ?? null;
   const checks = useMemo(() => latest?.checks ?? [], [latest]);
   const summary = useMemo(() => summarizeChecks(checks), [checks]);
@@ -144,6 +151,18 @@ export default function AdminDashboard() {
     : null;
   const checksLabel =
     effective.isEmpty || effective.isStale ? '—' : `${summary.passing}/${summary.total}`;
+  const errorRateTile = getSentryMetricTileState(
+    sentry.data?.errorRate,
+    'Error rate',
+    sentry.isLoading,
+    sentry.error
+  );
+  const apiP95Tile = getSentryMetricTileState(
+    sentry.data?.apiP95,
+    'API p95',
+    sentry.isLoading,
+    sentry.error
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -174,7 +193,7 @@ export default function AdminDashboard() {
           <BoardSkeleton rows={4} />
         ) : (
           <div className="flex flex-col gap-[18px]">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <StatTile
                 label="Checks passing"
                 value={healthUnavailable ? '—' : checksLabel}
@@ -218,6 +237,20 @@ export default function AdminDashboard() {
                 value={counts ? counts.entriesToday : '—'}
                 isError={Boolean(countsError)}
                 context={countsError ? "couldn't read entries" : 'since midnight Eastern'}
+              />
+              <StatTile
+                label="Error rate"
+                value={errorRateTile.value}
+                context={errorRateTile.context}
+                isError={errorRateTile.isError}
+                isStale={errorRateTile.isStale}
+              />
+              <StatTile
+                label="API p95"
+                value={apiP95Tile.value}
+                context={apiP95Tile.context}
+                isError={apiP95Tile.isError}
+                isStale={apiP95Tile.isStale}
               />
             </div>
 

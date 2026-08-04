@@ -62,15 +62,30 @@ describe('runPremiumGenerationAttempt', () => {
     expect(deps.generate).not.toHaveBeenCalled();
   });
 
-  it('passes the show identity so one user has independent show windows', async () => {
+  it('shares the account quota across distinct shows', async () => {
+    let accountAttempts = 0;
     const checkRateLimit = vi.fn(async ({ showId }: { showId: string }) => {
-      const attemptsCount = showId === 'show-1' ? 5 : 1;
+      accountAttempts += 1;
+      if (accountAttempts > 5) {
+        return {
+          data: [
+            {
+              allowed: false,
+              attempts_count: 5,
+              remaining_attempts: 0,
+              retry_after_seconds: 420,
+            },
+          ],
+          error: null,
+        };
+      }
+
       return {
         data: [
           {
             ...allowedRow,
-            attempts_count: attemptsCount,
-            remaining_attempts: 5 - attemptsCount,
+            attempts_count: accountAttempts,
+            remaining_attempts: 5 - accountAttempts,
           },
         ],
         error: null,
@@ -78,28 +93,29 @@ describe('runPremiumGenerationAttempt', () => {
     });
     const generate = vi.fn().mockResolvedValue('generated');
 
-    await runPremiumGenerationAttempt({
-      authUserId: 'user-1',
-      showId: 'show-1',
-      checkRateLimit,
-      generate,
-    });
-    await runPremiumGenerationAttempt({
-      authUserId: 'user-1',
-      showId: 'show-2',
-      checkRateLimit,
-      generate,
-    });
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      await runPremiumGenerationAttempt({
+        authUserId: 'user-1',
+        showId: `show-${attempt}`,
+        checkRateLimit,
+        generate,
+      });
+    }
 
-    expect(checkRateLimit).toHaveBeenNthCalledWith(1, {
+    await expect(
+      runPremiumGenerationAttempt({
+        authUserId: 'user-1',
+        showId: 'show-6',
+        checkRateLimit,
+        generate,
+      })
+    ).rejects.toMatchObject<HttpError>({ status: 429, code: 'premium_rate_limited' });
+
+    expect(checkRateLimit).toHaveBeenLastCalledWith({
       authUserId: 'user-1',
-      showId: 'show-1',
+      showId: 'show-6',
     });
-    expect(checkRateLimit).toHaveBeenNthCalledWith(2, {
-      authUserId: 'user-1',
-      showId: 'show-2',
-    });
-    expect(generate).toHaveBeenCalledTimes(2);
+    expect(generate).toHaveBeenCalledTimes(5);
   });
 
   it('fails closed with 503 on a returned limiter error without calling the model', async () => {

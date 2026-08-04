@@ -169,7 +169,25 @@ test.describe('My Shows reflows under browser zoom', () => {
       expect(fees.painted, `${zoom * 100}%: "Current Fees" has no painted box`).toBe(true);
       expect(fees.truncated, `${zoom * 100}%: "Current Fees" card truncates its text`).toBe(false);
 
-      // 6. Keyboard focus stays visible — a wrapped control that lands outside
+      // 6. "New Dog" must be on screen without scrolling the dog rail
+      //    (MYK9-124). It used to be the rail's last child, so with 3+ dogs at
+      //    this zoom it sat past the right edge behind a `hide-scrollbar`
+      //    container — reachable only by a scroll gesture with no scrollbar to
+      //    suggest it. `toBeVisible()` does NOT catch that: an element scrolled
+      //    outside an overflow container is still "visible" to Playwright.
+      //    Compare geometry against the viewport instead.
+      const addDog = page.getByRole('button', { name: /new dog/i });
+      if ((await addDog.count()) > 0) {
+        const onScreen = await addDog.first().evaluate(element => {
+          const box = element.getBoundingClientRect();
+          return (
+            box.width > 0 && box.height > 0 && box.left >= -1 && box.right <= window.innerWidth + 1
+          );
+        });
+        expect(onScreen, `${zoom * 100}%: "New Dog" is not on screen`).toBe(true);
+      }
+
+      // 7. Keyboard focus stays visible — a wrapped control that lands outside
       //    the viewport would still be reachable but not findable.
       const firstButton = page.locator('.myk9-entries-action-buttons > *').first();
       await firstButton.focus();

@@ -98,6 +98,14 @@ describe('useBulkActions — protected role grants', () => {
           expires_at: null,
           roles: { name: 'judge' },
         },
+        {
+          id: 'ur-judge-ordinary',
+          role_id: 'judge',
+          club_id: null,
+          show_id: null,
+          expires_at: null,
+          roles: { name: 'judge' },
+        },
       ],
       error: null,
     });
@@ -111,7 +119,9 @@ describe('useBulkActions — protected role grants', () => {
       'id, role_id, club_id, show_id, expires_at, roles(name)'
     );
     expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-judge-show');
-    expect(result.current.roleNotice).toMatch(/Alice Test has a show-scoped or expiring grant/);
+    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur-judge-ordinary');
+    expect(revokeRoleMock).not.toHaveBeenCalled();
+    expect(result.current.roleNotice).toMatch(/Alice Test has a role assignment limited to a show/);
   });
 
   it('keeps an expiring grant out of Remove revokes', async () => {
@@ -136,6 +146,33 @@ describe('useBulkActions — protected role grants', () => {
     });
 
     expect(revokeUserRoleMock).not.toHaveBeenCalled();
-    expect(result.current.roleNotice).toMatch(/Alice Test has a show-scoped or expiring grant/);
+    expect(revokeRoleMock).not.toHaveBeenCalled();
+    expect(result.current.roleNotice).toMatch(/Alice Test has a role assignment limited to a show/);
+  });
+
+  it('keeps the protected-assignment notice when a later role mutation fails', async () => {
+    getAllRolesMock.mockResolvedValue([role('judge'), role('steward'), role('exhibitor')]);
+    activeAssignmentsMock.mockResolvedValue({
+      data: [
+        {
+          id: 'ur-judge-show',
+          role_id: 'judge',
+          club_id: null,
+          show_id: 'show-9',
+          expires_at: null,
+          roles: { name: 'judge' },
+        },
+      ],
+      error: null,
+    });
+    ensureUserHasRoleMock.mockRejectedValue(new Error('later mutation failed'));
+    const { result } = renderBulkActions([selectedUser('u1', 'Alice')]);
+
+    await act(async () => {
+      await result.current.handleBulkRoleChange(config({}));
+    });
+
+    expect(result.current.roleError).toMatch(/0 of 1 users updated — 1 failed/);
+    expect(result.current.roleNotice).toMatch(/Alice Test has a role assignment limited to a show/);
   });
 });

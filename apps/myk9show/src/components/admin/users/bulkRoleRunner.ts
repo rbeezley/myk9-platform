@@ -59,6 +59,10 @@ export interface BulkRoleChangeResult {
   skippedProtectedGrant: boolean;
 }
 
+export interface BulkRoleChangeOptions {
+  onProtectedGrantSkipped?: () => void;
+}
+
 async function addRolesToUser(userId: string, roleNames: string[], clubIds: string[]) {
   for (const roleName of roleNames) {
     if (CLUB_SCOPED_ROLES.has(roleName)) {
@@ -76,10 +80,13 @@ async function addRolesToUser(userId: string, roleNames: string[], clubIds: stri
 async function removeRolesFromUser(
   userId: string,
   roleNames: string[],
-  clubIds: string[]
+  clubIds: string[],
+  options: BulkRoleChangeOptions
 ): Promise<BulkRoleChangeResult> {
   const assignments = await fetchActiveAssignments(userId);
   const protectedRoleNames = getProtectedRoleNames(assignments);
+  const skippedProtectedGrant = roleNames.some(roleName => protectedRoleNames.has(roleName));
+  if (skippedProtectedGrant) options.onProtectedGrantSkipped?.();
 
   for (const assignment of assignments) {
     if (!roleNames.includes(assignment.roleName) || isProtectedAssignment(assignment)) continue;
@@ -95,17 +102,19 @@ async function removeRolesFromUser(
   }
 
   return {
-    skippedProtectedGrant: roleNames.some(roleName => protectedRoleNames.has(roleName)),
+    skippedProtectedGrant,
   };
 }
 
 async function replaceRolesForUser(
   userId: string,
   roleNames: string[],
-  clubIds: string[]
+  clubIds: string[],
+  options: BulkRoleChangeOptions
 ): Promise<BulkRoleChangeResult> {
   const assignments = await fetchActiveAssignments(userId);
   const protectedRoleNames = getProtectedRoleNames(assignments);
+  if (protectedRoleNames.size > 0) options.onProtectedGrantSkipped?.();
 
   // Validate → revoke → add ordering (design.md): revoke happens only after the
   // caller has already validated `roleNames` against the canonical role table
@@ -113,7 +122,7 @@ async function replaceRolesForUser(
   // user honestly rather than leaving them half-applied.
   for (const assignment of assignments) {
     if (!assignment.roleName || LOCKED_ROLES.has(assignment.roleName)) continue;
-    if (protectedRoleNames.has(assignment.roleName)) continue;
+    if (isProtectedAssignment(assignment)) continue;
 
     if (CLUB_SCOPED_ROLES.has(assignment.roleName)) {
       const roleSelected = roleNames.includes(assignment.roleName);
@@ -156,14 +165,15 @@ async function replaceRolesForUser(
 /** Applies one bulk role-change config to a single user. Throws on real failures. */
 export async function applyBulkRoleChangeToUser(
   userId: string,
-  config: BulkRoleSubmitConfig
+  config: BulkRoleSubmitConfig,
+  options: BulkRoleChangeOptions = {}
 ): Promise<BulkRoleChangeResult> {
   const { mode, roleNames, clubIds } = config;
   if (mode === 'replace') {
-    return replaceRolesForUser(userId, roleNames, clubIds);
+    return replaceRolesForUser(userId, roleNames, clubIds, options);
   }
   if (mode === 'remove') {
-    return removeRolesFromUser(userId, roleNames, clubIds);
+    return removeRolesFromUser(userId, roleNames, clubIds, options);
   }
   await addRolesToUser(userId, roleNames, clubIds);
   return { skippedProtectedGrant: false };

@@ -335,7 +335,9 @@ export function useBulkActions({
         const outcome = await roleDispatch.run(
           selectedUsers,
           async user => {
-            const result = await applyBulkRoleChangeToUser(user.id, config);
+            const result = await applyBulkRoleChangeToUser(user.id, config, {
+              onProtectedGrantSkipped: () => protectedGrantUserIds.add(user.id),
+            });
             if (result.skippedProtectedGrant) {
               protectedGrantUserIds.add(user.id);
             }
@@ -425,7 +427,7 @@ function getProtectedGrantNotice(
   const labels = users.filter(user => protectedGrantUserIds.has(user.id)).map(labelForUser);
   if (labels.length === 0) return null;
   if (labels.length === 1) {
-    return `${labels[0]} has a show-scoped or expiring grant; this bulk action left it unchanged.`;
+    return `${labels[0]} has a role assignment limited to a show or with an expiration date; this bulk action left it unchanged.`;
   }
-  return `${labels.length} selected people (${labels.join(', ')}) have show-scoped or expiring grants; this bulk action left them unchanged.`;
+  return `${labels.length} selected people (${labels.join(', ')}) have role assignments limited to a show or with expiration dates; this bulk action left them unchanged.`;
 }

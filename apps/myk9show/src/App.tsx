@@ -1,5 +1,5 @@
-import React, { Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React from 'react';
+import { Outlet } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -9,43 +9,12 @@ import {
 } from '@/utils/performanceOptimizations';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 
-// Home page loaded synchronously for LCP optimization
-import Home from './pages/Home';
 import { logger } from '@/services/LoggingService';
-import { getDashboardRoute } from '@/hooks/roleUtils';
-
-// Lazy load non-critical pages to improve initial bundle size
-const ExhibitorOnboardingPage = React.lazy(
-  () => import('./pages/onboarding/ExhibitorOnboardingPage')
-);
-const PricingPage = React.lazy(() => import('./pages/PricingPage'));
-const SmartSignInPage = React.lazy(() => import('./pages/SmartSignInPage'));
-const RingsideEntryPage = React.lazy(() => import('./features/at-show/RingsideEntryPage'));
-const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
-const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage'));
-const AuthCallbackPage = React.lazy(() => import('./pages/AuthCallbackPage'));
-const ResetPasswordPage = React.lazy(() => import('./pages/ResetPasswordPage'));
-const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
-
-// Organized route groups
-import { AdminRoutes } from './routes/adminRoutes';
-import { JudgeSidebarRoutes } from './routes/judgeRoutes';
-import { SecretaryRoutes } from './routes/secretaryRoutes';
-import { ClubAdminRoutes } from './routes/clubAdminRoutes';
-import { PublicRoutes } from './routes/publicRoutes';
-import { AtShowRoutes } from './routes/atShowRoutes';
-
-// Unified layout
-import { UnifiedAppLayout } from './components/layout/UnifiedAppLayout';
 import { AppShellMobileNavProvider } from './components/layout/AppShellMobileNavProvider';
-import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 
 // Components
 import AppHeader from './components/layout/AppHeader';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import { PageLoadingFallback } from './components/common/PageLoadingFallback';
-import { RoleSurfaceErrorBoundary } from './components/common/RoleSurfaceErrorBoundary';
-import { PageTransition } from './components/common/PageTransition';
 import { NetworkStatusProvider } from './components/common/NetworkStatusProvider';
 
 // Context
@@ -68,6 +37,8 @@ import { PanelProvider } from './components/panels/PanelContext';
 
 // Notification System
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { ToastContainer } from '@/components/notifications/ToastContainer';
+import { AppToaster } from '@/components/layout/AppToaster';
 
 // Exhibitor Onboarding
 import { ExhibitorOnboardingChecker } from './components/exhibitor';
@@ -104,25 +75,6 @@ setupQueryPerformanceMonitoring(queryClient);
 if (typeof window !== 'undefined') {
   setTimeout(() => prefetchCriticalData(queryClient), 1000);
 }
-
-// Redirect authenticated users to their role dashboard, show landing page for guests
-const HomeRedirect = () => {
-  const { user, loading, rbacLoading, userWithRoles } = useAuthContext();
-  if (loading || rbacLoading) return <PageLoadingFallback />;
-  if (user) {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('wizard') === 'true') {
-      return <Navigate to="/secretary/create-show/wizard" replace />;
-    }
-    // Allow authenticated users to see landing page for onboarding form
-    if (params.get('onboarding') === 'true') {
-      return <Home />;
-    }
-    const destination = getDashboardRoute(userWithRoles?.roles ?? []);
-    return <Navigate to={destination} replace />;
-  }
-  return <Home />;
-};
 
 // Error fallback component
 const ErrorFallback = ({
@@ -284,155 +236,25 @@ function App() {
               <AudioSettingsProvider>
                 <PanelProvider>
                   <ExhibitorOnboardingChecker>
-                      <ErrorBoundary
-                        level="page"
-                        context="Application"
-                        fallback={({ error, resetErrorBoundary }) => (
-                          <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
-                        )}
-                      >
-                        <AppShellMobileNavProvider>
-                          <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-                            <PWAInstallBanner />
-                            <AppHeader />
-                            <NotificationCenter />
-                            <Routes>
-                              {/* Surface gate — when VITE_PUBLIC_SURFACE=wizard,
-                                only the show-creation wizard surface is
-                                reachable for non-admins. No-op otherwise. */}
-                              <Route element={<WizardSurfaceGate />}>
-                                {/* Public routes */}
-                                <Route
-                                  path="/"
-                                  element={
-                                    <PageTransition>
-                                      <HomeRedirect />
-                                    </PageTransition>
-                                  }
-                                />
-                                <Route
-                                  path="/pricing-page"
-                                  element={
-                                    <PageTransition>
-                                      <Suspense fallback={<PageLoadingFallback />}>
-                                        <PricingPage />
-                                      </Suspense>
-                                    </PageTransition>
-                                  }
-                                />
-                                <Route
-                                  path="/sign-in"
-                                  element={
-                                    <PageTransition>
-                                      <Suspense fallback={<PageLoadingFallback />}>
-                                        <SmartSignInPage />
-                                      </Suspense>
-                                    </PageTransition>
-                                  }
-                                />
-                                <Route
-                                  path="/at-show"
-                                  element={
-                                    <PageTransition>
-                                      <Suspense fallback={<PageLoadingFallback />}>
-                                        <RingsideEntryPage />
-                                      </Suspense>
-                                    </PageTransition>
-                                  }
-                                />
-                                <Route path="/login" element={<Navigate to="/sign-in" replace />} />
-                                <Route
-                                  path="/sign-up"
-                                  element={
-                                    <PageTransition>
-                                      <Suspense fallback={<PageLoadingFallback />}>
-                                        <SignUpPage />
-                                      </Suspense>
-                                    </PageTransition>
-                                  }
-                                />
-                                <Route
-                                  path="/forgot-password"
-                                  element={
-                                    <PageTransition>
-                                      <Suspense fallback={<PageLoadingFallback />}>
-                                        <ForgotPasswordPage />
-                                      </Suspense>
-                                    </PageTransition>
-                                  }
-                                />
-
-                                <Route
-                                  path="/auth/callback"
-                                  element={
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <AuthCallbackPage />
-                                    </Suspense>
-                                  }
-                                />
-                                <Route
-                                  path="/reset-password"
-                                  element={
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <ResetPasswordPage />
-                                    </Suspense>
-                                  }
-                                />
-
-                                {/* Onboarding wizard — full-page, no sidebar */}
-                                <Route
-                                  path="/onboarding"
-                                  element={
-                                    <Suspense fallback={<PageLoadingFallback />}>
-                                      <ExhibitorOnboardingPage />
-                                    </Suspense>
-                                  }
-                                />
-
-                                {/* At-show ringside — full-screen judge view on a
-                                phone. Intentionally OUTSIDE UnifiedAppLayout (no
-                                sidebar / mobile hamburger nav); AppHeader also
-                                hides itself on /at-show. Mirrors myK9Q's
-                                standalone ringside so the page's own header sits
-                                at the true top with no host chrome stacked above. */}
-                                {AtShowRoutes()}
-
-                                {/* All other routes — inside unified sidebar layout */}
-                                <Route element={<UnifiedAppLayout />}>
-                                  <Route element={<RoleSurfaceErrorBoundary surface="admin" />}>
-                                    {AdminRoutes()}
-                                  </Route>
-                                  <Route element={<RoleSurfaceErrorBoundary surface="judge" />}>
-                                    {JudgeSidebarRoutes()}
-                                  </Route>
-                                  <Route element={<RoleSurfaceErrorBoundary surface="secretary" />}>
-                                    {SecretaryRoutes()}
-                                  </Route>
-                                  <Route element={<RoleSurfaceErrorBoundary surface="admin" />}>
-                                    {ClubAdminRoutes()}
-                                  </Route>
-                                  <Route element={<RoleSurfaceErrorBoundary surface="exhibitor" />}>
-                                    {PublicRoutes()}
-                                  </Route>
-                                </Route>
-
-                                {/* 404 catch-all */}
-                                <Route
-                                  path="*"
-                                  element={
-                                    <PageTransition>
-                                      <Suspense fallback={<PageLoadingFallback />}>
-                                        <NotFoundPage />
-                                      </Suspense>
-                                    </PageTransition>
-                                  }
-                                />
-                              </Route>
-                            </Routes>
-                          </div>
-                        </AppShellMobileNavProvider>
-                      </ErrorBoundary>
-                    </ExhibitorOnboardingChecker>
+                    <ErrorBoundary
+                      level="page"
+                      context="Application"
+                      fallback={({ error, resetErrorBoundary }) => (
+                        <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
+                      )}
+                    >
+                      <AppShellMobileNavProvider>
+                        <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                          <PWAInstallBanner />
+                          <AppHeader />
+                          <NotificationCenter />
+                          <AppToaster />
+                          <ToastContainer />
+                          <Outlet />
+                        </div>
+                      </AppShellMobileNavProvider>
+                    </ErrorBoundary>
+                  </ExhibitorOnboardingChecker>
                 </PanelProvider>
               </AudioSettingsProvider>
             </AuthProvider>

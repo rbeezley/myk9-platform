@@ -45,6 +45,7 @@ import { SummaryCards } from './bulk-result-entry/SummaryCards';
 import { HeaderActions } from './bulk-result-entry/HeaderActions';
 import { EntryTableRow } from './bulk-result-entry/EntryTableRow';
 import { SubmitActions } from './bulk-result-entry/SubmitActions';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 
 // Re-export types for backward compatibility
 export type { BulkResultEntryProps, BulkEntryData } from './bulk-result-entry/types';
@@ -232,18 +233,6 @@ export function BulkResultEntry({
 
   // Unsaved-changes guard
   const hasUnsavedChanges = useMemo(() => bulkData.some(item => item.hasChanges), [bulkData]);
-
-  // Block browser tab close / refresh. (No in-app guard: useBlocker requires
-  // a data router; this app uses the legacy <BrowserRouter>.)
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [hasUnsavedChanges]);
 
   // Calculate summary statistics
   const summary = React.useMemo(() => {
@@ -497,6 +486,8 @@ export function BulkResultEntry({
 
   return (
     <div className={cn('space-y-6', className)}>
+      <UnsavedChangesRouteGuard isDirty={hasUnsavedChanges} subject="bulk result entries" />
+
       {/* Header with actions */}
       <HeaderActions
         onDownloadTemplate={downloadTemplate}

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const migration = resolve(
   process.cwd(),
-  '../../supabase/migrations/20260804160000_continuous_health_checks_and_run_now.sql'
+  '../../supabase/migrations/20260804161000_continuous_health_checks_and_run_now.sql'
 );
 
 describe('MYK9-157 continuous health migration contract', () => {

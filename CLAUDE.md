@@ -26,6 +26,7 @@ A LESSON may be **retired** once the trap is structurally impossible — a guard
 
 ## LESSONS
 
+- This project does not use Docker; use the configured Supabase/staging workflows for database and browser verification instead.
 - CI runs vitest with `--sequence.shuffle` (`.github/workflows/ci.yml`); local runs do not. A test that leaks state into another therefore passes every local run — including the full suite — and fails **randomly** in CI, reddening `main` with no code change to blame. Both 2026-08-02 incidents were this: MYK9-170 (module-scope `lastContainmentUntil` memo, whose hook even exported an unused `__resetContainmentMemoForTests`) and MYK9-172. Run any test you add or touch with `--sequence.shuffle` **6+ times** before merging — one pass proves nothing — and reach for a `beforeEach` reset, not a product change.
 - `git branch -D`/`-d` and `git checkout -- <path>` are DENIED by permission rules here. Interactively that is a prompt; in a scheduled/unattended run it is a silent stall. Discard changes with `git apply -R` or `git restore`, merge with `gh pr merge --squash` WITHOUT `--delete-branch` (its local half fails anyway while a worktree holds the branch), and leave local branches for `branch-janitor` to report.
 - `supabase functions deploy --workdir apps/myk9show` follows that dir's stale `.temp/project-ref` (myK9Show-Working, defunct) — ALWAYS pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref.

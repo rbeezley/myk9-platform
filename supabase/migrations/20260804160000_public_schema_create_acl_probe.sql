@@ -48,6 +48,8 @@ comment on function public.public_schema_create_acl_probe() is
   'MYK9-151 SA-027: read-only service-role probe for CREATE privileges on the public schema. The daily health runner fails if anon, authenticated, or service_role can create public-schema objects, which would invalidate the accepted SECURITY DEFINER search_path risk decision.';
 
 revoke all on function public.public_schema_create_acl_probe() from public;
+revoke execute on function public.public_schema_create_acl_probe() from anon;
+revoke execute on function public.public_schema_create_acl_probe() from authenticated;
 grant execute on function public.public_schema_create_acl_probe() to service_role;
 
 commit;

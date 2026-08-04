@@ -124,7 +124,7 @@ describe('useBulkActions — protected role grants', () => {
     expect(result.current.roleNotice).toMatch(/Alice Test has a role assignment limited to a show/);
   });
 
-  it('keeps an expiring grant out of Remove revokes', async () => {
+  it('keeps protected grants out of Remove revokes while removing ordinary assignments', async () => {
     getAllRolesMock.mockResolvedValue([role('judge'), role('exhibitor')]);
     activeAssignmentsMock.mockResolvedValue({
       data: [
@@ -136,6 +136,14 @@ describe('useBulkActions — protected role grants', () => {
           expires_at: '2026-12-31T23:59:59Z',
           roles: { name: 'judge' },
         },
+        {
+          id: 'ur-judge-ordinary',
+          role_id: 'judge',
+          club_id: null,
+          show_id: null,
+          expires_at: null,
+          roles: { name: 'judge' },
+        },
       ],
       error: null,
     });
@@ -145,7 +153,8 @@ describe('useBulkActions — protected role grants', () => {
       await result.current.handleBulkRoleChange(config({ mode: 'remove', roleNames: ['judge'] }));
     });
 
-    expect(revokeUserRoleMock).not.toHaveBeenCalled();
+    expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur-judge-expiring');
+    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur-judge-ordinary');
     expect(revokeRoleMock).not.toHaveBeenCalled();
     expect(result.current.roleNotice).toMatch(/Alice Test has a role assignment limited to a show/);
   });

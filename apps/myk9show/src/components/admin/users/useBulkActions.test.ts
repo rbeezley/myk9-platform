@@ -25,11 +25,13 @@ vi.mock('sonner', () => ({
 const getAllRolesMock = vi.hoisted(() => vi.fn());
 const ensureUserHasRoleMock = vi.hoisted(() => vi.fn());
 const revokeRoleMock = vi.hoisted(() => vi.fn());
+const revokeUserRoleMock = vi.hoisted(() => vi.fn());
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
     getAllRoles: (...args: unknown[]) => getAllRolesMock(...args),
     ensureUserHasRole: (...args: unknown[]) => ensureUserHasRoleMock(...args),
     revokeRole: (...args: unknown[]) => revokeRoleMock(...args),
+    revokeUserRole: (...args: unknown[]) => revokeUserRoleMock(...args),
     clearAllCache: vi.fn(),
     clearUserCache: vi.fn(),
   },
@@ -147,7 +149,11 @@ describe('useBulkActions — bulk delete MK001 reason mapping', () => {
     deleteUserMutateAsync.mockRejectedValue(mk001Error());
     const selectedUsers = [selectedUser('u1', 'Alice'), selectedUser('u2', 'Bob')];
     const onUsersDeleted = vi.fn();
-    const { result } = renderBulkActions({ selectedUsers, onBulkComplete: vi.fn(), onUsersDeleted });
+    const { result } = renderBulkActions({
+      selectedUsers,
+      onBulkComplete: vi.fn(),
+      onUsersDeleted,
+    });
 
     await act(async () => {
       await result.current.handleBulkDelete();
@@ -231,6 +237,7 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     activeAssignmentsMock.mockResolvedValue({ data: [], error: null });
+    revokeUserRoleMock.mockResolvedValue(undefined);
   });
 
   function baseConfig(overrides: Partial<BulkRoleSubmitConfig> = {}): BulkRoleSubmitConfig {
@@ -316,11 +323,9 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
     });
 
     // judge is non-locked and not in the target set — revoked.
-    expect(revokeRoleMock).toHaveBeenCalledWith({ userId: 'u1', roleName: 'judge' });
+    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur2');
     // exhibitor is locked — never revoked even though it isn't in the target set.
-    expect(revokeRoleMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ roleName: 'exhibitor' })
-    );
+    expect(revokeUserRoleMock).not.toHaveBeenCalledWith('ur1');
     // Target role granted with the chosen club.
     expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
     expect(result.current.roleError).toBeNull();
@@ -346,7 +351,7 @@ describe('useBulkActions — handleBulkRoleChange (MYK9-58)', () => {
       );
     });
 
-    expect(revokeRoleMock).toHaveBeenCalledWith({ userId: 'u1', roleName: 'secretary' });
+    expect(revokeUserRoleMock).toHaveBeenCalledWith('ur1');
     expect(ensureUserHasRoleMock).toHaveBeenCalledWith('u1', 'secretary', { clubId: 'club-1' });
     expect(result.current.roleError).toBeNull();
   });

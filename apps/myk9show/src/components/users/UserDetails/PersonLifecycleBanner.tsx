@@ -8,6 +8,7 @@
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, RotateCcw, UserX } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -49,9 +50,15 @@ export const PersonLifecycleBanner: React.FC<PersonLifecycleBannerProps> = ({
         <AlertTitle>This person was removed{formatWhen(deletedAt)}</AlertTitle>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
           <span>
-            They are hidden from every list and cannot be edited. Their record is kept until it is
-            restored or permanently deleted.
+            They are hidden from every list and cannot be edited. Restoring brings back the person,
+            but their roles stay disabled until an admin assigns access again.
           </span>
+          <Link
+            to="/admin/permissions?tab=assignments"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Manage roles
+          </Link>
           {onRestore && (
             <Button variant="outline" onClick={onRestore} disabled={isRestoring} className="gap-2">
               <RotateCcw className="h-4 w-4" />

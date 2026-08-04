@@ -25,6 +25,11 @@ describe('soft_delete_person migration', () => {
   const migrationSource = read(authoritativeMigrationPath);
   const migration = normalizeSql(migrationSource);
   const securitySql = compactSql(migrationSource);
+  const deactivationMigration = compactSql(
+    read(
+      '../../../../../../supabase/migrations/20260804150000_track_person_delete_role_deactivations.sql'
+    )
+  );
 
   it('removes the obsolete pre-role-deactivation migration from local lineage', () => {
     expect(existsSync(resolve(__dirname, obsoleteMigrationPath))).toBe(false);
@@ -52,6 +57,53 @@ describe('soft_delete_person migration', () => {
     );
     const roleDeactivation = securitySql.indexOf(
       'updatepublic.user_rolessetis_active=falsewhereuser_id=p_person_idandis_active;'
+    );
+
+    expect(personSoftDelete).toBeGreaterThan(-1);
+    expect(rowCountCapture).toBeGreaterThan(personSoftDelete);
+    expect(successfulDeleteGuard).toBeGreaterThan(rowCountCapture);
+    expect(roleDeactivation).toBeGreaterThan(successfulDeleteGuard);
+  });
+
+  it('stamps role deactivation with the person deletion timestamp', () => {
+    expect(deactivationMigration).toContain(
+      'updatepublic.peoplesetdeleted_at=v_deleted_at,deleted_by=auth.uid(),updated_at=now()'
+    );
+    expect(deactivationMigration).toContain(
+      'updatepublic.user_rolessetis_active=false,deactivated_at=v_deleted_atwhereuser_id=p_person_idandis_active'
+    );
+  });
+
+  it('preserves the soft-delete security contract in the final migration', () => {
+    expect(deactivationMigration).toContain('createorreplacefunctionpublic.soft_delete_person');
+    expect(deactivationMigration).toContain('securitydefiner');
+    expect(deactivationMigration).toContain("setsearch_path=''");
+    expect(deactivationMigration).toContain('public.is_site_admin()');
+    expect(deactivationMigration).toContain('public.can_manage_show_person(p_person_id)');
+    expect(deactivationMigration).toContain(
+      'orexists(select1frompublic.peoplewhereid=p_person_idandauth_user_id=(selectauth.uid())anddeleted_atisnull)'
+    );
+    expect(deactivationMigration).toContain(
+      'revokeexecuteonfunctionpublic.soft_delete_person(uuid)fromanon'
+    );
+    expect(deactivationMigration).toContain(
+      'revokeallonfunctionpublic.soft_delete_person(uuid)frompublic'
+    );
+    expect(deactivationMigration).toContain(
+      'grantexecuteonfunctionpublic.soft_delete_person(uuid)toauthenticated'
+    );
+  });
+
+  it('stamps roles only after the final migration confirms deletion', () => {
+    const personSoftDelete = deactivationMigration.indexOf(
+      'updatepublic.peoplesetdeleted_at=v_deleted_at,deleted_by=auth.uid(),updated_at=now()whereid=p_person_idanddeleted_atisnull;'
+    );
+    const rowCountCapture = deactivationMigration.indexOf('getdiagnosticsv_rows=row_count;');
+    const successfulDeleteGuard = deactivationMigration.indexOf(
+      "ifv_rows=0thenraiseexception'personnotfoundoralreadydeleted'usingerrcode='p0002';endif;"
+    );
+    const roleDeactivation = deactivationMigration.indexOf(
+      'updatepublic.user_rolessetis_active=false,deactivated_at=v_deleted_atwhereuser_id=p_person_idandis_active;'
     );
 
     expect(personSoftDelete).toBeGreaterThan(-1);

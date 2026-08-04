@@ -14,6 +14,11 @@ describe('PersonLifecycleBanner', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent(/was removed/i);
     expect(screen.getByRole('status')).toHaveTextContent(/2026/);
+    expect(screen.getByRole('status')).toHaveTextContent(/roles stay disabled/i);
+    expect(screen.getByRole('link', { name: /manage roles/i })).toHaveAttribute(
+      'href',
+      '/admin/permissions?tab=assignments'
+    );
   });
 
   it('offers Restore only when the viewer can restore', () => {

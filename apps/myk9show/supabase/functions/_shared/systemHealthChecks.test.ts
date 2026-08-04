@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildSnapshot,
+  buildProbeFailureSnapshot,
   extractConflictCounter,
   worstOf,
   PAYOUT_CRON_JOB,
@@ -125,6 +126,18 @@ describe('buildSnapshot — contract shape', () => {
     });
 
     expect(find(snap, 'public_schema_create_acl').status).toBe('fail');
+    expect(snap.overall_status).toBe('fail');
+  });
+
+  it('keeps the ACL check visible when the primary probe fails', () => {
+    const snap = buildProbeFailureSnapshot('database unavailable', publicSchemaAclFacts(), {
+      now: NOW,
+      runDurationMs: 12,
+    });
+
+    expect(snap.checks.map(check => check.key)).toEqual(['probe', 'public_schema_create_acl']);
+    expect(find(snap, 'probe').detail).toContain('database unavailable');
+    expect(find(snap, 'public_schema_create_acl').status).toBe('ok');
     expect(snap.overall_status).toBe('fail');
   });
 });

@@ -659,3 +659,24 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     run_duration_ms: runDurationMs,
   };
 }
+
+/** Preserve independent ACL visibility when the primary facts probe fails. */
+export function buildProbeFailureSnapshot(
+  probeError: string | null,
+  publicSchemaAclFacts: unknown,
+  opts: { now: number; runDurationMs: number | null }
+): HealthSnapshotInsert {
+  const snapshot = buildSnapshot(null, opts);
+  const checkedAt = snapshot.checks[0]?.checked_at ?? new Date(opts.now).toISOString();
+  snapshot.checks[0].detail = probeError
+    ? `system_health_probe failed: ${probeError}`
+    : 'system_health_probe returned no facts';
+
+  const checks = [...snapshot.checks, publicSchemaCreateAclCheck(publicSchemaAclFacts, checkedAt)];
+
+  return {
+    ...snapshot,
+    checks,
+    overall_status: worstOf(checks.map(check => check.status)),
+  };
+}

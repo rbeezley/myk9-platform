@@ -123,13 +123,19 @@ function parseSessionsMetricResponse(payload: SentrySessionsResponse): {
   observedAt: string;
 } {
   const field = 'crash_rate(session)';
-  const values = (payload.groups ?? []).flatMap(group => [
-    ...(group.series?.[field] ?? []),
-    ...(typeof group.totals?.[field] === 'number' ? [group.totals[field]] : []),
-  ]);
-  const value = [...values]
-    .reverse()
-    .find(item => typeof item === 'number' && Number.isFinite(item));
+  const groups = payload.groups ?? [];
+  if (groups.length !== 1) {
+    throw new Error('Sentry returned a non-aggregate session error-rate response');
+  }
+
+  const group = groups[0];
+  const total = group.totals?.[field];
+  const value =
+    typeof total === 'number' && Number.isFinite(total)
+      ? total
+      : [...(group.series?.[field] ?? [])]
+          .reverse()
+          .find(item => typeof item === 'number' && Number.isFinite(item));
   const observedAt = payload.intervals?.at(-1) ?? payload.end;
   if (typeof value !== 'number' || !observedAt) {
     throw new Error('Sentry returned no complete session error-rate value');
@@ -137,7 +143,7 @@ function parseSessionsMetricResponse(payload: SentrySessionsResponse): {
 
   const date = new Date(observedAt);
   if (!Number.isFinite(date.getTime())) throw new Error('Invalid Sentry metric timestamp');
-  return { value, observedAt: date.toISOString() };
+  return { value: value * 100, observedAt: date.toISOString() };
 }
 
 async function fetchMetric(

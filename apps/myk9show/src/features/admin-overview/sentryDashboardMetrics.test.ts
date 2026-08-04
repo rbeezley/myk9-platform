@@ -56,6 +56,26 @@ describe('sentryDashboardMetrics', () => {
     expect(formatSentryMetricValue(metric({ value: null }))).toBe('—');
   });
 
+  it('rejects a metric with the wrong unit or a non-finite value', () => {
+    expect(() =>
+      parseSentryDashboardMetrics({
+        generatedAt: '2026-08-04T18:00:00.000Z',
+        window: '24h',
+        errorRate: metric({ unit: 'milliseconds' }),
+        apiP95: metric({ value: 640, unit: 'milliseconds' }),
+      })
+    ).toThrow('Invalid Sentry error rate metric');
+
+    expect(() =>
+      parseSentryDashboardMetrics({
+        generatedAt: '2026-08-04T18:00:00.000Z',
+        window: '24h',
+        errorRate: metric(),
+        apiP95: metric({ value: Number.NaN, unit: 'milliseconds' }),
+      })
+    ).toThrow('Invalid Sentry client p95 metric');
+  });
+
   it('formats the two metric units honestly', () => {
     expect(formatSentryMetricValue(metric())).toBe('2.5%');
     expect(formatSentryMetricValue(metric({ value: 639.6, unit: 'milliseconds' }))).toBe('640 ms');
@@ -63,7 +83,12 @@ describe('sentryDashboardMetrics', () => {
 
   it('warns when the deployed trace sample is too low for a reliable tail', () => {
     expect(
-      getSentryMetricTileState(metric({ value: 640, unit: 'milliseconds' }), 'API p95', false, null)
+      getSentryMetricTileState(
+        metric({ value: 640, unit: 'milliseconds' }),
+        'Client p95',
+        false,
+        null
+      )
     ).toMatchObject({ context: 'time users experienced · low sampling (5%)' });
   });
 
@@ -82,13 +107,13 @@ describe('sentryDashboardMetrics', () => {
     expect(
       getSentryMetricTileState(
         metric({ value: null, status: 'unavailable' }),
-        'API p95',
+        'Client p95',
         false,
         null
       )
     ).toEqual({
       value: '—',
-      context: "couldn't read api p95",
+      context: "couldn't read client p95",
       isError: true,
       isStale: false,
     });

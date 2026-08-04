@@ -246,7 +246,7 @@ export default function AdminDashboard() {
                 isStale={errorRateTile.isStale}
               />
               <StatTile
-                label="API p95"
+                label="Client p95"
                 value={apiP95Tile.value}
                 context={apiP95Tile.context}
                 isError={apiP95Tile.isError}

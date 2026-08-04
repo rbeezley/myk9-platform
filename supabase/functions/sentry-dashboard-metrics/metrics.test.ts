@@ -15,12 +15,12 @@ function sentryResponse(value: number, timestamp = 1_700_000_000_000): Response 
   );
 }
 
-function sessionsResponse(value: number): Response {
+function sessionsResponse(value: number, extraGroups: object[] = []): Response {
   return new Response(
     JSON.stringify({
       end: '2023-11-14T22:13:20.000Z',
       intervals: ['2023-11-14T22:13:20.000Z'],
-      groups: [{ totals: { 'crash_rate(session)': value } }],
+      groups: [{ totals: { 'crash_rate(session)': value } }, ...extraGroups],
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
@@ -77,7 +77,7 @@ describe('sentryDashboardMetricsHandler', () => {
   it('authorizes site admins and returns normalized metrics without the API token', async () => {
     const fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      return url.includes('/sessions/') ? sessionsResponse(2.5) : sentryResponse(640);
+      return url.includes('/sessions/') ? sessionsResponse(0.025) : sentryResponse(640);
     });
 
     const result = await createSentryDashboardMetricsHandler(
@@ -116,9 +116,29 @@ describe('sentryDashboardMetricsHandler', () => {
     expect(JSON.stringify(result)).not.toContain('sentry-secret-token');
   });
 
+  it('does not select an arbitrary group from a non-aggregate response', async () => {
+    const fetch = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/sessions/')
+        ? sessionsResponse(0.025, [{ totals: { 'crash_rate(session)': 0.1 } }])
+        : sentryResponse(640)
+    );
+
+    const result = await createSentryDashboardMetricsHandler(
+      makeContext(makeAdminSupabase()),
+      makeDeps(fetch)
+    );
+
+    expect(result.errorRate).toMatchObject({
+      value: null,
+      status: 'unavailable',
+      error: 'Sentry metric unavailable',
+    });
+    expect(result.apiP95).toMatchObject({ value: 640, status: 'fresh' });
+  });
+
   it('caches both metrics for the configured refresh window', async () => {
     const fetch = vi.fn(async (input: RequestInfo | URL) =>
-      String(input).includes('/sessions/') ? sessionsResponse(10) : sentryResponse(10)
+      String(input).includes('/sessions/') ? sessionsResponse(0.1) : sentryResponse(10)
     );
     const deps = makeDeps(fetch);
     const context = makeContext(makeAdminSupabase());
@@ -136,7 +156,7 @@ describe('sentryDashboardMetricsHandler', () => {
       if (String(input).includes('/sessions/') && shouldFailErrorRate) {
         throw new Error('Sentry is unavailable');
       }
-      return String(input).includes('/sessions/') ? sessionsResponse(2.5) : sentryResponse(640);
+      return String(input).includes('/sessions/') ? sessionsResponse(0.025) : sentryResponse(640);
     });
     const deps = makeDeps(fetch);
     const context = makeContext(makeAdminSupabase());

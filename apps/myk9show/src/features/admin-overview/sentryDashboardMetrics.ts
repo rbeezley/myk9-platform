@@ -33,16 +33,22 @@ function getTracesSampleRate(): number {
     : DEFAULT_TRACES_SAMPLE_RATE;
 }
 
-function parseMetricResult(raw: unknown, metricName: string): SentryMetricResult {
+function parseMetricResult(
+  raw: unknown,
+  metricName: string,
+  expectedUnit: SentryMetricResult['unit']
+): SentryMetricResult {
   if (!raw || typeof raw !== 'object') throw new Error(`Invalid Sentry ${metricName} metric`);
 
   const candidate = raw as Partial<SentryMetricResult>;
-  const validUnit = candidate.unit === 'percent' || candidate.unit === 'milliseconds';
+  const validUnit = candidate.unit === expectedUnit;
   const validStatus =
     candidate.status === 'fresh' ||
     candidate.status === 'stale' ||
     candidate.status === 'unavailable';
-  const validValue = candidate.value === null || typeof candidate.value === 'number';
+  const validValue =
+    candidate.value === null ||
+    (typeof candidate.value === 'number' && Number.isFinite(candidate.value));
 
   if (!validUnit || !validStatus || !validValue) {
     throw new Error(`Invalid Sentry ${metricName} metric`);
@@ -68,8 +74,8 @@ export function parseSentryDashboardMetrics(raw: unknown): SentryDashboardMetric
   return {
     generatedAt: candidate.generatedAt,
     window: '24h',
-    errorRate: parseMetricResult(candidate.errorRate, 'error rate'),
-    apiP95: parseMetricResult(candidate.apiP95, 'API p95'),
+    errorRate: parseMetricResult(candidate.errorRate, 'error rate', 'percent'),
+    apiP95: parseMetricResult(candidate.apiP95, 'client p95', 'milliseconds'),
   };
 }
 

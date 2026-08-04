@@ -11971,6 +11971,7 @@ export type Database = {
       ringside_claim_generation_current: { Args: never; Returns: boolean }
       ringside_containment_rearm: { Args: { p_reason: string }; Returns: Json }
       ringside_containment_sample: { Args: never; Returns: undefined }
+      run_system_health_check_now: { Args: never; Returns: Json }
       ringside_update_entry: {
         Args: { p_entry_id: string; p_expected_version: number; p_fields: Json }
         Returns: number

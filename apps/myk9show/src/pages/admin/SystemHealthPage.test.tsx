@@ -4,7 +4,10 @@ import { render, screen } from '@/test/utils/testUtils';
 import SystemHealthPage from './SystemHealthPage';
 import type { SystemHealthSnapshot } from '@/features/admin-system-health/systemHealthTypes';
 import type { SystemHealthData } from '@/features/admin-system-health/useSystemHealthSnapshots';
-import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
+import {
+  useRunSystemHealthCheck,
+  useSystemHealthSnapshots,
+} from '@/features/admin-system-health/useSystemHealthSnapshots';
 import {
   useOperatorAlerts,
   useResolveOperatorAlert,
@@ -12,6 +15,7 @@ import {
 
 vi.mock('@/features/admin-system-health/useSystemHealthSnapshots', () => ({
   useSystemHealthSnapshots: vi.fn(),
+  useRunSystemHealthCheck: vi.fn(),
   HISTORY_LIMIT: 7,
 }));
 
@@ -26,6 +30,7 @@ vi.mock('@/features/admin-system-health/useOperatorAlerts', () => ({
 }));
 
 const mockedHook = vi.mocked(useSystemHealthSnapshots);
+const mockedRunHealthCheck = vi.mocked(useRunSystemHealthCheck);
 const mockedOperatorAlertsHook = vi.mocked(useOperatorAlerts);
 const mockedResolveOperatorAlertHook = vi.mocked(useResolveOperatorAlert);
 
@@ -76,6 +81,7 @@ function freshSnapshot(overrides: Partial<SystemHealthSnapshot> = {}): SystemHea
 describe('SystemHealthPage', () => {
   beforeEach(() => {
     mockedHook.mockReset();
+    mockedRunHealthCheck.mockReset();
     mockedOperatorAlertsHook.mockReset();
     mockedResolveOperatorAlertHook.mockReset();
     mockedOperatorAlertsHook.mockReturnValue({
@@ -87,6 +93,12 @@ describe('SystemHealthPage', () => {
       mutateAsync: vi.fn(),
       isPending: false,
     } as unknown as ReturnType<typeof useResolveOperatorAlert>);
+    mockedRunHealthCheck.mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+      error: null,
+      data: undefined,
+    } as unknown as ReturnType<typeof useRunSystemHealthCheck>);
   });
 
   it('renders per-check rows for a fresh snapshot', () => {
@@ -102,6 +114,25 @@ describe('SystemHealthPage', () => {
     expect(screen.getByText('Edge-function parity')).toBeInTheDocument();
     // run duration is surfaced on the freshness band (fixture is 1500ms)
     expect(screen.getByText(/last run took 1\.5s/)).toBeInTheDocument();
+  });
+
+  it('offers a real Run now action without discarding the selected filter', () => {
+    const latest = freshSnapshot();
+    const mutateAsync = vi.fn().mockResolvedValue({ completed: true });
+    mockedRunHealthCheck.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+      error: null,
+      data: undefined,
+    } as unknown as ReturnType<typeof useRunSystemHealthCheck>);
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+    fireEvent.click(screen.getByRole('tab', { name: /^Failing 0$/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run now' }));
+
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/nothing in this bucket/i)).toBeInTheDocument();
   });
 
   it('derives every count from one array, so no two badges can disagree', () => {
@@ -136,8 +167,8 @@ describe('SystemHealthPage', () => {
     render(<SystemHealthPage />);
 
     // Staleness is a first-class band, and it outranks the stored 'ok'.
-    expect(screen.getByRole('alert')).toHaveTextContent(/describe then, not now/i);
-    expect(screen.getByText(/too old to answer/i)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/too old to answer/i);
+    expect(screen.getByRole('heading', { name: /too old to answer/i })).toBeInTheDocument();
   });
 
   it('shows an empty state when no snapshot exists', () => {

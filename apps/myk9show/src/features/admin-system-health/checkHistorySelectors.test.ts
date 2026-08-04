@@ -69,6 +69,24 @@ describe('buildCheckHistories', () => {
     expect(row.history.at(-1)?.status).toBe(row.status);
   });
 
+  it('moves an old passing row into failing when its own window expires', () => {
+    const latest = snapshot(4, [
+      check({
+        checkedAt: '2026-07-04T07:00:00.000Z',
+        staleAfterMs: 60 * 60 * 1000,
+      }),
+    ]);
+
+    const [row] = buildCheckHistories(
+      [latest],
+      HISTORY_STRIP_LENGTH,
+      Date.parse('2026-07-04T09:01:00.000Z')
+    );
+
+    expect(row.status).toBe('fail');
+    expect(row.history[0]?.status).toBe('fail');
+  });
+
   it('omits a bar for a run that predates the check, rather than inventing one', () => {
     // anon_grants did not exist on day 1 — it must not render as a failed run.
     const [row] = buildCheckHistories([

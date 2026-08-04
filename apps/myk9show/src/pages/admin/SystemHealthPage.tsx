@@ -13,9 +13,12 @@
 // for checks that cannot prove anything either way. Every count on the page
 // derives from one array — see checkHistorySelectors.
 
-import { useMemo, useState } from 'react';
-import { Clock, ShieldAlert } from 'lucide-react';
-import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
+import { useEffect, useMemo, useState } from 'react';
+import { Clock, LoaderCircle, Play, ShieldAlert } from 'lucide-react';
+import {
+  useRunSystemHealthCheck,
+  useSystemHealthSnapshots,
+} from '@/features/admin-system-health/useSystemHealthSnapshots';
 import {
   deriveEffectiveStatus,
   formatCheckedAgo,
@@ -58,7 +61,7 @@ function scheduleLabel(now: number): string {
     minute: '2-digit',
     hour12: false,
   });
-  return `Runs nightly at ${eastern} ET`;
+  return `Cheap checks refresh continuously · full run nightly at ${eastern} ET`;
 }
 
 /**
@@ -98,39 +101,61 @@ function FreshnessBand({
   now,
   isStale,
   runDurationMs,
+  isEmpty,
+  isRunning,
+  runError,
+  onRunNow,
 }: {
   lastRunAt: string | null;
   now: number;
   isStale: boolean;
   runDurationMs: number | null;
+  isEmpty: boolean;
+  isRunning: boolean;
+  runError: string | null;
+  onRunNow: () => void;
 }) {
   const age = formatCheckedAgo(lastRunAt, now);
   const duration = formatRunDuration(runDurationMs);
 
   return (
     <div
-      role={isStale ? 'alert' : undefined}
+      role={isStale || runError ? 'alert' : undefined}
       className={cn(
-        'flex items-start gap-2.5 rounded-[15px] px-5 py-3.5',
-        isStale ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+        'flex flex-col gap-3 rounded-[15px] px-5 py-3.5 sm:flex-row sm:items-start sm:justify-between',
+        isStale || isEmpty ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
       )}
     >
-      <Clock aria-hidden className="mt-0.5 size-4 shrink-0" />
-      <div className="min-w-0">
-        <p className="text-[13px] font-medium">
-          {isStale
-            ? `Last full run was ${age} — these results describe then, not now`
-            : `All checks last ran ${age}`}
-        </p>
-        {/* No "Run now" control: triggering the runner needs the cron secret,
-            which cannot ship to the browser. A button that only repainted would
-            be worse than none — it would imply a re-check that never happened.
-            A real one needs a site-admin-gated trigger on cron-health-check. */}
-        <p className="mt-0.5 text-[11.5px] opacity-80">
-          {scheduleLabel(now)}
-          {duration && ` · last run took ${duration}`}
-        </p>
+      <div className="flex min-w-0 items-start gap-2.5">
+        <Clock aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium">
+            {isEmpty
+              ? 'No full run has been recorded yet'
+              : isStale
+                ? `Some results are too old to answer “is it broken now?”`
+                : `All checks last ran ${age}`}
+          </p>
+          <p className="mt-0.5 text-[14px] opacity-80">
+            {scheduleLabel(now)}
+            {duration && ` · last run took ${duration}`}
+          </p>
+          {runError && <p className="mt-2 text-[14px] font-medium">{runError}</p>}
+        </div>
       </div>
+      <button
+        type="button"
+        onClick={onRunNow}
+        disabled={isRunning}
+        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[9px] border border-current px-3 text-[14px] font-medium transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
+      >
+        {isRunning ? (
+          <LoaderCircle aria-hidden className="size-4 animate-spin" />
+        ) : (
+          <Play aria-hidden className="size-4" />
+        )}
+        {isRunning ? 'Running…' : 'Run now'}
+      </button>
     </div>
   );
 }
@@ -185,13 +210,16 @@ function EnvironmentCard({
   migrationsDetail: string | null;
 }) {
   const version = migrationVersion(migrationsDetail);
+  const displaySource = source.startsWith('cron-health-check:manual:')
+    ? 'cron-health-check (Run now)'
+    : source;
   return (
     <BoardCard>
       <Eyebrow>Environment</Eyebrow>
       <dl className="mt-2 space-y-2 text-[11.5px]">
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Written by</dt>
-          <dd className="font-mono text-foreground">{source || 'unknown'}</dd>
+          <dd className="font-mono text-foreground">{displaySource || 'unknown'}</dd>
         </div>
         {version && (
           <div className="flex justify-between gap-3">
@@ -206,15 +234,17 @@ function EnvironmentCard({
 
 export default function SystemHealthPage() {
   const { data, isLoading, error, refetch } = useSystemHealthSnapshots();
-  // Freeze "now" at mount (lazy init keeps render pure — the codebase pattern for
-  // render-time clock reads). Freshness is relative to page open, which is the
-  // right granularity for a board checked once each morning.
-  const [now] = useState(() => Date.now());
+  const runHealthCheck = useRunSystemHealthCheck();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const clock = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(clock);
+  }, []);
   const [filter, setFilter] = useState<CheckFilter>('all');
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   const snapshots = useMemo(() => data?.history ?? [], [data]);
-  const checks = useMemo(() => buildCheckHistories(snapshots), [snapshots]);
+  const checks = useMemo(() => buildCheckHistories(snapshots, undefined, now), [snapshots, now]);
   const summary = useMemo(() => summarizeChecks(checks), [checks]);
   const visible = useMemo(() => filterChecks(checks, filter), [checks, filter]);
 
@@ -256,6 +286,11 @@ export default function SystemHealthPage() {
   const explanation = verdictExplanation(summary, effective.isStale, effective.isEmpty);
   const unprovableLabels = checks.filter(c => c.verification === 'unprovable').map(c => c.label);
   const migrationsDetail = checks.find(c => c.key === 'migrations')?.detail ?? null;
+  const runError = runHealthCheck.error
+    ? runHealthCheck.error.message || 'The run could not be started.'
+    : runHealthCheck.data?.completed === false
+      ? 'The run was requested, but its result has not arrived yet. Refresh in a moment.'
+      : null;
 
   const verdictAccent =
     effective.status === 'fail'
@@ -279,14 +314,16 @@ export default function SystemHealthPage() {
           </div>
         </BoardCard>
 
-        {!effective.isEmpty && (
-          <FreshnessBand
-            lastRunAt={latest?.createdAt ?? null}
-            now={now}
-            isStale={effective.isStale}
-            runDurationMs={latest?.runDurationMs ?? null}
-          />
-        )}
+        <FreshnessBand
+          lastRunAt={latest?.createdAt ?? null}
+          now={now}
+          isStale={effective.isStale}
+          runDurationMs={latest?.runDurationMs ?? null}
+          isEmpty={effective.isEmpty}
+          isRunning={runHealthCheck.isPending}
+          runError={runError}
+          onRunNow={() => void runHealthCheck.mutateAsync()}
+        />
 
         <div className="grid grid-cols-1 items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* min-w-0: a grid item defaults to min-width:auto, so without this the

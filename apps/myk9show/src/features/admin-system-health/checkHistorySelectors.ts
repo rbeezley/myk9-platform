@@ -16,6 +16,8 @@ import type {
   SystemHealthSnapshot,
   CheckVerification,
 } from './systemHealthTypes';
+import { healthCheckStaleAfterMs } from './healthCheckCadence';
+import { isStale } from './systemHealthSelectors';
 
 /** How many runs the history strip draws. */
 export const HISTORY_STRIP_LENGTH = 12;
@@ -73,7 +75,8 @@ export function statusLabel(status: CheckStatus, verification: CheckVerification
 /** Newest-first snapshots in, per-check history out. */
 export function buildCheckHistories(
   snapshots: SystemHealthSnapshot[],
-  limit: number = HISTORY_STRIP_LENGTH
+  limit: number = HISTORY_STRIP_LENGTH,
+  now?: number
 ): CheckWithHistory[] {
   const latest = snapshots[0];
   if (!latest) return [];
@@ -81,24 +84,37 @@ export function buildCheckHistories(
   // Oldest first, capped — the strip's drawing order.
   const window = snapshots.slice(0, limit).reverse();
 
+  const effectiveStatus = (check: HealthCheck): CheckStatus => {
+    if (now === undefined) return check.status;
+    if (check.checkedAt === null) return check.status === 'ok' ? 'fail' : check.status;
+    return isStale(check.checkedAt, now, check.staleAfterMs ?? healthCheckStaleAfterMs(check.key))
+      ? 'fail'
+      : check.status;
+  };
+
   return latest.checks.map(check => {
     const history: CheckRun[] = [];
     for (const snapshot of window) {
       const match = snapshot.checks.find(c => c.key === check.key);
       // A check absent from an older snapshot simply has no bar for that run —
       // do not invent an `unknown` bar, which would read as a failed run.
-      if (match) history.push({ status: match.status, at: snapshot.createdAt });
+      if (match)
+        history.push({
+          status: effectiveStatus(match),
+          at: match.checkedAt ?? snapshot.createdAt,
+        });
     }
 
     let lastPassedAt: string | null = null;
-    for (let i = history.length - 1; i >= 0; i -= 1) {
-      if (history[i].status === 'ok') {
-        lastPassedAt = history[i].at;
+    for (let i = window.length - 1; i >= 0; i -= 1) {
+      const match = window[i].checks.find(c => c.key === check.key);
+      if (match?.status === 'ok') {
+        lastPassedAt = match.checkedAt ?? window[i].createdAt;
         break;
       }
     }
 
-    return { ...check, history, lastPassedAt };
+    return { ...check, status: effectiveStatus(check), history, lastPassedAt };
   });
 }
 

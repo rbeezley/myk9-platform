@@ -31,6 +31,8 @@ export interface HealthCheck {
   detail: string;
   /** ISO timestamp the check ran, or null if the writer omitted it. */
   checkedAt: string | null;
+  /** Two missed refresh intervals before this row is too old to trust. */
+  staleAfterMs?: number;
   verification: CheckVerification;
 }
 

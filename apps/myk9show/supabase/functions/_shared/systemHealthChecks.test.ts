@@ -10,6 +10,7 @@ import {
 } from './systemHealthChecks';
 import { anonGrants } from './anonGrantTestFixtures';
 import { appliedAclFacts } from './appliedAclTestFixtures';
+import { healthCheckSourceStaleAfterMs } from '../../../src/features/admin-system-health/healthCheckCadence';
 import { publicSchemaAclFacts } from './publicSchemaAclTestFixtures';
 
 // A fixed "now" so overdue/stale math is deterministic.
@@ -99,6 +100,30 @@ describe('buildSnapshot — contract shape', () => {
     }
   });
 
+  it('carries nightly checks forward during a continuous run', () => {
+    const full = buildSnapshot(facts(), { now: NOW });
+    const previousDeepCheck = find(full, 'anon_grants');
+    const continuous = buildSnapshot(facts({ latest_migration: 'newer' }), {
+      now: NOW + 5 * MIN,
+      mode: 'continuous',
+      previousChecks: full.checks,
+    });
+
+    expect(find(continuous, 'migrations').detail).toContain('newer');
+    expect(find(continuous, 'anon_grants')).toEqual(previousDeepCheck);
+    expect(find(continuous, 'applied_acl_grants')).toEqual(find(full, 'applied_acl_grants'));
+  });
+
+  it('marks deep checks unverified until the first full run', () => {
+    const continuous = buildSnapshot(facts(), { now: NOW, mode: 'continuous' });
+    const check = find(continuous, 'anon_grants');
+
+    expect(check.status).toBe('warn');
+    expect(check.verification).toBe('unprovable');
+    expect(check.checked_at).toBeNull();
+    expect(check.detail).toContain('nightly full health check');
+  });
+
   it('defaults source and run_duration_ms when omitted', () => {
     const snap = buildSnapshot(facts(), { now: NOW });
     expect(snap.source).toBe('cron-health-check');
@@ -154,7 +179,7 @@ describe('payout_cron check (runbook 5.4)', () => {
     expect(check.detail).toContain('this check cannot fail');
     expect(check.detail).not.toContain('succeeded');
     // checked_at reflects the job's last run, not the probe time
-    expect(check.checked_at).toBe(iso(2 * HOUR));
+    expect(check.checked_at).toBe(iso(0));
   });
 
   it('fails and drives overall fail when the payout job is not scheduled', () => {
@@ -192,8 +217,8 @@ describe('payout_cron check (runbook 5.4)', () => {
         cron_jobs: [
           job({
             jobname: PAYOUT_CRON_JOB,
-            last_start: iso(STALE_AFTER_MS + HOUR),
-            last_end: iso(STALE_AFTER_MS + HOUR),
+            last_start: iso(healthCheckSourceStaleAfterMs('payout_cron') + HOUR),
+            last_end: iso(healthCheckSourceStaleAfterMs('payout_cron') + HOUR),
           }),
         ],
       }),

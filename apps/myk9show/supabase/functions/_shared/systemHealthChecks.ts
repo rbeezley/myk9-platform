@@ -19,6 +19,13 @@
 
 import { anonGrantsCheck } from './anonGrantChecks.ts';
 import { appliedAclCheck } from './appliedAclChecks.ts';
+import {
+  healthCheckStaleAfterMs,
+  healthCheckSourceStaleAfterMs,
+  LEGACY_HEALTH_CHECK_STALE_AFTER_MS,
+  shouldRunHealthCheck,
+  type HealthCheckRunMode,
+} from '../../../src/features/admin-system-health/healthCheckCadence.ts';
 import { publicSchemaCreateAclCheck } from './publicSchemaAclChecks.ts';
 
 export type HealthStatus = 'ok' | 'warn' | 'fail';
@@ -31,6 +38,9 @@ export interface SnapshotCheck {
   status: HealthStatus;
   detail: string;
   checked_at: string | null;
+  /** Two missed intervals for this check, persisted so the board uses the
+   * same cadence as the runner. */
+  stale_after_ms?: number;
   /** Raw machine-readable value carried between runs (e.g. the ringside
    * conflict counter, so the NEXT run can diff against it). The board's
    * tolerant parser ignores unknown keys. */
@@ -110,11 +120,16 @@ export interface BuildSnapshotOptions {
    * "≈992/min" reads as the storm it actually was. Null = fall back to the
    * absolute-delta thresholds. */
   previousSnapshotAt?: string | null;
+  /** Continuous runs refresh only cheap checks; full runs refresh all checks. */
+  mode?: HealthCheckRunMode;
+  /** Checks from the previous snapshot used to carry forward nightly results. */
+  previousChecks?: SnapshotCheck[] | null;
 }
 
-// Match the board's STALE_AFTER_MS (systemHealthSelectors.ts) so a run the board
-// would call stale is the same window the runner uses to warn on an overdue job.
-export const STALE_AFTER_MS = 26 * 60 * 60 * 1000; // ~26 hours
+// Kept only as a compatibility fallback for snapshots written before each check
+// started carrying its own cadence. New checks use healthCheckStaleAfterMs().
+/** Compatibility export for callers/tests written before per-check cadence. */
+export const STALE_AFTER_MS = LEGACY_HEALTH_CHECK_STALE_AFTER_MS;
 export const PAYOUT_CRON_JOB = 'nightly-show-payouts';
 export const DEFAULT_SOURCE = 'cron-health-check';
 
@@ -133,6 +148,15 @@ export const RINGSIDE_CONFLICTS_WARN_RATE_PER_MIN = 60;
 export const RINGSIDE_CONFLICTS_FAIL_RATE_PER_MIN = 300;
 
 const RANK: Record<HealthStatus, number> = { ok: 0, warn: 1, fail: 2 };
+
+function checkBase(key: string, label: string, checkedAt: string | null) {
+  return {
+    key,
+    label,
+    checked_at: checkedAt,
+    stale_after_ms: healthCheckStaleAfterMs(key),
+  };
+}
 
 /** Worst (highest-severity) status across a set; empty set is `ok`. */
 export function worstOf(statuses: HealthStatus[]): HealthStatus {
@@ -251,11 +275,9 @@ function payoutCronCheck(
   const job = jobs.find(j => j.jobname === PAYOUT_CRON_JOB);
   if (!job) {
     return {
-      key: 'payout_cron',
-      label: 'Nightly payout job',
+      ...checkBase('payout_cron', 'Nightly payout job', probedAt),
       status: 'fail',
       detail: `${PAYOUT_CRON_JOB} is not scheduled`,
-      checked_at: probedAt,
     };
   }
   // TICKET-2: dispatch-only success is Unverified on the money path, never OK.
@@ -264,11 +286,9 @@ function payoutCronCheck(
   // overdue or never-run job is a proven degradation and keeps the default.
   const unprovable = status === 'warn' && job.lastStatus === 'succeeded';
   return {
-    key: 'payout_cron',
-    label: 'Nightly payout job',
+    ...checkBase('payout_cron', 'Nightly payout job', probedAt),
     status,
     detail: `${PAYOUT_CRON_JOB} ${detail}`,
-    checked_at: job.lastRunAt ?? probedAt,
     ...(unprovable ? { verification: 'unprovable' as const } : {}),
   };
 }
@@ -330,7 +350,7 @@ function formatUsd(cents: number): string {
 // must be able to show one red while the other is amber.
 /** Every expected payout reached a terminal state, and none of them failed. */
 function payoutLedgerCheck(facts: RawProbeFacts, probedAt: string): SnapshotCheck {
-  const base = { key: 'payout_ledger', label: 'Payout ledger', checked_at: probedAt };
+  const base = checkBase('payout_ledger', 'Payout ledger', probedAt);
   const ledger = parsePayoutLedger(facts.payout_ledger);
 
   if (!ledger) {
@@ -391,11 +411,9 @@ function backgroundJobsCheck(
   const others = jobs.filter(j => j.jobname !== PAYOUT_CRON_JOB);
   if (others.length === 0) {
     return {
-      key: 'background_jobs',
-      label: 'Background jobs',
+      ...checkBase('background_jobs', 'Background jobs', probedAt),
       status: 'ok',
       detail: 'no other scheduled jobs',
-      checked_at: probedAt,
     };
   }
   const evaluated = others.map(job => ({ job, ...evaluateJob(job, now, staleAfterMs) }));
@@ -404,28 +422,22 @@ function backgroundJobsCheck(
 
   if (failed.length > 0) {
     return {
-      key: 'background_jobs',
-      label: 'Background jobs',
+      ...checkBase('background_jobs', 'Background jobs', probedAt),
       status: 'fail',
       detail: `${failed.length} of ${others.length} failing: ${failed.join(', ')}`,
-      checked_at: probedAt,
     };
   }
   if (warned.length > 0) {
     return {
-      key: 'background_jobs',
-      label: 'Background jobs',
+      ...checkBase('background_jobs', 'Background jobs', probedAt),
       status: 'warn',
       detail: `${warned.length} of ${others.length} need attention: ${warned.join(', ')}`,
-      checked_at: probedAt,
     };
   }
   return {
-    key: 'background_jobs',
-    label: 'Background jobs',
+    ...checkBase('background_jobs', 'Background jobs', probedAt),
     status: 'ok',
     detail: `${others.length} job${others.length === 1 ? '' : 's'} healthy`,
-    checked_at: probedAt,
   };
 }
 
@@ -435,20 +447,16 @@ function migrationsCheck(facts: RawProbeFacts, probedAt: string): SnapshotCheck 
   const count = typeof facts.migration_count === 'number' ? facts.migration_count : null;
   if (!latest) {
     return {
-      key: 'migrations',
-      label: 'Migrations',
+      ...checkBase('migrations', 'Migrations', probedAt),
       status: 'warn',
       detail: 'no applied migration found',
-      checked_at: probedAt,
     };
   }
   const countLabel = count === null ? '' : ` (${count} applied)`;
   return {
-    key: 'migrations',
-    label: 'Migrations',
+    ...checkBase('migrations', 'Migrations', probedAt),
     status: 'ok',
     detail: `latest ${latest}${countLabel}`,
-    checked_at: probedAt,
   };
 }
 
@@ -525,7 +533,7 @@ function ringsideConflictsCheck(
   probedAt: string,
   opts: { now: number; previousSnapshotAt?: string | null }
 ): SnapshotCheck {
-  const base = { key: 'ringside_conflicts', label: 'Ringside conflicts', checked_at: probedAt };
+  const base = checkBase('ringside_conflicts', 'Ringside conflicts', probedAt);
   const counter =
     typeof facts.ringside_conflict_counter === 'number' ? facts.ringside_conflict_counter : null;
   const containment = parseContainment(facts.ringside_containment);
@@ -615,7 +623,9 @@ function ringsideConflictsCheck(
 export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): HealthSnapshotInsert {
   const source = opts.source ?? DEFAULT_SOURCE;
   const runDurationMs = opts.runDurationMs ?? null;
-  const staleAfterMs = opts.staleAfterMs ?? STALE_AFTER_MS;
+  const mode = opts.mode ?? 'full';
+  const staleAfterMs = opts.staleAfterMs;
+  const sourceThresholdFor = (key: string) => staleAfterMs ?? healthCheckSourceStaleAfterMs(key);
 
   if (!facts || typeof facts !== 'object') {
     return {
@@ -638,10 +648,10 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
   const probedAt = asIsoOrNull(f.probed_at) ?? isoNow(opts.now);
   const jobs = Array.isArray(f.cron_jobs) ? f.cron_jobs.map(parseCronJob) : [];
 
-  const checks: SnapshotCheck[] = [
-    payoutCronCheck(jobs, opts.now, staleAfterMs, probedAt),
+  const computedChecks: SnapshotCheck[] = [
+    payoutCronCheck(jobs, opts.now, sourceThresholdFor('payout_cron'), probedAt),
     payoutLedgerCheck(f, probedAt),
-    backgroundJobsCheck(jobs, opts.now, staleAfterMs, probedAt),
+    backgroundJobsCheck(jobs, opts.now, sourceThresholdFor('background_jobs'), probedAt),
     migrationsCheck(f, probedAt),
     ringsideConflictsCheck(f, opts.previousConflictCounter, probedAt, {
       now: opts.now,
@@ -651,6 +661,29 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     appliedAclCheck(f.applied_acl_grants, probedAt),
     publicSchemaCreateAclCheck(f.public_schema_create_acl, probedAt),
   ];
+
+  const previousByKey = new Map((opts.previousChecks ?? []).map(check => [check.key, check]));
+  const checks = computedChecks.map(check => {
+    const withCadence = {
+      ...check,
+      stale_after_ms: check.stale_after_ms ?? healthCheckStaleAfterMs(check.key),
+    };
+    if (shouldRunHealthCheck(check.key, mode)) return withCadence;
+
+    const previous = previousByKey.get(check.key);
+    return previous
+      ? {
+          ...previous,
+          stale_after_ms: healthCheckStaleAfterMs(check.key),
+        }
+      : {
+          ...withCadence,
+          status: 'warn' as const,
+          detail: 'not run yet; awaiting the nightly full health check',
+          checked_at: null,
+          verification: 'unprovable' as const,
+        };
+  });
 
   return {
     source,

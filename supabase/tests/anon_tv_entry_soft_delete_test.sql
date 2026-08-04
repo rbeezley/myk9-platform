@@ -108,7 +108,17 @@ BEGIN
     AND policy.tablename = 'entries'
     AND policy.policyname = 'entries_anon_select_for_tv';
 
-  IF policy_qual IS NULL OR regexp_count(lower(policy_qual), 'deleted_at') < 2 THEN
+  IF policy_qual IS NULL OR NOT EXISTS (
+    SELECT 1
+    FROM pg_policies AS policy
+    WHERE policy.schemaname = 'public'
+      AND policy.tablename = 'entries'
+      AND policy.policyname = 'entries_anon_select_for_tv'
+      AND policy.cmd = 'SELECT'
+      AND 'anon' = ANY(policy.roles)
+      AND regexp_count(lower(policy.qual), 'deleted_at') >= 2
+      AND lower(policy.qual) LIKE '%status%'
+  ) THEN
     RAISE EXCEPTION
       'FAIL applied anon TV policy does not include both entry and show soft-delete predicates: %',
       policy_qual;

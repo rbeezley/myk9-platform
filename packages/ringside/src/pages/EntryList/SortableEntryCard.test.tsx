@@ -152,6 +152,8 @@ describe('SortableEntryCard', () => {
     expect(resetButton.className).toContain('reset-menu-button');
     expect(resetButton.className).toContain('min-h-11');
     expect(resetButton.className).toContain('min-w-11');
+    expect(resetButton.className).toContain('sm:min-h-12');
+    expect(resetButton.className).toContain('sm:min-w-12');
   });
 
   it('omits the reset button for scored entries when canScore is denied', () => {
@@ -308,6 +310,7 @@ describe('SortableEntryCard', () => {
     expect(document.activeElement).toBe(scoreButton);
     expect(scoreButton.getAttribute('type')).toBe('button');
     expect(scoreButton.className).toContain('min-h-11');
+    expect(scoreButton.className).toContain('sm:min-h-12');
     expect(scoreButton.className).toContain('focus-visible:ring-2');
   });
 

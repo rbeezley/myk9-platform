@@ -11,6 +11,7 @@ import { getErrorMessage } from '@myk9/core';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -354,6 +355,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     onClose();
   }, [hasChanges, showUnsavedWarning, onClose]);
 
+  const routeLeaveGuard = (
+    <UnsavedChangesRouteGuard isDirty={open && hasChanges && showUnsavedWarning} subject={title} />
+  );
+
   // Context value
   const contextValue: EditPanelContextValue<Record<string, unknown>> = {
     form: useSchemaPath ? (form as unknown as FormValidation<Record<string, unknown>>) : undefined,
@@ -450,6 +455,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             onClose();
           }}
         />
+        {routeLeaveGuard}
       </EditPanelContext.Provider>
     );
   }
@@ -506,6 +512,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           onClose();
         }}
       />
+      {routeLeaveGuard}
     </EditPanelContext.Provider>
   );
 }

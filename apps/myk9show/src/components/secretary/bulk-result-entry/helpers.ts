@@ -44,6 +44,17 @@ export const timeStringToMs = (timeStr: string): number => {
   return (minutes * 60 + seconds) * 1000 + hundredths * 10;
 };
 
+type BulkEntryComparable = Pick<BulkEntryData, 'searchTime' | 'qualification' | 'faults' | 'notes'>;
+
+export const hasBulkEntryChanges = (
+  current: BulkEntryComparable,
+  saved: BulkEntryComparable
+): boolean =>
+  convertTimeToInputFormat(current.searchTime) !== convertTimeToInputFormat(saved.searchTime) ||
+  current.qualification !== saved.qualification ||
+  current.faults !== saved.faults ||
+  current.notes !== saved.notes;
+
 // Validate individual entry
 export const validateEntry = (data: BulkEntryData): { isValid: boolean; error?: string } => {
   if (!data.hasChanges) {

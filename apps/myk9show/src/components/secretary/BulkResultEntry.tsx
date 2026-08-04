@@ -39,6 +39,7 @@ import {
   formatSearchTimeFromMs,
   convertTimeToInputFormat,
   timeStringToMs,
+  hasBulkEntryChanges,
   validateEntry,
 } from './bulk-result-entry/helpers';
 import { SummaryCards } from './bulk-result-entry/SummaryCards';
@@ -159,6 +160,16 @@ export function BulkResultEntry({
               ? 'Qualified'
               : 'Not Qualified'
             : '');
+        const savedSearchTime = competitionData.time
+          ? convertTimeToInputFormat(competitionData.time)
+          : existingData?.searchTime
+            ? formatSearchTimeFromMs(existingData.searchTime)
+            : '';
+        const savedQualificationBaseline =
+          savedQualification || existingData?.qualification || 'Qualified';
+        const savedFaults =
+          competitionData.faults?.toString() || existingData?.faults?.toString() || '0';
+        const savedNotes = competitionData.judgeNotes || existingData?.judgeNotes || '';
 
         // Resolve qualification — saved value wins; fall back to in-progress state;
         // default to 'Qualified' when nothing is saved yet (most entries qualify)
@@ -171,35 +182,28 @@ export function BulkResultEntry({
           qualification = existingData.qualification;
         }
 
-        // Calculate if this entry has unsaved changes
-        // Normalize time formats for accurate comparison
-        const savedTimeFormatted = competitionData.time
-          ? convertTimeToInputFormat(competitionData.time)
-          : '';
-        const normalizedSearchTime = searchTime ? convertTimeToInputFormat(searchTime) : '';
-        const hasTimeChanges = normalizedSearchTime && normalizedSearchTime !== savedTimeFormatted;
-        const hasQualificationChanges =
-          !!savedQualification && qualification !== savedQualification;
-        const hasFaultChanges =
-          (prevEntry?.faults || '0') !== (competitionData.faults?.toString() || '0');
-        const hasNotesChanges = (prevEntry?.notes || '') !== (competitionData.judgeNotes || '');
+        const currentFaults =
+          competitionData.faults?.toString() ||
+          prevEntry?.faults ||
+          existingData?.faults?.toString() ||
+          '0';
+        const currentNotes =
+          competitionData.judgeNotes || prevEntry?.notes || existingData?.judgeNotes || '';
+        const hasChanges = hasBulkEntryChanges(
+          { searchTime, qualification, faults: currentFaults, notes: currentNotes },
+          {
+            searchTime: savedSearchTime,
+            qualification: savedQualificationBaseline as QualificationStatus,
+            faults: savedFaults,
+            notes: savedNotes,
+          }
+        );
 
         // Enhanced logging for Submit button debugging - only log when there are changes
-        if (hasTimeChanges || hasQualificationChanges || hasFaultChanges || hasNotesChanges) {
+        if (hasChanges) {
           logger.debug('Entry change analysis', 'scoring', {
             entryId: entry.id,
-            hasTimeChanges: hasTimeChanges
-              ? `${normalizedSearchTime} vs ${savedTimeFormatted}`
-              : false,
-            hasQualificationChanges: hasQualificationChanges
-              ? `${qualification} vs ${savedQualification}`
-              : false,
-            hasFaultChanges: hasFaultChanges
-              ? `${prevEntry?.faults || '0'} vs ${competitionData.faults?.toString() || '0'}`
-              : false,
-            hasNotesChanges: hasNotesChanges
-              ? `"${prevEntry?.notes || ''}" vs "${competitionData.judgeNotes || ''}"`
-              : false,
+            hasChanges,
           });
         }
 
@@ -212,15 +216,10 @@ export function BulkResultEntry({
           handlerName: entry.displayInfo.handlerName,
           searchTime,
           qualification,
-          faults:
-            competitionData.faults?.toString() ||
-            prevEntry?.faults ||
-            existingData?.faults?.toString() ||
-            '0',
-          notes: competitionData.judgeNotes || prevEntry?.notes || existingData?.judgeNotes || '',
+          faults: currentFaults,
+          notes: currentNotes,
           isValid: !!(searchTime && qualification),
-          hasChanges:
-            hasTimeChanges || hasQualificationChanges || hasFaultChanges || hasNotesChanges,
+          hasChanges,
         };
 
         // Removed verbose bulk entry logging

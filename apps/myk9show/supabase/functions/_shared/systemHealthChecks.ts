@@ -18,6 +18,7 @@
  */
 
 import { anonGrantsCheck } from './anonGrantChecks.ts';
+import { appliedAclCheck } from './appliedAclChecks.ts';
 
 export type HealthStatus = 'ok' | 'warn' | 'fail';
 
@@ -85,6 +86,7 @@ export interface RawProbeFacts {
   /** Terminal-state rollup of public.show_payouts (TICKET-2). */
   payout_ledger?: unknown;
   anon_grants?: unknown;
+  applied_acl_grants?: unknown;
 }
 
 export interface BuildSnapshotOptions {
@@ -644,6 +646,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
       previousSnapshotAt: opts.previousSnapshotAt,
     }),
     anonGrantsCheck(f.anon_grants, probedAt),
+    appliedAclCheck(f.applied_acl_grants, probedAt),
   ];
 
   return {

@@ -31,6 +31,7 @@ import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutN
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
+import { buildCartFulfillmentView } from '@/features/payments/cartFulfillmentView';
 
 function createSplitCheckoutCorrelationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -84,6 +85,18 @@ export default function CartPage() {
     next.delete(CHECKOUT_RETURN_PARAM);
     setSearchParams(next, { replace: true });
   };
+
+  // MYK9-122: the cart, its totals, and checkout must all be driven by ONE
+  // rule. This is the same split checkout runs — computed here so a full class
+  // reads as a wait-list request up front instead of looking payable, moving
+  // the total, and then disappearing once checkout routes it to the wait list.
+  // `null` while capacity is loading or errored: unknown availability must not
+  // be presented as a final amount.
+  const capacityResolved = !isCapacityLoading && !capacityError;
+  const fulfillment = useMemo(
+    () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null),
+    [items, judgeDays, capacityResolved]
+  );
 
   const recoveryShowId = searchParams.get('showId') ?? undefined;
   const recoveryEntryIdsParam = searchParams.get('entryIds') ?? '';
@@ -390,6 +403,7 @@ export default function CartPage() {
                 item={item}
                 onRemove={() => handleRemoveItem(item.id)}
                 isRemoving={removingItemId === item.id}
+                fulfillment={fulfillment.fulfillmentByItemId[item.id] ?? 'payable'}
               />
             ))}
           </div>
@@ -401,6 +415,8 @@ export default function CartPage() {
                 onCheckout={handleCheckout}
                 onContinueShopping={handleContinueShopping}
                 isCheckingOut={isCheckingOut}
+                fulfillment={fulfillment}
+                capacityUnavailable={Boolean(capacityError)}
               />
             </div>
           </div>

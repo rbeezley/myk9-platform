@@ -8,6 +8,7 @@ import {
   type RawCronJob,
 } from './systemHealthChecks';
 import { anonGrants } from './anonGrantTestFixtures';
+import { appliedAclFacts } from './appliedAclTestFixtures';
 
 // A fixed "now" so overdue/stale math is deterministic.
 const NOW = Date.parse('2026-07-04T12:00:00.000Z');
@@ -49,6 +50,7 @@ const facts = (over: Record<string, unknown> = {}) => ({
     failure_reasons: [],
   },
   anon_grants: anonGrants(),
+  applied_acl_grants: appliedAclFacts(),
   ...over,
 });
 
@@ -84,6 +86,7 @@ describe('buildSnapshot — contract shape', () => {
       'migrations',
       'ringside_conflicts',
       'anon_grants',
+      'applied_acl_grants',
     ]);
     for (const c of snap.checks) {
       expect(typeof c.checked_at).toBe('string');
@@ -96,6 +99,18 @@ describe('buildSnapshot — contract shape', () => {
     const snap = buildSnapshot(facts(), { now: NOW });
     expect(snap.source).toBe('cron-health-check');
     expect(snap.run_duration_ms).toBeNull();
+  });
+
+  it('drives the daily snapshot red when applied ACLs drift', () => {
+    const applied = appliedAclFacts();
+    applied.forbidden_tables = [
+      { name: 'entries', role: 'authenticated', privs: 'TRUNCATE' },
+    ];
+
+    const snap = buildSnapshot(facts({ applied_acl_grants: applied }), { now: NOW });
+
+    expect(find(snap, 'applied_acl_grants').status).toBe('fail');
+    expect(snap.overall_status).toBe('fail');
   });
 });
 

@@ -4,6 +4,18 @@
 // Two canonical origin allowlists live here so the per-function copies stay
 // in sync. If you add a new origin, add it to the list here once and every
 // migrated function inherits the change.
+//
+// myK9Show origin classes:
+// - production: myk9show.com and its supported www/app aliases;
+// - shared staging: the stable Vercel deployment below;
+// - previews: Vercel deployment URLs for this project, matched by the
+//   anchored project-specific pattern below; and
+// - local development: the supported Vite ports.
+//
+// The preview pattern is an accepted INFO-level risk: Vercel preview hostnames
+// are dynamic, so an exact list would require deployment-origin coordination.
+// It is intentionally scoped to HTTPS, this project's hostname prefix, and
+// the vercel.app suffix. It must not be broadened without a new policy review.
 
 export const MYK9SHOW_ORIGINS: readonly string[] = [
   'https://myk9show.com',

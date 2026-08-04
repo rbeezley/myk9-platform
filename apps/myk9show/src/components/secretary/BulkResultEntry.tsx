@@ -32,8 +32,10 @@ import '@/styles/myk9-show-details.css';
 // Extracted modules
 import type {
   BulkEntryData,
+  BulkEntryEditableField,
   BulkResultEntryProps,
   LocalCompetitionData,
+  BulkEntryValues,
 } from './bulk-result-entry/types';
 import {
   formatSearchTimeFromMs,
@@ -41,7 +43,7 @@ import {
   timeStringToMs,
   hasBulkEntryChanges,
   resolveBulkEntryValues,
-  validateEntry,
+  validateBulkEntry,
 } from './bulk-result-entry/helpers';
 import { SummaryCards } from './bulk-result-entry/SummaryCards';
 import { HeaderActions } from './bulk-result-entry/HeaderActions';
@@ -106,7 +108,13 @@ export function BulkResultEntry({
             : 'Not Qualified'
           : existingData?.qualification || 'Qualified');
 
-      return {
+      const savedValues: BulkEntryValues = {
+        searchTime,
+        qualification: savedQualification as QualificationStatus,
+        faults,
+        notes,
+      };
+      const initialData: BulkEntryData = {
         entryId: entry.id,
         armband: entry.displayInfo.armband,
         dogName: entry.displayInfo.dogName,
@@ -115,12 +123,12 @@ export function BulkResultEntry({
         qualification,
         faults,
         notes,
-        isValid: !!(searchTime && qualification),
-        hasChanges: hasBulkEntryChanges(
-          { searchTime, qualification, faults, notes },
-          { searchTime, qualification: savedQualification as QualificationStatus, faults, notes }
-        ),
+        isValid: false,
+        hasChanges: hasBulkEntryChanges({ searchTime, qualification, faults, notes }, savedValues),
+        savedValues,
       };
+      initialData.isValid = validateBulkEntry(initialData).isValid;
+      return initialData;
     })
   );
 
@@ -136,6 +144,7 @@ export function BulkResultEntry({
     logger.debug('BulkResultEntry useEffect triggered - entries changed', 'scoring', {
       entriesCount: entries.length,
     });
+    const refreshedValidationErrors = new Map<string, string>();
     setBulkData(prevData => {
       const newData = entries.map(entry => {
         // Extract existing data from entry if available
@@ -191,7 +200,7 @@ export function BulkResultEntry({
 
         // Removed excessive debugging - Submit button issue resolved
 
-        const bulkEntry = {
+        const bulkEntry: BulkEntryData = {
           entryId: entry.id,
           armband: entry.displayInfo.armband,
           dogName: entry.displayInfo.dogName,
@@ -200,15 +209,27 @@ export function BulkResultEntry({
           qualification,
           faults: currentFaults,
           notes: currentNotes,
-          isValid: !!(searchTime && qualification),
+          isValid: false,
           hasChanges,
+          savedValues: refreshedValues,
         };
+        const validation = validateBulkEntry(bulkEntry);
+        bulkEntry.isValid = validation.isValid;
+        if (validation.error) {
+          refreshedValidationErrors.set(entry.id, validation.error);
+        }
 
         // Removed verbose bulk entry logging
         return bulkEntry;
       });
 
       return newData;
+    });
+    setValidationErrors(current => {
+      const next = new Map(current);
+      entries.forEach(entry => next.delete(entry.id));
+      refreshedValidationErrors.forEach((error, entryId) => next.set(entryId, error));
+      return next;
     });
   }, [entries]);
 
@@ -244,47 +265,48 @@ export function BulkResultEntry({
   }, [bulkData]);
 
   // Update bulk data and validate
-  const updateBulkData = useCallback((index: number, field: keyof BulkEntryData, value: string) => {
-    setBulkData(prev => {
-      const newData = [...prev];
-      const item = { ...newData[index] };
+  const updateBulkData = useCallback(
+    (index: number, field: BulkEntryEditableField, value: string) => {
+      setBulkData(prev => {
+        const newData = [...prev];
+        const item = { ...newData[index] };
 
-      (item as Record<string, string | boolean>)[field] = value;
-      item.hasChanges = !!(
-        item.searchTime ||
-        item.qualification ||
-        item.faults !== '0' ||
-        item.notes
-      );
+        if (field === 'searchTime') item.searchTime = value;
+        if (field === 'qualification') item.qualification = value as QualificationStatus;
+        if (field === 'faults') item.faults = value;
+        if (field === 'notes') item.notes = value;
+        item.hasChanges = hasBulkEntryChanges(item, item.savedValues);
 
-      const validation = validateEntry(item);
-      item.isValid = validation.isValid;
+        const validation = validateBulkEntry(item);
+        item.isValid = validation.isValid;
 
-      newData[index] = item;
+        newData[index] = item;
 
-      // Enhanced logging for field updates
-      logger.debug('Field update on entry', 'scoring', {
-        entryId: item.entryId,
-        field,
-        value,
-        hasChanges: item.hasChanges,
-        isValid: item.isValid,
+        // Enhanced logging for field updates
+        logger.debug('Field update on entry', 'scoring', {
+          entryId: item.entryId,
+          field,
+          value,
+          hasChanges: item.hasChanges,
+          isValid: item.isValid,
+        });
+
+        // Update validation errors
+        setValidationErrors(prev => {
+          const newErrors = new Map(prev);
+          if (validation.error) {
+            newErrors.set(item.entryId, validation.error);
+          } else {
+            newErrors.delete(item.entryId);
+          }
+          return newErrors;
+        });
+
+        return newData;
       });
-
-      // Update validation errors
-      setValidationErrors(prev => {
-        const newErrors = new Map(prev);
-        if (validation.error) {
-          newErrors.set(item.entryId, validation.error);
-        } else {
-          newErrors.delete(item.entryId);
-        }
-        return newErrors;
-      });
-
-      return newData;
-    });
-  }, []);
+    },
+    []
+  );
 
   // Handle CSV import
   const handleCSVImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -332,8 +354,8 @@ export function BulkResultEntry({
             const imported = importedData.get(item.armband);
             if (imported) {
               const updated = { ...item, ...imported };
-              updated.hasChanges = true;
-              const validation = validateEntry(updated);
+              updated.hasChanges = hasBulkEntryChanges(updated, item.savedValues);
+              const validation = validateBulkEntry(updated);
               updated.isValid = validation.isValid;
               return updated;
             }

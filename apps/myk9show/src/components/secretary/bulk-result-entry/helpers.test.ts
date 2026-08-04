@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasBulkEntryChanges, resolveBulkEntryValues } from './helpers';
+import { hasBulkEntryChanges, resolveBulkEntryValues, validateBulkEntry } from './helpers';
 
 const savedValues = {
   searchTime: '0:30.00',
@@ -53,5 +53,23 @@ describe('hasBulkEntryChanges', () => {
         { searchTime: '0:30.00', qualification: 'Qualified', faults: '0', notes: '' }
       )
     ).toBe(false);
+  });
+
+  it('rejects invalid values preserved during a refresh', () => {
+    expect(
+      validateBulkEntry({
+        entryId: 'entry-1',
+        armband: '1',
+        dogName: 'Dog',
+        handlerName: 'Handler',
+        searchTime: 'not-a-time',
+        qualification: 'Qualified',
+        faults: '0',
+        notes: '',
+        isValid: false,
+        hasChanges: true,
+        savedValues,
+      })
+    ).toEqual({ isValid: false, error: 'Invalid time format (MM:SS.HH)' });
   });
 });

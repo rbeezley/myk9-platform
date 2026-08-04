@@ -1,4 +1,4 @@
-import type { BulkEntryData } from './types';
+import type { BulkEntryData, BulkEntryValues } from './types';
 
 // Helper function to format time from milliseconds to MM:SS format
 export const formatSearchTimeFromMs = (ms: number): string => {
@@ -44,7 +44,7 @@ export const timeStringToMs = (timeStr: string): number => {
   return (minutes * 60 + seconds) * 1000 + hundredths * 10;
 };
 
-type BulkEntryComparable = Pick<BulkEntryData, 'searchTime' | 'qualification' | 'faults' | 'notes'>;
+type BulkEntryComparable = BulkEntryValues;
 
 export const resolveBulkEntryValues = (
   refreshed: BulkEntryComparable,
@@ -96,4 +96,15 @@ export const validateEntry = (data: BulkEntryData): { isValid: boolean; error?: 
   }
 
   return { isValid: true };
+};
+
+export const validateBulkEntry = (data: BulkEntryData): { isValid: boolean; error?: string } => {
+  const hasEntryData =
+    data.hasChanges ||
+    Boolean(data.searchTime) ||
+    data.qualification !== 'Qualified' ||
+    data.faults !== '0' ||
+    Boolean(data.notes);
+
+  return validateEntry(hasEntryData ? { ...data, hasChanges: true } : data);
 };

@@ -31,11 +31,12 @@ function makeShowQuery(data: unknown, error: unknown = null) {
 }
 
 // entries: .select().in('class_id', ...).in('entry_status', ...)
-function makeEntryQuery(data: unknown[]) {
-  const inStatus = vi.fn().mockResolvedValue({ data, error: null });
-  const inClass = vi.fn().mockReturnValue({ in: inStatus });
+function makeEntryQuery(data: unknown[], error: unknown = null) {
+  const inStatus = vi.fn().mockResolvedValue({ data, error });
+  const isDeleted = vi.fn().mockReturnValue({ in: inStatus });
+  const inClass = vi.fn().mockReturnValue({ is: isDeleted });
   const select = vi.fn().mockReturnValue({ in: inClass });
-  return { select };
+  return { select, isDeleted, inStatus };
 }
 
 // waitlist_entries: .select().in('class_id', ...).eq('status', ...)
@@ -302,11 +303,35 @@ describe('useClassAvailability', () => {
     expect(result.current.error).toBe('network error');
   });
 
+  it('sets error when an availability count fetch fails', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'classes') return makeClassQuery(CLASS_DATA);
+      if (table === 'shows')
+        return makeShowQuery({
+          default_judge_day_capacity: 125,
+          mail_in_strategy: 'none',
+          mail_in_value: null,
+        });
+      if (table === 'entries') return makeEntryQuery([], { message: 'entries network error' });
+      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
+      if (table === 'judge_assignments') return makeJudgeQuery([]);
+      return makeClassQuery([]);
+    });
+
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.error).toBe('entries network error');
+  });
+
   it('entry_status filter includes in-ring alongside competing', async () => {
     // Regression: entries with entry_status='in-ring' (written by myK9Q) must be
     // counted as active so class capacity is calculated correctly.
     const inStatusSpy = vi.fn().mockResolvedValue({ data: [], error: null });
-    const inClassSpy = vi.fn().mockReturnValue({ in: inStatusSpy });
+    const isDeletedSpy = vi.fn().mockReturnValue({ in: inStatusSpy });
+    const inClassSpy = vi.fn().mockReturnValue({ is: isDeletedSpy });
     const selectSpy = vi.fn().mockReturnValue({ in: inClassSpy });
 
     mockFrom.mockImplementation((table: string) => {
@@ -335,5 +360,6 @@ describe('useClassAvailability', () => {
       'entry_status',
       expect.arrayContaining(['in-ring', 'competing', 'pending-payment'])
     );
+    expect(isDeletedSpy).toHaveBeenCalledWith('deleted_at', null);
   });
 });

@@ -242,11 +242,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const availabilityMap = useMemo(() => {
     const map = new Map<
       string,
-      { isJudgeDayFull: boolean; waitlistCount: number; allowsWaitlist: boolean }
+      { isFull: boolean; waitlistCount: number; allowsWaitlist: boolean }
     >();
     for (const cls of availabilityClasses) {
       map.set(cls.classId, {
-        isJudgeDayFull: cls.judgeDayFull,
+        isFull: cls.isFull,
         waitlistCount: cls.waitlistCount,
         allowsWaitlist: cls.allowsWaitlist,
       });
@@ -440,7 +440,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     ),
                                     isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
                                     ...(avail !== undefined && {
-                                      isJudgeDayFull: avail.isJudgeDayFull,
+                                      isFull: avail.isFull,
                                       waitlistCount: avail.waitlistCount,
                                       allowsWaitlist: avail.allowsWaitlist,
                                     }),

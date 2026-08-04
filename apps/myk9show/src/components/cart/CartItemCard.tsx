@@ -127,11 +127,9 @@ export function CartItemCard({
           <div className="flex flex-col items-end gap-2">
             {isWaitlist || isBlocked ? (
               <span className="text-right">
-                <span className="block text-lg font-semibold">$0.00</span>
+                <span className="block text-lg font-semibold">{isWaitlist ? 'Pending' : '—'}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {isWaitlist
-                    ? `${formatCurrency(item.entry_fee_cents)} if offered`
-                    : 'Cannot be paid'}
+                  {isWaitlist ? 'Amount confirmed at submission' : 'Cannot be paid'}
                 </span>
               </span>
             ) : (

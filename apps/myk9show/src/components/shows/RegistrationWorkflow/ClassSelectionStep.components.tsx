@@ -154,7 +154,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             <Checkbox
               id={`single-${cls.classId}`}
               checked={cls.isSelected || cls.isAlreadyEntered}
-              disabled={cls.isAlreadyEntered}
+              disabled={cls.isAlreadyEntered || (cls.isFull && cls.allowsWaitlist === false)}
               aria-label={
                 cls.isAlreadyEntered ? `${element} (already entered)` : `Select ${element}`
               }
@@ -180,8 +180,13 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 In cart
               </Badge>
             )}
-            {cls.isJudgeDayFull && cls.allowsWaitlist !== false && !cls.isAlreadyEntered && (
+            {cls.isFull && cls.allowsWaitlist !== false && !cls.isAlreadyEntered && (
               <WaitlistBadge waitlistCount={cls.waitlistCount} />
+            )}
+            {cls.isFull && cls.allowsWaitlist === false && !cls.isAlreadyEntered && (
+              <Badge variant="destructive" className="h-5 text-xs">
+                Full
+              </Badge>
             )}
           </div>
           <span className="text-xs text-muted-foreground">${fee}</span>
@@ -204,7 +209,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             displayLabel={cls.displayLabel}
             isSelected={cls.isSelected}
             isAlreadyEntered={cls.isAlreadyEntered}
-            isJudgeDayFull={cls.isJudgeDayFull}
+            isFull={cls.isFull}
             waitlistCount={cls.waitlistCount}
             allowsWaitlist={cls.allowsWaitlist}
             onToggle={onToggle}
@@ -237,7 +242,7 @@ interface LevelChipProps {
   displayLabel: string;
   isSelected: boolean;
   isAlreadyEntered: boolean;
-  isJudgeDayFull?: boolean | undefined;
+  isFull?: boolean | undefined;
   waitlistCount?: number | undefined;
   allowsWaitlist?: boolean | undefined;
   onToggle: (classId: string) => void;
@@ -248,7 +253,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
   displayLabel,
   isSelected,
   isAlreadyEntered,
-  isJudgeDayFull,
+  isFull,
   waitlistCount,
   allowsWaitlist = true,
   onToggle,
@@ -267,7 +272,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <Checkbox
           id={`chip-${classId}`}
           checked={isChecked}
-          disabled={isAlreadyEntered}
+          disabled={isAlreadyEntered || (isFull && allowsWaitlist === false)}
           onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
           className="h-3.5 w-3.5"
         />
@@ -277,8 +282,13 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <span className="sr-only">{isAlreadyEntered ? 'Already entered:' : 'Select'}</span>{' '}
         <span className="text-xs">{displayLabel}</span>
       </label>
-      {isJudgeDayFull && allowsWaitlist && !isAlreadyEntered && (
+      {isFull && allowsWaitlist && !isAlreadyEntered && (
         <WaitlistBadge waitlistCount={waitlistCount} />
+      )}
+      {isFull && !allowsWaitlist && !isAlreadyEntered && (
+        <Badge variant="destructive" className="h-5 text-xs">
+          Full
+        </Badge>
       )}
       {isAlreadyEntered && (
         <Badge variant="secondary" className="h-5 gap-1 text-xs text-success">

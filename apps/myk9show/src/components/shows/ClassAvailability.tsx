@@ -80,6 +80,8 @@ function ClassAvailabilityCard({
   compact?: boolean | undefined;
 }) {
   const canEnter = !classData.isFull;
+  const canJoinWaitlist = classData.isFull && classData.allowsWaitlist;
+  const canInteract = canEnter || canJoinWaitlist;
 
   if (compact) {
     return (
@@ -123,12 +125,12 @@ function ClassAvailabilityCard({
           {onEnterClass && (
             <Button
               size="sm"
-              variant={canEnter ? 'default' : 'outline'}
+              variant={canInteract ? 'default' : 'outline'}
               onClick={() => onEnterClass(classData.classId)}
-              disabled={!canEnter}
+              disabled={!canInteract}
             >
               <Ticket className="h-4 w-4 mr-1" />
-              {canEnter ? 'Enter' : classData.allowsWaitlist ? 'Join Waitlist' : 'Full'}
+              {canEnter ? 'Enter' : canJoinWaitlist ? 'Join Waitlist' : 'Full'}
             </Button>
           )}
         </div>

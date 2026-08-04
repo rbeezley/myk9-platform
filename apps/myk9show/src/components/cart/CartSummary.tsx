@@ -249,16 +249,18 @@ export function CartSummary({
           </div>
           <Separator />
           <div className="flex justify-between text-lg font-semibold">
-            <span>{capacityUnknown ? 'Total (provisional)' : 'Total'}</span>
-            <span>{formatCurrency(total)}</span>
+            <span>{capacityUnknown || waitlistCount > 0 ? 'Total (pending)' : 'Total'}</span>
+            <span>{waitlistCount > 0 ? 'Pending' : formatCurrency(total)}</span>
           </div>
           {/* Until availability resolves, no line has been judged against real
               capacity — so this figure is not yet a claim about what is due. */}
           {capacityUnknown && (
             <p className="text-xs text-muted-foreground">
-              {capacityFailed
-                ? 'We could not check which classes are still open, so this amount is not final. Reload to try again.'
-                : 'Still checking which classes are still open. This amount will drop if a class turns out to be full.'}
+              {waitlistCount > 0
+                ? 'Final availability and payment status are confirmed at submission.'
+                : capacityFailed
+                  ? 'We could not check which classes are still open, so this amount is not final. Reload to try again.'
+                  : 'Still checking which classes are still open. This amount will drop if a class turns out to be full.'}
             </p>
           )}
         </div>

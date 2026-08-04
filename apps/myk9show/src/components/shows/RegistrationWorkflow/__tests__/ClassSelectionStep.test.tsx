@@ -38,26 +38,26 @@ describe('ElementCard — wait list badge', () => {
   });
 
   it('shows "Full: join wait list" badge when judge-day is full', () => {
-    const levels: LevelInfo[] = [{ ...baseLevel, isJudgeDayFull: true, waitlistCount: 0 }];
+    const levels: LevelInfo[] = [{ ...baseLevel, isFull: true, waitlistCount: 0 }];
     render(<ElementCard {...defaultProps} levels={levels} />);
     expect(screen.getByText('Full: join wait list')).toBeInTheDocument();
   });
 
   it('shows waiting count in badge when waitlistCount > 0', () => {
-    const levels: LevelInfo[] = [{ ...baseLevel, isJudgeDayFull: true, waitlistCount: 4 }];
+    const levels: LevelInfo[] = [{ ...baseLevel, isFull: true, waitlistCount: 4 }];
     render(<ElementCard {...defaultProps} levels={levels} />);
     expect(screen.getByText('Full: join wait list')).toBeInTheDocument();
     expect(screen.getByText('(4 waiting)')).toBeInTheDocument();
   });
 
   it('does not show waitlist count when waitlistCount is 0', () => {
-    const levels: LevelInfo[] = [{ ...baseLevel, isJudgeDayFull: true, waitlistCount: 0 }];
+    const levels: LevelInfo[] = [{ ...baseLevel, isFull: true, waitlistCount: 0 }];
     render(<ElementCard {...defaultProps} levels={levels} />);
     expect(screen.queryByText(/waiting/)).not.toBeInTheDocument();
   });
 
   it('does not show the badge for available classes', () => {
-    const levels: LevelInfo[] = [{ ...baseLevel, isJudgeDayFull: false, waitlistCount: 0 }];
+    const levels: LevelInfo[] = [{ ...baseLevel, isFull: false, waitlistCount: 0 }];
     render(<ElementCard {...defaultProps} levels={levels} />);
     expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
   });
@@ -70,7 +70,7 @@ describe('ElementCard — wait list badge', () => {
   it('does not show badge for already-entered full classes', () => {
     // If already entered, the badge is suppressed — no point in re-advertising waitlist
     const levels: LevelInfo[] = [
-      { ...baseLevel, isJudgeDayFull: true, isAlreadyEntered: true, waitlistCount: 2 },
+      { ...baseLevel, isFull: true, isAlreadyEntered: true, waitlistCount: 2 },
     ];
     render(<ElementCard {...defaultProps} levels={levels} />);
     expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('ElementCard — wait list badge', () => {
 
   it('still allows toggling (checkbox enabled) for a full-but-selectable class', async () => {
     const onToggle = vi.fn();
-    const levels: LevelInfo[] = [{ ...baseLevel, isJudgeDayFull: true, waitlistCount: 1 }];
+    const levels: LevelInfo[] = [{ ...baseLevel, isFull: true, waitlistCount: 1 }];
     const { user } = render(<ElementCard {...defaultProps} levels={levels} onToggle={onToggle} />);
     // The chip label text is the displayLabel
     await user.click(screen.getByText('Novice A'));
@@ -113,7 +113,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
   };
 
   it('shows badge on single-class element when judge-day is full', () => {
-    const levels: LevelInfo[] = [{ ...singleClassLevel, isJudgeDayFull: true, waitlistCount: 3 }];
+    const levels: LevelInfo[] = [{ ...singleClassLevel, isFull: true, waitlistCount: 3 }];
     render(
       <ElementCard
         element="Detective"
@@ -128,7 +128,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
   });
 
   it('does not show badge on single-class element when available', () => {
-    const levels: LevelInfo[] = [{ ...singleClassLevel, isJudgeDayFull: false }];
+    const levels: LevelInfo[] = [{ ...singleClassLevel, isFull: false }];
     render(
       <ElementCard
         element="Detective"

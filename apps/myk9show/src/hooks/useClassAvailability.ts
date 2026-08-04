@@ -145,6 +145,7 @@ export function useClassAvailability(
           .from('entries')
           .select('class_id')
           .in('class_id', classIds)
+          .is('deleted_at', null)
           .in('entry_status', [
             'submitted',
             'paid',
@@ -165,7 +166,19 @@ export function useClassAvailability(
           .eq('status', 'confirmed'),
       ]);
 
-      if (showResult.error) throw showResult.error;
+      const relatedQueryError =
+        showResult.error ?? entryResult.error ?? waitlistResult.error ?? judgeResult.error;
+      if (relatedQueryError) {
+        logger.error(
+          'Error fetching class availability counts',
+          'useClassAvailability',
+          { showId },
+          relatedQueryError as Error
+        );
+        throw new Error(
+          (relatedQueryError as { message?: string }).message ?? String(relatedQueryError)
+        );
+      }
 
       const show = showResult.data as unknown as ShowCapacityRow;
       const defaultCapacity = show?.default_judge_day_capacity ?? 125;

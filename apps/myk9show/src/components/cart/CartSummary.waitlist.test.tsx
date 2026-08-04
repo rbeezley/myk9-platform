@@ -175,7 +175,7 @@ describe('CartSummary — wait-list lines', () => {
 
     expect(screen.getByRole('button', { name: /checking class availability/i })).toBeDisabled();
     // The figure must not read as a settled amount due while it could still drop.
-    expect(screen.getByText('Total (provisional)')).toBeInTheDocument();
+    expect(screen.getByText('Total (pending)')).toBeInTheDocument();
     expect(screen.queryByText('Total')).not.toBeInTheDocument();
     expect(
       screen.getByText(/this amount will drop if a class turns out to be full/i)
@@ -193,7 +193,7 @@ describe('CartSummary — wait-list lines', () => {
     const button = screen.getByRole('button', { name: /class availability unavailable/i });
     expect(button).toBeDisabled();
     expect(screen.queryByText(/checking class availability/i)).not.toBeInTheDocument();
-    expect(screen.getByText('Total (provisional)')).toBeInTheDocument();
+    expect(screen.getByText('Total (pending)')).toBeInTheDocument();
     expect(
       screen.getByText(/we could not check which classes are still open/i)
     ).toBeInTheDocument();

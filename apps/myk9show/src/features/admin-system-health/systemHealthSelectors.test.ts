@@ -154,6 +154,29 @@ describe('deriveEffectiveStatus', () => {
     expect(eff.isEmpty).toBe(false);
   });
 
+  it('forces the aggregate stale when a carried check exceeds its own window', () => {
+    const stale = snapshot({
+      overallStatus: 'ok',
+      checks: [
+        {
+          key: 'ringside_conflicts',
+          label: 'Ringside conflicts',
+          status: 'ok',
+          detail: 'baseline recorded',
+          checkedAt: new Date(NOW - 11 * 60 * 1000).toISOString(),
+          staleAfterMs: 10 * 60 * 1000,
+          verification: 'proven' as const,
+        },
+      ],
+    });
+
+    expect(deriveEffectiveStatus(stale, NOW)).toEqual({
+      status: 'fail',
+      isStale: true,
+      isEmpty: false,
+    });
+  });
+
   it('forces fail + isEmpty when there is no snapshot', () => {
     const eff = deriveEffectiveStatus(null, NOW);
     expect(eff).toEqual({ status: 'fail', isStale: false, isEmpty: true });

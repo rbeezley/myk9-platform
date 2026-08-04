@@ -15,13 +15,15 @@ import type {
   SystemHealthSnapshot,
   SystemHealthSnapshotRow,
 } from './systemHealthTypes';
+import { healthCheckStaleAfterMs, LEGACY_HEALTH_CHECK_STALE_AFTER_MS } from './healthCheckCadence';
 
 // INTENT: a health run older than this is treated as a *failure*, not merely
 // stale data — a missing run can hide a broken cron, and the operator whose
 // intent is "problems surfaced automatically" must be told loudly. Do not relax
 // the "stale ⇒ fail, surfaced loudly" behavior without approval (docs/INTENT.md,
 // Site Admin — "The platform is healthy").
-export const STALE_AFTER_MS = 26 * 60 * 60 * 1000; // ~26 hours
+/** Compatibility export for callers that still reason about the old daily run. */
+export const STALE_AFTER_MS = LEGACY_HEALTH_CHECK_STALE_AFTER_MS;
 
 export interface HealthCheckRemediation {
   ownerLabel: string;
@@ -53,13 +55,18 @@ function normalizeString(value: unknown, fallback = ''): string {
 
 function parseCheck(raw: unknown, index: number): HealthCheck {
   const entry = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const key = normalizeString(entry.key, `check-${index}`);
+  // The cadence registry is authoritative; persisted metadata is descriptive
+  // and must not be able to extend a check's trust window.
+  const staleAfterMs = healthCheckStaleAfterMs(key);
   return {
-    key: normalizeString(entry.key, `check-${index}`),
-    label: normalizeString(entry.label, normalizeString(entry.key, `Check ${index + 1}`)),
+    key,
+    label: normalizeString(entry.label, key || `Check ${index + 1}`),
     status: normalizeCheckStatus(entry.status),
     detail: normalizeString(entry.detail),
     checkedAt: typeof entry.checked_at === 'string' ? entry.checked_at : null,
     verification: entry.verification === 'unprovable' ? 'unprovable' : 'proven',
+    staleAfterMs,
   };
 }
 
@@ -103,10 +110,14 @@ export function parseSnapshot(row: SystemHealthSnapshotRow): SystemHealthSnapsho
 }
 
 /** True when `createdAt` is older than the staleness threshold relative to `now`. */
-export function isStale(createdAt: string, now: number): boolean {
+export function isStale(
+  createdAt: string,
+  now: number,
+  staleAfterMs: number = LEGACY_HEALTH_CHECK_STALE_AFTER_MS
+): boolean {
   const created = Date.parse(createdAt);
   if (Number.isNaN(created)) return true; // an unparseable timestamp is not trustworthy
-  return now - created > STALE_AFTER_MS;
+  return now - created > staleAfterMs;
 }
 
 /**
@@ -120,7 +131,13 @@ export function deriveEffectiveStatus(
   if (!snapshot) {
     return { status: 'fail', isStale: false, isEmpty: true };
   }
-  const stale = isStale(snapshot.createdAt, now);
+  const stale =
+    isStale(snapshot.createdAt, now) ||
+    snapshot.checks.some(check =>
+      check.checkedAt === null
+        ? check.status === 'ok'
+        : isStale(check.checkedAt, now, check.staleAfterMs ?? healthCheckStaleAfterMs(check.key))
+    );
   return {
     status: stale ? 'fail' : snapshot.overallStatus,
     isStale: stale,

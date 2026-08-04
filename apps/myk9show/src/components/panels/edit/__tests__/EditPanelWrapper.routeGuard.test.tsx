@@ -6,6 +6,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { EditPanelWrapper } from '../EditPanelWrapper';
 import { useEditPanel } from '../useEditPanel';
+import {
+  UnsavedChangesRouteGuard,
+  UnsavedChangesRouteGuardProvider,
+} from '@/components/navigation/UnsavedChangesRouteGuard';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
 
@@ -58,6 +62,16 @@ function createTestRouter() {
   );
 }
 
+function MultipleDirtyFormsPage() {
+  return (
+    <UnsavedChangesRouteGuardProvider>
+      <UnsavedChangesRouteGuard isDirty subject="first form" />
+      <UnsavedChangesRouteGuard isDirty subject="second form" />
+      <Link to="/next">Leave forms</Link>
+    </UnsavedChangesRouteGuardProvider>
+  );
+}
+
 describe('EditPanelWrapper route guard', () => {
   it('keeps a dirty edit in place until the user chooses to discard it', async () => {
     const user = userEvent.setup();
@@ -92,5 +106,22 @@ describe('EditPanelWrapper route guard', () => {
 
     expect(await screen.findByRole('heading', { name: /discard changes/i })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /leave dog details/i })).not.toBeInTheDocument();
+  });
+
+  it('aggregates multiple dirty forms behind one route blocker', async () => {
+    const user = userEvent.setup();
+    const router = createMemoryRouter(
+      [
+        { path: '/edit', element: <MultipleDirtyFormsPage /> },
+        { path: '/next', element: <p>Next page</p> },
+      ],
+      { initialEntries: ['/edit'] }
+    );
+    render(<RouterProvider router={router} />);
+
+    await user.click(screen.getByRole('link', { name: /leave forms/i }));
+
+    expect(await screen.findByRole('heading', { name: /leave first form/i })).toBeInTheDocument();
+    expect(screen.queryByText('Next page')).not.toBeInTheDocument();
   });
 });

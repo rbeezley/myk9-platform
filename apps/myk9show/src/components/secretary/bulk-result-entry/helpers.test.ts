@@ -45,4 +45,13 @@ describe('hasBulkEntryChanges', () => {
       )
     ).toEqual({ ...savedValues, qualification: 'Not Qualified' });
   });
+
+  it('does not treat a persisted search time as a dirty edit', () => {
+    expect(
+      hasBulkEntryChanges(
+        { searchTime: '0:30.00', qualification: 'Qualified', faults: '0', notes: '' },
+        { searchTime: '0:30.00', qualification: 'Qualified', faults: '0', notes: '' }
+      )
+    ).toBe(false);
+  });
 });

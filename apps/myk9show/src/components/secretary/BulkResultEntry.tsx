@@ -223,7 +223,7 @@ export function BulkResultEntry({
     const invalidEntries = bulkData.filter(item => item.hasChanges && !item.isValid).length;
 
     // Only log summary when Submit button should change state
-    const canSubmit = validEntries > 0 && invalidEntries === 0;
+    const canSubmit = entriesWithData > 0 && invalidEntries === 0;
     if (entriesWithData > 0 || invalidEntries > 0) {
       logger.debug('Submit button state', 'scoring', {
         entriesWithData,
@@ -379,7 +379,7 @@ export function BulkResultEntry({
 
   // Submit bulk results
   const handleSubmit = useCallback(async () => {
-    const validEntries = bulkData.filter(item => item.isValid);
+    const validEntries = bulkData.filter(item => item.isValid && item.hasChanges);
 
     if (validEntries.length === 0) {
       setSubmitError('No valid entries to submit');

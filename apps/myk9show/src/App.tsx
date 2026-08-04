@@ -34,6 +34,7 @@ import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
 
 // Panel System
 import { PanelProvider } from './components/panels/PanelContext';
+import { UnsavedChangesRouteGuardProvider } from './components/navigation/UnsavedChangesRouteGuard';
 
 // Notification System
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
@@ -235,26 +236,28 @@ function App() {
               <NotificationMonitorInitializer />
               <AudioSettingsProvider>
                 <PanelProvider>
-                  <ExhibitorOnboardingChecker>
-                    <ErrorBoundary
-                      level="page"
-                      context="Application"
-                      fallback={({ error, resetErrorBoundary }) => (
-                        <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
-                      )}
-                    >
-                      <AppShellMobileNavProvider>
-                        <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-                          <PWAInstallBanner />
-                          <AppHeader />
-                          <NotificationCenter />
-                          <AppToaster />
-                          <ToastContainer />
-                          <Outlet />
-                        </div>
-                      </AppShellMobileNavProvider>
-                    </ErrorBoundary>
-                  </ExhibitorOnboardingChecker>
+                  <UnsavedChangesRouteGuardProvider>
+                    <ExhibitorOnboardingChecker>
+                      <ErrorBoundary
+                        level="page"
+                        context="Application"
+                        fallback={({ error, resetErrorBoundary }) => (
+                          <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
+                        )}
+                      >
+                        <AppShellMobileNavProvider>
+                          <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                            <PWAInstallBanner />
+                            <AppHeader />
+                            <NotificationCenter />
+                            <AppToaster />
+                            <ToastContainer />
+                            <Outlet />
+                          </div>
+                        </AppShellMobileNavProvider>
+                      </ErrorBoundary>
+                    </ExhibitorOnboardingChecker>
+                  </UnsavedChangesRouteGuardProvider>
                 </PanelProvider>
               </AudioSettingsProvider>
             </AuthProvider>

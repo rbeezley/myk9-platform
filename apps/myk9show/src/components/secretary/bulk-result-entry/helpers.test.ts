@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { hasBulkEntryChanges } from './helpers';
+import { hasBulkEntryChanges, resolveBulkEntryValues } from './helpers';
+
+const savedValues = {
+  searchTime: '0:30.00',
+  qualification: 'Qualified' as const,
+  faults: '0',
+  notes: '',
+};
 
 describe('hasBulkEntryChanges', () => {
   it('keeps a qualification-only edit dirty when saved qualification is absent', () => {
@@ -18,5 +25,24 @@ describe('hasBulkEntryChanges', () => {
         { searchTime: '30', qualification: 'Qualified', faults: '1', notes: 'Good' }
       )
     ).toBe(false);
+  });
+
+  it('preserves a dirty row while refreshed persisted values catch up', () => {
+    expect(
+      resolveBulkEntryValues(savedValues, {
+        ...savedValues,
+        qualification: 'Not Qualified',
+        hasChanges: true,
+      })
+    ).toEqual({ ...savedValues, qualification: 'Not Qualified', hasChanges: true });
+  });
+
+  it('adopts refreshed persisted values for a clean row', () => {
+    expect(
+      resolveBulkEntryValues(
+        { ...savedValues, qualification: 'Not Qualified' },
+        { ...savedValues, hasChanges: false }
+      )
+    ).toEqual({ ...savedValues, qualification: 'Not Qualified' });
   });
 });

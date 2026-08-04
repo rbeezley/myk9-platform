@@ -46,6 +46,11 @@ export const timeStringToMs = (timeStr: string): number => {
 
 type BulkEntryComparable = Pick<BulkEntryData, 'searchTime' | 'qualification' | 'faults' | 'notes'>;
 
+export const resolveBulkEntryValues = (
+  refreshed: BulkEntryComparable,
+  previous?: BulkEntryComparable & Pick<BulkEntryData, 'hasChanges'>
+): BulkEntryComparable => (previous?.hasChanges ? previous : refreshed);
+
 export const hasBulkEntryChanges = (
   current: BulkEntryComparable,
   saved: BulkEntryComparable

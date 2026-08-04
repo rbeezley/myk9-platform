@@ -40,6 +40,7 @@ import {
   convertTimeToInputFormat,
   timeStringToMs,
   hasBulkEntryChanges,
+  resolveBulkEntryValues,
   validateEntry,
 } from './bulk-result-entry/helpers';
 import { SummaryCards } from './bulk-result-entry/SummaryCards';
@@ -95,6 +96,16 @@ export function BulkResultEntry({
         qualification = 'Not Qualified';
       }
 
+      const faults = competitionData.faults?.toString() || existingData?.faults?.toString() || '0';
+      const notes = competitionData.judgeNotes || existingData?.judgeNotes || '';
+      const savedQualification =
+        competitionData.qualification ||
+        (competitionData.qualified !== undefined
+          ? competitionData.qualified === true
+            ? 'Qualified'
+            : 'Not Qualified'
+          : existingData?.qualification || 'Qualified');
+
       return {
         entryId: entry.id,
         armband: entry.displayInfo.armband,
@@ -102,11 +113,13 @@ export function BulkResultEntry({
         handlerName: entry.displayInfo.handlerName,
         searchTime,
         qualification,
-        faults: competitionData.faults?.toString() || existingData?.faults?.toString() || '0',
-        notes: competitionData.judgeNotes || existingData?.judgeNotes || '',
+        faults,
+        notes,
         isValid: !!(searchTime && qualification),
-        // hasChanges tracks user edits — the default 'Qualified' is a pre-fill, not a change
-        hasChanges: !!searchTime,
+        hasChanges: hasBulkEntryChanges(
+          { searchTime, qualification, faults, notes },
+          { searchTime, qualification: savedQualification as QualificationStatus, faults, notes }
+        ),
       };
     })
   );
@@ -133,26 +146,6 @@ export function BulkResultEntry({
         // Get previously entered data from current state
         const prevEntry = prevData.find(d => d.entryId === entry.id);
 
-        // Prioritize: 1) previous form data if it has unsaved changes, 2) competitionData (saved), 3) existing judging state
-        let searchTime = '';
-        // Debug only when needed - removed verbose logging
-
-        // After a successful save, always use the saved data from store
-        if (
-          competitionData.time &&
-          typeof competitionData.time === 'string' &&
-          competitionData.time.trim()
-        ) {
-          // Use saved data from store
-          searchTime = convertTimeToInputFormat(competitionData.time);
-        } else if (prevEntry?.searchTime && prevEntry.hasChanges) {
-          // Keep user's unsaved changes only if there's no saved data
-          searchTime = prevEntry.searchTime;
-        } else if (existingData?.searchTime) {
-          // Fall back to judging state data
-          searchTime = formatSearchTimeFromMs(existingData.searchTime);
-        }
-
         const savedQualification =
           competitionData.qualification ||
           (competitionData.qualified !== undefined
@@ -170,33 +163,22 @@ export function BulkResultEntry({
         const savedFaults =
           competitionData.faults?.toString() || existingData?.faults?.toString() || '0';
         const savedNotes = competitionData.judgeNotes || existingData?.judgeNotes || '';
+        const refreshedValues = {
+          searchTime: savedSearchTime,
+          qualification: savedQualificationBaseline as QualificationStatus,
+          faults: savedFaults,
+          notes: savedNotes,
+        };
+        const {
+          searchTime,
+          qualification,
+          faults: currentFaults,
+          notes: currentNotes,
+        } = resolveBulkEntryValues(refreshedValues, prevEntry);
 
-        // Resolve qualification — saved value wins; fall back to in-progress state;
-        // default to 'Qualified' when nothing is saved yet (most entries qualify)
-        let qualification: QualificationStatus | '' = 'Qualified';
-        if (savedQualification) {
-          qualification = savedQualification as QualificationStatus;
-        } else if (prevEntry?.qualification && prevEntry.hasChanges) {
-          qualification = prevEntry.qualification;
-        } else if (existingData?.qualification) {
-          qualification = existingData.qualification;
-        }
-
-        const currentFaults =
-          competitionData.faults?.toString() ||
-          prevEntry?.faults ||
-          existingData?.faults?.toString() ||
-          '0';
-        const currentNotes =
-          competitionData.judgeNotes || prevEntry?.notes || existingData?.judgeNotes || '';
         const hasChanges = hasBulkEntryChanges(
           { searchTime, qualification, faults: currentFaults, notes: currentNotes },
-          {
-            searchTime: savedSearchTime,
-            qualification: savedQualificationBaseline as QualificationStatus,
-            faults: savedFaults,
-            notes: savedNotes,
-          }
+          refreshedValues
         );
 
         // Enhanced logging for Submit button debugging - only log when there are changes

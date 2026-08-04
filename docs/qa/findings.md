@@ -160,6 +160,30 @@ Copy this block for each new finding.
 - **Proof required:** Satisfied by the 2026-08-02 headed pointer replay against a club with no connected Stripe account, including explicit proof that opening and cancelling did not start Stripe.
 - **Notes:** Closed only after the manual browser gate requested by MYK9-62 and PR #1547; component tests alone were not used as closure proof.
 
+### NCR-2026-08-02-01
+
+- **Status:** fixed (2026-08-04 — #1580)
+- **Classification:** Test/harness drift
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source:** codex
+- **Role/workflow:** admin roster drill-down E2E coverage and suite-map maintenance
+- **Surface:** `apps/myk9show/src/test/e2e/admin/userRosterDrilldown.spec.ts`
+- **Suite category:** test-harness
+- **Pattern:** coverage-registry-drift
+- **Detected by:** `pnpm qa:e2e-map:check`
+- **First seen:** 2026-08-02
+- **Last seen:** 2026-08-04
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `d950bed0287eef44dde1a0ba5cb851ddb2482ef0`
+- **Evidence:** #1580 registers the roster drill-down spec in `docs/qa/e2e-suite-map.md`; the current `pnpm qa:e2e-map:check` passes with `112` spec files covered. The check's successful run is the focused closure proof; no product code was changed.
+- **Expected behavior:** Every E2E spec in the repository is represented in the suite map, and `pnpm qa:e2e-map:check` passes.
+- **Observed behavior:** Resolved. The new spec is mapped and the check passes.
+- **User impact:** Admin roster browser coverage is now visible to scheduled ownership and review.
+- **Confidence:** high
+- **Related issues:** MYK9-162 — https://linear.app/myk9-platform/issue/MYK9-162/ncr-2026-08-02-01-register-roster-drilldown-e2e-coverage
+- **Proof required:** Satisfied by the current `pnpm qa:e2e-map:check` run (`112` spec files covered).
+
 ## Open Findings
 
 ### CUX-2026-08-02-01
@@ -185,31 +209,6 @@ Copy this block for each new finding.
 - **Proof required:** Replay both existing routes for the same seeded club at desktop and 390px and confirm the active total and member rows agree; add focused coverage proving profile statistics and the Members tab use the canonical active `club_members` projection without introducing a duplicate roster surface.
 - **Notes:** No matching QA or Linear item was found. Keep one concern on the existing profile and management pages; consolidate the projection rather than adding UI.
 - **Linear issue:** MYK9-164 — https://linear.app/myk9-platform/issue/MYK9-164/cux-2026-08-02-01-align-club-profile-roster-counts
-
-### NCR-2026-08-02-01
-
-- **Status:** new
-- **Classification:** Test/harness drift
-- **Severity:** medium
-- **Canonical priority:** P2
-- **Source:** codex
-- **Role/workflow:** admin roster drill-down E2E coverage and suite-map maintenance
-- **Surface:** `apps/myk9show/src/test/e2e/admin/userRosterDrilldown.spec.ts`
-- **Suite category:** test-harness
-- **Pattern:** coverage-registry-drift
-- **Detected by:** `pnpm qa:e2e-map:check`
-- **First seen:** 2026-08-02
-- **Last seen:** 2026-08-02
-- **Consecutive-run count:** 1
-- **Baseline SHA:** `d950bed0287eef44dde1a0ba5cb851ddb2482ef0`
-- **Evidence:** Commit `896ab3ed8c763ce255cbb931ec2aab5e2d9d2f05` added the 77-line browser spec, beginning at `userRosterDrilldown.spec.ts:1`, but `docs/qa/e2e-suite-map.md` has no entry for it. The map check reports that spec as missing, alongside older unrelated map drift.
-- **Expected behavior:** Every E2E spec in the repository is represented in the suite map, and `pnpm qa:e2e-map:check` passes.
-- **Observed behavior:** The current map check fails because the newly added roster drill-down spec is unregistered; the check cannot serve as a complete coverage inventory.
-- **User impact:** Admin roster browser coverage can be omitted from scheduled ownership and review without an explicit failure tied to the suite map.
-- **Confidence:** high
-- **Related issues:** No exact Linear duplicate found; MYK9-36 and MYK9-61 are broader E2E coverage references.
-- **Linear issue:** MYK9-162 — https://linear.app/myk9-platform/issue/MYK9-162/ncr-2026-08-02-01-register-roster-drilldown-e2e-coverage
-- **Proof required:** Add the exact spec path to `docs/qa/e2e-suite-map.md`, reconcile the pre-existing stale entries, and rerun `pnpm qa:e2e-map:check` successfully.
 
 ### SA-2026-08-01-01
 

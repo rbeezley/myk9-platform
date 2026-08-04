@@ -377,17 +377,16 @@ export const getDeletedUserById = async (id: string) => {
     // badge and judge sections. Fetch the roles alongside, in the shape
     // extractRoles expects.
     //
-    // NO is_active FILTER, deliberately. `soft_delete_person` (migration
-    // 20260710170000) sets is_active = false on every one of the person's roles,
-    // and `restore_person` does not put them back. Filtering on is_active would
-    // therefore return nothing for precisely the people this function exists to
-    // read — the record would render role-less and look perfectly correct.
+    // NO is_active FILTER, deliberately. soft_delete_person sets is_active =
+    // false on every active role it disables, and restore_person does not put
+    // them back. Filtering on is_active would therefore return nothing for
+    // precisely the people this function exists to read — the record would
+    // render role-less and look perfectly correct.
     //
-    // The cost is precision, and the data cannot buy it back: `user_roles` has
-    // no revoked_at and no updated_at, so a grant deactivated BY the removal is
-    // indistinguishable from one revoked a year earlier. Expiry is the one
-    // signal that does exist, and it is applied below. Anything better needs a
-    // column stamped at soft-delete time — a schema change, not a query fix.
+    // New removals stamp deactivated_at with the person's deleted_at. That
+    // distinguishes a grant disabled by this removal from an older inactive
+    // grant. Legacy rows without the stamp remain visible because their history
+    // cannot be reconstructed after the fact.
     //
     // Over-reporting beats under-reporting here: without this the roles are
     // missing for every removed person, always. With it they are occasionally
@@ -396,7 +395,7 @@ export const getDeletedUserById = async (id: string) => {
     // authority.
     const { data: roleRows, error: rolesError } = await supabase
       .from('user_roles')
-      .select('expires_at, role:roles!user_roles_role_id_fkey(name)')
+      .select('expires_at, is_active, deactivated_at, role:roles!user_roles_role_id_fkey(name)')
       .eq('user_id', id);
 
     // A failed role read must not pass as a complete record with no roles —
@@ -406,12 +405,22 @@ export const getDeletedUserById = async (id: string) => {
     }
 
     // A grant that expired BEFORE they were removed was demonstrably not held at
-    // removal, so drop it. This is the only over-reporting the data lets us fix.
+    // removal, so drop it. For new removals, an inactive grant must also carry
+    // this removal's timestamp. Legacy inactive rows without a stamp are kept
+    // because the old schema cannot distinguish their history.
     const removedAt = (person as { deleted_at?: string | null }).deleted_at;
     const heldAtRemoval = (roleRows ?? []).filter(row => {
       const expiresAt = (row as { expires_at?: string | null }).expires_at;
-      if (!expiresAt || !removedAt) return true;
-      return new Date(expiresAt) > new Date(removedAt);
+      if (expiresAt && removedAt && new Date(expiresAt) <= new Date(removedAt)) {
+        return false;
+      }
+
+      const isActive = (row as { is_active?: boolean }).is_active;
+      if (isActive === true || !removedAt) return true;
+
+      const deactivatedAt = (row as { deactivated_at?: string | null }).deactivated_at;
+      if (!deactivatedAt) return true;
+      return new Date(deactivatedAt).getTime() === new Date(removedAt).getTime();
     });
 
     return { data: { ...person, user_roles: heldAtRemoval }, error: null };

@@ -1,6 +1,6 @@
 -- MYK9-149 / SA-2026-07-29-08 behavioral contract.
--- A soft-deleted entry in an otherwise public show must be absent to anon,
--- while a live entry in that same show remains visible to the TV board.
+-- A soft-deleted entry in an otherwise public show must be absent from every
+-- public entry surface, while a live entry in that same show remains visible.
 -- All fixtures roll back.
 
 BEGIN;
@@ -97,18 +97,58 @@ UPDATE public.entries
 SET deleted_at = now()
 WHERE id = '00000000-0000-0000-0000-000000149008';
 
+DO $$
+DECLARE
+  policy_qual text;
+BEGIN
+  SELECT policy.qual
+  INTO policy_qual
+  FROM pg_policies AS policy
+  WHERE policy.schemaname = 'public'
+    AND policy.tablename = 'entries'
+    AND policy.policyname = 'entries_anon_select_for_tv';
+
+  IF policy_qual IS NULL OR NOT EXISTS (
+    SELECT 1
+    FROM pg_policies AS policy
+    WHERE policy.schemaname = 'public'
+      AND policy.tablename = 'entries'
+      AND policy.policyname = 'entries_anon_select_for_tv'
+      AND policy.cmd = 'SELECT'
+      AND 'anon' = ANY(policy.roles)
+      AND regexp_count(lower(policy.qual), 'deleted_at') >= 2
+      AND lower(policy.qual) LIKE '%status%'
+  ) THEN
+    RAISE EXCEPTION
+      'FAIL applied anon TV policy does not include both entry and show soft-delete predicates: %',
+      policy_qual;
+  END IF;
+END;
+$$;
+
 SET LOCAL ROLE anon;
 
 DO $$
 DECLARE
+  live_entry_id uuid := '00000000-0000-0000-0000-000000149007';
+  deleted_entry_id uuid := '00000000-0000-0000-0000-000000149008';
+  v_show_id uuid := '00000000-0000-0000-0000-000000149002';
+  v_class_id uuid := '00000000-0000-0000-0000-000000149004';
   visible_ids uuid[];
+  tv_ids uuid[];
+  public_view_ids uuid[];
+  tv_entry_count bigint;
+  protected_value text;
+  protected_column text;
 BEGIN
+  -- Base REST table read: both a cold lookup by id and a show-scoped query
+  -- must hide the tombstone while retaining the live row.
   SELECT array_agg(e.id ORDER BY e.id)
   INTO visible_ids
   FROM public.entries AS e
-  WHERE e.show_id = '00000000-0000-0000-0000-000000149002';
+  WHERE e.show_id = v_show_id;
 
-  IF visible_ids IS DISTINCT FROM ARRAY['00000000-0000-0000-0000-000000149007'::uuid] THEN
+  IF visible_ids IS DISTINCT FROM ARRAY[live_entry_id] THEN
     RAISE EXCEPTION
       'FAIL anon TV read returned %, expected only the live entry', visible_ids;
   END IF;
@@ -116,12 +156,70 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM public.entries AS e
-    WHERE e.id = '00000000-0000-0000-0000-000000149008'
+    WHERE e.id = deleted_entry_id
   ) THEN
-    RAISE EXCEPTION 'FAIL anon TV read returned a soft-deleted entry';
+    RAISE EXCEPTION 'FAIL cold anon lookup returned a soft-deleted entry';
   END IF;
 
-  RAISE NOTICE 'PASS anon TV entry reads exclude soft-deleted rows and retain live rows';
+  -- The TV running order and canonical total are SECURITY DEFINER RPCs, so
+  -- assert the public runtime path independently of the base-table policy.
+  SELECT array_agg(board.id ORDER BY board.id)
+  INTO tv_ids
+  FROM public.tv_board_entries(v_show_id, ARRAY[v_class_id]::uuid[]) AS board;
+
+  IF tv_ids IS DISTINCT FROM ARRAY[live_entry_id] THEN
+    RAISE EXCEPTION
+      'FAIL TV board returned %, expected only the live entry', tv_ids;
+  END IF;
+
+  SELECT counts.entry_count
+  INTO tv_entry_count
+  FROM public.tv_class_entry_counts(v_show_id, ARRAY[v_class_id]::uuid[]) AS counts
+  WHERE counts.class_id = v_class_id;
+
+  IF tv_entry_count IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION
+      'FAIL TV count returned %, expected one live entry', tv_entry_count;
+  END IF;
+
+  -- Public results are served through the release-gated view rather than the
+  -- base table. It must apply its own row predicate because owner-run views do
+  -- not inherit the caller's RLS policy.
+  SELECT array_agg(results.id ORDER BY results.id)
+  INTO public_view_ids
+  FROM public.view_public_entry_results AS results
+  WHERE results.show_id = v_show_id;
+
+  IF public_view_ids IS DISTINCT FROM ARRAY[live_entry_id] THEN
+    RAISE EXCEPTION
+      'FAIL public results view returned %, expected only the live entry', public_view_ids;
+  END IF;
+
+  -- Keep the column-level anon boundary intact while exercising the same
+  -- public role as the REST, TV, and public-results checks above.
+  FOREACH protected_column IN ARRAY ARRAY[
+    'payment_status',
+    'entry_fee',
+    'total_score',
+    'final_placement',
+    'judge_notes'
+  ] LOOP
+    protected_value := NULL;
+    BEGIN
+      EXECUTE format(
+        'SELECT %I::text FROM public.entries WHERE id = $1',
+        protected_column
+      ) INTO protected_value USING live_entry_id;
+      RAISE EXCEPTION
+        'FAIL anon can read protected entries column %', protected_column;
+    EXCEPTION
+      WHEN insufficient_privilege THEN
+        NULL;
+    END;
+  END LOOP;
+
+  RAISE NOTICE
+    'PASS anon REST, TV, public-view, and protected-column reads exclude soft-deleted entries';
 END;
 $$;
 

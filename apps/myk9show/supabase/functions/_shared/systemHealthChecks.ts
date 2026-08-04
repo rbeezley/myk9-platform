@@ -26,6 +26,7 @@ import {
   shouldRunHealthCheck,
   type HealthCheckRunMode,
 } from '../../../src/features/admin-system-health/healthCheckCadence.ts';
+import { publicSchemaCreateAclCheck } from './publicSchemaAclChecks.ts';
 
 export type HealthStatus = 'ok' | 'warn' | 'fail';
 
@@ -97,6 +98,7 @@ export interface RawProbeFacts {
   payout_ledger?: unknown;
   anon_grants?: unknown;
   applied_acl_grants?: unknown;
+  public_schema_create_acl?: unknown;
 }
 
 export interface BuildSnapshotOptions {
@@ -657,6 +659,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     }),
     anonGrantsCheck(f.anon_grants, probedAt),
     appliedAclCheck(f.applied_acl_grants, probedAt),
+    publicSchemaCreateAclCheck(f.public_schema_create_acl, probedAt),
   ];
 
   const previousByKey = new Map((opts.previousChecks ?? []).map(check => [check.key, check]));
@@ -687,5 +690,26 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     overall_status: worstOf(checks.map(c => c.status)),
     checks,
     run_duration_ms: runDurationMs,
+  };
+}
+
+/** Preserve independent ACL visibility when the primary facts probe fails. */
+export function buildProbeFailureSnapshot(
+  probeError: string | null,
+  publicSchemaAclFacts: unknown,
+  opts: { now: number; runDurationMs: number | null }
+): HealthSnapshotInsert {
+  const snapshot = buildSnapshot(null, opts);
+  const checkedAt = snapshot.checks[0]?.checked_at ?? new Date(opts.now).toISOString();
+  snapshot.checks[0].detail = probeError
+    ? `system_health_probe failed: ${probeError}`
+    : 'system_health_probe returned no facts';
+
+  const checks = [...snapshot.checks, publicSchemaCreateAclCheck(publicSchemaAclFacts, checkedAt)];
+
+  return {
+    ...snapshot,
+    checks,
+    overall_status: worstOf(checks.map(check => check.status)),
   };
 }

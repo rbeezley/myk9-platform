@@ -23,6 +23,7 @@ import {
 } from '../_shared/sentryCronCheckIn.ts';
 import {
   buildSnapshot,
+  buildProbeFailureSnapshot,
   DEFAULT_SOURCE,
   extractConflictCounter,
   type SnapshotCheck,
@@ -131,9 +132,17 @@ async function runHealthSnapshot(
 ): Promise<Response> {
   const startedAt = Date.now();
   const previous = await fetchPreviousConflictBaseline();
-  const { data: facts, error: probeError } = await supabase.rpc('system_health_probe', {
-    p_include_expensive: mode === 'full',
-  });
+  const [
+    { data: facts, error: probeError },
+    { data: publicSchemaAcl, error: publicSchemaAclError },
+  ] = await Promise.all([
+    supabase.rpc('system_health_probe', {
+      p_include_expensive: mode === 'full',
+    }),
+    supabase.rpc('public_schema_create_acl_probe'),
+  ]);
+
+  const source = runToken ? `${DEFAULT_SOURCE}:manual:${runToken}` : DEFAULT_SOURCE;
 
   if (probeError || facts == null) {
     // Probe failed — still write a visible fail snapshot rather than nothing.
@@ -149,6 +158,20 @@ async function runHealthSnapshot(
       snapshot.checks[0].detail = `system_health_probe failed: ${probeError.message}`;
     }
     snapshot.checks.push(...(previous.checks ?? []).filter(check => check.key !== 'probe'));
+    const snapshot = buildProbeFailureSnapshot(
+      probeError?.message ?? null,
+      publicSchemaAclError ? { error: publicSchemaAclError.message } : publicSchemaAcl,
+      {
+        now: Date.now(),
+        runDurationMs: Date.now() - startedAt,
+      }
+    );
+    snapshot.source = source;
+    snapshot.checks.push(
+      ...(previous.checks ?? []).filter(
+        check => check.key !== 'probe' && check.key !== 'public_schema_create_acl'
+      )
+    );
     await insertSnapshot(snapshot);
     console.error('Health probe failed:', probeError?.message ?? 'no facts returned');
     return Response.json(
@@ -157,15 +180,23 @@ async function runHealthSnapshot(
     );
   }
 
-  const snapshot = buildSnapshot(facts, {
-    now: Date.now(),
-    source: runToken ? `${DEFAULT_SOURCE}:manual:${runToken}` : DEFAULT_SOURCE,
-    runDurationMs: Date.now() - startedAt,
-    previousConflictCounter: previous.counter,
-    previousSnapshotAt: previous.at,
-    previousChecks: previous.checks,
-    mode,
-  });
+  const snapshot = buildSnapshot(
+    {
+      ...(facts as Record<string, unknown>),
+      public_schema_create_acl: publicSchemaAclError
+        ? { error: publicSchemaAclError.message }
+        : publicSchemaAcl,
+    },
+    {
+      now: Date.now(),
+      source,
+      runDurationMs: Date.now() - startedAt,
+      previousConflictCounter: previous.counter,
+      previousSnapshotAt: previous.at,
+      previousChecks: previous.checks,
+      mode,
+    }
+  );
   await insertSnapshot(snapshot);
 
   console.log(

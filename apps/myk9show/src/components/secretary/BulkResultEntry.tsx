@@ -32,19 +32,24 @@ import '@/styles/myk9-show-details.css';
 // Extracted modules
 import type {
   BulkEntryData,
+  BulkEntryEditableField,
   BulkResultEntryProps,
   LocalCompetitionData,
+  BulkEntryValues,
 } from './bulk-result-entry/types';
 import {
   formatSearchTimeFromMs,
   convertTimeToInputFormat,
   timeStringToMs,
-  validateEntry,
+  hasBulkEntryChanges,
+  resolveBulkEntryValues,
+  validateBulkEntry,
 } from './bulk-result-entry/helpers';
 import { SummaryCards } from './bulk-result-entry/SummaryCards';
 import { HeaderActions } from './bulk-result-entry/HeaderActions';
 import { EntryTableRow } from './bulk-result-entry/EntryTableRow';
 import { SubmitActions } from './bulk-result-entry/SubmitActions';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 
 // Re-export types for backward compatibility
 export type { BulkResultEntryProps, BulkEntryData } from './bulk-result-entry/types';
@@ -93,19 +98,37 @@ export function BulkResultEntry({
         qualification = 'Not Qualified';
       }
 
-      return {
+      const faults = competitionData.faults?.toString() || existingData?.faults?.toString() || '0';
+      const notes = competitionData.judgeNotes || existingData?.judgeNotes || '';
+      const savedQualification =
+        competitionData.qualification ||
+        (competitionData.qualified !== undefined
+          ? competitionData.qualified === true
+            ? 'Qualified'
+            : 'Not Qualified'
+          : existingData?.qualification || 'Qualified');
+
+      const savedValues: BulkEntryValues = {
+        searchTime,
+        qualification: savedQualification as QualificationStatus,
+        faults,
+        notes,
+      };
+      const initialData: BulkEntryData = {
         entryId: entry.id,
         armband: entry.displayInfo.armband,
         dogName: entry.displayInfo.dogName,
         handlerName: entry.displayInfo.handlerName,
         searchTime,
         qualification,
-        faults: competitionData.faults?.toString() || existingData?.faults?.toString() || '0',
-        notes: competitionData.judgeNotes || existingData?.judgeNotes || '',
-        isValid: !!(searchTime && qualification),
-        // hasChanges tracks user edits — the default 'Qualified' is a pre-fill, not a change
-        hasChanges: !!searchTime,
+        faults,
+        notes,
+        isValid: false,
+        hasChanges: hasBulkEntryChanges({ searchTime, qualification, faults, notes }, savedValues),
+        savedValues,
       };
+      initialData.isValid = validateBulkEntry(initialData).isValid;
+      return initialData;
     })
   );
 
@@ -121,6 +144,7 @@ export function BulkResultEntry({
     logger.debug('BulkResultEntry useEffect triggered - entries changed', 'scoring', {
       entriesCount: entries.length,
     });
+    const refreshedValidationErrors = new Map<string, string>();
     setBulkData(prevData => {
       const newData = entries.map(entry => {
         // Extract existing data from entry if available
@@ -131,26 +155,6 @@ export function BulkResultEntry({
         // Get previously entered data from current state
         const prevEntry = prevData.find(d => d.entryId === entry.id);
 
-        // Prioritize: 1) previous form data if it has unsaved changes, 2) competitionData (saved), 3) existing judging state
-        let searchTime = '';
-        // Debug only when needed - removed verbose logging
-
-        // After a successful save, always use the saved data from store
-        if (
-          competitionData.time &&
-          typeof competitionData.time === 'string' &&
-          competitionData.time.trim()
-        ) {
-          // Use saved data from store
-          searchTime = convertTimeToInputFormat(competitionData.time);
-        } else if (prevEntry?.searchTime && prevEntry.hasChanges) {
-          // Keep user's unsaved changes only if there's no saved data
-          searchTime = prevEntry.searchTime;
-        } else if (existingData?.searchTime) {
-          // Fall back to judging state data
-          searchTime = formatSearchTimeFromMs(existingData.searchTime);
-        }
-
         const savedQualification =
           competitionData.qualification ||
           (competitionData.qualified !== undefined
@@ -158,69 +162,62 @@ export function BulkResultEntry({
               ? 'Qualified'
               : 'Not Qualified'
             : '');
-
-        // Resolve qualification — saved value wins; fall back to in-progress state;
-        // default to 'Qualified' when nothing is saved yet (most entries qualify)
-        let qualification: QualificationStatus | '' = 'Qualified';
-        if (savedQualification) {
-          qualification = savedQualification as QualificationStatus;
-        } else if (prevEntry?.qualification && prevEntry.hasChanges) {
-          qualification = prevEntry.qualification;
-        } else if (existingData?.qualification) {
-          qualification = existingData.qualification;
-        }
-
-        // Calculate if this entry has unsaved changes
-        // Normalize time formats for accurate comparison
-        const savedTimeFormatted = competitionData.time
+        const savedSearchTime = competitionData.time
           ? convertTimeToInputFormat(competitionData.time)
-          : '';
-        const normalizedSearchTime = searchTime ? convertTimeToInputFormat(searchTime) : '';
-        const hasTimeChanges = normalizedSearchTime && normalizedSearchTime !== savedTimeFormatted;
-        const hasQualificationChanges =
-          !!savedQualification && qualification !== savedQualification;
-        const hasFaultChanges =
-          (prevEntry?.faults || '0') !== (competitionData.faults?.toString() || '0');
-        const hasNotesChanges = (prevEntry?.notes || '') !== (competitionData.judgeNotes || '');
+          : existingData?.searchTime
+            ? formatSearchTimeFromMs(existingData.searchTime)
+            : '';
+        const savedQualificationBaseline =
+          savedQualification || existingData?.qualification || 'Qualified';
+        const savedFaults =
+          competitionData.faults?.toString() || existingData?.faults?.toString() || '0';
+        const savedNotes = competitionData.judgeNotes || existingData?.judgeNotes || '';
+        const refreshedValues = {
+          searchTime: savedSearchTime,
+          qualification: savedQualificationBaseline as QualificationStatus,
+          faults: savedFaults,
+          notes: savedNotes,
+        };
+        const {
+          searchTime,
+          qualification,
+          faults: currentFaults,
+          notes: currentNotes,
+        } = resolveBulkEntryValues(refreshedValues, prevEntry);
+
+        const hasChanges = hasBulkEntryChanges(
+          { searchTime, qualification, faults: currentFaults, notes: currentNotes },
+          refreshedValues
+        );
 
         // Enhanced logging for Submit button debugging - only log when there are changes
-        if (hasTimeChanges || hasQualificationChanges || hasFaultChanges || hasNotesChanges) {
+        if (hasChanges) {
           logger.debug('Entry change analysis', 'scoring', {
             entryId: entry.id,
-            hasTimeChanges: hasTimeChanges
-              ? `${normalizedSearchTime} vs ${savedTimeFormatted}`
-              : false,
-            hasQualificationChanges: hasQualificationChanges
-              ? `${qualification} vs ${savedQualification}`
-              : false,
-            hasFaultChanges: hasFaultChanges
-              ? `${prevEntry?.faults || '0'} vs ${competitionData.faults?.toString() || '0'}`
-              : false,
-            hasNotesChanges: hasNotesChanges
-              ? `"${prevEntry?.notes || ''}" vs "${competitionData.judgeNotes || ''}"`
-              : false,
+            hasChanges,
           });
         }
 
         // Removed excessive debugging - Submit button issue resolved
 
-        const bulkEntry = {
+        const bulkEntry: BulkEntryData = {
           entryId: entry.id,
           armband: entry.displayInfo.armband,
           dogName: entry.displayInfo.dogName,
           handlerName: entry.displayInfo.handlerName,
           searchTime,
           qualification,
-          faults:
-            competitionData.faults?.toString() ||
-            prevEntry?.faults ||
-            existingData?.faults?.toString() ||
-            '0',
-          notes: competitionData.judgeNotes || prevEntry?.notes || existingData?.judgeNotes || '',
-          isValid: !!(searchTime && qualification),
-          hasChanges:
-            hasTimeChanges || hasQualificationChanges || hasFaultChanges || hasNotesChanges,
+          faults: currentFaults,
+          notes: currentNotes,
+          isValid: false,
+          hasChanges,
+          savedValues: refreshedValues,
         };
+        const validation = validateBulkEntry(bulkEntry);
+        bulkEntry.isValid = validation.isValid;
+        if (validation.error) {
+          refreshedValidationErrors.set(entry.id, validation.error);
+        }
 
         // Removed verbose bulk entry logging
         return bulkEntry;
@@ -228,22 +225,16 @@ export function BulkResultEntry({
 
       return newData;
     });
+    setValidationErrors(current => {
+      const next = new Map(current);
+      entries.forEach(entry => next.delete(entry.id));
+      refreshedValidationErrors.forEach((error, entryId) => next.set(entryId, error));
+      return next;
+    });
   }, [entries]);
 
   // Unsaved-changes guard
   const hasUnsavedChanges = useMemo(() => bulkData.some(item => item.hasChanges), [bulkData]);
-
-  // Block browser tab close / refresh. (No in-app guard: useBlocker requires
-  // a data router; this app uses the legacy <BrowserRouter>.)
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [hasUnsavedChanges]);
 
   // Calculate summary statistics
   const summary = React.useMemo(() => {
@@ -253,7 +244,7 @@ export function BulkResultEntry({
     const invalidEntries = bulkData.filter(item => item.hasChanges && !item.isValid).length;
 
     // Only log summary when Submit button should change state
-    const canSubmit = validEntries > 0 && invalidEntries === 0;
+    const canSubmit = entriesWithData > 0 && invalidEntries === 0;
     if (entriesWithData > 0 || invalidEntries > 0) {
       logger.debug('Submit button state', 'scoring', {
         entriesWithData,
@@ -274,47 +265,48 @@ export function BulkResultEntry({
   }, [bulkData]);
 
   // Update bulk data and validate
-  const updateBulkData = useCallback((index: number, field: keyof BulkEntryData, value: string) => {
-    setBulkData(prev => {
-      const newData = [...prev];
-      const item = { ...newData[index] };
+  const updateBulkData = useCallback(
+    (index: number, field: BulkEntryEditableField, value: string) => {
+      setBulkData(prev => {
+        const newData = [...prev];
+        const item = { ...newData[index] };
 
-      (item as Record<string, string | boolean>)[field] = value;
-      item.hasChanges = !!(
-        item.searchTime ||
-        item.qualification ||
-        item.faults !== '0' ||
-        item.notes
-      );
+        if (field === 'searchTime') item.searchTime = value;
+        if (field === 'qualification') item.qualification = value as QualificationStatus;
+        if (field === 'faults') item.faults = value;
+        if (field === 'notes') item.notes = value;
+        item.hasChanges = hasBulkEntryChanges(item, item.savedValues);
 
-      const validation = validateEntry(item);
-      item.isValid = validation.isValid;
+        const validation = validateBulkEntry(item);
+        item.isValid = validation.isValid;
 
-      newData[index] = item;
+        newData[index] = item;
 
-      // Enhanced logging for field updates
-      logger.debug('Field update on entry', 'scoring', {
-        entryId: item.entryId,
-        field,
-        value,
-        hasChanges: item.hasChanges,
-        isValid: item.isValid,
+        // Enhanced logging for field updates
+        logger.debug('Field update on entry', 'scoring', {
+          entryId: item.entryId,
+          field,
+          value,
+          hasChanges: item.hasChanges,
+          isValid: item.isValid,
+        });
+
+        // Update validation errors
+        setValidationErrors(prev => {
+          const newErrors = new Map(prev);
+          if (validation.error) {
+            newErrors.set(item.entryId, validation.error);
+          } else {
+            newErrors.delete(item.entryId);
+          }
+          return newErrors;
+        });
+
+        return newData;
       });
-
-      // Update validation errors
-      setValidationErrors(prev => {
-        const newErrors = new Map(prev);
-        if (validation.error) {
-          newErrors.set(item.entryId, validation.error);
-        } else {
-          newErrors.delete(item.entryId);
-        }
-        return newErrors;
-      });
-
-      return newData;
-    });
-  }, []);
+    },
+    []
+  );
 
   // Handle CSV import
   const handleCSVImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -362,8 +354,8 @@ export function BulkResultEntry({
             const imported = importedData.get(item.armband);
             if (imported) {
               const updated = { ...item, ...imported };
-              updated.hasChanges = true;
-              const validation = validateEntry(updated);
+              updated.hasChanges = hasBulkEntryChanges(updated, item.savedValues);
+              const validation = validateBulkEntry(updated);
               updated.isValid = validation.isValid;
               return updated;
             }
@@ -409,7 +401,7 @@ export function BulkResultEntry({
 
   // Submit bulk results
   const handleSubmit = useCallback(async () => {
-    const validEntries = bulkData.filter(item => item.isValid);
+    const validEntries = bulkData.filter(item => item.isValid && item.hasChanges);
 
     if (validEntries.length === 0) {
       setSubmitError('No valid entries to submit');
@@ -497,6 +489,8 @@ export function BulkResultEntry({
 
   return (
     <div className={cn('space-y-6', className)}>
+      <UnsavedChangesRouteGuard isDirty={hasUnsavedChanges} subject="bulk result entries" />
+
       {/* Header with actions */}
       <HeaderActions
         onDownloadTemplate={downloadTemplate}

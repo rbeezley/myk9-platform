@@ -2,19 +2,17 @@ import './services/observability/sentry';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
-import App from './App.tsx';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './router';
 import './index.css';
 // Ringside page styles — required by the @myk9/ringside EntryList mount at
 // /at-show (Phase 1a). Imported unconditionally; the route itself is flag-gated.
 import '@myk9/ringside/styles';
 import { ThemeProvider } from './context/ThemeContext';
-import { BrowserRouter } from 'react-router-dom';
 import { toast } from 'sonner';
 import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
 import { initializeSettings } from './store/settingsStore';
-import { ToastContainer } from '@/components/notifications/ToastContainer';
-import { AppToaster } from '@/components/layout/AppToaster';
 import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
 
 // Initialize settings (applies accent color, theme, etc. from localStorage)
@@ -67,14 +65,10 @@ createRoot(document.getElementById('root')!, {
   },
 }).render(
   <StrictMode>
-    <BrowserRouter>
-      <QueryProvider>
-        <ThemeProvider>
-          <App />
-          <AppToaster />
-          <ToastContainer />
-        </ThemeProvider>
-      </QueryProvider>
-    </BrowserRouter>
+    <QueryProvider>
+      <ThemeProvider>
+        <RouterProvider router={router} />
+      </ThemeProvider>
+    </QueryProvider>
   </StrictMode>
 );

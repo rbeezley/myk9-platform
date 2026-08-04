@@ -29,9 +29,20 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                     key={cls.classId}
                     className="flex items-center justify-between gap-2 text-sm text-muted-foreground"
                   >
-                    <span className="min-w-0 break-words">{cls.className}</span>
+                    <span className="min-w-0 break-words">
+                      {cls.className}
+                      {cls.isWaitlist && (
+                        <span className="ml-2 text-xs">
+                          Full — wait list request, no payment due
+                        </span>
+                      )}
+                    </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <span>${cls.fee.toFixed(2)}</span>
+                      <span>
+                        {cls.isWaitlist
+                          ? `$0.00 (${`$${cls.fee.toFixed(2)}`} if offered)`
+                          : `$${cls.fee.toFixed(2)}`}
+                      </span>
                       {onRemoveLine && (
                         <Button
                           type="button"
@@ -60,6 +71,15 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
               <span>Subtotal</span>
               <span>${feeCalculation.subtotal.toFixed(2)}</span>
             </div>
+
+            {feeCalculation.waitlistCount > 0 && (
+              <div className="flex justify-between gap-2 text-sm text-muted-foreground">
+                <span className="break-words">
+                  Wait list requests ({feeCalculation.waitlistCount})
+                </span>
+                <span className="shrink-0">No payment due</span>
+              </div>
+            )}
 
             {feeCalculation.discounts.map((discount, index) => (
               <div key={index} className="flex justify-between gap-2 text-sm text-success ">

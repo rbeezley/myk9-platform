@@ -33,6 +33,12 @@ export interface FeeBreakdownClass {
   classId: string;
   className: string;
   fee: number;
+  /**
+   * MYK9-122: the class is full, so submission will record a wait-list request
+   * rather than an entry. `fee` is what it WOULD cost if a spot is offered — it
+   * is excluded from the subtotal and never charged now.
+   */
+  isWaitlist?: boolean;
 }
 
 /** A single dog's fee breakdown. */
@@ -57,6 +63,10 @@ export interface FeeCalculationResult {
   taxes: number;
   total: number;
   breakdown: FeeBreakdownItem[];
+  /** How many selected classes are full and will become wait-list requests. */
+  waitlistCount: number;
+  /** What those wait-list requests would cost if offered. Never part of `total`. */
+  waitlistTotal: number;
 }
 
 /** Props for the RegistrationSummary sub-component. */

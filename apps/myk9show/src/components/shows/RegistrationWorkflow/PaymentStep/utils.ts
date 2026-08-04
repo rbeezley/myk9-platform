@@ -88,15 +88,24 @@ const MULTI_DOG_DISCOUNT_RATE = 0.1;
  * Calculate the total fees, discounts, and per-dog breakdown for a registration.
  * When show info is provided, uses show-level fee tiers (pre-entry vs day-of-show)
  * based on current date. Falls back to class-level entryFee otherwise.
+ *
+ * MYK9-122: `waitlistClassIds` names the selected classes that are full. Those
+ * become wait-list requests on submission (`submit_show_entries` returns
+ * `outcome: 'waitlisted'` for them on every path, self-service and organizer
+ * alike), so their fee is disclosed but excluded from the amount due. Omitting
+ * the argument keeps the previous behaviour of totalling every selection.
  */
 export function calculateTotalFees(
   selectedDogs: string[],
   classSelections: ClassSelectionData[],
   dogs: DogLike[],
   classes: ClassLike[],
-  show?: ShowFeeInfo
+  show?: ShowFeeInfo,
+  waitlistClassIds?: ReadonlySet<string>
 ): FeeCalculationResult {
   let subtotal = 0;
+  let waitlistCount = 0;
+  let waitlistTotal = 0;
   const breakdown: FeeBreakdownItem[] = [];
 
   selectedDogs.forEach(dogId => {
@@ -106,15 +115,24 @@ export function calculateTotalFees(
     if (dog && dogSelections) {
       const dogClasses = dogSelections.selectedClasses.map(sc => {
         const classData = classes.find(c => c.id === sc.classId);
+        const isWaitlist = waitlistClassIds?.has(sc.classId) ?? false;
         return {
           classId: sc.classId,
           className: classData?.className || 'Unknown Class',
           fee: getShowEntryFee(show, classData?.entryFee),
+          ...(isWaitlist ? { isWaitlist: true } : {}),
         };
       });
 
-      const dogSubtotal = dogClasses.reduce((sum, c) => sum + c.fee, 0);
+      const payableClasses = dogClasses.filter(c => !c.isWaitlist);
+      const dogSubtotal = payableClasses.reduce((sum, c) => sum + c.fee, 0);
       subtotal += dogSubtotal;
+
+      for (const cls of dogClasses) {
+        if (!cls.isWaitlist) continue;
+        waitlistCount += 1;
+        waitlistTotal += cls.fee;
+      }
 
       breakdown.push({
         dogId,
@@ -125,9 +143,12 @@ export function calculateTotalFees(
     }
   });
 
-  // Calculate discounts
+  // Calculate discounts. A dog whose every selection is a wait-list request owes
+  // nothing, so it cannot count toward the multi-dog threshold.
   const discounts: FeeCalculationResult['discounts'] = [];
-  const enteredDogCount = breakdown.filter(item => item.classes.length > 0).length;
+  const enteredDogCount = breakdown.filter(item =>
+    item.classes.some(cls => !cls.isWaitlist)
+  ).length;
 
   if (enteredDogCount >= MULTI_DOG_THRESHOLD) {
     discounts.push({
@@ -146,6 +167,8 @@ export function calculateTotalFees(
     taxes: 0,
     total,
     breakdown,
+    waitlistCount,
+    waitlistTotal,
   };
 }
 

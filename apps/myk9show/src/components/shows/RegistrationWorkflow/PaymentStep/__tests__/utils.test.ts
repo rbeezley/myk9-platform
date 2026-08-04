@@ -127,3 +127,83 @@ describe('calculateTotalFees — multi-dog discount', () => {
     expect(result.total).toBe(25);
   });
 });
+
+// MYK9-122: a full class is submitted as a wait-list request, so the review
+// must disclose it without billing it — the cart's total and this one have to
+// agree, and they used to differ by exactly the full class's fee.
+describe('calculateTotalFees — wait-list classes are not payable', () => {
+  const FULL_CLASS_ID = 'class-full';
+  const fullClassObj = { id: FULL_CLASS_ID, entryFee: 25 };
+  const mixedSelection: ClassSelectionData = {
+    dogId: DOG_ID,
+    trialId: 'trial-1',
+    selectedClasses: [{ classId: CLASS_ID }, { classId: FULL_CLASS_ID }],
+  };
+
+  it('keeps a full class out of the subtotal and reports it separately', () => {
+    const result = calculateTotalFees(
+      [DOG_ID],
+      [mixedSelection],
+      [dog],
+      [classObj, fullClassObj],
+      undefined,
+      new Set([FULL_CLASS_ID])
+    );
+
+    expect(result.subtotal).toBe(25);
+    expect(result.total).toBe(25);
+    expect(result.waitlistCount).toBe(1);
+    expect(result.waitlistTotal).toBe(25);
+  });
+
+  it('marks the wait-list line in the breakdown so the UI can label it', () => {
+    const result = calculateTotalFees(
+      [DOG_ID],
+      [mixedSelection],
+      [dog],
+      [classObj, fullClassObj],
+      undefined,
+      new Set([FULL_CLASS_ID])
+    );
+
+    const lines = result.breakdown[0].classes;
+    expect(lines.find(c => c.classId === CLASS_ID)?.isWaitlist).toBeUndefined();
+    expect(lines.find(c => c.classId === FULL_CLASS_ID)?.isWaitlist).toBe(true);
+    // The fee is still carried so the UI can say what it would cost if offered.
+    expect(lines.find(c => c.classId === FULL_CLASS_ID)?.fee).toBe(25);
+  });
+
+  it('totals every selection when no wait-list set is supplied', () => {
+    const result = calculateTotalFees([DOG_ID], [mixedSelection], [dog], [
+      classObj,
+      fullClassObj,
+    ]);
+
+    expect(result.subtotal).toBe(50);
+    expect(result.waitlistCount).toBe(0);
+    expect(result.waitlistTotal).toBe(0);
+  });
+
+  it('excludes a wait-list-only dog from the multi-dog discount threshold', () => {
+    const dogs = [dog, { id: 'dog-2', name: 'Breeze' }, { id: 'dog-3', name: 'Comet' }];
+    const selections: ClassSelectionData[] = [
+      { dogId: DOG_ID, trialId: 'trial-1', selectedClasses: [{ classId: CLASS_ID }] },
+      { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: CLASS_ID }] },
+      // Owes nothing, so it cannot buy the 3-dog discount for the others.
+      { dogId: 'dog-3', trialId: 'trial-1', selectedClasses: [{ classId: FULL_CLASS_ID }] },
+    ];
+
+    const result = calculateTotalFees(
+      dogs.map(d => d.id),
+      selections,
+      dogs,
+      [classObj, fullClassObj],
+      undefined,
+      new Set([FULL_CLASS_ID])
+    );
+
+    expect(result.subtotal).toBe(50);
+    expect(result.discounts).toEqual([]);
+    expect(result.total).toBe(50);
+  });
+});

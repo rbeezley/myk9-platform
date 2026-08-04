@@ -22,7 +22,12 @@ const upcomingRow = {
 
 describe('ActivityTab upcoming-entry status line (2.B)', () => {
   beforeEach(() => {
-    useEntriesByDogQueryMock.mockReturnValue({ data: [upcomingRow], isLoading: false });
+    useEntriesByDogQueryMock.mockReturnValue({
+      data: { rows: [upcomingRow], verified: true },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
   });
 
   it('speaks the exhibitor voice and never the raw enum', () => {

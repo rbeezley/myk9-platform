@@ -1,3 +1,16 @@
+// Canonical derivation of a single dog's upcoming entries and recent results.
+//
+// Lives here rather than beside one component because more than one dog surface
+// renders "what is this dog entered in next": the Overview activity card and
+// Career -> Competitions -> Upcoming Shows. Career previously read a
+// client-only Zustand store instead, so it rendered "No Upcoming Shows" for
+// every dog while Overview listed real entries (MYK9-121). Both now compose
+// this module through `useDogActivity`, so they agree by construction rather
+// than by two components happening to filter the same way.
+//
+// Pair it with `getEntriesByDog`, which is online-first and reports whether the
+// rows it returned are authoritative — this derivation cannot tell "no entries"
+// from "not synced yet", so that judgement has to live in the read, not here.
 import { getEntryStatusKind, isRemovedStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { toLocalDate } from '@/utils/date-format';
 

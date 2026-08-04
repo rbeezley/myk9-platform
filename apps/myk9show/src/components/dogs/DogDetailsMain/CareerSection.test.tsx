@@ -23,6 +23,7 @@ describe('CareerSection locked state', () => {
         onViewChange={vi.fn()}
         isPremium={false}
         locked
+        viewer="exhibitor"
       />
     );
 
@@ -39,6 +40,7 @@ describe('CareerSection locked state', () => {
         onViewChange={vi.fn()}
         isPremium={false}
         locked
+        viewer="exhibitor"
       />
     );
 
@@ -55,6 +57,7 @@ describe('CareerSection locked state', () => {
         onViewChange={vi.fn()}
         isPremium
         locked={false}
+        viewer="exhibitor"
       />
     );
 

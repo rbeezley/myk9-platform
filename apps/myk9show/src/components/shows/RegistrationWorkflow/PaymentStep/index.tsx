@@ -7,7 +7,6 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useCartItems, useCartStore } from '@/store/cartStore';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
-import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { toast } from 'sonner';
 import { calculateTotalFees } from './utils';
 import { RegistrationSummary } from './RegistrationSummary';
@@ -66,23 +65,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const agreed = onAgreementChange ? agreedToEntryAgreement : localAgreed;
   const handleAgree = onAgreementChange ?? setLocalAgreed;
 
-  // MYK9-122: a full class is submitted as a wait-list request, not an entry, so
-  // the review must not bill it. Same availability source the class-selection
-  // step already reads, so the two steps cannot disagree about what is full.
-  const { classes: availabilityClasses } = useClassAvailability(showId);
-  const waitlistClassIds = React.useMemo(
-    () => new Set(availabilityClasses.filter(cls => cls.judgeDayFull).map(cls => cls.classId)),
-    [availabilityClasses]
-  );
-
-  const feeCalculation = calculateTotalFees(
-    selectedDogs,
-    classSelections,
-    dogs,
-    classes,
-    show,
-    waitlistClassIds
-  );
+  const feeCalculation = calculateTotalFees(selectedDogs, classSelections, dogs, classes, show);
 
   const handleRemoveSummaryLine = async (dogId: string, classId: string) => {
     if (!onClassSelectionChange) return;

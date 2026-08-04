@@ -9,8 +9,6 @@ const feeCalculation: FeeCalculationResult = {
   taxes: 0,
   total: 27,
   breakdown: [],
-  waitlistCount: 0,
-  waitlistTotal: 0,
 };
 
 describe('PaymentSummaryCard', () => {

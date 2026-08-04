@@ -88,8 +88,8 @@ export function CartItemCard({
                 itself — not only after the exhibitor commits to checkout. */}
             {isWaitlist && (
               <p className="mb-2 text-sm text-muted-foreground">
-                This class is full. We&apos;ll hold your place on the wait list — no payment is due
-                unless a spot is offered.
+                This class is full. We&apos;ll hold your place on the wait list. Availability is
+                confirmed before any payment is requested.
               </p>
             )}
             {isBlocked && (
@@ -127,11 +127,9 @@ export function CartItemCard({
           <div className="flex flex-col items-end gap-2">
             {isWaitlist || isBlocked ? (
               <span className="text-right">
-                <span className="block text-lg font-semibold">$0.00</span>
+                <span className="block text-lg font-semibold">{isWaitlist ? 'Pending' : '—'}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {isWaitlist
-                    ? `${formatCurrency(item.entry_fee_cents)} if offered`
-                    : 'Cannot be paid'}
+                  {isWaitlist ? 'Amount confirmed at submission' : 'Cannot be paid'}
                 </span>
               </span>
             ) : (

@@ -63,4 +63,16 @@ describe('splitCartItemsByJudgeDayCapacity', () => {
     expect(result.waitlistItemIds).toEqual(new Set());
     expect(result.blockedItems).toEqual([denied]);
   });
+
+  it('blocks a class at its per-class limit even when judge-day capacity remains', () => {
+    const result = splitCartItemsByJudgeDayCapacity(
+      [item('limited', 'class-limited', false)],
+      [judgeDay(5, ['class-limited'])],
+      ['class-limited']
+    );
+
+    expect(result.confirmedItemIds).toEqual(new Set());
+    expect(result.waitlistItemIds).toEqual(new Set());
+    expect(result.blockedItems).toEqual([item('limited', 'class-limited', false)]);
+  });
 });

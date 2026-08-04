@@ -58,7 +58,9 @@ export default function CartPage() {
   const checkoutWithWaitlist = useCartStore(state => state.checkoutWithWaitlist);
   const {
     judgeDays,
+    fullClassIds,
     isLoading: isCapacityLoading,
+    isFetching: isCapacityFetching,
     error: capacityError,
   } = useJudgeDayCapacity(cart?.show_id);
 
@@ -92,10 +94,10 @@ export default function CartPage() {
   // the total, and then disappearing once checkout routes it to the wait list.
   // `null` while capacity is loading or errored: unknown availability must not
   // be presented as a final amount.
-  const capacityResolved = !isCapacityLoading && !capacityError;
+  const capacityResolved = !isCapacityLoading && !isCapacityFetching && !capacityError;
   const fulfillment = useMemo(
-    () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null),
-    [items, judgeDays, capacityResolved]
+    () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, fullClassIds),
+    [items, judgeDays, fullClassIds, capacityResolved]
   );
 
   const recoveryShowId = searchParams.get('showId') ?? undefined;
@@ -169,7 +171,7 @@ export default function CartPage() {
       setError('Could not verify your exhibitor profile. Please sign in again.');
       return;
     }
-    if (isCapacityLoading) {
+    if (isCapacityLoading || isCapacityFetching) {
       setError('Class availability is still loading. Please try checkout again in a moment.');
       return;
     }
@@ -183,7 +185,7 @@ export default function CartPage() {
     setError(null);
 
     try {
-      const splitDecision = splitCartItemsByJudgeDayCapacity(items, judgeDays);
+      const splitDecision = splitCartItemsByJudgeDayCapacity(items, judgeDays, fullClassIds);
       const blockedItems = splitDecision.blockedItems;
 
       if (blockedItems.length > 0) {

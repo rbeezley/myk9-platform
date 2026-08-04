@@ -19,7 +19,7 @@ import { splitCartItemsByJudgeDayCapacity } from './cartCapacitySplit';
 export type CartItemFulfillment =
   /** Will be charged and confirmed at checkout. */
   | 'payable'
-  /** Class is full but accepts a wait list — recorded as a request, no payment due. */
+  /** Class is full but accepts a wait list — recorded as a request pending server confirmation. */
   | 'waitlist'
   /** Class is full and refuses a wait list — cannot proceed until it is removed. */
   | 'blocked';
@@ -63,7 +63,8 @@ function sumFees(items: CartItemWithDetails[]): number {
  */
 export function buildCartFulfillmentView(
   items: CartItemWithDetails[],
-  judgeDays: JudgeDayCapacity[] | null
+  judgeDays: JudgeDayCapacity[] | null,
+  fullClassIds: readonly string[] = []
 ): CartFulfillmentView {
   if (items.length === 0) {
     return { capacityKnown: judgeDays !== null, ...EMPTY_VIEW };
@@ -85,7 +86,7 @@ export function buildCartFulfillmentView(
     };
   }
 
-  const decision = splitCartItemsByJudgeDayCapacity(items, judgeDays);
+  const decision = splitCartItemsByJudgeDayCapacity(items, judgeDays, fullClassIds);
   const blockedItemIds = new Set(decision.blockedItems.map(item => item.id));
 
   const fulfillmentByItemId: Record<string, CartItemFulfillment> = {};

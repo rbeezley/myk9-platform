@@ -88,8 +88,8 @@ export function CartItemCard({
                 itself — not only after the exhibitor commits to checkout. */}
             {isWaitlist && (
               <p className="mb-2 text-sm text-muted-foreground">
-                This class is full. We&apos;ll hold your place on the wait list — no payment is due
-                unless a spot is offered.
+                This class is full. We&apos;ll hold your place on the wait list. Availability is
+                confirmed before any payment is requested.
               </p>
             )}
             {isBlocked && (

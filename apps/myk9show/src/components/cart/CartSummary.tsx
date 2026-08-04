@@ -238,7 +238,7 @@ export function CartSummary({
           {waitlistCount > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Wait list requests ({waitlistCount})</span>
-              <span className="text-muted-foreground">No payment due</span>
+              <span className="text-muted-foreground">Availability checked at submission</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
@@ -313,8 +313,7 @@ export function CartSummary({
           ) : waitlistOnly ? (
             <>
               <CreditCard className="h-4 w-4 mr-2" />
-              Join the wait list ({waitlistCount} {waitlistCount === 1 ? 'request' : 'requests'}) —
-              no payment due
+              Join the wait list ({waitlistCount} {waitlistCount === 1 ? 'request' : 'requests'})
             </>
           ) : (
             <>

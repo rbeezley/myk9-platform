@@ -48,7 +48,9 @@ describe('CartItemCard', () => {
     expect(screen.getByText('Wait list request')).toBeInTheDocument();
     expect(screen.getByText('$0.00')).toBeInTheDocument();
     expect(screen.getByText('$45.00 if offered')).toBeInTheDocument();
-    expect(screen.getByText(/no payment is due unless a spot is offered/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/availability is confirmed before any payment is requested/i)
+    ).toBeInTheDocument();
   });
 
   it('renders a blocked line with the action that unblocks checkout', () => {

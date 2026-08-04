@@ -116,7 +116,7 @@ describe('CartSummary — wait-list lines', () => {
     // $50.00 would mean the wait-list fee was billed as an ordinary entry.
     expect(screen.queryByText('$50.00')).not.toBeInTheDocument();
     expect(screen.getByText('Wait list requests (1)')).toBeInTheDocument();
-    expect(screen.getByText('No payment due')).toBeInTheDocument();
+    expect(screen.getByText('Availability checked at submission')).toBeInTheDocument();
   });
 
   it('names the wait-list requests on the pay button so the split is not a surprise', () => {
@@ -133,7 +133,7 @@ describe('CartSummary — wait-list lines', () => {
     expect(payButton).toBeEnabled();
   });
 
-  it('offers a wait-list-only cart a no-payment action rather than a pay button', () => {
+  it('offers a wait-list-only cart a wait-list action rather than a pay button', () => {
     const full = item('item-full', 'class-full');
     storeState.itemCount = 1;
     storeState.totalEntryFees = 2500;
@@ -143,7 +143,7 @@ describe('CartSummary — wait-list lines', () => {
 
     const button = screen.getByRole('button', { name: /join the wait list/i });
     expect(button).toBeEnabled();
-    expect(button).toHaveTextContent(/no payment due/i);
+    expect(button).not.toHaveTextContent(/no payment due/i);
   });
 
   it('blocks checkout with the next action when a full class refuses a wait list', () => {

@@ -1,7 +1,7 @@
 /**
  * Hook for fetching class availability for a show.
- * Uses judge-day capacity model: fullness is determined by the assigned
- * judge's total entries for that date, not per-class max_entries.
+ * Uses the same combined fullness inputs as server-side entry submission:
+ * assigned judge-day capacity and the class's own max_entries limit.
  */
 
 import { useCallback } from 'react';
@@ -26,6 +26,7 @@ export interface ClassAvailability {
   waitlistCount: number;
   isFull: boolean;
   hasWaitlist: boolean;
+  allowsWaitlist: boolean;
   // Judge-day capacity fields
   judgeId: string | null;
   judgeDayFull: boolean;
@@ -43,6 +44,7 @@ interface ClassWithTrialRow {
   level: string | null;
   section: string | null;
   max_entries: number | null;
+  allow_waitlist: boolean | null;
   trial_id: string;
   trials: {
     id: string;
@@ -102,6 +104,7 @@ export function useClassAvailability(
           level,
           section,
           max_entries,
+          allow_waitlist,
           trial_id,
           trials!inner (
             id,
@@ -203,7 +206,7 @@ export function useClassAvailability(
         }
       }
 
-      const mailInReserved = calculateMailInReserved({
+      const defaultMailInReserved = calculateMailInReserved({
         capacity: defaultCapacity,
         strategy: show?.mail_in_strategy ?? null,
         value: show?.mail_in_value ?? null,
@@ -216,23 +219,36 @@ export function useClassAvailability(
         const currentEntries = entryCountMap[cls.id] ?? 0;
         const entryLimit = cls.max_entries ?? 0;
         const waitlistCount = waitlistCountMap[cls.id] ?? 0;
+        const allowsWaitlist = cls.allow_waitlist ?? false;
 
         const judgeId = classJudgeMap[cls.id] ?? null;
         let judgeDayFull = false;
-        let judgeDayAvailable = defaultCapacity - mailInReserved;
+        let judgeDayAvailable = defaultCapacity - defaultMailInReserved;
 
         if (judgeId) {
           const key = `${judgeId}:${trial.date}`;
           const judgeDayConfirmed = judgeDayEntryCount[key] ?? 0;
           const effectiveCapacity = judgeDayCapacityOverride[key] ?? defaultCapacity;
-          judgeDayAvailable = Math.max(0, effectiveCapacity - judgeDayConfirmed - mailInReserved);
+          const judgeDayMailInReserved = calculateMailInReserved({
+            capacity: effectiveCapacity,
+            strategy: show?.mail_in_strategy ?? null,
+            value: show?.mail_in_value ?? null,
+            autoRelease: show?.mail_in_auto_release ?? null,
+            releaseDate: show?.mail_in_release_date ?? null,
+          });
+          judgeDayAvailable = Math.max(
+            0,
+            effectiveCapacity - judgeDayConfirmed - judgeDayMailInReserved
+          );
           judgeDayFull = judgeDayAvailable === 0;
         }
 
         const perClassFull = entryLimit > 0 && currentEntries >= entryLimit;
-        const spotsAvailable = judgeId
-          ? judgeDayAvailable
-          : Math.max(0, entryLimit - currentEntries);
+        const spotsAvailable = perClassFull
+          ? 0
+          : judgeId
+            ? judgeDayAvailable
+            : Math.max(0, entryLimit - currentEntries);
 
         return {
           classId: cls.id,
@@ -249,6 +265,7 @@ export function useClassAvailability(
           waitlistCount,
           isFull: judgeDayFull || perClassFull,
           hasWaitlist: waitlistCount > 0,
+          allowsWaitlist,
           judgeId,
           judgeDayFull,
           judgeDayAvailable,

@@ -30,6 +30,8 @@ export interface LevelInfo {
   isJudgeDayFull?: boolean | undefined;
   /** Number of entries currently on the waitlist for this class */
   waitlistCount?: number | undefined;
+  /** True when the class accepts new wait-list requests */
+  allowsWaitlist?: boolean | undefined;
 }
 
 export interface ElementGroup {

@@ -240,11 +240,15 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   // Build a quick lookup map: classId → availability info
   const availabilityMap = useMemo(() => {
-    const map = new Map<string, { isJudgeDayFull: boolean; waitlistCount: number }>();
+    const map = new Map<
+      string,
+      { isJudgeDayFull: boolean; waitlistCount: number; allowsWaitlist: boolean }
+    >();
     for (const cls of availabilityClasses) {
       map.set(cls.classId, {
         isJudgeDayFull: cls.judgeDayFull,
         waitlistCount: cls.waitlistCount,
+        allowsWaitlist: cls.allowsWaitlist,
       });
     }
     return map;
@@ -438,6 +442,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     ...(avail !== undefined && {
                                       isJudgeDayFull: avail.isJudgeDayFull,
                                       waitlistCount: avail.waitlistCount,
+                                      allowsWaitlist: avail.allowsWaitlist,
                                     }),
                                   };
                                 })}

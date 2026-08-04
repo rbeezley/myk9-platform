@@ -32,12 +32,8 @@ interface ClassAvailabilityProps {
 }
 
 function getAvailabilityBadge(classData: ClassAvailabilityData) {
-  if (classData.entryLimit === 0) {
-    return <Badge className="bg-muted/50 text-muted-foreground border-muted">No limit</Badge>;
-  }
-
   if (classData.isFull) {
-    if (classData.hasWaitlist) {
+    if (classData.allowsWaitlist) {
       return (
         <Badge className="bg-warning/10 text-warning border-warning/20 border">
           <Clock className="h-3 w-3 mr-1" />
@@ -51,6 +47,10 @@ function getAvailabilityBadge(classData: ClassAvailabilityData) {
         Full
       </Badge>
     );
+  }
+
+  if (classData.entryLimit === 0) {
+    return <Badge className="bg-muted/50 text-muted-foreground border-muted">No limit</Badge>;
   }
 
   if (classData.spotsAvailable <= 5) {
@@ -79,7 +79,7 @@ function ClassAvailabilityCard({
   onEnterClass?: ((classId: string) => void) | undefined;
   compact?: boolean | undefined;
 }) {
-  const canEnter = !classData.isFull || classData.entryLimit === 0;
+  const canEnter = !classData.isFull;
 
   if (compact) {
     return (
@@ -125,10 +125,10 @@ function ClassAvailabilityCard({
               size="sm"
               variant={canEnter ? 'default' : 'outline'}
               onClick={() => onEnterClass(classData.classId)}
-              disabled={!canEnter && classData.entryLimit > 0}
+              disabled={!canEnter}
             >
               <Ticket className="h-4 w-4 mr-1" />
-              {canEnter ? 'Enter' : 'Join Waitlist'}
+              {canEnter ? 'Enter' : classData.allowsWaitlist ? 'Join Waitlist' : 'Full'}
             </Button>
           )}
         </div>

@@ -60,6 +60,7 @@ const CLASS_DATA = [
     name: 'Novice A',
     level: 'Novice',
     max_entries: null,
+    allow_waitlist: true,
     trial_id: 't1',
     trials: { id: 't1', name: 'Trial 1', date: '2026-05-01', show_id: 'show-1' },
   },
@@ -148,6 +149,69 @@ describe('useClassAvailability', () => {
     expect(cls.isFull).toBe(true);
     expect(cls.hasWaitlist).toBe(true);
     expect(cls.spotsAvailable).toBe(0);
+  });
+
+  it('marks a class full when its per-class limit is reached', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'classes') {
+        return makeClassQuery([{ ...CLASS_DATA[0], max_entries: 2 }]);
+      }
+      if (table === 'shows')
+        return makeShowQuery({
+          default_judge_day_capacity: 125,
+          mail_in_strategy: 'none',
+          mail_in_value: null,
+        });
+      if (table === 'entries') return makeEntryQuery([{ class_id: 'c1' }, { class_id: 'c1' }]);
+      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
+      if (table === 'judge_assignments')
+        return makeJudgeQuery([
+          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
+        ]);
+      return makeClassQuery([]);
+    });
+
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const cls = result.current.classes[0]!;
+    expect(cls.isFull).toBe(true);
+    expect(cls.judgeDayFull).toBe(false);
+    expect(cls.spotsAvailable).toBe(0);
+  });
+
+  it('keeps wait-list denial separate from the fullness decision', async () => {
+    const entries = Array.from({ length: 125 }, () => ({ class_id: 'c1' }));
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'classes') {
+        return makeClassQuery([{ ...CLASS_DATA[0], allow_waitlist: false }]);
+      }
+      if (table === 'shows')
+        return makeShowQuery({
+          default_judge_day_capacity: 125,
+          mail_in_strategy: 'none',
+          mail_in_value: null,
+        });
+      if (table === 'entries') return makeEntryQuery(entries);
+      if (table === 'waitlist_entries') return makeWaitlistQuery([]);
+      if (table === 'judge_assignments')
+        return makeJudgeQuery([
+          { class_id: 'c1', person_id: 'judge-1', trials: { date: '2026-05-01' } },
+        ]);
+      return makeClassQuery([]);
+    });
+
+    const { result } = renderHook(() => useClassAvailability('show-1'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const cls = result.current.classes[0]!;
+    expect(cls.isFull).toBe(true);
+    expect(cls.allowsWaitlist).toBe(false);
   });
 
   it('accounts for mail-in reserved spots (fixed strategy)', async () => {

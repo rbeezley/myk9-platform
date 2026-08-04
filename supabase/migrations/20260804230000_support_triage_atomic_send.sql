@@ -98,8 +98,13 @@ comment on function public.support_triage_send_operator_reply(uuid, uuid, text, 
 
 -- The triage worker is the only caller and it authenticates with the service-role
 -- key. Nobody else — not anon, not authenticated, not PUBLIC — may write an
--- operator-authored message through this path.
-revoke all on function public.support_triage_send_operator_reply(uuid, uuid, text, uuid) from public;
+-- operator-authored message through this path. anon and authenticated are named
+-- explicitly rather than left to the PUBLIC revoke: migrationGrantDecisionContract
+-- requires every new public function to state a disposition for both API roles,
+-- and "we assumed PUBLIC covered it" is exactly the reasoning that guard exists
+-- to reject.
+revoke all on function public.support_triage_send_operator_reply(uuid, uuid, text, uuid)
+  from public, anon, authenticated;
 grant execute on function public.support_triage_send_operator_reply(uuid, uuid, text, uuid) to service_role;
 
 notify pgrst, 'reload schema';

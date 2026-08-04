@@ -691,9 +691,8 @@
     gap: 12px;
   }
 
-  .myk9-entries-action-buttons {
-    flex-wrap: wrap;
-  }
+  /* .myk9-entries-action-buttons wraps unconditionally in its base rule
+     (MYK9-124) — no breakpoint override needed. */
 
   .myk9-entries-class-row {
     flex-direction: column;
@@ -970,10 +969,19 @@
   color: var(--foreground);
 }
 
+/* Wrapping is UNCONDITIONAL, not breakpoint-gated (MYK9-124). Browser zoom
+   shrinks the CSS-pixel viewport continuously — 1440px at 125% is 1152 CSS px —
+   so any `@media (max-width: …)` rescue leaves a band above the breakpoint
+   where the row overflows. Since .myk9-entries-card is `overflow: hidden`, that
+   overflow is CLIPPED rather than scrolled: the control simply vanishes with no
+   scrollbar or ellipsis to reveal it. Same treatment .myk9-entries-badges got
+   in #1162. Guarded by src/test/architecture/entryActionsWrapUnconditionally.test.ts. */
 .myk9-entries-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
   margin-top: 14px;
@@ -987,6 +995,7 @@
 
 .myk9-entries-action-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1022,9 +1031,8 @@
     gap: 12px;
   }
 
-  .myk9-entries-action-buttons {
-    flex-wrap: wrap;
-  }
+  /* .myk9-entries-action-buttons wraps unconditionally in its base rule
+     (MYK9-124) — no breakpoint override needed. */
 
   .myk9-entries-class-row {
     flex-direction: column;

@@ -8776,6 +8776,7 @@ export type Database = {
         Row: {
           auth_user_id: string | null
           club_id: string | null
+          deactivated_at: string | null
           expires_at: string | null
           granted_at: string | null
           granted_by: string | null
@@ -8788,6 +8789,7 @@ export type Database = {
         Insert: {
           auth_user_id?: string | null
           club_id?: string | null
+          deactivated_at?: string | null
           expires_at?: string | null
           granted_at?: string | null
           granted_by?: string | null
@@ -8800,6 +8802,7 @@ export type Database = {
         Update: {
           auth_user_id?: string | null
           club_id?: string | null
+          deactivated_at?: string | null
           expires_at?: string | null
           granted_at?: string | null
           granted_by?: string | null

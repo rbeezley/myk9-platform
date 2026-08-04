@@ -96,9 +96,8 @@ describe('getDeletedUserById', () => {
   });
 
   it('drops a grant that expired before the removal', async () => {
-    // Expiry is the ONE signal that distinguishes "held at removal" from
-    // "lost earlier" — user_roles has no revoked_at or updated_at, so a grant
-    // revoked without an expiry is indistinguishable and is kept.
+    // Legacy user_roles rows have no deactivation timestamp, so a grant revoked
+    // without an expiry is indistinguishable and is kept.
     rpc.mockResolvedValue({
       data: [{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }],
       error: null,
@@ -119,6 +118,37 @@ describe('getDeletedUserById', () => {
       r => r.role.name
     );
     expect(names).toEqual(['judge', 'exhibitor']);
+  });
+
+  it('keeps only grants deactivated by this removal plus active grants', async () => {
+    rpc.mockResolvedValue({
+      data: [{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }],
+      error: null,
+    });
+    from.mockReturnValue(
+      rolesQuery({
+        data: [
+          {
+            is_active: false,
+            deactivated_at: '2026-07-30T00:00:00Z',
+            role: { name: 'judge' },
+          },
+          {
+            is_active: false,
+            deactivated_at: '2026-07-01T00:00:00Z',
+            role: { name: 'steward' },
+          },
+          { is_active: true, deactivated_at: null, role: { name: 'admin' } },
+        ],
+      })
+    );
+
+    const { data } = await getDeletedUserById('gone-1');
+
+    const names = (data as { user_roles: { role: { name: string } }[] }).user_roles.map(
+      r => r.role.name
+    );
+    expect(names).toEqual(['judge', 'admin']);
   });
 
   it('keeps every grant when the removal has no timestamp', async () => {

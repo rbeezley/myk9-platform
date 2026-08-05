@@ -61,11 +61,19 @@ begin
     return new;
   end if;
 
-  -- `UPDATE OF email` fires when the column is assigned, not when its value
-  -- moves, and nearly every save in the app assigns it. Compare normalized, so
-  -- that re-saving the same address — including a differently cased or padded
-  -- variant — is not treated as a change.
-  if lower(coalesce(new.email, '')) = lower(coalesce(old.email, '')) then
+  -- Store the address normalized. `people_email_unique` indexes LOWER(email)
+  -- with no trim, and so does the adoption lookup in handle_new_user(), so a
+  -- padded value is a DIFFERENT address to everything downstream even though
+  -- it looks identical. Trimming here means the invariant holds on the stored
+  -- bytes, not merely on a lenient comparison.
+  new.email := nullif(btrim(coalesce(new.email, '')), '');
+
+  -- Skip the identity lookup for the overwhelmingly common write: an ordinary
+  -- save that moved neither the address nor the linkage. Nearly every save in
+  -- the app assigns `email` whether or not the user touched it.
+  if tg_op = 'UPDATE'
+     and new.auth_user_id is not distinct from old.auth_user_id
+     and lower(coalesce(new.email, '')) = lower(btrim(coalesce(old.email, ''))) then
     return new;
   end if;
 
@@ -73,7 +81,7 @@ begin
     from auth.users u
    where u.id = new.auth_user_id;
 
-  if lower(coalesce(new.email, '')) is distinct from lower(coalesce(v_identity_email, '')) then
+  if lower(coalesce(new.email, '')) is distinct from lower(btrim(coalesce(v_identity_email, ''))) then
     raise exception
       'This person signs in with a different email address. Update their sign-in identity first, or leave the contact address as it is.'
       using errcode = 'MK002',
@@ -97,10 +105,55 @@ revoke all on function public.enforce_sign_in_email_match() from authenticated;
 
 drop trigger if exists people_enforce_sign_in_email on public.people;
 
+-- Deliberately NOT `update of email`. That form would leave three ways around
+-- the invariant: inserting an already-linked row with a mismatched address,
+-- relinking a row to a different identity without touching its email, and
+-- unlink → edit → relink. The linkage is half of the invariant, so a change to
+-- either half has to be checked.
 create trigger people_enforce_sign_in_email
-  before update of email on public.people
+  before insert or update on public.people
   for each row
   execute function public.enforce_sign_in_email_match();
+
+-- The invariant has two sides, and the trigger above only watches one of them.
+-- `supabase.auth.updateUser({ email })` changes the identity address directly
+-- (reachable through useAuth.updateProfile), which would leave the person row
+-- behind without any write to `people` for the trigger above to see. Follow the
+-- identity: the person did change their sign-in address, so the contact copy
+-- should track it. This is a sync, not a policy decision — it never changes
+-- what anyone signs in with.
+create or replace function public.sync_person_email_from_auth()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if lower(btrim(coalesce(new.email, ''))) is distinct from lower(btrim(coalesce(old.email, ''))) then
+    update public.people
+       set email      = nullif(btrim(coalesce(new.email, '')), ''),
+           updated_at = now()
+     where auth_user_id = new.id
+       and lower(coalesce(email, '')) is distinct from lower(btrim(coalesce(new.email, '')));
+  end if;
+
+  return new;
+end;
+$$;
+
+comment on function public.sync_person_email_from_auth() is
+  'MYK9-136: carries a confirmed auth.users email change onto the linked person row, so the invariant holds when the identity side moves.';
+
+revoke all on function public.sync_person_email_from_auth() from public;
+revoke all on function public.sync_person_email_from_auth() from anon;
+revoke all on function public.sync_person_email_from_auth() from authenticated;
+
+drop trigger if exists sync_person_email_from_auth_trigger on auth.users;
+
+create trigger sync_person_email_from_auth_trigger
+  after update of email on auth.users
+  for each row
+  execute function public.sync_person_email_from_auth();
 
 -- -----------------------------------------------------------------------------
 -- 2. Adoption made atomic
@@ -240,7 +293,7 @@ as $$
       from public.people p
       join auth.users u on u.id = p.auth_user_id
      where p.deleted_at is null
-       and lower(coalesce(p.email, '')) <> lower(coalesce(u.email, ''))
+       and lower(btrim(coalesce(p.email, ''))) <> lower(btrim(coalesce(u.email, '')))
      order by p.updated_at desc
   )
   select jsonb_build_object(

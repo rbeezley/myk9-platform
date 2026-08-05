@@ -96,6 +96,9 @@ export interface RawProbeFacts {
   ringside_containment?: unknown;
   /** Terminal-state rollup of public.show_payouts (TICKET-2). */
   payout_ledger?: unknown;
+  /** People whose contact email no longer matches their sign-in identity
+   * (MYK9-136). `{ drifted: number, sample: uuid[] }`. */
+  sign_in_email_drift?: unknown;
   anon_grants?: unknown;
   applied_acl_grants?: unknown;
   public_schema_create_acl?: unknown;
@@ -441,6 +444,56 @@ function backgroundJobsCheck(
   };
 }
 
+/**
+ * MYK9-136 — people whose contact email no longer matches the identity they
+ * sign in with. A trigger makes this impossible to reach through the app, so
+ * this is not a threshold to tune: any non-zero reading means the invariant was
+ * reached some other way, and the whole point of MYK9-136 is that the failure
+ * is silent until somebody cannot sign in.
+ */
+function signInEmailDriftCheck(facts: RawProbeFacts, probedAt: string): SnapshotCheck {
+  const base = checkBase('sign_in_email_drift', 'Sign-in email drift', probedAt);
+  const raw = facts.sign_in_email_drift;
+
+  if (!raw || typeof raw !== 'object') {
+    return {
+      ...base,
+      status: 'warn',
+      detail: 'probe did not report sign_in_email_drift',
+      verification: 'unprovable',
+    };
+  }
+
+  const drifted = (raw as { drifted?: unknown }).drifted;
+  if (typeof drifted !== 'number' || !Number.isFinite(drifted)) {
+    return {
+      ...base,
+      status: 'warn',
+      detail: 'probe reported an unreadable sign_in_email_drift count',
+      verification: 'unprovable',
+    };
+  }
+
+  if (drifted > 0) {
+    const sample = (raw as { sample?: unknown }).sample;
+    const ids = Array.isArray(sample) ? sample.filter(id => typeof id === 'string') : [];
+    const shown = ids.length > 0 ? ` (e.g. ${ids.join(', ')})` : '';
+    return {
+      ...base,
+      status: 'fail',
+      detail: `${drifted} ${drifted === 1 ? 'person signs' : 'people sign'} in with a different address than their record shows${shown}`,
+      delta_value: drifted,
+    };
+  }
+
+  return {
+    ...base,
+    status: 'ok',
+    detail: 'every linked person matches their sign-in identity',
+    delta_value: 0,
+  };
+}
+
 /** Runbook 5.2 (proxy) — report the newest applied migration. Not full parity. */
 function migrationsCheck(facts: RawProbeFacts, probedAt: string): SnapshotCheck {
   const latest = asIsoOrNull(facts.latest_migration);
@@ -653,6 +706,7 @@ export function buildSnapshot(facts: unknown, opts: BuildSnapshotOptions): Healt
     payoutLedgerCheck(f, probedAt),
     backgroundJobsCheck(jobs, opts.now, sourceThresholdFor('background_jobs'), probedAt),
     migrationsCheck(f, probedAt),
+    signInEmailDriftCheck(f, probedAt),
     ringsideConflictsCheck(f, opts.previousConflictCounter, probedAt, {
       now: opts.now,
       previousSnapshotAt: opts.previousSnapshotAt,

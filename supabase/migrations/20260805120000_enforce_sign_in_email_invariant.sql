@@ -40,6 +40,41 @@
 begin;
 
 -- -----------------------------------------------------------------------------
+-- 0. Reconcile before enforcing
+-- -----------------------------------------------------------------------------
+-- The enforcing trigger below skips its identity lookup when a write moves
+-- neither the address nor the linkage — without which every ordinary profile
+-- save by a signed-up user would cost an auth.users read. That fast path is
+-- only sound if the table already satisfies the invariant when the trigger goes
+-- on; otherwise a row that was ALREADY drifted would keep sailing through
+-- ordinary saves forever, enforced against nothing.
+--
+-- So repair first, then enforce. The identity wins: `auth.users.email` is the
+-- address the person actually signs in with, and `people.email` is the copy
+-- that fell behind. MYK9-136 measured the live count at zero, so this is
+-- expected to be a no-op — it exists so the invariant is true of the DATA and
+-- not merely of writes from here on.
+--
+-- Rows whose identity address is already taken by a different person are left
+-- alone rather than failing the migration: that is a genuine duplicate-identity
+-- conflict a human has to resolve, and `sign_in_email_drift()` below will keep
+-- reporting them until someone does.
+update public.people p
+   set email      = nullif(btrim(coalesce(u.email, '')), ''),
+       updated_at = now()
+  from auth.users u
+ where u.id = p.auth_user_id
+   and p.deleted_at is null
+   and lower(btrim(coalesce(p.email, ''))) <> lower(btrim(coalesce(u.email, '')))
+   and not exists (
+     select 1
+       from public.people other
+      where other.id <> p.id
+        and other.deleted_at is null
+        and lower(other.email) = lower(btrim(coalesce(u.email, '')))
+   );
+
+-- -----------------------------------------------------------------------------
 -- 1. The invariant
 -- -----------------------------------------------------------------------------
 -- SECURITY DEFINER because it reads auth.users, which the invoking role cannot.
@@ -71,6 +106,11 @@ begin
   -- Skip the identity lookup for the overwhelmingly common write: an ordinary
   -- save that moved neither the address nor the linkage. Nearly every save in
   -- the app assigns `email` whether or not the user touched it.
+  --
+  -- Sound only because step 0 reconciled the table before this trigger existed:
+  -- an already-drifted row would otherwise take this path on every ordinary
+  -- save and never be checked. Any row that step 0 could not repair is a
+  -- duplicate-identity conflict, and stays visible in sign_in_email_drift().
   if tg_op = 'UPDATE'
      and new.auth_user_id is not distinct from old.auth_user_id
      and lower(coalesce(new.email, '')) = lower(btrim(coalesce(old.email, ''))) then

@@ -10,14 +10,6 @@ import { User, Phone, Award, CalendarDays } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
-import { FormField } from '@/components/common/FormField';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import type { JudgeInfo } from '@/types/user-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
@@ -218,36 +210,6 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
             canEditAdvancedFields={canEditAdvancedFields}
             onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
           />
-
-          {hasPermission('manage_users') && (
-            <FormField
-              label="Account Status"
-              fieldId="status"
-              hint={userId === currentUser?.id ? 'You cannot suspend your own account' : undefined}
-            >
-              <Select
-                value={data.status}
-                onValueChange={value => {
-                  if (value === 'suspended' && data.status !== 'suspended') {
-                    const confirmed = window.confirm(
-                      'This will immediately block this user from logging in. Continue?'
-                    );
-                    if (!confirmed) return;
-                  }
-                  form?.setValue('status', value as 'active' | 'suspended');
-                }}
-                disabled={userId === currentUser?.id}
-              >
-                <SelectTrigger id="status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
-          )}
 
           {hasPermission('admin:manage') && <ComplimentaryPremiumSection personId={userId} />}
         </TabsContent>

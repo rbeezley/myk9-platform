@@ -5,9 +5,7 @@ import ThreeDotMenu from '../ThreeDotMenu';
 
 describe('ThreeDotMenu', () => {
   it('renders View / Edit / Delete with default labels', async () => {
-    const { user } = render(
-      <ThreeDotMenu onView={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />
-    );
+    const { user } = render(<ThreeDotMenu onView={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: /more actions/i }));
     await screen.findByRole('menu');
 
@@ -18,7 +16,12 @@ describe('ThreeDotMenu', () => {
 
   it('honors custom view/edit labels', async () => {
     const { user } = render(
-      <ThreeDotMenu onView={vi.fn()} onEdit={vi.fn()} viewLabel="View Person" editLabel="Edit Person" />
+      <ThreeDotMenu
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        viewLabel="View Person"
+        editLabel="Edit Person"
+      />
     );
     await user.click(screen.getByRole('button', { name: /more actions/i }));
     await screen.findByRole('menu');
@@ -49,6 +52,23 @@ describe('ThreeDotMenu', () => {
     await user.click(screen.getByRole('button', { name: /more actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /manage qualifications/i }));
     expect(onManageQualifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the account lifecycle action with its disabled reason', async () => {
+    const { user } = render(
+      <ThreeDotMenu
+        onChangeStatus={vi.fn()}
+        changeStatusLabel="Suspend account"
+        changeStatusDisabled
+        changeStatusDescription="You cannot suspend your own account"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /more actions/i }));
+    const statusItem = await screen.findByRole('menuitem', { name: /suspend account/i });
+
+    expect(statusItem).toHaveAttribute('data-disabled');
+    expect(statusItem).toHaveTextContent('You cannot suspend your own account');
   });
 
   it('invokes the matching callback and styles Delete with the destructive token', async () => {

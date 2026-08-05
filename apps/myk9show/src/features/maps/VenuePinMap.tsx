@@ -11,6 +11,8 @@ import { geocodeAddress } from './geocode';
 import { normalizePinValue, type VenuePinValue } from './normalizePinValue';
 import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER } from './tiles';
 
+export type { VenuePinValue } from './normalizePinValue';
+
 // Leaflet's default icon URLs break under bundlers; point them at the bundled assets.
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,

@@ -1,9 +1,6 @@
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import { createBrowserRouter, createRoutesFromElements, Navigate, Route } from 'react-router-dom';
 import App from './App';
-import Home from './pages/Home';
-import { getDashboardRoute } from '@/hooks/roleUtils';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { AdminRoutes } from './routes/adminRoutes';
 import { JudgeSidebarRoutes } from './routes/judgeRoutes';
 import { SecretaryRoutes } from './routes/secretaryRoutes';
@@ -15,35 +12,18 @@ import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 import { PageLoadingFallback } from './components/common/PageLoadingFallback';
 import { RoleSurfaceErrorBoundary } from './components/common/RoleSurfaceErrorBoundary';
 import { PageTransition } from './components/common/PageTransition';
-
-const ExhibitorOnboardingPage = React.lazy(
-  () => import('./pages/onboarding/ExhibitorOnboardingPage')
-);
-const PricingPage = React.lazy(() => import('./pages/PricingPage'));
-const SmartSignInPage = React.lazy(() => import('./pages/SmartSignInPage'));
-const RingsideEntryPage = React.lazy(() => import('./features/at-show/RingsideEntryPage'));
-const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
-const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage'));
-const AuthCallbackPage = React.lazy(() => import('./pages/AuthCallbackPage'));
-const ResetPasswordPage = React.lazy(() => import('./pages/ResetPasswordPage'));
-const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
-
-function HomeRedirect() {
-  const { user, loading, rbacLoading, userWithRoles } = useAuthContext();
-
-  if (loading || rbacLoading) return <PageLoadingFallback />;
-  if (!user) return <Home />;
-
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('wizard') === 'true') {
-    return <Navigate to="/secretary/create-show/wizard" replace />;
-  }
-  if (params.get('onboarding') === 'true') {
-    return <Home />;
-  }
-
-  return <Navigate to={getDashboardRoute(userWithRoles?.roles ?? [])} replace />;
-}
+import {
+  AuthCallbackPage,
+  ExhibitorOnboardingPage,
+  ForgotPasswordPage,
+  HomeRedirect,
+  NotFoundPage,
+  PricingPage,
+  ResetPasswordPage,
+  RingsideEntryPage,
+  SignUpPage,
+  SmartSignInPage,
+} from './routerComponents';
 
 export const router = createBrowserRouter(
   createRoutesFromElements(

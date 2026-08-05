@@ -118,7 +118,10 @@ const UserService = {
     const dbUpdates = mapUserToDbUpdate(updates);
     const result = await updateUser(id, dbUpdates);
     if (result.error) {
-      throw new Error(result.error.message);
+      // Carry the code, not just the message: `getUserFriendlyError` maps by
+      // code in production and discards the message, so a bare `new Error`
+      // turns an actionable refusal into "Failed to update user" (MYK9-136).
+      throw Object.assign(new Error(result.error.message), { code: result.error.code });
     }
     return mapDbUserToUser(result.data);
   },

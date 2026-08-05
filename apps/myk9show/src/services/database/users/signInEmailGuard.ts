@@ -30,16 +30,19 @@
 import { supabase } from '../supabaseClient';
 import { normalizePersonEmail } from '@/utils/personIdentity';
 
-export const SIGN_IN_EMAIL_LOCKED_CODE = 'SIGN_IN_EMAIL_LOCKED';
-export const SIGN_IN_EMAIL_UNVERIFIABLE_CODE = 'SIGN_IN_EMAIL_UNVERIFIABLE';
+import {
+  SIGN_IN_EMAIL_LOCKED_CODE,
+  SIGN_IN_EMAIL_LOCKED_MESSAGE,
+  SIGN_IN_EMAIL_UNVERIFIABLE_CODE,
+  SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE,
+} from '@/utils/signInEmailMessages';
 
-export const SIGN_IN_EMAIL_LOCKED_MESSAGE =
-  'This person signs in with this email address, so it cannot be changed here. ' +
-  'Changing it would leave them signing in with the old address while every ' +
-  'screen showed the new one. Send them a sign-in link instead.';
-
-export const SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE =
-  'Could not verify this account before changing its email address. Please try again.';
+export {
+  SIGN_IN_EMAIL_LOCKED_CODE,
+  SIGN_IN_EMAIL_LOCKED_MESSAGE,
+  SIGN_IN_EMAIL_UNVERIFIABLE_CODE,
+  SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE,
+};
 
 /**
  * `unchanged` — the write cannot create drift whatever the person's identity

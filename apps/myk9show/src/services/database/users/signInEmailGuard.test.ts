@@ -13,19 +13,21 @@ const UNLINKED = { authUserId: null, currentEmail: 'handler@example.com' };
 describe('decideSignInEmailChange', () => {
   describe('a person with no auth identity', () => {
     it('may have their email changed — nothing signs in with it', () => {
-      expect(decideSignInEmailChange(UNLINKED, 'corrected@example.com')).toEqual({ allowed: true });
+      expect(decideSignInEmailChange(UNLINKED, 'corrected@example.com')).toMatchObject({
+        allowed: true,
+      });
     });
 
     it('may have an email added when they had none', () => {
       expect(
         decideSignInEmailChange({ authUserId: null, currentEmail: null }, 'new@example.com')
-      ).toEqual({ allowed: true });
+      ).toMatchObject({ allowed: true });
     });
 
     it('treats undefined auth_user_id the same as null', () => {
       expect(
         decideSignInEmailChange({ authUserId: undefined, currentEmail: 'a@b.com' }, 'c@d.com')
-      ).toEqual({ allowed: true });
+      ).toMatchObject({ allowed: true });
     });
   });
 
@@ -50,15 +52,21 @@ describe('decideSignInEmailChange', () => {
     // spreads the whole person — so refusing on "the field is present" rather
     // than "the value changed" would break every ordinary profile save.
     it('allows an unchanged email through', () => {
-      expect(decideSignInEmailChange(LINKED, 'handler@example.com')).toEqual({ allowed: true });
+      expect(decideSignInEmailChange(LINKED, 'handler@example.com')).toMatchObject({
+        allowed: true,
+      });
     });
 
     it('allows a differently-cased unchanged email through', () => {
-      expect(decideSignInEmailChange(LINKED, 'Handler@Example.COM')).toEqual({ allowed: true });
+      expect(decideSignInEmailChange(LINKED, 'Handler@Example.COM')).toMatchObject({
+        allowed: true,
+      });
     });
 
     it('allows a whitespace-padded unchanged email through', () => {
-      expect(decideSignInEmailChange(LINKED, '  handler@example.com  ')).toEqual({ allowed: true });
+      expect(decideSignInEmailChange(LINKED, '  handler@example.com  ')).toMatchObject({
+        allowed: true,
+      });
     });
 
     it('refuses clearing the email', () => {
@@ -74,6 +82,33 @@ describe('decideSignInEmailChange', () => {
         decideSignInEmailChange({ authUserId: 'auth-1', currentEmail: null }, 'guess@example.com')
           .allowed
       ).toBe(false);
+    });
+  });
+});
+
+// `updateUser` turns the reason into a filter on the write itself, so which
+// reason comes back is load-bearing, not descriptive. `no-identity` must mean
+// "unlinked AND the address is really changing" — that is the only case where
+// a concurrent signup could adopt the row between the read and the write.
+describe('decideSignInEmailChange reasons', () => {
+  it('reports no-identity only when the address is actually changing', () => {
+    expect(decideSignInEmailChange(UNLINKED, 'corrected@example.com')).toEqual({
+      allowed: true,
+      reason: 'no-identity',
+    });
+  });
+
+  it('reports unchanged for an unlinked person resaving the same address', () => {
+    expect(decideSignInEmailChange(UNLINKED, 'handler@example.com')).toEqual({
+      allowed: true,
+      reason: 'unchanged',
+    });
+  });
+
+  it('reports unchanged for a linked person resaving the same address', () => {
+    expect(decideSignInEmailChange(LINKED, 'handler@example.com')).toEqual({
+      allowed: true,
+      reason: 'unchanged',
     });
   });
 });
@@ -125,7 +160,9 @@ describe('checkSignInEmailChange', () => {
       })
     );
 
-    expect(await checkSignInEmailChange('person-1', 'new@example.com')).toEqual({ allowed: true });
+    expect(await checkSignInEmailChange('person-1', 'new@example.com')).toMatchObject({
+      allowed: true,
+    });
   });
 
   // Fails closed, as admin-invite-user does for the same hazard (MYK9-134):

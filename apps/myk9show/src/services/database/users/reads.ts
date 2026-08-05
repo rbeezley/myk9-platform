@@ -3,7 +3,11 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
 import { translatePersonIdentityError } from '@/utils/duplicateIdentityErrors';
-import { checkSignInEmailChange } from './signInEmailGuard';
+import {
+  checkSignInEmailChange,
+  SIGN_IN_EMAIL_LOCKED_CODE,
+  SIGN_IN_EMAIL_LOCKED_MESSAGE,
+} from './signInEmailGuard';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
@@ -148,27 +152,50 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
     // that identity — they keep signing in with the old address. Every write
     // path to `people.email` funnels through here (three mappers plus the show
     // wizard's direct call), so this is the one place the check belongs.
+    let requireUnlinked = false;
     if (updates.email !== undefined) {
       const decision = await checkSignInEmailChange(id, updates.email);
       if (!decision.allowed) {
         throw Object.assign(new Error(decision.message), { code: decision.code });
       }
+      requireUnlinked = decision.reason === 'no-identity';
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('people')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
+
+    // Reading the linkage and writing the row are two requests, so a signup
+    // could adopt this person in between — `handle_new_user()` links on the
+    // OLD address, and we would then overwrite the email of an identity that
+    // was unlinked when we looked. Restating the condition as a filter hands
+    // it to Postgres to evaluate at write time. Only the changing-address case
+    // needs it: an unchanged email cannot create drift, and filtering there
+    // would fail every ordinary save by a person who can sign in.
+    if (requireUnlinked) {
+      query = query.is('auth_user_id', null);
+    }
+
+    const { data, error } = await query.select().single();
 
     const duration = Date.now() - startTime;
     logQuery('user', 'update', duration, error?.message);
 
     if (error) {
+      // The filter matched nothing: the row existed and was unlinked a moment
+      // ago, so it has just been adopted. Report the refusal, not a bare
+      // "no rows" from a filter the caller never asked for. Narrow to that one
+      // code — any other failure here (a duplicate address, say) is its own
+      // error and must keep its own message.
+      if (requireUnlinked && error.code === 'PGRST116') {
+        throw Object.assign(new Error(SIGN_IN_EMAIL_LOCKED_MESSAGE), {
+          code: SIGN_IN_EMAIL_LOCKED_CODE,
+        });
+      }
       throw createDatabaseError(error, 'user', 'update');
     }
 

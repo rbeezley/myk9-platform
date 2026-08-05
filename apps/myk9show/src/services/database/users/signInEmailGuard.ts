@@ -3,7 +3,7 @@
  *
  * Nothing keeps the two in sync — verified against the applied database, no
  * trigger on either table touches email — while the admin edit panel let the
- * contact email be rewritten freely. The moment an admin "corrects" a linked
+ * contact email be rewritten freely. The moment an admin "corrected" a linked
  * person's address, that person keeps signing in with the old one while every
  * screen shows the new one, and the row can no longer be adopted at signup
  * (`handle_new_user()` matches on `LOWER(people.email)`), so a second person
@@ -41,10 +41,17 @@ export const SIGN_IN_EMAIL_LOCKED_MESSAGE =
 export const SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE =
   'Could not verify this account before changing its email address. Please try again.';
 
+/**
+ * `unchanged` — the write cannot create drift whatever the person's identity
+ * state is, so it needs no further protection.
+ *
+ * `no-identity` — the person had no auth identity a moment ago AND the address
+ * is genuinely changing. Only this case needs the write itself to re-check the
+ * linkage; see `updateUser`.
+ */
 export type SignInEmailChangeDecision =
-  { allowed: true } | { allowed: false; code: string; message: string };
-
-const ALLOWED: SignInEmailChangeDecision = { allowed: true };
+  | { allowed: true; reason: 'unchanged' | 'no-identity' }
+  | { allowed: false; code: string; message: string };
 
 export interface PersonIdentitySnapshot {
   authUserId: string | null | undefined;
@@ -54,24 +61,46 @@ export interface PersonIdentitySnapshot {
 /**
  * Pure decision: may `nextEmail` be written to this person's `email` column?
  *
- * Allowed when the person has no auth identity (the common case — records
- * curated for people who have never signed up), or when the value is
- * unchanged. `useUpdatePerson` and `useProfileForm` resend `email` on every
- * save, so keying on "the field is present" rather than "the value changed"
- * would break every ordinary profile save by a signed-up user.
+ * The unchanged case is checked FIRST, and not only as an optimisation.
+ * `useUpdatePerson` builds `email` from `person.email` and `useProfileForm`
+ * spreads the whole person, so `email` is present on nearly every save;
+ * refusing whenever the field appears would break every ordinary profile save
+ * by a signed-up user. Deciding it first is also what lets `no-identity` imply
+ * "the address is really changing", which the caller relies on.
  */
 export function decideSignInEmailChange(
   person: PersonIdentitySnapshot,
   nextEmail: string | null | undefined
 ): SignInEmailChangeDecision {
-  if (!person.authUserId) return ALLOWED;
-  if (normalizePersonEmail(person.currentEmail) === normalizePersonEmail(nextEmail)) return ALLOWED;
+  if (normalizePersonEmail(person.currentEmail) === normalizePersonEmail(nextEmail)) {
+    return { allowed: true, reason: 'unchanged' };
+  }
+  if (!person.authUserId) return { allowed: true, reason: 'no-identity' };
 
   return {
     allowed: false,
     code: SIGN_IN_EMAIL_LOCKED_CODE,
     message: SIGN_IN_EMAIL_LOCKED_MESSAGE,
   };
+}
+
+/**
+ * Read a person's identity linkage. Returns null when it cannot be read at
+ * all — callers must treat that as "unknown", never as "unlinked".
+ */
+export async function fetchPersonIdentity(
+  personId: string
+): Promise<PersonIdentitySnapshot | null> {
+  const { data, error } = await supabase
+    .from('people')
+    .select('auth_user_id, email')
+    .eq('id', personId)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return { authUserId: data.auth_user_id, currentEmail: data.email };
 }
 
 /**
@@ -82,14 +111,9 @@ export async function checkSignInEmailChange(
   personId: string,
   nextEmail: string | null | undefined
 ): Promise<SignInEmailChangeDecision> {
-  const { data, error } = await supabase
-    .from('people')
-    .select('auth_user_id, email')
-    .eq('id', personId)
-    .is('deleted_at', null)
-    .maybeSingle();
+  const person = await fetchPersonIdentity(personId);
 
-  if (error || !data) {
+  if (!person) {
     return {
       allowed: false,
       code: SIGN_IN_EMAIL_UNVERIFIABLE_CODE,
@@ -97,8 +121,5 @@ export async function checkSignInEmailChange(
     };
   }
 
-  return decideSignInEmailChange(
-    { authUserId: data.auth_user_id, currentEmail: data.email },
-    nextEmail
-  );
+  return decideSignInEmailChange(person, nextEmail);
 }

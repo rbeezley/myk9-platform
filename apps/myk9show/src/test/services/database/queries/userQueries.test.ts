@@ -361,6 +361,70 @@ describe('User Queries', () => {
         expect(result.data).toEqual(updated);
       });
 
+      // Reading the linkage and writing the row are separate requests, so a
+      // signup can adopt the person in between. Restating the condition as a
+      // filter makes Postgres re-check it at write time.
+      it('restates the unlinked condition on the write when the address changes', async () => {
+        const unlinked = { auth_user_id: null, email: 'old@example.com' };
+        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
+          .mockReturnValueOnce(writeChain);
+
+        await updateUser('user-123', { email: 'corrected@example.com' });
+
+        expect(writeChain.is).toHaveBeenCalledWith('auth_user_id', null);
+      });
+
+      it('does not constrain the write when the address is unchanged', async () => {
+        const linked = { auth_user_id: 'auth-1', email: 'handler@example.com' };
+        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: linked, error: null }))
+          .mockReturnValueOnce(writeChain);
+
+        await updateUser('user-123', { email: 'handler@example.com', phone: '555' });
+
+        expect(writeChain.is).not.toHaveBeenCalled();
+      });
+
+      it('reports the refusal when the person is adopted mid-write', async () => {
+        const unlinked = { auth_user_id: null, email: 'old@example.com' };
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
+          .mockReturnValueOnce(
+            createChainableQuery({
+              data: null,
+              error: { message: 'No rows updated', code: 'PGRST116' },
+            })
+          );
+
+        const result = await updateUser('user-123', { email: 'corrected@example.com' });
+
+        expect(result.data).toBeNull();
+        expect(result.error!.message).toMatch(/signs in with/i);
+      });
+
+      // Only the no-rows code means "adopted mid-write". Any other failure has
+      // its own cause and must keep its own message — a duplicate address here
+      // read as a sign-in lock would send the operator hunting the wrong thing.
+      it('keeps an unrelated write failure intact', async () => {
+        const unlinked = { auth_user_id: null, email: 'old@example.com' };
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
+          .mockReturnValueOnce(
+            createChainableQuery({
+              data: null,
+              error: { message: 'duplicate key value violates people_email_unique', code: '23505' },
+            })
+          );
+
+        const result = await updateUser('user-123', { email: 'taken@example.com' });
+
+        expect(result.error!.message).toMatch(/duplicate key/i);
+        expect(result.error!.message).not.toMatch(/signs in with/i);
+      });
+
       it('does not look up the identity when the update carries no email', async () => {
         const chain = createChainableQuery({ data: { id: 'user-123' }, error: null });
         mockSupabase.from.mockReturnValue(chain);

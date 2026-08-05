@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/services/database/supabaseClient';
+import { fetchPersonIdentity } from '@/services/database/users';
 import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
 
@@ -42,14 +43,32 @@ function usePersonRoleNames(personId?: string) {
   return { ...query, data };
 }
 
+/**
+ * Whether this person can sign in. Read here rather than taken from the
+ * caller: the admin roster comes from the `get_admin_user_list` RPC, which
+ * does not return `auth_user_id` at all, so a passed-down flag would be false
+ * for every linked user on the app's main user-management surface — the one
+ * place this matters most (MYK9-136).
+ *
+ * Unknown reads as "editable". The refusal itself lives in `updateUser`, which
+ * fails closed; this only decides whether to offer an edit that would be
+ * refused.
+ */
+function usePersonHasSignInAccount(personId?: string) {
+  const query = useQuery({
+    queryKey: ['personSignInLinkage', personId],
+    queryFn: async () => {
+      if (!personId) return null;
+      return fetchPersonIdentity(personId);
+    },
+    enabled: !!personId,
+    staleTime: 30_000,
+  });
+  return Boolean(query.data?.authUserId);
+}
+
 interface BasicInfoTabProps {
   personId?: string;
-  /**
-   * True when this person has an auth identity, i.e. they can sign in. Their
-   * email is then the address they sign in with, and editing it here would
-   * only change the contact copy — see MYK9-136 and `signInEmailGuard`.
-   */
-  hasSignInAccount?: boolean;
   hasAdminPermission: boolean;
   canEditAdvancedFields: boolean;
   onOpenPhotoModal: () => void;
@@ -57,13 +76,13 @@ interface BasicInfoTabProps {
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   personId,
-  hasSignInAccount = false,
   hasAdminPermission,
   canEditAdvancedFields,
   onOpenPhotoModal,
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
   const { data: dbRoles } = usePersonRoleNames(personId);
+  const hasSignInAccount = usePersonHasSignInAccount(personId);
 
   // Seed form roles from DB on initial load
   useEffect(() => {

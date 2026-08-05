@@ -61,6 +61,10 @@ function RegistrationWizardContent() {
     registrationId,
     registrationNumber,
     liveTotalFees,
+    capacityReady,
+    capacityError,
+    waitlistClassIds,
+    blockedClassIds,
     armbandAssignments,
     entryOutcomes,
     ownerResolution,
@@ -260,6 +264,10 @@ function RegistrationWizardContent() {
               registrationId={registrationId}
               registrationNumber={registrationNumber}
               currentRegistrationTotalFees={liveTotalFees}
+              capacityReady={capacityReady}
+              capacityError={capacityError}
+              waitlistClassIds={waitlistClassIds}
+              blockedClassIds={blockedClassIds}
               armbandAssignments={armbandAssignments}
               entryOutcomes={entryOutcomes}
               onDogSelectionChange={handleDogSelectionChange}

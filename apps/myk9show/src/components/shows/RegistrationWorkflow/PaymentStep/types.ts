@@ -26,6 +26,14 @@ export interface PaymentStepProps {
   agreedToEntryAgreement?: boolean | undefined;
   /** Updates class selections when a payment-summary line is removed. */
   onClassSelectionChange?: ((selections: ClassSelectionData[]) => void | Promise<void>) | undefined;
+  /** False while the selected classes' capacity is loading or failed. */
+  capacityReady?: boolean | undefined;
+  /** Availability query error, when capacityReady is false because of a failure. */
+  capacityError?: string | null | undefined;
+  /** Selected classes that are full but accept a wait-list request. */
+  waitlistClassIds?: ReadonlySet<string> | undefined;
+  /** Selected classes that are full and cannot accept a wait-list request. */
+  blockedClassIds?: ReadonlySet<string> | undefined;
 }
 
 /** A single class entry within a dog's fee breakdown. */
@@ -33,6 +41,8 @@ export interface FeeBreakdownClass {
   classId: string;
   className: string;
   fee: number;
+  /** True when the selected class is a wait-list request, not a payable entry. */
+  isWaitlist?: boolean | undefined;
 }
 
 /** A single dog's fee breakdown. */
@@ -62,6 +72,8 @@ export interface FeeCalculationResult {
 /** Props for the RegistrationSummary sub-component. */
 export interface RegistrationSummaryProps {
   feeCalculation: FeeCalculationResult;
+  /** False while the availability query is loading or failed. */
+  capacityReady?: boolean | undefined;
   onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
   removingLineKey?: string | null | undefined;
 }
@@ -110,6 +122,8 @@ export const PAYMENT_MESSAGES = {
 export interface PaymentSummaryCardProps {
   paymentMethod: PaymentMethod | '';
   feeCalculation: FeeCalculationResult;
+  /** False while the availability query is loading or failed. */
+  capacityReady?: boolean | undefined;
   waiveFees: boolean;
   feeOverride: number | null;
 }

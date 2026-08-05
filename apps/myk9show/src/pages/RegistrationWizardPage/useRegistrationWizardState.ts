@@ -51,6 +51,8 @@ import { proceedBlockedReason } from './proceedGating';
 import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
 import { getEntryCloseAvailability, getEntryWindowTimezone } from './entryCloseGuard';
+import { useClassAvailability } from '@/hooks/useClassAvailability';
+import { getRegistrationCapacityState } from './registrationCapacity';
 
 // Exhibitor self-service defaults to online card payment; on-behalf modes
 // (secretary/admin/club) can't use card checkout, so they start unset and must
@@ -130,6 +132,18 @@ export function useRegistrationWizardState() {
   }, [isInsideSidebar, isSiteAdmin, isClubAdmin, isSecretary]);
 
   const currentWorkflowConfig = WORKFLOW_CONFIGS[currentWorkflowMode];
+
+  // Exhibitor review must not present a client-guessed amount as final. Staff
+  // and late-entry flows use their server/offline submission paths directly;
+  // the online exhibitor flow shares this availability source with class
+  // selection and blocks while it is unresolved.
+  const capacityCheckEnabled = currentWorkflowMode === 'exhibitor' && !isLateEntryMode;
+  const {
+    classes: availabilityClasses,
+    isLoading: capacityLoading,
+    error: capacityError,
+    refetch: refetchClassAvailability,
+  } = useClassAvailability(showId, { enabled: capacityCheckEnabled });
 
   // Reset step state when workflow mode changes mid-session (e.g. role change)
   // to prevent stale completions from a previous mode allowing skipping payment.
@@ -234,6 +248,11 @@ export function useRegistrationWizardState() {
   const clampedStep = Math.min(currentStep, currentWorkflowConfig.steps.length - 1);
   const currentStepId: StepId = currentWorkflowConfig.steps[clampedStep];
 
+  useEffect(() => {
+    if (!capacityCheckEnabled || currentStepId !== 'payment') return;
+    void refetchClassAvailability();
+  }, [capacityCheckEnabled, currentStepId, refetchClassAvailability]);
+
   const {
     saveDraft: draftSave,
     loadDraft: draftLoad,
@@ -304,6 +323,21 @@ export function useRegistrationWizardState() {
     setDraftData,
   ]);
 
+  const selectedDogIds = useMemo(() => new Set(registrationData.selectedDogs), [
+    registrationData.selectedDogs,
+  ]);
+  const registrationCapacity = useMemo(
+    () => getRegistrationCapacityState(classSelections, availabilityClasses, selectedDogIds),
+    [classSelections, availabilityClasses, selectedDogIds]
+  );
+  const capacityReady =
+    !capacityCheckEnabled && !capacityLoading && !capacityError
+      ? true
+      : capacityCheckEnabled &&
+          !capacityLoading &&
+          !capacityError &&
+          registrationCapacity.unknownClassIds.size === 0;
+
   const liveTotalFees = useMemo(
     () =>
       calculateTotalFees(
@@ -317,10 +351,20 @@ export function useRegistrationWizardState() {
               dayOfShowFee: currentShow.dayOfShowFee,
               startDate: currentShow.startDate,
             }
-          : undefined
+          : undefined,
+        capacityReady ? registrationCapacity.waitlistClassIds : new Set()
       ).total,
-    [registrationData.selectedDogs, classSelections, dogs, classes, currentShow]
+    [
+      registrationData.selectedDogs,
+      classSelections,
+      dogs,
+      classes,
+      currentShow,
+      capacityReady,
+      registrationCapacity.waitlistClassIds,
+    ]
   );
+
   const entryCloseAvailability = useMemo(
     () =>
       getEntryCloseAvailability({
@@ -385,6 +429,8 @@ export function useRegistrationWizardState() {
     hasPaymentMethod: !!registrationData.paymentMethod,
     needsAgreement: !!currentShow?.organization,
     agreedToEntryAgreement,
+    capacityReady,
+    blockedClassCount: registrationCapacity.blockedClassIds.size,
   });
   const canProceed = () => proceedBlocked === null;
   const isLastStep = currentStep === steps.length - 1;
@@ -477,6 +523,10 @@ export function useRegistrationWizardState() {
     optimisticState,
     completedSteps,
     liveTotalFees,
+    capacityReady,
+    capacityError,
+    waitlistClassIds: registrationCapacity.waitlistClassIds,
+    blockedClassIds: registrationCapacity.blockedClassIds,
     entryCloseAvailability,
     ownerResolution,
     proceedBlocked,

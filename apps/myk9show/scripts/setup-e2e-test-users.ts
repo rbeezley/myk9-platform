@@ -16,8 +16,10 @@
 import { createClient, type User } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import {
+  planAccountProvisioning,
   planRoleReconciliation,
   resolveEffectiveSetupMode,
+  resolveScopedClubId,
   type ScopedRoleGrant,
 } from './setup-e2e-test-users.helpers';
 
@@ -48,6 +50,8 @@ interface TestUser {
   firstName: string;
   lastName: string;
   roles: string[];
+  /** Provisioned only where its password env is set; otherwise skipped. */
+  optional?: boolean;
 }
 
 interface RoleScope {
@@ -95,17 +99,44 @@ const CANONICAL_TEST_USERS: TestUser[] = [
     lastName: 'Admin',
     roles: ['site_admin', 'secretary', 'club_admin', 'chairman', 'exhibitor'],
   },
+  // Club-scoped authority with NO site-wide role (MYK9-137). e2e-admin above is
+  // both a site_admin and a club_admin, and every club gate is a disjunction
+  // (`is_site_admin() OR is_club_admin(id)`), so it clears them through the site
+  // branch and can never demonstrate that a club admin is confined to its club.
+  //
+  // Optional: provisioning it needs an E2E_CLUB_ADMIN_PASSWORD secret that does
+  // not exist yet. Marked so, rather than added to the required set, because this
+  // script runs inside scripts/qa/isolated-e2e-lifecycle.ts — a required account
+  // with no secret would abort the nightly run outright.
+  {
+    email: 'e2e-club-admin@test.myk9.com',
+    passwordEnv: 'E2E_CLUB_ADMIN_PASSWORD',
+    firstName: 'Test',
+    lastName: 'Club Admin',
+    roles: ['club_admin'],
+    optional: true,
+  },
 ];
-const TEST_USERS = CANONICAL_TEST_USERS;
 
-for (const user of TEST_USERS) {
-  if (!process.env[user.passwordEnv]) {
+const provisioningPlan = planAccountProvisioning(CANONICAL_TEST_USERS, process.env);
+
+if (provisioningPlan.missingRequired.length > 0) {
+  for (const user of provisioningPlan.missingRequired) {
     console.error(
       `Refusing to run: set ${user.passwordEnv} for ${user.email} in apps/myk9show/.env.local`
     );
-    process.exit(1);
   }
+  process.exit(1);
 }
+
+for (const user of provisioningPlan.skipped) {
+  console.warn(
+    `Skipping ${user.email}: ${user.passwordEnv} is not set. ` +
+      'Club-scope tests that sign in as this account cannot run until it is.'
+  );
+}
+
+const TEST_USERS = provisioningPlan.provision;
 
 const roleIdCache: Record<string, string> = {};
 let scopedClubId: string | null = null;
@@ -135,22 +166,28 @@ async function getScopedClubId(): Promise<string> {
     return scopedClubId;
   }
 
+  // Every club, not just the first: with two seeded clubs sharing a created_at,
+  // "order by created_at limit 1" is a coin flip, and losing it scopes the
+  // canonical secretary/club_admin grants to the WRONG club (MYK9-137).
   const { data, error } = await supabase
     .from('clubs')
-    .select('id, name')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .single();
+    .select('id, name, created_at')
+    .order('created_at', { ascending: true });
 
-  if (error || !data) {
+  if (error || !data || data.length === 0) {
     throw new Error(
       `Could not find a club for scoped test roles: ${error?.message || 'none found'}`
     );
   }
 
-  scopedClubId = data.id;
-  console.log(`Using club scope for secretary/club_admin roles: ${data.name || data.id}`);
-  return data.id;
+  scopedClubId = resolveScopedClubId(
+    data.map(club => ({ id: club.id, createdAt: club.created_at }))
+  );
+  const scopedClub = data.find(club => club.id === scopedClubId);
+  console.log(
+    `Using club scope for secretary/club_admin roles: ${scopedClub?.name || scopedClubId}`
+  );
+  return scopedClubId;
 }
 
 async function getRoleScope(roleName: string): Promise<RoleScope> {

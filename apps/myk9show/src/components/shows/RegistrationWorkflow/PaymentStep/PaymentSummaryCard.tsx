@@ -13,13 +13,19 @@ import type { PaymentSummaryCardProps } from './types';
 export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
   paymentMethod,
   feeCalculation,
+  capacityReady = true,
   waiveFees,
   feeOverride,
 }) => {
   const isWaived = paymentMethod === 'waived' || waiveFees;
   const amountDueValue = feeOverride ?? feeCalculation.total;
-  const requiresPaymentMethod = !isWaived && amountDueValue > 0 && !paymentMethod;
-  const amountDue = isWaived ? '$0.00 (Waived)' : `$${amountDueValue.toFixed(2)}`;
+  const requiresPaymentMethod =
+    capacityReady && !isWaived && amountDueValue > 0 && !paymentMethod;
+  const amountDue = !capacityReady
+    ? 'Checking availability'
+    : isWaived
+      ? '$0.00 (Waived)'
+      : `$${amountDueValue.toFixed(2)}`;
 
   return (
     <Card>

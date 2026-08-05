@@ -305,12 +305,13 @@ export function useClassAvailability(
   });
 
   const classes = showId && enabled ? (query.data ?? []) : [];
-  const isLoading = Boolean(showId && enabled && query.isLoading);
+  const isLoading = Boolean(showId && enabled && (query.isLoading || query.isFetching));
   const error = query.error instanceof Error ? query.error.message : null;
+  const queryRefetch = query.refetch;
 
   const refetch = useCallback(async () => {
-    await query.refetch();
-  }, [query]);
+    await queryRefetch();
+  }, [queryRefetch]);
 
   const totalSpotsAvailable = classes.reduce((sum, cls) => sum + cls.spotsAvailable, 0);
   const fullClasses = classes.filter(cls => cls.isFull).length;

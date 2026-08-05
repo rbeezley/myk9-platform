@@ -10,6 +10,7 @@ import type { RegistrationSummaryProps } from './types';
  */
 export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
   feeCalculation,
+  capacityReady = true,
   onRemoveLine,
   removingLineKey,
 }) => {
@@ -29,9 +30,22 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                     key={cls.classId}
                     className="flex items-center justify-between gap-2 text-sm text-muted-foreground"
                   >
-                    <span className="min-w-0 break-words">{cls.className}</span>
+                    <span className="min-w-0 break-words">
+                      {cls.className}
+                      {capacityReady && cls.isWaitlist && (
+                        <span className="ml-2 font-medium text-amber-700">
+                          (Wait list request)
+                        </span>
+                      )}
+                    </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <span>${cls.fee.toFixed(2)}</span>
+                      <span>
+                        {capacityReady
+                          ? cls.isWaitlist
+                            ? 'No payment due'
+                            : `$${cls.fee.toFixed(2)}`
+                          : 'Checking availability'}
+                      </span>
                       {onRemoveLine && (
                         <Button
                           type="button"
@@ -58,7 +72,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Subtotal</span>
-              <span>${feeCalculation.subtotal.toFixed(2)}</span>
+              <span>{capacityReady ? `$${feeCalculation.subtotal.toFixed(2)}` : '—'}</span>
             </div>
 
             {feeCalculation.discounts.map((discount, index) => (
@@ -67,7 +81,9 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                   <Tag className="h-3 w-3 shrink-0" />
                   <span className="break-words">{discount.description}</span>
                 </span>
-                <span className="shrink-0">-${discount.amount.toFixed(2)}</span>
+                <span className="shrink-0">
+                  {capacityReady ? `-$${discount.amount.toFixed(2)}` : '—'}
+                </span>
               </div>
             ))}
 
@@ -75,7 +91,9 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
 
             <div className="flex justify-between font-semibold">
               <span>Total Due</span>
-              <span className="text-lg">${feeCalculation.total.toFixed(2)}</span>
+              <span className="text-lg">
+                {capacityReady ? `$${feeCalculation.total.toFixed(2)}` : 'Checking availability'}
+              </span>
             </div>
           </div>
         </div>

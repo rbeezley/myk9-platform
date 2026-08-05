@@ -19,6 +19,8 @@ export interface ProceedGatingContext {
   hasPaymentMethod: boolean;
   needsAgreement: boolean;
   agreedToEntryAgreement: boolean;
+  capacityReady: boolean;
+  blockedClassCount: number;
 }
 
 function handlerReason(count: number): string {
@@ -46,6 +48,12 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       if (ctx.unassignedHandlerCount > 0) return handlerReason(ctx.unassignedHandlerCount);
       return null;
     case 'payment':
+      if (!ctx.capacityReady) {
+        return 'Checking class availability. Please wait, then try again.';
+      }
+      if (ctx.blockedClassCount > 0) {
+        return 'Remove the full class that does not accept a wait list to continue.';
+      }
       if (ctx.totalFees > 0 && !ctx.hasPaymentMethod) {
         return 'Choose a payment method to continue.';
       }

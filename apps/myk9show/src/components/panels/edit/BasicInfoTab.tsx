@@ -78,6 +78,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const firstNameError = form?.getError('firstName');
   const lastNameError = form?.getError('lastName');
   const emailError = form?.getError('email');
+  const emailInputProps = { id: 'email', type: 'email', value: data.email, name: 'email' } as const;
 
   return (
     <div className="space-y-6">
@@ -145,12 +146,9 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         {hasSignInAccount ? (
           <>
             <Input
-              id="email"
-              type="email"
-              value={data.email}
+              {...emailInputProps}
               readOnly
               aria-readonly="true"
-              name="email"
               className="cursor-default bg-muted text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
@@ -159,13 +157,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </>
         ) : (
           <Input
-            id="email"
-            type="email"
-            value={data.email}
+            {...emailInputProps}
             onChange={e => form?.setValue('email', e.target.value)}
             onBlur={() => form?.touchField('email')}
             placeholder="Enter email address"
-            name="email"
             {...form?.getFieldProps('email')}
           />
         )}

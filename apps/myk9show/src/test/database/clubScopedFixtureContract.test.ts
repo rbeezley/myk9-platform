@@ -142,8 +142,21 @@ describe('seed-demo club scope fixtures', () => {
     expect(membersBlock).toContain('ON CONFLICT (club_id, person_id) DO NOTHING');
   });
 
+  // Bounded by the NEXT subsection, not by section 11. 10e was the last block
+  // under section 10 when this was written, so "to section 11" happened to mean
+  // "the 10e block" — until 10f/10g were added (MYK9-141) and the window silently
+  // grew to include another account's grants, failing the exactly-one-role
+  // assertion below on a seed that was correct.
+  function readClubAdminGrantBlock(): string {
+    const start = seed.indexOf('-- 10e.');
+    expect(start).toBeGreaterThan(-1);
+    const end = seed.indexOf('-- 10f.', start);
+    expect(end).toBeGreaterThan(start);
+    return seed.slice(start, end);
+  }
+
   it('grants the club-admin-only account club_admin on Heartland alone', () => {
-    const grantBlock = seed.slice(seed.indexOf('-- 10e.'), seed.indexOf('-- 11. GAP FIXTURE #5'));
+    const grantBlock = readClubAdminGrantBlock();
 
     expect(grantBlock).toContain(CLUB_ADMIN_EMAIL);
     expect(grantBlock).toContain(HEARTLAND_CLUB_ID);
@@ -155,7 +168,7 @@ describe('seed-demo club scope fixtures', () => {
     // Asserted over the roles the 10e block names, not over an absence: an
     // "expect(...).not.toContain('site_admin')" would also pass on a seed that
     // stopped mentioning the account entirely.
-    const grantBlock = seed.slice(seed.indexOf('-- 10e.'), seed.indexOf('-- 11. GAP FIXTURE #5'));
+    const grantBlock = readClubAdminGrantBlock();
     const rolesNamed = new Set(
       Array.from(grantBlock.matchAll(/r\.name = '([a-z_]+)'/g), match => match[1])
     );

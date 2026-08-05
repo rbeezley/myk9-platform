@@ -127,7 +127,7 @@ END $$;
 --   load dog     a1090000-0000-0000-0001-{000000000001..000000000063}
 --   load entry   a1090000-0000-0000-0002-{000000000001..000000000504}
 --   load armband a1090000-0000-0000-0003-{000000000001..000000000063}
---   judge_assign dededede-0000-0000-0000-0000000000a{1..5} (judge@) / b{1..5} (e2e-judge), class-level
+--   judge_assign dededede-0000-0000-0000-0000000000b{1..5} (e2e-judge), class-level
 --   passcode     dededede-0000-0000-0000-00000000008{1,2}
 --   judge_qual   dededede-0000-0000-0000-00000000009{1,2}
 
@@ -816,6 +816,11 @@ FROM public.people p, public.roles r
 WHERE ur.user_id = p.id AND ur.role_id = r.id
   AND r.name = 'club_admin'
   AND lower(p.email) = 'e2e-club-admin@test.myk9.com'
+  -- Optional account: a stale people row whose Auth user was wiped carries a
+  -- NULL auth_user_id, and reactivating on it writes an ACTIVE grant nobody
+  -- can ever authenticate into. The INSERT half has always been guarded; the
+  -- reactivate half was not (Codex review, #1626).
+  AND p.auth_user_id IS NOT NULL
   AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
   AND ur.show_id IS NULL
   AND (ur.is_active IS DISTINCT FROM true
@@ -836,6 +841,103 @@ WHERE r.name = 'club_admin'
       AND ur.show_id IS NULL);
 
 -- ---------------------------------------------------------------------------
+-- 10f. judge -> e2e-judge-empty@test.myk9.com (MYK9-141)
+--
+--     The empty-assignment subject. e2e-judge proves "the judge SEES the class
+--     assigned to them"; this account proves the other half — a judge with a
+--     valid role and no assignments reaches /judge/dashboard and is met by the
+--     empty state rather than an error or a 403. Section 11 deliberately gives it
+--     no judge_assignments row, and seedDemoOfficialsContract pins that absence.
+--
+--     Until this block existed the fixture was declared in three places
+--     (test-users.ts, helpers/testUsers.ts, setup-e2e-test-users.ts) and granted
+--     in NONE, so it could authenticate and then land on a 403 — the empty case
+--     was unreachable and the "no assignments" assertion untestable.
+--
+--     Optional in the same sense as 10e: the account needs an Auth user, which
+--     needs E2E_JUDGE_EMPTY_PASSWORD. Where that is unset the people row does not
+--     exist, the JOIN matches nothing, and the seed completes normally. Hence the
+--     auth_user_id guard on the INSERT and its absence from the preflight.
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id AND ur.role_id = r.id
+  AND r.name = 'judge'
+  AND lower(p.email) = 'e2e-judge-empty@test.myk9.com'
+  -- Optional account: a stale people row whose Auth user was wiped carries a
+  -- NULL auth_user_id, and reactivating on it writes an ACTIVE grant nobody
+  -- can ever authenticate into. The INSERT half has always been guarded; the
+  -- reactivate half was not (Codex review, #1626).
+  AND p.auth_user_id IS NOT NULL
+  AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+  AND ur.show_id IS NULL
+  AND (ur.is_active IS DISTINCT FROM true
+       OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id
+       OR ur.expires_at IS NOT NULL);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+FROM public.people p
+CROSS JOIN public.roles r
+WHERE r.name = 'judge'
+  AND lower(p.email) = 'e2e-judge-empty@test.myk9.com'
+  AND p.auth_user_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id AND ur.role_id = r.id
+      AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+      AND ur.show_id IS NULL);
+
+-- ---------------------------------------------------------------------------
+-- 10g. JUDGE FIXTURE EXCLUSIVITY (MYK9-141).
+--
+--     THE POINT OF THE JUDGE ACCOUNTS, LIKE 10e, IS WHAT THEY DO *NOT* HOLD.
+--     Everything above this line only ever ADDS a grant. That is correct for a
+--     seed — it must be revoke-safe and idempotent — but it means no step
+--     anywhere can make an account hold ONLY the role its fixture claims, and
+--     user_roles rows accumulate: a hand-run script, an admin-UI click, or an
+--     older seed leaves a grant behind and nothing ever takes it away.
+--
+--     That is not hypothetical. On 2026-08-01 the weekly judge UX walk found the
+--     documented judge account rendering as `Secretary +2` (an active `secretary`
+--     grant plus a stray unscoped `exhibitor` grant dating to 2026-05-11), and
+--     the exhibitor grant was still active when MYK9-141 was worked on 08-05.
+--     `unifiedSidebarConfig.ts` builds that badge from `new Set(userRoles)`, so
+--     the label is a direct readout of the distinct role names granted here.
+--
+--     WHY THE TS RECONCILER DOES NOT COVER THIS. setup-e2e-test-users.ts DOES
+--     deactivate grants outside its declared set (planRoleReconciliation ->
+--     deactivateIds). But CI runs it with MYK9_E2E_AUTH_ONLY=true, which returns
+--     right after the Auth user is provisioned and never reaches the role code
+--     (see `if (authOnly)` in createTestUser). In CI, role state comes from this
+--     file and only this file — so the exclusivity step has to live here too.
+--
+--     WHY IT MATTERS BEYOND COSMETICS. A judge carrying exhibitor or secretary
+--     satisfies judge-only authorization checks through the WRONG branch, exactly
+--     as a site_admin satisfies a club gate in 10e. "A judge is denied the
+--     secretary-only result surface" reports a pass whether or not judge scoping
+--     exists. The account has to be refusable for the assertion to mean anything.
+--
+--     SCOPED BY EMAIL TO THE TWO JUDGE FIXTURES — never a blanket deactivate.
+--     e2e-secretary is deliberately secretary+steward+exhibitor and e2e-admin is
+--     deliberately multi-role; widening this WHERE clause would silently destroy
+--     those fixtures. Deactivate (is_active = false) rather than DELETE, matching
+--     the reactivate-then-insert pattern above: 10b flips its own row back on, so
+--     ordering is not load-bearing and a re-run is UPDATE 0.
+--
+--     Duplicate `judge` rows are left alone. e2e-judge holds judge twice (one
+--     unscoped from 2026-05-11, one club-scoped from 10b); both name the same
+--     role, the badge de-dupes them, and the route guards match on name.
+UPDATE public.user_roles ur
+SET is_active = false
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id
+  AND ur.role_id = r.id
+  AND lower(p.email) IN ('e2e-judge@test.myk9.com', 'e2e-judge-empty@test.myk9.com')
+  AND r.name <> 'judge'
+  AND ur.is_active;
+
+-- ---------------------------------------------------------------------------
 -- 11. GAP FIXTURE #5 (judge handoff, audit 05-showday-walk S2): assign judges to
 --     the Heartland show so /judge/dashboard surfaces assignments — the route into
 --     ringside. Without this the judge dashboard reads "No Judging Assignments Yet"
@@ -851,12 +953,19 @@ WHERE r.name = 'club_admin'
 --     sets class_id. (This is also why a wizard-created SHOW-level assignment
 --     does not reach the dashboard — a separate product gap, not seeded here.)
 --
---     Coverage: both demo judges judge ALL 5 classes across both trials, so
---     whichever judge account a tester signs in as, the dashboard is full. Both
---     people are named "Test Judge" (matches classes.judge_name), so co-assigning
---     them to the same classes is consistent. trial_id matches each class's trial.
---       ...0b{1..5}  e2e-judge@test.myk9.com -> classes 031..035
---       ...0b{1..5}  e2e-judge@test.myk9.com -> classes 031..035
+--     Coverage is a STRICT SUBSET, and that is the point (MYK9-141). Nine classes
+--     are seeded (031..039); e2e-judge is assigned to five of them:
+--       ...0b{1..5}  e2e-judge@test.myk9.com -> classes 031..035 (trials 021/022)
+--     leaving 036..039 (trials 023/024) assigned to NOBODY. Assignment-isolation
+--     QA needs both halves: without an assigned class "the judge can see it" is
+--     untestable, and without an unassigned one "the judge cannot see it" passes
+--     vacuously. Assigning all nine would silently delete the negative case, so
+--     seedDemoOfficialsContract pins 036 as absent from this block. The third
+--     subject is e2e-judge-empty@test.myk9.com, which gets no row here at all —
+--     the empty-dashboard case.
+--
+--     trial_id matches each class's trial, and the judge is named "Test Judge" to
+--     match the classes.judge_name snapshot written above.
 --
 --     SCOPE NOTE: a judge_assignments row fixes the judge's SCHEDULING surface.
 --     It does NOT by itself grant entry-visibility RLS at ringside — entries_select

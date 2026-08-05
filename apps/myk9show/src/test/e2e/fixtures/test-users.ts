@@ -31,6 +31,14 @@ export const TEST_USERS = {
     lastName: 'Secretary',
     roles: ['secretary', 'steward', 'exhibitor'],
   },
+  // `roles: ['judge']` here is a CLAIM about the database, not a control on it —
+  // nothing in this file grants or revokes anything. seed-demo.sql section 10g is
+  // what makes it true, by deactivating every non-judge grant on this address;
+  // before it existed the account carried a stray exhibitor grant and rendered as
+  // `Secretary +2` (MYK9-141). The exclusivity is the whole value of the fixture:
+  // a judge that also holds exhibitor/secretary satisfies judge-only checks
+  // through the broader role, so an isolation test written with it is vacuous —
+  // the same trap `clubAdmin` below documents for site_admin.
   judge: {
     email: 'e2e-judge@test.myk9.com',
     password: process.env.E2E_JUDGE_PASSWORD ?? '',
@@ -38,6 +46,7 @@ export const TEST_USERS = {
     lastName: 'Judge',
     roles: ['judge'],
   },
+  // Same exclusivity, but seeded with no judge_assignments rows at all.
   judgeWithoutAssignments: {
     email: 'e2e-judge-empty@test.myk9.com',
     password: process.env.E2E_JUDGE_EMPTY_PASSWORD ?? '',

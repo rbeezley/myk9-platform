@@ -52,6 +52,15 @@ export const TEST_USERS: Record<string, TestUser> = {
     description: 'Show secretary — e2e-secretary@test.myk9.com, rotated 2026-06-18',
   },
 
+  // JUDGE-ONLY, and the "only" is load-bearing (MYK9-141). A judge that also
+  // holds exhibitor or secretary clears judge-only authorization checks through
+  // the wrong branch, so "a judge is denied the secretary result surface" would
+  // report a pass whether or not judge scoping exists. seed-demo.sql section 10g
+  // deactivates every non-judge grant on this address to keep that true; the
+  // 2026-08-01 judge UX walk found it rendering as `Secretary +2`.
+  //
+  // Assigned to classes 031..035 of the Heartland show; 036..039 are assigned to
+  // nobody, which is the negative subject for assignment-isolation tests.
   JUDGE: {
     email: process.env.E2E_JUDGE_EMAIL ?? '',
     password: process.env.E2E_JUDGE_PASSWORD ?? '',
@@ -59,6 +68,9 @@ export const TEST_USERS: Record<string, TestUser> = {
     description: 'Show judge — e2e-judge@test.myk9.com, rotated 2026-06-18',
   },
 
+  // Same judge-only invariant, zero assignments — the empty-dashboard subject.
+  // No E2E_JUDGE_EMPTY_EMAIL override: the address is hard-coded in seed-demo.sql
+  // section 10f (its judge grant) and 10g (its exclusivity).
   JUDGE_WITHOUT_ASSIGNMENTS: {
     email: 'e2e-judge-empty@test.myk9.com',
     password: process.env.E2E_JUDGE_EMPTY_PASSWORD ?? '',

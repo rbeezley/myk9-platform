@@ -228,6 +228,27 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
     expect(reactivate).toContain('p.auth_user_id IS NOT NULL');
   });
 
+  // The isolated seed writes person.auth_user_id straight into the grant, so the
+  // hazard is identical on its INSERT halves — guarding only the reactivate side
+  // left the INSERT able to create the very row the guard was added to prevent
+  // (third Codex round on #1626). Asserted over EVERY user_roles statement in the
+  // file rather than the two that were fixed, so a fifth one cannot skip it.
+  it('guards every isolated-seed user_roles write on an auth identity', () => {
+    const isolated = readFileSync(
+      join(repoRoot, 'supabase/seed-isolated-e2e-accounts.sql'),
+      'utf8'
+    );
+    const statements = isolated
+      .split(';\n')
+      .filter(statement => /(UPDATE|INSERT INTO) public\.user_roles/.test(statement));
+
+    // 2 reactivate + 2 insert, platform-wide and club-scoped.
+    expect(statements).toHaveLength(4);
+    for (const statement of statements) {
+      expect(statement).toContain('person.auth_user_id IS NOT NULL');
+    }
+  });
+
   it('provisions the empty-assignment fixture in the isolated account seed too', () => {
     // seed-demo runs against the shared/demo database; the isolated Playwright
     // lifecycle seeds its own disposable one from this second file. A fixture

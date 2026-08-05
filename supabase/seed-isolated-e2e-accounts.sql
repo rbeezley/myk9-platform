@@ -180,7 +180,12 @@ SELECT
 FROM desired
 JOIN public.people AS person ON lower(person.email) = desired.email
 JOIN public.roles AS role ON role.name = desired.role_name
-WHERE NOT EXISTS (
+-- Same reason as the reactivate block above: person.auth_user_id is written
+-- straight into the grant, so a stale profile with no Auth identity would insert
+-- an ACTIVE role nobody can sign into (#1626). Only the optional accounts can
+-- reach that state; the required four are covered by the count assertion.
+WHERE person.auth_user_id IS NOT NULL
+  AND NOT EXISTS (
   SELECT 1
   FROM public.user_roles AS user_role
   WHERE user_role.user_id = person.id
@@ -257,7 +262,8 @@ FROM desired
 JOIN public.people AS person ON lower(person.email) = desired.email
 JOIN public.roles AS role ON role.name = desired.role_name
 CROSS JOIN demo_club
-WHERE NOT EXISTS (
+WHERE person.auth_user_id IS NOT NULL
+  AND NOT EXISTS (
   SELECT 1
   FROM public.user_roles AS user_role
   WHERE user_role.user_id = person.id

@@ -59,7 +59,11 @@ trap cleanup EXIT
 identity_matches() {
   local body
   body="$(curl -fsS --max-time 5 "$base_url/__myk9/audit-server-identity" 2>/dev/null)" || return 1
-  [[ "$body" == *"\"serverId\":\"$server_id\""* ]]
+  [[ "$body" == *"\"serverId\":\"$server_id\""* ]] || return 1
+  # The server must also point at the project the write guard is written
+  # against. Playwright's global setup re-checks this; failing here just gives a
+  # clearer message before a browser is ever opened.
+  [[ "$body" == *"\"supabaseHost\":\"sojmvhhwsjxmfistvzbe.supabase.co\""* ]]
 }
 
 if [[ "$mode" == "own" ]]; then

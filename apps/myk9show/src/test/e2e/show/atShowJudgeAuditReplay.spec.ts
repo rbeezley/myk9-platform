@@ -150,15 +150,10 @@ async function attachWriteLedger(
 ) {
   const summary = summarizeSharedStagingWriteLedger(ledger);
 
-  expect(
-    summary.blocked,
-    'an unrecognised shared-staging write was attempted during the audit replay'
-  ).toEqual([]);
-  expect(
-    summary.intercepted,
-    'the replay reached the shared-staging write path at least once'
-  ).toBeGreaterThan(0);
-
+  // Attached BEFORE the assertions. The failures below are precisely the ones
+  // this artifact explains — an unrecognised write, or a replay that never
+  // reached the write path — so throwing first would withhold the evidence
+  // exactly when it is needed.
   await testInfo.attach('shared-staging-write-ledger.json', {
     contentType: 'application/json',
     body: Buffer.from(
@@ -168,7 +163,11 @@ async function attachWriteLedger(
           project: testInfo.project.name,
           fixture,
           sharedStagingWritesForwarded: 0,
-          summary: { total: summary.total, intercepted: summary.intercepted, blocked: 0 },
+          summary: {
+            total: summary.total,
+            intercepted: summary.intercepted,
+            blocked: summary.blocked.length,
+          },
           entries: ledger,
         },
         null,
@@ -176,6 +175,15 @@ async function attachWriteLedger(
       )
     ),
   });
+
+  expect(
+    summary.blocked,
+    'an unrecognised shared-staging write was attempted during the audit replay'
+  ).toEqual([]);
+  expect(
+    summary.intercepted,
+    'the replay reached the shared-staging write path at least once'
+  ).toBeGreaterThan(0);
 }
 
 function scoredCallsFor(rpcCalls: GuardedRingsideRpcCall[]) {

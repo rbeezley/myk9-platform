@@ -1,6 +1,7 @@
 import type { FullConfig } from '@playwright/test';
 import {
   AUDIT_SERVER_IDENTITY_PATH,
+  SHARED_STAGING_SUPABASE_HOST,
   verifyAuditServerIdentity,
 } from '../../../../scripts/playwright-audit-target';
 
@@ -19,5 +20,7 @@ export default async function auditGlobalSetup(config: FullConfig) {
     throw new Error(`Audit server identity endpoint returned ${response.status}.`);
   }
 
-  verifyAuditServerIdentity(await response.json(), expectedServerId);
+  // Also pins the server's Supabase target: attaching to a server built against
+  // a different project would slip past every other check in the audit.
+  verifyAuditServerIdentity(await response.json(), expectedServerId, SHARED_STAGING_SUPABASE_HOST);
 }

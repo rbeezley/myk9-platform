@@ -63,11 +63,31 @@ export function resolveAuditTarget(environment: AuditEnvironment): AuditTarget {
   };
 }
 
-export function verifyAuditServerIdentity(payload: unknown, expectedServerId: string): void {
+export function verifyAuditServerIdentity(
+  payload: unknown,
+  expectedServerId: string,
+  expectedSupabaseHost?: string
+): void {
   if (!isRecord(payload) || payload.app !== 'myk9show' || payload.serverId !== expectedServerId) {
     throw new Error('The app server identity does not match PLAYWRIGHT_AUDIT_SERVER_ID.');
   }
+
+  // The server id proves only that someone started this server for this run. It
+  // says nothing about which Supabase project the app writes to — and a server
+  // pointed at a different project would leave the write guard matching no host,
+  // forwarding every write there while the audit still reported interception.
+  if (expectedSupabaseHost === undefined) return;
+
+  if (payload.supabaseHost !== expectedSupabaseHost) {
+    throw new Error(
+      `The app server targets Supabase host ${String(payload.supabaseHost)}, not the ` +
+        `${expectedSupabaseHost} the audit's write guard is written against.`
+    );
+  }
 }
+
+/** Host of the declared shared staging project, for the identity check above. */
+export const SHARED_STAGING_SUPABASE_HOST = `${SHARED_STAGING_PROJECT_REF}.supabase.co`;
 
 function parseURL(value: string, name: string): URL {
   try {

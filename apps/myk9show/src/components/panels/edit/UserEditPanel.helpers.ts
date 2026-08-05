@@ -41,7 +41,6 @@ export const userFormSchema: z.ZodSchema<UserFormData> = z
     profileImage: z.string().optional(),
     judgeQualifications: z.array(judgeQualificationSchema),
     roles: z.array(z.string()),
-    status: z.enum(['active', 'suspended']),
     bio: z.string().optional(),
     website: z.string().optional(),
     emergencyContact: z.string().optional(),
@@ -87,7 +86,6 @@ export const userToFormData = (user: Partial<UserType>): UserFormData => {
     profileImage: user.profileImage || (userRecord.profile_image_url as string) || '',
     judgeQualifications: (user.judgeQualifications as JudgeQualification[]) || [],
     roles: (user.roles || []) as unknown as string[], // Handle UserRole[] type
-    status: (userRecord.status as 'active' | 'suspended') || 'active',
     bio: (userRecord.bio as string) || '', // Extended field
     website: (userRecord.website as string) || '', // Extended field
     emergencyContact: (userRecord.emergencyContact as string) || '', // Extended field
@@ -122,7 +120,6 @@ export const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
   profileImage: formData.profileImage,
   judgeQualifications: formData.judgeQualifications,
   roles: formData.roles as UserRole[],
-  status: formData.status,
   ...(formData.bio && ({ bio: formData.bio } as Record<string, unknown>)),
   ...(formData.website && ({ website: formData.website } as Record<string, unknown>)),
   ...(formData.emergencyContact &&

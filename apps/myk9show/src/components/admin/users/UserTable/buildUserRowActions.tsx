@@ -10,7 +10,7 @@
  * Kept apart from `RowActions` so the shape can be asserted without a DOM.
  */
 
-import { Eye, Edit, Trash2, Shield, RotateCcw } from 'lucide-react';
+import { Eye, Edit, Trash2, Shield, RotateCcw, UserX, UserCheck } from 'lucide-react';
 import type { RowAction } from '@/components/ui/RowActionMenu';
 import { User } from '@/types/user-types';
 
@@ -20,10 +20,22 @@ export interface UserRowActionHandlers {
   onDelete: (user: User) => void;
   onRestore: (user: User) => void;
   onManageRoles?: ((user: User) => void) | undefined;
+  onChangeStatus?: ((user: User) => void) | undefined;
+  statusActionDisabled?: boolean | undefined;
+  statusActionDescription?: string | undefined;
 }
 
 export function buildUserRowActions(user: User, handlers: UserRowActionHandlers): RowAction[] {
-  const { onView, onEdit, onDelete, onRestore, onManageRoles } = handlers;
+  const {
+    onView,
+    onEdit,
+    onDelete,
+    onRestore,
+    onManageRoles,
+    onChangeStatus,
+    statusActionDisabled,
+    statusActionDescription,
+  } = handlers;
   const isRemoved = Boolean(user.deletedAt);
 
   const view: RowAction = {
@@ -77,6 +89,21 @@ export function buildUserRowActions(user: User, handlers: UserRowActionHandlers)
             label: 'Manage roles',
             icon: <Shield />,
             onSelect: () => onManageRoles(user),
+            className: 'myk9-table-dropdown-item',
+          } satisfies RowAction,
+        ]
+      : []),
+    ...(onChangeStatus
+      ? [
+          {
+            id: 'status',
+            label: user.status === 'suspended' ? 'Reinstate account' : 'Suspend account',
+            icon: user.status === 'suspended' ? <UserCheck /> : <UserX />,
+            onSelect: () => onChangeStatus(user),
+            ...(statusActionDisabled !== undefined ? { disabled: statusActionDisabled } : {}),
+            ...(statusActionDescription !== undefined
+              ? { description: statusActionDescription }
+              : {}),
             className: 'myk9-table-dropdown-item',
           } satisfies RowAction,
         ]

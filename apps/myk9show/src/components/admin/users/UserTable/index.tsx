@@ -5,10 +5,15 @@ import { type ColumnDef, type SortingState } from '@tanstack/react-table';
 import { DataTable } from '@/components/ui/data-table';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
-import { usePermanentDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
+import {
+  usePermanentDeleteUserMutation,
+  useUpdateUserMutation,
+} from '@/hooks/queries/useUsersQuery';
 import { restoreUser } from '@/services/database/users';
 import { queryKeys } from '@/lib/queryClient';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import AccountStatusDialog from '@/components/users/AccountStatusDialog';
 import { AdminDeleteUserDialog } from '../AdminDeleteUserDialog';
 import '@/styles/myk9-table.css';
 
@@ -66,7 +71,9 @@ function buildColumns(
   onEditUser: (user: User) => void,
   onDeleteUser: (user: User) => void,
   onRestoreUser: (user: User) => void,
-  onManageRolesUser?: (user: User) => void
+  onManageRolesUser?: (user: User) => void,
+  onChangeStatusUser?: (user: User) => void,
+  currentUserId?: string
 ): ColumnDef<AdminUser, unknown>[] {
   const density = DENSITY_CONFIG[densityMode];
 
@@ -288,6 +295,19 @@ function buildColumns(
               onDelete={onDeleteUser}
               onRestore={onRestoreUser}
               {...(onManageRolesUser ? { onManageRoles: onManageRolesUser } : {})}
+              {...(onChangeStatusUser
+                ? {
+                    onChangeStatus: onChangeStatusUser,
+                    statusActionDisabled:
+                      user.status !== 'suspended' &&
+                      (user.id === currentUserId || user.user_id === currentUserId),
+                    statusActionDescription:
+                      user.status !== 'suspended' &&
+                      (user.id === currentUserId || user.user_id === currentUserId)
+                        ? 'You cannot suspend your own account'
+                        : undefined,
+                  }
+                : {})}
             />
           </span>
         );
@@ -323,13 +343,34 @@ export const UserTable: React.FC<UserTableProps> = ({
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [statusTarget, setStatusTarget] = useState<User | null>(null);
   const { deleteUser } = useUserStore();
+  const { user: currentUser, hasPermission } = useAuthContext();
   const permanentDeleteMutation = usePermanentDeleteUserMutation();
+  const updateUserMutation = useUpdateUserMutation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   // Handle row actions
   const handleDeleteUser = useCallback((user: User) => setDeleteTarget(user), []);
+  const handleChangeStatusUser = useCallback((user: User) => setStatusTarget(user), []);
+
+  const confirmStatusChange = useCallback(async () => {
+    if (!statusTarget) return;
+    const nextStatus = statusTarget.status === 'suspended' ? 'active' : 'suspended';
+    try {
+      await updateUserMutation.mutateAsync({
+        id: statusTarget.id,
+        updates: { status: nextStatus },
+      });
+      toast.success(
+        `${getUserFullName(statusTarget)} was ${nextStatus === 'suspended' ? 'suspended' : 'reinstated'}`
+      );
+      setStatusTarget(null);
+    } catch (err) {
+      toast.error(getUserFriendlyError(err, 'Failed to update account status'));
+    }
+  }, [statusTarget, updateUserMutation]);
 
   const handleRestoreUser = useCallback(
     async (user: User) => {
@@ -403,7 +444,9 @@ export const UserTable: React.FC<UserTableProps> = ({
         onEditUser,
         handleDeleteUser,
         handleRestoreUser,
-        onManageRoles
+        onManageRoles,
+        hasPermission('admin:manage') ? handleChangeStatusUser : undefined,
+        currentUser?.id
       ),
     [
       selectedUsers,
@@ -417,6 +460,9 @@ export const UserTable: React.FC<UserTableProps> = ({
       handleDeleteUser,
       handleRestoreUser,
       onManageRoles,
+      handleChangeStatusUser,
+      currentUser?.id,
+      hasPermission,
     ]
   );
 
@@ -493,6 +539,19 @@ export const UserTable: React.FC<UserTableProps> = ({
         alreadyRemoved={Boolean(deleteTarget?.deletedAt)}
         {...(deleteTarget ? { personId: deleteTarget.id } : {})}
       />
+
+      {statusTarget && (
+        <AccountStatusDialog
+          open
+          onOpenChange={open => {
+            if (!open) setStatusTarget(null);
+          }}
+          userName={getUserFullName(statusTarget)}
+          status={statusTarget.status ?? 'active'}
+          onConfirm={confirmStatusChange}
+          isUpdating={updateUserMutation.isPending}
+        />
+      )}
     </div>
   );
 };

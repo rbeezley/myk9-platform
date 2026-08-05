@@ -60,6 +60,36 @@ describe('buildUserRowActions', () => {
     expect(actions.map(a => a.id)).toEqual(['view', 'edit', 'delete']);
   });
 
+  it('offers the state-appropriate account lifecycle action', () => {
+    const h = handlers();
+    const activeActions = buildUserRowActions(liveUser, {
+      ...h,
+      onChangeStatus: h.onView,
+    });
+    const suspendedActions = buildUserRowActions({ ...liveUser, status: 'suspended' } as User, {
+      ...h,
+      onChangeStatus: h.onView,
+    });
+
+    expect(activeActions.find(action => action.id === 'status')?.label).toBe('Suspend account');
+    expect(suspendedActions.find(action => action.id === 'status')?.label).toBe(
+      'Reinstate account'
+    );
+  });
+
+  it('disables self-suspension and explains why', () => {
+    const actions = buildUserRowActions(liveUser, {
+      ...handlers(),
+      onChangeStatus: vi.fn(),
+      statusActionDisabled: true,
+      statusActionDescription: 'You cannot suspend your own account',
+    });
+    const statusAction = actions.find(action => action.id === 'status');
+
+    expect(statusAction?.disabled).toBe(true);
+    expect(statusAction?.description).toBe('You cannot suspend your own account');
+  });
+
   it('routes each action to its handler with the row user', () => {
     const h = handlers();
     for (const action of buildUserRowActions(removedUser, h)) action.onSelect();

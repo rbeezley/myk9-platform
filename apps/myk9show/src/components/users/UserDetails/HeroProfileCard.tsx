@@ -18,6 +18,10 @@ interface HeroProfileCardProps {
   onEditPhoto: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onChangeStatus?: (() => void) | undefined;
+  changeStatusLabel?: string | undefined;
+  changeStatusDisabled?: boolean | undefined;
+  changeStatusDescription?: string | undefined;
   /**
    * The person is removed. Editing them is not an operation — the record is
    * readable so an admin can decide whether to restore it (MYK9-153), and a
@@ -42,6 +46,10 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   onEditPhoto,
   onEdit,
   onDelete,
+  onChangeStatus,
+  changeStatusLabel,
+  changeStatusDisabled,
+  changeStatusDescription,
   isRemoved = false,
   onSendInvitation,
   sendInvitationLabel,
@@ -70,6 +78,10 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
         <ThreeDotMenu
           onEdit={onEdit}
           onDelete={onDelete}
+          {...(onChangeStatus ? { onChangeStatus } : {})}
+          {...(changeStatusLabel ? { changeStatusLabel } : {})}
+          {...(changeStatusDisabled !== undefined ? { changeStatusDisabled } : {})}
+          {...(changeStatusDescription ? { changeStatusDescription } : {})}
           {...(isRemoved ? {} : { onEditPhoto, onSendInvitation })}
           sendInvitationLabel={sendInvitationLabel}
           sendInvitationDisabled={sendInvitationDisabled}

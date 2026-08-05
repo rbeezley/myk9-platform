@@ -31,6 +31,8 @@ import HeroProfileCard from './HeroProfileCard';
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import JudgeAvailabilityCard from './JudgeAvailabilityCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
+import AccountStatusDialog from '@/components/users/AccountStatusDialog';
+import type { AccountStatus } from '@/components/users/AccountStatusDialog';
 import { useSendUserInvitation } from './useSendUserInvitation';
 import '@/styles/myk9-user-details.css';
 import '@/styles/myk9-show-details.css';
@@ -60,6 +62,13 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const isRemoved = Boolean(person.deletedAt);
   const canRestore = hasPermission('admin:manage');
   const [isRestoring, setIsRestoring] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus>(person.status ?? 'active');
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const { firstName, lastName, fullName } = extractPersonName(person);
+
+  const canManageStatus = hasPermission('admin:manage') && !isRemoved;
+  const isCurrentUser = currentUser?.id === person.id || currentUser?.id === person.user_id;
+  const statusActionDisabled = accountStatus === 'active' && isCurrentUser;
 
   const handleRestore = useCallback(async () => {
     if (isRestoring) return;
@@ -77,6 +86,23 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     }
   }, [isRestoring, person, queryClient, loadUsers]);
 
+  const handleStatusChange = useCallback(async () => {
+    const nextStatus: AccountStatus = accountStatus === 'suspended' ? 'active' : 'suspended';
+    try {
+      await updateUserMutation.mutateAsync({
+        id: person.id,
+        updates: { status: nextStatus },
+      });
+      setAccountStatus(nextStatus);
+      setIsStatusDialogOpen(false);
+      notifications.success(
+        `${fullName} was ${nextStatus === 'suspended' ? 'suspended' : 'reinstated'}`
+      );
+    } catch (err) {
+      notifications.error(getUserFriendlyError(err, 'Failed to update account status'));
+    }
+  }, [accountStatus, fullName, person.id, updateUserMutation]);
+
   // MYK9-134: giving an existing person sign-in access. `user_id` is the mapped
   // people.auth_user_id — absent means this record is a contact only and nobody
   // can log in as them.
@@ -88,8 +114,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isQualificationsPanelOpen, setIsQualificationsPanelOpen] = useState(false);
-  const { firstName, lastName, fullName } = extractPersonName(person);
-
   // Name the list the user actually came in through — a site admin arriving from
   // /admin/users gets Admin > Users > {name}, and "Users" returns to that exact
   // roster, filters and page intact.
@@ -125,6 +149,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   React.useEffect(() => {
     if (person) {
       setFormData(buildFormData(person));
+      setAccountStatus(person.status ?? 'active');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person?.id]);
@@ -305,7 +330,15 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           // literal 'Active' for everyone, including contact records with no
           // auth identity at all — the same "the UI says it worked" failure as
           // MYK9-131. `user_id` is the mapped people.auth_user_id. MYK9-134.
-          { label: 'Sign-In Access', value: person.user_id ? 'Can sign in' : 'No account' },
+          {
+            label: 'Sign-In Access',
+            value:
+              accountStatus === 'suspended'
+                ? 'Suspended'
+                : person.user_id
+                  ? 'Can sign in'
+                  : 'No account',
+          },
           {
             label: 'Roles',
             value: person.roles?.length ? person.roles.join(', ') : null,
@@ -315,7 +348,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     ];
 
     return sections;
-  }, [firstName, lastName, person, formData]);
+  }, [accountStatus, firstName, lastName, person, formData]);
 
   // Right sidebar: associations
   const associations: AssociationConfig[] = useMemo(() => {
@@ -360,7 +393,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         banner={
           <PersonLifecycleBanner
             deletedAt={person.deletedAt}
-            status={person.status}
+            status={accountStatus}
             {...(isRemoved && canRestore ? { onRestore: handleRestore } : {})}
             isRestoring={isRestoring}
           />
@@ -377,6 +410,17 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             onEditPhoto={() => setIsPhotoModalOpen(true)}
             onEdit={() => setIsEditModalOpen(true)}
             onDelete={() => setIsDeleteDialogOpen(true)}
+            {...(canManageStatus
+              ? {
+                  onChangeStatus: () => setIsStatusDialogOpen(true),
+                  changeStatusLabel:
+                    accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
+                  changeStatusDisabled: statusActionDisabled,
+                  ...(statusActionDisabled
+                    ? { changeStatusDescription: 'You cannot suspend your own account' }
+                    : {}),
+                }
+              : {})}
             onSendInvitation={
               !isRemoved && canInvite
                 ? () =>
@@ -461,6 +505,17 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           if (file) handleFileUpload(file);
         }}
       />
+
+      {canManageStatus && (
+        <AccountStatusDialog
+          open={isStatusDialogOpen}
+          onOpenChange={setIsStatusDialogOpen}
+          userName={fullName}
+          status={accountStatus}
+          onConfirm={handleStatusChange}
+          isUpdating={updateUserMutation.isPending}
+        />
+      )}
     </>
   );
 };

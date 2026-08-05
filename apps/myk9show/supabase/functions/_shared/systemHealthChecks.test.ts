@@ -52,6 +52,7 @@ const facts = (over: Record<string, unknown> = {}) => ({
     last_completed_at: null,
     failure_reasons: [],
   },
+  sign_in_email_drift: { drifted: 0, sample: [] },
   anon_grants: anonGrants(),
   applied_acl_grants: appliedAclFacts(),
   public_schema_create_acl: publicSchemaAclFacts(),
@@ -88,6 +89,7 @@ describe('buildSnapshot — contract shape', () => {
       'payout_ledger',
       'background_jobs',
       'migrations',
+      'sign_in_email_drift',
       'ringside_conflicts',
       'anon_grants',
       'applied_acl_grants',
@@ -392,6 +394,51 @@ describe('migrations check (runbook 5.2 proxy)', () => {
   it('omits the count label when the count is missing', () => {
     const snap = buildSnapshot(facts({ migration_count: 'oops' }), { now: NOW });
     expect(find(snap, 'migrations').detail).toBe('latest 20260704140000');
+  });
+});
+
+// MYK9-136. A trigger makes drift unreachable through the app, so this is not
+// a threshold to tune — any non-zero reading means the invariant was reached by
+// a route that bypassed it, and the failure is otherwise silent until somebody
+// cannot sign in.
+describe('sign-in email drift check', () => {
+  it('is ok when every linked person matches their identity', () => {
+    const check = find(buildSnapshot(facts(), { now: NOW }), 'sign_in_email_drift');
+    expect(check.status).toBe('ok');
+    expect(check.delta_value).toBe(0);
+  });
+
+  it('fails on any drift, and names people so it can be acted on', () => {
+    const snap = buildSnapshot(
+      facts({ sign_in_email_drift: { drifted: 2, sample: ['person-a', 'person-b'] } }),
+      { now: NOW }
+    );
+    const check = find(snap, 'sign_in_email_drift');
+
+    expect(check.status).toBe('fail');
+    expect(check.delta_value).toBe(2);
+    expect(check.detail).toContain('person-a');
+  });
+
+  it('reads as unprovable rather than ok when the probe omits the fact', () => {
+    const snap = buildSnapshot(facts({ sign_in_email_drift: undefined }), { now: NOW });
+    const check = find(snap, 'sign_in_email_drift');
+
+    expect(check.status).toBe('warn');
+    expect(check.verification).toBe('unprovable');
+  });
+
+  it('reads as unprovable when the count is not a number', () => {
+    const snap = buildSnapshot(facts({ sign_in_email_drift: { drifted: 'lots' } }), { now: NOW });
+    expect(find(snap, 'sign_in_email_drift').status).toBe('warn');
+  });
+
+  it('refreshes on the continuous run rather than waiting for the nightly', () => {
+    const snap = buildSnapshot(
+      facts({ sign_in_email_drift: { drifted: 1, sample: ['person-a'] } }),
+      { now: NOW, mode: 'continuous' }
+    );
+    expect(find(snap, 'sign_in_email_drift').status).toBe('fail');
   });
 });
 

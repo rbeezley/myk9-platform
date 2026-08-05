@@ -53,6 +53,7 @@ TEST_FILES=(
   "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
   "$TEST_DIR/recoverable_show_access_codes_test.sql"
   "$TEST_DIR/ringside_containment_test.sql"
+  "$TEST_DIR/sign_in_email_invariant_test.sql"
   "$TEST_DIR/subscription_entitlement_grants_test.sql"
   "$TEST_DIR/support_triage_atomic_send_test.sql"
 )

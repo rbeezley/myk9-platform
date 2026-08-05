@@ -376,6 +376,30 @@ describe('User Queries', () => {
         expect(writeChain.is).toHaveBeenCalledWith('auth_user_id', null);
       });
 
+      // "Unchanged" is decided on the normalized value, so a padded or
+      // recased variant of the same address reaches here. Writing it back
+      // would still alter the stored identity value, and `handle_new_user()`
+      // matches `LOWER(email)` without trimming — a padded rewrite silently
+      // stops a later signup from being adopted.
+      it('does not write a padded variant of the same address', async () => {
+        const linked = { auth_user_id: 'auth-1', email: 'handler@example.com' };
+        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: linked, error: null }))
+          .mockReturnValueOnce(writeChain);
+
+        const result = await updateUser('user-123', {
+          email: '  Handler@Example.com  ',
+          first_name: 'Updated',
+        });
+
+        expect(result.error).toBeNull();
+        const written = (writeChain.update as unknown as { mock: { calls: unknown[][] } }).mock
+          .calls[0][0] as Record<string, unknown>;
+        expect(written).not.toHaveProperty('email');
+        expect(written.first_name).toBe('Updated');
+      });
+
       it('does not constrain the write when the address is unchanged', async () => {
         const linked = { auth_user_id: 'auth-1', email: 'handler@example.com' };
         const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });

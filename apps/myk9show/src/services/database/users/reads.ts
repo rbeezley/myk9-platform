@@ -153,18 +153,28 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
     // path to `people.email` funnels through here (three mappers plus the show
     // wizard's direct call), so this is the one place the check belongs.
     let requireUnlinked = false;
+    const payload: DbUserUpdate = { ...updates };
     if (updates.email !== undefined) {
       const decision = await checkSignInEmailChange(id, updates.email);
       if (!decision.allowed) {
         throw Object.assign(new Error(decision.message), { code: decision.code });
       }
-      requireUnlinked = decision.reason === 'no-identity';
+      if (decision.reason === 'unchanged') {
+        // Same address, but possibly padded or differently cased. Writing that
+        // variant back would still change the stored identity value, and
+        // `handle_new_user()` matches on `LOWER(email)` with no trim — so
+        // "  ada@example.com  " reads as a different person at signup. Nothing
+        // changed, so touch nothing.
+        delete payload.email;
+      } else {
+        requireUnlinked = true;
+      }
     }
 
     let query = supabase
       .from('people')
       .update({
-        ...updates,
+        ...payload,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);

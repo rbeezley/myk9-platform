@@ -728,7 +728,7 @@ export class OfflineScoringService extends EventEmitter {
   /**
    * Get sync queue status
    */
-  getSyncQueueStatus(): { pending: number; failed: number; lastSync?: Date } {
+  getSyncQueueStatus(): { queued: number; pending: number; failed: number; lastSync?: Date } {
     return getSyncQueueStatus(this.syncQueue);
   }
 

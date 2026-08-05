@@ -32,7 +32,7 @@ export const TEST_USERS = {
     roles: ['secretary', 'steward', 'exhibitor'],
   },
   // `roles: ['judge']` here is a CLAIM about the database, not a control on it —
-  // nothing in this file grants or revokes anything. seed-demo.sql section 10f is
+  // nothing in this file grants or revokes anything. seed-demo.sql section 10g is
   // what makes it true, by deactivating every non-judge grant on this address;
   // before it existed the account carried a stray exhibitor grant and rendered as
   // `Secretary +2` (MYK9-141). The exclusivity is the whole value of the fixture:

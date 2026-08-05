@@ -10,6 +10,11 @@ WITH accounts(email, first_name, last_name) AS (
     ('e2e-exhibitor@test.myk9.com', 'Test', 'Exhibitor'),
     ('e2e-secretary@test.myk9.com', 'Test', 'Secretary'),
     ('e2e-judge@test.myk9.com', 'Test', 'Judge'),
+    -- Empty-assignment judge subject (MYK9-141). Optional in the same sense as
+    -- the club admin below: without E2E_JUDGE_EMPTY_PASSWORD the Auth user does
+    -- not exist and every statement here matches no rows. Also absent from the
+    -- count assertion, which guards only the accounts a run cannot start without.
+    ('e2e-judge-empty@test.myk9.com', 'Test', 'Judge No Assignments'),
     ('e2e-admin@test.myk9.com', 'Test', 'Admin'),
     -- Optional club-admin-only account (MYK9-137). Every statement in this file
     -- joins auth.users or people, so where E2E_CLUB_ADMIN_PASSWORD is unset the
@@ -34,6 +39,11 @@ WITH accounts(email, first_name, last_name) AS (
     ('e2e-exhibitor@test.myk9.com', 'Test', 'Exhibitor'),
     ('e2e-secretary@test.myk9.com', 'Test', 'Secretary'),
     ('e2e-judge@test.myk9.com', 'Test', 'Judge'),
+    -- Empty-assignment judge subject (MYK9-141). Optional in the same sense as
+    -- the club admin below: without E2E_JUDGE_EMPTY_PASSWORD the Auth user does
+    -- not exist and every statement here matches no rows. Also absent from the
+    -- count assertion, which guards only the accounts a run cannot start without.
+    ('e2e-judge-empty@test.myk9.com', 'Test', 'Judge No Assignments'),
     ('e2e-admin@test.myk9.com', 'Test', 'Admin'),
     -- Optional club-admin-only account (MYK9-137). Every statement in this file
     -- joins auth.users or people, so where E2E_CLUB_ADMIN_PASSWORD is unset the
@@ -94,6 +104,7 @@ WHERE lower(person.email) IN (
   'e2e-exhibitor@test.myk9.com',
   'e2e-secretary@test.myk9.com',
   'e2e-judge@test.myk9.com',
+  'e2e-judge-empty@test.myk9.com',
   'e2e-admin@test.myk9.com',
   -- Without this the club admin lands on the first-run onboarding wizard instead
   -- of the club surface it was created to exercise.
@@ -112,6 +123,9 @@ WITH desired(email, role_name) AS (
     ('e2e-secretary@test.myk9.com', 'steward'),
     ('e2e-secretary@test.myk9.com', 'exhibitor'),
     ('e2e-judge@test.myk9.com', 'judge'),
+    -- judge and ONLY judge: the point of this fixture is that it can be refused
+    -- (MYK9-141). seed-demo.sql section 10g enforces the same exclusivity there.
+    ('e2e-judge-empty@test.myk9.com', 'judge'),
     ('e2e-admin@test.myk9.com', 'site_admin'),
     ('e2e-admin@test.myk9.com', 'chairman'),
     ('e2e-admin@test.myk9.com', 'exhibitor')
@@ -135,6 +149,9 @@ WITH desired(email, role_name) AS (
     ('e2e-secretary@test.myk9.com', 'steward'),
     ('e2e-secretary@test.myk9.com', 'exhibitor'),
     ('e2e-judge@test.myk9.com', 'judge'),
+    -- judge and ONLY judge: the point of this fixture is that it can be refused
+    -- (MYK9-141). seed-demo.sql section 10g enforces the same exclusivity there.
+    ('e2e-judge-empty@test.myk9.com', 'judge'),
     ('e2e-admin@test.myk9.com', 'site_admin'),
     ('e2e-admin@test.myk9.com', 'chairman'),
     ('e2e-admin@test.myk9.com', 'exhibitor')

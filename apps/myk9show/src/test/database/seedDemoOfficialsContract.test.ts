@@ -162,7 +162,7 @@ describe('seed-demo officials + RBAC completeness contract', () => {
 // makes judge-only authorization tests vacuous — a judge that also holds
 // exhibitor clears an exhibitor gate through the exhibitor grant.
 //
-// These pin the section 10f exclusivity step. Verified non-vacuous by mutation:
+// These pin the section 10g exclusivity step. Verified non-vacuous by mutation:
 // deleting the 10f block, widening its email list to e2e-secretary, dropping the
 // `r.name <> 'judge'` term, and re-declaring the judge fixture as
 // `['judge', 'exhibitor']` each fail at least one assertion here.
@@ -180,18 +180,68 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
   ];
 
   function readExclusivityBlock(): string {
-    const start = seed.indexOf('-- 10f. JUDGE FIXTURE EXCLUSIVITY');
+    const start = seed.indexOf('-- 10g. JUDGE FIXTURE EXCLUSIVITY');
     expect(start).toBeGreaterThan(-1);
     const end = seed.indexOf('-- 11. GAP FIXTURE #5', start);
     expect(end).toBeGreaterThan(start);
     return seed.slice(start, end);
   }
 
+  // An exclusivity sweep on an account that was never GRANTED anything leaves it
+  // with no roles at all, which is worse than the drift it fixes: the fixture
+  // authenticates and then 403s, so the empty-dashboard case is unreachable.
+  // e2e-judge-empty was declared in three TS files and granted in none (caught in
+  // Codex review of #1626), so both halves have to be pinned together.
+  it('grants the empty-assignment fixture the judge role it is swept down to', () => {
+    const start = seed.indexOf('-- 10f. judge -> e2e-judge-empty@test.myk9.com');
+    expect(start).toBeGreaterThan(-1);
+    const block = seed.slice(start, seed.indexOf('-- 10g. JUDGE FIXTURE EXCLUSIVITY', start));
+
+    // Same revoke-safe reactivate-then-insert shape as every grant above.
+    expect(block).toContain(
+      'SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL'
+    );
+    expect(block).toContain('INSERT INTO public.user_roles');
+    expect(block).toMatch(/r\.name = 'judge'/);
+    expect(block).toContain(HEARTLAND_CLUB_ID);
+
+    // Provisioning needs an Auth user (E2E_JUDGE_EMPTY_PASSWORD). Without the
+    // guard an unprovisioned account would insert a NULL auth_user_id row.
+    expect(block).toContain('p.auth_user_id IS NOT NULL');
+  });
+
+  it('provisions the empty-assignment fixture in the isolated account seed too', () => {
+    // seed-demo runs against the shared/demo database; the isolated Playwright
+    // lifecycle seeds its own disposable one from this second file. A fixture
+    // present in only one of them works in exactly one environment.
+    const isolated = readFileSync(
+      join(repoRoot, 'supabase/seed-isolated-e2e-accounts.sql'),
+      'utf8'
+    );
+
+    // people rows (reactivate + insert), the judge grant, and the onboarding
+    // bypass — without the last one the account lands on the first-run wizard
+    // instead of the judge dashboard.
+    expect(isolated).toMatch(
+      /\('e2e-judge-empty@test\.myk9\.com', 'Test', 'Judge No Assignments'\),/
+    );
+    expect(isolated).toMatch(/\('e2e-judge-empty@test\.myk9\.com', 'judge'\),/);
+    expect(isolated).toContain("  'e2e-judge-empty@test.myk9.com',\n");
+
+    // Absent from the hard count assertion on purpose: like the club admin, this
+    // account is optional, and a run without its secret must still seed.
+    const countGuard = isolated.slice(
+      isolated.indexOf('SELECT count(*)'),
+      isolated.indexOf('END\n$$;')
+    );
+    expect(countGuard).not.toContain('e2e-judge-empty@test.myk9.com');
+  });
+
   it('deactivates every non-judge grant held by the judge fixture accounts', () => {
     const block = readExclusivityBlock();
 
-    // Deactivate, not DELETE — 10b reactivates its own row, so ordering is not
-    // load-bearing and the seed stays revoke-safe.
+    // Deactivate, not DELETE — 10b/10f reactivate their own rows, so ordering is
+    // not load-bearing and the seed stays revoke-safe.
     expect(block).toContain('SET is_active = false');
     expect(block).not.toContain('DELETE FROM public.user_roles');
 

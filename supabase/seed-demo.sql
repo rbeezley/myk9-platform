@@ -836,7 +836,50 @@ WHERE r.name = 'club_admin'
       AND ur.show_id IS NULL);
 
 -- ---------------------------------------------------------------------------
--- 10f. JUDGE FIXTURE EXCLUSIVITY (MYK9-141).
+-- 10f. judge -> e2e-judge-empty@test.myk9.com (MYK9-141)
+--
+--     The empty-assignment subject. e2e-judge proves "the judge SEES the class
+--     assigned to them"; this account proves the other half — a judge with a
+--     valid role and no assignments reaches /judge/dashboard and is met by the
+--     empty state rather than an error or a 403. Section 11 deliberately gives it
+--     no judge_assignments row, and seedDemoOfficialsContract pins that absence.
+--
+--     Until this block existed the fixture was declared in three places
+--     (test-users.ts, helpers/testUsers.ts, setup-e2e-test-users.ts) and granted
+--     in NONE, so it could authenticate and then land on a 403 — the empty case
+--     was unreachable and the "no assignments" assertion untestable.
+--
+--     Optional in the same sense as 10e: the account needs an Auth user, which
+--     needs E2E_JUDGE_EMPTY_PASSWORD. Where that is unset the people row does not
+--     exist, the JOIN matches nothing, and the seed completes normally. Hence the
+--     auth_user_id guard on the INSERT and its absence from the preflight.
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id AND ur.role_id = r.id
+  AND r.name = 'judge'
+  AND lower(p.email) = 'e2e-judge-empty@test.myk9.com'
+  AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+  AND ur.show_id IS NULL
+  AND (ur.is_active IS DISTINCT FROM true
+       OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id
+       OR ur.expires_at IS NOT NULL);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+FROM public.people p
+CROSS JOIN public.roles r
+WHERE r.name = 'judge'
+  AND lower(p.email) = 'e2e-judge-empty@test.myk9.com'
+  AND p.auth_user_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id AND ur.role_id = r.id
+      AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+      AND ur.show_id IS NULL);
+
+-- ---------------------------------------------------------------------------
+-- 10g. JUDGE FIXTURE EXCLUSIVITY (MYK9-141).
 --
 --     THE POINT OF THE JUDGE ACCOUNTS, LIKE 10e, IS WHAT THEY DO *NOT* HOLD.
 --     Everything above this line only ever ADDS a grant. That is correct for a

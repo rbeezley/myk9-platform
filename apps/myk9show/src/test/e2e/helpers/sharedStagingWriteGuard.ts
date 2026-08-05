@@ -71,6 +71,12 @@ interface SharedStagingWriteGuardOptions {
    * packages/replication/src/mutation-occ.ts `getConflictServerVersion`).
    */
   conflictServerVersion?: number;
+  /**
+   * Block any RPC POST outside {@link AUDIT_READ_ONLY_RPCS}. Required for a run
+   * that claims shared staging received no writes; see the constant's note on
+   * why this is an allowlist.
+   */
+  strictRpcWrites?: boolean;
 }
 
 export function classifySharedStagingWrite(request: RequestLike): GuardedWrite | null {
@@ -92,21 +98,66 @@ export function classifySharedStagingWrite(request: RequestLike): GuardedWrite |
 }
 
 /**
+ * RPCs the guard will let reach shared staging, because they only read.
+ *
+ * Measured, not guessed: these are exactly the RPCs the judge replay fires
+ * (`get_show_class_hide_counts`, `get_account_today_entries`,
+ * `get_user_permissions`, `get_user_roles`, `get_effective_permissions`,
+ * `get_own_entitlement_context`).
+ *
+ * The list is an ALLOWLIST rather than a list of known-mutating RPCs, and that
+ * direction is the point. `POST /rest/v1/rpc/<name>` is opaque — the app calls
+ * both read helpers and genuine writers (`upsert_ringside_session`,
+ * `self_checkin_entry`, `refresh_class_scoring_state_authorized`) the same way.
+ * Enumerating the writers means a newly added one is forwarded to shared
+ * staging in silence while the audit still reports "no writes"; enumerating the
+ * readers means it is blocked and the run fails loudly instead.
+ *
+ * Extend only after confirming the function does not write.
+ */
+export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
+  'get_account_today_entries',
+  'get_effective_permissions',
+  'get_own_entitlement_context',
+  'get_show_class_hide_counts',
+  'get_user_permissions',
+  'get_user_roles',
+]);
+
+export interface SharedStagingWriteClassificationOptions {
+  /**
+   * Treat an RPC POST outside {@link AUDIT_READ_ONLY_RPCS} as a write. On for
+   * the audit replay, whose artifact asserts nothing was forwarded; off by
+   * default so existing specs, which make no such claim, are unaffected.
+   */
+  strictRpc?: boolean;
+}
+
+/**
  * True for a REST request to shared staging that is unambiguously a write.
  *
  * PATCH/PUT/DELETE on any `/rest/v1/*` path, and POST to a *table* path, can
- * only mutate. `POST /rest/v1/rpc/*` is deliberately excluded: a large share of
- * this app's RPCs are read-only (`is_show_manager`, count helpers), so aborting
- * them by method alone would break the very journeys the audit is replaying.
+ * only mutate. An RPC POST is opaque, so it counts as a write only under
+ * `strictRpc` — see {@link AUDIT_READ_ONLY_RPCS}.
  */
-export function isUnambiguousSharedStagingRestWrite(request: RequestLike): boolean {
+export function isUnambiguousSharedStagingRestWrite(
+  request: RequestLike,
+  options: SharedStagingWriteClassificationOptions = {}
+): boolean {
   const url = parseUrl(request.url);
   if (!url || !isSharedStagingHost(url.hostname)) return false;
   if (!url.pathname.startsWith('/rest/v1/')) return false;
 
   const method = request.method.toUpperCase();
   if (method === 'PATCH' || method === 'PUT' || method === 'DELETE') return true;
-  return method === 'POST' && !url.pathname.startsWith('/rest/v1/rpc/');
+  if (method !== 'POST') return false;
+
+  if (!url.pathname.startsWith('/rest/v1/rpc/')) return true;
+  if (!options.strictRpc) return false;
+
+  const rpcName = url.pathname.slice('/rest/v1/rpc/'.length);
+  // ringside_update_entry has its own dedicated handler, which takes precedence.
+  return rpcName !== 'ringside_update_entry' && !AUDIT_READ_ONLY_RPCS.has(rpcName);
 }
 
 /** Every write reached a local answer — nothing was forwarded to shared staging. */
@@ -128,6 +179,7 @@ export async function installSharedStagingWriteGuard(
   const ledger = options.ledger;
   const conflictServerVersion = options.conflictServerVersion ?? versionBase + 1;
   const conflictMatcher = options.conflictMatcher ?? (() => true);
+  const strictRpcWrites = options.strictRpcWrites ?? false;
   let remainingConflictResponses = options.conflictResponses ?? 0;
 
   // Registered FIRST on purpose. Playwright matches routes in reverse
@@ -137,7 +189,7 @@ export async function installSharedStagingWriteGuard(
     const request = route.request();
     const requestLike = { method: request.method(), url: request.url() };
 
-    if (!isUnambiguousSharedStagingRestWrite(requestLike)) {
+    if (!isUnambiguousSharedStagingRestWrite(requestLike, { strictRpc: strictRpcWrites })) {
       await fallbackRoute(route);
       return;
     }
@@ -209,7 +261,7 @@ export async function installSharedStagingWriteGuard(
     const guardedWrite = classifySharedStagingWrite(requestLike);
 
     if (guardedWrite?.kind !== 'entries-patch') {
-      if (isUnambiguousSharedStagingRestWrite(requestLike)) {
+      if (isUnambiguousSharedStagingRestWrite(requestLike, { strictRpc: strictRpcWrites })) {
         recordLedgerEntry(ledger, requestLike, 'unclassified-rest-write', 'blocked');
         await route.abort('blockedbyclient');
         return;

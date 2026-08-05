@@ -2,6 +2,7 @@ import type { Page, Route } from '@playwright/test';
 import { describe, expect, it } from 'vitest';
 
 import {
+  AUDIT_READ_ONLY_RPCS,
   classifySharedStagingWrite,
   installSharedStagingWriteGuard,
   isUnambiguousSharedStagingRestWrite,
@@ -109,14 +110,43 @@ describe('isUnambiguousSharedStagingRestWrite', () => {
     ).toBe(true);
   });
 
-  it('does NOT treat a POST to an RPC as a write', () => {
-    // Many of this app's RPCs only read (is_show_manager, count helpers).
-    // Aborting them by method alone would break the journeys being replayed.
+  it('does NOT treat a POST to an RPC as a write by default', () => {
+    // An RPC POST is opaque. Existing specs make no "nothing was forwarded"
+    // claim, so they keep the permissive behaviour.
     expect(
       isUnambiguousSharedStagingRestWrite({
         method: 'POST',
-        url: `${sharedBaseUrl}/rest/v1/rpc/is_show_manager`,
+        url: `${sharedBaseUrl}/rest/v1/rpc/upsert_ringside_session`,
       })
+    ).toBe(false);
+  });
+
+  it('treats an RPC POST outside the read-only allowlist as a write under strictRpc', () => {
+    // This is the case Codex flagged: a genuine writer that would otherwise
+    // reach shared staging while the audit still reported "no writes".
+    expect(
+      isUnambiguousSharedStagingRestWrite(
+        { method: 'POST', url: `${sharedBaseUrl}/rest/v1/rpc/upsert_ringside_session` },
+        { strictRpc: true }
+      )
+    ).toBe(true);
+  });
+
+  it.each([...AUDIT_READ_ONLY_RPCS])('lets read-only RPC %s through under strictRpc', rpc => {
+    expect(
+      isUnambiguousSharedStagingRestWrite(
+        { method: 'POST', url: `${sharedBaseUrl}/rest/v1/rpc/${rpc}` },
+        { strictRpc: true }
+      )
+    ).toBe(false);
+  });
+
+  it('leaves ringside_update_entry to its own dedicated handler', () => {
+    expect(
+      isUnambiguousSharedStagingRestWrite(
+        { method: 'POST', url: `${sharedBaseUrl}/rest/v1/rpc/ringside_update_entry` },
+        { strictRpc: true }
+      )
     ).toBe(false);
   });
 
@@ -189,6 +219,21 @@ describe('the write ledger', () => {
         disposition: 'blocked',
       },
     ]);
+  });
+
+  it('blocks and records an unknown mutating RPC when strictRpcWrites is on', async () => {
+    const { page, handlers } = createRouteRecorder();
+    const ledger: SharedStagingWriteLedgerEntry[] = [];
+    await installSharedStagingWriteGuard(page, { ledger, strictRpcWrites: true });
+
+    const sessionWrite = createRouteDouble({
+      method: 'POST',
+      url: `${sharedBaseUrl}/rest/v1/rpc/upsert_ringside_session`,
+    });
+    await getHandler(handlers, '**/rest/v1/**')(sessionWrite.route);
+
+    expect(sessionWrite.abortCount()).toBe(1);
+    expect(summarizeSharedStagingWriteLedger(ledger).blocked).toHaveLength(1);
   });
 
   it('lets reads through the catch-all untouched', async () => {

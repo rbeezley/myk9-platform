@@ -161,6 +161,37 @@ describe('seed-demo club scope fixtures', () => {
     }
   });
 
+  it('provisions the optional account in isolated runs without making it required', () => {
+    const isolated = read('supabase/seed-isolated-e2e-accounts.sql');
+
+    // Present: profile normalization, the onboarding bypass, and a CLUB-SCOPED
+    // grant — otherwise configuring the secret yields an account that can sign in
+    // but lands on the first-run wizard with no club authority.
+    expect(isolated).toContain(CLUB_ADMIN_EMAIL);
+    expect(isolated).toContain('exhibitor_profiles');
+
+    // Absent from the assertion that aborts the run: this account is optional, so
+    // requiring it would break every environment that has no secret for it.
+    const assertionBlock = isolated.slice(
+      isolated.indexOf('account_count integer'),
+      isolated.indexOf('exhibitor_profiles')
+    );
+    expect(assertionBlock).not.toContain(CLUB_ADMIN_EMAIL);
+    expect(assertionBlock).toContain('account_count <> 4');
+  });
+
+  it('never grants the isolated club admin a platform-wide role', () => {
+    // A club_id IS NULL grant would hand it authority everywhere, which is the
+    // exact property that made the old fixture unable to test scoping.
+    const isolated = read('supabase/seed-isolated-e2e-accounts.sql');
+    const platformWideBlock = isolated.slice(
+      isolated.indexOf("('e2e-exhibitor@test.myk9.com', 'exhibitor')"),
+      isolated.indexOf("('e2e-secretary@test.myk9.com', 'secretary')")
+    );
+
+    expect(platformWideBlock).not.toContain(CLUB_ADMIN_EMAIL);
+  });
+
   it('leaves the optional account out of the preflight guard', () => {
     // The preflight aborts the seed when a listed account is missing. This one is
     // provisioned only where E2E_CLUB_ADMIN_PASSWORD exists, so listing it would

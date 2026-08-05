@@ -243,6 +243,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/qa/roleJourneyVisualQa.spec.ts`                 | MYK9-17 role/viewport/theme visual QA matrix.                                                           |
 | `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`          | Detailed show wizard.                                                                                   |
 | `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`        | Show details navigation.                                                                                |
+| `apps/myk9show/src/test/e2e/show/atShowJudgeAuditReplay.spec.ts`            | Scheduled judge scoring replay: conflict re-upload, quick-advance, shared-staging escape proof.         |
 | `apps/myk9show/src/test/e2e/show/atShowMultiDeviceOfflineSync.spec.ts`      | At-show two-device offline sync-merge audit with guarded writes.                                        |
 | `apps/myk9show/src/test/e2e/show/phase4CrossRoleSeams.spec.ts`              | Phase 4 fixture-backed cross-role seam audit.                                                           |
 | `apps/myk9show/src/test/e2e/show/showConflictSurfacing.spec.ts`             | Show replication conflict surfacing.                                                                    |

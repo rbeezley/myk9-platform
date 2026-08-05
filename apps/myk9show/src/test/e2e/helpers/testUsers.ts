@@ -12,7 +12,20 @@
  *
  * Legacy/demo-only accounts (EXHIBITOR_2..5) are fixture data, not route-health
  * sign-in users. Use DEMO_EXHIBITOR for authenticated exhibitor tests.
- * Club-admin and steward flows use the canonical admin and secretary accounts.
+ * Steward flows use the canonical secretary account.
+ *
+ * Optional account (MYK9-137):
+ *   E2E_CLUB_ADMIN_PASSWORD — a club-admin-only actor. Its email is fixed, not
+ * overridable; the seeds hard-code it.
+ *
+ * LOCAL-ONLY FOR NOW. It is NOT part of the CI/Nightly canonical set, and no
+ * workflow passes E2E_CLUB_ADMIN_PASSWORD, so it is skipped there even once the
+ * secret exists in GitHub. Turning it on means adding the secret AND wiring it
+ * into the isolated-e2e lifecycle steps in .github/workflows — until both are
+ * done, specs that sign in as CLUB_ADMIN cannot run anywhere but a developer
+ * machine. Assertions about club SCOPING that need no browser belong in
+ * supabase/tests/club_secretary_grant_test.sql, which builds its own actor inside
+ * a rolled-back transaction and runs on every CI push.
  */
 
 import { expect, type Page } from '@playwright/test';
@@ -53,11 +66,19 @@ export const TEST_USERS: Record<string, TestUser> = {
     description: 'Isolated judge-only account with no assignments',
   },
 
+  // Club-scoped authority ONLY — no site_admin. Kept distinct from SITE_ADMIN on
+  // purpose: club gates read `is_site_admin() OR is_club_admin(id)`, so signing in
+  // as the site admin satisfies them without ever testing club scoping (MYK9-137).
+  // Requires E2E_CLUB_ADMIN_PASSWORD; see scripts/setup-e2e-test-users.ts.
+  // No E2E_CLUB_ADMIN_EMAIL override on purpose: this address is hard-coded in
+  // supabase/seed-demo.sql (section 10e) and seed-isolated-e2e-accounts.sql, which
+  // is where the club_admin grant comes from. An override could only ever point at
+  // an account that was never granted anything.
   CLUB_ADMIN: {
-    email: process.env.E2E_ADMIN_EMAIL ?? 'e2e-admin@test.myk9.com',
-    password: process.env.E2E_ADMIN_PASSWORD ?? '',
+    email: 'e2e-club-admin@test.myk9.com',
+    password: process.env.E2E_CLUB_ADMIN_PASSWORD ?? '',
     role: 'club_admin',
-    description: 'Club administrator via the canonical admin account',
+    description: 'Club-admin-only account, scoped to Heartland — holds no site-wide role',
   },
 
   EXHIBITOR: {

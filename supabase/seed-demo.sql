@@ -189,10 +189,23 @@ DELETE FROM public.trials WHERE id IN (
 );
 DELETE FROM public.show_visibility_settings WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';
-DELETE FROM public.clubs WHERE id = 'dededede-0000-0000-0000-000000000001';
+-- club_members / club_officers / club_stripe_accounts all cascade on club delete.
+DELETE FROM public.clubs WHERE id IN (
+  'dededede-0000-0000-0000-000000000001',
+  'dededede-0000-0000-0000-000000000002'
+);
 
 -- ---------------------------------------------------------------------------
--- 1. Club
+-- 1. Clubs (2)
+--
+--    TWO clubs, not one (MYK9-137). Club-scoped authority is a disjunction —
+--    `is_site_admin() OR is_club_admin(p_club_id)` — so "a club admin may act on
+--    its own club" is only half the contract. The other half, "and NOT on someone
+--    else's", is INEXPRESSIBLE with a single seeded club: there is no second
+--    subject to be rejected from. Prairie Trail exists to be that subject. It
+--    deliberately has no show, no trials and no entries — it is a scope boundary,
+--    not a second demo dataset, and adding fixtures to it would slow every walk
+--    without testing anything new.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version)
 VALUES (
@@ -202,6 +215,14 @@ VALUES (
   'e2e-admin@test.myk9.com',
   'Demo scent work club for the myK9Show showcase dataset.',
   'HSWC-001', 1
+),
+(
+  'dededede-0000-0000-0000-000000000002',
+  'Prairie Trail Dog Sports Club',
+  'Wichita', 'Kansas',
+  'e2e-admin@test.myk9.com',
+  'Second demo club. Exists so club-scoped authority has a club to be REFUSED on — see MYK9-137.',
+  'PTDSC-002', 1
 );
 
 -- Stripe Connect sandbox account for the demo club.
@@ -220,6 +241,42 @@ ON CONFLICT (club_id, livemode) DO UPDATE
   SET stripe_account_id   = EXCLUDED.stripe_account_id,
       onboarding_complete = EXCLUDED.onboarding_complete,
       payouts_enabled     = EXCLUDED.payouts_enabled;
+
+-- ---------------------------------------------------------------------------
+-- 1b. Club members (MYK9-137)
+--
+--     `club_members` was never seeded by ANY seed file, so /club-admin/members
+--     rendered an empty table on a freshly-reseeded database and the Show Access
+--     and membership flows had no subject to act on — the MYK9-120 replay had to
+--     insert rows by hand before it could test anything.
+--
+--     Membership is resolved by email rather than by fixed id: these are the
+--     protected accounts the Lane 1.1 wipe restores, and their people.id values
+--     are not stable across environments. A missing account yields zero rows
+--     rather than an error — the section-10 preflight above is what makes the
+--     accounts the RBAC grants depend on non-optional.
+--
+--     joined_date is a literal, not CURRENT_DATE, so a re-run is byte-identical
+--     (same reason section 10 pins granted_at).
+-- ---------------------------------------------------------------------------
+INSERT INTO public.club_members (club_id, person_id, membership_type, membership_status, joined_date)
+SELECT club.club_id, p.id, club.membership_type, 'active', DATE '2026-06-17'
+FROM (
+  VALUES
+    ('dededede-0000-0000-0000-000000000001'::uuid, 'e2e-admin@test.myk9.com',     'full'),
+    ('dededede-0000-0000-0000-000000000001'::uuid, 'e2e-secretary@test.myk9.com', 'full'),
+    ('dededede-0000-0000-0000-000000000001'::uuid, 'e2e-judge@test.myk9.com',     'associate'),
+    ('dededede-0000-0000-0000-000000000001'::uuid, 'e2e-exhibitor@test.myk9.com', 'full'),
+    -- Club-admin-only account (section 10e). Optional, like its role grant: the
+    -- JOIN drops it where the account has not been provisioned.
+    ('dededede-0000-0000-0000-000000000001'::uuid, 'e2e-club-admin@test.myk9.com', 'full'),
+    -- Prairie Trail's own roster. e2e-exhibitor belongs to BOTH clubs, so a
+    -- membership query that forgets to filter by club_id returns a row it should
+    -- not — the single-club seed could not expose that class of bug at all.
+    ('dededede-0000-0000-0000-000000000002'::uuid, 'e2e-exhibitor@test.myk9.com', 'associate')
+) AS club(club_id, email, membership_type)
+JOIN public.people p ON lower(p.email) = club.email
+ON CONFLICT (club_id, person_id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- 2. Published show  (AKC, fixed dates ~ Aug 1-3 2026)
@@ -726,6 +783,52 @@ FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'chairman'
   AND lower(p.email) = 'e2e-admin@test.myk9.com'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id AND ur.role_id = r.id
+      AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+      AND ur.show_id IS NULL);
+
+-- 10e. club_admin -> e2e-club-admin@test.myk9.com (MYK9-137)
+--
+--     THE POINT OF THIS ACCOUNT IS WHAT IT DOES *NOT* HOLD. e2e-admin holds
+--     site_admin as well as club_admin, and every club-scoped gate in this schema
+--     is a disjunction:
+--
+--       IF NOT (public.is_site_admin() OR public.is_club_admin(p_club_id)) THEN ...
+--
+--     so e2e-admin passes through the is_site_admin() branch and NEVER exercises
+--     the club term. A cross-club rejection test written with that account is
+--     vacuous: it reports a pass whether or not club scoping exists. This account
+--     holds club_admin on Heartland and nothing else, so it can be refused — and
+--     `supabase/tests/club_secretary_grant_test.sql` proves the same property at
+--     the SQL layer with a purpose-built actor.
+--
+--     DELIBERATELY OPTIONAL, and deliberately absent from the preflight above.
+--     Creating it requires an Auth user, which needs E2E_CLUB_ADMIN_PASSWORD in
+--     the environment (see apps/myk9show/scripts/setup-e2e-test-users.ts). Where
+--     that secret is not configured the account does not exist, the JOIN below
+--     matches nothing, and the seed completes normally. Adding it to the preflight
+--     would instead make every such database fail to seed at all.
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
+FROM public.people p, public.roles r
+WHERE ur.user_id = p.id AND ur.role_id = r.id
+  AND r.name = 'club_admin'
+  AND lower(p.email) = 'e2e-club-admin@test.myk9.com'
+  AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
+  AND ur.show_id IS NULL
+  AND (ur.is_active IS DISTINCT FROM true
+       OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id
+       OR ur.expires_at IS NOT NULL);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+FROM public.people p
+CROSS JOIN public.roles r
+WHERE r.name = 'club_admin'
+  AND lower(p.email) = 'e2e-club-admin@test.myk9.com'
+  AND p.auth_user_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id = p.id AND ur.role_id = r.id

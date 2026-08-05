@@ -10,7 +10,13 @@ WITH accounts(email, first_name, last_name) AS (
     ('e2e-exhibitor@test.myk9.com', 'Test', 'Exhibitor'),
     ('e2e-secretary@test.myk9.com', 'Test', 'Secretary'),
     ('e2e-judge@test.myk9.com', 'Test', 'Judge'),
-    ('e2e-admin@test.myk9.com', 'Test', 'Admin')
+    ('e2e-admin@test.myk9.com', 'Test', 'Admin'),
+    -- Optional club-admin-only account (MYK9-137). Every statement in this file
+    -- joins auth.users or people, so where E2E_CLUB_ADMIN_PASSWORD is unset the
+    -- Auth user does not exist and each one simply matches no rows. It is
+    -- deliberately absent from the count assertion below, which guards the
+    -- accounts a run cannot proceed without.
+    ('e2e-club-admin@test.myk9.com', 'Test', 'Club Admin')
 )
 UPDATE public.people AS person
 SET
@@ -28,7 +34,13 @@ WITH accounts(email, first_name, last_name) AS (
     ('e2e-exhibitor@test.myk9.com', 'Test', 'Exhibitor'),
     ('e2e-secretary@test.myk9.com', 'Test', 'Secretary'),
     ('e2e-judge@test.myk9.com', 'Test', 'Judge'),
-    ('e2e-admin@test.myk9.com', 'Test', 'Admin')
+    ('e2e-admin@test.myk9.com', 'Test', 'Admin'),
+    -- Optional club-admin-only account (MYK9-137). Every statement in this file
+    -- joins auth.users or people, so where E2E_CLUB_ADMIN_PASSWORD is unset the
+    -- Auth user does not exist and each one simply matches no rows. It is
+    -- deliberately absent from the count assertion below, which guards the
+    -- accounts a run cannot proceed without.
+    ('e2e-club-admin@test.myk9.com', 'Test', 'Club Admin')
 )
 INSERT INTO public.people (auth_user_id, first_name, last_name, email)
 SELECT auth_user.id, account.first_name, account.last_name, account.email
@@ -82,7 +94,10 @@ WHERE lower(person.email) IN (
   'e2e-exhibitor@test.myk9.com',
   'e2e-secretary@test.myk9.com',
   'e2e-judge@test.myk9.com',
-  'e2e-admin@test.myk9.com'
+  'e2e-admin@test.myk9.com',
+  -- Without this the club admin lands on the first-run onboarding wizard instead
+  -- of the club surface it was created to exercise.
+  'e2e-club-admin@test.myk9.com'
 )
   AND person.auth_user_id IS NOT NULL
 ON CONFLICT (auth_user_id)
@@ -157,7 +172,12 @@ WITH desired(email, role_name) AS (
   VALUES
     ('e2e-secretary@test.myk9.com', 'secretary'),
     ('e2e-admin@test.myk9.com', 'secretary'),
-    ('e2e-admin@test.myk9.com', 'club_admin')
+    ('e2e-admin@test.myk9.com', 'club_admin'),
+    -- CLUB-SCOPED ONLY, and absent from the platform-wide (club_id IS NULL)
+    -- block above on purpose: a site-wide grant here would satisfy every club
+    -- gate through is_site_admin() and make this account as useless for scope
+    -- testing as the one it was split from (MYK9-137).
+    ('e2e-club-admin@test.myk9.com', 'club_admin')
 ),
 demo_club AS (
   SELECT id
@@ -182,7 +202,12 @@ WITH desired(email, role_name) AS (
   VALUES
     ('e2e-secretary@test.myk9.com', 'secretary'),
     ('e2e-admin@test.myk9.com', 'secretary'),
-    ('e2e-admin@test.myk9.com', 'club_admin')
+    ('e2e-admin@test.myk9.com', 'club_admin'),
+    -- CLUB-SCOPED ONLY, and absent from the platform-wide (club_id IS NULL)
+    -- block above on purpose: a site-wide grant here would satisfy every club
+    -- gate through is_site_admin() and make this account as useless for scope
+    -- testing as the one it was split from (MYK9-137).
+    ('e2e-club-admin@test.myk9.com', 'club_admin')
 ),
 demo_club AS (
   SELECT id

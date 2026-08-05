@@ -1,19 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Filter, X, Calendar, Award, AlertCircle } from 'lucide-react';
+import { Search, X, Calendar, Award, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dog } from '@/types/dog-types';
 import { useDebounce } from '@myk9/scoring-ui';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { SearchSuggestions } from '@/components/common/RecentSearches';
+
+import { DogSearchFilters, type QuickFilter, type SearchFilters } from './DogSearchFilters';
 
 interface DogSearchInterfaceProps {
   dogs: Dog[];
@@ -25,23 +20,6 @@ interface DogSearchInterfaceProps {
   showAdvancedFilters?: boolean;
   enablePersistence?: boolean;
   className?: string;
-}
-
-interface SearchFilters {
-  searchQuery: string;
-  breedFilter: string;
-  genderFilter: string;
-  registrationFilter: string;
-  ageFilter: string;
-  quickFilter: string;
-}
-
-interface QuickFilter {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  filter: (dogs: Dog[]) => Dog[];
-  description: string;
 }
 
 export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
@@ -315,256 +293,87 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   return (
     <div className={`space-y-3 ${className}`}>
       {/* Search Input */}
-      <div className="relative" ref={searchInputRef}>
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input
-          placeholder={placeholder}
-          value={filters.searchQuery}
-          onChange={e => {
-            const newQuery = e.target.value;
-            setFilters(prev => ({ ...prev, searchQuery: newQuery }));
-            onSearchQueryChange?.(newQuery);
-            setShowSuggestions(true);
-          }}
-          onFocus={() => setShowSuggestions(true)}
-          className="pl-10 pr-10 border border-border"
-        />
-        {filters.searchQuery && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
-            aria-label="Clear dog search"
-            onClick={() => {
-              setFilters(prev => ({ ...prev, searchQuery: '' }));
-              onSearchQueryChange?.('');
-              setShowSuggestions(false);
-            }}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-
-        {/* Search Suggestions */}
-        {showSuggestions &&
-          (currentSuggestions.length > 0 ||
-            (!filters.searchQuery && frequentSearches.length > 0)) && (
-            <SearchSuggestions
-              suggestions={currentSuggestions}
-              currentQuery={filters.searchQuery}
-              onSuggestionSelect={handleSearchSelect}
-              frequentSearches={frequentSearches}
+      <Popover
+        open={
+          showSuggestions &&
+          (currentSuggestions.length > 0 || (!filters.searchQuery && frequentSearches.length > 0))
+        }
+        onOpenChange={setShowSuggestions}
+      >
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <PopoverTrigger asChild>
+            <Input
+              ref={searchInputRef}
+              placeholder={placeholder}
+              value={filters.searchQuery}
+              onChange={e => {
+                const newQuery = e.target.value;
+                setFilters(prev => ({ ...prev, searchQuery: newQuery }));
+                onSearchQueryChange?.(newQuery);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onClick={() => setShowSuggestions(true)}
+              role="combobox"
+              aria-expanded={showSuggestions}
+              aria-controls="dog-search-suggestions"
+              aria-autocomplete="list"
+              className="pl-10 pr-10 border border-border"
             />
-          )}
-      </div>
-
-      {/* Quick Filters + Advanced Filters Toggle */}
-      {(showQuickFilters || showAdvancedFilters) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {showQuickFilters &&
-            quickFilters.map(quickFilter => (
-              <Button
-                key={quickFilter.id}
-                variant={filters.quickFilter === quickFilter.id ? 'default' : 'outline'}
-                size="sm"
-                onClick={() =>
-                  setFilters(prev => ({
-                    ...prev,
-                    quickFilter: prev.quickFilter === quickFilter.id ? '' : quickFilter.id,
-                  }))
-                }
-                className="flex items-center gap-2"
-                title={quickFilter.description}
-              >
-                {quickFilter.icon}
-                {quickFilter.label}
-              </Button>
-            ))}
-
-          {showAdvancedFilters && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-2 ml-auto"
-              >
-                <Filter className="h-4 w-4" />
-                Advanced Filters
-                {activeFilterCount > 0 && (
-                  <Badge variant="secondary" className="ml-1">
-                    {activeFilterCount}
-                  </Badge>
-                )}
-              </Button>
-
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  className="text-destructive "
-                >
-                  Clear All
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Advanced Filter Controls */}
-      {showAdvanced && showAdvancedFilters && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
-          {/* Breed Filter */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Breed</label>
-            <Select
-              value={filters.breedFilter}
-              onValueChange={value => setFilters(prev => ({ ...prev, breedFilter: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Breeds" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Breeds</SelectItem>
-                {filterOptions.breeds.map(breed => (
-                  <SelectItem key={breed} value={breed}>
-                    {breed}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Gender Filter */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Gender</label>
-            <Select
-              value={filters.genderFilter}
-              onValueChange={value => setFilters(prev => ({ ...prev, genderFilter: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Genders" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Genders</SelectItem>
-                {filterOptions.genders.map(gender => (
-                  <SelectItem key={gender} value={gender || ''}>
-                    {gender}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Registration Filter */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Registry</label>
-            <Select
-              value={filters.registrationFilter}
-              onValueChange={value => setFilters(prev => ({ ...prev, registrationFilter: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Registries" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Registries</SelectItem>
-                {filterOptions.organizations.map(org => (
-                  <SelectItem key={org} value={org}>
-                    {org}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Age Filter */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Age Group</label>
-            <Select
-              value={filters.ageFilter}
-              onValueChange={value => setFilters(prev => ({ ...prev, ageFilter: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Ages" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Ages</SelectItem>
-                {filterOptions.ageGroups.map(ageGroup => (
-                  <SelectItem key={ageGroup.value} value={ageGroup.value}>
-                    {ageGroup.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
-
-      {/* Active Filters Display */}
-      {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2">
+          </PopoverTrigger>
           {filters.searchQuery && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Search: "{filters.searchQuery}"
-              <X
-                className="h-3 w-3 cursor-pointer"
-                onClick={() => {
-                  setFilters(prev => ({ ...prev, searchQuery: '' }));
-                  onSearchQueryChange?.('');
-                }}
-              />
-            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+              aria-label="Clear dog search"
+              onClick={() => {
+                setFilters(prev => ({ ...prev, searchQuery: '' }));
+                onSearchQueryChange?.('');
+                setShowSuggestions(false);
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           )}
-          {filters.quickFilter && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              {quickFilters.find(qf => qf.id === filters.quickFilter)?.label}
-              <X
-                className="h-3 w-3 cursor-pointer"
-                onClick={() => setFilters(prev => ({ ...prev, quickFilter: '' }))}
-              />
-            </Badge>
-          )}
-          {filters.breedFilter && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Breed: {filters.breedFilter}
-              <X
-                className="h-3 w-3 cursor-pointer"
-                onClick={() => setFilters(prev => ({ ...prev, breedFilter: '' }))}
-              />
-            </Badge>
-          )}
-          {filters.genderFilter && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Gender: {filters.genderFilter}
-              <X
-                className="h-3 w-3 cursor-pointer"
-                onClick={() => setFilters(prev => ({ ...prev, genderFilter: '' }))}
-              />
-            </Badge>
-          )}
-          {filters.registrationFilter && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Registry: {filters.registrationFilter}
-              <X
-                className="h-3 w-3 cursor-pointer"
-                onClick={() => setFilters(prev => ({ ...prev, registrationFilter: '' }))}
-              />
-            </Badge>
-          )}
-          {filters.ageFilter && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Age: {filterOptions.ageGroups.find(ag => ag.value === filters.ageFilter)?.label}
-              <X
-                className="h-3 w-3 cursor-pointer"
-                onClick={() => setFilters(prev => ({ ...prev, ageFilter: '' }))}
-              />
-            </Badge>
-          )}
-        </div>
-      )}
 
+          {/* Search Suggestions */}
+          {showSuggestions &&
+            (currentSuggestions.length > 0 ||
+              (!filters.searchQuery && frequentSearches.length > 0)) && (
+              <PopoverContent
+                id="dog-search-suggestions"
+                align="start"
+                initialFocus={false}
+                className="w-[var(--anchor-width)] max-h-[min(24rem,var(--available-height))] overflow-y-auto p-0"
+                role="listbox"
+              >
+                <SearchSuggestions
+                  suggestions={currentSuggestions}
+                  currentQuery={filters.searchQuery}
+                  onSuggestionSelect={handleSearchSelect}
+                  frequentSearches={frequentSearches}
+                />
+              </PopoverContent>
+            )}
+        </div>
+      </Popover>
+
+      <DogSearchFilters
+        filters={filters}
+        setFilters={setFilters}
+        quickFilters={quickFilters}
+        filterOptions={filterOptions}
+        showQuickFilters={showQuickFilters}
+        showAdvancedFilters={showAdvancedFilters}
+        showAdvanced={showAdvanced}
+        setShowAdvanced={setShowAdvanced}
+        activeFilterCount={activeFilterCount}
+        hasActiveFilters={hasActiveFilters}
+        clearAllFilters={clearAllFilters}
+        onSearchQueryChange={onSearchQueryChange}
+      />
     </div>
   );
 };

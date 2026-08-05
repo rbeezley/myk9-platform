@@ -49,13 +49,7 @@ const ALLOWED = new Map<string, string>([
  * a list of suggestions you type against, where the input must keep focus.
  * Each needs a Popover or Combobox, not a mechanical swap.
  */
-const PRE_EXISTING = new Set<string>([
-  'components/shows/ArmbandLookup.tsx',
-  'components/shows/RegistrationWorkflow/HandlerSelectionDialog.tsx',
-  'components/conflict/ConflictNotifications.tsx',
-  'components/common/AdvancedSearch.tsx',
-  'components/common/RecentSearches.tsx',
-]);
+const PRE_EXISTING = new Set<string>();
 
 function sourceFiles(): string[] {
   return globSync('**/*.tsx', { cwd: SRC })

@@ -18,16 +18,8 @@ import { Slider } from '@/components/ui/slider';
 import { searchService, SearchQuery, SearchFilters, SearchResult } from '@/services/SearchService';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
-import {
-  Search,
-  Filter,
-  Calendar as CalendarIcon,
-  X,
-  TrendingUp,
-  Sliders,
-  History,
-  Zap,
-} from 'lucide-react';
+import { Search, Filter, Calendar as CalendarIcon, X, Sliders } from 'lucide-react';
+import { AdvancedSearchSuggestions } from './AdvancedSearchSuggestions';
 
 interface AdvancedSearchProps {
   entityType: string;
@@ -180,15 +172,6 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     setCustomFilterValues({});
   };
 
-  const clearSearchHistory = async () => {
-    try {
-      await searchService.clearSearchHistory(user?.id || '');
-      setSearchHistory([]);
-    } catch (error) {
-      logger.error('Failed to clear search history:', 'components', {}, error as Error);
-    }
-  };
-
   const getActiveFilterCount = () => {
     let count = 0;
     if (selectedCategories.length > 0) count++;
@@ -206,130 +189,88 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     <div className={`space-y-4 ${className}`}>
       {/* Main Search Input */}
       <div className="relative">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            ref={searchInputRef}
-            type="text"
-            placeholder={placeholder}
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            onKeyPress={e => e.key === 'Enter' && handleSearch()}
-            onFocus={() => setShowSuggestions(suggestions.length > 0)}
-            className="pl-10 pr-24"
-          />
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="h-7"
-            >
-              <Sliders className="h-3 w-3 mr-1" />
-              Filters
-              {getActiveFilterCount() > 0 && (
-                <Badge variant="secondary" className="ml-1 h-4 w-4 p-0 text-xs">
-                  {getActiveFilterCount()}
-                </Badge>
-              )}
-            </Button>
-            <Button
-              onClick={handleSearch}
-              disabled={isSearching}
-              size="sm"
-              className="h-7"
-              aria-label={isSearching ? 'Searching' : 'Search'}
-            >
-              {isSearching ? (
-                <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
-              ) : (
-                <Search className="h-3 w-3" />
-              )}
-            </Button>
+        <Popover open={showSuggestions} onOpenChange={setShowSuggestions}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <PopoverTrigger asChild>
+              <Input
+                ref={searchInputRef}
+                type="text"
+                placeholder={placeholder}
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyPress={e => e.key === 'Enter' && handleSearch()}
+                onFocus={() => setShowSuggestions(suggestions.length > 0)}
+                onClick={() => suggestions.length > 0 && setShowSuggestions(true)}
+                role="combobox"
+                aria-expanded={showSuggestions}
+                aria-controls="advanced-search-suggestions"
+                aria-autocomplete="list"
+                className="pl-10 pr-24"
+              />
+            </PopoverTrigger>
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="h-7"
+              >
+                <Sliders className="h-3 w-3 mr-1" />
+                Filters
+                {getActiveFilterCount() > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 w-4 p-0 text-xs">
+                    {getActiveFilterCount()}
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                onClick={handleSearch}
+                disabled={isSearching}
+                size="sm"
+                className="h-7"
+                aria-label={isSearching ? 'Searching' : 'Search'}
+              >
+                {isSearching ? (
+                  <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Search className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {/* Search Suggestions */}
-        {showSuggestions &&
-          (suggestions.length > 0 || searchHistory.length > 0 || popularSearches.length > 0) && (
-            <Card className="absolute top-full left-0 right-0 z-50 mt-1 shadow-lg">
-              <CardContent className="p-3">
-                {suggestions.length > 0 && (
-                  <div className="mb-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Zap className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">Suggestions</span>
-                    </div>
-                    <div className="space-y-1">
-                      {suggestions.map((suggestion, index) => (
-                        <button
-                          key={index}
-                          className="w-full text-left px-2 py-1 text-sm hover:bg-muted/50 rounded transition-colors"
-                          onClick={() => handleSuggestionClick(suggestion)}
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {searchHistory.length > 0 && (
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <History className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs font-medium text-muted-foreground">
-                          Recent Searches
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearSearchHistory}
-                        className="h-5 text-xs"
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {searchHistory.slice(0, 5).map((term, index) => (
-                        <Badge
-                          key={index}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleSuggestionClick(term)}
-                        >
-                          {term}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {popularSearches.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground">Popular</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {popularSearches.slice(0, 6).map((term, index) => (
-                        <Badge
-                          key={index}
-                          variant="secondary"
-                          className="cursor-pointer hover:bg-muted/70"
-                          onClick={() => handleSuggestionClick(term)}
-                        >
-                          {term}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* Search Suggestions */}
+          {showSuggestions &&
+            (suggestions.length > 0 || searchHistory.length > 0 || popularSearches.length > 0) && (
+              <PopoverContent
+                id="advanced-search-suggestions"
+                align="start"
+                initialFocus={false}
+                className="w-[var(--anchor-width)] max-h-[min(24rem,var(--available-height))] overflow-y-auto p-0"
+              >
+                <AdvancedSearchSuggestions
+                  suggestions={suggestions}
+                  searchHistory={searchHistory}
+                  popularSearches={popularSearches}
+                  onSuggestionSelect={handleSuggestionClick}
+                  onClearSearchHistory={async () => {
+                    try {
+                      await searchService.clearSearchHistory(user?.id || '');
+                      setSearchHistory([]);
+                    } catch (error) {
+                      logger.error(
+                        'Failed to clear search history:',
+                        'components',
+                        {},
+                        error as Error
+                      );
+                    }
+                  }}
+                />
+              </PopoverContent>
+            )}
+        </Popover>
       </div>
 
       {/* Advanced Filters */}

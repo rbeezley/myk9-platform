@@ -15,10 +15,15 @@
  * Steward flows use the canonical secretary account.
  *
  * Optional account (MYK9-137):
- *   E2E_CLUB_ADMIN_EMAIL / E2E_CLUB_ADMIN_PASSWORD — a club-admin-only actor.
- * It is NOT part of the CI/Nightly canonical set: provisioning it needs a secret
- * that does not exist yet, so specs that sign in as CLUB_ADMIN cannot run until
- * one is configured. Assertions about club SCOPING that need no browser belong in
+ *   E2E_CLUB_ADMIN_PASSWORD — a club-admin-only actor. Its email is fixed, not
+ * overridable; the seeds hard-code it.
+ *
+ * LOCAL-ONLY FOR NOW. It is NOT part of the CI/Nightly canonical set, and no
+ * workflow passes E2E_CLUB_ADMIN_PASSWORD, so it is skipped there even once the
+ * secret exists in GitHub. Turning it on means adding the secret AND wiring it
+ * into the isolated-e2e lifecycle steps in .github/workflows — until both are
+ * done, specs that sign in as CLUB_ADMIN cannot run anywhere but a developer
+ * machine. Assertions about club SCOPING that need no browser belong in
  * supabase/tests/club_secretary_grant_test.sql, which builds its own actor inside
  * a rolled-back transaction and runs on every CI push.
  */
@@ -65,8 +70,12 @@ export const TEST_USERS: Record<string, TestUser> = {
   // purpose: club gates read `is_site_admin() OR is_club_admin(id)`, so signing in
   // as the site admin satisfies them without ever testing club scoping (MYK9-137).
   // Requires E2E_CLUB_ADMIN_PASSWORD; see scripts/setup-e2e-test-users.ts.
+  // No E2E_CLUB_ADMIN_EMAIL override on purpose: this address is hard-coded in
+  // supabase/seed-demo.sql (section 10e) and seed-isolated-e2e-accounts.sql, which
+  // is where the club_admin grant comes from. An override could only ever point at
+  // an account that was never granted anything.
   CLUB_ADMIN: {
-    email: process.env.E2E_CLUB_ADMIN_EMAIL ?? 'e2e-club-admin@test.myk9.com',
+    email: 'e2e-club-admin@test.myk9.com',
     password: process.env.E2E_CLUB_ADMIN_PASSWORD ?? '',
     role: 'club_admin',
     description: 'Club-admin-only account, scoped to Heartland — holds no site-wide role',

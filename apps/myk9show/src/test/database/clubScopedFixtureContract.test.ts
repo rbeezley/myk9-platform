@@ -80,6 +80,11 @@ describe('club-admin fixture identity', () => {
     expect(clubAdminBlock).toContain(CLUB_ADMIN_EMAIL);
     expect(clubAdminBlock).toContain('E2E_CLUB_ADMIN_PASSWORD');
     expect(clubAdminBlock).not.toContain('E2E_ADMIN_PASSWORD');
+
+    // The address is NOT env-overridable. Both seeds hard-code it, and they are
+    // the only things that grant club_admin — an override could only ever sign in
+    // as an account holding nothing.
+    expect(clubAdminBlock).not.toContain('E2E_CLUB_ADMIN_EMAIL');
   });
 });
 

@@ -108,6 +108,12 @@ const CANONICAL_TEST_USERS: TestUser[] = [
   // not exist yet. Marked so, rather than added to the required set, because this
   // script runs inside scripts/qa/isolated-e2e-lifecycle.ts — a required account
   // with no secret would abort the nightly run outright.
+  //
+  // LOCAL-ONLY UNTIL WIRED. Creating the GitHub secret is NOT sufficient: no
+  // workflow passes E2E_CLUB_ADMIN_PASSWORD to either isolated-lifecycle step, so
+  // CI keeps skipping this account until .github/workflows also forwards it.
+  // Deliberately not done here — the seed and fixture halves are the parts that
+  // can be reviewed without a secret in hand.
   {
     email: 'e2e-club-admin@test.myk9.com',
     passwordEnv: 'E2E_CLUB_ADMIN_PASSWORD',

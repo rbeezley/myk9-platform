@@ -85,12 +85,24 @@ const CANONICAL_TEST_USERS: TestUser[] = [
     lastName: 'Judge',
     roles: ['judge'],
   },
+  // Empty-assignment judge subject (MYK9-141). OPTIONAL for the same reason as
+  // e2e-club-admin below, and it was misfiled as required: E2E_JUDGE_EMPTY_PASSWORD
+  // is set in no workflow and in no .env.local, so `planAccountProvisioning` put it
+  // in missingRequired and this script exit(1)'d before provisioning ANY account.
+  // Since scripts/qa/isolated-e2e-lifecycle.ts runs it (line ~226), that took the
+  // whole isolated run down over an account nothing had a secret for.
+  //
+  // LOCAL-ONLY UNTIL WIRED, same as the club admin: creating the GitHub secret is
+  // not sufficient, because no workflow forwards E2E_JUDGE_EMPTY_PASSWORD to the
+  // isolated-lifecycle steps. Until .github/workflows also passes it, the account
+  // is skipped in CI and the empty-dashboard case runs only on a developer machine.
   {
     email: 'e2e-judge-empty@test.myk9.com',
     passwordEnv: 'E2E_JUDGE_EMPTY_PASSWORD',
     firstName: 'Test',
     lastName: 'Judge No Assignments',
     roles: ['judge'],
+    optional: true,
   },
   {
     email: 'e2e-admin@test.myk9.com',

@@ -228,6 +228,22 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
     expect(reactivate).toContain('p.auth_user_id IS NOT NULL');
   });
 
+  // Every account whose secret no workflow supplies MUST be optional. A required
+  // one sends planAccountProvisioning down missingRequired and exit(1)s the whole
+  // script — and scripts/qa/isolated-e2e-lifecycle.ts runs it, so one unprovisioned
+  // account takes down provisioning for ALL of them. e2e-judge-empty was filed as
+  // required with its secret defined nowhere (fourth Codex round on #1626).
+  it.each(['e2e-judge-empty@test.myk9.com', 'e2e-club-admin@test.myk9.com'])(
+    'declares %s optional so a missing secret skips it instead of aborting',
+    email => {
+      const entry = setupSource.slice(
+        setupSource.indexOf(`email: '${email}'`),
+        setupSource.indexOf('},', setupSource.indexOf(`email: '${email}'`))
+      );
+      expect(entry).toContain('optional: true');
+    }
+  );
+
   // The isolated seed writes person.auth_user_id straight into the grant, so the
   // hazard is identical on its INSERT halves — guarding only the reactivate side
   // left the INSERT able to create the very row the guard was added to prevent

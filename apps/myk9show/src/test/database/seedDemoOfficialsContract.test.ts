@@ -154,3 +154,106 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     expect(assignmentBlock).not.toContain('dec1a55e-0000-0000-0000-000000000036');
   });
 });
+
+// Every grant block above only ADDS a role. That is what a revoke-safe seed must
+// do, and it is also why an account can never be proven to hold ONLY the role its
+// fixture claims: user_roles rows accumulate and nothing takes them away. The
+// judge fixture had drifted to secretary + judge + exhibitor by 2026-08-01, which
+// makes judge-only authorization tests vacuous — a judge that also holds
+// exhibitor clears an exhibitor gate through the exhibitor grant.
+//
+// These pin the section 10f exclusivity step. Verified non-vacuous by mutation:
+// deleting the 10f block, widening its email list to e2e-secretary, dropping the
+// `r.name <> 'judge'` term, and re-declaring the judge fixture as
+// `['judge', 'exhibitor']` each fail at least one assertion here.
+describe('judge fixture exclusivity contract (MYK9-141)', () => {
+  const seed = readSeed();
+  const JUDGE_FIXTURE_EMAILS = ['e2e-judge@test.myk9.com', 'e2e-judge-empty@test.myk9.com'];
+  // Accounts that are deliberately multi-role. e2e-secretary is
+  // secretary+steward+exhibitor and e2e-admin is site_admin+4; a widened WHERE
+  // clause in 10f would silently destroy both.
+  const MULTI_ROLE_FIXTURE_EMAILS = [
+    'e2e-secretary@test.myk9.com',
+    'e2e-admin@test.myk9.com',
+    'e2e-exhibitor@test.myk9.com',
+    'e2e-club-admin@test.myk9.com',
+  ];
+
+  function readExclusivityBlock(): string {
+    const start = seed.indexOf('-- 10f. JUDGE FIXTURE EXCLUSIVITY');
+    expect(start).toBeGreaterThan(-1);
+    const end = seed.indexOf('-- 11. GAP FIXTURE #5', start);
+    expect(end).toBeGreaterThan(start);
+    return seed.slice(start, end);
+  }
+
+  it('deactivates every non-judge grant held by the judge fixture accounts', () => {
+    const block = readExclusivityBlock();
+
+    // Deactivate, not DELETE — 10b reactivates its own row, so ordering is not
+    // load-bearing and the seed stays revoke-safe.
+    expect(block).toContain('SET is_active = false');
+    expect(block).not.toContain('DELETE FROM public.user_roles');
+
+    // The exclusion term is what makes this "only judge" instead of "no roles".
+    expect(block).toMatch(/r\.name\s*<>\s*'judge'/);
+
+    // Idempotent: already-inactive rows are not re-touched, so a clean re-run is
+    // UPDATE 0 (same property every block above holds).
+    expect(block).toMatch(/AND\s+ur\.is_active\b/);
+
+    for (const email of JUDGE_FIXTURE_EMAILS) {
+      expect(block).toContain(email);
+    }
+  });
+
+  it('never widens the deactivation past the two judge fixtures', () => {
+    const block = readExclusivityBlock();
+
+    for (const email of MULTI_ROLE_FIXTURE_EMAILS) {
+      expect(block).not.toContain(email);
+    }
+
+    // Scoped by an explicit email list, never "every account" or "every judge".
+    expect(block).toMatch(/lower\(p\.email\)\s+IN\s*\(/);
+  });
+
+  // The fixture files claim `roles: ['judge']`. 10f is what makes the claim true,
+  // so if a fixture ever adds a second role the seed would silently revoke it at
+  // the next reseed — the declarations and the seed must move together.
+  const judgeFixtureSources: Array<{ label: string; path: string; pattern: RegExp }> = [
+    {
+      label: 'e2e fixture (test-users.ts)',
+      path: 'apps/myk9show/src/test/e2e/fixtures/test-users.ts',
+      pattern: /email: 'e2e-judge@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
+    },
+    {
+      label: 'e2e fixture (test-users.ts, empty-assignment account)',
+      path: 'apps/myk9show/src/test/e2e/fixtures/test-users.ts',
+      pattern: /email: 'e2e-judge-empty@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
+    },
+    {
+      label: 'provisioning script (setup-e2e-test-users.ts)',
+      path: 'apps/myk9show/scripts/setup-e2e-test-users.ts',
+      pattern: /email: 'e2e-judge@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
+    },
+  ];
+
+  it.each(judgeFixtureSources)(
+    'declares the judge as judge-only in $label',
+    ({ path, pattern }) => {
+      expect(readFileSync(join(repoRoot, path), 'utf8')).toMatch(pattern);
+    }
+  );
+
+  it('keeps the judge-only invariant discoverable from the fixture itself', () => {
+    // A future editor reading only the fixture must learn that the single role is
+    // deliberate and where it is enforced, or the next drift repeats silently.
+    for (const path of [
+      'apps/myk9show/src/test/e2e/fixtures/test-users.ts',
+      'apps/myk9show/src/test/e2e/helpers/testUsers.ts',
+    ]) {
+      expect(readFileSync(join(repoRoot, path), 'utf8')).toContain('MYK9-141');
+    }
+  });
+});

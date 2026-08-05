@@ -1,7 +1,8 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
-import { ShowsMapView, partitionMappableShows } from '../ShowsMapView';
+import { ShowsMapView } from '../ShowsMapView';
+import { partitionMappableShows } from '../ShowsMapView.helpers';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import { US_CENTER } from '@/features/maps/tiles';
 

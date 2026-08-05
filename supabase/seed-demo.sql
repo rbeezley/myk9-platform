@@ -816,6 +816,11 @@ FROM public.people p, public.roles r
 WHERE ur.user_id = p.id AND ur.role_id = r.id
   AND r.name = 'club_admin'
   AND lower(p.email) = 'e2e-club-admin@test.myk9.com'
+  -- Optional account: a stale people row whose Auth user was wiped carries a
+  -- NULL auth_user_id, and reactivating on it writes an ACTIVE grant nobody
+  -- can ever authenticate into. The INSERT half has always been guarded; the
+  -- reactivate half was not (Codex review, #1626).
+  AND p.auth_user_id IS NOT NULL
   AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
   AND ur.show_id IS NULL
   AND (ur.is_active IS DISTINCT FROM true
@@ -859,6 +864,11 @@ FROM public.people p, public.roles r
 WHERE ur.user_id = p.id AND ur.role_id = r.id
   AND r.name = 'judge'
   AND lower(p.email) = 'e2e-judge-empty@test.myk9.com'
+  -- Optional account: a stale people row whose Auth user was wiped carries a
+  -- NULL auth_user_id, and reactivating on it writes an ACTIVE grant nobody
+  -- can ever authenticate into. The INSERT half has always been guarded; the
+  -- reactivate half was not (Codex review, #1626).
+  AND p.auth_user_id IS NOT NULL
   AND ur.club_id = 'dededede-0000-0000-0000-000000000001'
   AND ur.show_id IS NULL
   AND (ur.is_active IS DISTINCT FROM true

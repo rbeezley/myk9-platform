@@ -140,6 +140,10 @@ JOIN public.people AS person ON lower(person.email) = desired.email
 JOIN public.roles AS role ON role.name = desired.role_name
 WHERE user_role.user_id = person.id
   AND user_role.role_id = role.id
+  -- Never reactivate onto a profile with no Auth identity: for the optional
+  -- accounts a wiped auth.users leaves a stale people row behind, and the
+  -- result is an active grant that can never be signed into (#1626).
+  AND person.auth_user_id IS NOT NULL
   AND user_role.club_id IS NULL
   AND user_role.show_id IS NULL;
 
@@ -212,6 +216,7 @@ JOIN public.roles AS role ON role.name = desired.role_name
 CROSS JOIN demo_club
 WHERE user_role.user_id = person.id
   AND user_role.role_id = role.id
+  AND person.auth_user_id IS NOT NULL
   AND user_role.club_id = demo_club.id
   AND user_role.show_id IS NULL;
 

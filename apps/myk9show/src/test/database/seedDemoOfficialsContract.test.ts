@@ -210,6 +210,24 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
     expect(block).toContain('p.auth_user_id IS NOT NULL');
   });
 
+  // Both optional accounts (10e club admin, 10f empty judge) exist only where a
+  // secret provisioned their Auth user. Their INSERT halves have always required
+  // an auth id; their REACTIVATE halves did not, so a stale people row left by a
+  // wiped auth.users would be flipped to an active grant nobody can sign into
+  // (Codex review, #1626). Asserted over both blocks, not just the new one.
+  it.each([
+    { label: '10e club admin', marker: '-- 10e.', next: '-- 10f.' },
+    { label: '10f empty judge', marker: '-- 10f. judge -> e2e-judge-empty', next: '-- 10g.' },
+  ])('guards the $label reactivate half against a null auth identity', ({ marker, next }) => {
+    const start = seed.indexOf(marker);
+    expect(start).toBeGreaterThan(-1);
+    const block = seed.slice(start, seed.indexOf(next, start + marker.length));
+
+    const reactivate = block.slice(0, block.indexOf('INSERT INTO public.user_roles'));
+    expect(reactivate).toContain('SET is_active = true');
+    expect(reactivate).toContain('p.auth_user_id IS NOT NULL');
+  });
+
   it('provisions the empty-assignment fixture in the isolated account seed too', () => {
     // seed-demo runs against the shared/demo database; the isolated Playwright
     // lifecycle seeds its own disposable one from this second file. A fixture

@@ -1,6 +1,6 @@
 /**
  * Judge Sync Dashboard Component
- * 
+ *
  * Judge-specific sync monitoring and controls for scoring sessions.
  * Provides detailed sync status, data integrity checks, and manual
  * sync controls with Premium design for professional use.
@@ -19,20 +19,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/LoggingService';
-import {
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Icons
-import { 
-  RefreshCw, 
-  CheckCircle2, 
-  AlertCircle, 
-  Clock, 
-  Wifi, 
+import {
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Wifi,
   WifiOff,
   Database,
   Upload,
@@ -44,20 +39,24 @@ import {
   Zap,
   TrendingUp,
   Server,
-  HardDrive
+  HardDrive,
 } from 'lucide-react';
 
 // Hooks and Services
 import { useOfflineScoringStore } from '@/store/offlineScoringStore';
 import { offlineScoringService } from '@/services/scoring/OfflineScoringService';
+import {
+  DEFAULT_SYNC_QUEUE_WARNING_THRESHOLD,
+  shouldWarnForSyncQueue,
+} from '@/services/scoring/offline-scoring-service-helpers';
 
 // Types
 import type { BaseScore } from '@/types/scoring-types';
-import type { 
-  SyncMetrics, 
-  DataIntegrityStatus, 
+import type {
+  SyncMetrics,
+  DataIntegrityStatus,
   JudgeActivity,
-  JudgeSyncDashboardProps
+  JudgeSyncDashboardProps,
 } from '@/utils/scoringUtils';
 
 /**
@@ -69,15 +68,12 @@ function JudgeSyncDashboard({
   format,
   onForceSync,
   onDataExport,
-  className
+  className,
 }: JudgeSyncDashboardProps) {
   // Store hooks
-  const {
-    isOffline,
-    getSessionsByJudge,
-    getScoresByClass,
-    getPendingSyncItems
-  } = useOfflineScoringStore();
+  const { isOffline, getSessionsByJudge, getScoresByClass, getPendingSyncItems } =
+    useOfflineScoringStore();
+  const pendingSyncItems = getPendingSyncItems();
   void format; // Suppress unused variable warning
 
   // Local state
@@ -87,40 +83,48 @@ function JudgeSyncDashboard({
     pendingScores: 0,
     failedScores: 0,
     syncSuccess: 100,
-    averageSyncTime: 0
+    averageSyncTime: 0,
   });
   const [dataIntegrity, setDataIntegrity] = useState<DataIntegrityStatus>({
     totalChecks: 0,
     passedChecks: 0,
     failedChecks: 0,
-    issues: []
+    issues: [],
   });
   const [judgeActivity, setJudgeActivity] = useState<JudgeActivity>({
     sessionsActive: 0,
     sessionsCompleted: 0,
     scoresSubmitted: 0,
-    averageScoreTime: 0
+    averageScoreTime: 0,
   });
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [syncQueueStatus, setSyncQueueStatus] = useState(() =>
+    offlineScoringService.getSyncQueueStatus()
+  );
+
+  const syncQueueWarning = shouldWarnForSyncQueue(
+    syncQueueStatus.queued,
+    DEFAULT_SYNC_QUEUE_WARNING_THRESHOLD
+  );
 
   // Get judge sessions
-  const judgeSessions = useMemo(() => 
-    getSessionsByJudge(judgeId), 
-    [judgeId, getSessionsByJudge]
-  );
+  const judgeSessions = useMemo(() => getSessionsByJudge(judgeId), [judgeId, getSessionsByJudge]);
 
   // Calculate metrics
   const calculateMetrics = useCallback(async () => {
     try {
+      setSyncQueueStatus(offlineScoringService.getSyncQueueStatus());
       let allScores: BaseScore[] = [];
-      
+
       if (classId) {
         allScores = getScoresByClass(classId).filter(s => s.judgeId === judgeId);
       } else {
         // Get scores from all judge sessions
         judgeSessions.forEach(session => {
-          const sessionScores = getScoresByClass(session.classId).filter(s => s.judgeId === judgeId);
+          const sessionScores = getScoresByClass(session.classId).filter(
+            s => s.judgeId === judgeId
+          );
           allScores.push(...sessionScores);
         });
       }
@@ -138,7 +142,7 @@ function JudgeSyncDashboard({
         failedScores,
         syncSuccess,
         averageSyncTime: 150, // Mock data - would calculate from actual sync times
-        lastSyncTime: allScores.find(s => s.syncStatus === 'synced')?.lastModified
+        lastSyncTime: allScores.find(s => s.syncStatus === 'synced')?.lastModified,
       });
 
       // Data integrity checks
@@ -152,29 +156,29 @@ function JudgeSyncDashboard({
 
       const totalChecks = 5; // Mock - would have actual integrity checks
       const failedChecks = issues.length;
-      
+
       setDataIntegrity({
         totalChecks,
         passedChecks: totalChecks - failedChecks,
         failedChecks,
-        issues
+        issues,
       });
 
       // Judge activity metrics
       const activeSessions = judgeSessions.filter(s => s.status === 'active').length;
       const completedSessions = judgeSessions.filter(s => s.status === 'completed').length;
-      const lastActivity = allScores.length > 0 ? 
-        allScores.sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime())[0].recordedAt :
-        undefined;
+      const lastActivity =
+        allScores.length > 0
+          ? allScores.sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime())[0].recordedAt
+          : undefined;
 
       setJudgeActivity({
         sessionsActive: activeSessions,
         sessionsCompleted: completedSessions,
         scoresSubmitted: allScores.length,
         averageScoreTime: 45000, // Mock - 45 seconds average
-        lastActivity
+        lastActivity,
       });
-
     } catch (error) {
       logger.error('Failed to calculate sync metrics:', 'scoring', {}, error as Error);
     }
@@ -213,9 +217,8 @@ function JudgeSyncDashboard({
   // Connection status
   const connectionStatus = {
     isOnline: !isOffline && navigator.onLine,
-    quality: navigator.onLine ? 'good' : 'offline'
+    quality: navigator.onLine ? 'good' : 'offline',
   };
-
 
   // Get status color
   const getStatusColor = (status: 'good' | 'warning' | 'error') => {
@@ -237,7 +240,7 @@ function JudgeSyncDashboard({
   };
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Header with quick status */}
       <Card className="bg-card/95 backdrop-blur-sm border-border/50">
         <CardContent className="p-6">
@@ -283,26 +286,22 @@ function JudgeSyncDashboard({
                 <div className="text-sm font-medium">
                   {connectionStatus.isOnline ? 'Online' : 'Offline'}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Connection
-                </div>
+                <div className="text-xs text-muted-foreground">Connection</div>
               </div>
             </div>
 
             {/* Sync health */}
             <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/30">
-              <div className={cn("w-2 h-2 rounded-full", {
-                'bg-success': getSyncHealthStatus() === 'good',
-                'bg-warning': getSyncHealthStatus() === 'warning',
-                'bg-destructive': getSyncHealthStatus() === 'error'
-              })} />
+              <div
+                className={cn('w-2 h-2 rounded-full', {
+                  'bg-success': getSyncHealthStatus() === 'good',
+                  'bg-warning': getSyncHealthStatus() === 'warning',
+                  'bg-destructive': getSyncHealthStatus() === 'error',
+                })}
+              />
               <div>
-                <div className="text-sm font-medium">
-                  {syncMetrics.syncSuccess.toFixed(0)}%
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Sync Success
-                </div>
+                <div className="text-sm font-medium">{syncMetrics.syncSuccess.toFixed(0)}%</div>
+                <div className="text-xs text-muted-foreground">Sync Success</div>
               </div>
             </div>
 
@@ -310,12 +309,8 @@ function JudgeSyncDashboard({
             <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/30">
               <Activity className="h-4 w-4 text-primary" />
               <div>
-                <div className="text-sm font-medium">
-                  {judgeActivity.sessionsActive}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Active Sessions
-                </div>
+                <div className="text-sm font-medium">{judgeActivity.sessionsActive}</div>
+                <div className="text-xs text-muted-foreground">Active Sessions</div>
               </div>
             </div>
 
@@ -323,12 +318,8 @@ function JudgeSyncDashboard({
             <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/30">
               <Target className="h-4 w-4 text-primary" />
               <div>
-                <div className="text-sm font-medium">
-                  {syncMetrics.totalScores}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Scores Submitted
-                </div>
+                <div className="text-sm font-medium">{syncMetrics.totalScores}</div>
+                <div className="text-xs text-muted-foreground">Scores Submitted</div>
               </div>
             </div>
           </div>
@@ -358,6 +349,16 @@ function JudgeSyncDashboard({
 
         {/* Sync Status Tab */}
         <TabsContent value="sync" className="space-y-4">
+          {syncQueueWarning && (
+            <Alert className="border-warning/40 bg-warning/5">
+              <AlertCircle className="h-4 w-4 text-warning" />
+              <AlertDescription className="text-sm">
+                {syncQueueStatus.queued.toLocaleString()} sync items are queued. Restore
+                connectivity or export a backup before continuing. This warning does not discard
+                queued items.
+              </AlertDescription>
+            </Alert>
+          )}
           <Card className="bg-card/95 backdrop-blur-sm border-border/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -370,10 +371,16 @@ function JudgeSyncDashboard({
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span>Sync Progress</span>
-                  <span>{syncMetrics.syncedScores} / {syncMetrics.totalScores}</span>
+                  <span>
+                    {syncMetrics.syncedScores} / {syncMetrics.totalScores}
+                  </span>
                 </div>
-                <Progress 
-                  value={syncMetrics.totalScores > 0 ? (syncMetrics.syncedScores / syncMetrics.totalScores) * 100 : 0}
+                <Progress
+                  value={
+                    syncMetrics.totalScores > 0
+                      ? (syncMetrics.syncedScores / syncMetrics.totalScores) * 100
+                      : 0
+                  }
                   className="h-2"
                 />
               </div>
@@ -438,18 +445,25 @@ function JudgeSyncDashboard({
                   <h4 className="text-sm font-medium">Pending Items</h4>
                   <ScrollArea className="h-32">
                     <div className="space-y-1">
-                      {getPendingSyncItems().slice(0, 5).map((item, index) => {
+                      {pendingSyncItems.slice(0, 5).map((item, index) => {
                         void index; // Suppress unused variable warning
                         return (
-                        <div 
-                          key={item.id}
-                          className="flex items-center justify-between p-2 rounded bg-background/50 border border-border/20"
-                        >
-                          <span className="text-xs">{(item as { entityType?: string; operation?: string }).entityType || 'unknown'} {(item as { entityType?: string; operation?: string }).operation || 'sync'}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {(item as { attempts?: number; maxAttempts?: number }).attempts || 0}/{(item as { attempts?: number; maxAttempts?: number }).maxAttempts || 3}
-                          </Badge>
-                        </div>
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between p-2 rounded bg-background/50 border border-border/20"
+                          >
+                            <span className="text-xs">
+                              {(item as { entityType?: string; operation?: string }).entityType ||
+                                'unknown'}{' '}
+                              {(item as { entityType?: string; operation?: string }).operation ||
+                                'sync'}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {(item as { attempts?: number; maxAttempts?: number }).attempts || 0}/
+                              {(item as { attempts?: number; maxAttempts?: number }).maxAttempts ||
+                                3}
+                            </Badge>
+                          </div>
                         );
                       })}
                     </div>
@@ -500,9 +514,7 @@ function JudgeSyncDashboard({
                     {dataIntegrity.issues.map((issue, index) => (
                       <Alert key={index} className="bg-destructive/5 border-destructive/20">
                         <AlertCircle className="h-4 w-4 text-destructive" />
-                        <AlertDescription className="text-sm">
-                          {issue}
-                        </AlertDescription>
+                        <AlertDescription className="text-sm">{issue}</AlertDescription>
                       </Alert>
                     ))}
                   </div>
@@ -626,10 +638,7 @@ function JudgeSyncDashboard({
                       Download local scoring data for backup
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={handleDataExport}
-                  >
+                  <Button variant="outline" onClick={handleDataExport}>
                     <Download className="h-3 w-3 mr-2" />
                     Export
                   </Button>

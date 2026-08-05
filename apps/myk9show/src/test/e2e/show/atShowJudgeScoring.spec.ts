@@ -22,6 +22,11 @@ import {
  *
  * Fixture: Heartland Scent Work Classic demo seed (judge_assignments seeded for
  * these classes). If the seed is rebuilt, update the IDs together.
+ *
+ * `strictRpcWrites` is on because this spec is part of the scheduled judge
+ * replay (`pnpm test:e2e:audit:judge`), and that run reports that shared staging
+ * received no writes. A permissive guard in ONE included spec would make the
+ * claim false for the whole run, so every spec in the replay enforces it.
  */
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
@@ -43,7 +48,7 @@ test.describe('At-show judge scoring authorization', () => {
     page,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
@@ -105,7 +110,7 @@ test.describe('At-show judge scoring authorization', () => {
     page,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
 
     await signInAsJudge(page, UNASSIGNED_SCORE_PATH);
     await expect(page).toHaveURL(new RegExp(escapeRegExp(UNASSIGNED_SCORE_PATH)));
@@ -118,7 +123,7 @@ test.describe('At-show judge scoring authorization', () => {
 
   test('records an explicit absence without exposing a qualified result', async ({ page }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
@@ -150,7 +155,7 @@ test.describe('At-show judge scoring authorization', () => {
 
   test('lets the judge pull a dog without turning it into a score', async ({ page }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
 
     await signInAsJudge(page, CLASS_PATH);
     await expect(page.getByText('Change Status')).toHaveCount(0);
@@ -172,7 +177,7 @@ test.describe('At-show judge scoring authorization', () => {
     page,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
@@ -219,7 +224,7 @@ test.describe('At-show judge scoring authorization', () => {
     context,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
+    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });

@@ -72,7 +72,11 @@ if [[ "$mode" == "own" ]]; then
   fi
 
   echo "Starting owned app server on port $port"
-  VITE_AUDIT_SERVER_ID="$server_id" VITE_HMR_PORT="$((port + 20000))"  # ceiling enforced in audit-judge-replay.ts \
+  # The HMR offset is why audit-judge-replay.ts caps the app port: this sum has
+  # to stay a valid port. Keep both assignments on the command itself — a
+  # trailing comment here swallows the line continuation and launches Vite with
+  # neither variable, so the identity plugin never mounts.
+  VITE_AUDIT_SERVER_ID="$server_id" VITE_HMR_PORT="$((port + 20000))" \
     pnpm exec vite --port "$port" --strictPort >/tmp/myk9-audit-judge-replay-server.log 2>&1 &
   server_pid=$!
 

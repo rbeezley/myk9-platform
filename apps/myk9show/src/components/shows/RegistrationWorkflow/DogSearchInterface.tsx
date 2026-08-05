@@ -294,6 +294,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     <div className={`space-y-3 ${className}`}>
       {/* Search Input */}
       <Popover
+        modal={false}
         open={
           showSuggestions &&
           (currentSuggestions.length > 0 || (!filters.searchQuery && frequentSearches.length > 0))
@@ -345,7 +346,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               <PopoverContent
                 id="dog-search-suggestions"
                 align="start"
-                initialFocus={false}
+                initialFocus={() => false}
                 className="w-[var(--anchor-width)] max-h-[min(24rem,var(--available-height))] overflow-y-auto p-0"
                 role="listbox"
               >

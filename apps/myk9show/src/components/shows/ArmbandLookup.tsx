@@ -35,7 +35,7 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
   }, []);
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <div className="min-w-[176px]">
         <form onSubmit={handleSubmit} className="relative">
           <label
@@ -72,7 +72,7 @@ export function ArmbandLookup({ showId }: ArmbandLookupProps) {
           <PopoverContent
             id="armband-lookup-results"
             align="end"
-            initialFocus={false}
+            initialFocus={() => false}
             className="w-80 max-h-[var(--available-height)] overflow-y-auto p-0"
           >
             {isLoading && (

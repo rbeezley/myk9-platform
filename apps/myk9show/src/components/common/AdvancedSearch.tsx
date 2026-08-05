@@ -189,7 +189,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
     <div className={`space-y-4 ${className}`}>
       {/* Main Search Input */}
       <div className="relative">
-        <Popover open={showSuggestions} onOpenChange={setShowSuggestions}>
+        <Popover modal={false} open={showSuggestions} onOpenChange={setShowSuggestions}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <PopoverTrigger asChild>
@@ -246,7 +246,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
               <PopoverContent
                 id="advanced-search-suggestions"
                 align="start"
-                initialFocus={false}
+                initialFocus={() => false}
                 className="w-[var(--anchor-width)] max-h-[min(24rem,var(--available-height))] overflow-y-auto p-0"
               >
                 <AdvancedSearchSuggestions

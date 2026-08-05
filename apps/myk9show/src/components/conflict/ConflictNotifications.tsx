@@ -360,7 +360,7 @@ export function ConflictNotificationWidget() {
   }
 
   return (
-    <Popover open={isExpanded} onOpenChange={setIsExpanded}>
+    <Popover modal={false} open={isExpanded} onOpenChange={setIsExpanded}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="relative" aria-expanded={isExpanded}>
           <Bell className="h-4 w-4 mr-2" />

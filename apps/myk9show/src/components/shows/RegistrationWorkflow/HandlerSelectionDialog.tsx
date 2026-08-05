@@ -258,7 +258,11 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
           fieldId={`handler-${dogId}`}
           error={hasError && isEmpty ? 'Please enter a handler name' : undefined}
         >
-          <Popover open={isOpen} onOpenChange={open => onOpenChange(dogId, open)}>
+          <Popover
+            modal={false}
+            open={isOpen}
+            onOpenChange={open => onOpenChange(dogId, open)}
+          >
             <div className="flex gap-2">
               <PopoverTrigger asChild>
                 <Input
@@ -295,7 +299,7 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
               <PopoverContent
                 id={`handler-${dogId}-suggestions`}
                 align="start"
-                initialFocus={false}
+                initialFocus={() => false}
                 className="w-[var(--anchor-width)] max-h-[min(12rem,var(--available-height))] overflow-auto p-0"
                 role="listbox"
               >

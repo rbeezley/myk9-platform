@@ -146,18 +146,6 @@ async function runHealthSnapshot(
 
   if (probeError || facts == null) {
     // Probe failed — still write a visible fail snapshot rather than nothing.
-    const snapshot = buildSnapshot(null, {
-      now: Date.now(),
-      source: runToken ? `${DEFAULT_SOURCE}:manual:${runToken}` : DEFAULT_SOURCE,
-      runDurationMs: Date.now() - startedAt,
-      previousChecks: previous.checks,
-      mode,
-    });
-    // Replace the generic detail with the actual probe error for triage.
-    if (probeError) {
-      snapshot.checks[0].detail = `system_health_probe failed: ${probeError.message}`;
-    }
-    snapshot.checks.push(...(previous.checks ?? []).filter(check => check.key !== 'probe'));
     const snapshot = buildProbeFailureSnapshot(
       probeError?.message ?? null,
       publicSchemaAclError ? { error: publicSchemaAclError.message } : publicSchemaAcl,

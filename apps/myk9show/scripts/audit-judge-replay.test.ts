@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   auditReplayPlaywrightEnv,
   DEFAULT_OWNED_PORT,
+  MAX_OWNED_PORT,
   JUDGE_REPLAY_PROJECT,
   JUDGE_REPLAY_SPECS,
   resolveAuditReplayPlan,
@@ -87,13 +88,22 @@ describe('resolveAuditReplayPlan — own mode', () => {
     expect(plan.serverId).toBe(`audit-judge-replay-${DEFAULT_OWNED_PORT}`);
   });
 
-  it('derives a per-run identity so a stale leftover server is rejected', () => {
+  it('derives an identity from the run id when one is given', () => {
     const plan = resolveAuditReplayPlan({
       VITE_SUPABASE_URL: SHARED_STAGING_URL,
       MYK9_AUDIT_REPLAY_RUN_ID: '2026-08-05T22-10Z',
     });
 
     expect(plan.serverId).toBe('audit-judge-replay-2026-08-05T22-10Z');
+  });
+
+  it('accepts the highest port that still leaves room for the HMR port', () => {
+    const plan = resolveAuditReplayPlan({
+      VITE_SUPABASE_URL: SHARED_STAGING_URL,
+      MYK9_AUDIT_REPLAY_PORT: String(MAX_OWNED_PORT),
+    });
+
+    expect(plan.port).toBe(MAX_OWNED_PORT);
   });
 
   it('honours an explicit port', () => {
@@ -106,7 +116,9 @@ describe('resolveAuditReplayPlan — own mode', () => {
     expect(plan.baseURL).toBe('http://127.0.0.1:5931');
   });
 
-  it.each(['0', 'not-a-port', '80', '70000'])('refuses port %s', port => {
+  it.each(['0', 'not-a-port', '80', '70000', '50000'])('refuses port %s', port => {
+    // 50000 is a valid TCP port but derives an out-of-range HMR port, which
+    // would kill Vite before the identity endpoint came up.
     expect(() =>
       resolveAuditReplayPlan({
         VITE_SUPABASE_URL: SHARED_STAGING_URL,

@@ -2,6 +2,7 @@ import type { Page, Route } from '@playwright/test';
 import { describe, expect, it } from 'vitest';
 
 import {
+  AUDIT_INTERCEPTED_WRITE_RPCS,
   AUDIT_READ_ONLY_RPCS,
   classifySharedStagingWrite,
   installSharedStagingWriteGuard,
@@ -226,14 +227,55 @@ describe('the write ledger', () => {
     const ledger: SharedStagingWriteLedgerEntry[] = [];
     await installSharedStagingWriteGuard(page, { ledger, strictRpcWrites: true });
 
-    const sessionWrite = createRouteDouble({
+    const unknownWriter = createRouteDouble({
+      method: 'POST',
+      url: `${sharedBaseUrl}/rest/v1/rpc/self_checkin_entry`,
+    });
+    await getHandler(handlers, '**/rest/v1/**')(unknownWriter.route);
+
+    expect(unknownWriter.abortCount()).toBe(1);
+    expect(summarizeSharedStagingWriteLedger(ledger).blocked).toHaveLength(1);
+  });
+
+  it.each([...AUDIT_INTERCEPTED_WRITE_RPCS])(
+    'answers the %s presence write locally instead of failing the run',
+    async rpc => {
+      // Heartbeat traffic is a real write, but it is ambient and not part of the
+      // journey under audit. Blocking it would abort the run over something the
+      // replay never asked for; intercepting keeps staging clean either way.
+      const { page, handlers } = createRouteRecorder();
+      const ledger: SharedStagingWriteLedgerEntry[] = [];
+      await installSharedStagingWriteGuard(page, { ledger, strictRpcWrites: true });
+
+      const presence = createRouteDouble({
+        method: 'POST',
+        url: `${sharedBaseUrl}/rest/v1/rpc/${rpc}`,
+      });
+      await getHandler(handlers, '**/rest/v1/**')(presence.route);
+
+      expect(presence.abortCount()).toBe(0);
+      expect(presence.fallbackCount()).toBe(0);
+      expect(presence.fulfilledStatuses).toEqual([200]);
+      expect(summarizeSharedStagingWriteLedger(ledger)).toMatchObject({
+        intercepted: 1,
+        blocked: [],
+      });
+    }
+  );
+
+  it('does not intercept presence writes when strictRpcWrites is off', async () => {
+    const { page, handlers } = createRouteRecorder();
+    const ledger: SharedStagingWriteLedgerEntry[] = [];
+    await installSharedStagingWriteGuard(page, { ledger });
+
+    const presence = createRouteDouble({
       method: 'POST',
       url: `${sharedBaseUrl}/rest/v1/rpc/upsert_ringside_session`,
     });
-    await getHandler(handlers, '**/rest/v1/**')(sessionWrite.route);
+    await getHandler(handlers, '**/rest/v1/**')(presence.route);
 
-    expect(sessionWrite.abortCount()).toBe(1);
-    expect(summarizeSharedStagingWriteLedger(ledger).blocked).toHaveLength(1);
+    expect(presence.fallbackCount()).toBe(1);
+    expect(ledger).toEqual([]);
   });
 
   it('lets reads through the catch-all untouched', async () => {

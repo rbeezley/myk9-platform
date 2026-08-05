@@ -17,7 +17,7 @@ type GuardedWriteKind = 'ringside-update-entry-rpc' | 'entries-patch';
 export type SharedStagingWriteDisposition = 'intercepted' | 'blocked';
 
 export interface SharedStagingWriteLedgerEntry {
-  kind: GuardedWriteKind | 'unclassified-rest-write';
+  kind: GuardedWriteKind | 'presence-rpc' | 'unclassified-rest-write';
   method: string;
   /** Path only — query strings can carry row ids and filter values. */
   path: string;
@@ -122,6 +122,29 @@ export const AUDIT_READ_ONLY_RPCS: ReadonlySet<string> = new Set([
   'get_show_class_hide_counts',
   'get_user_permissions',
   'get_user_roles',
+  // RingsideSessionHeartbeat's push-independent staleness probe. It returns a
+  // boolean and writes nothing. It does NOT appear in a dev-server replay —
+  // `getExistingSubscription()` never settles without a registered service
+  // worker, and the dev PWA is disabled — but it fires the moment the replay
+  // runs against a built preview, and blocking a read would fail the audit for
+  // no reason.
+  'ringside_claim_generation_current',
+]);
+
+/**
+ * Presence writes the guard answers locally instead of blocking.
+ *
+ * `RingsideSessionHeartbeat` runs on every `/at-show` route and, once a push
+ * subscription exists, writes ringside session presence every 30s. These are
+ * real writes and must never reach shared staging — but they are ambient
+ * background traffic, not part of the journey under audit, so aborting them
+ * would fail the run over something the replay never asked for. Intercepting
+ * keeps shared staging clean AND keeps the evidence readable: they appear in
+ * the ledger as intercepted, like any other guarded write.
+ */
+export const AUDIT_INTERCEPTED_WRITE_RPCS: ReadonlySet<string> = new Set([
+  'upsert_ringside_session',
+  'clear_ringside_session_presence',
 ]);
 
 export interface SharedStagingWriteClassificationOptions {
@@ -188,6 +211,12 @@ export async function installSharedStagingWriteGuard(
   await page.route('**/rest/v1/**', async route => {
     const request = route.request();
     const requestLike = { method: request.method(), url: request.url() };
+
+    if (strictRpcWrites && isInterceptedWriteRpc(requestLike)) {
+      recordLedgerEntry(ledger, requestLike, 'presence-rpc', 'intercepted');
+      await route.fulfill({ status: 200, contentType: 'application/json', body: 'null' });
+      return;
+    }
 
     if (!isUnambiguousSharedStagingRestWrite(requestLike, { strictRpc: strictRpcWrites })) {
       await fallbackRoute(route);
@@ -304,6 +333,14 @@ function parseUrl(value: string) {
 
 function isSharedStagingHost(hostname: string) {
   return hostname === `${SHARED_STAGING_PROJECT_REF}.supabase.co`;
+}
+
+function isInterceptedWriteRpc(request: RequestLike) {
+  const url = parseUrl(request.url);
+  if (!url || !isSharedStagingHost(url.hostname)) return false;
+  if (request.method.toUpperCase() !== 'POST') return false;
+  if (!url.pathname.startsWith('/rest/v1/rpc/')) return false;
+  return AUDIT_INTERCEPTED_WRITE_RPCS.has(url.pathname.slice('/rest/v1/rpc/'.length));
 }
 
 function isRingsideUpdateEntryRequest(request: RequestLike) {

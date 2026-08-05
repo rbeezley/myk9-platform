@@ -36,6 +36,16 @@ export const JUDGE_REPLAY_PROJECT = 'tablet-landscape';
 /** Own-mode default. Deliberately far from 5173 so it cannot land on a dev server. */
 export const DEFAULT_OWNED_PORT = 5793;
 
+/**
+ * Vite's HMR port is derived as `port + HMR_PORT_OFFSET`, so the app port has to
+ * leave room for it. Without this ceiling a nominally valid port like 50000
+ * derives an HMR port above 65535 and Vite exits with ERR_SOCKET_BAD_PORT
+ * before the identity endpoint ever comes up — a confusing failure a long way
+ * from its cause.
+ */
+export const HMR_PORT_OFFSET = 20_000;
+export const MAX_OWNED_PORT = 65_535 - HMR_PORT_OFFSET;
+
 export type AuditReplayMode = 'attach' | 'own';
 
 export interface AuditReplayPlan {
@@ -134,17 +144,24 @@ function resolveOwnedPort(raw: string | undefined): number {
   if (!value) return DEFAULT_OWNED_PORT;
 
   const port = Number(value);
-  if (!Number.isInteger(port) || port < 1024 || port > 65_535) {
-    throw new Error('MYK9_AUDIT_REPLAY_PORT must be an integer between 1024 and 65535.');
+  if (!Number.isInteger(port) || port < 1024 || port > MAX_OWNED_PORT) {
+    throw new Error(
+      `MYK9_AUDIT_REPLAY_PORT must be an integer between 1024 and ${MAX_OWNED_PORT} ` +
+        `(the ceiling leaves room for the derived HMR port, port + ${HMR_PORT_OFFSET}).`
+    );
   }
   return port;
 }
 
 /**
- * A per-run identity. The run id is what makes the handshake meaningful across
- * repeated scheduled runs: a stale server left over from a previous run answers
- * with the previous id, and the audit refuses it rather than replaying against
- * a tree nobody can identify.
+ * A per-run identity.
+ *
+ * Note what protects own mode from a stale server: the runner refuses to start
+ * when anything is already serving on its port, so it never attaches to one.
+ * The default id is therefore deterministic (`audit-judge-replay-<port>`) and
+ * does NOT by itself distinguish this run from a previous one — pass
+ * MYK9_AUDIT_REPLAY_RUN_ID when a run needs to be identifiable in its own
+ * right, e.g. when several audits share a machine.
  */
 function resolveOwnedServerId(rawRunId: string | undefined, port: number): string {
   const runId = rawRunId?.trim();

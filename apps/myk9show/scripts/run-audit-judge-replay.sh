@@ -72,7 +72,7 @@ if [[ "$mode" == "own" ]]; then
   fi
 
   echo "Starting owned app server on port $port"
-  VITE_AUDIT_SERVER_ID="$server_id" VITE_HMR_PORT="$((port + 20000))" \
+  VITE_AUDIT_SERVER_ID="$server_id" VITE_HMR_PORT="$((port + 20000))"  # ceiling enforced in audit-judge-replay.ts \
     pnpm exec vite --port "$port" --strictPort >/tmp/myk9-audit-judge-replay-server.log 2>&1 &
   server_pid=$!
 

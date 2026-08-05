@@ -89,15 +89,18 @@ describe('needsReply', () => {
   });
 });
 
+function fakeSource(live: SupportMessage[], sent = true) {
+  return {
+    openTickets: vi.fn(),
+    messagesFor: vi.fn().mockResolvedValue(live),
+    sendOperatorReplyAtomic: vi.fn().mockResolvedValue(sent),
+    ownersFor: vi.fn().mockResolvedValue([]),
+  };
+}
+
 describe('sendOperatorReply', () => {
-  it('inserts when the live thread still has no operator answer', async () => {
-    const source = {
-      openTickets: vi.fn(),
-      messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
-      insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
-      updateTicketStatus: vi.fn().mockResolvedValue(undefined),
-      ownersFor: vi.fn().mockResolvedValue([]),
-    };
+  it('sends when the live thread still has no operator answer', async () => {
+    const source = fakeSource([message({ id: 'm1' })]);
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
       'Here you go.',
@@ -105,26 +108,54 @@ describe('sendOperatorReply', () => {
       source
     );
     expect(result).toBe('sent');
-    expect(source.insertOperatorMessage).toHaveBeenCalledWith(
+    expect(source.sendOperatorReplyAtomic).toHaveBeenCalledWith(
       'ticket-1',
       'operator-1',
-      'Here you go.'
+      'Here you go.',
+      'm1'
     );
+  });
+
+  // The id is the whole point of the database guard: it names the message this
+  // reply answers, so an insert that arrives after our read is rejected server
+  // side. Passing a stale or wrong id silently reopens MYK9-135.
+  it('gates on the newest LIVE message id, not the id from the stale copy', async () => {
+    const source = fakeSource([
+      message({ id: 'm1', created_at: '2026-08-01T10:00:00.000Z' }),
+      message({ id: 'm3', body: 'one more thing', created_at: '2026-08-01T10:10:00.000Z' }),
+    ]);
+    await sendOperatorReply(
+      { ticket: TICKET, messages: [message({ id: 'm1' })] },
+      'Here you go.',
+      'operator-1',
+      source
+    );
+    expect(source.sendOperatorReplyAtomic).toHaveBeenCalledWith(
+      'ticket-1',
+      'operator-1',
+      'Here you go.',
+      'm3'
+    );
+  });
+
+  it('reports skipped when the database refused the insert', async () => {
+    // A human operator answered between our read and the RPC; the conditional
+    // insert matched no row.
+    const source = fakeSource([message({ id: 'm1' })], false);
+    const result = await sendOperatorReply(
+      { ticket: TICKET, messages: [message({ id: 'm1' })] },
+      'Here you go.',
+      'operator-1',
+      source
+    );
+    expect(result).toBe('skipped_already_answered');
   });
 
   it('skips when the live thread gained an operator answer since the pass began', async () => {
-    const source = {
-      openTickets: vi.fn(),
-      messagesFor: vi
-        .fn()
-        .mockResolvedValue([
-          message({ id: 'm1' }),
-          message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
-        ]),
-      insertOperatorMessage: vi.fn(),
-      updateTicketStatus: vi.fn(),
-      ownersFor: vi.fn().mockResolvedValue([]),
-    };
+    const source = fakeSource([
+      message({ id: 'm1' }),
+      message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
+    ]);
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
       'Here you go.',
@@ -132,17 +163,11 @@ describe('sendOperatorReply', () => {
       source
     );
     expect(result).toBe('skipped_already_answered');
-    expect(source.insertOperatorMessage).not.toHaveBeenCalled();
+    expect(source.sendOperatorReplyAtomic).not.toHaveBeenCalled();
   });
 
   it('skips rather than sends when the live thread comes back empty', async () => {
-    const source = {
-      openTickets: vi.fn(),
-      messagesFor: vi.fn().mockResolvedValue([]),
-      insertOperatorMessage: vi.fn(),
-      updateTicketStatus: vi.fn(),
-      ownersFor: vi.fn().mockResolvedValue([]),
-    };
+    const source = fakeSource([]);
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
       'Here you go.',
@@ -150,26 +175,20 @@ describe('sendOperatorReply', () => {
       source
     );
     expect(result).toBe('skipped_already_answered');
-    expect(source.insertOperatorMessage).not.toHaveBeenCalled();
+    expect(source.sendOperatorReplyAtomic).not.toHaveBeenCalled();
   });
 
   it('aborts when the guard rejects the freshly-read thread', async () => {
     // The exhibitor came back with a carve-out trigger while we were classifying.
-    const source = {
-      openTickets: vi.fn(),
-      messagesFor: vi.fn().mockResolvedValue([
-        message({ id: 'm1', created_at: '2026-08-01T10:00:00.000Z' }),
-        message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
-        message({
-          id: 'm3',
-          body: 'Actually I want a refund',
-          created_at: '2026-08-01T10:10:00.000Z',
-        }),
-      ]),
-      insertOperatorMessage: vi.fn(),
-      updateTicketStatus: vi.fn(),
-      ownersFor: vi.fn().mockResolvedValue([]),
-    };
+    const source = fakeSource([
+      message({ id: 'm1', created_at: '2026-08-01T10:00:00.000Z' }),
+      message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
+      message({
+        id: 'm3',
+        body: 'Actually I want a refund',
+        created_at: '2026-08-01T10:10:00.000Z',
+      }),
+    ]);
     const result = await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
       'Here you go.',
@@ -178,21 +197,14 @@ describe('sendOperatorReply', () => {
       () => false
     );
     expect(result).toBe('skipped_guard_rejected');
-    expect(source.insertOperatorMessage).not.toHaveBeenCalled();
+    expect(source.sendOperatorReplyAtomic).not.toHaveBeenCalled();
   });
 
   it('passes the freshly-read thread to the guard, not the stale copy', async () => {
-    const fresh = [
+    const source = fakeSource([
       message({ id: 'm1', created_at: '2026-08-01T10:00:00.000Z' }),
       message({ id: 'm3', body: 'new reply', created_at: '2026-08-01T10:10:00.000Z' }),
-    ];
-    const source = {
-      openTickets: vi.fn(),
-      messagesFor: vi.fn().mockResolvedValue(fresh),
-      insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
-      updateTicketStatus: vi.fn().mockResolvedValue(undefined),
-      ownersFor: vi.fn().mockResolvedValue([]),
-    };
+    ]);
     const guard = vi.fn().mockReturnValue(true);
     await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
@@ -205,53 +217,8 @@ describe('sendOperatorReply', () => {
     expect(guard.mock.calls[0][0].messages.map((m: { id: string }) => m.id)).toEqual(['m1', 'm3']);
   });
 
-  it('marks the ticket waiting after a successful send', async () => {
-    const source = {
-      openTickets: vi.fn(),
-      messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
-      insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
-      updateTicketStatus: vi.fn().mockResolvedValue(undefined),
-      ownersFor: vi.fn().mockResolvedValue([]),
-    };
-    await sendOperatorReply(
-      { ticket: TICKET, messages: [message({ id: 'm1' })] },
-      'Here you go.',
-      'operator-1',
-      source
-    );
-    expect(source.updateTicketStatus).toHaveBeenCalledWith('ticket-1', 'waiting');
-  });
-
-  it('does not mark the ticket waiting when the send was skipped', async () => {
-    const source = {
-      openTickets: vi.fn(),
-      messagesFor: vi
-        .fn()
-        .mockResolvedValue([
-          message({ id: 'm1' }),
-          message({ id: 'm2', is_from_operator: true, created_at: '2026-08-01T10:05:00.000Z' }),
-        ]),
-      insertOperatorMessage: vi.fn(),
-      updateTicketStatus: vi.fn(),
-      ownersFor: vi.fn().mockResolvedValue([]),
-    };
-    await sendOperatorReply(
-      { ticket: TICKET, messages: [message({ id: 'm1' })] },
-      'Here you go.',
-      'operator-1',
-      source
-    );
-    expect(source.updateTicketStatus).not.toHaveBeenCalled();
-  });
-
   it('re-reads the live thread rather than trusting the in-memory copy', async () => {
-    const source = {
-      openTickets: vi.fn(),
-      messagesFor: vi.fn().mockResolvedValue([message({ id: 'm1' })]),
-      insertOperatorMessage: vi.fn().mockResolvedValue(undefined),
-      updateTicketStatus: vi.fn().mockResolvedValue(undefined),
-      ownersFor: vi.fn().mockResolvedValue([]),
-    };
+    const source = fakeSource([message({ id: 'm1' })]);
     await sendOperatorReply(
       { ticket: TICKET, messages: [message({ id: 'm1' })] },
       'Here you go.',

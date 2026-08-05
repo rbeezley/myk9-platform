@@ -3,6 +3,7 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
 import { translatePersonIdentityError } from '@/utils/duplicateIdentityErrors';
+import { checkSignInEmailChange } from './signInEmailGuard';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
@@ -143,6 +144,17 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
   const startTime = Date.now();
 
   try {
+    // MYK9-136: an email change on a person with an auth identity would orphan
+    // that identity — they keep signing in with the old address. Every write
+    // path to `people.email` funnels through here (three mappers plus the show
+    // wizard's direct call), so this is the one place the check belongs.
+    if (updates.email !== undefined) {
+      const decision = await checkSignInEmailChange(id, updates.email);
+      if (!decision.allowed) {
+        throw Object.assign(new Error(decision.message), { code: decision.code });
+      }
+    }
+
     const { data, error } = await supabase
       .from('people')
       .update({

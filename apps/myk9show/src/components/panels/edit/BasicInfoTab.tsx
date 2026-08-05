@@ -44,6 +44,12 @@ function usePersonRoleNames(personId?: string) {
 
 interface BasicInfoTabProps {
   personId?: string;
+  /**
+   * True when this person has an auth identity, i.e. they can sign in. Their
+   * email is then the address they sign in with, and editing it here would
+   * only change the contact copy — see MYK9-136 and `signInEmailGuard`.
+   */
+  hasSignInAccount?: boolean;
   hasAdminPermission: boolean;
   canEditAdvancedFields: boolean;
   onOpenPhotoModal: () => void;
@@ -51,6 +57,7 @@ interface BasicInfoTabProps {
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   personId,
+  hasSignInAccount = false,
   hasAdminPermission,
   canEditAdvancedFields,
   onOpenPhotoModal,
@@ -129,18 +136,39 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </FormField>
       </div>
 
-      {/* Email */}
+      {/* Email — read-only once the person can sign in. Their contact address
+          and their sign-in address are the same value, and nothing here can
+          change the latter, so editing it would only make the two disagree
+          (MYK9-136). Mirrors the self-service profile and account pages, which
+          have always shown the sign-in address as read-only. */}
       <FormField label="Email Address" fieldId="email" required error={emailError}>
-        <Input
-          id="email"
-          type="email"
-          value={data.email}
-          onChange={e => form?.setValue('email', e.target.value)}
-          onBlur={() => form?.touchField('email')}
-          placeholder="Enter email address"
-          name="email"
-          {...form?.getFieldProps('email')}
-        />
+        {hasSignInAccount ? (
+          <>
+            <Input
+              id="email"
+              type="email"
+              value={data.email}
+              readOnly
+              aria-readonly="true"
+              name="email"
+              className="cursor-default bg-muted text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              This is the address they sign in with, so it can&apos;t be changed here.
+            </p>
+          </>
+        ) : (
+          <Input
+            id="email"
+            type="email"
+            value={data.email}
+            onChange={e => form?.setValue('email', e.target.value)}
+            onBlur={() => form?.touchField('email')}
+            placeholder="Enter email address"
+            name="email"
+            {...form?.getFieldProps('email')}
+          />
+        )}
       </FormField>
 
       {/* Role Management - Admin Only */}

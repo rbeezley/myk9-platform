@@ -32,7 +32,10 @@ const TAB_TRIGGER_CLASS =
   'gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300';
 
 // Form content component
-const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
+const UserEditForm: React.FC<{ userId: string; hasSignInAccount: boolean }> = ({
+  userId,
+  hasSignInAccount,
+}) => {
   const { data, form } = useEditPanel<UserFormData>();
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
@@ -206,6 +209,7 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
         >
           <BasicInfoTab
             personId={userId}
+            hasSignInAccount={hasSignInAccount}
             hasAdminPermission={hasPermission('admin:manage')}
             canEditAdvancedFields={canEditAdvancedFields}
             onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
@@ -359,7 +363,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       saveLabel={isCreateMode ? 'Add Person' : 'Save Changes'}
       cancelLabel="Cancel"
     >
-      <UserEditForm userId={userId} />
+      <UserEditForm userId={userId} hasSignInAccount={Boolean(initialUserData.user_id)} />
     </EditPanelWrapper>
   );
 };

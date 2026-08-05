@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   getAllUsers,
   getUserById,
@@ -304,6 +304,71 @@ describe('User Queries', () => {
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
       expect(result.error!.code).toBe('PGRST116');
+    });
+
+    // MYK9-136. Nothing syncs people.email to auth.users.email, so an email
+    // change on a person who can sign in leaves them signing in with the old
+    // address while every screen shows the new one — and blocks their row from
+    // being adopted at signup, creating a second person instead. updateUser is
+    // the single write path to people.email, so the refusal lives here.
+    describe('sign-in email guard', () => {
+      const linkedPerson = { auth_user_id: 'auth-1', email: 'handler@example.com' };
+
+      // The global setup resets the mock's implementation but not its call
+      // history; the call-count assertion below would otherwise depend on
+      // which tests ran first, which CI's `--sequence.shuffle` would expose.
+      beforeEach(() => {
+        mockSupabase.from.mockClear();
+      });
+
+      it('refuses to change the email of a person who can sign in', async () => {
+        mockSupabase.from.mockReturnValue(
+          createChainableQuery({ data: linkedPerson, error: null })
+        );
+
+        const result = await updateUser('user-123', { email: 'corrected@example.com' });
+
+        expect(result.data).toBeNull();
+        expect(result.error).toBeDefined();
+        expect(result.error!.message).toMatch(/signs in with/i);
+      });
+
+      it('lets an unchanged email through, so ordinary saves still work', async () => {
+        const updated = { id: 'user-123', ...linkedPerson, first_name: 'Updated' };
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: linkedPerson, error: null }))
+          .mockReturnValueOnce(createChainableQuery({ data: updated, error: null }));
+
+        const result = await updateUser('user-123', {
+          email: 'handler@example.com',
+          first_name: 'Updated',
+        });
+
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual(updated);
+      });
+
+      it('still allows an email change for a person with no sign-in account', async () => {
+        const unlinked = { auth_user_id: null, email: 'old@example.com' };
+        const updated = { id: 'user-123', email: 'corrected@example.com' };
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
+          .mockReturnValueOnce(createChainableQuery({ data: updated, error: null }));
+
+        const result = await updateUser('user-123', { email: 'corrected@example.com' });
+
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual(updated);
+      });
+
+      it('does not look up the identity when the update carries no email', async () => {
+        const chain = createChainableQuery({ data: { id: 'user-123' }, error: null });
+        mockSupabase.from.mockReturnValue(chain);
+
+        await updateUser('user-123', { first_name: 'Updated' });
+
+        expect(mockSupabase.from).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

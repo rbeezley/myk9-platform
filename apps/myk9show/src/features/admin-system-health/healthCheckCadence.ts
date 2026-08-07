@@ -10,6 +10,12 @@ export const HEALTH_CHECK_INTERVAL_MS = {
   background_jobs: 5 * 60 * 1000,
   migrations: 5 * 60 * 1000,
   ringside_conflicts: 5 * 60 * 1000,
+  // MYK9-136. A single indexed join over `people`, cheap enough for the
+  // continuous path — and worth being there: the invariant is enforced by a
+  // trigger, so any non-zero reading means something reached the table by a
+  // route that bypassed it, which is exactly the case you want to hear about
+  // quickly rather than at the next nightly.
+  sign_in_email_drift: 5 * 60 * 1000,
   anon_grants: 24 * 60 * 60 * 1000,
   applied_acl_grants: 24 * 60 * 60 * 1000,
 } as const;
@@ -34,6 +40,7 @@ export const CONTINUOUS_HEALTH_CHECK_KEYS: readonly HealthCheckKey[] = [
   'background_jobs',
   'migrations',
   'ringside_conflicts',
+  'sign_in_email_drift',
 ];
 
 export function isHealthCheckKey(value: string): value is HealthCheckKey {

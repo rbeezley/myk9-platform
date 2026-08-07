@@ -166,7 +166,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     queryFn: () => getClubMembers(selectedClub!.id),
     enabled: Boolean(selectedClub?.id),
   });
-  const clubMembers = membersQuery.data ?? [];
+  const clubMembers = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
   const activeMembers = useMemo(() => getActiveClubMembers(clubMembers), [clubMembers]);
 
   // Stats computation

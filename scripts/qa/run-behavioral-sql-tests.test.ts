@@ -47,6 +47,7 @@ const launchCriticalSqlTests = [
   'rbac_access_lookup_authorization_test.sql',
   'recoverable_show_access_codes_test.sql',
   'ringside_containment_test.sql',
+  'sign_in_email_invariant_test.sql',
   'subscription_entitlement_grants_test.sql',
   'support_triage_atomic_send_test.sql',
 ];

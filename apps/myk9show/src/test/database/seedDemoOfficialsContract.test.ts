@@ -154,3 +154,211 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     expect(assignmentBlock).not.toContain('dec1a55e-0000-0000-0000-000000000036');
   });
 });
+
+// Every grant block above only ADDS a role. That is what a revoke-safe seed must
+// do, and it is also why an account can never be proven to hold ONLY the role its
+// fixture claims: user_roles rows accumulate and nothing takes them away. The
+// judge fixture had drifted to secretary + judge + exhibitor by 2026-08-01, which
+// makes judge-only authorization tests vacuous — a judge that also holds
+// exhibitor clears an exhibitor gate through the exhibitor grant.
+//
+// These pin the section 10g exclusivity step. Verified non-vacuous by mutation:
+// deleting the 10f block, widening its email list to e2e-secretary, dropping the
+// `r.name <> 'judge'` term, and re-declaring the judge fixture as
+// `['judge', 'exhibitor']` each fail at least one assertion here.
+describe('judge fixture exclusivity contract (MYK9-141)', () => {
+  const seed = readSeed();
+  const JUDGE_FIXTURE_EMAILS = ['e2e-judge@test.myk9.com', 'e2e-judge-empty@test.myk9.com'];
+  // Accounts that are deliberately multi-role. e2e-secretary is
+  // secretary+steward+exhibitor and e2e-admin is site_admin+4; a widened WHERE
+  // clause in 10f would silently destroy both.
+  const MULTI_ROLE_FIXTURE_EMAILS = [
+    'e2e-secretary@test.myk9.com',
+    'e2e-admin@test.myk9.com',
+    'e2e-exhibitor@test.myk9.com',
+    'e2e-club-admin@test.myk9.com',
+  ];
+
+  function readExclusivityBlock(): string {
+    const start = seed.indexOf('-- 10g. JUDGE FIXTURE EXCLUSIVITY');
+    expect(start).toBeGreaterThan(-1);
+    const end = seed.indexOf('-- 11. GAP FIXTURE #5', start);
+    expect(end).toBeGreaterThan(start);
+    return seed.slice(start, end);
+  }
+
+  // An exclusivity sweep on an account that was never GRANTED anything leaves it
+  // with no roles at all, which is worse than the drift it fixes: the fixture
+  // authenticates and then 403s, so the empty-dashboard case is unreachable.
+  // e2e-judge-empty was declared in three TS files and granted in none (caught in
+  // Codex review of #1626), so both halves have to be pinned together.
+  it('grants the empty-assignment fixture the judge role it is swept down to', () => {
+    const start = seed.indexOf('-- 10f. judge -> e2e-judge-empty@test.myk9.com');
+    expect(start).toBeGreaterThan(-1);
+    const block = seed.slice(start, seed.indexOf('-- 10g. JUDGE FIXTURE EXCLUSIVITY', start));
+
+    // Same revoke-safe reactivate-then-insert shape as every grant above.
+    expect(block).toContain(
+      'SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL'
+    );
+    expect(block).toContain('INSERT INTO public.user_roles');
+    expect(block).toMatch(/r\.name = 'judge'/);
+    expect(block).toContain(HEARTLAND_CLUB_ID);
+
+    // Provisioning needs an Auth user (E2E_JUDGE_EMPTY_PASSWORD). Without the
+    // guard an unprovisioned account would insert a NULL auth_user_id row.
+    expect(block).toContain('p.auth_user_id IS NOT NULL');
+  });
+
+  // Both optional accounts (10e club admin, 10f empty judge) exist only where a
+  // secret provisioned their Auth user. Their INSERT halves have always required
+  // an auth id; their REACTIVATE halves did not, so a stale people row left by a
+  // wiped auth.users would be flipped to an active grant nobody can sign into
+  // (Codex review, #1626). Asserted over both blocks, not just the new one.
+  it.each([
+    { label: '10e club admin', marker: '-- 10e.', next: '-- 10f.' },
+    { label: '10f empty judge', marker: '-- 10f. judge -> e2e-judge-empty', next: '-- 10g.' },
+  ])('guards the $label reactivate half against a null auth identity', ({ marker, next }) => {
+    const start = seed.indexOf(marker);
+    expect(start).toBeGreaterThan(-1);
+    const block = seed.slice(start, seed.indexOf(next, start + marker.length));
+
+    const reactivate = block.slice(0, block.indexOf('INSERT INTO public.user_roles'));
+    expect(reactivate).toContain('SET is_active = true');
+    expect(reactivate).toContain('p.auth_user_id IS NOT NULL');
+  });
+
+  // Every account whose secret no workflow supplies MUST be optional. A required
+  // one sends planAccountProvisioning down missingRequired and exit(1)s the whole
+  // script — and scripts/qa/isolated-e2e-lifecycle.ts runs it, so one unprovisioned
+  // account takes down provisioning for ALL of them. e2e-judge-empty was filed as
+  // required with its secret defined nowhere (fourth Codex round on #1626).
+  it.each(['e2e-judge-empty@test.myk9.com', 'e2e-club-admin@test.myk9.com'])(
+    'declares %s optional so a missing secret skips it instead of aborting',
+    email => {
+      const entry = setupSource.slice(
+        setupSource.indexOf(`email: '${email}'`),
+        setupSource.indexOf('},', setupSource.indexOf(`email: '${email}'`))
+      );
+      expect(entry).toContain('optional: true');
+    }
+  );
+
+  // The isolated seed writes person.auth_user_id straight into the grant, so the
+  // hazard is identical on its INSERT halves — guarding only the reactivate side
+  // left the INSERT able to create the very row the guard was added to prevent
+  // (third Codex round on #1626). Asserted over EVERY user_roles statement in the
+  // file rather than the two that were fixed, so a fifth one cannot skip it.
+  it('guards every isolated-seed user_roles write on an auth identity', () => {
+    const isolated = readFileSync(
+      join(repoRoot, 'supabase/seed-isolated-e2e-accounts.sql'),
+      'utf8'
+    );
+    const statements = isolated
+      .split(';\n')
+      .filter(statement => /(UPDATE|INSERT INTO) public\.user_roles/.test(statement));
+
+    // 2 reactivate + 2 insert, platform-wide and club-scoped.
+    expect(statements).toHaveLength(4);
+    for (const statement of statements) {
+      expect(statement).toContain('person.auth_user_id IS NOT NULL');
+    }
+  });
+
+  it('provisions the empty-assignment fixture in the isolated account seed too', () => {
+    // seed-demo runs against the shared/demo database; the isolated Playwright
+    // lifecycle seeds its own disposable one from this second file. A fixture
+    // present in only one of them works in exactly one environment.
+    const isolated = readFileSync(
+      join(repoRoot, 'supabase/seed-isolated-e2e-accounts.sql'),
+      'utf8'
+    );
+
+    // people rows (reactivate + insert), the judge grant, and the onboarding
+    // bypass — without the last one the account lands on the first-run wizard
+    // instead of the judge dashboard.
+    expect(isolated).toMatch(
+      /\('e2e-judge-empty@test\.myk9\.com', 'Test', 'Judge No Assignments'\),/
+    );
+    expect(isolated).toMatch(/\('e2e-judge-empty@test\.myk9\.com', 'judge'\),/);
+    expect(isolated).toContain("  'e2e-judge-empty@test.myk9.com',\n");
+
+    // Absent from the hard count assertion on purpose: like the club admin, this
+    // account is optional, and a run without its secret must still seed.
+    const countGuard = isolated.slice(
+      isolated.indexOf('SELECT count(*)'),
+      isolated.indexOf('END\n$$;')
+    );
+    expect(countGuard).not.toContain('e2e-judge-empty@test.myk9.com');
+  });
+
+  it('deactivates every non-judge grant held by the judge fixture accounts', () => {
+    const block = readExclusivityBlock();
+
+    // Deactivate, not DELETE — 10b/10f reactivate their own rows, so ordering is
+    // not load-bearing and the seed stays revoke-safe.
+    expect(block).toContain('SET is_active = false');
+    expect(block).not.toContain('DELETE FROM public.user_roles');
+
+    // The exclusion term is what makes this "only judge" instead of "no roles".
+    expect(block).toMatch(/r\.name\s*<>\s*'judge'/);
+
+    // Idempotent: already-inactive rows are not re-touched, so a clean re-run is
+    // UPDATE 0 (same property every block above holds).
+    expect(block).toMatch(/AND\s+ur\.is_active\b/);
+
+    for (const email of JUDGE_FIXTURE_EMAILS) {
+      expect(block).toContain(email);
+    }
+  });
+
+  it('never widens the deactivation past the two judge fixtures', () => {
+    const block = readExclusivityBlock();
+
+    for (const email of MULTI_ROLE_FIXTURE_EMAILS) {
+      expect(block).not.toContain(email);
+    }
+
+    // Scoped by an explicit email list, never "every account" or "every judge".
+    expect(block).toMatch(/lower\(p\.email\)\s+IN\s*\(/);
+  });
+
+  // The fixture files claim `roles: ['judge']`. 10f is what makes the claim true,
+  // so if a fixture ever adds a second role the seed would silently revoke it at
+  // the next reseed — the declarations and the seed must move together.
+  const judgeFixtureSources: Array<{ label: string; path: string; pattern: RegExp }> = [
+    {
+      label: 'e2e fixture (test-users.ts)',
+      path: 'apps/myk9show/src/test/e2e/fixtures/test-users.ts',
+      pattern: /email: 'e2e-judge@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
+    },
+    {
+      label: 'e2e fixture (test-users.ts, empty-assignment account)',
+      path: 'apps/myk9show/src/test/e2e/fixtures/test-users.ts',
+      pattern: /email: 'e2e-judge-empty@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
+    },
+    {
+      label: 'provisioning script (setup-e2e-test-users.ts)',
+      path: 'apps/myk9show/scripts/setup-e2e-test-users.ts',
+      pattern: /email: 'e2e-judge@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
+    },
+  ];
+
+  it.each(judgeFixtureSources)(
+    'declares the judge as judge-only in $label',
+    ({ path, pattern }) => {
+      expect(readFileSync(join(repoRoot, path), 'utf8')).toMatch(pattern);
+    }
+  );
+
+  it('keeps the judge-only invariant discoverable from the fixture itself', () => {
+    // A future editor reading only the fixture must learn that the single role is
+    // deliberate and where it is enforced, or the next drift repeats silently.
+    for (const path of [
+      'apps/myk9show/src/test/e2e/fixtures/test-users.ts',
+      'apps/myk9show/src/test/e2e/helpers/testUsers.ts',
+    ]) {
+      expect(readFileSync(join(repoRoot, path), 'utf8')).toContain('MYK9-141');
+    }
+  });
+});

@@ -91,7 +91,7 @@ const PrimaryEntryAction: React.FC<PrimaryEntryActionProps> = ({
     <button
       type="button"
       aria-label={`${label} ${entry.callName}`}
-      className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]"
+      className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] sm:min-h-12"
       onClick={onActivate}
       onMouseDown={onStopGesture}
       onTouchStart={onStopGesture}
@@ -420,7 +420,7 @@ interface ResetButtonProps {
 
 const ResetButton: React.FC<ResetButtonProps> = ({ onClick }) => (
   <button
-    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground active:scale-95"
+    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground active:scale-95 sm:min-h-12 sm:min-w-12"
     data-testid="reset-menu-button"
     onClick={onClick}
     onMouseDown={e => e.stopPropagation()}

@@ -10,7 +10,7 @@ Fee model: 7% total convenience fee, ~3% net platform margin after Stripe proces
 
 **Standing constraint:** nothing in this document outranks Stripe Connect. If a week is contested, Connect wins.
 
-**Deploying what's built:** L1–L4 are merged but not live. The ordered, gated deploy steps — keys, secrets, migration, function deploys, verification and rollback — are in [`docs/operations/launch-integrations-deploy.md`](operations/launch-integrations-deploy.md).
+**Deploying what's built:** L1–L5 are merged but not live. The ordered, gated deploy steps — keys, secrets, migration, function deploys, verification and rollback — are in [`docs/operations/launch-integrations-deploy.md`](operations/launch-integrations-deploy.md).
 
 ---
 
@@ -20,7 +20,7 @@ Two items have external lead times that will gate you later if started late. Bot
 
 | Item | Cost | Lead time | Why now |
 |---|---|---|---|
-| **A2P 10DLC brand + campaign registration** | ~$50 setup, $1.50–10/mo | 1–3 weeks approval | Buys the *option* on SMS. Unregistered messages are blocked outright by carriers. Skipping this means a month's delay whenever you decide you want it. |
+| **A2P 10DLC brand + campaign registration** | ~$50 setup, $1.50–10/mo | 1–3 weeks approval | **NOT STARTED as of 2026-08-16.** Buys the *option* on SMS. Unregistered messages are blocked outright by carriers. Skipping this means a month's delay whenever you decide you want it — which is now the situation. |
 | **Google Cloud project + Maps API key + billing account** | $0 | Same day | Required even at zero usage. Set a $10/mo budget alert immediately. |
 
 Optionally also: **Google Wallet issuer account application.** Free, approval is not instant, and having it approved costs nothing if you never use it.
@@ -108,7 +108,16 @@ Cheaper to build than the API approach and strictly more capable. No OAuth scope
 - Serve it from an Edge Function with its own narrow read path; do not widen any anon table grant to feed it.
 
 ### L6. SMS alerts — "you're 3 dogs out"
-**~3 days of development.** The constraint is 10DLC approval (calendar time), not build time. Ships at launch only if the registration started in week one.
+**Consent record + message composition built; send path awaits a provider decision and 10DLC.** Greenfield like L5 — no SMS provider is wired anywhere in the repo.
+
+**Confirmed 2026-08-16: the A2P 10DLC registration was never started.** So SMS does **not** ship at launch — approval takes 1–3 weeks from filing, and this was the one item on the roadmap whose lead time could not be compressed later.
+
+That is a schedule fact, not a failure. The useful consequence is that the decision and the dependency can now be separated:
+
+- **File the registration anyway (~$50 + $1.50–10/mo).** It buys the option and runs in the background. Not filing does not save the decision for later; it delays whatever you decide by a month.
+- **Decide whether SMS is actually needed from data, not intuition** — which is exactly what L4's `pushReachable` metric measures. That data does not exist yet, because L4 is not deployed. Deploy L4, let real sessions accumulate, then read the iOS split. If most exhibitors have installed the PWA, push already reaches them and SMS is a luxury; if they have not, SMS is covering people who are otherwise unreachable.
+
+Filing now and deciding later is strictly better than the reverse, because the registration is cheap and reversible while the month of lead time is not.
 
 **Why carry SMS at all when push is nearly free:** **[added]** ringside is exactly where this app is offline-first because venue connectivity is bad. Carrier SMS delivers where the exhibitor's data connection won't. That — not reach on uninstalled PWAs — is the real justification for the compliance overhead.
 
@@ -118,7 +127,13 @@ Cheaper to build than the API approach and strictly more capable. No OAuth scope
 
 **Give it away.** Against a $7 fee on a $100 cart, a nickel is under 1% of margin. "We text you before your run" is worth more as word-of-mouth in a small, tightly networked sport than as a $4.99/mo subscription — which is an awkward sell to someone competing six weekends a year. Revisit paid tiering in Year 2 if volume justifies it.
 
-**Consent is not optional — and the trap already exists in the code.** **[corrected]** `apps/myk9show/src/types/user-preferences.ts` already carries a bare `notifications.sms: boolean`. That is exactly the shape TCPA makes indefensible: no timestamp, no consent-text version, no source. Do **not** reuse it as the consent record. L6 includes a migration adding `sms_opt_in_at`, the consent text version, and the opt-in source, plus automatic STOP/HELP handling. The existing boolean may remain as a display preference only.
+**Consent is not optional — and the trap existed in two places.** **[corrected]** Both the client store (`user-preferences.ts`) and the database (`notification_preferences.sms_enabled`, since migration 005) carried a bare boolean: no timestamp, no consent-text version, no source. Neither is defensible under TCPA.
+
+Migration `20260816140000` adds the real record — consented number, opt-in timestamp, disclosure-wording version, source, and opt-out timestamp — with a CHECK constraint that makes `sms_enabled = true` **impossible** without all three consent fields present. A future code path that flips the boolean without recording consent now fails loudly instead of silently sending unconsented messages.
+
+*The subtlety worth knowing:* consent attaches to a **phone number**, not an account. If an exhibitor changes their number, the new number has not consented and prior consent does not transfer. The consented number is therefore pinned on the record rather than read from `people.phone` at send time.
+
+**Still to build:** the send path and STOP/HELP webhook, both provider-specific. `_shared/sms/smsMessage.ts` already composes the alert provider-agnostically and guarantees one GSM-7 segment — the tests demonstrate the cost trap directly: a 130-character message plus one emoji becomes two billable segments.
 
 ---
 

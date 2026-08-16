@@ -29,7 +29,7 @@ The CLI itself is available (`npx supabase@2.114.0`) and `apps/myk9show/supabase
 | **L3** Email static map | `48f0e4c` (#1637) | `GOOGLE_MAPS_STATIC_API_KEY` secret + `send-confirmation-email` redeploy |
 | **L4** Run-proximity push | `456f1a4` (#1638) | **Migration** `20260816120000` + `push-trigger-run-proximity` deploy |
 | **L4** Install instrumentation | `959f787` (#1639) | Nothing — ships with the frontend, uses existing `analytics_events` |
-| **L5** Calendar feed | #1641 | **Migration** `20260816130000` + `calendar-feed` deploy + feed URL config |
+| **L5** Calendar feed | `660f580` (#1641) | **Migration** `20260816130000` + `calendar-feed` deploy + feed URL config |
 
 Phases below run in **ascending risk order**. Nothing here depends on a later phase, so you can stop after any of them.
 

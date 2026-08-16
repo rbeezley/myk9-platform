@@ -10,6 +10,8 @@ Fee model: 7% total convenience fee, ~3% net platform margin after Stripe proces
 
 **Standing constraint:** nothing in this document outranks Stripe Connect. If a week is contested, Connect wins.
 
+**Deploying what's built:** L1–L4 are merged but not live. The ordered, gated deploy steps — keys, secrets, migration, function deploys, verification and rollback — are in [`docs/operations/launch-integrations-deploy.md`](operations/launch-integrations-deploy.md).
+
 ---
 
 ## Do this week (before any code)

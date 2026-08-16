@@ -108,7 +108,9 @@ Cheaper to build than the API approach and strictly more capable. No OAuth scope
 - Serve it from an Edge Function with its own narrow read path; do not widen any anon table grant to feed it.
 
 ### L6. SMS alerts — "you're 3 dogs out"
-**~3 days of development.** The constraint is 10DLC approval (calendar time), not build time. Ships at launch only if the registration started in week one.
+**Consent record + message composition built; send path awaits a provider decision and 10DLC.** Greenfield like L5 — no SMS provider is wired anywhere in the repo.
+
+The constraint remains 10DLC approval (calendar time), not build time. **Confirm whether the A2P registration was ever started** — it is the only item on this roadmap whose lead time cannot be compressed later, which is why the plan put it in week one.
 
 **Why carry SMS at all when push is nearly free:** **[added]** ringside is exactly where this app is offline-first because venue connectivity is bad. Carrier SMS delivers where the exhibitor's data connection won't. That — not reach on uninstalled PWAs — is the real justification for the compliance overhead.
 
@@ -118,7 +120,13 @@ Cheaper to build than the API approach and strictly more capable. No OAuth scope
 
 **Give it away.** Against a $7 fee on a $100 cart, a nickel is under 1% of margin. "We text you before your run" is worth more as word-of-mouth in a small, tightly networked sport than as a $4.99/mo subscription — which is an awkward sell to someone competing six weekends a year. Revisit paid tiering in Year 2 if volume justifies it.
 
-**Consent is not optional — and the trap already exists in the code.** **[corrected]** `apps/myk9show/src/types/user-preferences.ts` already carries a bare `notifications.sms: boolean`. That is exactly the shape TCPA makes indefensible: no timestamp, no consent-text version, no source. Do **not** reuse it as the consent record. L6 includes a migration adding `sms_opt_in_at`, the consent text version, and the opt-in source, plus automatic STOP/HELP handling. The existing boolean may remain as a display preference only.
+**Consent is not optional — and the trap existed in two places.** **[corrected]** Both the client store (`user-preferences.ts`) and the database (`notification_preferences.sms_enabled`, since migration 005) carried a bare boolean: no timestamp, no consent-text version, no source. Neither is defensible under TCPA.
+
+Migration `20260816140000` adds the real record — consented number, opt-in timestamp, disclosure-wording version, source, and opt-out timestamp — with a CHECK constraint that makes `sms_enabled = true` **impossible** without all three consent fields present. A future code path that flips the boolean without recording consent now fails loudly instead of silently sending unconsented messages.
+
+*The subtlety worth knowing:* consent attaches to a **phone number**, not an account. If an exhibitor changes their number, the new number has not consented and prior consent does not transfer. The consented number is therefore pinned on the record rather than read from `people.phone` at send time.
+
+**Still to build:** the send path and STOP/HELP webhook, both provider-specific. `_shared/sms/smsMessage.ts` already composes the alert provider-agnostically and guarantees one GSM-7 segment — the tests demonstrate the cost trap directly: a 130-character message plus one emoji becomes two billable segments.
 
 ---
 

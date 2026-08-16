@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNotificationStore } from '@/store/notificationStore';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { syncNotificationPreferences } from '@/features/notifications/notificationPreferenceSync';
 import { notifications } from '@/lib/notifications';
 import { testSound, isSpeechSupported, speakWithConfig } from '@myk9/notifications';
 import type { VoiceCategories } from '@myk9/notifications';
@@ -37,6 +39,22 @@ export function NotificationSettings() {
   const preferences = useNotificationStore(s => s.preferences);
   const permissionStatus = useNotificationStore(s => s.permissionStatus);
   const updatePreferences = useNotificationStore(s => s.updatePreferences);
+  const { user } = useAuthContext();
+
+  // Mirror the two fields the server-side proximity push reads. Fire-and-forget:
+  // the store update is the source of truth for the UI either way.
+  const updateAndSyncPreferences = useCallback(
+    (patch: Partial<typeof preferences>) => {
+      updatePreferences(patch);
+      if (patch.leadDogs !== undefined || patch.pushEnabled !== undefined) {
+        void syncNotificationPreferences(user?.id, {
+          leadDogs: patch.leadDogs ?? preferences.leadDogs,
+          pushEnabled: patch.pushEnabled ?? preferences.pushEnabled,
+        });
+      }
+    },
+    [updatePreferences, user, preferences.leadDogs, preferences.pushEnabled]
+  );
   const { subscribe, unsubscribe, isSupported: isPushSupported } = usePushSubscription();
   const [isPushLoading, setIsPushLoading] = useState(false);
   const hapticFeedback = useSettingsStore(s => s.settings.hapticFeedback);
@@ -101,6 +119,14 @@ export function NotificationSettings() {
       }
     } finally {
       setIsPushLoading(false);
+      // subscribe()/unsubscribe() own the store flag, so mirror whatever they
+      // settled on — the server-side proximity push skips users who turned
+      // push off, and it can only see that here.
+      const settled = useNotificationStore.getState().preferences;
+      void syncNotificationPreferences(user?.id, {
+        leadDogs: settled.leadDogs,
+        pushEnabled: settled.pushEnabled,
+      });
     }
   }
 
@@ -153,7 +179,7 @@ export function NotificationSettings() {
             max={5}
             step={1}
             value={[preferences.leadDogs]}
-            onValueChange={([v]) => updatePreferences({ leadDogs: v })}
+            onValueChange={([v]) => updateAndSyncPreferences({ leadDogs: v })}
           />
           <div className="flex justify-between text-xs text-muted-foreground mt-1">
             <span>1</span>

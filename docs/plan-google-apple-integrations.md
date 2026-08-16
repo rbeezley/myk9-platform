@@ -60,14 +60,16 @@ The actual work:
 *Deferred:* interactive Dynamic Maps, the drag-and-drop ring layout canvas, geofencing. Good ideas; none answer "can a secretary run their first trial without this."
 
 ### L4. Web Push — "you're N runs out" proximity alert
-**~2–3 days.** **[corrected from ~1 week]** The delivery pipeline already exists and is deployed: `supabase/functions/send-push-notification` uses standards-based Web Push (`web-push` + VAPID keys), with six `push-trigger-*` functions (class status, scoring, announcements, chat, waitlist, support) already invoking it. Standards Web Push covers Chrome/Android (FCM is merely the transport) **and** iOS 16.4+ installed PWAs — there is no separate FCM or APNs integration to build.
+**Server-side trigger built; install-rate instrumentation remaining.** **[corrected again during implementation]** Both v2's "~1 week" and v3's "~2–3 days, build the proximity trigger" were wrong: **the entire proximity feature already existed**, including push. `useNotificationMonitor` polls the entry snapshot (30s + realtime nudges), detects the in-ring change, computes `dogsAhead` from the shared run-queue logic, builds the payload via `@myk9/notifications`, and delivers in-app — with cross-class conflict detection, a 60s dedup window, and a watch set of owned dogs ∪ favorited armbands.
 
-The genuinely new work:
+The real gap was one line: push was sent **from the browser**, gated on `document.visibilityState !== 'visible'`. That requires the PWA process to be alive and merely backgrounded. iOS Safari suspends backgrounded PWAs, so the exhibitor with the phone in their pocket at the crate — the entire premise of the feature — got nothing.
 
-- The **run-proximity trigger**: compute "N runs out" from run order + class progress and fire through the existing `send-push-notification` path, following the established `push-trigger-*` pattern.
-- **Instrument the iOS PWA install rate from day one.** iOS Safari only permits web push if the app has been added to the home screen. That single number determines whether SMS is necessary or a luxury, and whether the native-app question ever needs answering.
+- **Server-side push — built.** `push-trigger-run-proximity` fires from a Postgres trigger on the in-ring transition (migration `20260816120000`), re-derives the run queue server-side, and pushes through the existing `send-push-notification` path. Per-user threshold comes from the new `notification_preferences.lead_dogs` column (the setting was previously client-only in localStorage, invisible to any server sender); the settings UI now mirrors it plus `push_enabled`. The client sender was **removed** — one source of truth, no double-notify.
+- **Instrument the iOS PWA install rate — remaining.** iOS Safari only permits web push if the app has been added to the home screen. That single number determines whether SMS is necessary or a luxury, and whether the native-app question ever needs answering. A `PWAInstallBanner` exists but nothing records the outcome.
 
 *Exhibitor benefit:* the actual killer feature. Missing your run because you were at the crate is the sport's universal frustration.
+
+*Deploy note:* the trigger needs the `edge_function_base_url` and `push_webhook_secret` Vault secrets already used by the other push triggers, plus a `push-trigger-run-proximity` function deploy. Absent either, it logs a notice and skips — it can never abort a steward's ring check-in.
 
 ### L5. Calendar — .ics + webcal feed
 **~3 days.** Skip the Google Calendar API and Apple EventKit entirely.

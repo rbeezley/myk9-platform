@@ -60,12 +60,28 @@ The actual work:
 *Deferred:* interactive Dynamic Maps, the drag-and-drop ring layout canvas, geofencing. Good ideas; none answer "can a secretary run their first trial without this."
 
 ### L4. Web Push — "you're N runs out" proximity alert
-**Server-side trigger built; install-rate instrumentation remaining.** **[corrected again during implementation]** Both v2's "~1 week" and v3's "~2–3 days, build the proximity trigger" were wrong: **the entire proximity feature already existed**, including push. `useNotificationMonitor` polls the entry snapshot (30s + realtime nudges), detects the in-ring change, computes `dogsAhead` from the shared run-queue logic, builds the payload via `@myk9/notifications`, and delivers in-app — with cross-class conflict detection, a 60s dedup window, and a watch set of owned dogs ∪ favorited armbands.
+**Built (code complete; deploy pending).** **[corrected again during implementation]** Both v2's "~1 week" and v3's "~2–3 days, build the proximity trigger" were wrong: **the entire proximity feature already existed**, including push. `useNotificationMonitor` polls the entry snapshot (30s + realtime nudges), detects the in-ring change, computes `dogsAhead` from the shared run-queue logic, builds the payload via `@myk9/notifications`, and delivers in-app — with cross-class conflict detection, a 60s dedup window, and a watch set of owned dogs ∪ favorited armbands.
 
 The real gap was one line: push was sent **from the browser**, gated on `document.visibilityState !== 'visible'`. That requires the PWA process to be alive and merely backgrounded. iOS Safari suspends backgrounded PWAs, so the exhibitor with the phone in their pocket at the crate — the entire premise of the feature — got nothing.
 
 - **Server-side push — built.** `push-trigger-run-proximity` fires from a Postgres trigger on the in-ring transition (migration `20260816120000`), re-derives the run queue server-side, and pushes through the existing `send-push-notification` path. Per-user threshold comes from the new `notification_preferences.lead_dogs` column (the setting was previously client-only in localStorage, invisible to any server sender); the settings UI now mirrors it plus `push_enabled`. The client sender was **removed** — one source of truth, no double-notify.
-- **Instrument the iOS PWA install rate — remaining.** iOS Safari only permits web push if the app has been added to the home screen. That single number determines whether SMS is necessary or a luxury, and whether the native-app question ever needs answering. A `PWAInstallBanner` exists but nothing records the outcome.
+- **Install-rate instrumentation — built.** Rides on the existing `analytics_events` table (migration 096, same append-only/admin-read RLS as section-view tracking) — **no new table, no migration**. Records one `pwa_install_state` snapshot per account per day with platform, browser, standalone, push permission, and the derived `pushReachable`, plus banner outcomes (`pwa_install_accepted` / `pwa_install_dismissed` / `pwa_ios_instructions_shown`). All rows carry `section_name = 'pwa_install'`, so one query covers them.
+
+  `pushReachable` is the number the decisions actually hinge on: an iOS user who has **not** installed cannot receive web push no matter what permission says, so they are silently unreachable today. To read the split:
+
+  ```sql
+  select
+    metadata->>'platform'                      as platform,
+    count(*) filter (where (metadata->>'standalone')::boolean)    as installed,
+    count(*) filter (where (metadata->>'pushReachable')::boolean) as push_reachable,
+    count(*)                                                      as accounts
+  from public.analytics_events
+  where event_type = 'pwa_install_state'
+    and created_at > now() - interval '30 days'
+  group by 1;
+  ```
+
+  *Caveat to remember when reading it:* iOS gives no completion signal for "Add to Home Screen" — it happens inside Safari's share sheet — so `pwa_ios_instructions_shown` measures intent, and only the next day's snapshot confirms whether it stuck. Signed-out visitors are not counted (`analytics_events.user_id` defaults to `auth.uid()` and is NOT NULL); the metric is "of our accounts, who installed", which is the per-account question anyway.
 
 *Exhibitor benefit:* the actual killer feature. Missing your run because you were at the crate is the sport's universal frustration.
 
@@ -107,7 +123,7 @@ Required by project policy; each item gates its integration.
 - **L1:** Apple sign-in round-trip on a real iOS device; account-linking behavior verified when the same email exists as a Google-identity account (document the observed behavior, don't assume).
 - **L2:** Stripe test mode on iOS Safari (Apple Pay) and Android Chrome (Google Pay); confirm the wallet buttons render on the hosted Checkout page and a wallet test charge settles through the existing `stripe-webhook` path as an ordinary card payment; confirm `moneyPathCloseout.source.test.ts` still passes (card-only pin intact).
 - **L3:** with a real key on staging: suggestions appear in the wizard Location field, selection drops the pin, and the Google Cloud billing console shows one Autocomplete session per address entry (not per keystroke); without a key the field behaves exactly as before. Static Maps image renders in Gmail and Apple Mail clients, not just the browser.
-- **L4:** push received on an **installed** iOS 16.4+ PWA and on Android Chrome; proximity trigger fired from a seeded class run-order fixture; unit tests for the "N runs out" computation. Run new vitest files with `--sequence.shuffle` 6+ times and register them in the appropriate config allowlist (project rule — new test files do not auto-run in CI).
+- **L4:** push received on an **installed** iOS 16.4+ PWA and on Android Chrome **with the app fully closed** (the whole point of moving the trigger server-side — a backgrounded-but-alive app proves nothing); proximity trigger fired by flipping an entry to in-ring on staging; verify the pushed number matches the entry-list pill on reopen; confirm a steward's check-in still succeeds with the Vault secrets deliberately unset. Unit tests for the queue/recipient logic run with `--sequence.shuffle` 6+ times and are registered in the vitest allowlist (project rule — new test files do not auto-run in CI).
 - **L5:** generated `.ics` validates and imports on Google Calendar, Apple Calendar, and Outlook; webcal feed refreshes an updated run time; feed token 404s after revocation; verify the feed response contains no payment/status fields.
 - **L6:** TCPA round-trip on a real handset: opt-in stores timestamp + text version + source; STOP halts sends and is recorded; HELP responds; message stays GSM-7 (no emoji) under 160 chars.
 

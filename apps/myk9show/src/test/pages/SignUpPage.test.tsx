@@ -21,6 +21,7 @@ vi.mock('@/components/security/TurnstileChallenge', () => ({
 
 const mockSignUp = vi.fn();
 const mockSignInWithGoogle = vi.fn();
+const mockSignInWithApple = vi.fn();
 const mockResendConfirmationEmail = vi.fn();
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -28,6 +29,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
     signUp: mockSignUp,
     resendConfirmationEmail: mockResendConfirmationEmail,
     signInWithGoogle: mockSignInWithGoogle,
+    signInWithApple: mockSignInWithApple,
     loading: false,
   }),
 }));
@@ -43,6 +45,7 @@ describe('SignUpPage', () => {
   beforeEach(() => {
     mockSignUp.mockReset();
     mockSignInWithGoogle.mockReset();
+    mockSignInWithApple.mockReset();
     mockResendConfirmationEmail.mockReset();
   });
 
@@ -162,6 +165,28 @@ describe('SignUpPage', () => {
       const googleBtn = screen.getByRole('button', { name: /continue with google/i });
       fireEvent.click(googleBtn);
       expect(mockSignInWithGoogle).not.toHaveBeenCalled();
+    });
+
+    it('calls signInWithApple when Apple button is clicked after checkbox is checked', () => {
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+      fireEvent.click(screen.getByLabelText(/I agree to the/i));
+      fireEvent.click(screen.getByRole('button', { name: /continue with apple/i }));
+      expect(mockSignInWithApple).toHaveBeenCalled();
+    });
+
+    it('does not call signInWithApple when Apple button is clicked without checkbox', () => {
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+      const appleBtn = screen.getByRole('button', { name: /continue with apple/i });
+      fireEvent.click(appleBtn);
+      expect(mockSignInWithApple).not.toHaveBeenCalled();
     });
   });
 

@@ -35,6 +35,7 @@ BEGIN
     ('announcement_reads','SELECT','','SELECT,INSERT,UPDATE,DELETE'),
     ('announcements','SELECT','','SELECT,INSERT,UPDATE,DELETE'),
     ('armbands','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
+    ('calendar_feed_tokens','SELECT','','SELECT,INSERT,UPDATE,DELETE'),
     ('chatbot_feedback','INSERT','','SELECT,INSERT,UPDATE,DELETE'),
     ('chatbot_query_log','','','SELECT,INSERT,UPDATE,DELETE'),
     ('class_visibility_overrides','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
@@ -189,7 +190,7 @@ BEGIN
   IF v_count > 0 THEN
     RAISE EXCEPTION 'FAIL % table grant(s) drifted from the codified intent:%', v_count, v_mismatches;
   END IF;
-  RAISE NOTICE 'PASS all 121 tables grant exactly the codified CRUD to anon, authenticated and service_role';
+  RAISE NOTICE 'PASS all 122 tables grant exactly the codified CRUD to anon, authenticated and service_role';
 END;
 $$;
 
@@ -205,7 +206,7 @@ BEGIN
     AND c.relkind = 'r'
     AND c.relname NOT IN (
       'achievements','activity_log','allergies','analytics_events','announcement_reads',
-      'announcements','armbands','chatbot_feedback','chatbot_query_log',
+      'announcements','armbands','calendar_feed_tokens','chatbot_feedback','chatbot_query_log',
       'class_visibility_overrides','classes','club_access_requests','club_members',
       'club_officers','club_premium_templates','club_stripe_accounts','clubs','dog_favorites',
       'dog_registrations','dogs','email_log','enrollments','entries','entry_cart_items',

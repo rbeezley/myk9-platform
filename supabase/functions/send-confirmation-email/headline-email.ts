@@ -1,3 +1,5 @@
+import { renderVenueMapBlock } from './static-map.ts';
+
 const HN_PAPER = '#fafafa';
 const HN_PAGE = '#e7e1d7';
 const HN_INK = '#0a0a0a';
@@ -34,6 +36,7 @@ export interface HeadlineEmailData {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
+  venueMap?: import("./confirmation-email-shared.ts").VenueMapAssetsRef | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -153,6 +156,7 @@ export function buildHeadlineHtml(data: HeadlineEmailData): string {
           <td style="padding:14px 16px;vertical-align:top;width:50%;">${infoCell('Venue', data.venue)}${infoCell('Parking', data.parkingNotes)}${infoCell('Hospitality', data.hospitalityNotes)}</td>
         </tr>
       </table>
+      ${renderVenueMapBlock(data.venueMap, data.venue)}
     </td>
   </tr>
   <tr>

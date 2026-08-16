@@ -22,6 +22,7 @@ import {
   type ConfirmationEmailBaseData,
   type ConfirmationEmailRunRow,
 } from './confirmation-email-shared.ts';
+import { renderVenueMapBlock } from './static-map.ts';
 
 const GZ_PAPER = '#f7f1e3';
 const GZ_PAPER_WARM = '#ede5d2';
@@ -141,6 +142,7 @@ export function buildGazetteHtml(data: GazetteEmailData): string {
         </td>
       </tr>
     </table>
+    ${renderVenueMapBlock(data.venueMap, data.venue)}
   </td>
 </tr>`
     : '';

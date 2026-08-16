@@ -58,12 +58,14 @@ vi.mock('./ringsideAnonSession', () => ({
 let mockUser: { id: string; is_anonymous?: boolean } | null = null;
 const signInMock = vi.fn();
 const signInWithGoogleMock = vi.fn();
+const signInWithAppleMock = vi.fn();
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: mockUser,
     firstName: 'Jane',
     signIn: signInMock,
     signInWithGoogle: signInWithGoogleMock,
+    signInWithApple: signInWithAppleMock,
     loading: false,
   }),
   getPrimaryRole: vi.fn(),
@@ -75,6 +77,7 @@ describe('SmartSignInPage', () => {
     mockUser = null;
     signInMock.mockReset();
     signInWithGoogleMock.mockReset();
+    signInWithAppleMock.mockReset();
     useShowQueryMock.mockReset();
     useShowQueryMock.mockReturnValue({ data: undefined });
   });
@@ -195,6 +198,18 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByRole('button', { name: /continue with google/i }));
 
     expect(signInWithGoogleMock).toHaveBeenCalledWith('/shows/show-1/register');
+  });
+
+  it('passes redirectTo into Apple sign-in from the first step', async () => {
+    const user = userEvent.setup();
+    signInWithAppleMock.mockResolvedValue(undefined);
+    render(<SmartSignInPage />, {
+      initialRoute: '/sign-in?redirectTo=%2Fshows%2Fshow-1%2Fregister',
+    });
+
+    await user.click(screen.getByRole('button', { name: /continue with apple/i }));
+
+    expect(signInWithAppleMock).toHaveBeenCalledWith('/shows/show-1/register');
   });
 
   it('anonymous passcode validates and routes straight to ringside', async () => {

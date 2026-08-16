@@ -27,7 +27,7 @@ Optionally also: **Google Wallet issuer account application.** Free, approval is
 
 ## Launch set — ships with v1
 
-Estimated **~2.5 weeks** of evening and weekend work **[corrected from ~4 — L1 is half done, L2 is a config unpin, L4's delivery pipeline already exists]**, in this order.
+Estimated **~2.5 weeks** of evening and weekend work **[corrected from ~4 — L1 is half done, L2 is dashboard config only, L4's delivery pipeline already exists]**, in this order.
 
 ### L1. Sign in with Apple (Google Sign-In already shipped)
 **~Half a day.** **[corrected]** Google OAuth is already implemented — `signInWithGoogle` in `apps/myk9show/src/hooks/useAuth.ts` via Supabase Auth, with tests. Only Apple is new: a Services ID and key from the Apple Developer portal, enable the provider in Supabase, add the button next to the existing Google one.
@@ -37,11 +37,14 @@ Estimated **~2.5 weeks** of evening and weekend work **[corrected from ~4 — L1
 *Urgency note:* Sign in with Apple is not a compliance requirement for a PWA — that guideline binds App Store submissions. But because Google sign-in is live, **Google-identity accounts are accumulating today**, and retrofitting Apple after iOS users have created Google or password accounts is the painful path. This is the reason L1 stays first despite being small.
 
 ### L2. Apple Pay & Google Pay
-**~4 hours.** **[corrected mechanism]** The app uses hosted **Stripe Checkout Sessions**, not Payment Element — and `apps/myk9show/supabase/functions/stripe-checkout/index.ts` currently pins `payment_method_types: ['card']`, which **actively suppresses wallets today**. The work is:
+**~1 hour of dashboard configuration + device testing. No code change.** **[corrected again during implementation]** The app uses hosted **Stripe Checkout Sessions**, and on hosted Checkout the `card` payment method type automatically carries Apple Pay and Google Pay — no integration changes, and no Apple Pay domain registration (that requirement is for Payment/Express Element on your own domain).
 
-1. Remove the `payment_method_types` pin (or switch to `automatic_payment_methods`) in the checkout session create call.
-2. Register the domain for Apple Pay in the Stripe dashboard.
-3. Confirm the Checkout page shows wallet buttons on iOS Safari and Android Chrome in test mode.
+The `payment_method_types: ['card']` pin in `stripe-checkout/index.ts` **stays**. It is a deliberate money-path contract (`moneyPathCloseout.source.test.ts`): asynchronous methods like ACH and Klarna complete Checkout with `payment_status: 'unpaid'` and settle later, which `decideFreshSessionGate` refuses by design. Wallets are card-network payments and are unaffected by the pin. v2 and the first v3 draft both got this wrong; the pin site now carries an `// INTENT:` comment.
+
+The actual work:
+
+1. Stripe dashboard → Payment methods: confirm **Apple Pay** is enabled (on by default) and enable **Google Pay** (off by default).
+2. Verify wallet buttons appear on the hosted Checkout page in test mode on iOS Safari and Android Chrome.
 
 **Highest ROI item in this document.** Same processing rate as a card, materially lower mobile cart abandonment, and your entries happen on phones.
 
@@ -99,7 +102,7 @@ Cheaper to build than the API approach and strictly more capable. No OAuth scope
 Required by project policy; each item gates its integration.
 
 - **L1:** Apple sign-in round-trip on a real iOS device; account-linking behavior verified when the same email exists as a Google-identity account (document the observed behavior, don't assume).
-- **L2:** Stripe test mode on iOS Safari (Apple Pay) and Android Chrome (Google Pay); confirm the wallet buttons render on the Checkout page and a test charge settles through the existing `stripe-webhook` path unchanged.
+- **L2:** Stripe test mode on iOS Safari (Apple Pay) and Android Chrome (Google Pay); confirm the wallet buttons render on the hosted Checkout page and a wallet test charge settles through the existing `stripe-webhook` path as an ordinary card payment; confirm `moneyPathCloseout.source.test.ts` still passes (card-only pin intact).
 - **L3:** Autocomplete session tokens verified in the Google Cloud billing console (one session per address entry, not per keystroke); Static Maps image renders in Gmail and Apple Mail clients, not just the browser.
 - **L4:** push received on an **installed** iOS 16.4+ PWA and on Android Chrome; proximity trigger fired from a seeded class run-order fixture; unit tests for the "N runs out" computation. Run new vitest files with `--sequence.shuffle` 6+ times and register them in the appropriate config allowlist (project rule — new test files do not auto-run in CI).
 - **L5:** generated `.ics` validates and imports on Google Calendar, Apple Calendar, and Outlook; webcal feed refreshes an updated run time; feed token 404s after revocation; verify the feed response contains no payment/status fields.

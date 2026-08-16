@@ -33,11 +33,11 @@ gets that guarantee for free.
 
 The price delta is not material here. One alert per exhibitor per trial:
 
-| | Twilio | Telnyx / Plivo |
-| --- | --- | --- |
-| Per outbound SMS | ~$0.0079 | ~$0.004–0.005 |
-| Carrier pass-through fee | ~$0.003 | ~$0.003 (same, it is the carrier's) |
-| 500-exhibitor trial | ~$5.50 | ~$4.00 |
+|                          | Twilio   | Telnyx / Plivo                      |
+| ------------------------ | -------- | ----------------------------------- |
+| Per outbound SMS         | ~$0.0079 | ~$0.004–0.005                       |
+| Carrier pass-through fee | ~$0.003  | ~$0.003 (same, it is the carrier's) |
+| 500-exhibitor trial      | ~$5.50   | ~$4.00                              |
 
 A ~$1.50/trial premium for platform-enforced compliance is the right trade at
 this stage. Revisit if volume reaches tens of thousands of messages a month.
@@ -59,15 +59,15 @@ A bare `from` number skips exactly the protection we are paying for.
 Gather these. A campaign is rejected, not paused, when an answer is missing,
 and a rejected campaign costs a re-vetting fee to resubmit.
 
-| Item | Notes |
-| --- | --- |
-| Legal business name | Must match the EIN record **exactly** — "MyK9Show LLC" ≠ "myK9Show, LLC". Mismatch is the #1 brand rejection. |
-| EIN (Tax ID) | Free and immediate from the IRS. See the sole-proprietor fallback below if there is no entity yet. |
-| Business address | The registered address on the EIN record. |
-| Business website | Must be publicly reachable and must show the SMS program — see §3. |
-| Entity type + industry | Private LLC / Corp; vertical is closest to "Technology" or "Entertainment". |
-| Authorized contact | Name, business email, phone. Use a domain email, not Gmail — free-mail addresses lower the brand trust score. |
-| Support email + phone | Appears in the HELP reply. |
+| Item                   | Notes                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Legal business name    | Must match the EIN record **exactly** — "MyK9Show LLC" ≠ "myK9Show, LLC". Mismatch is the #1 brand rejection. |
+| EIN (Tax ID)           | Free and immediate from the IRS. See the sole-proprietor fallback below if there is no entity yet.            |
+| Business address       | The registered address on the EIN record.                                                                     |
+| Business website       | Must be publicly reachable and must show the SMS program — see §3.                                            |
+| Entity type + industry | Private LLC / Corp; vertical is closest to "Technology" or "Entertainment".                                   |
+| Authorized contact     | Name, business email, phone. Use a domain email, not Gmail — free-mail addresses lower the brand trust score. |
+| Support email + phone  | Appears in the HELP reply.                                                                                    |
 
 **No EIN yet?** There is a Sole Proprietor brand path that verifies via a phone
 OTP instead. It is a poor fit: one campaign maximum, roughly 15 messages/minute,
@@ -79,7 +79,8 @@ an EIN takes about ten minutes and unlocks the standard path. Do that instead.
 ## 3. Two blockers to clear first (these are ours, in this repo)
 
 Both are content, not architecture, and both are checked by a human reviewer
-who will open the site. Neither exists today.
+who will open the site. §3.2 is done; §3.1 is still outstanding and is the
+single most common cause of rejection.
 
 ### 3.1 The consent flow must be publicly visible
 
@@ -92,21 +93,21 @@ public routes — that reproduces the exact checkbox wording, the program name,
 message frequency, rate disclosure, and STOP/HELP instructions. It does not
 need to be an interactive form; it needs to show what an exhibitor sees.
 
-### 3.2 The privacy policy has no SMS language
+### 3.2 The privacy policy SMS clause — DONE
 
-`apps/myk9show/public/legal/privacy-policy.md` currently contains no mention of
-SMS, text messaging, or mobile numbers. Carriers now require an explicit
-non-sharing statement, and its absence is an automatic rejection. Add to §3
-("How We Share Your Information"):
+`apps/myk9show/public/legal/privacy-policy.md` had no mention of SMS, text
+messaging, or mobile numbers. Carriers require an explicit non-sharing
+statement and its absence is an automatic rejection, so §3.6 "Mobile
+Information and SMS Messaging" now carries it, along with the supporting
+collection (§1.1), use (§2.3), and opt-out (§6.4) entries.
 
-> **Mobile information.** Mobile phone numbers collected for SMS ring alerts,
-> and consent to receive those messages, are not shared or sold to third
-> parties or affiliates for their marketing or promotional purposes. Phone
-> numbers are shared with our SMS delivery provider solely to transmit the
-> alerts you requested.
+The carve-out sentence matters as much as the headline one: we _do_ hand the
+number to the delivery provider, and naming that subprocessor is what keeps
+"never shared with third parties" true rather than merely convenient.
 
-The second sentence matters: we *do* hand the number to Twilio, and the
-carve-out for a delivery subprocessor is what keeps the first sentence true.
+Once a provider is live, add a Twilio row to the §3.2 service-providers table
+in the policy — it is deliberately absent while no provider is wired, since
+listing one we do not use would be inaccurate.
 
 ---
 
@@ -187,7 +188,7 @@ have.
 
 That checkbox wording is the canonical text for
 `notification_preferences.sms_consent_text_version = 'sms-consent-v1'`. If it
-is edited, bump the version — the column exists to prove *what* was agreed to,
+is edited, bump the version — the column exists to prove _what_ was agreed to,
 not merely that something was.
 
 **Opt-out** — keyword `STOP` (also STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT):
@@ -198,7 +199,10 @@ not merely that something was.
 **Help** — keyword `HELP`:
 
 > myK9Show ring alerts: a text when your dog is close to the ring. Msg & data
-> rates may apply. Reply STOP to cancel. Support: support@myk9show.com
+> rates may apply. Reply STOP to cancel. Support: support@myk9.com
+
+The support address must match the one in the privacy policy (`support@myk9.com`)
+— a reviewer comparing the two will treat a mismatch as an inconsistency.
 
 ---
 
@@ -221,7 +225,7 @@ In rough order of frequency:
 ## 7. Definition of done
 
 - [ ] EIN obtained; legal name confirmed against the IRS record
-- [ ] Privacy policy carries the mobile-information clause (§3.2)
+- [x] Privacy policy carries the mobile-information clause (§3.2)
 - [ ] Public `/sms` disclosure page live (§3.1)
 - [ ] Brand registered and approved
 - [ ] Campaign submitted with the §5 copy, and approved

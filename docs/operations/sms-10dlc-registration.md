@@ -106,19 +106,32 @@ an EIN takes about ten minutes and unlocks the standard path. Do that instead.
 ## 3. Two blockers to clear first (these are ours, in this repo)
 
 Both are content, not architecture, and both are checked by a human reviewer
-who will open the site. §3.2 is done; §3.1 is still outstanding and is the
-single most common cause of rejection.
+who will open the site. **Both are now done** — this section is kept as the
+record of what the reviewer will find and why it is shaped that way.
 
-### 3.1 The consent flow must be publicly visible
+### 3.1 The consent flow must be publicly visible — DONE
 
 Reviewers verify opt-in by loading a URL. myK9Show's notification settings sit
-behind auth, so a reviewer sees a login wall and rejects the campaign for
-"opt-in not verifiable."
+behind auth, so a reviewer would see a login wall and reject the campaign for
+"opt-in not verifiable" — the single most common rejection cause.
 
-The fix is a public page — `/sms` alongside the existing `/terms` and `/privacy`
-public routes — that reproduces the exact checkbox wording, the program name,
-message frequency, rate disclosure, and STOP/HELP instructions. It does not
-need to be an interactive form; it needs to show what an exhibitor sees.
+`/sms` is now a public route rendering `public/legal/sms-alerts.md` through the
+same `LegalPage` component as `/terms` and `/privacy`, and is linked from both
+footers. It states the program name, what is sent, frequency, the rate
+disclosure, the verbatim consent checkbox wording, STOP/HELP handling, and the
+mobile-information non-sharing sentence.
+
+Two things about that page are load-bearing and easy to break silently, so
+`src/test/routes/smsDisclosurePage.source.test.ts` pins them: the route must
+not be wrapped in `ProtectedRoute`, and the disclosures must stay in the
+markdown. Neither failure is visible in the UI — the page still renders fine
+with the wording removed.
+
+Its links to the privacy policy are absolute (`https://myk9show.com/privacy`)
+on purpose: `LegalPage.inlineFormat` only linkifies `http(s)` URLs, so a
+relative `/privacy` renders as plain text and leaves the reviewer with nothing
+to click. That restriction is a deliberate `javascript:` guard with its own
+test — do not loosen it to make relative links work.
 
 ### 3.2 The privacy policy SMS clause — DONE
 
@@ -254,7 +267,8 @@ In rough order of frequency:
 - [ ] EIN obtained; legal name confirmed against the IRS record
 - [ ] `support@myk9show.com` receiving, forwarded to an existing `myk9t.com` mailbox (§2)
 - [x] Privacy policy carries the mobile-information clause (§3.2)
-- [ ] Public `/sms` disclosure page live (§3.1)
+- [x] Public `/sms` disclosure page built (§3.1) — **must be deployed and reachable at
+      `https://myk9show.com/sms` before filing**; a reviewer cannot load a preview URL
 - [ ] Brand registered and approved
 - [ ] Campaign submitted with the §5 copy, and approved
 - [ ] Messaging Service created, number attached, **Advanced Opt-Out enabled**

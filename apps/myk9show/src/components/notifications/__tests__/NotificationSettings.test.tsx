@@ -50,10 +50,19 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 // The mirror itself is covered by notificationPreferenceSync.test.ts; stub it
 // here so a settings-UI test never reaches for Supabase.
-const mockSyncNotificationPreferences = vi.fn(() => Promise.resolve(true));
+// Typed like mockSubscribe above so `mock.calls[0][0]` is a real argument
+// rather than an index into an empty tuple (tsconfig.test.json catches that).
+const mockSyncNotificationPreferences = vi.fn<
+  (
+    authUserId: string | null | undefined,
+    preferences: { leadDogs: number; pushEnabled: boolean }
+  ) => Promise<boolean>
+>(() => Promise.resolve(true));
 vi.mock('@/features/notifications/notificationPreferenceSync', () => ({
-  syncNotificationPreferences: (...args: unknown[]) =>
-    mockSyncNotificationPreferences(...(args as [])),
+  syncNotificationPreferences: (
+    authUserId: string | null | undefined,
+    preferences: { leadDogs: number; pushEnabled: boolean }
+  ) => mockSyncNotificationPreferences(authUserId, preferences),
 }));
 
 vi.mock('@/lib/notifications', () => ({

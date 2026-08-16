@@ -1,7 +1,7 @@
-# Launch Integrations Deploy — L1–L4
+# Launch Integrations Deploy — L1–L5
 
 > **Status:** Active
-> Covers the deploy half of [`docs/plan-google-apple-integrations.md`](../plan-google-apple-integrations.md) launch items L1–L4. Code for all four is **merged to `main`**; none of it is **live**. Every item below is inert until its step here runs.
+> Covers the deploy half of [`docs/plan-google-apple-integrations.md`](../plan-google-apple-integrations.md) launch items L1–L5. All five are code-complete; none of it is **live**. Every item below is inert until its step here runs.
 
 **Project ref:** `sojmvhhwsjxmfistvzbe`. Migration password: `supabase/.env` (gitignored — present only on the operator's machine).
 
@@ -29,6 +29,7 @@ The CLI itself is available (`npx supabase@2.114.0`) and `apps/myk9show/supabase
 | **L3** Email static map | `48f0e4c` (#1637) | `GOOGLE_MAPS_STATIC_API_KEY` secret + `send-confirmation-email` redeploy |
 | **L4** Run-proximity push | `456f1a4` (#1638) | **Migration** `20260816120000` + `push-trigger-run-proximity` deploy |
 | **L4** Install instrumentation | `959f787` (#1639) | Nothing — ships with the frontend, uses existing `analytics_events` |
+| **L5** Calendar feed | #1641 | **Migration** `20260816130000` + `calendar-feed` deploy + feed URL config |
 
 Phases below run in **ascending risk order**. Nothing here depends on a later phase, so you can stop after any of them.
 
@@ -94,7 +95,7 @@ Confirm the CLI's output names project `sojmvhhwsjxmfistvzbe`.
 
 ---
 
-## Phase 4 — L4 run-proximity push (the only migration)
+## Phase 4 — L4 run-proximity push (migration + trigger on `entries`)
 
 **Highest blast radius. Deploy outside a show window** — the migration creates a trigger on `public.entries`, which briefly takes `ACCESS EXCLUSIVE` on that table.
 
@@ -107,7 +108,7 @@ Confirm the CLI's output names project `sojmvhhwsjxmfistvzbe`.
 npx supabase@2.114.0 db push --dry-run --project-ref sojmvhhwsjxmfistvzbe
 ```
 
-Expect exactly `20260816120000_run_proximity_push.sql`. Anything else — stop and reconcile first.
+Expect `20260816120000_run_proximity_push.sql` (and `20260816130000_calendar_feed_tokens.sql` if L5 has merged — see Phase 5). Anything else — stop and reconcile first.
 
 ```sql
 -- The migration adds a UNIQUE index on notification_preferences.auth_user_id.
@@ -170,8 +171,81 @@ Never edit an applied migration — if the schema itself needs reverting, write 
 
 ---
 
+## Phase 5 — L5 calendar feed (migration + new public-facing function)
+
+Independent of Phase 4. The migration only creates a new table and two RPCs — no
+DDL on a hot table — so this does not need a show-free window the way Phase 4
+does. What makes it worth care is the opposite: **`calendar-feed` is the first
+edge function serving a URL that acts as its own credential.**
+
+### 5.1 Pre-flight
+
+```bash
+npx supabase@2.114.0 db push --dry-run --project-ref sojmvhhwsjxmfistvzbe
+```
+
+Expect `20260816130000_calendar_feed_tokens.sql`. Nothing else new.
+
+### 5.2 Apply
+
+```bash
+npx supabase@2.114.0 db push --project-ref sojmvhhwsjxmfistvzbe
+
+# --no-verify-jwt is REQUIRED here and is not the usual rubber stamp: Google's
+# and Apple's calendar servers fetch this URL with no Authorization header. The
+# function authenticates the token in the query string itself.
+npx supabase@2.114.0 functions deploy calendar-feed --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+
+# Namespaces the UIDs inside emitted events. Keep it STABLE — changing it makes
+# every subscriber's existing events duplicate rather than update.
+npx supabase@2.114.0 secrets set CALENDAR_FEED_ORIGIN=myk9show.com --project-ref sojmvhhwsjxmfistvzbe
+```
+
+Frontend config is optional: the app derives the feed URL from
+`VITE_SUPABASE_URL`. Set `VITE_CALENDAR_FEED_URL` in Vercel only if the feed
+should be served from a custom domain. With neither set the dialog hides itself
+rather than offering a broken link.
+
+### 5.3 Verify
+
+```sql
+-- Applied ACLs, not the migration text. authenticated must hold SELECT and
+-- nothing else; anon must appear nowhere.
+select unnest(relacl)::text from pg_class
+where oid = 'public.calendar_feed_tokens'::regclass;
+```
+
+Then, end to end:
+1. As an exhibitor with entries, open **Add to Calendar** on a show card.
+2. **Subscribe on an iPhone** — tapping the webcal link must open the Calendar
+   app and offer a *subscription*, not a one-time import. This is the failure
+   mode worth catching: a wrong scheme silently does nothing on iOS, and iOS is
+   the platform this feature matters most for.
+3. Import the downloaded `.ics` into Google Calendar and Outlook.
+4. Change a class's start time, then refetch the feed URL — the event moves, and
+   it does not duplicate (the UID is stable per class).
+5. **Multi-day show:** confirm each day renders in its own trial's timezone.
+6. `curl` the feed URL and read the body: class, venue, times, armband, dog name.
+   **No payment, entry status, fees or scores.** If any appear, stop — the query
+   in `calendar-feed/index.ts` is the enforcement point.
+7. Click **Turn off this link**, then refetch: expect `404`.
+
+### 5.4 Rollback
+
+```sql
+-- Kills every live feed immediately without touching the schema.
+update public.calendar_feed_tokens set revoked_at = now() where revoked_at is null;
+```
+
+Subscribers' calendars keep the events they already have but stop updating. To
+remove the feature entirely, delete the deployed function; the dialog then shows
+its unavailable state rather than erroring.
+
+---
+
 ## Post-deploy
 
 - Update the phase table in [`docs/plan-google-apple-integrations.md`](../plan-google-apple-integrations.md) to reflect what is actually live.
+- For L5, `calendar_feed_tokens.last_fetched_at` answers whether anyone actually subscribed. If it stays null across a show weekend, the feature is not earning its keep and the subscribe UI should be reconsidered rather than expanded.
 - Read the install-rate split once real sessions have accumulated — the query is in that plan's L4 section. `pushReachable` is the number that decides whether L6 (SMS) is a necessity or a luxury; it is worth a look before committing to the 10DLC spend.
 - Note that L4's alerts only reach **installed** PWAs on iOS. Until the install rate is known, assume a meaningful share of iPhone exhibitors are still unreachable.

@@ -1,7 +1,6 @@
 import React, { Suspense } from 'react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -15,6 +14,7 @@ import { ORGANIZATIONS } from '../ShowDetailsStep.types';
 import { SectionHeading } from './SectionHeading';
 import { VenuePinMap } from '@/components/common/LazyComponents';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
+import { VenueAddressAutocomplete } from '@/features/maps/VenueAddressAutocomplete';
 
 interface BasicsSectionProps {
   show: ShowDraft;
@@ -76,16 +76,23 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({ show, onUpdate, cl
         <Label htmlFor="show-location">
           Location <span className="text-destructive">*</span>
         </Label>
-        <Textarea
+        <VenueAddressAutocomplete
           id="show-location"
           value={show.location || ''}
-          onChange={e => {
-            const location = e.target.value;
-            onUpdate(invalidateVenuePinIfLocationChanged(show.location, { location }));
-          }}
+          onChange={location =>
+            onUpdate(invalidateVenuePinIfLocationChanged(show.location, { location }))
+          }
+          onPlaceSelected={({ location, lat, lng }) =>
+            onUpdate(
+              invalidateVenuePinIfLocationChanged(show.location, {
+                location,
+                latitude: lat,
+                longitude: lng,
+              })
+            )
+          }
           placeholder="Enter venue name and address"
           rows={3}
-          className="border border-border bg-input rounded-md"
         />
       </div>
 

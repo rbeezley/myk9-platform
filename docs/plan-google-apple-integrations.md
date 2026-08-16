@@ -49,12 +49,12 @@ The actual work:
 **Highest ROI item in this document.** Same processing rate as a card, materially lower mobile cart abandonment, and your entries happen on phones.
 
 ### L3. Maps — Places Autocomplete + Static Maps
-**~2 days.** Nothing exists yet — genuinely greenfield. Two narrow uses only:
+**~1 day remaining.** **[corrected during implementation]** "Greenfield" was wrong — the app already carries a substantial free-tier maps stack: a Leaflet/OSM `VenuePinMap` in the show wizard with a draggable pin and Nominatim geocoding on the address, a shows-browse map view, venue `latitude`/`longitude` columns flowing through `create_show_with_children`, and a Google **Maps Embed API** `VenueMap` on the show overview (keyless fallback, `VITE_GOOGLE_MAPS_EMBED_API_KEY`). L3 narrows to the two pieces that stack doesn't cover:
 
-- **Places Autocomplete** on the venue address field in trial setup. Validated address plus lat/lng, and it eliminates the most common data-entry error in the pipeline. Secretary trial setup is an online flow, so no offline-first/replication concern.
-- **Static Maps** image in the premium list and entry confirmation email. No JS, no map-load billing, renders inside email clients.
+- **Places Autocomplete** on the wizard's venue Location field — **built.** `VenueAddressAutocomplete` (features/maps) suggests venues/addresses via Places API (New) with per-session billing tokens; selecting one fills the field and drops the map pin from Google's coordinates. Gated on `VITE_GOOGLE_MAPS_API_KEY`: without a key the field renders exactly as before (plain textarea + Nominatim "Locate"). Suggestions render in-flow, not as an anchored popup, per the `noHandRolledDropdowns` guard.
+- **Static Maps** image in the premium list and entry confirmation email — **remaining.** Note the confirmation email has 7 style templates (`send-confirmation-email/*-email.ts`), each with its own venue block and parity tests, so this is a shared-helper-plus-seven-insertions job, not one edit. No JS, no map-load billing, renders inside email clients.
 
-*Financial:* Essentials SKUs carry 10,000 free events per month each and free usage no longer pools across SKUs. Comfortably free at launch volume. **Implement Autocomplete session tokens** — it bills per session, not per keystroke, and getting this wrong multiplies cost.
+*Financial:* Essentials SKUs carry 10,000 free events per month each and free usage no longer pools across SKUs. Comfortably free at launch volume. Session tokens are implemented — Autocomplete bills per session, not per keystroke, and the client mints one token per typing session, consumed by the terminating Place Details call.
 
 *Deferred:* interactive Dynamic Maps, the drag-and-drop ring layout canvas, geofencing. Good ideas; none answer "can a secretary run their first trial without this."
 
@@ -103,7 +103,7 @@ Required by project policy; each item gates its integration.
 
 - **L1:** Apple sign-in round-trip on a real iOS device; account-linking behavior verified when the same email exists as a Google-identity account (document the observed behavior, don't assume).
 - **L2:** Stripe test mode on iOS Safari (Apple Pay) and Android Chrome (Google Pay); confirm the wallet buttons render on the hosted Checkout page and a wallet test charge settles through the existing `stripe-webhook` path as an ordinary card payment; confirm `moneyPathCloseout.source.test.ts` still passes (card-only pin intact).
-- **L3:** Autocomplete session tokens verified in the Google Cloud billing console (one session per address entry, not per keystroke); Static Maps image renders in Gmail and Apple Mail clients, not just the browser.
+- **L3:** with a real key on staging: suggestions appear in the wizard Location field, selection drops the pin, and the Google Cloud billing console shows one Autocomplete session per address entry (not per keystroke); without a key the field behaves exactly as before. Static Maps image renders in Gmail and Apple Mail clients, not just the browser.
 - **L4:** push received on an **installed** iOS 16.4+ PWA and on Android Chrome; proximity trigger fired from a seeded class run-order fixture; unit tests for the "N runs out" computation. Run new vitest files with `--sequence.shuffle` 6+ times and register them in the appropriate config allowlist (project rule — new test files do not auto-run in CI).
 - **L5:** generated `.ics` validates and imports on Google Calendar, Apple Calendar, and Outlook; webcal feed refreshes an updated run time; feed token 404s after revocation; verify the feed response contains no payment/status fields.
 - **L6:** TCPA round-trip on a real handset: opt-in stores timestamp + text version + source; STOP halts sends and is recorded; HELP responds; message stays GSM-7 (no emoji) under 160 chars.

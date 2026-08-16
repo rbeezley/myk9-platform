@@ -249,23 +249,44 @@ export function useAuth() {
   }, []);
 
   /**
+   * Starts an OAuth sign-in through the shared /auth/callback route
+   * @throws {AuthError} If OAuth initiation fails
+   */
+  const signInWithOAuthProvider = useCallback(
+    async (provider: 'google' | 'apple', redirectTo?: string) => {
+      const callbackUrl = new URL('/auth/callback', window.location.origin);
+      if (redirectTo) {
+        callbackUrl.searchParams.set('redirectTo', redirectTo);
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: callbackUrl.toString(),
+        },
+      });
+      if (error) throw error;
+    },
+    []
+  );
+
+  /**
    * Signs in a user with Google OAuth
    * @throws {AuthError} If OAuth initiation fails
    */
-  const signInWithGoogle = useCallback(async (redirectTo?: string) => {
-    const callbackUrl = new URL('/auth/callback', window.location.origin);
-    if (redirectTo) {
-      callbackUrl.searchParams.set('redirectTo', redirectTo);
-    }
+  const signInWithGoogle = useCallback(
+    (redirectTo?: string) => signInWithOAuthProvider('google', redirectTo),
+    [signInWithOAuthProvider]
+  );
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: callbackUrl.toString(),
-      },
-    });
-    if (error) throw error;
-  }, []);
+  /**
+   * Signs in a user with Sign in with Apple
+   * @throws {AuthError} If OAuth initiation fails
+   */
+  const signInWithApple = useCallback(
+    (redirectTo?: string) => signInWithOAuthProvider('apple', redirectTo),
+    [signInWithOAuthProvider]
+  );
 
   /**
    * Signs out the current user
@@ -336,6 +357,7 @@ export function useAuth() {
     resendConfirmationEmail,
     signIn,
     signInWithGoogle,
+    signInWithApple,
     signOut,
     resetPassword,
     updatePassword,

@@ -70,22 +70,31 @@ and a rejected campaign costs a re-vetting fee to resubmit.
 | Support email + phone  | Appears in the HELP reply. Must be `support@myk9show.com` — see below.                                        |
 
 **The support address is `support@myk9show.com`,** matching the registered
-brand website. It must match: a reviewer comparing the website domain against
-the contact domain treats a mismatch as an inconsistency. Do **not** use
-`myk9t.com` — that is this repo's seeded test-account namespace
-(`exhibitor1@myk9t.com` … `exhibitor5@myk9t.com`), and the trailing "t" reads
-as "test" to a human reviewer.
+brand website. Reviewers compare the brand's website domain against its
+contact domain, and a mismatch is friction on a filing that is expensive to
+redo — so the address should sit on the same domain as the site, even though
+a different-domain address is not by itself fatal.
 
-**That mailbox does not exist yet, and Vercel cannot provide it.** Vercel sells
-hosting, domain registration, and DNS — it has never offered mailboxes on any
-tier, so no plan upgrade produces one. A separate provider is required. For
-this filing the address only has to _receive_ (brand verification mail lands
-there; the HELP reply merely points at it), so free forwarding is sufficient:
-ImprovMX needs only MX records and leaves DNS on Vercel, while Cloudflare Email
-Routing is equally free but wants the nameservers. Zoho's free tier gives real
-mailboxes if replying _as_ support@ matters. Forwarding still satisfies the
-"domain email, not free-mail" expectation on the brand record — that rule is
-about the address, not where it terminates.
+**Vercel cannot host that mailbox.** Vercel sells hosting, domain
+registration, and DNS; it has never offered mailboxes on any tier, so no plan
+upgrade produces one.
+
+**The cheap path is forwarding, not a new mailbox.** `myk9t.com` — the
+original Access-programs site, and the domain behind the seeded exhibitor test
+accounts (`exhibitor1@myk9t.com` … `exhibitor5@myk9t.com`) — already has
+working mailboxes. Point `support@myk9show.com` at one of them and the filing
+gets its matching domain while the mail keeps landing where it already does.
+Two ways, both cheap:
+
+1. Add `myk9show.com` as an alias/secondary domain on the existing `myk9t.com`
+   mail hosting, if that host allows it. Usually free, and it supports sending
+   _as_ `support@myk9show.com`, not just receiving.
+2. Failing that, ImprovMX forwards for free using only MX records, so DNS
+   stays on Vercel. Receive-only on the free tier, which is enough here —
+   brand verification mail lands there and the HELP reply merely points at it.
+
+Forwarding still satisfies the "domain email, not free-mail" expectation on
+the brand record: that rule is about the address, not where it terminates.
 
 **No EIN yet?** There is a Sole Proprietor brand path that verifies via a phone
 OTP instead. It is a poor fit: one campaign maximum, roughly 15 messages/minute,
@@ -243,7 +252,7 @@ In rough order of frequency:
 ## 7. Definition of done
 
 - [ ] EIN obtained; legal name confirmed against the IRS record
-- [ ] `support@myk9show.com` provisioned and receiving (§2 — Vercel cannot do this)
+- [ ] `support@myk9show.com` receiving, forwarded to an existing `myk9t.com` mailbox (§2)
 - [x] Privacy policy carries the mobile-information clause (§3.2)
 - [ ] Public `/sms` disclosure page live (§3.1)
 - [ ] Brand registered and approved

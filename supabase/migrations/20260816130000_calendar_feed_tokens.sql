@@ -9,7 +9,7 @@
 --     (20260525180000). Guessing one is not a practical attack.
 --   * Revocable: revoked_at set means the feed 404s from that moment. An
 --     exhibitor who shared a link by accident has a way out.
---   * Scoped to (user, trial). A leaked token exposes ONE trial's run times
+--   * Scoped to (user, show). A leaked token exposes ONE show's run times
 --     for ONE exhibitor, never an account.
 --   * The feed itself exposes schedule only — class, ring, times. Never
 --     payment, entry status, or scores. That is enforced in the edge
@@ -25,24 +25,24 @@ begin;
 create table if not exists public.calendar_feed_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  trial_id uuid not null references public.trials(id) on delete cascade,
+  show_id uuid not null references public.shows(id) on delete cascade,
   -- 64 hex chars = 32 bytes of entropy.
   token text not null unique,
   created_at timestamptz not null default now(),
   last_fetched_at timestamptz,
   revoked_at timestamptz,
-  -- One live token per (user, trial); rotating revokes and re-issues.
-  constraint calendar_feed_tokens_user_trial_key unique (user_id, trial_id)
+  -- One live token per (user, show); rotating revokes and re-issues.
+  constraint calendar_feed_tokens_user_show_key unique (user_id, show_id)
 );
 
 comment on table public.calendar_feed_tokens is
-  'Per-exhibitor, per-trial webcal subscription tokens. The URL is the credential — see migration header before widening any grant.';
+  'Per-exhibitor, per-show webcal subscription tokens. The URL is the credential — see migration header before widening any grant.';
 comment on column public.calendar_feed_tokens.revoked_at is
   'Set to disable a leaked or rotated feed URL; the edge function treats a revoked token as not found.';
 comment on column public.calendar_feed_tokens.last_fetched_at is
   'Updated by the feed function. Also the signal for whether anyone actually subscribed, which decides if this feature earns its keep.';
 
--- No separate (user_id) index: the UNIQUE (user_id, trial_id) constraint's
+-- No separate (user_id) index: the UNIQUE (user_id, show_id) constraint's
 -- backing btree already serves user_id lookups as its leftmost prefix, so a
 -- second index would only cost write maintenance.
 
@@ -62,8 +62,8 @@ comment on column public.calendar_feed_tokens.last_fetched_at is
 --      an error.)
 --   3. `revoked_at` could be set back to null, undoing a revocation the
 --      exhibitor performed after leaking a URL.
---   4. `trial_id` could be repointed, aiming an already-shared URL at a
---      different trial.
+--   4. `show_id` could be repointed, aiming an already-shared URL at a
+--      different show.
 --
 -- anon gets NOTHING. Per CLAUDE.md, omitting a grant is not enough — ALTER
 -- DEFAULT PRIVILEGES in this schema hands anon full CRUD on new tables unless
@@ -90,7 +90,7 @@ create policy calendar_feed_tokens_owner_read
 -- Issue-or-rotate. SECURITY DEFINER so the token value is generated server
 -- side and never chosen by the caller; scoped to the caller's own uid.
 -- ---------------------------------------------------------------------------
-create or replace function public.issue_calendar_feed_token(p_trial_id uuid)
+create or replace function public.issue_calendar_feed_token(p_show_id uuid)
 returns text
 language plpgsql
 security definer
@@ -104,12 +104,12 @@ begin
     raise exception 'authentication required' using errcode = '42501';
   end if;
 
-  if not exists (select 1 from public.trials t where t.id = p_trial_id) then
-    raise exception 'trial not found' using errcode = 'P0002';
+  if not exists (select 1 from public.shows s where s.id = p_show_id and s.deleted_at is null) then
+    raise exception 'show not found' using errcode = 'P0002';
   end if;
 
-  -- Deliberately NOT gated on "caller has an entry in this trial". The feed
-  -- itself is scoped to the caller's own entries, so a token for a trial they
+  -- Deliberately NOT gated on "caller has an entry in this show". The feed
+  -- itself is scoped to the caller's own entries, so a token for a show they
   -- are not in returns an empty calendar rather than anyone else's schedule.
   -- An entry check here would instead break legitimate cases — subscribing
   -- before the draw assigns classes, or a handler whose link lands later —
@@ -117,9 +117,9 @@ begin
 
   v_token := encode(extensions.gen_random_bytes(32), 'hex');
 
-  insert into public.calendar_feed_tokens (user_id, trial_id, token)
-  values (v_user_id, p_trial_id, v_token)
-  on conflict (user_id, trial_id) do update
+  insert into public.calendar_feed_tokens (user_id, show_id, token)
+  values (v_user_id, p_show_id, v_token)
+  on conflict (user_id, show_id) do update
     -- Rotating replaces the secret AND clears any prior revocation.
     set token = excluded.token,
         created_at = now(),
@@ -130,9 +130,9 @@ end;
 $$;
 
 comment on function public.issue_calendar_feed_token(uuid) is
-  'Issues or rotates the caller''s webcal token for one trial. Rotation invalidates the previous URL.';
+  'Issues or rotates the caller''s webcal token for one show. Rotation invalidates the previous URL.';
 
-create or replace function public.revoke_calendar_feed_token(p_trial_id uuid)
+create or replace function public.revoke_calendar_feed_token(p_show_id uuid)
 returns boolean
 language plpgsql
 security definer
@@ -148,7 +148,7 @@ begin
   update public.calendar_feed_tokens
   set revoked_at = now()
   where user_id = v_user_id
-    and trial_id = p_trial_id
+    and show_id = p_show_id
     and revoked_at is null;
 
   return found;
@@ -156,7 +156,7 @@ end;
 $$;
 
 comment on function public.revoke_calendar_feed_token(uuid) is
-  'Disables the caller''s webcal URL for one trial. Idempotent: returns false when nothing was live.';
+  'Disables the caller''s webcal URL for one show. Idempotent: returns false when nothing was live.';
 
 -- Explicit EXECUTE decisions (20260728120000 grant-regrowth guard). Both are
 -- caller-scoped via auth.uid(), so authenticated may run them; anon may not.

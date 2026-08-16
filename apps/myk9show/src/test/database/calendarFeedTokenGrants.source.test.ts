@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
  * audit caught: a WITH CHECK on user_id constrains who owns the row, not what
  * is in it. That let a client write its own low-entropy token, probe the
  * table-wide UNIQUE on `token` as an existence oracle for other users' tokens,
- * clear `revoked_at` to undo a revocation, or repoint `trial_id` at a shared
+ * clear `revoked_at` to undo a revocation, or repoint `show_id` at a shared
  * URL.
  *
  * The rule this pins: clients may READ their own token row and nothing else.

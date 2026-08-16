@@ -90,12 +90,16 @@ The real gap was one line: push was sent **from the browser**, gated on `documen
 *Deploy note:* the trigger needs the `edge_function_base_url` and `push_webhook_secret` Vault secrets already used by the other push triggers, plus a `push-trigger-run-proximity` function deploy. Absent either, it logs a notice and skips — it can never abort a steward's ring check-in.
 
 ### L5. Calendar — .ics + webcal feed
-**~3 days.** Skip the Google Calendar API and Apple EventKit entirely.
+**Built (code complete; deploy pending).** Skip the Google Calendar API and Apple EventKit entirely. Genuinely greenfield — the one launch item where no prior implementation existed.
 
-- Downloadable `.ics` per entry — one code path covers Google, Apple, and Outlook
-- `webcal://` subscription feed per exhibitor per trial, so estimated run times shift automatically as judging runs ahead or behind
+- **Subscription feed and download — built.** One `calendar-feed` edge function serves both: `webcal://` for an auto-updating subscription, the same URL with `&download=1` for a one-off `.ics`. One code path covers Google, Apple, and Outlook.
+- **Scoped per SHOW, not per trial** *(changed from this plan's original wording)*. A show is the weekend an exhibitor entered; trials are the days within it. One subscribe link per weekend is what an exhibitor wants, and it matches the `MyEntry` grouping the UI already has. Each trial still supplies its own date and timezone, so a multi-day show spanning a DST change stays correct.
+- **Events are per CLASS, not per dog.** Per-dog estimates would mean projecting from run order x average duration — a number that moves every few minutes, and every move is a push notification from the subscriber's calendar client. Per-class delivers the "shifts as judging runs ahead or behind" promise honestly: `DTSTART` uses the class's actual start once the ring reports it, and `STATUS` flips `TENTATIVE` -> `CONFIRMED` with it. A class with no time yet is omitted rather than guessed.
+- **Security.** Token is 32 random bytes (`show_passcodes` generator), revocable and rotatable via `SECURITY DEFINER` RPCs; `authenticated` holds SELECT only so a client cannot forge a token, probe the unique index as an existence oracle, un-revoke, or repoint a shared URL. Feed exposes schedule only — never payment, entry status, or scores. Absent/malformed/revoked/unknown tokens are indistinguishable 404s.
 
 Cheaper to build than the API approach and strictly more capable. No OAuth scopes to justify.
+
+*Note:* the shared edge `handle()` envelope cannot serve this — it requires a JSON body, 405s non-POST, and wraps returns in JSON. The function uses the raw `Deno.serve` pattern already established by `validate-passcode`.
 
 **Security design is part of the feature, not an afterthought.** **[added]** A per-exhibitor subscription URL is an unauthenticated capability token fetched by Google/Apple calendar servers — it cannot carry a session. Requirements:
 
@@ -126,7 +130,7 @@ Required by project policy; each item gates its integration.
 - **L2:** Stripe test mode on iOS Safari (Apple Pay) and Android Chrome (Google Pay); confirm the wallet buttons render on the hosted Checkout page and a wallet test charge settles through the existing `stripe-webhook` path as an ordinary card payment; confirm `moneyPathCloseout.source.test.ts` still passes (card-only pin intact).
 - **L3:** with a real key on staging: suggestions appear in the wizard Location field, selection drops the pin, and the Google Cloud billing console shows one Autocomplete session per address entry (not per keystroke); without a key the field behaves exactly as before. Static Maps image renders in Gmail and Apple Mail clients, not just the browser.
 - **L4:** push received on an **installed** iOS 16.4+ PWA and on Android Chrome **with the app fully closed** (the whole point of moving the trigger server-side — a backgrounded-but-alive app proves nothing); proximity trigger fired by flipping an entry to in-ring on staging; verify the pushed number matches the entry-list pill on reopen; confirm a steward's check-in still succeeds with the Vault secrets deliberately unset. Unit tests for the queue/recipient logic run with `--sequence.shuffle` 6+ times and are registered in the vitest allowlist (project rule — new test files do not auto-run in CI).
-- **L5:** generated `.ics` validates and imports on Google Calendar, Apple Calendar, and Outlook; webcal feed refreshes an updated run time; feed token 404s after revocation; verify the feed response contains no payment/status fields.
+- **L5:** generated `.ics` validates and imports on Google Calendar, Apple Calendar, and Outlook; the `webcal://` link actually subscribes on iOS (not just downloads); the feed reflects an updated run time on refetch; a revoked token 404s; verify the response body contains no payment/status fields; confirm a multi-day show renders each day in its own trial timezone.
 - **L6:** TCPA round-trip on a real handset: opt-in stores timestamp + text version + source; STOP halts sends and is recorded; HELP responds; message stays GSM-7 (no emoji) under 160 chars.
 
 ---

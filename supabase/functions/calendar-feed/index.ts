@@ -1,8 +1,13 @@
 // =====================================================
 // Supabase Edge Function: calendar-feed
 // =====================================================
-// Serves an exhibitor's run schedule for one trial as an iCalendar document,
-// for `webcal://` subscription and one-off `.ics` download (plan L5).
+// Serves an exhibitor's run schedule for one SHOW — every trial in it — as an
+// iCalendar document, for `webcal://` subscription and `.ics` download (L5).
+//
+// Scoped per SHOW, not per trial: a show is the weekend an exhibitor entered,
+// and one subscribe link per weekend is what they actually want. Each trial
+// inside it still supplies its own date and timezone, so a multi-day show that
+// spans a DST change stays correct.
 //
 // Deploy: supabase functions deploy calendar-feed --no-verify-jwt
 //
@@ -16,7 +21,7 @@
 // SECURITY MODEL: the URL is the credential. There is no session on a webcal
 // fetch — no cookie, no Authorization header. Therefore:
 //   * The token is 32 random bytes (see migration 20260816130000).
-//   * A token scopes to exactly ONE exhibitor's entries in ONE trial.
+//   * A token scopes to exactly ONE exhibitor's entries in ONE show.
 //   * The response carries SCHEDULE ONLY — class, venue, times, armband.
 //     Never payment status, entry status, fees, or scores. The query below is
 //     the enforcement point; keep it narrow.
@@ -56,14 +61,19 @@ serve(async (req: Request) => {
     return new Response('Method not allowed', { status: 405, headers: BASE_HEADERS });
   }
 
-  const token = new URL(req.url).searchParams.get('token')?.trim() ?? '';
+  const requestUrl = new URL(req.url);
+  const token = requestUrl.searchParams.get('token')?.trim() ?? '';
   if (!TOKEN_PATTERN.test(token)) return notFound();
+
+  // `download=1` is the one-off snapshot; without it the response is inline,
+  // which is what a subscribing calendar client expects.
+  const asAttachment = requestUrl.searchParams.get('download') === '1';
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   const { data: tokenRow, error: tokenError } = await supabase
     .from('calendar_feed_tokens')
-    .select('id, user_id, trial_id, revoked_at')
+    .select('id, user_id, show_id, revoked_at')
     .eq('token', token)
     .maybeSingle();
 
@@ -73,37 +83,43 @@ serve(async (req: Request) => {
   }
   if (!tokenRow || tokenRow.revoked_at) return notFound();
 
-  const { user_id: userId, trial_id: trialId } = tokenRow as {
+  const { user_id: userId, show_id: showId } = tokenRow as {
     id: string;
     user_id: string;
-    trial_id: string;
+    show_id: string;
     revoked_at: string | null;
   };
 
-  const { data: trial, error: trialError } = await supabase
-    .from('trials')
-    .select('id, name, date, timezone, show:shows(name, venue_name, address, city, state)')
-    .eq('id', trialId)
+  // A show spans several trials (days/rings); the feed covers the whole
+  // weekend, and each trial carries its OWN date and timezone.
+  const { data: show, error: showError } = await supabase
+    .from('shows')
+    .select('id, name, venue_name, address, city, state, trials(id, name, date, timezone)')
+    .eq('id', showId)
+    .is('deleted_at', null)
     .maybeSingle();
 
-  if (trialError || !trial) {
-    console.error('calendar-feed: trial lookup failed', trialError?.message);
+  if (showError || !show) {
+    console.error('calendar-feed: show lookup failed', showError?.message);
     return notFound();
   }
 
-  const trialRow = trial as unknown as {
+  const showRow = show as unknown as {
     id: string;
     name: string | null;
-    date: string;
-    timezone: string | null;
-    show?: {
-      name?: string | null;
-      venue_name?: string | null;
-      address?: string | null;
-      city?: string | null;
-      state?: string | null;
-    } | null;
+    venue_name: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    trials?: Array<{ id: string; name: string | null; date: string; timezone: string | null }>;
   };
+
+  const trialsById = new Map(
+    (showRow.trials ?? []).map(t => [t.id, t] as const)
+  );
+  if (trialsById.size === 0) {
+    console.error('calendar-feed: show has no trials', showId);
+  }
 
   // SCHEDULE ONLY. Every column here is something the exhibitor already sees
   // on their own entry; nothing about money or standing.
@@ -112,7 +128,7 @@ serve(async (req: Request) => {
     .select(
       'id, armband, dog:dogs!inner(call_name, owner_id, co_owner_id), class:classes!inner(id, name, start_time, estimated_duration, actual_start_time, actual_end_time, trial_id), handler:people!handler_id(auth_user_id)'
     )
-    .eq('class.trial_id', trialId)
+    .in('class.trial_id', [...trialsById.keys()])
     .is('deleted_at', null)
     .not('entry_status', 'in', '("withdrawn","scratched","absent")');
 
@@ -132,15 +148,11 @@ serve(async (req: Request) => {
 
   const venue =
     [
-      trialRow.show?.venue_name,
-      [trialRow.show?.address, trialRow.show?.city, trialRow.show?.state]
-        .filter(Boolean)
-        .join(', '),
+      showRow.venue_name,
+      [showRow.address, showRow.city, showRow.state].filter(Boolean).join(', '),
     ]
       .filter(Boolean)
       .join('\n') || null;
-
-  const timeZone = trialRow.timezone?.trim() || 'America/New_York';
 
   // One event per class, deduped: an exhibitor with two dogs in the same class
   // gets one calendar entry, not two overlapping ones.
@@ -158,6 +170,7 @@ serve(async (req: Request) => {
         estimated_duration: number | null;
         actual_start_time: string | null;
         actual_end_time: string | null;
+        trial_id: string;
       };
       handler?: { auth_user_id?: string | null } | null;
     };
@@ -167,6 +180,11 @@ serve(async (req: Request) => {
         (entry.dog?.owner_id === personId || entry.dog?.co_owner_id === personId)) ||
       entry.handler?.auth_user_id === userId;
     if (!isMine || !entry.class) continue;
+
+    // Each class belongs to a trial, and each trial carries its own date and
+    // zone — a multi-day show can legitimately span a DST change.
+    const trial = trialsById.get(entry.class.trial_id);
+    if (!trial) continue;
 
     const existing = eventsByClass.get(entry.class.id);
     if (existing) {
@@ -180,20 +198,20 @@ serve(async (req: Request) => {
     eventsByClass.set(entry.class.id, {
       classId: entry.class.id,
       className: entry.class.name ?? 'Class',
-      trialDate: trialRow.date,
+      trialDate: trial.date,
       startTime: entry.class.start_time,
       actualStartTime: entry.class.actual_start_time,
       actualEndTime: entry.class.actual_end_time,
       estimatedDuration: entry.class.estimated_duration,
-      timeZone,
+      timeZone: trial.timezone?.trim() || 'America/New_York',
       venue,
       armband: entry.armband,
       dogName: entry.dog?.call_name ?? null,
-      trialName: trialRow.name,
+      trialName: trial.name,
     });
   }
 
-  const calendarName = [trialRow.show?.name, trialRow.name].filter(Boolean).join(' — ') || 'My runs';
+  const calendarName = showRow.name ?? 'My runs';
   const ics = buildIcsDocument({
     calendarName,
     events: [...eventsByClass.values()],
@@ -214,7 +232,7 @@ serve(async (req: Request) => {
     headers: {
       ...BASE_HEADERS,
       'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': 'inline; filename="myk9show-runs.ics"',
+      'Content-Disposition': `${asAttachment ? 'attachment' : 'inline'}; filename="myk9show-runs.ics"`,
     },
   });
 });

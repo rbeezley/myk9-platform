@@ -33,11 +33,11 @@ gets that guarantee for free.
 
 The price delta is not material here. One alert per exhibitor per trial:
 
-| | Twilio | Telnyx / Plivo |
-| --- | --- | --- |
-| Per outbound SMS | ~$0.0079 | ~$0.004–0.005 |
-| Carrier pass-through fee | ~$0.003 | ~$0.003 (same, it is the carrier's) |
-| 500-exhibitor trial | ~$5.50 | ~$4.00 |
+|                          | Twilio   | Telnyx / Plivo                      |
+| ------------------------ | -------- | ----------------------------------- |
+| Per outbound SMS         | ~$0.0079 | ~$0.004–0.005                       |
+| Carrier pass-through fee | ~$0.003  | ~$0.003 (same, it is the carrier's) |
+| 500-exhibitor trial      | ~$5.50   | ~$4.00                              |
 
 A ~$1.50/trial premium for platform-enforced compliance is the right trade at
 this stage. Revisit if volume reaches tens of thousands of messages a month.
@@ -59,15 +59,42 @@ A bare `from` number skips exactly the protection we are paying for.
 Gather these. A campaign is rejected, not paused, when an answer is missing,
 and a rejected campaign costs a re-vetting fee to resubmit.
 
-| Item | Notes |
-| --- | --- |
-| Legal business name | Must match the EIN record **exactly** — "MyK9Show LLC" ≠ "myK9Show, LLC". Mismatch is the #1 brand rejection. |
-| EIN (Tax ID) | Free and immediate from the IRS. See the sole-proprietor fallback below if there is no entity yet. |
-| Business address | The registered address on the EIN record. |
-| Business website | Must be publicly reachable and must show the SMS program — see §3. |
-| Entity type + industry | Private LLC / Corp; vertical is closest to "Technology" or "Entertainment". |
-| Authorized contact | Name, business email, phone. Use a domain email, not Gmail — free-mail addresses lower the brand trust score. |
-| Support email + phone | Appears in the HELP reply. |
+| Item                   | Notes                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Legal business name    | Must match the EIN record **exactly** — "MyK9Show LLC" ≠ "myK9Show, LLC". Mismatch is the #1 brand rejection. |
+| EIN (Tax ID)           | Free and immediate from the IRS. See the sole-proprietor fallback below if there is no entity yet.            |
+| Business address       | The registered address on the EIN record.                                                                     |
+| Business website       | Must be publicly reachable and must show the SMS program — see §3.                                            |
+| Entity type + industry | Private LLC / Corp; vertical is closest to "Technology" or "Entertainment".                                   |
+| Authorized contact     | Name, business email, phone. Use a domain email, not Gmail — free-mail addresses lower the brand trust score. |
+| Support email + phone  | Appears in the HELP reply. Must be `support@myk9show.com` — see below.                                        |
+
+**The support address is `support@myk9show.com`,** matching the registered
+brand website. Reviewers compare the brand's website domain against its
+contact domain, and a mismatch is friction on a filing that is expensive to
+redo — so the address should sit on the same domain as the site, even though
+a different-domain address is not by itself fatal.
+
+**Vercel cannot host that mailbox.** Vercel sells hosting, domain
+registration, and DNS; it has never offered mailboxes on any tier, so no plan
+upgrade produces one.
+
+**The cheap path is forwarding, not a new mailbox.** `myk9t.com` — the
+original Access-programs site, and the domain behind the seeded exhibitor test
+accounts (`exhibitor1@myk9t.com` … `exhibitor5@myk9t.com`) — already has
+working mailboxes. Point `support@myk9show.com` at one of them and the filing
+gets its matching domain while the mail keeps landing where it already does.
+Two ways, both cheap:
+
+1. Add `myk9show.com` as an alias/secondary domain on the existing `myk9t.com`
+   mail hosting, if that host allows it. Usually free, and it supports sending
+   _as_ `support@myk9show.com`, not just receiving.
+2. Failing that, ImprovMX forwards for free using only MX records, so DNS
+   stays on Vercel. Receive-only on the free tier, which is enough here —
+   brand verification mail lands there and the HELP reply merely points at it.
+
+Forwarding still satisfies the "domain email, not free-mail" expectation on
+the brand record: that rule is about the address, not where it terminates.
 
 **No EIN yet?** There is a Sole Proprietor brand path that verifies via a phone
 OTP instead. It is a poor fit: one campaign maximum, roughly 15 messages/minute,
@@ -79,34 +106,48 @@ an EIN takes about ten minutes and unlocks the standard path. Do that instead.
 ## 3. Two blockers to clear first (these are ours, in this repo)
 
 Both are content, not architecture, and both are checked by a human reviewer
-who will open the site. Neither exists today.
+who will open the site. **Both are now done** — this section is kept as the
+record of what the reviewer will find and why it is shaped that way.
 
-### 3.1 The consent flow must be publicly visible
+### 3.1 The consent flow must be publicly visible — DONE
 
 Reviewers verify opt-in by loading a URL. myK9Show's notification settings sit
-behind auth, so a reviewer sees a login wall and rejects the campaign for
-"opt-in not verifiable."
+behind auth, so a reviewer would see a login wall and reject the campaign for
+"opt-in not verifiable" — the single most common rejection cause.
 
-The fix is a public page — `/sms` alongside the existing `/terms` and `/privacy`
-public routes — that reproduces the exact checkbox wording, the program name,
-message frequency, rate disclosure, and STOP/HELP instructions. It does not
-need to be an interactive form; it needs to show what an exhibitor sees.
+`/sms` is now a public route rendering `public/legal/sms-alerts.md` through the
+same `LegalPage` component as `/terms` and `/privacy`, and is linked from both
+footers. It states the program name, what is sent, frequency, the rate
+disclosure, the verbatim consent checkbox wording, STOP/HELP handling, and the
+mobile-information non-sharing sentence.
 
-### 3.2 The privacy policy has no SMS language
+Two things about that page are load-bearing and easy to break silently, so
+`src/test/routes/smsDisclosurePage.source.test.ts` pins them: the route must
+not be wrapped in `ProtectedRoute`, and the disclosures must stay in the
+markdown. Neither failure is visible in the UI — the page still renders fine
+with the wording removed.
 
-`apps/myk9show/public/legal/privacy-policy.md` currently contains no mention of
-SMS, text messaging, or mobile numbers. Carriers now require an explicit
-non-sharing statement, and its absence is an automatic rejection. Add to §3
-("How We Share Your Information"):
+Its links to the privacy policy are absolute (`https://myk9show.com/privacy`)
+on purpose: `LegalPage.inlineFormat` only linkifies `http(s)` URLs, so a
+relative `/privacy` renders as plain text and leaves the reviewer with nothing
+to click. That restriction is a deliberate `javascript:` guard with its own
+test — do not loosen it to make relative links work.
 
-> **Mobile information.** Mobile phone numbers collected for SMS ring alerts,
-> and consent to receive those messages, are not shared or sold to third
-> parties or affiliates for their marketing or promotional purposes. Phone
-> numbers are shared with our SMS delivery provider solely to transmit the
-> alerts you requested.
+### 3.2 The privacy policy SMS clause — DONE
 
-The second sentence matters: we *do* hand the number to Twilio, and the
-carve-out for a delivery subprocessor is what keeps the first sentence true.
+`apps/myk9show/public/legal/privacy-policy.md` had no mention of SMS, text
+messaging, or mobile numbers. Carriers require an explicit non-sharing
+statement and its absence is an automatic rejection, so §3.6 "Mobile
+Information and SMS Messaging" now carries it, along with the supporting
+collection (§1.1), use (§2.3), and opt-out (§6.4) entries.
+
+The carve-out sentence matters as much as the headline one: we _do_ hand the
+number to the delivery provider, and naming that subprocessor is what keeps
+"never shared with third parties" true rather than merely convenient.
+
+Once a provider is live, add a Twilio row to the §3.2 service-providers table
+in the policy — it is deliberately absent while no provider is wired, since
+listing one we do not use would be inaccurate.
 
 ---
 
@@ -187,7 +228,7 @@ have.
 
 That checkbox wording is the canonical text for
 `notification_preferences.sms_consent_text_version = 'sms-consent-v1'`. If it
-is edited, bump the version — the column exists to prove *what* was agreed to,
+is edited, bump the version — the column exists to prove _what_ was agreed to,
 not merely that something was.
 
 **Opt-out** — keyword `STOP` (also STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT):
@@ -199,6 +240,9 @@ not merely that something was.
 
 > myK9Show ring alerts: a text when your dog is close to the ring. Msg & data
 > rates may apply. Reply STOP to cancel. Support: support@myk9show.com
+
+The support address must match the one in the privacy policy (`support@myk9show.com`)
+— a reviewer comparing the two will treat a mismatch as an inconsistency.
 
 ---
 
@@ -221,8 +265,10 @@ In rough order of frequency:
 ## 7. Definition of done
 
 - [ ] EIN obtained; legal name confirmed against the IRS record
-- [ ] Privacy policy carries the mobile-information clause (§3.2)
-- [ ] Public `/sms` disclosure page live (§3.1)
+- [ ] `support@myk9show.com` receiving, forwarded to an existing `myk9t.com` mailbox (§2)
+- [x] Privacy policy carries the mobile-information clause (§3.2)
+- [x] Public `/sms` disclosure page built (§3.1) — **must be deployed and reachable at
+      `https://myk9show.com/sms` before filing**; a reviewer cannot load a preview URL
 - [ ] Brand registered and approved
 - [ ] Campaign submitted with the §5 copy, and approved
 - [ ] Messaging Service created, number attached, **Advanced Opt-Out enabled**

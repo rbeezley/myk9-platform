@@ -32,6 +32,7 @@ import {
   deriveShowCode,
 } from './dispatch-helpers.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
+import { buildVenueMapAssets, renderVenueMapBlock, type VenueMapAssets } from './static-map.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -124,6 +125,7 @@ function buildHtml(data: {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
+  venueMap?: VenueMapAssets | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -170,6 +172,7 @@ function buildHtml(data: {
         </td>
       </tr>
     </table>
+    ${renderVenueMapBlock(data.venueMap, data.venue)}
     ${data.runs[0]?.armband ? `<p style="margin:18px 0 0;padding:12px 16px;background:rgba(138,106,69,0.08);border-left:2px solid ${GOLD};border-right:2px solid ${GOLD};font-family:${BODY_FONT};font-size:12.5px;line-height:1.55;color:${INK};"><em style="font-family:${DISPLAY};font-style:italic;color:${CLARET};">Please bring</em> your AKC registration confirmation, vaccination records, and a copy of this email. Armband <strong style="font-family:${DISPLAY};font-weight:500;">${esc(data.runs[0].armband)}</strong> will be issued at check-in.</p>` : ''}
   </td>
 </tr>`
@@ -383,7 +386,7 @@ handle<ConfirmationEmailPayload>(
       const { data: show } = await supabase
         .from('shows')
         .select(
-          'id, name, start_date, end_date, venue_name, city, state, address, organization, club_id, style, experience_is_published, experience_published_style, experience_published_content'
+          'id, name, start_date, end_date, venue_name, city, state, address, latitude, longitude, organization, club_id, style, experience_is_published, experience_published_style, experience_published_content'
         )
         .eq('id', trial.show_id)
         .single();
@@ -472,7 +475,17 @@ handle<ConfirmationEmailPayload>(
             .filter(Boolean)
             .join('\n') || null;
 
+        // Static map rides on the secretary-placed venue pin. Key must be a
+        // separate one restricted to the Maps Static API only — it is visible
+        // to every email recipient inside the <img> URL.
+        const venueMap = buildVenueMapAssets(
+          show.latitude,
+          show.longitude,
+          Deno.env.get('GOOGLE_MAPS_STATIC_API_KEY')
+        );
+
         const emailData: Parameters<typeof buildHtml>[0] = {
+          venueMap,
           // Prefer the org name from `shows.organization` (the real club
           // identity) so per-style derivations like Field Guide's
           // showCode get distinct club + show inputs. Falls back to

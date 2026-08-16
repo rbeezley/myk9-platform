@@ -1,3 +1,5 @@
+import { renderVenueMapBlock } from './static-map.ts';
+
 // supabase/functions/send-confirmation-email/monogram-email.ts
 //
 // Monogram confirmation email — Deno HTML builder.
@@ -47,6 +49,7 @@ export interface MonogramEmailData {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
+  venueMap?: import("./confirmation-email-shared.ts").VenueMapAssetsRef | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -248,6 +251,7 @@ export function buildMonogramHtml(data: MonogramEmailData): string {
     <td style="padding:8px 56px 8px;">
       <h2 style="margin:0 0 8px;font-family:${MG_DISPLAY};font-weight:500;font-size:18px;color:${MG_INK};">On the day</h2>
       ${doorsBlock}${firstClassBlock}${venueBlock}${parkingBlock}${hospitalityBlock}${cratingBlock}
+      ${renderVenueMapBlock(data.venueMap, data.venue)}
     </td>
   </tr>
 

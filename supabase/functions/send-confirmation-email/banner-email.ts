@@ -1,3 +1,5 @@
+import { renderVenueMapBlock } from './static-map.ts';
+
 // supabase/functions/send-confirmation-email/banner-email.ts
 //
 // Banner confirmation email — Deno HTML builder.
@@ -53,6 +55,7 @@ export interface BannerEmailData {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
+  venueMap?: import("./confirmation-email-shared.ts").VenueMapAssetsRef | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -284,6 +287,7 @@ export function buildBannerHtml(data: BannerEmailData): string {
     <td style="padding:0 36px 8px;">
       <h2 style="margin:8px 0 16px;font-family:${BN_DISPLAY};font-weight:800;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${flag};">02 / ON THE DAY</h2>
       ${doorsBlock}${firstClassBlock}${venueBlock}${parkingBlock}${hospitalityBlock}${cratingBlock}
+      ${renderVenueMapBlock(data.venueMap, data.venue)}
     </td>
   </tr>
 

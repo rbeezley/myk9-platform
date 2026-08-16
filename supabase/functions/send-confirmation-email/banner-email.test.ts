@@ -48,6 +48,21 @@ describe('buildBannerHtml', () => {
     expect(html).toContain('Spring Scent Work Trial');
   });
 
+  it('renders the venue static map when assets are provided, none when absent', () => {
+    const withMap = buildBannerHtml(
+      makeData({
+        venueMap: {
+          imageUrl: 'https://maps.googleapis.com/maps/api/staticmap?center=1%2C2&key=k',
+          linkUrl: 'https://www.google.com/maps/dir/?api=1&destination=1%2C2',
+        },
+      })
+    );
+    expect(withMap).toContain('maps.googleapis.com/maps/api/staticmap');
+    expect(withMap).toContain('https://www.google.com/maps/dir/?api=1&amp;destination=1%2C2');
+
+    expect(buildBannerHtml(makeData())).not.toContain('staticmap');
+  });
+
   it('renders the default flag color in the masthead background', () => {
     const html = buildBannerHtml(makeData({ brandColor: '#0d4d4f' }));
     expect(html).toContain('background:#0d4d4f');

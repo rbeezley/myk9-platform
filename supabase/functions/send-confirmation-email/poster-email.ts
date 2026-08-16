@@ -1,3 +1,5 @@
+import { renderVenueMapBlock } from './static-map.ts';
+
 // supabase/functions/send-confirmation-email/poster-email.ts
 //
 // Poster confirmation email — Deno HTML builder.
@@ -58,6 +60,7 @@ export interface PosterEmailData {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
+  venueMap?: import("./confirmation-email-shared.ts").VenueMapAssetsRef | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -154,6 +157,7 @@ export function buildPosterHtml(data: PosterEmailData): string {
       ${dayRow({ label: 'Crating', value: data.cratingNotes }, { label: 'Parking', value: data.parkingNotes })}
       ${dayRow({ label: 'Hospitality', value: data.hospitalityNotes }, { label: 'Venue', value: data.venue })}
     </table>
+    ${renderVenueMapBlock(data.venueMap, data.venue)}
   </td>
 </tr>`
       : '';

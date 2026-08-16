@@ -1,7 +1,7 @@
-# Launch Integrations Deploy — L1–L5
+# Launch Integrations Deploy — L1–L6
 
 > **Status:** Active
-> Covers the deploy half of [`docs/plan-google-apple-integrations.md`](../plan-google-apple-integrations.md) launch items L1–L5. All five are code-complete; none of it is **live**. Every item below is inert until its step here runs.
+> Covers the deploy half of [`docs/plan-google-apple-integrations.md`](../plan-google-apple-integrations.md) launch items L1–L6. All are code-complete; none of it is **live**. Every item below is inert until its step here runs.
 
 **Project ref:** `sojmvhhwsjxmfistvzbe`. Migration password: `supabase/.env` (gitignored — present only on the operator's machine).
 
@@ -15,23 +15,35 @@ A remote Claude Code container is a fresh clone with no Supabase credentials: `~
 
 The CLI itself is available (`npx supabase@2.114.0`) and `apps/myk9show/supabase/.temp/project-ref` correctly reads `sojmvhhwsjxmfistvzbe`. So the block is **authentication only**. Either run these from the operator machine, or add `SUPABASE_ACCESS_TOKEN` + the DB password to the remote environment's configuration first.
 
-> **Always pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly** (CLAUDE.md lesson). As of 2026-08-16 the `apps/myk9show` `.temp/project-ref` reads the *correct* ref rather than the defunct `myK9Show-Working` the lesson describes — but the explicit flag costs nothing and removes the class of error entirely.
+> **Always pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly** (CLAUDE.md lesson). As of 2026-08-16 the `apps/myk9show` `.temp/project-ref` reads the _correct_ ref rather than the defunct `myK9Show-Working` the lesson describes — but the explicit flag costs nothing and removes the class of error entirely.
 
 ---
 
 ## What is merged and awaiting deploy
 
-| Item | Merged as | Needs |
-| --- | --- | --- |
-| **L1** Sign in with Apple | `cc4e11e` (#1635) | Apple Developer portal + Supabase Auth provider — **no deploy** |
-| **L2** Apple Pay / Google Pay | `8324012` (#1634) | Stripe dashboard toggle — **no code, no deploy** |
-| **L3** Places Autocomplete | `870808f` (#1636) | `VITE_GOOGLE_MAPS_API_KEY` in Vercel |
-| **L3** Email static map | `48f0e4c` (#1637) | `GOOGLE_MAPS_STATIC_API_KEY` secret + `send-confirmation-email` redeploy |
-| **L4** Run-proximity push | `456f1a4` (#1638) | **Migration** `20260816120000` + `push-trigger-run-proximity` deploy |
-| **L4** Install instrumentation | `959f787` (#1639) | Nothing — ships with the frontend, uses existing `analytics_events` |
-| **L5** Calendar feed | `660f580` (#1641) | **Migration** `20260816130000` + `calendar-feed` deploy + feed URL config |
+| Item                           | Merged as         | Needs                                                                     |
+| ------------------------------ | ----------------- | ------------------------------------------------------------------------- |
+| **L1** Sign in with Apple      | `cc4e11e` (#1635) | Apple Developer portal + Supabase Auth provider — **no deploy**           |
+| **L2** Apple Pay / Google Pay  | `8324012` (#1634) | Stripe dashboard toggle — **no code, no deploy**                          |
+| **L3** Places Autocomplete     | `870808f` (#1636) | `VITE_GOOGLE_MAPS_API_KEY` in Vercel                                      |
+| **L3** Email static map        | `48f0e4c` (#1637) | `GOOGLE_MAPS_STATIC_API_KEY` secret + `send-confirmation-email` redeploy  |
+| **L4** Run-proximity push      | `456f1a4` (#1638) | **Migration** `20260816120000` + `push-trigger-run-proximity` deploy      |
+| **L4** Install instrumentation | `959f787` (#1639) | Nothing — ships with the frontend, uses existing `analytics_events`       |
+| **L5** Calendar feed           | `660f580` (#1641) | **Migration** `20260816130000` + `calendar-feed` deploy + feed URL config |
+| **L6** SMS consent record      | `db28484` (#1642) | **Migration** `20260816140000` — no function, nothing sends               |
+| **L6** SMS compliance content  | `cb693d9` (#1643) | Frontend deploy only (public `/sms` page) — no migration, no secret       |
 
 Phases below run in **ascending risk order**. Nothing here depends on a later phase, so you can stop after any of them.
+
+> **Run `db push` from the repo root, never `--workdir apps/myk9show`.** The two
+> `supabase/migrations/` directories are different sets: the root holds 476
+> migrations (everything current), while `apps/myk9show/supabase/migrations/`
+> is a stale 56-file set whose newest entry is from August 2025. The
+> `--workdir` advice in CLAUDE.md is about **function** deploys following that
+> directory's `.temp/project-ref`; applying it to `db push` would silently
+> apply none of the work below. Only the app directory carries a
+> `.temp/project-ref`, so the root needs an explicit `link` (or the explicit
+> `--project-ref` flag, which you should pass anyway).
 
 ---
 
@@ -67,10 +79,10 @@ No code and no deploy: on Stripe-hosted Checkout the `card` payment method type 
 
 Two **separate** Google Cloud API keys. Do not reuse one for both.
 
-| Key | Enabled API | Restriction | Consumed by |
-| --- | --- | --- | --- |
-| `VITE_GOOGLE_MAPS_API_KEY` | Places API (New) | HTTP referrer → staging + production hosts | Browser (show wizard) |
-| `GOOGLE_MAPS_STATIC_API_KEY` | Maps Static API **only** | **None possible** — see below | Edge function (emails) |
+| Key                          | Enabled API              | Restriction                                | Consumed by            |
+| ---------------------------- | ------------------------ | ------------------------------------------ | ---------------------- |
+| `VITE_GOOGLE_MAPS_API_KEY`   | Places API (New)         | HTTP referrer → staging + production hosts | Browser (show wizard)  |
+| `GOOGLE_MAPS_STATIC_API_KEY` | Maps Static API **only** | **None possible** — see below              | Edge function (emails) |
 
 > **The static-map key is readable by every email recipient.** It is embedded in the `<img>` URL, and HTTP-referrer restrictions do not apply in mail clients. That is why it must be a distinct key scoped to the Maps Static API alone, and why a budget alert is the real backstop rather than a restriction.
 
@@ -87,9 +99,10 @@ npx supabase@2.114.0 functions deploy send-confirmation-email --project-ref sojm
 Confirm the CLI's output names project `sojmvhhwsjxmfistvzbe`.
 
 **Verify:**
+
 - Wizard Location field suggests venues; picking one drops the map pin.
 - Google Cloud billing shows **one Autocomplete session per address entry**, not one per keystroke. If it shows per-keystroke, session tokens are broken — stop and investigate before volume builds.
-- A confirmation email in Gmail *and* Apple Mail shows the venue map, and tapping it opens directions.
+- A confirmation email in Gmail _and_ Apple Mail shows the venue map, and tapping it opens directions.
 
 **Rollback:** unset the secret / env var. Both features are written to degrade to their previous behaviour with no key — the wizard falls back to a plain textarea plus Nominatim, and emails render exactly as before.
 
@@ -152,6 +165,7 @@ where a.attrelid = 'public.notification_preferences'::regclass and a.attacl is n
 `anon` must appear with **no** privileges on this table.
 
 Then, functionally:
+
 1. On staging, flip an entry to `in-ring` in a class that has dogs queued behind it.
 2. The watching exhibitor receives the push **with the app fully closed** — a backgrounded-but-alive PWA proves nothing, because that is exactly the case the old client-side sender already handled.
 3. Reopen the app: the number in the push must match the entry-list pill. They derive from the same rules but by different code paths, so a mismatch means the server mirror has drifted from `packages/ringside/.../runQueue.ts`.
@@ -216,9 +230,10 @@ where oid = 'public.calendar_feed_tokens'::regclass;
 ```
 
 Then, end to end:
+
 1. As an exhibitor with entries, open **Add to Calendar** on a show card.
 2. **Subscribe on an iPhone** — tapping the webcal link must open the Calendar
-   app and offer a *subscription*, not a one-time import. This is the failure
+   app and offer a _subscription_, not a one-time import. This is the failure
    mode worth catching: a wrong scheme silently does nothing on iOS, and iOS is
    the platform this feature matters most for.
 3. Import the downloaded `.ics` into Google Calendar and Outlook.
@@ -240,6 +255,123 @@ update public.calendar_feed_tokens set revoked_at = now() where revoked_at is nu
 Subscribers' calendars keep the events they already have but stop updating. To
 remove the feature entirely, delete the deployed function; the dialog then shows
 its unavailable state rather than erroring.
+
+---
+
+## Phase 6 — L6 SMS consent record (migration only, nothing sends)
+
+The lowest-risk phase here, and the one most easily misread as risky. The
+migration adds five columns and two `CHECK` constraints to
+`notification_preferences` and **deploys no function**. No SMS provider is
+wired, so nothing can send a message whether or not this is applied.
+
+It is also **not gated on 10DLC**. The consent record must exist and be correct
+_before_ the campaign matters; applying it early costs nothing and means the
+opt-in UI has somewhere to write when it is built.
+
+### 6.1 Pre-flight — the one that can actually fail
+
+```bash
+npx supabase@2.114.0 db push --dry-run --project-ref sojmvhhwsjxmfistvzbe
+```
+
+Expect `20260816140000_sms_consent_record.sql`, plus `20260816120000` and
+`20260816130000` if Phases 4 and 5 have not run yet. `db push` applies every
+migration missing from the remote history, so all three land together unless you
+have already pushed the earlier ones.
+
+The migration's real failure mode is the consent-completeness constraint. It
+validates **existing rows**, and `sms_enabled` has been a bare boolean on this
+table since migration 005:
+
+```sql
+-- Any row here aborts the ALTER TABLE. Each one is a user whose sms_enabled is
+-- true with no consent record — exactly what the constraint exists to forbid.
+select count(*) from public.notification_preferences
+where sms_enabled is true;
+```
+
+Expect **zero**. If it is not zero, do not weaken the constraint: those rows
+have no defensible consent, so set `sms_enabled = false` for them and let the
+users opt in again through the real flow. That is the whole point of the
+migration.
+
+### 6.2 Apply
+
+```bash
+# From the REPO ROOT — see the warning above about apps/myk9show.
+npx supabase@2.114.0 db push --project-ref sojmvhhwsjxmfistvzbe
+```
+
+No `functions deploy` step. No secrets. Nothing else to sequence.
+
+### 6.3 Verify
+
+```sql
+-- Five columns, both constraints.
+select column_name from information_schema.columns
+where table_name = 'notification_preferences' and column_name like 'sms\_%';
+
+select conname from pg_constraint
+where conrelid = 'public.notification_preferences'::regclass
+  and conname like '%sms%';
+
+-- Applied ACLs, not the migration text.
+select unnest(relacl)::text from pg_class
+where oid = 'public.notification_preferences'::regclass;
+
+select a.attname, unnest(a.attacl)::text
+from pg_attribute a
+where a.attrelid = 'public.notification_preferences'::regclass and a.attacl is not null;
+```
+
+Expect `sms_phone_e164`, `sms_opt_in_at`, `sms_consent_text_version`,
+`sms_opt_in_source`, `sms_opt_out_at`; both
+`notification_preferences_sms_phone_e164_format` and
+`notification_preferences_sms_consent_complete`; and **no `anon` entry at all**.
+
+On that last point — this migration adds a **phone number** to an existing
+table, so the question worth asking is whether it widens exposure. Traced
+statically, it does not: `20260730220000_codify_pre_rule_table_grants.sql`
+includes `notification_preferences` in a blanket `REVOKE ALL ON TABLE … FROM
+anon`, and the `notification_preferences_user_access` policy from
+`023_tighten_rls_and_add_test_helpers.sql` is `FOR ALL TO authenticated USING
+(auth_user_id = auth.uid() OR user_id = get_my_person_id() OR
+is_platform_admin())`. New columns inherit table-level grants, so
+`sms_phone_e164` sits behind the same own-row gate as everything else. The
+queries above confirm that held in the applied database.
+
+Then prove the constraint bites, which is the only behaviour this migration has:
+
+```sql
+-- Must FAIL with notification_preferences_sms_consent_complete.
+update public.notification_preferences set sms_enabled = true
+where auth_user_id = '<some test user>';
+```
+
+If that succeeds, the constraint did not apply and the migration is not doing
+its job.
+
+### 6.4 Rollback
+
+```sql
+alter table public.notification_preferences
+  drop constraint if exists notification_preferences_sms_consent_complete,
+  drop constraint if exists notification_preferences_sms_phone_e164_format;
+```
+
+Dropping the constraints is enough to unblock any write path; the columns are
+additive and harmless left in place. As always, never edit an applied migration
+— if the columns themselves must go, write a new migration.
+
+### 6.5 What this phase does _not_ unblock
+
+Sending. That needs an SMS provider and an approved A2P 10DLC campaign, and the
+campaign additionally needs `/sms` publicly reachable at
+`https://myk9show.com/sms` — which requires pointing the domain at the app and
+deploying the frontend, since a reviewer cannot load a Vercel preview URL. The
+full sequence is in
+[`operations/sms-10dlc-registration.md`](sms-10dlc-registration.md).
 
 ---
 

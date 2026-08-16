@@ -247,7 +247,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [operations/START-HERE.md](operations/START-HERE.md)                                                     | Reference | START HERE — symptom-first router for operating + troubleshooting issues           |
 | [operations/go-live-runbook.md](operations/go-live-runbook.md)                                           | Active    | Go-Live Runbook — the single ordered, gated launch-day document                    |
 | [operations/edge-function-drift-audit-2026-07-12.md](operations/edge-function-drift-audit-2026-07-12.md) | Active    | Edge Function Drift Audit — deployed-source recovery and legacy-sender disposition |
-| [operations/launch-integrations-deploy.md](operations/launch-integrations-deploy.md)                     | Active    | Launch Integrations Deploy — L1–L5 (auth, wallets, maps, push, calendar feed)      |
+| [operations/launch-integrations-deploy.md](operations/launch-integrations-deploy.md)                     | Active    | Launch Integrations Deploy — L1–L6 (auth, wallets, maps, push, calendar, SMS)      |
 | [operations/sms-10dlc-registration.md](operations/sms-10dlc-registration.md)                             | Active    | SMS Provider & 10DLC Registration — Twilio choice + A2P campaign filing (L6)       |
 | [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)                               | Reference | Stripe Platform Setup — Operator Runbook (Richard)                                 |
 | [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md)                             | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers)            |

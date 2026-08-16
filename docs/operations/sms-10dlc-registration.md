@@ -284,4 +284,4 @@ In rough order of frequency:
 - Plan: [`docs/plan-google-apple-integrations.md`](../plan-google-apple-integrations.md) § L6
 - Consent schema: `supabase/migrations/20260816140000_sms_consent_record.sql`
 - Message composition: `supabase/functions/_shared/sms/smsMessage.ts`
-- Deploy sequence for L1–L5: [`operations/launch-integrations-deploy.md`](launch-integrations-deploy.md)
+- Deploy sequence for L1–L6, including the consent migration: [`operations/launch-integrations-deploy.md`](launch-integrations-deploy.md) § Phase 6

@@ -1,3 +1,5 @@
+import { renderVenueMapBlock } from './static-map.ts';
+
 // supabase/functions/send-confirmation-email/fieldGuide-email.ts
 //
 // Field Guide confirmation email — Deno HTML builder.
@@ -62,6 +64,7 @@ export interface FieldGuideEmailData {
    *  to suppress the chip even if a run has an armband. */
   armbandNumber?: string | null;
   venue: string | null;
+  venueMap?: import("./confirmation-email-shared.ts").VenueMapAssetsRef | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -265,6 +268,7 @@ export function buildFieldGuideHtml(data: FieldGuideEmailData): string {
       <div style="font-family:${FG_MONO};font-weight:600;font-size:11px;letter-spacing:0.04em;color:${FG_ORANGE_DEEP};margin-bottom:8px;">§02 · ON THE DAY</div>
       <h2 style="margin:0 0 24px;font-family:${FG_DISPLAY};font-weight:700;font-size:26px;letter-spacing:-0.02em;line-height:1.1;color:${FG_INK};">Be on site early.</h2>
       ${doorsBlock}${firstClassBlock}${venueBlock}${parkingBlock}${hospitalityBlock}${cratingBlock}
+      ${renderVenueMapBlock(data.venueMap, data.venue)}
     </td>
   </tr>
 

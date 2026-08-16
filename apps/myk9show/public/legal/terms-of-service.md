@@ -1,6 +1,6 @@
 # Terms of Service
 
-**Last Updated: June 4, 2026**
+**Last Updated: August 16, 2026**
 
 These Terms of Service ("Terms") constitute a legally binding agreement between you ("User," "you," or "your") and RyKris LLC, an Oklahoma limited liability company ("RyKris," "Company," "we," "us," or "our"), governing your access to and use of the myK9 platform, including the myK9Show web application, the built-in Ringside experience, and all related services, features, and content (collectively, the "Service").
 
@@ -35,7 +35,7 @@ To access certain features of the Service, you must create an account by providi
 You are solely responsible for all activity that occurs under your account. You agree to:
 
 - Maintain the security and confidentiality of your login credentials
-- Immediately notify us at support@myk9.com of any unauthorized use of your account or any other breach of security
+- Immediately notify us at support@myk9show.com of any unauthorized use of your account or any other breach of security
 - Not share your account credentials with any third party
 - Not create multiple accounts for the purpose of circumventing restrictions or abusing the Service
 
@@ -99,7 +99,7 @@ You are responsible for any applicable taxes associated with your use of the Ser
 
 ### 4.7 Disputes
 
-If you believe a charge is incorrect, you must contact us at support@myk9.com within 30 days of the charge. Initiating a chargeback or payment dispute without first contacting us may result in suspension of your account.
+If you believe a charge is incorrect, you must contact us at support@myk9show.com within 30 days of the charge. Initiating a chargeback or payment dispute without first contacting us may result in suspension of your account.
 
 ---
 
@@ -292,7 +292,7 @@ These Terms and any dispute arising out of or relating to them or the Service sh
 
 ### 13.2 Informal Resolution
 
-Before filing any formal legal action, you agree to first contact us at support@myk9.com and attempt to resolve the dispute informally for at least thirty (30) days. Most disputes can be resolved through good-faith communication.
+Before filing any formal legal action, you agree to first contact us at support@myk9show.com and attempt to resolve the dispute informally for at least thirty (30) days. Most disputes can be resolved through good-faith communication.
 
 ### 13.3 Arbitration Agreement
 
@@ -379,7 +379,7 @@ RyKris shall not be liable for any failure or delay in performing its obligation
 
 ### 16.6 Notices
 
-We may provide notices to you through the Service, via email to the address associated with your account, or by other reasonable means. You may provide notices to us at support@myk9.com.
+We may provide notices to you through the Service, via email to the address associated with your account, or by other reasonable means. You may provide notices to us at support@myk9show.com.
 
 ### 16.7 Headings
 
@@ -392,7 +392,7 @@ The section headings in these Terms are for convenience only and have no legal o
 If you have any questions about these Terms, please contact us:
 
 **RyKris LLC**
-Email: support@myk9.com
+Email: support@myk9show.com
 
 ---
 

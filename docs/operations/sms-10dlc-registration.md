@@ -67,7 +67,25 @@ and a rejected campaign costs a re-vetting fee to resubmit.
 | Business website       | Must be publicly reachable and must show the SMS program — see §3.                                            |
 | Entity type + industry | Private LLC / Corp; vertical is closest to "Technology" or "Entertainment".                                   |
 | Authorized contact     | Name, business email, phone. Use a domain email, not Gmail — free-mail addresses lower the brand trust score. |
-| Support email + phone  | Appears in the HELP reply.                                                                                    |
+| Support email + phone  | Appears in the HELP reply. Must be `support@myk9show.com` — see below.                                        |
+
+**The support address is `support@myk9show.com`,** matching the registered
+brand website. It must match: a reviewer comparing the website domain against
+the contact domain treats a mismatch as an inconsistency. Do **not** use
+`myk9t.com` — that is this repo's seeded test-account namespace
+(`exhibitor1@myk9t.com` … `exhibitor5@myk9t.com`), and the trailing "t" reads
+as "test" to a human reviewer.
+
+**That mailbox does not exist yet, and Vercel cannot provide it.** Vercel sells
+hosting, domain registration, and DNS — it has never offered mailboxes on any
+tier, so no plan upgrade produces one. A separate provider is required. For
+this filing the address only has to _receive_ (brand verification mail lands
+there; the HELP reply merely points at it), so free forwarding is sufficient:
+ImprovMX needs only MX records and leaves DNS on Vercel, while Cloudflare Email
+Routing is equally free but wants the nameservers. Zoho's free tier gives real
+mailboxes if replying _as_ support@ matters. Forwarding still satisfies the
+"domain email, not free-mail" expectation on the brand record — that rule is
+about the address, not where it terminates.
 
 **No EIN yet?** There is a Sole Proprietor brand path that verifies via a phone
 OTP instead. It is a poor fit: one campaign maximum, roughly 15 messages/minute,
@@ -199,9 +217,9 @@ not merely that something was.
 **Help** — keyword `HELP`:
 
 > myK9Show ring alerts: a text when your dog is close to the ring. Msg & data
-> rates may apply. Reply STOP to cancel. Support: support@myk9.com
+> rates may apply. Reply STOP to cancel. Support: support@myk9show.com
 
-The support address must match the one in the privacy policy (`support@myk9.com`)
+The support address must match the one in the privacy policy (`support@myk9show.com`)
 — a reviewer comparing the two will treat a mismatch as an inconsistency.
 
 ---
@@ -225,6 +243,7 @@ In rough order of frequency:
 ## 7. Definition of done
 
 - [ ] EIN obtained; legal name confirmed against the IRS record
+- [ ] `support@myk9show.com` provisioned and receiving (§2 — Vercel cannot do this)
 - [x] Privacy policy carries the mobile-information clause (§3.2)
 - [ ] Public `/sms` disclosure page live (§3.1)
 - [ ] Brand registered and approved

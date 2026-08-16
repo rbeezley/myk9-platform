@@ -210,7 +210,7 @@ You have the right to request correction of any inaccurate or incomplete persona
 
 ### 6.3 Deletion
 
-You have the right to request deletion of your personal information, subject to the exceptions described in Section 4.2 (anonymized competition records). You can delete your account through the Service settings or by contacting us at support@myk9.com.
+You have the right to request deletion of your personal information, subject to the exceptions described in Section 4.2 (anonymized competition records). You can delete your account through the Service settings or by contacting us at support@myk9show.com.
 
 ### 6.4 Opt-Out of Communications
 
@@ -240,11 +240,11 @@ If you are a California resident, you have additional rights under the Californi
 - **Right to Opt-Out of Sale/Sharing:** We do not sell or share your personal information for cross-context behavioral advertising purposes. No opt-out is necessary.
 - **Right to Non-Discrimination:** We will not discriminate against you for exercising your privacy rights.
 
-To exercise your CCPA/CPRA rights, contact us at support@myk9.com. We will verify your identity before processing your request.
+To exercise your CCPA/CPRA rights, contact us at support@myk9show.com. We will verify your identity before processing your request.
 
 ### 7.2 Virginia, Colorado, Connecticut, Utah, and Other State Privacy Laws
 
-If you reside in a state with comprehensive privacy legislation, you may have similar rights to those described above, including the right to access, correct, delete, and obtain a copy of your personal information. To exercise these rights, contact us at support@myk9.com.
+If you reside in a state with comprehensive privacy legislation, you may have similar rights to those described above, including the right to access, correct, delete, and obtain a copy of your personal information. To exercise these rights, contact us at support@myk9show.com.
 
 ### 7.3 Oklahoma Residents
 
@@ -264,7 +264,7 @@ Users between the ages of 13 and 18 may use the Service only with the consent an
 
 ### 8.3 Parental Rights
 
-If you are a parent or guardian and believe that your child under 13 has provided us with personal information, please contact us at support@myk9.com. We will take steps to delete such information promptly.
+If you are a parent or guardian and believe that your child under 13 has provided us with personal information, please contact us at support@myk9show.com. We will take steps to delete such information promptly.
 
 ---
 
@@ -326,7 +326,7 @@ Your continued use of the Service after the effective date of any changes consti
 If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
 **RyKris LLC**
-Email: support@myk9.com
+Email: support@myk9show.com
 
 For privacy-specific inquiries, please include "Privacy" in your subject line to ensure prompt routing.
 

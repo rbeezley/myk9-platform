@@ -240,7 +240,44 @@ rather than offering a broken link.
 -- nothing else; anon must appear nowhere.
 select unnest(relacl)::text from pg_class
 where oid = 'public.calendar_feed_tokens'::regclass;
+
+select a.attname, unnest(a.attacl)::text
+from pg_attribute a
+where a.attrelid = 'public.calendar_feed_tokens'::regclass and a.attacl is not null;
 ```
+
+That ACL is necessary but **not sufficient**, and this table is the reason the
+distinction matters. Rows here hold a token that is itself the credential, so
+`authenticated=r` alone means every signed-in user can read every other user's
+feed token — a full cross-user calendar read, from a grant that looks correct.
+Only RLS closes that, and `relacl` cannot show whether RLS is on:
+
+```sql
+-- Expect relrowsecurity AND relforcerowsecurity true. FORCE matters because
+-- the two RPCs below are SECURITY DEFINER: without it they run as the owner
+-- and bypass the very policy that scopes reads to one user.
+select relrowsecurity, relforcerowsecurity from pg_class
+where oid = 'public.calendar_feed_tokens'::regclass;
+
+-- Expect exactly one owner-scoped SELECT policy for authenticated —
+-- qual (select auth.uid()) = user_id. A policy that is TO public, or whose
+-- qual does not name user_id, leaves the table effectively open.
+select policyname, roles::text, cmd, qual from pg_policies
+where schemaname = 'public' and tablename = 'calendar_feed_tokens';
+
+-- Token minting and revocation are SECURITY DEFINER, so their EXECUTE grant
+-- is the whole access control. anon must appear on NEITHER: an anon EXECUTE
+-- on issue_calendar_feed_token mints a working feed URL for any show to
+-- anyone who can reach PostgREST, with no session at all.
+select p.proname, p.prosecdef, unnest(p.proacl)::text as acl
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('issue_calendar_feed_token', 'revoke_calendar_feed_token');
+```
+
+Verified on the 2026-08-16 deploy: RLS on with FORCE, one
+`calendar_feed_tokens_owner_read` policy, and both RPCs granted to
+`postgres` / `service_role` / `authenticated` only.
 
 Then, end to end:
 

@@ -179,6 +179,17 @@ export function isCoverageIncomplete(check: HealthCheck): boolean {
 export function getHealthCheckRemediation(check: HealthCheck): HealthCheckRemediation {
   const coverageIncomplete = isCoverageIncomplete(check);
 
+  if (check.key === 'payout_cron' && check.verification === 'unprovable') {
+    return {
+      ownerLabel: 'Payout Scheduling',
+      actionLabel: 'Open Payouts',
+      href: '/admin/payouts',
+      nextStep:
+        'This confirms the scheduled request was sent; the ledger covers only payout attempts that were recorded.',
+      coverageIncomplete,
+    };
+  }
+
   if (matches(check, /sync|replication|queue|conflict/)) {
     return {
       ownerLabel: 'Sync Monitoring',

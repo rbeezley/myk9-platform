@@ -79,7 +79,7 @@ describe('buildSnapshot — contract shape', () => {
     const snap = buildSnapshot(facts(), { now: NOW, runDurationMs: 42 });
 
     expect(snap.source).toBe('cron-health-check');
-    // warn, not ok: payout_cron is dispatch-only and can never prove success, so
+    // warn, not ok: payout_cron is dispatch-only and cannot prove the payout run started, so
     // its ceiling is Unverified (TICKET-2). A fully green board would be a lie.
     expect(snap.overall_status).toBe('warn');
     expect(snap.run_duration_ms).toBe(42);
@@ -170,15 +170,15 @@ describe('buildSnapshot — contract shape', () => {
 });
 
 describe('payout_cron check (runbook 5.4)', () => {
-  // TICKET-2: this check can never observe a failed payout — pg_cron only knows the
-  // request was enqueued. Its best possible outcome is therefore Unverified (warn),
-  // and the outcome question belongs to payout_ledger.
+  // TICKET-2: this check observes the scheduler handoff, not the downstream payout
+  // result. Its best possible outcome is therefore Unverified (warn), and the outcome
+  // question for recorded attempts belongs to payout_ledger.
   it('is Unverified — never ok — when the payout job merely dispatched', () => {
     const snap = buildSnapshot(facts(), { now: NOW });
     const check = find(snap, 'payout_cron');
     expect(check.status).toBe('warn');
     expect(check.detail).toContain(PAYOUT_CRON_JOB);
-    expect(check.detail).toContain('this check cannot fail');
+    expect(check.detail).toContain('cannot confirm the payout run started');
     expect(check.detail).not.toContain('succeeded');
     // checked_at reflects the job's last run, not the probe time
     expect(check.checked_at).toBe(iso(0));
@@ -322,7 +322,7 @@ describe('background_jobs check', () => {
 });
 
 describe('pg_cron success semantics (Codex PR #1125)', () => {
-  it('words an http-dispatch job as "dispatched", not "succeeded" (green ≠ 2xx)', () => {
+  it('words an http-dispatch job as a sent request, not "succeeded" (green ≠ 2xx)', () => {
     const snap = buildSnapshot(
       facts({
         cron_jobs: [
@@ -332,7 +332,7 @@ describe('pg_cron success semantics (Codex PR #1125)', () => {
       }),
       { now: NOW }
     );
-    expect(find(snap, 'payout_cron').detail).toContain('dispatched');
+    expect(find(snap, 'payout_cron').detail).toContain('sent the payout request');
     expect(find(snap, 'background_jobs').status).toBe('ok');
   });
 
@@ -637,8 +637,8 @@ describe('ringside_conflicts — rate and containment context (TICKET-1)', () =>
 });
 
 // TICKET-2. pg_cron reports 'succeeded' the moment net.http_post enqueues, so the
-// payout_cron check structurally cannot fail. It now says so (Unverified/amber),
-// and a second check reads the ledger's own terminal states.
+// payout_cron check cannot prove the downstream payout run started. It stays
+// Unverified/amber, and a second check reads recorded attempts from the ledger.
 describe('payout_ledger check (TICKET-2)', () => {
   const ledger = (over: Record<string, unknown> = {}) => ({
     total: 3,
@@ -689,10 +689,10 @@ describe('payout_ledger check (TICKET-2)', () => {
     expect(check.detail).toContain('1 of 3 payouts in flight, none overdue');
   });
 
-  it('an empty ledger is ok and says so specifically', () => {
+  it('an empty ledger is ok without claiming the downstream function ran', () => {
     const check = find(withLedger({ total: 0, last_completed_at: null }), 'payout_ledger');
     expect(check.status).toBe('ok');
-    expect(check.detail).toBe('no payouts recorded yet');
+    expect(check.detail).toBe('no payout attempts recorded; no failed or stalled attempts found');
   });
 
   // Codex review of PR #1557: validating only `total` let asCount coerce the

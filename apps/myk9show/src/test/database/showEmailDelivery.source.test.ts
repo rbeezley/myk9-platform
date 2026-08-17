@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -6,6 +6,48 @@ const repoRoot = resolve(__dirname, '../../../../..');
 
 function source(path: string): string {
   return readFileSync(resolve(repoRoot, path), 'utf8');
+}
+
+const classifiedProductionResendWriters = {
+  'apps/myk9show/supabase/functions/_shared/alertAdmin.ts': 'platform-operator',
+  'apps/myk9show/supabase/functions/cron-process-payouts/index.ts': 'club-finance',
+  'apps/myk9show/supabase/functions/stripe-webhook/index.ts': 'show-owned',
+  'supabase/functions/admin-invite-user/index.ts': 'platform-account',
+  'supabase/functions/admin-invite-user/inviteUserHandler.ts': 'platform-account',
+  'supabase/functions/push-trigger-support-message/index.ts': 'platform-support',
+  'supabase/functions/push-trigger-waitlist/index.ts': 'show-owned',
+  'supabase/functions/send-auth-email/delivery.ts': 'platform-account',
+  'supabase/functions/send-confirmation-email/index.ts': 'show-owned',
+  'supabase/functions/send-email/index.ts': 'mixed-entry-decision-and-platform',
+  'supabase/functions/send-lifecycle-email/lifecycle-email-handler.ts': 'show-owned',
+  'supabase/functions/send-registration-email/index.ts': 'show-owned',
+  'supabase/functions/send-results/index.ts': 'show-owned',
+  'supabase/functions/send-waitlist-invite/index.ts': 'platform-waitlist',
+} as const;
+
+function discoverProductionResendWriters(): string[] {
+  const writers: string[] = [];
+  const visit = (relativeDirectory: string) => {
+    for (const entry of readdirSync(resolve(repoRoot, relativeDirectory), {
+      withFileTypes: true,
+    })) {
+      const relativePath = `${relativeDirectory}/${entry.name}`;
+      if (entry.isDirectory()) {
+        visit(relativePath);
+      } else if (
+        entry.name.endsWith('.ts') &&
+        !entry.name.endsWith('.test.ts') &&
+        entry.name !== 'resendEmail.ts' &&
+        source(relativePath).includes('sendResendEmailWithRetry')
+      ) {
+        writers.push(relativePath);
+      }
+    }
+  };
+
+  visit('apps/myk9show/supabase/functions');
+  visit('supabase/functions');
+  return writers.sort();
 }
 
 describe('MYK9-180 show email delivery source contract', () => {
@@ -50,13 +92,24 @@ describe('MYK9-180 show email delivery source contract', () => {
     const contents = source('apps/myk9show/supabase/functions/stripe-webhook/index.ts');
     expect(contents).toContain("email_type: 'registration_confirmation'");
     expect(contents).toContain('show_id: cart.show_id');
+    expect(contents).toContain('sendResendEmailWithRetry');
+    expect(contents).not.toContain('/functions/v1/send-email');
+  });
+
+  it('classifies every production Resend writer', () => {
+    expect(discoverProductionResendWriters()).toEqual(
+      Object.keys(classifiedProductionResendWriters).sort()
+    );
   });
 
   it.each([
     'supabase/functions/send-auth-email/delivery.ts',
     'supabase/functions/push-trigger-support-message/index.ts',
     'supabase/functions/send-waitlist-invite/index.ts',
+    'supabase/functions/admin-invite-user/index.ts',
     'supabase/functions/admin-invite-user/inviteUserHandler.ts',
+    'apps/myk9show/supabase/functions/_shared/alertAdmin.ts',
+    'apps/myk9show/supabase/functions/cron-process-payouts/index.ts',
   ])('%s remains platform-scoped', path => {
     const contents = source(path);
     expect(contents).not.toContain("email_type: 'registration_confirmation'");

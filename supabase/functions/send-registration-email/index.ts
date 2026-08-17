@@ -306,10 +306,10 @@ handle<SendRegistrationEmailPayload>(
       resendMessageId = result.id;
       console.log(`Registration email sent: ${result.id}`);
     } else {
-      const err = await response.json();
+      await response.text();
       sendStatus = 'failed';
-      errorMessage = JSON.stringify(err);
-      console.error('Resend API error:', err);
+      errorMessage = `provider_http_${response.status}`;
+      console.error('Resend API error', { status: response.status });
     }
 
     // Write email_log

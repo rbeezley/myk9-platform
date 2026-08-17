@@ -7,6 +7,10 @@ const migration = readFileSync(
   resolve(repoRoot, 'supabase/migrations/20260817120000_show_email_delivery_history.sql'),
   'utf8'
 );
+const behavioralSql = readFileSync(
+  resolve(repoRoot, 'supabase/tests/show_email_delivery_history_test.sql'),
+  'utf8'
+);
 
 describe('MYK9-180 email delivery history migration contract', () => {
   it('adds a nullable canonical scope and a supporting descending cursor index', () => {
@@ -46,5 +50,13 @@ describe('MYK9-180 email delivery history migration contract', () => {
     expect(migration).toContain("ELSE 'unavailable'");
     expect(migration).toContain("'The email could not be sent.'");
     expect(migration).not.toContain('log.error_message AS failure_summary');
+  });
+
+  it('keeps each auth.users behavioral fixture aligned with all timestamp columns', () => {
+    expect(
+      behavioralSql.match(
+        /now\(\), now\(\), now\(\), '\{\}', '\{\}', false, false, false/g
+      )
+    ).toHaveLength(3);
   });
 });

@@ -19,9 +19,9 @@ INSERT INTO auth.users (
   is_super_admin, is_sso_user, is_anonymous
 )
 VALUES
-  ('00000000-0000-0000-0000-000000180101', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-manager@example.test', '', now(), now(), '{}', '{}', false, false, false),
-  ('00000000-0000-0000-0000-000000180102', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-other@example.test', '', now(), now(), '{}', '{}', false, false, false),
-  ('00000000-0000-0000-0000-000000180103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-admin@example.test', '', now(), now(), '{}', '{}', false, false, false);
+  ('00000000-0000-0000-0000-000000180101', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-manager@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000180102', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-other@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000180103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-admin@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
 
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES

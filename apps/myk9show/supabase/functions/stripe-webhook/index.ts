@@ -39,11 +39,10 @@ import {
 } from '../_shared/chargeRefundedDecision.ts';
 import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
 import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
-import {
-  listAllChargeRefunds,
-  resolveRefundLedgerAction,
-} from '../_shared/refundLifecycle.ts';
+import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
+import { listAllChargeRefunds, resolveRefundLedgerAction } from '../_shared/refundLifecycle.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -52,6 +51,8 @@ const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
 const stripeConnectWebhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const resendApiKey = Deno.env.get('RESEND_API_KEY');
+const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 if (!stripeSecret || !stripeWebhookSecret || !supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing required environment variables');
@@ -285,10 +286,7 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
   }
 }
 
-async function handleTerminalRefund(
-  refund: Stripe.Refund,
-  terminalState: 'failed' | 'canceled'
-) {
+async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'failed' | 'canceled') {
   const entryId = refund.metadata?.entry_id ?? null;
   console.error(
     `CRITICAL: refund ${refund.id} (${refund.amount}¢) ${terminalState.toUpperCase()} after creation` +
@@ -2388,8 +2386,6 @@ async function sendEntryConfirmationEmail(
 
     // Build email payload
     const emailData = {
-      type: 'entry_confirmation',
-      to: person.email,
       exhibitorName: `${person.first_name} ${person.last_name}`,
       showName: show.name,
       showDate,
@@ -2410,14 +2406,27 @@ async function sendEntryConfirmationEmail(
       orderId: session.id,
     };
 
-    // Call send-email function
-    const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+    if (!resendApiKey) {
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'email_not_configured' });
+      return;
+    }
+
+    // This webhook has already resolved the cart, exhibitor, show, entries,
+    // and paid totals server-side. Send directly with a stable idempotency key;
+    // the generic send-email endpoint intentionally rejects service-role calls.
+    const response = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${supabaseServiceKey}`,
+        Authorization: `Bearer ${resendApiKey}`,
+        'Idempotency-Key': `stripe-entry-confirmation-${session.id}`,
       },
-      body: JSON.stringify(emailData),
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: person.email,
+        subject: `Entry Confirmation - ${show.name}`,
+        html: renderStripeEntryConfirmationEmail(emailData),
+      }),
     });
 
     if (!response.ok) {
@@ -2437,8 +2446,8 @@ async function sendEntryConfirmationEmail(
 
     // MP-13: stamp every entry this email covered with the SAME send-state
     // semantics the scheduled sender uses, so its audience query excludes
-    // this entry and no second confirmation email is sent. send-email
-    // returns { success: true, id } where `id` is the Resend message id;
+    // this entry and no second confirmation email is sent. Resend returns an
+    // `id` for the accepted message;
     // fall back to null if the body is missing/unparseable rather than
     // failing the whole webhook over a non-critical read.
     let messageId: string | null = null;

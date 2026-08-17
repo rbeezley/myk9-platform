@@ -220,12 +220,17 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
     // above is inside this same `try`. `translatePersonIdentityError` falls
     // through for anything that is not a unique email conflict, so the MK002
     // and SIGN_IN_EMAIL_LOCKED refusals keep their own messages and codes.
+    //
+    // Carry the code forward, but NOT `details`/`hint` as createUser above does:
+    // `createDatabaseError` omits those outside DEV on purpose, and a 23505
+    // `details` spells out the colliding address, which has no business on a
+    // production surface. The code is restated rather than left to the helper
+    // because the helper's extraction differs for Error instances vs the plain
+    // PostgREST object, and `translated` is always an Error.
     const translated = translatePersonIdentityError(error);
     const dbError = createDatabaseError(translated, 'user', 'update');
-    const metadata = translated as { code?: string; details?: string; hint?: string };
-    if (metadata.code) dbError.code = metadata.code;
-    if (metadata.details) dbError.details = metadata.details;
-    if (metadata.hint) dbError.hint = metadata.hint;
+    const translatedCode = (translated as { code?: string }).code;
+    if (translatedCode) dbError.code = translatedCode;
     logQuery('user', 'update', duration, dbError.message);
     return { data: null, error: dbError };
   }

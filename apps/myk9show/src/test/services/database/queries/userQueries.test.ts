@@ -236,7 +236,11 @@ describe('User Queries', () => {
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
       expect(result.error!.code).toBe('23505');
-      expect(result.error!.details).toBe('Email already exists');
+      // MYK9-178: the catch must not re-add `details` after createDatabaseError.
+      // This asserts the call site's own behavior, not the helper's DEV-mode
+      // redaction — the helper is mocked here, so the copy in the catch was the
+      // only way `details` ever reached the caller.
+      expect(result.error!.details).toBeUndefined();
     });
 
     it('should handle required field validation', async () => {

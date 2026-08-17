@@ -137,12 +137,19 @@ export const createClub = async (clubData: DbClubInsert) => {
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
+    // MYK9-178: carry the code forward, but NOT `details`/`hint`.
+    // `createDatabaseError` omits those outside DEV on purpose, and a 23505
+    // `details` spells out the colliding club name plus the normalized-name
+    // internals — `translateClubIdentityError` copies them onto the translated
+    // Error, so re-reading them here would undo that redaction, defeating the
+    // point of translating the constraint away. The code is restated rather
+    // than left to the helper because the helper's extraction differs for Error
+    // instances vs the plain PostgREST object, and `translated` is always an
+    // Error.
     const translated = translateClubIdentityError(error);
     const dbError = createDatabaseError(translated, 'club', 'create_or_reuse');
-    const metadata = translated as { code?: string; details?: string; hint?: string };
-    if (metadata.code) dbError.code = metadata.code;
-    if (metadata.details) dbError.details = metadata.details;
-    if (metadata.hint) dbError.hint = metadata.hint;
+    const translatedCode = (translated as { code?: string }).code;
+    if (translatedCode) dbError.code = translatedCode;
     logQuery('club', 'create_or_reuse', duration, dbError.message);
     return { data: null, error: dbError };
   }

@@ -16,6 +16,11 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   announcement_reads: 'SELECT',
   announcements: 'SELECT',
   armbands: 'SELECT,INSERT,UPDATE,DELETE',
+  // SELECT only, deliberately: the webcal URL is the credential, so every write
+  // goes through the SECURITY DEFINER RPCs (20260816130000). Widening this to
+  // INSERT/UPDATE would reopen the token-choosing and existence-oracle holes
+  // that migration's header enumerates.
+  calendar_feed_tokens: 'SELECT',
   chatbot_feedback: 'INSERT',
   chatbot_query_log: '',
   class_visibility_overrides: 'SELECT,INSERT,UPDATE',
@@ -191,7 +196,11 @@ function parseDefaultGrant(raw: unknown): DefaultGrantRow {
 
 /** Judge the applied ACL fact block returned by `public.system_health_probe()`. */
 export function appliedAclCheck(rawFacts: unknown, probedAt: string): SnapshotCheck {
-  const base = { key: 'applied_acl_grants', label: 'Applied ACL grants', checked_at: probedAt } as const;
+  const base = {
+    key: 'applied_acl_grants',
+    label: 'Applied ACL grants',
+    checked_at: probedAt,
+  } as const;
   if (!rawFacts || typeof rawFacts !== 'object') {
     return { ...base, status: 'warn', detail: 'probe returned no applied_acl_grants facts' };
   }
@@ -217,7 +226,8 @@ export function appliedAclCheck(rawFacts: unknown, probedAt: string): SnapshotCh
     seenTables.add(row.name);
   }
   for (const [name, privs] of Object.entries(AUTHENTICATED_TABLE_GRANTS)) {
-    if (!seenTables.has(name)) problems.push(`missing authenticated table grant ${name} (${privs})`);
+    if (!seenTables.has(name))
+      problems.push(`missing authenticated table grant ${name} (${privs})`);
   }
 
   for (const row of forbiddenRows) {
@@ -257,7 +267,8 @@ export function appliedAclCheck(rawFacts: unknown, probedAt: string): SnapshotCh
   return {
     ...base,
     status: 'ok',
-    detail: `${tableRows.length} authenticated table grants, ${sequenceRows.length / 3} public sequences; ` +
+    detail:
+      `${tableRows.length} authenticated table grants, ${sequenceRows.length / 3} public sequences; ` +
       'no forbidden table privileges or sequence default drift',
   };
 }

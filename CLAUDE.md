@@ -168,7 +168,12 @@ Set the corresponding Linear issue (team **MyK9-platform**) to In Progress when 
 - **Risks or remaining work**
 - **Whether the acceptance criteria passed**
 
-Move the issue to Done only after the PR merges, then keep sprint docs and the debt register in sync with the merged state.
+Move the issue to Done only after the PR merges. Linear is the tracker of record; there are no sprint docs to reconcile (`OPEN-TODOS.md` / `TO-DOS.md` were retired by #1350). Two files still take entries, but only when the work leaves something the issue does not carry:
+
+- [`docs/qa/findings.md`](docs/qa/findings.md) — a QA finding that outlived the task.
+- [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md) — standing debt that is deliberately _not_ a Linear task, i.e. reactive guidance rather than scheduled work. Static code-quality debt does not go here; it is measured by `pnpm qa:code-quality-ratchet`.
+
+If neither applies, the Linear state change is the whole bookkeeping step.
 
 **Which review to use, and the Codex second-opinion policy: see [`docs/PLAYBOOK.md`](docs/PLAYBOOK.md) § 4.**
 

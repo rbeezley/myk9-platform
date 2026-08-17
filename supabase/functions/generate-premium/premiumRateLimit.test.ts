@@ -54,11 +54,11 @@ describe('runPremiumGenerationAttempt', () => {
       ...deps,
     });
 
-    await expect(promise).rejects.toMatchObject<HttpError>({
+    await expect(promise).rejects.toMatchObject({
       status: 429,
       code: 'premium_rate_limited',
       message: 'Too many premium generation attempts. Please try again later.',
-    });
+    } satisfies Partial<HttpError>);
     expect(deps.generate).not.toHaveBeenCalled();
   });
 
@@ -109,7 +109,10 @@ describe('runPremiumGenerationAttempt', () => {
         checkRateLimit,
         generate,
       })
-    ).rejects.toMatchObject<HttpError>({ status: 429, code: 'premium_rate_limited' });
+    ).rejects.toMatchObject({
+      status: 429,
+      code: 'premium_rate_limited',
+    } satisfies Partial<HttpError>);
 
     expect(checkRateLimit).toHaveBeenLastCalledWith({
       authUserId: 'user-1',
@@ -127,11 +130,11 @@ describe('runPremiumGenerationAttempt', () => {
       ...deps,
     });
 
-    await expect(promise).rejects.toMatchObject<HttpError>({
+    await expect(promise).rejects.toMatchObject({
       status: 503,
       code: 'premium_rate_limit_unavailable',
       message: 'Premium generation is temporarily unavailable. Please try again.',
-    });
+    } satisfies Partial<HttpError>);
     expect(deps.generate).not.toHaveBeenCalled();
   });
 
@@ -145,7 +148,7 @@ describe('runPremiumGenerationAttempt', () => {
       ...deps,
     });
 
-    await expect(promise).rejects.toMatchObject<HttpError>({ status: 503 });
+    await expect(promise).rejects.toMatchObject({ status: 503 } satisfies Partial<HttpError>);
     expect(deps.generate).not.toHaveBeenCalled();
   });
 
@@ -158,7 +161,7 @@ describe('runPremiumGenerationAttempt', () => {
       ...deps,
     });
 
-    await expect(promise).rejects.toMatchObject<HttpError>({ status: 503 });
+    await expect(promise).rejects.toMatchObject({ status: 503 } satisfies Partial<HttpError>);
     expect(deps.generate).not.toHaveBeenCalled();
   });
 
@@ -174,7 +177,7 @@ describe('runPremiumGenerationAttempt', () => {
       ...deps,
     });
 
-    await expect(promise).rejects.toMatchObject<HttpError>({ status: 503 });
+    await expect(promise).rejects.toMatchObject({ status: 503 } satisfies Partial<HttpError>);
     expect(deps.generate).not.toHaveBeenCalled();
   });
 
@@ -197,7 +200,7 @@ describe('runPremiumGenerationAttempt', () => {
       ...deps,
     });
 
-    await expect(promise).rejects.toMatchObject<HttpError>({ status: 503 });
+    await expect(promise).rejects.toMatchObject({ status: 503 } satisfies Partial<HttpError>);
     expect(deps.generate).not.toHaveBeenCalled();
   });
 
@@ -211,7 +214,7 @@ describe('runPremiumGenerationAttempt', () => {
       ...deps,
     });
 
-    await expect(promise).rejects.toMatchObject<HttpError>({ status: 503 });
+    await expect(promise).rejects.toMatchObject({ status: 503 } satisfies Partial<HttpError>);
     expect(deps.generate).not.toHaveBeenCalled();
   });
 

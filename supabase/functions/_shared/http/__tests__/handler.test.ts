@@ -12,7 +12,7 @@ vi.mock('npm:@supabase/supabase-js@2.49.1', () => ({
   createClient: () => ({}),
 }));
 
-import { processRequest } from '../handler';
+import { processRequest, type HandlerCtx } from '../handler';
 import { HttpError } from '../responses';
 import { MYK9SHOW_ORIGINS } from '../cors';
 import { requirePushWebhookSecret } from '../../pushWebhookAuth';
@@ -192,7 +192,9 @@ describe('processRequest', () => {
   describe('auth: none', () => {
     it('invokes the handler with ctx.user undefined and skips auth lookup', async () => {
       const deps = makeDeps();
-      const handler = vi.fn(async () => ({ ok: true }));
+      // Declared param (unlike the other `vi.fn(async () => ...)` stubs here)
+      // so `mock.calls[0]` is a 1-tuple and the ctx assertion below typechecks.
+      const handler = vi.fn(async (_ctx: HandlerCtx<unknown>) => ({ ok: true }));
 
       const res = await processRequest(
         postRequest({ hello: 'webhook' }),

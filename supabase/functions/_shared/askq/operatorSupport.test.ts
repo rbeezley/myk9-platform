@@ -309,7 +309,8 @@ describe('Operator Support authorization boundary', () => {
     const audit = makeAudit();
     const reserveQuery = vi.fn(async () => ({
       status: 'limited' as const,
-      remaining: 0,
+      // `OperatorSupportReservation` pins remaining to the literal 0 when limited.
+      remaining: 0 as const,
       limit: 20,
       resetsAt: '2026-07-25T00:00:00.000Z',
     }));

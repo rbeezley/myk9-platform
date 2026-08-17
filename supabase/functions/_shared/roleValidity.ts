@@ -15,6 +15,28 @@ export function applyActiveRoleValidity<TQuery>(query: TQuery): TQuery {
   return query;
 }
 
+/**
+ * True when any row of a `select('role:roles(name)')` result names `roleName`.
+ *
+ * `user_roles.role_id` is a to-one FK, so PostgREST returns the embed as a
+ * single object. supabase-js cannot infer that cardinality without generated
+ * `Database` types and widens every embed to an array, so annotating the
+ * `.some()` callback at each call site produced a type that fought the client's
+ * inference. Narrowing from `unknown` here puts the four privileged Edge
+ * handlers on one shape check instead.
+ *
+ * Deliberately matches ONLY the object embed, not an array one: this gates
+ * site_admin, so an unexpected response shape must fall through to `false`
+ * (deny) rather than be interpreted generously.
+ */
+export function rolesInclude(rows: unknown, roleName: string): boolean {
+  if (!Array.isArray(rows)) return false;
+
+  return rows.some(
+    row => (row as { role?: { name?: unknown } | null } | null)?.role?.name === roleName
+  );
+}
+
 export interface RoleValidityRow {
   is_active: boolean | null | undefined;
   expires_at: string | null | undefined;

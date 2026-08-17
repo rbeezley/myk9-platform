@@ -1,0 +1,51 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "node_modules/.cache/tsc/edge-tests.tsbuildinfo",
+    "types": ["vitest/globals", "node"],
+    "paths": {
+      "@/*": ["src/*"],
+      // Mirrors the `resolve.alias` entry of the same name in vitest.config.ts.
+      // Edge functions import Deno's `npm:` specifier; vitest maps it to the
+      // installed package at runtime, so tsc has to map it to that package's
+      // types or every module reaching a Supabase client fails to resolve.
+      "npm:@supabase/supabase-js@2.49.1": ["node_modules/@supabase/supabase-js/dist/index.d.mts"]
+    }
+  },
+  "include": [
+    "types/edge-runtime.d.ts",
+    "supabase/functions/_shared/*.test.ts",
+    "supabase/functions/stripe-webhook/*.test.ts",
+    "../../supabase/functions/_shared/askq/*.test.ts",
+    "../../supabase/functions/_shared/pushWebhookAuth.test.ts",
+    "../../supabase/functions/_shared/roleValidity.test.ts",
+    "../../supabase/functions/_shared/roleValidityCoverage.test.ts",
+    "../../supabase/functions/_shared/sms/*.test.ts",
+    "../../supabase/functions/_shared/http/__tests__/handler.test.ts",
+    "../../supabase/functions/_shared/http/__tests__/cors.test.ts",
+    "../../supabase/functions/_shared/standardWebhookSignature.test.ts",
+    "../../supabase/functions/_shared/resendEmail.test.ts",
+    "../../supabase/functions/_shared/authEmailFailure.test.ts",
+    "../../supabase/functions/_shared/webhookAuth.source.test.ts",
+    "../../supabase/functions/push-trigger-waitlist/waitlistNotification.test.ts",
+    "../../supabase/functions/push-trigger-run-proximity/runProximity.test.ts",
+    "../../supabase/functions/calendar-feed/*.test.ts",
+    "../../supabase/functions/send-auth-email/delivery.test.ts",
+    "../../supabase/functions/resend-webhook/handler.test.ts",
+    "../../supabase/functions/send-confirmation-email/*.test.ts",
+    "../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.test.ts",
+    "../../supabase/functions/send-results/authz.test.ts",
+    "../../supabase/functions/send-email/authz.test.ts",
+    "../../supabase/functions/send-email/recipientResolution.test.ts",
+    "../../supabase/functions/send-registration-email/dateFormat.test.ts",
+    "../../supabase/functions/validate-passcode/*.test.ts",
+    "../../supabase/functions/generate-premium/*.test.ts",
+    "../../supabase/functions/admin-delete-user/*.test.ts",
+    "../../supabase/functions/admin-generate-reset-link/*.test.ts",
+    "../../supabase/functions/admin-invite-user/*.test.ts",
+    "../../supabase/functions/sentry-dashboard-metrics/metrics.test.ts",
+    "../../supabase/functions/sentry-dashboard-metrics/index.source.test.ts",
+    "../../supabase/functions/send-targeted-message/targeted-message-handler.test.ts"
+  ],
+  "exclude": []
+}

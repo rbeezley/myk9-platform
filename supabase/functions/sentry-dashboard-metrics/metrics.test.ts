@@ -75,7 +75,9 @@ function makeContext(supabase: unknown, userId = 'auth-1') {
 
 describe('sentryDashboardMetricsHandler', () => {
   it('authorizes site admins and returns normalized metrics without the API token', async () => {
-    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    // `_init` is declared (unlike the single-param fetch stubs below) because
+    // this test asserts on `mock.calls[...][1]` — the Authorization header.
+    const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);
       return url.includes('/sessions/') ? sessionsResponse(0.025) : sentryResponse(640);
     });

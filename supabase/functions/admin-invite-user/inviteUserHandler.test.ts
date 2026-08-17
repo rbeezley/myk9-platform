@@ -5,6 +5,7 @@ import {
   resolveInviteRedirect,
   type InviteUserDeps,
 } from './inviteUserHandler.ts';
+import type { ResendEmailRequestInit } from '../_shared/resendEmail.ts';
 
 function chain<T>(data: T, error: unknown = null) {
   const query: Record<string, unknown> = {};
@@ -80,7 +81,13 @@ function makeSupabase(opts: MockOptions = {}) {
 }
 
 function makeDeps(overrides: Partial<InviteUserDeps> = {}) {
-  const sendEmail = vi.fn(async () => ({ ok: true, status: 200, text: async () => '' }));
+  // Param declared so `sendEmail.mock.calls[0][0]` is typed as the request init
+  // the assertions below read, rather than an empty tuple.
+  const sendEmail = vi.fn(async (_init: ResendEmailRequestInit) => ({
+    ok: true,
+    status: 200,
+    text: async () => '',
+  }));
   return {
     deps: {
       resendApiKey: 'test-key',

@@ -90,7 +90,7 @@ Save plans to `docs/plan-<topic>.md`, never chat-only. Follow existing plans whe
 
 ## Commands
 
-Package manager: **pnpm** (not npm). Root scripts (`dev:show`, `build`, `typecheck`, `lint`) are in `package.json`. The non-obvious ones:
+Package manager: **pnpm** (not npm). Root scripts (`dev:show`, `build`, `typecheck`, `lint`) are in `package.json`; `pnpm dev:show` serves myK9Show at http://localhost:5173. The non-obvious ones:
 
 ```bash
 # Testing (run from app directories)

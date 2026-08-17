@@ -109,6 +109,19 @@ describe('buildProximitySms', () => {
     expect(estimate.length).toBeLessThanOrEqual(GSM7_SEGMENT_LIMIT);
   });
 
+  it('budgets GSM-7 extension characters by septets, not code units', () => {
+    const msg = buildProximitySms({
+      dogName: 'Cooper',
+      className: '\\'.repeat(120),
+      dogsAhead: 3,
+      armband: 314,
+    });
+    const estimate = estimateSegments(msg);
+    expect(estimate.encoding).toBe('GSM-7');
+    expect(estimate.segments).toBe(1);
+    expect(estimate.length).toBeLessThanOrEqual(GSM7_SEGMENT_LIMIT);
+  });
+
   it('sanitizes names that arrive with typography or emoji', () => {
     const msg = buildProximitySms({
       dogName: 'Café 🐕',

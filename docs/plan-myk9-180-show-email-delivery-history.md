@@ -85,8 +85,13 @@ or needs attention.
 - Map an unknown future provider status to “Status unavailable”; never treat an
   unrecognized value as delivered.
 - Link recovery to the existing owner surface:
-  - registration confirmation → `/shows/<showId>/entry-management`
-  - lifecycle email → the existing `#scheduled-emails` section
+  - registration, Heritage confirmation, or manual entry decision →
+    `/shows/<showId>/entry-management`
+  - lifecycle email →
+    `/secretary/messages?showId=<showId>&view=email#scheduled-emails`
+  - waitlist notification →
+    `/shows/<showId>/entry-management?tab=waitlist`
+  - registry results submission → `/shows/<showId>/submit-results`
 - Paginate or cap the first query so Communication History remains responsive.
 
 ## Data contract [EXPANDED]
@@ -113,7 +118,7 @@ The RPC should return only presentation-safe fields:
 
 - stable attempt/log identifier
 - show ID
-- source kind: registration confirmation or lifecycle email
+- source kind from the verified V1 show-scoped source set
 - lifecycle step type when applicable
 - enrollment/job reference needed for recovery routing
 - recipient name and email

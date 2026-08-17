@@ -10,7 +10,7 @@ Fee model: 7% total convenience fee, ~3% net platform margin after Stripe proces
 
 **Standing constraint:** nothing in this document outranks Stripe Connect. If a week is contested, Connect wins.
 
-**Deploying what's built:** L1–L6 are merged. The ordered, gated deploy steps — keys, secrets, migration, function deploys, verification and rollback — are in [`docs/operations/launch-integrations-deploy.md`](operations/launch-integrations-deploy.md).
+**Deploying what's built:** L1–L6 are merged. The ordered, gated deploy steps — keys, secrets, migration, function deploys, verification and rollback — are in [`docs/operations/launch-integrations-deploy.md`](operations/launch-integrations-deploy.md). L6 additionally needs an A2P 10DLC filing, whose provider choice, prerequisites and copy-paste campaign answers are in [`docs/operations/sms-10dlc-registration.md`](operations/sms-10dlc-registration.md).
 
 **Deployed 2026-08-16 (backend only):** migrations `20260816120000` / `20260816130000` / `20260816140000` applied to `sojmvhhwsjxmfistvzbe`; `push-trigger-run-proximity` and `calendar-feed` deployed; `CALENDAR_FEED_ORIGIN` set. Schema, ACL and RLS verification passed. **Not yet done:** L1/L2/L3 operator steps (Apple portal, Stripe toggle, both Maps keys), all frontend/Vercel work, and every device-level functional check for L4/L5 — see the runbook's phase notes.
 
@@ -20,10 +20,10 @@ Fee model: 7% total convenience fee, ~3% net platform margin after Stripe proces
 
 Two items have external lead times that will gate you later if started late. Both are cheap and run in the background.
 
-| Item | Cost | Lead time | Why now |
-|---|---|---|---|
-| **A2P 10DLC brand + campaign registration** | ~$50 setup, $1.50–10/mo | 1–3 weeks approval | **NOT STARTED as of 2026-08-16.** Buys the *option* on SMS. Unregistered messages are blocked outright by carriers. Skipping this means a month's delay whenever you decide you want it — which is now the situation. |
-| **Google Cloud project + Maps API key + billing account** | $0 | Same day | Required even at zero usage. Set a $10/mo budget alert immediately. |
+| Item                                                      | Cost                    | Lead time          | Why now                                                                                                                                                                                                               |
+| --------------------------------------------------------- | ----------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A2P 10DLC brand + campaign registration**               | ~$50 setup, $1.50–10/mo | 1–3 weeks approval | **NOT STARTED as of 2026-08-16.** Buys the _option_ on SMS. Unregistered messages are blocked outright by carriers. Skipping this means a month's delay whenever you decide you want it — which is now the situation. |
+| **Google Cloud project + Maps API key + billing account** | $0                      | Same day           | Required even at zero usage. Set a $10/mo budget alert immediately.                                                                                                                                                   |
 
 Optionally also: **Google Wallet issuer account application.** Free, approval is not instant, and having it approved costs nothing if you never use it.
 
@@ -34,13 +34,15 @@ Optionally also: **Google Wallet issuer account application.** Free, approval is
 Estimated **~2.5 weeks** of evening and weekend work **[corrected from ~4 — L1 is half done, L2 is dashboard config only, L4's delivery pipeline already exists]**, in this order.
 
 ### L1. Sign in with Apple (Google Sign-In already shipped)
+
 **~Half a day.** **[corrected]** Google OAuth is already implemented — `signInWithGoogle` in `apps/myk9show/src/hooks/useAuth.ts` via Supabase Auth, with tests. Only Apple is new: a Services ID and key from the Apple Developer portal, enable the provider in Supabase, add the button next to the existing Google one.
 
-*Exhibitor benefit:* removes password creation, the highest-abandonment step for someone entering four trials a year.
+_Exhibitor benefit:_ removes password creation, the highest-abandonment step for someone entering four trials a year.
 
-*Urgency note:* Sign in with Apple is not a compliance requirement for a PWA — that guideline binds App Store submissions. But because Google sign-in is live, **Google-identity accounts are accumulating today**, and retrofitting Apple after iOS users have created Google or password accounts is the painful path. This is the reason L1 stays first despite being small.
+_Urgency note:_ Sign in with Apple is not a compliance requirement for a PWA — that guideline binds App Store submissions. But because Google sign-in is live, **Google-identity accounts are accumulating today**, and retrofitting Apple after iOS users have created Google or password accounts is the painful path. This is the reason L1 stays first despite being small.
 
 ### L2. Apple Pay & Google Pay
+
 **~1 hour of dashboard configuration + device testing. No code change.** **[corrected again during implementation]** The app uses hosted **Stripe Checkout Sessions**, and on hosted Checkout the `card` payment method type automatically carries Apple Pay and Google Pay — no integration changes, and no Apple Pay domain registration (that requirement is for Payment/Express Element on your own domain).
 
 The `payment_method_types: ['card']` pin in `stripe-checkout/index.ts` **stays**. It is a deliberate money-path contract (`moneyPathCloseout.source.test.ts`): asynchronous methods like ACH and Klarna complete Checkout with `payment_status: 'unpaid'` and settle later, which `decideFreshSessionGate` refuses by design. Wallets are card-network payments and are unaffected by the pin. v2 and the first v3 draft both got this wrong; the pin site now carries an `// INTENT:` comment.
@@ -53,17 +55,19 @@ The actual work:
 **Highest ROI item in this document.** Same processing rate as a card, materially lower mobile cart abandonment, and your entries happen on phones.
 
 ### L3. Maps — Places Autocomplete + Static Maps
+
 **Built (code complete; keys pending).** **[corrected during implementation]** "Greenfield" was wrong — the app already carries a substantial free-tier maps stack: a Leaflet/OSM `VenuePinMap` in the show wizard with a draggable pin and Nominatim geocoding on the address, a shows-browse map view, venue `latitude`/`longitude` columns flowing through `create_show_with_children`, and a Google **Maps Embed API** `VenueMap` on the show overview (keyless fallback, `VITE_GOOGLE_MAPS_EMBED_API_KEY`). L3 narrows to the two pieces that stack doesn't cover:
 
 - **Places Autocomplete** on the wizard's venue Location field — **built.** `VenueAddressAutocomplete` (features/maps) suggests venues/addresses via Places API (New) with per-session billing tokens; selecting one fills the field and drops the map pin from Google's coordinates. Gated on `VITE_GOOGLE_MAPS_API_KEY`: without a key the field renders exactly as before (plain textarea + Nominatim "Locate"). Suggestions render in-flow, not as an anchored popup, per the `noHandRolledDropdowns` guard.
 - **Static Maps** image in the entry confirmation email — **built.** Shared `static-map.ts` builds the Maps Static API image URL plus a universal Google Maps directions link from the secretary-placed venue pin (`shows.latitude/longitude`); all 7 style templates and the default builder render it under their venue block via one shared renderer. Gated on the `GOOGLE_MAPS_STATIC_API_KEY` edge-function secret — absent, emails render exactly as before. The key rides inside the email `<img>` URL where recipients can read it, so it must be a **separate key restricted to the Maps Static API only** (referrer restrictions don't work in mail clients), with the budget alert as the backstop.
 - **Static map in the premium list — dropped, deliberately.** The published show landing/premium surfaces (7 style variants) already show the venue address and link to the show page, which renders the existing Embed API `VenueMap`. Inserting a map into 7 more surfaces duplicates that for no new capability — per the consolidate-don't-duplicate rule, the email map plus the existing show-page map cover the intent.
 
-*Financial:* Essentials SKUs carry 10,000 free events per month each and free usage no longer pools across SKUs. Comfortably free at launch volume. Session tokens are implemented — Autocomplete bills per session, not per keystroke, and the client mints one token per typing session, consumed by the terminating Place Details call.
+_Financial:_ Essentials SKUs carry 10,000 free events per month each and free usage no longer pools across SKUs. Comfortably free at launch volume. Session tokens are implemented — Autocomplete bills per session, not per keystroke, and the client mints one token per typing session, consumed by the terminating Place Details call.
 
-*Deferred:* interactive Dynamic Maps, the drag-and-drop ring layout canvas, geofencing. Good ideas; none answer "can a secretary run their first trial without this."
+_Deferred:_ interactive Dynamic Maps, the drag-and-drop ring layout canvas, geofencing. Good ideas; none answer "can a secretary run their first trial without this."
 
 ### L4. Web Push — "you're N runs out" proximity alert
+
 **Built (code complete; deploy pending).** **[corrected again during implementation]** Both v2's "~1 week" and v3's "~2–3 days, build the proximity trigger" were wrong: **the entire proximity feature already existed**, including push. `useNotificationMonitor` polls the entry snapshot (30s + realtime nudges), detects the in-ring change, computes `dogsAhead` from the shared run-queue logic, builds the payload via `@myk9/notifications`, and delivers in-app — with cross-class conflict detection, a 60s dedup window, and a watch set of owned dogs ∪ favorited armbands.
 
 The real gap was one line: push was sent **from the browser**, gated on `document.visibilityState !== 'visible'`. That requires the PWA process to be alive and merely backgrounded. iOS Safari suspends backgrounded PWAs, so the exhibitor with the phone in their pocket at the crate — the entire premise of the feature — got nothing.
@@ -85,23 +89,24 @@ The real gap was one line: push was sent **from the browser**, gated on `documen
   group by 1;
   ```
 
-  *Caveat to remember when reading it:* iOS gives no completion signal for "Add to Home Screen" — it happens inside Safari's share sheet — so `pwa_ios_instructions_shown` measures intent, and only the next day's snapshot confirms whether it stuck. Signed-out visitors are not counted (`analytics_events.user_id` defaults to `auth.uid()` and is NOT NULL); the metric is "of our accounts, who installed", which is the per-account question anyway.
+  _Caveat to remember when reading it:_ iOS gives no completion signal for "Add to Home Screen" — it happens inside Safari's share sheet — so `pwa_ios_instructions_shown` measures intent, and only the next day's snapshot confirms whether it stuck. Signed-out visitors are not counted (`analytics_events.user_id` defaults to `auth.uid()` and is NOT NULL); the metric is "of our accounts, who installed", which is the per-account question anyway.
 
-*Exhibitor benefit:* the actual killer feature. Missing your run because you were at the crate is the sport's universal frustration.
+_Exhibitor benefit:_ the actual killer feature. Missing your run because you were at the crate is the sport's universal frustration.
 
-*Deploy note:* the trigger needs the `edge_function_base_url` and `push_webhook_secret` Vault secrets already used by the other push triggers, plus a `push-trigger-run-proximity` function deploy. Absent either, it logs a notice and skips — it can never abort a steward's ring check-in.
+_Deploy note:_ the trigger needs the `edge_function_base_url` and `push_webhook_secret` Vault secrets already used by the other push triggers, plus a `push-trigger-run-proximity` function deploy. Absent either, it logs a notice and skips — it can never abort a steward's ring check-in.
 
 ### L5. Calendar — .ics + webcal feed
+
 **Built (code complete; deploy pending).** Skip the Google Calendar API and Apple EventKit entirely. Genuinely greenfield — the one launch item where no prior implementation existed.
 
 - **Subscription feed and download — built.** One `calendar-feed` edge function serves both: `webcal://` for an auto-updating subscription, the same URL with `&download=1` for a one-off `.ics`. One code path covers Google, Apple, and Outlook.
-- **Scoped per SHOW, not per trial** *(changed from this plan's original wording)*. A show is the weekend an exhibitor entered; trials are the days within it. One subscribe link per weekend is what an exhibitor wants, and it matches the `MyEntry` grouping the UI already has. Each trial still supplies its own date and timezone, so a multi-day show spanning a DST change stays correct.
+- **Scoped per SHOW, not per trial** _(changed from this plan's original wording)_. A show is the weekend an exhibitor entered; trials are the days within it. One subscribe link per weekend is what an exhibitor wants, and it matches the `MyEntry` grouping the UI already has. Each trial still supplies its own date and timezone, so a multi-day show spanning a DST change stays correct.
 - **Events are per CLASS, not per dog.** Per-dog estimates would mean projecting from run order x average duration — a number that moves every few minutes, and every move is a push notification from the subscriber's calendar client. Per-class delivers the "shifts as judging runs ahead or behind" promise honestly: `DTSTART` uses the class's actual start once the ring reports it, and `STATUS` flips `TENTATIVE` -> `CONFIRMED` with it. A class with no time yet is omitted rather than guessed.
 - **Security.** Token is 32 random bytes (`show_passcodes` generator), revocable and rotatable via `SECURITY DEFINER` RPCs; `authenticated` holds SELECT only so a client cannot forge a token, probe the unique index as an existence oracle, un-revoke, or repoint a shared URL. Feed exposes schedule only — never payment, entry status, or scores. Absent/malformed/revoked/unknown tokens are indistinguishable 404s.
 
 Cheaper to build than the API approach and strictly more capable. No OAuth scopes to justify.
 
-*Note:* the shared edge `handle()` envelope cannot serve this — it requires a JSON body, 405s non-POST, and wraps returns in JSON. The function uses the raw `Deno.serve` pattern already established by `validate-passcode`.
+_Note:_ the shared edge `handle()` envelope cannot serve this — it requires a JSON body, 405s non-POST, and wraps returns in JSON. The function uses the raw `Deno.serve` pattern already established by `validate-passcode`.
 
 **Security design is part of the feature, not an afterthought.** **[added]** A per-exhibitor subscription URL is an unauthenticated capability token fetched by Google/Apple calendar servers — it cannot carry a session. Requirements:
 
@@ -110,7 +115,8 @@ Cheaper to build than the API approach and strictly more capable. No OAuth scope
 - Serve it from an Edge Function with its own narrow read path; do not widen any anon table grant to feed it.
 
 ### L6. SMS alerts — "you're 3 dogs out"
-**Consent record + message composition built; send path awaits a provider decision and 10DLC.** Greenfield like L5 — no SMS provider is wired anywhere in the repo.
+
+**Consent record, message composition and compliance content built; send path awaits 10DLC approval.** **[updated 2026-08-16]** No SMS provider is wired in the repo yet, but the choice is made: **Twilio** — not on price (it is the most expensive realistic option) but because its Messaging Service enforces STOP/HELP at the platform layer, turning a bug in our own opt-out handling into a logged delivery error rather than per-message TCPA exposure. Alternatives and reasoning: [`docs/operations/sms-10dlc-registration.md`](operations/sms-10dlc-registration.md) § 1.
 
 **Confirmed 2026-08-16: the A2P 10DLC registration was never started.** So SMS does **not** ship at launch — approval takes 1–3 weeks from filing, and this was the one item on the roadmap whose lead time could not be compressed later.
 
@@ -125,7 +131,7 @@ Filing now and deciding later is strictly better than the reverse, because the r
 
 **Scope tightly:** the pre-run alert only. Not results, not schedule changes. Keep messages under 160 characters and avoid emoji — emoji forces UCS-2 encoding, dropping the limit to 70 characters and doubling cost.
 
-*Cost:* ~$0.012–0.013 per message all-in including carrier passthrough. Roughly 4–5 cents per exhibitor per trial.
+_Cost:_ ~$0.012–0.013 per message all-in including carrier passthrough. Roughly 4–5 cents per exhibitor per trial.
 
 **Give it away.** Against a $7 fee on a $100 cart, a nickel is under 1% of margin. "We text you before your run" is worth more as word-of-mouth in a small, tightly networked sport than as a $4.99/mo subscription — which is an awkward sell to someone competing six weekends a year. Revisit paid tiering in Year 2 if volume justifies it.
 
@@ -133,7 +139,11 @@ Filing now and deciding later is strictly better than the reverse, because the r
 
 Migration `20260816140000` adds the real record — consented number, opt-in timestamp, disclosure-wording version, source, and opt-out timestamp — with a CHECK constraint that makes `sms_enabled = true` **impossible** without all three consent fields present. A future code path that flips the boolean without recording consent now fails loudly instead of silently sending unconsented messages.
 
-*The subtlety worth knowing:* consent attaches to a **phone number**, not an account. If an exhibitor changes their number, the new number has not consented and prior consent does not transfer. The consented number is therefore pinned on the record rather than read from `people.phone` at send time.
+_The subtlety worth knowing:_ consent attaches to a **phone number**, not an account. If an exhibitor changes their number, the new number has not consented and prior consent does not transfer. The consented number is therefore pinned on the record rather than read from `people.phone` at send time.
+
+**Compliance content shipped (#1643).** **[added]** Two of the most common campaign-rejection causes were live in this repo and are now closed: the privacy policy had no mention of SMS, text messaging or mobile numbers at all (now § 3.6 "Mobile Information and SMS Messaging", with supporting collection, use and opt-out entries), and the consent flow existed only behind auth, which shows a reviewer a login wall. `/sms` is now a public route rendering `public/legal/sms-alerts.md` through the existing `LegalPage` component, and the support address is unified on `support@myk9show.com` to match the brand website being registered.
+
+**Remaining L6 gates are operational, not code.** The consent migration is applied (see the deploy note above), so what is left is: point `myk9show.com` at the app and deploy the frontend so `/sms` is publicly loadable — a reviewer cannot open a Vercel preview URL — provision `support@myk9show.com` to receive, then file the brand and campaign.
 
 **Still to build:** the send path and STOP/HELP webhook, both provider-specific. `_shared/sms/smsMessage.ts` already composes the alert provider-agnostically and guarantees one GSM-7 segment — the tests demonstrate the cost trap directly: a 130-character message plus one emoji becomes two billable segments.
 
@@ -157,6 +167,7 @@ Required by project policy; each item gates its integration.
 Held back deliberately. Combined these are 5–6 weeks of work for a feature whose audience you can't yet size.
 
 ### F1. Google Wallet digital armband
+
 **~2 weeks.** Pass class and object via REST, signed JWT for the add button, updates via REST `PATCH` — no per-pass signing.
 
 - Front: armband number, dog call name, class/element/level, ring assignment
@@ -167,9 +178,10 @@ Held back deliberately. Combined these are 5–6 weeks of work for a feature who
 
 **Sequencing caveat:** Google Wallet has no iOS app. If your base runs 65–70% iPhone — plausible, given dog sport exhibitors skew older — then building Google first means validating against the minority. In that case build Apple Wallet first and treat Google as the follow-on, inverting F1 and F2.
 
-*Phase-policy note:* **[added]** a wallet pass duplicates the existing armband/at-show surface, which is why it is deferred behind measured demand rather than shipped speculatively — consistent with the consolidate-don't-duplicate rule.
+_Phase-policy note:_ **[added]** a wallet pass duplicates the existing armband/at-show surface, which is why it is deferred behind measured demand rather than shipped speculatively — consistent with the consolidate-don't-duplicate rule.
 
 ### F2. Apple Wallet passes
+
 **~3–4 weeks.** $99/yr Apple Developer Program.
 
 Signed `.pkpass` bundles requiring a Pass Type ID certificate (`passkit-generator` handles bundling on Node). The expensive part: **push updates require hosting a pass web service** — device registration endpoints, APNs push, then a fetch endpoint the device calls back to. That's a real service on Edge Functions, not a webhook.
@@ -183,11 +195,13 @@ Signed `.pkpass` bundles requiring a Pass Type ID certificate (`passkit-generato
 ## Year 2
 
 ### Y1. Google Drive backup for secretaries
+
 **$0.** Automatic export of catalogs, score sheets, and AKC/UKC submission files to the secretary's own Drive. Secretary-facing retention play — clubs rotate secretaries, and a club whose records live in their own Drive stays.
 
 No Apple equivalent exists; CloudKit writes to your app's container, not a user's iCloud Drive. Offer a manual `.zip` download for non-Google clubs.
 
 ### Y2. Paid tier reconsideration
+
 If SMS volume and exhibitor engagement justify it, an annual VIP tier ($19–29/yr) bundling title tracking, training journal, and performance analytics. Annual, not monthly — match the rhythm of the sport.
 
 ---
@@ -196,34 +210,34 @@ If SMS volume and exhibitor engagement justify it, an annual VIP tier ($19–29/
 
 **Native iOS app / Live Activities / Dynamic Island.** ActivityKit is native-only and unavailable to PWAs. Building it means App Store review, release cycles, and two codebases.
 
-*Trigger, if ever:* iOS PWA install rate below 25% **and** SMS costs above $500/mo.
+_Trigger, if ever:_ iOS PWA install rate below 25% **and** SMS costs above $500/mo.
 
-*The financial argument is stronger than the technical one:* any subscription sold through the App Store loses 15–30% to Apple. On a $4.99/mo tier that's $0.75–1.50 per subscriber per month. Web-only checkout keeps 100%. Treat this as a decision to actively avoid.
+_The financial argument is stronger than the technical one:_ any subscription sold through the App Store loses 15–30% to Apple. On a $4.99/mo tier that's $0.75–1.50 per subscriber per month. Web-only checkout keeps 100%. Treat this as a decision to actively avoid.
 
 ---
 
 ## Cut entirely
 
-| Feature | Reason |
-|---|---|
-| **Google Find Hub** | No app-facing API. It's a hardware certification program for tracker manufacturers requiring certified chipsets and third-party lab testing. |
-| **Apple iCloud Drive API** | Doesn't exist for third parties. CloudKit is app-container only. |
-| **Google Messages / RCS** | No direct API, and no iOS app at all. Available via CPaaS with heavier sender verification than SMS. Revisit Year 3 at earliest. |
-| **Google Pay as a separate integration** | Covered by Stripe Checkout in L2. |
-| **Google Calendar API / Apple EventKit** | `.ics` + webcal achieves more, cross-platform, with no OAuth. |
-| **FCM / APNs SDK integration for push** | **[added]** Already unnecessary — the deployed `send-push-notification` function speaks standards Web Push (VAPID), which both platforms accept. |
+| Feature                                  | Reason                                                                                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Google Find Hub**                      | No app-facing API. It's a hardware certification program for tracker manufacturers requiring certified chipsets and third-party lab testing.     |
+| **Apple iCloud Drive API**               | Doesn't exist for third parties. CloudKit is app-container only.                                                                                 |
+| **Google Messages / RCS**                | No direct API, and no iOS app at all. Available via CPaaS with heavier sender verification than SMS. Revisit Year 3 at earliest.                 |
+| **Google Pay as a separate integration** | Covered by Stripe Checkout in L2.                                                                                                                |
+| **Google Calendar API / Apple EventKit** | `.ics` + webcal achieves more, cross-platform, with no OAuth.                                                                                    |
+| **FCM / APNs SDK integration for push**  | **[added]** Already unnecessary — the deployed `send-push-notification` function speaks standards Web Push (VAPID), which both platforms accept. |
 
 ---
 
 ## Cost summary at 50 trials/year, ~3,000 entries
 
-| Item | Annual cost |
-|---|---|
-| Auth, Maps, wallet payments, push, calendar | $0 |
-| SMS (~12k messages + campaign fees) | ~$250–400 |
-| Apple Developer Program (fast-follow) | $99 |
-| Google Wallet, Drive backup | $0 |
-| **Total** | **~$350–500/yr** |
+| Item                                        | Annual cost      |
+| ------------------------------------------- | ---------------- |
+| Auth, Maps, wallet payments, push, calendar | $0               |
+| SMS (~12k messages + campaign fees)         | ~$250–400        |
+| Apple Developer Program (fast-follow)       | $99              |
+| Google Wallet, Drive backup                 | $0               |
+| **Total**                                   | **~$350–500/yr** |
 
 At a $100 average cart, 3,000 entries is roughly $75,000 gross and ~$2,700 platform margin. Integration costs land near 15% of margin — and every launch-set item except SMS is free.
 

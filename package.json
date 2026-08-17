@@ -68,7 +68,7 @@
     "@fission-ai/openspec": "^1.8.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
-    "@supabase/supabase-js": "^2.110.7",
+    "@supabase/supabase-js": "^2.112.3",
     "@types/node": "^22",
     "globals": "^17.9.0",
     "prettier": "^3.9.6",
@@ -84,7 +84,7 @@
   "pnpm": {
     "overrides": {
       "eslint-plugin-react-hooks": "7.0.1",
-      "@supabase/supabase-js": "2.110.7",
+      "@supabase/supabase-js": "2.112.3",
       "esbuild": "^0.28.1",
       "qs": "^6.15.2",
       "undici": "^7.16.0",

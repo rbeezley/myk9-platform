@@ -103,7 +103,7 @@
     "@myk9/ui": "workspace:*",
     "@react-pdf/renderer": "^4.5.1",
     "@sentry/react": "^10.69.0",
-    "@supabase/supabase-js": "^2.110.7",
+    "@supabase/supabase-js": "^2.112.3",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-table": "^8.21.3",
     "@tiptap/react": "^3.29.2",

@@ -212,7 +212,20 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'user', 'update');
+    // MYK9-175: mirror the insert path. A `people_email_unique` collision has
+    // to reach the operator as field-specific copy, not as the raw constraint
+    // name — `UserDetailsView` renders this message verbatim through
+    // `getErrorMessage`, so an untranslated error leaks SQL into the UI.
+    // One translation point covers both exits: the `throw` in the error branch
+    // above is inside this same `try`. `translatePersonIdentityError` falls
+    // through for anything that is not a unique email conflict, so the MK002
+    // and SIGN_IN_EMAIL_LOCKED refusals keep their own messages and codes.
+    const translated = translatePersonIdentityError(error);
+    const dbError = createDatabaseError(translated, 'user', 'update');
+    const metadata = translated as { code?: string; details?: string; hint?: string };
+    if (metadata.code) dbError.code = metadata.code;
+    if (metadata.details) dbError.details = metadata.details;
+    if (metadata.hint) dbError.hint = metadata.hint;
     logQuery('user', 'update', duration, dbError.message);
     return { data: null, error: dbError };
   }

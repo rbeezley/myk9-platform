@@ -445,7 +445,11 @@ describe('User Queries', () => {
 
         const result = await updateUser('user-123', { email: 'taken@example.com' });
 
-        expect(result.error!.message).toMatch(/duplicate key/i);
+        // MYK9-175: the duplicate now reaches the operator as field-specific
+        // copy instead of the raw constraint string, so identify it by its code
+        // — which survives translation — rather than by the SQL text.
+        expect(result.error!.code).toBe('23505');
+        expect(result.error!.message).toMatch(/email already exists/i);
         expect(result.error!.message).not.toMatch(/signs in with/i);
       });
 

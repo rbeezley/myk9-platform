@@ -48,6 +48,20 @@ export function gsm7Length(text: string): number {
   return length;
 }
 
+function truncateGsm7(text: string, maxSeptets: number): string {
+  let usedSeptets = 0;
+  let result = '';
+
+  for (const char of text) {
+    const charSeptets = gsm7Length(char);
+    if (usedSeptets + charSeptets > maxSeptets) break;
+    result += char;
+    usedSeptets += charSeptets;
+  }
+
+  return result;
+}
+
 export interface SegmentEstimate {
   encoding: 'GSM-7' | 'UCS-2';
   /** Billable segments. Anything above 1 is money for nothing here. */
@@ -118,8 +132,12 @@ export function buildProximitySms(input: ProximitySmsInput): string {
   const suffix = ' - myK9Show';
   const className = toGsm7Safe(input.className);
   const budget = GSM7_SEGMENT_LIMIT - gsm7Length(`${lead} in ${suffix}`);
-  const trimmedClass =
-    gsm7Length(className) <= budget ? className : `${className.slice(0, Math.max(0, budget - 1))}.`;
+  let trimmedClass = className;
+  if (gsm7Length(className) > budget) {
+    const marker = '.';
+    const classBudget = budget - gsm7Length(marker);
+    trimmedClass = classBudget >= 0 ? `${truncateGsm7(className, classBudget)}${marker}` : '';
+  }
 
   const message = trimmedClass ? `${lead} in ${trimmedClass}${suffix}` : `${lead}${suffix}`;
   return message;

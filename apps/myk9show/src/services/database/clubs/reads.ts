@@ -137,12 +137,16 @@ export const createClub = async (clubData: DbClubInsert) => {
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
+    // MYK9-178: do NOT re-read `details`/`hint` off the translated Error.
+    // `createDatabaseError` omits those outside DEV on purpose, and a 23505
+    // `details` spells out the colliding club name plus the normalized-name
+    // internals — `translateClubIdentityError` copies them onto the translated
+    // Error, so re-reading them here would undo that redaction, defeating the
+    // point of translating the constraint away. The code needs no restating
+    // either (MYK9-177): the helper reads `code` off whatever object it is
+    // handed, Error instances included.
     const translated = translateClubIdentityError(error);
     const dbError = createDatabaseError(translated, 'club', 'create_or_reuse');
-    const metadata = translated as { code?: string; details?: string; hint?: string };
-    if (metadata.code) dbError.code = metadata.code;
-    if (metadata.details) dbError.details = metadata.details;
-    if (metadata.hint) dbError.hint = metadata.hint;
     logQuery('club', 'create_or_reuse', duration, dbError.message);
     return { data: null, error: dbError };
   }

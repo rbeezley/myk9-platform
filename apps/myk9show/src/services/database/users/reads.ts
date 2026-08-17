@@ -132,12 +132,15 @@ export const createUser = async (userData: DbUserInsert) => {
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
+    // MYK9-178: do NOT re-read `details`/`hint` off the translated Error.
+    // `createDatabaseError` omits those outside DEV on purpose, and a 23505
+    // `details` spells out the colliding address, which has no business on a
+    // production surface — `translatePersonIdentityError` copies them onto the
+    // translated Error, so re-reading them here would undo that redaction.
+    // The code needs no restating either (MYK9-177): the helper reads `code`
+    // off whatever object it is handed, Error instances included.
     const translated = translatePersonIdentityError(error);
     const dbError = createDatabaseError(translated, 'user', 'insert');
-    const metadata = translated as { code?: string; details?: string; hint?: string };
-    if (metadata.code) dbError.code = metadata.code;
-    if (metadata.details) dbError.details = metadata.details;
-    if (metadata.hint) dbError.hint = metadata.hint;
     logQuery('user', 'insert', duration, dbError.message);
     return { data: null, error: dbError };
   }
@@ -221,12 +224,10 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
     // through for anything that is not a unique email conflict, so the MK002
     // and SIGN_IN_EMAIL_LOCKED refusals keep their own messages and codes.
     //
-    // The code carries itself: `translatePersonIdentityError` copies `code` onto
-    // the Error it returns, and `createDatabaseError` reads that field off
-    // whatever object it is handed. Do NOT re-add `details`/`hint` the way
-    // createUser above does (MYK9-178) — the helper omits those outside DEV on
-    // purpose, and a 23505 `details` spells out the colliding address, which has
-    // no business on a production surface.
+    // Nothing is restated off `translated` — same shape as the insert path above.
+    // `details`/`hint` must not be re-read (MYK9-178), and the code needs no
+    // help: the helper reads `code` off whatever object it is handed, Error
+    // instances included (MYK9-177).
     const translated = translatePersonIdentityError(error);
     const dbError = createDatabaseError(translated, 'user', 'update');
     logQuery('user', 'update', duration, dbError.message);

@@ -7,6 +7,12 @@ export interface HealthCoverageSurface {
   checkKey?: string;
 }
 
+// INTENT: Coverage includes durable alerts as well as snapshot checks. Sign-in
+// email delivery failures are persisted by resend-webhook and displayed beside
+// this registry, so calling all email delivery unmonitored would be misleading.
+// Sync backlog remains client-only, and site reachability still needs an external
+// uptime monitor.
+//
 // The stable denominator for the Coverage card. Snapshot checks remain the
 // source of live status; this registry answers the separate question of which
 // operational surfaces those checks and durable alerts can actually observe.

@@ -358,4 +358,29 @@ describe('SystemHealthPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/scheduled request was sent/i)).not.toBeInTheDocument();
   });
+
+  it('names a registered full check when the current run did not verify it', () => {
+    const latest = freshSnapshot({
+      checks: [
+        {
+          key: 'anon_grants',
+          label: 'Public access grants',
+          status: 'warn',
+          detail: 'Not evaluated in this continuous run',
+          checkedAt: new Date().toISOString(),
+          verification: 'unprovable' as const,
+        },
+      ],
+    });
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+
+    expect(
+      screen.getByText(
+        /Public access grants — this run did not collect enough evidence to confirm success/i
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText(/3 of 13 surfaces unmonitored/i)).toBeInTheDocument();
+  });
 });

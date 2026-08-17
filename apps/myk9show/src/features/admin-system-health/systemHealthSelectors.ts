@@ -179,7 +179,7 @@ export function isCoverageIncomplete(check: HealthCheck): boolean {
 export function getHealthCheckRemediation(check: HealthCheck): HealthCheckRemediation {
   const coverageIncomplete = isCoverageIncomplete(check);
 
-  if (check.key === 'payout_cron') {
+  if (check.key === 'payout_cron' && check.verification === 'unprovable') {
     return {
       ownerLabel: 'Payout Scheduling',
       actionLabel: 'Open Payouts',

@@ -68,12 +68,6 @@ function scheduleLabel(now: number): string {
   return `Cheap checks refresh continuously · full run nightly at ${eastern} ET`;
 }
 
-// INTENT: Coverage includes durable alerts as well as snapshot checks. Email
-// delivery failures for auth messages are persisted by resend-webhook and shown
-// immediately above this card, so calling email entirely unmonitored is stale and
-// misleading. Sync backlog remains client-only, and site reachability still needs
-// an external uptime monitor.
-
 function formatRunDuration(ms: number | null): string {
   if (ms == null) return '';
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
@@ -173,18 +167,20 @@ function CoverageCard({
   const visibleSurfaces = HEALTH_COVERAGE_SURFACES.filter(
     surface => surface.verificationLevel !== 'full' || !surface.checkKey
   );
-  const unregisteredUnprovableChecks = unprovableChecks.filter(
-    check => !coverageForCheck(check.key)
-  );
+  const runtimeUnprovableChecks = unprovableChecks
+    .map(check => ({ check, coverage: coverageForCheck(check.key) }))
+    .filter(({ coverage }) => !coverage || coverage.verificationLevel === 'full');
 
   return (
     <BoardCard>
       <Eyebrow>Coverage</Eyebrow>
       <p className="mt-2 text-sm text-foreground">What the platform can and can&apos;t prove.</p>
 
-      {unregisteredUnprovableChecks.map(check => (
+      {runtimeUnprovableChecks.map(({ check, coverage }) => (
         <p key={check.key} className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          {check.label} — this page does not have enough evidence to confirm success.
+          {coverage
+            ? `${coverage.label} — this run did not collect enough evidence to confirm success.`
+            : `${check.label} — this page does not have enough evidence to confirm success.`}
         </p>
       ))}
 

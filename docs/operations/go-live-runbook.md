@@ -533,24 +533,35 @@ There is no in-database undo. `entries → shows` is `ON DELETE CASCADE` all the
 takes the entries, armbands, judge assignments, passcodes, messages, and payouts with it. The only
 source is PITR restored into a **scratch project** — which is why step **a** is a blocker, not a task.
 
-**The cascade is far wider than the four core tables.** Thirty-nine dependent tables hang off
-`shows`/`trials`/`classes`/`entries` with `ON DELETE CASCADE`. Restoring only the core four gives you
-a show with no ringside passcodes, no judge assignments, no armbands, and no messages — technically
-recovered, operationally unrunnable. Enumerate the real list **from the catalog at recovery time**
-rather than trusting any list written here, which will go stale:
+**The cascade is far wider than the four core tables, and it is transitive.** Forty-seven dependent
+tables come away with a show. Restoring only the core four gives you a show with no ringside
+passcodes, no judge assignments, no armbands, and no messages — technically recovered, operationally
+unrunnable. Enumerate the real list **from the catalog at recovery time** rather than trusting any
+list written here, which will go stale.
+
+The traversal must be **recursive**: a one-level query that only looks at foreign keys pointing
+directly at the four core tables misses grandchildren like `announcement_reads` (via `announcements`)
+and `entry_cart_items` (via `entry_carts`), which the cascade still deletes. The chain runs four
+levels deep — `waitlist_notification_events` sits at depth 4 — and the one-level query undercounted
+by six tables when this was written.
 
 ```sql
--- Everything that cascaded away. 42 distinct tables as of 2026-08-17 (the 39
--- dependents plus trials/classes/entries, which cascade from each other).
-SELECT cl.relname AS table_name, pg_get_constraintdef(con.oid) AS fk
-FROM pg_constraint con
-JOIN pg_class     cl ON cl.oid = con.conrelid
-JOIN pg_namespace n  ON n.oid = cl.relnamespace AND n.nspname = 'public'
-WHERE con.contype = 'f'
-  AND con.confrelid IN ('public.shows'::regclass, 'public.trials'::regclass,
-                        'public.classes'::regclass, 'public.entries'::regclass)
-  AND pg_get_constraintdef(con.oid) LIKE '%ON DELETE CASCADE%'
-ORDER BY 1;
+-- Full transitive cascade closure from a show. 48 tables as of 2026-08-17,
+-- i.e. shows itself plus 47 dependents.
+WITH RECURSIVE closure AS (
+  SELECT 'public.shows'::regclass AS oid, 0 AS depth
+  UNION
+  SELECT con.conrelid, cl.depth + 1
+  FROM pg_constraint con
+  JOIN closure cl ON con.confrelid = cl.oid
+  WHERE con.contype = 'f'
+    AND pg_get_constraintdef(con.oid) LIKE '%ON DELETE CASCADE%'
+)
+SELECT DISTINCT c.relname AS table_name, min(cl.depth) AS depth
+FROM closure cl
+JOIN pg_class c ON c.oid = cl.oid
+GROUP BY c.relname
+ORDER BY 2, 1;
 ```
 
 Triage that list into three buckets before exporting: **must restore to run the show**
@@ -559,8 +570,22 @@ Triage that list into three buckets before exporting: **must restore to run the 
 (`show_payouts`, `show_money_locks`, `stripe_orders`, `entry_payment_links`, `promo_codes` — and see
 the money caveat in the exclusions below), and **can be regenerated or dropped**
 (`premium_generations`, `paperwork_prints`, `calendar_feed_tokens`, `dog_favorites`,
-`show_lifecycle_email_*`). Export each table in the first two buckets with the same `show_id` filter
-shape as below.
+`show_lifecycle_email_*`).
+
+**Do not assume a `show_id` column identifies the rows.** Check each table's own columns first.
+`promo_codes`, for one, has both `show_id` and `trial_id` and both are nullable — a trial-scoped code
+has a NULL `show_id`, so `WHERE show_id = :'show_id'` silently drops it. Filter on every route the
+table actually offers:
+
+```sql
+-- Pattern for a dependent table with more than one route to the show.
+\copy (SELECT p.* FROM public.promo_codes p \
+       LEFT JOIN public.trials t ON t.id = p.trial_id \
+       WHERE p.show_id = :'show_id' OR t.show_id = :'show_id') TO 'r_promo_codes.csv' CSV HEADER
+```
+
+Grandchildren (depth ≥ 2) usually have no show link at all and must be scoped through their parent —
+e.g. `entry_cart_items` via `entry_carts.show_id`.
 
 **Export the four core levels first.** The entries cannot be inserted until their `show`, `trials`,
 and `classes` rows exist again — the FKs reject them otherwise, and discovering that after you have
@@ -595,6 +620,37 @@ alone, for the same nullable-column reason as Step 0.
 **only** `service_role` — being superuser does not help, so a plain psql re-insert dies `42501` on the
 first paid entry.
 
+**Check for schema drift before loading — this is a silent-corruption risk, not just a failure.**
+The PITR snapshot is from the past; live has had migrations since. `\copy … CSV HEADER` on import
+**skips** the header line, it does not match columns by name, so the load is purely positional. If a
+migration added a column in the middle of the table, every value after it shifts one place to the
+left and lands in the wrong column — and the insert may well succeed. Compare the two schemas first,
+on **each** project:
+
+```sql
+-- Run on the SCRATCH project AND on LIVE; the outputs must be identical.
+SELECT table_name, string_agg(column_name, ',' ORDER BY ordinal_position)
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name IN ('shows', 'trials', 'classes', 'entries')
+GROUP BY table_name ORDER BY 1;
+```
+
+If they differ, do **not** use `SELECT *`. Re-export naming the intersection of the two column lists
+explicitly, and load with a matching explicit column list, so the mapping is by name rather than by
+position:
+
+```sql
+-- On SCRATCH: name the columns; same list, same order, on both sides.
+\copy (SELECT id, show_id, class_id, /* … */ FROM public.entries WHERE …) TO 'r_entries.csv' CSV HEADER
+
+-- On LIVE:
+\copy r_entries (id, show_id, class_id, /* … */) FROM 'r_entries.csv' CSV HEADER
+```
+
+Columns that exist live but not in the snapshot take their defaults; columns that existed then and
+were since dropped are simply omitted. Both are correct — a positional load is not.
+
 Load on LIVE, **parents first**, all in one transaction:
 
 ```sql
@@ -604,6 +660,8 @@ CREATE TEMP TABLE r_trials  (LIKE public.trials  INCLUDING DEFAULTS);
 CREATE TEMP TABLE r_classes (LIKE public.classes INCLUDING DEFAULTS);
 CREATE TEMP TABLE r_entries (LIKE public.entries INCLUDING DEFAULTS);
 
+-- Bare form, valid ONLY if the schema-drift check above came back identical.
+-- Otherwise use the explicit column-list form shown above.
 \copy r_shows   FROM 'r_shows.csv'   CSV HEADER
 \copy r_trials  FROM 'r_trials.csv'  CSV HEADER
 \copy r_classes FROM 'r_classes.csv' CSV HEADER
@@ -773,7 +831,7 @@ State these plainly so it is never mistaken for full DR:
 - **Hard deletes without PITR.** Paths C and D-2 both assume a working PITR restore into a scratch
   project. If step **a** finds PITR disabled, the honest answer is that a hard-deleted show is gone.
 - **Full fidelity of a hard-deleted show.** Path C gives explicit SQL for the four core tables only.
-  Thirty-nine more cascade away with the show, and the procedure hands you a catalog query plus a
+  Forty-seven more cascade away with the show, and the procedure hands you a catalog query plus a
   triage rule for those rather than ready-made statements — so a path C recovery is a guided
   reconstruction, not a one-command restore. Budget for it accordingly, and expect the RTO measured
   in step **c** to understate a real path C.

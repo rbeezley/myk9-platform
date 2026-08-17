@@ -134,6 +134,7 @@ export interface BuildSnapshotOptions {
 /** Compatibility export for callers/tests written before per-check cadence. */
 export const STALE_AFTER_MS = LEGACY_HEALTH_CHECK_STALE_AFTER_MS;
 export const PAYOUT_CRON_JOB = 'nightly-show-payouts';
+const PAYOUT_CRON_LABEL = 'Nightly payout schedule';
 export const DEFAULT_SOURCE = 'cron-health-check';
 
 // Ringside OCC conflict-storm thresholds (delta between daily snapshots).
@@ -258,7 +259,7 @@ function evaluateJob(
       return {
         status: dispatchIsUnverified ? 'warn' : 'ok',
         detail: dispatchIsUnverified
-          ? 'last run dispatched, but the Edge Function response is never read — this check cannot fail'
+          ? 'last run sent the payout request, but this check cannot confirm the payout run started'
           : 'last run dispatched (Edge Function response not checked here)',
       };
     }
@@ -268,7 +269,7 @@ function evaluateJob(
   return { status: 'ok', detail: `last run in progress (${job.lastStatus})` };
 }
 
-/** Runbook 5.4 — the nightly payout cron is scheduled and its last run is healthy. */
+/** Runbook 5.4 — the nightly payout dispatch is scheduled and its handoff is recent. */
 function payoutCronCheck(
   jobs: CronJob[],
   now: number,
@@ -278,7 +279,7 @@ function payoutCronCheck(
   const job = jobs.find(j => j.jobname === PAYOUT_CRON_JOB);
   if (!job) {
     return {
-      ...checkBase('payout_cron', 'Nightly payout job', probedAt),
+      ...checkBase('payout_cron', PAYOUT_CRON_LABEL, probedAt),
       status: 'fail',
       detail: `${PAYOUT_CRON_JOB} is not scheduled`,
     };
@@ -289,7 +290,7 @@ function payoutCronCheck(
   // overdue or never-run job is a proven degradation and keeps the default.
   const unprovable = status === 'warn' && job.lastStatus === 'succeeded';
   return {
-    ...checkBase('payout_cron', 'Nightly payout job', probedAt),
+    ...checkBase('payout_cron', PAYOUT_CRON_LABEL, probedAt),
     status,
     detail: `${PAYOUT_CRON_JOB} ${detail}`,
     ...(unprovable ? { verification: 'unprovable' as const } : {}),
@@ -385,7 +386,12 @@ function payoutLedgerCheck(facts: RawProbeFacts, probedAt: string): SnapshotChec
     };
   }
   if (ledger.total === 0) {
-    return { ...base, status: 'ok', detail: 'no payouts recorded yet', delta_value: 0 };
+    return {
+      ...base,
+      status: 'ok',
+      detail: 'no payout attempts recorded; no failed or stalled attempts found',
+      delta_value: 0,
+    };
   }
   if (ledger.inFlight > 0) {
     return {

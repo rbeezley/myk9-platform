@@ -210,12 +210,30 @@ describe('getHealthCheckRemediation', () => {
     });
   });
 
-  it('routes payout checks to payouts', () => {
+  it('explains the dispatch boundary for an unprovable payout schedule', () => {
+    const remediation = getHealthCheckRemediation({
+      key: 'payout_cron',
+      label: 'Payout cron',
+      status: 'warn',
+      detail: 'The scheduled request was sent',
+      checkedAt: null,
+      verification: 'unprovable' as const,
+    });
+
+    expect(remediation).toMatchObject({
+      ownerLabel: 'Payout Scheduling',
+      actionLabel: 'Open Payouts',
+      href: '/admin/payouts',
+      nextStep: expect.stringContaining('payout attempts that were recorded'),
+    });
+  });
+
+  it('uses the payout failure runbook when the schedule check fails', () => {
     const remediation = getHealthCheckRemediation({
       key: 'payout_cron',
       label: 'Payout cron',
       status: 'fail',
-      detail: 'Last payout run failed',
+      detail: 'The payout schedule is not active',
       checkedAt: null,
       verification: 'proven' as const,
     });
@@ -224,7 +242,9 @@ describe('getHealthCheckRemediation', () => {
       ownerLabel: 'Payout Ledger',
       actionLabel: 'Open Payouts',
       href: '/admin/payouts',
+      nextStep: 'Review payout/payment status and the money-path runbook.',
     });
+    expect(remediation.nextStep).not.toContain('request was sent');
   });
 
   it('uses an owner-incomplete fallback for unknown keys', () => {

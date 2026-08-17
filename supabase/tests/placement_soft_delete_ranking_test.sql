@@ -180,6 +180,26 @@ BEGIN
   END IF;
   RAISE NOTICE '2.2 PASS: nationals branch also skips soft-deleted entries';
 
+  -- =====================================================================
+  -- KNOWN GAP (pre-existing, deliberately not closed here).
+  --
+  -- "A soft-deleted entry is left unplaced" holds whenever
+  -- recalculate_class_placements actually runs. It does not hold when the
+  -- deletion empties the class: refresh_class_scoring_state tests
+  -- `v_expected_count = 0` BEFORE the fully-accounted branch, so deleting the
+  -- last live entry takes the terminal branch, never calls the ranking
+  -- function, and clears only `deleted_at IS NULL` rows -- leaving the
+  -- tombstone holding its old placement.
+  --
+  -- Unchanged by this migration: the same sequence produced the same result
+  -- before it. It is not fixed here because dropping the caller's deleted_at
+  -- filter would make the tombstone -- which is the very row the outer
+  -- statement just updated -- eligible for a nested same-row UPDATE from the
+  -- AFTER trigger, the failure mode 20260727235900 was written to remove
+  -- after it stalled ringside_update_entry. That needs its own change with
+  -- its own ringside regression coverage.
+  -- =====================================================================
+
   RAISE NOTICE 'ALL placement soft-delete ranking assertions passed.';
 END $$;
 

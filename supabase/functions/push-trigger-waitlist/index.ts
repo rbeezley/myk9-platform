@@ -139,6 +139,7 @@ handle<WebhookPayload>(
               eventId: payload.event_id,
               claimToken: claimed.claim_token,
               recipient: context.exhibitor.person?.email ?? null,
+              showId: context.entryClass.trial?.show?.id ?? null,
               content,
               supabase,
             }),
@@ -237,11 +238,20 @@ async function deliverEmail(input: {
   eventId: string;
   claimToken: string;
   recipient: string | null;
+  showId: string | null;
   content: ReturnType<typeof buildWaitlistNotificationContent>;
   supabase: SupabaseClient;
 }): Promise<void> {
   await requireCurrentClaim(input.supabase, input.eventId, input.claimToken);
   if (!input.recipient) {
+    await input.supabase.from('email_log').insert({
+      recipient_email: null,
+      email_type: 'waitlist_notification',
+      related_id: input.eventId,
+      status: 'failed',
+      error_message: 'recipient_unavailable',
+      show_id: input.showId,
+    });
     await updateEvent(input.supabase, input.eventId, input.claimToken, {
       email_sent_at: new Date().toISOString(),
     });
@@ -249,24 +259,36 @@ async function deliverEmail(input: {
   }
 
   const resendApiKey = Deno.env.get('RESEND_API_KEY');
-  if (!resendApiKey) throw new Error('email_not_configured');
+  if (!resendApiKey) {
+    await recordWaitlistEmailFailure(input, 'email_not_configured');
+    throw new Error('email_not_configured');
+  }
 
-  const response = await sendResendEmailWithRetry({
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${resendApiKey}`,
-      'Idempotency-Key': `waitlist-${input.eventId}`,
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: input.recipient,
-      subject: input.content.subject,
-      html: input.content.emailHtml,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await sendResendEmailWithRetry({
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${resendApiKey}`,
+        'Idempotency-Key': `waitlist-${input.eventId}`,
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: input.recipient,
+        subject: input.content.subject,
+        html: input.content.emailHtml,
+      }),
+    });
+  } catch {
+    await recordWaitlistEmailFailure(input, 'email_delivery_error');
+    throw new Error('email_delivery_error');
+  }
 
-  if (!response.ok) throw { channel: 'email', statusCode: response.status };
+  if (!response.ok) {
+    await recordWaitlistEmailFailure(input, `provider_http_${response.status}`);
+    throw { channel: 'email', statusCode: response.status };
+  }
   const result = (await response.json()) as { id?: string };
   await input.supabase.from('email_log').insert({
     recipient_email: input.recipient,
@@ -274,9 +296,29 @@ async function deliverEmail(input: {
     related_id: input.eventId,
     resend_message_id: result.id ?? null,
     status: 'sent',
+    show_id: input.showId,
   });
   await updateEvent(input.supabase, input.eventId, input.claimToken, {
     email_sent_at: new Date().toISOString(),
+  });
+}
+
+async function recordWaitlistEmailFailure(
+  input: {
+    eventId: string;
+    recipient: string | null;
+    showId: string | null;
+    supabase: SupabaseClient;
+  },
+  errorMessage: string
+): Promise<void> {
+  await input.supabase.from('email_log').insert({
+    recipient_email: input.recipient,
+    email_type: 'waitlist_notification',
+    related_id: input.eventId,
+    status: 'failed',
+    error_message: errorMessage,
+    show_id: input.showId,
   });
 }
 

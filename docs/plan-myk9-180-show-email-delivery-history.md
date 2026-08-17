@@ -1,5 +1,7 @@
 # MYK9-180 — Show email delivery history
 
+> **Status:** Active
+
 ## Goal
 
 Let a show secretary answer “Did we send that?” from the existing show-filtered
@@ -194,7 +196,7 @@ or reorder it across pagination boundaries.
 
 - Add `email_log.show_id`, deterministic safe backfills, sender instrumentation,
   the show-scoped RPC, and an index supporting `(show_id, created_at DESC, id
-  DESC)`. Validate the final index choice with `EXPLAIN` on representative data.
+DESC)`. Validate the final index choice with `EXPLAIN` on representative data.
 - Normalize statuses and timestamps in a typed app read model.
 - Keep raw provider errors server-side; return a sanitized summary.
 - Regenerate or update Supabase TypeScript types according to the repository’s

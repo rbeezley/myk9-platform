@@ -56,6 +56,7 @@ TEST_FILES=(
   "$TEST_DIR/sign_in_email_invariant_test.sql"
   "$TEST_DIR/subscription_entitlement_grants_test.sql"
   "$TEST_DIR/support_triage_atomic_send_test.sql"
+  "$TEST_DIR/show_email_delivery_history_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

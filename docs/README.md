@@ -79,6 +79,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-myk9-80-podium-completion-celebration.md](plan-myk9-80-podium-completion-celebration.md)                   | Active    | MYK9-80 — At-show podium + class completion celebration                      |
 | [plan-myk9-84-authz-dead-letter.md](plan-myk9-84-authz-dead-letter.md)                                           | Active    | MYK9-84 — Permanent Authorization Dead-Letter Messaging                      |
 | [plan-myk9-100-entry-status-kind.md](plan-myk9-100-entry-status-kind.md)                                         | Active    | MYK9-100 — Preserve entry status kind for honest exhibitor badges            |
+| [plan-myk9-180-show-email-delivery-history.md](plan-myk9-180-show-email-delivery-history.md)                     | Active    | MYK9-180 — Show email delivery history in Communication History              |
 | [plan-vacation-autopilot.md](plan-vacation-autopilot.md)                                                         | Active    | Vacation Autopilot — unattended 4×/day Linear-issue runs (2026-08-04→14)     |
 | [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                                                     | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)       |
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                                               | Active    | Plan: Phase 4 seam render-only read strategy                                 |

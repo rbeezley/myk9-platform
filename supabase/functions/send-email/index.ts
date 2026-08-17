@@ -198,23 +198,48 @@ handle<EmailData>(
     };
 
     // Send email via Resend
-    const response = await sendResendEmailWithRetry({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify(resendPayload),
-    });
+    let response: Response;
+    try {
+      response = await sendResendEmailWithRetry({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+        },
+        body: JSON.stringify(resendPayload),
+      });
+    } catch {
+      if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
+        await supabase.from('email_log').insert({
+          recipient_email: recipient,
+          email_type: data.type,
+          related_id: data.registrationId ?? null,
+          status: 'failed',
+          error_message: 'email_delivery_error',
+          show_id: authzResult.registration.show.id,
+          status_updated_at: new Date().toISOString(),
+        });
+      }
+      throw new HttpError(502, 'Failed to send email');
+    }
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Resend API error:', error);
+      await response.text();
+      if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
+        await supabase.from('email_log').insert({
+          recipient_email: recipient,
+          email_type: data.type,
+          related_id: data.registrationId ?? null,
+          status: 'failed',
+          error_message: `provider_http_${response.status}`,
+          show_id: authzResult.registration.show.id,
+        });
+      }
       throw new HttpError(500, 'Failed to send email');
     }
 
     const result = await response.json();
-    console.log(`Email sent successfully: ${result.id} to ${recipient}`);
+    console.log(`Email sent successfully: ${result.id}`);
 
     // Log the email in the database for tracking
     const logRow: Record<string, unknown> = {
@@ -228,6 +253,9 @@ handle<EmailData>(
     }
     if ('ticketId' in data && data.ticketId) {
       logRow.related_id = data.ticketId;
+    }
+    if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
+      logRow.show_id = authzResult.registration.show.id;
     }
     await supabase
       .from('email_log')

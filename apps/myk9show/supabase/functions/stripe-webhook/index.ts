@@ -2286,6 +2286,30 @@ async function sendEntryConfirmationEmail(
   session: Stripe.Checkout.Session,
   authoritative: { subtotalCents: number; platformFeeCents: number; totalCents: number }
 ) {
+  let deliveryAttemptRecorded = false;
+  let recipientEmail: string | null = null;
+  const recordDeliveryAttempt = async (args: {
+    status: 'sent' | 'failed';
+    messageId?: string | null;
+    errorMessage?: string | null;
+  }) => {
+    await supabase
+      .from('email_log')
+      .insert({
+        recipient_email: recipientEmail,
+        email_type: 'registration_confirmation',
+        resend_message_id: args.messageId ?? null,
+        status: args.status,
+        status_updated_at: new Date().toISOString(),
+        error_message: args.errorMessage ?? null,
+        show_id: cart.show_id,
+      })
+      .then(({ error }) => {
+        if (error) console.error('Could not log Stripe confirmation email:', error);
+      });
+    deliveryAttemptRecorded = true;
+  };
+
   try {
     // Get exhibitor email and name
     const { data: person } = await supabase
@@ -2296,8 +2320,10 @@ async function sendEntryConfirmationEmail(
 
     if (!person?.email) {
       console.error('No email found for exhibitor');
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'recipient_unresolved' });
       return;
     }
+    recipientEmail = person.email;
 
     // Get show details
     const { data: show } = await supabase
@@ -2308,6 +2334,7 @@ async function sendEntryConfirmationEmail(
 
     if (!show) {
       console.error('Show not found');
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'show_unresolved' });
       return;
     }
 
@@ -2328,11 +2355,13 @@ async function sendEntryConfirmationEmail(
 
     if (entriesError) {
       console.error('Entries fetch for confirmation email failed:', entriesError);
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'entries_unresolved' });
       return;
     }
 
     if (!entries || entries.length === 0) {
       console.error('No entries found for confirmation email');
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'entries_unresolved' });
       return;
     }
 
@@ -2392,15 +2421,19 @@ async function sendEntryConfirmationEmail(
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Failed to send confirmation email:', error);
+      await response.text();
+      console.error('Failed to send confirmation email:', response.status);
+      await recordDeliveryAttempt({
+        status: 'failed',
+        errorMessage: `provider_http_${response.status}`,
+      });
       // MP-13: no stamp on a failed send — the entry stays eligible for the
       // scheduled send-confirmation-email sender's audience query
       // (confirmation_email_sent_at IS NULL / status IN pending,failed).
       return;
     }
 
-    console.log(`Confirmation email sent to ${person.email}`);
+    console.log('Confirmation email sent');
 
     // MP-13: stamp every entry this email covered with the SAME send-state
     // semantics the scheduled sender uses, so its audience query excludes
@@ -2415,6 +2448,8 @@ async function sendEntryConfirmationEmail(
     } catch (parseError) {
       console.error('Could not parse send-email response for message id:', parseError);
     }
+
+    await recordDeliveryAttempt({ status: 'sent', messageId });
 
     const stampPayload = buildConfirmationStampPayload({
       sendSucceeded: true,
@@ -2439,6 +2474,9 @@ async function sendEntryConfirmationEmail(
     }
   } catch (error) {
     console.error('Error sending confirmation email:', error);
+    if (!deliveryAttemptRecorded) {
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'email_delivery_error' });
+    }
     // Don't throw - email failure shouldn't fail the payment processing
   }
 }

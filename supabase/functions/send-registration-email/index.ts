@@ -273,15 +273,29 @@ handle<SendRegistrationEmailPayload>(
       emailPayload.cc = secretaryCc;
     }
 
-    const response = await sendResendEmailWithRetry({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${resendApiKey}`,
-        'Idempotency-Key': registrationId,
-      },
-      body: JSON.stringify(emailPayload),
-    });
+    let response: Response;
+    try {
+      response = await sendResendEmailWithRetry({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+          'Idempotency-Key': registrationId,
+        },
+        body: JSON.stringify(emailPayload),
+      });
+    } catch {
+      await supabase.from('email_log').insert({
+        recipient_email: recipientEmail,
+        email_type: 'registration_confirmation',
+        related_id: registrationId,
+        show_id: registration.show_id,
+        status: 'failed',
+        error_message: 'email_delivery_error',
+        status_updated_at: new Date().toISOString(),
+      });
+      return { success: false };
+    }
 
     let resendMessageId: string | undefined;
     let sendStatus = 'sent';
@@ -290,7 +304,7 @@ handle<SendRegistrationEmailPayload>(
     if (response.ok) {
       const result = await response.json();
       resendMessageId = result.id;
-      console.log(`Registration email sent: ${result.id} to ${recipientEmail}`);
+      console.log(`Registration email sent: ${result.id}`);
     } else {
       const err = await response.json();
       sendStatus = 'failed';
@@ -305,6 +319,7 @@ handle<SendRegistrationEmailPayload>(
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
         related_id: registrationId,
+        show_id: registration.show_id,
         resend_message_id: resendMessageId,
         status: sendStatus,
         error_message: errorMessage,

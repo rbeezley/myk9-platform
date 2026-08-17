@@ -86,32 +86,61 @@ handle<SendResultsPayload>(
     // authenticated caller's own email — never the request body.
     const { secretaryEmail } = deriveResultsAddresses(show, callerEmail);
 
-    const resendRes = await sendResendEmailWithRetry({
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: [toEmail],
-        ...(secretaryEmail ? { cc: [secretaryEmail], reply_to: secretaryEmail } : {}),
-        subject: `Electronic Results — ${filename}`,
-        html: `<p>Electronic results submission from myK9Show attached.</p>`,
-        attachments: [
-          {
-            filename,
-            content: btoa(unescape(encodeURIComponent(xml))),
-          },
-        ],
-      }),
-    });
-
-    if (!resendRes.ok) {
-      const errText = await resendRes.text();
-      console.error('send-results: Resend error:', errText);
+    let resendRes: Response;
+    try {
+      resendRes = await sendResendEmailWithRetry({
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: FROM_EMAIL,
+          to: [toEmail],
+          ...(secretaryEmail ? { cc: [secretaryEmail], reply_to: secretaryEmail } : {}),
+          subject: `Electronic Results — ${filename}`,
+          html: `<p>Electronic results submission from myK9Show attached.</p>`,
+          attachments: [
+            {
+              filename,
+              content: btoa(unescape(encodeURIComponent(xml))),
+            },
+          ],
+        }),
+      });
+    } catch {
+      await supabase.from('email_log').insert({
+        recipient_email: toEmail,
+        email_type: 'registry_results_submission',
+        status: 'failed',
+        error_message: 'email_delivery_error',
+        show_id: show.id,
+        status_updated_at: new Date().toISOString(),
+      });
       throw new HttpError(502, 'Failed to send email');
     }
+
+    if (!resendRes.ok) {
+      await resendRes.text();
+      console.error('send-results: Resend error', { status: resendRes.status });
+      await supabase.from('email_log').insert({
+        recipient_email: toEmail,
+        email_type: 'registry_results_submission',
+        status: 'failed',
+        error_message: `provider_http_${resendRes.status}`,
+        show_id: show.id,
+      });
+      throw new HttpError(502, 'Failed to send email');
+    }
+
+    const result = (await resendRes.json()) as { id?: string };
+    await supabase.from('email_log').insert({
+      recipient_email: toEmail,
+      email_type: 'registry_results_submission',
+      resend_message_id: result.id ?? null,
+      status: 'sent',
+      show_id: show.id,
+    });
 
     return { success: true };
   }

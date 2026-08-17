@@ -306,13 +306,298 @@ if PITR is not enabled on the project, it is not vague, it is **false**.
       against a one-hour RTO, that is a **failed** durability gate, not a redefinition of the RTO.
       Either bring the procedure inside the objective or renegotiate the objective explicitly; do not
       let the measurement silently become the target. An untested backup is not a backup.
-- [ ] **d. Write the partial-recovery procedure** for the realistic incident: _one show's entries or
+- [x] **d. Write the partial-recovery procedure** for the realistic incident: _one show's entries or
       scores were destroyed mid-weekend; recover those rows without rolling back every other show._
       Whole-project PITR is the wrong tool for the most likely failure.
+      Written 2026-08-17 (MYK9-176) — see **§2.4.1** below. **Untested** until step **c** runs.
 - [ ] **e. Replace the rollback appendix's "last resort" line** with the tested procedure.
 
 _Why this gates Phase 3:_ after the Stripe cutover the platform holds real money and irreplaceable
 show-day results — scores and placements that cannot be re-derived, because the dogs went home.
+
+### 2.4.1 Partial recovery — one show, without rolling back the project
+
+> **Status: UNTESTED DRAFT.** No part of this has been executed against a real restore. It is written
+> from the live schema (`sojmvhhwsjxmfistvzbe`, read 2026-08-17), not from an incident. Step **c**
+> above is what converts it from a draft into a procedure; until then treat every claim below as
+> "believed correct", and do not let its existence check off G8.
+
+Run everything here as `postgres` via psql (Supabase Dashboard → SQL Editor, or the pooler URL), **not**
+through the app. Two reasons: `restore_show`/`restore_class`/`restore_dog` are gated on
+`is_platform_admin()`, which reads `auth.uid()` and is therefore false in a psql session — the RPCs
+will raise `42501`; and the direct-SQL path below is scoped by `show_id`, which the RPCs are not.
+
+#### Step 0 — classify the incident before touching anything
+
+The recovery path is completely different per class, and picking wrong makes things worse. Scores live
+as **columns on `public.entries`** (`total_score`, `search_time_seconds`, `total_faults`,
+`points_earned`, `result_status`, `is_scored`, …), not as rows in a scores table. So "the scores were
+destroyed" is usually an `UPDATE`, and no delete-recovery path will help.
+
+| Symptom                                             | Actual event                   | Go to |
+| --------------------------------------------------- | ------------------------------ | ----- |
+| Whole show / class / trial vanished from every list | soft delete (`deleted_at` set) | **A** |
+| Some entries vanished, show and classes still fine  | soft delete, entries only      | **B** |
+| Rows gone and `deleted_at` shows nothing tombstoned | hard `DELETE`                  | **C** |
+| Entries present, scores blanked / wrong / reset     | overwriting `UPDATE`           | **D** |
+
+Triage query — the `deleted_at` histogram is the cascade fingerprint, because `soft_delete_show` and
+`soft_delete_class` stamp every cascaded row with one transaction-frozen `NOW()`:
+
+```sql
+\set show_id 'REPLACE-WITH-SHOW-UUID'
+
+SELECT 'entries' AS tbl, e.deleted_at, count(*)
+FROM public.entries e
+WHERE e.show_id = :'show_id' AND e.deleted_at IS NOT NULL
+GROUP BY e.deleted_at
+UNION ALL
+SELECT 'classes', c.deleted_at, count(*)
+FROM public.classes c JOIN public.trials t ON t.id = c.trial_id
+WHERE t.show_id = :'show_id' AND c.deleted_at IS NOT NULL
+GROUP BY c.deleted_at
+UNION ALL
+SELECT 'trials', t.deleted_at, count(*)
+FROM public.trials t
+WHERE t.show_id = :'show_id' AND t.deleted_at IS NOT NULL
+GROUP BY t.deleted_at
+UNION ALL
+SELECT 'shows', s.deleted_at, count(*)
+FROM public.shows s
+WHERE s.id = :'show_id' AND s.deleted_at IS NOT NULL
+GROUP BY s.deleted_at
+ORDER BY 2 DESC, 1;
+```
+
+An empty result with rows genuinely missing means **hard delete** — path **C**. `deleted_at` exists on
+exactly four tables (`shows`, `trials`, `classes`, `entries`); nothing else in a show is soft-deletable.
+
+#### Step 1 — freeze, and prove the blast radius stops at this show
+
+Tell the secretary to stop scoring on the affected rings before you write anything; a concurrent
+ringside write during recovery produces a mix you cannot untangle afterwards. Then run the
+**containment check** — the single most important query here, because a show weekend has other shows
+live in the same project:
+
+```sql
+\set tombstone '2026-08-17 14:22:31.118273+00'   -- exact value from Step 0
+
+-- Must return ZERO rows. Any row means the delete was wider than one show, and a
+-- per-show restore would leave a partially-restored database. Escalate to full PITR.
+SELECT e.show_id, count(*)
+FROM public.entries e
+WHERE e.deleted_at = :'tombstone' AND e.show_id <> :'show_id'
+GROUP BY e.show_id;
+```
+
+Also confirm the two ways of scoping a show's entries agree, since `entries` carries both a
+denormalized `show_id` and a `class_id → trials → shows` path:
+
+```sql
+SELECT
+  (SELECT count(*) FROM public.entries WHERE show_id = :'show_id')            AS by_show_id,
+  (SELECT count(*) FROM public.entries e
+     JOIN public.classes c ON c.id = e.class_id
+     JOIN public.trials  t ON t.id = c.trial_id
+   WHERE t.show_id = :'show_id')                                              AS by_class_path;
+```
+
+If these disagree, use the `class_id` path for the restore and open a data-integrity issue — do not
+silently pick the larger number.
+
+#### Path A / B — soft delete (the recoverable case)
+
+Run all four statements in **one transaction**, scope every statement by `show_id` **and** the exact
+tombstone, and stamp `updated_at = now()` on every row. Order between them does not matter — these are
+`UPDATE`s clearing `deleted_at`, so no foreign key is being satisfied or violated; the single
+transaction is what matters, so a partial restore can never be observed. (Parent-before-child ordering
+_is_ required in path **C**, where rows are re-inserted.) The `updated_at` stamp is not cosmetic: incremental
+replication pulls rows by a server-`updated_at` watermark, so a row restored with its historical
+timestamp is invisible to every ringside device that already synced past it.
+
+```sql
+BEGIN;
+
+UPDATE public.trials
+SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
+WHERE show_id = :'show_id' AND deleted_at = :'tombstone';
+
+UPDATE public.classes
+SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
+WHERE trial_id IN (SELECT id FROM public.trials WHERE show_id = :'show_id')
+  AND deleted_at = :'tombstone';
+
+UPDATE public.entries
+SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
+WHERE show_id = :'show_id' AND deleted_at = :'tombstone';
+
+UPDATE public.shows
+SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
+WHERE id = :'show_id' AND deleted_at = :'tombstone';
+
+-- Inspect the row counts, then COMMIT (or ROLLBACK if any count surprises you).
+COMMIT;
+```
+
+These four statements are safe as `postgres` — they touch only `deleted_at` / `deleted_by` /
+`updated_at`, so the payment and refund guard triggers (which fire on their own columns) never engage.
+Path **C** re-inserts whole rows and is not safe as `postgres`; see the role note there.
+
+For **path B** (entries only), run just the `entries` statement. If the entries were deleted
+individually rather than by a cascade they will each carry a _different_ `deleted_at`; swap
+`deleted_at = :'tombstone'` for a bounded window — never `deleted_at IS NOT NULL`, which would also
+resurrect entries deliberately deleted weeks earlier:
+
+```sql
+UPDATE public.entries
+SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
+WHERE show_id = :'show_id'
+  AND deleted_at BETWEEN :'incident_start' AND :'incident_end';
+```
+
+_Expect this to be slow._ Every restored entry fires `entries_refresh_class_scoring_state`, which
+recomputes its whole class's status and placements once per row. A 500-entry show does 500 recomputes
+inside the transaction. That is correct, not stuck — the final state is right; only the intermediate
+work is wasted.
+
+#### Path C — hard delete (not recoverable inside the database)
+
+There is no in-database undo. `entries → shows` is `ON DELETE CASCADE` all the way up
+(`entries_show_id_fkey`, `classes_trial_id_fkey`, `trials_show_id_fkey`), so a `DELETE FROM shows`
+takes the entries, armbands, judge assignments, passcodes, messages, and payouts with it. The only
+source is PITR restored into a **scratch project** — which is why step **a** is a blocker, not a task.
+
+The scoped extraction, run against the scratch project, then loaded into live:
+
+```sql
+-- On the SCRATCH (PITR-restored) project — one show only.
+\copy (SELECT * FROM public.entries WHERE show_id = 'REPLACE-WITH-SHOW-UUID') \
+  TO 'entries_recovered.csv' CSV HEADER
+```
+
+**You must re-insert as `service_role`, not as `postgres`.** Three BEFORE INSERT guards on `entries`
+(`entries_protect_payment_fields_insert`, `restrict_entry_refund_columns`,
+`restrict_entry_refund_decision_columns`) reject writes to `stripe_payment_intent_id`,
+`payment_status`, and the refund columns. Two of the three check `current_setting('role')` and exempt
+**only** `service_role` — being superuser does not help, so a plain psql re-insert dies `42501` on the
+first paid entry. Wrap the insert:
+
+```sql
+BEGIN;
+SET LOCAL ROLE service_role;   -- required; postgres is NOT exempt from the payment guards
+-- … re-insert here …
+COMMIT;                        -- ROLE reverts with the transaction
+```
+
+```sql
+-- On LIVE: stage, then insert only the ids that are actually missing.
+CREATE TEMP TABLE entries_recovered (LIKE public.entries INCLUDING DEFAULTS);
+\copy entries_recovered FROM 'entries_recovered.csv' CSV HEADER
+
+-- Guard: nothing from another show may ride along.
+SELECT count(*) FROM entries_recovered WHERE show_id <> :'show_id';  -- must be 0
+
+INSERT INTO public.entries
+SELECT * FROM entries_recovered r
+WHERE r.show_id = :'show_id'
+  AND NOT EXISTS (SELECT 1 FROM public.entries e WHERE e.id = r.id);
+
+-- Re-stamp so offline clients past the old watermark actually pull these rows.
+UPDATE public.entries SET updated_at = now()
+WHERE show_id = :'show_id' AND id IN (SELECT id FROM entries_recovered);
+```
+
+Restore parents (`shows`, `trials`, `classes`) the same way and **in that order** before the entries,
+or the FKs reject the insert.
+
+**What survives a hard delete of an entry** — one thing, and it is worth knowing at 7am: `armbands`
+is `ON DELETE SET NULL` on `entry_id`, so the armband row survives with its `show_id`, `trial_id`,
+`armband_number`, `dog_id`, and `assigned_at` intact. That is enough to rebuild _which dog had which
+armband_, i.e. the roster, though not the scores. It does **not** survive a hard delete of the show
+(`armbands_show_id_fkey` cascades).
+
+#### Path D — overwritten scores
+
+Nothing was deleted, so no delete-recovery path applies and no `deleted_at` query will show anything.
+Sources, in order of preference:
+
+1. **The ringside device's own queue.** If the scores never reached the server, they are still on the
+   tablet: IndexedDB `pending_mutations` / `failed_mutations`, plus the `replication_mutation_backup`
+   localStorage key. Reconnecting that device and letting it drain is the recovery. **Do this before
+   any server-side write** — a manual restore bumps `entries.version`, and the queued mutations carry
+   the old version as an OCC precondition, so they will all reject as conflicts afterwards.
+2. **PITR into a scratch project**, then a column-scoped diff back. Same mechanics as path C but an
+   `UPDATE … FROM` of the scoring columns only, never `SELECT *`, so you do not also roll back
+   payment or check-in state that legitimately changed since.
+3. **Ask the judge for the paper sheets.** Not a joke and not a last resort — for a single class this
+   is faster and more trustworthy than anything above.
+
+#### Step 2 — re-derive placements (never restore them)
+
+`final_placement` is server-authoritative and fully derived from the scoring columns, so recovery
+**re-derives** it; you never restore the value. Run this only once, after every restore or re-insert
+has committed:
+
+```sql
+SELECT public.recalculate_class_placements(
+  ARRAY(
+    SELECT c.id FROM public.classes c
+    JOIN public.trials t ON t.id = c.trial_id
+    WHERE t.show_id = :'show_id' AND c.deleted_at IS NULL
+  ),
+  COALESCE((SELECT is_nationals FROM public.shows WHERE id = :'show_id'), false)
+);
+```
+
+Two traps. First, ranking only covers entries that are `is_scored = true` **and**
+`result_status = 'qualified'`; everything else is left `NULL` by design, so a class of non-qualifying
+runs correctly shows no placements — that is not a failed recovery. Second,
+`recalculate_class_placements` does **not** filter `deleted_at`, so a still-tombstoned scored entry
+takes a placement slot. Finish all restores first; never run it mid-way.
+
+#### Step 3 — verify, from the exhibitor's side
+
+- `SELECT count(*) FROM public.entries WHERE show_id = :'show_id' AND deleted_at IS NULL;` matches the
+  secretary's expected entry count.
+- `SELECT id, status, scored_count, total_entries_count, is_scoring_finalized FROM public.classes …`
+  — statuses re-derived, not stuck at `upcoming`.
+- Placements present and contiguous (1, 2, 3 …) in each completed class.
+- **Load the public results page in a cold incognito session.** The nulling view and column allowlist
+  mean anon sees a different shape than psql does; a restore that looks right to `postgres` can still
+  be invisible to an exhibitor.
+- Confirm a ringside device pulls the restored rows — this is what proves the `updated_at` re-stamp
+  worked, and it is the check most likely to catch a silent failure.
+
+#### Sources that look like audit trails but are not
+
+Verified against live 2026-08-17. Do not plan a recovery around these:
+
+| Table                  | Reality                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `activity_log`         | Insert paths exist in code, **0 rows** live. Also `ON DELETE CASCADE` on trial.                                       |
+| `offline_scoring`      | **0 rows** live. Not a durable score archive.                                                                         |
+| `result_submissions`   | **0 rows** live; only ever populated after a registry submission.                                                     |
+| `entry_status_history` | Real trigger writer, but records `entry_status` only — **no scores** — and cascades away with the entry it documents. |
+
+#### Failure modes this procedure does NOT cover
+
+State these plainly so it is never mistaken for full DR:
+
+- **Hard deletes without PITR.** Paths C and D-2 both assume a working PITR restore into a scratch
+  project. If step **a** finds PITR disabled, the honest answer is that a hard-deleted show is gone.
+- **No pre-show snapshot exists.** There is no dump or export tooling in this repo. The nearest thing,
+  `get_entries_for_export(show_id)`, returns roster fields only — dog, handler, armband, fee, status —
+  and **no scoring columns at all**. It is a useful pre-show roster insurance policy; it is not a
+  backup.
+- **Multi-show and project-wide incidents.** If the Step 1 containment check returns rows, stop and
+  use whole-project PITR. This procedure is single-show by construction.
+- **Money.** Nothing here reconciles Stripe. Restoring an entry row does not restore a
+  `payment_intent`, a refund, or a payout, and re-inserting entries can desynchronise
+  `show_payouts` — treat money reconciliation as a separate, manual step.
+- **Storage objects.** Logos, premium PDFs, and signature images live in Supabase Storage, which
+  database PITR does not cover.
+- **Auth users.** A deleted exhibitor account is not recoverable through any statement here.
+- **Anything at all until step c runs.** An untested procedure is a draft.
 
 ---
 

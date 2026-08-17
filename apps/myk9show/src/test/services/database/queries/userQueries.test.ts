@@ -231,16 +231,58 @@ describe('User Queries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
-      const result = await createUser(userData);
-
-      expect(result.data).toBeNull();
-      expect(result.error).toBeDefined();
-      expect(result.error!.code).toBe('23505');
       // MYK9-178: the catch must not re-add `details` after createDatabaseError.
-      // This asserts the call site's own behavior, not the helper's DEV-mode
-      // redaction — the helper is mocked here, so the copy in the catch was the
-      // only way `details` ever reached the caller.
-      expect(result.error!.details).toBeUndefined();
+      // Asserted with DEV off, because that is the only honest way to see it.
+      // The helper surfaces `details` in DEV on purpose, so a DEV-mode
+      // "toBeUndefined" would have been reading the old global mock's blind spot
+      // for Error inputs (MYK9-177), not the call site. With DEV false the helper
+      // redacts, so anything left on `details` could only have been copied back
+      // on here.
+      vi.stubEnv('DEV', false);
+      try {
+        const result = await createUser(userData);
+
+        expect(result.data).toBeNull();
+        expect(result.error).toBeDefined();
+        expect(result.error!.code).toBe('23505');
+        expect(result.error!.details).toBeUndefined();
+      } finally {
+        // Restore in a finally so a failed assertion cannot leak DEV=false into
+        // whichever test the shuffled suite runs next.
+        vi.unstubAllEnvs();
+      }
+    });
+
+    // The DEV half of the same guarantee: the operator running a dev build still
+    // gets `details`, and it comes from the helper rather than from a copy in the
+    // catch. Pinning both sides keeps a future "just delete the DEV spread"
+    // cleanup from passing the test above while silently changing behavior.
+    it('surfaces details in DEV, from the helper rather than the call site', async () => {
+      const userData: DbUserInsert = {
+        first_name: 'Duplicate',
+        last_name: 'User',
+        email: 'existing@example.com',
+      };
+
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: null,
+          error: {
+            message: 'Unique constraint violation',
+            code: '23505',
+            details: 'Email already exists',
+          },
+        })
+      );
+
+      vi.stubEnv('DEV', true);
+      try {
+        const result = await createUser(userData);
+
+        expect(result.error!.details).toBe('Email already exists');
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
 
     it('should handle required field validation', async () => {

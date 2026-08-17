@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
 import { logger } from '@/services/LoggingService';
+import { createDatabaseError, type DatabaseError } from './databaseError';
 
 // Environment variables with fallbacks
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -89,42 +90,11 @@ export const logQuery = (table: string, operation: string, duration: number, err
   }
 };
 
-// Type-safe error handling
-export interface DatabaseError extends Error {
-  name: string;
-  message: string;
-  details?: string;
-  hint?: string;
-  code?: string;
-  table?: string;
-  operation?: string;
-}
-
-export const createDatabaseError = (
-  error: unknown,
-  table?: string,
-  operation?: string
-): DatabaseError => {
-  // Type guard for error objects
-  const err =
-    error && typeof error === 'object'
-      ? (error as {
-          message?: string;
-          details?: string;
-          hint?: string;
-          code?: string;
-        })
-      : {};
-
-  return {
-    name: 'DatabaseError',
-    message: err.message || 'Database operation failed',
-    ...(import.meta.env.DEV && { details: err.details, hint: err.hint }),
-    code: err.code,
-    table,
-    operation,
-  } as DatabaseError;
-};
+// Type-safe error handling. Defined in a client-free module so tests can import
+// the real implementation without constructing a Supabase client (MYK9-177);
+// re-exported here because every call site imports it from this module.
+export { createDatabaseError };
+export type { DatabaseError };
 
 // Authentication utilities
 export const getCurrentUser = async () => {

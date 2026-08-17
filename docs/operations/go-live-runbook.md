@@ -354,20 +354,26 @@ First, define the show's entry set **once**, and use it for the rest of the proc
 `entries.show_id` is a **nullable denormalized column** — it is not the authoritative link, and the
 soft-delete RPCs cascade through `class_id`, not `show_id`. An entry whose `show_id` is null or stale
 is invisible to any `WHERE show_id = …` query, so scoping on that column alone can silently leave
-entries tombstoned. This view is the union of both paths and is what every query below uses:
+entries tombstoned. `class_id` and `trial_id` are nullable for the same reason, so the view unions
+**all three** routes — an entry only has to reach the show by one of them:
 
 ```sql
 \set show_id 'REPLACE-WITH-SHOW-UUID'
 
--- Canonical entry set for this show: denormalized column OR class→trial path.
--- The :'show_id' value is frozen into the view at creation. Create it in the SAME
--- psql session as the restore; it disappears when the session ends.
+-- Canonical entry set for this show. Three independent routes, because all three
+-- linking columns are nullable: the denormalized show_id, the class→trial path,
+-- and the direct trial_id. The :'show_id' value is frozen into the view at
+-- creation. Create it in the SAME psql session as the restore; it disappears
+-- when the session ends.
 CREATE TEMP VIEW show_entries AS
 SELECT e.*
 FROM public.entries e
-LEFT JOIN public.classes c ON c.id = e.class_id
-LEFT JOIN public.trials  t ON t.id = c.trial_id
-WHERE e.show_id = :'show_id' OR t.show_id = :'show_id';
+LEFT JOIN public.classes c  ON c.id  = e.class_id
+LEFT JOIN public.trials  ct ON ct.id = c.trial_id
+LEFT JOIN public.trials  dt ON dt.id = e.trial_id
+WHERE e.show_id = :'show_id'
+   OR ct.show_id = :'show_id'
+   OR dt.show_id = :'show_id';
 
 -- Sanity: how many entries each path alone would have found. A gap is the number
 -- of entries a naive show_id-scoped restore would have missed.
@@ -497,6 +503,18 @@ individually rather than by a cascade they will each carry a _different_ `delete
 resurrect entries deliberately deleted weeks earlier:
 
 ```sql
+-- Define the window first — these two are NOT set anywhere earlier. Read the
+-- bounds off the Step 0 histogram: start just before the earliest tombstone you
+-- mean to undo, end just after the latest.
+\set incident_start '2026-08-17 14:00:00+00'
+\set incident_end   '2026-08-17 15:00:00+00'
+
+-- Always dry-run the window first. If this count exceeds what the secretary
+-- reports missing, the window is too wide — narrow it before the UPDATE.
+SELECT count(*), min(deleted_at), max(deleted_at)
+FROM show_entries
+WHERE deleted_at BETWEEN :'incident_start' AND :'incident_end';
+
 UPDATE public.entries
 SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
 WHERE id IN (SELECT id FROM show_entries)
@@ -515,9 +533,38 @@ There is no in-database undo. `entries → shows` is `ON DELETE CASCADE` all the
 takes the entries, armbands, judge assignments, passcodes, messages, and payouts with it. The only
 source is PITR restored into a **scratch project** — which is why step **a** is a blocker, not a task.
 
-**Export all four levels, not just entries.** The entries cannot be inserted until their `show`,
-`trials`, and `classes` rows exist again — the FKs reject them otherwise, and discovering that after
-you have already loaded the CSV wastes the part of the outage you can least afford.
+**The cascade is far wider than the four core tables.** Thirty-nine dependent tables hang off
+`shows`/`trials`/`classes`/`entries` with `ON DELETE CASCADE`. Restoring only the core four gives you
+a show with no ringside passcodes, no judge assignments, no armbands, and no messages — technically
+recovered, operationally unrunnable. Enumerate the real list **from the catalog at recovery time**
+rather than trusting any list written here, which will go stale:
+
+```sql
+-- Everything that cascaded away. 42 distinct tables as of 2026-08-17 (the 39
+-- dependents plus trials/classes/entries, which cascade from each other).
+SELECT cl.relname AS table_name, pg_get_constraintdef(con.oid) AS fk
+FROM pg_constraint con
+JOIN pg_class     cl ON cl.oid = con.conrelid
+JOIN pg_namespace n  ON n.oid = cl.relnamespace AND n.nspname = 'public'
+WHERE con.contype = 'f'
+  AND con.confrelid IN ('public.shows'::regclass, 'public.trials'::regclass,
+                        'public.classes'::regclass, 'public.entries'::regclass)
+  AND pg_get_constraintdef(con.oid) LIKE '%ON DELETE CASCADE%'
+ORDER BY 1;
+```
+
+Triage that list into three buckets before exporting: **must restore to run the show**
+(`armbands`, `judge_assignments`, `show_passcodes`, `show_message_threads`, `show_messages`,
+`volunteers`, `volunteer_*_assignments`), **must restore for money**
+(`show_payouts`, `show_money_locks`, `stripe_orders`, `entry_payment_links`, `promo_codes` — and see
+the money caveat in the exclusions below), and **can be regenerated or dropped**
+(`premium_generations`, `paperwork_prints`, `calendar_feed_tokens`, `dog_favorites`,
+`show_lifecycle_email_*`). Export each table in the first two buckets with the same `show_id` filter
+shape as below.
+
+**Export the four core levels first.** The entries cannot be inserted until their `show`, `trials`,
+and `classes` rows exist again — the FKs reject them otherwise, and discovering that after you have
+already loaded the CSV wastes the part of the outage you can least afford.
 
 ```sql
 -- On the SCRATCH (PITR-restored) project. Run all four; keep the file names.
@@ -531,13 +578,15 @@ you have already loaded the CSV wastes the part of the outage you can least affo
        WHERE t.show_id = :'show_id') TO 'r_classes.csv' CSV HEADER
 
 \copy (SELECT e.* FROM public.entries e \
-       LEFT JOIN public.classes c ON c.id = e.class_id \
-       LEFT JOIN public.trials  t ON t.id = c.trial_id \
-       WHERE e.show_id = :'show_id' OR t.show_id = :'show_id') TO 'r_entries.csv' CSV HEADER
+       LEFT JOIN public.classes c  ON c.id  = e.class_id \
+       LEFT JOIN public.trials  ct ON ct.id = c.trial_id \
+       LEFT JOIN public.trials  dt ON dt.id = e.trial_id \
+       WHERE e.show_id = :'show_id' OR ct.show_id = :'show_id' \
+          OR dt.show_id = :'show_id') TO 'r_entries.csv' CSV HEADER
 ```
 
-The entries export repeats the `show_entries` union rather than filtering on `show_id` alone, for the
-same nullable-column reason as Step 0.
+The entries export repeats the three-route `show_entries` union rather than filtering on `show_id`
+alone, for the same nullable-column reason as Step 0.
 
 **Re-insert as `service_role`, not as `postgres`.** Three BEFORE INSERT guards on `entries`
 (`entries_protect_payment_fields_insert`, `restrict_entry_refund_columns`,
@@ -567,9 +616,32 @@ SELECT
   (SELECT count(*) FROM r_classes WHERE trial_id NOT IN (SELECT id FROM r_trials))  AS stray_classes;
 ```
 
+**Check the snapshot for tombstones before inserting.** A show that was soft-deleted and _then_ hard
+-deleted has non-null `deleted_at` in any PITR snapshot taken between the two. `SELECT *` copies
+those tombstones straight back in, and the recovery "succeeds" into a show that is still invisible to
+everyone:
+
+```sql
+SELECT
+  (SELECT count(*) FROM r_shows   WHERE deleted_at IS NOT NULL) AS tombstoned_shows,
+  (SELECT count(*) FROM r_trials  WHERE deleted_at IS NOT NULL) AS tombstoned_trials,
+  (SELECT count(*) FROM r_classes WHERE deleted_at IS NOT NULL) AS tombstoned_classes,
+  (SELECT count(*) FROM r_entries WHERE deleted_at IS NOT NULL) AS tombstoned_entries;
+```
+
+If any are non-zero, decide deliberately: if the soft delete was itself part of the incident, clear
+the tombstones in staging (below) before inserting; if it was a legitimate earlier deletion, leave
+them and do not resurrect that data. Do not skip the question.
+
 ```sql
 BEGIN;
 SET LOCAL ROLE service_role;   -- required; postgres is NOT exempt from the payment guards
+
+-- Only if you decided above that the soft delete was part of the incident.
+UPDATE r_shows   SET deleted_at = NULL, deleted_by = NULL;
+UPDATE r_trials  SET deleted_at = NULL, deleted_by = NULL;
+UPDATE r_classes SET deleted_at = NULL, deleted_by = NULL;
+UPDATE r_entries SET deleted_at = NULL, deleted_by = NULL;
 
 INSERT INTO public.shows SELECT * FROM r_shows r
 WHERE NOT EXISTS (SELECT 1 FROM public.shows x WHERE x.id = r.id);
@@ -584,13 +656,22 @@ INSERT INTO public.entries SELECT * FROM r_entries r
 WHERE NOT EXISTS (SELECT 1 FROM public.entries x WHERE x.id = r.id);
 
 -- Re-stamp all four so offline clients past the old watermark actually pull them.
-UPDATE public.shows   SET updated_at = now() WHERE id       IN (SELECT id FROM r_shows);
-UPDATE public.trials  SET updated_at = now() WHERE id       IN (SELECT id FROM r_trials);
-UPDATE public.classes SET updated_at = now() WHERE id       IN (SELECT id FROM r_classes);
-UPDATE public.entries SET updated_at = now() WHERE id       IN (SELECT id FROM r_entries);
+-- This also clears any tombstone on rows that SURVIVED the hard delete — the
+-- inserts above skip those by id, so they would otherwise stay hidden.
+UPDATE public.shows   SET updated_at = now(), deleted_at = NULL, deleted_by = NULL
+WHERE id IN (SELECT id FROM r_shows);
+UPDATE public.trials  SET updated_at = now(), deleted_at = NULL, deleted_by = NULL
+WHERE id IN (SELECT id FROM r_trials);
+UPDATE public.classes SET updated_at = now(), deleted_at = NULL, deleted_by = NULL
+WHERE id IN (SELECT id FROM r_classes);
+UPDATE public.entries SET updated_at = now(), deleted_at = NULL, deleted_by = NULL
+WHERE id IN (SELECT id FROM r_entries);
 
 COMMIT;   -- ROLE reverts with the transaction
 ```
+
+(If you decided the tombstones were legitimate, drop the four staging `UPDATE`s **and** the
+`deleted_at = NULL, deleted_by = NULL` clauses from the re-stamp statements.)
 
 `INSERT … WHERE NOT EXISTS` rather than `ON CONFLICT DO NOTHING` is deliberate: it makes a
 partially-surviving show (some rows deleted, some not) restore the gap without silently swallowing a
@@ -691,6 +772,11 @@ State these plainly so it is never mistaken for full DR:
 
 - **Hard deletes without PITR.** Paths C and D-2 both assume a working PITR restore into a scratch
   project. If step **a** finds PITR disabled, the honest answer is that a hard-deleted show is gone.
+- **Full fidelity of a hard-deleted show.** Path C gives explicit SQL for the four core tables only.
+  Thirty-nine more cascade away with the show, and the procedure hands you a catalog query plus a
+  triage rule for those rather than ready-made statements — so a path C recovery is a guided
+  reconstruction, not a one-command restore. Budget for it accordingly, and expect the RTO measured
+  in step **c** to understate a real path C.
 - **No pre-show snapshot exists.** There is no dump or export tooling in this repo. The nearest thing,
   `get_entries_for_export(show_id)`, returns roster fields only — dog, handler, armband, fee, status —
   and **no scoring columns at all**. It is a useful pre-show roster insurance policy; it is not a

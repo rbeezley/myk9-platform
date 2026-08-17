@@ -24,6 +24,12 @@ export const MYK9SHOW_ORIGINS: readonly string[] = [
   'https://myk9-platform-myk9show.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
+  // The browser treats localhost and 127.0.0.1 as distinct origins, so a local
+  // dev port needs both spellings. Playwright pins its baseURL to 127.0.0.1
+  // (apps/myk9show/playwright.config.ts), and Vite falls back to 5174 when 5173
+  // is taken — omitting either blocks preflight for every myK9Show function.
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
 ];
 
 export const MYK9Q_ORIGINS: readonly string[] = [

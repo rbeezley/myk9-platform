@@ -11,7 +11,15 @@ The deployed root Edge Functions use these browser-origin classes:
 | Production        | `https://myk9show.com`, `https://www.myk9show.com`, `https://app.myk9show.com`                                                                                     |
 | Shared staging    | `https://myk9-platform-myk9show.vercel.app`                                                                                                                        |
 | Preview           | `https://myk9-platform-myk9show-<deployment>-<team>.vercel.app`, constrained by the anchored project-specific pattern in `supabase/functions/_shared/http/cors.ts` |
-| Local development | `http://localhost:5173`, `http://localhost:5174`                                                                                                                   |
+| Local development | `http://localhost:5173`, `http://localhost:5174`, `http://127.0.0.1:5173`, `http://127.0.0.1:5174`                                                                 |
+
+Each local development port is listed under both `localhost` and `127.0.0.1`.
+The browser compares origins as strings, so the two spellings are distinct
+origins even though they resolve to the same host: an entry for one does nothing
+for the other. Playwright pins its `baseURL` to `127.0.0.1`, and Vite falls back
+to port 5174 when 5173 is occupied, so both spellings of both ports are needed
+for local and E2E runs to reach the functions at all. A contract test in
+`supabase/functions/_shared/http/__tests__/cors.test.ts` enforces the symmetry.
 
 The myK9Q passcode function has a separate allowlist for its production, staging,
 and local origins. It shares the helper but does not inherit myK9Show's dynamic

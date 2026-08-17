@@ -109,6 +109,11 @@ const UserService = {
   create: async (userData: DbUserInsert): Promise<User> => {
     const result = await createUser(userData);
     if (result.error) {
+      // Deliberately not carrying the code, unlike `update` below (MYK9-175).
+      // The only caller, CreateUserDialog, never reads it: it matches
+      // /duplicate key|already exists|23505/ against String(error) and
+      // substitutes its own copy, which works on the translated and the raw
+      // message alike. Add the code here if a caller ever needs to branch on it.
       throw new Error(result.error.message);
     }
     return mapDbUserToUser(result.data);

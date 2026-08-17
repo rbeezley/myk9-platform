@@ -26,8 +26,12 @@
  *     scripts/qa/myk9-161-applied-acl-replay.ts
  *
  * Deliberately not wired into package.json, matching the sibling one-shot
- * evidence harnesses in `scripts/qa/db-drift/myk9-114-*.ts`. Exits non-zero if
- * the newest cron snapshot's `anon_grants` check is not `ok`.
+ * evidence harnesses in `scripts/qa/db-drift/myk9-114-*.ts`.
+ *
+ * Exits non-zero on any of three distinct conditions, reported separately: no
+ * `anon_grants` check present in recent snapshots (a monitoring gap), a check
+ * older than its own declared `stale_after_ms` (evidence we should not pass
+ * on), or a check that is present, fresh, and not `ok` (a real regression).
  */
 import { anonGrantsCheck } from '../../apps/myk9show/supabase/functions/_shared/anonGrantChecks.ts';
 
@@ -94,11 +98,28 @@ const insecureTables = Array.isArray(insecureFacts.tables) ? insecureFacts.table
 insecureFacts.tables = [...insecureTables, { name: 'classes', kind: 'r', privs: 'r' }];
 const insecureCheck = anonGrantsCheck(insecureFacts, probedAt);
 
+// Do NOT judge the newest row alone. `cron-health-check` runs in continuous
+// mode every ~5 minutes and carries the last deep result forward rather than
+// re-running it, so consecutive rows repeat one `anon_grants` check: 12 rows
+// spanning 55 minutes were observed all reporting the same `checked_at`. Two
+// ways that breaks a naive read of row 0 — a mode that omits the deep check
+// altogether reads as a failure on a healthy ACL, and a genuinely old carried
+// result reads as a pass. So scan back for the newest row that actually
+// carries the check, then judge it on its own declared freshness window.
 const snapshots = await readJson<SnapshotRow[]>(
-  '/rest/v1/system_health_snapshots?source=eq.cron-health-check&select=created_at,overall_status,checks&order=created_at.desc&limit=1'
+  '/rest/v1/system_health_snapshots?source=eq.cron-health-check&select=created_at,overall_status,checks&order=created_at.desc&limit=50'
 );
 const latestSnapshot = snapshots[0] ?? null;
-const snapshotAnonCheck = getAnonCheck(latestSnapshot?.checks);
+const carrier = snapshots.find(row => getAnonCheck(row.checks) !== null) ?? null;
+const snapshotAnonCheck = getAnonCheck(carrier?.checks);
+
+const checkedAt =
+  typeof snapshotAnonCheck?.checked_at === 'string' ? snapshotAnonCheck.checked_at : null;
+const staleAfterMs =
+  typeof snapshotAnonCheck?.stale_after_ms === 'number' ? snapshotAnonCheck.stale_after_ms : null;
+const checkAgeMs = checkedAt ? Date.now() - Date.parse(checkedAt) : null;
+// The check declares its own window; honour that rather than inventing one.
+const isStale = checkAgeMs !== null && staleAfterMs !== null && checkAgeMs > staleAfterMs;
 
 const secureFactsObject = anonFacts as JsonObject;
 const secureTables = Array.isArray(secureFactsObject.tables) ? secureFactsObject.tables : [];
@@ -150,7 +171,18 @@ console.log(
       latest_snapshot: {
         created_at: latestSnapshot?.created_at ?? null,
         overall_status: latestSnapshot?.overall_status ?? null,
-        anon_grants: snapshotAnonCheck,
+      },
+      // Reported separately from latest_snapshot because they are usually not
+      // the same row: continuous mode carries the deep result forward, so the
+      // row that CARRIES the check is often older than the newest row, and the
+      // check inside it older still.
+      anon_grants_evidence: {
+        carried_by_snapshot: carrier?.created_at ?? null,
+        checked_at: checkedAt,
+        check_age_ms: checkAgeMs,
+        stale_after_ms: staleAfterMs,
+        is_stale: isStale,
+        check: snapshotAnonCheck,
       },
     },
     null,
@@ -158,6 +190,20 @@ console.log(
   )
 );
 
-if (snapshotAnonCheck?.status !== 'ok') {
+// Fail loudly and distinguishably: a missing deep check is a monitoring gap, a
+// stale one is evidence we must not pass on, and neither is the same as a real
+// ACL regression. Silence on any of them would let this report a green that
+// nothing actually verified.
+if (!snapshotAnonCheck) {
+  console.error(
+    `no anon_grants check found in the newest ${snapshots.length} cron-health-check snapshots`
+  );
+  process.exitCode = 1;
+} else if (isStale) {
+  console.error(
+    `anon_grants check is stale: ${checkAgeMs}ms old, window is ${staleAfterMs}ms (checked_at ${checkedAt})`
+  );
+  process.exitCode = 1;
+} else if (snapshotAnonCheck.status !== 'ok') {
   process.exitCode = 1;
 }

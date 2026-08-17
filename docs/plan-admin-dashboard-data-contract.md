@@ -86,19 +86,21 @@ Two small gaps, both cheap: no resolution _reason_, and no history if an alert i
 after resolution (the dedupe key is reused). Add a `resolution_note` column if you want the
 former; the latter only matters once there is more than one operator.
 
-### Coverage — **ABSENT**, and should stay small
+### Coverage — **EXISTS**, and stays small
 
-No registry of monitored surfaces exists. Do not build a table for this.
+The health page carries a complete static registry for snapshot checks and durable-alert surfaces.
+Do not build a table for this.
 
-**Recommendation:** a static `SURFACES` array beside the check definitions, each entry
-`{ surface, verificationLevel: 'full' | 'dispatch-only' | 'none', checkKey? }`. The card's prose
-and the "N of M surfaces unmonitored" footer both derive from it, and it lives in the file that
-changes when a check changes — which is the only thing that keeps coverage copy from going
-stale. Roughly 30 lines.
+**Implementation:** `HEALTH_COVERAGE_SURFACES` lives beside the admin health selectors, with an
+explicit `full`, `dispatch-only`, or `none` level and optional check key. The card's prose and the
+"N of M surfaces unmonitored" footer derive from that registry, preventing the count from drifting
+with malformed or incomplete snapshots.
 
-With today's checks the honest reading is: **full** — migrations, anon grants, payout ledger,
-background jobs, ringside conflicts; **dispatch-only** — nightly payout cron (now labelled
-Unverified rather than OK, per TICKET-2); **none** — email delivery, sync backlog, uptime.
+With today's checks the honest reading is: **full** — migration version, recorded payout attempts,
+sign-in email configuration, ringside conflicts, public access grants, applied access grants,
+public schema access, and sign-in email delivery failures through `resend-webhook` and
+`operator_alerts`; **dispatch-only** — the nightly payout schedule and other background schedules;
+**none** — other email delivery, sync backlog, and site uptime.
 
 ### Environment — **PARTIAL**
 

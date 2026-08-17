@@ -305,9 +305,10 @@ describe('SystemHealthPage', () => {
       checks: [
         {
           key: 'payout_cron',
-          label: 'Nightly payout job',
+          label: 'Nightly payout schedule',
           status: 'warn',
-          detail: 'dispatched, but the Edge Function response is never read',
+          detail:
+            'last run sent the payout request, but this check cannot confirm the payout run started',
           checkedAt: new Date().toISOString(),
           verification: 'unprovable' as const,
         },
@@ -319,7 +320,67 @@ describe('SystemHealthPage', () => {
 
     // Named on the row and again on the Coverage card — the card exists to say
     // what the checks can't prove, so repeating the label there is the point.
-    expect(screen.getAllByText(/Nightly payout job/).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/silent failure would still look green/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Nightly payout schedule/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/cannot confirm the payout run started/i)).toHaveLength(2);
+    expect(
+      screen.getByText(/Background schedules — scheduled web requests are sent/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Sign-in email failures — delivery failures raise alerts/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Other email delivery — no check/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Sync backlog — waiting changes stay on each device; no central check/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Site uptime — no outside availability check/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 of 13 surfaces unmonitored/i)).toBeInTheDocument();
+  });
+
+  it('uses neutral coverage wording for non-payout unverified checks', () => {
+    const latest = freshSnapshot({
+      checks: [
+        {
+          key: 'probe',
+          label: 'Health probe',
+          status: 'warn',
+          detail: 'probe response incomplete',
+          checkedAt: new Date().toISOString(),
+          verification: 'unprovable' as const,
+        },
+      ],
+    });
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+
+    expect(
+      screen.getByText(/Health probe — this page does not have enough evidence to confirm success/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/scheduled request was sent/i)).not.toBeInTheDocument();
+  });
+
+  it('names a registered full check when the current run did not verify it', () => {
+    const latest = freshSnapshot({
+      checks: [
+        {
+          key: 'anon_grants',
+          label: 'Public access grants',
+          status: 'warn',
+          detail: 'Not evaluated in this continuous run',
+          checkedAt: new Date().toISOString(),
+          verification: 'unprovable' as const,
+        },
+      ],
+    });
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    render(<SystemHealthPage />);
+
+    expect(
+      screen.getByText(
+        /Public access grants — this run did not collect enough evidence to confirm success/i
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText(/3 of 13 surfaces unmonitored/i)).toBeInTheDocument();
   });
 });

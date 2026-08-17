@@ -186,6 +186,63 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### NCR-2026-08-17-01
+
+- **Status:** open
+- **Lifecycle status:** new
+- **Classification:** Confirmed product/utility defect
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source label:** Medium
+- **Source:** codex
+- **Role/workflow:** exhibitor / future pre-run SMS proximity alert
+- **Surface:** `supabase/functions/_shared/sms/smsMessage.ts:121-122`
+- **Suite category:** notifications/compliance-readiness
+- **Pattern:** segment-budget-overrun
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-17
+- **Last seen:** 2026-08-17
+- **Consecutive-run count:** 1
+- **Baseline SHA:** `893d9a525fdcc8cd4c1205a669023c646a7a0037`
+- **Evidence:** On current `main`, `node --experimental-strip-types` reproduced `buildProximitySms({ dogName: 'Cooper', className: '\\\\'.repeat(120), dogsAhead: 3, armband: 314 })` as a 160-character GSM-7 string whose `estimateSegments` result is 2 segments. GSM-7 extension characters such as `\\` count as two septets, but the implementation truncates with JavaScript `slice()` by code units. Existing tests cover ordinary long names but not extension-character budgets.
+- **Expected behavior:** The helper's contract says the proximity SMS is always one GSM-7 segment.
+- **Observed behavior:** A class name containing GSM-7 extension characters can fit the character-count budget while exceeding the 160-septet budget and producing two billable segments.
+- **User impact:** If the SMS sender is enabled, affected exhibitors may receive a longer/more expensive message, violating the helper's one-segment guarantee. The SMS feature is currently partial/provider-agnostic, so no live send impact was confirmed in this review.
+- **Intent check:** Future show-day alerts should be concise and predictable; this hidden length expansion undermines that expectation.
+- **Confidence:** high
+- **Existing reference:** Linear searches found no exact SMS/GSM-7 issue; no Linear issue created because this is P2 and the policy is report-only below P1.
+- **Fix owner:** SMS message builder and its focused contract tests.
+- **Proof required:** Add regression coverage using GSM-7 extension characters and assert `estimateSegments(buildProximitySms(...)).segments === 1`; verify the provider-facing send path when the SMS sender is wired. Do not close from a code change alone.
+- **Notes:** Introduced by commit `db2848445234315822ca786b09a3bef0b19a92f3`; no subsequent SMS builder fix was found through current `main`.
+
+### NCR-2026-08-04-01
+
+- **Status:** blocked
+- **Classification:** Confirmed runtime/deployment defect
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source label:** High
+- **Source:** codex
+- **Role/workflow:** admin / `/admin/health` continuous checks and Run now
+- **Surface:** `apps/myk9show/supabase/functions/cron-health-check/index.ts:147-176`
+- **Suite category:** security/operational-readiness
+- **Pattern:** swallowed-error
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-04
+- **Last seen:** 2026-08-05
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `42441fa27a4e007c3e49fbd41c39ee9bdc62ea13`
+- **Evidence:** PR #1616 removes the duplicate declaration. `node --experimental-strip-types --check apps/myk9show/supabase/functions/cron-health-check/index.ts` now passes, and the focused cron source/health-polling contract tests pass (4 files, 37 tests). The required staged/deployed invocation proof remains absent, so the closure gate is not met.
+- **Expected behavior:** The function parses, deploys, and writes one visible failed health snapshot when a probe fails; the site-admin Run now flow can invoke it.
+- **Observed behavior:** The source entrypoint parses on current `main`; whether the deployed function writes the failure snapshot and exposes the Run now token remains unverified.
+- **User impact:** Site admins lose the current-health operational signal and Run now requires developer intervention, undermining launch-readiness monitoring.
+- **Intent check:** Harms the site-admin feeling “The platform is healthy” by making the health surface unavailable exactly when it is needed.
+- **Confidence:** high for the original regression; closure state blocked
+- **Existing reference:** No exact duplicate found in Linear. Related feature contract: MYK9-157 (completed). Canonical Linear issue: MYK9-174 — https://linear.app/myk9-platform/issue/MYK9-174/ncr-2026-08-04-01-cron-health-check-cannot-start-after-continuous
+- **Fix owner:** `cron-health-check` error-path construction and Edge Function entrypoint verification.
+- **Proof required:** Clean Edge Function bundle/parse or deploy-dry-run; a non-mutating staged invocation proving a probe-failure snapshot is written and the Run now token is observable; focused tests for the failure branch and admin polling path. Do not close from a code change alone.
+- **Notes:** Introduced by commit `42441fa27a4e007c3e49fbd41c39ee9bdc62ea13` / PR #1614 and source-fixed by `45b264b4a2b375c245d5ad7d69ed97962562e241` / PR #1616. Required CI and local focused proof pass, but no shared migration or function deployment was performed during review. Linear MYK9-174 was returned to In Progress because the documented proof gate remains unmet.
+
 ### CUX-2026-08-02-01
 
 - **Status:** open

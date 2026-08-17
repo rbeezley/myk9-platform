@@ -12,7 +12,7 @@ import type { CheckStatus, HealthCheck, SystemHealthSnapshot } from './systemHea
 
 const check = (over: Partial<HealthCheck> = {}): HealthCheck => ({
   key: 'payout_cron',
-  label: 'Nightly payout job',
+  label: 'Nightly payout schedule',
   status: 'ok',
   detail: '',
   checkedAt: null,

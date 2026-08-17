@@ -221,9 +221,10 @@ describe('getHealthCheckRemediation', () => {
     });
 
     expect(remediation).toMatchObject({
-      ownerLabel: 'Payout Ledger',
+      ownerLabel: 'Payout Scheduling',
       actionLabel: 'Open Payouts',
       href: '/admin/payouts',
+      nextStep: expect.stringContaining('payout attempts that were recorded'),
     });
   });
 

@@ -24,6 +24,10 @@ import {
   formatCheckedAgo,
 } from '@/features/admin-system-health/systemHealthSelectors';
 import {
+  coverageForCheck,
+  HEALTH_COVERAGE_SURFACES,
+} from '@/features/admin-system-health/healthCoverage';
+import {
   buildCheckHistories,
   filterChecks,
   summarizeChecks,
@@ -64,13 +68,11 @@ function scheduleLabel(now: number): string {
   return `Cheap checks refresh continuously · full run nightly at ${eastern} ET`;
 }
 
-/**
- * Surfaces with no automated check at all. A derived registry would be better,
- * but none exists yet (docs/plan-admin-dashboard-data-contract.md § Coverage).
- * This list is the honest interim and MUST be reviewed whenever a check is added
- * or removed — a stale coverage claim is worse than no coverage card.
- */
-const UNMONITORED_SURFACES = ['Email delivery', 'Sync backlog', 'Site uptime'];
+// INTENT: Coverage includes durable alerts as well as snapshot checks. Email
+// delivery failures for auth messages are persisted by resend-webhook and shown
+// immediately above this card, so calling email entirely unmonitored is stale and
+// misleading. Sync backlog remains client-only, and site reachability still needs
+// an external uptime monitor.
 
 function formatRunDuration(ms: number | null): string {
   if (ms == null) return '';
@@ -160,33 +162,53 @@ function FreshnessBand({
   );
 }
 
-function CoverageCard({ unprovableLabels }: { unprovableLabels: string[] }) {
+function CoverageCard({
+  unprovableChecks,
+}: {
+  unprovableChecks: Array<{ key: string; label: string }>;
+}) {
+  const unmonitoredCount = HEALTH_COVERAGE_SURFACES.filter(
+    surface => surface.verificationLevel === 'none'
+  ).length;
+  const visibleSurfaces = HEALTH_COVERAGE_SURFACES.filter(
+    surface => surface.verificationLevel !== 'full' || !surface.checkKey
+  );
+  const unregisteredUnprovableChecks = unprovableChecks.filter(
+    check => !coverageForCheck(check.key)
+  );
+
   return (
     <BoardCard>
       <Eyebrow>Coverage</Eyebrow>
-      <p className="mt-2 text-[12.5px] text-foreground">What these checks can&apos;t prove.</p>
+      <p className="mt-2 text-sm text-foreground">What the platform can and can&apos;t prove.</p>
 
-      {unprovableLabels.length > 0 && (
-        <p className="mt-2 text-[11.5px] leading-[1.55] text-muted-foreground">
-          {unprovableLabels.join(', ')} — the job fires, but its outcome isn&apos;t read back. A
-          silent failure would still look green.
+      {unregisteredUnprovableChecks.map(check => (
+        <p key={check.key} className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {check.label} — this page does not have enough evidence to confirm success.
         </p>
-      )}
+      ))}
 
       <ul className="mt-3 space-y-1">
-        {UNMONITORED_SURFACES.map(surface => (
-          <li key={surface} className="text-[11.5px] text-muted-foreground">
+        {visibleSurfaces.map(surface => (
+          <li key={surface.label} className="text-sm text-muted-foreground">
             <span
               aria-hidden
-              className="mr-1.5 inline-block size-[6px] rounded-full bg-muted-foreground align-middle"
+              className={cn(
+                'mr-1.5 inline-block size-[6px] rounded-full align-middle',
+                surface.verificationLevel === 'full'
+                  ? 'bg-success'
+                  : surface.verificationLevel === 'dispatch-only'
+                    ? 'bg-warning'
+                    : 'bg-muted-foreground'
+              )}
             />
-            {surface} — no check
+            {surface.label} — {surface.detail}
           </li>
         ))}
       </ul>
 
-      <p className="mt-3 border-t border-border pt-2.5 font-mono text-[11.5px] text-muted-foreground">
-        {UNMONITORED_SURFACES.length} surfaces unmonitored
+      <p className="mt-3 border-t border-border pt-2.5 font-mono text-sm text-muted-foreground">
+        {unmonitoredCount} of {HEALTH_COVERAGE_SURFACES.length} surfaces unmonitored
       </p>
     </BoardCard>
   );
@@ -284,7 +306,9 @@ export default function SystemHealthPage() {
   const effective = deriveEffectiveStatus(latest, now);
   const headline = verdictHeadline(summary, effective.isStale, effective.isEmpty);
   const explanation = verdictExplanation(summary, effective.isStale, effective.isEmpty);
-  const unprovableLabels = checks.filter(c => c.verification === 'unprovable').map(c => c.label);
+  const unprovableChecks = checks
+    .filter(c => c.verification === 'unprovable')
+    .map(c => ({ key: c.key, label: c.label }));
   const migrationsDetail = checks.find(c => c.key === 'migrations')?.detail ?? null;
   const runError = runHealthCheck.error
     ? runHealthCheck.error.message || 'The run could not be started.'
@@ -382,7 +406,7 @@ export default function SystemHealthPage() {
 
           <aside className="flex flex-col gap-[18px]">
             <OperatorAlertsSection />
-            <CoverageCard unprovableLabels={unprovableLabels} />
+            <CoverageCard unprovableChecks={unprovableChecks} />
             <EnvironmentCard source={latest?.source ?? ''} migrationsDetail={migrationsDetail} />
           </aside>
         </div>

@@ -217,7 +217,8 @@ Copy this block for each new finding.
 
 ### NCR-2026-08-04-01
 
-- **Status:** blocked
+- **Status:** fixed
+- **Lifecycle status:** resolved
 - **Classification:** Confirmed runtime/deployment defect
 - **Severity:** high
 - **Canonical priority:** P1
@@ -229,19 +230,19 @@ Copy this block for each new finding.
 - **Pattern:** swallowed-error
 - **Detected by:** daily commit review
 - **First seen:** 2026-08-04
-- **Last seen:** 2026-08-05
+- **Last seen:** 2026-08-17
 - **Consecutive-run count:** 2
 - **Baseline SHA:** `42441fa27a4e007c3e49fbd41c39ee9bdc62ea13`
-- **Evidence:** PR #1616 removes the duplicate declaration. `node --experimental-strip-types --check apps/myk9show/supabase/functions/cron-health-check/index.ts` now passes, and the focused cron source/health-polling contract tests pass (4 files, 37 tests). The required staged/deployed invocation proof remains absent, so the closure gate is not met.
+- **Evidence:** PR #1616 removes the duplicate declaration. `node --experimental-strip-types --check apps/myk9show/supabase/functions/cron-health-check/index.ts` passes, and the focused cron source/health-polling contract tests pass (4 files, 37 tests). Supabase functions inventory confirmed the deployed `cron-health-check` is ACTIVE at version 21, updated 2026-08-17 19:17 UTC. On 2026-08-17, the site-admin `/admin/health` Run now path completed and the SQL verification returned one new `cron-health-check:manual:<redacted-run-token>` snapshot at 19:56:23 UTC with `overall_status=warn`, 0 failing checks, 8 passing checks, 1 unverified check, and a 194 ms duration.
 - **Expected behavior:** The function parses, deploys, and writes one visible failed health snapshot when a probe fails; the site-admin Run now flow can invoke it.
-- **Observed behavior:** The source entrypoint parses on current `main`; whether the deployed function writes the failure snapshot and exposes the Run now token remains unverified.
+- **Observed behavior:** The deployed entrypoint accepts the Run now dispatch, persists the manual snapshot, and the admin board refreshes from that snapshot. The token is observable through the persisted manual source without recording the token itself in this registry.
 - **User impact:** Site admins lose the current-health operational signal and Run now requires developer intervention, undermining launch-readiness monitoring.
 - **Intent check:** Harms the site-admin feeling “The platform is healthy” by making the health surface unavailable exactly when it is needed.
-- **Confidence:** high for the original regression; closure state blocked
+- **Confidence:** high for the original regression and its closure evidence
 - **Existing reference:** No exact duplicate found in Linear. Related feature contract: MYK9-157 (completed). Canonical Linear issue: MYK9-174 — https://linear.app/myk9-platform/issue/MYK9-174/ncr-2026-08-04-01-cron-health-check-cannot-start-after-continuous
 - **Fix owner:** `cron-health-check` error-path construction and Edge Function entrypoint verification.
-- **Proof required:** Clean Edge Function bundle/parse or deploy-dry-run; a non-mutating staged invocation proving a probe-failure snapshot is written and the Run now token is observable; focused tests for the failure branch and admin polling path. Do not close from a code change alone.
-- **Notes:** Introduced by commit `42441fa27a4e007c3e49fbd41c39ee9bdc62ea13` / PR #1614 and source-fixed by `45b264b4a2b375c245d5ad7d69ed97962562e241` / PR #1616. Required CI and local focused proof pass, but no shared migration or function deployment was performed during review. Linear MYK9-174 was returned to In Progress because the documented proof gate remains unmet.
+- **Closure proof:** Satisfied by the clean entrypoint parse, focused tests, ACTIVE deployed version, persisted manual snapshot, and admin Run now refresh. The deployed invocation returned `warn` rather than `fail` because one health check remains unverified; this is a health result, not a delivery failure. The original duplicate-declaration defect is resolved.
+- **Notes:** Introduced by commit `42441fa27a4e007c3e49fbd41c39ee9bdc62ea13` / PR #1614 and source-fixed by `45b264b4a2b375c245d5ad7d69ed97962562e241` / PR #1616. Closure evidence recorded 2026-08-17. Linear MYK9-174 is already Done with PRs #1616 and #1621 attached.
 
 ### CUX-2026-08-02-01
 

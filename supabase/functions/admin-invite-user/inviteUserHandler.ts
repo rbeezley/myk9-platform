@@ -38,7 +38,7 @@
 import type { HandlerCtx } from '../_shared/http/handler.ts';
 import type { ResendEmailRequestInit } from '../_shared/resendEmail.ts';
 import { HttpError } from '../_shared/http/responses.ts';
-import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
+import { applyActiveRoleValidity, rolesInclude } from '../_shared/roleValidity.ts';
 import { buildAuthActionUrl } from '../send-auth-email/actionUrl.ts';
 import { buildAdminInviteHtml } from './inviteEmail.ts';
 
@@ -107,9 +107,7 @@ async function assertSiteAdmin(
     throw new HttpError(500, 'Failed to verify caller role');
   }
 
-  const isSiteAdmin =
-    rbacRoles?.some((r: { role: { name: string } | null }) => r.role?.name === 'site_admin') ??
-    false;
+  const isSiteAdmin = rolesInclude(rbacRoles, 'site_admin');
 
   if (!isSiteAdmin) {
     throw new HttpError(403, 'Unauthorized: requires site_admin role');

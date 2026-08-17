@@ -3,6 +3,14 @@ import { createSendTargetedMessageHandler } from './targeted-message-handler';
 
 type QueryResult = { data?: unknown; error?: unknown };
 
+/** The shape the handler's `SupabaseQuery` actually awaits: both keys present. */
+type SettledResult = { data: unknown; error: unknown };
+
+const settle = (result: QueryResult): SettledResult => ({
+  data: result.data ?? null,
+  error: result.error ?? null,
+});
+
 function chain(result: QueryResult) {
   const query = {
     select: vi.fn(() => query),
@@ -11,10 +19,16 @@ function chain(result: QueryResult) {
     or: vi.fn(() => query),
     in: vi.fn(() => query),
     upsert: vi.fn(() => query),
-    insert: vi.fn(() => query),
+    insert: vi.fn((_rows: unknown) => query),
     delete: vi.fn(() => query),
     single: vi.fn(async () => result),
-    then: (resolve: (value: QueryResult) => unknown) => Promise.resolve(result).then(resolve),
+    // Mirrors `PromiseLike.then` exactly — optional params (its `onfulfilled`
+    // admits `undefined`) and generic in the result — so the fake is assignable
+    // to the handler's `SupabaseQuery extends PromiseLike<SupabaseQueryResult>`.
+    then: <TResult1 = SettledResult, TResult2 = never>(
+      resolve?: ((value: SettledResult) => TResult1 | PromiseLike<TResult1>) | null,
+      reject?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    ): Promise<TResult1 | TResult2> => Promise.resolve(settle(result)).then(resolve, reject),
   };
   return query;
 }
@@ -61,8 +75,8 @@ function makeSupabase() {
 
       if (table === 'show_messages') {
         const query = chain({ data: [{ id: 'message-1' }] });
-        query.insert.mockImplementation((rows: Array<Record<string, unknown>>) => {
-          calls.insertedMessages = rows;
+        query.insert.mockImplementation(rows => {
+          calls.insertedMessages = rows as Array<Record<string, unknown>>;
           return query;
         });
         return query;
@@ -233,9 +247,15 @@ function makeChunkSupabase(recipientCount: number) {
         return query;
       }),
       upsert: vi.fn(() => query),
-      insert: vi.fn(() => query),
+      insert: vi.fn((_rows: unknown) => query),
       single: vi.fn(async () => result),
-      then: (resolve: (value: QueryResult) => unknown) => Promise.resolve(result).then(resolve),
+      // Mirrors `PromiseLike.then` exactly — optional params (its `onfulfilled`
+      // admits `undefined`) and generic in the result — so the fake is assignable
+      // to the handler's `SupabaseQuery extends PromiseLike<SupabaseQueryResult>`.
+      then: <TResult1 = SettledResult, TResult2 = never>(
+        resolve?: ((value: SettledResult) => TResult1 | PromiseLike<TResult1>) | null,
+        reject?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+      ): Promise<TResult1 | TResult2> => Promise.resolve(settle(result)).then(resolve, reject),
     };
     return query;
   }

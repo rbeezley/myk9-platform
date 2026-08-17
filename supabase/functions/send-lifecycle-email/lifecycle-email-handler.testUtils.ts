@@ -48,8 +48,15 @@ function makeQuery(
       }
       return { data: resultRows[0] ?? null, error: null };
     }),
-    then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
-      Promise.resolve({ data: resultRows, error: null }).then(resolve),
+    // Mirrors `PromiseLike.then` exactly — optional params (its `onfulfilled`
+    // admits `undefined`) and generic in the result, so the fake is assignable
+    // to the handler's `Query extends PromiseLike<QueryResult>`.
+    then: <TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
+      resolve?:
+        ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
+      reject?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    ): Promise<TResult1 | TResult2> =>
+      Promise.resolve({ data: resultRows, error: null }).then(resolve, reject),
   };
   return query;
 }

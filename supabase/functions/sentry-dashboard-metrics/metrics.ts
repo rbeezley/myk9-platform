@@ -1,6 +1,6 @@
 import type { HandlerCtx } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
-import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
+import { applyActiveRoleValidity, rolesInclude } from '../_shared/roleValidity.ts';
 
 export const CACHE_TTL_MS = 60_000;
 const SENTRY_API_BASE_URL = 'https://sentry.io/api/0/organizations';
@@ -228,9 +228,7 @@ async function assertSiteAdmin(
 
   if (rolesError) throw new HttpError(500, 'Failed to verify caller role');
 
-  const isSiteAdmin =
-    roles?.some((row: { role: { name: string } | null }) => row.role?.name === 'site_admin') ??
-    false;
+  const isSiteAdmin = rolesInclude(roles, 'site_admin');
   if (!isSiteAdmin) throw new HttpError(403, 'Unauthorized: requires site_admin role');
 }
 

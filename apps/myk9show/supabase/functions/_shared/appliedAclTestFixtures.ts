@@ -2,7 +2,8 @@ import { AUTHENTICATED_TABLE_GRANTS } from './appliedAclChecks';
 
 export const appliedAclFacts = (over: Record<string, unknown> = {}) => ({
   tables: Object.entries(AUTHENTICATED_TABLE_GRANTS).map(([name, privs]) => ({ name, privs })),
-  forbidden_tables: [],
+  // Annotated so a test can push a drift row in; a bare `[]` infers `never[]`.
+  forbidden_tables: [] as Array<{ name: string; role: string; privs: string }>,
   sequences: [
     { name: 'registration_confirmation_seq', role: 'anon', privs: '' },
     { name: 'registration_confirmation_seq', role: 'authenticated', privs: 'SELECT,USAGE' },

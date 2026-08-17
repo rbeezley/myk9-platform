@@ -10,7 +10,9 @@ Fee model: 7% total convenience fee, ~3% net platform margin after Stripe proces
 
 **Standing constraint:** nothing in this document outranks Stripe Connect. If a week is contested, Connect wins.
 
-**Deploying what's built:** L1–L5 are merged but not live. The ordered, gated deploy steps — keys, secrets, migration, function deploys, verification and rollback — are in [`docs/operations/launch-integrations-deploy.md`](operations/launch-integrations-deploy.md).
+**Deploying what's built:** L1–L6 are merged. The ordered, gated deploy steps — keys, secrets, migration, function deploys, verification and rollback — are in [`docs/operations/launch-integrations-deploy.md`](operations/launch-integrations-deploy.md).
+
+**Deployed 2026-08-16 (backend only):** migrations `20260816120000` / `20260816130000` / `20260816140000` applied to `sojmvhhwsjxmfistvzbe`; `push-trigger-run-proximity` and `calendar-feed` deployed; `CALENDAR_FEED_ORIGIN` set. Schema, ACL and RLS verification passed. **Not yet done:** L1/L2/L3 operator steps (Apple portal, Stripe toggle, both Maps keys), all frontend/Vercel work, and every device-level functional check for L4/L5 — see the runbook's phase notes.
 
 ---
 

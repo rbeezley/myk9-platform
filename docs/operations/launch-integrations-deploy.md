@@ -1,7 +1,20 @@
 # Launch Integrations Deploy — L1–L6
 
 > **Status:** Active
-> Covers the deploy half of [`docs/plan-google-apple-integrations.md`](../plan-google-apple-integrations.md) launch items L1–L6. All are code-complete; none of it is **live**. Every item below is inert until its step here runs.
+> Covers the deploy half of [`docs/plan-google-apple-integrations.md`](../plan-google-apple-integrations.md) launch items L1–L6. All are code-complete.
+
+> **Progress as of 2026-08-16.** Phases 4, 5 and 6 have had their **database and edge-function halves applied** to `sojmvhhwsjxmfistvzbe`. Do not re-run their pre-flight expecting the migrations to be pending — `db push` is now up to date at `20260816140000`.
+>
+> | Phase | Applied | Still outstanding |
+> | ----- | ------- | ----------------- |
+> | 1 — L2 wallets | — | Stripe dashboard toggle (operator) |
+> | 2 — L1 Apple sign-in | — | Apple portal + Supabase provider (operator) |
+> | 3 — L3 map keys | — | Both Google keys, Vercel env, `send-confirmation-email` redeploy |
+> | 4 — L4 run-proximity push | Migration `20260816120000`; `push-trigger-run-proximity` deployed | §4.3 **functional** checks — device push with the app closed, pill-match, Vault failure mode |
+> | 5 — L5 calendar feed | Migration `20260816130000`; `calendar-feed` deployed; `CALENDAR_FEED_ORIGIN=myk9show.com` | §5.3 **functional** checks — iOS webcal subscribe, `.ics` import, feed-body field audit, revoke → 404. Optional `VITE_CALENDAR_FEED_URL` |
+> | 6 — L6 SMS consent | Migration `20260816140000` | Nothing — phase complete (see §6.5 for what it does _not_ unblock) |
+>
+> Schema, table/column ACL and RLS verification passed for all three migrations, including the §5.3 and §6.3 queries. The constraint-bites test in §6.3 was run in a rolled-back transaction and failed as required. Everything left in the table above needs an operator, a device, or a Vercel deploy.
 
 **Project ref:** `sojmvhhwsjxmfistvzbe`. Migration password: `supabase/.env` (gitignored — present only on the operator's machine).
 
@@ -227,7 +240,44 @@ rather than offering a broken link.
 -- nothing else; anon must appear nowhere.
 select unnest(relacl)::text from pg_class
 where oid = 'public.calendar_feed_tokens'::regclass;
+
+select a.attname, unnest(a.attacl)::text
+from pg_attribute a
+where a.attrelid = 'public.calendar_feed_tokens'::regclass and a.attacl is not null;
 ```
+
+That ACL is necessary but **not sufficient**, and this table is the reason the
+distinction matters. Rows here hold a token that is itself the credential, so
+`authenticated=r` alone means every signed-in user can read every other user's
+feed token — a full cross-user calendar read, from a grant that looks correct.
+Only RLS closes that, and `relacl` cannot show whether RLS is on:
+
+```sql
+-- Expect relrowsecurity AND relforcerowsecurity true. FORCE matters because
+-- the two RPCs below are SECURITY DEFINER: without it they run as the owner
+-- and bypass the very policy that scopes reads to one user.
+select relrowsecurity, relforcerowsecurity from pg_class
+where oid = 'public.calendar_feed_tokens'::regclass;
+
+-- Expect exactly one owner-scoped SELECT policy for authenticated —
+-- qual (select auth.uid()) = user_id. A policy that is TO public, or whose
+-- qual does not name user_id, leaves the table effectively open.
+select policyname, roles::text, cmd, qual from pg_policies
+where schemaname = 'public' and tablename = 'calendar_feed_tokens';
+
+-- Token minting and revocation are SECURITY DEFINER, so their EXECUTE grant
+-- is the whole access control. anon must appear on NEITHER: an anon EXECUTE
+-- on issue_calendar_feed_token mints a working feed URL for any show to
+-- anyone who can reach PostgREST, with no session at all.
+select p.proname, p.prosecdef, unnest(p.proacl)::text as acl
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('issue_calendar_feed_token', 'revoke_calendar_feed_token');
+```
+
+Verified on the 2026-08-16 deploy: RLS on with FORCE, one
+`calendar_feed_tokens_owner_read` policy, and both RPCs granted to
+`postgres` / `service_role` / `authenticated` only.
 
 Then, end to end:
 

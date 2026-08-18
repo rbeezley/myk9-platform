@@ -92,14 +92,9 @@ Save plans to `docs/plan-<topic>.md`, never chat-only. Follow existing plans whe
 
 ## Commands
 
-```bash
-# Package manager: pnpm (not npm)
-pnpm install          # Install all dependencies
-pnpm dev:show         # Run myK9Show dev server (localhost:5173)
-pnpm build            # Build all packages and apps
-pnpm typecheck        # TypeScript check across monorepo
-pnpm lint             # ESLint across monorepo
+Package manager: **pnpm** (not npm). Root scripts (`dev:show`, `build`, `typecheck`, `lint`) are in `package.json`; `pnpm dev:show` serves myK9Show at http://localhost:5173. The non-obvious ones:
 
+```bash
 # Testing (run from app directories)
 cd apps/myk9show && pnpm test     # myK9Show unit tests (vitest)
 cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)

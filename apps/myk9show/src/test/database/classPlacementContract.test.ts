@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -20,6 +20,26 @@ const placementMigration = readFileSync(
   resolve(migrationsDir, '20260525170000_server_side_scoring_completion.sql'),
   'utf8'
 );
+
+// The ranking body has been redefined since 20260525170000, so pinning that
+// file would validate SQL the database no longer runs. Discover the LATEST
+// migration that redefines the function and assert against THAT — then pin its
+// name, so a future redefinition fails here loudly instead of leaving this
+// contract silently checking a superseded definition.
+const rankingMigrationFiles = readdirSync(migrationsDir)
+  .filter(file => file.endsWith('.sql'))
+  .filter(file =>
+    readFileSync(resolve(migrationsDir, file), 'utf8').includes(
+      'CREATE OR REPLACE FUNCTION public.recalculate_class_placements'
+    )
+  )
+  .sort();
+const latestRankingMigrationFile =
+  rankingMigrationFiles[rankingMigrationFiles.length - 1];
+const rankingMigration = readFileSync(
+  resolve(migrationsDir, latestRankingMigrationFile),
+  'utf8'
+);
 const gateMigration = readFileSync(
   resolve(migrationsDir, '20260615160000_add_shows_is_nationals_placement_source.sql'),
   'utf8'
@@ -38,16 +58,31 @@ const forceRlsSweepMigration = readFileSync(
 );
 
 // The function has two ranking branches: nationals (points) vs regular (faults).
-const nationalsBranch = placementMigration.slice(
-  placementMigration.indexOf('IF p_is_nationals THEN'),
-  placementMigration.indexOf('ELSE', placementMigration.indexOf('IF p_is_nationals THEN'))
+const nationalsBranch = rankingMigration.slice(
+  rankingMigration.indexOf('IF p_is_nationals THEN'),
+  rankingMigration.indexOf('ELSE', rankingMigration.indexOf('IF p_is_nationals THEN'))
 );
-const regularBranch = placementMigration.slice(
-  placementMigration.indexOf('ELSE', placementMigration.indexOf('IF p_is_nationals THEN')),
-  placementMigration.indexOf('END IF', placementMigration.indexOf('IF p_is_nationals THEN'))
+const regularBranch = rankingMigration.slice(
+  rankingMigration.indexOf('ELSE', rankingMigration.indexOf('IF p_is_nationals THEN')),
+  rankingMigration.indexOf('END IF', rankingMigration.indexOf('IF p_is_nationals THEN'))
+);
+// The stale-clearing UPDATE only — not the comment above it, which discusses
+// deleted_at at length.
+const clearStatement = rankingMigration.slice(
+  rankingMigration.indexOf('UPDATE public.entries\n    SET final_placement = NULL'),
+  rankingMigration.indexOf('IF p_is_nationals THEN')
 );
 
-describe('placement ranking — recalculate_class_placements (20260525170000)', () => {
+describe('placement ranking — recalculate_class_placements (latest definition)', () => {
+  it('asserts against the newest migration that redefines the function', () => {
+    // If this fails, a later migration redefined the ranking: repoint the pin
+    // rather than deleting it, and re-check every assertion below against the
+    // new body. Silently leaving it behind is how a contract goes vacuous.
+    expect(latestRankingMigrationFile).toBe(
+      '20260817120000_placement_ranking_ignores_soft_deleted_entries.sql'
+    );
+  });
+
   it('places ONLY scored + qualified entries (NQ/ABS/EX/WD get no placement)', () => {
     for (const branch of [nationalsBranch, regularBranch]) {
       expect(branch).toContain('e2.is_scored = true');
@@ -55,12 +90,32 @@ describe('placement ranking — recalculate_class_placements (20260525170000)', 
     }
   });
 
+  it('excludes SOFT-DELETED entries from the ranking in both branches', () => {
+    // A tombstoned entry that was scored + qualified used to keep its
+    // ROW_NUMBER() slot, pushing every live entry below it down one place
+    // (1/2/3 -> soft-delete the 2nd -> survivors stranded at 1 and 3).
+    for (const branch of [nationalsBranch, regularBranch]) {
+      expect(branch).toContain('e2.deleted_at IS NULL');
+    }
+  });
+
   it('clears stale placements to NULL before re-ranking', () => {
     // A changed/reset score must not leave an old placement behind.
-    const clear = placementMigration.indexOf('SET final_placement = NULL');
-    const firstRank = placementMigration.indexOf('SET final_placement = ranked.placement');
+    const clear = rankingMigration.indexOf('SET final_placement = NULL');
+    const firstRank = rankingMigration.indexOf('SET final_placement = ranked.placement');
     expect(clear).toBeGreaterThanOrEqual(0);
     expect(firstRank).toBeGreaterThan(clear); // clear precedes assignment
+  });
+
+  it('clears placements on soft-deleted rows too, so a tombstone is left unplaced', () => {
+    // Deliberately NOT filtered by deleted_at, unlike the identical-looking
+    // clears in refresh_class_scoring_state: those are terminal, this one is
+    // followed by re-assignment. Filtering here would leave the deleted entry
+    // holding the placement the live entry below it is about to be given, and
+    // view_entry_with_results / view_myk9q_entries / view_stats_summary do not
+    // filter deleted_at.
+    expect(clearStatement).toContain('WHERE class_id = v_class_id');
+    expect(clearStatement).not.toContain('deleted_at');
   });
 
   it('ranks a REGULAR class by fewest faults, then fastest time', () => {

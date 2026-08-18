@@ -98,7 +98,11 @@ describe('send-email authorization helpers', () => {
       type: 'entry_decision',
       registration: {
         exhibitorEmail: 'exhibitor@example.com',
-        show: { ccSecretaryOnExhibitorEmails: true, secretaryEmail: 'sec@example.com' },
+        show: {
+          id: 'show-1',
+          ccSecretaryOnExhibitorEmails: true,
+          secretaryEmail: 'sec@example.com',
+        },
       },
     });
   });

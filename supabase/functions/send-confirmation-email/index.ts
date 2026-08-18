@@ -11,6 +11,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
@@ -446,7 +447,22 @@ handle<ConfirmationEmailPayload>(
       for (const entry of entries ?? []) {
         const recipientEmail = entry.handler?.email;
         if (!recipientEmail) {
-          skipped++;
+          const attemptedAt = new Date().toISOString();
+          await supabase
+            .from('entries')
+            .update({ confirmation_email_status: 'failed' })
+            .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: null,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            status: 'failed',
+            status_updated_at: attemptedAt,
+            error_message: 'missing_recipient',
+            show_id: show.id,
+          });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
+          failed++;
           continue;
         }
 
@@ -592,23 +608,44 @@ handle<ConfirmationEmailPayload>(
           html = buildHtml(emailData);
         }
 
-        const resendRes = await sendResendEmailWithRetry({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-            // Keep this stable across style/config edits; the DB sent-at
-            // filter is best-effort, while Resend owns duplicate suppression.
-            'Idempotency-Key': `confirmation-email-${entry.id}`,
-          },
-          body: JSON.stringify({
-            from: FROM_EMAIL,
-            to: recipientEmail,
-            subject: `Your entry to ${show.name} is confirmed`,
-            html,
-          }),
-        });
+        let resendRes: Response;
+        try {
+          resendRes = await sendResendEmailWithRetry({
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${RESEND_API_KEY}`,
+              // Keep this stable across style/config edits; the DB sent-at
+              // filter is best-effort, while Resend owns duplicate suppression.
+              'Idempotency-Key': `confirmation-email-${entry.id}`,
+            },
+            body: JSON.stringify({
+              from: FROM_EMAIL,
+              to: recipientEmail,
+              subject: `Your entry to ${show.name} is confirmed`,
+              html,
+            }),
+          });
+        } catch {
+          await supabase
+            .from('entries')
+            .update({ confirmation_email_status: 'failed' })
+            .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: recipientEmail,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            status: 'failed',
+            status_updated_at: new Date().toISOString(),
+            error_message: 'email_delivery_error',
+            show_id: show.id,
+          });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
+          failed++;
+          continue;
+        }
 
+        const attemptedAt = new Date().toISOString();
         if (resendRes.ok) {
           const result = (await resendRes.json()) as { id: string };
           await supabase
@@ -619,16 +656,35 @@ handle<ConfirmationEmailPayload>(
               confirmation_email_status: 'sent',
             })
             .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: recipientEmail,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            resend_message_id: result.id,
+            status: 'sent',
+            status_updated_at: attemptedAt,
+            show_id: show.id,
+          });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
           sent++;
         } else {
-          const err = (await resendRes.json()) as { message?: string };
-          console.error(`Failed to send to ${recipientEmail}:`, err);
+          console.error('Failed to send Heritage confirmation', { status: resendRes.status });
           await supabase
             .from('entries')
             .update({
               confirmation_email_status: 'failed',
             })
             .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: recipientEmail,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            status: 'failed',
+            status_updated_at: attemptedAt,
+            error_message: `provider_http_${resendRes.status}`,
+            show_id: show.id,
+          });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
           failed++;
         }
       }

@@ -180,27 +180,363 @@ BEGIN
   END IF;
   RAISE NOTICE '2.2 PASS: nationals branch also skips soft-deleted entries';
 
-  -- =====================================================================
-  -- KNOWN GAP (pre-existing, deliberately not closed here).
-  --
-  -- "A soft-deleted entry is left unplaced" holds whenever
-  -- recalculate_class_placements actually runs. It does not hold when the
-  -- deletion empties the class: refresh_class_scoring_state tests
-  -- `v_expected_count = 0` BEFORE the fully-accounted branch, so deleting the
-  -- last live entry takes the terminal branch, never calls the ranking
-  -- function, and clears only `deleted_at IS NULL` rows -- leaving the
-  -- tombstone holding its old placement.
-  --
-  -- Unchanged by this migration: the same sequence produced the same result
-  -- before it. It is not fixed here because dropping the caller's deleted_at
-  -- filter would make the tombstone -- which is the very row the outer
-  -- statement just updated -- eligible for a nested same-row UPDATE from the
-  -- AFTER trigger, the failure mode 20260727235900 was written to remove
-  -- after it stalled ringside_update_entry. That needs its own change with
-  -- its own ringside regression coverage.
-  -- =====================================================================
-
-  RAISE NOTICE 'ALL placement soft-delete ranking assertions passed.';
+  RAISE NOTICE 'ALL ranking assertions passed (sections 1-2).';
 END $$;
+
+-- =====================================================================
+-- 3. The empty-class boundary.
+--
+-- "A soft-deleted entry is left unplaced" used to hold only when
+-- recalculate_class_placements actually ran. It did not when the deletion
+-- emptied the class: refresh_class_scoring_state tests `v_expected_count = 0`
+-- BEFORE the fully-accounted branch, so deleting the last live entry took the
+-- terminal branch, never called the ranking function, and cleared only
+-- `deleted_at IS NULL` rows -- leaving the tombstone holding its old placement,
+-- visible through view_entry_with_results / view_myk9q_entries /
+-- view_stats_summary, none of which filter deleted_at.
+--
+-- Closed by 20260817140000_clear_placement_on_soft_deleted_entries.sql, which
+-- drops `AND deleted_at IS NULL` from the three terminal clears while keeping
+-- the `AND final_placement IS NOT NULL` guard that bounds them. Section 4
+-- asserts that guard is still doing its job.
+-- =====================================================================
+DO $$
+DECLARE
+  v_show  uuid := gen_random_uuid();
+  v_trial uuid := gen_random_uuid();
+  v_class uuid := gen_random_uuid();
+  v_only  uuid := gen_random_uuid();
+  v_second uuid := gen_random_uuid();
+  v_third  uuid := gen_random_uuid();
+  v_status text;
+  v_p integer;
+  v_p2 integer;
+BEGIN
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
+    VALUES (v_show, 'Placement Empty-Class Show', 'Test Org', current_date, current_date, false);
+  INSERT INTO public.trials (id, show_id, name, date)
+    VALUES (v_trial, v_show, 'Empty Trial', current_date);
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_class, v_trial, 'Sole Entry Class', 'upcoming');
+
+  INSERT INTO public.entries
+    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, total_faults, search_time_seconds)
+  VALUES
+    (v_only, v_class, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 38.50);
+
+  -- 3.1 A single scored qualifier completes the class and places 1st. Guards
+  --     the fixture: without this, 3.2 could pass because nothing was ever placed.
+  SELECT status FROM public.classes WHERE id = v_class INTO v_status;
+  SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
+  IF v_status IS DISTINCT FROM 'completed' OR v_p IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION '3.1 SETUP FAIL: expected completed/1, got %/%', v_status, v_p;
+  END IF;
+  RAISE NOTICE '3.1 PASS: sole scored qualifier completes the class and places 1st';
+
+  -- 3.2 Soft-deleting the ONLY live entry empties the class. The class reverts
+  --     to upcoming (v_expected_count = 0) and the tombstone must not keep the
+  --     placement it held while the class was complete.
+  UPDATE public.entries SET deleted_at = now() WHERE id = v_only;
+
+  SELECT status FROM public.classes WHERE id = v_class INTO v_status;
+  SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
+  IF v_status IS DISTINCT FROM 'upcoming' THEN
+    RAISE EXCEPTION '3.2 SETUP FAIL: emptied class should revert to upcoming, got %', v_status;
+  END IF;
+  IF v_p IS NOT NULL THEN
+    RAISE EXCEPTION
+      '3.2 FAIL: emptying the class left the tombstone placed %th -- the terminal '
+      'branch is still clearing only deleted_at IS NULL rows', v_p;
+  END IF;
+  RAISE NOTICE '3.2 PASS: emptying a completed class leaves its tombstone unplaced';
+
+  -- 3.3 Restoring the entry re-completes the class and re-places it. Proves 3.2
+  --     clears rather than permanently strands the row.
+  UPDATE public.entries SET deleted_at = NULL WHERE id = v_only;
+  SELECT status FROM public.classes WHERE id = v_class INTO v_status;
+  SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
+  IF v_status IS DISTINCT FROM 'completed' OR v_p IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION '3.3 FAIL: restore did not re-complete/re-place, got %/%', v_status, v_p;
+  END IF;
+  RAISE NOTICE '3.3 PASS: restoring the sole entry re-completes and re-places it';
+
+  -- 3.4 The ELSE branch: expected > 0 but accounted = 0. Tombstone the 2nd,
+  --     then un-score the survivor. Deleting v_second leaves v_only as the sole
+  --     scored live entry, so the class stays FULLY ACCOUNTED across that step
+  --     and recalculate_class_placements already strips v_second -- this case
+  --     therefore proves nothing about tombstones, only that the ELSE branch
+  --     clears the live row. Labelled accordingly; 3.5 covers the partial
+  --     branch and section 5 covers a tombstone that survives to a clear.
+  INSERT INTO public.entries
+    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, total_faults, search_time_seconds)
+  VALUES
+    (v_second, v_class, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 44.10);
+
+  SELECT final_placement FROM public.entries WHERE id = v_second INTO v_p2;
+  IF v_p2 IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION '3.4 SETUP FAIL: second entry should place 2nd, got %', v_p2;
+  END IF;
+
+  UPDATE public.entries SET deleted_at = now() WHERE id = v_second;
+  UPDATE public.entries SET is_scored = false, result_status = NULL WHERE id = v_only;
+
+  SELECT status FROM public.classes WHERE id = v_class INTO v_status;
+  SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
+  SELECT final_placement FROM public.entries WHERE id = v_second INTO v_p2;
+  IF v_status IS DISTINCT FROM 'upcoming' THEN
+    RAISE EXCEPTION '3.4 SETUP FAIL: expected the ELSE branch (upcoming), got %', v_status;
+  END IF;
+  IF v_p IS NOT NULL OR v_p2 IS NOT NULL THEN
+    RAISE EXCEPTION
+      '3.4 FAIL: ELSE branch left placements attached live=% tombstone=%', v_p, v_p2;
+  END IF;
+  RAISE NOTICE '3.4 PASS: the accounted = 0 branch clears placements';
+
+  -- 3.5 The PARTIAL branch, 0 < v_accounted_count < v_expected_count. 3.4 never
+  --     reaches it, so a regression confined to this branch would have slipped
+  --     through. Re-complete the class with two live entries, then un-score one
+  --     so exactly one of two remains accounted.
+  UPDATE public.entries
+    SET is_scored = true, result_status = 'qualified', total_faults = 0, search_time_seconds = 30.0
+    WHERE id = v_only;
+  INSERT INTO public.entries
+    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, total_faults, search_time_seconds)
+  VALUES
+    (v_third, v_class, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 35.0);
+
+  SELECT status FROM public.classes WHERE id = v_class INTO v_status;
+  SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
+  SELECT final_placement FROM public.entries WHERE id = v_third INTO v_p2;
+  IF v_status IS DISTINCT FROM 'completed' OR v_p IS DISTINCT FROM 1 OR v_p2 IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION '3.5 SETUP FAIL: expected completed with 1/2, got %/%/%', v_status, v_p, v_p2;
+  END IF;
+
+  UPDATE public.entries SET is_scored = false, result_status = NULL WHERE id = v_third;
+
+  SELECT status FROM public.classes WHERE id = v_class INTO v_status;
+  SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
+  SELECT final_placement FROM public.entries WHERE id = v_third INTO v_p2;
+  IF v_status IS DISTINCT FROM 'in_progress' THEN
+    RAISE EXCEPTION
+      '3.5 SETUP FAIL: expected the partial branch (in_progress), got % -- this '
+      'case is not exercising v_accounted_count > 0', v_status;
+  END IF;
+  IF v_p IS NOT NULL OR v_p2 IS NOT NULL THEN
+    RAISE EXCEPTION '3.5 FAIL: partial branch left placements attached %/%', v_p, v_p2;
+  END IF;
+  RAISE NOTICE '3.5 PASS: the partial (in_progress) branch clears placements';
+END $$;
+
+
+-- =====================================================================
+-- 4. The guard 20260817140000 had to preserve: a show-desk check-in must not
+--    rewrite the whole class.
+--
+-- 20260727235900_avoid_null_placement_noop_updates.sql fixed a check-in that
+-- hung inside ringside_update_entry until the client timed out. Its guard is
+-- `AND final_placement IS NOT NULL` on the terminal clears. Without it the
+-- clear matched EVERY live entry in the class on every refresh, and each
+-- matched row pays for the all-column triggers on public.entries --
+-- increment_replication_version, update_updated_at_column and
+-- broadcast_entries_showday_change, which calls realtime.send() per row -- as
+-- well as holding a row lock on all of them for the rest of the transaction.
+--
+-- 20260817140000 removes the deleted_at predicate from those clears but keeps
+-- that guard. This section pins the resulting property through the real
+-- show-day path: a version-correct check-in via ringside_update_entry on a
+-- derived-status class must leave every OTHER entry in the class byte-identical.
+-- entries.version is maintained by the increment_replication_version BEFORE
+-- UPDATE trigger, so an unchanged version is proof the row was never written.
+-- =====================================================================
+reset role;
+
+insert into public.clubs (id, name)
+values ('00000000-0000-0000-0000-000000178001', 'Placement Guard Club');
+insert into public.people (id, first_name, last_name, auth_user_id)
+values ('00000000-0000-0000-0000-000000178002', 'Guard', 'Admin',
+        '00000000-0000-0000-0000-000000178003');
+insert into public.user_roles (user_id, role_id, is_active, auth_user_id)
+select '00000000-0000-0000-0000-000000178002', r.id, true,
+       '00000000-0000-0000-0000-000000178003'
+from public.roles r where r.name = 'site_admin';
+
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status, is_nationals)
+values ('00000000-0000-0000-0000-000000178004', 'Placement Guard Show', 'AKC',
+        current_date, current_date, '00000000-0000-0000-0000-000000178001', 'published', false);
+insert into public.trials (id, show_id, name, date)
+values ('00000000-0000-0000-0000-000000178005', '00000000-0000-0000-0000-000000178004',
+        'Guard Trial', current_date);
+insert into public.classes (id, trial_id, name, status)
+values ('00000000-0000-0000-0000-000000178006', '00000000-0000-0000-0000-000000178005',
+        'Container Novice A', 'upcoming');
+
+-- Six UNSCORED entries: the exact shape from the original incident, a
+-- derived-status class where every final_placement is already NULL.
+insert into public.entries (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored)
+select ('00000000-0000-0000-0000-0000001780' || lpad((10 + i)::text, 2, '0'))::uuid,
+       '00000000-0000-0000-0000-000000178006',
+       '00000000-0000-0000-0000-000000178004',
+       '00000000-0000-0000-0000-000000178005',
+       'confirmed', 'no-status', false
+from generate_series(1, 6) as i;
+
+-- public.entries grants authenticated only a column allowlist, no table-level
+-- SELECT, so the versions must be captured as postgres before the role switch.
+create temporary table myk9_178_guard (entry_id uuid primary key, version integer) on commit drop;
+grant select, insert on myk9_178_guard to authenticated;
+insert into myk9_178_guard (entry_id, version)
+select id, version from public.entries
+ where class_id = '00000000-0000-0000-0000-000000178006';
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000178003', true);
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000178003","role":"authenticated"}', true);
+
+do $$
+declare
+  v_target uuid := '00000000-0000-0000-0000-000000178011';
+  v_version integer;
+  v_new_version integer;
+begin
+  select version into strict v_version from myk9_178_guard where entry_id = v_target;
+
+  -- The show-desk check-in itself. check_in_status is in the trigger's UPDATE OF
+  -- column list, so this fires handle_entry_scoring_state_change ->
+  -- refresh_class_scoring_state -> the terminal clear under test.
+  v_new_version := public.ringside_update_entry(
+    v_target,
+    jsonb_build_object('check_in_status', 'checked-in'),
+    v_version
+  );
+  if v_new_version is null or v_new_version <= v_version then
+    raise exception '4.1 FAIL: check-in did not land (version % -> %)', v_version, v_new_version;
+  end if;
+  raise notice '4.1 PASS: version-correct check-in landed through ringside_update_entry';
+end;
+$$;
+
+reset role;
+
+do $$
+declare
+  v_target uuid := '00000000-0000-0000-0000-000000178011';
+  v_touched integer;
+  v_status text;
+begin
+  -- 4.2 THE REGRESSION ASSERTION. Every entry except the checked-in one must
+  --     still be at the version captured before the write. A non-zero count
+  --     means the terminal clear went class-wide again and the ringside stall
+  --     20260727235900 fixed is back.
+  select count(*) into v_touched
+    from public.entries e
+    join myk9_178_guard g on g.entry_id = e.id
+   where e.id <> v_target
+     and e.version is distinct from g.version;
+
+  if v_touched <> 0 then
+    raise exception
+      '4.2 FAIL: a single check-in rewrote % sibling row(s) in the class -- the '
+      'final_placement IS NOT NULL guard on the terminal clear is gone', v_touched;
+  end if;
+  raise notice '4.2 PASS: check-in touched 0 sibling rows (class-wide no-op write stays fixed)';
+
+  -- 4.3 Sanity: the class really is on the derived path this guard protects.
+  --     A manual-source class returns before the clear, which would make 4.2
+  --     pass for the wrong reason.
+  select status_source into v_status from public.classes
+   where id = '00000000-0000-0000-0000-000000178006';
+  if v_status is distinct from 'derived' then
+    raise exception '4.3 FAIL: class is not derived-status (got %), 4.2 proved nothing', v_status;
+  end if;
+  raise notice '4.3 PASS: the class under test is derived-status';
+end;
+$$;
+
+
+-- =====================================================================
+-- 5. The manual-status early return
+--    (20260817150000_clear_tombstone_placement_on_manual_classes.sql).
+--
+-- refresh_class_scoring_state returns early when classes.status_source =
+-- 'manual', after refreshing scored_count. Before 20260817150000 that return
+-- also skipped every placement clear, so a placed entry soft-deleted in a
+-- manually-pinned class kept its final_placement -- the same exposure as the
+-- empty-class gap, through a different door.
+--
+-- The clear added there is TOMBSTONE-SCOPED, and both halves matter:
+--   5.2 the tombstone loses its placement, and
+--   5.3 the LIVE entries keep theirs.
+-- A class-wide clear would satisfy 5.2 and destroy pinned results in 5.3.
+-- =====================================================================
+DO $$
+DECLARE
+  v_show  uuid := gen_random_uuid();
+  v_trial uuid := gen_random_uuid();
+  v_class uuid := gen_random_uuid();
+  v_keep  uuid := gen_random_uuid();
+  v_gone  uuid := gen_random_uuid();
+  v_status text;
+  v_keep_placement integer;
+  v_gone_placement integer;
+BEGIN
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
+    VALUES (v_show, 'Placement Manual Show', 'Test Org', current_date, current_date, false);
+  INSERT INTO public.trials (id, show_id, name, date)
+    VALUES (v_trial, v_show, 'Manual Trial', current_date);
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_class, v_trial, 'Manual Class', 'upcoming');
+
+  INSERT INTO public.entries
+    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, total_faults, search_time_seconds)
+  VALUES
+    (v_keep, v_class, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 31.00),
+    (v_gone, v_class, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 42.00);
+
+  -- 5.1 Placements are established while the class is still derived, then the
+  --     class is pinned. This is the only way a manual class acquires them.
+  SELECT final_placement FROM public.entries WHERE id = v_keep INTO v_keep_placement;
+  SELECT final_placement FROM public.entries WHERE id = v_gone INTO v_gone_placement;
+  IF (v_keep_placement, v_gone_placement) IS DISTINCT FROM (1, 2) THEN
+    RAISE EXCEPTION '5.1 SETUP FAIL: expected 1/2 before pinning, got %/%',
+      v_keep_placement, v_gone_placement;
+  END IF;
+
+  UPDATE public.classes SET status_source = 'manual' WHERE id = v_class;
+  RAISE NOTICE '5.1 PASS: class placed 1/2, then pinned to status_source = manual';
+
+  -- 5.2 Soft-deleting the 2nd-placed entry must strip its placement even though
+  --     the manual branch returns before every other clear.
+  UPDATE public.entries SET deleted_at = now() WHERE id = v_gone;
+
+  SELECT final_placement FROM public.entries WHERE id = v_gone INTO v_gone_placement;
+  IF v_gone_placement IS NOT NULL THEN
+    RAISE EXCEPTION
+      '5.2 FAIL: tombstone in a manual class kept placement % -- the manual '
+      'early return is still skipping the clear', v_gone_placement;
+  END IF;
+  RAISE NOTICE '5.2 PASS: manual-class tombstone is stripped of its placement';
+
+  -- 5.3 THE SAFETY HALF. The surviving entry keeps the placement a human
+  --     pinned, and the manual status is untouched. If the manual clear is ever
+  --     widened to the class-wide form the derived branches use, this fails.
+  SELECT final_placement FROM public.entries WHERE id = v_keep INTO v_keep_placement;
+  SELECT status_source FROM public.classes WHERE id = v_class INTO v_status;
+  IF v_keep_placement IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION
+      '5.3 FAIL: the manual clear wiped a LIVE entry''s placement (got %) -- it '
+      'must be scoped to deleted_at IS NOT NULL', v_keep_placement;
+  END IF;
+  IF v_status IS DISTINCT FROM 'manual' THEN
+    RAISE EXCEPTION '5.3 FAIL: manual status_source was overwritten with %', v_status;
+  END IF;
+  RAISE NOTICE '5.3 PASS: live placements and the manual pin both survive';
+END $$;
+
+do $$
+begin
+  raise notice 'ALL placement soft-delete ranking assertions passed.';
+end;
+$$;
 
 ROLLBACK;

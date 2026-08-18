@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MessageSquare } from 'lucide-react';
 import { ScheduledLifecycleEmailsPanel } from '@/features/lifecycle-emails';
+import { EmailDeliveryHistory } from '@/features/email-delivery-history';
 
 const ALL_SHOWS = 'all';
 
@@ -20,6 +21,7 @@ export default function SecretaryMessagesPage() {
   const showIdParam = searchParams.get('showId');
   const sectionParam = searchParams.get('section');
   const threadIdParam = searchParams.get('threadId');
+  const isEmailView = searchParams.get('view') === 'email';
   const filterShowId = showIdParam ?? ALL_SHOWS;
 
   const { user } = useAuth();
@@ -68,9 +70,10 @@ export default function SecretaryMessagesPage() {
   // list. When the filter narrows the list (or the thread disappears), the
   // derivation falls back to null and the right-pane shows the empty state —
   // no need for a setState-in-effect to imperatively clear selection.
-  const activeThread = threadIdParam
-    ? (visibleThreads.find(t => t.id === threadIdParam) ?? null)
-    : null;
+  const activeThread =
+    !isEmailView && threadIdParam
+      ? (visibleThreads.find(t => t.id === threadIdParam) ?? null)
+      : null;
   const effectiveActiveId = activeThread?.id ?? null;
   const activeMessages = effectiveActiveId ? messagesByThread[effectiveActiveId] || [] : [];
 
@@ -106,6 +109,19 @@ export default function SecretaryMessagesPage() {
         const next = new URLSearchParams(prev);
         if (threadId) next.set('threadId', threadId);
         else next.delete('threadId');
+        return next;
+      },
+      { replace: true }
+    );
+  }
+
+  function handleViewChange(nextView: 'messages' | 'email') {
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        if (nextView === 'email') next.set('view', 'email');
+        else next.delete('view');
+        next.delete('threadId');
         return next;
       },
       { replace: true }
@@ -148,7 +164,8 @@ export default function SecretaryMessagesPage() {
     <div className="flex h-full">
       <div
         className={cn(
-          'w-full md:w-80 border-r flex flex-col shrink-0',
+          'w-full flex flex-col shrink-0',
+          isEmailView ? 'border-r-0' : 'md:w-80 border-r',
           effectiveActiveId && 'hidden md:flex'
         )}
       >
@@ -173,8 +190,38 @@ export default function SecretaryMessagesPage() {
             ))}
           </select>
         </div>
-        {selectedShowId ? <ScheduledLifecycleEmailsPanel showId={selectedShowId} /> : null}
-        {visibleThreads.length === 0 ? (
+        <div className="border-b px-4 py-2" role="group" aria-label="Communication view">
+          <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+            <button
+              type="button"
+              aria-pressed={!isEmailView}
+              className={cn(
+                'min-h-11 rounded px-2 text-sm font-medium',
+                !isEmailView && 'bg-background shadow-sm'
+              )}
+              onClick={() => handleViewChange('messages')}
+            >
+              Messages
+            </button>
+            <button
+              type="button"
+              aria-pressed={isEmailView}
+              className={cn(
+                'min-h-11 rounded px-2 text-sm font-medium',
+                isEmailView && 'bg-background shadow-sm'
+              )}
+              onClick={() => handleViewChange('email')}
+            >
+              Email delivery
+            </button>
+          </div>
+        </div>
+        {isEmailView ? (
+          <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6">
+            {selectedShowId ? <ScheduledLifecycleEmailsPanel showId={selectedShowId} /> : null}
+            <EmailDeliveryHistory showId={selectedShowId} />
+          </div>
+        ) : visibleThreads.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-muted-foreground">
             <MessageSquare className="h-8 w-8 opacity-40" />
             <p className="text-sm">
@@ -201,7 +248,12 @@ export default function SecretaryMessagesPage() {
         )}
       </div>
 
-      <div className={cn('flex-1 flex flex-col', !effectiveActiveId && 'hidden md:flex')}>
+      <div
+        className={cn(
+          'flex-1 flex flex-col',
+          isEmailView ? 'hidden' : !effectiveActiveId && 'hidden md:flex'
+        )}
+      >
         {effectiveActiveId ? (
           <>
             <div className="md:hidden p-2 border-b">

@@ -1,6 +1,7 @@
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 export interface SendLifecycleEmailPayload {
   action?: 'preview' | 'save_ready' | 'send';
@@ -390,31 +391,38 @@ async function sendOneJob(args: {
 
   if (!args.job.recipient_email) {
     await recordFailure(args, subject, body, secretaryNote, 'Missing recipient email');
-    return { jobId: args.job.id, status: 'failed', error: 'Missing recipient email' };
+    return { jobId: args.job.id, status: 'failed', error: 'Email delivery failed' };
   }
 
-  const response = await sendResendEmailWithRetry(
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${args.deps.resendApiKey}`,
-        'Idempotency-Key': args.job.idempotency_key,
+  let response: Response;
+  try {
+    response = await sendResendEmailWithRetry(
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${args.deps.resendApiKey}`,
+          'Idempotency-Key': args.job.idempotency_key,
+        },
+        body: JSON.stringify({
+          from: args.deps.fromEmail ?? 'myK9Show <notifications@myk9show.com>',
+          to: args.job.recipient_email,
+          subject,
+          html: renderHtmlEmail(subject, body, secretaryNote),
+        }),
       },
-      body: JSON.stringify({
-        from: args.deps.fromEmail ?? 'myK9Show <notifications@myk9show.com>',
-        to: args.job.recipient_email,
-        subject,
-        html: renderHtmlEmail(subject, body, secretaryNote),
-      }),
-    },
-    { fetchImpl: args.deps.fetch }
-  );
+      { fetchImpl: args.deps.fetch }
+    );
+  } catch {
+    await recordFailure(args, subject, body, secretaryNote, 'email_delivery_error');
+    return { jobId: args.job.id, status: 'failed', error: 'Email delivery failed' };
+  }
 
   if (!response.ok) {
-    const error = await response.text();
+    await response.text();
+    const error = `provider_http_${response.status}`;
     await recordFailure(args, subject, body, secretaryNote, error);
-    return { jobId: args.job.id, status: 'failed', error };
+    return { jobId: args.job.id, status: 'failed', error: 'Email delivery failed' };
   }
 
   const resend = (await response.json()) as { id?: string };
@@ -459,17 +467,19 @@ async function recordFailure(
   secretaryNote: string,
   error: string
 ) {
+  const emailLogId = await insertEmailLog(args, null, 'failed', error);
   await args.supabase
     .from('show_lifecycle_email_jobs')
     .update({
       status: 'failed',
+      email_log_id: emailLogId,
       rendered_subject: subject,
       rendered_body: body,
       rendered_secretary_note: secretaryNote,
       updated_by: args.userId,
     })
     .eq('id', args.job.id);
-  await insertAttempt(args, null, null, 'failed', error);
+  await insertAttempt(args, emailLogId, null, 'failed', error);
 }
 
 async function insertEmailLog(
@@ -478,7 +488,7 @@ async function insertEmailLog(
   status: string,
   errorMessage: string | null
 ): Promise<string | undefined> {
-  const { data } = (await args.supabase
+  const { data, error } = (await args.supabase
     .from('email_log')
     .insert({
       recipient_email: args.job.recipient_email,
@@ -487,9 +497,11 @@ async function insertEmailLog(
       resend_message_id: resendMessageId,
       status,
       error_message: errorMessage,
+      show_id: args.job.show_id,
     })
     .select('id')
     .single()) as QueryResult<EmailLogRow>;
+  requireEmailLogWrite(error, 'send-lifecycle-email');
   return data?.id;
 }
 

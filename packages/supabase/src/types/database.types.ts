@@ -1599,9 +1599,10 @@ export type Database = {
           email_type: string
           error_message: string | null
           id: string
-          recipient_email: string
+          recipient_email: string | null
           related_id: string | null
           resend_message_id: string | null
+          show_id: string | null
           status: string
           status_updated_at: string | null
         }
@@ -1610,9 +1611,10 @@ export type Database = {
           email_type: string
           error_message?: string | null
           id?: string
-          recipient_email: string
+          recipient_email?: string | null
           related_id?: string | null
           resend_message_id?: string | null
+          show_id?: string | null
           status?: string
           status_updated_at?: string | null
         }
@@ -1621,9 +1623,10 @@ export type Database = {
           email_type?: string
           error_message?: string | null
           id?: string
-          recipient_email?: string
+          recipient_email?: string | null
           related_id?: string | null
           resend_message_id?: string | null
+          show_id?: string | null
           status?: string
           status_updated_at?: string | null
         }
@@ -11468,6 +11471,27 @@ export type Database = {
         Returns: {
           class_id: string
           num_hides: number
+        }[]
+      }
+      get_show_email_delivery_history: {
+        Args: {
+          p_before_created_at?: string
+          p_before_id?: string
+          p_limit?: number
+          p_show_id: string
+        }
+        Returns: {
+          attempted_at: string
+          delivery_status: string
+          failure_summary: string | null
+          id: string
+          lifecycle_step_type: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          related_id: string | null
+          show_id: string
+          source_kind: string
+          status_updated_at: string | null
         }[]
       }
       get_show_officials: {

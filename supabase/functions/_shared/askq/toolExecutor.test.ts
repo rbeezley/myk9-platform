@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { parseAndResolveDate } from './ruleLookup.ts';
 import { executeTool } from './toolExecutor.ts';
 
 const repositoryRoot = resolve(import.meta.dirname, '../../../..');
@@ -97,6 +96,10 @@ function fakeSupabase(rowsByTable: Record<string, unknown[]>) {
         return builder;
       },
       not(column: string) {
+        record.columns.push(column);
+        return builder;
+      },
+      is(column: string) {
         record.columns.push(column);
         return builder;
       },
@@ -261,35 +264,214 @@ describe('AskQ entry tools query columns that view_entry_with_results actually h
   });
 });
 
-describe('AskQ day-of-week resolution reads trials.date', () => {
-  it('selects `date`, not the `trial_date` alias, and resolves the matching day', async () => {
-    // 2026-08-01 is a Saturday; 2026-08-02 a Sunday.
+describe('AskQ class and trial tools query current base-table columns', () => {
+  it('builds class summaries from trials, classes, and entries', async () => {
     const { client, queries } = fakeSupabase({
       trials: [
-        { date: '2026-08-01', show_id: SHOW_ID },
-        { date: '2026-08-02', show_id: SHOW_ID },
+        {
+          id: 'trial-1',
+          date: '2026-08-01',
+          name: 'Saturday Trial',
+          trial_number: '1',
+          show_id: SHOW_ID,
+          shows: { name: 'Summer Show' },
+        },
+      ],
+      classes: [
+        {
+          id: 'class-1',
+          trial_id: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          judge_name: 'Ann Judge',
+          status: 'upcoming',
+          start_time: '09:30:00',
+        },
+      ],
+      entries: [
+        {
+          class_id: 'class-1',
+          entry_status: 'confirmed',
+          is_scored: true,
+          check_in_status: 'completed',
+          result_status: 'qualified',
+        },
+        {
+          class_id: 'class-1',
+          entry_status: 'confirmed',
+          is_scored: true,
+          check_in_status: 'checked-in',
+          result_status: 'nq',
+        },
+        {
+          class_id: 'class-1',
+          entry_status: 'withdrawn',
+          is_scored: false,
+          check_in_status: 'no-status',
+          result_status: 'withdrawn',
+        },
+        {
+          class_id: 'class-1',
+          entry_status: 'confirmed',
+          is_scored: true,
+          check_in_status: 'pulled',
+          result_status: 'qualified',
+        },
+        {
+          class_id: 'class-1',
+          entry_status: 'cancelled',
+          is_scored: true,
+          check_in_status: 'no-status',
+          result_status: 'qualified',
+        },
       ],
     });
 
-    const resolved = await parseAndResolveDate('Sunday', client, '', SHOW_ID);
+    const { result, error } = await executeTool(
+      'get_class_summary',
+      { trial_date: '2026-08-01', element: 'Container' },
+      client,
+      '',
+      undefined,
+      undefined,
+      userContext
+    );
 
-    const trialsQuery = queries.find(q => q.table === 'trials');
-    expect(trialsQuery).toBeDefined();
-    // `trial_date` is a view alias; the trials TABLE stores it as `date`.
-    // Selecting the alias made PostgREST reject the request, so every
-    // day-of-week question silently resolved to null.
-    expect(selectedColumns(trialsQuery!.selected)).toContain('date');
-    expect(trialsQuery!.selected).not.toContain('trial_date');
+    expect(error).toBeUndefined();
+    expect(result).toEqual([
+      {
+        class_id: 'class-1',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        judge_name: 'Ann Judge',
+        class_status: 'upcoming',
+        total_entries: 2,
+        scored_entries: 2,
+        checked_in_count: 2,
+        qualified_count: 1,
+        nq_count: 1,
+        trial_date: '2026-08-01',
+        trial_name: 'Saturday Trial',
+        start_time: '09:30:00',
+      },
+    ]);
 
-    expect(resolved).toBe('2026-08-02');
+    expect(queries.map(query => query.table)).toEqual(['trials', 'classes', 'entries']);
+    expect(queries.find(query => query.table === 'trials')!.columns).toContain('show_id');
+    expect(queries.find(query => query.table === 'trials')!.columns).toContain('deleted_at');
+    expect(queries.find(query => query.table === 'classes')!.columns).toEqual([
+      'trial_id',
+      'deleted_at',
+      'element',
+      'start_time',
+    ]);
+    expect(queries.find(query => query.table === 'entries')!.columns).toContain('deleted_at');
+    expect(queries.find(query => query.table === 'entries')!.columns).toContain('show_id');
+    expect(queries.map(query => query.table)).not.toContain('view_class_summary');
   });
 
-  it('still short-circuits on an explicit ISO date without querying trials', async () => {
-    const { client, queries } = fakeSupabase({ trials: [] });
+  it('sorts classes chronologically before applying the result limit', async () => {
+    const { client } = fakeSupabase({
+      trials: [
+        {
+          id: 'trial-late',
+          date: '2026-08-02',
+          name: 'Sunday Trial',
+          trial_number: '2',
+          show_id: SHOW_ID,
+        },
+        {
+          id: 'trial-early',
+          date: '2026-08-01',
+          name: 'Saturday Trial',
+          trial_number: '1',
+          show_id: SHOW_ID,
+        },
+      ],
+      classes: [
+        {
+          id: 'class-late',
+          trial_id: 'trial-late',
+          element: 'Container',
+          level: 'Novice',
+          section: null,
+          judge_name: null,
+          status: 'upcoming',
+          start_time: '09:00:00',
+        },
+        {
+          id: 'class-early',
+          trial_id: 'trial-early',
+          element: 'Container',
+          level: 'Novice',
+          section: null,
+          judge_name: null,
+          status: 'upcoming',
+          start_time: '09:00:00',
+        },
+      ],
+      entries: [],
+    });
 
-    const resolved = await parseAndResolveDate('2026-08-01', client, '', SHOW_ID);
+    const { result } = await executeTool(
+      'get_class_summary',
+      {},
+      client,
+      '',
+      undefined,
+      undefined,
+      userContext
+    );
 
-    expect(resolved).toBe('2026-08-01');
-    expect(queries).toEqual([]);
+    expect((result as { class_id: string }[]).map(summary => summary.class_id)).toEqual([
+      'class-early',
+      'class-late',
+    ]);
+  });
+
+  it('builds trial overviews from trials and shows', async () => {
+    const { client, queries } = fakeSupabase({
+      trials: [
+        {
+          id: 'trial-1',
+          date: '2026-08-01',
+          name: 'Saturday Trial',
+          trial_number: '1',
+          show_id: SHOW_ID,
+          shows: { name: 'Summer Show' },
+        },
+      ],
+    });
+
+    const { result, error } = await executeTool(
+      'get_trial_overview',
+      {},
+      client,
+      '',
+      undefined,
+      undefined,
+      userContext
+    );
+
+    expect(error).toBeUndefined();
+    expect(result).toEqual([
+      {
+        trial_id: 'trial-1',
+        trial_number: '1',
+        trial_date: '2026-08-01',
+        trial_name: 'Saturday Trial',
+        show_name: 'Summer Show',
+      },
+    ]);
+
+    const trialQuery = queries.find(query => query.table === 'trials');
+    expect(trialQuery).toBeDefined();
+    expect(selectedColumns(trialQuery!.selected)).toContain('date');
+    expect(selectedColumns(trialQuery!.selected)).toContain('trial_number');
+    expect(selectedColumns(trialQuery!.selected)).not.toContain('trial_date');
+    expect(selectedColumns(trialQuery!.selected)).not.toContain('competition_type');
+    expect(queries.map(query => query.table)).not.toContain('view_trial_summary_normalized');
   });
 });

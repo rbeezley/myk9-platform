@@ -188,8 +188,8 @@ Copy this block for each new finding.
 
 ### NCR-2026-08-17-01
 
-- **Status:** open
-- **Lifecycle status:** new
+- **Status:** fixed (2026-08-18 — commit `11716dd3a` / PR #1647)
+- **Lifecycle status:** resolved
 - **Classification:** Confirmed product/utility defect
 - **Severity:** medium
 - **Canonical priority:** P2
@@ -201,19 +201,19 @@ Copy this block for each new finding.
 - **Pattern:** segment-budget-overrun
 - **Detected by:** daily commit review
 - **First seen:** 2026-08-17
-- **Last seen:** 2026-08-17
-- **Consecutive-run count:** 1
+- **Last seen:** 2026-08-18
+- **Consecutive-run count:** 2
 - **Baseline SHA:** `893d9a525fdcc8cd4c1205a669023c646a7a0037`
-- **Evidence:** On current `main`, `node --experimental-strip-types` reproduced `buildProximitySms({ dogName: 'Cooper', className: '\\\\'.repeat(120), dogsAhead: 3, armband: 314 })` as a 160-character GSM-7 string whose `estimateSegments` result is 2 segments. GSM-7 extension characters such as `\\` count as two septets, but the implementation truncates with JavaScript `slice()` by code units. Existing tests cover ordinary long names but not extension-character budgets.
+- **Evidence:** Commit `11716dd3a` replaces code-unit truncation with septet-aware code-point truncation and adds extension-character regression coverage. The focused SMS test suite passes, including a long backslash class name whose rendered message remains within one GSM-7 segment.
 - **Expected behavior:** The helper's contract says the proximity SMS is always one GSM-7 segment.
-- **Observed behavior:** A class name containing GSM-7 extension characters can fit the character-count budget while exceeding the 160-septet budget and producing two billable segments.
+- **Observed behavior:** Resolved in the reviewed implementation; extension characters are budgeted at two septets and the truncator stops before the configured septet limit.
 - **User impact:** If the SMS sender is enabled, affected exhibitors may receive a longer/more expensive message, violating the helper's one-segment guarantee. The SMS feature is currently partial/provider-agnostic, so no live send impact was confirmed in this review.
 - **Intent check:** Future show-day alerts should be concise and predictable; this hidden length expansion undermines that expectation.
 - **Confidence:** high
 - **Existing reference:** Linear searches found no exact SMS/GSM-7 issue; no Linear issue created because this is P2 and the policy is report-only below P1.
 - **Fix owner:** SMS message builder and its focused contract tests.
-- **Proof required:** Add regression coverage using GSM-7 extension characters and assert `estimateSegments(buildProximitySms(...)).segments === 1`; verify the provider-facing send path when the SMS sender is wired. Do not close from a code change alone.
-- **Notes:** Introduced by commit `db2848445234315822ca786b09a3bef0b19a92f3`; no subsequent SMS builder fix was found through current `main`.
+- **Proof required:** Focused regression coverage asserting `estimateSegments(buildProximitySms(...)).segments === 1` passed on current `main`. When the provider-facing sender is wired under Linear `MYK9-193`, replay that path before declaring provider integration coverage complete; no live provider path exists today.
+- **Notes:** Introduced by commit `db2848445234315822ca786b09a3bef0b19a92f3`; fixed by `11716dd3a` / PR #1647.
 
 ### NCR-2026-08-04-01
 

@@ -28,12 +28,12 @@ export interface Rule {
 }
 
 export interface ClassSummary {
-  class_id: number;
-  element: string;
-  level: string;
+  class_id: string;
+  element: string | null;
+  level: string | null;
   section: string | null;
   judge_name: string | null;
-  class_status: string;
+  class_status: string | null;
   total_entries: number;
   scored_entries: number;
   checked_in_count: number;
@@ -41,7 +41,6 @@ export interface ClassSummary {
   nq_count: number;
   trial_date: string;
   trial_name: string;
-  briefing_time: string | null;
   start_time: string | null;
 }
 
@@ -61,10 +60,9 @@ export interface EntryResult {
 
 export interface TrialSummary {
   trial_id: string;
-  trial_number: number;
+  trial_number: string | null;
   trial_date: string;
   trial_name: string;
-  competition_type: string;
   show_name: string;
 }
 

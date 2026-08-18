@@ -56,5 +56,6 @@ export function formatStatementDescriptorSuffix(name: string | null | undefined)
 
   // A single long word has no word boundary to preserve. The fixed budget
   // keeps it valid while retaining the most recognizable part of the name.
-  return normalized.slice(0, MAX_SUFFIX_LENGTH);
+  const truncated = normalized.slice(0, MAX_SUFFIX_LENGTH);
+  return /[A-Z]/.test(truncated) ? truncated : FALLBACK_SUFFIX;
 }

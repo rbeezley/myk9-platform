@@ -20,6 +20,7 @@ describe('formatStatementDescriptorSuffix', () => {
     expect(formatStatementDescriptorSuffix('<>\\"\' *&')).toBe('MYK9SHOW');
     expect(formatStatementDescriptorSuffix('1234567890')).toBe('MYK9SHOW');
     expect(formatStatementDescriptorSuffix('1234567890 Club')).toBe('1C');
+    expect(formatStatementDescriptorSuffix('12345678901A')).toBe('MYK9SHOW');
   });
 
   it('truncates at a word boundary within the safe suffix budget', () => {

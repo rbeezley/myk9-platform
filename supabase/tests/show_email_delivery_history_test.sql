@@ -13,6 +13,14 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000180001', 'MYK9-180 Club');
 
+-- Seed unlinked people first. handle_new_user() adopts a matching person by
+-- email when the auth row is inserted, avoiding duplicate auth_user_id rows.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-000000180111', 'MYK9-180', 'Manager', 'myk9-180-manager@example.test', NULL),
+  ('00000000-0000-0000-0000-000000180112', 'MYK9-180', 'Other', 'myk9-180-other@example.test', NULL),
+  ('00000000-0000-0000-0000-000000180113', 'MYK9-180', 'Admin', 'myk9-180-admin@example.test', NULL);
+
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -22,12 +30,6 @@ VALUES
   ('00000000-0000-0000-0000-000000180101', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-manager@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000180102', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-other@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000180103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-180-admin@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
-
-INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
-VALUES
-  ('00000000-0000-0000-0000-000000180111', 'MYK9-180', 'Manager', 'myk9-180-manager@example.test', '00000000-0000-0000-0000-000000180101'),
-  ('00000000-0000-0000-0000-000000180112', 'MYK9-180', 'Other', 'myk9-180-other@example.test', '00000000-0000-0000-0000-000000180102'),
-  ('00000000-0000-0000-0000-000000180113', 'MYK9-180', 'Admin', 'myk9-180-admin@example.test', '00000000-0000-0000-0000-000000180103');
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 VALUES

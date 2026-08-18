@@ -62,6 +62,15 @@ describe('MYK9-180 email delivery history migration contract', () => {
     ).toHaveLength(3);
   });
 
+  it('seeds people before auth users so the signup trigger adopts the fixtures', () => {
+    const peopleInsert = behavioralSql.indexOf('INSERT INTO public.people');
+    const authInsert = behavioralSql.indexOf('INSERT INTO auth.users');
+
+    expect(peopleInsert).toBeGreaterThan(-1);
+    expect(peopleInsert).toBeLessThan(authInsert);
+    expect(behavioralSql.slice(peopleInsert, authInsert).match(/NULL/g)).toHaveLength(3);
+  });
+
   it('covers stable pagination, registration and lifecycle rows, and malformed references', () => {
     expect(behavioralSql).toContain('FAIL same-timestamp first page');
     expect(behavioralSql).toContain('FAIL same-timestamp cursor page');

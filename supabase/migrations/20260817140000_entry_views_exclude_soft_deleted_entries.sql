@@ -7,7 +7,9 @@
 -- tombstoned entry still surfaced through them:
 --
 --   * view_entry_with_results -- read by the AskQ tool executor
---     (supabase/functions/_shared/askq/toolExecutor.ts) with the CALLER's token.
+--     (supabase/functions/_shared/askq/toolExecutor.ts). ask-myk9show passes it
+--     the SERVICE-ROLE client, so these reads bypass RLS entirely and the view
+--     body is the only thing that could ever have hidden a tombstone.
 --   * view_myk9q_entries      -- legacy myK9Q-compatibility entry feed.
 --   * view_stats_summary      -- base view for view_breed_stats,
 --     view_judge_stats, view_clean_sweep_dogs and view_fastest_times, all four
@@ -237,23 +239,29 @@ WHERE e.is_scored = true
   AND e.deleted_at IS NULL;
 
 -- -----------------------------------------------------------------------------
--- 4. Codify view_entry_with_results' read grant.
+-- 4. Codify view_entry_with_results' service-role read grant.
 --
 -- Separate defect, found because it broke this change's own test in CI. NO
 -- migration has ever granted this view to any role: 003 created it, 094 dropped
 -- and recreated it (discarding whatever grants existed), and nothing since has
 -- granted it. It is readable on the live database purely because ALTER DEFAULT
--- PRIVILEGES in schema public hands `authenticated` full CRUD on every newly
--- created relation. A migrations-only rebuild -- which is exactly what CI and
--- any fresh environment are -- therefore leaves it owner-only, and the AskQ
--- tool executor's two reads fail with a permission error.
+-- PRIVILEGES in schema public hands new relations out to authenticated and
+-- service_role. A migrations-only rebuild -- which is what CI and any fresh
+-- environment are -- leaves it owner-only, so the AskQ tool executor's two
+-- reads, which run as service_role, would fail there.
 --
--- SELECT only. The view carries judge_notes, total_score, payment_status and
--- entry_fee, so anon is revoked explicitly rather than left to the default
--- privileges above, which would otherwise grant it. The other two views
--- rebuilt here already have their grants codified in migration 116.
+-- service_role ONLY. Granting `authenticated` as well would be a false
+-- affordance: this view is security_invoker = true, so an authenticated caller
+-- also needs privileges on every base column it selects, and `authenticated`
+-- deliberately holds NO table-level SELECT on public.entries -- only a column
+-- allowlist, which omits result_status, final_placement, total_score and
+-- judge_notes. Such a caller would get 42501 no matter what is granted here.
+-- Authenticated entry results are served by view_authenticated_entry_results,
+-- which is owner-run precisely so it can apply its own column masking.
+--
+-- anon is revoked explicitly rather than left to the default privileges above,
+-- which would otherwise hand it the judge_notes and payment columns.
 -- -----------------------------------------------------------------------------
-GRANT SELECT ON public.view_entry_with_results TO authenticated;
 GRANT SELECT ON public.view_entry_with_results TO service_role;
 REVOKE ALL ON public.view_entry_with_results FROM anon;
 

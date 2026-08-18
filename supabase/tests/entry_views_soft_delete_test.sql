@@ -193,8 +193,10 @@ DECLARE
   fastest_ids uuid[];
   breed_total bigint;
 BEGIN
-  -- 1. view_entry_with_results -- read by the AskQ tool executor with the
-  -- caller's own token, so a tombstone here reaches an assistant answer.
+  -- 1. view_entry_with_results -- read by the AskQ tool executor, which
+  -- ask-myk9show hands the service-role client. Those reads bypass RLS, so the
+  -- view body is the only thing standing between a tombstone and an assistant
+  -- answer.
   SELECT array_agg(v.id ORDER BY v.id)
   INTO entry_results_ids
   FROM public.view_entry_with_results AS v

@@ -10,46 +10,37 @@
  *
  * The sibling parity test guards the *global* mock by comparing behavior. It
  * cannot see a file-local factory, so the only way to keep those closed is to
- * scan the source. This is the same shape as the repo's other `*.source` style
- * contract tests: cheap, and it fails on the commit that reopens the gap rather
- * than months later in an unrelated suite.
+ * scan the source.
  *
- * The check is an ALLOWLIST, not a search for arrow functions. A blacklist
- * misses exactly the case Prettier produces for a long signature —
+ * This uses the TypeScript parser rather than regexes, after four review rounds
+ * found four ways past four successive patterns: a body split across lines
+ * (Prettier does this to long signatures), an arbitrary identifier, a module
+ * merely *named* `…databaseError`, and shorthand written inline instead of on
+ * its own line. Each fix was a narrower pattern, and each time the next shape
+ * walked past it. Text patterns approximate syntax; the parser is syntax, so
+ * `{ createDatabaseError }`, `{ createDatabaseError: x }` and a body wrapped
+ * over ten lines are all the same question to it.
  *
- *   createDatabaseError: (
- *     error: unknown,
- *     table?: string,
- *   ) => ({ ... })
- *
- * — whose first line carries no `=>` at all. Naming the shapes that are allowed
- * instead means anything else is an offender by default, including a body that
- * starts on the next line.
- *
- * An allowlist of *shapes* is still not enough: `createDatabaseError: fakeError`
- * is a bare identifier, and so is the real thing. So the identifier must also be
- * one this file imports from the helper module — a name is only trusted when its
- * binding is.
- *
- * And the module is compared by RESOLVED PATH, not by how the specifier looks.
- * A suffix test would accept `./localDatabaseError`, handing the guard's trust
- * to any file someone names convincingly. Resolving `@/` and relative
- * specifiers against the real module is the only check that cannot be fooled by
- * naming.
- *
- * `helperBindings` and `isAllowedValue` are exported and tested against accepted
- * and rejected inputs, so the guard's own logic is not taken on trust; a guard
- * that cannot fail is a comment with a test runner attached.
+ * The rule: every `createDatabaseError` property in a `vi.mock` factory must be
+ * the real helper by name, or `vi.fn()` wrapping it — and that name must be
+ * imported from the helper module, compared by RESOLVED PATH, since naming a
+ * local file `localDatabaseError` is not evidence of anything. A spy wrapper
+ * stays legal: a test asserting call arguments should not have to give up real
+ * behavior to get them.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const SRC = resolve(__dirname, '../../..');
 const SELF = 'noLocalDatabaseErrorMocks.test.ts';
 /** The one module a `createDatabaseError` binding may come from. */
 const HELPER_MODULE = resolve(SRC, 'services/database/databaseError');
+
+const parse = (source: string) =>
+  ts.createSourceFile('f.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
 /** Where a specifier points, or null for a bare package import. */
 const resolveSpecifier = (specifier: string, fromFile: string): string | null => {
@@ -59,135 +50,142 @@ const resolveSpecifier = (specifier: string, fromFile: string): string | null =>
 };
 
 /**
- * Identifiers a file binds to the real helper by importing it. The module is
- * compared by resolved path: `./localDatabaseError` merely *looks* like the
- * helper, and a guard that trusts appearances is one rename from useless.
+ * Identifiers a file binds to the real helper by importing it. Compared by
+ * resolved path: `./localDatabaseError` merely *looks* like the helper, and a
+ * guard that trusts appearances is one rename from useless.
  */
 export const helperBindings = (source: string, fromFile: string): Set<string> => {
   const names = new Set<string>();
-  const imports = /import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g;
-  for (const match of source.matchAll(imports)) {
-    if (resolveSpecifier(match[2], fromFile) !== HELPER_MODULE) continue;
-    for (const specifier of match[1].split(',')) {
-      const [imported, alias] = specifier.split(/\s+as\s+/).map(part => part.trim());
-      if (imported === 'createDatabaseError') names.add(alias || imported);
+  for (const statement of parse(source).statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (resolveSpecifier(statement.moduleSpecifier.text, fromFile) !== HELPER_MODULE) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) {
+      const imported = element.propertyName?.text ?? element.name.text;
+      if (imported === 'createDatabaseError') names.add(element.name.text);
     }
   }
   return names;
 };
 
 /**
- * The accepted values: the real helper by name, or a spy wrapping it. A test
- * that needs to assert call arguments should not have to give up real behavior
- * to get them, so `vi.fn(realCreateDatabaseError)` stays legal — but only when
- * that identifier is imported from `databaseError`, since a stand-in named
- * `fakeError` is otherwise indistinguishable from the genuine article.
- * (`createDatabaseError,` shorthand carries no colon and never reaches here;
- * `declaresOwnHelper` covers a locally declared binding of that name.)
+ * Every `createDatabaseError` property that is not the real helper. Covers
+ * `{ createDatabaseError }`, `{ createDatabaseError: x }` and any body, in one
+ * pass, because the parser has already normalised how they were written.
  */
-export const isAllowedValue = (value: string, bindings: Set<string>): boolean => {
-  const match = /^\s*(?:vi\.fn\(\s*([A-Za-z_$][\w$]*)\s*\)|([A-Za-z_$][\w$]*))\s*[,}]/.exec(value);
-  const identifier = match?.[1] ?? match?.[2];
-  return identifier !== undefined && bindings.has(identifier);
+export const offendingProperties = (source: string, fromFile: string): string[] => {
+  const allowed = helperBindings(source, fromFile);
+  const offenders: string[] = [];
+
+  const isRealHelper = (value: ts.Expression): boolean => {
+    if (ts.isIdentifier(value)) return allowed.has(value.text);
+    // `vi.fn(realCreateDatabaseError)` — a spy around the genuine article.
+    if (
+      ts.isCallExpression(value) &&
+      value.expression.getText() === 'vi.fn' &&
+      value.arguments.length === 1
+    ) {
+      const [argument] = value.arguments;
+      return ts.isIdentifier(argument) && allowed.has(argument.text);
+    }
+    return false;
+  };
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isPropertyAssignment(node) && node.name.getText() === 'createDatabaseError') {
+      if (!isRealHelper(node.initializer)) offenders.push(node.getText().slice(0, 60));
+    }
+    // `{ createDatabaseError }` — the binding itself is the value.
+    if (
+      ts.isShorthandPropertyAssignment(node) &&
+      node.name.text === 'createDatabaseError' &&
+      !allowed.has('createDatabaseError')
+    ) {
+      offenders.push('shorthand createDatabaseError (not the imported helper)');
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(parse(source));
+  return offenders;
 };
-
-/** A local `const/let/function createDatabaseError`, which shorthand would hide. */
-export const declaresOwnHelper = (source: string): boolean =>
-  /(?:const|let|var|function)\s+createDatabaseError\b/.test(source);
-
-/**
- * Shorthand (`createDatabaseError,`) in a factory. It carries no colon, so the
- * value scan never sees it — yet it is the form 34 of these files use. Paired
- * with an import from a look-alike module it would be the last way through, so
- * it is checked against the same resolved binding.
- */
-export const usesShorthand = (source: string): boolean =>
-  /^\s*createDatabaseError,\s*$/m.test(source);
-
-/** Every `createDatabaseError:` value in a file, each read past the line end. */
-export const declaredValues = (source: string): string[] =>
-  [...source.matchAll(/createDatabaseError:/g)].map(m =>
-    source.slice(m.index + m[0].length, m.index + m[0].length + 120)
-  );
 
 const testFiles = readdirSync(SRC, { recursive: true, encoding: 'utf8' })
   .filter(p => /\.test\.tsx?$/.test(p) && !p.endsWith(SELF))
   .map(p => ({ path: p, source: readFileSync(resolve(SRC, p), 'utf8') }));
 
-const REAL = new Set(['createDatabaseError', 'realCreateDatabaseError']);
-
 describe('the guard itself', () => {
-  // A file sitting where the swept tests sit, so relative specifiers resolve.
+  // A file where the swept tests sit, so relative specifiers resolve.
   const FROM = resolve(SRC, 'services/database/entries/example.test.ts');
+  const REAL = "import { createDatabaseError } from '@/services/database/databaseError';\n";
+  const ALIASED = "import { createDatabaseError as real } from '../databaseError';\n";
+  const check = (source: string) => offendingProperties(source, FROM);
 
   it('reads the identifiers a file binds to the real helper', () => {
-    expect(
-      helperBindings(
-        "import { createDatabaseError } from '@/services/database/databaseError';",
-        FROM
-      )
-    ).toEqual(new Set(['createDatabaseError']));
-    expect(
-      helperBindings(
-        "import { createDatabaseError as realCreateDatabaseError } from '../databaseError';",
-        FROM
-      )
-    ).toEqual(new Set(['realCreateDatabaseError']));
+    expect(helperBindings(REAL, FROM)).toEqual(new Set(['createDatabaseError']));
+    expect(helperBindings(ALIASED, FROM)).toEqual(new Set(['real']));
   });
 
-  it('trusts only the real module, however convincing the name', () => {
-    expect(helperBindings("import { createDatabaseError } from './localFake';", FROM)).toEqual(
-      new Set()
+  it('accepts the real helper, by value, by shorthand, and wrapped in a spy', () => {
+    expect(check(`${REAL}vi.mock('m', () => ({ createDatabaseError }));`)).toEqual([]);
+    expect(
+      check(`${REAL}vi.mock('m', () => ({ createDatabaseError: createDatabaseError }));`)
+    ).toEqual([]);
+    expect(check(`${ALIASED}vi.mock('m', () => ({ createDatabaseError: vi.fn(real) }));`)).toEqual(
+      []
     );
-    // The suffix-match bypass: a sibling named to look like the production module.
-    expect(
-      helperBindings("import { createDatabaseError } from './localDatabaseError';", FROM)
-    ).toEqual(new Set());
-    expect(
-      helperBindings("import { createDatabaseError } from '@/test/mocks/databaseError';", FROM)
-    ).toEqual(new Set());
   });
 
-  it('accepts the real helper and a spy wrapping it', () => {
-    expect(isAllowedValue(' createDatabaseError,', REAL)).toBe(true);
-    expect(isAllowedValue(' vi.fn(realCreateDatabaseError),', REAL)).toBe(true);
-    expect(isAllowedValue(' createDatabaseError }', REAL)).toBe(true);
-  });
-
-  it('rejects a hand-written body, including one that starts on the next line', () => {
-    expect(isAllowedValue(' (error: unknown) => error,', REAL)).toBe(false);
-    expect(isAllowedValue(' vi.fn((error: unknown) => ({ message: String(error) })),', REAL)).toBe(
-      false
+  it('rejects a hand-written body however it is formatted', () => {
+    expect(check(`vi.mock('m', () => ({ createDatabaseError: (e: unknown) => e }));`)).toHaveLength(
+      1
     );
-    // What Prettier emits for a signature too long for one line — the case a
-    // "does the first line contain =>" check silently lets through.
-    expect(isAllowedValue('\n    error: unknown,\n    table?: string,\n  ) => ({}),', REAL)).toBe(
-      false
+    // What Prettier emits for a signature too long for one line — the shape a
+    // "does the first line contain =>" check silently let through.
+    expect(
+      check(`vi.mock('m', () => ({
+        createDatabaseError: (
+          error: unknown,
+          table?: string
+        ) => ({ message: String(error), code: 'UNKNOWN' }),
+      }));`)
+    ).toHaveLength(1);
+    expect(check(`vi.mock('m', () => ({ createDatabaseError: vi.fn((e) => e) }));`)).toHaveLength(
+      1
     );
-    expect(isAllowedValue(' function (error) { return error; },', REAL)).toBe(false);
-    // A redirect to a vi.hoisted copy — the shape MYK9-181 removed from 7 files.
-    expect(isAllowedValue(' mocks.createDatabaseError,', REAL)).toBe(false);
+    // A redirect to a vi.hoisted copy — the shape removed from 7 files here.
+    expect(
+      check(`vi.mock('m', () => ({ createDatabaseError: mocks.createDatabaseError }));`)
+    ).toHaveLength(1);
   });
 
   it('rejects an identifier that is not bound to the real helper', () => {
-    // The shape is right and the name reads plausibly, but nothing imported it —
-    // a stand-in assigned to a local const would otherwise sail through.
-    expect(isAllowedValue(' fakeError,', REAL)).toBe(false);
-    expect(isAllowedValue(' vi.fn(fakeError),', REAL)).toBe(false);
-    expect(isAllowedValue(' createDatabaseError,', new Set())).toBe(false);
-  });
-
-  it('sees shorthand, which carries no colon for the value scan to read', () => {
-    expect(usesShorthand('  createDatabaseError,\n')).toBe(true);
-    expect(usesShorthand('  createDatabaseError: vi.fn(x),\n')).toBe(false);
-  });
-
-  it('rejects a locally declared helper, which shorthand would otherwise hide', () => {
-    expect(declaresOwnHelper('const createDatabaseError = (e: unknown) => e;')).toBe(true);
-    expect(declaresOwnHelper('function createDatabaseError() {}')).toBe(true);
+    expect(check(`vi.mock('m', () => ({ createDatabaseError: fakeError }));`)).toHaveLength(1);
+    expect(check(`vi.mock('m', () => ({ createDatabaseError: vi.fn(fakeError) }));`)).toHaveLength(
+      1
+    );
     expect(
-      declaresOwnHelper("import { createDatabaseError } from '@/services/database/databaseError';")
-    ).toBe(false);
+      check(
+        `const createDatabaseError = (e: unknown) => e;\nvi.mock('m', () => ({ createDatabaseError }));`
+      )
+    ).toHaveLength(1);
+  });
+
+  it('rejects a look-alike module, with shorthand or with a value', () => {
+    const fake = "import { createDatabaseError } from './localDatabaseError';\n";
+    expect(check(`${fake}vi.mock('m', () => ({ createDatabaseError }));`)).toHaveLength(1);
+    expect(
+      check(`${fake}vi.mock('m', () => ({ createDatabaseError: createDatabaseError }));`)
+    ).toHaveLength(1);
+    const mockDir = "import { createDatabaseError } from '@/test/mocks/databaseError';\n";
+    expect(check(`${mockDir}vi.mock('m', () => ({ createDatabaseError }));`)).toHaveLength(1);
+  });
+
+  it('sees shorthand written inline, not only on its own line', () => {
+    // No trailing comma, no newline — the shape the line-anchored check missed.
+    expect(check(`vi.mock('m', () => ({ supabase, createDatabaseError }));`)).toHaveLength(1);
   });
 });
 
@@ -198,14 +196,7 @@ describe('no test re-implements createDatabaseError', () => {
 
   it('declares no hand-written implementation in any vi.mock factory', () => {
     const offenders = testFiles
-      .filter(({ path, source }) => {
-        const bindings = helperBindings(source, resolve(SRC, path));
-        return (
-          declaresOwnHelper(source) ||
-          (usesShorthand(source) && !bindings.has('createDatabaseError')) ||
-          declaredValues(source).some(value => !isAllowedValue(value, bindings))
-        );
-      })
+      .filter(({ path, source }) => offendingProperties(source, resolve(SRC, path)).length > 0)
       .map(({ path }) => path);
 
     expect(offenders).toEqual([]);

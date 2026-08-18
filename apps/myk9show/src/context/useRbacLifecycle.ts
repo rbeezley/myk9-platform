@@ -163,7 +163,15 @@ export function useRbacLifecycle(userId: string | undefined) {
             const cached = loadRbacPermissionsCache(userId);
             if (cached) return toCacheHydratedState(userId, cached);
           }
-          return { ...previous, isLoading: false, loaded: true, error: errorMessage };
+          return {
+            ...previous,
+            isLoading: false,
+            loaded: true,
+            error: errorMessage,
+            // A non-network failure means we reached the backend — stop
+            // claiming "working offline" even if the roles came from cache.
+            fromCacheAt: isOffline ? previous.fromCacheAt : null,
+          };
         });
       }
     };
@@ -177,11 +185,21 @@ export function useRbacLifecycle(userId: string | undefined) {
       5 * 60 * 1000
     );
 
+    // Refresh as soon as connectivity returns instead of waiting out the
+    // interval — cache-hydrated (offline cold boot) roles should go live
+    // promptly, as RbacOfflineNotice promises (MYK9-200).
+    const handleOnline = () => {
+      rbacService.clearUserCache(userId);
+      void load();
+    };
+    window.addEventListener('online', handleOnline);
+
     return () => {
       stale = true;
       requestGenerationRef.current += 1;
       rbacService.clearUserCache(userId);
       window.clearInterval(refreshInterval);
+      window.removeEventListener('online', handleOnline);
     };
   }, [userId]);
 

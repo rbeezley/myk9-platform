@@ -42,6 +42,11 @@ describe('isTransientBrowserFetchError', () => {
     ],
     ['abort message', new Error('The signal is aborted without reason')],
     ['browser fetch failure', new Error('TypeError: Failed to fetch')],
+    // Offline fetch rejections are browser-specific: Chrome says "Failed to
+    // fetch", Safari "Load failed", Firefox "NetworkError when attempting to
+    // fetch resource" — all three must count as transient (MYK9-200).
+    ['Safari offline failure', new Error('TypeError: Load failed')],
+    ['Firefox offline failure', new Error('NetworkError when attempting to fetch resource.')],
   ])('returns true for %s', (_name, error) => {
     expect(isTransientBrowserFetchError(error)).toBe(true);
   });

@@ -465,6 +465,107 @@ describe('AuthContext RBAC lifecycle', () => {
     expect(screen.getByTestId('no-cache-roles')).toHaveTextContent('none');
   });
 
+  it('cold boot offline on Safari ("Load failed") also hydrates from cache', async () => {
+    saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    mockRbacService.getUserPermissions.mockRejectedValue(new Error('TypeError: Load failed'));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <span data-testid="safari-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('safari-roles')).toHaveTextContent(UserRole.SECRETARY);
+      },
+      { timeout: 5000 }
+    );
+  });
+
+  it('refreshes cached permissions as soon as the browser comes back online', async () => {
+    saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    mockRbacService.getUserPermissions
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockResolvedValueOnce(accessForRole(UserRole.EXHIBITOR));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="reconnect-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+          <span data-testid="reconnect-from-cache">{auth.rbacFromCacheAt ?? 'live'}</span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('reconnect-from-cache')).not.toHaveTextContent('live');
+      },
+      { timeout: 5000 }
+    );
+
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('reconnect-roles')).toHaveTextContent(UserRole.EXHIBITOR);
+      expect(screen.getByTestId('reconnect-from-cache')).toHaveTextContent('live');
+    });
+  });
+
+  it('clears the offline marker when a later refresh fails with a server error', async () => {
+    saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    mockRbacService.getUserPermissions
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValue(new Error('boom: RPC exploded'));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="stale-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+          <span data-testid="stale-from-cache">{auth.rbacFromCacheAt ?? 'live'}</span>
+          <span data-testid="stale-error">{auth.rbacError ?? 'none'}</span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('stale-from-cache')).not.toHaveTextContent('live');
+      },
+      { timeout: 5000 }
+    );
+
+    // Server (non-network) failure on reconnect: roles stay, but the state
+    // must stop claiming "offline" — the real problem is the backend.
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stale-error')).not.toHaveTextContent('none');
+    });
+    expect(screen.getByTestId('stale-roles')).toHaveTextContent(UserRole.SECRETARY);
+    expect(screen.getByTestId('stale-from-cache')).toHaveTextContent('live');
+  });
+
   it('does NOT hydrate from cache on a non-network failure — a server error is not offline', async () => {
     saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
     mockRbacService.getUserPermissions.mockRejectedValue(new Error('boom: RPC exploded'));

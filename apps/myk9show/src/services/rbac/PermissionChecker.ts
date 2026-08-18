@@ -65,9 +65,11 @@ interface UntypedRpcClient {
 
 export function isTransientBrowserFetchError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
+  // Offline fetch rejections are browser-specific: Chrome "Failed to fetch",
+  // Safari "Load failed", Firefox "NetworkError when attempting to fetch".
   return (
     error.name === 'AbortError' ||
-    /AbortError|signal is aborted|Failed to fetch/i.test(error.message)
+    /AbortError|signal is aborted|Failed to fetch|Load failed|NetworkError/i.test(error.message)
   );
 }
 

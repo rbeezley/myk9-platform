@@ -182,6 +182,59 @@ BEGIN
 END;
 $$;
 
+-- Static contract: each view's security_invoker setting.
+--
+-- This is the assertion that was missing when 20260817170000 shipped.
+-- CREATE OR REPLACE VIEW does not preserve reloptions -- with no WITH clause it
+-- RESETS them -- so that migration silently flipped all three invoker views to
+-- owner-run. Owner-run means the caller's policies are never consulted AND no
+-- base-column privileges are required, and since these views are owned by a
+-- BYPASSRLS role and `authenticated` holds grants on them from ALTER DEFAULT
+-- PRIVILEGES, every authenticated user could read every entry platform-wide
+-- until 20260817190000 restored the setting.
+--
+-- Row assertions cannot catch this: they run as the owner (or as a caller the
+-- fixture deliberately authorizes), so they pass either way. Only the metadata
+-- is evidence. A NULL reloptions is the dangerous case, not an absent one --
+-- security_invoker defaults to FALSE -- so the check below folds NULL to false
+-- rather than skipping it.
+DO $$
+DECLARE
+  rec record;
+  actual boolean;
+BEGIN
+  FOR rec IN
+    SELECT * FROM (VALUES
+      ('view_entry_with_results', true),
+      ('view_myk9q_entries', true),
+      ('view_stats_summary', true),
+      -- Owner-run on purpose: this view applies its own per-caller column
+      -- masking, which it could not do under the caller's privileges.
+      ('view_authenticated_entry_results', false)
+    ) AS t(view_name, expected_invoker)
+  LOOP
+    SELECT coalesce(
+             (
+               SELECT opt
+               FROM unnest(c.reloptions) AS opt
+               WHERE opt LIKE 'security_invoker=%'
+             ) = 'security_invoker=true',
+             false
+           )
+    INTO actual
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = rec.view_name;
+
+    IF actual IS DISTINCT FROM rec.expected_invoker THEN
+      RAISE EXCEPTION
+        'FAIL view % resolves security_invoker to %, expected % -- a rebuild without an explicit WITH clause resets it',
+        rec.view_name, actual, rec.expected_invoker;
+    END IF;
+  END LOOP;
+END;
+$$;
+
 DO $$
 DECLARE
   live_entry_id uuid := '00000000-0000-0000-0000-000000181007';

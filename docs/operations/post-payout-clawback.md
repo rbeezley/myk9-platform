@@ -106,8 +106,19 @@ select id, entry_fee from entries
 where stripe_payment_intent_id = '<pi_...>' and payment_status = 'paid';
 ```
 
-**1. If the payout has not settled yet** (show end + 3 days): stamp each disputed entry
-refunded (Case A step 5's SQL, `refund_amount = entry_fee` per the allocation rule) **before**
+Check `dispute.amount` against the charge total first. A **partial dispute** (rare, but some
+card networks allow it) means only part of the cart is contested: identify the affected
+entries from the dispute details rather than stamping the whole cart, and cap each stamp at
+`min(that entry's share of the disputed amount, entry_fee)`. Stamping unaffected entries
+over-deducts the club and marks entries refunded that were never contested.
+
+**0. If the payout row is `processing`, wait.** The cron has claimed it and may already have
+sent the transfer — stamping mid-run races the recompute. Give it a few minutes, re-read
+`show_payouts.status`, and route on the outcome: `completed` → step 2, failed/retried back to
+`pending` → step 1.
+
+**1. If the payout has not settled yet** (`pending`, or no payout row): stamp each disputed entry
+refunded (Case A step 5's SQL, `refund_amount` per the allocation rule) **before**
 the payout fires. The cron recomputes the transfer from `max(0, entry_fee - refund_amount)` at
 send time, so the club is simply paid less and no clawback exists. Do **not** issue any Stripe
 refund — the bank already took the money. This is the cheap path — the alert says so, and it

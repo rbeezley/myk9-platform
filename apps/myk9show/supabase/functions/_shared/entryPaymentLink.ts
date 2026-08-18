@@ -7,6 +7,7 @@
 // line item). So this session carries NO connected-account params by design.
 
 import { calculatePlatformFeeCents } from './platformFee.ts';
+import { formatStatementDescriptorSuffix } from './statementDescriptor.ts';
 
 export interface PaymentLinkEntry {
   entryId: string;
@@ -49,7 +50,10 @@ export interface EntryPaymentLinkSessionParams {
   success_url: string;
   cancel_url: string;
   metadata: { type: 'entry_payment_request'; entry_ids: string; platform_fee_percent: string };
-  payment_intent_data: { metadata: { type: 'entry_payment_request'; entry_ids: string } };
+  payment_intent_data: {
+    metadata: { type: 'entry_payment_request'; entry_ids: string };
+    statement_descriptor_suffix: string;
+  };
   /** Present only when a disclosure string is supplied — Stripe shows it above
    *  the Pay button, so the payer sees the policy before paying. */
   custom_text?: { submit: { message: string } };
@@ -120,6 +124,7 @@ export function buildEntryPaymentLinkSession(
     },
     payment_intent_data: {
       metadata: { type: 'entry_payment_request', entry_ids: entryIdsJson },
+      statement_descriptor_suffix: formatStatementDescriptorSuffix(input.entries[0].showName),
     },
     ...(disclosure
       ? { custom_text: { submit: { message: disclosure.slice(0, CUSTOM_TEXT_MAX) } } }

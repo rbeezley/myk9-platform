@@ -6,6 +6,7 @@ import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
+import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -434,8 +435,8 @@ async function handleEntryCheckout(
   const { data: showFees, error: showFeesError } = await supabase
     .from('shows')
     .select(
-      `pre_entry_fee, day_of_show_fee, start_date, status,
-       entry_open_date, entry_close_date, club_id`
+      `name, pre_entry_fee, day_of_show_fee, start_date, status,
+        entry_open_date, entry_close_date, club_id`
     )
     .eq('id', cart.show_id)
     .single();
@@ -663,6 +664,7 @@ async function handleEntryCheckout(
           platform_fee_percent: String(platformFeePercent),
         },
         payment_intent_data: {
+          statement_descriptor_suffix: formatStatementDescriptorSuffix(showFees.name),
           metadata: {
             cart_id: cart_id,
             type: 'entry',

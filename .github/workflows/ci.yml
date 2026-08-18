@@ -407,11 +407,22 @@ jobs:
         run: pnpm build
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       # Gate the myK9Show initial-load payload against recorded budgets.
       # Reuses the dist produced by "Build all"; ratchet down only.
       - name: Bundle budget (myK9Show)
         run: pnpm --filter @myk9/show budget:check
+
+      # Browser smoke jobs serve this same build. Reuse it instead of paying
+      # for a second full workspace build in each job.
+      - name: Upload myK9Show preview build
+        uses: actions/upload-artifact@v7
+        with:
+          name: myk9show-preview-dist
+          path: apps/myk9show/dist
+          retention-days: 1
 
   # Focused accessibility smoke — runs ONLY the axe-core a11y spec against a
   # built preview, not the full (still-disabled) e2e suite. This job touches the
@@ -456,14 +467,20 @@ jobs:
           E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
 
-      # a11y spec runs against `npm run preview` (serves dist/), which does not
-      # build — so produce dist here before Playwright starts the web server.
-      - name: Build app + packages
-        run: pnpm build
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - name: Download myK9Show preview build
+        uses: actions/download-artifact@v8
+        with:
+          name: myk9show-preview-dist
+          path: apps/myk9show/dist
+
+      # Cache the browser payload by the lockfile so Playwright downloads only
+      # when the pinned browser version changes. Keep --with-deps to guarantee
+      # the runner has the system libraries required by Chromium.
+      - name: Cache Playwright browser
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright browser
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
@@ -526,12 +543,17 @@ jobs:
           E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
 
-      - name: Build app + packages
-        run: pnpm build
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      - name: Download myK9Show preview build
+        uses: actions/download-artifact@v8
+        with:
+          name: myk9show-preview-dist
+          path: apps/myk9show/dist
+
+      - name: Cache Playwright browser
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright browser
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium

@@ -43,6 +43,11 @@ Route by what you found:
 
 - **Refund request, no completed payout** → not this page. The in-app refund path works; use it.
 - **Refund request, payout `completed`** → Case A.
+- **"Reconciled payout amount mismatch" alert (signal 2)** → the refund **already exists** in
+  Stripe. Skip Case A steps 1–3 entirely — issuing another refund would double-pay the
+  exhibitor. Verify the existing refund in the dashboard (Payments → the intent → its refund),
+  then do only steps 2 (notify), 4 (reverse the overpaid difference the alert names), and 5
+  (stamp, if the entry lacks one — an app-issued refund was already stamped).
 - **Lost dispute, any payout state** → Case B, which starts with the payout-state fork. Never
   issue a Stripe refund for a dispute — the bank already pulled the money.
 
@@ -107,15 +112,21 @@ where stripe_payment_intent_id = '<pi_...>' and payment_status = 'paid';
 ```
 
 Check `dispute.amount` against the charge total first. A **partial dispute** (rare, but some
-card networks allow it) means only part of the cart is contested: identify the affected
-entries from the dispute details rather than stamping the whole cart, and cap each stamp at
-`min(that entry's share of the disputed amount, entry_fee)`. Stamping unaffected entries
-over-deducts the club and marks entries refunded that were never contested.
+card networks allow it) means only part of the cart is contested — and Stripe names the
+intent and amount, not the entries. If the amount matches exactly one entry's fee (plus its
+fee share), stamp that entry alone, capped at its `entry_fee`. If the mapping is ambiguous,
+**do not guess an entry stamp**: ask the exhibitor/club which entry was contested, and until
+that answer arrives record the loss at the order level only (step 3 books the true gross
+regardless) with a clawback-log line noting the unallocated remainder. Stamping unaffected
+entries over-deducts the club and marks entries refunded that were never contested.
 
-**0. If the payout row is `processing`, wait.** The cron has claimed it and may already have
-sent the transfer — stamping mid-run races the recompute. Give it a few minutes, re-read
-`show_payouts.status`, and route on the outcome: `completed` → step 2, failed/retried back to
-`pending` → step 1.
+**0. If the payout row is `processing` or `failed`, ask Stripe, not the row.** `processing`
+means the cron has claimed it and may already have sent the transfer — stamping mid-run races
+the recompute; wait a few minutes and re-read. And a `failed` row can sit over a transfer that
+actually **succeeded** (crash after send — the cron itself guards this with
+`transfers.list({ transfer_group: show_id })`). Before treating anything as pre-payout, check
+Connect → Transfers for a transfer with the show's id as transfer group: transfer exists →
+step 2 (use its id for the reversal); none → step 1.
 
 **1. If the payout has not settled yet** (`pending`, or no payout row): stamp each disputed entry
 refunded (Case A step 5's SQL, `refund_amount` per the allocation rule) **before**

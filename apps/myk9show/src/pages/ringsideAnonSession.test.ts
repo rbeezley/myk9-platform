@@ -34,6 +34,7 @@ vi.mock('./validatePasscode', () => ({
 // earlier SIGNED_IN sync ran with the bare anon JWT and got 0 rows).
 const trialsSync = vi.fn();
 const classesSync = vi.fn();
+const classesClearHideCounts = vi.fn();
 const entriesSync = vi.fn();
 const getTrialsByShow = vi.fn();
 vi.mock('@/services/replication', () => ({
@@ -41,7 +42,10 @@ vi.mock('@/services/replication', () => ({
     sync: (...a: unknown[]) => trialsSync(...a),
     getTrialsByShow: (...a: unknown[]) => getTrialsByShow(...a),
   },
-  replicatedClassesTable: { sync: (...a: unknown[]) => classesSync(...a) },
+  replicatedClassesTable: {
+    sync: (...a: unknown[]) => classesSync(...a),
+    clearCachedHideCounts: (...a: unknown[]) => classesClearHideCounts(...a),
+  },
   replicatedEntriesTable: { sync: (...a: unknown[]) => entriesSync(...a) },
 }));
 

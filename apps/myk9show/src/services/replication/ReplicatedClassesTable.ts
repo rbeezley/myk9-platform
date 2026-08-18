@@ -10,6 +10,8 @@ import {
   syncReplicatedTable,
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+  REPLICATION_STORES,
+  type ReplicatedRow,
   type SyncReplicatedTableAdapter,
   type SyncResult,
 } from '@myk9/replication';
@@ -316,6 +318,60 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   /** Get the mutation ID from the last create/update operation */
   get lastMutationId(): string | null {
     return this._lastMutationId;
+  }
+
+  /**
+   * Remove judge-set hide counts from the local class cache at an auth/role
+   * boundary. The class table is shared across sessions, while `hideCount` is
+   * only safe for officials authorized by the show-scoped RPC. Scrub the row,
+   * clean base/conflict snapshots, and reset watermarks so a newly authorized
+   * official rehydrates counts through the current JWT instead of inheriting a
+   * prior session's local data.
+   */
+  async clearCachedHideCounts(): Promise<void> {
+    await this.runTransaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite', async store => {
+      const index = store.index('tableName');
+      const rows = (await index.getAll(this.getTableName())) as ReplicatedRow<ReplicatedClass>[];
+
+      for (const row of rows) {
+        const nextRow: ReplicatedRow<ReplicatedClass> = { ...row };
+        let changed = false;
+
+        const scrub = (value: ReplicatedClass): ReplicatedClass => {
+          if (!Object.prototype.hasOwnProperty.call(value, 'hideCount')) return value;
+          const next = { ...value };
+          delete next.hideCount;
+          changed = true;
+          return next;
+        };
+
+        nextRow.data = scrub(row.data);
+        if (row.baseData) nextRow.baseData = scrub(row.baseData);
+
+        if (row.conflict) {
+          nextRow.conflict = {
+            ...row.conflict,
+            localData: scrub(row.conflict.localData),
+            remoteData: scrub(row.conflict.remoteData),
+            baseData: scrub(row.conflict.baseData),
+          };
+        }
+
+        if (changed) await store.put!(nextRow);
+      }
+    });
+
+    // A scrubbed official row must be fetched again under the current session;
+    // otherwise an unchanged class would remain count-less after re-auth.
+    await this.updateSyncMetadata({
+      lastFullSyncAt: 0,
+      lastIncrementalSyncAt: 0,
+      totalRows: 0,
+      syncStatus: 'idle',
+      errorMessage: undefined,
+      scopes: {},
+    });
+    await this.notifyListeners();
   }
 
   /** Map UI class status to DB CHECK constraint values */

@@ -79,6 +79,9 @@ const { judgeAssignmentsGetAll, judgeAssignmentsSync } = vi.hoisted(() => ({
   judgeAssignmentsSync: vi.fn().mockResolvedValue({ success: true }),
 }));
 vi.mock('@/services/replication', () => ({
+  replicatedClassesTable: {
+    clearCachedHideCounts: vi.fn().mockResolvedValue(undefined),
+  },
   replicatedJudgeAssignmentsTable: {
     getAll: judgeAssignmentsGetAll,
     sync: judgeAssignmentsSync,

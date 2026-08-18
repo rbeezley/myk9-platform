@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import type { ClassSummary, EntryResult, TrialSummary, UserContext } from './types.ts';
+import type { EntryResult, UserContext } from './types.ts';
+import { executeGetClassSummary, executeGetTrialOverview } from './classAndTrialTools.ts';
 import { parseAndResolveDate } from './ruleLookup.ts';
 import { applyShowScope, type ShowScope } from './showScope.ts';
 
@@ -17,68 +18,6 @@ interface EntryViewRow {
   final_placement: number | null;
   is_scored: boolean;
   class_id: string;
-}
-
-async function executeGetClassSummary(
-  params: {
-    trial_date?: string;
-    element?: string;
-    level?: string;
-    class_status?: string;
-  },
-  supabase: SupabaseClient,
-  scope: ShowScope
-): Promise<{ data: ClassSummary[]; error?: string }> {
-  try {
-    let query = supabase.from('view_class_summary').select(
-      `
-        class_id,
-        element,
-        level,
-        section,
-        judge_name,
-        class_status,
-        total_entries,
-        scored_entries,
-        checked_in_count,
-        qualified_count,
-        nq_count,
-        trial_date,
-        trial_name,
-        briefing_time,
-        start_time
-      `
-    );
-
-    query = applyShowScope(query, scope);
-
-    if (params.trial_date) {
-      query = query.eq('trial_date', params.trial_date);
-    }
-    if (params.element) {
-      query = query.ilike('element', `%${params.element}%`);
-    }
-    if (params.level) {
-      query = query.ilike('level', `%${params.level}%`);
-    }
-    if (params.class_status) {
-      query = query.eq('class_status', params.class_status);
-    }
-
-    query = query.order('trial_date').order('class_order').limit(50);
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Class summary error:', error);
-      return { data: [], error: error.message };
-    }
-
-    return { data: data || [] };
-  } catch (err) {
-    console.error('Class summary exception:', err);
-    return { data: [], error: String(err) };
-  }
 }
 
 async function executeGetEntryResults(
@@ -249,45 +188,6 @@ async function executeGetEntryResults(
     return { data: transformed };
   } catch (err) {
     console.error('Entry results exception:', err);
-    return { data: [], error: String(err) };
-  }
-}
-
-async function executeGetTrialOverview(
-  params: { trial_date?: string },
-  supabase: SupabaseClient,
-  scope: ShowScope
-): Promise<{ data: TrialSummary[]; error?: string }> {
-  try {
-    let query = supabase.from('view_trial_summary_normalized').select(
-      `
-        trial_id,
-        trial_number,
-        trial_date,
-        trial_name,
-        competition_type,
-        show_name
-      `
-    );
-
-    query = applyShowScope(query, scope);
-
-    if (params.trial_date) {
-      query = query.eq('trial_date', params.trial_date);
-    }
-
-    query = query.order('trial_date').order('trial_number').limit(20);
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Trial overview error:', error);
-      return { data: [], error: error.message };
-    }
-
-    return { data: data || [] };
-  } catch (err) {
-    console.error('Trial overview exception:', err);
     return { data: [], error: String(err) };
   }
 }

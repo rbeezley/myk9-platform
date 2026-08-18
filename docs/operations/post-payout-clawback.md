@@ -45,9 +45,12 @@ Route by what you found:
 - **Refund request, payout `completed`** → Case A.
 - **"Reconciled payout amount mismatch" alert (signal 2)** → the refund **already exists** in
   Stripe. Skip Case A steps 1–3 entirely — issuing another refund would double-pay the
-  exhibitor. Verify the existing refund in the dashboard (Payments → the intent → its refund),
-  then do only steps 2 (notify), 4 (reverse the overpaid difference the alert names), and 5
-  (stamp, if the entry lacks one — an app-issued refund was already stamped).
+  exhibitor. Verify the existing refund in the dashboard (Payments → the intent → its refund)
+  and confirm its status is **`succeeded`** — a refund can sit pending or later fail, and
+  reversing the club's transfer against a refund the exhibitor never received underpays the
+  club; wait for the terminal state first. Then do only steps 2 (notify), 4 (reverse the
+  overpaid difference the alert names), and 5 (stamp, if the entry lacks one — an app-issued
+  refund was already stamped).
 - **Lost dispute, any payout state** → Case B, which starts with the payout-state fork. Never
   issue a Stripe refund for a dispute — the bank already pulled the money.
 
@@ -158,7 +161,10 @@ refunded (Case A step 5's SQL, `refund_amount` per the allocation rule) **before
 the payout fires. The cron recomputes the transfer from `max(0, entry_fee - refund_amount)` at
 send time, so the club is simply paid less and no clawback exists. Do **not** issue any Stripe
 refund — the bank already took the money. This is the cheap path — the alert says so, and it
-is the reason to act on dispute alerts same-day.
+is the reason to act on dispute alerts same-day. The stamp does not lock out the cron, so
+**after stamping, re-check**: if the payout row went `processing`/`completed` (or a transfer
+now exists for the show's transfer group), the cron may have recomputed before your stamp
+landed — verify the transfer amount reflects the discount, and if not, route through step 2.
 
 **2. If the payout has settled:** reverse the transfer for the sum of each disputed entry's
 **reversal share**, `entry_fee - coalesce(refund_amount, 0)` from the netting rule — never the raw fee sum;

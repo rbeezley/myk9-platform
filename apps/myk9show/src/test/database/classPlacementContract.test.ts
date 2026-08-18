@@ -34,16 +34,36 @@ const rankingMigrationFiles = readdirSync(migrationsDir)
     )
   )
   .sort();
-const latestRankingMigrationFile =
-  rankingMigrationFiles[rankingMigrationFiles.length - 1];
-const rankingMigration = readFileSync(
-  resolve(migrationsDir, latestRankingMigrationFile),
-  'utf8'
+const latestRankingMigrationFile = rankingMigrationFiles[rankingMigrationFiles.length - 1];
+const rankingMigration = readFileSync(resolve(migrationsDir, latestRankingMigrationFile), 'utf8');
+// Same latest-wins discovery for the CALLER. This was pinned to
+// 20260615160000 while the database had moved on through 20260713101000,
+// 20260727235900 and 20260817140000 — so it was asserting the
+// `v_scored_count = v_total_count` shape against a definition that no longer
+// exists. Discover the newest redefinition and pin its NAME instead.
+const gateMigrationFiles = readdirSync(migrationsDir)
+  .filter(file => file.endsWith('.sql'))
+  .filter(file =>
+    readFileSync(resolve(migrationsDir, file), 'utf8').includes(
+      'CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state(p_class_id uuid)'
+    )
+  )
+  .sort();
+const latestGateMigrationFile = gateMigrationFiles[gateMigrationFiles.length - 1];
+const gateMigration = readFileSync(resolve(migrationsDir, latestGateMigrationFile), 'utf8');
+
+// Body only — from `AS $$` to its closing `$$;`. The header comment of
+// 20260817140000 quotes SQL while explaining a rejected alternative, so
+// matching over the whole file picks up prose as if it were a statement.
+const gateBody = gateMigration.slice(
+  gateMigration.indexOf('AS $$'),
+  gateMigration.indexOf('$$;', gateMigration.indexOf('AS $$'))
 );
-const gateMigration = readFileSync(
-  resolve(migrationsDir, '20260615160000_add_shows_is_nationals_placement_source.sql'),
-  'utf8'
-);
+
+// Every stale-clearing UPDATE inside refresh_class_scoring_state's terminal
+// branches, statement text only.
+const terminalClears =
+  gateBody.match(/UPDATE public\.entries\s+SET final_placement = NULL\s+WHERE[^;]*;/g) ?? [];
 const normalizeMigration = readFileSync(
   resolve(migrationsDir, '20260625180000_normalize_final_placement_default_null.sql'),
   'utf8'
@@ -136,33 +156,98 @@ describe('placement ranking — recalculate_class_placements (latest definition)
 
   it('recomputes on score writes via an AFTER UPDATE trigger over the scoring columns', () => {
     expect(placementMigration).toContain('CREATE TRIGGER entries_refresh_class_scoring_state');
-    for (const col of ['is_scored', 'result_status', 'search_time_seconds', 'total_faults', 'points_earned']) {
+    for (const col of [
+      'is_scored',
+      'result_status',
+      'search_time_seconds',
+      'total_faults',
+      'points_earned',
+    ]) {
       expect(placementMigration).toContain(col);
     }
   });
 });
 
-describe('full-scored gate — refresh_class_scoring_state (20260615160000)', () => {
-  it('computes placements ONLY when every entry in the class is scored', () => {
-    const gate = gateMigration.indexOf('IF v_scored_count = v_total_count THEN');
-    const recalc = gateMigration.indexOf('PERFORM public.recalculate_class_placements');
-    expect(gate).toBeGreaterThanOrEqual(0);
-    expect(recalc).toBeGreaterThan(gate); // recalc lives inside the fully-scored branch
+describe('completion gate — refresh_class_scoring_state (latest definition)', () => {
+  it('asserts against the newest migration that redefines the function', () => {
+    // Same rule as the ranking pin above: repoint it at the new file and
+    // re-check every assertion below, rather than deleting it.
+    expect(latestGateMigrationFile).toBe(
+      '20260817140000_clear_placement_on_soft_deleted_entries.sql'
+    );
   });
 
-  it('clears placements while a class is only partially scored', () => {
-    // Between the gate and the end, the partial/none branches null placements out.
-    const afterRecalc = gateMigration.slice(
-      gateMigration.indexOf('PERFORM public.recalculate_class_placements')
+  it('computes placements ONLY in the fully-accounted-for branch', () => {
+    const branch = gateBody.indexOf('ELSIF v_accounted_count = v_expected_count THEN');
+    const recalc = gateBody.indexOf('PERFORM public.recalculate_class_placements');
+    const nextBranch = gateBody.indexOf('ELSIF v_accounted_count > 0 THEN');
+    expect(branch).toBeGreaterThanOrEqual(0);
+    expect(recalc).toBeGreaterThan(branch);
+    expect(recalc).toBeLessThan(nextBranch); // recalc lives INSIDE that branch
+  });
+
+  it('counts only NON-DELETED entries when deciding completeness', () => {
+    // The counting query must keep its deleted_at filter: a tombstoned entry
+    // is not owed a run, so it must not hold the class out of 'completed'.
+    expect(gateBody).toMatch(
+      /INTO v_expected_count, v_accounted_count, v_scored_count\s+FROM public\.entries\s+WHERE class_id = p_class_id\s+AND deleted_at IS NULL/
     );
-    expect(afterRecalc).toContain('SET final_placement = NULL');
   });
 
   it('derives nationals-vs-regular from shows.is_nationals (not hard-coded)', () => {
-    expect(gateMigration).toContain('s.is_nationals');
-    expect(gateMigration).toContain(
+    expect(gateBody).toContain('s.is_nationals');
+    expect(gateBody).toContain(
       'recalculate_class_placements(ARRAY[p_class_id], COALESCE(v_is_nationals, false))'
     );
+  });
+
+  it('has a terminal placement-clearing UPDATE in each of the three non-ranking branches', () => {
+    // v_expected_count = 0, v_accounted_count > 0, and the ELSE. If a branch
+    // loses its clear, a class can drop out of 'completed' with placements
+    // still attached.
+    expect(terminalClears).toHaveLength(3);
+  });
+
+  it('bounds every terminal clear with final_placement IS NOT NULL', () => {
+    // THE RINGSIDE GUARD (20260727235900). Without it the clear matches every
+    // live entry in the class on each refresh, and each matched row pays for
+    // the all-column entries triggers — increment_replication_version,
+    // update_updated_at_column, and broadcast_entries_showday_change, which
+    // calls realtime.send() per row — plus a row lock held to end of
+    // transaction. That is the check-in that hung inside ringside_update_entry.
+    // Behavioral counterpart: section 4 of
+    // supabase/tests/placement_soft_delete_ranking_test.sql.
+    for (const clear of terminalClears) {
+      expect(clear).toContain('AND final_placement IS NOT NULL');
+    }
+  });
+
+  it('does NOT filter the terminal clears by deleted_at, so a tombstone is left unplaced', () => {
+    // Emptying a completed class takes the v_expected_count = 0 branch, which
+    // never reaches recalculate_class_placements — so this clear is the ONLY
+    // thing that can strip the placement off the entry whose deletion emptied
+    // it. A deleted_at filter here excludes exactly that row, and
+    // view_entry_with_results / view_myk9q_entries / view_stats_summary do not
+    // filter deleted_at, so the stale placement stays visible.
+    for (const clear of terminalClears) {
+      expect(clear).not.toContain('deleted_at');
+    }
+  });
+
+  it('keeps the emptied-class branch ahead of the fully-accounted branch', () => {
+    // Documents the ordering that creates the boundary: v_expected_count = 0 is
+    // tested FIRST, so an emptied class can never reach the ranking call. If
+    // this ever flips, the terminal clear above stops being load-bearing and
+    // the reasoning in 20260817140000 needs revisiting.
+    const empty = gateBody.indexOf('IF v_expected_count = 0 THEN');
+    const accounted = gateBody.indexOf('ELSIF v_accounted_count = v_expected_count THEN');
+    expect(empty).toBeGreaterThanOrEqual(0);
+    expect(accounted).toBeGreaterThan(empty);
+  });
+
+  it('runs with an empty search_path (SA-027 conversion)', () => {
+    expect(gateMigration).toContain("SET search_path = ''");
+    expect(gateMigration).not.toContain('SET search_path = public');
   });
 });
 
@@ -174,15 +259,11 @@ describe('final_placement NULL normalization (20260625180000)', () => {
   });
 
   it('drops the DEFAULT so new rows are born unplaced (NULL), not 0', () => {
-    expect(normalizeMigration).toContain(
-      'ALTER COLUMN final_placement DROP DEFAULT'
-    );
+    expect(normalizeMigration).toContain('ALTER COLUMN final_placement DROP DEFAULT');
   });
 
   it('tightens the CHECK so 0 (and negatives) can never return', () => {
-    expect(normalizeMigration).toContain(
-      'CHECK (final_placement IS NULL OR final_placement >= 1)'
-    );
+    expect(normalizeMigration).toContain('CHECK (final_placement IS NULL OR final_placement >= 1)');
   });
 
   it('backfills BEFORE adding the tighter constraint (else the old 0s would reject it)', () => {
@@ -207,12 +288,16 @@ describe('scoring SECURITY DEFINER execute grants (20260703120000)', () => {
     expect(scoringGrantMigration).toContain(
       'CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state_authorized'
     );
-    expect(scoringGrantMigration).toContain('v_is_manager OR v_is_assigned_judge OR v_has_judge_claim');
+    expect(scoringGrantMigration).toContain(
+      'v_is_manager OR v_is_assigned_judge OR v_has_judge_claim'
+    );
     expect(scoringGrantMigration).toContain("v_claim_kind = 'ringside_passcode'");
     expect(scoringGrantMigration).toContain("v_claim_role IN ('judge', 'admin')");
     expect(scoringGrantMigration).toContain('RAISE EXCEPTION');
     expect(scoringGrantMigration).toContain("USING errcode = '42501'");
-    expect(scoringGrantMigration).toContain('PERFORM public.refresh_class_scoring_state(p_class_id)');
+    expect(scoringGrantMigration).toContain(
+      'PERFORM public.refresh_class_scoring_state(p_class_id)'
+    );
     expect(scoringGrantMigration).toContain(
       'GRANT EXECUTE ON FUNCTION public.refresh_class_scoring_state_authorized(uuid) TO authenticated'
     );

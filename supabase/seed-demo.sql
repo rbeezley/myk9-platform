@@ -187,6 +187,21 @@ DELETE FROM public.trials WHERE id IN (
   -- UKC Nosework / ASCA Scent Detection registry demo trials (task 6.3)
   'dededede-0000-0000-0000-000000000023','dededede-0000-0000-0000-000000000024'
 );
+-- Email delivery history fixtures (section 18). email_log.show_id is
+-- ON DELETE SET NULL, so those rows would SURVIVE the show delete below with a
+-- nulled scope and accumulate one orphan set per reseed — they have to be
+-- removed explicitly, by id range. The lifecycle jobs and attempts would
+-- cascade with the show, but are removed the same way so this block stays
+-- correct if that ordering ever changes.
+DELETE FROM public.show_lifecycle_email_attempts
+WHERE id >= 'ee110000-0000-0000-0003-000000000000'::uuid
+  AND id <  'ee110000-0000-0000-0004-000000000000'::uuid;
+DELETE FROM public.show_lifecycle_email_jobs
+WHERE id >= 'ee110000-0000-0000-0002-000000000000'::uuid
+  AND id <  'ee110000-0000-0000-0003-000000000000'::uuid;
+DELETE FROM public.email_log
+WHERE id >= 'ee110000-0000-0000-0001-000000000000'::uuid
+  AND id <  'ee110000-0000-0000-0002-000000000000'::uuid;
 DELETE FROM public.show_visibility_settings WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';
 -- club_members / club_officers / club_stripe_accounts all cascade on club delete.
@@ -1237,6 +1252,137 @@ SELECT
   '2026-07-15 00:00:00+00',
   1
 FROM generate_series(1, 63) AS load_armbands(dog_number);
+
+-- ---------------------------------------------------------------------------
+-- 18. Email delivery history (secretary "Email history" view)
+--
+-- Backs get_show_email_delivery_history(), added by migration
+-- 20260817160000_show_email_delivery_history.sql. Without these rows the view
+-- renders empty on a fresh reseed: that RPC reads email_log.show_id, and the
+-- migration's backfill deliberately refuses to guess a show for log rows whose
+-- related_id no longer resolves — which is every historical row after a reseed.
+--
+-- The fixture covers BOTH branches the RPC unions:
+--   * email_rows        — rows in public.email_log scoped by show_id
+--   * lifecycle_failures — failed show_lifecycle_email_attempts with NO
+--                          email_log row, which is the only way a send that
+--                          never reached the provider appears in the history
+-- and every delivery_status the RPC maps: delivered, sent, bounced, failed,
+-- complained, suppressed (-> failed) and an unrecognised status (-> unavailable).
+--
+-- step_id is looked up by step_type rather than hard-coded: the lifecycle steps
+-- are created with random UUIDs, so a pinned id would break on the next reseed.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.show_lifecycle_email_jobs (
+  id, show_id, step_id, step_type, status, recipient_scope,
+  recipient_person_id, recipient_email, recipient_name,
+  subject, rendered_subject, preview_warnings, idempotency_key,
+  due_at, prepared_at, sent_at, created_at, updated_at
+)
+SELECT
+  'ee110000-0000-0000-0002-000000000001'::uuid,
+  'dededede-0000-0000-0000-000000000010',
+  step.id,
+  'accepted',
+  'sent',
+  'entry',
+  (SELECT id FROM public.people WHERE email = 'e2e-exhibitor@test.myk9.com'),
+  'e2e-exhibitor@test.myk9.com',
+  'E2E Exhibitor',
+  'Your entry has been accepted',
+  'Your entry has been accepted',
+  '[]'::jsonb,
+  'seed-demo-lifecycle-accepted-1',
+  '2026-07-20 14:00:00+00', '2026-07-20 14:00:00+00', '2026-07-20 14:02:11+00',
+  '2026-07-20 14:00:00+00', '2026-07-20 14:02:11+00'
+FROM public.show_lifecycle_email_steps AS step
+WHERE step.show_id = 'dededede-0000-0000-0000-000000000010'
+  AND step.step_type = 'accepted';
+
+INSERT INTO public.show_lifecycle_email_jobs (
+  id, show_id, step_id, step_type, status, recipient_scope,
+  recipient_person_id, recipient_email, recipient_name,
+  subject, rendered_subject, preview_warnings, idempotency_key,
+  due_at, prepared_at, created_at, updated_at
+)
+SELECT
+  'ee110000-0000-0000-0002-000000000002'::uuid,
+  'dededede-0000-0000-0000-000000000010',
+  step.id,
+  'day_before_reminder',
+  'failed',
+  'show_recipient',
+  (SELECT id FROM public.people WHERE email = 'e2e-secretary@test.myk9.com'),
+  'e2e-secretary@test.myk9.com',
+  'E2E Secretary',
+  'Your trial is tomorrow',
+  'Your trial is tomorrow',
+  '[]'::jsonb,
+  'seed-demo-lifecycle-daybefore-1',
+  '2026-07-31 09:00:00+00', '2026-07-31 09:00:00+00',
+  '2026-07-31 09:00:00+00', '2026-07-31 09:05:44+00'
+FROM public.show_lifecycle_email_steps AS step
+WHERE step.show_id = 'dededede-0000-0000-0000-000000000010'
+  AND step.step_type = 'day_before_reminder';
+
+-- The lifecycle_failures branch: a send that failed before any email_log row
+-- existed, so email_log_id IS NULL. This is the only fixture that exercises
+-- the second half of the RPC's UNION.
+INSERT INTO public.show_lifecycle_email_attempts (
+  id, job_id, email_log_id, status, error_message, attempted_at
+)
+VALUES (
+  'ee110000-0000-0000-0003-000000000001',
+  'ee110000-0000-0000-0002-000000000002',
+  NULL,
+  'failed',
+  'Provider rejected the request before the message was queued.',
+  '2026-07-31 09:05:44+00'
+);
+
+-- email_log rows. show_id is set directly: these are the shape the RPC reads
+-- after the migration, not rows the backfill would have to resolve.
+--   * show_lifecycle_email carries related_id -> the sent job above, which is
+--     where recipient_name and lifecycle_step_type come from in the view.
+--   * registration_confirmation rows use related_id IS NULL on purpose — that
+--     is the branch of the RPC's per-type CASE that admits a row with no
+--     surviving enrollment, and it keeps the fixture independent of
+--     public.enrollments, which the reseed empties.
+INSERT INTO public.email_log (
+  id, recipient_email, email_type, related_id, resend_message_id,
+  status, status_updated_at, show_id, created_at
+)
+VALUES
+  ('ee110000-0000-0000-0001-000000000001', 'e2e-exhibitor@test.myk9.com',
+   'show_lifecycle_email', 'ee110000-0000-0000-0002-000000000001',
+   'seed-demo-email-1', 'delivered', '2026-07-20 14:03:02+00',
+   'dededede-0000-0000-0000-000000000010', '2026-07-20 14:02:11+00'),
+  ('ee110000-0000-0000-0001-000000000002', 'e2e-exhibitor@test.myk9.com',
+   'registration_confirmation', NULL,
+   'seed-demo-email-2', 'delivered', '2026-07-18 10:15:30+00',
+   'dededede-0000-0000-0000-000000000010', '2026-07-18 10:15:02+00'),
+  ('ee110000-0000-0000-0001-000000000003', 'bounced-handler@test.myk9.com',
+   'registration_confirmation', NULL,
+   'seed-demo-email-3', 'bounced', '2026-07-18 11:02:19+00',
+   'dededede-0000-0000-0000-000000000010', '2026-07-18 11:01:55+00'),
+  ('ee110000-0000-0000-0001-000000000004', 'complained-handler@test.myk9.com',
+   'registration_confirmation', NULL,
+   'seed-demo-email-4', 'complained', '2026-07-19 08:44:10+00',
+   'dededede-0000-0000-0000-000000000010', '2026-07-19 08:40:00+00'),
+  ('ee110000-0000-0000-0001-000000000005', 'suppressed-handler@test.myk9.com',
+   'registration_confirmation', NULL,
+   'seed-demo-email-5', 'suppressed', '2026-07-19 09:12:00+00',
+   'dededede-0000-0000-0000-000000000010', '2026-07-19 09:11:48+00'),
+  -- Unrecognised provider status: the RPC maps anything it does not know to
+  -- 'unavailable' rather than inventing a verdict. Keeps that path visible.
+  ('ee110000-0000-0000-0001-000000000006', 'e2e-clubadmin@test.myk9.com',
+   'registration_confirmation', NULL,
+   'seed-demo-email-6', 'queued', NULL,
+   'dededede-0000-0000-0000-000000000010', '2026-07-19 15:30:00+00'),
+  ('ee110000-0000-0000-0001-000000000007', 'e2e-secretary@test.myk9.com',
+   'registry_results_submission', NULL,
+   'seed-demo-email-7', 'sent', '2026-08-04 17:00:00+00',
+   'dededede-0000-0000-0000-000000000010', '2026-08-04 16:59:31+00');
 
 DO $$
 DECLARE

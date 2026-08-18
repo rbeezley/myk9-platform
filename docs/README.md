@@ -250,6 +250,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [operations/edge-function-drift-audit-2026-07-12.md](operations/edge-function-drift-audit-2026-07-12.md) | Active    | Edge Function Drift Audit — deployed-source recovery and legacy-sender disposition |
 | [operations/launch-integrations-deploy.md](operations/launch-integrations-deploy.md)                     | Active    | Launch Integrations Deploy — L1–L6 (auth, wallets, maps, push, calendar, SMS)      |
 | [operations/sms-10dlc-registration.md](operations/sms-10dlc-registration.md)                             | Active    | SMS Provider & 10DLC Registration — Twilio choice + A2P campaign filing (L6)       |
+| [operations/unit-economics.md](operations/unit-economics.md)                                             | Reference | Unit Economics & Break-Even — net per entry, cost base, break-even volume          |
 | [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)                               | Reference | Stripe Platform Setup — Operator Runbook (Richard)                                 |
 | [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md)                             | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers)            |
 | [operations/supabase-auth-email.md](operations/supabase-auth-email.md)                                   | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation                    |

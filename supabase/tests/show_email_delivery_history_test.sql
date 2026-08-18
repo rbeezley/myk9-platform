@@ -51,13 +51,6 @@ SELECT
 FROM public.roles AS role WHERE role.name = 'site_admin';
 
 SET LOCAL ROLE service_role;
-INSERT INTO public.show_lifecycle_email_steps (id, show_id, step_type)
-VALUES (
-  '00000000-0000-0000-0000-000000180301',
-  '00000000-0000-0000-0000-000000180002',
-  'accepted'
-);
-
 INSERT INTO public.show_lifecycle_email_jobs (
   id, show_id, step_id, step_type, status, recipient_scope,
   recipient_email, recipient_name, idempotency_key, due_at
@@ -65,7 +58,12 @@ INSERT INTO public.show_lifecycle_email_jobs (
 VALUES (
   '00000000-0000-0000-0000-000000180302',
   '00000000-0000-0000-0000-000000180002',
-  '00000000-0000-0000-0000-000000180301',
+  (
+    SELECT id
+    FROM public.show_lifecycle_email_steps
+    WHERE show_id = '00000000-0000-0000-0000-000000180002'
+      AND step_type = 'accepted'
+  ),
   'accepted', 'failed', 'show_recipient',
   'lifecycle@example.test', 'Lifecycle Recipient',
   'myk9-180-lifecycle', '2026-08-17T12:00:00Z'

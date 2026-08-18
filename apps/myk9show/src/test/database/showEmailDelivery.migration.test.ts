@@ -71,6 +71,11 @@ describe('MYK9-180 email delivery history migration contract', () => {
     expect(behavioralSql.slice(peopleInsert, authInsert).match(/NULL/g)).toHaveLength(3);
   });
 
+  it('uses the lifecycle step created by the show insert trigger', () => {
+    expect(behavioralSql).not.toContain('INSERT INTO public.show_lifecycle_email_steps');
+    expect(behavioralSql).toContain('SELECT id\n    FROM public.show_lifecycle_email_steps');
+  });
+
   it('covers stable pagination, registration and lifecycle rows, and malformed references', () => {
     expect(behavioralSql).toContain('FAIL same-timestamp first page');
     expect(behavioralSql).toContain('FAIL same-timestamp cursor page');

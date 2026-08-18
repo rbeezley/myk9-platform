@@ -117,7 +117,17 @@ from entries where stripe_payment_intent_id = '<pi_...>';
 been excluded from) the payout by that much. Its stamp target is `entry_fee` (raise the
 existing `refund_amount` to it, never add on top), and its reversal share is
 `entry_fee - refund_amount` — reversing the full fee would take back money the payout never
-sent.
+sent. Case A step 5's SQL deliberately refuses already-stamped rows, so **raising** an
+existing stamp needs this variant instead (append to the notes, don't replace them):
+
+```sql
+-- service_role; raise a prior partial-refund stamp to the full disputed fee
+update entries
+set refund_amount = entry_fee,
+    refund_notes  = coalesce(refund_notes || ' | ', '') ||
+                    'Dispute dp_<id>: raised to full entry_fee (MYK9-195 runbook)'
+where id = '<entry_id>' and refund_amount < entry_fee;
+```
 
 Check `dispute.amount` against the charge total first. A **partial dispute** (rare, but some
 card networks allow it) means only part of the cart is contested — and Stripe names the
@@ -143,9 +153,11 @@ send time, so the club is simply paid less and no clawback exists. Do **not** is
 refund — the bank already took the money. This is the cheap path — the alert says so, and it
 is the reason to act on dispute alerts same-day.
 
-**2. If the payout has settled:** reverse the transfer for the sum of the disputed entries'
-`entry_fee` (Case A steps 2 and 4 — talk to the club first; a chargeback is not their fault),
-then stamp each entry (Case A step 5, per the allocation rule, recording `dp_` and `trr_` ids
+**2. If the payout has settled:** reverse the transfer for the sum of each disputed entry's
+**reversal share**, `entry_fee - refund_amount` from the netting rule — never the raw fee sum;
+the payout already excluded prior refunds (Case A steps 2 and 4 — talk to the club first; a
+chargeback is not their fault). Then stamp each entry (Case A step 5's SQL for unstamped
+entries, the raise-variant above for previously stamped ones, recording `dp_` and `trr_` ids
 in `refund_notes`).
 
 **3. Book the loss into the order ledger by hand.** A dispute produces no Stripe refund

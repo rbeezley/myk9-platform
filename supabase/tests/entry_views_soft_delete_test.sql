@@ -6,9 +6,15 @@
 -- authenticated SELECT policy (entries_select) carries no deleted_at
 -- predicate, so a missing predicate in the view is the whole exposure.
 --
--- Assertions run as service_role deliberately. RLS is bypassed there, which
--- isolates the view's own predicate from any policy that might mask a
--- regression, and matches how the fix is actually implemented.
+-- The first three views are asserted as the OWNER (no SET ROLE), not as
+-- service_role. RLS is bypassed either way, which is the point -- it isolates
+-- the view's own predicate from any policy that might mask a regression. But
+-- service_role cannot read these views in a migrations-only rebuild: migration
+-- 116 grants them to `authenticated` only, and NO migration grants
+-- view_entry_with_results to anybody at all. The live database disguises this,
+-- because ALTER DEFAULT PRIVILEGES in schema public hands service_role and
+-- authenticated full CRUD on every new relation -- so a service_role assertion
+-- passes against live and fails in CI.
 --
 -- view_stats_summary is asserted both directly and through two of its four
 -- dependent views, because those inherit the predicate transitively rather
@@ -18,8 +24,6 @@
 -- All fixtures roll back.
 
 BEGIN;
-
-SET LOCAL ROLE service_role;
 
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000181001', 'Soft Delete Views Club');
@@ -263,8 +267,9 @@ $$;
 -- its owner and its rows are gated on the CALLER's identity rather than on RLS.
 -- Asserting it as service_role would be vacuous: with no JWT the access flags
 -- are all false and the view returns nothing, which no broken predicate could
--- fail. Switch to a real authenticated caller instead.
-RESET ROLE;
+-- fail. Switch to a real authenticated caller instead -- which this view, unlike
+-- the three above, does grant explicitly (20260802120001), so it works in a
+-- migrations-only rebuild.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000181101', true);
 SELECT set_config(

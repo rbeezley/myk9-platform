@@ -236,4 +236,25 @@ LEFT JOIN dogs d ON e.dog_id = d.id
 WHERE e.is_scored = true
   AND e.deleted_at IS NULL;
 
+-- -----------------------------------------------------------------------------
+-- 4. Codify view_entry_with_results' read grant.
+--
+-- Separate defect, found because it broke this change's own test in CI. NO
+-- migration has ever granted this view to any role: 003 created it, 094 dropped
+-- and recreated it (discarding whatever grants existed), and nothing since has
+-- granted it. It is readable on the live database purely because ALTER DEFAULT
+-- PRIVILEGES in schema public hands `authenticated` full CRUD on every newly
+-- created relation. A migrations-only rebuild -- which is exactly what CI and
+-- any fresh environment are -- therefore leaves it owner-only, and the AskQ
+-- tool executor's two reads fail with a permission error.
+--
+-- SELECT only. The view carries judge_notes, total_score, payment_status and
+-- entry_fee, so anon is revoked explicitly rather than left to the default
+-- privileges above, which would otherwise grant it. The other two views
+-- rebuilt here already have their grants codified in migration 116.
+-- -----------------------------------------------------------------------------
+GRANT SELECT ON public.view_entry_with_results TO authenticated;
+GRANT SELECT ON public.view_entry_with_results TO service_role;
+REVOKE ALL ON public.view_entry_with_results FROM anon;
+
 NOTIFY pgrst, 'reload schema';

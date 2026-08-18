@@ -244,7 +244,7 @@ BEGIN
       AND attempt.email_log_id IS NULL
       AND lower(attempt.status) = 'failed'
   ), history AS (
-    SELECT * FROM email_rows WHERE source_kind IS NOT NULL
+    SELECT * FROM email_rows WHERE email_rows.source_kind IS NOT NULL
     UNION ALL
     SELECT * FROM lifecycle_failures
   )

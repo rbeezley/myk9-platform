@@ -45,13 +45,18 @@ export function loadRbacPermissionsCache(userId: string): RbacCacheEntry | null 
     const entry = JSON.parse(raw) as Partial<RbacCacheEntry>;
     const cachedAtMs = Date.parse(entry.cachedAt ?? '');
     const data = entry.data;
+    // Element-level checks matter: `roles: [null]` parses fine but throws in
+    // mapRbacRoles' destructuring during hydration, which would send a cold
+    // boot to the error boundary instead of just discarding the cache.
+    const isObjectArray = (value: unknown): boolean =>
+      Array.isArray(value) && value.every(item => typeof item === 'object' && item !== null);
     if (
       Number.isNaN(cachedAtMs) ||
       !data ||
-      !Array.isArray(data.roles) ||
-      !Array.isArray(data.permissions) ||
+      !isObjectArray(data.roles) ||
+      !isObjectArray(data.permissions) ||
       !Array.isArray(data.effectivePermissions) ||
-      !Array.isArray(data.effectivePermissionScopes)
+      !isObjectArray(data.effectivePermissionScopes)
     ) {
       clearRbacPermissionsCache(userId);
       return null;

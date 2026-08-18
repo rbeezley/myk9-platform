@@ -53,6 +53,23 @@ describe('rbacPermissionsCache', () => {
     expect(loadRbacPermissionsCache(USER_ID)).toBeNull();
   });
 
+  it('returns null when a nested element is malformed (roles: [null])', () => {
+    localStorage.setItem(
+      `myk9show:rbac-cache:${USER_ID}`,
+      JSON.stringify({
+        cachedAt: new Date().toISOString(),
+        data: {
+          roles: [null],
+          permissions: [],
+          effectivePermissions: [],
+          effectivePermissionScopes: [],
+        },
+      })
+    );
+
+    expect(loadRbacPermissionsCache(USER_ID)).toBeNull();
+  });
+
   it('returns null when the entry is older than the TTL', () => {
     const now = Date.now();
     vi.useFakeTimers();

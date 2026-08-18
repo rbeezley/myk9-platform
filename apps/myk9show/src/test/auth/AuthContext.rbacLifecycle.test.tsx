@@ -566,6 +566,47 @@ describe('AuthContext RBAC lifecycle', () => {
     expect(screen.getByTestId('stale-from-cache')).toHaveTextContent('live');
   });
 
+  it('clears the offline marker when a manual refresh fails with a server error', async () => {
+    saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    mockRbacService.getUserPermissions
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(new Error('TypeError: Failed to fetch'))
+      .mockRejectedValue(new Error('boom: RPC exploded'));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="manual-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+          <span data-testid="manual-from-cache">{auth.rbacFromCacheAt ?? 'live'}</span>
+          <span data-testid="manual-error">{auth.rbacError ?? 'none'}</span>
+          <button type="button" onClick={() => void auth.refreshPermissions()}>
+            Manual refresh
+          </button>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('manual-from-cache')).not.toHaveTextContent('live');
+      },
+      { timeout: 5000 }
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Manual refresh' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('manual-error')).not.toHaveTextContent('none');
+    });
+    expect(screen.getByTestId('manual-roles')).toHaveTextContent(UserRole.SECRETARY);
+    expect(screen.getByTestId('manual-from-cache')).toHaveTextContent('live');
+  });
+
   it('does NOT hydrate from cache on a non-network failure — a server error is not offline', async () => {
     saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
     mockRbacService.getUserPermissions.mockRejectedValue(new Error('boom: RPC exploded'));

@@ -219,11 +219,15 @@ export function useRbacLifecycle(userId: string | undefined) {
     } catch (error) {
       if (!isCurrentRequest()) return;
       logger.error('Failed to refresh RBAC data:', 'app', {}, ensureError(error));
+      const isOffline = isAbortError(error) || isTransientBrowserFetchError(error);
       setState(previous => ({
         ...previous,
         isLoading: false,
         loaded: true,
         error: error instanceof Error ? error.message : 'Failed to refresh permissions',
+        // Same rule as the load path: a non-network failure reached the
+        // backend, so stop claiming "working offline".
+        fromCacheAt: isOffline ? previous.fromCacheAt : null,
       }));
     }
   }, [userId]);

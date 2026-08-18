@@ -23,7 +23,7 @@ converts each body to `SET search_path = ''` with fully qualified references.
 | `promote_waitlist_entry(uuid, integer)`                 | Accepted dependency; convert when next edited |
 | `promote_waitlist_entry_from_cron(uuid)`                | Accepted dependency; convert when next edited |
 | `promote_waitlist_entry_internal(uuid, integer)`        | Accepted dependency; convert when next edited |
-| `recalculate_class_placements(uuid[], boolean)`         | Accepted dependency; convert when next edited |
+| `recalculate_class_placements(uuid[], boolean)`         | **Converted** to `SET search_path = ''` by `20260817120000_placement_ranking_ignores_soft_deleted_entries.sql` (2026-08-17) |
 | `record_entry_status_history()`                         | Accepted dependency; convert when next edited |
 | `record_login_attempt(text, boolean, text, uuid, text)` | Accepted dependency; convert when next edited |
 | `refresh_class_scoring_state(uuid)`                     | Accepted dependency; convert when next edited |

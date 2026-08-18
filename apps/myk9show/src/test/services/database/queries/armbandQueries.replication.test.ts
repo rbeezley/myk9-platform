@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReplicatedArmband } from '@/services/replication/ReplicatedArmbandsTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -62,9 +63,7 @@ const { mockSupabase } = vi.hoisted(() => {
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((err: unknown) => ({
-    message: err instanceof Error ? err.message : String(err),
-  })),
+  createDatabaseError,
 }));
 
 // Now import the functions under test
@@ -379,7 +378,10 @@ describe('armbandQueries (replication)', () => {
       const result = await claimNextArmband('show-1', 'dog-1');
 
       expect(result.armband).toBeNull();
-      expect(result.error).toEqual({ message: 'update failed' });
+      // MYK9-181: toMatchObject, not toEqual — the old file-local mock returned a
+      // bare { message }, while the real helper carries the full DatabaseError
+      // shape. The message is what this test is about.
+      expect(result.error).toMatchObject({ name: 'DatabaseError', message: 'update failed' });
     });
 
     it('returns an error when the replicated armband sync fails', async () => {
@@ -391,7 +393,13 @@ describe('armbandQueries (replication)', () => {
       const result = await claimNextArmband('show-1', 'dog-1');
 
       expect(result.armband).toBeNull();
-      expect(result.error).toEqual({ message: 'armband update failed' });
+      // MYK9-181: toMatchObject, not toEqual — the old file-local mock returned a
+      // bare { message }, while the real helper carries the full DatabaseError
+      // shape. The message is what this test is about.
+      expect(result.error).toMatchObject({
+        name: 'DatabaseError',
+        message: 'armband update failed',
+      });
       expect(mockEntriesTable.updateArmbandForDogInShow).not.toHaveBeenCalled();
     });
   });

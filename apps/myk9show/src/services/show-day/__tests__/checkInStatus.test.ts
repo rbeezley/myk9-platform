@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const updateEntry = vi.fn<(id: string, updates: Record<string, unknown>) => Promise<string | null>>(
@@ -15,10 +16,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     rpc: (name: string, args?: Record<string, unknown>) => rpc(name, args),
   },
-  createDatabaseError: (err: unknown) => {
-    if (err instanceof Error) return err;
-    return new Error(String(err));
-  },
+  createDatabaseError,
 }));
 
 vi.mock('@/services/AuditService', () => ({

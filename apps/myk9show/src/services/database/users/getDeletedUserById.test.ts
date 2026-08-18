@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 /**
  * MYK9-153: the removed-person read must return a COMPLETE record.
  *
@@ -19,7 +20,7 @@ vi.mock('../supabaseClient', () => ({
     from: (...args: unknown[]) => from(...args),
   },
   logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) => error,
+  createDatabaseError,
 }));
 
 vi.mock('@/services/LoggingService', () => ({ logger: { error: vi.fn(), debug: vi.fn() } }));

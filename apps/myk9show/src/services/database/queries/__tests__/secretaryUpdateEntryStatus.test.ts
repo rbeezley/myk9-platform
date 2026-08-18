@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 /**
  * Regression: secretary status transitions must pass the caller-supplied
  * EntryStatus through to the replicated entry mutation payload. Compile-time
@@ -17,9 +18,6 @@ import {
 
 const mocks = vi.hoisted(() => ({
   auditLog: vi.fn(),
-  createDatabaseError: vi.fn((err: unknown) =>
-    err instanceof Error ? err : new Error(String(err))
-  ),
   logQuery: vi.fn(),
   supabaseFrom: vi.fn(),
   updateSecretaryLifecycleStatus: vi.fn(),
@@ -31,7 +29,7 @@ vi.mock('../../supabaseClient', () => ({
     from: mocks.supabaseFrom,
   },
   logQuery: mocks.logQuery,
-  createDatabaseError: mocks.createDatabaseError,
+  createDatabaseError,
 }));
 
 vi.mock('@/services/AuditService', () => ({

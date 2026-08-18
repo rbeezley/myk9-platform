@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -48,10 +49,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
     from: (table: string) => mockFrom(table),
   },
   logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) =>
-    Object.assign(new Error((error as { message?: string })?.message ?? 'db error'), {
-      name: 'DatabaseError',
-    }),
+  createDatabaseError,
 }));
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

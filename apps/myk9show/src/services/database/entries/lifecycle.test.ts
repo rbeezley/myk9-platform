@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   acceptEntry,
@@ -53,7 +54,7 @@ vi.mock('../supabaseClient', () => {
       from: (table: string) => buildChain(table),
     },
     logQuery: vi.fn(),
-    createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
+    createDatabaseError,
   };
 });
 

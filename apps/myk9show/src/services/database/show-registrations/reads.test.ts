@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaymentStatus } from '@/types/show-registration-types';
 import { createShowRegistration } from './reads';
@@ -5,11 +6,6 @@ import { createShowRegistration } from './reads';
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((error: unknown, table: string, operation: string) => ({
-    message: error instanceof Error ? error.message : String(error),
-    table,
-    operation,
-  })),
 }));
 
 vi.mock('../supabaseClient', () => ({
@@ -17,10 +13,8 @@ vi.mock('../supabaseClient', () => ({
     from: mocks.from,
   },
   logQuery: mocks.logQuery,
-  createDatabaseError: mocks.createDatabaseError,
+  createDatabaseError,
 }));
-
-
 
 function makeExistingEnrollmentQuery(
   overrides: Partial<{

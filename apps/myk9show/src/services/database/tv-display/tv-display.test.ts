@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createChainableQuery, mockSupabase, resetMockSupabase } from '@/test/mocks/supabase';
 
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: mockSupabase,
-  logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) => error,
-}));
-
 import { getTVDisplayData, getTVDisplayResults } from '.';
 
 const showRow = {

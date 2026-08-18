@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createChainableQuery, mockSupabase, resetMockSupabase } from '@/test/mocks/supabase';
 
-vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: mockSupabase,
-  logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) => error,
-}));
-
 import { getPublicClassById, PUBLIC_CLASS_SELECT } from './publicReads';
 
 /** A `classes` row joined with its trial — the shape `getPublicClassById` selects. */

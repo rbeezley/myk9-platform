@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { mockServerIn, mockLocalGet, mockPeopleIn, mockReplicatedGetAllDogs, mockPostgrestAllDogs } =
@@ -17,7 +18,7 @@ vi.mock('../../supabaseClient', () => ({
         : { select: () => ({ in: table === 'people' ? mockPeopleIn : mockServerIn }) },
   },
   logQuery: vi.fn(),
-  createDatabaseError: (e: unknown) => e,
+  createDatabaseError,
 }));
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: { getRegistrationsForDogs: mockLocalGet },

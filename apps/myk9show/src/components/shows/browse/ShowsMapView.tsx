@@ -6,9 +6,10 @@ import 'leaflet/dist/leaflet.css';
 import { MapPinOff, ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
-import { deriveShowMarkerStatus, type ShowMarkerStatus } from '@/features/maps/markerStatus';
+import type { ShowMarkerStatus } from '@/features/maps/markerStatus';
 import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER } from '@/features/maps/tiles';
 import { formatShowDateRange } from '@/lib/format/dates';
+import { partitionMappableShows, type LocatedShow } from './ShowsMapView.helpers';
 
 /** Marker/legend colors — fixed palette chosen to read on OSM tiles in both themes. */
 const STATUS_META: Record<ShowMarkerStatus, { label: string; color: string }> = {
@@ -38,35 +39,6 @@ function buildStatusIcon(status: ShowMarkerStatus): L.DivIcon {
 const STATUS_ICONS = Object.fromEntries(
   (Object.keys(STATUS_META) as ShowMarkerStatus[]).map(st => [st, buildStatusIcon(st)])
 ) as Record<ShowMarkerStatus, L.DivIcon>;
-
-interface LocatedShow {
-  show: EnhancedShow;
-  lat: number;
-  lng: number;
-  status: ShowMarkerStatus;
-}
-
-/** Split filtered shows into mappable pins and an omitted count. Exported for tests. */
-export function partitionMappableShows(shows: EnhancedShow[]): {
-  located: LocatedShow[];
-  omittedCount: number;
-} {
-  const located: LocatedShow[] = [];
-  let omittedCount = 0;
-  for (const show of shows) {
-    if (show.latitude != null && show.longitude != null) {
-      located.push({
-        show,
-        lat: show.latitude,
-        lng: show.longitude,
-        status: deriveShowMarkerStatus(show),
-      });
-    } else {
-      omittedCount += 1;
-    }
-  }
-  return { located, omittedCount };
-}
 
 const US_ZOOM = 4;
 

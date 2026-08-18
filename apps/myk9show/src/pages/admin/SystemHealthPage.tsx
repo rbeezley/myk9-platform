@@ -5,223 +5,272 @@
 // automatically"), and every check carries its detail + freshness so the summary
 // leads to specifics ("I can drill down"). Do not soften the failure states into
 // neutral indicators.
+//
+// The 2026-07-31 redesign added three things on top of that: a plain-language
+// VERDICT, so the admin is not left deriving one from a list; a first-class
+// FRESHNESS band, because results describing last night were being shown beside
+// a green badge as though they described now; and a third status, Unverified,
+// for checks that cannot prove anything either way. Every count on the page
+// derives from one array — see checkHistorySelectors.
 
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Activity, AlertTriangle } from 'lucide-react';
-import { StatusBadge } from '@myk9/ui';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/common/SkeletonLoaders';
-import { useSystemHealthSnapshots } from '@/features/admin-system-health/useSystemHealthSnapshots';
-import { OperatorAlertsSection } from './OperatorAlertsSection';
+import { useEffect, useMemo, useState } from 'react';
+import { Clock, LoaderCircle, Play, ShieldAlert } from 'lucide-react';
+import {
+  useRunSystemHealthCheck,
+  useSystemHealthSnapshots,
+} from '@/features/admin-system-health/useSystemHealthSnapshots';
 import {
   deriveEffectiveStatus,
   formatCheckedAgo,
-  getHealthCheckRemediation,
-  statusToBadgeVariant,
 } from '@/features/admin-system-health/systemHealthSelectors';
-import type {
-  CheckStatus,
-  EffectiveHealth,
-  HealthStatus,
-  SystemHealthSnapshot,
-} from '@/features/admin-system-health/systemHealthTypes';
+import {
+  coverageForCheck,
+  HEALTH_COVERAGE_SURFACES,
+} from '@/features/admin-system-health/healthCoverage';
+import {
+  buildCheckHistories,
+  filterChecks,
+  summarizeChecks,
+  verdictExplanation,
+  verdictHeadline,
+  type CheckFilter,
+} from '@/features/admin-system-health/checkHistorySelectors';
+import { cn } from '@/lib/utils';
+import { OperatorAlertsSection } from './OperatorAlertsSection';
+import {
+  BoardCard,
+  BoardError,
+  BoardSkeleton,
+  Eyebrow,
+  FilterTabs,
+  VerdictChips,
+} from './SystemHealth/HealthBoardPrimitives';
+import { HealthCheckRow } from './SystemHealth/HealthCheckRow';
 
-const OVERALL_HEADLINE: Record<HealthStatus, string> = {
-  ok: 'All systems healthy',
-  warn: 'Degraded — review the warnings below',
-  fail: 'Attention needed',
-};
+/** The `daily-health-check` pg_cron entry: `0 7 * * *`, i.e. 07:00 UTC. */
+const SCHEDULE_UTC_HOUR = 7;
 
-const CHECK_STATUS_LABEL: Record<CheckStatus, string> = {
-  ok: 'OK',
-  warn: 'Warning',
-  fail: 'Fail',
-  unknown: 'Unknown',
-};
+/**
+ * The schedule in Eastern, derived rather than written down. 07:00 UTC is 03:00
+ * ET in summer and 02:00 ET in winter, so a hardcoded label is wrong for five
+ * months of the year — and this page's whole argument is that it tells you the
+ * truth about time.
+ */
+function scheduleLabel(now: number): string {
+  const at = new Date(now);
+  at.setUTCHours(SCHEDULE_UTC_HOUR, 0, 0, 0);
+  const eastern = at.toLocaleTimeString('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `Cheap checks refresh continuously · full run nightly at ${eastern} ET`;
+}
 
-const DOT_CLASS: Record<CheckStatus, string> = {
-  ok: 'bg-success',
-  warn: 'bg-warning',
-  fail: 'bg-destructive',
-  unknown: 'bg-muted-foreground',
-};
-
-/** "took 1.5s" / "took 900ms", or '' when the writer omitted the duration. */
 function formatRunDuration(ms: number | null): string {
   if (ms == null) return '';
-  return ms >= 1000 ? `took ${(ms / 1000).toFixed(1)}s` : `took ${ms}ms`;
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
 }
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-5xl px-6 pb-8 pt-8">
-        <div className="mb-8">
-          <h1
-            className="flex items-center text-3xl font-bold tracking-tight"
-            style={{ fontWeight: 650 }}
-          >
-            <Activity className="mr-3 h-8 w-8 text-primary" />
-            System Health
+      <div className="container mx-auto max-w-6xl px-6 pb-10 pt-8">
+        <header className="mb-[22px]">
+          <h1 className="text-[25px] font-medium tracking-[-0.018em] text-foreground">
+            System health
           </h1>
-          <p className="mt-2 text-muted-foreground" style={{ fontWeight: 400 }}>
-            The latest automated go-live parity check. A missing or stale run is itself a failure.
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Automated checks against the live platform. Times are Eastern.
           </p>
-        </div>
+        </header>
         {children}
       </div>
     </div>
   );
 }
 
-function OverallBanner({
-  effective,
-  latest,
+/** Stale and fresh are mutually exclusive. Both state the schedule. */
+function FreshnessBand({
+  lastRunAt,
   now,
+  isStale,
+  runDurationMs,
+  isEmpty,
+  isRunning,
+  runError,
+  onRunNow,
 }: {
-  effective: EffectiveHealth;
-  latest: SystemHealthSnapshot | null;
+  lastRunAt: string | null;
   now: number;
+  isStale: boolean;
+  runDurationMs: number | null;
+  isEmpty: boolean;
+  isRunning: boolean;
+  runError: string | null;
+  onRunNow: () => void;
 }) {
-  const headline = effective.isEmpty
-    ? 'No health run recorded yet'
-    : OVERALL_HEADLINE[effective.status];
-
-  const meta = latest
-    ? [
-        `Last run ${formatCheckedAgo(latest.createdAt, now)}`,
-        `source: ${latest.source}`,
-        formatRunDuration(latest.runDurationMs),
-      ]
-        .filter(Boolean)
-        .join(' · ')
-    : 'Waiting for the first run from the daily health job.';
+  const age = formatCheckedAgo(lastRunAt, now);
+  const duration = formatRunDuration(runDurationMs);
 
   return (
-    <Card className={effective.status === 'ok' ? undefined : 'border-destructive/40'}>
-      <CardContent className="flex flex-col gap-3 py-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <StatusBadge
-            variant={statusToBadgeVariant(effective.status)}
-            size="lg"
-            label={headline}
-          />
+    <div
+      role={isStale || runError ? 'alert' : undefined}
+      className={cn(
+        'flex flex-col gap-3 rounded-[15px] px-5 py-3.5 sm:flex-row sm:items-start sm:justify-between',
+        isStale || isEmpty ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+      )}
+    >
+      <div className="flex min-w-0 items-start gap-2.5">
+        <Clock aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium">
+            {isEmpty
+              ? 'No full run has been recorded yet'
+              : isStale
+                ? `Some results are too old to answer “is it broken now?”`
+                : `All checks last ran ${age}`}
+          </p>
+          <p className="mt-0.5 text-[14px] opacity-80">
+            {scheduleLabel(now)}
+            {duration && ` · last run took ${duration}`}
+          </p>
+          {runError && <p className="mt-2 text-[14px] font-medium">{runError}</p>}
         </div>
-        <div className="text-sm text-muted-foreground">{meta}</div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function StaleOrEmptyWarning({ effective }: { effective: EffectiveHealth }) {
-  if (!effective.isStale && !effective.isEmpty) return null;
-  const message = effective.isEmpty
-    ? 'No snapshot has ever been recorded. The daily health job may not be running.'
-    : 'The latest run is more than 26 hours old. The daily health job may have stopped — treat this as a failure until a fresh run lands.';
-
-  return (
-    <Alert variant="destructive" className="bg-destructive/10">
-      <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-      <AlertTitle>Health run overdue</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
-    </Alert>
-  );
-}
-
-function HistoryStrip({ history }: { history: SystemHealthSnapshot[] }) {
-  if (history.length === 0) return null;
-  return (
-    <div className="rounded-md border border-border bg-card p-4" aria-label="Recent run history">
-      <h2 className="text-sm font-semibold">Recent run history</h2>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {history.map(run => (
-          <div
-            key={run.id}
-            role="status"
-            aria-label={`${CHECK_STATUS_LABEL[run.overallStatus]} run ${run.createdAt}`}
-            className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span
-                aria-hidden="true"
-                className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${DOT_CLASS[run.overallStatus]}`}
-              />
-              <span className="truncate text-sm">
-                {CHECK_STATUS_LABEL[run.overallStatus]} · {run.source}
-              </span>
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">{run.createdAt}</span>
-          </div>
-        ))}
       </div>
+      <button
+        type="button"
+        onClick={onRunNow}
+        disabled={isRunning}
+        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[9px] border border-current px-3 text-[14px] font-medium transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
+      >
+        {isRunning ? (
+          <LoaderCircle aria-hidden className="size-4 animate-spin" />
+        ) : (
+          <Play aria-hidden className="size-4" />
+        )}
+        {isRunning ? 'Running…' : 'Run now'}
+      </button>
     </div>
   );
 }
 
-function CheckRow({ check, now }: { check: SystemHealthSnapshot['checks'][number]; now: number }) {
-  const remediation = getHealthCheckRemediation(check);
-  const showAction = check.status !== 'ok' || remediation.coverageIncomplete;
-  const statusLabel = remediation.coverageIncomplete
-    ? 'Coverage incomplete'
-    : CHECK_STATUS_LABEL[check.status];
+function CoverageCard({
+  unprovableChecks,
+}: {
+  unprovableChecks: Array<{ key: string; label: string }>;
+}) {
+  const unmonitoredCount = HEALTH_COVERAGE_SURFACES.filter(
+    surface => surface.verificationLevel === 'none'
+  ).length;
+  const visibleSurfaces = HEALTH_COVERAGE_SURFACES.filter(
+    surface => surface.verificationLevel !== 'full' || !surface.checkKey
+  );
+  const runtimeUnprovableChecks = unprovableChecks
+    .map(check => ({ check, coverage: coverageForCheck(check.key) }))
+    .filter(({ coverage }) => !coverage || coverage.verificationLevel === 'full');
 
   return (
-    <div className="flex flex-col gap-3 border-b border-border py-3 last:border-b-0 md:flex-row md:items-center md:justify-between">
-      <div className="min-w-0">
-        <p className="font-medium">{check.label}</p>
-        {check.detail && <p className="mt-0.5 text-sm text-muted-foreground">{check.detail}</p>}
-        {showAction && (
-          <div className="mt-2 rounded-md bg-muted/60 p-3 text-sm">
-            <p className="font-medium">{remediation.ownerLabel}</p>
-            <p className="mt-1 text-muted-foreground">{remediation.nextStep}</p>
-            <Link
-              to={remediation.href}
-              className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
-            >
-              {remediation.actionLabel}
-            </Link>
+    <BoardCard>
+      <Eyebrow>Coverage</Eyebrow>
+      <p className="mt-2 text-sm text-foreground">What the platform can and can&apos;t prove.</p>
+
+      {runtimeUnprovableChecks.map(({ check, coverage }) => (
+        <p key={check.key} className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {coverage
+            ? `${coverage.label} — this run did not collect enough evidence to confirm success.`
+            : `${check.label} — this page does not have enough evidence to confirm success.`}
+        </p>
+      ))}
+
+      <ul className="mt-3 space-y-1">
+        {visibleSurfaces.map(surface => (
+          <li key={surface.label} className="text-sm text-muted-foreground">
+            <span
+              aria-hidden
+              className={cn(
+                'mr-1.5 inline-block size-[6px] rounded-full align-middle',
+                surface.verificationLevel === 'full'
+                  ? 'bg-success'
+                  : surface.verificationLevel === 'dispatch-only'
+                    ? 'bg-warning'
+                    : 'bg-muted-foreground'
+              )}
+            />
+            {surface.label} — {surface.detail}
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-3 border-t border-border pt-2.5 font-mono text-sm text-muted-foreground">
+        {unmonitoredCount} of {HEALTH_COVERAGE_SURFACES.length} surfaces unmonitored
+      </p>
+    </BoardCard>
+  );
+}
+
+/**
+ * The migrations check reports "latest <version> (N applied)". Environment wants
+ * the version alone — echoing the whole detail string would print the same
+ * sentence twice on one screen, in two places that could later drift apart.
+ */
+function migrationVersion(detail: string | null): string | null {
+  if (!detail) return null;
+  return /latest (\S+)/.exec(detail)?.[1] ?? null;
+}
+
+function EnvironmentCard({
+  source,
+  migrationsDetail,
+}: {
+  source: string;
+  migrationsDetail: string | null;
+}) {
+  const version = migrationVersion(migrationsDetail);
+  const displaySource = source.startsWith('cron-health-check:manual:')
+    ? 'cron-health-check (Run now)'
+    : source;
+  return (
+    <BoardCard>
+      <Eyebrow>Environment</Eyebrow>
+      <dl className="mt-2 space-y-2 text-[11.5px]">
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted-foreground">Written by</dt>
+          <dd className="font-mono text-foreground">{displaySource || 'unknown'}</dd>
+        </div>
+        {version && (
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">Migration</dt>
+            <dd className="break-all font-mono text-foreground">{version}</dd>
           </div>
         )}
-      </div>
-      <div className="flex flex-shrink-0 items-center gap-3">
-        <span className="text-xs text-muted-foreground">
-          checked {formatCheckedAgo(check.checkedAt, now)}
-        </span>
-        <StatusBadge variant={statusToBadgeVariant(check.status)} size="sm" label={statusLabel} />
-      </div>
-    </div>
+      </dl>
+    </BoardCard>
   );
 }
 
 export default function SystemHealthPage() {
-  const { data, isLoading, error } = useSystemHealthSnapshots();
-  // Evaluated once per render; the pure selectors take `now` explicitly so the
-  // stale/empty logic stays unit-testable without mocking the clock.
-  // Freeze "now" at mount (lazy init keeps render pure — the codebase pattern for
-  // render-time clock reads). Freshness is relative to page open, which is the
-  // right granularity for a board checked once each morning.
-  const [now] = useState(() => Date.now());
-  // Derivation is a single parse + subtraction — cheap enough to run inline.
-  const effective = deriveEffectiveStatus(data?.latest ?? null, now);
+  const { data, isLoading, error, refetch } = useSystemHealthSnapshots();
+  const runHealthCheck = useRunSystemHealthCheck();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const clock = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(clock);
+  }, []);
+  const [filter, setFilter] = useState<CheckFilter>('all');
+  const [openKey, setOpenKey] = useState<string | null>(null);
+
+  const snapshots = useMemo(() => data?.history ?? [], [data]);
+  const checks = useMemo(() => buildCheckHistories(snapshots, undefined, now), [snapshots, now]);
+  const summary = useMemo(() => summarizeChecks(checks), [checks]);
+  const visible = useMemo(() => filterChecks(checks, filter), [checks, filter]);
 
   if (isLoading) {
     return (
       <PageShell>
-        <div className="flex flex-col gap-6">
-          <div role="status" aria-label="Loading system health" className="space-y-6">
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-64" />
-              <Skeleton className="h-4 w-96 max-w-full" />
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton key={index} className="h-32 rounded-lg" />
-              ))}
-            </div>
-            <Skeleton className="h-24 rounded-lg" />
-          </div>
+        <div className="flex flex-col gap-[18px]">
+          <BoardSkeleton />
           {/* OperatorAlertsSection has its own query/loading/error states and
               must not disappear behind a snapshots-query outage (money-path
               alerts are unrelated to the daily health-job pipeline). */}
@@ -234,14 +283,15 @@ export default function SystemHealthPage() {
   if (error) {
     return (
       <PageShell>
-        <div className="flex flex-col gap-6">
-          <Alert variant="destructive" className="bg-destructive/10">
-            <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-            <AlertTitle>Couldn’t load system health</AlertTitle>
-            <AlertDescription>
-              The snapshot read failed. Confirm you have site-admin access and try again.
-            </AlertDescription>
-          </Alert>
+        <div className="flex flex-col gap-[18px]">
+          <BoardError
+            message={
+              error instanceof Error
+                ? error.message
+                : 'The snapshot read failed — confirm you have site-admin access.'
+            }
+            onRetry={() => void refetch()}
+          />
           <OperatorAlertsSection />
         </div>
       </PageShell>
@@ -249,37 +299,113 @@ export default function SystemHealthPage() {
   }
 
   const latest = data?.latest ?? null;
-  const history = data?.history ?? [];
+  const effective = deriveEffectiveStatus(latest, now);
+  const headline = verdictHeadline(summary, effective.isStale, effective.isEmpty);
+  const explanation = verdictExplanation(summary, effective.isStale, effective.isEmpty);
+  const unprovableChecks = checks
+    .filter(c => c.verification === 'unprovable')
+    .map(c => ({ key: c.key, label: c.label }));
+  const migrationsDetail = checks.find(c => c.key === 'migrations')?.detail ?? null;
+  const runError = runHealthCheck.error
+    ? runHealthCheck.error.message || 'The run could not be started.'
+    : runHealthCheck.data?.completed === false
+      ? 'The run was requested, but its result has not arrived yet. Refresh in a moment.'
+      : null;
+
+  const verdictAccent =
+    effective.status === 'fail'
+      ? 'border-l-destructive'
+      : effective.status === 'warn'
+        ? 'border-l-warning'
+        : 'border-l-success';
 
   return (
     <PageShell>
-      <div className="flex flex-col gap-6">
-        <OverallBanner effective={effective} latest={latest} now={now} />
-        <StaleOrEmptyWarning effective={effective} />
-        <HistoryStrip history={history} />
+      <div className="flex flex-col gap-[18px]">
+        <BoardCard className={cn('border-l-[3px]', verdictAccent)}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-[29px] font-medium leading-tight tracking-[-0.018em] text-foreground">
+                {headline}
+              </h2>
+              <p className="mt-2 max-w-prose text-[13.5px] text-muted-foreground">{explanation}</p>
+            </div>
+            {!effective.isEmpty && <VerdictChips summary={summary} />}
+          </div>
+        </BoardCard>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Checks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {latest && latest.checks.length > 0 ? (
-              <div>
-                {latest.checks.map(check => (
-                  <CheckRow key={check.key} check={check} now={now} />
+        <FreshnessBand
+          lastRunAt={latest?.createdAt ?? null}
+          now={now}
+          isStale={effective.isStale}
+          runDurationMs={latest?.runDurationMs ?? null}
+          isEmpty={effective.isEmpty}
+          isRunning={runHealthCheck.isPending}
+          runError={runError}
+          onRunNow={() => void runHealthCheck.mutateAsync()}
+        />
+
+        <div className="grid grid-cols-1 items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_340px]">
+          {/* min-w-0: a grid item defaults to min-width:auto, so without this the
+              track refuses to shrink below the widest row and the checks list
+              overflows its column — clipping the status badge clean off the page
+              rather than truncating the detail text. */}
+          <div className="flex min-w-0 flex-col gap-3">
+            <FilterTabs
+              ariaLabel="Filter checks by status"
+              active={filter}
+              onChange={setFilter}
+              tabs={[
+                { value: 'all', label: 'All', count: summary.total },
+                { value: 'fail', label: 'Failing', count: summary.failing },
+                { value: 'warn', label: 'Unverified', count: summary.unverified },
+                { value: 'ok', label: 'Passing', count: summary.passing },
+              ]}
+            />
+
+            {checks.length === 0 ? (
+              <BoardCard>
+                <div className="flex items-start gap-2.5">
+                  <ShieldAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+                  <div>
+                    <p className="text-[13px] font-medium text-foreground">
+                      No checks have been recorded
+                    </p>
+                    <p className="mt-1 text-[11.5px] text-muted-foreground">
+                      The nightly runner writes one snapshot per night. Until it does, this page has
+                      nothing to report — which is not the same as nothing being wrong.
+                    </p>
+                  </div>
+                </div>
+              </BoardCard>
+            ) : visible.length === 0 ? (
+              <BoardCard>
+                <p className="text-[13px] text-foreground">Nothing in this bucket.</p>
+                <p className="mt-1 text-[11.5px] text-muted-foreground">
+                  Switch to All to see the other {summary.total} checks.
+                </p>
+              </BoardCard>
+            ) : (
+              <div className="divide-y divide-border overflow-hidden rounded-[15px] border border-border">
+                {visible.map(check => (
+                  <HealthCheckRow
+                    key={check.key}
+                    check={check}
+                    now={now}
+                    isOpen={openKey === check.key}
+                    onToggle={() => setOpenKey(openKey === check.key ? null : check.key)}
+                  />
                 ))}
               </div>
-            ) : (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {latest
-                  ? 'The latest run recorded no individual checks.'
-                  : 'No health run recorded yet.'}
-              </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        <OperatorAlertsSection />
+          <aside className="flex flex-col gap-[18px]">
+            <OperatorAlertsSection />
+            <CoverageCard unprovableChecks={unprovableChecks} />
+            <EnvironmentCard source={latest?.source ?? ''} migrationsDetail={migrationsDetail} />
+          </aside>
+        </div>
       </div>
     </PageShell>
   );

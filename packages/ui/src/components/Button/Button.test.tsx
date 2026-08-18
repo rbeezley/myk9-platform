@@ -163,9 +163,18 @@ describe('Button', () => {
   });
 
   describe('sizes', () => {
-    it.each(['default', 'sm', 'lg', 'icon', 'icon-lg'] as const)('should render %s size', size => {
-      render(<Button size={size}>Size</Button>);
-      expect(screen.getByRole('button')).toBeInTheDocument();
+    it.each(['default', 'sm', 'lg', 'touch', 'icon', 'icon-lg'] as const)(
+      'should render %s size',
+      size => {
+        render(<Button size={size}>Size</Button>);
+        expect(screen.getByRole('button')).toBeInTheDocument();
+      }
+    );
+
+    it('keeps the touch size at least 44px and prefers 48px from tablet width', () => {
+      const classes = buttonVariants({ size: 'touch' });
+      expect(classes).toContain('min-h-11');
+      expect(classes).toContain('sm:min-h-12');
     });
   });
 });

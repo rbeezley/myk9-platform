@@ -2,6 +2,10 @@
 
 Durable index for proactive QA findings. Use this for bugs found by `qa-feature`, `audit-pages`, `harden`, browser walks, Playwright traces, and future QA scripts.
 
+## Source of Truth
+
+Linear is the canonical source for active work status, ownership, priority, acceptance criteria, next action, and closure state. This Markdown registry remains an evidence and audit-history mirror: keep reproduction details, proof commands, screenshots, report paths, and finding IDs here, but do not treat it as a competing work queue. Every open, blocked, or new confirmed finding should reference its exact Linear issue or state that it is awaiting the approved Linear-creation batch.
+
 ## Status Values
 
 - `open`: confirmed and not fixed.
@@ -140,22 +144,154 @@ Copy this block for each new finding.
 - **Fix owner:** Club profile header contact-action guards and empty-contact copy.
 - **Proof required:** Satisfied by the focused component/helper tests and the MYK9-62 Chromium replay (`5 passed`, `--retries=0`).
 
-## Open Findings
-
 ### QA-CLUB-PAYMENTS-041
 
-- **Status:** open
+- **Status:** fixed (2026-08-02 — headed browser replay on `d950bed02`)
 - **Severity:** high
 - **Role:** club-admin
 - **Surface:** `/club-admin/payments` payment setup checklist
 - **Suite category:** manual-debug
 - **Pattern:** silent-no-op
 - **Detected by:** Playwright
-- **Evidence:** With no connected Stripe account, normal browser pointer clicks on `Connect payment account` and `Not now` left the visible state unchanged; DOM `.click()` changed the state. The button was the element at the pointer coordinate. Replay is documented in `docs/qa/club-pages-audit-2026-07-18.md`.
-- **User impact:** A treasurer may be unable to start or cancel the payment-account setup flow and receives no feedback.
-- **Intent check:** Harms the club treasurer's need for a calm, obvious setup flow before leaving for Stripe.
+- **Evidence:** On the seeded no-account E2E Club A, normal browser pointer activation opened `Connect payment account`, displayed the preflight checklist, and closed it with `Not now` at 1440×900 and 390×844. `Continue to Stripe` was not activated, no Stripe navigation occurred, and no record was changed. The replay is documented in `docs/qa/club-admin-ux-walk-2026-08-02.md`.
+- **User impact:** A treasurer could previously be unable to start or cancel payment-account setup and receive no feedback.
+- **Intent check:** The passing replay restores the calm, obvious setup flow required before a treasurer leaves for Stripe.
 - **Fix owner:** `ClubPaymentsCard` interaction path and shared Button/event handling.
-- **Proof required:** Headed/manual replay against a club with no connected Stripe account plus Playwright assertion that pointer activation opens the checklist, closes it with `Not now`, and does not start Stripe without an explicit `Continue to Stripe` click. The current seeded account is context-ambiguous, so the browser suite could only prove the page fails closed; unit coverage is green.
+- **Proof required:** Satisfied by the 2026-08-02 headed pointer replay against a club with no connected Stripe account, including explicit proof that opening and cancelling did not start Stripe.
+- **Notes:** Closed only after the manual browser gate requested by MYK9-62 and PR #1547; component tests alone were not used as closure proof.
+
+### NCR-2026-08-02-01
+
+- **Status:** fixed (2026-08-04 — #1580)
+- **Classification:** Test/harness drift
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source:** codex
+- **Role/workflow:** admin roster drill-down E2E coverage and suite-map maintenance
+- **Surface:** `apps/myk9show/src/test/e2e/admin/userRosterDrilldown.spec.ts`
+- **Suite category:** test-harness
+- **Pattern:** coverage-registry-drift
+- **Detected by:** `pnpm qa:e2e-map:check`
+- **First seen:** 2026-08-02
+- **Last seen:** 2026-08-04
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `d950bed0287eef44dde1a0ba5cb851ddb2482ef0`
+- **Evidence:** #1580 registers the roster drill-down spec in `docs/qa/e2e-suite-map.md`; the current `pnpm qa:e2e-map:check` passes with `112` spec files covered. The check's successful run is the focused closure proof; no product code was changed.
+- **Expected behavior:** Every E2E spec in the repository is represented in the suite map, and `pnpm qa:e2e-map:check` passes.
+- **Observed behavior:** Resolved. The new spec is mapped and the check passes.
+- **User impact:** Admin roster browser coverage is now visible to scheduled ownership and review.
+- **Confidence:** high
+- **Related issues:** MYK9-162 — https://linear.app/myk9-platform/issue/MYK9-162/ncr-2026-08-02-01-register-roster-drilldown-e2e-coverage
+- **Proof required:** Satisfied by the current `pnpm qa:e2e-map:check` run (`112` spec files covered).
+
+## Open Findings
+
+### NCR-2026-08-17-01
+
+- **Status:** fixed (2026-08-18 — commit `11716dd3a` / PR #1647)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed product/utility defect
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source label:** Medium
+- **Source:** codex
+- **Role/workflow:** exhibitor / future pre-run SMS proximity alert
+- **Surface:** `supabase/functions/_shared/sms/smsMessage.ts:121-122`
+- **Suite category:** notifications/compliance-readiness
+- **Pattern:** segment-budget-overrun
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-17
+- **Last seen:** 2026-08-18
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `893d9a525fdcc8cd4c1205a669023c646a7a0037`
+- **Evidence:** Commit `11716dd3a` replaces code-unit truncation with septet-aware code-point truncation and adds extension-character regression coverage. The focused SMS test suite passes, including a long backslash class name whose rendered message remains within one GSM-7 segment.
+- **Expected behavior:** The helper's contract says the proximity SMS is always one GSM-7 segment.
+- **Observed behavior:** Resolved in the reviewed implementation; extension characters are budgeted at two septets and the truncator stops before the configured septet limit.
+- **User impact:** If the SMS sender is enabled, affected exhibitors may receive a longer/more expensive message, violating the helper's one-segment guarantee. The SMS feature is currently partial/provider-agnostic, so no live send impact was confirmed in this review.
+- **Intent check:** Future show-day alerts should be concise and predictable; this hidden length expansion undermines that expectation.
+- **Confidence:** high
+- **Existing reference:** Linear searches found no exact SMS/GSM-7 issue; no Linear issue created because this is P2 and the policy is report-only below P1.
+- **Fix owner:** SMS message builder and its focused contract tests.
+- **Proof required:** Focused regression coverage asserting `estimateSegments(buildProximitySms(...)).segments === 1` passed on current `main`. When the provider-facing sender is wired under Linear `MYK9-193`, replay that path before declaring provider integration coverage complete; no live provider path exists today.
+- **Notes:** Introduced by commit `db2848445234315822ca786b09a3bef0b19a92f3`; fixed by `11716dd3a` / PR #1647.
+
+### NCR-2026-08-04-01
+
+- **Status:** fixed
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed runtime/deployment defect
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source label:** High
+- **Source:** codex
+- **Role/workflow:** admin / `/admin/health` continuous checks and Run now
+- **Surface:** `apps/myk9show/supabase/functions/cron-health-check/index.ts:147-176`
+- **Suite category:** security/operational-readiness
+- **Pattern:** swallowed-error
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-04
+- **Last seen:** 2026-08-17
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `42441fa27a4e007c3e49fbd41c39ee9bdc62ea13`
+- **Evidence:** PR #1616 removes the duplicate declaration. `node --experimental-strip-types --check apps/myk9show/supabase/functions/cron-health-check/index.ts` passes, and the focused cron source/health-polling contract tests pass (4 files, 37 tests). Supabase functions inventory confirmed the deployed `cron-health-check` is ACTIVE at version 21, updated 2026-08-17 19:17 UTC. On 2026-08-17, the site-admin `/admin/health` Run now path completed and the SQL verification returned one new `cron-health-check:manual:<redacted-run-token>` snapshot at 19:56:23 UTC with `overall_status=warn`, 0 failing checks, 8 passing checks, 1 unverified check, and a 194 ms duration.
+- **Expected behavior:** The function parses, deploys, and writes one visible failed health snapshot when a probe fails; the site-admin Run now flow can invoke it.
+- **Observed behavior:** The deployed entrypoint accepts the Run now dispatch, persists the manual snapshot, and the admin board refreshes from that snapshot. The token is observable through the persisted manual source without recording the token itself in this registry.
+- **User impact:** Site admins lose the current-health operational signal and Run now requires developer intervention, undermining launch-readiness monitoring.
+- **Intent check:** Harms the site-admin feeling “The platform is healthy” by making the health surface unavailable exactly when it is needed.
+- **Confidence:** high for the original regression and its closure evidence
+- **Existing reference:** No exact duplicate found in Linear. Related feature contract: MYK9-157 (completed). Canonical Linear issue: MYK9-174 — https://linear.app/myk9-platform/issue/MYK9-174/ncr-2026-08-04-01-cron-health-check-cannot-start-after-continuous
+- **Fix owner:** `cron-health-check` error-path construction and Edge Function entrypoint verification.
+- **Closure proof:** Satisfied by the clean entrypoint parse, focused tests, ACTIVE deployed version, persisted manual snapshot, and admin Run now refresh. The deployed invocation returned `warn` rather than `fail` because one health check remains unverified; this is a health result, not a delivery failure. The original duplicate-declaration defect is resolved.
+- **Notes:** Introduced by commit `42441fa27a4e007c3e49fbd41c39ee9bdc62ea13` / PR #1614 and source-fixed by `45b264b4a2b375c245d5ad7d69ed97962562e241` / PR #1616. Closure evidence recorded 2026-08-17. Linear MYK9-174 is already Done with PRs #1616 and #1621 attached.
+
+### CUX-2026-08-02-01
+
+- **Status:** open
+- **Classification:** Confirmed defect
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Role:** club-admin
+- **Surface:** `/club-admin/members` and `/clubs/dededede-0000-0000-0000-000000000001`
+- **Suite category:** feature-audit
+- **Pattern:** stale-derived-state
+- **Detected by:** Playwright
+- **First seen:** 2026-08-02
+- **Last seen:** 2026-08-02
+- **Consecutive-run count:** 1
+- **Baseline SHA:** `d950bed0287eef44dde1a0ba5cb851ddb2482ef0`
+- **Active role/scope:** Account UI reported Site Admin, Club Admin, Chairman, and Exhibitor. The inconsistency is a data-presentation defect rather than an authorization conclusion; club-only permission behavior remains blocked by MYK9-137.
+- **Evidence:** Selecting Heartland Scent Work Club showed `3 members` and three active rows on `/club-admin/members`, while the same club profile showed `Active Members 0`, `Members 0`, and `No Members Yet`. Reproduced at 1440×900, 768×1024, and 390×844 with no page-level horizontal overflow. The profile derives the count from `selectedClub.memberIds` in `ClubDetails/useClubDetailsState.ts` and `MembersTab.tsx`; the management page loads `club_members` through `services/database/club-memberships/members.ts`.
+- **User impact:** A club officer cannot trust the club profile's roster total and may assume members were lost or never added.
+- **Intent check:** Harms the club officer's need for calm, trustworthy governance and a single authoritative club record.
+- **Fix owner:** Club profile membership projection and the shared club-membership read model.
+- **Proof required:** Replay both existing routes for the same seeded club at desktop and 390px and confirm the active total and member rows agree; add focused coverage proving profile statistics and the Members tab use the canonical active `club_members` projection without introducing a duplicate roster surface.
+- **Notes:** No matching QA or Linear item was found. Keep one concern on the existing profile and management pages; consolidate the projection rather than adding UI.
+- **Linear issue:** MYK9-164 — https://linear.app/myk9-platform/issue/MYK9-164/cux-2026-08-02-01-align-club-profile-roster-counts
+
+### SA-2026-08-01-01
+
+- **Status:** blocked
+- **Classification:** Confirmed regression pending closure proof
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source:** codex
+- **Role/workflow:** ringside passcode user at `/at-show` reading show announcements
+- **Surface:** `supabase/migrations/20260801110000_restore_ringside_announcement_read_authz.sql:12-24`
+- **Suite category:** security/show-day
+- **Pattern:** authz-remediation-unverified
+- **Detected by:** prior daily commit review; reconciled this run
+- **First seen:** 2026-08-01
+- **Last seen:** 2026-08-02
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `18e560c6cf74f5ae50de7cc34d5b3ef0e28874bc`
+- **Evidence:** The prior regression from #1546 changed passcode-compatible announcement reads to `is_real_account()`. #1560 adds the scoped `ringside_passcode`/`show_id` policy and its source-contract tests pass, but this review did not obtain the required applied SQL or anonymous passcode browser/realtime replay.
+- **Expected behavior:** A valid passcode session reads announcements for its stamped show only; account-wide anonymous reads remain denied.
+- **Observed behavior:** Current source expresses the expected policy, but deployment behavior is unverified; code and source contracts alone do not establish closure.
+- **User impact:** If the migration is not applied or behaves differently in the target environment, ringside users lose show-day announcements.
+- **Confidence:** high for the prior regression; closure state blocked
+- **Existing reference:** MYK9-117 covers the earlier anonymous-read remediation.
+- **Linear issue:** MYK9-160 — https://linear.app/myk9-platform/issue/MYK9-160/sa-2026-08-01-01-verify-passcode-announcement-rls
+- **Proof required:** Apply/replay the migration with a positive announcement fixture for a valid passcode claim, a cross-show denial, account-wide anonymous denial, and an anonymous `/at-show` browser/realtime read.
 
 ### QA-INFRA-OCC-STORM-037
 
@@ -172,6 +308,7 @@ Copy this block for each new finding.
 - **Fix owner:** `supabase/migrations/20260711150000_ringside_occ_conflict_containment.sql` + `packages/replication/src/MutationManager.ts` + `apps/myk9show/supabase/functions/_shared/systemHealthChecks.ts` (openspec change `ringside-occ-conflict-circuit-breaker`)
 - **Proof required:** migration pushed + `cron-health-check` redeployed; rolled-back psql proof that a stale `expected_version` raises `40001`+DETAIL without executing auth lookups and that `ringside_conflict_seq` advances despite the abort; `authenticated` EXECUTE restored / `anon` revoked; `ringside_conflicts` check present in the next health snapshot.
 - **Notes:** Emergency mitigations 2026-07-11: `e2e-secretary` banned 30 min + 1,841 sessions purged (insufficient — pre-issued JWTs kept working), then `REVOKE EXECUTE ... FROM authenticated` on the RPC (effective; storm dropped 17→0 active instantly). The migration above re-grants EXECUTE behind the structural fix. Ops-side remediation completed same day: Codex nightly converted from persistent heartbeat to standalone job (25-min work cutoff / 30-min mandatory shutdown killing browsers, runners, dev servers, child processes; Playwright 1 worker, 0 retries; shared-Supabase and ringside writes prohibited; old persistent QA task archived).
+- **Linear issue:** MYK9-115 — https://linear.app/myk9-platform/issue/MYK9-115/prevent-ringside-occ-conflict-storms-from-causing-a-production-scoring
 
 ### QA-STALE-DERIVED-STATE-035
 

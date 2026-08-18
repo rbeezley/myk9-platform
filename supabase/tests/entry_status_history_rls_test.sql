@@ -64,6 +64,11 @@ VALUES
 SET LOCAL ROLE authenticated;
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000501', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000501","role":"authenticated","app_metadata":{}}',
+  true
+);
 DO $$
 DECLARE
   visible_count integer;
@@ -77,6 +82,11 @@ END;
 $$;
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000502', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000502","role":"authenticated","app_metadata":{}}',
+  true
+);
 DO $$
 DECLARE
   visible_count integer;
@@ -90,6 +100,11 @@ END;
 $$;
 
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000503', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000503","role":"authenticated","app_metadata":{}}',
+  true
+);
 DO $$
 DECLARE
   visible_count integer;

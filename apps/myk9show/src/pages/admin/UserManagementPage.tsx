@@ -1,15 +1,22 @@
 /**
  * User Management - the site admin's roster of every person on the platform.
  *
- * Search, filter, and sort the roster; open a person to edit them, assign roles,
- * or remove them; act on many at once with the bulk bar. Deletes here are
- * reversible from Admin > Deleted Items.
+ * Search, filter, and sort the roster; open a person to read their record, edit
+ * them, assign roles, or remove them; act on many at once with the bulk bar.
+ * Deletes here are reversible from Admin > Deleted Items.
+ *
+ * Clicking a row DRILLS DOWN to `/people/:id` — the canonical person record,
+ * with dogs, clubs and history the edit panel doesn't carry. "Edit user" in the
+ * row menu keeps the panel, in place. Because that drill-down is a real
+ * navigation, the view state (search / filters / sort / page) lives in the URL,
+ * not in React state: see `userListParams.ts`.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { Filter, Plus, Download, Search, Users } from 'lucide-react';
+import { Filter, Plus, Download, Search, Users, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 // Hooks and services
@@ -31,6 +38,12 @@ import {
   hasActiveUserFilters,
 } from './UserManagementPage.types';
 import {
+  parseUserListParams,
+  userListHref,
+  userListParamsToSearch,
+  type UserListParams,
+} from './userListParams';
+import {
   filterUsers,
   sortUsers,
   calculateRoleStats,
@@ -48,18 +61,60 @@ import { EmptyState } from '@/components/common/EmptyState';
 export type { UserFilter, SelectedUser } from './UserManagementPage.types';
 
 const UserManagementPage: React.FC = () => {
-  // State management
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<UserFilter>(DEFAULT_USER_FILTER);
-  const [sort, setSort] = useState<UserSort | null>(null);
+  const navigate = useNavigate();
+
+  // View state lives in the URL so it survives the drill-down to /people/:id —
+  // Back restores the exact list, and the breadcrumb there can link to it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const {
+    searchTerm,
+    filters,
+    sort,
+    page: currentPage,
+    pageSize,
+  } = useMemo(() => parseUserListParams(searchParams), [searchParams]);
+
+  const updateListParams = useCallback(
+    (patch: Partial<UserListParams>) => {
+      setSearchParams(
+        prev => {
+          const next = { ...parseUserListParams(prev), ...patch };
+          // Any change to what's being listed resets to page 1, unless the
+          // caller is the pager itself.
+          if (patch.page === undefined) next.page = 1;
+          // Carry `prev` so params the roster does not own — notably the
+          // support deep-link's ?userId= — survive a filter or search change.
+          return userListParamsToSearch(next, prev);
+        },
+        // Replace, so filing through filters doesn't bury the previous page
+        // under a dozen history entries the Back button has to walk out of.
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const setSearchTerm = useCallback(
+    (value: string) => updateListParams({ searchTerm: value }),
+    [updateListParams]
+  );
+  const setFilters = useCallback(
+    (value: UserFilter) => updateListParams({ filters: value }),
+    [updateListParams]
+  );
+
+  // Selection and dialogs are genuinely ephemeral — they describe what the admin
+  // is doing right now, not which list they are looking at.
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showUserEditPanel, setShowUserEditPanel] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
   const [roleAssignTarget, setRoleAssignTarget] = useState<User | null>(null);
+  // Support diagnostics deep-link here with ?userId= so the admin lands on the
+  // affordance that fixes the ticket, not just a page that describes it.
+  // (`searchParams` is already read above for the roster's own view state.)
+  const deepLinkUserId = searchParams.get('userId');
 
   // Data fetching with error handling
   const { data: users = [], isLoading, error, refetch } = useAdminUsersQuery(filters.showDeleted);
@@ -124,8 +179,28 @@ const UserManagementPage: React.FC = () => {
     setSelectedUsers(prev => prev.filter(item => !deletedUserIds.includes(item.id)));
   }, []);
 
-  // User action handlers
-  const handleUserClick = useCallback((user: User) => {
+  // User action handlers.
+  //
+  // Two intents, two destinations: reading a person is a drill-down to their
+  // record; editing one is a panel over the list you're already standing in.
+  const handleViewUser = useCallback(
+    (user: User) => {
+      navigate(`/people/${user.id}`, {
+        // Where "Users" in the person's breadcrumb goes back to — this exact
+        // list, filters and page included.
+        state: {
+          backTo: {
+            href: userListHref({ searchTerm, filters, sort, page: currentPage, pageSize }),
+            label: 'Users',
+            parent: { label: 'Admin', href: '/admin' },
+          },
+        },
+      });
+    },
+    [navigate, searchTerm, filters, sort, currentPage, pageSize]
+  );
+
+  const handleEditUser = useCallback((user: User) => {
     setSelectedUser(user);
     setShowUserEditPanel(true);
   }, []);
@@ -134,20 +209,60 @@ const UserManagementPage: React.FC = () => {
     setRoleAssignTarget(user);
   }, []);
 
-  const clearFilters = useCallback(() => {
-    setSearchTerm('');
-    setFilters(DEFAULT_USER_FILTER);
-  }, []);
+  // Unknown ids are a quiet no-op: the admin still gets the roster, and the
+  // support ticket may simply name someone who was since deleted. Match on
+  // either id — supportDiagnosticActions falls back to the auth uuid when a
+  // user has no linked people row.
+  const deepLinkUser = useMemo(
+    () =>
+      deepLinkUserId
+        ? (users.find(user => user.id === deepLinkUserId || user.user_id === deepLinkUserId) ??
+          null)
+        : null,
+    [deepLinkUserId, users]
+  );
 
-  const handleSortChange = useCallback((next: UserSort | null) => {
-    setSort(next);
-    setCurrentPage(1);
-  }, []);
+  // Row-click selection wins over the deep link; the deep link only fills in
+  // when nothing has been explicitly selected.
+  const roleDialogTarget = roleAssignTarget ?? deepLinkUser;
 
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
-  }, []);
+  // Closing clears whichever source opened the dialog. When the deep link was
+  // the source, strip ?userId= from the URL so the dialog cannot be resurrected
+  // by a refetch, a filter change, or any other re-render — there is nothing
+  // left in the URL to reopen it from.
+  const closeRoleDialog = useCallback(() => {
+    setRoleAssignTarget(null);
+    if (deepLinkUserId) {
+      setSearchParams(
+        prev => {
+          const next = new URLSearchParams(prev);
+          next.delete('userId');
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [deepLinkUserId, setSearchParams]);
+
+  const clearFilters = useCallback(
+    () => updateListParams({ searchTerm: '', filters: DEFAULT_USER_FILTER }),
+    [updateListParams]
+  );
+
+  const handleSortChange = useCallback(
+    (next: UserSort | null) => updateListParams({ sort: next }),
+    [updateListParams]
+  );
+
+  const handlePageSizeChange = useCallback(
+    (size: number) => updateListParams({ pageSize: size }),
+    [updateListParams]
+  );
+
+  const handlePageChange = useCallback(
+    (nextPage: number) => updateListParams({ page: nextPage }),
+    [updateListParams]
+  );
 
   const handleEditPanelSave = async (userData: Partial<User>) => {
     if (!selectedUser) return;
@@ -177,6 +292,12 @@ const UserManagementPage: React.FC = () => {
 
   const actionButtons = (
     <>
+      <Button variant="outline" asChild>
+        <Link to="/admin/role-requests">
+          <ShieldCheck className="h-4 w-4 mr-2" />
+          Role Requests
+        </Link>
+      </Button>
       <Button variant="outline" onClick={() => exportUsersCSV(sortedUsers)}>
         <Download className="h-4 w-4 mr-2" />
         Export Users
@@ -316,12 +437,13 @@ const UserManagementPage: React.FC = () => {
               selectedUsers={visibleSelection}
               onSelectUser={handleSelectUser}
               onSelectAll={handleSelectAll}
-              onUserClick={handleUserClick}
+              onViewUser={handleViewUser}
+              onEditUser={handleEditUser}
               onManageRoles={handleManageRoles}
               currentPage={clampedPage}
               totalPages={totalPages}
               totalFilteredUsers={sortedUsers.length}
-              onPageChange={setCurrentPage}
+              onPageChange={handlePageChange}
               searchTerm={searchTerm}
               sort={sort}
               onSortChange={handleSortChange}
@@ -359,13 +481,13 @@ const UserManagementPage: React.FC = () => {
       )}
 
       {/* Manage Roles Dialog */}
-      {roleAssignTarget && (
+      {roleDialogTarget && (
         <ManageUserRolesDialog
-          open={!!roleAssignTarget}
+          open={!!roleDialogTarget}
           onOpenChange={open => {
-            if (!open) setRoleAssignTarget(null);
+            if (!open) closeRoleDialog();
           }}
-          user={roleAssignTarget}
+          user={roleDialogTarget}
           onSaved={refetch}
         />
       )}

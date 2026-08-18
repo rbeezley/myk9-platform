@@ -19,6 +19,7 @@ export interface EntryDecisionRecipientSource {
     // secretary-cc feature (`cc_secretary_on_exhibitor_emails`) so it is not
     // silently dropped when the (untrusted) body-supplied cc is ignored.
     show: {
+      id: string;
       ccSecretaryOnExhibitorEmails: boolean | null;
       secretaryEmail: string | null;
     };

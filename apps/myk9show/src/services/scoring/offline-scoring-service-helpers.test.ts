@@ -17,6 +17,7 @@ import {
   getSyncQueueStatus,
   MAX_SYNC_ATTEMPTS,
   retainSyncQueueItems,
+  shouldWarnForSyncQueue,
 } from './offline-scoring-service-helpers';
 
 const now = new Date('2026-06-13T12:00:00.000Z');
@@ -242,7 +243,13 @@ describe('offline scoring service helpers', () => {
         queueItem({ id: 'exhausted', attempts: 3 }),
         queueItem({ id: 'over-exhausted', attempts: 5 }),
       ])
-    ).toEqual({ pending: 3, failed: 2 });
+    ).toEqual({ queued: 5, pending: 3, failed: 2 });
+  });
+
+  it('warns when the pending queue reaches the configured threshold', () => {
+    expect(shouldWarnForSyncQueue(999, 1000)).toBe(false);
+    expect(shouldWarnForSyncQueue(1000, 1000)).toBe(true);
+    expect(shouldWarnForSyncQueue(1001, 1000)).toBe(true);
   });
 
   it('drops queue items only once they are both retry-exhausted and past the cutoff', () => {

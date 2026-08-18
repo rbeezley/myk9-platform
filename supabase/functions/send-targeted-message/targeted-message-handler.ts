@@ -1,4 +1,5 @@
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import {
   ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
   buildAccountPushTargets,
@@ -280,9 +281,7 @@ async function fetchAccountRecipientPushTargets(
   return buildAccountPushTargets(subscriptions, presenceBySubscriptionId);
 }
 
-export function createSendTargetedMessageHandler(deps: {
-  sendPasscodePushes: SendPasscodePushes;
-}) {
+export function createSendTargetedMessageHandler(deps: { sendPasscodePushes: SendPasscodePushes }) {
   return async ({ body: payload, user, supabase }: TargetedMessageHandlerContext) => {
     if (!user) throw new HttpError(401, 'Unauthorized');
 
@@ -303,11 +302,9 @@ export function createSendTargetedMessageHandler(deps: {
 
     if (!show) throw new HttpError(404, 'Show not found');
 
-    const { data: callerRoles, error: callerRolesError } = await supabase
-      .from('user_roles')
-      .select(CALLER_ROLE_SELECT)
-      .eq('auth_user_id', user.id)
-      .eq('is_active', true);
+    const { data: callerRoles, error: callerRolesError } = await applyActiveRoleValidity(
+      supabase.from('user_roles').select(CALLER_ROLE_SELECT).eq('auth_user_id', user.id)
+    );
 
     if (callerRolesError) throw new HttpError(500, 'Failed to verify sender role');
 

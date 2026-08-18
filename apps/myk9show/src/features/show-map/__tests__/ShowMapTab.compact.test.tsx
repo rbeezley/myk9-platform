@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -7,7 +8,7 @@ import type { SyncableTrial } from '@/store/trial-store-types';
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
-  createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
+  createDatabaseError,
 }));
 vi.mock('@/services/database/day-of-operations', () => ({}));
 vi.mock('@/services/replication', () => ({

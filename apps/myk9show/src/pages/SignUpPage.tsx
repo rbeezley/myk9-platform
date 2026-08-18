@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { AppleIcon } from '@/components/icons/AppleIcon';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
 import { notifications } from '@/lib/notifications';
 import {
@@ -29,9 +30,11 @@ const SignUp: React.FC = () => {
     signUp,
     resendConfirmationEmail,
     signInWithGoogle,
+    signInWithApple,
     loading: authLoading,
   } = useAuthContext();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['exhibitor']);
   const [resending, setResending] = useState(false);
@@ -103,6 +106,17 @@ const SignUp: React.FC = () => {
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Google sign-in failed');
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError('');
+    setAppleLoading(true);
+    try {
+      await signInWithApple(hasRedirectTarget ? signUpReturnTo : undefined);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Apple sign-in failed');
+      setAppleLoading(false);
     }
   };
 
@@ -237,11 +251,20 @@ const SignUp: React.FC = () => {
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          disabled={isLoading || googleLoading || !agreedToTerms}
+          disabled={isLoading || googleLoading || appleLoading || !agreedToTerms}
           className="w-full flex items-center justify-center gap-3 border border-input bg-background text-foreground py-2 px-4 rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <GoogleIcon className="h-5 w-5" />
           Continue with Google
+        </button>
+        <button
+          type="button"
+          onClick={handleAppleSignIn}
+          disabled={isLoading || googleLoading || appleLoading || !agreedToTerms}
+          className="mt-3 w-full flex items-center justify-center gap-3 border border-input bg-background text-foreground py-2 px-4 rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <AppleIcon className="h-5 w-5" />
+          Continue with Apple
         </button>
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">

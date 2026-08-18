@@ -1,10 +1,8 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EntryStatus } from '@/types/entry-lifecycle';
 
 const mocks = vi.hoisted(() => ({
-  createDatabaseError: vi.fn((error: unknown) =>
-    error instanceof Error ? error : new Error(String(error))
-  ),
   logQuery: vi.fn(),
   supabaseFrom: vi.fn(),
   updateSecretaryLifecycleStatus: vi.fn(),
@@ -21,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../supabaseClient', () => ({
-  createDatabaseError: mocks.createDatabaseError,
+  createDatabaseError,
   logQuery: mocks.logQuery,
   supabase: {
     from: mocks.supabaseFrom,

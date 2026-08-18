@@ -6,6 +6,13 @@
  * This utility maps known error codes to safe, actionable messages.
  */
 
+import {
+  SIGN_IN_EMAIL_LOCKED_CODE,
+  SIGN_IN_EMAIL_LOCKED_MESSAGE,
+  SIGN_IN_EMAIL_UNVERIFIABLE_CODE,
+  SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE,
+} from './signInEmailMessages';
+
 /** Known PostgreSQL / PostgREST error code prefixes and their user-facing messages. */
 const ERROR_CODE_MAP: Record<string, string> = {
   // PostgreSQL class 23 — integrity constraint violations
@@ -24,6 +31,12 @@ const ERROR_CODE_MAP: Record<string, string> = {
 
   // myK9 custom SQLSTATEs (class MK)
   MK001: 'This person still owns dogs. Delete those dogs first.',
+
+  // Application-level refusals (MYK9-136). These carry copy that is the whole
+  // point of the refusal, so they must be mapped — this function discards the
+  // original message in production.
+  [SIGN_IN_EMAIL_LOCKED_CODE]: SIGN_IN_EMAIL_LOCKED_MESSAGE,
+  [SIGN_IN_EMAIL_UNVERIFIABLE_CODE]: SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE,
 };
 
 /** Prefix-based fallbacks (e.g. all PGRST codes). */

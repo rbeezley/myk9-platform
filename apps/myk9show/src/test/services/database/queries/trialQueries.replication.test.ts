@@ -27,6 +27,7 @@ const { mockTrialsTable, mockShowsTable, mockClassesTable, mockEntriesTable } = 
     getAll: vi.fn(),
     getEntriesByClass: vi.fn(),
     getEntriesByShow: vi.fn(),
+    getSyncMetadata: vi.fn(),
   },
 }));
 
@@ -131,6 +132,7 @@ function setupListMocks(
   mockEntriesTable.getAll.mockResolvedValue([makeEntry()]);
   mockEntriesTable.getEntriesByClass.mockResolvedValue([makeEntry()]);
   mockEntriesTable.getEntriesByShow.mockResolvedValue([makeEntry()]);
+  mockEntriesTable.getSyncMetadata.mockResolvedValue({ totalRows: 1 });
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +141,18 @@ function setupListMocks(
 
 describe('trialQueries (replication)', () => {
   beforeEach(() => {
+    // `vi.clearAllMocks()` clears call history but NOT implementations installed
+    // with mockResolvedValue/mockImplementation, so without the line below each
+    // test inherits whatever the previous one happened to install. Nine tests
+    // here never called `setupListMocks` and were relying on that inheritance.
+    //
+    // CI runs vitest with `--sequence.shuffle` and shards the files three ways,
+    // so the order that exposes this never occurs in a local run: the suite
+    // passes 15k tests locally and fails one shard in CI with no code to blame.
+    // Establishing the baseline here makes every test order-independent; tests
+    // that want something else still override it immediately afterwards.
     vi.clearAllMocks();
+    setupListMocks();
   });
 
   // -----------------------------------------------------------------------
@@ -527,7 +540,7 @@ describe('trialQueries (replication)', () => {
           level: 'Novice',
           startTime: '09:00',
           status: 'Scheduled',
-          totalEntriesCount: 99,
+          totalEntriesCount: 2,
           judgePersonId: 'judge-1',
           judgeFirstName: 'Ada',
           judgeLastName: 'Lovelace',
@@ -550,6 +563,106 @@ describe('trialQueries (replication)', () => {
       expect(result.data[0].totalEntriesCount).toBe(2);
       expect(mockEntriesTable.getEntriesByShow).toHaveBeenCalledWith('show-1');
       expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
+    });
+
+    it('does not count soft-deleted entries in the canonical total', async () => {
+      setupListMocks([makeTrial()]);
+      mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
+      mockEntriesTable.getEntriesByShow.mockResolvedValue([
+        makeEntry({ id: 'entry-1', classId: 'class-1' }),
+        makeEntry({ id: 'entry-2', classId: 'class-1' }),
+        makeEntry({ id: 'entry-deleted', classId: 'class-1', deletedAt: '2026-05-01T12:00:00Z' }),
+      ]);
+
+      const result = await getShowScheduleTimelineRows('show-1');
+
+      expect(result.data[0].totalEntriesCount).toBe(2);
+    });
+
+    it('uses entry counts in the PostgREST fallback instead of class snapshots', async () => {
+      mockTrialsTable.getTrialsByShow.mockRejectedValueOnce(new Error('replica unavailable'));
+      const entryCountQuery = createChainableQuery({ data: null, count: 2, error: null });
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'trials') {
+          return createChainableQuery({
+            data: [
+              {
+                id: 'trial-1',
+                date: '2026-05-01',
+                trial_number: '1',
+                planned_start_time: '08:30',
+                classes: [
+                  {
+                    id: 'class-1',
+                    name: 'Novice Containers',
+                    element: 'Containers',
+                    level: 'Novice',
+                    start_time: '09:00',
+                    status: 'Scheduled',
+                    deleted_at: null,
+                    judge_assignments: [],
+                  },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return entryCountQuery;
+      });
+
+      const result = await getShowScheduleTimelineRows('show-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data[0].totalEntriesCount).toBe(2);
+      expect(entryCountQuery.select).toHaveBeenCalledWith('class_id', {
+        count: 'exact',
+        head: true,
+      });
+      expect(entryCountQuery.is).toHaveBeenCalledWith('deleted_at', null);
+    });
+
+    it('falls back when the scoped entry replica is cold instead of reporting zero', async () => {
+      setupListMocks([makeTrial()]);
+      mockEntriesTable.getEntriesByShow.mockResolvedValue([]);
+      mockEntriesTable.getSyncMetadata.mockResolvedValue(null);
+      mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'trials'
+          ? createChainableQuery({
+              data: [
+                {
+                  id: 'trial-1',
+                  date: '2026-05-01',
+                  trial_number: '1',
+                  planned_start_time: '08:30',
+                  classes: [
+                    {
+                      id: 'class-1',
+                      name: 'Novice Containers',
+                      element: 'Containers',
+                      level: 'Novice',
+                      start_time: '09:00',
+                      status: 'Scheduled',
+                      deleted_at: null,
+                      judge_assignments: [],
+                    },
+                  ],
+                },
+              ],
+              error: null,
+            })
+          : createChainableQuery({
+              data: null,
+              count: 1,
+              error: null,
+            })
+      );
+
+      const result = await getShowScheduleTimelineRows('show-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data[0].totalEntriesCount).toBe(1);
     });
 
     it('omits soft-deleted replicated classes', async () => {
@@ -577,6 +690,17 @@ describe('trialQueries (replication)', () => {
           totalEntriesCount: 12,
         }),
       ]);
+      // getTrialTimelineRows picks its counting path from `trial?.showId`: with
+      // one it counts through getEntriesByShow, without one through
+      // getEntriesByClass. This test used to mock only getEntriesByClass and
+      // never getTrialById, so WHICH path ran depended on what the previous test
+      // left installed — `vi.clearAllMocks()` does not reset implementations.
+      // Under `--sequence.shuffle` that surfaced as a 1-vs-2 count in CI and
+      // never locally. Pin the trial, and mock both readers, so the assertion is
+      // about the count and not about test ordering.
+      // The final assertion below pins the per-class reader, so pin the branch
+      // that reaches it: a trial absent from the replica yields no showId.
+      mockTrialsTable.getTrialById.mockResolvedValue(null);
       mockEntriesTable.getEntriesByClass.mockResolvedValue([
         makeEntry({ id: 'entry-1', classId: 'class-1' }),
         makeEntry({ id: 'entry-2', classId: 'class-1' }),
@@ -593,7 +717,7 @@ describe('trialQueries (replication)', () => {
           level: 'Novice',
           startTime: '09:00',
           status: 'Scheduled',
-          totalEntriesCount: 12,
+          totalEntriesCount: 2,
           judgePersonId: 'judge-1',
           judgeFirstName: 'Mary Ann',
           judgeLastName: 'Smith',
@@ -601,6 +725,37 @@ describe('trialQueries (replication)', () => {
       ]);
       expect(mockEntriesTable.getEntriesByClass).toHaveBeenCalledWith('class-1');
       expect(mockEntriesTable.getAll).not.toHaveBeenCalled();
+    });
+
+    it('uses entry counts in the PostgREST trial fallback instead of class snapshots', async () => {
+      mockClassesTable.getClassesByTrial.mockRejectedValueOnce(new Error('replica unavailable'));
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'classes'
+          ? createChainableQuery({
+              data: [
+                {
+                  id: 'class-1',
+                  name: 'Novice Containers',
+                  element: 'Containers',
+                  level: 'Novice',
+                  start_time: '09:00',
+                  status: 'Scheduled',
+                  judge_assignments: [],
+                },
+              ],
+              error: null,
+            })
+          : createChainableQuery({
+              data: null,
+              count: 2,
+              error: null,
+            })
+      );
+
+      const result = await getTrialTimelineRows('trial-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data[0].totalEntriesCount).toBe(2);
     });
   });
 });

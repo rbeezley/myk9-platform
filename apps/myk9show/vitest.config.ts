@@ -36,15 +36,26 @@ export default defineConfig({
       // `_shared/http` modules use Deno-only `npm:` imports vitest can't load.
       '../../supabase/functions/_shared/askq/*.test.ts',
       '../../supabase/functions/_shared/pushWebhookAuth.test.ts',
+      '../../supabase/functions/_shared/roleValidity.test.ts',
+      '../../supabase/functions/_shared/roleValidityCoverage.test.ts',
       '../../supabase/functions/push-trigger-waitlist/waitlistNotification.test.ts',
+      '../../supabase/functions/push-trigger-run-proximity/runProximity.test.ts',
+      '../../supabase/functions/calendar-feed/*.test.ts',
+      '../../supabase/functions/_shared/sms/*.test.ts',
       '../../supabase/functions/_shared/http/__tests__/handler.test.ts',
+      '../../supabase/functions/_shared/http/__tests__/cors.test.ts',
       '../../supabase/functions/_shared/standardWebhookSignature.test.ts',
+      '../../supabase/functions/_shared/emailLog.test.ts',
       '../../supabase/functions/_shared/resendEmail.test.ts',
       '../../supabase/functions/_shared/authEmailFailure.test.ts',
       '../../supabase/functions/send-auth-email/delivery.test.ts',
       '../../supabase/functions/resend-webhook/handler.test.ts',
       '../../supabase/functions/_shared/webhookAuth.source.test.ts',
-      '../../supabase/functions/send-confirmation-email/auth.test.ts',
+      // Whole directory: template builders, parity, auth, static-map. Before
+      // 2026-08-16 only auth.test.ts was registered, so the template tests
+      // never ran in CI (the allowlist trap) — all 13 files pass under this
+      // config, so the glob closes that gap.
+      '../../supabase/functions/send-confirmation-email/*.test.ts',
       '../../supabase/functions/send-lifecycle-email/lifecycle-email-handler.test.ts',
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',
@@ -55,6 +66,9 @@ export default defineConfig({
       '../../supabase/functions/admin-delete-user/*.test.ts',
       '../../supabase/functions/admin-generate-reset-link/*.test.ts',
       '../../supabase/functions/admin-invite-user/*.test.ts',
+      '../../supabase/functions/sentry-dashboard-metrics/metrics.test.ts',
+      '../../supabase/functions/sentry-dashboard-metrics/index.source.test.ts',
+      '../../supabase/functions/send-targeted-message/targeted-message-handler.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
     ],
     exclude: [

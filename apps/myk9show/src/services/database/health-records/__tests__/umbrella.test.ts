@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Helpers to build DB row fixtures with the right shape for each sub-table.
@@ -129,8 +130,7 @@ vi.mock('../genetic-screenings', () => ({
 vi.mock('../../supabaseClient', () => ({
   supabase: {},
   logQuery: vi.fn(),
-  createDatabaseError: (error: { message?: string }, table: string, op: string) =>
-    new Error(`${table}:${op}:${error?.message ?? 'unknown'}`),
+  createDatabaseError,
 }));
 
 // PostgREST filter sanitizer is used by `searchDogHealth` (sibling export);

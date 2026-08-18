@@ -134,8 +134,12 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
         />
       </div>
 
-      {/* Judge Supplies Section */}
-      <JudgeSuppliesSection trialId={trial.id} />
+      {/* Judge Supplies — staff-only. Per-judge supply lists are trial
+          operations, and every row carries an Edit control; exhibitors reaching
+          this public route saw and could open them (MYK9-123). The Timeline
+          above stays visible to everyone on purpose: the running order IS
+          exhibitor content, and it renders no mutation affordance. */}
+      {canManage && <JudgeSuppliesSection trialId={trial.id} />}
     </div>
   );
 };

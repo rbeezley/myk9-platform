@@ -13,13 +13,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-import type { BulkEntryData } from './types';
+import type { BulkEntryData, BulkEntryEditableField } from './types';
 
 interface EntryTableRowProps {
   item: BulkEntryData;
   index: number;
   validationError?: string | undefined;
-  onFieldChange: (index: number, field: keyof BulkEntryData, value: string) => void;
+  onFieldChange: (index: number, field: BulkEntryEditableField, value: string) => void;
   onKeyDown: (event: React.KeyboardEvent, index: number, field: string) => void;
 }
 

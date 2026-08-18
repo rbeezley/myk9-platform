@@ -103,9 +103,29 @@ describe('SupportInboxPage', () => {
     );
     expect(screen.getByRole('link', { name: /Open user access/i })).toHaveAttribute(
       'href',
-      '/admin/permissions/users?userId=owner-1'
+      '/admin/users?userId=owner-1'
     );
     expect(screen.getByText('Next checks')).toBeInTheDocument();
+  });
+
+  it('renders a resolved owner identity', () => {
+    hookState.tickets = [
+      makeTicket({ ownerName: 'Jane Exhibitor', ownerEmail: 'jane@example.com' }),
+    ];
+
+    render(<SupportInboxPage />, { initialRoute: '/admin/support?status=all&ticketId=ticket-1' });
+
+    expect(screen.getByText(/Owner Jane Exhibitor · jane@example.com/)).toBeInTheDocument();
+  });
+
+  it('keeps the UUID fallback for an unresolved owner', () => {
+    hookState.tickets = [makeTicket({ id: 'ticket-2', ownerId: 'unresolved-owner' })];
+
+    render(<SupportInboxPage />, {
+      initialRoute: '/admin/support?status=all&ticketId=ticket-2',
+    });
+
+    expect(screen.getByText(/Owner unresolv/)).toBeInTheDocument();
   });
 
   it('updates status from the detail controls', async () => {

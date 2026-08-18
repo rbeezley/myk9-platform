@@ -1,4 +1,4 @@
-import { render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import { VolunteerDialog } from '../VolunteerDialog';
 import type { Volunteer } from '@/types/volunteer';
 
@@ -101,6 +101,48 @@ describe('VolunteerDialog', () => {
 
     rerender(<VolunteerDialog {...defaultProps} volunteer={volunteer} />);
     expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
+  });
+
+  /**
+   * Reddened `main` on 2026-08-04 (PR #1602's CI run): 15544 tests passed, 0
+   * failed, and the job still exited 1 on
+   *
+   *   ReferenceError: window is not defined
+   *     ❯ resolveUpdatePriority  react-dom-client.development.js
+   *     ❯ dispatchSetState       react-dom-client.development.js
+   *     ❯ Timeout._onTimeout     VolunteerDialog.tsx:134
+   *
+   * The dialog autofocuses this search input, so the first interaction in any
+   * test blurs it and arms a 200ms dismiss timer. Tests finish in well under
+   * 200ms, vitest tears the jsdom environment down, and the timer then fires
+   * into a dead `window` — an UNHANDLED error, which vitest fails the run on
+   * even though no assertion failed.
+   *
+   * This is not the `--sequence.shuffle` order-leak class in CLAUDE.md: no
+   * `beforeEach` reset can reach it, because the escape is across the
+   * environment teardown boundary rather than across test order. It is
+   * load-dependent, so it reddens CI at random with no code change to blame.
+   */
+  it('clears the blur-dismiss timer on unmount', () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    const { unmount } = render(<VolunteerDialog {...defaultProps} />);
+
+    fireEvent.blur(screen.getByLabelText(/search registered users/i));
+
+    const index = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 200);
+    expect(index, 'blurring the search input should arm the 200ms dismiss timer').toBeGreaterThan(
+      -1
+    );
+    const timerId = setTimeoutSpy.mock.results[index].value;
+
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    unmount();
+
+    expect(
+      clearTimeoutSpy.mock.calls.some(([id]) => id === timerId),
+      'the pending dismiss timer must be cleared on unmount, or it fires after ' +
+        'the test environment is torn down and crashes the whole vitest run'
+    ).toBe(true);
   });
 
   it('calls onDelete when Delete is clicked', async () => {

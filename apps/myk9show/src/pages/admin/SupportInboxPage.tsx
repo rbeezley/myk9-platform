@@ -30,7 +30,7 @@ export default function SupportInboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filter = readFilter(searchParams.get('status'));
   const selectedTicketId = searchParams.get('ticketId');
-  const tickets = useSupportTickets();
+  const tickets = useSupportTickets(undefined, { resolveOwners: true });
   const filteredTickets = useMemo(
     () => filterTickets(tickets.data ?? [], filter),
     [filter, tickets.data]
@@ -185,7 +185,8 @@ export default function SupportInboxPage() {
                     )}
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Owner {selectedTicket.ownerId.slice(0, 8)} · Updated{' '}
+                    Owner {selectedTicket.ownerName ?? selectedTicket.ownerId.slice(0, 8)}
+                    {selectedTicket.ownerEmail && ` · ${selectedTicket.ownerEmail}`} · Updated{' '}
                     {formatShortDate(selectedTicket.updatedAt)}
                   </p>
                 </div>

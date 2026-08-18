@@ -23,15 +23,21 @@ export interface BulkResultEntryProps {
   className?: string;
 }
 
-export interface BulkEntryData {
-  entryId: string;
-  armband: string;
-  dogName: string;
-  handlerName: string;
+export interface BulkEntryValues {
   searchTime: string;
   qualification: QualificationStatus | '';
   faults: string;
   notes: string;
+}
+
+export type BulkEntryEditableField = keyof BulkEntryValues;
+
+export interface BulkEntryData extends BulkEntryValues {
+  entryId: string;
+  armband: string;
+  dogName: string;
+  handlerName: string;
   isValid: boolean;
   hasChanges: boolean;
+  savedValues: BulkEntryValues;
 }

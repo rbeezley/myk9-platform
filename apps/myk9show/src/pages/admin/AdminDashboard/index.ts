@@ -1,16 +1,13 @@
 /**
- * AdminDashboard Module
+ * AdminDashboard module.
  *
- * Exports all components and hooks for the admin dashboard.
+ * Three exports were deleted with the 2026-08 overview rebuild:
+ * PlatformAdministrationSection duplicated the left sidebar verbatim and pushed
+ * the actual statistics below the fold; PlatformStatisticsSection showed totals
+ * the page no longer leads with; and useAdminDashboardData fetched every user,
+ * show and dog across the wire to call `.length` on them. Counts now come from
+ * `@/features/admin-overview`, which asks Postgres to count.
  */
 
-// Types
-export * from './admin-dashboard-types';
-
-// Hooks
-export { useAdminDashboardData, calculateDashboardStats } from './useAdminDashboardData';
-
-// Components
 export { PlatformHealthSummary } from './PlatformHealthSummary';
-export { PlatformAdministrationSection } from './PlatformAdministrationSection';
-export { PlatformStatisticsSection } from './PlatformStatisticsSection';
+export { NeedsALookSection } from './NeedsALookSection';

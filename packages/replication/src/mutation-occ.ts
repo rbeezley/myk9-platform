@@ -22,6 +22,68 @@ export class OccRejectionError extends Error {
   }
 }
 
+/** Custom SQLSTATE raised by `ringside_update_entry` while the MYK9-115 breaker
+ * is contained. Not a Postgres class — it is deliberately distinguishable from
+ * `40001` so the client can tell "you lost a race" from "stop asking". */
+export const CONTAINMENT_SQLSTATE = 'RS429';
+
+/** Used when the server sends no usable `retry_after` hint. Never 0: the whole
+ * point of containment is that the client waits. */
+export const CONTAINMENT_DEFAULT_RETRY_AFTER_MS = 60_000;
+
+/**
+ * Thrown when ringside scoring is under admission control (MYK9-115).
+ *
+ * INTENT: this is NOT a subclass of {@link OccRejectionError}, and that is the
+ * whole design. A version conflict means "your token is stale, take the fresh
+ * one and try again" — retrying is correct and immediate. Containment means the
+ * server is shedding load and has asked every client to back off; routing it
+ * into the OCC path would hammer the breaker that exists to stop the hammering.
+ * The authoritative version still rides along in DETAIL, so the token can be
+ * advanced while the upload runner pauses.
+ */
+export class ContainmentError extends Error {
+  constructor(
+    public readonly tableName: string,
+    public readonly rowId: string,
+    /** Authoritative current server version, from the RS429 DETAIL. */
+    public readonly currentServerVersion: number | undefined,
+    /** How long the server asked us to wait, in ms. */
+    public readonly retryAfterMs: number
+  ) {
+    super(
+      `Ringside scoring is contained: ${tableName}/${rowId} paused for ${Math.round(
+        retryAfterMs / 1000
+      )}s`
+    );
+    this.name = 'ContainmentError';
+  }
+}
+
+/** True for the RS429 raised by `ringside_update_entry` while contained.
+ * Matches on the CODE only — the message is human-facing copy that may change,
+ * and matching prose would make an unrelated error containing the same words
+ * silently pause the outbox. */
+export function isContainmentError(error: unknown): boolean {
+  if (error instanceof ContainmentError) return true;
+  if (typeof error !== 'object' || error === null) return false;
+  return (error as { code?: unknown }).code === CONTAINMENT_SQLSTATE;
+}
+
+/** Read `retry_after=<seconds>` out of the Postgres HINT, in ms. Anything
+ * missing, unparseable or non-positive falls back to the default rather than
+ * collapsing to an immediate retry. */
+export function parseContainmentRetryAfterMs(error: unknown): number {
+  if (typeof error !== 'object' || error === null) return CONTAINMENT_DEFAULT_RETRY_AFTER_MS;
+  const hint = (error as { hint?: unknown }).hint;
+  if (typeof hint !== 'string') return CONTAINMENT_DEFAULT_RETRY_AFTER_MS;
+  const match = /retry_after=(\d+)/.exec(hint);
+  if (!match) return CONTAINMENT_DEFAULT_RETRY_AFTER_MS;
+  const seconds = Number(match[1]);
+  if (!Number.isFinite(seconds) || seconds <= 0) return CONTAINMENT_DEFAULT_RETRY_AFTER_MS;
+  return seconds * 1000;
+}
+
 /**
  * True when an error represents an optimistic-concurrency (version) conflict —
  * either a re-classified {@link OccRejectionError} (direct UPDATE path) or the
@@ -33,6 +95,11 @@ export class OccRejectionError extends Error {
 export function isVersionConflictError(error: unknown): boolean {
   if (error instanceof OccRejectionError) return true;
   if (typeof error !== 'object' || error === null) return false;
+  // Containment is checked FIRST and excluded. RS429 carries a version in DETAIL
+  // exactly like 40001 does, so a future wording change to either message could
+  // otherwise let the prose fallback below capture it and route a back-off
+  // instruction into the immediate-retry path.
+  if (isContainmentError(error)) return false;
   const candidate = error as { code?: unknown; message?: unknown };
   if (candidate.code === '40001') return true;
   if (typeof candidate.message === 'string' && /version conflict/i.test(candidate.message)) {
@@ -101,6 +168,8 @@ function makeRlsUpdateError(tableName: string, rowId: string): Error {
   );
 }
 
-export function getReturnedServerVersion(rows: Array<{ version?: number }> | null | undefined): number | undefined {
+export function getReturnedServerVersion(
+  rows: Array<{ version?: number }> | null | undefined
+): number | undefined {
   return rows?.[0]?.version;
 }

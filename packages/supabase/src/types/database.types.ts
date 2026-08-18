@@ -1599,9 +1599,10 @@ export type Database = {
           email_type: string
           error_message: string | null
           id: string
-          recipient_email: string
+          recipient_email: string | null
           related_id: string | null
           resend_message_id: string | null
+          show_id: string | null
           status: string
           status_updated_at: string | null
         }
@@ -1610,9 +1611,10 @@ export type Database = {
           email_type: string
           error_message?: string | null
           id?: string
-          recipient_email: string
+          recipient_email?: string | null
           related_id?: string | null
           resend_message_id?: string | null
+          show_id?: string | null
           status?: string
           status_updated_at?: string | null
         }
@@ -1621,9 +1623,10 @@ export type Database = {
           email_type?: string
           error_message?: string | null
           id?: string
-          recipient_email?: string
+          recipient_email?: string | null
           related_id?: string | null
           resend_message_id?: string | null
+          show_id?: string | null
           status?: string
           status_updated_at?: string | null
         }
@@ -5114,6 +5117,72 @@ export type Database = {
           },
         ]
       }
+      ringside_containment: {
+        Row: {
+          backpressure_ms: number
+          calibrated: boolean
+          id: boolean
+          last_sample_at: string
+          last_seq: number
+          state: string
+          trip_conflict_delta: number | null
+          trip_conflicts_per_minute: number
+          trip_reason: string | null
+          tripped_at: string | null
+        }
+        Insert: {
+          backpressure_ms?: number
+          calibrated?: boolean
+          id?: boolean
+          last_sample_at?: string
+          last_seq?: number
+          state?: string
+          trip_conflict_delta?: number | null
+          trip_conflicts_per_minute?: number
+          trip_reason?: string | null
+          tripped_at?: string | null
+        }
+        Update: {
+          backpressure_ms?: number
+          calibrated?: boolean
+          id?: boolean
+          last_sample_at?: string
+          last_seq?: number
+          state?: string
+          trip_conflict_delta?: number | null
+          trip_conflicts_per_minute?: number
+          trip_reason?: string | null
+          tripped_at?: string | null
+        }
+        Relationships: []
+      }
+      ringside_containment_audit: {
+        Row: {
+          actor: string | null
+          conflict_delta: number | null
+          event: string
+          id: number
+          occurred_at: string
+          reason: string | null
+        }
+        Insert: {
+          actor?: string | null
+          conflict_delta?: number | null
+          event: string
+          id?: never
+          occurred_at?: string
+          reason?: string | null
+        }
+        Update: {
+          actor?: string | null
+          conflict_delta?: number | null
+          event?: string
+          id?: never
+          occurred_at?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       ringside_sessions: {
         Row: {
           created_at: string
@@ -6758,6 +6827,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          passcode_ciphertext: string | null
           passcode_hash: string
           role: string
           show_id: string
@@ -6765,6 +6835,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          passcode_ciphertext?: string | null
           passcode_hash: string
           role: string
           show_id: string
@@ -6772,6 +6843,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          passcode_ciphertext?: string | null
           passcode_hash?: string
           role?: string
           show_id?: string
@@ -8707,6 +8779,7 @@ export type Database = {
         Row: {
           auth_user_id: string | null
           club_id: string | null
+          deactivated_at: string | null
           expires_at: string | null
           granted_at: string | null
           granted_by: string | null
@@ -8719,6 +8792,7 @@ export type Database = {
         Insert: {
           auth_user_id?: string | null
           club_id?: string | null
+          deactivated_at?: string | null
           expires_at?: string | null
           granted_at?: string | null
           granted_by?: string | null
@@ -8731,6 +8805,7 @@ export type Database = {
         Update: {
           auth_user_id?: string | null
           club_id?: string | null
+          deactivated_at?: string | null
           expires_at?: string | null
           granted_at?: string | null
           granted_by?: string | null
@@ -10602,6 +10677,11 @@ export type Database = {
         Args: { p_show_id: string }
         Returns: boolean
       }
+      _decrypt_show_passcode: {
+        Args: { p_ciphertext: string }
+        Returns: string
+      }
+      _encrypt_show_passcode: { Args: { p_code: string }; Returns: string }
       _extract_at_show_route_show_id: {
         Args: { p_route: string }
         Returns: string
@@ -10627,6 +10707,7 @@ export type Database = {
         Args: { p_field: string; p_preset: string }
         Returns: string
       }
+      _show_passcode_encryption_key: { Args: never; Returns: string }
       add_to_waitlist: {
         Args: {
           p_class_id: string
@@ -11314,6 +11395,31 @@ export type Database = {
         }[]
       }
       get_license_key: { Args: never; Returns: string }
+      get_manager_judge_assignments: {
+        Args: never
+        Returns: {
+          class_id: string | null
+          confirmed_at: string | null
+          created_at: string | null
+          day_capacity_override: number | null
+          fee: number | null
+          id: string
+          invited_at: string | null
+          notes: string | null
+          person_id: string
+          show_id: string | null
+          status: string | null
+          trial_id: string | null
+          updated_at: string | null
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "judge_assignments"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_message_class_entry_counts: {
         Args: { p_class_ids: string[] }
         Returns: {
@@ -11350,6 +11456,42 @@ export type Database = {
           paid_expires_at: string
           paid_tier: string
           scored_show_count: number
+        }[]
+      }
+      get_show_access_codes: {
+        Args: { p_show_id: string }
+        Returns: {
+          passcode: string
+          recoverable: boolean
+          role: string
+        }[]
+      }
+      get_show_class_hide_counts: {
+        Args: { p_show_id: string }
+        Returns: {
+          class_id: string
+          num_hides: number
+        }[]
+      }
+      get_show_email_delivery_history: {
+        Args: {
+          p_before_created_at?: string
+          p_before_id?: string
+          p_limit?: number
+          p_show_id: string
+        }
+        Returns: {
+          attempted_at: string
+          delivery_status: string
+          failure_summary: string | null
+          id: string
+          lifecycle_step_type: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          related_id: string | null
+          show_id: string
+          source_kind: string
+          status_updated_at: string | null
         }[]
       }
       get_show_officials: {
@@ -11435,9 +11577,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_active_club_member: {
+        Args: { p_club_id: string; p_person_id: string }
+        Returns: boolean
+      }
       is_club_admin: { Args: { check_club_id?: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
+      is_real_account: { Args: never; Returns: boolean }
       is_show_manager: { Args: never; Returns: boolean }
+      is_show_office_manager: {
+        Args: { check_show_id: string }
+        Returns: boolean
+      }
       is_show_official: { Args: { check_show_id: string }; Returns: boolean }
       is_show_secretary:
         | { Args: never; Returns: boolean }
@@ -11460,6 +11611,7 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      manageable_show_ids: { Args: never; Returns: string[] }
       normalize_club_name: { Args: { value: string }; Returns: string }
       normalize_dog_registration_number: {
         Args: { value: string }
@@ -11554,6 +11706,16 @@ export type Database = {
       renew_waitlist_notification_claim: {
         Args: { p_claim_token: string; p_event_id: string }
         Returns: boolean
+      }
+      reserve_askq_query: {
+        Args: { p_query: string }
+        Returns: {
+          allowed: boolean
+          daily_limit: number
+          log_id: string
+          remaining: number
+          resets_at: string
+        }[]
       }
       reserve_operator_support_query: {
         Args: never
@@ -11831,6 +11993,9 @@ export type Database = {
         Returns: undefined
       }
       ringside_claim_generation_current: { Args: never; Returns: boolean }
+      ringside_containment_rearm: { Args: { p_reason: string }; Returns: Json }
+      ringside_containment_sample: { Args: never; Returns: undefined }
+      run_system_health_check_now: { Args: never; Returns: Json }
       ringside_update_entry: {
         Args: { p_entry_id: string; p_expected_version: number; p_fields: Json }
         Returns: number
@@ -11913,6 +12078,29 @@ export type Database = {
       test_as_anon: { Args: never; Returns: undefined }
       test_as_user: { Args: { user_id: string }; Returns: undefined }
       test_reset: { Args: never; Returns: undefined }
+      tv_board_entries: {
+        Args: { p_class_ids: string[]; p_show_id: string }
+        Returns: {
+          armband: string
+          class_id: string
+          dog_call_name: string
+          dog_image_url: string
+          dog_name: string
+          handler: string
+          id: string
+          is_in_ring: boolean
+          is_scored: boolean
+          run_order: number
+        }[]
+      }
+      tv_class_entry_counts: {
+        Args: { p_class_ids: string[]; p_show_id: string }
+        Returns: {
+          class_id: string
+          entry_count: number
+          scored_count: number
+        }[]
+      }
       update_entry_handler: {
         Args: { p_entry_id: string; p_handler: string }
         Returns: undefined

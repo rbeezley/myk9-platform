@@ -24,6 +24,7 @@ import {
   type ConfirmationEmailBaseData,
   type ConfirmationEmailRunRow,
 } from './confirmation-email-shared.ts';
+import { renderVenueMapBlock } from './static-map.ts';
 
 const MZ_PAPER = '#f6f1e8';
 const MZ_PAPER_DEEP = '#ece4d3';
@@ -132,6 +133,7 @@ export function buildMagazineHtml(data: MagazineEmailData): string {
       <tr>${infoCell('Crating', data.cratingNotes)}${infoCell('Parking', data.parkingNotes, { borderLeft: true })}</tr>
       <tr>${infoCell('Hospitality', data.hospitalityNotes, { borderBottom: `1px solid ${MZ_INK}` })}${infoCell('Venue', data.venue, { borderLeft: true, borderBottom: `1px solid ${MZ_INK}` })}</tr>
     </table>
+    ${renderVenueMapBlock(data.venueMap, data.venue)}
   </td>
 </tr>`
     : '';

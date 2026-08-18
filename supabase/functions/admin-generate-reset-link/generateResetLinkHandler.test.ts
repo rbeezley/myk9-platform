@@ -8,6 +8,7 @@ function chain<T>(data: T, error: unknown = null) {
   query.select = vi.fn(self);
   query.eq = vi.fn(self);
   query.is = vi.fn(self);
+  query.or = vi.fn(self);
   query.single = vi.fn(async () => ({ data, error }));
   query.then = ((resolve: (value: { data: T; error: unknown }) => unknown) =>
     Promise.resolve({ data, error }).then(resolve)) as never;
@@ -18,6 +19,7 @@ interface MockOptions {
   callerPerson?: { id: string } | null;
   callerError?: unknown;
   rbacRoles?: Array<{ role: { name: string } | null }> | null;
+  rbacError?: unknown;
   linkData?: { properties?: { action_link?: string | null } } | null;
   linkError?: { message: string } | null;
 }
@@ -40,7 +42,8 @@ function makeSupabase(opts: MockOptions = {}) {
     }
     if (table === 'user_roles') {
       return chain(
-        opts.rbacRoles === undefined ? [{ role: { name: 'site_admin' } }] : opts.rbacRoles
+        opts.rbacRoles === undefined ? [{ role: { name: 'site_admin' } }] : opts.rbacRoles,
+        opts.rbacError ?? null
       );
     }
     throw new Error(`unexpected table ${table}`);
@@ -91,6 +94,19 @@ describe('generateResetLinkHandler', () => {
         supabase: supabase as never,
       } as never)
     ).rejects.toThrow('Unauthorized: requires site_admin role');
+  });
+
+  it('fails closed when the role lookup errors', async () => {
+    const { supabase, generateLink } = makeSupabase({ rbacError: { message: 'timeout' } });
+
+    await expect(
+      generateResetLinkHandler({
+        body: { targetEmail: 'exhibitor@example.com' },
+        user: { id: 'auth-caller' },
+        supabase: supabase as never,
+      } as never)
+    ).rejects.toMatchObject({ status: 500, message: 'Failed to verify caller role' });
+    expect(generateLink).not.toHaveBeenCalled();
   });
 
   it('rejects a missing targetEmail with 400', async () => {

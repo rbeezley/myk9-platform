@@ -207,12 +207,22 @@ export function buildSessionSyncQueueItem({
  */
 export const MAX_SYNC_ATTEMPTS = 3;
 
+export const DEFAULT_SYNC_QUEUE_WARNING_THRESHOLD = 1000;
+
 /** An item that has failed fewer than `MAX_SYNC_ATTEMPTS` times is still retriable. */
 export function hasRetryBudget(item: SyncQueueItem): boolean {
   return (item.attempts || 0) < MAX_SYNC_ATTEMPTS;
 }
 
+export function shouldWarnForSyncQueue(
+  queueLength: number,
+  warningThreshold = DEFAULT_SYNC_QUEUE_WARNING_THRESHOLD
+): boolean {
+  return queueLength >= warningThreshold;
+}
+
 export function getSyncQueueStatus(queue: readonly SyncQueueItem[]): {
+  queued: number;
   pending: number;
   failed: number;
   lastSync?: Date;
@@ -220,7 +230,7 @@ export function getSyncQueueStatus(queue: readonly SyncQueueItem[]): {
   const pending = queue.filter(hasRetryBudget).length;
   const failed = queue.length - pending;
 
-  return { pending, failed };
+  return { queued: queue.length, pending, failed };
 }
 
 export function retainSyncQueueItems(

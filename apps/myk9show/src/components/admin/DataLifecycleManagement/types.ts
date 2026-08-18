@@ -30,6 +30,15 @@ export interface EntitySectionConfig {
   icon: React.ComponentType<{ className?: string }>;
   iconColor: string;
   fetchDeleted: () => Promise<DeletedEntity[]>;
+  /**
+   * Where this removed record can be READ, if anywhere.
+   *
+   * Only wired for people: `/people/:id` falls through to the admin-gated
+   * removed-person read (MYK9-153). Dogs, shows and the rest are still hidden
+   * by their own `deleted_at IS NULL` policies, so linking them would rebuild
+   * the dead end this replaced. Omit it until that entity has a read path.
+   */
+  recordHref?: (item: DeletedEntity) => string | undefined;
   restore: (id: string, restoredBy?: string) => Promise<unknown>;
   hardDelete: (id: string) => Promise<unknown>;
 }

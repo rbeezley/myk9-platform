@@ -16,6 +16,7 @@ const createExhibitor = read('CreateExhibitorDialog.tsx');
 const handlerDialog = read('HandlerSelectionDialog.tsx');
 const enhancedDog = read('DogSelectionStepEnhanced.tsx');
 const dogSearch = read('DogSearchInterface.tsx');
+const dogSearchFilters = read('DogSearchFilters.tsx');
 
 describe('secretary surfaces — dark-mode + grid-stacking guards', () => {
   it('SecretaryPaymentManagement drops raw gray and dark-adapts status colors + grids', () => {
@@ -47,7 +48,7 @@ describe('secretary surfaces — a11y + responsive guards', () => {
   });
 
   it('the search "Clear All" control dark-adapts', () => {
-    expect(dogSearch).toContain('text-destructive');
+    expect(`${dogSearch}\n${dogSearchFilters}`).toContain('text-destructive');
   });
 
   it('dog search does not show technical latency metadata in the mail-in flow', () => {

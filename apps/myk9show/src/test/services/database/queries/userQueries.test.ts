@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   getAllUsers,
   getUserById,
@@ -231,12 +231,58 @@ describe('User Queries', () => {
 
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
-      const result = await createUser(userData);
+      // MYK9-178: the catch must not re-add `details` after createDatabaseError.
+      // Asserted with DEV off, because that is the only honest way to see it.
+      // The helper surfaces `details` in DEV on purpose, so a DEV-mode
+      // "toBeUndefined" would have been reading the old global mock's blind spot
+      // for Error inputs (MYK9-177), not the call site. With DEV false the helper
+      // redacts, so anything left on `details` could only have been copied back
+      // on here.
+      vi.stubEnv('DEV', false);
+      try {
+        const result = await createUser(userData);
 
-      expect(result.data).toBeNull();
-      expect(result.error).toBeDefined();
-      expect(result.error!.code).toBe('23505');
-      expect(result.error!.details).toBe('Email already exists');
+        expect(result.data).toBeNull();
+        expect(result.error).toBeDefined();
+        expect(result.error!.code).toBe('23505');
+        expect(result.error!.details).toBeUndefined();
+      } finally {
+        // Restore in a finally so a failed assertion cannot leak DEV=false into
+        // whichever test the shuffled suite runs next.
+        vi.unstubAllEnvs();
+      }
+    });
+
+    // The DEV half of the same guarantee: the operator running a dev build still
+    // gets `details`, and it comes from the helper rather than from a copy in the
+    // catch. Pinning both sides keeps a future "just delete the DEV spread"
+    // cleanup from passing the test above while silently changing behavior.
+    it('surfaces details in DEV, from the helper rather than the call site', async () => {
+      const userData: DbUserInsert = {
+        first_name: 'Duplicate',
+        last_name: 'User',
+        email: 'existing@example.com',
+      };
+
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({
+          data: null,
+          error: {
+            message: 'Unique constraint violation',
+            code: '23505',
+            details: 'Email already exists',
+          },
+        })
+      );
+
+      vi.stubEnv('DEV', true);
+      try {
+        const result = await createUser(userData);
+
+        expect(result.error!.details).toBe('Email already exists');
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
 
     it('should handle required field validation', async () => {
@@ -304,6 +350,163 @@ describe('User Queries', () => {
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
       expect(result.error!.code).toBe('PGRST116');
+    });
+
+    // MYK9-136. Nothing syncs people.email to auth.users.email, so an email
+    // change on a person who can sign in leaves them signing in with the old
+    // address while every screen shows the new one — and blocks their row from
+    // being adopted at signup, creating a second person instead. updateUser is
+    // the single write path to people.email, so the refusal lives here.
+    describe('sign-in email guard', () => {
+      const linkedPerson = { auth_user_id: 'auth-1', email: 'handler@example.com' };
+
+      // The global setup resets the mock's implementation but not its call
+      // history; the call-count assertion below would otherwise depend on
+      // which tests ran first, which CI's `--sequence.shuffle` would expose.
+      beforeEach(() => {
+        mockSupabase.from.mockClear();
+      });
+
+      it('refuses to change the email of a person who can sign in', async () => {
+        mockSupabase.from.mockReturnValue(
+          createChainableQuery({ data: linkedPerson, error: null })
+        );
+
+        const result = await updateUser('user-123', { email: 'corrected@example.com' });
+
+        expect(result.data).toBeNull();
+        expect(result.error).toBeDefined();
+        expect(result.error!.message).toMatch(/signs in with/i);
+      });
+
+      it('lets an unchanged email through, so ordinary saves still work', async () => {
+        const updated = { id: 'user-123', ...linkedPerson, first_name: 'Updated' };
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: linkedPerson, error: null }))
+          .mockReturnValueOnce(createChainableQuery({ data: updated, error: null }));
+
+        const result = await updateUser('user-123', {
+          email: 'handler@example.com',
+          first_name: 'Updated',
+        });
+
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual(updated);
+      });
+
+      it('still allows an email change for a person with no sign-in account', async () => {
+        const unlinked = { auth_user_id: null, email: 'old@example.com' };
+        const updated = { id: 'user-123', email: 'corrected@example.com' };
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
+          .mockReturnValueOnce(createChainableQuery({ data: updated, error: null }));
+
+        const result = await updateUser('user-123', { email: 'corrected@example.com' });
+
+        expect(result.error).toBeNull();
+        expect(result.data).toEqual(updated);
+      });
+
+      // Reading the linkage and writing the row are separate requests, so a
+      // signup can adopt the person in between. Restating the condition as a
+      // filter makes Postgres re-check it at write time.
+      it('restates the unlinked condition on the write when the address changes', async () => {
+        const unlinked = { auth_user_id: null, email: 'old@example.com' };
+        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
+          .mockReturnValueOnce(writeChain);
+
+        await updateUser('user-123', { email: 'corrected@example.com' });
+
+        expect(writeChain.is).toHaveBeenCalledWith('auth_user_id', null);
+      });
+
+      // "Unchanged" is decided on the normalized value, so a padded or
+      // recased variant of the same address reaches here. Writing it back
+      // would still alter the stored identity value, and `handle_new_user()`
+      // matches `LOWER(email)` without trimming — a padded rewrite silently
+      // stops a later signup from being adopted.
+      it('does not write a padded variant of the same address', async () => {
+        const linked = { auth_user_id: 'auth-1', email: 'handler@example.com' };
+        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: linked, error: null }))
+          .mockReturnValueOnce(writeChain);
+
+        const result = await updateUser('user-123', {
+          email: '  Handler@Example.com  ',
+          first_name: 'Updated',
+        });
+
+        expect(result.error).toBeNull();
+        const written = (writeChain.update as unknown as { mock: { calls: unknown[][] } }).mock
+          .calls[0][0] as Record<string, unknown>;
+        expect(written).not.toHaveProperty('email');
+        expect(written.first_name).toBe('Updated');
+      });
+
+      it('does not constrain the write when the address is unchanged', async () => {
+        const linked = { auth_user_id: 'auth-1', email: 'handler@example.com' };
+        const writeChain = createChainableQuery({ data: { id: 'user-123' }, error: null });
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: linked, error: null }))
+          .mockReturnValueOnce(writeChain);
+
+        await updateUser('user-123', { email: 'handler@example.com', phone: '555' });
+
+        expect(writeChain.is).not.toHaveBeenCalled();
+      });
+
+      it('reports the refusal when the person is adopted mid-write', async () => {
+        const unlinked = { auth_user_id: null, email: 'old@example.com' };
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
+          .mockReturnValueOnce(
+            createChainableQuery({
+              data: null,
+              error: { message: 'No rows updated', code: 'PGRST116' },
+            })
+          );
+
+        const result = await updateUser('user-123', { email: 'corrected@example.com' });
+
+        expect(result.data).toBeNull();
+        expect(result.error!.message).toMatch(/signs in with/i);
+      });
+
+      // Only the no-rows code means "adopted mid-write". Any other failure has
+      // its own cause and must keep its own message — a duplicate address here
+      // read as a sign-in lock would send the operator hunting the wrong thing.
+      it('keeps an unrelated write failure intact', async () => {
+        const unlinked = { auth_user_id: null, email: 'old@example.com' };
+        mockSupabase.from
+          .mockReturnValueOnce(createChainableQuery({ data: unlinked, error: null }))
+          .mockReturnValueOnce(
+            createChainableQuery({
+              data: null,
+              error: { message: 'duplicate key value violates people_email_unique', code: '23505' },
+            })
+          );
+
+        const result = await updateUser('user-123', { email: 'taken@example.com' });
+
+        // MYK9-175: the duplicate now reaches the operator as field-specific
+        // copy instead of the raw constraint string, so identify it by its code
+        // — which survives translation — rather than by the SQL text.
+        expect(result.error!.code).toBe('23505');
+        expect(result.error!.message).toMatch(/email already exists/i);
+        expect(result.error!.message).not.toMatch(/signs in with/i);
+      });
+
+      it('does not look up the identity when the update carries no email', async () => {
+        const chain = createChainableQuery({ data: { id: 'user-123' }, error: null });
+        mockSupabase.from.mockReturnValue(chain);
+
+        await updateUser('user-123', { first_name: 'Updated' });
+
+        expect(mockSupabase.from).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

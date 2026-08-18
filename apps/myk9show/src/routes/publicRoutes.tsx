@@ -555,6 +555,24 @@ export const PublicRoutes = () => (
       }
     />
 
+    {/*
+      INTENT: /sms must stay PUBLIC and reachable without signing in. Mobile
+      carriers verify an SMS program's opt-in disclosure by loading a URL
+      during A2P 10DLC review; putting this behind auth shows the reviewer a
+      login wall and gets the campaign rejected for "opt-in not verifiable."
+      See docs/operations/sms-10dlc-registration.md § 3.1.
+    */}
+    <Route
+      path="/sms"
+      element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <LegalPage title="SMS Ring Alerts" markdownPath="/legal/sms-alerts.md" />
+          </PageTransition>
+        </SuspenseWrapper>
+      }
+    />
+
     {/* Credentials help — public, no auth required */}
     <Route
       path="/help/credentials"

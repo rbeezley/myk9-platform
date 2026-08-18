@@ -9,7 +9,12 @@
     },
     "typecheck": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$"],
+      // The repo-root edge functions live OUTSIDE every package dir, yet
+      // apps/myk9show typechecks (tsconfig.edge-tests.json) and runs
+      // (vitest.config.ts `test.include`) their tests. Without this input a
+      // change to one of them is invisible to turbo's hash, so a cached hit
+      // would report green on code it never looked at.
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/supabase/functions/**"],
       "outputs": []
     },
     "lint": {
@@ -19,7 +24,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/supabase/functions/**"],
       "outputs": ["coverage/**"]
     },
     "dev": {

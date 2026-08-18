@@ -3,6 +3,7 @@ import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { testCleanup } from './config/testOptimization';
 import { mockSupabase, resetMockSupabase } from './mocks/supabase';
+import { createDatabaseError } from '@/services/database/databaseError';
 import { resetAllStores } from './mocks/zustandReset';
 import { createSupabaseNetworkGuard } from './supabaseNetworkGuard';
 import 'fake-indexeddb/auto';
@@ -20,6 +21,15 @@ import {
 // Global Supabase mock — prevents any test from hitting the real API.
 // Tests that need custom return data can import { mockSupabase, createChainableQuery }
 // from '@/test/mocks/supabase' and call mockSupabase.from.mockReturnValue(...).
+//
+// `createDatabaseError` is the REAL implementation, not a stand-in. Only the
+// client and its network-touching helpers are faked here; error shaping is pure,
+// so a copy would only add a way for the suite to disagree with production. It
+// did: the previous copy returned `code: undefined` for `Error` inputs, which
+// both reddened tests over correct code and hid genuine code-propagation gaps
+// (MYK9-177). It imports from `@/services/database/databaseError` rather than
+// this module's own path so pulling it in does not construct a Supabase client.
+// Keep it that way — do not re-inline an implementation here.
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
   default: mockSupabase,
@@ -27,17 +37,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   getCurrentUser: vi.fn().mockResolvedValue({ user: null, error: null }),
   signOut: vi.fn().mockResolvedValue({ error: null }),
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((err: unknown, table?: string, operation?: string) => ({
-    name: 'DatabaseError',
-    message:
-      err instanceof Error
-        ? err.message
-        : ((err as Record<string, unknown>)?.message ?? 'Database error'),
-    code: err instanceof Error ? undefined : (err as Record<string, unknown>)?.code,
-    details: err instanceof Error ? undefined : (err as Record<string, unknown>)?.details,
-    table,
-    operation,
-  })),
+  createDatabaseError,
   executeBatch: vi.fn().mockResolvedValue([]),
   getConnectionInfo: vi.fn().mockReturnValue({
     url: 'https://test.supabase.co',

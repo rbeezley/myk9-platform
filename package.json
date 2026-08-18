@@ -17,6 +17,7 @@
     "qa:doc-staleness:strict": "node scripts/check-doc-staleness.js --strict",
     "qa:doc-staleness:test": "node --test scripts/check-doc-staleness.test.js",
     "qa:nightly:prepare": "bash scripts/qa/run-nightly-isolated.sh",
+    "qa:nightly:run": "bash scripts/qa/run-nightly.sh",
     "qa:nightly:health": "bash scripts/qa/run-nightly-health.sh",
     "qa:playwright:regression": "bash scripts/qa/run-playwright-regression.sh",
     "qa:isolated-e2e:prepare": "tsx scripts/qa/isolated-e2e-lifecycle.ts prepare",
@@ -63,16 +64,16 @@
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.115.0",
-    "@fission-ai/openspec": "^1.6.0",
+    "@anthropic-ai/sdk": "^0.117.1",
+    "@fission-ai/openspec": "^1.9.0",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
-    "@supabase/supabase-js": "^2.110.7",
+    "@supabase/supabase-js": "^2.112.3",
     "@types/node": "^22",
-    "globals": "^17.7.0",
+    "globals": "^17.11.0",
     "prettier": "^3.9.6",
-    "tsx": "^4.23.1",
-    "turbo": "^2.10.6",
+    "tsx": "^4.23.12",
+    "turbo": "^2.10.9",
     "typescript": "~5.9.3",
     "vitest": "^4.1.10"
   },
@@ -83,7 +84,7 @@
   "pnpm": {
     "overrides": {
       "eslint-plugin-react-hooks": "7.0.1",
-      "@supabase/supabase-js": "2.110.7",
+      "@supabase/supabase-js": "2.112.3",
       "esbuild": "^0.28.1",
       "qs": "^6.15.2",
       "undici": "^7.16.0",

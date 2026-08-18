@@ -1,71 +1,77 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // R1 (judge-verification-remediation) task 3.1: verify the anon
-// ringside-passcode claim can READ show-scoped announcements before wiring
-// the feed. A ringside passcode session is a Supabase ANONYMOUS auth
-// session (see supabase/functions/validate-passcode/index.ts and migration
-// 20260624163000's Phase C note): it authenticates as Postgres role
-// `authenticated` with a non-null `auth.uid()`, it just carries no
-// account/person record.
-//
-// show_announcements' SELECT policy (migration 057, unchanged by 089's
-// SA-022 fix, which only touched INSERT/UPDATE/DELETE) is
-// `USING (auth.uid() is not null)` — ANY authenticated caller, which already
-// admits the anon passcode session. No migration/RLS extension was needed
-// for R1's read path. This is a static-SQL contract test (pattern per
-// ringsidePasscodeClaimAuthzRlsContract.test.ts) pinning that fact so a
-// future edit narrowing the SELECT policy to an account-only check doesn't
-// silently break ringside announcements again.
-
-const baseMigration = readFileSync(
-  resolve(__dirname, '../../../../../supabase/migrations/057_announcements.sql'),
-  'utf8'
-);
-const authzFixMigration = readFileSync(
-  resolve(__dirname, '../../../../../supabase/migrations/089_security_sa022_announcements_rls.sql'),
-  'utf8'
-);
+// ringside-passcode claim can READ only its own show's announcements. A
+// ringside passcode session is a Supabase ANONYMOUS auth session, which uses
+// the Postgres `authenticated` role but has no account/person record. The
+// claim is stamped server-side by validate-passcode and revoked when the
+// passcode generation changes.
+const migrationsDir = resolve(__dirname, '../../../../../supabase/migrations');
+const policyMigrations = readdirSync(migrationsDir)
+  .filter(fileName => fileName.endsWith('.sql'))
+  .sort()
+  .filter(fileName => {
+    const sql = readFileSync(resolve(migrationsDir, fileName), 'utf8');
+    return (
+      sql.includes('show_announcements_select') ||
+      sql.includes('"Authenticated users can read announcements"')
+    );
+  });
+const latestPolicyMigration = policyMigrations.at(-1);
+if (!latestPolicyMigration) {
+  throw new Error('No migration defining the show_announcements SELECT policy was found');
+}
+const ringsideReadMigration = readFileSync(resolve(migrationsDir, latestPolicyMigration), 'utf8');
 
 describe('show_announcements read authz — anon ringside-passcode contract', () => {
-  it('SELECT policy admits any authenticated caller (auth.uid() is not null), not an account/role check', () => {
-    expect(baseMigration).toContain('create policy "Authenticated users can read announcements"');
-    expect(baseMigration).toContain('on show_announcements for select');
-    expect(baseMigration).toContain('using (auth.uid() is not null)');
+  it('replaces the account-only policy with the latest policy', () => {
+    expect(ringsideReadMigration).toContain(
+      'DROP POLICY IF EXISTS show_announcements_select ON public.show_announcements'
+    );
+    expect(ringsideReadMigration).toContain(
+      'CREATE POLICY show_announcements_select ON public.show_announcements'
+    );
+    expect(ringsideReadMigration).toContain('TO authenticated');
   });
 
-  it('the SELECT policy is not scoped to a `TO <role>` clause narrower than authenticated', () => {
-    // A `TO authenticated` (or no TO clause, defaulting to PUBLIC/all roles)
-    // both admit the anon passcode session, which authenticates as Postgres
-    // role `authenticated`. Guard against a future edit adding e.g.
-    // `TO secretary, judge` which would silently exclude it.
-    const selectPolicy = baseMigration.slice(
-      baseMigration.indexOf('create policy "Authenticated users can read announcements"'),
-      baseMigration.indexOf('-- Announcements: all authenticated users can insert')
-    );
-    expect(selectPolicy).not.toMatch(/\bto\s+(?!authenticated\b)\w+/i);
+  it('keeps real accounts on the existing account read path', () => {
+    expect(ringsideReadMigration).toContain('(SELECT public.is_real_account())');
   });
 
-  it('SA-022 only replaced the mutation policies (INSERT/UPDATE/DELETE) — SELECT stayed untouched', () => {
-    expect(authzFixMigration).not.toContain('read announcements');
-    expect(authzFixMigration).toContain(
-      'DROP POLICY IF EXISTS "Authenticated users can create announcements"'
+  it('admits only a current, server-stamped claim for the row show', () => {
+    expect(ringsideReadMigration).toContain(
+      '(SELECT public.ringside_claim_generation_current()) IS TRUE'
     );
-    expect(authzFixMigration).toContain(
-      'DROP POLICY IF EXISTS "Author or admin can update announcements"'
+    expect(ringsideReadMigration).toContain(
+      "(SELECT auth.jwt() -> 'app_metadata' ->> 'kind') = 'ringside_passcode'"
     );
-    expect(authzFixMigration).toContain(
-      'DROP POLICY IF EXISTS "Author or admin can delete announcements"'
+    expect(ringsideReadMigration).toContain(
+      "nullif((SELECT auth.jwt() -> 'app_metadata' ->> 'show_id'), '') = show_announcements.show_id::text"
     );
   });
 
-  it('never widens write access to the ringside-passcode claim (no composer at ringside, per R1 design)', () => {
-    // The mutation policies gate on auth.uid() = author_id or is_platform_admin()
-    // — never on app_metadata / JWT claims. A passcode session with no `people`
-    // record cannot satisfy `auth.uid() = author_id` for a secretary-authored
-    // announcement, so it cannot post/edit/delete. This must stay true.
-    expect(authzFixMigration).not.toContain('app_metadata');
-    expect(authzFixMigration).not.toContain('auth.jwt()');
+  it('intentionally admits every validated show-participant passcode role', () => {
+    expect(ringsideReadMigration).toContain(
+      'claim for any validated passcode role (including exhibitor)'
+    );
+    expect(ringsideReadMigration).not.toContain('ringside_role');
+  });
+
+  it('keeps claim-based authorization limited to SELECT policy statements', () => {
+    const claimPolicyStatements = ringsideReadMigration
+      .split(/(?=CREATE POLICY\b|ALTER POLICY\b)/i)
+      .filter(statement => statement.includes('auth.jwt()') || statement.includes('app_metadata'));
+
+    expect(claimPolicyStatements.length).toBeGreaterThan(0);
+    for (const statement of claimPolicyStatements) {
+      expect(statement).toMatch(/CREATE POLICY\s+show_announcements_select[\s\S]*FOR SELECT/i);
+    }
+  });
+
+  it('does not restore the old account-wide auth.uid-only read', () => {
+    expect(ringsideReadMigration).not.toContain('USING (auth.uid() IS NOT NULL)');
+    expect(ringsideReadMigration).not.toContain('USING (( SELECT auth.uid()) IS NOT NULL)');
   });
 });

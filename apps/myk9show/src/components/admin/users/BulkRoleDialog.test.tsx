@@ -102,12 +102,36 @@ describe('BulkRoleDialog', () => {
     expect(exhibitorCheckbox).toHaveAttribute('aria-checked', 'true');
   });
 
+  it('shows the named plain-language notice supplied after a protected assignment is skipped', () => {
+    renderDialog({
+      notice:
+        'Alice Test has a role assignment limited to a show or with an expiration date; this bulk action left it unchanged.',
+    });
+
+    expect(
+      screen.getByText(/Alice Test has a role assignment limited to a show/)
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the protected-grant notice visible alongside a partial-failure error', () => {
+    renderDialog({
+      error: '1 of 2 users updated — 1 failed.',
+      notice:
+        'Alice Test has a role assignment limited to a show or with an expiration date; this bulk action left it unchanged.',
+    });
+
+    expect(screen.getByText(/1 of 2 users updated/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Alice Test has a role assignment limited to a show/)
+    ).toBeInTheDocument();
+  });
+
   it('hides exhibitor entirely in Remove mode (locked roles are never offered for removal)', async () => {
     const user = userEvent.setup();
     renderDialog();
 
     await user.click(screen.getByRole('combobox'));
-    await user.click(screen.getByRole('option', { name: 'Remove' }));
+    await user.click(await screen.findByRole('option', { name: 'Remove' }));
 
     expect(screen.queryByRole('checkbox', { name: /Exhibitor/ })).not.toBeInTheDocument();
   });

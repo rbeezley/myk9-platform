@@ -3,6 +3,11 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type { DbUserInsert, DbUserUpdate } from '../../../types/database-mappings';
 import { translatePersonIdentityError } from '@/utils/duplicateIdentityErrors';
+import {
+  checkSignInEmailChange,
+  SIGN_IN_EMAIL_LOCKED_CODE,
+  SIGN_IN_EMAIL_LOCKED_MESSAGE,
+} from './signInEmailGuard';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
@@ -127,12 +132,15 @@ export const createUser = async (userData: DbUserInsert) => {
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
+    // MYK9-178: do NOT re-read `details`/`hint` off the translated Error.
+    // `createDatabaseError` omits those outside DEV on purpose, and a 23505
+    // `details` spells out the colliding address, which has no business on a
+    // production surface — `translatePersonIdentityError` copies them onto the
+    // translated Error, so re-reading them here would undo that redaction.
+    // The code needs no restating either (MYK9-177): the helper reads `code`
+    // off whatever object it is handed, Error instances included.
     const translated = translatePersonIdentityError(error);
     const dbError = createDatabaseError(translated, 'user', 'insert');
-    const metadata = translated as { code?: string; details?: string; hint?: string };
-    if (metadata.code) dbError.code = metadata.code;
-    if (metadata.details) dbError.details = metadata.details;
-    if (metadata.hint) dbError.hint = metadata.hint;
     logQuery('user', 'insert', duration, dbError.message);
     return { data: null, error: dbError };
   }
@@ -143,27 +151,85 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
+    // MYK9-136: an email change on a person with an auth identity would orphan
+    // that identity — they keep signing in with the old address. Every write
+    // path to `people.email` funnels through here (three mappers plus the show
+    // wizard's direct call), so this is the one place the check belongs.
+    let requireUnlinked = false;
+    const payload: DbUserUpdate = { ...updates };
+    if (updates.email !== undefined) {
+      const decision = await checkSignInEmailChange(id, updates.email);
+      if (!decision.allowed) {
+        throw Object.assign(new Error(decision.message), { code: decision.code });
+      }
+      if (decision.reason === 'unchanged') {
+        // Same address, but possibly padded or differently cased. Writing that
+        // variant back would still change the stored identity value, and
+        // `handle_new_user()` matches on `LOWER(email)` with no trim — so
+        // "  ada@example.com  " reads as a different person at signup. Nothing
+        // changed, so touch nothing.
+        delete payload.email;
+      } else {
+        requireUnlinked = true;
+      }
+    }
+
+    let query = supabase
       .from('people')
       .update({
-        ...updates,
+        ...payload,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
+
+    // Reading the linkage and writing the row are two requests, so a signup
+    // could adopt this person in between — `handle_new_user()` links on the
+    // OLD address, and we would then overwrite the email of an identity that
+    // was unlinked when we looked. Restating the condition as a filter hands
+    // it to Postgres to evaluate at write time. Only the changing-address case
+    // needs it: an unchanged email cannot create drift, and filtering there
+    // would fail every ordinary save by a person who can sign in.
+    if (requireUnlinked) {
+      query = query.is('auth_user_id', null);
+    }
+
+    const { data, error } = await query.select().single();
 
     const duration = Date.now() - startTime;
     logQuery('user', 'update', duration, error?.message);
 
     if (error) {
+      // The filter matched nothing: the row existed and was unlinked a moment
+      // ago, so it has just been adopted. Report the refusal, not a bare
+      // "no rows" from a filter the caller never asked for. Narrow to that one
+      // code — any other failure here (a duplicate address, say) is its own
+      // error and must keep its own message.
+      if (requireUnlinked && error.code === 'PGRST116') {
+        throw Object.assign(new Error(SIGN_IN_EMAIL_LOCKED_MESSAGE), {
+          code: SIGN_IN_EMAIL_LOCKED_CODE,
+        });
+      }
       throw createDatabaseError(error, 'user', 'update');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'user', 'update');
+    // MYK9-175: mirror the insert path. A `people_email_unique` collision has
+    // to reach the operator as field-specific copy, not as the raw constraint
+    // name — `UserDetailsView` renders this message verbatim through
+    // `getErrorMessage`, so an untranslated error leaks SQL into the UI.
+    // One translation point covers both exits: the `throw` in the error branch
+    // above is inside this same `try`. `translatePersonIdentityError` falls
+    // through for anything that is not a unique email conflict, so the MK002
+    // and SIGN_IN_EMAIL_LOCKED refusals keep their own messages and codes.
+    //
+    // Nothing is restated off `translated` — same shape as the insert path above.
+    // `details`/`hint` must not be re-read (MYK9-178), and the code needs no
+    // help: the helper reads `code` off whatever object it is handed, Error
+    // instances included (MYK9-177).
+    const translated = translatePersonIdentityError(error);
+    const dbError = createDatabaseError(translated, 'user', 'update');
     logQuery('user', 'update', duration, dbError.message);
     return { data: null, error: dbError };
   }
@@ -333,6 +399,102 @@ export const getDeletedUsers = async () => {
     const dbError = createDatabaseError(error, 'user', 'select_deleted');
     logQuery('user', 'select_deleted', duration, dbError.message);
     return { data: [], error: dbError };
+  }
+};
+
+/**
+ * Read ONE soft-deleted person.
+ *
+ * `people_select` is `deleted_at IS NULL`, so a removed person is invisible to
+ * every role including site admin, and `getUserById` filters them out too. The
+ * admin-gated `get_deleted_people` RPC (migration 20260616140000) is the only
+ * read path there is.
+ *
+ * It returns the whole deleted set and the row is picked here rather than in a
+ * second SECURITY DEFINER function answering the same question. The set is
+ * small by nature — soft-deleted people are a queue that gets emptied, not a
+ * growing table. If that stops being true, a `get_deleted_person(uuid)` RPC is
+ * the drop-in replacement and only this function changes.
+ *
+ * Returns `{ data: null }` for a live person, an unknown id, OR a caller the
+ * RPC refuses — the caller cannot tell those apart, which is the point.
+ */
+export const getDeletedUserById = async (id: string) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase.rpc('get_deleted_people');
+
+    const duration = Date.now() - startTime;
+    logQuery('user', 'select_deleted_by_id', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'user', 'select_deleted_by_id');
+    }
+
+    const rows = (data ?? []) as { id?: string }[];
+    const person = rows.find(row => row.id === id) ?? null;
+    if (!person) return { data: null, error: null };
+
+    // The RPC returns SETOF public.people — the row and nothing else — while
+    // `getUserById` embeds user_roles and judge qualifications. Mapping the bare
+    // row yields an EMPTY role list, which reads as "this person had no roles"
+    // rather than "we didn't ask": a removed judge would silently lose their
+    // badge and judge sections. Fetch the roles alongside, in the shape
+    // extractRoles expects.
+    //
+    // NO is_active FILTER, deliberately. soft_delete_person sets is_active =
+    // false on every active role it disables, and restore_person does not put
+    // them back. Filtering on is_active would therefore return nothing for
+    // precisely the people this function exists to read — the record would
+    // render role-less and look perfectly correct.
+    //
+    // New removals stamp deactivated_at with the person's deleted_at. That
+    // distinguishes a grant disabled by this removal from an older inactive
+    // grant. Legacy rows without the stamp remain visible because their history
+    // cannot be reconstructed after the fact.
+    //
+    // Over-reporting beats under-reporting here: without this the roles are
+    // missing for every removed person, always. With it they are occasionally
+    // generous, on a record that carries a "this person was removed" banner and
+    // no editing affordances, so no reader can mistake a badge for live
+    // authority.
+    const { data: roleRows, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('expires_at, is_active, deactivated_at, role:roles!user_roles_role_id_fkey(name)')
+      .eq('user_id', id);
+
+    // A failed role read must not pass as a complete record with no roles —
+    // that is the same silent lie, arrived at a different way.
+    if (rolesError) {
+      throw createDatabaseError(rolesError, 'user', 'select_deleted_by_id');
+    }
+
+    // A grant that expired BEFORE they were removed was demonstrably not held at
+    // removal, so drop it. For new removals, an inactive grant must also carry
+    // this removal's timestamp. Legacy inactive rows without a stamp are kept
+    // because the old schema cannot distinguish their history.
+    const removedAt = (person as { deleted_at?: string | null }).deleted_at;
+    const heldAtRemoval = (roleRows ?? []).filter(row => {
+      const expiresAt = (row as { expires_at?: string | null }).expires_at;
+      if (expiresAt && removedAt && new Date(expiresAt) <= new Date(removedAt)) {
+        return false;
+      }
+
+      const isActive = (row as { is_active?: boolean }).is_active;
+      if (isActive === true || !removedAt) return true;
+
+      const deactivatedAt = (row as { deactivated_at?: string | null }).deactivated_at;
+      if (!deactivatedAt) return true;
+      return new Date(deactivatedAt).getTime() === new Date(removedAt).getTime();
+    });
+
+    return { data: { ...person, user_roles: heldAtRemoval }, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'user', 'select_deleted_by_id');
+    logQuery('user', 'select_deleted_by_id', duration, dbError.message);
+    return { data: null, error: dbError };
   }
 };
 

@@ -5,20 +5,29 @@ import {
   markSupportTicketMessagesRead,
   postSupportTicketMessage,
   updateSupportTicketStatus,
+  type ListSupportTicketsOptions,
   type SupportTicketStatus,
 } from './supportTickets';
 
 export const supportTicketKeys = {
   all: ['support-tickets'] as const,
   lists: () => [...supportTicketKeys.all, 'list'] as const,
-  list: (status?: SupportTicketStatus) => [...supportTicketKeys.lists(), status ?? 'all'] as const,
+  list: (status?: SupportTicketStatus, options?: ListSupportTicketsOptions) =>
+    [
+      ...supportTicketKeys.lists(),
+      status ?? 'all',
+      options?.resolveOwners ? 'with-owners' : 'default',
+    ] as const,
   messages: (ticketId: string) => [...supportTicketKeys.all, 'messages', ticketId] as const,
 };
 
-export function useSupportTickets(status?: SupportTicketStatus) {
+export function useSupportTickets(
+  status?: SupportTicketStatus,
+  options?: ListSupportTicketsOptions
+) {
   return useQuery({
-    queryKey: supportTicketKeys.list(status),
-    queryFn: () => listSupportTickets(status),
+    queryKey: supportTicketKeys.list(status, options),
+    queryFn: () => listSupportTickets(status, options),
   });
 }
 

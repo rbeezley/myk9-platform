@@ -9,6 +9,8 @@ import AchievementsSection from './Achievements/AchievementsSection';
 interface CompetitionsTabsProps {
   dogId: string;
   isPremium: boolean;
+  /** Whose voice entry status lines speak in — same contract as ActivityTab. */
+  viewer: 'exhibitor' | 'secretary';
 }
 
 const tabs: PrimaryTabDef[] = [
@@ -17,7 +19,7 @@ const tabs: PrimaryTabDef[] = [
   { id: 'achievements', label: 'Achievements', icon: Award },
 ];
 
-const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium }) => {
+const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium, viewer }) => {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addPastResultOpen, setAddPastResultOpen] = useState(false);
@@ -54,6 +56,8 @@ const CompetitionsTabs: React.FC<CompetitionsTabsProps> = ({ dogId, isPremium })
       <PrimaryTabs tabs={tabs} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <PrimaryTabsContent value="upcoming">
           <UpcomingShowsSection
+            dogId={dogId}
+            viewer={viewer}
             showAddDialog={showAddDialog}
             onAddDialogClose={() => setShowAddDialog(false)}
           />

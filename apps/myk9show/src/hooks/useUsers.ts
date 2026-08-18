@@ -2,12 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
-import {
-  getAllUsers,
-  createUser,
-  updateUser,
-  deleteUser,
-} from '@/services/database/users';
+import { getAllUsers, createUser, updateUser, deleteUser } from '@/services/database/users';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 import { savePersonRoles } from '@/components/panels/edit/personRolesService';
 
@@ -67,7 +62,14 @@ export function useUpdatePerson() {
         zip_code: person.zipCode || null,
         profile_image: person.profileImage || null,
       });
-      if (error || !data) throw new Error(error?.message || 'Failed to update user');
+      if (error || !data) {
+        // Keep the code alongside the message — the friendly-error helpers key
+        // on it, and a refusal that arrives without one reads as a generic
+        // failure (MYK9-136).
+        throw Object.assign(new Error(error?.message || 'Failed to update user'), {
+          code: error?.code,
+        });
+      }
       return mapDatabaseToUser(data);
     },
     onSuccess: () => {

@@ -13,6 +13,7 @@ import { FormField } from '@/components/common/FormField';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HandlerInfo } from '@/types/show-registration-types';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 import { useUserStore } from '@/store/userStore';
@@ -232,21 +233,6 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
   const isModified = !!ownerName && currentName !== ownerName;
   const isEmpty = !currentName.trim();
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleClose = useCallback(() => onOpenChange(dogId, false), [onOpenChange, dogId]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        handleClose();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen, handleClose]);
-
   const filteredPeople = useMemo(() => {
     if (currentName.trim().length < 2) return [];
     return filterPeopleByName(people, currentName).slice(0, 10);
@@ -272,18 +258,29 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
           fieldId={`handler-${dogId}`}
           error={hasError && isEmpty ? 'Please enter a handler name' : undefined}
         >
-          <div className="relative" ref={containerRef}>
+          <Popover
+            modal={false}
+            open={isOpen}
+            onOpenChange={open => onOpenChange(dogId, open)}
+          >
             <div className="flex gap-2">
-              <Input
-                id={`handler-${dogId}`}
-                value={currentName}
-                onChange={e => onInputChange(dogId, e.target.value)}
-                onFocus={() => onOpenChange(dogId, true)}
-                placeholder="Search for a person or type a name"
-                aria-invalid={hasError && isEmpty}
-                aria-describedby={hasError && isEmpty ? `handler-${dogId}-error` : undefined}
-                autoComplete="off"
-              />
+              <PopoverTrigger asChild>
+                <Input
+                  id={`handler-${dogId}`}
+                  value={currentName}
+                  onChange={e => onInputChange(dogId, e.target.value)}
+                  onFocus={() => onOpenChange(dogId, true)}
+                  onClick={() => onOpenChange(dogId, true)}
+                  placeholder="Search for a person or type a name"
+                  role="combobox"
+                  aria-invalid={hasError && isEmpty}
+                  aria-describedby={hasError && isEmpty ? `handler-${dogId}-error` : undefined}
+                  aria-expanded={isOpen}
+                  aria-controls={`handler-${dogId}-suggestions`}
+                  aria-autocomplete="list"
+                  autoComplete="off"
+                />
+              </PopoverTrigger>
               {isModified && (
                 <Button
                   variant="ghost"
@@ -298,9 +295,14 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
               )}
             </div>
 
-            {/* Dropdown results */}
             {isOpen && (
-              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-auto">
+              <PopoverContent
+                id={`handler-${dogId}-suggestions`}
+                align="start"
+                initialFocus={() => false}
+                className="w-[var(--anchor-width)] max-h-[min(12rem,var(--available-height))] overflow-auto p-0"
+                role="listbox"
+              >
                 {filteredPeople.length > 0 ? (
                   filteredPeople.map(person => {
                     const fullName = getPersonName(people, person.id) ?? '';
@@ -308,6 +310,8 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
                       <button
                         key={person.id}
                         type="button"
+                        role="option"
+                        aria-selected={false}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                         onMouseDown={e => {
                           e.preventDefault(); // Prevent input blur before click registers
@@ -328,9 +332,9 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
                     No matches — press Confirm Handler to use this name
                   </div>
                 )}
-              </div>
+              </PopoverContent>
             )}
-          </div>
+          </Popover>
         </FormField>
       </CardContent>
     </Card>

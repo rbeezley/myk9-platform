@@ -152,4 +152,96 @@ describe('AdminDeleteUserDialog', () => {
       expect(screen.getByLabelText(/Deactivate/)).toBeInTheDocument();
     });
   });
+
+  describe('viewer cannot permanently delete', () => {
+    it('offers no choice at all — just deactivate', () => {
+      render(<AdminDeleteUserDialog {...defaultProps} allowPermanent={false} />);
+
+      // Hidden, not disabled: a secretary should not have to read past a
+      // control they cannot use.
+      expect(screen.queryByLabelText(/^Permanently delete$/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/^Deactivate$/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^deactivate$/i })).toBeInTheDocument();
+    });
+
+    it('soft-deletes on confirm', () => {
+      const onSoftDelete = vi.fn();
+      const onPermanentDelete = vi.fn();
+      render(
+        <AdminDeleteUserDialog
+          {...defaultProps}
+          allowPermanent={false}
+          onSoftDelete={onSoftDelete}
+          onPermanentDelete={onPermanentDelete}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /^deactivate$/i }));
+
+      expect(onSoftDelete).toHaveBeenCalledTimes(1);
+      expect(onPermanentDelete).not.toHaveBeenCalled();
+    });
+
+    it('cannot be talked into a permanent delete by an already-removed person', () => {
+      // alreadyRemoved forces the permanent mode; without the permission that
+      // must not become a permanent delete the viewer isn't allowed to make.
+      const onPermanentDelete = vi.fn();
+      const onSoftDelete = vi.fn();
+      render(
+        <AdminDeleteUserDialog
+          {...defaultProps}
+          alreadyRemoved
+          allowPermanent={false}
+          onPermanentDelete={onPermanentDelete}
+          onSoftDelete={onSoftDelete}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /deactivate/i }));
+
+      expect(onPermanentDelete).not.toHaveBeenCalled();
+      expect(onSoftDelete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('already-removed person', () => {
+    it('drops the mode choice — deactivating a removed person is a no-op', () => {
+      render(<AdminDeleteUserDialog {...defaultProps} alreadyRemoved />);
+
+      expect(screen.queryByLabelText(/^Deactivate$/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/^Permanently delete$/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Delete Permanently/)).toBeInTheDocument();
+    });
+
+    it('says the person can still be restored before this step', () => {
+      render(<AdminDeleteUserDialog {...defaultProps} alreadyRemoved />);
+
+      expect(screen.getByText(/already removed and can still be restored/i)).toBeInTheDocument();
+    });
+
+    it('confirms straight to permanent delete', () => {
+      const onPermanentDelete = vi.fn();
+      const onSoftDelete = vi.fn();
+      render(
+        <AdminDeleteUserDialog
+          {...defaultProps}
+          alreadyRemoved
+          onPermanentDelete={onPermanentDelete}
+          onSoftDelete={onSoftDelete}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /permanently delete/i }));
+
+      expect(onPermanentDelete).toHaveBeenCalledTimes(1);
+      expect(onSoftDelete).not.toHaveBeenCalled();
+    });
+
+    it('still blocks when the removed person owns live dogs', () => {
+      mockOwnedDogs.mockReturnValue({ data: [{ id: 'd1', name: 'Bravo' }], isLoading: false });
+      render(<AdminDeleteUserDialog {...defaultProps} alreadyRemoved personId="p1" />);
+
+      expect(screen.getByText(/Can't delete John Doe/)).toBeInTheDocument();
+    });
+  });
 });

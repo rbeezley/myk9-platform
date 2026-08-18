@@ -159,6 +159,16 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
       expect(result?.fee).toBe(150.0);
     });
 
+    it('redacts private fields from collection reads for stale offline rows', async () => {
+      await table.set('ja-1', baseAssignment);
+
+      const result = await table.getAll();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].fee).toBeNull();
+      expect(result[0].notes).toBeNull();
+    });
+
     it('should return null for non-existent assignment', async () => {
       const result = await table.get('nonexistent');
       expect(result).toBeNull();

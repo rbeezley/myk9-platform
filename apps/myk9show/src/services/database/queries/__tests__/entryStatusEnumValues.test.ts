@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 /**
  * Regression tests: entry_status enum values written/read by the query layer
  *
@@ -38,7 +39,7 @@ vi.mock('../../supabaseClient', () => ({
     from: (...args: unknown[]) => mockFrom(...args),
   },
   logQuery: vi.fn(),
-  createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
+  createDatabaseError,
 }));
 
 vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({

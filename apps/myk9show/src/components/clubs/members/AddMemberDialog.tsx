@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,8 +11,9 @@ import {
 } from '@/components/ui/select';
 import { FormField } from '@/components/common/FormField';
 import { useUserStore } from '@/store/userStore';
-import { useClubStore } from '@/store/clubStore';
 import { Club } from '@/types/club-types';
+import type { ClubMember } from '@/types/club-membership-types';
+import { addClubMember } from '@/services/database/club-memberships';
 import { Plus, Users } from 'lucide-react';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
@@ -20,29 +22,37 @@ interface AddMemberDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   club: Club;
+  members: ClubMember[];
 }
 
-export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({ open, onOpenChange, club }) => {
+export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
+  open,
+  onOpenChange,
+  club,
+  members,
+}) => {
   const [selectedPersonId, setSelectedPersonId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
   const people = useUserStore(state => state.people);
-  const updateClub = useClubStore(state => state.updateClub);
+  const queryClient = useQueryClient();
 
   // Filter out people who are already members
-  const availablePeople = people.filter(person => !club.memberIds?.includes(person.id.toString()));
+  const availablePeople = people.filter(
+    person => !members.some(member => member.personId === person.id.toString())
+  );
 
   const handleAddMember = async () => {
     if (!selectedPersonId) return;
 
     setIsLoading(true);
     try {
-      const updatedClub: Club = {
-        ...club,
-        memberIds: [...(club.memberIds || []), selectedPersonId],
-      };
-
-      await updateClub(updatedClub);
+      await addClubMember({
+        clubId: club.id,
+        personId: selectedPersonId,
+        membershipType: 'full',
+      });
+      await queryClient.invalidateQueries({ queryKey: ['club-members', club.id] });
 
       // Show success feedback
       const addedPerson = people.find(p => p.id.toString() === selectedPersonId);

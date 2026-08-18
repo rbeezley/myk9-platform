@@ -35,8 +35,8 @@ before they could produce a valid Supabase result.
 ## Free GitHub distributed rehearsal
 
 `.github/workflows/load-rehearsal.yml` is the gate-closing entry point. It is
-manual-only and uses four standard public-repository `ubuntu-latest` runners.
-Each runner serves the checked-out frontend locally, prepares 25 isolated
+manual-only and uses eight standard public-repository `ubuntu-latest` runners.
+Each runner serves the checked-out frontend locally, prepares 12 or 13 isolated
 browser sessions, connects to the same remote Supabase project, and waits for
 one shared UTC start barrier. This does not require a paid runner or Vercel.
 Page p95 remains informational because it includes browser-runner scheduling.
@@ -80,18 +80,21 @@ SUPABASE_DB_PASSWORD
 ```
 
 The prepare job requires the operator to type the approved project ref and
-performs the canonical reseed. Four shards then run 25 unique global
+performs the CPU/IO telemetry preflight and canonical reseed. Eight shards then run 12 or 13 unique global
 assignments each. Shard 0 owns the single platform sampler. The aggregate job
-requires all four matching artifacts, concatenates sanitized raw timings for
+requires all eight matching artifacts, concatenates sanitized raw timings for
 exact global percentiles, preserves each runner's generator evidence separately,
 evaluates G9 once, and uploads JSON/Markdown evidence. Session evidence reports
 configured, prepared/open, started, completed, failed, and peak-active workflows;
 an early workflow failure no longer reduces the prepared concurrency count.
 Each workflow also records a high-resolution epoch interval, so aggregation
 computes the actual cross-runner simultaneous peak instead of summing unrelated
-shard-local maxima.
-The separate `if: always()` cleanup job reseeds and verifies `514|504|0` after
-success or failure.
+shard-local maxima. The separate `if: always()` cleanup job first cancels scoring
+queries that began inside the database-clock rehearsal ownership window, requires zero
+scoring workers across the target and three unchanged rollback samples, then reseeds
+and verifies `514|504|0` after success or failure. Pre-existing scoring work is never
+canceled; it blocks reseeding instead. If the quiet-window gate fails, cleanup leaves
+the target for operator recovery.
 
 ## Scenario budgets
 

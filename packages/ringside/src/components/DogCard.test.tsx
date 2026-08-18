@@ -62,6 +62,20 @@ describe('DogCard', () => {
     expect(screen.getByTestId('badges')).toBeTruthy();
   });
 
+  it('renders an injected primary action without changing the card primitive', () => {
+    render(
+      <DogCard
+        armband={1}
+        callName="Rex"
+        breed="B"
+        handler="C"
+        primaryAction={<button type="button">Score Rex</button>}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Score Rex' })).toBeTruthy();
+  });
+
   it('is touchable + fires onClick / onPrefetch when interactive', () => {
     const onClick = vi.fn();
     const onPrefetch = vi.fn();

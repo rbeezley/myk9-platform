@@ -39,11 +39,10 @@ import {
 } from '../_shared/chargeRefundedDecision.ts';
 import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
 import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp.ts';
+import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
-import {
-  listAllChargeRefunds,
-  resolveRefundLedgerAction,
-} from '../_shared/refundLifecycle.ts';
+import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
+import { listAllChargeRefunds, resolveRefundLedgerAction } from '../_shared/refundLifecycle.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -52,6 +51,8 @@ const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
 const stripeConnectWebhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const resendApiKey = Deno.env.get('RESEND_API_KEY');
+const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
 if (!stripeSecret || !stripeWebhookSecret || !supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing required environment variables');
@@ -285,10 +286,7 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
   }
 }
 
-async function handleTerminalRefund(
-  refund: Stripe.Refund,
-  terminalState: 'failed' | 'canceled'
-) {
+async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'failed' | 'canceled') {
   const entryId = refund.metadata?.entry_id ?? null;
   console.error(
     `CRITICAL: refund ${refund.id} (${refund.amount}¢) ${terminalState.toUpperCase()} after creation` +
@@ -2286,6 +2284,30 @@ async function sendEntryConfirmationEmail(
   session: Stripe.Checkout.Session,
   authoritative: { subtotalCents: number; platformFeeCents: number; totalCents: number }
 ) {
+  let deliveryAttemptRecorded = false;
+  let recipientEmail: string | null = null;
+  const recordDeliveryAttempt = async (args: {
+    status: 'sent' | 'failed';
+    messageId?: string | null;
+    errorMessage?: string | null;
+  }) => {
+    await supabase
+      .from('email_log')
+      .insert({
+        recipient_email: recipientEmail,
+        email_type: 'registration_confirmation',
+        resend_message_id: args.messageId ?? null,
+        status: args.status,
+        status_updated_at: new Date().toISOString(),
+        error_message: args.errorMessage ?? null,
+        show_id: cart.show_id,
+      })
+      .then(({ error }) => {
+        if (error) console.error('Could not log Stripe confirmation email:', error);
+      });
+    deliveryAttemptRecorded = true;
+  };
+
   try {
     // Get exhibitor email and name
     const { data: person } = await supabase
@@ -2296,8 +2318,10 @@ async function sendEntryConfirmationEmail(
 
     if (!person?.email) {
       console.error('No email found for exhibitor');
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'recipient_unresolved' });
       return;
     }
+    recipientEmail = person.email;
 
     // Get show details
     const { data: show } = await supabase
@@ -2308,6 +2332,7 @@ async function sendEntryConfirmationEmail(
 
     if (!show) {
       console.error('Show not found');
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'show_unresolved' });
       return;
     }
 
@@ -2328,11 +2353,13 @@ async function sendEntryConfirmationEmail(
 
     if (entriesError) {
       console.error('Entries fetch for confirmation email failed:', entriesError);
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'entries_unresolved' });
       return;
     }
 
     if (!entries || entries.length === 0) {
       console.error('No entries found for confirmation email');
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'entries_unresolved' });
       return;
     }
 
@@ -2359,8 +2386,6 @@ async function sendEntryConfirmationEmail(
 
     // Build email payload
     const emailData = {
-      type: 'entry_confirmation',
-      to: person.email,
       exhibitorName: `${person.first_name} ${person.last_name}`,
       showName: show.name,
       showDate,
@@ -2381,31 +2406,48 @@ async function sendEntryConfirmationEmail(
       orderId: session.id,
     };
 
-    // Call send-email function
-    const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+    if (!resendApiKey) {
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'email_not_configured' });
+      return;
+    }
+
+    // This webhook has already resolved the cart, exhibitor, show, entries,
+    // and paid totals server-side. Send directly with a stable idempotency key;
+    // the generic send-email endpoint intentionally rejects service-role calls.
+    const response = await sendResendEmailWithRetry({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${supabaseServiceKey}`,
+        Authorization: `Bearer ${resendApiKey}`,
+        'Idempotency-Key': `stripe-entry-confirmation-${session.id}`,
       },
-      body: JSON.stringify(emailData),
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: person.email,
+        subject: `Entry Confirmation - ${show.name}`,
+        html: renderStripeEntryConfirmationEmail(emailData),
+      }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Failed to send confirmation email:', error);
+      await response.text();
+      console.error('Failed to send confirmation email:', response.status);
+      await recordDeliveryAttempt({
+        status: 'failed',
+        errorMessage: `provider_http_${response.status}`,
+      });
       // MP-13: no stamp on a failed send — the entry stays eligible for the
       // scheduled send-confirmation-email sender's audience query
       // (confirmation_email_sent_at IS NULL / status IN pending,failed).
       return;
     }
 
-    console.log(`Confirmation email sent to ${person.email}`);
+    console.log('Confirmation email sent');
 
     // MP-13: stamp every entry this email covered with the SAME send-state
     // semantics the scheduled sender uses, so its audience query excludes
-    // this entry and no second confirmation email is sent. send-email
-    // returns { success: true, id } where `id` is the Resend message id;
+    // this entry and no second confirmation email is sent. Resend returns an
+    // `id` for the accepted message;
     // fall back to null if the body is missing/unparseable rather than
     // failing the whole webhook over a non-critical read.
     let messageId: string | null = null;
@@ -2415,6 +2457,8 @@ async function sendEntryConfirmationEmail(
     } catch (parseError) {
       console.error('Could not parse send-email response for message id:', parseError);
     }
+
+    await recordDeliveryAttempt({ status: 'sent', messageId });
 
     const stampPayload = buildConfirmationStampPayload({
       sendSucceeded: true,
@@ -2439,6 +2483,9 @@ async function sendEntryConfirmationEmail(
     }
   } catch (error) {
     console.error('Error sending confirmation email:', error);
+    if (!deliveryAttemptRecorded) {
+      await recordDeliveryAttempt({ status: 'failed', errorMessage: 'email_delivery_error' });
+    }
     // Don't throw - email failure shouldn't fail the payment processing
   }
 }

@@ -137,31 +137,49 @@ describe('DB migration sanity contracts', () => {
   });
 
   it('derives class status from non-deleted entries only', () => {
-    const { sql } = latestMigrationContaining(
-      /deleted_at[\s\S]*entries_refresh_class_scoring_state/i
+    // Match the DDL marker, not any prose mention — same rule as the view test
+    // above. `/deleted_at[\s\S]*entries_refresh_class_scoring_state/` matched the
+    // HEADER COMMENT of 20260817140000, which discusses both while redefining
+    // only the function, and the trigger slice below then found nothing.
+    const { sql: triggerSql } = latestMigrationContaining(
+      /CREATE TRIGGER entries_refresh_class_scoring_state/i
+    );
+    // The function has been redefined since the trigger was last created, so
+    // read its body from the newest migration that redefines it — otherwise
+    // these assertions validate SQL the database no longer runs.
+    const { sql: functionSql } = latestMigrationContaining(
+      /CREATE OR REPLACE FUNCTION public\.refresh_class_scoring_state/i
     );
     const refreshFunction = sliceBetween(
-      sql,
+      functionSql,
       'CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state',
       'COMMENT ON FUNCTION public.refresh_class_scoring_state'
     );
     const trigger = sliceBetween(
-      sql,
+      triggerSql,
       'CREATE TRIGGER entries_refresh_class_scoring_state',
       'ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push'
     );
 
-    expect(refreshFunction).toContain('FROM public.entries');
-    expect(refreshFunction).toContain('AND deleted_at IS NULL');
+    // The COMPLETENESS COUNTS must ignore tombstones: a soft-deleted entry is
+    // not owed a run, so it must not hold the class out of 'completed'.
     expect(refreshFunction).toContain('COUNT(*) FILTER (WHERE is_scored = true)::integer');
-    expect(refreshFunction).toContain('WHERE class_id = p_class_id\n      AND deleted_at IS NULL');
-    expect(sql).toContain('NEW.deleted_at IS NULL');
+    expect(refreshFunction).toContain(
+      'FROM public.entries\n  WHERE class_id = p_class_id\n    AND deleted_at IS NULL;'
+    );
+    // The terminal placement CLEARS deliberately do NOT carry that filter —
+    // that is what leaves an emptied class's tombstone unplaced
+    // (20260817140000). Asserted in classPlacementContract.test.ts alongside
+    // the final_placement IS NOT NULL guard that bounds them.
+    expect(triggerSql).toContain('NEW.deleted_at IS NULL');
     expect(trigger).toContain('deleted_at');
-    expect(sql).toContain(
+    expect(triggerSql).toContain(
       'ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push'
     );
-    expect(sql).toContain('PERFORM public.refresh_class_scoring_state(r.id);');
-    expect(sql).toContain('ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push');
+    expect(triggerSql).toContain('PERFORM public.refresh_class_scoring_state(r.id);');
+    expect(triggerSql).toContain(
+      'ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push'
+    );
   });
 
   it('does not issue no-op placement updates for entries that are already clear', () => {
@@ -179,7 +197,10 @@ describe('DB migration sanity contracts', () => {
       ),
     ].map(match => match[0]);
 
-    expect(placementClears).toHaveLength(3);
+    // Three class-wide clears in the derived terminal branches plus the
+    // tombstone-scoped clear added to the manual early return by
+    // 20260817150000. Every one of them carries the guard.
+    expect(placementClears).toHaveLength(4);
     for (const placementClear of placementClears) {
       expect(placementClear).toContain('AND final_placement IS NOT NULL');
     }

@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { submitShowEntries, updateEntryHandler } from '../../entries';
 
@@ -9,18 +10,7 @@ vi.mock('../../supabaseClient', () => ({
     rpc: (...args: unknown[]) => mockRpc(...args),
   },
   logQuery: vi.fn(),
-  createDatabaseError: (_err: unknown, _table: string, _op: string) => {
-    const msg =
-      _err instanceof Error
-        ? _err.message
-        : typeof _err === 'object' && _err !== null && 'message' in _err
-          ? String((_err as { message: unknown }).message)
-          : String(_err);
-    const e = new Error(msg);
-    (e as Error & { table: string; operation: string }).table = _table;
-    (e as Error & { table: string; operation: string }).operation = _op;
-    return e;
-  },
+  createDatabaseError,
 }));
 
 const baseParams = {

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/services/database/supabaseClient';
+import { fetchPersonIdentity } from '@/services/database/users';
 import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
 
@@ -42,6 +43,30 @@ function usePersonRoleNames(personId?: string) {
   return { ...query, data };
 }
 
+/**
+ * Whether this person can sign in. Read here rather than taken from the
+ * caller: the admin roster comes from the `get_admin_user_list` RPC, which
+ * does not return `auth_user_id` at all, so a passed-down flag would be false
+ * for every linked user on the app's main user-management surface — the one
+ * place this matters most (MYK9-136).
+ *
+ * Unknown reads as "editable". The refusal itself lives in `updateUser`, which
+ * fails closed; this only decides whether to offer an edit that would be
+ * refused.
+ */
+function usePersonHasSignInAccount(personId?: string) {
+  const query = useQuery({
+    queryKey: ['personSignInLinkage', personId],
+    queryFn: async () => {
+      if (!personId) return null;
+      return fetchPersonIdentity(personId);
+    },
+    enabled: !!personId,
+    staleTime: 30_000,
+  });
+  return Boolean(query.data?.authUserId);
+}
+
 interface BasicInfoTabProps {
   personId?: string;
   hasAdminPermission: boolean;
@@ -57,6 +82,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
   const { data: dbRoles } = usePersonRoleNames(personId);
+  const hasSignInAccount = usePersonHasSignInAccount(personId);
 
   // Seed form roles from DB on initial load
   useEffect(() => {
@@ -71,6 +97,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const firstNameError = form?.getError('firstName');
   const lastNameError = form?.getError('lastName');
   const emailError = form?.getError('email');
+  const emailInputProps = { id: 'email', type: 'email', value: data.email, name: 'email' } as const;
 
   return (
     <div className="space-y-6">
@@ -129,18 +156,33 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         </FormField>
       </div>
 
-      {/* Email */}
+      {/* Email — read-only once the person can sign in. Their contact address
+          and their sign-in address are the same value, and nothing here can
+          change the latter, so editing it would only make the two disagree
+          (MYK9-136). Mirrors the self-service profile and account pages, which
+          have always shown the sign-in address as read-only. */}
       <FormField label="Email Address" fieldId="email" required error={emailError}>
-        <Input
-          id="email"
-          type="email"
-          value={data.email}
-          onChange={e => form?.setValue('email', e.target.value)}
-          onBlur={() => form?.touchField('email')}
-          placeholder="Enter email address"
-          name="email"
-          {...form?.getFieldProps('email')}
-        />
+        {hasSignInAccount ? (
+          <>
+            <Input
+              {...emailInputProps}
+              readOnly
+              aria-readonly="true"
+              className="cursor-default bg-muted text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              This is the address they sign in with, so it can&apos;t be changed here.
+            </p>
+          </>
+        ) : (
+          <Input
+            {...emailInputProps}
+            onChange={e => form?.setValue('email', e.target.value)}
+            onBlur={() => form?.touchField('email')}
+            placeholder="Enter email address"
+            {...form?.getFieldProps('email')}
+          />
+        )}
       </FormField>
 
       {/* Role Management - Admin Only */}

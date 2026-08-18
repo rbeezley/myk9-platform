@@ -41,6 +41,27 @@ export function dispatchUploadComplete(
 }
 
 /**
+ * Ringside scoring is under admission control (MYK9-115) and RPC uploads are
+ * paused until `until`.
+ *
+ * INTENT: this is emitted for the UI's benefit, not the runner's — the runner
+ * already knows. A judge whose scores stop uploading must be told that the
+ * SERVER asked for a pause and their work is safe, otherwise the only visible
+ * signal is a queue that silently stops draining, which reads as data loss.
+ */
+export function dispatchContainment(logger: Logger, until: number): void {
+  logger.warn(
+    `[MutationManager] Ringside scoring contained by the server; RPC uploads paused until ${new Date(
+      until
+    ).toISOString()}`
+  );
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('replication:containment', { detail: { until } }));
+  }
+}
+
+/**
  * Notify user of sync failures via CustomEvent
  */
 export function notifyUserOfSyncFailure(logger: Logger, failedMutations: PendingMutation[]): void {

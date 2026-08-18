@@ -1,0 +1,353 @@
+# Vacation Autopilot
+
+> **Status:** Active
+
+Unattended 10-day workflow: Claude Code on the Mac Mini works through triaged Linear
+issues (team **MyK9-platform**) 4×/day while Richard is away with no computer access.
+Designed 2026-08-02 via a grilling session; departure 2026-08-04.
+
+## Decisions (settled with Richard, 2026-08-02)
+
+| Decision           | Choice                                                                      |
+| ------------------ | --------------------------------------------------------------------------- |
+| Merge policy       | Merge with guardrails (CI green + Codex review clear); risky classes stop at PR |
+| Issue selection    | Pre-flight triage together; queue = In Progress + Todo only                 |
+| Backlog            | **Never read.** Wanted items are promoted to Todo during triage             |
+| Cadence            | Serial, 4 runs/day every 6h (~5am / 11am / 5pm / 11pm, jittered)            |
+| Failure policy     | ~3.5h timebox; 2 genuine attempts max; 3 consecutive failed runs → self-disable |
+| Quota exhaustion   | Not a failure; next run resumes in-flight work (see Resume rule)            |
+| Reporting          | Vacation Log issue in Linear; per-issue comments per CLAUDE.md              |
+| Kill switch        | `STOP` comment on the Vacation Log (checked first, every run)              |
+| Pipeline           | Standard 8-step: implement → /simplify → commit → PR → Codex review → fix → merge → cleanup (non-interactive; NOT the `/cleanup` skill) |
+| Usage budget       | Subscription limits govern; no artificial cap                               |
+
+## Vocabulary
+
+- **auto:green** (label) — well-specified; work unattended; may auto-merge if in the mergeable class.
+- **auto:yellow** (label) — attempt unattended, but always stop at an open PR; never merge.
+- **Mergeable class** — app code, tests, docs. **Never auto-merged:** DB migrations,
+  edge-function deploys, anything touching money/auth/RLS, and all yellows.
+- **Vacation Log** — single Linear issue that is both the run journal and the control channel.
+- **In-flight** — an issue with a leftover `vacation-*` **worktree**. Resume keys on the
+  worktree and NEVER on the branch: branches are deliberately left behind (deletion is
+  denied), so treating a branch as in-flight would make every completed issue look
+  unfinished forever and starve the queue.
+- **needs-richard** (label) — finished-but-unmerged PR awaiting human review.
+- **vacation-blocked** (label) — gave up after 2 genuine failures; blocker documented on the issue.
+
+## Per-run algorithm
+
+1. **Kill switch:** read the Vacation Log. `STOP` comment (from Richard) → disable the
+   scheduled task, post an acknowledgment, exit.
+2. **Lease — immediately, before any other work.** `lockedUntil` + `lockOwner` in
+   `state.json`, **5h** out, **released by WRITING `lockedUntil: null`** — never by
+   deleting anything (all delete commands are denied here). A run finding a live lease
+   logs "skipped: another run holds the lease" and exits **without** counting a failure;
+   one finding an expired lease takes it over. After writing, re-read and confirm
+   `lockOwner` is still yours — if another run won, back off.
+   Locking happens here, not after the health check, because **repairing a red base is
+   itself work** — two runs entering that path together would fight over the same branch.
+   **Fencing:** re-read `lockOwner` immediately before any mutating action (merge,
+   worktree removal, Linear status change); if ownership was lost, abandon quietly.
+   **Release is owner-conditional:** clear the lease ONLY if `lockOwner` is still your run
+   id. A run that overran, lost its lease to a successor, and then blindly cleared it
+   would wipe that successor's live lease and admit a third run alongside it.
+   **Exit is a `finally` of three independent steps — log, clean up, release.** An earlier
+   step failing must never skip a later one: if Linear is unreachable the worktree still
+   gets removed (a surviving worktree is read as in-flight and corrupts the next run) and
+   the lease still gets released.
+
+   > **Why not an atomic `mkdir` lock?** It was tried, and the 2026-08-02 rehearsal
+   > proved it cannot work here: `rmdir`, `rm` and `rm -rf` are all denied by permission
+   > rules on this machine, so the lease could be acquired and never released — the
+   > rehearsal left its lock held. This reverses a P1 Codex finding that (correctly, in
+   > the abstract) asked for atomic acquisition. Atomicity via `mkdir` is only atomic if
+   > the directory can also be removed. Read-then-write is adequate for one machine, one
+   > scheduler, 6h apart: the lease exists to stop a *stalled* run overlapping the next,
+   > not to arbitrate a millisecond race that cannot occur. A 5h lease under a 6h
+   > interval also means an unreleased lease can never block the following run — and 5h,
+   > not 6h, because a lease equal to the interval expires exactly as its successor fires.
+3. **Health:** if `main` CI is red, **repairing it is the run's work item** — not an exit.
+   A red base blocks every future run, so fixing it outranks queue work. Red-main runs do
+   not count toward the circuit breaker until two consecutive repair attempts fail to turn
+   main green. Revised 2026-08-02 after two order-dependent test failures (MYK9-170,
+   MYK9-172) showed a red base can arrive at random, with no code change to blame.
+4. **Resume-first:** if a `vacation-*` **worktree** exists, that issue is in-flight —
+   reorient from its commits + issue comments and continue it. Never infer in-flight
+   status from a branch. Otherwise pick the next issue. **Ordering: grade first** — every
+   `auto:green` before any `auto:yellow`, because only greens can finish unattended (a
+   yellow always stops at a PR, so building it early buys nothing; an urgent PR opened on
+   day 2 and one opened on day 7 are both waiting on Richard at day 10 either way).
+   Within a grade: Linear priority, then In Progress before Todo, then oldest first —
+   priority above age so that a queue which does not fully drain still spent its runs on
+   the most valuable work. Backlog is never read.
+   Only issues carrying an `auto:` label are eligible — unlabeled issues (including the
+   Vacation Log, MYK9-158, and anything created mid-vacation) are invisible to the queue.
+5. **Branch naming must survive a retry.** A failed attempt leaves its branch behind
+   (deletion is denied), so `git worktree add -b claude/vacation-<id>` would fail forever
+   on the second attempt. Attempt N uses `claude/vacation-<id>-aN`; the retry branches
+   from `origin/main` and treats the previous attempt's branch as read-only history to
+   consult, not to extend.
+6. **Work** in a fresh worktree using the standard 8-step pipeline. Commit checkpoints
+   early and often (crash-only design: quota death is unannounced; the branch is the
+   durable state).
+   **Log the outcome the moment it is decided — before cleanup, not after.** The
+   2026-08-02 rehearsal merged, set Linear to Done, then ended without ever writing its
+   Vacation Log comment, because logging sat last. From a beach, a run that did work and
+   left no record is indistinguishable from a run that never fired. Logging is cheap and
+   goes first; cleanup is tidy-up and goes after.
+7. **Merge gate — the issue label AND the diff must both allow it.**
+   - The issue must be `auto:green`. Every `auto:yellow` is a PR-stop regardless of how
+     harmless its diff looks — that is what the grade means.
+   - **And** the diff must be clean. Deny by default if `git diff --name-only
+     origin/main...HEAD` touches `supabase/migrations/`, `supabase/functions/`,
+     `.github/`, or `.claude/`.
+   - **Path names are not sufficient.** Read the actual patch: a change to an ordinary
+     component can still touch payments, auth/RBAC/RLS, grants, or session handling. If
+     the patch is risky, or if it is unclear whether it is, the answer is PR-stop.
+     Uncertainty defaults to not merging.
+   - **Green CI means the GitHub Actions checks — Vercel is not blocking.** Vercel
+     entries are preview deployments and fail for reasons unrelated to the code, most
+     often the account's daily deployment quota (`Resource is limited - try again in 24
+     hours`, hit 2026-08-02 during the rehearsal). Blocking on those would PR-stop every
+     issue for a day or more over an infrastructure limit — degrading the plan to the
+     PR-queue-only shape that was explicitly rejected. Log the Vercel failure, judge the
+     merge on the Actions checks. A Vercel failure that reads like a real build error,
+     rather than a quota/infra message, IS blocking.
+8. **Log FIRST, then finish.** The moment the outcome is known — merge, PR-stop, or
+   blocked — write the MYK9-158 comment *before* cleanup. The 2026-08-02 rehearsal merged
+   its PR, set Linear to Done, and then ended without ever logging, because logging was
+   the last step. From a beach, a run that did work and left no record is indistinguishable
+   from a run that never fired. Then:
+   - Passes the gate + CI green + Codex clear → merge from the main repo dir, then the
+     **non-interactive cleanup** below. Linear issue → Done.
+   - Otherwise → open PR, label `needs-richard`, state-of-play comment, issue stays In Progress.
+9. **Failure:** comment the exact blocker **first**, then clean up the worktree — same
+   log-first ordering as everywhere else, because a cleanup that hangs must not swallow
+   the record of why the run failed. Label `vacation-blocked`
+   after the 2nd genuine failure. Quota exhaustion never increments attempt counts.
+10. **Circuit breaker:** 3 consecutive failed runs → disable self, post final log comment.
+
+## Order-dependent tests — the standing hazard
+
+CI runs `--sequence.shuffle`; local runs do not. A test that leaks state into another
+therefore passes locally and fails **randomly** in CI, turning `main` red with no code
+change to blame. Two were found on 2026-08-02 within one afternoon:
+
+| Issue | Test | Leaked state |
+| --- | --- | --- |
+| MYK9-170 | `atShowLayoutSlotComponents` ContainmentBanner | module-scope `lastContainmentUntil` memo |
+| MYK9-172 | `trialQueries.replication` `getTrialTimelineRows` | entry-count state across cases |
+
+Both are the same shape: shared state outside a test's own scope, fixed by a `beforeEach`
+reset — not a product change. A pre-departure **shuffle sweep** (run the suite shuffled
+repeatedly, fix everything it surfaces) is the mitigation; the runner's red-main repair
+path is the safety net for whatever the sweep misses.
+
+Rule going forward: **run any test you add or touch with `--sequence.shuffle` 6+ times
+before merging.** A single pass proves nothing.
+
+## Hardening from the Codex design review (2026-08-02, post-rehearsal)
+
+Codex reviewed the operating model after the rehearsal passed. Verdict: "good
+architecture, not quite production-ready." All seven findings were accepted; two were
+outright bugs, and one corrected advice added earlier the same day.
+
+1. **Lease raised 4h → 5h.** The 3.5h timebox covers *working the issue*; bootstrap, CI
+   waits, review, merge and cleanup come on top, so a 4h lease could expire while the run
+   was legitimately still going — the exact overlap the lease exists to prevent. 5h stays
+   under the 6h interval so a dead run still frees the slot. Not 6h: a lease equal to the
+   interval expires exactly as its successor starts.
+2. **Health check verifies the SHA.** "Latest run" can be in-progress or for an older
+   commit. The runner now matches `headSha` against `origin/main` and treats
+   pending-for-this-SHA as *skip*, never as green.
+3. **Two or more `vacation-*` worktrees = stop.** Serial execution makes this impossible,
+   so its occurrence means an assumption already broke. Guessing risks resuming the wrong
+   issue; the runner logs all of them and stops.
+4. **Log-and-release is a `finally`.** Every exit path — including tool and network errors
+   — logs then releases. If Linear is unavailable, the lease is still released and the log
+   text is queued in `state.json` as `pendingLog` for the next run to post.
+5. **Never `git add -A` when clearing a dirty worktree.** This corrected advice added
+   hours earlier: the worktree is only nominally isolated and `bootstrap-worktree.sh`
+   copies `.env` into it, so stage-everything could commit a credential or build output.
+   Now `git add -u` (tracked only); if untracked files still block removal, the worktree
+   is left in place and reported rather than force-cleared.
+6. **Red-main repair is fully specified** — its own `vacation-redmain-*` worktree and
+   branch, normal PR + Codex review, auto-merge only under the standard Step 5 gate
+   (in practice: test-only), and MYK9-158 as the record when no Linear issue matches.
+7. **Merge freshness re-checked at the last moment.** `main` moved repeatedly on
+   2026-08-02 while CI ran, which can make a green result a verdict on a base that no
+   longer exists. Before merging, the runner confirms the PR head, the CI runs' `headSha`,
+   and `mergeStateStatus` all still agree.
+
+### Second Codex round — three more accepted, one declined
+
+8. **Lease release is owner-guarded.** If a run overruns, its lease expires, and a
+   successor takes it over, the first run's unconditional `lockedUntil: null` would wipe
+   the *successor's* live lease and let a third run start alongside it. Release now only
+   clears the lease when `lockOwner` is still yours.
+9. **Cleanup no longer depends on Linear.** Log → clean up → release, with each step
+   independent: a Linear outage must not skip worktree removal, because a surviving
+   worktree is read as in-flight and corrupts the next run's view.
+10. **The failure path logs before cleaning up**, matching the log-first rule the rest of
+    the algorithm already followed.
+11. **Declined: "make lease acquisition atomic."** Raised twice, and still
+    environmentally impossible — every atomic primitive available (`mkdir`, `ln`) requires
+    a delete to release, and all delete commands are denied here. Added instead: a
+    read-after-write check confirming `lockOwner` survived, which closes the realistic
+    window (a manual "Run now" landing on a scheduled fire) without pretending to have
+    compare-and-set.
+
+**Residual risk, stated honestly.** The rehearsal exercised the happy path end-to-end
+(select → work → PR → review → CI → merge → cleanup) and caught four defects. It did NOT
+exercise lease expiry, a Linear outage, stale/in-progress CI, dirty-worktree cleanup, or a
+second run meeting an in-flight worktree. Those paths are now written to **fail safe** —
+each one skips-and-logs or stops-and-logs rather than proceeding on a guess — but they are
+reasoned, not proven.
+
+## Memory pressure — the host machine leaks
+
+The Mac Mini has **16 GB** and leaks one helper process per session under
+`~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/`. Their
+lifetime is bound to the **application**, not the session: on 2026-08-02 there were 48
+alive, the oldest exactly matching the app's 4-day uptime, and restarting the app cleared
+every one. Accumulation ran ~12/day under heavy interactive use; the autopilot's 4
+sessions/day is a much lower rate, and the machine started the vacation freshly restarted
+at 71% free with 4 processes.
+
+Decision: **no restart automation — reconsidered once and reaffirmed.** Codex challenged
+the arithmetic (4 sessions/day × 10 days ≈ 44 helpers, close to the 48 that caused the
+2026-08-02 crisis) and it was re-examined on 2026-08-03. The decision stands on the
+**shape** of each failure rather than its likelihood:
+
+- **Do-nothing fails gradually and visibly.** Memory fills over days, the guard skips
+  runs, the back half of the queue goes undone — and the trend is legible in every log
+  comment. Worst realistic case is 7–8 productive days instead of 10.
+- **A nightly restart fails totally and silently.** One relaunch that does not come back
+  (update dialog, permission prompt, hung quit) ends the vacation from that moment, with
+  no recovery: the login item only fires at login and the machine will not reboot. The
+  absence of log comments looks identical to "no eligible issues."
+
+Automating the restart would introduce a **new total-loss failure mode to prevent a
+partial-loss one**, and hand it ten chances to fire. That is the right trade when someone
+is home to notice, and the wrong one when nobody is. Note the guard is the weak link
+here — untested, and dependent on the model choosing to skip — but if it fails the result
+is an OOM kill, which is the *same* total loss; do-nothing simply does not add a second
+independent path to it.
+
+**Plugin trim: attempted, and it turned out to be a non-lever.** The intent was to shrink
+each leaked helper without adding machinery that could break. In practice nothing was
+changed, because `claude plugin disable` reports every candidate as already disabled at
+user scope — including `linear`, `codex` and `superpowers`, which were demonstrably in
+use at that moment. The CLI's view does not reflect what the desktop app has loaded, so
+the enabled set could not be established and no saving could be verified. Trimming would
+have to be done in the desktop app's plugin UI, and its benefit is unquantified.
+
+This does not change the plan. The trim was insurance on top of an already-accepted risk,
+not a dependency. The live defenses remain: the 15%-free memory guard, the memory line in
+every log comment, and `STOP` from the phone if the trend degrades.
+ A nightly launchd restart was considered and
+rejected as unnecessary complexity for a rate this low — the crash-only design would have
+made it safe, but the arithmetic does not require it. The defenses are:
+
+- **Guard:** before starting an issue, check `memory_pressure`'s free percentage. Under
+  **15%**, skip the run — log it, release the lease, exit, and do NOT count a failure. A
+  skipped run is recoverable; an OOM kill mid-merge is not, and nothing would restart the
+  app afterwards.
+- **Never gate on `vm.swapusage` free space.** macOS resizes the swap file dynamically,
+  so free swap is not a headroom signal: immediately after a healthy restart it read
+  1.26 GB free of a 5 GB file while memory was 71% free. Gating on it skips every run.
+- **Report:** every log comment carries the free percentage and the helper-process count,
+  so the trend is visible from the Linear phone app. If it degrades badly, `STOP` is the
+  right call — losing some issues beats an unattended machine thrashing for a week.
+
+## Non-interactive cleanup — do NOT invoke the `/cleanup` skill
+
+`/cleanup` asks for confirmation before removing worktrees or branches. Unattended, that
+pauses at the end of **every** completed issue — and a worktree left standing is then
+misread as in-flight by the next run, so the plan would stall on its own success. The
+runner uses this fixed sequence instead, run from the main checkout:
+
+1. `gh pr merge --squash <n>` (no `--delete-branch`)
+2. `git worktree remove .claude/worktrees/vacation-<issue-id>`
+3. Stop. Leave the local branch — deletion is denied, and `branch-janitor` reports it.
+
+## A dirty primary checkout is not an emergency
+
+Uncommitted or untracked files in the primary checkout — audit output, `docs/qa/*`,
+scratch notes — are normal here and cannot affect a run: every worktree is created from
+`origin/main`, never from the working tree. The runner notes them and carries on. Only
+state that affects the run's own work counts as suspect: an unexpected diff inside its
+own worktree, a worktree that vanished mid-run, or `origin/main` moving unaccountably.
+
+This is not hypothetical — on 2026-08-02 roughly 890 lines of uncommitted Codex audit
+output were sitting on `main`. Under the original rule that would have read as "repo
+state looks wrong" to every run, and three runs trip the circuit breaker: the whole plan
+disabled on day one over stray markdown.
+
+## Denied commands (permission rules on this machine)
+
+`git branch -D` / `-d`, `git checkout -- <path>`, `rm`, `rm -rf` and `rmdir` are all
+denied and will **pause an unattended run on a prompt nobody answers** — every one of
+them was hit on 2026-08-02. The runner must never call them: merge with `gh pr merge
+--squash` without `--delete-branch`, remove the worktree (`git worktree remove` IS
+permitted), and leave local branches for the Monday `branch-janitor` to report.
+
+**This machine's permission set is a design constraint, not an afterthought.** Three
+separate mechanisms were designed today around commands that turned out to be denied —
+branch cleanup, file restore, and the lock release. Before designing any mechanism that
+removes or restores something, check that the command is actually permitted here. A
+denied command is a visible prompt when a human is watching and a silent stall when
+nobody is.
+
+## Remote control (phone, Linear app)
+
+- `STOP` comment on Vacation Log → halts everything.
+- Move issue Todo → Backlog → removes it from the queue (status IS the enrollment switch).
+- Move issue Backlog → Todo (+ green/yellow label) → adds it.
+- Regrade by swapping `auto:green` ↔ `auto:yellow`.
+
+## Standing authorization
+
+Richard explicitly authorizes, for the duration of this task's enabled window
+(2026-08-04 → 2026-08-14): unattended PR creation, Codex review runs, and merges to
+`main` **within the mergeable class only**. `supabase db push`, `functions deploy`,
+force-pushes, and any external-service posting beyond GitHub PRs/Linear remain
+prohibited unattended. This is the Auto Mode carve-out CLAUDE.md requires.
+
+## Pre-departure checklist (2026-08-02 → 08-03)
+
+- [ ] **Land all concurrent agent sessions** (wind-down directives sent 2026-08-02: finish
+      current unit only, follow-ups go to Backlog, /cleanup, stop). Then a repo-wide
+      cleanup sweep: remove stale worktrees, delete merged branches. The autopilot only
+      resumes `vacation-*` worktrees, but the floor should be clean regardless.
+- [ ] Triage: settle the 6 In Progress (finish near-done together; state-of-play comments
+      on the rest), grade the 21 Todo green/yellow, promote-or-leave pass over the 25 backlog.
+- [ ] Create labels (`auto:green`, `auto:yellow`, `needs-richard`, `vacation-blocked`)
+      and the Vacation Log issue.
+- [ ] Create scheduled task `vacation-autopilot` (disabled).
+- [x] Richard runs `sudo pmset -a autorestart 1` (power-failure recovery). Verified
+      `autorestart 1` 2026-08-02.
+- [ ] **Dress rehearsal (testing phase):** manually trigger one full run while Richard is
+      present; it must complete one real issue end-to-end (pick → worktree → pipeline →
+      merge or PR → log comment → cleanup). Fix the runner, not the vacation, if it can't.
+      **This is also the tool-permission pre-approval pass** — scheduled tasks store
+      approvals per task and reuse them, but an ungranted tool makes an unattended run
+      PAUSE on a prompt with nobody there to answer. The rehearsal must exercise the real
+      command set (git worktree/commit/push, `gh pr create`/`merge`, `codex review`,
+      Linear writes) so every one of them is approved before departure. Note `git
+      checkout --` was denied interactively on 2026-08-02; the runner must not depend on
+      any denied command (use scoped `git apply -R` or `git restore` equivalents).
+- [ ] Verify the kill switch in rehearsal: post `STOP`, trigger a run, confirm it
+      disables itself; then remove `STOP` and re-enable.
+- [ ] Enable the task the morning of departure.
+
+## Return procedure (2026-08-14)
+
+Disable the task, review `needs-richard` PRs, review `vacation-blocked` issues, read the
+Vacation Log end-to-end, flip this plan to Complete and archive it.
+
+## Testing phase
+
+The dress rehearsal + kill-switch drill above are this plan's testing phase. The plan is
+not "working" until both pass with Richard watching.

@@ -94,6 +94,12 @@ vi.mock('@/features/show-workbench/workbenchAnnouncementPost', () => ({
   }),
 }));
 
+vi.mock('@/features/email-delivery-history', () => ({
+  EmailDeliveryHistory: ({ showId }: { showId: string | null }) => (
+    <div data-testid="email-delivery-history">History for {showId ?? 'no show'}</div>
+  ),
+}));
+
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector: (state: { shows: Array<{ id: string; name: string }> }) => unknown) =>
     selector({
@@ -218,6 +224,17 @@ describe('SecretaryMessagesPage — filtered mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /clear filter/i }));
     expect(screen.getByText('Alice Handler')).toBeInTheDocument();
     expect(screen.getByText('Bob Handler')).toBeInTheDocument();
+  });
+
+  it('switches to the full-width email delivery mode without changing the show scope', () => {
+    renderAtUrl('/secretary/messages?showId=show-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Email delivery' }));
+
+    expect(screen.getByRole('button', { name: 'Email delivery' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByTestId('email-delivery-history')).toHaveTextContent('History for show-1');
   });
 });
 

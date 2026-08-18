@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Mail, Pencil } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
+import { AppleIcon } from '@/components/icons/AppleIcon';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';
 import {
   buildSignUpPathForRedirect,
@@ -64,6 +65,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [pending, setPending] = useState<PendingPasscode | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -71,7 +73,14 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const submissionPendingRef = useRef(false);
 
   const navigate = useNavigate();
-  const { user, firstName, signIn, signInWithGoogle, loading: authLoading } = useAuthContext();
+  const {
+    user,
+    firstName,
+    signIn,
+    signInWithGoogle,
+    signInWithApple,
+    loading: authLoading,
+  } = useAuthContext();
   const setGrant = useRingsideGrantStore(state => state.setGrant);
 
   const isLoading = loading || authLoading;
@@ -131,6 +140,18 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Google sign-in failed');
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError('');
+    setAppleLoading(true);
+    try {
+      persistSignInRedirect(signInReturnTo);
+      await signInWithApple(signInReturnTo);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Apple sign-in failed');
+      setAppleLoading(false);
     }
   };
 
@@ -286,11 +307,20 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
-                  disabled={isLoading || googleLoading}
+                  disabled={isLoading || googleLoading || appleLoading}
                   className="flex h-11 w-full items-center justify-center gap-3 rounded-md border border-input bg-background px-4 text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <GoogleIcon className="h-5 w-5" />
                   Continue with Google
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAppleSignIn}
+                  disabled={isLoading || googleLoading || appleLoading}
+                  className="mt-3 flex h-11 w-full items-center justify-center gap-3 rounded-md border border-input bg-background px-4 text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <AppleIcon className="h-5 w-5" />
+                  Continue with Apple
                 </button>
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">

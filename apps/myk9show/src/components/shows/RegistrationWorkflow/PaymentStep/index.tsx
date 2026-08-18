@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -36,6 +36,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   agreedToEntryAgreement = false,
   showId,
   onClassSelectionChange,
+  capacityReady = true,
+  capacityError,
+  waitlistClassIds = new Set(),
+  blockedClassIds = new Set(),
 }) => {
   const { dogs } = useDogStoreCompat();
   const { classes = [] } = useClassStoreCompat();
@@ -65,7 +69,14 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const agreed = onAgreementChange ? agreedToEntryAgreement : localAgreed;
   const handleAgree = onAgreementChange ?? setLocalAgreed;
 
-  const feeCalculation = calculateTotalFees(selectedDogs, classSelections, dogs, classes, show);
+  const feeCalculation = calculateTotalFees(
+    selectedDogs,
+    classSelections,
+    dogs,
+    classes,
+    show,
+    waitlistClassIds
+  );
 
   const handleRemoveSummaryLine = async (dogId: string, classId: string) => {
     if (!onClassSelectionChange) return;
@@ -99,9 +110,41 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       {/* Fee Summary */}
       <RegistrationSummary
         feeCalculation={feeCalculation}
+        capacityReady={capacityReady}
         onRemoveLine={onClassSelectionChange ? handleRemoveSummaryLine : undefined}
         removingLineKey={removingLineKey}
       />
+
+      {!capacityReady && (
+        <Alert role={capacityError ? 'alert' : 'status'}>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            {capacityError
+              ? 'We could not verify class availability. Refresh the page before continuing.'
+              : 'Checking class availability before confirming what is payable.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {capacityReady && waitlistClassIds.size > 0 && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Full classes marked as wait-list requests are not charged now. Payment is due only if
+            a spot is offered later.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {capacityReady && blockedClassIds.size > 0 && (
+        <Alert role="alert" variant="destructive">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            A selected class is full and does not accept a wait list. Remove it from your
+            selection to continue.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Payment Method Selection */}
       <PaymentMethodSelector
@@ -131,6 +174,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       <PaymentSummaryCard
         paymentMethod={paymentMethod}
         feeCalculation={feeCalculation}
+        capacityReady={capacityReady}
         waiveFees={waiveFees}
         feeOverride={feeOverride}
       />

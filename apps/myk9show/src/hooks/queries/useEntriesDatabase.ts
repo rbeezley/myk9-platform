@@ -127,13 +127,18 @@ export const useEntriesByClassQuery = (classId: string, enabled = true) => {
 };
 
 // Get entries by dog ID
+// Returns `{ rows, verified }` rather than a bare array: a dog's entries span
+// many per-show replication scopes, so an offline result is only ever a lower
+// bound. `verified` says whether the rows came from the authoritative online
+// read, which is the only way a consumer can tell "this dog has nothing" from
+// "we could not find out" (MYK9-121).
 export const useEntriesByDogQuery = (dogId: string, enabled = true) => {
   return useQuery({
     queryKey: queryKeys.dogEntries(dogId),
     queryFn: async () => {
-      const { data, error } = await getEntriesByDog(dogId);
+      const { data, error, verified } = await getEntriesByDog(dogId);
       if (error) throw error;
-      return data;
+      return { rows: data, verified };
     },
     enabled: !!dogId && enabled,
     ...cacheStrategies.moderate,
@@ -448,13 +453,21 @@ export const useCreateMultipleEntriesMutation = () => {
     },
     onSettled: (_data, _error, variables) => {
       entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
-      const uniqueShowIds = [...new Set(variables.map(e => e.show_id).filter((id): id is string => !!id))];
+      const uniqueShowIds = [
+        ...new Set(variables.map(e => e.show_id).filter((id): id is string => !!id)),
+      ];
       uniqueShowIds.forEach(showId =>
-        entryInvalidationKeys({ showId }).forEach(k => queryClient.invalidateQueries({ queryKey: k }))
+        entryInvalidationKeys({ showId }).forEach(k =>
+          queryClient.invalidateQueries({ queryKey: k })
+        )
       );
-      const uniqueClassIds = [...new Set(variables.map(e => e.class_id).filter((id): id is string => !!id))];
+      const uniqueClassIds = [
+        ...new Set(variables.map(e => e.class_id).filter((id): id is string => !!id)),
+      ];
       uniqueClassIds.forEach(classId =>
-        entryInvalidationKeys({ classId }).forEach(k => queryClient.invalidateQueries({ queryKey: k }))
+        entryInvalidationKeys({ classId }).forEach(k =>
+          queryClient.invalidateQueries({ queryKey: k })
+        )
       );
     },
   });

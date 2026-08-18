@@ -18,16 +18,16 @@ wrong one that now needs arbitration.
 
 So the tasks below fall into two categories, and the distinction decides how each is scheduled:
 
-**Complements (tasks 1–3) run alongside Codex.** Claude runs where a second model's *judgment*
+**Complements (tasks 1–3) run alongside Codex.** Claude runs where a second model's _judgment_
 diverges usefully — security and role UX — plus one reconciliation task whose entire job is
 comparing the two models' output. A finding both models flag is high-confidence; a finding only one
 flags is where the signal is. That comparison only works if both write into the same ledger with a
-source tag. These are deliberately at a *different cadence* from their Codex counterparts.
+source tag. These are deliberately at a _different cadence_ from their Codex counterparts.
 
 **Substitutes (task 4) replace Codex.** When the Codex budget runs out, a stream stops entirely.
 A substitute is a deliberate clone — same cadence, same scope, same window — enabled only while its
 Codex counterpart is dark, and disabled again when it returns. Differentiating a substitute would
-defeat it: the point is continuity of the *same* coverage, not a second opinion. The two must never
+defeat it: the point is continuity of the _same_ coverage, not a second opinion. The two must never
 run concurrently; see "Failover discipline" below.
 
 ## Shared contract — applies to all four tasks
@@ -60,14 +60,14 @@ to prevent.
 So treat the times below as an **ordering preference, not a guarantee**, and pick times you are
 plausibly at the keyboard for rather than times that are merely quiet.
 
-| Task                          | Cadence          | Time (local) | Rationale                                        |
-| ----------------------------- | ---------------- | ------------ | ------------------------------------------------ |
-| `claude-findings-reconcile`   | Weekly, Thursday | 6:00 AM      | Must land before Codex's Friday 6:00 AM review    |
-| `claude-security-audit`       | Weekly, Saturday | 3:00 AM      | Clear of Codex judge-ux-walk (Sat 12:15 AM)       |
-| `claude-role-ux-walk`         | Weekly, Sunday   | 3:00 AM      | Clear of Codex club-admin-ux-walk (Sun 12:15 AM)  |
-| `claude-daily-commit-review`  | Daily            | 7:00 AM      | Substitute — mirrors the Codex daily commit review |
+| Task                         | Cadence          | Time (local) | Rationale                                          |
+| ---------------------------- | ---------------- | ------------ | -------------------------------------------------- |
+| `claude-findings-reconcile`  | Weekly, Thursday | 6:00 AM      | Must land before Codex's Friday 6:00 AM review     |
+| `claude-security-audit`      | Weekly, Saturday | 3:00 AM      | Clear of Codex judge-ux-walk (Sat 12:15 AM)        |
+| `claude-role-ux-walk`        | Weekly, Sunday   | 3:00 AM      | Clear of Codex club-admin-ux-walk (Sun 12:15 AM)   |
+| `claude-daily-commit-review` | Daily            | 7:00 AM      | Substitute — mirrors the Codex daily commit review |
 
-Only the first row's timing is load-bearing: `claude-findings-reconcile` must run *before* the
+Only the first row's timing is load-bearing: `claude-findings-reconcile` must run _before_ the
 Codex "Weekly quality findings review" so that review consumes an already-reconciled, deduplicated
 picture instead of two competing scorecards. If a launch-day clump reorders things, this is the one
 to re-run manually in the right order. The other two only need to not collide with a Codex job
@@ -96,7 +96,7 @@ paused by definition until its Codex counterpart goes dark.
    before Codex resumes.
 2. **The handoff is manual and lossy.** Nothing detects that the Codex budget ran out — you notice a
    missing report and flip the switch, so a gap day is likely. That is acceptable for a backup, but
-   the gap must be *reported*, not silently absorbed: the boundary cursor makes the uncovered range
+   the gap must be _reported_, not silently absorbed: the boundary cursor makes the uncovered range
    visible, and the first Claude run names it.
 
 The cursor is what makes the handoff work in either direction. Both automations read the row to
@@ -216,6 +216,24 @@ records, do not touch payment or payout flows, and do not run anything against p
 Also verify: re-walk any finding from this role's last two walks (Claude or Codex) that is marked
 fixed, and confirm the fix actually holds in the browser.
 
+On a judge week (week mod 5 == 2), also run the judge scoring replay before writing the report:
+
+    cd apps/myk9show && pnpm test:e2e:audit:judge
+
+This covers what a hand-driven walk cannot: scoring offline, restart durability, reconnect and
+queue drain, a version-conflicted score, and duplicate submission. Every shared-staging write is
+intercepted, so it is safe against the shared project — and it fails closed rather than writing if
+it cannot confirm that. If the walk already has an app server up, attach to it instead of letting
+the runner start a second one:
+
+    PLAYWRIGHT_AUDIT_BASE_URL=http://127.0.0.1:<port> \
+      PLAYWRIGHT_AUDIT_SERVER_ID=<the server's VITE_AUDIT_SERVER_ID> \
+      pnpm test:e2e:audit:judge
+
+Cite the run in the report: pass/fail per case, plus the `shared-staging-write-ledger.json`
+attachment, which is the evidence that shared staging received no writes. A failure here is a P1
+finding — it is the show-day path with the least tolerance for breakage.
+
 Output:
 - Write the report to `docs/audits/YYYY-MM-DD-<role>-ux-walk-claude.md`.
 - Tag every finding `source: claude`, assign canonical P0-P3 severity, and mark each
@@ -295,7 +313,7 @@ Do not edit source outside `docs/`. Do not open a PR. Do not merge or push.
 **Cadence:** Daily, 7:00 AM. **Paused unless the Codex daily commit review is dark.**
 
 **Why this one is a clone, not a differentiated view:** tasks 1–3 exist to disagree with Codex. This
-one exists to *be* Codex for a few days. Narrowing its scope to "what Claude sees differently" would
+one exists to _be_ Codex for a few days. Narrowing its scope to "what Claude sees differently" would
 leave the ordinary regression coverage — the actual reason the stream exists — unrun during exactly
 the window it is meant to protect. Same window, same scope, same output shape.
 

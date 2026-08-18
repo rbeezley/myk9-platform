@@ -11,6 +11,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
@@ -32,6 +33,7 @@ import {
   deriveShowCode,
 } from './dispatch-helpers.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
+import { buildVenueMapAssets, renderVenueMapBlock, type VenueMapAssets } from './static-map.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -124,6 +126,7 @@ function buildHtml(data: {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
+  venueMap?: VenueMapAssets | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -170,6 +173,7 @@ function buildHtml(data: {
         </td>
       </tr>
     </table>
+    ${renderVenueMapBlock(data.venueMap, data.venue)}
     ${data.runs[0]?.armband ? `<p style="margin:18px 0 0;padding:12px 16px;background:rgba(138,106,69,0.08);border-left:2px solid ${GOLD};border-right:2px solid ${GOLD};font-family:${BODY_FONT};font-size:12.5px;line-height:1.55;color:${INK};"><em style="font-family:${DISPLAY};font-style:italic;color:${CLARET};">Please bring</em> your AKC registration confirmation, vaccination records, and a copy of this email. Armband <strong style="font-family:${DISPLAY};font-weight:500;">${esc(data.runs[0].armband)}</strong> will be issued at check-in.</p>` : ''}
   </td>
 </tr>`
@@ -383,7 +387,7 @@ handle<ConfirmationEmailPayload>(
       const { data: show } = await supabase
         .from('shows')
         .select(
-          'id, name, start_date, end_date, venue_name, city, state, address, organization, club_id, style, experience_is_published, experience_published_style, experience_published_content'
+          'id, name, start_date, end_date, venue_name, city, state, address, latitude, longitude, organization, club_id, style, experience_is_published, experience_published_style, experience_published_content'
         )
         .eq('id', trial.show_id)
         .single();
@@ -443,7 +447,22 @@ handle<ConfirmationEmailPayload>(
       for (const entry of entries ?? []) {
         const recipientEmail = entry.handler?.email;
         if (!recipientEmail) {
-          skipped++;
+          const attemptedAt = new Date().toISOString();
+          await supabase
+            .from('entries')
+            .update({ confirmation_email_status: 'failed' })
+            .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: null,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            status: 'failed',
+            status_updated_at: attemptedAt,
+            error_message: 'missing_recipient',
+            show_id: show.id,
+          });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
+          failed++;
           continue;
         }
 
@@ -472,7 +491,17 @@ handle<ConfirmationEmailPayload>(
             .filter(Boolean)
             .join('\n') || null;
 
+        // Static map rides on the secretary-placed venue pin. Key must be a
+        // separate one restricted to the Maps Static API only — it is visible
+        // to every email recipient inside the <img> URL.
+        const venueMap = buildVenueMapAssets(
+          show.latitude,
+          show.longitude,
+          Deno.env.get('GOOGLE_MAPS_STATIC_API_KEY')
+        );
+
         const emailData: Parameters<typeof buildHtml>[0] = {
+          venueMap,
           // Prefer the org name from `shows.organization` (the real club
           // identity) so per-style derivations like Field Guide's
           // showCode get distinct club + show inputs. Falls back to
@@ -579,23 +608,44 @@ handle<ConfirmationEmailPayload>(
           html = buildHtml(emailData);
         }
 
-        const resendRes = await sendResendEmailWithRetry({
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-            // Keep this stable across style/config edits; the DB sent-at
-            // filter is best-effort, while Resend owns duplicate suppression.
-            'Idempotency-Key': `confirmation-email-${entry.id}`,
-          },
-          body: JSON.stringify({
-            from: FROM_EMAIL,
-            to: recipientEmail,
-            subject: `Your entry to ${show.name} is confirmed`,
-            html,
-          }),
-        });
+        let resendRes: Response;
+        try {
+          resendRes = await sendResendEmailWithRetry({
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${RESEND_API_KEY}`,
+              // Keep this stable across style/config edits; the DB sent-at
+              // filter is best-effort, while Resend owns duplicate suppression.
+              'Idempotency-Key': `confirmation-email-${entry.id}`,
+            },
+            body: JSON.stringify({
+              from: FROM_EMAIL,
+              to: recipientEmail,
+              subject: `Your entry to ${show.name} is confirmed`,
+              html,
+            }),
+          });
+        } catch {
+          await supabase
+            .from('entries')
+            .update({ confirmation_email_status: 'failed' })
+            .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: recipientEmail,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            status: 'failed',
+            status_updated_at: new Date().toISOString(),
+            error_message: 'email_delivery_error',
+            show_id: show.id,
+          });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
+          failed++;
+          continue;
+        }
 
+        const attemptedAt = new Date().toISOString();
         if (resendRes.ok) {
           const result = (await resendRes.json()) as { id: string };
           await supabase
@@ -606,16 +656,35 @@ handle<ConfirmationEmailPayload>(
               confirmation_email_status: 'sent',
             })
             .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: recipientEmail,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            resend_message_id: result.id,
+            status: 'sent',
+            status_updated_at: attemptedAt,
+            show_id: show.id,
+          });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
           sent++;
         } else {
-          const err = (await resendRes.json()) as { message?: string };
-          console.error(`Failed to send to ${recipientEmail}:`, err);
+          console.error('Failed to send Heritage confirmation', { status: resendRes.status });
           await supabase
             .from('entries')
             .update({
               confirmation_email_status: 'failed',
             })
             .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: recipientEmail,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            status: 'failed',
+            status_updated_at: attemptedAt,
+            error_message: `provider_http_${resendRes.status}`,
+            show_id: show.id,
+          });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
           failed++;
         }
       }

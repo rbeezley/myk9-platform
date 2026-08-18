@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -24,9 +25,17 @@ vi.mock('@/hooks/useAuthContext', () => ({
 // ── Replication store mock ───────────────────────────────────────────────────────
 const mockGetAll = vi.fn();
 const mockClassesGetAll = vi.fn();
+const mockEntriesSync = vi.fn();
+const mockEntriesGetByShow = vi.fn();
+const mockEntriesGetSyncMetadata = vi.fn();
 vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: { getAll: () => mockGetAll() },
   replicatedClassesTable: { getAll: () => mockClassesGetAll() },
+  replicatedEntriesTable: {
+    sync: (...args: unknown[]) => mockEntriesSync(...args),
+    getEntriesByShow: (...args: unknown[]) => mockEntriesGetByShow(...args),
+    getSyncMetadata: (...args: unknown[]) => mockEntriesGetSyncMetadata(...args),
+  },
 }));
 
 // ── Supabase mock (PostgREST fallback path + fallback helper plumbing) ────────────
@@ -40,10 +49,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
     from: (table: string) => mockFrom(table),
   },
   logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) =>
-    Object.assign(new Error((error as { message?: string })?.message ?? 'db error'), {
-      name: 'DatabaseError',
-    }),
+  createDatabaseError,
 }));
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -99,6 +105,15 @@ const makeReplicated = (
   classTotalEntries: 20,
   trialDate: '2026-06-10',
   trialTimezone: 'America/Chicago',
+  ...overrides,
+});
+
+const makeReplicatedEntry = (overrides: Record<string, unknown> = {}) => ({
+  id: `entry-${Math.random()}`,
+  classId: 'class-1',
+  showId: 'show-1',
+  checkInStatus: 'not-checked-in',
+  isScored: false,
   ...overrides,
 });
 
@@ -280,6 +295,17 @@ describe('useJudgeAssignments', () => {
     mockDatabaseUserId.current = 'person-123';
     // Default: no class rows replicated → dashboard uses the embedded snapshot.
     mockClassesGetAll.mockResolvedValue([]);
+    mockEntriesSync.mockResolvedValue({ success: true });
+    mockEntriesGetByShow.mockResolvedValue(
+      Array.from({ length: 20 }, (_, index) =>
+        makeReplicatedEntry({
+          id: `entry-${index}`,
+          checkInStatus: index < 14 ? 'checked-in' : 'not-checked-in',
+          isScored: index < 5,
+        })
+      )
+    );
+    mockEntriesGetSyncMetadata.mockResolvedValue({ totalRows: 20 });
   });
 
   it('reads from the replication store first and skips PostgREST when warm', async () => {
@@ -300,6 +326,12 @@ describe('useJudgeAssignments', () => {
       'a-pending-invite',
     ]);
     expect(mockFrom).not.toHaveBeenCalled();
+    expect(result.current.assignments[0]).toMatchObject({
+      totalEntries: 20,
+      checkedInEntries: 14,
+      completedEntries: 5,
+      entryCountsAvailable: true,
+    });
     expect(result.current.isError).toBe(false);
   });
 
@@ -329,9 +361,10 @@ describe('useJudgeAssignments', () => {
 
     expect(result.current.assignments[0]).toMatchObject({
       status: 'completed',
-      checkedInEntries: 18,
-      completedEntries: 20,
+      checkedInEntries: 14,
+      completedEntries: 5,
       totalEntries: 20,
+      entryCountsAvailable: true,
     });
   });
 
@@ -408,6 +441,21 @@ describe('useJudgeAssignments', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
 
     expect(result.current.assignments).toEqual([]);
+  });
+
+  it('marks totals unavailable when the scoped entry replica is cold', async () => {
+    mockGetAll.mockResolvedValueOnce([makeReplicated({ classTotalEntries: 20 })]);
+    mockEntriesGetByShow.mockResolvedValueOnce([]);
+    mockEntriesGetSyncMetadata.mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() => useJudgeAssignments(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.assignments[0]).toMatchObject({
+      totalEntries: 20,
+      entryCountsAvailable: false,
+    });
   });
 
   it('reports loading (not empty) while the judge identity is still resolving', () => {

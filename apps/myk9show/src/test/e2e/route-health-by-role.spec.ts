@@ -106,6 +106,7 @@ const ADMIN_ROUTES: RouteSpec[] = [
   { label: 'users', path: '/admin/users' },
   { label: 'payouts', path: '/admin/payouts' },
   { label: 'permissions', path: '/admin/permissions' },
+  { label: 'permissions-assignments', path: '/admin/permissions?tab=assignments' },
   { label: 'deleted-items', path: '/admin/deleted-items' },
   { label: 'templates', path: '/admin/templates' },
   { label: 'sync', path: '/admin/sync' },

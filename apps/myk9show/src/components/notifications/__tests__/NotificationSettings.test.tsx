@@ -40,6 +40,31 @@ vi.mock('@/hooks/usePushSubscription', () => ({
   })),
 }));
 
+// This component reads the signed-in account so it can mirror leadDogs /
+// pushEnabled into notification_preferences for the server-side proximity
+// push. These tests render bare (no AuthProvider), so the hook is mocked
+// alongside the others rather than wrapping every case in providers.
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: { id: 'test-user-id' } }),
+}));
+
+// The mirror itself is covered by notificationPreferenceSync.test.ts; stub it
+// here so a settings-UI test never reaches for Supabase.
+// Typed like mockSubscribe above so `mock.calls[0][0]` is a real argument
+// rather than an index into an empty tuple (tsconfig.test.json catches that).
+const mockSyncNotificationPreferences = vi.fn<
+  (
+    authUserId: string | null | undefined,
+    preferences: { leadDogs: number; pushEnabled: boolean }
+  ) => Promise<boolean>
+>(() => Promise.resolve(true));
+vi.mock('@/features/notifications/notificationPreferenceSync', () => ({
+  syncNotificationPreferences: (
+    authUserId: string | null | undefined,
+    preferences: { leadDogs: number; pushEnabled: boolean }
+  ) => mockSyncNotificationPreferences(authUserId, preferences),
+}));
+
 vi.mock('@/lib/notifications', () => ({
   notifications: {
     warning: vi.fn(),
@@ -121,6 +146,17 @@ describe('NotificationSettings', () => {
   it('renders lead dogs slider', () => {
     render(<NotificationSettings />);
     expect(screen.getByLabelText(/dogs ahead/i)).toBeInTheDocument();
+  });
+
+  it('mirrors the push toggle to the server so proximity push honours it', async () => {
+    // Regression guard: the server-side run-proximity trigger reads
+    // notification_preferences, so a preference that only ever lands in
+    // localStorage silently stops applying once the PWA is closed.
+    render(<NotificationSettings />);
+    fireEvent.click(screen.getByRole('switch', { name: /push/i }));
+
+    await waitFor(() => expect(mockSyncNotificationPreferences).toHaveBeenCalled());
+    expect(mockSyncNotificationPreferences.mock.calls[0][0]).toBe('test-user-id');
   });
 
   // --- Channels ---

@@ -38,6 +38,7 @@ vi.mock('@/store/userStore', () => ({
 
 vi.mock('@/services/database/club-memberships', () => ({
   getClubMembers: vi.fn(() => new Promise(() => {})),
+  countActiveClubMembers: vi.fn(() => 0),
   getClubOfficers: vi.fn(() => new Promise(() => {})),
   addClubMember: vi.fn(),
   updateClubMember: vi.fn(),

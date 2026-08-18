@@ -16,6 +16,9 @@ interface ThreeDotMenuProps {
   onEdit?: (() => void) | undefined;
   onEditPhoto?: (() => void) | undefined;
   onChangeStatus?: (() => void) | undefined;
+  changeStatusLabel?: string | undefined;
+  changeStatusDisabled?: boolean | undefined;
+  changeStatusDescription?: string | undefined;
   onManageQualifications?: (() => void) | undefined;
   /** Send or resend a sign-in invitation (MYK9-134). Omit to hide the item. */
   onSendInvitation?: (() => void) | undefined;
@@ -35,6 +38,9 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   onEdit,
   onEditPhoto,
   onChangeStatus,
+  changeStatusLabel = 'Change status',
+  changeStatusDisabled = false,
+  changeStatusDescription,
   onManageQualifications,
   onSendInvitation,
   onDelete,
@@ -59,9 +65,11 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   if (onChangeStatus) {
     actions.push({
       id: 'status',
-      label: 'Change Status',
+      label: changeStatusLabel,
       icon: <Activity />,
       onSelect: onChangeStatus,
+      disabled: changeStatusDisabled,
+      ...(changeStatusDescription ? { description: changeStatusDescription } : {}),
     });
   }
   if (showManageQualifications && onManageQualifications) {

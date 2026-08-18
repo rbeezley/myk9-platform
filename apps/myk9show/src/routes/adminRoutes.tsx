@@ -69,11 +69,6 @@ const CloneRolePage = createEnhancedLazy(() => import('@/pages/admin/permissions
   displayName: 'CloneRolePage',
 });
 
-const UserRoleManagementPage = createEnhancedLazy(
-  () => import('@/pages/admin/permissions/UserRoleManagementPage'),
-  { ...RouteLazyPresets.mediumPriority, displayName: 'UserRoleManagementPage' }
-);
-
 const DeletedItemsPage = createEnhancedLazy(
   () =>
     import('@/components/admin/DataLifecycleManagement').then(m => ({
@@ -292,15 +287,12 @@ export const AdminRoutes = () => (
         </SuspenseWrapper>
       )}
     />
+    {/* Retired 2026-08: role granting consolidated onto /admin/users. The URL
+        stays alive so bookmarks and older links land on the ledger tab.
+        See docs/plan-role-assignment-consolidation.md */}
     <Route
       path="/admin/permissions/users"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <UserRoleManagementPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
+      element={<Navigate to="/admin/permissions?tab=assignments" replace />}
     />
     <Route
       path="/admin/permissions/audit"

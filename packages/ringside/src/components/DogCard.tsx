@@ -41,6 +41,7 @@ export const DogCard = React.memo<DogCardProps>(
     onClick,
     className = '',
     statusBorder = 'no-status',
+    primaryAction,
     actionButton,
     favoriteButton,
     resultBadges,
@@ -93,6 +94,7 @@ export const DogCard = React.memo<DogCardProps>(
             {resultBadges && (
               <div className="mt-2 flex flex-wrap items-center gap-2">{resultBadges}</div>
             )}
+            {primaryAction && <div className="mt-3 flex items-center">{primaryAction}</div>}
           </div>
         </div>
 

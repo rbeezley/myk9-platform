@@ -1,25 +1,17 @@
 import React from 'react';
-import { Calendar, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Calendar, CheckCircle2, XCircle, Clock, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useEntriesByDogQuery } from '@/hooks/queries/useEntriesDatabase';
 import { Link } from 'react-router-dom';
-import {
-  deriveDogActivity,
-  formatActivityDate,
-  type DogActivityEntry,
-} from './ActivityTab.helpers';
+import { formatActivityDate, type DogActivityEntry } from '@/features/_shared/dogActivity';
+import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 
 interface ActivityTabProps {
   dogId: string;
   dogName: string;
   role: 'exhibitor' | 'secretary';
-}
-
-function asEntry(row: Record<string, unknown>): DogActivityEntry {
-  return row as unknown as DogActivityEntry;
 }
 
 function formatTime(seconds: number): string {
@@ -143,12 +135,11 @@ function ResultRow({ entry }: { entry: DogActivityEntry }) {
 }
 
 const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
-  const { data: rawEntries, isLoading } = useEntriesByDogQuery(dogId);
-
-  const entries: DogActivityEntry[] = (rawEntries ?? []).map(r =>
-    asEntry(r as Record<string, unknown>)
-  );
-  const { upcoming, recentResults } = deriveDogActivity(entries);
+  const { upcoming, recentResults, isLoading, isError, canTrustEmpty, refetch } =
+    useDogActivity(dogId);
+  // An empty list is only "nothing booked" when the read actually resolved.
+  // Career applies the identical rule — see `canTrustEmpty`.
+  const upcomingUnresolved = upcoming.length === 0 && (isError || !canTrustEmpty);
 
   if (isLoading) {
     return (
@@ -183,7 +174,19 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {upcoming.length === 0 ? (
+          {upcomingUnresolved ? (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <WifiOff className="h-8 w-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">
+                {isError
+                  ? `We couldn't load ${dogName}'s entries just now.`
+                  : `You're offline, so ${dogName}'s entries may not have loaded.`}
+              </p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Try again
+              </Button>
+            </div>
+          ) : upcoming.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <Clock className="h-8 w-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">No upcoming entries for {dogName}</p>

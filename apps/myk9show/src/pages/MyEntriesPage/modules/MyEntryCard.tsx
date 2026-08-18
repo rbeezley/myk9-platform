@@ -11,6 +11,7 @@ import { PaymentStatus } from '@/types/show-registration-types';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import {
   Calendar,
+  CalendarPlus,
   ChevronDown,
   MapPin,
   Eye,
@@ -24,6 +25,7 @@ import { getEntryStatusBadge, getPaymentStatusBadge, getStatusIcon } from './myE
 import { formatEntryDate, formatShortDate } from '@/lib/format/dates';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import { MyEntryCardDetails } from './MyEntryCardDetails';
+import { AddToCalendarDialog } from '@/features/calendar-subscribe';
 import { toDogEntryView } from './myEntryDogView';
 import { deriveMyEntryCardState } from './myEntryCardState';
 
@@ -63,6 +65,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   // disclosure — exhibitor-my-shows-legibility). Per-card local state, no
   // effect involved.
   const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [calendarOpen, setCalendarOpen] = React.useState(false);
   const detailsId = `entry-details-${entry.id}`;
   const {
     statusMessage,
@@ -255,7 +258,27 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             </Link>
           </Button>
         )}
+
+        {entry.showId && (
+          <Button
+            variant="outline"
+            onClick={() => setCalendarOpen(true)}
+            className="min-h-[44px] transition-all duration-200"
+          >
+            <CalendarPlus className="h-5 w-5 mr-1.5" />
+            Add to Calendar
+          </Button>
+        )}
       </div>
+
+      {calendarOpen && (
+        <AddToCalendarDialog
+          open={calendarOpen}
+          onOpenChange={setCalendarOpen}
+          showId={entry.showId}
+          showName={entry.showName}
+        />
+      )}
 
       {/* Details toggle — full-width, labeled, collapsed by default on every
           viewport (task 3.1). */}

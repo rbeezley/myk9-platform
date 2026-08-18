@@ -52,6 +52,7 @@ interface BulkRoleDialogProps {
   selectedUsers: SelectedUser[];
   isProcessing: boolean;
   error: string | null;
+  notice?: string | null;
   onSubmit: (config: BulkRoleSubmitConfig) => void;
 }
 
@@ -61,6 +62,7 @@ export const BulkRoleDialog: React.FC<BulkRoleDialogProps> = ({
   selectedUsers,
   isProcessing,
   error,
+  notice = null,
   onSubmit,
 }) => {
   const [mode, setMode] = useState<BulkRoleMode>('add');
@@ -170,6 +172,12 @@ export const BulkRoleDialog: React.FC<BulkRoleDialogProps> = ({
         {displayError && (
           <Alert variant="destructive">
             <AlertDescription>{displayError}</AlertDescription>
+          </Alert>
+        )}
+
+        {notice && (
+          <Alert>
+            <AlertDescription>{notice}</AlertDescription>
           </Alert>
         )}
 

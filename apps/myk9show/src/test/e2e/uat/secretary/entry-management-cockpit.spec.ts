@@ -34,7 +34,9 @@ test('registration focus remains clear across desktop, history, and narrow layou
   await expect(page.getByRole('button', { name: 'Back to registrations' })).toBeVisible();
   await page.getByRole('button', { name: 'Back to registrations' }).click();
   await expect(page.getByRole('list', { name: 'Registration work queue' })).toBeVisible();
-  await expect(queueRows.nth(1)).toBeFocused();
+  // Focus returns to the row's action — the row's only button — rather than to
+  // the `listitem`, which carries no interactive role.
+  await expect(queueRows.nth(1).getByRole('button')).toBeFocused();
 
   await page.context().setOffline(true);
   try {
@@ -48,6 +50,36 @@ test('registration focus remains clear across desktop, history, and narrow layou
   } finally {
     await page.context().setOffline(false);
   }
+});
+
+test('the registration queue keeps every row inside a 768px tablet viewport (MYK9-57)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entry-management`);
+  await expect(page.getByRole('searchbox', { name: 'Search all show registrations' })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const queue = page.getByRole('list', { name: 'Registration work queue' });
+  const rows = queue.getByRole('listitem');
+  await expect(rows).not.toHaveCount(0);
+  await expect(rows.first().getByRole('button')).toBeVisible();
+
+  // The queue card is `overflow-hidden` with no scrollable ancestor, so
+  // anything past the right edge is unreachable rather than merely off-screen.
+  const clipped = await queue.evaluate(node => {
+    const viewportWidth = document.documentElement.clientWidth;
+    return [...node.querySelectorAll('*')].filter(
+      element => element.getBoundingClientRect().right > viewportWidth + 1
+    ).length;
+  });
+  expect(clipped).toBe(0);
+
+  const hiddenPerRow = await rows.evaluateAll(nodes =>
+    nodes.map(node => node.scrollWidth - node.clientWidth)
+  );
+  expect(hiddenPerRow.every(hidden => hidden <= 1)).toBe(true);
 });
 
 test('Entry Management deep-links to the existing Check-in desk', async ({ page }) => {

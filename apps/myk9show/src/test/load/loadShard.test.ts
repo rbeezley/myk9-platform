@@ -4,13 +4,13 @@ import { loadShardFromEnv, scheduledStartDelayMs, selectShardAssignments } from 
 import { G9_NORMAL_SCENARIO } from './loadScenario';
 
 describe('distributed load shards', () => {
-  it('partitions all 100 global assignments into four unique 25-session shards', () => {
+  it('partitions all 100 global assignments into eight unique 12/13-session shards', () => {
     const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
-    const shards = Array.from({ length: 4 }, (_, index) =>
-      selectShardAssignments(assignments, { count: 4, index })
+    const shards = Array.from({ length: 8 }, (_, index) =>
+      selectShardAssignments(assignments, { count: 8, index })
     );
 
-    expect(shards.map(shard => shard.length)).toEqual([25, 25, 25, 25]);
+    expect(shards.map(shard => shard.length)).toEqual([13, 13, 13, 13, 12, 12, 12, 12]);
     expect(
       shards
         .flat()
@@ -19,11 +19,11 @@ describe('distributed load shards', () => {
     ).toEqual(Array.from({ length: 100 }, (_, index) => index));
   });
 
-  it('requires the complete four-shard environment and a valid shared start', () => {
+  it('requires the complete eight-shard environment and a valid shared start', () => {
     const now = Date.parse('2026-07-28T12:00:00.000Z');
     const shard = loadShardFromEnv(
       {
-        LOAD_TEST_SHARD_COUNT: '4',
+        LOAD_TEST_SHARD_COUNT: '8',
         LOAD_TEST_SHARD_INDEX: '2',
         LOAD_TEST_RUN_ID: '12345-1',
         LOAD_TEST_START_AT: String(now + 60_000),
@@ -32,7 +32,7 @@ describe('distributed load shards', () => {
     );
 
     expect(shard).toEqual({
-      count: 4,
+      count: 8,
       index: 2,
       runId: '12345-1',
       startAtMs: now + 60_000,
@@ -40,7 +40,7 @@ describe('distributed load shards', () => {
     expect(() =>
       loadShardFromEnv(
         {
-          LOAD_TEST_SHARD_COUNT: '4',
+          LOAD_TEST_SHARD_COUNT: '8',
           LOAD_TEST_SHARD_INDEX: '2',
         },
         now
@@ -52,7 +52,7 @@ describe('distributed load shards', () => {
     const now = Date.parse('2026-07-28T12:00:00.000Z');
     const shard = loadShardFromEnv(
       {
-        LOAD_TEST_SHARD_COUNT: '4',
+        LOAD_TEST_SHARD_COUNT: '8',
         LOAD_TEST_SHARD_INDEX: '2',
         LOAD_TEST_RUN_ID: '12345-1',
         LOAD_TEST_START_AT: String(now - 3_000),
@@ -65,7 +65,7 @@ describe('distributed load shards', () => {
   });
 
   it('fails closed when a runner misses the start barrier', () => {
-    const shard = { count: 4, index: 0, runId: '12345-1', startAtMs: 10_000 };
+    const shard = { count: 8, index: 0, runId: '12345-1', startAtMs: 10_000 };
 
     expect(scheduledStartDelayMs(shard, 9_000)).toBe(1_000);
     expect(scheduledStartDelayMs(shard, 10_005)).toBe(0);

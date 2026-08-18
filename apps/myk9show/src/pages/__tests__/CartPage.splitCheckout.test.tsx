@@ -85,6 +85,7 @@ const judgeDayCapacityState = vi.hoisted(() => ({
     },
   ],
   isLoading: false,
+  isFetching: false,
   error: null as string | null,
 }));
 
@@ -136,11 +137,17 @@ vi.mock('@/components/cart/CartSummary', () => ({
   CartSummary: ({
     onCheckout,
     isCheckingOut,
+    fulfillment,
   }: {
     onCheckout: () => void;
     isCheckingOut?: boolean;
+    fulfillment?: { capacityKnown: boolean };
   }) => (
-    <button type="button" onClick={onCheckout} disabled={isCheckingOut}>
+    <button
+      type="button"
+      onClick={onCheckout}
+      disabled={isCheckingOut || fulfillment?.capacityKnown === false}
+    >
       Checkout
     </button>
   ),
@@ -204,6 +211,7 @@ describe('CartPage split checkout wiring', () => {
       },
     ];
     judgeDayCapacityState.isLoading = false;
+    judgeDayCapacityState.isFetching = false;
     judgeDayCapacityState.error = null;
     checkoutWithWaitlistMock.mockResolvedValue({
       confirmed: ['class-open'],
@@ -250,6 +258,15 @@ describe('CartPage split checkout wiring', () => {
     expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', {
       splitCheckoutId: storedSummary.correlationId,
     });
+  });
+
+  it('holds checkout while capacity is refetching stale data', () => {
+    judgeDayCapacityState.isFetching = true;
+
+    render(<CartPage />, { initialRoute: '/cart' });
+
+    expect(screen.getByRole('button', { name: 'Checkout' })).toBeDisabled();
+    expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
   });
 
   it('sends waitlist-only carts to the existing success page without Stripe', async () => {

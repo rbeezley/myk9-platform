@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import type {
   AskQQuestionMode,
   AskQShowRequest,
@@ -31,6 +32,7 @@ import {
   parseSupportAnswer,
   type SupportEscalationPayload,
 } from '../_shared/askq/supportMode.ts';
+import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173',
@@ -38,7 +40,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const RATE_LIMITS = { free: 10, premium: 50 };
 const MAX_TOOL_ITERATIONS = 5;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -115,6 +116,9 @@ Deno.serve(async (req: Request) => {
     if (authError || !user) {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
+    if (user.is_anonymous === true) {
+      return jsonResponse({ error: 'An account is required for AskQ' }, 403);
+    }
 
     // Parse request — wrap in try/catch for malformed JSON
     let body: AskQShowRequest;
@@ -145,16 +149,11 @@ Deno.serve(async (req: Request) => {
 
     const serviceClient = createClient(Deno.env.get('SUPABASE_URL')!, serviceRoleKey);
 
-    // Parallelize independent DB queries
-    const [countResult, { data: personData }, showResult] = await Promise.all([
-      serviceClient
-        .from('chatbot_query_log')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', new Date().toISOString().split('T')[0]),
+    // Resolve basic account/show context before reserving quota.
+    const [{ data: personData }, showResult] = await Promise.all([
       serviceClient
         .from('people')
-        .select('id, first_name, last_name, subscription_tier')
+        .select('id, first_name, last_name')
         .eq('auth_user_id', user.id)
         .single(),
       showId
@@ -164,40 +163,25 @@ Deno.serve(async (req: Request) => {
 
     let showData = showResult?.data ?? null;
 
-    // Fail closed on rate limit DB error
-    if (countResult.error) {
-      console.error('Rate limit query failed:', countResult.error.message);
+    const reservation = await reserveAskQQuery(supabaseClient, message);
+    if (reservation.status === 'unavailable') {
+      console.error('AskQ quota reservation failed');
       return jsonResponse({ error: 'Service temporarily unavailable' }, 503);
     }
-
-    const tier = personData?.subscription_tier === 'premium' ? 'premium' : 'free';
-    const limit = RATE_LIMITS[tier];
-    const used = countResult.count ?? 0;
-
-    if (used >= limit) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
+    if (reservation.status === 'limited') {
       return jsonResponse(
-        { error: 'Daily limit reached', remaining: 0, limit, resetsAt: tomorrow.toISOString() },
+        {
+          error: 'Daily limit reached',
+          remaining: reservation.remaining,
+          limit: reservation.limit,
+          resetsAt: reservation.resetsAt,
+        },
         429
       );
     }
 
-    // Insert provisional rate limit row immediately to prevent TOCTOU bypass
-    const { data: logRow } = await serviceClient
-      .from('chatbot_query_log')
-      .insert({
-        query: message,
-        tools_used: [],
-        user_id: user.id,
-        app_source: 'myk9show',
-        response_time_ms: 0,
-      })
-      .select('id')
-      .single();
-
-    const remaining = limit - used - 1;
+    const logRow = { id: reservation.logId };
+    const { remaining, limit } = reservation;
     const supportQuestionEscalation = effectiveSupportMode
       ? getSupportEscalationForQuestion(message)
       : null;
@@ -277,13 +261,13 @@ Deno.serve(async (req: Request) => {
     if (showId && showData?.name) {
       const dogIds = dogs.map(d => d.id);
       const [{ count: roleCount }, { count: entryCount }] = await Promise.all([
-        serviceClient
-          .from('user_roles')
-          .select('*', { count: 'exact', head: true })
-          .eq('auth_user_id', user.id)
-          .eq('show_id', showId)
-          .eq('is_active', true)
-          .or('expires_at.is.null,expires_at.gt.now()'),
+        applyActiveRoleValidity(
+          serviceClient
+            .from('user_roles')
+            .select('*', { count: 'exact', head: true })
+            .eq('auth_user_id', user.id)
+            .eq('show_id', showId)
+        ),
         dogIds.length > 0
           ? serviceClient
               .from('entries')

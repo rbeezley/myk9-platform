@@ -14,6 +14,8 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     hasPaymentMethod: true,
     needsAgreement: false,
     agreedToEntryAgreement: false,
+    capacityReady: true,
+    blockedClassCount: 0,
     ...overrides,
   };
 }
@@ -100,6 +102,18 @@ describe('proceedBlockedReason', () => {
       expect(
         proceedBlockedReason(ctx({ stepId: 'payment', totalFees: 25, hasPaymentMethod: false }))
       ).toBe('Choose a payment method to continue.');
+    });
+
+    it('blocks while recovered class availability is unresolved', () => {
+      expect(
+        proceedBlockedReason(ctx({ stepId: 'payment', capacityReady: false }))
+      ).toBe('Checking class availability. Please wait, then try again.');
+    });
+
+    it('blocks a full class that does not accept a wait list', () => {
+      expect(
+        proceedBlockedReason(ctx({ stepId: 'payment', blockedClassCount: 1 }))
+      ).toBe('Remove the full class that does not accept a wait list to continue.');
     });
 
     it('skips payment method for $0 totals', () => {

@@ -74,6 +74,33 @@ export interface SortableEntryCardProps {
   DogCard: ComponentType<DogCardProps>;
 }
 
+interface PrimaryEntryActionProps {
+  entry: Entry;
+  onActivate: (event: React.MouseEvent) => void;
+  onStopGesture: (event: React.MouseEvent | React.TouchEvent) => void;
+}
+
+const PrimaryEntryAction: React.FC<PrimaryEntryActionProps> = ({
+  entry,
+  onActivate,
+  onStopGesture,
+}) => {
+  if (entry.isScored) return null;
+  const label = entry.inRing ? 'Resume' : 'Score';
+  return (
+    <button
+      type="button"
+      aria-label={`${label} ${entry.callName}`}
+      className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] sm:min-h-12"
+      onClick={onActivate}
+      onMouseDown={onStopGesture}
+      onTouchStart={onStopGesture}
+    >
+      {label}
+    </button>
+  );
+};
+
 // ========================================
 // MAIN COMPONENT
 // ========================================
@@ -127,6 +154,12 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       haptic.medium();
       handleEntryClick(entry);
     }
+  };
+
+  const handlePrimaryActionClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleCardClick();
   };
 
   // Long press handlers
@@ -219,6 +252,15 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
             {isOwnEntry && conflictLabel && <OwnDogConflictChip label={conflictLabel} />}
             <ResultBadges entry={entry} showContext={showContext} />
           </>
+        }
+        primaryAction={
+          hasPermission('canScore') ? (
+            <PrimaryEntryAction
+              entry={entry}
+              onActivate={handlePrimaryActionClick}
+              onStopGesture={stopCardGesture}
+            />
+          ) : undefined
         }
         sectionBadge={sectionBadge}
         favoriteButton={
@@ -378,7 +420,7 @@ interface ResetButtonProps {
 
 const ResetButton: React.FC<ResetButtonProps> = ({ onClick }) => (
   <button
-    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground active:scale-95"
+    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground active:scale-95 sm:min-h-12 sm:min-w-12"
     data-testid="reset-menu-button"
     onClick={onClick}
     onMouseDown={e => e.stopPropagation()}

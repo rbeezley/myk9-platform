@@ -140,18 +140,24 @@ END;
 $$;
 
 DO $$
+DECLARE
+  affected_count integer;
 BEGIN
-  BEGIN
-    UPDATE public.entries
-       SET refund_decision = 'denied'
-     WHERE id = '00000000-0000-0000-0000-000000000842';
+  UPDATE public.entries
+     SET refund_decision = 'denied'
+   WHERE id = '00000000-0000-0000-0000-000000000842';
+  GET DIAGNOSTICS affected_count = ROW_COUNT;
+
+  IF affected_count <> 0 THEN
     RAISE EXCEPTION 'FAIL direct refund-decision update succeeded';
-  EXCEPTION WHEN insufficient_privilege THEN
-    IF SQLERRM <> 'refund decisions are written only through set_entry_refund_decision' THEN
-      RAISE;
-    END IF;
-    RAISE NOTICE 'PASS direct refund-decision update is rejected';
-  END;
+  END IF;
+
+  RAISE NOTICE 'PASS direct refund-decision update is rejected by row policy';
+EXCEPTION WHEN insufficient_privilege THEN
+  IF SQLERRM <> 'refund decisions are written only through set_entry_refund_decision' THEN
+    RAISE;
+  END IF;
+  RAISE NOTICE 'PASS direct refund-decision update is rejected by trigger';
 END;
 $$;
 

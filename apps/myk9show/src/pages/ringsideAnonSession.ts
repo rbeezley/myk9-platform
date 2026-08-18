@@ -81,6 +81,7 @@ export async function startAnonymousRingsideSession(
     // No claim was stamped; drop the dangling anon session so the device isn't
     // left half-authenticated with an empty claim.
     await supabase.auth.signOut();
+    await replicatedClassesTable.clearCachedHideCounts();
     return result;
   }
 
@@ -89,6 +90,7 @@ export async function startAnonymousRingsideSession(
   const { error: refreshErr } = await supabase.auth.refreshSession();
   if (refreshErr) {
     await supabase.auth.signOut();
+    await replicatedClassesTable.clearCachedHideCounts();
     return { ok: false, kind: 'session', message: SESSION_ERROR };
   }
 
@@ -98,6 +100,7 @@ export async function startAnonymousRingsideSession(
   // land in the ring and silently read 0 rows. Fail closed instead.
   if (!result.sessionStamped) {
     await supabase.auth.signOut();
+    await replicatedClassesTable.clearCachedHideCounts();
     return { ok: false, kind: 'session', message: SESSION_ERROR };
   }
 
@@ -113,6 +116,7 @@ export async function startAnonymousRingsideSession(
   // classes per trial (passing showId to classes.sync is a no-op). Offline-
   // tolerant: allSettled swallows failures (the page falls back to cache and
   // re-syncs when back online).
+  await replicatedClassesTable.clearCachedHideCounts();
   await Promise.allSettled([
     replicatedEntriesTable.sync(result.showId),
     (async () => {
@@ -134,5 +138,6 @@ export async function endAnonymousRingsideSession(): Promise<void> {
   const { data } = await supabase.auth.getSession();
   if (data.session?.user?.is_anonymous) {
     await supabase.auth.signOut();
+    await replicatedClassesTable.clearCachedHideCounts();
   }
 }

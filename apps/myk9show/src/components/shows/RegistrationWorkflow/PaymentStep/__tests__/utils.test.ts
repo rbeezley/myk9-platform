@@ -106,6 +106,26 @@ describe('calculateTotalFees — isFree gate (total <= 0 → payment method opti
   });
 });
 
+describe('calculateTotalFees — wait-list lines are non-payable', () => {
+  it('marks a selected full/wait-list class as a request with no amount due', () => {
+    const result = calculateTotalFees(
+      [DOG_ID],
+      [selection],
+      [dog],
+      [classObj],
+      undefined,
+      new Set([CLASS_ID])
+    );
+
+    expect(result.total).toBe(0);
+    expect(result.breakdown[0]?.classes[0]).toMatchObject({
+      classId: CLASS_ID,
+      fee: 0,
+      isWaitlist: true,
+    });
+  });
+});
+
 describe('calculateTotalFees — multi-dog discount', () => {
   it('does not apply the multi-dog discount when one entered dog has several owned dogs', () => {
     const ownedDogs = [

@@ -833,6 +833,32 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).toHaveProperty('num_hides', 3);
     });
 
+    it('scrubs cached hide counts and resets sync watermarks at a session boundary', async () => {
+      const classId = 'class-hide-boundary';
+      await classesTable.set(
+        classId,
+        createMockClass({ id: classId, hideCount: 3, _syncStatus: 'synced' })
+      );
+      await classesTable.updateSyncMetadata({
+        lastFullSyncAt: 10,
+        lastIncrementalSyncAt: 20,
+        totalRows: 1,
+        scopes: { 'trial-1': { lastIncrementalSyncAt: 20, totalRows: 1 } },
+      });
+
+      await classesTable.clearCachedHideCounts();
+
+      const cached = await classesTable.getClassById(classId);
+      expect(cached).not.toBeNull();
+      expect(cached).not.toHaveProperty('hideCount');
+      await expect(classesTable.getSyncMetadata()).resolves.toMatchObject({
+        lastFullSyncAt: 0,
+        lastIncrementalSyncAt: 0,
+        totalRows: 0,
+        scopes: {},
+      });
+    });
+
     it('keeps the explicit num_hides null on the INSERT path (DEFAULT 1 must not apply)', async () => {
       const queueMutation = vi.spyOn(
         classesTable as unknown as {

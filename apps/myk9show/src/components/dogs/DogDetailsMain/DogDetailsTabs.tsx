@@ -74,6 +74,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
             onViewChange={setView}
             isPremium={canAuthorizePremium}
             locked={locked}
+            viewer={role}
           />
         </div>
       )}

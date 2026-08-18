@@ -39,4 +39,32 @@ describe('CartItemCard', () => {
     const btn = screen.getByRole('button', { name: /removing/i });
     expect(btn).toBeDisabled();
   });
+
+  // MYK9-122: a full class must not render a client-derived amount as settled.
+  it('renders a wait-list line with a pending amount, not as its entry fee', () => {
+    render(<CartItemCard item={baseItem} onRemove={vi.fn()} fulfillment="waitlist" />);
+
+    expect(screen.getByText('Wait list request')).toBeInTheDocument();
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.getByText('Amount confirmed at submission')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(
+      screen.getByText(/availability is confirmed before any payment is requested/i)
+    ).toBeInTheDocument();
+  });
+
+  it('renders a blocked line with the action that unblocks checkout', () => {
+    render(<CartItemCard item={baseItem} onRemove={vi.fn()} fulfillment="blocked" />);
+
+    expect(screen.getByText('Class full')).toBeInTheDocument();
+    expect(screen.getByText('Cannot be paid')).toBeInTheDocument();
+    expect(screen.getByText(/remove it to continue to payment/i)).toBeInTheDocument();
+  });
+
+  it('still renders an ordinary payable line by default', () => {
+    render(<CartItemCard item={baseItem} onRemove={vi.fn()} />);
+
+    expect(screen.getByText('$45.00')).toBeInTheDocument();
+    expect(screen.queryByText('Wait list request')).not.toBeInTheDocument();
+  });
 });

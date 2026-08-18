@@ -23,9 +23,12 @@ import {
 } from '../_shared/sentryCronCheckIn.ts';
 import {
   buildSnapshot,
+  buildProbeFailureSnapshot,
   DEFAULT_SOURCE,
   extractConflictCounter,
+  type SnapshotCheck,
 } from '../_shared/systemHealthChecks.ts';
+import type { HealthCheckRunMode } from '../../../src/features/admin-system-health/healthCheckCadence.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -80,21 +83,36 @@ async function secretMatches(provided: string | null): Promise<boolean> {
   return diff === 0;
 }
 
-/** Previous snapshot's ringside conflict counter, for the delta check. Any
- * failure (no rows, query error, malformed checks) yields null = no baseline;
+/** Previous snapshot's ringside conflict counter AND the time it was taken. The
+ * timestamp is what lets the check report a rate rather than a bare delta — a
+ * 24h delta of 1.4M reads as a broken counter, 992/min reads as a storm. Any
+ * failure (no rows, query error, malformed checks) yields nulls = no baseline;
  * the check then records a fresh baseline instead of failing. */
-async function fetchPreviousConflictCounter(): Promise<number | null> {
+async function fetchPreviousConflictBaseline(): Promise<{
+  counter: number | null;
+  at: string | null;
+  checks: SnapshotCheck[] | null;
+}> {
   try {
     const { data, error } = await supabase
       .from('system_health_snapshots')
-      .select('checks')
+      .select('checks, created_at')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (error || !data) return null;
-    return extractConflictCounter((data as { checks?: unknown }).checks);
+    if (error || !data) return { counter: null, at: null, checks: null };
+    const row = data as { checks?: unknown; created_at?: unknown };
+    return {
+      counter: extractConflictCounter(row.checks),
+      at: typeof row.created_at === 'string' ? row.created_at : null,
+      checks: Array.isArray(row.checks)
+        ? row.checks.filter((check): check is SnapshotCheck =>
+            Boolean(check && typeof check === 'object')
+          )
+        : null,
+    };
   } catch {
-    return null;
+    return { counter: null, at: null, checks: null };
   }
 }
 
@@ -108,20 +126,40 @@ async function insertSnapshot(row: ReturnType<typeof buildSnapshot>) {
   if (error) throw new Error(`snapshot insert failed: ${error.message}`);
 }
 
-async function runHealthSnapshot(): Promise<Response> {
+async function runHealthSnapshot(
+  mode: HealthCheckRunMode,
+  runToken: string | null
+): Promise<Response> {
   const startedAt = Date.now();
-  const { data: facts, error: probeError } = await supabase.rpc('system_health_probe');
+  const previous = await fetchPreviousConflictBaseline();
+  const [
+    { data: facts, error: probeError },
+    { data: publicSchemaAcl, error: publicSchemaAclError },
+  ] = await Promise.all([
+    supabase.rpc('system_health_probe', {
+      p_include_expensive: mode === 'full',
+    }),
+    supabase.rpc('public_schema_create_acl_probe'),
+  ]);
+
+  const source = runToken ? `${DEFAULT_SOURCE}:manual:${runToken}` : DEFAULT_SOURCE;
 
   if (probeError || facts == null) {
     // Probe failed — still write a visible fail snapshot rather than nothing.
-    const snapshot = buildSnapshot(null, {
-      now: Date.now(),
-      runDurationMs: Date.now() - startedAt,
-    });
-    // Replace the generic detail with the actual probe error for triage.
-    if (probeError) {
-      snapshot.checks[0].detail = `system_health_probe failed: ${probeError.message}`;
-    }
+    const snapshot = buildProbeFailureSnapshot(
+      probeError?.message ?? null,
+      publicSchemaAclError ? { error: publicSchemaAclError.message } : publicSchemaAcl,
+      {
+        now: Date.now(),
+        runDurationMs: Date.now() - startedAt,
+      }
+    );
+    snapshot.source = source;
+    snapshot.checks.push(
+      ...(previous.checks ?? []).filter(
+        check => check.key !== 'probe' && check.key !== 'public_schema_create_acl'
+      )
+    );
     await insertSnapshot(snapshot);
     console.error('Health probe failed:', probeError?.message ?? 'no facts returned');
     return Response.json(
@@ -130,14 +168,23 @@ async function runHealthSnapshot(): Promise<Response> {
     );
   }
 
-  const previousConflictCounter = await fetchPreviousConflictCounter();
-
-  const snapshot = buildSnapshot(facts, {
-    now: Date.now(),
-    source: DEFAULT_SOURCE,
-    runDurationMs: Date.now() - startedAt,
-    previousConflictCounter,
-  });
+  const snapshot = buildSnapshot(
+    {
+      ...(facts as Record<string, unknown>),
+      public_schema_create_acl: publicSchemaAclError
+        ? { error: publicSchemaAclError.message }
+        : publicSchemaAcl,
+    },
+    {
+      now: Date.now(),
+      source,
+      runDurationMs: Date.now() - startedAt,
+      previousConflictCounter: previous.counter,
+      previousSnapshotAt: previous.at,
+      previousChecks: previous.checks,
+      mode,
+    }
+  );
   await insertSnapshot(snapshot);
 
   console.log(
@@ -165,10 +212,11 @@ Deno.serve(async req => {
   }
 
   try {
-    return await runWithBestEffortCronCheckIn(
-      sentryCronClient,
-      DAILY_HEALTH_MONITOR_SLUG,
-      runHealthSnapshot
+    const mode: HealthCheckRunMode =
+      req.headers.get('x-health-check-mode') === 'continuous' ? 'continuous' : 'full';
+    const runToken = req.headers.get('x-health-run-token');
+    return await runWithBestEffortCronCheckIn(sentryCronClient, DAILY_HEALTH_MONITOR_SLUG, () =>
+      runHealthSnapshot(mode, runToken)
     );
   } catch (err) {
     // Last-resort: even the insert failed. Log loudly; the board's staleness

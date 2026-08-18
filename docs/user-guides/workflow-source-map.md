@@ -45,7 +45,8 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 2. Create an account and add a dog
 
 **Outcome:** First-time exhibitor creates an account and registers their dog before entering.
-**Canonical routes:** `/sign-up` → `/dogs` → `/dogs/:id`
+**Canonical routes:** `/sign-up` → `/dogs` → `/dogs/:id` _(source-map re-verified 2026-08-04)_
+**Note:** Source-map entry re-verified 2026-08-04 after route definitions moved into the centralized router; the guide-facing account flow is unchanged.
 **Docs target:** Exhibitor Guide § Account Setup, KB: `create-account.md`
 
 ### 2a. Manage profile, preferences, and account settings
@@ -75,8 +76,9 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 6. Check in on show day
 
 **Outcome:** Exhibitor marks themselves present for a class.
-**Canonical route:** `/at-show` (permanent **Show day** sidebar entry for exhibitor-only users; **Ringside** for staff roles) **or** `/at-show/:showId` (via ShowTodayBanner on `/exhibitor/entries`) → `/exhibitor/check-in/:entryId`
+**Canonical route:** `/at-show` (permanent **Show day** sidebar entry for exhibitor-only users; **Ringside** for staff roles) **or** `/at-show/:showId` (via ShowTodayBanner on `/exhibitor/entries`) → `/exhibitor/check-in/:entryId` _(source-map re-verified 2026-08-04)_
 **Note:** Re-verified 2026-07-02 for #1088. The bare `/at-show` link resolves the live show at the destination via `RingsideEntryPage`; exhibitor-only navigation labels it **Show day** so the guide should not instruct exhibitors to look for **Ringside** in the sidebar. Staff roles still see **Ringside**. The context-aware ShowTodayBanner on My Shows appears only on show day. As of #949/#950, exhibitor self-check-in is gated on a secretary toggle and routed through the `self_checkin_entry` RPC — guides must not promise self-check-in unconditionally.
+**Source-map note:** Re-verified 2026-08-04 after route definitions moved into the centralized router; the guide-facing show-day flow is unchanged.
 **Docs target:** Exhibitor Guide § Show Day, KB: `check-in.md`
 
 ### 7. View results
@@ -118,8 +120,9 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 12. Create a show
 
 **Outcome:** Secretary creates a show with trials, classes, judges, and entry dates, and publishes it.
-**Canonical route:** `/secretary/create-show/wizard`
+**Canonical route:** `/secretary/create-show/wizard` _(source-map re-verified 2026-08-04)_
 **Entry point:** Secretary Dashboard → Create Show
+**Note:** Source-map entry re-verified 2026-08-04 after route definitions moved into the centralized router; the guide-facing show-creation flow is unchanged.
 **Docs target:** Secretary Guide § Setup, KB: `create-a-show.md`
 
 ### 13. Monitor all shows (cross-show triage)

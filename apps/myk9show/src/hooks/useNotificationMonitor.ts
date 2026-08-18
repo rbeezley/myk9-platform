@@ -76,7 +76,7 @@ function buildResultsActionUrl(
 }
 
 export function useNotificationMonitor(): void {
-  const { userWithRoles, user } = useAuthContext();
+  const { userWithRoles } = useAuthContext();
   const preferences = useNotificationStore(state => state.preferences);
   const { deliver } = useNotificationDelivery();
   const { activeShows } = useShowDayData();
@@ -165,23 +165,15 @@ export function useNotificationMonitor(): void {
     watchSetRef.current = watchSet;
   });
 
-  const sendPush = useCallback(
-    async (payload: unknown) => {
-      if (!user?.id || document.visibilityState === 'visible') return;
-      try {
-        await supabase.functions.invoke('send-push-notification', {
-          body: { user_id: user.id, payload },
-        });
-      } catch {
-        // Push is best-effort; the in-app notification already exists.
-      }
-    },
-    [user]
-  );
-  const sendPushRef = useRef(sendPush);
-  useLayoutEffect(() => {
-    sendPushRef.current = sendPush;
-  });
+  // NOTE: this monitor no longer sends push. It used to, gated on
+  // `document.visibilityState !== 'visible'`, which required the PWA process to
+  // be alive and merely backgrounded — iOS Safari suspends backgrounded PWAs,
+  // so the exhibitor with the phone in their pocket at the crate got nothing.
+  // Push now originates server-side from push-trigger-run-proximity (migration
+  // 20260816120000), which fires on the same in-ring transition and reads the
+  // per-user threshold from notification_preferences.lead_dogs. Keeping a
+  // client sender as well would double-notify a backgrounded-but-alive app.
+  // In-app delivery (toast + voice) stays here.
 
   const notifyUpcomingDogs = useCallback((classId: string, inRingEntryId: string) => {
     const context = classContextRef.current.get(classId);
@@ -213,7 +205,6 @@ export function useNotificationMonitor(): void {
       });
       notification.actionUrl = `/classes/${context.classId}`;
       deliverRef.current(notification);
-      if (preferencesRef.current.pushEnabled) void sendPushRef.current(notification);
     }
   }, []);
 

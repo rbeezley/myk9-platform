@@ -3,8 +3,8 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { withReplicationFallback } from '../_shared/replication-fallback';
+import { fetchEntryCountsByClassIds } from '../_shared/entryCounts';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
-import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 
 export interface ShowScheduleTimelineRow {
@@ -37,21 +37,53 @@ export interface TrialTimelineRow {
   judgeLastName: string | null;
 }
 
-function buildEntryCountsByClassMap(entries: ReplicatedEntry[]): Map<string, number> {
+interface EntryClassCountRow {
+  classId?: string | null | undefined;
+  class_id?: string | null | undefined;
+  deletedAt?: string | null | undefined;
+  deleted_at?: string | null | undefined;
+}
+
+function buildEntryCountsByClassMap(entries: readonly EntryClassCountRow[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const entry of entries) {
-    if (entry.classId) {
-      map.set(entry.classId, (map.get(entry.classId) ?? 0) + 1);
-    }
+    if (entry.deletedAt || entry.deleted_at) continue;
+    const classId = entry.classId ?? entry.class_id;
+    if (classId) map.set(classId, (map.get(classId) ?? 0) + 1);
   }
   return map;
 }
 
 async function loadEntryCountsByShowMap(showId: string): Promise<Map<string, number>> {
-  return buildEntryCountsByClassMap(await replicatedEntriesTable.getEntriesByShow(showId));
+  const [entries, metadata] = await Promise.all([
+    replicatedEntriesTable.getEntriesByShow(showId),
+    replicatedEntriesTable.getSyncMetadata(showId),
+  ]);
+
+  // An empty slice is only a confident zero after the show scope has completed
+  // at least one sync. A missing scoped row count means this browser has never
+  // hydrated the show and must use the normal PostgREST fallback.
+  if (entries.length === 0 && metadata?.totalRows === undefined) {
+    throw new Error(`Entries replica is cold for show ${showId}`);
+  }
+
+  return buildEntryCountsByClassMap(entries);
 }
 
-async function loadEntryCountsByClassIdsMap(classIds: string[]): Promise<Map<string, number>> {
+async function loadEntryCountsByClassIdsMap(
+  classIds: string[],
+  showId?: string
+): Promise<Map<string, number>> {
+  if (showId) {
+    const showEntryCounts = await loadEntryCountsByShowMap(showId);
+    return new Map(
+      classIds.flatMap(classId => {
+        const count = showEntryCounts.get(classId);
+        return count === undefined ? [] : [[classId, count] as const];
+      })
+    );
+  }
+
   const entryGroups = await Promise.all(
     classIds.map(classId => replicatedEntriesTable.getEntriesByClass(classId))
   );
@@ -94,7 +126,9 @@ function mapClassToShowScheduleTimelineRow(
     level: cls.level ?? null,
     startTime: cls.startTime ?? null,
     status: cls.classStatus ?? 'no-status',
-    totalEntriesCount: cls.totalEntriesCount ?? entryCountsMap.get(cls.id) ?? 0,
+    // Entry rows are the canonical source. The denormalized class snapshot is
+    // stale in existing shows and may legitimately remain zero after scoring.
+    totalEntriesCount: entryCountsMap.get(cls.id) ?? 0,
     judgePersonId: cls.judgeId ?? null,
     judgeFirstName: judgeName.firstName,
     judgeLastName: judgeName.lastName,
@@ -113,7 +147,7 @@ function mapClassToTrialTimelineRow(
     level: cls.level ?? null,
     startTime: cls.startTime ?? null,
     status: cls.classStatus ?? 'no-status',
-    totalEntriesCount: cls.totalEntriesCount ?? entryCountsMap.get(cls.id) ?? 0,
+    totalEntriesCount: entryCountsMap.get(cls.id) ?? 0,
     judgePersonId: cls.judgeId ?? null,
     judgeFirstName: judgeName.firstName,
     judgeLastName: judgeName.lastName,
@@ -138,7 +172,6 @@ async function postgrestGetShowScheduleTimelineRows(
         level,
         start_time,
         status,
-        total_entries_count,
         deleted_at,
         judge_assignments (
           person_id,
@@ -155,6 +188,16 @@ async function postgrestGetShowScheduleTimelineRows(
 
   if (error) throw createDatabaseError(error, 'trial', 'select_schedule_timeline');
 
+  const classIds = (data ?? []).flatMap(trial =>
+    ((trial.classes as Array<{ id: string; deleted_at: string | null }> | null) ?? [])
+      .filter(cls => cls.deleted_at === null)
+      .map(cls => cls.id)
+  );
+  const entryCountsMap = await fetchEntryCountsByClassIds(
+    classIds,
+    'select_schedule_entry_counts'
+  );
+
   const rows: ShowScheduleTimelineRow[] = [];
   for (const trial of data ?? []) {
     const classes =
@@ -165,7 +208,6 @@ async function postgrestGetShowScheduleTimelineRows(
         level: string | null;
         start_time: string | null;
         status: string | null;
-        total_entries_count: number | null;
         deleted_at: string | null;
         judge_assignments: Array<{
           person_id: string;
@@ -186,7 +228,7 @@ async function postgrestGetShowScheduleTimelineRows(
         level: cls.level,
         startTime: cls.start_time,
         status: cls.status ?? 'no-status',
-        totalEntriesCount: cls.total_entries_count ?? 0,
+        totalEntriesCount: entryCountsMap.get(cls.id) ?? 0,
         judgePersonId: assignment?.person_id ?? null,
         judgeFirstName: assignment?.people.first_name ?? null,
         judgeLastName: assignment?.people.last_name ?? null,
@@ -210,7 +252,6 @@ async function postgrestGetTrialTimelineRows(
       level,
       start_time,
       status,
-      total_entries_count,
       judge_assignments (
         person_id,
         people!inner (
@@ -224,6 +265,12 @@ async function postgrestGetTrialTimelineRows(
     .is('deleted_at', null);
 
   if (error) throw createDatabaseError(error, 'trial', 'select_trial_timeline');
+
+  const classIds = (data ?? []).map(cls => cls.id);
+  const entryCountsMap = await fetchEntryCountsByClassIds(
+    classIds,
+    'select_trial_entry_counts'
+  );
 
   return {
     data: (data ?? []).map(cls => {
@@ -241,7 +288,7 @@ async function postgrestGetTrialTimelineRows(
         level: cls.level,
         startTime: cls.start_time,
         status: cls.status ?? 'no-status',
-        totalEntriesCount: cls.total_entries_count ?? 0,
+        totalEntriesCount: entryCountsMap.get(cls.id) ?? 0,
         judgePersonId: assignment?.person_id ?? null,
         judgeFirstName: assignment?.people.first_name ?? null,
         judgeLastName: assignment?.people.last_name ?? null,
@@ -295,7 +342,11 @@ export const getTrialTimelineRows = async (
         const classes = (await replicatedClassesTable.getClassesByTrial(trialId)).filter(
           cls => !cls.deletedAt
         );
-        const entryCountsMap = await loadEntryCountsByClassIdsMap(classes.map(cls => cls.id));
+        const trial = await replicatedTrialsTable.getTrialById(trialId);
+        const entryCountsMap = await loadEntryCountsByClassIdsMap(
+          classes.map(cls => cls.id),
+          trial?.showId
+        );
 
         return {
           data: classes.map(cls => mapClassToTrialTimelineRow(cls, entryCountsMap)),

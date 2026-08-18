@@ -12,7 +12,14 @@ export interface ConfirmationEmailRunRow {
   armband: string | null;
 }
 
+export interface VenueMapAssetsRef {
+  imageUrl: string;
+  linkUrl: string;
+}
+
 export interface ConfirmationEmailBaseData {
+  /** Optional so preview-parity fixtures and older callers stay valid. */
+  venueMap?: VenueMapAssetsRef | null;
   clubName: string;
   clubEstablished: string | null;
   clubCity: string | null;

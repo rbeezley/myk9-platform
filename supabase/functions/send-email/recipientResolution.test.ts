@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveDerivedRecipient } from './recipientResolution';
 
 const showCc = (ccSecretaryOnExhibitorEmails: boolean | null, secretaryEmail: string | null) => ({
+  id: 'show-1',
   ccSecretaryOnExhibitorEmails,
   secretaryEmail,
 });

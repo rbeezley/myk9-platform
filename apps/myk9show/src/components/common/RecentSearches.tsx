@@ -145,61 +145,65 @@ export const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   }
 
   return (
-    <Card className={`absolute top-full left-0 right-0 mt-1 z-50 shadow-lg ${className}`}>
-      <CardContent className="p-2">
-        {/* Recent matching suggestions */}
-        {suggestions.length > 0 && (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              Recent
-            </div>
-            {suggestions.map(search => (
-              <button
-                key={search.id}
-                onClick={() => onSuggestionSelect(search.query)}
-                className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <Search className="h-3 w-3 text-muted-foreground" />
-                  <span className="truncate">{search.query}</span>
-                  {search.metadata?.resultCount !== undefined && (
-                    <Badge variant="secondary" className="text-xs ml-auto">
-                      {search.metadata.resultCount}
-                    </Badge>
-                  )}
-                </div>
-              </button>
-            ))}
+    <div className={`p-2 ${className}`}>
+      {/* Recent matching suggestions */}
+      {suggestions.length > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            Recent
           </div>
-        )}
-
-        {/* Frequent searches (when no current query) */}
-        {!currentQuery && frequentSearches.length > 0 && (
-          <div className="space-y-1 mt-2">
-            {suggestions.length > 0 && <div className="border-t my-2" />}
-            <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" />
-              Popular
-            </div>
-            {frequentSearches.slice(0, 3).map((search, index) => (
-              <button
-                key={`frequent-${index}`}
-                onClick={() => onSuggestionSelect(search.query)}
-                className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                  <span className="truncate">{search.query}</span>
-                  <Badge variant="outline" className="text-xs ml-auto">
-                    {search.count}
+          {suggestions.map(search => (
+            <button
+              key={search.id}
+              type="button"
+              role="option"
+              aria-selected={false}
+              onClick={() => onSuggestionSelect(search.query)}
+              className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors text-sm"
+            >
+              <div className="flex items-center gap-2">
+                <Search className="h-3 w-3 text-muted-foreground" />
+                <span className="truncate">{search.query}</span>
+                {search.metadata?.resultCount !== undefined && (
+                  <Badge variant="secondary" className="text-xs ml-auto">
+                    {search.metadata.resultCount}
                   </Badge>
-                </div>
-              </button>
-            ))}
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Frequent searches (when no current query) */}
+      {!currentQuery && frequentSearches.length > 0 && (
+        <div className="space-y-1 mt-2">
+          {suggestions.length > 0 && <div className="border-t my-2" />}
+          <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+            <TrendingUp className="h-3 w-3" />
+            Popular
           </div>
-        )}
-      </CardContent>
-    </Card>
+          {frequentSearches.slice(0, 3).map((search, index) => (
+            <button
+              key={`frequent-${index}`}
+              type="button"
+              role="option"
+              aria-selected={false}
+              onClick={() => onSuggestionSelect(search.query)}
+              className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors text-sm"
+            >
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                <span className="truncate">{search.query}</span>
+                <Badge variant="outline" className="text-xs ml-auto">
+                  {search.count}
+                </Badge>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };

@@ -4,8 +4,22 @@ import type { SupportMessage, SupportTicket, TicketOwner, TicketThread } from '.
 export interface SupportDataSource {
   openTickets(): Promise<SupportTicket[]>;
   messagesFor(ticketIds: string[]): Promise<SupportMessage[]>;
-  insertOperatorMessage(ticketId: string, senderId: string, body: string): Promise<void>;
-  updateTicketStatus(ticketId: string, status: SupportTicket['status']): Promise<void>;
+  /**
+   * Inserts the operator reply and marks the ticket waiting, but only if
+   * `expectedLastMessageId` is still the newest message on an open ticket.
+   * Resolves to whether it inserted.
+   *
+   * INTENT: There is deliberately no plain `insertOperatorMessage` on this
+   * interface. A caller that could insert unconditionally would reintroduce the
+   * check-then-insert race this method exists to close (MYK9-135), and nothing
+   * in the type system would flag it.
+   */
+  sendOperatorReplyAtomic(
+    ticketId: string,
+    senderId: string,
+    body: string,
+    expectedLastMessageId: string
+  ): Promise<boolean>;
   ownersFor(authUserIds: string[]): Promise<TicketOwner[]>;
 }
 
@@ -37,11 +51,15 @@ export function createSupabaseSource(url: string, serviceRoleKey: string): Suppo
       return (data ?? []) as SupportMessage[];
     },
 
-    async insertOperatorMessage(ticketId, senderId, body) {
-      const { error } = await client
-        .from('support_ticket_messages')
-        .insert({ ticket_id: ticketId, sender_id: senderId, body, is_from_operator: true });
-      if (error) throw new Error(`Failed to insert operator message: ${error.message}`);
+    async sendOperatorReplyAtomic(ticketId, senderId, body, expectedLastMessageId) {
+      const { data, error } = await client.rpc('support_triage_send_operator_reply', {
+        p_ticket_id: ticketId,
+        p_sender_id: senderId,
+        p_body: body,
+        p_expected_last_message_id: expectedLastMessageId,
+      });
+      if (error) throw new Error(`Failed to send operator reply: ${error.message}`);
+      return data === true;
     },
 
     async ownersFor(authUserIds) {
@@ -52,14 +70,6 @@ export function createSupabaseSource(url: string, serviceRoleKey: string): Suppo
         .in('auth_user_id', authUserIds);
       if (error) throw new Error(`Failed to read ticket owners: ${error.message}`);
       return (data ?? []) as TicketOwner[];
-    },
-
-    async updateTicketStatus(ticketId, status) {
-      const { error } = await client
-        .from('support_tickets')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', ticketId);
-      if (error) throw new Error(`Failed to update ticket status: ${error.message}`);
     },
   };
 }
@@ -85,6 +95,13 @@ export type SendResult = 'sent' | 'skipped_already_answered' | 'skipped_guard_re
 // real exhibitor. An empty live thread is treated as "do not send" — if we cannot
 // see the message we are answering, we do not answer.
 //
+// INTENT: The re-read below is NOT the guard that prevents a duplicate — it only
+// supplies the message body the carve-out predicate needs, and the id the database
+// gates on. The decision itself is made inside
+// `support_triage_send_operator_reply` (migration 20260804230000), where the
+// last-message check and the insert are a single statement. Reinstating a plain
+// insert here, however tidy it looks, reopens MYK9-135.
+//
 // INTENT: `guard` re-evaluates the caller's send preconditions against the FRESH
 // thread. Without it the carve-out check in runPass is a stale snapshot taken before
 // the classification round-trip: an exhibitor who replies "actually I want a refund"
@@ -108,12 +125,8 @@ export async function sendOperatorReply(
   const fresh: TicketThread = { ticket: thread.ticket, messages: live };
   if (!guard(fresh)) return 'skipped_guard_rejected';
 
-  await source.insertOperatorMessage(thread.ticket.id, senderId, body);
-  // Mirrors postSupportTicketMessage in the inbox, which sets 'waiting' after an
-  // operator reply. Without this an auto-answered ticket stays 'open' and keeps
-  // counting toward same-show cluster alerts.
-  await source.updateTicketStatus(thread.ticket.id, 'waiting');
-  return 'sent';
+  const inserted = await source.sendOperatorReplyAtomic(thread.ticket.id, senderId, body, last.id);
+  return inserted ? 'sent' : 'skipped_already_answered';
 }
 
 function latestMessage(messages: SupportMessage[]): SupportMessage | null {

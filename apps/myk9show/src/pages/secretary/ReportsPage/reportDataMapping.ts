@@ -1,4 +1,4 @@
-import { mapDbEntryToReportEntry } from '@/lib/reports/reportUtils';
+import { mapDbEntryToReportEntry, resolveReportHandlerName } from '@/lib/reports/reportUtils';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
@@ -72,12 +72,11 @@ function mapReportEntry(
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
 ): ReportEntry {
   const dog = (e as Record<string, unknown>).dog as Record<string, unknown> | null;
-  const owner = dog?.owner as Record<string, unknown> | null;
   const registration = (e as Record<string, unknown>).registration as Record<
     string,
     unknown
   > | null;
-  const handlerName = owner ? `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim() : '';
+  const handlerName = resolveReportHandlerName(e.handler);
   const armbandNum = e.armband != null ? Number(e.armband) : null;
   const entrySource = readEntrySource(e.entry_source);
   const base = mapDbEntryToReportEntry(

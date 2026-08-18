@@ -46,7 +46,15 @@ describe('buildSupportInvestigationModel', () => {
         expect.objectContaining({ id: 'entry-management', href: '/shows/show-1/entry-management' }),
         expect.objectContaining({
           id: 'user-roles',
-          href: '/admin/permissions/users?userId=db-1',
+          href: '/admin/users?userId=db-1',
+        }),
+      ])
+    );
+    expect(model.nextChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'permissions-users',
+          href: '/admin/users?userId=db-1',
         }),
       ])
     );

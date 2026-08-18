@@ -44,6 +44,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [codex-review-playbook.md](codex-review-playbook.md)                                                             | Reference | Codex review playbook                                                        |
 | [entitlement-operations.md](entitlement-operations.md)                                                           | Reference | Entitlement Operations                                                       |
 | [feature-audit-2026.md](feature-audit-2026.md)                                                                   | Reference | Feature Audit — Fall 2026                                                    |
+| [ia-review-admin-person-detail.md](ia-review-admin-person-detail.md)                                             | Active    | IA Review: Admin Person Detail + Soft-Delete Lifecycle                       |
 | [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                                         | Active    | IA Review: Entry-Status Surfaces (cross-role)                                |
 | [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)                               | Active    | IA Review: Secretary Entry Management (cognitive-load track)                 |
 | [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                                               | Active    | Improve Audit — June 2026 (remaining plans 003–006)                          |
@@ -60,14 +61,17 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)                                   | Active    | Active-Docs Triage — 2026-06-14                                              |
 | [plan-anon-grant-rls-tightening.md](plan-anon-grant-rls-tightening.md)                                           | Active    | MYK9-93 — Anon grant & RLS tightening (launch gate)                          |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                                                 | Active    | Architecture Deepening Plan                                                  |
+| [plan-ia-admin-person-detail.md](plan-ia-admin-person-detail.md)                                                 | Active    | Admin Person Detail + Soft-Delete Lifecycle Consolidation (4 phases)         |
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                                                     | Active    | ASCA Level C — seed continuation classes into the wizard template            |
 | [plan-askq-revival.md](plan-askq-revival.md)                                                                     | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                                             | Active    | Data Access Module Drift Plan                                                |
 | [plan-entries-read-consolidation.md](plan-entries-read-consolidation.md)                                         | Active    | Entry-Read Module Consolidation (findings from Plan 004 spike)               |
 | [plan-show-details-step-extraction/README.md](plan-show-details-step-extraction/README.md)                       | Active    | Show Details Step Extraction (ShowDetailsStep.tsx hotspot follow-up)         |
+| [plan-security-remediation-2026-08-01.md](plan-security-remediation-2026-08-01.md)                               | Active    | Security Findings Remediation — 2026-08-01 (ordered exploitability work)     |
 | [plan-entry-draw-lottery.md](plan-entry-draw-lottery.md)                                                         | Active    | Entry Draw / Lottery — random-draw intake (depends on payment plan)          |
 | [plan-entry-payment-request.md](plan-entry-payment-request.md)                                                   | Active    | Entry Payment, Waitlist & Capacity (links, pay-to-claim, judge-day)          |
 | [plan-exhibitor-early-checkin.md](plan-exhibitor-early-checkin.md)                                               | Active    | Exhibitor early check-in — toggle gate (P1 done) + /at-show fix (P2)         |
+| [plan-google-apple-integrations.md](plan-google-apple-integrations.md)                                           | Active    | Google & Apple integration roadmap — launch set + wallet fast-follow (v3)    |
 | [plan-label-print-calibration.md](plan-label-print-calibration.md)                                               | Active    | Label print calibration — offsets, shared panel, alignment test sheet        |
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                                         | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                                                 | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
@@ -75,10 +79,13 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-myk9-80-podium-completion-celebration.md](plan-myk9-80-podium-completion-celebration.md)                   | Active    | MYK9-80 — At-show podium + class completion celebration                      |
 | [plan-myk9-84-authz-dead-letter.md](plan-myk9-84-authz-dead-letter.md)                                           | Active    | MYK9-84 — Permanent Authorization Dead-Letter Messaging                      |
 | [plan-myk9-100-entry-status-kind.md](plan-myk9-100-entry-status-kind.md)                                         | Active    | MYK9-100 — Preserve entry status kind for honest exhibitor badges            |
+| [plan-myk9-180-show-email-delivery-history.md](plan-myk9-180-show-email-delivery-history.md)                     | Active    | MYK9-180 — Show email delivery history in Communication History              |
+| [plan-vacation-autopilot.md](plan-vacation-autopilot.md)                                                         | Active    | Vacation Autopilot — unattended 4×/day Linear-issue runs (2026-08-04→14)     |
 | [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                                                     | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)       |
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                                               | Active    | Plan: Phase 4 seam render-only read strategy                                 |
 | [plan-pull-management-split.md](plan-pull-management-split.md)                                                   | Active    | Pull Management — separate show-day pull state from refund accounting        |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                                       | Active    | Plan: Server-side gate for public/anon scored results                        |
+| [plan-quick-wins.md](plan-quick-wins.md)                                                                         | Active    | Quick Wins Batch Plan                                                        |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)                                 | Active    | Replication INSERT retry idempotency — investigation verdict (B)             |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                                                 | Active    | Plan: Fix the Deleted Entities (restore) UI                                  |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                                             | Active    | Plan: Result Reveal + Share Card                                             |
@@ -89,6 +96,8 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-ux-journey-audit.md](plan-ux-journey-audit.md)                                                             | Active    | Plan: UX Journey Audit — Exhibitor & Secretary                               |
 | [plan-ringside-occ-admission-control.md](plan-ringside-occ-admission-control.md)                                 | Active    | Ringside OCC admission control — MYK9-115 conflict-storm breaker             |
 | [plan-weekly-findings-remediation-2026-07-31.md](plan-weekly-findings-remediation-2026-07-31.md)                 | Active    | Weekly Findings Remediation — 2026-07-31 (3 P0 / 5 P1; phased opsx roadmap)  |
+| [plan-admin-dashboard-data-contract.md](plan-admin-dashboard-data-contract.md)                                   | Active    | Admin dashboard/health redesign — resolved data sources per element          |
+| [plan-myk9-156-sentry-proxy.md](plan-myk9-156-sentry-proxy.md)                                                   | Active    | MYK9-156 — Sentry proxy for admin dashboard metrics                          |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                                           | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)                  |
 | [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md)                       | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan                 |
 | [plan-workflow-process-consolidation.md](plan-workflow-process-consolidation.md)                                 | Active    | Workflow & process consolidation — PLAYBOOK.md, CLAUDE.md slim, skills audit |
@@ -191,10 +200,11 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### goals/ — launch readiness
 
-| Doc                                                                                            | Status | Title                                |
-| ---------------------------------------------------------------------------------------------- | ------ | ------------------------------------ |
-| [goals/fall-2026-launch-readiness-scorecard.md](goals/fall-2026-launch-readiness-scorecard.md) | Active | Fall 2026 Launch Readiness Scorecard |
-| [goals/fall-2026-launch-readiness.md](goals/fall-2026-launch-readiness.md)                     | Active | Fall 2026 Launch Readiness Goal      |
+| Doc                                                                                            | Status    | Title                                                                            |
+| ---------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------- |
+| [goals/business-model-assessment.md](goals/business-model-assessment.md)                       | Reference | Business Model Assessment — viability, club-count targets, risks, expense review |
+| [goals/fall-2026-launch-readiness-scorecard.md](goals/fall-2026-launch-readiness-scorecard.md) | Active    | Fall 2026 Launch Readiness Scorecard                                             |
+| [goals/fall-2026-launch-readiness.md](goals/fall-2026-launch-readiness.md)                     | Active    | Fall 2026 Launch Readiness Goal                                                  |
 
 ### handoffs/
 
@@ -239,6 +249,9 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [operations/START-HERE.md](operations/START-HERE.md)                                                     | Reference | START HERE — symptom-first router for operating + troubleshooting issues           |
 | [operations/go-live-runbook.md](operations/go-live-runbook.md)                                           | Active    | Go-Live Runbook — the single ordered, gated launch-day document                    |
 | [operations/edge-function-drift-audit-2026-07-12.md](operations/edge-function-drift-audit-2026-07-12.md) | Active    | Edge Function Drift Audit — deployed-source recovery and legacy-sender disposition |
+| [operations/launch-integrations-deploy.md](operations/launch-integrations-deploy.md)                     | Active    | Launch Integrations Deploy — L1–L6 (auth, wallets, maps, push, calendar, SMS)      |
+| [operations/sms-10dlc-registration.md](operations/sms-10dlc-registration.md)                             | Active    | SMS Provider & 10DLC Registration — Twilio choice + A2P campaign filing (L6)       |
+| [operations/unit-economics.md](operations/unit-economics.md)                                             | Reference | Unit Economics & Break-Even — net per entry, cost base, break-even volume          |
 | [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md)                               | Reference | Stripe Platform Setup — Operator Runbook (Richard)                                 |
 | [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md)                             | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers)            |
 | [operations/supabase-auth-email.md](operations/supabase-auth-email.md)                                   | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation                    |

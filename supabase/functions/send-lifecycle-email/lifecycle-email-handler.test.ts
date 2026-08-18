@@ -148,9 +148,15 @@ describe('send-lifecycle-email handler', () => {
     for (const [, init] of fetch.mock.calls) {
       expect(new Headers(init.headers).get('Idempotency-Key')).toBe('idem-job-1');
     }
-    expect(
-      calls.filter(call => call.table === 'email_log' && call.action === 'insert')
-    ).toHaveLength(0);
+    expect(calls.filter(call => call.table === 'email_log' && call.action === 'insert')).toEqual([
+      expect.objectContaining({
+        value: expect.objectContaining({
+          email_type: 'show_lifecycle_email',
+          show_id: 'show-1',
+          status: 'failed',
+        }),
+      }),
+    ]);
     expect(
       calls.filter(
         call =>

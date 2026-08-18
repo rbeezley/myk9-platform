@@ -9,7 +9,7 @@ vi.mock('react-leaflet', () => ({
   useMap: () => ({}),
 }));
 
-import { normalizePinValue } from './VenuePinMap';
+import { normalizePinValue } from './normalizePinValue';
 
 describe('normalizePinValue', () => {
   it('passes through in-range coordinates unchanged', () => {

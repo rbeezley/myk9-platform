@@ -647,6 +647,12 @@ async function handleEntryCheckout(
         customer: customerId,
         line_items: lineItems,
         mode: 'payment',
+        // INTENT: card-only is deliberate (money-path contract in
+        // moneyPathCloseout.source.test.ts). Asynchronous methods (ACH,
+        // Klarna, ...) complete Checkout with payment_status 'unpaid' and
+        // settle later, which decideFreshSessionGate refuses. Apple Pay and
+        // Google Pay ride on 'card' in hosted Checkout, so this pin does
+        // NOT exclude wallets — do not remove it to "enable" them.
         payment_method_types: ['card'],
         expires_at: sessionExpiresAtEpoch,
         success_url: successUrl,

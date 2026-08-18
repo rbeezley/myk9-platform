@@ -16,6 +16,7 @@ const deleteDraftMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const createRegistrationMock = vi.hoisted(() => vi.fn(() => ({ id: 'reg-1' })));
 const clearDraftDataMock = vi.hoisted(() => vi.fn());
 const discardDraftsWithoutFinalSaveMock = vi.hoisted(() => vi.fn());
+const refetchClassAvailabilityMock = vi.hoisted(() => vi.fn());
 const cartActionsMock = vi.hoisted(() => ({
   loadCart: vi.fn(),
   clearCart: vi.fn(),
@@ -119,6 +120,36 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 
 vi.mock('@/hooks/useClassStoreCompat', () => ({
   useClassStoreCompat: () => ({ classes: [{ id: 'class-1', entryFee: 20 }] }),
+}));
+
+vi.mock('@/hooks/useClassAvailability', () => ({
+  useClassAvailability: () => ({
+    classes: [
+      {
+        classId: 'class-1',
+        className: 'Class 1',
+        element: null,
+        level: 'Open',
+        section: null,
+        trialId: 'trial-1',
+        trialName: 'Trial 1',
+        trialDate: '2099-06-01',
+        entryLimit: 10,
+        currentEntries: 0,
+        spotsAvailable: 10,
+        waitlistCount: 0,
+        isFull: false,
+        hasWaitlist: false,
+        allowsWaitlist: true,
+        judgeId: null,
+        judgeDayFull: false,
+        judgeDayAvailable: 10,
+      },
+    ],
+    isLoading: false,
+    error: null,
+    refetch: refetchClassAvailabilityMock,
+  }),
 }));
 
 vi.mock('@/context/RegistrationContext', () => ({

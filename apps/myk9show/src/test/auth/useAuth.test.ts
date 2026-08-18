@@ -506,6 +506,54 @@ describe('useAuth', () => {
     });
   });
 
+  describe('signInWithApple', () => {
+    it('should call signInWithOAuth with apple provider', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.signInWithApple();
+      });
+
+      expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+        provider: 'apple',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+    });
+
+    it('should include redirectTo on the OAuth callback when provided', async () => {
+      const { result } = renderHook(() => useAuth());
+
+      await act(async () => {
+        await result.current.signInWithApple('/shows/show-1/register');
+      });
+
+      expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+        provider: 'apple',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?redirectTo=%2Fshows%2Fshow-1%2Fregister`,
+        },
+      });
+    });
+
+    it('should throw on OAuth error', async () => {
+      const mockError = new Error('OAuth failed');
+      mockSupabase.auth.signInWithOAuth.mockResolvedValue({
+        data: { url: null, provider: '' },
+        error: mockError,
+      });
+
+      const { result } = renderHook(() => useAuth());
+
+      await expect(async () => {
+        await act(async () => {
+          await result.current.signInWithApple();
+        });
+      }).rejects.toThrow('OAuth failed');
+    });
+  });
+
   describe('OAuth people record creation', () => {
     it('should create people record for first-time OAuth user', async () => {
       const oauthUser: User = {

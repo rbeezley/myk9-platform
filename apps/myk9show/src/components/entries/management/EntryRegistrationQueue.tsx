@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { useElementWidth } from '@/hooks/useElementWidth';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { PaymentStatus } from '@/types/show-registration-types';
 import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
@@ -10,6 +11,26 @@ import {
   type ShowRegistrationGroup,
 } from './showRegistrationProjection';
 import { getRegistrationReviewLabel } from './reviewStateLabels';
+
+/**
+ * Below this measured width (px) the queue stacks each registration into a
+ * card instead of the multi-column grid.
+ *
+ * 480px is the `minmax(30rem, …)` floor the cockpit's two-column desktop
+ * arrangement guarantees this column, so any layout wide enough to be
+ * "desktop" keeps the grid, and only genuinely narrow columns — such as the
+ * ~408px left by the manager sidebar at a 768px tablet viewport — stack.
+ */
+export const ENTRY_QUEUE_STACKED_MAX_WIDTH = 480;
+
+/**
+ * Shared by the header and every row so the two can never drift apart. Every
+ * flexible track floors at 0 and its cell truncates, so the grid compresses to
+ * fit its column instead of overflowing a `overflow-hidden` ancestor and
+ * putting the row's action out of reach (MYK9-57).
+ */
+const QUEUE_GRID_COLUMNS =
+  'grid-cols-[2.75rem_minmax(0,1.15fr)_minmax(0,.7fr)_minmax(0,.7fr)_auto]';
 
 interface EntryRegistrationQueueProps {
   groups: ShowRegistrationGroup[];
@@ -60,6 +81,37 @@ function paymentLabel(group: ShowRegistrationGroup): string {
 
 const reviewLabel = getRegistrationReviewLabel;
 
+/**
+ * The row's next action as a real control. The row itself stays a `listitem`
+ * whose click is a mouse convenience — making the row a `button` would strip
+ * the announced semantics from the selection checkbox nested inside it — so
+ * this is the affordance keyboard and assistive-technology users reach, and it
+ * carries the row id the cockpit focuses when returning from the detail panel.
+ */
+function RegistrationActionButton({
+  group,
+  onFocus,
+}: {
+  group: ShowRegistrationGroup;
+  onFocus: (group: ShowRegistrationGroup) => void;
+}) {
+  return (
+    <button
+      type="button"
+      id={getEntryRegistrationRowId(group.groupKey)}
+      aria-label={`${group.recommendedAction.label} for ${group.exhibitorName}`}
+      className="inline-flex min-h-11 items-center gap-1 rounded text-xs font-semibold text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={event => {
+        event.stopPropagation();
+        onFocus(group);
+      }}
+    >
+      {group.recommendedAction.label}
+      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+    </button>
+  );
+}
+
 export function EntryRegistrationQueue({
   groups,
   focusedKey,
@@ -77,13 +129,16 @@ export function EntryRegistrationQueue({
   onPageChange,
   density = 'comfortable',
 }: EntryRegistrationQueueProps) {
-  // Matches the `md:` Tailwind breakpoint (768px) — driven by actual viewport
-  // width, not the cockpit's measured content-width `compact` state, so a
-  // wide viewport with a narrower content column (e.g. sidebar layout) still
-  // keeps the desktop grid.
-  const compact = !useMediaQuery('(min-width: 768px)', true);
+  // The persistent manager sidebar leaves this column far narrower than the
+  // viewport, so the layout follows the width the queue actually has. The
+  // viewport query is only the pre-measurement fallback (first paint, SSR, and
+  // environments without layout).
+  const { ref, width } = useElementWidth<HTMLElement>();
+  const viewportCompact = !useMediaQuery('(min-width: 768px)', true);
+  const compact = width === null ? viewportCompact : width < ENTRY_QUEUE_STACKED_MAX_WIDTH;
   return (
     <section
+      ref={ref}
       className="overflow-hidden rounded-xl border bg-card shadow-sm"
       aria-label="Registrations"
     >
@@ -99,7 +154,12 @@ export function EntryRegistrationQueue({
           <span>Select all</span>
         </div>
       ) : (
-        <div className="grid grid-cols-[2.75rem_minmax(9rem,1.15fr)_minmax(7rem,.7fr)_minmax(8rem,.7fr)_minmax(8rem,auto)] items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
+        <div
+          className={cn(
+            'grid items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70',
+            QUEUE_GRID_COLUMNS
+          )}
+        >
           <span className="flex min-h-11 items-center justify-center">
             <Checkbox
               className="relative before:absolute before:-inset-3.5 before:content-['']"
@@ -109,9 +169,9 @@ export function EntryRegistrationQueue({
               onCheckedChange={onToggleAll}
             />
           </span>
-          <span>Registration</span>
-          <span>Entries</span>
-          <span>Review / payment</span>
+          <span className="truncate">Registration</span>
+          <span className="truncate">Entries</span>
+          <span className="truncate">Review / payment</span>
           <span className="text-right">Next action</span>
         </div>
       )}
@@ -131,28 +191,20 @@ export function EntryRegistrationQueue({
             return (
               <div
                 key={group.groupKey}
-                id={getEntryRegistrationRowId(group.groupKey)}
                 role="listitem"
-                tabIndex={0}
                 aria-current={focused ? 'true' : undefined}
                 aria-label={`${group.exhibitorName}, ${group.entryCount} ${group.entryCount === 1 ? 'Entry' : 'Entries'}, ${reviewLabel(group)}, ${group.recommendedAction.label}`}
                 className={cn(
-                  'group cursor-pointer items-center border-b px-3 outline-none transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                  'group cursor-pointer items-center border-b px-3 outline-none transition-colors last:border-b-0 hover:bg-muted/40 focus-within:ring-2 focus-within:ring-inset focus-within:ring-ring',
                   compact
                     ? 'flex flex-col items-stretch gap-1.5'
-                    : 'grid grid-cols-[2.75rem_minmax(9rem,1.15fr)_minmax(7rem,.7fr)_minmax(8rem,.7fr)_minmax(8rem,auto)] gap-3',
+                    : cn('grid gap-3', QUEUE_GRID_COLUMNS),
                   density === 'compact' && 'py-2',
                   density === 'comfortable' && 'py-3',
                   focused &&
                     'relative z-[1] bg-primary/10 shadow-[inset_4px_0_0_hsl(var(--primary)),inset_0_0_0_1px_hsl(var(--primary)/0.55)] hover:bg-primary/10'
                 )}
                 onClick={() => onFocus(group)}
-                onKeyDown={event => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    onFocus(group);
-                  }
-                }}
               >
                 {compact ? (
                   <>
@@ -195,10 +247,7 @@ export function EntryRegistrationQueue({
                       </p>
                     </div>
 
-                    <p className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                      {group.recommendedAction.label}
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                    </p>
+                    <RegistrationActionButton group={group} onFocus={onFocus} />
                   </>
                 ) : (
                   <>
@@ -244,10 +293,7 @@ export function EntryRegistrationQueue({
                     </div>
 
                     <div className="text-right text-sm">
-                      <p className="inline-flex items-center justify-end gap-1 text-xs font-semibold text-primary">
-                        {group.recommendedAction.label}
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                      </p>
+                      <RegistrationActionButton group={group} onFocus={onFocus} />
                     </div>
                   </>
                 )}

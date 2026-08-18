@@ -64,8 +64,10 @@ const NetworkStatusIndicator: React.FC = () => {
   // Show offline alert
   if (!isOnline || showOfflineMessage) {
     return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm">
-        <Alert className="border-orange-200 bg-orange-50">
+      // The status notice is informational and must not interrupt ringside
+      // actions underneath it. Keep only the explicit Retry button interactive.
+      <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm">
+        <Alert className="pointer-events-none border-orange-200 bg-orange-50">
           <WifiOff className="h-4 w-4 text-orange-600" />
           <AlertDescription className="flex items-center justify-between">
             <div>
@@ -74,7 +76,12 @@ const NetworkStatusIndicator: React.FC = () => {
                 Changes will be saved locally and synced when connection is restored.
               </div>
             </div>
-            <Button size="sm" variant="outline" onClick={retryConnection} className="ml-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={retryConnection}
+              className="pointer-events-auto ml-2 shrink-0"
+            >
               <RefreshCw className="h-3 w-3 mr-1" />
               Retry
             </Button>

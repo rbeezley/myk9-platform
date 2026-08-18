@@ -5,6 +5,7 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Alert, AlertDescription } from '../ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useConflictResolution } from '../../hooks/useConflictResolution';
 import { ConflictResolutionDialog } from '../sync/ConflictResolutionDialog';
 import type { Conflict, ResolutionStrategy, ConflictResolution } from '../../types/conflict-types';
@@ -359,32 +360,29 @@ export function ConflictNotificationWidget() {
   }
 
   return (
-    <div className="relative">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="relative"
+    <Popover modal={false} open={isExpanded} onOpenChange={setIsExpanded}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="relative" aria-expanded={isExpanded}>
+          <Bell className="h-4 w-4 mr-2" />
+          Conflicts
+          {stats.criticalConflicts > 0 && (
+            <Badge variant="destructive" className="ml-2 text-xs">
+              {stats.criticalConflicts}
+            </Badge>
+          )}
+          {stats.pendingConflicts > 0 && stats.criticalConflicts === 0 && (
+            <Badge variant="secondary" className="ml-2 text-xs">
+              {stats.pendingConflicts}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-80 max-h-[var(--available-height)] overflow-y-auto p-0"
       >
-        <Bell className="h-4 w-4 mr-2" />
-        Conflicts
-        {stats.criticalConflicts > 0 && (
-          <Badge variant="destructive" className="ml-2 text-xs">
-            {stats.criticalConflicts}
-          </Badge>
-        )}
-        {stats.pendingConflicts > 0 && stats.criticalConflicts === 0 && (
-          <Badge variant="secondary" className="ml-2 text-xs">
-            {stats.pendingConflicts}
-          </Badge>
-        )}
-      </Button>
-
-      {isExpanded && (
-        <div className="absolute top-full right-0 mt-2 w-80 z-50">
-          <ConflictNotifications showStats={false} maxNotifications={3} />
-        </div>
-      )}
-    </div>
+        <ConflictNotifications showStats={false} maxNotifications={3} />
+      </PopoverContent>
+    </Popover>
   );
 }

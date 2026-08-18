@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 // Quick verification test for User Store Integration
 // Phase 2.2: User Store Integration - Basic validation
 
@@ -24,9 +25,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
     rpc: vi.fn(),
   },
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((error: unknown) =>
-    error instanceof Error ? error : new Error(String(error))
-  ),
+  createDatabaseError,
   DatabaseError: class DatabaseError extends Error {},
 }));
 

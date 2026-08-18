@@ -8,7 +8,10 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { MapPin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { geocodeAddress } from './geocode';
+import { normalizePinValue, type VenuePinValue } from './normalizePinValue';
 import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER } from './tiles';
+
+export type { VenuePinValue } from './normalizePinValue';
 
 // Leaflet's default icon URLs break under bundlers; point them at the bundled assets.
 L.Icon.Default.mergeOptions({
@@ -19,22 +22,6 @@ L.Icon.Default.mergeOptions({
 
 const US_ZOOM = 3;
 const PIN_ZOOM = 15;
-
-export interface VenuePinValue {
-  lat: number;
-  lng: number;
-}
-
-/**
- * Clicks and drags on Leaflet's repeated world copies yield longitudes outside
- * ±180, which the DB's shows_longitude_range CHECK rejects — wrap them back.
- */
-export function normalizePinValue(lat: number, lng: number): VenuePinValue {
-  const clampedLat = Math.min(90, Math.max(-90, lat));
-  // Only wrap out-of-range longitudes — .wrap() adds float error to in-range ones.
-  const wrappedLng = lng >= -180 && lng <= 180 ? lng : L.latLng(clampedLat, lng).wrap().lng;
-  return { lat: clampedLat, lng: wrappedLng };
-}
 
 interface VenuePinMapProps {
   /** Current pin position; null = no pin placed yet. */

@@ -154,6 +154,29 @@ describe('deriveEffectiveStatus', () => {
     expect(eff.isEmpty).toBe(false);
   });
 
+  it('forces the aggregate stale when a carried check exceeds its own window', () => {
+    const stale = snapshot({
+      overallStatus: 'ok',
+      checks: [
+        {
+          key: 'ringside_conflicts',
+          label: 'Ringside conflicts',
+          status: 'ok',
+          detail: 'baseline recorded',
+          checkedAt: new Date(NOW - 11 * 60 * 1000).toISOString(),
+          staleAfterMs: 10 * 60 * 1000,
+          verification: 'proven' as const,
+        },
+      ],
+    });
+
+    expect(deriveEffectiveStatus(stale, NOW)).toEqual({
+      status: 'fail',
+      isStale: true,
+      isEmpty: false,
+    });
+  });
+
   it('forces fail + isEmpty when there is no snapshot', () => {
     const eff = deriveEffectiveStatus(null, NOW);
     expect(eff).toEqual({ status: 'fail', isStale: false, isEmpty: true });
@@ -177,6 +200,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'warn',
       detail: 'Queue is stale',
       checkedAt: null,
+      verification: 'proven' as const,
     });
 
     expect(remediation).toMatchObject({
@@ -186,20 +210,41 @@ describe('getHealthCheckRemediation', () => {
     });
   });
 
-  it('routes payout checks to payouts', () => {
+  it('explains the dispatch boundary for an unprovable payout schedule', () => {
+    const remediation = getHealthCheckRemediation({
+      key: 'payout_cron',
+      label: 'Payout cron',
+      status: 'warn',
+      detail: 'The scheduled request was sent',
+      checkedAt: null,
+      verification: 'unprovable' as const,
+    });
+
+    expect(remediation).toMatchObject({
+      ownerLabel: 'Payout Scheduling',
+      actionLabel: 'Open Payouts',
+      href: '/admin/payouts',
+      nextStep: expect.stringContaining('payout attempts that were recorded'),
+    });
+  });
+
+  it('uses the payout failure runbook when the schedule check fails', () => {
     const remediation = getHealthCheckRemediation({
       key: 'payout_cron',
       label: 'Payout cron',
       status: 'fail',
-      detail: 'Last payout run failed',
+      detail: 'The payout schedule is not active',
       checkedAt: null,
+      verification: 'proven' as const,
     });
 
     expect(remediation).toMatchObject({
       ownerLabel: 'Payout Ledger',
       actionLabel: 'Open Payouts',
       href: '/admin/payouts',
+      nextStep: 'Review payout/payment status and the money-path runbook.',
     });
+    expect(remediation.nextStep).not.toContain('request was sent');
   });
 
   it('uses an owner-incomplete fallback for unknown keys', () => {
@@ -209,6 +254,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'unknown',
       detail: 'No metadata mapped',
       checkedAt: null,
+      verification: 'proven' as const,
     });
 
     expect(remediation).toMatchObject({
@@ -224,6 +270,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'unknown' as const,
       detail: 'Coverage incomplete: not checked here',
       checkedAt: null,
+      verification: 'proven' as const,
     };
 
     expect(isCoverageIncomplete(check)).toBe(true);
@@ -237,6 +284,7 @@ describe('getHealthCheckRemediation', () => {
       status: 'ok' as const,
       detail: 'All role coverage checks complete',
       checkedAt: '2026-07-04T12:00:00Z',
+      verification: 'proven' as const,
     };
 
     expect(isCoverageIncomplete(check)).toBe(false);

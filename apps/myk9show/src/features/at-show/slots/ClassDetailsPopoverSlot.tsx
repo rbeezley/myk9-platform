@@ -26,7 +26,6 @@ import {
   Clock,
   Eye,
   Smartphone,
-  Hash,
   Search,
   Zap,
   X,
@@ -162,6 +161,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
       <div className="fixed inset-0 z-[90]" onClick={onClose} aria-hidden="true" />
 
       <div
+        id="class-details-popover"
         className="at-show-class-details fixed z-[100] w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-xl border border-border bg-card shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
         style={coords ? { top: coords.top, left: coords.left } : undefined}
         role="dialog"
@@ -254,12 +254,6 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
               <DetailBadge tier={getCheckinTier(data.selfCheckinEnabled)}>
                 {getCheckinLabel(data.selfCheckinEnabled)}
               </DetailBadge>
-            </DetailRow>
-          )}
-
-          {data.classId != null && (
-            <DetailRow icon={Hash} label="Class ID" subtle>
-              <DetailValue mono>{data.classId}</DetailValue>
             </DetailRow>
           )}
         </div>

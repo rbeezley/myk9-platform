@@ -3,7 +3,14 @@
 
 import { useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import type { ShowEntry, ShowEntryInput, RegistrationData, CompetitionData, EntryStatus, SyncableShowEntry } from '@/store/entryStore';
+import type {
+  ShowEntry,
+  ShowEntryInput,
+  RegistrationData,
+  CompetitionData,
+  EntryStatus,
+  SyncableShowEntry,
+} from '@/store/entryStore';
 import {
   useEntriesQuery,
   useEntryQuery,
@@ -42,10 +49,10 @@ export const useEntryStoreCompat = () => {
   // Convert database results to SyncableShowEntry format for backward compatibility
   const entries = useMemo(() => {
     if (!entriesQuery.data) return [];
-    
+
     return entriesQuery.data.map((dbEntry): SyncableShowEntry => {
       const entry = mapDatabaseToEntry(dbEntry);
-      
+
       // Add sync metadata for compatibility
       return {
         ...entry,
@@ -59,9 +66,10 @@ export const useEntryStoreCompat = () => {
   }, [entriesQuery.data]);
 
   // Aggregate loading states
-  const isLoading = entriesQuery.isLoading || 
-    createMutation.isPending || 
-    updateMutation.isPending || 
+  const isLoading =
+    entriesQuery.isLoading ||
+    createMutation.isPending ||
+    updateMutation.isPending ||
     deleteMutation.isPending ||
     updateStatusMutation.isPending ||
     createMultipleMutation.isPending;
@@ -76,16 +84,16 @@ export const useEntryStoreCompat = () => {
       updateStatusMutation.error,
       createMultipleMutation.error,
     ].filter(Boolean);
-    
+
     if (errors.length === 0) return null;
     return errors[0]?.message || 'An error occurred';
   }, [
-    entriesQuery.error, 
-    createMutation.error, 
-    updateMutation.error, 
+    entriesQuery.error,
+    createMutation.error,
+    updateMutation.error,
     deleteMutation.error,
     updateStatusMutation.error,
-    createMultipleMutation.error
+    createMultipleMutation.error,
   ]);
 
   // entryStore-compatible API
@@ -93,7 +101,7 @@ export const useEntryStoreCompat = () => {
     const dbData = mapEntryInputToInsert(entryData);
     const result = await createMutation.mutateAsync(dbData);
     const entry = mapDatabaseToEntry(result);
-    
+
     return {
       ...entry,
       _version: 1,
@@ -104,12 +112,15 @@ export const useEntryStoreCompat = () => {
     };
   };
 
-  const updateEntry = async (entryId: string, updates: Partial<ShowEntryInput>): Promise<SyncableShowEntry | null> => {
+  const updateEntry = async (
+    entryId: string,
+    updates: Partial<ShowEntryInput>
+  ): Promise<SyncableShowEntry | null> => {
     const dbUpdates = mapEntryInputToUpdate(updates);
     const result = await updateMutation.mutateAsync({ id: entryId, updates: dbUpdates });
-    
+
     if (!result) return null;
-    
+
     const entry = mapDatabaseToEntry(result);
     return {
       ...entry,
@@ -125,12 +136,15 @@ export const useEntryStoreCompat = () => {
     await deleteMutation.mutateAsync(entryId);
   };
 
-  const updateRegistration = async (entryId: string, updates: Partial<RegistrationData>): Promise<SyncableShowEntry | null> => {
+  const updateRegistration = async (
+    entryId: string,
+    updates: Partial<RegistrationData>
+  ): Promise<SyncableShowEntry | null> => {
     const dbUpdates = mapRegistrationDataToUpdate(updates);
     const result = await updateMutation.mutateAsync({ id: entryId, updates: dbUpdates });
-    
+
     if (!result) return null;
-    
+
     const entry = mapDatabaseToEntry(result);
     return {
       ...entry,
@@ -142,13 +156,23 @@ export const useEntryStoreCompat = () => {
     };
   };
 
-  const updateStatus = async (entryId: string, status: EntryStatus, userId: string, reason?: string): Promise<SyncableShowEntry | null> => {
-    await updateStatusMutation.mutateAsync({ id: entryId, status, userId, ...(reason !== undefined && { reason }) });
-    
+  const updateStatus = async (
+    entryId: string,
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ): Promise<SyncableShowEntry | null> => {
+    await updateStatusMutation.mutateAsync({
+      id: entryId,
+      status,
+      userId,
+      ...(reason !== undefined && { reason }),
+    });
+
     // Return updated entry (simplified - in practice, we'd get it from the mutation result)
     const currentEntry = entries.find(e => e.id === entryId);
     if (!currentEntry) return null;
-    
+
     return {
       ...currentEntry,
       status,
@@ -159,7 +183,7 @@ export const useEntryStoreCompat = () => {
           timestamp: new Date().toISOString(),
           userId,
           reason,
-        }
+        },
       ],
       updatedAt: new Date().toISOString(),
       _version: currentEntry._version + 1,
@@ -169,15 +193,18 @@ export const useEntryStoreCompat = () => {
     };
   };
 
-  const recordResult = async (entryId: string, result: CompetitionData): Promise<SyncableShowEntry | null> => {
+  const recordResult = async (
+    entryId: string,
+    result: CompetitionData
+  ): Promise<SyncableShowEntry | null> => {
     const dbUpdates = mapCompetitionDataToUpdate(result);
     // Also update entry_status to completed (entries table uses entry_status, not status)
     dbUpdates.entry_status = 'completed';
-    
+
     const dbResult = await updateMutation.mutateAsync({ id: entryId, updates: dbUpdates });
-    
+
     if (!dbResult) return null;
-    
+
     const entry = mapDatabaseToEntry(dbResult);
     return {
       ...entry,
@@ -189,12 +216,15 @@ export const useEntryStoreCompat = () => {
     };
   };
 
-  const updateResult = async (entryId: string, updates: Partial<CompetitionData>): Promise<SyncableShowEntry | null> => {
+  const updateResult = async (
+    entryId: string,
+    updates: Partial<CompetitionData>
+  ): Promise<SyncableShowEntry | null> => {
     const dbUpdates = mapCompetitionDataToUpdate(updates);
     const result = await updateMutation.mutateAsync({ id: entryId, updates: dbUpdates });
-    
+
     if (!result) return null;
-    
+
     const entry = mapDatabaseToEntry(result);
     return {
       ...entry,
@@ -206,10 +236,12 @@ export const useEntryStoreCompat = () => {
     };
   };
 
-  const createMultipleEntries = async (entriesData: ShowEntryInput[]): Promise<SyncableShowEntry[]> => {
+  const createMultipleEntries = async (
+    entriesData: ShowEntryInput[]
+  ): Promise<SyncableShowEntry[]> => {
     const dbData = entriesData.map(mapEntryInputToInsert);
     const results = await createMultipleMutation.mutateAsync(dbData);
-    
+
     return results.map((result): SyncableShowEntry => {
       const entry = mapDatabaseToEntry(result);
       return {
@@ -223,45 +255,53 @@ export const useEntryStoreCompat = () => {
     });
   };
 
-  const updateEntriesStatus = async (entryIds: string[], status: EntryStatus, userId: string, reason?: string): Promise<void> => {
+  const updateEntriesStatus = async (
+    entryIds: string[],
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ): Promise<void> => {
     // Execute status updates in parallel
     await Promise.all(
       entryIds.map(entryId =>
-        updateStatusMutation.mutateAsync({ id: entryId, status, userId, ...(reason !== undefined && { reason }) })
+        updateStatusMutation.mutateAsync({
+          id: entryId,
+          status,
+          userId,
+          ...(reason !== undefined && { reason }),
+        })
       )
     );
   };
 
   // Query methods
   const getEntry = (entryId: string): SyncableShowEntry | undefined => {
-    return entries.find((entry) => entry.id === entryId);
+    return entries.find(entry => entry.id === entryId);
   };
 
   const getEntriesByClass = (classId: string): SyncableShowEntry[] => {
-    return entries.filter((entry) => entry.classId === classId);
+    return entries.filter(entry => entry.classId === classId);
   };
 
   const getEntriesByShow = (showId: string): SyncableShowEntry[] => {
-    return entries.filter((entry) => entry.showId === showId);
+    return entries.filter(entry => entry.showId === showId);
   };
 
   const getEntriesByStatus = (status: EntryStatus): SyncableShowEntry[] => {
-    return entries.filter((entry) => entry.status === status);
+    return entries.filter(entry => entry.status === status);
   };
 
   const getEntriesByDog = (dogId: string): SyncableShowEntry[] => {
-    return entries.filter((entry) => entry.dogId === dogId);
+    return entries.filter(entry => entry.dogId === dogId);
   };
 
   const getCompetitionResults = (classId: string): SyncableShowEntry[] => {
-    return entries.filter(
-      (entry) => entry.classId === classId && entry.competitionData
-    );
+    return entries.filter(entry => entry.classId === classId && entry.competitionData);
   };
 
   const getRegistrations = (showId: string): SyncableShowEntry[] => {
     return entries.filter(
-      (entry) => entry.showId === showId && ['submitted', 'paid', 'confirmed'].includes(entry.status)
+      entry => entry.showId === showId && ['submitted', 'paid', 'confirmed'].includes(entry.status)
     );
   };
 
@@ -272,26 +312,31 @@ export const useEntryStoreCompat = () => {
   };
 
   const getStatsForShow = (showId: string) => {
-    const showEntries = entries.filter((entry) => entry.showId === showId);
-    
-    const byStatus = showEntries.reduce((acc, entry) => {
-      acc[entry.status] = (acc[entry.status] || 0) + 1;
-      return acc;
-    }, {} as Record<EntryStatus, number>);
-    
+    const showEntries = entries.filter(entry => entry.showId === showId);
+
+    const byStatus = showEntries.reduce(
+      (acc, entry) => {
+        acc[entry.status] = (acc[entry.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<EntryStatus, number>
+    );
+
     const totalRevenue = showEntries
-      .filter((entry) => entry.registrationData.paymentStatus === 'paid')
+      .filter(entry => entry.registrationData.paymentStatus === 'paid')
       .reduce((sum, entry) => sum + entry.registrationData.entryFee, 0);
-    
-    const completedEntries = showEntries.filter((entry) => entry.status === 'completed').length;
-    const totalPaidEntries = showEntries.filter((entry) => entry.registrationData.paymentStatus === 'paid').length;
+
+    const completedEntries = showEntries.filter(entry => entry.status === 'completed').length;
+    const totalPaidEntries = showEntries.filter(
+      entry => entry.registrationData.paymentStatus === 'paid'
+    ).length;
     const completionRate = totalPaidEntries > 0 ? (completedEntries / totalPaidEntries) * 100 : 0;
-    
+
     return {
       totalEntries: showEntries.length,
       byStatus,
       totalRevenue,
-      completionRate
+      completionRate,
     };
   };
 
@@ -316,13 +361,20 @@ export const useEntryStoreCompat = () => {
   };
 
   // Legacy methods for compatibility (deprecated - use async methods instead)
-  const createEntryLegacy = (_data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>): string => {
+  const createEntryLegacy = (
+    _data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>
+  ): string => {
     return 'legacy-not-supported';
   };
 
   const updateRegistrationLegacy = (_entryId: string, _updates: Partial<RegistrationData>) => {};
 
-  const updateStatusLegacy = (_entryId: string, _status: EntryStatus, _userId: string, _reason?: string) => {};
+  const updateStatusLegacy = (
+    _entryId: string,
+    _status: EntryStatus,
+    _userId: string,
+    _reason?: string
+  ) => {};
 
   const recordResultLegacy = (_entryId: string, _result: CompetitionData) => {};
 
@@ -333,7 +385,7 @@ export const useEntryStoreCompat = () => {
     entries,
     isLoading,
     error,
-    
+
     // Operations (compatible with entryStore API)
     createEntry,
     updateEntry,
@@ -344,7 +396,7 @@ export const useEntryStoreCompat = () => {
     updateResult,
     createMultipleEntries,
     updateEntriesStatus,
-    
+
     // Query methods
     getEntry,
     getEntriesByClass,
@@ -355,36 +407,36 @@ export const useEntryStoreCompat = () => {
     getRegistrations,
     getSyncStatus,
     getStatsForShow,
-    
+
     // Data management (with warnings for unsupported operations)
     setEntries,
     loadEntries,
     clearAllEntries,
     importEntries,
-    
+
     // Legacy methods (deprecated)
     createEntryLegacy,
     updateRegistrationLegacy,
     updateStatusLegacy,
     recordResultLegacy,
     updateResultLegacy,
-    
+
     // Additional React Query benefits
     refetch,
     isStale: entriesQuery.isStale,
     isFetching: entriesQuery.isFetching,
-    
+
     // Statistics
     statistics: statisticsQuery.data,
     isLoadingStatistics: statisticsQuery.isLoading,
-    
+
     // Individual mutation states for fine-grained control
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isUpdatingStatus: updateStatusMutation.isPending,
     isBulkCreating: createMultipleMutation.isPending,
-    
+
     // Legacy compatibility flags
     _usingDatabase: true,
     _reactQueryIntegrated: true,
@@ -396,10 +448,10 @@ export const useEntryStoreCompat = () => {
  */
 export const useEntryWithQuery = (id: string, enabled = true) => {
   const entryQuery = useEntryQuery(id, enabled);
-  
+
   const entry = useMemo(() => {
     if (!entryQuery.data) return null;
-    
+
     const mappedEntry = mapDatabaseToEntry(entryQuery.data);
     return {
       ...mappedEntry,
@@ -425,10 +477,10 @@ export const useEntryWithQuery = (id: string, enabled = true) => {
  */
 export const useShowEntriesWithQuery = (showId: string, enabled = true) => {
   const showEntriesQuery = useEntriesByShowQuery(showId, enabled);
-  
+
   const entries = useMemo(() => {
     if (!showEntriesQuery.data) return [];
-    
+
     return showEntriesQuery.data.map((dbEntry): SyncableShowEntry => {
       const entry = mapDatabaseToEntry(dbEntry);
       return {
@@ -456,10 +508,10 @@ export const useShowEntriesWithQuery = (showId: string, enabled = true) => {
  */
 export const useClassEntriesWithQuery = (classId: string, enabled = true) => {
   const classEntriesQuery = useEntriesByClassQuery(classId, enabled);
-  
+
   const entries = useMemo(() => {
     if (!classEntriesQuery.data) return [];
-    
+
     return classEntriesQuery.data.map((dbEntry): SyncableShowEntry => {
       const entry = mapDatabaseToEntry(dbEntry);
       return {
@@ -487,12 +539,15 @@ export const useClassEntriesWithQuery = (classId: string, enabled = true) => {
  */
 export const useDogEntriesWithQuery = (dogId: string, enabled = true) => {
   const dogEntriesQuery = useEntriesByDogQuery(dogId, enabled);
-  
+
   const entries = useMemo(() => {
     if (!dogEntriesQuery.data) return [];
-    
-    return dogEntriesQuery.data.map((dbEntry): SyncableShowEntry => {
-      const entry = mapDatabaseToEntry(dbEntry);
+
+    // `.rows` because the query now also reports read provenance — see
+    // useEntriesByDogQuery. This compat hook has no callers today; it is kept
+    // compiling rather than extended.
+    return dogEntriesQuery.data.rows.map((dbEntry): SyncableShowEntry => {
+      const entry = mapDatabaseToEntry(dbEntry as Parameters<typeof mapDatabaseToEntry>[0]);
       return {
         ...entry,
         _version: 1,

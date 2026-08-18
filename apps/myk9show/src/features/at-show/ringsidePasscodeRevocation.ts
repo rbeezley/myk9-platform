@@ -19,6 +19,7 @@
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
+import { replicatedClassesTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
 
 /** Postgres SQLSTATE raised by the ringside RPCs for an insufficient-privilege denial. */
@@ -88,7 +89,7 @@ export function revokeRingsidePasscodeAccess(): void {
     .getSession()
     .then(({ data }) => {
       if (data.session?.user?.is_anonymous === true) {
-        return supabase.auth.signOut();
+        return supabase.auth.signOut().then(() => replicatedClassesTable.clearCachedHideCounts());
       }
       return undefined;
     })

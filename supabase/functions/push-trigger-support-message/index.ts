@@ -3,6 +3,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 
@@ -34,61 +35,64 @@ interface RecipientRow {
   last_name?: string | null;
 }
 
-handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ body: payload, supabase }) => {
-  const { record } = payload;
-  const { id, ticket_id, sender_id, body, is_from_operator } =
-    record ?? ({} as SupportMessageRecord);
+handle<WebhookPayload>(
+  { auth: 'none', beforeBody: requirePushWebhookSecret },
+  async ({ body: payload, supabase }) => {
+    const { record } = payload;
+    const { id, ticket_id, sender_id, body, is_from_operator } =
+      record ?? ({} as SupportMessageRecord);
 
-  if (!id || !ticket_id || !sender_id || !body) {
-    throw new HttpError(400, 'Missing required fields');
+    if (!id || !ticket_id || !sender_id || !body) {
+      throw new HttpError(400, 'Missing required fields');
+    }
+
+    const { data: ticket, error: ticketError } = await supabase
+      .from('support_tickets')
+      .select('id, owner_id, subject')
+      .eq('id', ticket_id)
+      .single();
+
+    if (ticketError || !ticket) {
+      throw new HttpError(404, 'Ticket not found');
+    }
+
+    const recipients = is_from_operator
+      ? await getOwnerRecipient(supabase, ticket.owner_id)
+      : await getSiteAdminRecipients(supabase);
+    const recipientUserIds = [...new Set(recipients.map(r => r.authUserId))].filter(
+      uid => uid !== sender_id
+    );
+
+    if (recipientUserIds.length === 0) {
+      return { sent: 0, emailed: 0 };
+    }
+
+    const senderName = await getSenderName(supabase, sender_id);
+    const actionUrl = is_from_operator
+      ? `/support?ticketId=${ticket_id}`
+      : `/admin/support?ticketId=${ticket_id}`;
+    const pushResult = await sendPushNotifications({
+      recipientUserIds,
+      senderName,
+      ticketId: ticket_id,
+      messageId: id,
+      subject: ticket.subject,
+      body,
+      actionUrl,
+    });
+    const emailed = await sendSupportEmails({
+      supabase,
+      recipients: recipients.filter(r => recipientUserIds.includes(r.authUserId)),
+      senderName,
+      ticketId: ticket_id,
+      subject: ticket.subject,
+      body,
+      actionUrl,
+    });
+
+    return { ...pushResult, emailed };
   }
-
-  const { data: ticket, error: ticketError } = await supabase
-    .from('support_tickets')
-    .select('id, owner_id, subject')
-    .eq('id', ticket_id)
-    .single();
-
-  if (ticketError || !ticket) {
-    throw new HttpError(404, 'Ticket not found');
-  }
-
-  const recipients = is_from_operator
-    ? await getOwnerRecipient(supabase, ticket.owner_id)
-    : await getSiteAdminRecipients(supabase);
-  const recipientUserIds = [...new Set(recipients.map(r => r.authUserId))].filter(
-    uid => uid !== sender_id
-  );
-
-  if (recipientUserIds.length === 0) {
-    return { sent: 0, emailed: 0 };
-  }
-
-  const senderName = await getSenderName(supabase, sender_id);
-  const actionUrl = is_from_operator
-    ? `/support?ticketId=${ticket_id}`
-    : `/admin/support?ticketId=${ticket_id}`;
-  const pushResult = await sendPushNotifications({
-    recipientUserIds,
-    senderName,
-    ticketId: ticket_id,
-    messageId: id,
-    subject: ticket.subject,
-    body,
-    actionUrl,
-  });
-  const emailed = await sendSupportEmails({
-    supabase,
-    recipients: recipients.filter(r => recipientUserIds.includes(r.authUserId)),
-    senderName,
-    ticketId: ticket_id,
-    subject: ticket.subject,
-    body,
-    actionUrl,
-  });
-
-  return { ...pushResult, emailed };
-});
+);
 
 async function getOwnerRecipient(supabase: SupabaseClient, ownerId: string) {
   const { data } = await supabase
@@ -100,12 +104,16 @@ async function getOwnerRecipient(supabase: SupabaseClient, ownerId: string) {
 }
 
 async function getSiteAdminRecipients(supabase: SupabaseClient) {
-  const { data } = await supabase
-    .from('user_roles')
-    .select('people!inner(auth_user_id, email, first_name, last_name), roles!inner(name)')
-    .eq('is_active', true)
-    .eq('roles.name', 'site_admin')
-    .not('people.auth_user_id', 'is', null);
+  const { data, error } = await applyActiveRoleValidity(
+    supabase
+      .from('user_roles')
+      .select('people!inner(auth_user_id, email, first_name, last_name), roles!inner(name)')
+      .eq('roles.name', 'site_admin')
+      .not('people.auth_user_id', 'is', null)
+  );
+  if (error) {
+    throw new HttpError(500, 'Audience resolution failed');
+  }
   const people = ((data ?? []) as Array<{ people: RecipientRow | RecipientRow[] | null }>)
     .map(row => (Array.isArray(row.people) ? row.people[0] : row.people))
     .filter((row): row is RecipientRow => !!row);

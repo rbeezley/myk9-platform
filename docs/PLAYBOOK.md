@@ -86,7 +86,7 @@ Read [`docs/INTENT.md`](INTENT.md) first — every UX change must preserve the t
 **In scope for direct-to-`main`, no PR:**
 - `docs/**/*.md` (including `docs/plans/`, `docs/superpowers/`, `docs/ux-audits/`, etc.)
 - `apps/*/docs/**/*.md`
-- Top-level tracking docs: `OPEN-TODOS.md`, `TO-DOS.md`, `README.md`, `CONTEXT.md`, `DESIGN.md`, `PRODUCT.md`, `TECHNICAL_DEBT.md`, `DEFERRED-WORK.md`, `INTENT.md` (additions/clarifications only)
+- Top-level tracking docs: `README.md`, `CONTEXT.md`, `DESIGN.md`, `PRODUCT.md`, `TECHNICAL_DEBT.md`, `DEFERRED-WORK.md`, `INTENT.md` (additions/clarifications only)
 - `packages/*/README.md`, `supabase/functions/*/README.md`
 
 **Out of scope — still needs a PR:** `CLAUDE.md`, `AGENTS.md`, `.claude/**`, `.github/**`, any commit that also touches non-doc files, deletions/rewrites of plans authored by others.
@@ -100,7 +100,7 @@ Flow: commit on `main` (or fast-forward a feature commit into `main`), push dire
 3. Defer worktree removal to the *final* cleanup command if the current shell is inside that worktree.
 4. Always run `gh pr merge` from the main repo directory, never from inside a feature worktree.
 5. After a merge: `git checkout main && git pull --ff-only`, `git fetch --prune`, then `git branch --list <branch>` to check if the local survived (recent `gh` deletes both remote+local on `--delete-branch`; older versions/manual merges don't — use `git branch -D` in that case, not `-d`, since squash rewrites SHAs).
-6. Update `OPEN-TODOS.md` / sprint docs / debt register after completing each task, not in a batch at the end.
+6. Update tracking after completing each task, not in a batch at the end: move the Linear issue (team **MyK9-platform**) to its new state. See CLAUDE.md § Workflow for when a finding also belongs in `docs/qa/findings.md` or `TECHNICAL_DEBT.md`.
 
 ---
 

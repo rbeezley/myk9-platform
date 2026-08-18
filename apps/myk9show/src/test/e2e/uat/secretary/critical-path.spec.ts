@@ -87,7 +87,11 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByText(/^\d+ dogs?/)).toBeVisible();
     await expect(page.getByText(/No dogs match your search/i)).not.toBeVisible();
 
-    await page.getByText('Ranger', { exact: true }).last().click();
+    const ranger = page.getByRole('checkbox', { name: 'Select Ranger', exact: true }).last();
+    await expect(ranger).toBeVisible();
+    await expect(ranger).toHaveAttribute('aria-checked', 'false');
+    await ranger.click();
+    await expect(ranger).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByText(/1 selected/)).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('button', { name: /^Next/ })).toBeEnabled();
 

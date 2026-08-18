@@ -5,20 +5,20 @@
  * Uses Tailwind styling consistent with myK9Show.
  */
 
-import { forwardRef, useState } from 'react';
+import { forwardRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
-import {
-  GripVertical,
-  Trophy,
-  ChevronRight,
-  MoreVertical,
-  RotateCcw,
-} from 'lucide-react';
+import { GripVertical, Trophy, ChevronRight, MoreVertical, RotateCcw } from 'lucide-react';
 import type { ScoringEntry } from '../types';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { StatusBadge } from '@/components/status';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 
 interface ScoringEntryCardProps {
   entry: ScoringEntry;
@@ -48,7 +48,6 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
     const lifecycleStatus = entry.isScored ? 'completed' : entry.inRing ? 'in-ring' : entry.status;
     const showLifecycleBadge = !entry.isScored && (entry.inRing || entry.status === 'pulled');
     const resultBadge = getResultBadge(entry);
-    const [menuOpen, setMenuOpen] = useState(false);
 
     const handleClick = () => {
       if (!entry.isScored) {
@@ -56,14 +55,11 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
       }
     };
 
-    const handleMenuToggle = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setMenuOpen(prev => !prev);
-    };
+    // The card itself is clickable. The trigger sits inside it, so its click
+    // must not also select the row.
+    const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
-    const handleResetScore = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setMenuOpen(false);
+    const handleResetScore = () => {
       onResetScore?.(entry);
     };
 
@@ -96,7 +92,12 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground truncate">{entry.callName}</h3>
             {resultBadge && (
-              <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', resultBadge.className)}>
+              <span
+                className={cn(
+                  'px-2 py-0.5 text-xs font-medium rounded-full',
+                  resultBadge.className
+                )}
+              >
                 {resultBadge.label}
               </span>
             )}
@@ -144,28 +145,24 @@ export const ScoringEntryCard = forwardRef<HTMLDivElement, ScoringEntryCardProps
 
         {/* Trailing: Chevron for pending, 3-dot menu for completed */}
         {entry.isScored ? (
-          <div className="relative shrink-0">
-            <button
-              onClick={handleMenuToggle}
-              className="p-1.5 rounded-full hover:bg-accent transition-colors"
-              aria-label="Entry actions"
-            >
-              <MoreVertical className="h-5 w-5 text-muted-foreground" />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={handleMenuToggle} />
-                <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px]">
-                  <button
-                    onClick={handleResetScore}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-accent transition-colors"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    Reset Score
-                  </button>
-                </div>
-              </>
-            )}
+          <div className="shrink-0" onClick={stopPropagation}>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="p-1.5 rounded-full hover:bg-accent transition-colors"
+                aria-label="Entry actions"
+              >
+                <MoreVertical className="h-5 w-5 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[160px]">
+                <DropdownMenuItem
+                  onClick={handleResetScore}
+                  className="min-h-11 gap-2 px-3 py-2 text-destructive focus:bg-accent"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset Score
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ) : (
           <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />

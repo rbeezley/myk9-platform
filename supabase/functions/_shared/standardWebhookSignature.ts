@@ -20,7 +20,10 @@ function normalizeWebhookSecret(secret: string): string {
   return versionless.startsWith('whsec_') ? versionless.slice('whsec_'.length) : versionless;
 }
 
-function decodeWebhookSecret(secret: string): Uint8Array | null {
+// `Uint8Array<ArrayBuffer>`, not a bare `Uint8Array`: since TS 5.7 the bare form
+// widens to `Uint8Array<ArrayBufferLike>`, which `crypto.subtle.importKey` will
+// not accept as a `BufferSource` (it could be a SharedArrayBuffer view).
+function decodeWebhookSecret(secret: string): Uint8Array<ArrayBuffer> | null {
   const encoded = normalizeWebhookSecret(secret);
   try {
     return Uint8Array.from(atob(encoded), c => c.charCodeAt(0));

@@ -50,6 +50,13 @@ export interface RecordPageLayoutProps {
   breadcrumb?: React.ReactNode;
   /** Action buttons rendered at the top-right. */
   actions?: React.ReactNode;
+  /**
+   * Full-width notice above everything else — record lifecycle state the reader
+   * must see before they read anything below it ("this person was removed").
+   * Sits above stats and hero deliberately: a banner under the profile card is
+   * a banner people scroll past.
+   */
+  banner?: React.ReactNode;
   /** Stat cards row below the breadcrumb bar. */
   stats?: React.ReactNode;
   /** Hero/profile section rendered above the three-panel body. */

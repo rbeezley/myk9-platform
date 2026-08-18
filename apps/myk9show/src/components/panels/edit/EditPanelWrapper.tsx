@@ -9,7 +9,9 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -328,6 +330,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     onValidationFail,
   ]);
 
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
+
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   // Set to true when the user explicitly confirmed the close via AlertDialog,
   // so SlideOverPanel's own onClose callback doesn't re-trigger the dialog.
@@ -351,6 +355,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     onClose();
   }, [hasChanges, showUnsavedWarning, onClose]);
 
+  const routeLeaveGuard = (
+    <UnsavedChangesRouteGuard isDirty={open && hasChanges && showUnsavedWarning} subject={title} />
+  );
+
   // Context value
   const contextValue: EditPanelContextValue<Record<string, unknown>> = {
     form: useSchemaPath ? (form as unknown as FormValidation<Record<string, unknown>>) : undefined,
@@ -365,8 +373,12 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   };
 
   // Footer content
+  // The ref publishes this bar's height to the action-bar registry so the
+  // toaster stacks above it instead of on top of Save (MYK9-88): the audit
+  // recorded a tap meant for Save landing on a toast CTA, which navigated away
+  // and discarded the edit silently.
   const footer = (
-    <div className="flex items-center justify-between w-full">
+    <div ref={actionBarRef} className="flex items-center justify-between w-full">
       <div className="flex items-center gap-4">
         {/* Status indicators */}
         {hasChanges && (
@@ -443,6 +455,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             onClose();
           }}
         />
+        {routeLeaveGuard}
       </EditPanelContext.Provider>
     );
   }
@@ -499,6 +512,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           onClose();
         }}
       />
+      {routeLeaveGuard}
     </EditPanelContext.Provider>
   );
 }

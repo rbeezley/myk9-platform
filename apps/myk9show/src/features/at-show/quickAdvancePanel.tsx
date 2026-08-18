@@ -61,6 +61,8 @@ export interface QuickAdvancePanelProps {
   scoredEntryId: string | undefined;
   /** Primary action: return to the entry list to pick anyone. */
   onBackToList: () => void;
+  /** Reopen the just-saved sheet with its score pre-filled for correction. */
+  onCorrectScore: () => void;
   /** Open a candidate's scoresheet (normal route, so it transitions to in-ring). */
   onPickEntry: (entryId: string) => void;
 }
@@ -69,6 +71,7 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
   classId,
   scoredEntryId,
   onBackToList,
+  onCorrectScore,
   onPickEntry,
 }) => {
   const chips = useQuickAdvanceChips(classId, scoredEntryId);
@@ -90,6 +93,13 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to entry list
         </Button>
+        <Button
+          className="mt-3 h-12 w-full text-base"
+          variant="outline"
+          onClick={onCorrectScore}
+        >
+          Correct this score
+        </Button>
 
         {chips.length > 0 && (
           <div className="mt-6">
@@ -103,6 +113,7 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
                     type="button"
                     onClick={() => onPickEntry(chip.entryId)}
                     className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border bg-background px-4 py-2 text-left text-base"
+                    data-testid="quick-advance-entry"
                   >
                     <span>{formatChipLabel(chip)}</span>
                     {chip.gateLabel && (

@@ -31,7 +31,7 @@ function passingObservation(overrides: Partial<LoadObservation> = {}): LoadObser
       activityIntervals: activityIntervals(100, 55),
     },
     generator: {
-      shards: Array.from({ length: 4 }, (_, shardIndex) => ({
+      shards: Array.from({ length: 8 }, (_, shardIndex) => ({
         shardIndex,
         logicalCpuCount: 2,
         samplingDurationMs: 600_000,

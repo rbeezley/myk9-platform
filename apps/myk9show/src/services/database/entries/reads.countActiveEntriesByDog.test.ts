@@ -1,16 +1,16 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // countActiveEntriesByDog is a direct PostgREST head-count. We only need the
 // supabase client mocked; the replication imports pulled in by reads.ts are
 // stubbed so the module graph loads.
 const mocks = vi.hoisted(() => ({
-  createDatabaseError: vi.fn((error: unknown) => error),
   logQuery: vi.fn(),
   supabaseFrom: vi.fn(),
 }));
 
 vi.mock('../supabaseClient', () => ({
-  createDatabaseError: mocks.createDatabaseError,
+  createDatabaseError,
   logQuery: mocks.logQuery,
   supabase: { from: mocks.supabaseFrom },
 }));

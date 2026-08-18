@@ -22,6 +22,8 @@ interface ClassLike {
   entryFee?: number | undefined;
 }
 
+type NonPayableClassIds = ReadonlySet<string>;
+
 /**
  * Minimal subset of Show used by fee calculation.
  */
@@ -94,7 +96,8 @@ export function calculateTotalFees(
   classSelections: ClassSelectionData[],
   dogs: DogLike[],
   classes: ClassLike[],
-  show?: ShowFeeInfo
+  show?: ShowFeeInfo,
+  nonPayableClassIds: NonPayableClassIds = new Set()
 ): FeeCalculationResult {
   let subtotal = 0;
   const breakdown: FeeBreakdownItem[] = [];
@@ -106,10 +109,12 @@ export function calculateTotalFees(
     if (dog && dogSelections) {
       const dogClasses = dogSelections.selectedClasses.map(sc => {
         const classData = classes.find(c => c.id === sc.classId);
+        const isWaitlist = nonPayableClassIds.has(sc.classId);
         return {
           classId: sc.classId,
           className: classData?.className || 'Unknown Class',
-          fee: getShowEntryFee(show, classData?.entryFee),
+          fee: isWaitlist ? 0 : getShowEntryFee(show, classData?.entryFee),
+          ...(isWaitlist ? { isWaitlist: true } : {}),
         };
       });
 
@@ -127,7 +132,7 @@ export function calculateTotalFees(
 
   // Calculate discounts
   const discounts: FeeCalculationResult['discounts'] = [];
-  const enteredDogCount = breakdown.filter(item => item.classes.length > 0).length;
+  const enteredDogCount = breakdown.filter(item => item.classes.some(cls => cls.fee > 0)).length;
 
   if (enteredDogCount >= MULTI_DOG_THRESHOLD) {
     discounts.push({

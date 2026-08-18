@@ -9,7 +9,7 @@ Most gates also run in CI on every PR (marked **[CI]**). Re-running them togethe
 ## How to use
 
 - Run from a **clean worktree off the latest `main`** (`bash scripts/bootstrap-worktree.sh`).
-- Tick each gate. **No silent skips** — any non-green or skipped gate gets a tracked `OPEN-TODOS.md` entry with context.
+- Tick each gate. **No silent skips** — any non-green or skipped gate gets a Linear issue (team **MyK9-platform**) with context, and a row in [`docs/qa/findings.md`](qa/findings.md).
 - Commands are from the repo root unless noted.
 
 ## 1. Build & type safety
@@ -22,12 +22,12 @@ Most gates also run in CI on every PR (marked **[CI]**). Re-running them togethe
 
 - [ ] `pnpm test:packages` — green **[CI]**
 - [ ] `cd apps/myk9show && pnpm test` — full app suite green **[CI, sharded 1–3]**
-- [ ] _Optional isolation probe:_ `cd apps/myk9show && npx vitest run --sequence.shuffle` — any new failures beyond the tracked cross-file test-isolation debt are real regressions (see the Phase 5 OPEN-TODOS item). Do **not** enable shuffle in CI until that debt is fixed.
+- [ ] _Optional isolation probe:_ `cd apps/myk9show && npx vitest run --sequence.shuffle` — any new failures beyond the tracked cross-file test-isolation debt are real regressions. Do **not** enable shuffle in CI until that debt is fixed.
 
 ## 3. Static code quality
 
 - [ ] `pnpm qa:code-quality-ratchet` — no regressions vs `code-quality-ratchet.baseline.json` **[CI]**
-- [ ] `/code-quality-audit` skill (`full`) — review the maintainability dimensions; file drift as `OPEN-TODOS.md`.
+- [ ] `/code-quality-audit` skill (`full`) — review the maintainability dimensions; file drift as a Linear issue.
 
 ## 4. Money-path correctness (Phase 2 — mutation testing)
 

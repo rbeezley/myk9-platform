@@ -13,10 +13,12 @@ import { Download, X, Share } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { usePwaInstallTelemetry } from '@/features/pwa/usePwaInstallTelemetry';
 
 export function PWAInstallBanner() {
   const { isInstalled, canInstall, isIOSSafari, isDismissed, promptInstall, dismissInstallPrompt } =
     usePWAInstall();
+  const { recordEvent } = usePwaInstallTelemetry();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   const shouldShow = !isInstalled && !isDismissed && (canInstall || isIOSSafari);
@@ -36,10 +38,20 @@ export function PWAInstallBanner() {
 
   const handleInstall = async () => {
     if (canInstall) {
-      await promptInstall();
+      const accepted = await promptInstall();
+      recordEvent(accepted ? 'pwa_install_accepted' : 'pwa_install_dismissed');
     } else if (isIOSSafari) {
+      // iOS gives no completion signal — "Add to Home Screen" happens entirely
+      // inside Safari's share sheet. Intent is all we can record here; the
+      // daily state snapshot is what confirms whether it actually stuck.
+      recordEvent('pwa_ios_instructions_shown');
       setShowIOSInstructions(true);
     }
+  };
+
+  const handleDismiss = () => {
+    recordEvent('pwa_install_dismissed');
+    dismissInstallPrompt();
   };
 
   return (
@@ -68,7 +80,7 @@ export function PWAInstallBanner() {
             {isIOSSafari ? 'Show me' : 'Install'}
           </Button>
           <button
-            onClick={dismissInstallPrompt}
+            onClick={handleDismiss}
             className="shrink-0 rounded p-1 opacity-80 transition-opacity hover:opacity-100"
             aria-label="Dismiss install banner"
           >

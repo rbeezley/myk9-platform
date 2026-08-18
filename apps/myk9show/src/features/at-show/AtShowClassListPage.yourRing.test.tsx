@@ -170,6 +170,7 @@ describe('AtShowClassListPage Your ring', () => {
       Node.DOCUMENT_POSITION_FOLLOWING
     );
     expect(within(yourRing).queryByText(/Buried Advanced/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Buried Advanced/)).not.toBeInTheDocument();
     expect(yourRing.compareDocumentPosition(screen.getByTestId('at-show-trial-trial-1'))).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
@@ -196,7 +197,7 @@ describe('AtShowClassListPage Your ring', () => {
     expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
 
     resolveAssignments([]);
-    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(await screen.findByText('No classes assigned yet')).toBeInTheDocument();
   });
 
   it('waits for the first judge assignment sync before accepting an empty cache', async () => {
@@ -262,7 +263,7 @@ describe('AtShowClassListPage Your ring', () => {
         },
       });
 
-      expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+      expect(await screen.findByText('No classes assigned yet')).toBeInTheDocument();
       expect(
         screen.queryByRole('status', { name: 'Loading at-show classes' })
       ).not.toBeInTheDocument();
@@ -301,16 +302,16 @@ describe('AtShowClassListPage Your ring', () => {
     );
   });
 
-  it('leaves the current class list unchanged when the signed-in judge has no assignments', async () => {
+  it('shows a clear no-assignment state without unrelated classes', async () => {
     authState.hasRole = role => role === UserRole.JUDGE;
     authState.userWithRoles = { databaseUserId: 'judge-without-assignments' } as UserWithRoles;
     authState.user = { is_anonymous: false };
 
     renderPage();
 
-    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(await screen.findByText('No classes assigned yet')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Your ring' })).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Container Novice/)).toHaveLength(1);
+    expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
   });
 
   it('does not guess a judge identity for an anonymous passcode session', async () => {
@@ -340,7 +341,7 @@ describe('AtShowClassListPage Your ring', () => {
 
     renderPage();
 
-    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(await screen.findByText('No classes assigned yet')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Your ring' })).not.toBeInTheDocument();
     act(() => judgeAssignmentSubscription.onChange?.());
 
@@ -348,7 +349,7 @@ describe('AtShowClassListPage Your ring', () => {
     expect(within(yourRing).getByText(/Container Novice/)).toBeInTheDocument();
   });
 
-  it('keeps the full list usable and offers a retry when assignments fail to load', async () => {
+  it('blocks unrelated classes and offers a retry when assignments fail to load', async () => {
     authState.hasRole = role => role === UserRole.JUDGE;
     authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
     authState.user = { is_anonymous: false };
@@ -356,8 +357,8 @@ describe('AtShowClassListPage Your ring', () => {
 
     const { user } = renderPage();
 
-    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Your ring unavailable' })).toBeInTheDocument();
+    expect(await screen.findByText("We couldn't load your judge assignments")).toBeInTheDocument();
+    expect(screen.queryByText(/Container Novice/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(syncJudgeAssignments).toHaveBeenCalledWith('judge_assignments');
   });

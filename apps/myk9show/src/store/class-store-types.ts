@@ -16,6 +16,28 @@ export interface SyncableEntryData extends EntryData {
   _lastModifiedBy: string;
   _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
   _localOnly?: boolean | undefined;
+
+  /**
+   * Authoritative scoring facts carried straight from the replicated row.
+   *
+   * `EntryData`'s `score` / `time` / `placement` / `status` are a local-only
+   * display shape: `replicatedToEntry` blanks the first three, and `entries`
+   * has no `status` column, so `status` is always the `'Pending'` fallback.
+   * Anything deciding whether an entry has been scored must read these two
+   * instead — see MYK9-118.
+   */
+  isScored?: boolean | undefined;
+  resultStatus?: string | undefined;
+
+  /**
+   * Lifecycle state, needed to tell "still expected to run" from "pulled".
+   * `status` above cannot answer this: `entries` has no `status` column.
+   */
+  entryStatus?: string | undefined;
+  checkInStatus?: string | undefined;
+
+  /** Soft-delete marker; a deleted entry is not outstanding work. */
+  deletedAt?: string | null | undefined;
 }
 
 // Input types for creating/updating classes
@@ -94,7 +116,10 @@ export interface ClassStoreState {
   setSelectedClassId: (id: string) => void;
 
   // Template methods
-  addClassesFromTemplate: (trialId: string, generatedClasses: GeneratedClass[]) => SyncableClassData[];
+  addClassesFromTemplate: (
+    trialId: string,
+    generatedClasses: GeneratedClass[]
+  ) => SyncableClassData[];
 
   // Legacy methods for compatibility
   addClassLegacy: (data: ClassData) => void;

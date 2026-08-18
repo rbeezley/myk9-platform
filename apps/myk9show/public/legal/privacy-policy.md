@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated: June 4, 2026**
+**Last Updated: August 16, 2026**
 
 This Privacy Policy describes how RyKris LLC, an Oklahoma limited liability company ("RyKris," "Company," "we," "us," or "our"), collects, uses, discloses, and protects your personal information when you use the myK9 platform, including the myK9Show web application, the built-in Ringside experience, and all related services (collectively, the "Service").
 
@@ -22,6 +22,7 @@ When you create an account or use the Service, you may provide us with:
 - **Competition Data:** Trial entries, competition results, scores, qualification codes, faults, search times, and judge notes
 - **Event Organizer Data:** Show and trial configurations, class structures, venue information, judge assignments, and scheduling details
 - **Payment Information:** Billing name and address. Full payment card details are collected and processed directly by Stripe, Inc. and are never stored on our servers.
+- **Mobile Phone Number:** If you choose to opt in to SMS ring alerts, the mobile number you provide for that purpose, together with a record of when you opted in and the disclosure wording shown to you at the time
 - **Communications:** Messages, support requests, and feedback you send to us
 
 ### 1.2 Information Collected Automatically
@@ -76,6 +77,7 @@ We use the information we collect for the following purposes:
 ### 2.3 Communications
 
 - Sending transactional notifications (entry confirmations, result postings, payment receipts)
+- If you have opted in, sending SMS ring alerts to let you know your dog is approaching the ring
 - Providing customer support
 - Sending Service-related announcements (maintenance, updates, policy changes)
 - With your consent, sending promotional communications about new features or events (you may opt out at any time)
@@ -139,6 +141,14 @@ In connection with any merger, acquisition, sale of assets, financing, or transf
 
 We may share your information with third parties when you have given us your explicit consent to do so.
 
+### 3.6 Mobile Information and SMS Messaging
+
+**No mobile information will be shared with third parties or affiliates for marketing or promotional purposes.** Your mobile phone number, and your consent to receive SMS messages from us, are never sold, rented, or shared with any third party for their own marketing purposes.
+
+The only sharing of your mobile number that occurs is with the SMS delivery provider that transmits the messages you asked to receive, acting solely on our behalf and under contract. All other categories of information in this Privacy Policy may be shared as described in Sections 3.1 through 3.5; mobile information is excluded from those categories for marketing and promotional purposes.
+
+SMS ring alerts are optional and are never required to enter a show or use any part of the Service. Message and data rates may apply, and message frequency varies with the number of entries you have at an event. You may opt out at any time by replying **STOP** to any message, or by turning off SMS alerts in your notification settings; reply **HELP** to any message for assistance. We retain a record of your opt-out so we can prove when messaging stopped.
+
 ---
 
 ## 4. Data Retention
@@ -200,7 +210,7 @@ You have the right to request correction of any inaccurate or incomplete persona
 
 ### 6.3 Deletion
 
-You have the right to request deletion of your personal information, subject to the exceptions described in Section 4.2 (anonymized competition records). You can delete your account through the Service settings or by contacting us at support@myk9.com.
+You have the right to request deletion of your personal information, subject to the exceptions described in Section 4.2 (anonymized competition records). You can delete your account through the Service settings or by contacting us at support@myk9show.com.
 
 ### 6.4 Opt-Out of Communications
 
@@ -208,8 +218,9 @@ You may opt out of promotional communications by:
 
 - Using the "unsubscribe" link in any promotional email
 - Adjusting your notification preferences in the Service settings
+- Replying **STOP** to any SMS message, which ends all SMS alerts to that number
 
-Note that you cannot opt out of transactional communications necessary for the operation of the Service (e.g., payment confirmations, security alerts).
+Note that you cannot opt out of transactional communications necessary for the operation of the Service (e.g., payment confirmations, security alerts). SMS ring alerts are an exception: they are optional in all cases, and opting out of them does not affect your entries or your ability to use the Service.
 
 ### 6.5 Do Not Track
 
@@ -229,11 +240,11 @@ If you are a California resident, you have additional rights under the Californi
 - **Right to Opt-Out of Sale/Sharing:** We do not sell or share your personal information for cross-context behavioral advertising purposes. No opt-out is necessary.
 - **Right to Non-Discrimination:** We will not discriminate against you for exercising your privacy rights.
 
-To exercise your CCPA/CPRA rights, contact us at support@myk9.com. We will verify your identity before processing your request.
+To exercise your CCPA/CPRA rights, contact us at support@myk9show.com. We will verify your identity before processing your request.
 
 ### 7.2 Virginia, Colorado, Connecticut, Utah, and Other State Privacy Laws
 
-If you reside in a state with comprehensive privacy legislation, you may have similar rights to those described above, including the right to access, correct, delete, and obtain a copy of your personal information. To exercise these rights, contact us at support@myk9.com.
+If you reside in a state with comprehensive privacy legislation, you may have similar rights to those described above, including the right to access, correct, delete, and obtain a copy of your personal information. To exercise these rights, contact us at support@myk9show.com.
 
 ### 7.3 Oklahoma Residents
 
@@ -253,7 +264,7 @@ Users between the ages of 13 and 18 may use the Service only with the consent an
 
 ### 8.3 Parental Rights
 
-If you are a parent or guardian and believe that your child under 13 has provided us with personal information, please contact us at support@myk9.com. We will take steps to delete such information promptly.
+If you are a parent or guardian and believe that your child under 13 has provided us with personal information, please contact us at support@myk9show.com. We will take steps to delete such information promptly.
 
 ---
 
@@ -315,7 +326,7 @@ Your continued use of the Service after the effective date of any changes consti
 If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
 **RyKris LLC**
-Email: support@myk9.com
+Email: support@myk9show.com
 
 For privacy-specific inquiries, please include "Privacy" in your subject line to ensure prompt routing.
 

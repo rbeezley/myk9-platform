@@ -102,6 +102,11 @@ describe('pageDirectory (invariant)', () => {
     expect(invalid).toEqual([]);
   });
 
+  it('links /admin/permissions to /admin/users, since it renders an unconditional quick-action card there', () => {
+    const entry = pageDirectory.find(e => e.path === '/admin/permissions');
+    expect(entry?.linksTo).toContain('/admin/users');
+  });
+
   it('every linksTo path resolves to an existing PageEntry path', () => {
     const knownPaths = new Set(pageDirectory.map(e => e.path));
     const orphans: string[] = [];

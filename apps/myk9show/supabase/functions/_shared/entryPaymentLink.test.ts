@@ -78,7 +78,7 @@ describe('buildEntryPaymentLinkSession', () => {
   });
 
   it('carries NO connected-account params — charges land in the platform account (hold-and-transfer)', () => {
-    const s = buildEntryPaymentLinkSession(base) as Record<string, unknown>;
+    const s = buildEntryPaymentLinkSession(base) as unknown as Record<string, unknown>;
     expect(s.on_behalf_of).toBeUndefined();
     expect(s.transfer_data).toBeUndefined();
     expect(s.application_fee_amount).toBeUndefined();

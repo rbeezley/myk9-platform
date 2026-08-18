@@ -93,7 +93,7 @@ export interface SyncMetadata {
   lastIncrementalSyncAt: number;
   totalRows?: number; // Total rows cached
   syncStatus?: 'idle' | 'syncing' | 'error';
-  errorMessage?: string;
+  errorMessage?: string | undefined;
   conflictCount?: number;
   pendingMutations?: number;
   /**

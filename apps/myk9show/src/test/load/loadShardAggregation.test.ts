@@ -12,32 +12,37 @@ const target = {
 };
 
 function shardArtifact(index: number): LoadShardArtifact {
-  const scoringDurationsMs = Array.from({ length: 25 }, (_, offset) => index * 25 + offset + 1);
-  const ringsideSessions = [14, 14, 14, 13][index];
-  const ringsidePeak = [12, 12, 12, 11][index];
+  const sessionCount = index < 4 ? 13 : 12;
+  const sequenceBase = index < 4 ? index * 13 : 52 + (index - 4) * 12;
+  const scoringDurationsMs = Array.from(
+    { length: sessionCount },
+    (_, offset) => sequenceBase + offset + 1
+  );
+  const ringsideSessions = [7, 7, 7, 7, 7, 7, 7, 6][index];
+  const ringsidePeak = [6, 6, 6, 6, 6, 6, 6, 5][index];
   const intervalBaseMs = 1_000 + index * 10_000;
   const observation: LoadObservation = {
-    concurrentSessions: 25,
+    concurrentSessions: sessionCount,
     ringsideSessions,
     sessionLifecycle: {
-      configuredSessions: 25,
-      preparedSessions: 25,
-      startedWorkflows: 25,
-      completedWorkflows: 25,
+      configuredSessions: sessionCount,
+      preparedSessions: sessionCount,
+      startedWorkflows: sessionCount,
+      completedWorkflows: sessionCount,
       failedWorkflows: 0,
-      peakActiveWorkflows: 20,
+      peakActiveWorkflows: sessionCount,
       configuredRingsideSessions: ringsideSessions,
       preparedRingsideSessions: ringsideSessions,
       startedRingsideWorkflows: ringsideSessions,
       completedRingsideWorkflows: ringsideSessions,
       failedRingsideWorkflows: 0,
       peakActiveRingsideWorkflows: ringsidePeak,
-      activityIntervals: Array.from({ length: 25 }, (_, offset) => {
+      activityIntervals: Array.from({ length: sessionCount }, (_, offset) => {
         const inPeakBatch =
           offset < ringsidePeak ||
           (offset >= ringsideSessions && offset < ringsideSessions + (20 - ringsidePeak));
         return {
-          sequence: index + offset * 4,
+          sequence: index + offset * 8,
           ringside: offset < ringsideSessions,
           startedAtMs: intervalBaseMs + (inPeakBatch ? 0 : 5_000),
           finishedAtMs: intervalBaseMs + (inPeakBatch ? 5_000 : 9_000),
@@ -129,8 +134,8 @@ function shardArtifact(index: number): LoadShardArtifact {
     startAtMs: 1_785_283_200_000,
     startedAtMs: 1_785_283_200_000 + index,
     elapsedMs: 600_000,
-    shard: { count: 4, index },
-    assignmentSequences: Array.from({ length: 25 }, (_, offset) => index + offset * 4),
+    shard: { count: 8, index },
+    assignmentSequences: Array.from({ length: sessionCount }, (_, offset) => index + offset * 8),
     target,
     scenarioId: 'normal',
     observation,
@@ -139,9 +144,9 @@ function shardArtifact(index: number): LoadShardArtifact {
 }
 
 describe('distributed load aggregation', () => {
-  it('combines four manifests without summing temporally disjoint shard peaks', () => {
+  it('combines eight manifests without summing temporally disjoint shard peaks', () => {
     const result = aggregateLoadShardArtifacts(
-      Array.from({ length: 4 }, (_, index) => shardArtifact(index)),
+      Array.from({ length: 8 }, (_, index) => shardArtifact(index)),
       G9_NORMAL_SCENARIO
     );
 
@@ -155,13 +160,13 @@ describe('distributed load aggregation', () => {
         startedWorkflows: 100,
         completedWorkflows: 100,
         failedWorkflows: 0,
-        peakActiveWorkflows: 20,
+        peakActiveWorkflows: 12,
         configuredRingsideSessions: 55,
         preparedRingsideSessions: 55,
         startedRingsideWorkflows: 55,
         completedRingsideWorkflows: 55,
         failedRingsideWorkflows: 0,
-        peakActiveRingsideWorkflows: 12,
+        peakActiveRingsideWorkflows: 6,
       },
       generator: {
         shards: [
@@ -169,16 +174,20 @@ describe('distributed load aggregation', () => {
           { shardIndex: 1, hostCpuP95Percent: 61 },
           { shardIndex: 2, hostCpuP95Percent: 62 },
           { shardIndex: 3, hostCpuP95Percent: 63 },
+          { shardIndex: 4, hostCpuP95Percent: 64 },
+          { shardIndex: 5, hostCpuP95Percent: 65 },
+          { shardIndex: 6, hostCpuP95Percent: 66 },
+          { shardIndex: 7, hostCpuP95Percent: 67 },
         ],
       },
-      requestCount: 36_000,
+      requestCount: 72_000,
       scoringWriteP95Ms: 95,
       apiP95Ms: 95,
       pageP95Ms: 1_000,
-      throughputRps: 60,
-      expectedPersistedScores: 440,
-      persistedScores: 440,
-      maxReplicationQueueDepth: 4,
+      throughputRps: 120,
+      expectedPersistedScores: 880,
+      persistedScores: 880,
+      maxReplicationQueueDepth: 8,
       finalReplicationQueueDepth: 0,
       workflowFailureDetails: [
         {
@@ -193,15 +202,16 @@ describe('distributed load aggregation', () => {
   });
 
   it.each([
-    ['missing shard', [shardArtifact(0), shardArtifact(1), shardArtifact(2)]],
-    ['duplicate shard', [shardArtifact(0), shardArtifact(1), shardArtifact(2), shardArtifact(2)]],
+    ['missing shard', Array.from({ length: 7 }, (_, index) => shardArtifact(index))],
+    [
+      'duplicate shard',
+      [...Array.from({ length: 7 }, (_, index) => shardArtifact(index)), shardArtifact(6)],
+    ],
     [
       'late shard',
       [
-        shardArtifact(0),
-        shardArtifact(1),
-        shardArtifact(2),
-        { ...shardArtifact(3), startedAtMs: shardArtifact(3).startAtMs + 5_001 },
+        ...Array.from({ length: 7 }, (_, index) => shardArtifact(index)),
+        { ...shardArtifact(7), startedAtMs: shardArtifact(7).startAtMs + 5_001 },
       ],
     ],
   ])('rejects a %s', (_name, artifacts) => {
@@ -209,14 +219,14 @@ describe('distributed load aggregation', () => {
   });
 
   it('rejects an artifact that omits runner evidence', () => {
-    const artifact = shardArtifact(2);
+    const artifact = shardArtifact(6);
     const invalid = {
       ...artifact,
       observation: { ...artifact.observation, generator: undefined },
     } as unknown as LoadShardArtifact;
     expect(() =>
       aggregateLoadShardArtifacts(
-        [shardArtifact(0), shardArtifact(1), invalid, shardArtifact(3)],
+        [...Array.from({ length: 6 }, (_, index) => shardArtifact(index)), invalid, shardArtifact(7)],
         G9_NORMAL_SCENARIO
       )
     ).toThrow(/generator/i);

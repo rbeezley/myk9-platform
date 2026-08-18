@@ -41,8 +41,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const JudgeStatsPage: React.FC = () => {
-  const { user } = useAuthContext();
-  const personId = user?.id;
+  const { userWithRoles } = useAuthContext();
+  // Analytics tables key assignments by the database person ID, not the
+  // Supabase auth UUID. Using user.id made an assigned judge see empty stats.
+  const personId = userWithRoles?.databaseUserId;
 
   const { data: stats, isLoading: statsLoading } = useMyJudgeStats(personId);
   const { data: upcoming, isLoading: upcomingLoading } = useUpcomingJudgeAssignments(personId);
@@ -103,9 +105,9 @@ const JudgeStatsPage: React.FC = () => {
             />
             <StatCard
               title="Total Fees"
-              value={`$${(stats?.totalFees ?? 0).toFixed(0)}`}
+              value={stats?.totalFees == null ? '—' : `$${stats.totalFees.toFixed(0)}`}
               icon={DollarSign}
-              subtitle={`${currentYear} earnings`}
+              subtitle={stats?.totalFees == null ? 'Show manager only' : `${currentYear} earnings`}
               color="emerald"
             />
           </>

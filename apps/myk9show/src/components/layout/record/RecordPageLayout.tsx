@@ -13,6 +13,7 @@ import type { RecordPageLayoutProps } from './RecordPageLayout.types';
 export function RecordPageLayout({
   breadcrumb,
   actions,
+  banner,
   stats,
   hero,
   properties,
@@ -35,6 +36,9 @@ export function RecordPageLayout({
           {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
         </div>
       )}
+
+      {/* Lifecycle banner — above stats and hero, never below them */}
+      {banner && <div className="px-6 pb-4">{banner}</div>}
 
       {/* Stats row */}
       {stats && <div className="px-6 pb-4">{stats}</div>}

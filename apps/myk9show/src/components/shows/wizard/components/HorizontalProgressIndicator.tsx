@@ -19,14 +19,13 @@ interface HorizontalProgressIndicatorProps {
 /**
  * Horizontal step indicator for the Show Creation and Registration wizards.
  *
- * Renders steps left-to-right in a high-contrast, scrollable navigator so the
- * form below gets the full content width — a one-axis layout that doesn't
- * compete with the app shell's left rail for horizontal space.
+ * Renders steps in a high-contrast navigator that wraps through tablet widths
+ * so every required step name stays readable without asking exhibitors to
+ * discover a horizontal scroll area.
  *
- * On narrow screens the step cards keep their labels and scroll horizontally.
- * Hiding required steps behind numbered circles made it too easy for
- * exhibitors to miss part of registration. Descriptions stay secondary on
- * phones, while the current, completed, and upcoming states remain explicit.
+ * On phones and tablets the step cards use a two-column grid. On desktop they
+ * return to a single row. Descriptions stay secondary on phones, while the
+ * current, completed, and upcoming states remain explicit at every width.
  */
 export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorProps> = ({
   steps,
@@ -74,8 +73,8 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
         />
       </div>
 
-      <div data-testid="wizard-step-list" className="-mx-1 overflow-x-auto px-1 pb-2">
-        <ol className="flex min-w-max items-stretch gap-2 sm:gap-3 md:min-w-0">
+      <div data-testid="wizard-step-list" className="px-1 pb-2">
+        <ol className="grid grid-cols-2 items-stretch gap-2 sm:gap-3 lg:flex">
           {steps.map((step, index) => {
             const isCompleted = isStepCompleted(step.id);
             const isCurrent = isStepCurrent(step.id);
@@ -86,7 +85,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
             return (
               <li
                 key={step.id}
-                className="relative flex min-w-[9.5rem] flex-1 flex-col items-center md:min-w-0"
+                className="relative flex min-w-0 flex-1 flex-col items-center"
               >
                 {/* Connecting line bridges the outer edges of adjacent circles.
                   Starting at the edge keeps it out of translucent inactive
@@ -94,7 +93,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                 {!isLast && (
                   <div
                     data-testid={`wizard-step-connector-${step.id}`}
-                    className="absolute left-[calc(50%+0.875rem)] top-8 h-0.5 w-[calc(100%-1.75rem)] -translate-y-1/2"
+                    className="absolute left-[calc(50%+0.875rem)] top-8 hidden h-0.5 w-[calc(100%-1.75rem)] -translate-y-1/2 lg:block"
                   >
                     <div className="absolute inset-0 rounded-full bg-border/40" />
                     <div
@@ -126,7 +125,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                     !isCompleted && !isCurrent && 'border-border bg-muted/20'
                   )}
                 >
-                  <span className="flex min-w-0 items-center justify-between gap-2">
+                  <span className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                     <span
                       className={cn('flex min-w-0 items-center gap-2', isCurrent && 'text-primary')}
                     >
@@ -151,7 +150,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
                       <span className="min-w-0">
                         <span
                           className={cn(
-                            'block truncate text-sm font-semibold',
+                            'block whitespace-normal break-words text-sm font-semibold',
                             isCompleted && 'text-foreground',
                             !isCompleted && !isCurrent && 'text-muted-foreground'
                           )}

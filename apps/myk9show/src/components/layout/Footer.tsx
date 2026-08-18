@@ -42,6 +42,14 @@ export default function Footer() {
                   Privacy Policy
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/sms"
+                  className="hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
+                >
+                  SMS Ring Alerts
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

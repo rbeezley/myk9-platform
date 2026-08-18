@@ -549,8 +549,9 @@ export const mapReplicatedJudgeAssignmentToRow = (
     status: 'status',
     invited_at: 'invitedAt',
     confirmed_at: 'confirmedAt',
-    fee: 'fee',
-    notes: 'notes',
+    // MYK9-146: replication rows are public/show-discovery data. Fees and
+    // internal assignment notes require the manager RPC and never belong in a
+    // replicated show payload, including when an older cache still has them.
   }),
   judge: null, // people table not replicated yet
 });

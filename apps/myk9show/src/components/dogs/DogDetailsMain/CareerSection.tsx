@@ -27,6 +27,8 @@ interface CareerSectionProps {
   isPremium: boolean;
   /** Free-user DISPLAY lock — Competitions itself is always free. */
   locked: boolean;
+  /** Whose voice entry status lines speak in — same contract as ActivityTab. */
+  viewer: 'exhibitor' | 'secretary';
 }
 
 /**
@@ -42,6 +44,7 @@ const CareerSection: React.FC<CareerSectionProps> = ({
   onViewChange,
   isPremium,
   locked,
+  viewer,
 }) => {
   const views: SecondaryViewDef[] = [
     ...(features.competitionsTab ? [{ id: 'competitions' as const, label: 'Competitions' }] : []),
@@ -63,7 +66,7 @@ const CareerSection: React.FC<CareerSectionProps> = ({
 
       {effectiveView === 'competitions' && features.competitionsTab && (
         <Suspense fallback={<TabContentSkeleton />}>
-          <CompetitionsTabs dogId={dogId} isPremium={isPremium} />
+          <CompetitionsTabs dogId={dogId} isPremium={isPremium} viewer={viewer} />
         </Suspense>
       )}
 

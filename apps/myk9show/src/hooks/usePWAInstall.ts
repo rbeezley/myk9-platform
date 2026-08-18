@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { isIOSSafariUA } from '@/features/pwa/pwaInstallTelemetry';
 
 interface NavigatorStandalone extends Navigator {
   standalone?: boolean;
@@ -39,11 +40,10 @@ const DISMISS_KEY = 'pwa_install_dismissed';
 const INSTALLED_KEY = 'pwa_installed';
 const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+// Shared with the install telemetry so the banner's audience and the recorded
+// platform split can never disagree about what "iOS Safari" means.
 function detectIOSSafari(): boolean {
-  const ua = navigator.userAgent.toLowerCase();
-  const isIOS = /iphone|ipad|ipod/.test(ua);
-  const isSafari = /safari/.test(ua) && !/chrome|crios|fxios/.test(ua);
-  return isIOS && isSafari;
+  return isIOSSafariUA(navigator.userAgent);
 }
 
 export function usePWAInstall(): UsePWAInstallReturn {

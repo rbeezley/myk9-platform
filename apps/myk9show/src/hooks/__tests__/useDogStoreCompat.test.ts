@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -46,7 +47,7 @@ const {
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: () => ({ select: () => ({ in: mockServerRegistrationsIn }) }) },
   logQuery: vi.fn(),
-  createDatabaseError: (e: unknown) => e,
+  createDatabaseError,
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({

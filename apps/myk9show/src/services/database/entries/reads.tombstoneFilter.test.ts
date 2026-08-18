@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
@@ -6,9 +7,6 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 // the postgrest `.is('deleted_at', null)` filter. Without this a dog-delete
 // cascade's tombstoned entries reappear in rosters/scoring after sync.
 const mocks = vi.hoisted(() => ({
-  createDatabaseError: vi.fn((error: unknown) =>
-    error instanceof Error ? error : new Error(String(error))
-  ),
   logQuery: vi.fn(),
   supabaseFrom: vi.fn(),
   getAll: vi.fn(),
@@ -17,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../supabaseClient', () => ({
-  createDatabaseError: mocks.createDatabaseError,
+  createDatabaseError,
   logQuery: mocks.logQuery,
   supabase: { from: mocks.supabaseFrom },
 }));

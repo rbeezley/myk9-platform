@@ -2,10 +2,12 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { formatUsShowDateRange } from './dateFormat.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -183,26 +185,32 @@ handle<SendRegistrationEmailPayload>(
       if (callerPerson) {
         // Check secretary role for show's club
         if (registration.show?.club_id) {
-          const { data: secretaryRole } = await supabase
-            .from('user_roles')
-            .select('id, role:roles!inner(name)')
-            .eq('user_id', callerPerson.id)
-            .eq('is_active', true)
-            .eq('club_id', registration.show.club_id)
-            .eq('roles.name', 'trial_secretary')
-            .maybeSingle();
+          const { data: secretaryRole, error: secretaryRoleError } = await applyActiveRoleValidity(
+            supabase
+              .from('user_roles')
+              .select('id, role:roles!inner(name)')
+              .eq('user_id', callerPerson.id)
+              .eq('club_id', registration.show.club_id)
+              .eq('roles.name', 'trial_secretary')
+          ).maybeSingle();
+          if (secretaryRoleError) {
+            throw new HttpError(500, 'Failed to verify sender role');
+          }
           isSecretary = !!secretaryRole;
         }
 
         // Check platform admin role via database (SA-014: not JWT claims)
         if (!isSecretary) {
-          const { data: adminRole } = await supabase
-            .from('user_roles')
-            .select('id, role:roles!inner(name)')
-            .eq('user_id', callerPerson.id)
-            .eq('is_active', true)
-            .in('roles.name', ['site_admin', 'platform_admin'])
-            .maybeSingle();
+          const { data: adminRole, error: adminRoleError } = await applyActiveRoleValidity(
+            supabase
+              .from('user_roles')
+              .select('id, role:roles!inner(name)')
+              .eq('user_id', callerPerson.id)
+              .in('roles.name', ['site_admin', 'platform_admin'])
+          ).maybeSingle();
+          if (adminRoleError) {
+            throw new HttpError(500, 'Failed to verify sender role');
+          }
           isAdmin = !!adminRole;
         }
       }
@@ -219,6 +227,16 @@ handle<SendRegistrationEmailPayload>(
 
     const recipientEmail = registration.person?.email;
     if (!recipientEmail) {
+      const { error: logError } = await supabase.from('email_log').insert({
+        recipient_email: null,
+        email_type: 'registration_confirmation',
+        related_id: registrationId,
+        show_id: registration.show_id,
+        status: 'failed',
+        error_message: 'missing_recipient',
+        status_updated_at: new Date().toISOString(),
+      });
+      requireEmailLogWrite(logError, 'send-registration-email');
       throw new HttpError(400, 'No email address for registrant');
     }
 
@@ -266,15 +284,30 @@ handle<SendRegistrationEmailPayload>(
       emailPayload.cc = secretaryCc;
     }
 
-    const response = await sendResendEmailWithRetry({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${resendApiKey}`,
-        'Idempotency-Key': registrationId,
-      },
-      body: JSON.stringify(emailPayload),
-    });
+    let response: Response;
+    try {
+      response = await sendResendEmailWithRetry({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+          'Idempotency-Key': registrationId,
+        },
+        body: JSON.stringify(emailPayload),
+      });
+    } catch {
+      const { error: logError } = await supabase.from('email_log').insert({
+        recipient_email: recipientEmail,
+        email_type: 'registration_confirmation',
+        related_id: registrationId,
+        show_id: registration.show_id,
+        status: 'failed',
+        error_message: 'email_delivery_error',
+        status_updated_at: new Date().toISOString(),
+      });
+      requireEmailLogWrite(logError, 'send-registration-email');
+      return { success: false };
+    }
 
     let resendMessageId: string | undefined;
     let sendStatus = 'sent';
@@ -283,27 +316,30 @@ handle<SendRegistrationEmailPayload>(
     if (response.ok) {
       const result = await response.json();
       resendMessageId = result.id;
-      console.log(`Registration email sent: ${result.id} to ${recipientEmail}`);
+      console.log(`Registration email sent: ${result.id}`);
     } else {
-      const err = await response.json();
+      await response.text();
       sendStatus = 'failed';
-      errorMessage = JSON.stringify(err);
-      console.error('Resend API error:', err);
+      errorMessage = `provider_http_${response.status}`;
+      console.error('Resend API error', { status: response.status });
     }
 
     // Write email_log
-    const { data: logRow } = await supabase
+    const { data: logRow, error: logError } = await supabase
       .from('email_log')
       .insert({
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
         related_id: registrationId,
+        show_id: registration.show_id,
         resend_message_id: resendMessageId,
         status: sendStatus,
         error_message: errorMessage,
       })
       .select('id')
       .single();
+
+    requireEmailLogWrite(logError, 'send-registration-email');
 
     return {
       success: sendStatus === 'sent',

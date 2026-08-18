@@ -22,9 +22,24 @@ function createWrapper() {
     createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+function mockJudgeAssignments(data: unknown[] = []) {
+  mockSelect.mockReturnValueOnce({
+    eq: vi.fn().mockReturnValueOnce({
+      eq: vi.fn().mockResolvedValueOnce({ data, error: null }),
+    }),
+  });
+}
+
+function mockClassCapacity() {
+  mockSelect.mockReturnValueOnce({
+    eq: vi.fn().mockResolvedValueOnce({ data: [], error: null }),
+  });
+}
+
 describe('useJudgeDayCapacity', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSelect.mockReset();
   });
 
   it('returns empty array and no loading when showId is undefined', () => {
@@ -66,6 +81,8 @@ describe('useJudgeDayCapacity', () => {
         single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
       }),
     });
+    mockJudgeAssignments();
+    mockClassCapacity();
 
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
@@ -110,6 +127,8 @@ describe('useJudgeDayCapacity', () => {
         single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
       }),
     });
+    mockJudgeAssignments();
+    mockClassCapacity();
 
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
@@ -150,6 +169,8 @@ describe('useJudgeDayCapacity', () => {
         single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
       }),
     });
+    mockJudgeAssignments();
+    mockClassCapacity();
 
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
@@ -192,6 +213,8 @@ describe('useJudgeDayCapacity', () => {
         single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
       }),
     });
+    mockJudgeAssignments();
+    mockClassCapacity();
 
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
@@ -213,6 +236,7 @@ describe('useJudgeDayCapacity', () => {
         single: vi.fn().mockResolvedValueOnce({ data: null, error: null }),
       }),
     });
+    mockJudgeAssignments();
 
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
@@ -220,5 +244,56 @@ describe('useJudgeDayCapacity', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.error).toBe('DB error');
+  });
+
+  it.each([
+    { direction: 'above', override: 150 },
+    { direction: 'below', override: 80 },
+  ])('uses the $direction judge-day override instead of the show default', async ({ override }) => {
+    const mockSummaryData = [
+      {
+        show_id: 'show-1',
+        judge_id: 'judge-1',
+        judge_name: 'Jane Doe',
+        show_date: '2026-05-01',
+        class_ids: ['c1'],
+        class_names: ['Novice A'],
+        confirmed_count: override,
+        waitlist_count: 0,
+      },
+    ];
+
+    mockSelect.mockReturnValueOnce({
+      eq: vi.fn().mockResolvedValueOnce({ data: mockSummaryData, error: null }),
+    });
+    mockSelect.mockReturnValueOnce({
+      eq: vi.fn().mockReturnValueOnce({
+        single: vi.fn().mockResolvedValueOnce({
+          data: {
+            default_judge_day_capacity: 125,
+            mail_in_strategy: 'none',
+            mail_in_value: null,
+          },
+          error: null,
+        }),
+      }),
+    });
+    mockJudgeAssignments([
+      {
+        class_id: 'c1',
+        person_id: 'judge-1',
+        day_capacity_override: override,
+        trials: { date: '2026-05-01' },
+      },
+    ]);
+    mockClassCapacity();
+
+    const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.judgeDays[0]?.capacity).toBe(override);
+    expect(result.current.judgeDays[0]?.availableSpots).toBe(0);
   });
 });

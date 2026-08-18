@@ -7,7 +7,7 @@
  * Used by both LiveScoresheet (judge) and EntryScoresheet (secretary).
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 import type { AreaScore, ScoreData, ExtendedResult, ResolvedClassRules } from '../types';
 
@@ -87,6 +87,9 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   const [faultCount, setFaultCount] = useState(existingScore?.faultCount ?? 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // React state updates after the current event. A ref closes the gap where a
+  // rapid double tap can enter handleSubmit twice before isSubmitting renders.
+  const submitInFlightRef = useRef(false);
 
   const setQualifying = useCallback((value: ExtendedResult | '') => {
     setQualifyingRaw(value);
@@ -178,16 +181,26 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
   const handleSubmit = useCallback(
     async (onSubmit: (data: ScoreData) => void | Promise<void>, extra?: Partial<ScoreData>) => {
+      if (submitInFlightRef.current) return;
       const validation = validate();
       if (!validation.valid) return;
 
+      submitInFlightRef.current = true;
       setIsSubmitting(true);
       setSubmitError(null);
+      let submissionAccepted = true;
       try {
         await onSubmit(buildScoreData(extra));
       } catch (err) {
+        submissionAccepted = false;
         setSubmitError(err instanceof Error ? err.message : 'Score submission failed');
       } finally {
+        // A successful optimistic write may resolve while this scoresheet
+        // remains mounted (for example, the at-show Saved/Correct flow). Keep
+        // the synchronous guard latched until the caller resets or unmounts so
+        // a second tap cannot enqueue the same score. Failed writes throw,
+        // which clears the guard for a retry.
+        if (!submissionAccepted) submitInFlightRef.current = false;
         setIsSubmitting(false);
       }
     },
@@ -195,6 +208,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   );
 
   const reset = useCallback(() => {
+    submitInFlightRef.current = false;
     setAreas(initializeAreas(rules, areaNames));
     setQualifyingRaw('');
     setNonQualifyingReason('');

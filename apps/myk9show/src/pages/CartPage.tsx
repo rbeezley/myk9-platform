@@ -31,6 +31,7 @@ import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutN
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
+import { buildCartFulfillmentView } from '@/features/payments/cartFulfillmentView';
 
 function createSplitCheckoutCorrelationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -57,7 +58,9 @@ export default function CartPage() {
   const checkoutWithWaitlist = useCartStore(state => state.checkoutWithWaitlist);
   const {
     judgeDays,
+    fullClassIds,
     isLoading: isCapacityLoading,
+    isFetching: isCapacityFetching,
     error: capacityError,
   } = useJudgeDayCapacity(cart?.show_id);
 
@@ -84,6 +87,18 @@ export default function CartPage() {
     next.delete(CHECKOUT_RETURN_PARAM);
     setSearchParams(next, { replace: true });
   };
+
+  // MYK9-122: the cart, its totals, and checkout must all be driven by ONE
+  // rule. This is the same split checkout runs — computed here so a full class
+  // reads as a wait-list request up front instead of looking payable, moving
+  // the total, and then disappearing once checkout routes it to the wait list.
+  // `null` while capacity is loading or errored: unknown availability must not
+  // be presented as a final amount.
+  const capacityResolved = !isCapacityLoading && !isCapacityFetching && !capacityError;
+  const fulfillment = useMemo(
+    () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, fullClassIds),
+    [items, judgeDays, fullClassIds, capacityResolved]
+  );
 
   const recoveryShowId = searchParams.get('showId') ?? undefined;
   const recoveryEntryIdsParam = searchParams.get('entryIds') ?? '';
@@ -156,7 +171,7 @@ export default function CartPage() {
       setError('Could not verify your exhibitor profile. Please sign in again.');
       return;
     }
-    if (isCapacityLoading) {
+    if (isCapacityLoading || isCapacityFetching) {
       setError('Class availability is still loading. Please try checkout again in a moment.');
       return;
     }
@@ -170,7 +185,7 @@ export default function CartPage() {
     setError(null);
 
     try {
-      const splitDecision = splitCartItemsByJudgeDayCapacity(items, judgeDays);
+      const splitDecision = splitCartItemsByJudgeDayCapacity(items, judgeDays, fullClassIds);
       const blockedItems = splitDecision.blockedItems;
 
       if (blockedItems.length > 0) {
@@ -390,6 +405,7 @@ export default function CartPage() {
                 item={item}
                 onRemove={() => handleRemoveItem(item.id)}
                 isRemoving={removingItemId === item.id}
+                fulfillment={fulfillment.fulfillmentByItemId[item.id] ?? 'payable'}
               />
             ))}
           </div>
@@ -401,6 +417,8 @@ export default function CartPage() {
                 onCheckout={handleCheckout}
                 onContinueShopping={handleContinueShopping}
                 isCheckingOut={isCheckingOut}
+                fulfillment={fulfillment}
+                capacityUnavailable={Boolean(capacityError)}
               />
             </div>
           </div>

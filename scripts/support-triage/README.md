@@ -14,6 +14,11 @@ and emails them to the operator. Design rationale:
   the model entirely and get a reason-only email.
 - The carve-out is re-checked against a fresh read of the thread immediately before
   sending, so a trigger that arrives mid-pass still blocks the send.
+- The send itself is a single database statement
+  (`support_triage_send_operator_reply`) gated on the id of the exhibitor message it
+  answers. A reply that arrives after the agent's read — from a second worker or from
+  you, in the inbox — makes the insert match nothing, so the agent no-ops instead of
+  duplicating. Resolving the ticket also blocks it.
 - It sends at most 3 auto-replies per pass. Exceeding that sends nothing further and
   emails you that the cap engaged.
 - `CANNED_ANSWERS` starts empty, so today it auto-sends nothing at all — every ticket
@@ -39,8 +44,12 @@ not semantic. Phrasings that avoid those keywords — "can I get my money back" 
 caught by the payment carve-out. Pinned by a regression test in `carveOuts.test.ts`.
 This is inert while `CANNED_ANSWERS` is empty; revisit before promoting the first answer.
 
-Also open: [MYK9-135](https://linear.app/myk9-platform/issue/MYK9-135/support-triage-auto-send-make-the-send-guard-atomic)
-— the send guard is check-then-insert rather than atomic.
+One window remains after [MYK9-135](https://linear.app/myk9-platform/issue/MYK9-135/support-triage-auto-send-make-the-send-guard-atomic):
+the conditional insert reads a snapshot taken when its statement begins, so an inbox
+reply that commits during that statement is not seen. Concurrent triage workers are
+serialised by a row lock and are fully covered; closing the human window as well would
+mean routing the inbox's own writes through the same lock. Worth doing only if a
+duplicate is ever actually observed.
 
 ## Required GitHub secrets
 

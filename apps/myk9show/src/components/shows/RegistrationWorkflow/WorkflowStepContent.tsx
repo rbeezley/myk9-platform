@@ -57,6 +57,10 @@ interface WorkflowStepContentProps {
   registrationId: string | undefined;
   registrationNumber: string | undefined;
   currentRegistrationTotalFees: number;
+  capacityReady?: boolean | undefined;
+  capacityError?: string | null | undefined;
+  waitlistClassIds?: ReadonlySet<string> | undefined;
+  blockedClassIds?: ReadonlySet<string> | undefined;
   /** Armband assignments from the RPC call */
   armbandAssignments?: ArmbandAssignment[];
   entryOutcomes?: EntrySubmissionOutcome[] | undefined;
@@ -93,6 +97,10 @@ export function WorkflowStepContent({
   registrationId,
   registrationNumber,
   currentRegistrationTotalFees,
+  capacityReady = true,
+  capacityError,
+  waitlistClassIds = new Set(),
+  blockedClassIds = new Set(),
   armbandAssignments,
   entryOutcomes,
   onDogSelectionChange,
@@ -386,6 +394,10 @@ export function WorkflowStepContent({
             agreedToEntryAgreement={agreedToEntryAgreement}
             onAgreementChange={onAgreementChange}
             onClassSelectionChange={onClassSelectionChange}
+            capacityReady={capacityReady}
+            capacityError={capacityError}
+            waitlistClassIds={waitlistClassIds}
+            blockedClassIds={blockedClassIds}
           />
         </PaymentErrorBoundary>
       )}

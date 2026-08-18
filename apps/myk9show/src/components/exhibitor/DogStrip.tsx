@@ -59,12 +59,30 @@ export const DogStrip: React.FC<DogStripProps> = ({
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-2">
-        My Dogs
-        <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
-          {dogs.length}
-        </span>
-      </p>
+      {/* INTENT: "New Dog" lives in the section header, NOT in the rail below
+          (MYK9-124). As the rail's last child its reachability was a function
+          of how many dogs someone owns: cards are 208px + 12px gap and the
+          content column is ~672px at 150-200% browser zoom, so three items fit
+          and any exhibitor with 3+ dogs had the action scrolled out of sight —
+          with `hide-scrollbar` there was not even a scrollbar to hint at it.
+          Keep it out of the scroller, and keep the 44px target: the exhibitors
+          most likely to zoom are the ones least able to hit a small control. */}
+      <div className="mb-2 flex items-center gap-2">
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          My Dogs
+          <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
+            {dogs.length}
+          </span>
+        </p>
+        <button
+          type="button"
+          onClick={() => (onAddDog ? onAddDog() : navigate('/dogs'))}
+          className="ml-auto inline-flex min-h-[44px] flex-shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border px-3 text-xs font-medium text-muted-foreground hover:bg-accent/30 active:scale-[0.98] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
+          <PawPrint className="h-4 w-4" />
+          New Dog
+        </button>
+      </div>
       <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar scroll-shadow-x">
         {dogs.map(dog => (
           <DogStripCard
@@ -75,14 +93,6 @@ export const DogStrip: React.FC<DogStripProps> = ({
             upcomingClassCount={upcomingClassCountByDog[dog.id] ?? 0}
           />
         ))}
-        <button
-          type="button"
-          onClick={() => (onAddDog ? onAddDog() : navigate('/dogs'))}
-          className="flex-shrink-0 w-52 rounded-xl border border-dashed border-border p-3 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:bg-accent/30 active:scale-[0.98] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-        >
-          <PawPrint className="h-5 w-5" />
-          <span className="text-xs">New Dog</span>
-        </button>
       </div>
     </div>
   );

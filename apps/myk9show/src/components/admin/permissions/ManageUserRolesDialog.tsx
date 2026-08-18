@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Shield, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,6 +37,8 @@ interface CurrentRoleAssignment {
   roleId: string;
   roleName: string;
   clubId: string | null;
+  showId: string | null;
+  expiresAt: string | null;
 }
 
 interface ManageUserRolesDialogProps {
@@ -69,7 +72,7 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('id, role_id, club_id, roles(name)')
+        .select('id, role_id, club_id, show_id, expires_at, roles(name)')
         .eq('user_id', user.id)
         .eq('is_active', true);
       if (error) throw error;
@@ -78,6 +81,8 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
         roleId: row.role_id as string,
         roleName: (row.roles as { name: string } | null)?.name ?? '',
         clubId: (row.club_id as string | null) ?? null,
+        showId: (row.show_id as string | null) ?? null,
+        expiresAt: (row.expires_at as string | null) ?? null,
       }));
     },
     enabled: open,
@@ -259,6 +264,18 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
   const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'this user';
   const isLoading = loadingRoles || loadingClubs;
 
+  // Grants this dialog cannot edit: show-scoped or expiring rows, which only
+  // approve_role_request writes today. Surfacing them read-only keeps them from
+  // becoming invisible now that /admin/permissions/users is retired.
+  const otherGrants = currentAssignments.filter(a => a.showId !== null || a.expiresAt !== null);
+
+  // A role with any uneditable grant must not be touchable here at all: revoking
+  // an unscoped role wipes every row for that role (no scope filter), and
+  // removing a club from a scoped role revokes by role+club regardless of
+  // show/expiry — either path would silently destroy the grant this dialog
+  // just told the admin it can't manage. Lock the whole role read-only instead.
+  const rolesWithOtherGrants = new Set(otherGrants.map(grant => grant.roleName));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
@@ -286,6 +303,7 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
             const availableToAdd = clubs.filter(c => !assignedClubs.includes(c.id));
 
             const isLocked = LOCKED_ROLES.has(roleName);
+            const isOtherGranted = rolesWithOtherGrants.has(roleName);
 
             return (
               <div key={roleName} className="space-y-2">
@@ -294,16 +312,21 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
                     id={`role-${roleName}`}
                     checked={isLocked ? true : checked}
                     onCheckedChange={c => handleToggle(roleName, !!c)}
-                    disabled={isLoading || isLocked}
+                    disabled={isLoading || isLocked || isOtherGranted}
                   />
                   <Label
                     htmlFor={`role-${roleName}`}
                     className={
-                      isLocked ? 'font-medium text-muted-foreground' : 'cursor-pointer font-medium'
+                      isLocked || isOtherGranted
+                        ? 'font-medium text-muted-foreground'
+                        : 'cursor-pointer font-medium'
                     }
                   >
                     {ROLE_LABELS[roleName] ?? roleName}
                     {isLocked && <span className="ml-2 text-xs">(always assigned)</span>}
+                    {!isLocked && isOtherGranted && (
+                      <span className="ml-2 text-xs">(managed on the assignments ledger)</span>
+                    )}
                   </Label>
                 </div>
 
@@ -315,20 +338,22 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
                         {assignedClubs.map(clubId => (
                           <Badge key={clubId} variant="secondary" className="gap-1 pr-1">
                             {clubName(clubId)}
-                            <button
-                              onClick={() => handleRemoveClub(roleName, clubId)}
-                              className="ml-0.5 rounded hover:text-destructive"
-                              aria-label={`Remove ${clubName(clubId)}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+                            {!isOtherGranted && (
+                              <button
+                                onClick={() => handleRemoveClub(roleName, clubId)}
+                                className="ml-0.5 rounded hover:text-destructive"
+                                aria-label={`Remove ${clubName(clubId)}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
                           </Badge>
                         ))}
                       </div>
                     )}
 
                     {/* Add another club */}
-                    {availableToAdd.length > 0 && (
+                    {!isOtherGranted && availableToAdd.length > 0 && (
                       <Select onValueChange={v => handleAddClub(roleName, v)}>
                         <SelectTrigger className="h-8 text-sm w-full">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -346,15 +371,43 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
                       </Select>
                     )}
 
-                    {assignedClubs.length === 0 && availableToAdd.length === 0 && (
-                      <p className="text-xs text-muted-foreground">No clubs available.</p>
-                    )}
+                    {!isOtherGranted &&
+                      assignedClubs.length === 0 &&
+                      availableToAdd.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No clubs available.</p>
+                      )}
                   </div>
                 )}
               </div>
             );
           })}
         </div>
+
+        {otherGrants.length > 0 && (
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="font-medium">Other grants</p>
+            <p className="text-xs text-muted-foreground">
+              These were granted with a show or an end date, so they are managed on the assignments
+              ledger.
+            </p>
+            <ul className="space-y-1">
+              {otherGrants.map(grant => (
+                <li key={grant.userRoleId} className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {ROLE_LABELS[grant.roleName] ?? grant.roleName}
+                  </span>
+                  {grant.showId && <> — for one show</>}
+                  {grant.expiresAt && (
+                    <> — expires {new Date(grant.expiresAt).toLocaleDateString()}</>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <Button asChild variant="link" className="h-auto p-0">
+              <Link to="/admin/permissions?tab=assignments">View all assignments</Link>
+            </Button>
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>

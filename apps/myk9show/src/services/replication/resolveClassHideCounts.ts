@@ -19,23 +19,6 @@ import { logger } from '@/utils/logger';
  * which is indistinguishable from "no counts set". Sync must not break either
  * way — hide counts are enrichment, not the class record.
  */
-type ShowClassHideCount = { class_id: string; num_hides: number | null };
-
-/**
- * `get_show_class_hide_counts` ships in 20260731160000. `Database['public']['Functions']`
- * is generated from the APPLIED database, so the name is absent until that migration
- * is pushed — hence the narrow cast rather than a guessed signature. Regenerate
- * `@myk9/supabase` types after the push and this can go.
- */
-function rpcShowClassHideCounts(showId: string) {
-  return (
-    supabase.rpc as unknown as (
-      fn: string,
-      args: Record<string, unknown>
-    ) => Promise<{ data: ShowClassHideCount[] | null; error: { message: string } | null }>
-  )('get_show_class_hide_counts', { p_show_id: showId });
-}
-
 export async function resolveHideCountsForClassRows(
   rows: ReadonlyArray<{ id: string; trial_id: string | null }>
 ): Promise<Map<string, number>> {
@@ -64,7 +47,9 @@ export async function resolveHideCountsForClassRows(
 
   await Promise.all(
     showIds.map(async showId => {
-      const { data, error } = await rpcShowClassHideCounts(showId);
+      const { data, error } = await supabase.rpc('get_show_class_hide_counts', {
+        p_show_id: showId,
+      });
 
       if (error) {
         logger.warn(

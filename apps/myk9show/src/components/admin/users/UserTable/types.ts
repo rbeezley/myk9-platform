@@ -21,7 +21,14 @@ export interface UserTableProps {
   selectedUsers: import('@/pages/admin/UserManagementPage').SelectedUser[];
   onSelectUser: (user: import('@/types/user-types').User, selected: boolean) => void;
   onSelectAll: (selected: boolean) => void;
-  onUserClick: (user: import('@/types/user-types').User) => void;
+  /**
+   * Read intent — the row click and "Open profile page". The page owns the
+   * navigation because only it knows the list state the person's breadcrumb
+   * must link back to.
+   */
+  onViewUser: (user: import('@/types/user-types').User) => void;
+  /** Write intent — "Edit user", which opens the panel over this list. */
+  onEditUser: (user: import('@/types/user-types').User) => void;
   onManageRoles?: (user: import('@/types/user-types').User) => void;
   currentPage: number;
   totalPages: number;

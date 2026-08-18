@@ -178,7 +178,9 @@ describe('useAtShowScoresheet completion wiring', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
-      await result.current.submit({ resultText: 'Qualified' } as never);
+      await expect(result.current.submit({ resultText: 'Qualified' } as never)).rejects.toThrow(
+        /score was not saved/i
+      );
     });
 
     expect(result.current.submitError).toContain('offline queue unavailable');

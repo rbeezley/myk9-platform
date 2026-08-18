@@ -4,6 +4,7 @@ import type { User } from '@/types/user-types';
 import {
   getAllUsers,
   getUserById,
+  getDeletedUserById,
   createUser,
   updateUser,
   deleteUser,
@@ -108,6 +109,11 @@ const UserService = {
   create: async (userData: DbUserInsert): Promise<User> => {
     const result = await createUser(userData);
     if (result.error) {
+      // Deliberately not carrying the code, unlike `update` below (MYK9-175).
+      // The only caller, CreateUserDialog, never reads it: it matches
+      // /duplicate key|already exists|23505/ against String(error) and
+      // substitutes its own copy, which works on the translated and the raw
+      // message alike. Add the code here if a caller ever needs to branch on it.
       throw new Error(result.error.message);
     }
     return mapDbUserToUser(result.data);
@@ -117,7 +123,10 @@ const UserService = {
     const dbUpdates = mapUserToDbUpdate(updates);
     const result = await updateUser(id, dbUpdates);
     if (result.error) {
-      throw new Error(result.error.message);
+      // Carry the code, not just the message: `getUserFriendlyError` maps by
+      // code in production and discards the message, so a bare `new Error`
+      // turns an actionable refusal into "Failed to update user" (MYK9-136).
+      throw Object.assign(new Error(result.error.message), { code: result.error.code });
     }
     return mapDbUserToUser(result.data);
   },
@@ -220,6 +229,30 @@ export function useUserQuery(id: string) {
     queryKey: queryKeys.users.detail(id),
     queryFn: () => UserService.getById(id),
     enabled: !!id,
+  });
+}
+
+/**
+ * The record of a person who has been REMOVED.
+ *
+ * Separate from `useUserQuery` because it is a different read path with a
+ * different audience: `getUserById` filters `deleted_at IS NULL`, and the RLS
+ * behind it hides removed people from every role, so the only way to see one is
+ * the admin-gated RPC. Pass `enabled` false for viewers who have no business
+ * seeing removed people — the RPC refuses them anyway, but asking is noise.
+ *
+ * Resolves to null for a live person or an unknown id, so a caller can treat
+ * "not removed" and "not there" the same way.
+ */
+export function useDeletedUserQuery(id: string, enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.users.detail(id), 'deleted'],
+    queryFn: async (): Promise<User | null> => {
+      const { data, error } = await getDeletedUserById(id);
+      if (error) throw error;
+      return data ? mapDbUserToUser(data as unknown as DbUser) : null;
+    },
+    enabled: !!id && enabled,
   });
 }
 

@@ -16,15 +16,20 @@ VALUES
   ('00000000-0000-0000-0000-000000000761', 'Paperwork Club'),
   ('00000000-0000-0000-0000-000000000762', 'Other Paperwork Club');
 
-INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES
+  ('00000000-0000-0000-0000-000000000761', '00000000-0000-0000-0000-000000000711', 'active'),
+  ('00000000-0000-0000-0000-000000000761', '00000000-0000-0000-0000-000000000712', 'active');
+
+INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id, status)
 VALUES
   (
     '00000000-0000-0000-0000-000000000721', 'Paperwork Show', 'AKC',
-    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000761'
+    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000761', 'published'
   ),
   (
     '00000000-0000-0000-0000-000000000722', 'Other Show', 'AKC',
-    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000762'
+    CURRENT_DATE, CURRENT_DATE, false, '00000000-0000-0000-0000-000000000762', 'published'
   );
 
 INSERT INTO public.trials (id, show_id, name, date)
@@ -33,11 +38,11 @@ VALUES ('00000000-0000-0000-0000-000000000731', '00000000-0000-0000-0000-0000000
 INSERT INTO public.classes (id, trial_id, name, status)
 VALUES ('00000000-0000-0000-0000-000000000741', '00000000-0000-0000-0000-000000000731', 'Container Novice', 'upcoming');
 
--- club_id is mandatory for secretary/club_admin grants
--- (public.enforce_club_id_for_scoped_roles).
+-- Paperwork management uses can_manage_show(), so these are club-scoped
+-- secretaries with active membership rather than show-scoped assignments.
 INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
 SELECT
-  person_id, role_id, '00000000-0000-0000-0000-000000000721',
+  person_id, role_id, NULL,
   '00000000-0000-0000-0000-000000000761', true, auth_id
 FROM (
   VALUES

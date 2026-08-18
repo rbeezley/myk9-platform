@@ -42,6 +42,23 @@ const HELPER_MODULE = resolve(SRC, 'services/database/databaseError');
 const parse = (source: string) =>
   ts.createSourceFile('f.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 
+/**
+ * The name a member declares, however it is written. `getText()` would return
+ * `'createDatabaseError'` with the quotes for a string key and
+ * `['createDatabaseError']` for a computed one, so comparing source text misses
+ * both. The name node carries the value; ask it instead.
+ */
+const memberName = (name: ts.PropertyName | undefined): string | undefined => {
+  if (!name) return undefined;
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  if (ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression)) {
+    return name.expression.text;
+  }
+  return undefined;
+};
+
 /** Where a specifier points, or null for a bare package import. */
 const resolveSpecifier = (specifier: string, fromFile: string): string | null => {
   if (specifier.startsWith('@/')) return resolve(SRC, specifier.slice(2));
@@ -108,7 +125,7 @@ export const offendingProperties = (source: string, fromFile: string): string[] 
   };
 
   const visit = (node: ts.Node): void => {
-    if (ts.isPropertyAssignment(node) && node.name.getText() === 'createDatabaseError') {
+    if (ts.isPropertyAssignment(node) && memberName(node.name) === 'createDatabaseError') {
       if (!isRealHelper(node.initializer)) offenders.push(node.getText().slice(0, 60));
     }
     // `{ createDatabaseError }` — the binding itself is the value.
@@ -125,7 +142,7 @@ export const offendingProperties = (source: string, fromFile: string): string[] 
       (ts.isMethodDeclaration(node) ||
         ts.isGetAccessorDeclaration(node) ||
         ts.isSetAccessorDeclaration(node)) &&
-      node.name.getText() === 'createDatabaseError'
+      memberName(node.name) === 'createDatabaseError'
     ) {
       offenders.push(`${ts.SyntaxKind[node.kind]} createDatabaseError`);
     }
@@ -220,6 +237,18 @@ describe('the guard itself', () => {
   it('sees shorthand written inline, not only on its own line', () => {
     // No trailing comma, no newline — the shape the line-anchored check missed.
     expect(check(`vi.mock('m', () => ({ supabase, createDatabaseError }));`)).toHaveLength(1);
+  });
+
+  it('rejects a quoted or computed key, which source text would not match', () => {
+    expect(check(`vi.mock('m', () => ({ 'createDatabaseError': fakeError }));`)).toHaveLength(1);
+    expect(check(`vi.mock('m', () => ({ ['createDatabaseError']: fakeError }));`)).toHaveLength(1);
+    expect(
+      check(`${REAL}vi.mock('m', () => ({ 'createDatabaseError': (e: unknown) => e }));`)
+    ).toHaveLength(1);
+    // The quoted form of the genuine article is still fine.
+    expect(
+      check(`${REAL}vi.mock('m', () => ({ 'createDatabaseError': createDatabaseError }));`)
+    ).toEqual([]);
   });
 
   it('rejects the method and accessor forms, which are neither assignment nor shorthand', () => {

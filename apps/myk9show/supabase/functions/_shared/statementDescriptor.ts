@@ -42,8 +42,16 @@ export function formatStatementDescriptorSuffix(name: string | null | undefined)
     suffix = candidate;
   }
 
-  if (suffix) {
+  if (suffix && /[A-Z]/.test(suffix)) {
     return suffix;
+  }
+
+  const abbreviation = words
+    .map(word => word[0])
+    .join('')
+    .slice(0, MAX_SUFFIX_LENGTH);
+  if (/[A-Z]/.test(abbreviation)) {
+    return abbreviation;
   }
 
   // A single long word has no word boundary to preserve. The fixed budget

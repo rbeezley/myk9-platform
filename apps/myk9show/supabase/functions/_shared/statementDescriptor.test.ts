@@ -19,6 +19,7 @@ describe('formatStatementDescriptorSuffix', () => {
   it('falls back to a value containing a letter when the name is only punctuation', () => {
     expect(formatStatementDescriptorSuffix('<>\\"\' *&')).toBe('MYK9SHOW');
     expect(formatStatementDescriptorSuffix('1234567890')).toBe('MYK9SHOW');
+    expect(formatStatementDescriptorSuffix('1234567890 Club')).toBe('1C');
   });
 
   it('truncates at a word boundary within the safe suffix budget', () => {

@@ -46,6 +46,7 @@ import { ExhibitorOnboardingChecker } from './components/exhibitor';
 
 // PWA Install
 import { PWAInstallBanner } from './components/pwa/PWAInstallBanner';
+import { RbacOfflineNotice } from './components/common/RbacOfflineNotice';
 
 // Error Handling
 import { GlobalErrorHandler } from './services/error/GlobalErrorHandler';
@@ -248,6 +249,7 @@ function App() {
                         <AppShellMobileNavProvider>
                           <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
                             <PWAInstallBanner />
+                            <RbacOfflineNotice />
                             <AppHeader />
                             <NotificationCenter />
                             <AppToaster />

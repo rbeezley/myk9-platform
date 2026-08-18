@@ -32,7 +32,11 @@ vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: mockRbacService,
 }));
 
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
+import {
+  loadRbacPermissionsCache,
+  saveRbacPermissionsCache,
+} from '@/context/rbacPermissionsCache';
 
 const renderWithAuthProvider = (children: ReactNode, initialRoute = '/') =>
   renderWithProvider(AuthProvider, children, initialRoute);
@@ -388,6 +392,176 @@ describe('AuthContext RBAC lifecycle', () => {
 
     expect(screen.getByTestId('same-user-race-roles')).toHaveTextContent(UserRole.EXHIBITOR);
     expect(screen.getByTestId('same-user-race-roles')).not.toHaveTextContent(UserRole.SITE_ADMIN);
+  });
+
+  it('persists permissions to the local cache on a successful load', async () => {
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.SECRETARY));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return <span data-testid="persist-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>;
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('persist-roles')).toHaveTextContent(UserRole.SECRETARY);
+    });
+
+    const cached = loadRbacPermissionsCache(mockUser.id);
+    expect(cached?.data.roles[0]?.role?.name).toBe(UserRole.SECRETARY);
+  });
+
+  it('cold boot offline: hydrates roles from the persisted cache and renders gated routes', async () => {
+    saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    // Offline network failure — matches the transient pattern, so the loader
+    // retries 3x before settling, exactly like a real cold boot with no network.
+    mockRbacService.getUserPermissions.mockRejectedValue(
+      new Error('Failed to get user permissions: TypeError: Failed to fetch')
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="offline-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+          <span data-testid="offline-from-cache">{auth.rbacFromCacheAt ?? 'live'}</span>
+          <ProtectedRoute requiredRole={UserRole.SECRETARY} fallback={<span>denied</span>}>
+            <span>secretary surface</span>
+          </ProtectedRoute>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('offline-roles')).toHaveTextContent(UserRole.SECRETARY);
+      },
+      { timeout: 5000 }
+    );
+    expect(screen.getByTestId('offline-from-cache')).not.toHaveTextContent('live');
+    expect(screen.getByText('secretary surface')).toBeInTheDocument();
+    expect(screen.queryByText('denied')).not.toBeInTheDocument();
+  });
+
+  it('cold boot offline with no cache still settles at zero roles with an error', async () => {
+    mockRbacService.getUserPermissions.mockRejectedValue(
+      new Error('Failed to get user permissions: TypeError: Failed to fetch')
+    );
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="no-cache-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+          <span data-testid="no-cache-error">{auth.rbacError ?? 'none'}</span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('no-cache-error')).not.toHaveTextContent('none');
+      },
+      { timeout: 5000 }
+    );
+    expect(screen.getByTestId('no-cache-roles')).toHaveTextContent('none');
+  });
+
+  it('a successful load after cache hydration clears the from-cache marker', async () => {
+    saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    mockRbacService.getUserPermissions
+      .mockRejectedValueOnce(new Error('boom: server exploded'))
+      .mockResolvedValueOnce(accessForRole(UserRole.SECRETARY));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="marker-from-cache">{auth.rbacFromCacheAt ?? 'live'}</span>
+          <button type="button" onClick={() => void auth.refreshPermissions()}>
+            Reconnect refresh
+          </button>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-from-cache')).not.toHaveTextContent('live');
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect refresh' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('marker-from-cache')).toHaveTextContent('live');
+    });
+  });
+
+  it('warm path: preserves loaded roles and keeps gated routes open when a refresh fails', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockRbacService.getUserPermissions
+      .mockResolvedValueOnce(accessForRole(UserRole.SECRETARY))
+      .mockRejectedValue(new Error('boom: refresh failed'));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="warm-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+          <ProtectedRoute requiredRole={UserRole.SECRETARY} fallback={<span>denied</span>}>
+            <span>secretary surface</span>
+          </ProtectedRoute>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('warm-roles')).toHaveTextContent(UserRole.SECRETARY);
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1000);
+    });
+
+    await waitFor(() => {
+      expect(mockRbacService.getUserPermissions).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByTestId('warm-roles')).toHaveTextContent(UserRole.SECRETARY);
+    expect(screen.getByText('secretary surface')).toBeInTheDocument();
+    expect(screen.queryByText('denied')).not.toBeInTheDocument();
+  });
+
+  it('clears the prior user\'s persisted cache when the account changes', async () => {
+    mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.SECRETARY));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return <span data-testid="switch-user">{auth.user?.id ?? 'signed-out'}</span>;
+    };
+
+    const view = renderWithAuthProvider(<TestComponent />);
+    await waitFor(() => {
+      expect(loadRbacPermissionsCache(mockUser.id)).not.toBeNull();
+    });
+
+    mockUseAuth.mockReturnValue({
+      ...mockAuthReturn,
+      user: null,
+    });
+    view.rerender(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('switch-user')).toHaveTextContent('signed-out');
+      expect(loadRbacPermissionsCache(mockUser.id)).toBeNull();
+    });
   });
 
   it('invalidates the prior user service cache on sign-out', async () => {

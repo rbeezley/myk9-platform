@@ -54,9 +54,9 @@ const resolveSpecifier = (specifier: string, fromFile: string): string | null =>
  * resolved path: `./localDatabaseError` merely *looks* like the helper, and a
  * guard that trusts appearances is one rename from useless.
  */
-export const helperBindings = (source: string, fromFile: string): Set<string> => {
+const bindingsIn = (sourceFile: ts.SourceFile, fromFile: string): Set<string> => {
   const names = new Set<string>();
-  for (const statement of parse(source).statements) {
+  for (const statement of sourceFile.statements) {
     if (!ts.isImportDeclaration(statement)) continue;
     if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
     if (resolveSpecifier(statement.moduleSpecifier.text, fromFile) !== HELPER_MODULE) continue;
@@ -70,13 +70,27 @@ export const helperBindings = (source: string, fromFile: string): Set<string> =>
   return names;
 };
 
+export const helperBindings = (source: string, fromFile: string): Set<string> =>
+  bindingsIn(parse(source), fromFile);
+
 /**
- * Every `createDatabaseError` property that is not the real helper. Covers
- * `{ createDatabaseError }`, `{ createDatabaseError: x }` and any body, in one
- * pass, because the parser has already normalised how they were written.
+ * Every `createDatabaseError` member that is not the real helper.
+ *
+ * The parser makes the search space finite, which is the point: an object
+ * literal member is a property assignment, a shorthand, a method, an accessor,
+ * or a spread — and TypeScript gives each its own node kind. All but spread are
+ * handled below, so the enumeration is exhaustive rather than a list of shapes
+ * that happen to have been reported.
+ *
+ * Spread is the acknowledged limit: `...someObject` can carry any key, and no
+ * amount of parsing reveals what without resolving the value. The one spread
+ * form worth writing here — `...(await vi.importActual('…/databaseError'))` —
+ * yields the real helper anyway, so the gap is narrow and stated rather than
+ * papered over.
  */
 export const offendingProperties = (source: string, fromFile: string): string[] => {
-  const allowed = helperBindings(source, fromFile);
+  const sourceFile = parse(source);
+  const allowed = bindingsIn(sourceFile, fromFile);
   const offenders: string[] = [];
 
   const isRealHelper = (value: ts.Expression): boolean => {
@@ -105,16 +119,36 @@ export const offendingProperties = (source: string, fromFile: string): string[] 
     ) {
       offenders.push('shorthand createDatabaseError (not the imported helper)');
     }
+    // `{ createDatabaseError(error) { … } }` and the accessor forms. These carry
+    // a body by definition, so there is no version of them that is the helper.
+    if (
+      (ts.isMethodDeclaration(node) ||
+        ts.isGetAccessorDeclaration(node) ||
+        ts.isSetAccessorDeclaration(node)) &&
+      node.name.getText() === 'createDatabaseError'
+    ) {
+      offenders.push(`${ts.SyntaxKind[node.kind]} createDatabaseError`);
+    }
     ts.forEachChild(node, visit);
   };
 
-  visit(parse(source));
+  visit(sourceFile);
   return offenders;
 };
 
 const testFiles = readdirSync(SRC, { recursive: true, encoding: 'utf8' })
   .filter(p => /\.test\.tsx?$/.test(p) && !p.endsWith(SELF))
   .map(p => ({ path: p, source: readFileSync(resolve(SRC, p), 'utf8') }));
+
+/**
+ * Only these get parsed. Parsing all ~1700 test files took 27s on CI hardware
+ * and blew the 10s timeout — a guard that times out is a guard that fails the
+ * build for the wrong reason. The property name must appear literally for any
+ * declaration form to match (a computed `['createDatabaseError']` still
+ * contains it), so a file without the string cannot be an offender and the
+ * filter costs no coverage.
+ */
+const candidates = testFiles.filter(({ source }) => source.includes('createDatabaseError'));
 
 describe('the guard itself', () => {
   // A file where the swept tests sit, so relative specifiers resolve.
@@ -187,6 +221,20 @@ describe('the guard itself', () => {
     // No trailing comma, no newline — the shape the line-anchored check missed.
     expect(check(`vi.mock('m', () => ({ supabase, createDatabaseError }));`)).toHaveLength(1);
   });
+
+  it('rejects the method and accessor forms, which are neither assignment nor shorthand', () => {
+    expect(
+      check(`vi.mock('m', () => ({ createDatabaseError(error: unknown) { return error; } }));`)
+    ).toHaveLength(1);
+    expect(
+      check(
+        `${REAL}vi.mock('m', () => ({ createDatabaseError(error: unknown) { return error; } }));`
+      )
+    ).toHaveLength(1);
+    expect(
+      check(`vi.mock('m', () => ({ get createDatabaseError() { return fake; } }));`)
+    ).toHaveLength(1);
+  });
 });
 
 describe('no test re-implements createDatabaseError', () => {
@@ -194,8 +242,14 @@ describe('no test re-implements createDatabaseError', () => {
     expect(testFiles.length).toBeGreaterThan(500);
   });
 
+  it('narrows to the files that mention the helper at all', () => {
+    // If this ever approaches the full suite, the pre-filter has stopped working.
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates.length).toBeLessThan(testFiles.length / 4);
+  });
+
   it('declares no hand-written implementation in any vi.mock factory', () => {
-    const offenders = testFiles
+    const offenders = candidates
       .filter(({ path, source }) => offendingProperties(source, resolve(SRC, path)).length > 0)
       .map(({ path }) => path);
 

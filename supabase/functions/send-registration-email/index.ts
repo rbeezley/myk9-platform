@@ -2,6 +2,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
@@ -226,6 +227,16 @@ handle<SendRegistrationEmailPayload>(
 
     const recipientEmail = registration.person?.email;
     if (!recipientEmail) {
+      const { error: logError } = await supabase.from('email_log').insert({
+        recipient_email: null,
+        email_type: 'registration_confirmation',
+        related_id: registrationId,
+        show_id: registration.show_id,
+        status: 'failed',
+        error_message: 'missing_recipient',
+        status_updated_at: new Date().toISOString(),
+      });
+      requireEmailLogWrite(logError, 'send-registration-email');
       throw new HttpError(400, 'No email address for registrant');
     }
 
@@ -273,15 +284,30 @@ handle<SendRegistrationEmailPayload>(
       emailPayload.cc = secretaryCc;
     }
 
-    const response = await sendResendEmailWithRetry({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${resendApiKey}`,
-        'Idempotency-Key': registrationId,
-      },
-      body: JSON.stringify(emailPayload),
-    });
+    let response: Response;
+    try {
+      response = await sendResendEmailWithRetry({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+          'Idempotency-Key': registrationId,
+        },
+        body: JSON.stringify(emailPayload),
+      });
+    } catch {
+      const { error: logError } = await supabase.from('email_log').insert({
+        recipient_email: recipientEmail,
+        email_type: 'registration_confirmation',
+        related_id: registrationId,
+        show_id: registration.show_id,
+        status: 'failed',
+        error_message: 'email_delivery_error',
+        status_updated_at: new Date().toISOString(),
+      });
+      requireEmailLogWrite(logError, 'send-registration-email');
+      return { success: false };
+    }
 
     let resendMessageId: string | undefined;
     let sendStatus = 'sent';
@@ -290,27 +316,30 @@ handle<SendRegistrationEmailPayload>(
     if (response.ok) {
       const result = await response.json();
       resendMessageId = result.id;
-      console.log(`Registration email sent: ${result.id} to ${recipientEmail}`);
+      console.log(`Registration email sent: ${result.id}`);
     } else {
-      const err = await response.json();
+      await response.text();
       sendStatus = 'failed';
-      errorMessage = JSON.stringify(err);
-      console.error('Resend API error:', err);
+      errorMessage = `provider_http_${response.status}`;
+      console.error('Resend API error', { status: response.status });
     }
 
     // Write email_log
-    const { data: logRow } = await supabase
+    const { data: logRow, error: logError } = await supabase
       .from('email_log')
       .insert({
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
         related_id: registrationId,
+        show_id: registration.show_id,
         resend_message_id: resendMessageId,
         status: sendStatus,
         error_message: errorMessage,
       })
       .select('id')
       .single();
+
+    requireEmailLogWrite(logError, 'send-registration-email');
 
     return {
       success: sendStatus === 'sent',

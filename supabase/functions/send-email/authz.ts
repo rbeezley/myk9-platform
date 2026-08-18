@@ -168,6 +168,7 @@ export async function assertSendEmailAuthorization(args: {
     registration: {
       exhibitorEmail: normalizeJoinedHandlerEmail(registration.handler),
       show: {
+        id: show.id,
         ccSecretaryOnExhibitorEmails: show.cc_secretary_on_exhibitor_emails ?? null,
         secretaryEmail: show.secretary_email ?? null,
       },

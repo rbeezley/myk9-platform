@@ -45,6 +45,7 @@ export default defineConfig({
       '../../supabase/functions/_shared/http/__tests__/handler.test.ts',
       '../../supabase/functions/_shared/http/__tests__/cors.test.ts',
       '../../supabase/functions/_shared/standardWebhookSignature.test.ts',
+      '../../supabase/functions/_shared/emailLog.test.ts',
       '../../supabase/functions/_shared/resendEmail.test.ts',
       '../../supabase/functions/_shared/authEmailFailure.test.ts',
       '../../supabase/functions/send-auth-email/delivery.test.ts',

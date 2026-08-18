@@ -51,6 +51,7 @@ const launchCriticalSqlTests = [
   'sign_in_email_invariant_test.sql',
   'subscription_entitlement_grants_test.sql',
   'support_triage_atomic_send_test.sql',
+  'show_email_delivery_history_test.sql',
 ];
 
 describe('behavioral SQL test harness', () => {

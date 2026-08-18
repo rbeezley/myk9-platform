@@ -10,6 +10,7 @@ import {
 } from './supportNotificationEmail.ts';
 import { resolveDerivedRecipient } from './recipientResolution.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -174,6 +175,18 @@ handle<EmailData>(
       }
       const resolved = resolveDerivedRecipient(authzResult);
       if (!resolved) {
+        if (data.type === 'entry_decision' && authzResult.type === 'entry_decision') {
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: null,
+            email_type: data.type,
+            related_id: data.registrationId ?? null,
+            status: 'failed',
+            error_message: 'recipient_unresolved',
+            show_id: authzResult.registration.show.id,
+            status_updated_at: new Date().toISOString(),
+          });
+          requireEmailLogWrite(logError, 'send-email entry-decision');
+        }
         throw new HttpError(
           422,
           'Unable to determine the email recipient for this resource',
@@ -198,23 +211,50 @@ handle<EmailData>(
     };
 
     // Send email via Resend
-    const response = await sendResendEmailWithRetry({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify(resendPayload),
-    });
+    let response: Response;
+    try {
+      response = await sendResendEmailWithRetry({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+        },
+        body: JSON.stringify(resendPayload),
+      });
+    } catch {
+      if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
+        const { error: logError } = await supabase.from('email_log').insert({
+          recipient_email: recipient,
+          email_type: data.type,
+          related_id: data.registrationId ?? null,
+          status: 'failed',
+          error_message: 'email_delivery_error',
+          show_id: authzResult.registration.show.id,
+          status_updated_at: new Date().toISOString(),
+        });
+        requireEmailLogWrite(logError, 'send-email entry-decision');
+      }
+      throw new HttpError(502, 'Failed to send email');
+    }
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Resend API error:', error);
+      await response.text();
+      if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
+        const { error: logError } = await supabase.from('email_log').insert({
+          recipient_email: recipient,
+          email_type: data.type,
+          related_id: data.registrationId ?? null,
+          status: 'failed',
+          error_message: `provider_http_${response.status}`,
+          show_id: authzResult.registration.show.id,
+        });
+        requireEmailLogWrite(logError, 'send-email entry-decision');
+      }
       throw new HttpError(500, 'Failed to send email');
     }
 
     const result = await response.json();
-    console.log(`Email sent successfully: ${result.id} to ${recipient}`);
+    console.log(`Email sent successfully: ${result.id}`);
 
     // Log the email in the database for tracking
     const logRow: Record<string, unknown> = {
@@ -229,10 +269,15 @@ handle<EmailData>(
     if ('ticketId' in data && data.ticketId) {
       logRow.related_id = data.ticketId;
     }
-    await supabase
-      .from('email_log')
-      .insert(logRow)
-      .then(null, (err: unknown) => console.log('Could not log email:', err));
+    if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
+      logRow.show_id = authzResult.registration.show.id;
+    }
+    const { error: logError } = await supabase.from('email_log').insert(logRow);
+    if (data.type === 'entry_decision') {
+      requireEmailLogWrite(logError, 'send-email entry-decision');
+    } else if (logError) {
+      console.error('send-email: failed to record platform email log', { code: logError.code });
+    }
 
     return { success: true, id: result.id };
   }

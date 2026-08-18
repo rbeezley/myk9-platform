@@ -7,17 +7,18 @@ import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { UserRole } from '@/types/auth-types';
 
-const { authState, networkState, syncState } = vi.hoisted(() => ({
+const { authState, networkState, syncState, signOutSpy } = vi.hoisted(() => ({
   authState: { roles: [] as string[] },
   networkState: { isOnline: true },
   syncState: { status: 'synced' as 'synced' | 'pending' | 'offline' | 'error' },
+  signOutSpy: vi.fn(),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'test-user', email: 'test@example.com' },
     hasRole: (role: string) => authState.roles.includes(role),
-    signOut: vi.fn(),
+    signOut: signOutSpy,
     userWithRoles: {
       id: 'person-1',
       roles: authState.roles,
@@ -59,6 +60,7 @@ beforeEach(() => {
   authState.roles.length = 0;
   networkState.isOnline = true;
   syncState.status = 'synced';
+  signOutSpy.mockClear();
   useAskQPanelStore.getState().close();
 });
 
@@ -192,6 +194,69 @@ describe('AccountMenuContent organization', () => {
     const signOut = screen.getByRole('menuitem', { name: 'Sign out' });
     expect(signOut).not.toHaveClass('text-destructive');
     expect(signOut).toHaveClass('focus:text-destructive');
+  });
+});
+
+describe('AccountMenuContent sign-out guard (MYK9-202)', () => {
+  it('signs a plain exhibitor out immediately online — no dialog', async () => {
+    authState.roles.push(UserRole.EXHIBITOR);
+
+    const { user } = renderOpenAccountMenu();
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+    expect(signOutSpy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('warns a secretary online about the venue lockout before signing out', async () => {
+    authState.roles.push(UserRole.SECRETARY);
+
+    const { user } = renderOpenAccountMenu();
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+    expect(signOutSpy).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent(/cannot sign back in/i);
+
+    await user.click(screen.getByRole('button', { name: /sign out anyway/i }));
+    expect(signOutSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a staff member cancel out of the warning without signing out', async () => {
+    authState.roles.push(UserRole.JUDGE);
+
+    const { user } = renderOpenAccountMenu();
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+    await screen.findByRole('alertdialog');
+
+    await user.click(screen.getByRole('button', { name: /stay signed in/i }));
+
+    expect(signOutSpy).not.toHaveBeenCalled();
+  });
+
+  it('blocks with the strongest warning when offline, even for an exhibitor', async () => {
+    authState.roles.push(UserRole.EXHIBITOR);
+    networkState.isOnline = false;
+    syncState.status = 'offline';
+
+    const { user } = renderOpenAccountMenu();
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+    expect(signOutSpy).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent(/offline/i);
+    expect(dialog).toHaveTextContent(/cannot sign back in until/i);
+  });
+
+  it('mentions unsynced changes in the offline warning when sync is pending', async () => {
+    networkState.isOnline = false;
+    syncState.status = 'pending';
+
+    const { user } = renderOpenAccountMenu();
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent(/haven't synced/i);
   });
 });
 

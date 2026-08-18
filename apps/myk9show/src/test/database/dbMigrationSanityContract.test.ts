@@ -197,7 +197,10 @@ describe('DB migration sanity contracts', () => {
       ),
     ].map(match => match[0]);
 
-    expect(placementClears).toHaveLength(3);
+    // Three class-wide clears in the derived terminal branches plus the
+    // tombstone-scoped clear added to the manual early return by
+    // 20260817150000. Every one of them carries the guard.
+    expect(placementClears).toHaveLength(4);
     for (const placementClear of placementClears) {
       expect(placementClear).toContain('AND final_placement IS NOT NULL');
     }

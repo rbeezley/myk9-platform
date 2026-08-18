@@ -60,10 +60,18 @@ const gateBody = gateMigration.slice(
   gateMigration.indexOf('$$;', gateMigration.indexOf('AS $$'))
 );
 
-// Every stale-clearing UPDATE inside refresh_class_scoring_state's terminal
-// branches, statement text only.
-const terminalClears =
+// Every placement-clearing UPDATE in the body, statement text only. They split
+// into two kinds and the difference is the whole safety argument:
+//   * three CLASS-WIDE clears in the derived terminal branches, which must NOT
+//     filter deleted_at (that is what strips an emptied class's tombstone), and
+//   * one TOMBSTONE-SCOPED clear in the manual early return, which must filter
+//     deleted_at (a class-wide clear there would wipe pinned results).
+const allPlacementClears =
   gateBody.match(/UPDATE public\.entries\s+SET final_placement = NULL\s+WHERE[^;]*;/g) ?? [];
+const terminalClears = allPlacementClears.filter(clear => !clear.includes('deleted_at'));
+const manualTombstoneClears = allPlacementClears.filter(clear =>
+  clear.includes('deleted_at IS NOT NULL')
+);
 const normalizeMigration = readFileSync(
   resolve(migrationsDir, '20260625180000_normalize_final_placement_default_null.sql'),
   'utf8'
@@ -173,7 +181,7 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
     // Same rule as the ranking pin above: repoint it at the new file and
     // re-check every assertion below, rather than deleting it.
     expect(latestGateMigrationFile).toBe(
-      '20260817140000_clear_placement_on_soft_deleted_entries.sql'
+      '20260817150000_clear_tombstone_placement_on_manual_classes.sql'
     );
   });
 
@@ -217,9 +225,36 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
     // transaction. That is the check-in that hung inside ringside_update_entry.
     // Behavioral counterpart: section 4 of
     // supabase/tests/placement_soft_delete_ranking_test.sql.
-    for (const clear of terminalClears) {
+    for (const clear of allPlacementClears) {
       expect(clear).toContain('AND final_placement IS NOT NULL');
     }
+  });
+
+  it('accounts for every placement-clearing UPDATE in the body', () => {
+    // Three class-wide + one tombstone-scoped. A new clear matching neither
+    // shape means the safety split above needs re-deriving, not re-counting.
+    expect(allPlacementClears).toHaveLength(4);
+    expect(manualTombstoneClears).toHaveLength(1);
+  });
+
+  it('scopes the MANUAL-branch clear to soft-deleted rows only', () => {
+    // status_source = 'manual' means a human pinned this class — its placements
+    // are equally deliberate. Widening this to the class-wide form used by the
+    // derived branches would wipe every published placement in the class on any
+    // triggering entry write. Behavioral counterpart: section 5.3 of
+    // supabase/tests/placement_soft_delete_ranking_test.sql.
+    const [manualClear] = manualTombstoneClears;
+    expect(manualClear).toContain('AND deleted_at IS NOT NULL');
+    expect(manualClear).toContain('AND final_placement IS NOT NULL');
+  });
+
+  it('runs the manual clear inside the manual branch, before its early RETURN', () => {
+    const manualBranch = gateBody.indexOf("IF v_status_source = 'manual' THEN");
+    const manualClear = gateBody.indexOf('AND deleted_at IS NOT NULL');
+    const earlyReturn = gateBody.indexOf('RETURN;', manualBranch);
+    expect(manualBranch).toBeGreaterThanOrEqual(0);
+    expect(manualClear).toBeGreaterThan(manualBranch);
+    expect(earlyReturn).toBeGreaterThan(manualClear);
   });
 
   it('does NOT filter the terminal clears by deleted_at, so a tombstone is left unplaced', () => {

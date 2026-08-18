@@ -207,6 +207,7 @@ DECLARE
   v_class uuid := gen_random_uuid();
   v_only  uuid := gen_random_uuid();
   v_second uuid := gen_random_uuid();
+  v_third  uuid := gen_random_uuid();
   v_status text;
   v_p integer;
   v_p2 integer;
@@ -259,11 +260,13 @@ BEGIN
   END IF;
   RAISE NOTICE '3.3 PASS: restoring the sole entry re-completes and re-places it';
 
-  -- 3.4 The same clear applies when the class merely drops out of a ranked
-  --     state rather than emptying: tombstone the 2nd, then un-score the
-  --     survivor. The class is now partially scored, so NOTHING in it may hold
-  --     a placement -- this exercises the `v_accounted_count > 0` branch, which
-  --     carried the identical deleted_at filter.
+  -- 3.4 The ELSE branch: expected > 0 but accounted = 0. Tombstone the 2nd,
+  --     then un-score the survivor. Deleting v_second leaves v_only as the sole
+  --     scored live entry, so the class stays FULLY ACCOUNTED across that step
+  --     and recalculate_class_placements already strips v_second -- this case
+  --     therefore proves nothing about tombstones, only that the ELSE branch
+  --     clears the live row. Labelled accordingly; 3.5 covers the partial
+  --     branch and section 5 covers a tombstone that survives to a clear.
   INSERT INTO public.entries
     (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, total_faults, search_time_seconds)
   VALUES
@@ -280,12 +283,48 @@ BEGIN
   SELECT status FROM public.classes WHERE id = v_class INTO v_status;
   SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
   SELECT final_placement FROM public.entries WHERE id = v_second INTO v_p2;
+  IF v_status IS DISTINCT FROM 'upcoming' THEN
+    RAISE EXCEPTION '3.4 SETUP FAIL: expected the ELSE branch (upcoming), got %', v_status;
+  END IF;
   IF v_p IS NOT NULL OR v_p2 IS NOT NULL THEN
     RAISE EXCEPTION
-      '3.4 FAIL: un-ranked class (status=%) still holds placements live=% tombstone=%',
-      v_status, v_p, v_p2;
+      '3.4 FAIL: ELSE branch left placements attached live=% tombstone=%', v_p, v_p2;
   END IF;
-  RAISE NOTICE '3.4 PASS: dropping out of a ranked state clears tombstoned placements too';
+  RAISE NOTICE '3.4 PASS: the accounted = 0 branch clears placements';
+
+  -- 3.5 The PARTIAL branch, 0 < v_accounted_count < v_expected_count. 3.4 never
+  --     reaches it, so a regression confined to this branch would have slipped
+  --     through. Re-complete the class with two live entries, then un-score one
+  --     so exactly one of two remains accounted.
+  UPDATE public.entries
+    SET is_scored = true, result_status = 'qualified', total_faults = 0, search_time_seconds = 30.0
+    WHERE id = v_only;
+  INSERT INTO public.entries
+    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, total_faults, search_time_seconds)
+  VALUES
+    (v_third, v_class, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 35.0);
+
+  SELECT status FROM public.classes WHERE id = v_class INTO v_status;
+  SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
+  SELECT final_placement FROM public.entries WHERE id = v_third INTO v_p2;
+  IF v_status IS DISTINCT FROM 'completed' OR v_p IS DISTINCT FROM 1 OR v_p2 IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION '3.5 SETUP FAIL: expected completed with 1/2, got %/%/%', v_status, v_p, v_p2;
+  END IF;
+
+  UPDATE public.entries SET is_scored = false, result_status = NULL WHERE id = v_third;
+
+  SELECT status FROM public.classes WHERE id = v_class INTO v_status;
+  SELECT final_placement FROM public.entries WHERE id = v_only INTO v_p;
+  SELECT final_placement FROM public.entries WHERE id = v_third INTO v_p2;
+  IF v_status IS DISTINCT FROM 'in_progress' THEN
+    RAISE EXCEPTION
+      '3.5 SETUP FAIL: expected the partial branch (in_progress), got % -- this '
+      'case is not exercising v_accounted_count > 0', v_status;
+  END IF;
+  IF v_p IS NOT NULL OR v_p2 IS NOT NULL THEN
+    RAISE EXCEPTION '3.5 FAIL: partial branch left placements attached %/%', v_p, v_p2;
+  END IF;
+  RAISE NOTICE '3.5 PASS: the partial (in_progress) branch clears placements';
 END $$;
 
 
@@ -413,6 +452,86 @@ begin
   raise notice '4.3 PASS: the class under test is derived-status';
 end;
 $$;
+
+
+-- =====================================================================
+-- 5. The manual-status early return
+--    (20260817150000_clear_tombstone_placement_on_manual_classes.sql).
+--
+-- refresh_class_scoring_state returns early when classes.status_source =
+-- 'manual', after refreshing scored_count. Before 20260817150000 that return
+-- also skipped every placement clear, so a placed entry soft-deleted in a
+-- manually-pinned class kept its final_placement -- the same exposure as the
+-- empty-class gap, through a different door.
+--
+-- The clear added there is TOMBSTONE-SCOPED, and both halves matter:
+--   5.2 the tombstone loses its placement, and
+--   5.3 the LIVE entries keep theirs.
+-- A class-wide clear would satisfy 5.2 and destroy pinned results in 5.3.
+-- =====================================================================
+DO $$
+DECLARE
+  v_show  uuid := gen_random_uuid();
+  v_trial uuid := gen_random_uuid();
+  v_class uuid := gen_random_uuid();
+  v_keep  uuid := gen_random_uuid();
+  v_gone  uuid := gen_random_uuid();
+  v_status text;
+  v_keep_placement integer;
+  v_gone_placement integer;
+BEGIN
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
+    VALUES (v_show, 'Placement Manual Show', 'Test Org', current_date, current_date, false);
+  INSERT INTO public.trials (id, show_id, name, date)
+    VALUES (v_trial, v_show, 'Manual Trial', current_date);
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_class, v_trial, 'Manual Class', 'upcoming');
+
+  INSERT INTO public.entries
+    (id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status, total_faults, search_time_seconds)
+  VALUES
+    (v_keep, v_class, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 31.00),
+    (v_gone, v_class, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 42.00);
+
+  -- 5.1 Placements are established while the class is still derived, then the
+  --     class is pinned. This is the only way a manual class acquires them.
+  SELECT final_placement FROM public.entries WHERE id = v_keep INTO v_keep_placement;
+  SELECT final_placement FROM public.entries WHERE id = v_gone INTO v_gone_placement;
+  IF (v_keep_placement, v_gone_placement) IS DISTINCT FROM (1, 2) THEN
+    RAISE EXCEPTION '5.1 SETUP FAIL: expected 1/2 before pinning, got %/%',
+      v_keep_placement, v_gone_placement;
+  END IF;
+
+  UPDATE public.classes SET status_source = 'manual' WHERE id = v_class;
+  RAISE NOTICE '5.1 PASS: class placed 1/2, then pinned to status_source = manual';
+
+  -- 5.2 Soft-deleting the 2nd-placed entry must strip its placement even though
+  --     the manual branch returns before every other clear.
+  UPDATE public.entries SET deleted_at = now() WHERE id = v_gone;
+
+  SELECT final_placement FROM public.entries WHERE id = v_gone INTO v_gone_placement;
+  IF v_gone_placement IS NOT NULL THEN
+    RAISE EXCEPTION
+      '5.2 FAIL: tombstone in a manual class kept placement % -- the manual '
+      'early return is still skipping the clear', v_gone_placement;
+  END IF;
+  RAISE NOTICE '5.2 PASS: manual-class tombstone is stripped of its placement';
+
+  -- 5.3 THE SAFETY HALF. The surviving entry keeps the placement a human
+  --     pinned, and the manual status is untouched. If the manual clear is ever
+  --     widened to the class-wide form the derived branches use, this fails.
+  SELECT final_placement FROM public.entries WHERE id = v_keep INTO v_keep_placement;
+  SELECT status_source FROM public.classes WHERE id = v_class INTO v_status;
+  IF v_keep_placement IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION
+      '5.3 FAIL: the manual clear wiped a LIVE entry''s placement (got %) -- it '
+      'must be scoped to deleted_at IS NOT NULL', v_keep_placement;
+  END IF;
+  IF v_status IS DISTINCT FROM 'manual' THEN
+    RAISE EXCEPTION '5.3 FAIL: manual status_source was overwritten with %', v_status;
+  END IF;
+  RAISE NOTICE '5.3 PASS: live placements and the manual pin both survive';
+END $$;
 
 do $$
 begin

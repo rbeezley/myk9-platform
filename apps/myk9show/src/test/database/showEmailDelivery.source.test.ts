@@ -98,12 +98,9 @@ describe('MYK9-180 show email delivery source contract', () => {
 
   it('fails loudly when registration delivery history cannot be recorded', () => {
     const contents = source('supabase/functions/send-registration-email/index.ts');
-    expect(contents.match(/if \(logError\)/g)).toHaveLength(3);
+    expect(contents.match(/requireEmailLogWrite\(logError/g)).toHaveLength(3);
     expect(contents).toContain("error_message: 'missing_recipient'");
     expect(contents).toContain('recipient_email: null');
-    expect(contents).toContain(
-      "throw new HttpError(500, 'Failed to record email delivery history')"
-    );
   });
 
   it('records a failed Heritage attempt when the recipient address is missing', () => {
@@ -116,6 +113,40 @@ describe('MYK9-180 show email delivery source contract', () => {
     expect(missingRecipientBlock).toContain('recipient_email: null');
     expect(missingRecipientBlock).toContain("error_message: 'missing_recipient'");
     expect(missingRecipientBlock).toContain('failed++');
+  });
+
+  it('fails loudly on delivery-history write errors for every root show-owned sender', () => {
+    for (const path of [
+      'supabase/functions/send-registration-email/index.ts',
+      'supabase/functions/send-confirmation-email/index.ts',
+      'supabase/functions/send-email/index.ts',
+      'supabase/functions/send-lifecycle-email/lifecycle-email-handler.ts',
+      'supabase/functions/push-trigger-waitlist/index.ts',
+      'supabase/functions/send-results/index.ts',
+    ]) {
+      expect(source(path), path).toContain('requireEmailLogWrite');
+    }
+  });
+
+  it('records a failed entry-decision attempt when its recipient is unresolved', () => {
+    const contents = source('supabase/functions/send-email/index.ts');
+    const missingRecipientBlock = contents.slice(
+      contents.indexOf('if (!resolved)'),
+      contents.indexOf('recipient = resolved.to')
+    );
+    expect(missingRecipientBlock).toContain("data.type === 'entry_decision'");
+    expect(missingRecipientBlock).toContain('recipient_email: null');
+    expect(missingRecipientBlock).toContain("error_message: 'recipient_unresolved'");
+    expect(missingRecipientBlock).toContain('requireEmailLogWrite');
+  });
+
+  it('records locally known results-submission configuration failures', () => {
+    const contents = source('supabase/functions/send-results/index.ts');
+    expect(contents).toContain("error_message: 'registry_destination_unconfigured'");
+    expect(contents).toContain("error_message: 'email_not_configured'");
+    expect(
+      contents.match(/requireEmailLogWrite\(logError, 'send-results'\)/g)?.length
+    ).toBeGreaterThanOrEqual(5);
   });
 
   it('classifies every production Resend writer', () => {

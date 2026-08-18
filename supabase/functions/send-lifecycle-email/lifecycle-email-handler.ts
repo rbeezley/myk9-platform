@@ -1,6 +1,7 @@
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 export interface SendLifecycleEmailPayload {
   action?: 'preview' | 'save_ready' | 'send';
@@ -487,7 +488,7 @@ async function insertEmailLog(
   status: string,
   errorMessage: string | null
 ): Promise<string | undefined> {
-  const { data } = (await args.supabase
+  const { data, error } = (await args.supabase
     .from('email_log')
     .insert({
       recipient_email: args.job.recipient_email,
@@ -500,6 +501,7 @@ async function insertEmailLog(
     })
     .select('id')
     .single()) as QueryResult<EmailLogRow>;
+  requireEmailLogWrite(error, 'send-lifecycle-email');
   return data?.id;
 }
 

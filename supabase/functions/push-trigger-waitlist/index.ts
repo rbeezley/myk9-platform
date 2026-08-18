@@ -6,6 +6,7 @@ import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 import {
   buildWaitlistNotificationContent,
   parseWaitlistNotificationPayload,
@@ -244,7 +245,7 @@ async function deliverEmail(input: {
 }): Promise<void> {
   await requireCurrentClaim(input.supabase, input.eventId, input.claimToken);
   if (!input.recipient) {
-    await input.supabase.from('email_log').insert({
+    const { error: logError } = await input.supabase.from('email_log').insert({
       recipient_email: null,
       email_type: 'waitlist_notification',
       related_id: input.eventId,
@@ -252,6 +253,7 @@ async function deliverEmail(input: {
       error_message: 'recipient_unavailable',
       show_id: input.showId,
     });
+    requireEmailLogWrite(logError, 'push-trigger-waitlist');
     await updateEvent(input.supabase, input.eventId, input.claimToken, {
       email_sent_at: new Date().toISOString(),
     });
@@ -290,7 +292,7 @@ async function deliverEmail(input: {
     throw { channel: 'email', statusCode: response.status };
   }
   const result = (await response.json()) as { id?: string };
-  await input.supabase.from('email_log').insert({
+  const { error: logError } = await input.supabase.from('email_log').insert({
     recipient_email: input.recipient,
     email_type: 'waitlist_notification',
     related_id: input.eventId,
@@ -298,6 +300,7 @@ async function deliverEmail(input: {
     status: 'sent',
     show_id: input.showId,
   });
+  requireEmailLogWrite(logError, 'push-trigger-waitlist');
   await updateEvent(input.supabase, input.eventId, input.claimToken, {
     email_sent_at: new Date().toISOString(),
   });
@@ -312,7 +315,7 @@ async function recordWaitlistEmailFailure(
   },
   errorMessage: string
 ): Promise<void> {
-  await input.supabase.from('email_log').insert({
+  const { error: logError } = await input.supabase.from('email_log').insert({
     recipient_email: input.recipient,
     email_type: 'waitlist_notification',
     related_id: input.eventId,
@@ -320,6 +323,7 @@ async function recordWaitlistEmailFailure(
     error_message: errorMessage,
     show_id: input.showId,
   });
+  requireEmailLogWrite(logError, 'push-trigger-waitlist');
 }
 
 async function deliverPush(input: {
@@ -379,7 +383,10 @@ async function deliverPush(input: {
     } catch (error) {
       const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
       if (statusCode === 404 || statusCode === 410) {
-        await input.supabase.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
+        await input.supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('endpoint', subscription.endpoint);
         await recordPushDelivery(input.supabase, input.eventId, input.claimToken, endpointHash);
         deliveredHashes.add(endpointHash);
       } else {

@@ -6,6 +6,7 @@ import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 import {
   assertSendResultsAuthorization,
   deriveResultsAddresses,
@@ -44,12 +45,6 @@ interface SendResultsPayload {
 handle<SendResultsPayload>(
   { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
   async ({ body, user, supabase }) => {
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (!resendApiKey) {
-      console.error('send-results: RESEND_API_KEY not configured');
-      throw new HttpError(503, 'Email service not configured');
-    }
-
     const { xml, filename, organization, sportType, showId } = body;
 
     if (!xml || !filename || !organization || !sportType || !showId) {
@@ -79,7 +74,31 @@ handle<SendResultsPayload>(
     const toEmail = SUBMISSION_EMAILS[`${organization.toUpperCase()}:${sportType.toLowerCase()}`];
 
     if (!toEmail) {
+      const { error: logError } = await supabase.from('email_log').insert({
+        recipient_email: null,
+        email_type: 'registry_results_submission',
+        status: 'failed',
+        error_message: 'registry_destination_unconfigured',
+        show_id: show.id,
+        status_updated_at: new Date().toISOString(),
+      });
+      requireEmailLogWrite(logError, 'send-results');
       throw new HttpError(400, `No submission email configured for ${organization}:${sportType}`);
+    }
+
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      console.error('send-results: RESEND_API_KEY not configured');
+      const { error: logError } = await supabase.from('email_log').insert({
+        recipient_email: toEmail,
+        email_type: 'registry_results_submission',
+        status: 'failed',
+        error_message: 'email_not_configured',
+        show_id: show.id,
+        status_updated_at: new Date().toISOString(),
+      });
+      requireEmailLogWrite(logError, 'send-results');
+      throw new HttpError(503, 'Email service not configured');
     }
 
     // cc + reply-to come from the show's secretary_email, falling back to the
@@ -109,7 +128,7 @@ handle<SendResultsPayload>(
         }),
       });
     } catch {
-      await supabase.from('email_log').insert({
+      const { error: logError } = await supabase.from('email_log').insert({
         recipient_email: toEmail,
         email_type: 'registry_results_submission',
         status: 'failed',
@@ -117,30 +136,33 @@ handle<SendResultsPayload>(
         show_id: show.id,
         status_updated_at: new Date().toISOString(),
       });
+      requireEmailLogWrite(logError, 'send-results');
       throw new HttpError(502, 'Failed to send email');
     }
 
     if (!resendRes.ok) {
       await resendRes.text();
       console.error('send-results: Resend error', { status: resendRes.status });
-      await supabase.from('email_log').insert({
+      const { error: logError } = await supabase.from('email_log').insert({
         recipient_email: toEmail,
         email_type: 'registry_results_submission',
         status: 'failed',
         error_message: `provider_http_${resendRes.status}`,
         show_id: show.id,
       });
+      requireEmailLogWrite(logError, 'send-results');
       throw new HttpError(502, 'Failed to send email');
     }
 
     const result = (await resendRes.json()) as { id?: string };
-    await supabase.from('email_log').insert({
+    const { error: logError } = await supabase.from('email_log').insert({
       recipient_email: toEmail,
       email_type: 'registry_results_submission',
       resend_message_id: result.id ?? null,
       status: 'sent',
       show_id: show.id,
     });
+    requireEmailLogWrite(logError, 'send-results');
 
     return { success: true };
   }

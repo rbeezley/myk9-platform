@@ -11,6 +11,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
@@ -460,12 +461,7 @@ handle<ConfirmationEmailPayload>(
             error_message: 'missing_recipient',
             show_id: show.id,
           });
-          if (logError) {
-            console.error('Failed to record Heritage email delivery history', {
-              code: logError.code,
-            });
-            throw new HttpError(500, 'Failed to record email delivery history');
-          }
+          requireEmailLogWrite(logError, 'send-confirmation-email');
           failed++;
           continue;
         }
@@ -635,7 +631,7 @@ handle<ConfirmationEmailPayload>(
             .from('entries')
             .update({ confirmation_email_status: 'failed' })
             .eq('id', entry.id);
-          await supabase.from('email_log').insert({
+          const { error: logError } = await supabase.from('email_log').insert({
             recipient_email: recipientEmail,
             email_type: 'heritage_confirmation',
             related_id: entry.id,
@@ -644,6 +640,7 @@ handle<ConfirmationEmailPayload>(
             error_message: 'email_delivery_error',
             show_id: show.id,
           });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
           failed++;
           continue;
         }
@@ -659,7 +656,7 @@ handle<ConfirmationEmailPayload>(
               confirmation_email_status: 'sent',
             })
             .eq('id', entry.id);
-          await supabase.from('email_log').insert({
+          const { error: logError } = await supabase.from('email_log').insert({
             recipient_email: recipientEmail,
             email_type: 'heritage_confirmation',
             related_id: entry.id,
@@ -668,6 +665,7 @@ handle<ConfirmationEmailPayload>(
             status_updated_at: attemptedAt,
             show_id: show.id,
           });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
           sent++;
         } else {
           console.error('Failed to send Heritage confirmation', { status: resendRes.status });
@@ -677,7 +675,7 @@ handle<ConfirmationEmailPayload>(
               confirmation_email_status: 'failed',
             })
             .eq('id', entry.id);
-          await supabase.from('email_log').insert({
+          const { error: logError } = await supabase.from('email_log').insert({
             recipient_email: recipientEmail,
             email_type: 'heritage_confirmation',
             related_id: entry.id,
@@ -686,6 +684,7 @@ handle<ConfirmationEmailPayload>(
             error_message: `provider_http_${resendRes.status}`,
             show_id: show.id,
           });
+          requireEmailLogWrite(logError, 'send-confirmation-email');
           failed++;
         }
       }

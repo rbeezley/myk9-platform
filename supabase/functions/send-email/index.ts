@@ -10,6 +10,7 @@ import {
 } from './supportNotificationEmail.ts';
 import { resolveDerivedRecipient } from './recipientResolution.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
@@ -174,6 +175,18 @@ handle<EmailData>(
       }
       const resolved = resolveDerivedRecipient(authzResult);
       if (!resolved) {
+        if (data.type === 'entry_decision' && authzResult.type === 'entry_decision') {
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: null,
+            email_type: data.type,
+            related_id: data.registrationId ?? null,
+            status: 'failed',
+            error_message: 'recipient_unresolved',
+            show_id: authzResult.registration.show.id,
+            status_updated_at: new Date().toISOString(),
+          });
+          requireEmailLogWrite(logError, 'send-email entry-decision');
+        }
         throw new HttpError(
           422,
           'Unable to determine the email recipient for this resource',
@@ -210,7 +223,7 @@ handle<EmailData>(
       });
     } catch {
       if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
-        await supabase.from('email_log').insert({
+        const { error: logError } = await supabase.from('email_log').insert({
           recipient_email: recipient,
           email_type: data.type,
           related_id: data.registrationId ?? null,
@@ -219,6 +232,7 @@ handle<EmailData>(
           show_id: authzResult.registration.show.id,
           status_updated_at: new Date().toISOString(),
         });
+        requireEmailLogWrite(logError, 'send-email entry-decision');
       }
       throw new HttpError(502, 'Failed to send email');
     }
@@ -226,7 +240,7 @@ handle<EmailData>(
     if (!response.ok) {
       await response.text();
       if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
-        await supabase.from('email_log').insert({
+        const { error: logError } = await supabase.from('email_log').insert({
           recipient_email: recipient,
           email_type: data.type,
           related_id: data.registrationId ?? null,
@@ -234,6 +248,7 @@ handle<EmailData>(
           error_message: `provider_http_${response.status}`,
           show_id: authzResult.registration.show.id,
         });
+        requireEmailLogWrite(logError, 'send-email entry-decision');
       }
       throw new HttpError(500, 'Failed to send email');
     }
@@ -257,10 +272,12 @@ handle<EmailData>(
     if (data.type === 'entry_decision' && authzResult?.type === 'entry_decision') {
       logRow.show_id = authzResult.registration.show.id;
     }
-    await supabase
-      .from('email_log')
-      .insert(logRow)
-      .then(null, (err: unknown) => console.log('Could not log email:', err));
+    const { error: logError } = await supabase.from('email_log').insert(logRow);
+    if (data.type === 'entry_decision') {
+      requireEmailLogWrite(logError, 'send-email entry-decision');
+    } else if (logError) {
+      console.error('send-email: failed to record platform email log', { code: logError.code });
+    }
 
     return { success: true, id: result.id };
   }

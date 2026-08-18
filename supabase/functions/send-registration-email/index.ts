@@ -2,6 +2,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 
 import { handle } from '../_shared/http/handler.ts';
 import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
@@ -235,12 +236,7 @@ handle<SendRegistrationEmailPayload>(
         error_message: 'missing_recipient',
         status_updated_at: new Date().toISOString(),
       });
-      if (logError) {
-        console.error('Failed to record registration email delivery history', {
-          code: logError.code,
-        });
-        throw new HttpError(500, 'Failed to record email delivery history');
-      }
+      requireEmailLogWrite(logError, 'send-registration-email');
       throw new HttpError(400, 'No email address for registrant');
     }
 
@@ -309,12 +305,7 @@ handle<SendRegistrationEmailPayload>(
         error_message: 'email_delivery_error',
         status_updated_at: new Date().toISOString(),
       });
-      if (logError) {
-        console.error('Failed to record registration email delivery history', {
-          code: logError.code,
-        });
-        throw new HttpError(500, 'Failed to record email delivery history');
-      }
+      requireEmailLogWrite(logError, 'send-registration-email');
       return { success: false };
     }
 
@@ -348,12 +339,7 @@ handle<SendRegistrationEmailPayload>(
       .select('id')
       .single();
 
-    if (logError) {
-      console.error('Failed to record registration email delivery history', {
-        code: logError.code,
-      });
-      throw new HttpError(500, 'Failed to record email delivery history');
-    }
+    requireEmailLogWrite(logError, 'send-registration-email');
 
     return {
       success: sendStatus === 'sent',

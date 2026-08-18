@@ -108,16 +108,23 @@ platform-fee remainder has no entry to live on and is platform loss by definitio
 
 ```sql
 -- No payment_status filter: an entry partially refunded earlier is already
--- 'refunded' but still holds disputed money.
-select id, entry_fee, payment_status, refund_amount
+-- 'refunded' but still holds disputed money. show_id matters: a cart can span
+-- shows, and each show has its own payout/transfer.
+select id, show_id, entry_fee, payment_status, refund_amount
 from entries where stripe_payment_intent_id = '<pi_...>';
 ```
+
+If the entries span **more than one show**, run everything below **per show**: each show has
+its own `show_payouts` row, payout state, and transfer, so the payout-state fork (step 0) and
+the reversal are evaluated and executed independently per show — one aggregate reversal
+against one transfer would recover the wrong club's money.
 
 **Net out prior refunds.** An entry with an existing `refund_amount` has already reduced (or
 been excluded from) the payout by that much. Its stamp target is `entry_fee` (raise the
 existing `refund_amount` to it, never add on top), and its reversal share is
 `entry_fee - refund_amount` — reversing the full fee would take back money the payout never
-sent. Case A step 5's SQL deliberately refuses already-stamped rows, so **raising** an
+sent — and `refund_amount` is NULL when there was no prior refund, so compute the share as
+`entry_fee - coalesce(refund_amount, 0)`. Case A step 5's SQL deliberately refuses already-stamped rows, so **raising** an
 existing stamp needs this variant instead (append to the notes, don't replace them):
 
 ```sql
@@ -154,7 +161,7 @@ refund — the bank already took the money. This is the cheap path — the alert
 is the reason to act on dispute alerts same-day.
 
 **2. If the payout has settled:** reverse the transfer for the sum of each disputed entry's
-**reversal share**, `entry_fee - refund_amount` from the netting rule — never the raw fee sum;
+**reversal share**, `entry_fee - coalesce(refund_amount, 0)` from the netting rule — never the raw fee sum;
 the payout already excluded prior refunds (Case A steps 2 and 4 — talk to the club first; a
 chargeback is not their fault). Then stamp each entry (Case A step 5's SQL for unstamped
 entries, the raise-variant above for previously stamped ones, recording `dp_` and `trr_` ids

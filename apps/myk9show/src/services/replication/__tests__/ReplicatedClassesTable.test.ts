@@ -70,6 +70,7 @@ import {
   rowToClass,
   type ReplicatedClass,
 } from '../ReplicatedClassesTable';
+import { REPLICATION_STORES } from '@myk9/replication';
 
 describe('ReplicatedClassesTable', () => {
   let classesTable: ReplicatedClassesTable;
@@ -166,6 +167,32 @@ describe('ReplicatedClassesTable', () => {
     mockSupabaseOrder = _mocks.mockSupabaseOrder;
 
     classesTable = new ReplicatedClassesTable();
+
+    // The fake-indexeddb database is module-scoped and survives across tests,
+    // so rows accumulate for the whole file (the ~500-row "large batch" sync
+    // included). Any test that iterates the full table — clearCachedHideCounts
+    // rewrites every row carrying a hideCount property, which rowToClass puts
+    // on ALL synced rows — then scales with whatever ran before it under
+    // --sequence.shuffle, and on slow CI that blows the 10s timeout while
+    // passing every local run. Start each test from empty stores instead.
+    // store.clear() (not clearCache()) so the reset is O(1), not one awaited
+    // delete per accumulated row — the per-row version just moves the same
+    // timeout into this hook.
+    const resettable = classesTable as unknown as {
+      runTransaction: (
+        storeName: string,
+        mode: IDBTransactionMode,
+        callback: (store: { clear?: () => Promise<void> }) => Promise<void>
+      ) => Promise<void>;
+    };
+    for (const storeName of [
+      REPLICATION_STORES.REPLICATED_TABLES,
+      REPLICATION_STORES.SYNC_METADATA,
+    ]) {
+      await resettable.runTransaction(storeName, 'readwrite', async store => {
+        await store.clear!();
+      });
+    }
 
     // Reset mock chain
     mockSupabaseFrom.mockReturnValue({ select: mockSupabaseSelect });

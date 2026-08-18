@@ -189,7 +189,7 @@ exactly that much per lost dispute. Keep the running count in the dispute log be
 | Record                                | After Case A                                 | After Case B                |
 | ------------------------------------- | -------------------------------------------- | --------------------------- |
 | `stripe_order_refunds` / order status | Automatic (webhook sweep)                    | Manual (RPC, step 3)        |
-| `entries` refund columns              | Manual (step 4)                              | Manual (step 1/2)           |
+| `entries` refund columns              | Manual (step 5)                              | Manual (step 1/2)           |
 | `netPlatformIncome`                   | Subtracts the refund                         | Subtracts the booked amount |
 | `show_payouts.amount_cents`           | **Unchanged — permanent, expected mismatch** | Same                        |
 | Transfer reversal                     | Recorded nowhere in-app                      | Same                        |
@@ -197,8 +197,12 @@ exactly that much per lost dispute. Keep the running count in the dispute log be
 The last two rows are the same fact: nothing in the schema represents a transfer reversal. So
 after a completed clawback, (a) the club's reconciliation card shows a net **lower** than its
 settled transfer, and (b) `netPlatformIncome` **understates** by the reversed amount — the
-dashboard subtracted the full refund but never saw the recovery. Both discrepancies equal the
-reversal amount. That is accepted at expected volume (see unit-economics §7d — the window is
+dashboard subtracted the full refund but never saw the recovery. In Case A (refund capped at
+the entry fee) both discrepancies equal the reversal amount exactly. In Case B the booked
+gross exceeds the reversal by the dispute's **platform-fee share** — the club card is
+understated by that share too (the gross is subtracted from its net, but the fee portion was
+never the club's loss), so note the fee share on the clawback-log line to keep the audit
+arithmetic honest. All of this is accepted at expected volume (see unit-economics §7d — the window is
 show end + 3 days and most withdrawals arrive pre-show); the `refund_notes` stamp carrying
 `re_`/`dp_` and `trr_` ids is what lets a later audit tie the numbers out by hand. If clawbacks
 stop being rare, that is the trigger to build the in-app path (MYK9-195 step 3), not to widen

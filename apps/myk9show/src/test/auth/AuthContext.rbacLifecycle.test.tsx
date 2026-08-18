@@ -33,10 +33,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
 }));
 
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
-import {
-  loadRbacPermissionsCache,
-  saveRbacPermissionsCache,
-} from '@/context/rbacPermissionsCache';
+import { loadRbacPermissionsCache, saveRbacPermissionsCache } from '@/context/rbacPermissionsCache';
 
 const renderWithAuthProvider = (children: ReactNode, initialRoute = '/') =>
   renderWithProvider(AuthProvider, children, initialRoute);
@@ -65,7 +62,9 @@ describe('AuthContext RBAC lifecycle', () => {
 
   it('retries transient RBAC fetch failures before surfacing an error', async () => {
     mockRbacService.getUserPermissions
-      .mockRejectedValueOnce(new Error('Failed to get user permissions: TypeError: Failed to fetch'))
+      .mockRejectedValueOnce(
+        new Error('Failed to get user permissions: TypeError: Failed to fetch')
+      )
       .mockResolvedValueOnce({
         roles: [],
         permissions: [],
@@ -216,24 +215,16 @@ describe('AuthContext RBAC lifecycle', () => {
             {auth.rbacScopedPermissions[0]?.scope_type}:{auth.rbacScopedPermissions[0]?.scope_id}
           </span>
           <span data-testid="same-club-permission">
-            {auth
-              .hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-1' })
-              .toString()}
+            {auth.hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-1' }).toString()}
           </span>
           <span data-testid="different-club-permission">
-            {auth
-              .hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-2' })
-              .toString()}
+            {auth.hasPermission(PERMISSIONS.SHOW_MANAGE, { type: 'club', id: 'club-2' }).toString()}
           </span>
           <span data-testid="inherited-same-club-permission">
-            {auth
-              .hasPermission(PERMISSIONS.SHOW_CREATE, { type: 'club', id: 'club-1' })
-              .toString()}
+            {auth.hasPermission(PERMISSIONS.SHOW_CREATE, { type: 'club', id: 'club-1' }).toString()}
           </span>
           <span data-testid="inherited-different-club-permission">
-            {auth
-              .hasPermission(PERMISSIONS.SHOW_CREATE, { type: 'club', id: 'club-2' })
-              .toString()}
+            {auth.hasPermission(PERMISSIONS.SHOW_CREATE, { type: 'club', id: 'club-2' }).toString()}
           </span>
           <span data-testid="last-refreshed">{auth.rbacLastRefreshed ?? 'none'}</span>
           <button type="button" onClick={() => void auth.refreshPermissions()}>
@@ -399,7 +390,9 @@ describe('AuthContext RBAC lifecycle', () => {
 
     const TestComponent = () => {
       const auth = useAuthContext();
-      return <span data-testid="persist-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>;
+      return (
+        <span data-testid="persist-roles">{auth.userWithRoles?.roles.join(',') ?? 'none'}</span>
+      );
     };
 
     renderWithAuthProvider(<TestComponent />);
@@ -472,10 +465,40 @@ describe('AuthContext RBAC lifecycle', () => {
     expect(screen.getByTestId('no-cache-roles')).toHaveTextContent('none');
   });
 
+  it('does NOT hydrate from cache on a non-network failure — a server error is not offline', async () => {
+    saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    mockRbacService.getUserPermissions.mockRejectedValue(new Error('boom: RPC exploded'));
+
+    const TestComponent = () => {
+      const auth = useAuthContext();
+      return (
+        <div>
+          <span data-testid="server-error-roles">
+            {auth.userWithRoles?.roles.join(',') ?? 'none'}
+          </span>
+          <span data-testid="server-error">{auth.rbacError ?? 'none'}</span>
+          <span data-testid="server-error-from-cache">{auth.rbacFromCacheAt ?? 'live'}</span>
+        </div>
+      );
+    };
+
+    renderWithAuthProvider(<TestComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('server-error')).not.toHaveTextContent('none');
+    });
+    expect(screen.getByTestId('server-error-roles')).toHaveTextContent('none');
+    expect(screen.getByTestId('server-error-from-cache')).toHaveTextContent('live');
+  });
+
   it('a successful load after cache hydration clears the from-cache marker', async () => {
     saveRbacPermissionsCache(mockUser.id, accessForRole(UserRole.SECRETARY));
+    const offlineError = new Error('Failed to get user permissions: TypeError: Failed to fetch');
     mockRbacService.getUserPermissions
-      .mockRejectedValueOnce(new Error('boom: server exploded'))
+      .mockRejectedValueOnce(offlineError)
+      .mockRejectedValueOnce(offlineError)
+      .mockRejectedValueOnce(offlineError)
+      .mockRejectedValueOnce(offlineError)
       .mockResolvedValueOnce(accessForRole(UserRole.SECRETARY));
 
     const TestComponent = () => {
@@ -492,9 +515,12 @@ describe('AuthContext RBAC lifecycle', () => {
 
     renderWithAuthProvider(<TestComponent />);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('marker-from-cache')).not.toHaveTextContent('live');
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('marker-from-cache')).not.toHaveTextContent('live');
+      },
+      { timeout: 5000 }
+    );
 
     await userEvent.click(screen.getByRole('button', { name: 'Reconnect refresh' }));
 
@@ -539,7 +565,7 @@ describe('AuthContext RBAC lifecycle', () => {
     expect(screen.queryByText('denied')).not.toBeInTheDocument();
   });
 
-  it('clears the prior user\'s persisted cache when the account changes', async () => {
+  it("clears the prior user's persisted cache when the account changes", async () => {
     mockRbacService.getUserPermissions.mockResolvedValue(accessForRole(UserRole.SECRETARY));
 
     const TestComponent = () => {

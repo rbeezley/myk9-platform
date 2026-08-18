@@ -154,7 +154,10 @@ export function useRbacLifecycle(userId: string | undefined) {
           // Warm path: this user already has loaded roles in memory — preserve
           // them exactly (MYK9-200 pins this; a refactor must not regress it).
           const hasLoadedData = previous.userId === userId && previous.lastRefreshed !== null;
-          if (!hasLoadedData) {
+          // Only a connectivity failure means "offline" — a server/RPC error
+          // must surface as an error, not masquerade as offline cache mode.
+          const isOffline = isAbortError(error) || isTransientBrowserFetchError(error);
+          if (!hasLoadedData && isOffline) {
             // Cold boot (e.g. page reload offline at a venue): fall back to the
             // last persisted permissions instead of settling at zero roles.
             const cached = loadRbacPermissionsCache(userId);

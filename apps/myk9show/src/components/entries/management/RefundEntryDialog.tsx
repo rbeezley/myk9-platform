@@ -21,7 +21,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 // secretary can act on.
 const ERROR_MESSAGES: Record<string, string> = {
   payout_already_sent:
-    'This show’s entry fees have already been paid out to the club. Settle this refund directly with the club.',
+    'This show’s entry fees have already been paid out to the club, so refunds can’t be issued from here. The refund is still possible — contact the site operator, who issues it manually and recovers the club’s share (post-payout clawback runbook, docs/operations/post-payout-clawback.md).',
   payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',
   not_refundable: 'This entry has no refundable payment (it may already be refunded).',
   not_online_payment: 'This entry wasn’t paid online. Refund it the way it was paid.',

@@ -1,0 +1,145 @@
+# Post-payout clawback — refunds and disputes after the club was paid
+
+> **Audience: the operator (site admin).** Internal runbook with service-role SQL and Stripe
+> dashboard steps — never publish to the public help site. Tracked by MYK9-195.
+
+## When you are here
+
+One of three signals routes to this page:
+
+1. The refund UI refused with **"already paid out"** (`payout_already_sent` from
+   [`stripe-refund-entry`](../../apps/myk9show/supabase/functions/stripe-refund-entry/index.ts) or
+   [`stripe-refund-show`](../../apps/myk9show/supabase/functions/stripe-refund-show/index.ts)),
+   and the refund is legitimate anyway — the exhibitor is owed money after the club was paid.
+2. The **"Reconciled payout amount mismatch"** alert from `cron-process-payouts` — a refund
+   landed during a crash window and the club was overpaid.
+3. The **"Chargeback opened"** alert from `stripe-webhook`, and the dispute was lost.
+
+Why this is manual: the platform uses **separate charges and transfers**. The charge lands on
+the platform balance and the payout cron transfers the club's share at show end + 3 days.
+Neither refund function passes `reverse_transfer` or `refund_application_fee`, so once the
+transfer is out, any refund comes entirely from the **platform's own balance** while the club
+keeps its share — which is exactly why the in-app paths refuse. The refusal is correct;
+completing the money movement is your job, by hand, in two halves: refund the exhibitor, then
+recover the club's share.
+
+`payout_in_progress` is **not** this page — that's the cron mid-run. Wait a few minutes and
+retry in-app.
+
+## Facts to gather first
+
+```sql
+-- The entry and its payment (amounts are NUMERIC dollars on entries)
+select id, total_fee, payment_status, refund_amount, stripe_payment_intent_id
+from entries where id = '<entry_id>';
+
+-- The settled payout (transfer id + what was sent)
+select status, stripe_transfer_id, amount_cents, completed_at
+from show_payouts where show_id = '<show_id>'
+order by created_at desc limit 1;
+```
+
+Do not proceed unless `show_payouts.status` is `completed`. If there is no completed payout,
+the in-app refund path works — use it instead.
+
+## Case A — legitimate refund after payout
+
+**1. Fix the amount.** Cap it at the entry fee, mirroring in-app policy (`validateRefund`
+rejects `amount_exceeds_fee`; the platform fee is never refunded). Everything below assumes
+refund ≤ entry fee, which keeps the transfer-reversal math one number.
+
+**2. Notify the club before touching their money.** A transfer reversal pulls funds from a
+bank account the club may have already spent from. Email the treasurer what happened, the
+amount, and why — reversing first and explaining later is how you lose a club.
+
+**3. Refund the exhibitor.** Stripe dashboard → Payments → search the
+`stripe_payment_intent_id` → Refund → enter the partial amount. Note the refund id (`re_...`).
+
+**4. Let the webhook book the order ledger — then stamp the entry yourself.** The
+`charge.refunded` sweep in `stripe-webhook` records the refund into `stripe_order_refunds`
+(kind `post_hoc`, keyed on the refund id) and re-derives the order's totals and status
+automatically. It also alerts that the **entry-level** stamp is manual — a payment intent can
+cover a whole cart, so the sweep cannot attribute the refund to one entry. Stamp it with the
+same shape `buildEntryRefundStamp` writes:
+
+```sql
+-- service_role; mirrors apps/myk9show/supabase/functions/_shared/refundReuse.ts
+update entries
+set refund_amount  = <dollars>,          -- e.g. 25.00
+    refunded_at    = now(),
+    refund_notes   = 'Post-payout clawback: re_<id>, reversal trr_<id> (MYK9-195 runbook)',
+    payment_status = 'refunded'
+where id = '<entry_id>'
+  and payment_status = 'paid'
+  and coalesce(refund_amount, 0) = 0;   -- same no-double-stamp guard as the function
+```
+
+A partial refund still stamps `payment_status = 'refunded'` — that is what the in-app path
+does, and the payout math reads `refund_amount`, not the status.
+
+**5. Recover the club's share.** Stripe dashboard → Connect → Transfers →
+`stripe_transfer_id` from the query above → **Reverse** → enter the refunded amount. Because
+the refund was capped at the entry fee (step 1), the reversal amount equals the refund amount
+— the entry fee is club money; the platform-fee portion was never transferred. Note the
+reversal id (`trr_...`) into `refund_notes`.
+
+## Case B — dispute lost after payout
+
+The dispute-created alert fires when the bank raises it; Stripe pulls the disputed amount
+**plus the $15 fee** from the platform balance immediately, no consent step. First response is
+always evidence, not accounting: Stripe dashboard → Payments → Disputes, submit the signed
+entry agreement and entry records before the deadline. This section is for after the dispute
+**stands**.
+
+**1. If the payout has not settled yet** (show end + 3 days): stamp the disputed entries
+refunded (Case A step 4, using the dispute amount) **before** the payout fires. The cron
+recomputes the transfer from `max(0, entry_fee - refund_amount)` at send time, so the club is
+simply paid less and no clawback exists. This is the cheap path — the alert says so, and it is
+the reason to act on dispute alerts same-day.
+
+**2. If the payout has settled:** reverse the transfer for the entry-fee portion of the
+disputed entries (Case A steps 2 and 5 — talk to the club first; a chargeback is not their
+fault), and stamp the entries (Case A step 4).
+
+**3. Book the loss into the order ledger by hand.** A dispute produces no Stripe refund
+object, so the `charge.refunded` sweep never records it — without this step the financial
+dashboard **overstates** collections and `netPlatformIncome` by the full disputed amount.
+The recording RPC is idempotent on its key; use the dispute id:
+
+```sql
+-- service_role; books the dispute as a post-hoc platform loss and re-derives order totals
+select * from public.record_order_refund_cents(
+  '<pi_...>', '<dp_...>', <amount_cents>, 'post_hoc');
+```
+
+The **$15 dispute fee** has no home in the schema — `netPlatformIncome` will overstate by
+exactly that much per lost dispute. Keep the running count in the dispute log below;
+[`unit-economics.md`](unit-economics.md) prices each one at ~17 entries of profit.
+
+## What ties out afterward — and what deliberately does not
+
+| Record | After Case A | After Case B |
+| --- | --- | --- |
+| `stripe_order_refunds` / order status | Automatic (webhook sweep) | Manual (RPC, step 3) |
+| `entries` refund columns | Manual (step 4) | Manual (step 1/2) |
+| `netPlatformIncome` | Subtracts the refund | Subtracts the booked amount |
+| `show_payouts.amount_cents` | **Unchanged — permanent, expected mismatch** | Same |
+| Transfer reversal | Recorded nowhere in-app | Same |
+
+The last two rows are the same fact: nothing in the schema represents a transfer reversal. So
+after a completed clawback, (a) the club's reconciliation card shows a net **lower** than its
+settled transfer, and (b) `netPlatformIncome` **understates** by the reversed amount — the
+dashboard subtracted the full refund but never saw the recovery. Both discrepancies equal the
+reversal amount. That is accepted at expected volume (see unit-economics §7d — the window is
+show end + 3 days and most withdrawals arrive pre-show); the `refund_notes` stamp carrying
+`re_`/`dp_` and `trr_` ids is what lets a later audit tie the numbers out by hand. If clawbacks
+stop being rare, that is the trigger to build the in-app path (MYK9-195 step 3), not to widen
+this runbook.
+
+## Clawback log
+
+One line per event, newest first — this is the audit trail for the untracked reversals and
+dispute fees above.
+
+| Date | Show | Entry | Kind | Refund/dispute | Reversal | Amount | Fee absorbed |
+| ---- | ---- | ----- | ---- | -------------- | -------- | ------ | ------------ |

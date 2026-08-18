@@ -1,20 +1,11 @@
+import { createDatabaseError as realCreateDatabaseError } from '@/services/database/databaseError';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { wrapQuery, wrapMutation } from '../wrap-query';
 
 // Mock the supabaseClient module so logQuery/createDatabaseError are controllable in tests
 vi.mock('../../supabaseClient', () => ({
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((error: unknown, table?: string, operation?: string) => {
-    const msg =
-      error instanceof Error
-        ? error.message
-        : typeof error === 'string'
-          ? error
-          : error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string'
-            ? (error as { message: string }).message
-            : 'Unknown error';
-    return Object.assign(new Error(msg), { name: 'DatabaseError', table, operation });
-  }),
+  createDatabaseError: vi.fn(realCreateDatabaseError),
 }));
 
 import { logQuery, createDatabaseError } from '../../supabaseClient';

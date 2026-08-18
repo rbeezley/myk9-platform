@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -34,10 +35,7 @@ vi.mock('../_shared/untyped-from', () => ({
 vi.mock('../supabaseClient', () => ({
   supabase: {},
   logQuery: vi.fn(),
-  createDatabaseError: (error: { message?: string }, table: string, operation: string) =>
-    new Error(
-      `${table}:${operation}:${(error as { message?: string })?.message ?? 'unknown error'}`
-    ),
+  createDatabaseError,
 }));
 
 import {
@@ -80,9 +78,18 @@ describe('persistShowJudgeAssignments', () => {
   it('wraps a replace failure in a judge_assignments database error', async () => {
     mocks.replaceShowLevelAssignments.mockRejectedValueOnce(new Error('offline queue full'));
 
-    await expect(persistShowJudgeAssignments('show-1', [{ judgeId: 'judge-1' }])).rejects.toThrow(
-      'judge_assignments:persist_show_assignments'
-    );
+    // MYK9-181: assert the table/operation `createDatabaseError` records on
+    // the error. The old file-local mock folded them into the message as
+    // `table:operation:msg`, a format production never emits — so the old
+    // assertion could only ever pass against that mock.
+    await expect(
+      persistShowJudgeAssignments('show-1', [{ judgeId: 'judge-1' }])
+    ).rejects.toMatchObject({
+      name: 'DatabaseError',
+      table: 'judge_assignments',
+      operation: 'persist_show_assignments',
+      message: 'offline queue full',
+    });
   });
 });
 
@@ -118,9 +125,16 @@ describe('upsertClassJudgeAssignment', () => {
   it('wraps a replace failure in a judge_assignments database error', async () => {
     mocks.replaceClassAssignment.mockRejectedValueOnce(new Error('offline queue full'));
 
-    await expect(upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1')).rejects.toThrow(
-      'judge_assignments:upsert_class_assignment'
-    );
+    // MYK9-181: assert the table/operation `createDatabaseError` records on
+    // the error. The old file-local mock folded them into the message as
+    // `table:operation:msg`, a format production never emits — so the old
+    // assertion could only ever pass against that mock.
+    await expect(upsertClassJudgeAssignment('show-1', 'class-1', 'judge-1')).rejects.toMatchObject({
+      name: 'DatabaseError',
+      table: 'judge_assignments',
+      operation: 'upsert_class_assignment',
+      message: 'offline queue full',
+    });
   });
 });
 
@@ -153,8 +167,17 @@ describe('reassignClassJudge', () => {
   it('wraps a reassign failure in a judge_assignments database error', async () => {
     mocks.reassignClassAssignment.mockRejectedValueOnce(new Error('no match'));
 
-    await expect(reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2')).rejects.toThrow(
-      'judge_assignments:reassign_class_judge'
-    );
+    // MYK9-181: assert the table/operation `createDatabaseError` records on
+    // the error. The old file-local mock folded them into the message as
+    // `table:operation:msg`, a format production never emits — so the old
+    // assertion could only ever pass against that mock.
+    await expect(
+      reassignClassJudge('show-1', 'class-1', 'judge-1', 'judge-2')
+    ).rejects.toMatchObject({
+      name: 'DatabaseError',
+      table: 'judge_assignments',
+      operation: 'reassign_class_judge',
+      message: 'no match',
+    });
   });
 });

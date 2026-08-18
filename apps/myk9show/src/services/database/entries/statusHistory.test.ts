@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ENTRY_STATUS_HISTORY_SELECT,
@@ -14,8 +15,7 @@ const { select, eq, order, logQuery } = vi.hoisted(() => ({
 
 vi.mock('../supabaseClient', () => ({
   supabase: { from: vi.fn(() => ({ select, eq, order })) },
-  createDatabaseError: (error: unknown) =>
-    error instanceof Error ? error : new Error(String(error)),
+  createDatabaseError,
   logQuery,
 }));
 

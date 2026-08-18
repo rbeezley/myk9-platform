@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getShowMapHandlerMessageTarget,
@@ -34,13 +35,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
     from: (...args: unknown[]) => mockFrom(...args),
   },
   logQuery: vi.fn(),
-  createDatabaseError: (err: unknown) => {
-    if (err instanceof Error) return err;
-    if (err && typeof err === 'object' && 'message' in err) {
-      return new Error(String((err as { message: unknown }).message));
-    }
-    return new Error(String(err));
-  },
+  createDatabaseError,
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({

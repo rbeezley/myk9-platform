@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -26,7 +27,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
-  createDatabaseError: (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
+  createDatabaseError,
 }));
 
 vi.mock('@/services/replication', () => ({

@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { renderHook, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
@@ -16,7 +17,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
     from: vi.fn(),
   },
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((msg: string) => new Error(msg)),
+  createDatabaseError,
 }));
 
 const authState = vi.hoisted(() => ({

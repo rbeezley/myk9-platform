@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReplicatedWaitlistEntry } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -59,9 +60,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn(), rpc: vi.fn() },
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((err: unknown) => ({
-    message: err instanceof Error ? err.message : String(err),
-  })),
+  createDatabaseError,
 }));
 
 // Now import the functions under test

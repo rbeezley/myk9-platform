@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { getMoveUpEligibleEntries, getPendingMoveUpRequests } from '../move-up';
@@ -11,7 +12,7 @@ const replicationMocks = vi.hoisted(() => ({
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
   logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) => error,
+  createDatabaseError,
 }));
 
 vi.mock('../entries/lifecycle', () => ({

@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 /**
  * deleteClass cascade tests.
  *
@@ -34,9 +35,7 @@ const { mockSupabase, recorded } = vi.hoisted(() => {
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((err: unknown) =>
-    err instanceof Error ? err : new Error(String(err))
-  ),
+  createDatabaseError,
   DatabaseError: class DatabaseError extends Error {},
 }));
 

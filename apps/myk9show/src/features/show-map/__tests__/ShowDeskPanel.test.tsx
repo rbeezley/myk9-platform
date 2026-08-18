@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
@@ -10,8 +11,7 @@ import ShowDeskPanel from '../ShowDeskPanel';
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
-  createDatabaseError: (error: unknown) =>
-    error instanceof Error ? error : new Error(String(error)),
+  createDatabaseError,
 }));
 vi.mock('@/services/database/day-of-operations', () => ({}));
 vi.mock('@/services/database/entries/lifecycle', () => ({

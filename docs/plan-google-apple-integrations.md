@@ -131,7 +131,7 @@ Filing now and deciding later is strictly better than the reverse, because the r
 
 **Scope tightly:** the pre-run alert only. Not results, not schedule changes. Keep messages under 160 characters and avoid emoji — emoji forces UCS-2 encoding, dropping the limit to 70 characters and doubling cost.
 
-_Cost:_ ~$0.012–0.013 per message all-in including carrier passthrough. Roughly 4–5 cents per exhibitor per trial.
+_Cost:_ ~$0.011 per message all-in including carrier passthrough ($0.0079 Twilio + ~$0.003 carrier). One SMS per **entry**, and a typical entrant has ~4.5 entries per trial day (1–2 dogs × 2–4 classes), so roughly **5 cents per exhibitor per trial day** — ~$42/month at 2 shows/month with full opt-in, ~$19/month at 40%. The 4–5 cent headline was right; its stated basis of 3–4 messages at ~$0.0125 was not. Derivation, and why the campaign cap depends on SMS _not_ mirroring push's countdown: [`docs/operations/sms-10dlc-registration.md`](operations/sms-10dlc-registration.md) § 1 and § 4.
 
 **Give it away.** Against a $7 fee on a $100 cart, a nickel is under 1% of margin. "We text you before your run" is worth more as word-of-mouth in a small, tightly networked sport than as a $4.99/mo subscription — which is an awkward sell to someone competing six weekends a year. Revisit paid tiering in Year 2 if volume justifies it.
 

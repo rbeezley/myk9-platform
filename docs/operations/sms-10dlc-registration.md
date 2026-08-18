@@ -31,16 +31,30 @@ per recipient) into a logged delivery error. We still record opt-out in
 send path knows, but Twilio is the backstop underneath that. Nothing we build
 gets that guarantee for free.
 
-The price delta is not material here. One alert per exhibitor per trial:
+The price delta is not material here.
+
+**Volume basis — one SMS per _entry_, not per exhibitor.** A typical entrant
+brings 1–2 dogs running 2–4 classes each, so ~4.5 entries per exhibitor per
+trial day. At a 200-exhibitor trial day that is **~900 messages**. The alert
+fires once, when the dog first comes within the `lead_dogs` threshold — push
+keeps the full countdown, SMS deliberately does not. That distinction is
+load-bearing for the campaign cap; see § 4 step 3.
 
 |                          | Twilio   | Telnyx / Plivo                      |
 | ------------------------ | -------- | ----------------------------------- |
 | Per outbound SMS         | ~$0.0079 | ~$0.004–0.005                       |
 | Carrier pass-through fee | ~$0.003  | ~$0.003 (same, it is the carrier's) |
-| 500-exhibitor trial      | ~$5.50   | ~$4.00                              |
+| All-in per message       | ~$0.0109 | ~$0.007–0.008                       |
+| 200-exhibitor trial day  | ~$9.80   | ~$6.30                              |
 
-A ~$1.50/trial premium for platform-enforced compliance is the right trade at
-this stage. Revisit if volume reaches tens of thousands of messages a month.
+A ~$3.50/trial-day premium for platform-enforced compliance is the right trade
+at this stage. Revisit if volume reaches tens of thousands of messages a month.
+
+**Running cost at current cadence** (2 shows/month, ~2 trial days each — confirm
+this assumption against the actual calendar): ~3,600 messages/month if every
+exhibitor opts in, so ~$39/month of traffic plus ~$3.15/month fixed (campaign +
+number) — call it **~$42/month at 100% opt-in, ~$19/month at 40%**. Opt-in rate
+is the largest remaining unknown and nothing measures it yet.
 
 Secondary reasons: the 10DLC registration flow is guided inside the Twilio
 console rather than filed raw against The Campaign Registry; inbound webhooks
@@ -167,9 +181,18 @@ Twilio Console → **Messaging → Regulatory Compliance → A2P 10DLC**.
    monthly tier and covers a single transactional notification plus room for
    future transactional messages without registering a second campaign.
    Know the ceiling: T-Mobile caps Low Volume Mixed near **2,000 messages/day**
-   brand-wide. One alert per exhibitor keeps a large show inside that, but a
-   second message type would not. Moving up later means a new campaign, not a
-   new brand.
+   brand-wide. At one SMS per entry and ~4.5 entries per exhibitor (§ 1), a
+   200-exhibitor trial day is ~900 messages — inside the cap, and the tier holds
+   to roughly **440 exhibitors per trial day** at 100% opt-in.
+   **That headroom depends entirely on SMS sending once per entry rather than
+   mirroring push's countdown.** `push-trigger-run-proximity` re-evaluates on
+   every queue advance and keeps no cross-invocation record of who was already
+   alerted, so a send path that simply mirrors push emits one message per
+   position in the countdown — `lead_dogs` defaults to 3 and is user-configurable
+   with no upper bound. That is ~2,700 messages at 200 exhibitors, **over the
+   cap**, and exceeding it produces carrier-filtered undelivered alerts rather
+   than a bill. A second message type would not fit either. Moving up later
+   means a new campaign, not a new brand.
 
 4. **Fill the campaign form** with the copy in §5.
 

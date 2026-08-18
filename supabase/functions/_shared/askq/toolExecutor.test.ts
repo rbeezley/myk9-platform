@@ -100,6 +100,10 @@ function fakeSupabase(rowsByTable: Record<string, unknown[]>) {
         record.columns.push(column);
         return builder;
       },
+      is(column: string) {
+        record.columns.push(column);
+        return builder;
+      },
       order(column: string) {
         record.columns.push(column);
         return builder;
@@ -258,6 +262,142 @@ describe('AskQ entry tools query columns that view_entry_with_results actually h
 
     const entryQuery = queries.find(q => q.table === 'view_entry_with_results');
     expect(entryQuery!.columns).toContain('show_id');
+  });
+});
+
+describe('AskQ class and trial tools query current base-table columns', () => {
+  it('builds class summaries from trials, classes, and entries', async () => {
+    const { client, queries } = fakeSupabase({
+      trials: [
+        {
+          id: 'trial-1',
+          date: '2026-08-01',
+          name: 'Saturday Trial',
+          trial_number: '1',
+          show_id: SHOW_ID,
+          shows: { name: 'Summer Show' },
+        },
+      ],
+      classes: [
+        {
+          id: 'class-1',
+          trial_id: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          judge_name: 'Ann Judge',
+          status: 'upcoming',
+          start_time: '09:30:00',
+        },
+      ],
+      entries: [
+        {
+          class_id: 'class-1',
+          entry_status: 'confirmed',
+          is_scored: true,
+          check_in_status: 'completed',
+          result_status: 'qualified',
+        },
+        {
+          class_id: 'class-1',
+          entry_status: 'confirmed',
+          is_scored: true,
+          check_in_status: 'checked-in',
+          result_status: 'nq',
+        },
+        {
+          class_id: 'class-1',
+          entry_status: 'withdrawn',
+          is_scored: false,
+          check_in_status: 'no-status',
+          result_status: 'withdrawn',
+        },
+      ],
+    });
+
+    const { result, error } = await executeTool(
+      'get_class_summary',
+      { trial_date: '2026-08-01', element: 'Container' },
+      client,
+      '',
+      undefined,
+      undefined,
+      userContext
+    );
+
+    expect(error).toBeUndefined();
+    expect(result).toEqual([
+      {
+        class_id: 'class-1',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        judge_name: 'Ann Judge',
+        class_status: 'upcoming',
+        total_entries: 2,
+        scored_entries: 2,
+        checked_in_count: 2,
+        qualified_count: 1,
+        nq_count: 1,
+        trial_date: '2026-08-01',
+        trial_name: 'Saturday Trial',
+        start_time: '09:30:00',
+      },
+    ]);
+
+    expect(queries.map(query => query.table)).toEqual(['trials', 'classes', 'entries']);
+    expect(queries.find(query => query.table === 'trials')!.columns).toContain('show_id');
+    expect(queries.find(query => query.table === 'classes')!.columns).toEqual([
+      'trial_id',
+      'element',
+      'start_time',
+    ]);
+    expect(queries.find(query => query.table === 'entries')!.columns).toContain('deleted_at');
+    expect(queries.map(query => query.table)).not.toContain('view_class_summary');
+  });
+
+  it('builds trial overviews from trials and shows', async () => {
+    const { client, queries } = fakeSupabase({
+      trials: [
+        {
+          id: 'trial-1',
+          date: '2026-08-01',
+          name: 'Saturday Trial',
+          trial_number: '1',
+          show_id: SHOW_ID,
+          shows: { name: 'Summer Show' },
+        },
+      ],
+    });
+
+    const { result, error } = await executeTool(
+      'get_trial_overview',
+      {},
+      client,
+      '',
+      undefined,
+      undefined,
+      userContext
+    );
+
+    expect(error).toBeUndefined();
+    expect(result).toEqual([
+      {
+        trial_id: 'trial-1',
+        trial_number: '1',
+        trial_date: '2026-08-01',
+        trial_name: 'Saturday Trial',
+        show_name: 'Summer Show',
+      },
+    ]);
+
+    const trialQuery = queries.find(query => query.table === 'trials');
+    expect(trialQuery).toBeDefined();
+    expect(selectedColumns(trialQuery!.selected)).toContain('date');
+    expect(selectedColumns(trialQuery!.selected)).toContain('trial_number');
+    expect(selectedColumns(trialQuery!.selected)).not.toContain('trial_date');
+    expect(selectedColumns(trialQuery!.selected)).not.toContain('competition_type');
+    expect(queries.map(query => query.table)).not.toContain('view_trial_summary_normalized');
   });
 });
 

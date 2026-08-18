@@ -22,7 +22,7 @@ export const TOOLS: ToolDefinition[] = [
         },
         class_status: {
           type: 'string',
-          enum: ['no-status', 'setup', 'briefing', 'break', 'in_progress', 'completed'],
+          enum: ['upcoming', 'setup', 'in_progress', 'completed', 'cancelled'],
           description: 'Filter by class status',
         },
       },

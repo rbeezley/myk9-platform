@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = resolve(__dirname, '../../../../..');
 const migration = readFileSync(
-  resolve(repoRoot, 'supabase/migrations/20260817120000_show_email_delivery_history.sql'),
+  resolve(repoRoot, 'supabase/migrations/20260817160000_show_email_delivery_history.sql'),
   'utf8'
 );
 const behavioralSql = readFileSync(
@@ -52,11 +52,22 @@ describe('MYK9-180 email delivery history migration contract', () => {
     expect(migration).not.toContain('log.error_message AS failure_summary');
   });
 
+  it('uses the lifecycle fallback only for failed pre-log attempts', () => {
+    expect(migration).toContain("AND lower(attempt.status) = 'failed'");
+  });
+
   it('keeps each auth.users behavioral fixture aligned with all timestamp columns', () => {
     expect(
-      behavioralSql.match(
-        /now\(\), now\(\), now\(\), '\{\}', '\{\}', false, false, false/g
-      )
+      behavioralSql.match(/now\(\), now\(\), now\(\), '\{\}', '\{\}', false, false, false/g)
     ).toHaveLength(3);
+  });
+
+  it('covers stable pagination, registration and lifecycle rows, and malformed references', () => {
+    expect(behavioralSql).toContain('FAIL same-timestamp first page');
+    expect(behavioralSql).toContain('FAIL same-timestamp cursor page');
+    expect(behavioralSql).toContain('FAIL registration history missing');
+    expect(behavioralSql).toContain('FAIL lifecycle failure history missing');
+    expect(behavioralSql).toContain('FAIL orphan or malformed reference leaked');
+    expect(behavioralSql).toContain('FAIL non-failed lifecycle fallback leaked');
   });
 });

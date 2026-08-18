@@ -49,12 +49,50 @@ SELECT
 FROM public.roles AS role WHERE role.name = 'site_admin';
 
 SET LOCAL ROLE service_role;
+INSERT INTO public.show_lifecycle_email_steps (id, show_id, step_type)
+VALUES (
+  '00000000-0000-0000-0000-000000180301',
+  '00000000-0000-0000-0000-000000180002',
+  'accepted'
+);
+
+INSERT INTO public.show_lifecycle_email_jobs (
+  id, show_id, step_id, step_type, status, recipient_scope,
+  recipient_email, recipient_name, idempotency_key, due_at
+)
+VALUES (
+  '00000000-0000-0000-0000-000000180302',
+  '00000000-0000-0000-0000-000000180002',
+  '00000000-0000-0000-0000-000000180301',
+  'accepted', 'failed', 'show_recipient',
+  'lifecycle@example.test', 'Lifecycle Recipient',
+  'myk9-180-lifecycle', '2026-08-17T12:00:00Z'
+);
+
+INSERT INTO public.show_lifecycle_email_attempts (
+  id, job_id, status, error_message, attempted_at
+)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000180303',
+    '00000000-0000-0000-0000-000000180302',
+    'failed', 'pre_provider_failure', '2026-08-17T12:00:00Z'
+  ),
+  (
+    '00000000-0000-0000-0000-000000180304',
+    '00000000-0000-0000-0000-000000180302',
+    'sent', NULL, '2026-08-17T12:00:00Z'
+  );
+
 INSERT INTO public.email_log (
   id, recipient_email, email_type, show_id, status, created_at
 )
 VALUES
-  ('00000000-0000-0000-0000-000000180201', 'show-a@example.test', 'registry_results_submission', '00000000-0000-0000-0000-000000180002', 'sent', now()),
-  ('00000000-0000-0000-0000-000000180202', 'show-b@example.test', 'registry_results_submission', '00000000-0000-0000-0000-000000180003', 'delivered', now());
+  ('00000000-0000-0000-0000-000000180201', 'show-a@example.test', 'registry_results_submission', '00000000-0000-0000-0000-000000180002', 'sent', '2026-08-17T12:00:00Z'),
+  ('00000000-0000-0000-0000-000000180202', 'show-b@example.test', 'registry_results_submission', '00000000-0000-0000-0000-000000180003', 'delivered', '2026-08-17T12:00:00Z'),
+  ('00000000-0000-0000-0000-000000180203', 'registration@example.test', 'registration_confirmation', '00000000-0000-0000-0000-000000180002', 'sent', '2026-08-17T12:00:00Z'),
+  ('00000000-0000-0000-0000-000000180204', 'orphan@example.test', 'entry_decision', '00000000-0000-0000-0000-000000180002', 'sent', '2026-08-17T12:00:00Z'),
+  ('00000000-0000-0000-0000-000000180205', 'malformed@example.test', 'show_lifecycle_email', '00000000-0000-0000-0000-000000180002', 'sent', '2026-08-17T12:00:00Z');
 RESET ROLE;
 
 DO $$
@@ -64,6 +102,9 @@ DECLARE
   site_admin uuid := '00000000-0000-0000-0000-000000180103';
   show_a uuid := '00000000-0000-0000-0000-000000180002';
   show_b uuid := '00000000-0000-0000-0000-000000180003';
+  first_id uuid;
+  first_attempted_at timestamptz;
+  second_id uuid;
   row_count integer;
 BEGIN
   IF has_function_privilege('anon', 'public.get_show_email_delivery_history(uuid,integer,timestamptz,uuid)', 'execute') THEN
@@ -76,9 +117,56 @@ BEGIN
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claim.sub', manager::text, true);
   PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', manager, 'role', 'authenticated')::text, true);
-  SELECT count(*) INTO row_count FROM public.get_show_email_delivery_history(show_a, 1, NULL, NULL);
-  IF row_count <> 1 THEN
-    RAISE EXCEPTION 'FAIL same-show secretary received % rows (expected 1)', row_count;
+  SELECT count(*) INTO row_count FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL);
+  IF row_count <> 3 THEN
+    RAISE EXCEPTION 'FAIL same-show secretary received % rows (expected 3)', row_count;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL)
+    WHERE source_kind = 'registration_confirmation'
+  ) THEN
+    RAISE EXCEPTION 'FAIL registration history missing';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL)
+    WHERE id = '00000000-0000-0000-0000-000000180303'
+      AND source_kind = 'lifecycle'
+      AND delivery_status = 'failed'
+  ) THEN
+    RAISE EXCEPTION 'FAIL lifecycle failure history missing';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL)
+    WHERE id IN (
+      '00000000-0000-0000-0000-000000180204',
+      '00000000-0000-0000-0000-000000180205'
+    )
+  ) THEN
+    RAISE EXCEPTION 'FAIL orphan or malformed reference leaked';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.get_show_email_delivery_history(show_a, 100, NULL, NULL)
+    WHERE id = '00000000-0000-0000-0000-000000180304'
+  ) THEN
+    RAISE EXCEPTION 'FAIL non-failed lifecycle fallback leaked';
+  END IF;
+
+  SELECT id, attempted_at INTO first_id, first_attempted_at
+  FROM public.get_show_email_delivery_history(show_a, 1, NULL, NULL)
+  LIMIT 1;
+  IF first_id <> '00000000-0000-0000-0000-000000180303' THEN
+    RAISE EXCEPTION 'FAIL same-timestamp first page returned %', first_id;
+  END IF;
+
+  SELECT id INTO second_id
+  FROM public.get_show_email_delivery_history(show_a, 1, first_attempted_at, first_id)
+  LIMIT 1;
+  IF second_id <> '00000000-0000-0000-0000-000000180203' THEN
+    RAISE EXCEPTION 'FAIL same-timestamp cursor page returned %', second_id;
   END IF;
 
   BEGIN
@@ -96,6 +184,12 @@ BEGIN
   BEGIN
     PERFORM * FROM public.get_show_email_delivery_history(show_a, 50, now(), NULL);
     RAISE EXCEPTION 'FAIL malformed cursor accepted';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+
+  BEGIN
+    PERFORM * FROM public.get_show_email_delivery_history(show_a, 50, NULL, show_a);
+    RAISE EXCEPTION 'FAIL reverse half-specified cursor accepted';
   EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
   END;
 

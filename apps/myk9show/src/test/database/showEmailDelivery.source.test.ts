@@ -96,6 +96,28 @@ describe('MYK9-180 show email delivery source contract', () => {
     expect(contents).not.toContain('/functions/v1/send-email');
   });
 
+  it('fails loudly when registration delivery history cannot be recorded', () => {
+    const contents = source('supabase/functions/send-registration-email/index.ts');
+    expect(contents.match(/if \(logError\)/g)).toHaveLength(3);
+    expect(contents).toContain("error_message: 'missing_recipient'");
+    expect(contents).toContain('recipient_email: null');
+    expect(contents).toContain(
+      "throw new HttpError(500, 'Failed to record email delivery history')"
+    );
+  });
+
+  it('records a failed Heritage attempt when the recipient address is missing', () => {
+    const contents = source('supabase/functions/send-confirmation-email/index.ts');
+    const missingRecipientBlock = contents.slice(
+      contents.indexOf('if (!recipientEmail)'),
+      contents.indexOf('const dogName = entry.dog?.name')
+    );
+    expect(missingRecipientBlock).toContain("confirmation_email_status: 'failed'");
+    expect(missingRecipientBlock).toContain('recipient_email: null');
+    expect(missingRecipientBlock).toContain("error_message: 'missing_recipient'");
+    expect(missingRecipientBlock).toContain('failed++');
+  });
+
   it('classifies every production Resend writer', () => {
     expect(discoverProductionResendWriters()).toEqual(
       Object.keys(classifiedProductionResendWriters).sort()

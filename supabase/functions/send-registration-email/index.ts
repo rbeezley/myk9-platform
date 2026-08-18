@@ -226,6 +226,21 @@ handle<SendRegistrationEmailPayload>(
 
     const recipientEmail = registration.person?.email;
     if (!recipientEmail) {
+      const { error: logError } = await supabase.from('email_log').insert({
+        recipient_email: null,
+        email_type: 'registration_confirmation',
+        related_id: registrationId,
+        show_id: registration.show_id,
+        status: 'failed',
+        error_message: 'missing_recipient',
+        status_updated_at: new Date().toISOString(),
+      });
+      if (logError) {
+        console.error('Failed to record registration email delivery history', {
+          code: logError.code,
+        });
+        throw new HttpError(500, 'Failed to record email delivery history');
+      }
       throw new HttpError(400, 'No email address for registrant');
     }
 
@@ -285,7 +300,7 @@ handle<SendRegistrationEmailPayload>(
         body: JSON.stringify(emailPayload),
       });
     } catch {
-      await supabase.from('email_log').insert({
+      const { error: logError } = await supabase.from('email_log').insert({
         recipient_email: recipientEmail,
         email_type: 'registration_confirmation',
         related_id: registrationId,
@@ -294,6 +309,12 @@ handle<SendRegistrationEmailPayload>(
         error_message: 'email_delivery_error',
         status_updated_at: new Date().toISOString(),
       });
+      if (logError) {
+        console.error('Failed to record registration email delivery history', {
+          code: logError.code,
+        });
+        throw new HttpError(500, 'Failed to record email delivery history');
+      }
       return { success: false };
     }
 
@@ -313,7 +334,7 @@ handle<SendRegistrationEmailPayload>(
     }
 
     // Write email_log
-    const { data: logRow } = await supabase
+    const { data: logRow, error: logError } = await supabase
       .from('email_log')
       .insert({
         recipient_email: recipientEmail,
@@ -326,6 +347,13 @@ handle<SendRegistrationEmailPayload>(
       })
       .select('id')
       .single();
+
+    if (logError) {
+      console.error('Failed to record registration email delivery history', {
+        code: logError.code,
+      });
+      throw new HttpError(500, 'Failed to record email delivery history');
+    }
 
     return {
       success: sendStatus === 'sent',

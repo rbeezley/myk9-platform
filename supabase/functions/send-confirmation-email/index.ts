@@ -446,7 +446,27 @@ handle<ConfirmationEmailPayload>(
       for (const entry of entries ?? []) {
         const recipientEmail = entry.handler?.email;
         if (!recipientEmail) {
-          skipped++;
+          const attemptedAt = new Date().toISOString();
+          await supabase
+            .from('entries')
+            .update({ confirmation_email_status: 'failed' })
+            .eq('id', entry.id);
+          const { error: logError } = await supabase.from('email_log').insert({
+            recipient_email: null,
+            email_type: 'heritage_confirmation',
+            related_id: entry.id,
+            status: 'failed',
+            status_updated_at: attemptedAt,
+            error_message: 'missing_recipient',
+            show_id: show.id,
+          });
+          if (logError) {
+            console.error('Failed to record Heritage email delivery history', {
+              code: logError.code,
+            });
+            throw new HttpError(500, 'Failed to record email delivery history');
+          }
+          failed++;
           continue;
         }
 

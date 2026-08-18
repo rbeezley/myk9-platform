@@ -242,6 +242,7 @@ BEGIN
     JOIN public.show_lifecycle_email_jobs AS job ON job.id = attempt.job_id
     WHERE job.show_id = p_show_id
       AND attempt.email_log_id IS NULL
+      AND lower(attempt.status) = 'failed'
   ), history AS (
     SELECT * FROM email_rows WHERE source_kind IS NOT NULL
     UNION ALL

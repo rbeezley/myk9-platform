@@ -3,6 +3,12 @@ import { ensureError } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
 import { rbacService } from '@/services/rbac/RBACService';
+import {
+  clearRbacPermissionsCache,
+  loadRbacPermissionsCache,
+  saveRbacPermissionsCache,
+  type RbacCacheEntry,
+} from './rbacPermissionsCache';
 import type {
   EffectivePermissionScope,
   PermissionWithRole,
@@ -20,6 +26,8 @@ interface RbacState {
   loaded: boolean;
   error: string | null;
   lastRefreshed: string | null;
+  /** Set when roles were hydrated from the device-local cache (offline cold boot). */
+  fromCacheAt: string | null;
 }
 
 const EMPTY_STATE: RbacState = {
@@ -32,6 +40,7 @@ const EMPTY_STATE: RbacState = {
   loaded: false,
   error: null,
   lastRefreshed: null,
+  fromCacheAt: null,
 };
 
 function mapRbacRoles(roles: UserRoleWithDetails[]): UserRoleWithDetails[] {
@@ -55,6 +64,16 @@ function toLoadedState(userId: string, data: UserPermissionsResponse): RbacState
     loaded: true,
     error: null,
     lastRefreshed: new Date().toISOString(),
+    fromCacheAt: null,
+  };
+}
+
+function toCacheHydratedState(userId: string, entry: RbacCacheEntry): RbacState {
+  return {
+    ...toLoadedState(userId, entry.data),
+    // Honest timestamps: this data is as old as the cache entry, not "now".
+    lastRefreshed: entry.cachedAt,
+    fromCacheAt: entry.cachedAt,
   };
 }
 
@@ -75,6 +94,21 @@ export function useRbacLifecycle(userId: string | undefined) {
   const requestGenerationRef = useRef(0);
   const [state, setState] = useState<RbacState>(EMPTY_STATE);
   currentUserIdRef.current = userId;
+
+  // Clear the PRIOR user's persisted permissions whenever the authenticated
+  // user id changes — sign-out or account switch — mirroring
+  // useResetSavedViewsOnAccountChange. Deliberately NOT in the `!userId`
+  // branch below: that branch also runs on every boot before the session
+  // resolves, and clearing there would wipe the cache the offline cold-boot
+  // path exists to read (MYK9-200).
+  const prevAuthedUserIdRef = useRef<string | undefined>(userId);
+  useEffect(() => {
+    const prevUserId = prevAuthedUserIdRef.current;
+    if (prevUserId && prevUserId !== userId) {
+      clearRbacPermissionsCache(prevUserId);
+    }
+    prevAuthedUserIdRef.current = userId;
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -102,7 +136,10 @@ export function useRbacLifecycle(userId: string | undefined) {
             : { ...EMPTY_STATE, userId, isLoading: true }
         );
         const data = await rbacService.getUserPermissions(userId);
-        if (isCurrentRequest()) setState(toLoadedState(userId, data));
+        if (isCurrentRequest()) {
+          saveRbacPermissionsCache(userId, data);
+          setState(toLoadedState(userId, data));
+        }
       } catch (error) {
         if (!isCurrentRequest()) return;
         if ((isAbortError(error) || isTransientBrowserFetchError(error)) && attempt < 3) {
@@ -111,12 +148,31 @@ export function useRbacLifecycle(userId: string | undefined) {
           return;
         }
         logger.error('Failed to load RBAC data:', 'app', {}, ensureError(error));
-        setState(previous => ({
-          ...previous,
-          isLoading: false,
-          loaded: true,
-          error: error instanceof Error ? error.message : 'Failed to load permissions',
-        }));
+        setState(previous => {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Failed to load permissions';
+          // Warm path: this user already has loaded roles in memory — preserve
+          // them exactly (MYK9-200 pins this; a refactor must not regress it).
+          const hasLoadedData = previous.userId === userId && previous.lastRefreshed !== null;
+          // Only a connectivity failure means "offline" — a server/RPC error
+          // must surface as an error, not masquerade as offline cache mode.
+          const isOffline = isAbortError(error) || isTransientBrowserFetchError(error);
+          if (!hasLoadedData && isOffline) {
+            // Cold boot (e.g. page reload offline at a venue): fall back to the
+            // last persisted permissions instead of settling at zero roles.
+            const cached = loadRbacPermissionsCache(userId);
+            if (cached) return toCacheHydratedState(userId, cached);
+          }
+          return {
+            ...previous,
+            isLoading: false,
+            loaded: true,
+            error: errorMessage,
+            // A non-network failure means we reached the backend — stop
+            // claiming "working offline" even if the roles came from cache.
+            fromCacheAt: isOffline ? previous.fromCacheAt : null,
+          };
+        });
       }
     };
 
@@ -129,11 +185,21 @@ export function useRbacLifecycle(userId: string | undefined) {
       5 * 60 * 1000
     );
 
+    // Refresh as soon as connectivity returns instead of waiting out the
+    // interval — cache-hydrated (offline cold boot) roles should go live
+    // promptly, as RbacOfflineNotice promises (MYK9-200).
+    const handleOnline = () => {
+      rbacService.clearUserCache(userId);
+      void load();
+    };
+    window.addEventListener('online', handleOnline);
+
     return () => {
       stale = true;
       requestGenerationRef.current += 1;
       rbacService.clearUserCache(userId);
       window.clearInterval(refreshInterval);
+      window.removeEventListener('online', handleOnline);
     };
   }, [userId]);
 
@@ -141,21 +207,27 @@ export function useRbacLifecycle(userId: string | undefined) {
     if (!userId) return;
     const requestGeneration = ++requestGenerationRef.current;
     const isCurrentRequest = () =>
-      currentUserIdRef.current === userId &&
-      requestGenerationRef.current === requestGeneration;
+      currentUserIdRef.current === userId && requestGenerationRef.current === requestGeneration;
 
     try {
       rbacService.clearUserCache(userId);
       const data = await rbacService.getUserPermissions(userId);
-      if (isCurrentRequest()) setState(toLoadedState(userId, data));
+      if (isCurrentRequest()) {
+        saveRbacPermissionsCache(userId, data);
+        setState(toLoadedState(userId, data));
+      }
     } catch (error) {
       if (!isCurrentRequest()) return;
       logger.error('Failed to refresh RBAC data:', 'app', {}, ensureError(error));
+      const isOffline = isAbortError(error) || isTransientBrowserFetchError(error);
       setState(previous => ({
         ...previous,
         isLoading: false,
         loaded: true,
         error: error instanceof Error ? error.message : 'Failed to refresh permissions',
+        // Same rule as the load path: a non-network failure reached the
+        // backend, so stop claiming "working offline".
+        fromCacheAt: isOffline ? previous.fromCacheAt : null,
       }));
     }
   }, [userId]);
@@ -186,15 +258,13 @@ export function useRbacLifecycle(userId: string | undefined) {
     loaded: state.loaded,
     error: state.error,
     lastRefreshed: state.lastRefreshed,
+    fromCacheAt: belongsToCurrentUser ? state.fromCacheAt : EMPTY_STATE.fromCacheAt,
     refreshPermissions,
     checkPermissionAsync,
   };
 }
 
-export function useRbacAdminActions(
-  isAdmin: boolean,
-  refreshPermissions: () => Promise<void>
-) {
+export function useRbacAdminActions(isAdmin: boolean, refreshPermissions: () => Promise<void>) {
   const assignRole = useMemo(
     () =>
       isAdmin

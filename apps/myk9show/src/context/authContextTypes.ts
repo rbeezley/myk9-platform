@@ -1,10 +1,5 @@
 import type { User } from '@supabase/supabase-js';
-import type {
-  Permission,
-  Scope,
-  UserRole,
-  UserWithRoles,
-} from '@/types/auth-types';
+import type { Permission, Scope, UserRole, UserWithRoles } from '@/types/auth-types';
 import type {
   PermissionWithRole,
   UserRoleWithDetails as RbacUserRoleWithDetails,
@@ -72,6 +67,12 @@ export interface AuthContextType {
   rbacLoading: boolean;
   rbacError: string | null;
   rbacLastRefreshed: string | null;
+  /**
+   * When set, permissions were hydrated from the device-local cache because
+   * the network fetch failed on a cold boot (MYK9-200). Value is the ISO
+   * timestamp the cached permissions were last fetched live.
+   */
+  rbacFromCacheAt: string | null;
   assignRole?: (
     userId: string,
     roleName: string,

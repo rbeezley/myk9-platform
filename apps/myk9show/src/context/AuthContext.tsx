@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loaded: rbacLoaded,
     error: rbacError,
     lastRefreshed: rbacLastRefreshed,
+    fromCacheAt: rbacFromCacheAt,
     refreshPermissions,
     checkPermissionAsync,
   } = useRbacLifecycle(auth.user?.id);
@@ -137,24 +138,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return buildDevUserWithMockRoles(auth.user, MOCK_USERS[currentMockUser], userProfile?.id);
     }
 
-    // Priority 1: Database RBAC (from rbacService) — only use once loaded
-    if (rbacBelongsToCurrentUser && rbacLoaded && !rbacError) {
+    // Priority 1: Database RBAC (from rbacService) — only use once loaded.
+    // A load/refresh error does NOT discard roles already in memory (warm-path
+    // offline preservation and cold-boot cache hydration, MYK9-200): stale
+    // roles are advisory UI state and RLS still enforces server-side. The
+    // error only blocks this branch when there are no roles to fall back on —
+    // never grant the default-exhibitor role from an error state.
+    if (rbacBelongsToCurrentUser && rbacLoaded) {
       const activeRoles = getUniqueActiveRoleNames(currentRbacRoles);
 
-      // If RBAC loaded but user has no valid roles, grant exhibitor as default
-      const roles = activeRoles.length > 0 ? activeRoles : [UserRole.EXHIBITOR];
-      const permissions =
-        activeRoles.length > 0
-          ? (currentEffectivePermissions as Permission[])
-          : DEFAULT_ROLE_PERMISSIONS[UserRole.EXHIBITOR];
+      if (!rbacError || activeRoles.length > 0) {
+        // If RBAC loaded but user has no valid roles, grant exhibitor as default
+        const roles = activeRoles.length > 0 ? activeRoles : [UserRole.EXHIBITOR];
+        const permissions =
+          activeRoles.length > 0
+            ? (currentEffectivePermissions as Permission[])
+            : DEFAULT_ROLE_PERMISSIONS[UserRole.EXHIBITOR];
 
-      return {
-        ...auth.user,
-        roles,
-        permissions,
-        scopes: buildActiveRoleScopes(currentRbacRoles, auth.user.id),
-        databaseUserId: userProfile?.id,
-      } as UserWithRoles;
+        return {
+          ...auth.user,
+          roles,
+          permissions,
+          scopes: buildActiveRoleScopes(currentRbacRoles, auth.user.id),
+          databaseUserId: userProfile?.id,
+        } as UserWithRoles;
+      }
     }
 
     // Priority 2: Known seeded local/UAT accounts should keep their intended
@@ -342,6 +350,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       rbacLoading: !!auth.user && (!rbacBelongsToCurrentUser || rbacIsLoading),
       rbacError: rbacBelongsToCurrentUser ? rbacError : null,
       rbacLastRefreshed: rbacBelongsToCurrentUser ? rbacLastRefreshed : null,
+      rbacFromCacheAt: rbacBelongsToCurrentUser ? rbacFromCacheAt : null,
 
       // Admin functions
       ...(assignRole !== undefined && { assignRole }),
@@ -365,6 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       rbacIsLoading,
       rbacError,
       rbacLastRefreshed,
+      rbacFromCacheAt,
       currentEffectivePermissions,
       currentRbacRoles,
       currentScopedPermissions,

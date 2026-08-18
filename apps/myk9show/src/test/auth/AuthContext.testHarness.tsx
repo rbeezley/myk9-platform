@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import { UserRole } from '@/types/auth-types';
+import type { UserPermissionsResponse } from '@/types/rbac-types';
 
 export const mockUser = {
   id: 'test-user-id',
@@ -22,7 +23,7 @@ export const mockAuthReturn = {
   updateProfile: vi.fn(),
 };
 
-export function accessForRole(role: UserRole) {
+export function accessForRole(role: UserRole): UserPermissionsResponse {
   return {
     roles: [
       {
@@ -34,15 +35,12 @@ export function accessForRole(role: UserRole) {
     permissions: [],
     effectivePermissions: [],
     effectivePermissionScopes: [],
-  };
+  } as unknown as UserPermissionsResponse;
 }
 
 type AuthProviderComponent = React.ComponentType<{ children: React.ReactNode }>;
 
-export function createAuthWrapper(
-  AuthProvider: AuthProviderComponent,
-  initialRoute = '/'
-) {
+export function createAuthWrapper(AuthProvider: AuthProviderComponent, initialRoute = '/') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });

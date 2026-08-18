@@ -31,6 +31,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
+import { replicatedClassesTable } from '@/services/replication';
 // Import triggers self-registration of all LiveScoresheet variants.
 import '@myk9/scoring-ui';
 import {
@@ -102,6 +103,7 @@ export const AtShowScoresheetPage: React.FC = () => {
       setSignOutError(true);
       return;
     }
+    await replicatedClassesTable.clearCachedHideCounts();
     useRingsideGrantStore.getState().clearGrant();
     navigate('/at-show?passcode=1');
   }, [navigate]);

@@ -38,6 +38,7 @@ import {
   getUniqueActiveRoleNames,
 } from './authContextHelpers';
 import { toDbRoles, useRbacAdminActions, useRbacLifecycle } from './useRbacLifecycle';
+import { useClassHideCacheBoundary } from '@/services/replication/useClassHideCacheBoundary';
 
 export type { AuthContextType, UserRoleWithDetails } from './authContextTypes';
 
@@ -190,6 +191,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     rbacLoaded,
     userProfile?.id,
   ]);
+
+  const canReadHideCounts = userWithRoles
+    ? userWithRoles.roles.some(role =>
+        [
+          UserRole.SITE_ADMIN,
+          UserRole.SECRETARY,
+          UserRole.JUDGE,
+          UserRole.CLUB_ADMIN,
+          UserRole.STEWARD,
+        ].includes(role)
+      )
+    : null;
+
+  useClassHideCacheBoundary({
+    authReady: !auth.loading,
+    userId: auth.user?.id ?? null,
+    canReadHideCounts,
+  });
 
   /**
    * Check if user has a specific role

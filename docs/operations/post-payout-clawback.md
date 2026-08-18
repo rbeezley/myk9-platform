@@ -107,9 +107,17 @@ own `entry_fee`** (the whole charge was pulled, so each entry's fee is fully los
 platform-fee remainder has no entry to live on and is platform loss by definition:
 
 ```sql
-select id, entry_fee from entries
-where stripe_payment_intent_id = '<pi_...>' and payment_status = 'paid';
+-- No payment_status filter: an entry partially refunded earlier is already
+-- 'refunded' but still holds disputed money.
+select id, entry_fee, payment_status, refund_amount
+from entries where stripe_payment_intent_id = '<pi_...>';
 ```
+
+**Net out prior refunds.** An entry with an existing `refund_amount` has already reduced (or
+been excluded from) the payout by that much. Its stamp target is `entry_fee` (raise the
+existing `refund_amount` to it, never add on top), and its reversal share is
+`entry_fee - refund_amount` — reversing the full fee would take back money the payout never
+sent.
 
 Check `dispute.amount` against the charge total first. A **partial dispute** (rare, but some
 card networks allow it) means only part of the cart is contested — and Stripe names the

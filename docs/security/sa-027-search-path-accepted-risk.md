@@ -11,29 +11,29 @@ in the 2026-07-29 applied catalog review as using a non-empty path containing
 `public`. They remain covered by this decision until an owner-approved migration
 converts each body to `SET search_path = ''` with fully qualified references.
 
-| Function identity                                       | Current disposition                           |
-| ------------------------------------------------------- | --------------------------------------------- |
-| `assert_active_waitlist_offer_payment_link()`           | Accepted dependency; convert when next edited |
-| `check_class_availability(uuid)`                        | Accepted dependency; convert when next edited |
-| `check_login_rate_limit(text)`                          | Accepted dependency; convert when next edited |
-| `get_admin_user_list(boolean)`                          | Accepted dependency; convert when next edited |
-| `get_my_onboarding_requests()`                          | Accepted dependency; convert when next edited |
-| `handle_entry_scoring_state_change()`                   | Accepted dependency; convert when next edited |
-| `hard_delete_show(uuid)`                                | Accepted dependency; convert when next edited |
-| `promote_waitlist_entry(uuid, integer)`                 | Accepted dependency; convert when next edited |
-| `promote_waitlist_entry_from_cron(uuid)`                | Accepted dependency; convert when next edited |
-| `promote_waitlist_entry_internal(uuid, integer)`        | Accepted dependency; convert when next edited |
+| Function identity                                       | Current disposition                                                                                                         |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `assert_active_waitlist_offer_payment_link()`           | Accepted dependency; convert when next edited                                                                               |
+| `check_class_availability(uuid)`                        | Accepted dependency; convert when next edited                                                                               |
+| `check_login_rate_limit(text)`                          | Accepted dependency; convert when next edited                                                                               |
+| `get_admin_user_list(boolean)`                          | Accepted dependency; convert when next edited                                                                               |
+| `get_my_onboarding_requests()`                          | Accepted dependency; convert when next edited                                                                               |
+| `handle_entry_scoring_state_change()`                   | Accepted dependency; convert when next edited                                                                               |
+| `hard_delete_show(uuid)`                                | Accepted dependency; convert when next edited                                                                               |
+| `promote_waitlist_entry(uuid, integer)`                 | Accepted dependency; convert when next edited                                                                               |
+| `promote_waitlist_entry_from_cron(uuid)`                | Accepted dependency; convert when next edited                                                                               |
+| `promote_waitlist_entry_internal(uuid, integer)`        | Accepted dependency; convert when next edited                                                                               |
 | `recalculate_class_placements(uuid[], boolean)`         | **Converted** to `SET search_path = ''` by `20260817120000_placement_ranking_ignores_soft_deleted_entries.sql` (2026-08-17) |
-| `record_entry_status_history()`                         | Accepted dependency; convert when next edited |
-| `record_login_attempt(text, boolean, text, uuid, text)` | Accepted dependency; convert when next edited |
-| `refresh_class_scoring_state(uuid)`                     | Accepted dependency; convert when next edited |
-| `resolve_class_result_visibility(uuid)`                 | Accepted dependency; convert when next edited |
-| `restrict_payment_status_update()`                      | Accepted dependency; convert when next edited |
-| `restrict_subscription_column_updates()`                | Accepted dependency; convert when next edited |
-| `soft_delete_class(uuid)`                               | Accepted dependency; convert when next edited |
-| `soft_delete_dog(uuid)`                                 | Accepted dependency; convert when next edited |
-| `soft_delete_show(uuid)`                                | Accepted dependency; convert when next edited |
-| `update_thread_last_message_at()`                       | Accepted dependency; convert when next edited |
+| `record_entry_status_history()`                         | Accepted dependency; convert when next edited                                                                               |
+| `record_login_attempt(text, boolean, text, uuid, text)` | Accepted dependency; convert when next edited                                                                               |
+| `refresh_class_scoring_state(uuid)`                     | **Converted** to `SET search_path = ''` by `20260817140000_clear_placement_on_soft_deleted_entries.sql` (2026-08-17)        |
+| `resolve_class_result_visibility(uuid)`                 | Accepted dependency; convert when next edited                                                                               |
+| `restrict_payment_status_update()`                      | Accepted dependency; convert when next edited                                                                               |
+| `restrict_subscription_column_updates()`                | Accepted dependency; convert when next edited                                                                               |
+| `soft_delete_class(uuid)`                               | Accepted dependency; convert when next edited                                                                               |
+| `soft_delete_dog(uuid)`                                 | Accepted dependency; convert when next edited                                                                               |
+| `soft_delete_show(uuid)`                                | Accepted dependency; convert when next edited                                                                               |
+| `update_thread_last_message_at()`                       | Accepted dependency; convert when next edited                                                                               |
 
 The repository-wide SECURITY DEFINER grant inventory remains the source for
 function callers and execute-role dispositions:

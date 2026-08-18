@@ -6,7 +6,7 @@ BEGIN;
 
 INSERT INTO public.roles (name, description, is_system)
 VALUES
-  ('trial_secretary', 'MYK9-180 fixture', true),
+  ('secretary', 'MYK9-180 fixture', true),
   ('site_admin', 'MYK9-180 fixture', true)
 ON CONFLICT (name) DO NOTHING;
 
@@ -42,7 +42,7 @@ SELECT
   '00000000-0000-0000-0000-000000180001',
   '00000000-0000-0000-0000-000000180002', true,
   '00000000-0000-0000-0000-000000180101'
-FROM public.roles AS role WHERE role.name = 'trial_secretary';
+FROM public.roles AS role WHERE role.name = 'secretary';
 
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
 SELECT

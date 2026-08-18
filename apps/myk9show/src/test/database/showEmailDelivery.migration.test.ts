@@ -76,6 +76,11 @@ describe('MYK9-180 email delivery history migration contract', () => {
     expect(behavioralSql).toContain('SELECT id\n    FROM public.show_lifecycle_email_steps');
   });
 
+  it('assigns the manager the supported show-scoped secretary role', () => {
+    expect(behavioralSql).toContain("('secretary', 'MYK9-180 fixture', true)");
+    expect(behavioralSql).toContain("WHERE role.name = 'secretary'");
+  });
+
   it('covers stable pagination, registration and lifecycle rows, and malformed references', () => {
     expect(behavioralSql).toContain('FAIL same-timestamp first page');
     expect(behavioralSql).toContain('FAIL same-timestamp cursor page');

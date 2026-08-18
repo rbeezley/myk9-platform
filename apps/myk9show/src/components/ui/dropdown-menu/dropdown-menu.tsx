@@ -71,7 +71,10 @@ const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof MenuPrimitive.Popup>,
   React.ComponentPropsWithoutRef<typeof MenuPrimitive.Popup>
 >(({ className, ...props }, ref) => (
-  <MenuPrimitive.Positioner collisionPadding={8} collisionAvoidance={{ side: 'flip', align: 'shift' }}>
+  <MenuPrimitive.Positioner
+    collisionPadding={8}
+    collisionAvoidance={{ side: 'flip', align: 'shift' }}
+  >
     <MenuPrimitive.Popup
       ref={ref}
       className={cn(

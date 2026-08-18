@@ -200,10 +200,11 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 
 ### goals/ — launch readiness
 
-| Doc                                                                                            | Status | Title                                |
-| ---------------------------------------------------------------------------------------------- | ------ | ------------------------------------ |
-| [goals/fall-2026-launch-readiness-scorecard.md](goals/fall-2026-launch-readiness-scorecard.md) | Active | Fall 2026 Launch Readiness Scorecard |
-| [goals/fall-2026-launch-readiness.md](goals/fall-2026-launch-readiness.md)                     | Active | Fall 2026 Launch Readiness Goal      |
+| Doc                                                                                            | Status    | Title                                                                            |
+| ---------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------- |
+| [goals/business-model-assessment.md](goals/business-model-assessment.md)                       | Reference | Business Model Assessment — viability, club-count targets, risks, expense review |
+| [goals/fall-2026-launch-readiness-scorecard.md](goals/fall-2026-launch-readiness-scorecard.md) | Active    | Fall 2026 Launch Readiness Scorecard                                             |
+| [goals/fall-2026-launch-readiness.md](goals/fall-2026-launch-readiness.md)                     | Active    | Fall 2026 Launch Readiness Goal                                                  |
 
 ### handoffs/
 

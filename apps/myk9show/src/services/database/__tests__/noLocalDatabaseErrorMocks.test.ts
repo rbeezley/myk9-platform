@@ -28,24 +28,46 @@
  *
  * An allowlist of *shapes* is still not enough: `createDatabaseError: fakeError`
  * is a bare identifier, and so is the real thing. So the identifier must also be
- * one this file imports from `databaseError` — a name is only trusted when its
- * binding is. `helperBindings` and `isAllowedValue` are exported and tested
- * against accepted and rejected inputs, so the guard's own logic is not taken on
- * trust; a guard that cannot fail is a comment with a test runner attached.
+ * one this file imports from the helper module — a name is only trusted when its
+ * binding is.
+ *
+ * And the module is compared by RESOLVED PATH, not by how the specifier looks.
+ * A suffix test would accept `./localDatabaseError`, handing the guard's trust
+ * to any file someone names convincingly. Resolving `@/` and relative
+ * specifiers against the real module is the only check that cannot be fooled by
+ * naming.
+ *
+ * `helperBindings` and `isAllowedValue` are exported and tested against accepted
+ * and rejected inputs, so the guard's own logic is not taken on trust; a guard
+ * that cannot fail is a comment with a test runner attached.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const SRC = resolve(__dirname, '../../..');
 const SELF = 'noLocalDatabaseErrorMocks.test.ts';
+/** The one module a `createDatabaseError` binding may come from. */
+const HELPER_MODULE = resolve(SRC, 'services/database/databaseError');
 
-/** Identifiers a file binds to the real helper by importing it. */
-export const helperBindings = (source: string): Set<string> => {
+/** Where a specifier points, or null for a bare package import. */
+const resolveSpecifier = (specifier: string, fromFile: string): string | null => {
+  if (specifier.startsWith('@/')) return resolve(SRC, specifier.slice(2));
+  if (specifier.startsWith('.')) return resolve(dirname(fromFile), specifier);
+  return null;
+};
+
+/**
+ * Identifiers a file binds to the real helper by importing it. The module is
+ * compared by resolved path: `./localDatabaseError` merely *looks* like the
+ * helper, and a guard that trusts appearances is one rename from useless.
+ */
+export const helperBindings = (source: string, fromFile: string): Set<string> => {
   const names = new Set<string>();
-  const imports = /import\s*\{([^}]*)\}\s*from\s*['"][^'"]*databaseError['"]/g;
+  const imports = /import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g;
   for (const match of source.matchAll(imports)) {
+    if (resolveSpecifier(match[2], fromFile) !== HELPER_MODULE) continue;
     for (const specifier of match[1].split(',')) {
       const [imported, alias] = specifier.split(/\s+as\s+/).map(part => part.trim());
       if (imported === 'createDatabaseError') names.add(alias || imported);
@@ -73,6 +95,15 @@ export const isAllowedValue = (value: string, bindings: Set<string>): boolean =>
 export const declaresOwnHelper = (source: string): boolean =>
   /(?:const|let|var|function)\s+createDatabaseError\b/.test(source);
 
+/**
+ * Shorthand (`createDatabaseError,`) in a factory. It carries no colon, so the
+ * value scan never sees it — yet it is the form 34 of these files use. Paired
+ * with an import from a look-alike module it would be the last way through, so
+ * it is checked against the same resolved binding.
+ */
+export const usesShorthand = (source: string): boolean =>
+  /^\s*createDatabaseError,\s*$/m.test(source);
+
 /** Every `createDatabaseError:` value in a file, each read past the line end. */
 export const declaredValues = (source: string): string[] =>
   [...source.matchAll(/createDatabaseError:/g)].map(m =>
@@ -86,17 +117,35 @@ const testFiles = readdirSync(SRC, { recursive: true, encoding: 'utf8' })
 const REAL = new Set(['createDatabaseError', 'realCreateDatabaseError']);
 
 describe('the guard itself', () => {
+  // A file sitting where the swept tests sit, so relative specifiers resolve.
+  const FROM = resolve(SRC, 'services/database/entries/example.test.ts');
+
   it('reads the identifiers a file binds to the real helper', () => {
     expect(
-      helperBindings("import { createDatabaseError } from '@/services/database/databaseError';")
+      helperBindings(
+        "import { createDatabaseError } from '@/services/database/databaseError';",
+        FROM
+      )
     ).toEqual(new Set(['createDatabaseError']));
     expect(
       helperBindings(
-        "import { createDatabaseError as realCreateDatabaseError } from '../databaseError';"
+        "import { createDatabaseError as realCreateDatabaseError } from '../databaseError';",
+        FROM
       )
     ).toEqual(new Set(['realCreateDatabaseError']));
-    // Same name, different module — not a binding to the helper.
-    expect(helperBindings("import { createDatabaseError } from './localFake';")).toEqual(new Set());
+  });
+
+  it('trusts only the real module, however convincing the name', () => {
+    expect(helperBindings("import { createDatabaseError } from './localFake';", FROM)).toEqual(
+      new Set()
+    );
+    // The suffix-match bypass: a sibling named to look like the production module.
+    expect(
+      helperBindings("import { createDatabaseError } from './localDatabaseError';", FROM)
+    ).toEqual(new Set());
+    expect(
+      helperBindings("import { createDatabaseError } from '@/test/mocks/databaseError';", FROM)
+    ).toEqual(new Set());
   });
 
   it('accepts the real helper and a spy wrapping it', () => {
@@ -128,6 +177,11 @@ describe('the guard itself', () => {
     expect(isAllowedValue(' createDatabaseError,', new Set())).toBe(false);
   });
 
+  it('sees shorthand, which carries no colon for the value scan to read', () => {
+    expect(usesShorthand('  createDatabaseError,\n')).toBe(true);
+    expect(usesShorthand('  createDatabaseError: vi.fn(x),\n')).toBe(false);
+  });
+
   it('rejects a locally declared helper, which shorthand would otherwise hide', () => {
     expect(declaresOwnHelper('const createDatabaseError = (e: unknown) => e;')).toBe(true);
     expect(declaresOwnHelper('function createDatabaseError() {}')).toBe(true);
@@ -144,10 +198,11 @@ describe('no test re-implements createDatabaseError', () => {
 
   it('declares no hand-written implementation in any vi.mock factory', () => {
     const offenders = testFiles
-      .filter(({ source }) => {
-        const bindings = helperBindings(source);
+      .filter(({ path, source }) => {
+        const bindings = helperBindings(source, resolve(SRC, path));
         return (
           declaresOwnHelper(source) ||
+          (usesShorthand(source) && !bindings.has('createDatabaseError')) ||
           declaredValues(source).some(value => !isAllowedValue(value, bindings))
         );
       })

@@ -35,6 +35,8 @@ describe('buildEntryPaymentLinkSession', () => {
     // payment_intent_data carries the same tag so refund/charge events can be traced
     expect(s.payment_intent_data.metadata.type).toBe('entry_payment_request');
     expect(JSON.parse(s.payment_intent_data.metadata.entry_ids)).toEqual(['e1', 'e2']);
+    expect(s.payment_intent_data.statement_descriptor_suffix).toBe('SPRING');
+    expect(s.payment_intent_data.statement_descriptor_suffix).toHaveLength(6);
   });
 
   it('prices each entry from its authoritative fee, never a client value', () => {

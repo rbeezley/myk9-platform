@@ -407,16 +407,42 @@ jobs:
         run: pnpm build
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       # Gate the myK9Show initial-load payload against recorded budgets.
       # Reuses the dist produced by "Build all"; ratchet down only.
       - name: Bundle budget (myK9Show)
         run: pnpm --filter @myk9/show budget:check
 
-      # Browser smoke jobs serve this same build. Reuse it instead of paying
-      # for a second full workspace build in each job.
+  # Browser smoke needs a Supabase-configured bundle; the budgeted production
+  # build above intentionally runs without shared-project configuration.
+  # Build this once and share it between the a11y and E2E smoke jobs.
+  smoke-build:
+    name: Smoke build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build, smoke-scope]
+    if: (github.event_name == 'push' || github.event.pull_request.draft == false) && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true' && needs.smoke-scope.outputs.run == 'true' && github.actor != 'dependabot[bot]'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app + packages
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
       - name: Upload myK9Show preview build
         uses: actions/upload-artifact@v7
         with:
@@ -435,7 +461,7 @@ jobs:
     name: A11y smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [build, smoke-scope]
+    needs: [smoke-build, smoke-scope]
     # GitHub withholds repo secrets from workflows triggered by Dependabot, so
     # this job can never pass on a Dependabot PR — skip it there rather than
     # permanently blocking those PRs on a required check that can't succeed.
@@ -515,7 +541,7 @@ jobs:
     name: E2E PR Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [build, smoke-scope]
+    needs: [smoke-build, smoke-scope]
     # GitHub withholds repo secrets from workflows triggered by Dependabot, so
     # this job can never pass on a Dependabot PR — skip it there rather than
     # permanently blocking those PRs on a required check that can't succeed.

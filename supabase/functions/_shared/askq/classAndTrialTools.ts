@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClassSummary, TrialSummary } from './types.ts';
-import type { ShowScope } from './showScope.ts';
+import { applyShowScope, type ShowScope } from './showScope.ts';
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
@@ -20,7 +20,7 @@ interface ClassRow {
   level: string | null;
   section: string | null;
   judge_name: string | null;
-  status: string;
+  status: string | null;
   start_time: string | null;
 }
 
@@ -78,7 +78,11 @@ export async function executeGetClassSummary(
   try {
     let trialQuery = supabase
       .from('trials')
-      .select('id, date, name, trial_number, show_id, shows!inner(name, license_key)');
+      .select(
+        'id, date, name, trial_number, show_id, deleted_at, shows!inner(name, license_key, deleted_at)'
+      )
+      .is('deleted_at', null)
+      .is('shows.deleted_at', null);
 
     trialQuery = applyTrialScope(trialQuery, scope);
 
@@ -100,11 +104,12 @@ export async function executeGetClassSummary(
     const trialById = new Map(trials.map(trial => [trial.id, trial]));
     let classQuery = supabase
       .from('classes')
-      .select('id, trial_id, element, level, section, judge_name, status, start_time')
+      .select('id, trial_id, element, level, section, judge_name, status, start_time, deleted_at')
       .in(
         'trial_id',
         trials.map(trial => trial.id)
-      );
+      )
+      .is('deleted_at', null);
 
     if (params.element) {
       classQuery = classQuery.ilike('element', `%${params.element}%`);
@@ -130,12 +135,15 @@ export async function executeGetClassSummary(
     }
 
     const classIds = classes.map(cls => cls.id);
-    const { data: entryData, error: entryError } = await supabase
+    const entryQuery = supabase
       .from('entries')
-      .select('class_id, entry_status, is_scored, check_in_status, result_status')
+      .select('class_id, entry_status, is_scored, check_in_status, result_status, show_id')
       .in('class_id', classIds)
       .is('deleted_at', null);
 
+    const scopedEntryQuery = applyShowScope(entryQuery, scope);
+
+    const { data: entryData, error: entryError } = await scopedEntryQuery;
     if (entryError) {
       console.error('Class summary entry lookup error:', entryError);
       return { data: [], error: entryError.message };
@@ -195,7 +203,11 @@ export async function executeGetTrialOverview(
   try {
     let query = supabase
       .from('trials')
-      .select('id, date, name, trial_number, show_id, shows!inner(name, license_key)');
+      .select(
+        'id, date, name, trial_number, show_id, deleted_at, shows!inner(name, license_key, deleted_at)'
+      )
+      .is('deleted_at', null)
+      .is('shows.deleted_at', null);
 
     query = applyTrialScope(query, scope);
 

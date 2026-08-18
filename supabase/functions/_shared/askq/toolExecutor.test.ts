@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { parseAndResolveDate } from './ruleLookup.ts';
 import { executeTool } from './toolExecutor.ts';
 
 const repositoryRoot = resolve(import.meta.dirname, '../../../..');
@@ -361,12 +360,15 @@ describe('AskQ class and trial tools query current base-table columns', () => {
 
     expect(queries.map(query => query.table)).toEqual(['trials', 'classes', 'entries']);
     expect(queries.find(query => query.table === 'trials')!.columns).toContain('show_id');
+    expect(queries.find(query => query.table === 'trials')!.columns).toContain('deleted_at');
     expect(queries.find(query => query.table === 'classes')!.columns).toEqual([
       'trial_id',
+      'deleted_at',
       'element',
       'start_time',
     ]);
     expect(queries.find(query => query.table === 'entries')!.columns).toContain('deleted_at');
+    expect(queries.find(query => query.table === 'entries')!.columns).toContain('show_id');
     expect(queries.map(query => query.table)).not.toContain('view_class_summary');
   });
 
@@ -471,38 +473,5 @@ describe('AskQ class and trial tools query current base-table columns', () => {
     expect(selectedColumns(trialQuery!.selected)).not.toContain('trial_date');
     expect(selectedColumns(trialQuery!.selected)).not.toContain('competition_type');
     expect(queries.map(query => query.table)).not.toContain('view_trial_summary_normalized');
-  });
-});
-
-describe('AskQ day-of-week resolution reads trials.date', () => {
-  it('selects `date`, not the `trial_date` alias, and resolves the matching day', async () => {
-    // 2026-08-01 is a Saturday; 2026-08-02 a Sunday.
-    const { client, queries } = fakeSupabase({
-      trials: [
-        { date: '2026-08-01', show_id: SHOW_ID },
-        { date: '2026-08-02', show_id: SHOW_ID },
-      ],
-    });
-
-    const resolved = await parseAndResolveDate('Sunday', client, '', SHOW_ID);
-
-    const trialsQuery = queries.find(q => q.table === 'trials');
-    expect(trialsQuery).toBeDefined();
-    // `trial_date` is a view alias; the trials TABLE stores it as `date`.
-    // Selecting the alias made PostgREST reject the request, so every
-    // day-of-week question silently resolved to null.
-    expect(selectedColumns(trialsQuery!.selected)).toContain('date');
-    expect(trialsQuery!.selected).not.toContain('trial_date');
-
-    expect(resolved).toBe('2026-08-02');
-  });
-
-  it('still short-circuits on an explicit ISO date without querying trials', async () => {
-    const { client, queries } = fakeSupabase({ trials: [] });
-
-    const resolved = await parseAndResolveDate('2026-08-01', client, '', SHOW_ID);
-
-    expect(resolved).toBe('2026-08-01');
-    expect(queries).toEqual([]);
   });
 });

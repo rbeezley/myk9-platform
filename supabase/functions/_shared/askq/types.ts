@@ -33,7 +33,7 @@ export interface ClassSummary {
   level: string | null;
   section: string | null;
   judge_name: string | null;
-  class_status: string;
+  class_status: string | null;
   total_entries: number;
   scored_entries: number;
   checked_in_count: number;

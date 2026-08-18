@@ -5,6 +5,20 @@ import { applyShowScope, type ShowScope } from './showScope.ts';
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
+/** The view_entry_with_results columns both entry tools select. */
+interface EntryViewRow {
+  armband: string | null;
+  dog_call_name: string | null;
+  handler: string | null;
+  entry_status: string;
+  result_status: string | null;
+  search_time_seconds: string | number | null;
+  total_faults: number | null;
+  final_placement: number | null;
+  is_scored: boolean;
+  class_id: string;
+}
+
 async function executeGetClassSummary(
   params: {
     trial_date?: string;
@@ -96,7 +110,7 @@ async function executeGetEntryResults(
     }
 
     // Step 1: If element, level, or date filter provided, find matching class IDs
-    let classIds: number[] | null = null;
+    let classIds: string[] | null = null;
 
     if (params.element || params.level || resolvedDate) {
       // Resolve show_id for class filtering
@@ -107,13 +121,13 @@ async function executeGetEntryResults(
           .select('id')
           .eq('license_key', scope.licenseKey)
           .single();
-        showIdForClasses = showData?.id;
+        showIdForClasses = (showData as { id: string } | null)?.id;
       }
 
       if (showIdForClasses) {
         let classQuery = supabase
           .from('classes')
-          .select('id, element, level, trials!inner(show_id, trial_date)')
+          .select('id, element, level, trials!inner(show_id, date)')
           .eq('trials.show_id', showIdForClasses);
 
         if (params.element) {
@@ -123,7 +137,7 @@ async function executeGetEntryResults(
           classQuery = classQuery.ilike('level', `%${params.level}%`);
         }
         if (resolvedDate) {
-          classQuery = classQuery.eq('trials.trial_date', resolvedDate);
+          classQuery = classQuery.eq('trials.date', resolvedDate);
         }
 
         const { data: classData, error: classError } = await classQuery;
@@ -137,16 +151,23 @@ async function executeGetEntryResults(
           return { data: [] };
         }
 
-        classIds = classData.map((c: { id: number }) => c.id);
+        classIds = (classData as { id: string }[]).map(c => c.id);
       }
     }
 
-    // Step 2: Query entries
+    // Step 2: Query entries.
+    //
+    // Column names here are view_entry_with_results', NOT the myK9Q ones this
+    // tool was ported from: the view exposes `armband` and `handler`, while
+    // `armband_number` and `handler_name` are view_stats_summary aliases.
+    // Selecting the wrong ones makes PostgREST fail the whole request with an
+    // unknown-column error. The EntryResult output contract keeps the
+    // armband_number/handler names, so only the source columns differ.
     let query = supabase.from('view_entry_with_results').select(
       `
-        armband_number,
+        armband,
         dog_call_name,
-        handler_name,
+        handler,
         entry_status,
         result_status,
         search_time_seconds,
@@ -163,10 +184,10 @@ async function executeGetEntryResults(
       query = query.in('class_id', classIds);
     }
     if (params.armband_number) {
-      query = query.eq('armband_number', params.armband_number);
+      query = query.eq('armband', params.armband_number);
     }
     if (params.handler_name) {
-      query = query.ilike('handler_name', `%${params.handler_name}%`);
+      query = query.ilike('handler', `%${params.handler_name}%`);
     }
     if (params.dog_name) {
       query = query.ilike('dog_call_name', `%${params.dog_name}%`);
@@ -191,8 +212,9 @@ async function executeGetEntryResults(
     }
 
     // Step 3: Get class details for the returned entries
-    const entryClassIds = [...new Set((data || []).map((e: { class_id: number }) => e.class_id))];
-    const classMap: Map<number, { element: string; level: string }> = new Map();
+    const rows = (data ?? []) as EntryViewRow[];
+    const entryClassIds = [...new Set(rows.map(e => e.class_id))];
+    const classMap: Map<string, { element: string; level: string }> = new Map();
 
     if (entryClassIds.length > 0) {
       const { data: classDetails } = await supabase
@@ -201,18 +223,18 @@ async function executeGetEntryResults(
         .in('id', entryClassIds);
 
       if (classDetails) {
-        classDetails.forEach((c: { id: number; element: string; level: string }) => {
+        (classDetails as { id: string; element: string; level: string }[]).forEach(c => {
           classMap.set(c.id, { element: c.element, level: c.level });
         });
       }
     }
 
-    const transformed = (data || []).map((row: Record<string, unknown>) => {
-      const classInfo = classMap.get(row.class_id as number);
+    const transformed = rows.map(row => {
+      const classInfo = classMap.get(row.class_id);
       return {
-        armband_number: row.armband_number,
+        armband_number: row.armband,
         call_name: row.dog_call_name,
-        handler: row.handler_name,
+        handler: row.handler,
         entry_status: row.entry_status,
         result_status: row.result_status,
         time: row.search_time_seconds ? Number(row.search_time_seconds) : null,
@@ -222,7 +244,7 @@ async function executeGetEntryResults(
         element: classInfo?.element || null,
         level: classInfo?.level || null,
       };
-    });
+    }) as EntryResult[];
 
     return { data: transformed };
   } catch (err) {
@@ -282,9 +304,9 @@ async function executeSearchEntries(
 
     let query = supabase.from('view_entry_with_results').select(
       `
-        armband_number,
+        armband,
         dog_call_name,
-        handler_name,
+        handler,
         entry_status,
         result_status,
         search_time_seconds,
@@ -301,7 +323,7 @@ async function executeSearchEntries(
       query = query.ilike('dog_call_name', `%${params.dog_name}%`);
     }
     if (params.handler_name) {
-      query = query.ilike('handler_name', `%${params.handler_name}%`);
+      query = query.ilike('handler', `%${params.handler_name}%`);
     }
 
     query = query
@@ -316,8 +338,9 @@ async function executeSearchEntries(
       return { data: [], error: error.message };
     }
 
-    const entryClassIds = [...new Set((data || []).map((e: { class_id: number }) => e.class_id))];
-    const classMap: Map<number, { element: string; level: string }> = new Map();
+    const rows = (data ?? []) as EntryViewRow[];
+    const entryClassIds = [...new Set(rows.map(e => e.class_id))];
+    const classMap: Map<string, { element: string; level: string }> = new Map();
 
     if (entryClassIds.length > 0) {
       const { data: classDetails } = await supabase
@@ -326,18 +349,18 @@ async function executeSearchEntries(
         .in('id', entryClassIds);
 
       if (classDetails) {
-        classDetails.forEach((c: { id: number; element: string; level: string }) => {
+        (classDetails as { id: string; element: string; level: string }[]).forEach(c => {
           classMap.set(c.id, { element: c.element, level: c.level });
         });
       }
     }
 
-    const transformed = (data || []).map((row: Record<string, unknown>) => {
-      const classInfo = classMap.get(row.class_id as number);
+    const transformed = rows.map(row => {
+      const classInfo = classMap.get(row.class_id);
       return {
-        armband_number: row.armband_number,
+        armband_number: row.armband,
         call_name: row.dog_call_name,
-        handler: row.handler_name,
+        handler: row.handler,
         entry_status: row.entry_status,
         result_status: row.result_status,
         time: row.search_time_seconds ? Number(row.search_time_seconds) : null,
@@ -347,7 +370,7 @@ async function executeSearchEntries(
         element: classInfo?.element || null,
         level: classInfo?.level || null,
       };
-    });
+    }) as EntryResult[];
 
     return { data: transformed };
   } catch (err) {

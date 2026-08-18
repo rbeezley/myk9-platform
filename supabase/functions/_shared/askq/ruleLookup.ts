@@ -33,24 +33,25 @@ export async function parseAndResolveDate(
 
   if (isDayName) {
     // Get all trial dates for this show — use show_id if available, fall back to license_key
-    let trialsQuery = supabase.from('trials').select('trial_date, show_id');
+    let trialsQuery = supabase.from('trials').select('date, show_id');
     if (showId) {
       trialsQuery = trialsQuery.eq('show_id', showId);
     } else if (licenseKey) {
       trialsQuery = supabase
         .from('trials')
-        .select('trial_date, shows!inner(license_key)')
+        .select('date, shows!inner(license_key)')
         .eq('shows.license_key', licenseKey);
     } else {
       return null;
     }
     const { data: trials } = await trialsQuery;
+    const trialRows = (trials ?? []) as { date: string }[];
 
-    if (!trials || trials.length === 0) return null;
+    if (trialRows.length === 0) return null;
 
     // Find the trial date that matches the day of week
-    for (const trial of trials) {
-      const date = new Date(trial.trial_date + 'T12:00:00Z'); // Use noon to avoid timezone issues
+    for (const trial of trialRows) {
+      const date = new Date(trial.date + 'T12:00:00Z'); // Use noon to avoid timezone issues
       const trialDayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       const trialShortDay = date.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
 
@@ -59,7 +60,7 @@ export async function parseAndResolveDate(
         trialShortDay.startsWith(dayLower) ||
         dayLower.startsWith(trialShortDay)
       ) {
-        return trial.trial_date;
+        return trial.date;
       }
     }
   }

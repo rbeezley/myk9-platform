@@ -9,7 +9,12 @@
       // Edge functions import Deno's `npm:` specifier; vitest maps it to the
       // installed package at runtime, so tsc has to map it to that package's
       // types or every module reaching a Supabase client fails to resolve.
-      "npm:@supabase/supabase-js@2.49.1": ["node_modules/@supabase/supabase-js/dist/index.d.mts"]
+      "npm:@supabase/supabase-js@2.49.1": ["node_modules/@supabase/supabase-js/dist/index.d.mts"],
+      // Same problem, other specifier: the askq edge modules import
+      // supabase-js from esm.sh by URL rather than with `npm:`.
+      "https://esm.sh/@supabase/supabase-js@2": [
+        "node_modules/@supabase/supabase-js/dist/index.d.mts"
+      ]
     }
   },
   "include": [

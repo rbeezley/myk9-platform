@@ -39,6 +39,7 @@ const launchCriticalSqlTests = [
   'judge_assignment_private_read_test.sql',
   'office_admin_rls_test.sql',
   'entry_status_history_rls_test.sql',
+  'entry_views_soft_delete_test.sql',
   'myk9_114_entry_access_context_test.sql',
   'myk9_169_role_boundaries_test.sql',
   'paperwork_prints_rls_test.sql',

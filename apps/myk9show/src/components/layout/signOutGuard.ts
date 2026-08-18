@@ -12,6 +12,12 @@ import { UserRole } from '@/types/auth-types';
 
 export type SignOutGuardMode = 'none' | 'staff-online' | 'offline';
 
+/** What the hosted warning dialog needs to render the right consequences. */
+export interface SignOutWarningContext {
+  mode: Exclude<SignOutGuardMode, 'none'>;
+  hasUnsyncedChanges: boolean;
+}
+
 /** Roles whose holders plausibly run a device at a connectivity-poor venue. */
 export const STAFF_SIGN_OUT_ROLES: readonly string[] = [
   UserRole.SITE_ADMIN,
@@ -19,6 +25,7 @@ export const STAFF_SIGN_OUT_ROLES: readonly string[] = [
   UserRole.JUDGE,
   UserRole.STEWARD,
   UserRole.CLUB_ADMIN,
+  UserRole.CHAIRMAN,
 ];
 
 export function getSignOutGuardMode({

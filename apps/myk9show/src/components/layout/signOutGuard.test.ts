@@ -14,6 +14,7 @@ describe('getSignOutGuardMode', () => {
     UserRole.JUDGE,
     UserRole.STEWARD,
     UserRole.CLUB_ADMIN,
+    UserRole.CHAIRMAN,
     UserRole.SITE_ADMIN,
   ])('returns "staff-online" online for the %s role', role => {
     expect(getSignOutGuardMode({ isOffline: false, roles: [role] })).toBe('staff-online');

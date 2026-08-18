@@ -19,17 +19,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { getSignOutGuardMode } from '@/components/layout/signOutGuard';
+import { getSignOutGuardMode, type SignOutWarningContext } from '@/components/layout/signOutGuard';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
@@ -42,6 +32,11 @@ import { AskQIcon } from '@/components/layout/AskQIcon';
 interface AccountMenuContentProps {
   /** Opens the About dialog owned by the shared account-menu host. */
   onAbout: () => void;
+  /**
+   * Opens the sign-out warning dialog owned by the host (MYK9-202). Hosted
+   * like the About dialog so the closing menu can never stack above it.
+   */
+  onGuardedSignOut: (context: SignOutWarningContext) => void;
   align?: 'start' | 'center' | 'end';
 }
 
@@ -50,13 +45,16 @@ function AccountMenuSeparator() {
 }
 
 /** Shared account dropdown body used by the mobile header and desktop sidebar. */
-export function AccountMenuContent({ onAbout, align = 'end' }: AccountMenuContentProps) {
+export function AccountMenuContent({
+  onAbout,
+  onGuardedSignOut,
+  align = 'end',
+}: AccountMenuContentProps) {
   const { user, signOut, userWithRoles, getUserRoles } = useAuthContext();
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
   const [isClearingCache, setIsClearingCache] = useState(false);
-  const [signOutWarningOpen, setSignOutWarningOpen] = useState(false);
 
   const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
   const needsAttention = globalSync.status === 'error' || globalSync.status === 'conflict';
@@ -91,14 +89,16 @@ export function AccountMenuContent({ onAbout, align = 'end' }: AccountMenuConten
   // venue is locked out of a show fully replicated on its own disk. Warn at
   // the click; documentation is not a guard.
   const signOutGuardMode = getSignOutGuardMode({ isOffline, roles: getUserRoles() });
-  const hasUnsyncedChanges = isSaving || needsAttention;
+  // `status` collapses to 'offline' regardless of the queue, so the pending
+  // mutation count must drive the unsynced-changes line on its own.
+  const hasUnsyncedChanges = isSaving || needsAttention || globalSync.queueSize > 0;
 
   const handleSignOutClick = () => {
     if (signOutGuardMode === 'none') {
       signOut();
       return;
     }
-    setSignOutWarningOpen(true);
+    onGuardedSignOut({ mode: signOutGuardMode, hasUnsyncedChanges });
   };
 
   const handleClearCache = async () => {
@@ -209,41 +209,11 @@ export function AccountMenuContent({ onAbout, align = 'end' }: AccountMenuConten
       <AccountMenuSeparator />
       <DropdownMenuItem
         onClick={handleSignOutClick}
-        closeOnClick={signOutGuardMode === 'none'}
         className="focus:bg-destructive/10 focus:text-destructive"
       >
         <LogOut className="h-4 w-4 mr-2" />
         Sign out
       </DropdownMenuItem>
-      <AlertDialog open={signOutWarningOpen} onOpenChange={setSignOutWarningOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {signOutGuardMode === 'offline' ? "You're offline" : 'Sign out before a show?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {signOutGuardMode === 'offline'
-                ? 'If you sign out now, you cannot sign back in until you have internet again.'
-                : 'If you lose internet at the show site, you cannot sign back in until it returns. Stay signed in unless this is a shared device.'}
-              {signOutGuardMode === 'offline' && hasUnsyncedChanges
-                ? " You also have changes on this device that haven't synced yet."
-                : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Stay signed in</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                setSignOutWarningOpen(false);
-                signOut();
-              }}
-            >
-              Sign out anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </DropdownMenuContent>
   );
 }

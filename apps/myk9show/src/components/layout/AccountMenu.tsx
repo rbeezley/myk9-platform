@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { AboutDialog } from '@/components/common/AboutDialog';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
+import { SignOutWarningDialog } from '@/components/layout/SignOutWarningDialog';
+import type { SignOutWarningContext } from '@/components/layout/signOutGuard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -28,9 +30,10 @@ export function AccountMenu({
   isCollapsed = false,
   className,
 }: AccountMenuProps) {
-  const { user } = useAuthContext();
+  const { user, signOut } = useAuthContext();
   const { data: currentPerson } = useCurrentUserPerson(user?.id);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [signOutWarning, setSignOutWarning] = useState<SignOutWarningContext | null>(null);
 
   const resolvedName = displayName?.trim() || 'Account';
   const fallback =
@@ -58,7 +61,9 @@ export function AccountMenu({
               className
             )}
             aria-label={isSidebar ? sidebarLabel : 'Account menu'}
-            title={isSidebar && isCollapsed ? `${resolvedName} · ${roleLabel ?? 'Account'}` : undefined}
+            title={
+              isSidebar && isCollapsed ? `${resolvedName} · ${roleLabel ?? 'Account'}` : undefined
+            }
           >
             <Avatar className={cn('shrink-0', isSidebar ? 'h-8 w-8' : 'h-7 w-7')}>
               {currentPerson?.profileImage && (
@@ -76,10 +81,15 @@ export function AccountMenu({
                     {resolvedName}
                   </span>
                   {roleLabel && (
-                    <span className="block truncate text-xs text-muted-foreground">{roleLabel}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {roleLabel}
+                    </span>
                   )}
                 </span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <ChevronDown
+                  className="h-4 w-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </>
             )}
 
@@ -93,10 +103,19 @@ export function AccountMenu({
         </DropdownMenuTrigger>
         <AccountMenuContent
           onAbout={() => setAboutOpen(true)}
+          onGuardedSignOut={setSignOutWarning}
           align={isSidebar ? 'start' : 'end'}
         />
       </DropdownMenu>
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <SignOutWarningDialog
+        context={signOutWarning}
+        onCancel={() => setSignOutWarning(null)}
+        onConfirm={() => {
+          setSignOutWarning(null);
+          signOut();
+        }}
+      />
     </>
   );
 }

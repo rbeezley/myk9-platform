@@ -53,7 +53,12 @@ You can also turn ring alerts off at any time in **Account → Notification Sett
 
 Opting out affects text messages only. Your entries, results, and account are untouched, and you will still receive the email notifications you have enabled.
 
-To start again after opting out, reply **START**, or turn ring alerts back on in your notification settings.
+How you start again depends on how you stopped:
+
+- **If you replied STOP**, text **START** from the same number. That is the only way to resume alerts — your opt-out is held by our messaging provider at the network level, so switching the setting back on in your account will not clear it.
+- **If you turned alerts off in your notification settings** and never texted STOP, simply turn them back on there.
+
+Your notification settings show the number to text.
 
 ---
 

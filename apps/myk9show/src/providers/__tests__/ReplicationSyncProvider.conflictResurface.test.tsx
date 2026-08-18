@@ -170,6 +170,11 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
       getPendingCount = vi.fn().mockResolvedValue(0);
       restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);
       updateMutationServerVersions = vi.fn().mockResolvedValue(undefined);
+      // Empty by default so the failed-mutation resurface effect (a separate
+      // effect from the conflict resurface under test) returns early instead of
+      // throwing TypeError and logging a warning on every auth trigger. The
+      // failed-mutation path itself is covered in the listener test file.
+      getFailedMutations = vi.fn().mockResolvedValue([]);
       discardPendingMutationsForRow = vi.fn().mockResolvedValue(undefined);
     } as unknown as typeof actual.MutationManager,
   };

@@ -53,7 +53,10 @@ function showNameFromTrial(trial: TrialRow): string {
 }
 
 function isActiveEntry(entry: ClassEntryRow): boolean {
-  return !['withdrawn', 'scratched'].includes(entry.entry_status ?? '');
+  return (
+    !['withdrawn', 'scratched', 'cancelled'].includes(entry.entry_status ?? '') &&
+    entry.check_in_status !== 'pulled'
+  );
 }
 
 function isCheckedIn(entry: ClassEntryRow): boolean {
@@ -113,7 +116,7 @@ export async function executeGetClassSummary(
       classQuery = classQuery.eq('status', params.class_status);
     }
 
-    classQuery = classQuery.order('start_time').limit(50);
+    classQuery = classQuery.order('start_time');
 
     const { data: classData, error: classError } = await classQuery;
     if (classError) {
@@ -170,7 +173,14 @@ export async function executeGetClassSummary(
       })
       .filter((summary): summary is ClassSummary => summary !== null);
 
-    return { data: result };
+    result.sort((left, right) => {
+      const dateOrder = left.trial_date.localeCompare(right.trial_date);
+      if (dateOrder !== 0) return dateOrder;
+
+      return (left.start_time ?? '99:99:99').localeCompare(right.start_time ?? '99:99:99');
+    });
+
+    return { data: result.slice(0, 50) };
   } catch (err) {
     console.error('Class summary exception:', err);
     return { data: [], error: String(err) };

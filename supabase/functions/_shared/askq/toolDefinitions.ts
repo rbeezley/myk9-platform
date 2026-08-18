@@ -77,7 +77,7 @@ export const TOOLS: ToolDefinition[] = [
   {
     name: 'get_trial_overview',
     description:
-      'Get overview of trials including dates, names, and competition types. Use for questions about trial schedule, what trials are happening, or general event info.',
+      'Get overview of trials including dates and names. Use for questions about trial schedule, what trials are happening, or general event info.',
     input_schema: {
       type: 'object',
       properties: {

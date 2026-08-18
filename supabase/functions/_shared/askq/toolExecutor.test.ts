@@ -312,6 +312,20 @@ describe('AskQ class and trial tools query current base-table columns', () => {
           check_in_status: 'no-status',
           result_status: 'withdrawn',
         },
+        {
+          class_id: 'class-1',
+          entry_status: 'confirmed',
+          is_scored: true,
+          check_in_status: 'pulled',
+          result_status: 'qualified',
+        },
+        {
+          class_id: 'class-1',
+          entry_status: 'cancelled',
+          is_scored: true,
+          check_in_status: 'no-status',
+          result_status: 'qualified',
+        },
       ],
     });
 
@@ -354,6 +368,65 @@ describe('AskQ class and trial tools query current base-table columns', () => {
     ]);
     expect(queries.find(query => query.table === 'entries')!.columns).toContain('deleted_at');
     expect(queries.map(query => query.table)).not.toContain('view_class_summary');
+  });
+
+  it('sorts classes chronologically before applying the result limit', async () => {
+    const { client } = fakeSupabase({
+      trials: [
+        {
+          id: 'trial-late',
+          date: '2026-08-02',
+          name: 'Sunday Trial',
+          trial_number: '2',
+          show_id: SHOW_ID,
+        },
+        {
+          id: 'trial-early',
+          date: '2026-08-01',
+          name: 'Saturday Trial',
+          trial_number: '1',
+          show_id: SHOW_ID,
+        },
+      ],
+      classes: [
+        {
+          id: 'class-late',
+          trial_id: 'trial-late',
+          element: 'Container',
+          level: 'Novice',
+          section: null,
+          judge_name: null,
+          status: 'upcoming',
+          start_time: '09:00:00',
+        },
+        {
+          id: 'class-early',
+          trial_id: 'trial-early',
+          element: 'Container',
+          level: 'Novice',
+          section: null,
+          judge_name: null,
+          status: 'upcoming',
+          start_time: '09:00:00',
+        },
+      ],
+      entries: [],
+    });
+
+    const { result } = await executeTool(
+      'get_class_summary',
+      {},
+      client,
+      '',
+      undefined,
+      undefined,
+      userContext
+    );
+
+    expect((result as { class_id: string }[]).map(summary => summary.class_id)).toEqual([
+      'class-early',
+      'class-late',
+    ]);
   });
 
   it('builds trial overviews from trials and shows', async () => {

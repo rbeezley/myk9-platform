@@ -29,10 +29,18 @@
 --
 -- The sixth view, view_authenticated_entry_results, has the same defect and is
 -- fixed in the companion migration
--- 20260817150000_authenticated_entry_results_excludes_soft_deleted.sql. It is
+-- 20260817180000_authenticated_entry_results_excludes_soft_deleted.sql. It is
 -- kept separate because it is far larger and more recently churned; note that
 -- an `ilike '%deleted_at is null%'` probe wrongly reports THAT view as already
 -- filtered, matching a nested subquery rather than its row predicate.
+--
+-- Complements, and does not conflict with, #1664
+-- (20260817140000_clear_placement_on_soft_deleted_entries.sql and
+-- 20260817150000_clear_tombstone_placement_on_manual_classes.sql). Those clear
+-- final_placement ON the tombstone, treating these unfiltered views as a given;
+-- this hides the tombstone row outright. Defense in depth, in that order --
+-- note their headers state that these three views "do not filter deleted_at",
+-- which stops being true once this migration runs after them.
 --
 -- Latent, not active: zero tombstoned entries existed platform-wide when this
 -- was written (2026-08-17).

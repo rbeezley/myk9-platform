@@ -1,7 +1,7 @@
 -- =============================================================================
 -- view_authenticated_entry_results must exclude soft-deleted entries.
 --
--- Companion to 20260817140000_entry_views_exclude_soft_deleted_entries.sql,
+-- Companion to 20260817170000_entry_views_exclude_soft_deleted_entries.sql,
 -- kept as its own migration because this view is far larger and has churned
 -- more recently than the three rebuilt there -- a revert should be able to
 -- take this one without taking those.

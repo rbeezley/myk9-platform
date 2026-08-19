@@ -38,11 +38,12 @@ export function CheckoutVerificationIssueCard({
             ? 'Payment Refunded'
             : 'Payment Status Unavailable');
 
-  // Only statuses that establish a payment attempt on THIS session may carry
-  // the refund promise — 'unavailable' can mean a missing session or an auth
-  // failure, where "your payment is refunded automatically" would be invented.
-  const showRefundReassurance =
-    issue.verificationStatus === 'processing' || issue.verificationStatus === 'not_found';
+  // Only 'processing' proves an order for THIS session exists and is pending,
+  // so only it may carry the refund promise. 'not_found' also covers bogus
+  // session ids, rows hidden by RLS, and webhook write failures — none of
+  // which establish that an automatic refund exists — and 'unavailable' can
+  // mean an auth failure or backend error (review rounds 1–2).
+  const showRefundReassurance = issue.verificationStatus === 'processing';
 
   return (
     <div className="bg-background pt-6">
@@ -70,7 +71,8 @@ export function CheckoutVerificationIssueCard({
             {issue.verificationStatus === 'not_found' && (
               <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
                 If you paid while signed in to a different account, sign in as that account to see
-                this payment.
+                this payment. If you did pay and it still doesn&apos;t appear after a few minutes,
+                contact support before submitting another payment.
               </p>
             )}
             <div className="mt-6 flex flex-col-reverse gap-3 justify-center sm:flex-row">

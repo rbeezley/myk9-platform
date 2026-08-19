@@ -159,6 +159,9 @@ describe('CheckoutSuccessPage background re-check (MYK9-207)', () => {
       screen.getByText(/signed in to a different account, sign in as that account/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/do not submit another payment/i)).toBeInTheDocument();
+    // not_found covers bogus session ids and RLS-hidden rows too — no order is
+    // proven to exist, so the automatic-refund promise must not render.
+    expect(screen.queryByText(/refunded automatically in full/i)).not.toBeInTheDocument();
   });
 
   it('does not promise a refund for unavailable states, but still says it keeps checking', async () => {

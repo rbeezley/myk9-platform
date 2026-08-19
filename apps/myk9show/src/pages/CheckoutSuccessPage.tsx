@@ -65,12 +65,18 @@ export default function CheckoutSuccessPage() {
   const resetCart = useCartStore(state => state.reset);
   const activeCartIdRef = useRef(activeCartId);
   const verificationGenerationRef = useRef(0);
-  const manualCheckInFlightRef = useRef(false);
+  // Shared by the manual button AND the background re-check chain: at most one
+  // verification request in flight, whoever started it (review round 2).
+  const statusCheckInFlightRef = useRef(false);
+  // Once a verification SUCCEEDS, late-arriving failure responses from any
+  // overlapping check must not reopen the issue card.
+  const verificationSettledRef = useRef(false);
   activeCartIdRef.current = activeCartId;
 
   const completeCheckout = useCallback(
     (result: SuccessfulCheckoutVerification, generation: number) => {
       if (verificationGenerationRef.current !== generation) return;
+      verificationSettledRef.current = true;
 
       const nextSplitSummary = splitCheckoutId
         ? readCartSplitCheckoutSummary(splitCheckoutId)
@@ -149,6 +155,7 @@ export default function CheckoutSuccessPage() {
   useLayoutEffect(() => {
     const generation = verificationGenerationRef.current + 1;
     verificationGenerationRef.current = generation;
+    verificationSettledRef.current = false;
     const abortController = new AbortController();
     setIsLoading(true);
     setIsCheckingStatus(false);
@@ -198,7 +205,7 @@ export default function CheckoutSuccessPage() {
       if (verificationGenerationRef.current === generation) {
         verificationGenerationRef.current += 1;
       }
-      manualCheckInFlightRef.current = false;
+      statusCheckInFlightRef.current = false;
       abortController.abort();
     };
   }, [completeCheckout, isWaitlistOnly, resetCart, sessionId, splitCheckoutId]);
@@ -226,14 +233,15 @@ export default function CheckoutSuccessPage() {
 
     const runCheck = async () => {
       if (cancelled || verificationGenerationRef.current !== generation) return;
-      // Serialize: a focus event can land while the scheduled check (or the
-      // manual button's check) is mid-flight — never overlap requests.
+      // Serialize against BOTH the manual button and other background/focus
+      // triggers — at most one verification request in flight, ever.
       if (checkInFlight) return;
-      if (manualCheckInFlightRef.current) {
+      if (statusCheckInFlightRef.current) {
         scheduleNext();
         return;
       }
       checkInFlight = true;
+      statusCheckInFlightRef.current = true;
       try {
         const result = await checkCheckoutSession(sessionId);
         if (cancelled || verificationGenerationRef.current !== generation) return;
@@ -241,10 +249,14 @@ export default function CheckoutSuccessPage() {
           completeCheckout(result, generation);
           return;
         }
+        // A success from any overlapping check settles the page for good — a
+        // late failure must not reopen the issue card.
+        if (verificationSettledRef.current) return;
         setVerificationIssue(result);
         scheduleNext();
       } finally {
         checkInFlight = false;
+        statusCheckInFlightRef.current = false;
       }
     };
 
@@ -274,9 +286,9 @@ export default function CheckoutSuccessPage() {
   }, [shouldBackgroundRecheck, sessionId, completeCheckout]);
 
   const handleCheckPaymentStatus = async () => {
-    if (!sessionId || manualCheckInFlightRef.current) return;
+    if (!sessionId || statusCheckInFlightRef.current) return;
 
-    manualCheckInFlightRef.current = true;
+    statusCheckInFlightRef.current = true;
     const generation = verificationGenerationRef.current;
     setIsCheckingStatus(true);
 
@@ -285,12 +297,12 @@ export default function CheckoutSuccessPage() {
       if (verificationGenerationRef.current !== generation) return;
       if (result.success) {
         completeCheckout(result, generation);
-      } else {
+      } else if (!verificationSettledRef.current) {
         setVerificationIssue(result);
       }
     } finally {
       if (verificationGenerationRef.current === generation) {
-        manualCheckInFlightRef.current = false;
+        statusCheckInFlightRef.current = false;
         setIsCheckingStatus(false);
       }
     }

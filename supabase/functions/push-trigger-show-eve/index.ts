@@ -157,9 +157,11 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
     .eq('date', trialDate)
     // Never announce a trial that will not run: cancelled or soft-deleted
     // trials, and trials whose show was cancelled or soft-deleted.
-    .neq('status', 'cancelled')
+    // NULL status is not cancellation, but PostgREST's `neq` compiles to `<>`
+    // which never matches NULL — a legacy row would be silently skipped.
+    .or('status.is.null,status.neq.cancelled')
     .is('deleted_at', null)
-    .neq('shows.status', 'cancelled')
+    .or('status.is.null,status.neq.cancelled', { referencedTable: 'shows' })
     .is('shows.deleted_at', null);
   if (trialsError) throw trialsError;
 

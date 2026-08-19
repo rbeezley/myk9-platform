@@ -99,8 +99,10 @@ describe('buildShowEveNudgePayload', () => {
     expect(payload.title).toContain('Cedar Falls Scent Work');
     expect(payload.body).toMatch(/open the show/i);
     expect(payload.body).toMatch(/without internet/i);
-    // Deep link so the tap itself primes the device.
-    expect(payload.data.url).toBe('/at-show/show-1');
+    // Deep link so the tap itself primes the device. The service worker reads
+    // `actionUrl` (swClickNavigation.readActionUrl) — a `url` field is ignored
+    // and every tap would land on '/'.
+    expect(payload.data.actionUrl).toBe('/at-show/show-1');
   });
 
   it('carries a per-show notification tag so two shows do not collapse', () => {

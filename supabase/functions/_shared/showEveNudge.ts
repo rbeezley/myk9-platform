@@ -62,7 +62,8 @@ export interface ShowEveNudgePayload {
   body: string;
   /** Becomes the service worker's notification tag (see sw-custom.ts). */
   type: string;
-  data: { url: string };
+  /** `actionUrl` is the field swClickNavigation reads; `url` is ignored. */
+  data: { actionUrl: string };
 }
 
 /**
@@ -116,6 +117,6 @@ export function buildShowEveNudgePayload({
     body: 'You judge or run rings tomorrow. Open the show now, while you have internet, so it works without internet at the venue.',
     // Tapping the notification opens the show, which primes the device — the
     // reminder and the fix are the same action.
-    data: { url: `/at-show/${showId}` },
+    data: { actionUrl: `/at-show/${showId}` },
   };
 }

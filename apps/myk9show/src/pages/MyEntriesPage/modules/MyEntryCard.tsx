@@ -115,7 +115,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
               entry.dogs.map(dog => (
                 <span key={dog.dogId} className="inline-flex items-center gap-1.5">
                   {dog.armband && (
-                    <ArmbandBadge armband={dog.armband} className="size-8 rounded-lg text-xs" />
+                    <ArmbandBadge armband={dog.armband} className="h-8 min-w-8 rounded-lg text-xs" />
                   )}
                   <span>{dog.dogName}</span>
                 </span>
@@ -123,7 +123,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             ) : (
               <>
                 {entry.armband && (
-                  <ArmbandBadge armband={entry.armband} className="size-8 rounded-lg text-xs" />
+                  <ArmbandBadge armband={entry.armband} className="h-8 min-w-8 rounded-lg text-xs" />
                 )}
                 <span>{entry.dogName}</span>
               </>

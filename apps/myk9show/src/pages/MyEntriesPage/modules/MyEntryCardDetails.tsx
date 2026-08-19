@@ -131,7 +131,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
               >
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                   {dog.armband && (
-                    <ArmbandBadge armband={dog.armband} className="size-6 rounded text-[10px]" />
+                    <ArmbandBadge armband={dog.armband} className="h-6 min-w-6 rounded text-xs" />
                   )}
                   <span>{dog.dogName}</span>
                 </div>

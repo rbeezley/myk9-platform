@@ -129,7 +129,7 @@ export function CompactStatsRow({
         aria-controls="exhibitor-stat-cards"
         className={cn(
           'hidden max-[720px]:flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm',
-          'active:scale-[0.99] transition-all duration-200',
+          'active:scale-[0.99] transition-all duration-state',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
           expanded && 'mb-3'
         )}
@@ -158,7 +158,7 @@ export function CompactStatsRow({
         <ChevronDown
           aria-hidden
           className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-state',
             expanded && 'rotate-180'
           )}
         />
@@ -184,7 +184,7 @@ export function CompactStatsRow({
             className={cn(
               'group relative min-h-[92px] overflow-hidden rounded-xl border border-border bg-card p-3 text-left shadow-sm',
               'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]',
-              'transition-all duration-300',
+              'transition-all duration-enter',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
             )}
             aria-label={`${stat.label}: ${stat.quietValue ?? stat.value}.${stat.qualifier ? ` ${stat.qualifier}.` : ''}${stat.detail ? ` ${stat.detail}.` : ''} View details.`}

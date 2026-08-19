@@ -157,7 +157,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] text-primary transition-all duration-200"
+              className="min-h-[44px] text-primary transition-all duration-state"
             >
               <Link to={`/shows/${entry.showId}`}>
                 <Eye className="h-5 w-5 mr-1.5" />
@@ -170,7 +170,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               onClick={() => onEditClick(editReceiptEntry)}
-              className="min-h-[44px] hover:bg-muted transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
             >
               <Edit className="h-5 w-5 mr-1.5" />
               Edit Entry
@@ -181,7 +181,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] hover:bg-muted transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
             >
               <Link to={`/shows/${entry.showId}?tab=classes`}>
                 <ListOrdered className="h-5 w-5 mr-1.5" />
@@ -194,7 +194,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] hover:bg-muted transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
             >
               <Link to={`/messages/${entry.showId}`}>
                 <MessageSquare className="h-5 w-5 mr-1.5" />
@@ -207,7 +207,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               onClick={() => onReceiptClick(editReceiptEntry)}
-              className="min-h-[44px] hover:bg-muted transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
             >
               <Download className="h-5 w-5 mr-1.5" />
               Receipt

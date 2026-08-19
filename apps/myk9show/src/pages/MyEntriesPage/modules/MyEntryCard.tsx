@@ -212,7 +212,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-action-buttons">
         {nextAction.kind === 'finish-payment' &&
           (paymentHref ? (
-            <Button asChild className="min-h-[44px] transition-all duration-200">
+            <Button asChild className="min-h-[44px] transition-all duration-state">
               <Link to={paymentHref}>
                 <CreditCard className="h-5 w-5 mr-1.5" />
                 Finish Payment
@@ -241,7 +241,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
                 nextActionClass
               )
             }
-            className="min-h-[44px] transition-all duration-200"
+            className="min-h-[44px] transition-all duration-state"
           >
             <ClipboardCheck className="h-5 w-5 mr-1.5" />
             Check In
@@ -252,7 +252,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           <Button
             variant="outline"
             asChild
-            className="min-h-[44px] text-primary transition-all duration-200"
+            className="min-h-[44px] text-primary transition-all duration-state"
           >
             <Link to={`/shows/${entry.showId}`}>
               <Eye className="h-5 w-5 mr-1.5" />
@@ -265,7 +265,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           <Button
             variant="outline"
             onClick={() => setCalendarOpen(true)}
-            className="min-h-[44px] transition-all duration-200"
+            className="min-h-[44px] transition-all duration-state"
           >
             <CalendarPlus className="h-5 w-5 mr-1.5" />
             Add to Calendar
@@ -289,7 +289,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         onClick={() => setDetailsOpen(open => !open)}
         aria-expanded={detailsOpen}
         aria-controls={detailsId}
-        className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+        className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors duration-micro focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         {detailsOpen ? 'Hide details' : 'Show details'}
         <ChevronDown

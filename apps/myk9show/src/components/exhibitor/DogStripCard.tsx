@@ -29,7 +29,7 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
     <button
       type="button"
       onClick={() => navigate(`/dogs/${dogId}`)}
-      className="flex-shrink-0 w-52 rounded-xl border border-border bg-card p-3 text-left hover:bg-accent hover:shadow-sm active:scale-[0.98] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="flex-shrink-0 w-52 rounded-xl border border-border bg-card p-3 text-left hover:bg-accent hover:shadow-sm active:scale-[0.98] transition-all duration-state focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       <p className="font-semibold text-sm text-foreground truncate">{dogName}</p>
       {breed.length > 0 && (

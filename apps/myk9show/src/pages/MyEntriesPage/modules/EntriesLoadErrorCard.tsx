@@ -36,7 +36,7 @@ export const EntriesLoadErrorCard: React.FC<EntriesLoadErrorCardProps> = ({
         variant="outline"
         onClick={onRetry}
         disabled={refreshing}
-        className="text-primary transition-all duration-200 min-h-[44px]"
+        className="text-primary transition-all duration-state min-h-[44px]"
       >
         <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
         Retry

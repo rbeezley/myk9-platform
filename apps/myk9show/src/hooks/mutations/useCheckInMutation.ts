@@ -50,7 +50,11 @@ async function updateCheckInStatus(
     // so it stays plain English and non-blaming (PRODUCT.md: no technical error
     // messages, no sync anxiety). The original failure travels on `cause` for
     // logging rather than being concatenated into the visible copy.
-    throw new Error('We could not save your check-in. Please try again.', { cause: error });
+    const friendly = new Error('We could not save your check-in. Please try again.');
+    // Assigned rather than passed to the constructor: the `cause` option needs a
+    // newer lib target than this project compiles against.
+    (friendly as Error & { cause?: unknown }).cause = error;
+    throw friendly;
   }
 }
 

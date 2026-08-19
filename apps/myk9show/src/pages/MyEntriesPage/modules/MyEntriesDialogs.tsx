@@ -20,7 +20,7 @@ import type { CheckInDialogState, EditDialogState, ReceiptDialogState } from './
 
 interface CheckInDialogProps {
   dialog: CheckInDialogState;
-  user: { email?: string; id?: string } | null;
+  user: { email?: string; id?: string; user_metadata?: Record<string, string> } | null;
   onClose: () => void;
   onUpdateStatus: (status: CheckInStatus, notes?: string) => Promise<void>;
 }
@@ -42,7 +42,12 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
         armband: dialog.entry.armband,
         confirmationNumber: dialog.entry.confirmationNumber,
         dogName: dialog.entry.dogName,
-        handlerName: user?.email || 'Handler',
+        // Was `user?.email` — the dialog put a raw email address where a
+        // person's name belongs, which reads as leaked plumbing rather than
+        // "your dog, your class". Same derivation the receipt dialog already
+        // uses below, so the exhibitor sees one identity across both.
+        handlerName:
+          user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Handler',
         className: dialog.classEntry.name,
         classNumber: dialog.classEntry.number,
       }}
@@ -154,7 +159,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
 };
 
 interface MyEntriesDialogGroupProps {
-  user: { email?: string; id?: string } | null;
+  user: { email?: string; id?: string; user_metadata?: Record<string, string> } | null;
   checkInDialog: CheckInDialogState;
   onCloseCheckIn: () => void;
   onUpdateCheckInStatus: (status: CheckInStatus, notes?: string) => Promise<void>;

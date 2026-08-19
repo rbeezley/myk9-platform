@@ -11,7 +11,7 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
     },
     entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
     shows: { row: null as { id: string } | null },
-    judgeAssignments: { rows: [] as Array<{ id: string }> },
+    judgeAssignments: { rows: [] as Array<{ id: string }>, meta: null as unknown },
   },
   rbacCache: { entry: null as { cachedAt: string } | null },
   syncSpy: vi.fn(async () => {}),
@@ -53,6 +53,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedJudgeAssignmentsTable: {
     sync: vi.fn(async () => ({ success: true })),
+    getSyncMetadata: vi.fn(async () => tables.judgeAssignments.meta),
   },
 }));
 
@@ -109,6 +110,7 @@ describe('useOfflineReadiness', () => {
     tables.entries.rows = [];
     tables.shows.row = null;
     tables.judgeAssignments.rows = [];
+    tables.judgeAssignments.meta = null;
     authState.userId = 'user-1';
     authState.isJudge = false;
     authState.isAnonymous = false;
@@ -162,10 +164,10 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(['show']);
   });
 
-  it('is not ready for a JUDGE whose assignments are not cached', async () => {
+  it('is not ready for a JUDGE whose assignment table was never hydrated', async () => {
     primeAllSignals();
     authState.isJudge = true;
-    tables.judgeAssignments.rows = [];
+    tables.judgeAssignments.meta = null;
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
 
@@ -178,6 +180,7 @@ describe('useOfflineReadiness', () => {
   it('uses the judge-filtered assignment read, not every assignment on the show', async () => {
     primeAllSignals();
     authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 1);
     tables.judgeAssignments.rows = [{ id: 'assignment-1' }];
 
     renderHook(() => useOfflineReadiness('show-1'));
@@ -216,6 +219,7 @@ describe('useOfflineReadiness', () => {
     primeAllSignals();
     authState.isJudge = true;
     authState.databaseUserId = undefined; // profile query never ran (cold boot offline)
+    tables.judgeAssignments.meta = meta(6_000, 1);
     tables.judgeAssignments.rows = [{ id: 'assignment-1' }];
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
@@ -226,10 +230,11 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
-  it('is ready for a judge once assignments are cached', async () => {
+  it('is ready for a judge whose assignment table is hydrated but genuinely empty', async () => {
     primeAllSignals();
     authState.isJudge = true;
-    tables.judgeAssignments.rows = [{ id: 'assignment-1' }];
+    tables.judgeAssignments.meta = meta(6_000, 0);
+    tables.judgeAssignments.rows = [];
 
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
 

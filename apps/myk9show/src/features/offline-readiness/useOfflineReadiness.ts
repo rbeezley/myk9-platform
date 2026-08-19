@@ -99,16 +99,23 @@ async function gatherReadiness(
   // surface uses — another judge's assignment, an inactive row, or a
   // show-level row proves nothing about what this judge can open.
   if (judge.required) {
-    // databaseUserId comes from the (network) profile query, not the RBAC
-    // cache, so a cold offline boot can leave it unresolved. In that state
-    // useMyAtShowJudgeAssignments is equally blind and shows no classes —
-    // report not-ready rather than skipping the check and going green.
-    const assignments = judge.personId
-      ? await getActiveJudgeAssignmentsForShow(showId, judge.personId)
-      : [];
+    // Readiness is about the CACHE, not about having work: a judge with no
+    // assignment in this show is accurately shown an empty list offline, so
+    // table hydration is the right signal. Two exceptions still fail closed —
+    // an unhydrated table, and an unresolved identity (databaseUserId comes
+    // from the network profile query, not the RBAC cache, so a cold offline
+    // boot can leave useMyAtShowJudgeAssignments equally blind).
+    const assignmentsMeta = (await replicatedJudgeAssignmentsTable.getSyncMetadata()) as
+      | ScopedMeta
+      | null;
+    if (judge.personId) {
+      // Warm the filtered read the at-show surface uses, so a mismatch in that
+      // path surfaces here rather than at the ring.
+      await getActiveJudgeAssignmentsForShow(showId, judge.personId);
+    }
     scopes.push({
       label: 'judge assignments',
-      hydrated: assignments.length > 0,
+      hydrated: Boolean(judge.personId) && assignmentsMeta?.totalRows !== undefined,
       lastSyncAt: null,
     });
   }

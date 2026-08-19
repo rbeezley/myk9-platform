@@ -107,6 +107,12 @@ interface DataTableProps<TData> {
    * density control per surface, not two.
    */
   density?: TableDensity;
+  /**
+   * Names the table's horizontal scroll wrapper and makes it keyboard
+   * focusable. Set it on tables wide enough to scroll sideways; without it a
+   * keyboard user cannot reach the columns past the right edge.
+   */
+  scrollRegionLabel?: string;
 }
 
 export type TableDensity = 'comfortable' | 'compact';
@@ -237,6 +243,7 @@ export function DataTable<TData>({
   className,
   getRowClassName,
   density: controlledDensity,
+  scrollRegionLabel,
 }: DataTableProps<TData>) {
   const resolvedPageSizeOptions = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
   const [internalSorting, setInternalSorting] = useState<SortingState>(initialSorting ?? []);
@@ -427,7 +434,7 @@ export function DataTable<TData>({
           )}
 
       {/* Table component has its own overflow-auto wrapper */}
-      <Table>
+      <Table {...(scrollRegionLabel ? { scrollRegionLabel } : {})}>
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id} className="border-b border-border/50 bg-muted/30">

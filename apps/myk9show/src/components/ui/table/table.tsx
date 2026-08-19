@@ -2,9 +2,25 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div data-slot="table-scroll" className="relative w-full overflow-auto">
+interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
+  /**
+   * Names the horizontal scroll wrapper and makes it keyboard-focusable.
+   * A scrollable box that only a mouse can reach is a WCAG 2.1.1 failure, but
+   * a focusable wrapper on every table in the app would add a tab stop to
+   * tables that never overflow — so this is opt-in, for wide tables that do.
+   */
+  scrollRegionLabel?: string;
+}
+
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, scrollRegionLabel, ...props }, ref) => (
+    <div
+      data-slot="table-scroll"
+      className="relative w-full overflow-auto"
+      {...(scrollRegionLabel
+        ? { role: 'region', 'aria-label': scrollRegionLabel, tabIndex: 0 }
+        : {})}
+    >
       <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   )

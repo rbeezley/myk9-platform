@@ -52,7 +52,9 @@ export const UserTable: React.FC<UserTableProps> = ({
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<User | null>(null);
   const { deleteUser } = useUserStore();
-  const { user: currentUser, hasPermission } = useAuthContext();
+  // `user` is the raw Supabase auth user (auth uuid); `userWithRoles` is the
+  // enriched one carrying `databaseUserId`, the caller's people-row id.
+  const { user: currentUser, userWithRoles, hasPermission } = useAuthContext();
   const permanentDeleteMutation = usePermanentDeleteUserMutation();
   const updateUserMutation = useUpdateUserMutation();
   const queryClient = useQueryClient();
@@ -154,10 +156,10 @@ export const UserTable: React.FC<UserTableProps> = ({
         onManageRoles,
         hasPermission('admin:manage') ? handleChangeStatusUser : undefined,
         // Roster rows are people rows, so the self-row guard needs the
-        // caller's PEOPLE id (databaseUserId). The auth uuid alone never
-        // matched: get_admin_user_list returns no auth_user_id, so every
-        // row's user_id is undefined and the guard silently never fired.
-        currentUser?.databaseUserId ?? currentUser?.id
+        // caller's PEOPLE id (`userWithRoles.databaseUserId`). The auth uuid
+        // alone never matched: get_admin_user_list returns no auth_user_id, so
+        // every row's user_id is undefined and the guard silently never fired.
+        userWithRoles?.databaseUserId ?? currentUser?.id
       ),
     [
       selectedUsers,
@@ -172,7 +174,7 @@ export const UserTable: React.FC<UserTableProps> = ({
       handleRestoreUser,
       onManageRoles,
       handleChangeStatusUser,
-      currentUser?.databaseUserId,
+      userWithRoles?.databaseUserId,
       currentUser?.id,
       hasPermission,
     ]
@@ -195,12 +197,11 @@ export const UserTable: React.FC<UserTableProps> = ({
 
   return (
     <div className="space-y-6">
-      <div
-        className="max-w-full overflow-x-auto rounded-xl"
-        aria-label="Users table scroll area"
-        role="region"
-        tabIndex={0}
-      >
+      {/* The label and focus live on the element that actually scrolls (the
+          DataTable's own wrapper, via scrollRegionLabel below). This outer div
+          only sizes the card: it never overflows, so labelling it as a scroll
+          region gave keyboard users a focus stop that could not scroll. */}
+      <div className="max-w-full rounded-xl">
         {/* lg, not sm: at 640-1023px the responsive column set fits naturally,
             and a 760px floor there forced a permanent ~50px sideways scroll. */}
         <div className="myk9-table-container min-w-0 lg:min-w-[760px]">
@@ -227,6 +228,7 @@ export const UserTable: React.FC<UserTableProps> = ({
             onSortingChange={handleSortingChange}
             showSearch={false}
             showExport={false}
+            scrollRegionLabel="Users table"
           />
         </div>
       </div>

@@ -13,9 +13,15 @@ import { render } from '@/test/utils/testUtils';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { UserTable } from './index';
 
+// Mirrors the real context shape: AuthContext spreads `...auth`, so `user` is
+// the raw Supabase auth user (auth uuid, NO databaseUserId) and the enriched
+// object lives on `userWithRoles`. A mock that puts databaseUserId on `user`
+// passes while the app is still broken — that is exactly how this bug survived
+// its first fix.
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    user: {
+    user: { id: 'auth-uuid-self' },
+    userWithRoles: {
       id: 'auth-uuid-self',
       databaseUserId: 'person-self',
       roles: ['site_admin'],

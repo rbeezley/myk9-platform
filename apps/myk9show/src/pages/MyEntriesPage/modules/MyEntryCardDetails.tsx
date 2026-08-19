@@ -127,7 +127,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             {entry.dogs.map(dog => (
               <div
                 key={dog.dogId}
-                className="myk9-entries-dog-group rounded-lg border border-border/60 p-3"
+                className="myk9-entries-dog-group rounded-lg border border-border p-3"
               >
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                   {dog.armband && (
@@ -156,7 +156,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
+              className="min-h-[44px] text-primary transition-all duration-200"
             >
               <Link to={`/shows/${entry.showId}`}>
                 <Eye className="h-5 w-5 mr-1.5" />
@@ -169,7 +169,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               onClick={() => onEditClick(editReceiptEntry)}
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-200"
             >
               <Edit className="h-5 w-5 mr-1.5" />
               Edit Entry
@@ -180,7 +180,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-200"
             >
               <Link to={`/shows/${entry.showId}?tab=classes`}>
                 <ListOrdered className="h-5 w-5 mr-1.5" />
@@ -193,7 +193,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-200"
             >
               <Link to={`/messages/${entry.showId}`}>
                 <MessageSquare className="h-5 w-5 mr-1.5" />
@@ -206,7 +206,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               onClick={() => onReceiptClick(editReceiptEntry)}
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-200"
             >
               <Download className="h-5 w-5 mr-1.5" />
               Receipt
@@ -250,7 +250,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             {(cls.trialDate || cls.trialNumber) && (
               <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                 {cls.trialDate && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-2 py-1 font-medium">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 font-medium">
                     <CalendarDays className="h-3 w-3" />
                     {formatMonthDay(cls.trialDate)}
                   </span>
@@ -296,8 +296,8 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
               onClick={() => onResultRevealClick(resultModel)}
               className={
                 showNewResult
-                  ? 'min-h-[44px] w-full shrink-0 border-primary/30 text-primary sm:w-auto'
-                  : 'min-h-[44px] w-full shrink-0 border-muted-foreground/25 text-muted-foreground sm:w-auto'
+                  ? 'min-h-[44px] w-full shrink-0 border-primary text-primary sm:w-auto'
+                  : 'min-h-[44px] w-full shrink-0 border-border text-muted-foreground sm:w-auto'
               }
             >
               {showNewResult ? 'New result' : 'Result card'}
@@ -320,7 +320,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
                 type="button"
                 onClick={() => onCheckInClick(dogView, cls)}
                 aria-label={`Update check-in for ${dogView.dogName} in ${cls.name}`}
-                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-border/60 bg-background px-2 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-border bg-background px-2 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
               >
                 <CheckInStatusIndicator
                   status={cls.checkInStatus || 'no-status'}

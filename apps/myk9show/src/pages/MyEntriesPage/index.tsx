@@ -295,11 +295,11 @@ const MyEntriesPage: React.FC = () => {
         <div className="bg-background">
           <div className="container mx-auto px-6 py-6 max-w-7xl">
             <div className="grid gap-8">
-              <div className="h-8 bg-muted/50 rounded-lg animate-pulse" />
-              <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+              <div className="h-8 bg-muted rounded-lg animate-pulse" />
+              <div className="h-12 bg-muted rounded-lg animate-pulse" />
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-32 bg-muted/50 rounded-xl animate-pulse" />
+                  <div key={i} className="h-32 bg-muted rounded-xl animate-pulse" />
                 ))}
               </div>
             </div>
@@ -326,7 +326,16 @@ const MyEntriesPage: React.FC = () => {
                 onRetry={refreshEntries}
               />
             )}
-            <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
+            {/* A flat card, not a tinted gradient. The previous primary-tinted
+              gradient panel never actually rendered: opacity modifiers on
+              var()-backed tokens do not compile, and only the handful written
+              out by hand in index.css (see the color-mix block near line 265)
+              produce any CSS at all. None of this panel's three were on that
+              list, so the header has been an unpainted box the whole time.
+              DESIGN.md's Flat-by-Default rule says a resting surface is carried
+              by border and tone rather than decorative chroma, so it becomes a
+              real card instead of a gradient that was only ever theoretical. */}
+            <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
@@ -411,7 +420,7 @@ const MyEntriesPage: React.FC = () => {
                     >
                       {entries.length}
                     </span>
-                    <span className="normal-case tracking-normal font-normal text-muted-foreground/80">
+                    <span className="normal-case tracking-normal font-normal text-muted-foreground">
                       {ALL_ENTRIES_SCOPE_NOTE}
                     </span>
                   </p>

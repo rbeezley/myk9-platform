@@ -82,8 +82,13 @@ describe('CompactStatsRow', () => {
     expect(entriesCard.querySelector('.h-1')).not.toBeInTheDocument();
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveClass('text-muted-foreground');
-    expect(icon).toHaveClass('border-muted-foreground/20');
-    expect(icon).toHaveClass('bg-muted/25');
+    // These previously pinned `border-muted-foreground/20` and `bg-muted/25`,
+    // neither of which compiles: an opacity modifier on a var()-backed token
+    // emits no CSS unless it has been written out by hand in index.css, so the
+    // chip rendered with no fill and the assertions pinned an intention rather
+    // than a rendered style. Pin the tokens that actually paint.
+    expect(icon).toHaveClass('border-border');
+    expect(icon).toHaveClass('bg-muted');
     expect(icon?.compareDocumentPosition(label) ?? Node.DOCUMENT_POSITION_PRECEDING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );

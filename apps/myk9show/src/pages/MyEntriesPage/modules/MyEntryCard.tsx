@@ -250,7 +250,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           <Button
             variant="outline"
             asChild
-            className="min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
+            className="min-h-[44px] text-primary transition-all duration-200"
           >
             <Link to={`/shows/${entry.showId}`}>
               <Eye className="h-5 w-5 mr-1.5" />
@@ -287,7 +287,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         onClick={() => setDetailsOpen(open => !open)}
         aria-expanded={detailsOpen}
         aria-controls={detailsId}
-        className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-border/60 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+        className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
       >
         {detailsOpen ? 'Hide details' : 'Show details'}
         <ChevronDown

@@ -125,7 +125,7 @@ export function HealthCheckRow({
               <dd className="mt-0.5 text-foreground">{remediation.ownerLabel}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Blast radius</dt>
+              <dt className="text-muted-foreground">Next step</dt>
               <dd className="mt-0.5 text-foreground">{remediation.nextStep}</dd>
             </div>
             <div>

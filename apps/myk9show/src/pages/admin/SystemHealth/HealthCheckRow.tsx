@@ -68,10 +68,10 @@ export function HealthCheckRow({
         <StatusDot status={check.status} />
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-medium text-foreground">
+          <span className="block truncate text-sm font-medium text-foreground">
             {check.label}
           </span>
-          <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
             {check.detail || 'No detail reported.'}
           </span>
         </span>
@@ -93,7 +93,7 @@ export function HealthCheckRow({
             it contradicts the freshness band. */}
         <span
           title={`Observed ${formatCheckedAgo(check.checkedAt, now)}`}
-          className="hidden w-[96px] shrink-0 font-mono text-[11.5px] text-muted-foreground md:block lg:hidden xl:block"
+          className="hidden w-[96px] shrink-0 font-mono text-xs text-muted-foreground md:block lg:hidden xl:block"
         >
           <span className="sr-only">observed </span>
           {formatCheckedAgo(check.checkedAt, now)}
@@ -121,11 +121,11 @@ export function HealthCheckRow({
 
       {isOpen && (
         <div id={panelId} className="border-t border-border bg-card pb-5 pl-[42px] pr-5 pt-4">
-          <pre className="overflow-x-auto whitespace-pre-wrap rounded-[9px] bg-muted px-3 py-2.5 font-mono text-[11.5px] leading-[1.7] text-foreground">
+          <pre className="overflow-x-auto whitespace-pre-wrap rounded-[9px] bg-muted px-3 py-2.5 font-mono text-xs leading-[1.7] text-foreground">
             {check.detail || 'The runner recorded no evidence for this check.'}
           </pre>
 
-          <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-[11.5px]">
+          <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-xs">
             <div>
               <dt className="text-muted-foreground">Owner</dt>
               <dd className="mt-0.5 text-foreground">{remediation.ownerLabel}</dd>

@@ -50,10 +50,14 @@ export function StatusDot({ status }: { status: CheckStatus }) {
   );
 }
 
-/** 10px uppercase section label. */
+/**
+ * Uppercase section label. text-xs, not the design's 10px — the project floor
+ * is 14px for anything readable (docs/INTENT.md), and the repo raises text-xs
+ * to 14px for exactly that reason.
+ */
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
       {children}
     </p>
   );
@@ -77,7 +81,7 @@ export function CountChip({
       <div className={cn('font-mono text-2xl font-semibold tabular-nums', STATUS_TEXT[status])}>
         {value}
       </div>
-      <div className="mt-0.5 text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -91,7 +95,7 @@ export function CountChip({
  */
 export function HistoryStrip({ runs, label }: { runs: CheckRun[]; label: string }) {
   if (runs.length === 0) {
-    return <span className="text-[11px] text-muted-foreground">no history yet</span>;
+    return <span className="text-xs text-muted-foreground">no history yet</span>;
   }
   const newest = runs.length - 1;
   return (
@@ -198,7 +202,7 @@ export function BoardError({ message, onRetry }: { message: string; onRetry: () 
     <BoardCard className="border-l-[3px] border-l-destructive">
       <Eyebrow>Couldn&apos;t load</Eyebrow>
       <h2 className="mt-2 text-lg font-medium text-foreground">System health didn&apos;t load</h2>
-      <p className="mt-1 text-[13px] text-muted-foreground">
+      <p className="mt-1 text-sm text-muted-foreground">
         {message} Nothing below is showing platform state — this is a failure to read the board, not
         a report that everything is fine.
       </p>

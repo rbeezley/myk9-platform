@@ -201,6 +201,20 @@ describe('isJudgeAssignedToTrial', () => {
     ).toBe(true);
   });
 
+  it('excludes an assignment whose class was soft-deleted', () => {
+    expect(
+      isJudgeAssignedToTrial(
+        {
+          trial_id: null,
+          class_id: 'class-9',
+          class_trial_id: 'trial-1',
+          class_deleted_at: '2026-08-18T00:00:00Z',
+        },
+        'trial-1'
+      )
+    ).toBe(false);
+  });
+
   it('includes a class assignment whose trial cannot be resolved', () => {
     // Missing embed is a data anomaly; a judge on this show getting one extra
     // reminder beats a judge who is working tomorrow getting none.

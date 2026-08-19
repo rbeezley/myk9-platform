@@ -123,7 +123,9 @@ async function loadRecipients(
     .from('judge_assignments')
     // classes(trial_id) resolves the day for CLASS-level assignments, which
     // store trial_id as null and would otherwise look show-wide.
-    .select('status, trial_id, class_id, classes(trial_id), people!inner(auth_user_id, deleted_at)')
+    .select(
+      'status, trial_id, class_id, classes(trial_id, deleted_at), people!inner(auth_user_id, deleted_at)'
+    )
     .eq('show_id', group.showId)
     // Soft-deleting a person deactivates their user_roles but leaves judge
     // assignments and push subscriptions intact — filter them out here.
@@ -137,7 +139,7 @@ async function loadRecipients(
       const assignment = row as {
         trial_id: string | null;
         class_id: string | null;
-        classes?: { trial_id?: string | null } | null;
+        classes?: { trial_id?: string | null; deleted_at?: string | null } | null;
       };
       return group.trialIds.some(trialId =>
         isJudgeAssignedToTrial(
@@ -145,6 +147,7 @@ async function loadRecipients(
             trial_id: assignment.trial_id,
             class_id: assignment.class_id,
             class_trial_id: assignment.classes?.trial_id ?? null,
+            class_deleted_at: assignment.classes?.deleted_at ?? null,
           },
           trialId
         )
@@ -330,14 +333,21 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
         .insert({ ...claimKey, claimed_at: claimToken });
 
       if (claimError) {
+        // ONLY a unique violation means "already claimed". Anything else — a
+        // missing migration, a revoked grant, a database fault — must surface,
+        // or a completely broken deploy reports a successful run in which
+        // everyone was quietly "skipped".
+        if (claimError.code !== '23505') throw claimError;
+
         // A row already exists. That is only proof of DELIVERY if delivered_at
         // is set; otherwise it may be a claim abandoned by a crashed run, and
         // treating it as sent would suppress this person's nudge forever.
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from('show_eve_nudge_log')
           .select('claimed_at, delivered_at')
           .match(claimKey)
           .maybeSingle();
+        if (existingError) throw existingError;
 
         if (!existing || !shouldReclaimStaleClaim(existing, Date.now())) {
           skipped += 1;

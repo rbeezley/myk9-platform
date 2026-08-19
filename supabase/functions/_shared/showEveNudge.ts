@@ -66,6 +66,8 @@ export function isJudgeAssignedToTrial(
     class_id?: string | null;
     /** trial_id of the assigned class, resolved via the classes embed. */
     class_trial_id?: string | null;
+    /** Set when the assigned class was soft-deleted — the work is gone. */
+    class_deleted_at?: string | null;
   },
   trialId: string
 ): boolean {
@@ -76,6 +78,9 @@ export function isJudgeAssignedToTrial(
   // `trialId: null`), so a null alone does not mean show-wide — the class
   // decides the day.
   if (assignment.class_id) {
+    // soft_delete_class leaves the assignment row behind; the judge is not
+    // working a class that no longer exists.
+    if (assignment.class_deleted_at) return false;
     if (!assignment.class_trial_id) {
       // Unresolvable class (missing embed) is a data anomaly. Prefer one extra
       // reminder for someone on this show over silence for someone working it.

@@ -196,7 +196,7 @@ describe('SystemHealthPage', () => {
     render(<SystemHealthPage />);
 
     expect(screen.getByText(/system health didn.t load/i)).toBeInTheDocument();
-    expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
+    expect(screen.getByText('Unresolved alerts')).toBeInTheDocument();
   });
 
   it('renders a loading state while fetching', () => {
@@ -214,7 +214,7 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
+    expect(screen.getByText('Unresolved alerts')).toBeInTheDocument();
   });
 
   it('renders a per-check history strip, oldest run first', () => {

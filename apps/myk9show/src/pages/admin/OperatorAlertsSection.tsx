@@ -13,8 +13,8 @@ import { toast } from 'sonner';
 import { StatusBadge } from '@myk9/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { BoardCard, Eyebrow } from './SystemHealth/HealthBoardPrimitives';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import { formatCheckedAgo } from '@/features/admin-system-health/systemHealthSelectors';
 import {
@@ -95,11 +95,9 @@ export function OperatorAlertsSection() {
   const visibleAlerts = data && !showAll ? data.slice(0, VISIBLE_ALERTS_CAP) : (data ?? []);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Unresolved Alerts</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <BoardCard>
+      <Eyebrow>Unresolved alerts</Eyebrow>
+      <div className="mt-2">
         {isLoading ? (
           <div role="status" aria-label="Loading unresolved alerts" className="space-y-2">
             <Skeleton className="h-12 rounded-md" />
@@ -134,7 +132,7 @@ export function OperatorAlertsSection() {
             No unresolved alerts.
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </BoardCard>
   );
 }

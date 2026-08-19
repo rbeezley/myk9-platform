@@ -76,7 +76,13 @@ export function HealthCheckRow({
           </span>
         </span>
 
-        <span className="hidden w-[150px] shrink-0 justify-start sm:flex">
+        {/* Fixed columns must never starve the label: beside the 256px admin
+            sidebar the main column is ~424px at 768px and ~360px at lg (the
+            two-column grid starts there), while strip+observed+badge total
+            ~437px — so `flex-1 truncate` ate the label to 0px. The strip only
+            fits once the grid widens at xl; "observed" fits in the md-lg
+            single-column window and again at xl. */}
+        <span className="hidden w-[150px] shrink-0 justify-start xl:flex">
           <HistoryStrip runs={check.history} label={check.label} />
         </span>
 
@@ -87,7 +93,7 @@ export function HealthCheckRow({
             it contradicts the freshness band. */}
         <span
           title={`Observed ${formatCheckedAgo(check.checkedAt, now)}`}
-          className="hidden w-[96px] shrink-0 font-mono text-[11.5px] text-muted-foreground md:block"
+          className="hidden w-[96px] shrink-0 font-mono text-[11.5px] text-muted-foreground md:block lg:hidden xl:block"
         >
           <span className="sr-only">observed </span>
           {formatCheckedAgo(check.checkedAt, now)}

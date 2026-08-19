@@ -221,27 +221,39 @@ export default function CheckoutSuccessPage() {
     const generation = verificationGenerationRef.current;
     let cancelled = false;
     let scheduledChecks = 0;
+    let checkInFlight = false;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const runCheck = async () => {
       if (cancelled || verificationGenerationRef.current !== generation) return;
+      // Serialize: a focus event can land while the scheduled check (or the
+      // manual button's check) is mid-flight — never overlap requests.
+      if (checkInFlight) return;
       if (manualCheckInFlightRef.current) {
         scheduleNext();
         return;
       }
-      const result = await checkCheckoutSession(sessionId);
-      if (cancelled || verificationGenerationRef.current !== generation) return;
-      if (result.success) {
-        completeCheckout(result, generation);
-        return;
+      checkInFlight = true;
+      try {
+        const result = await checkCheckoutSession(sessionId);
+        if (cancelled || verificationGenerationRef.current !== generation) return;
+        if (result.success) {
+          completeCheckout(result, generation);
+          return;
+        }
+        setVerificationIssue(result);
+        scheduleNext();
+      } finally {
+        checkInFlight = false;
       }
-      setVerificationIssue(result);
-      scheduleNext();
     };
 
     const scheduleNext = () => {
       if (cancelled || scheduledChecks >= MAX_BACKGROUND_RECHECKS) return;
       scheduledChecks += 1;
+      // Replace, never stack: a focus-triggered check that fails would
+      // otherwise add a second pending timer alongside the scheduled one.
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       timeoutId = setTimeout(() => void runCheck(), BACKGROUND_RECHECK_INTERVAL_MS);
     };
 
@@ -328,6 +340,7 @@ export default function CheckoutSuccessPage() {
         canCheckStatus={shouldBackgroundRecheck}
         isCheckingStatus={isCheckingStatus}
         warnAgainstNewPayment={shouldBackgroundRecheck}
+        autoRecheckActive={shouldBackgroundRecheck}
         onCheckStatus={handleCheckPaymentStatus}
       />
     );

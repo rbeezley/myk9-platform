@@ -12,6 +12,8 @@ interface CheckoutVerificationIssueCardProps {
   canCheckStatus: boolean;
   isCheckingStatus: boolean;
   warnAgainstNewPayment: boolean;
+  /** True while the page's bounded background re-check chain is running. */
+  autoRecheckActive?: boolean;
   onCheckStatus: () => void;
 }
 
@@ -21,6 +23,7 @@ export function CheckoutVerificationIssueCard({
   canCheckStatus,
   isCheckingStatus,
   warnAgainstNewPayment,
+  autoRecheckActive = false,
   onCheckStatus,
 }: CheckoutVerificationIssueCardProps) {
   const title =
@@ -35,10 +38,11 @@ export function CheckoutVerificationIssueCard({
             ? 'Payment Refunded'
             : 'Payment Status Unavailable');
 
-  const mayStillResolve =
-    issue.verificationStatus === 'processing' ||
-    issue.verificationStatus === 'not_found' ||
-    issue.verificationStatus === 'unavailable';
+  // Only statuses that establish a payment attempt on THIS session may carry
+  // the refund promise — 'unavailable' can mean a missing session or an auth
+  // failure, where "your payment is refunded automatically" would be invented.
+  const showRefundReassurance =
+    issue.verificationStatus === 'processing' || issue.verificationStatus === 'not_found';
 
   return (
     <div className="bg-background pt-6">
@@ -56,10 +60,11 @@ export function CheckoutVerificationIssueCard({
                 the entry in My Entries.
               </p>
             )}
-            {mayStillResolve && (
+            {(showRefundReassurance || autoRecheckActive) && (
               <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
-                If your entries could not be placed, your payment is refunded automatically in
-                full. This page keeps checking and will update on its own.
+                {showRefundReassurance &&
+                  'If your entries could not be placed, your payment is refunded automatically in full. '}
+                {autoRecheckActive && 'This page keeps checking and will update on its own.'}
               </p>
             )}
             {issue.verificationStatus === 'not_found' && (

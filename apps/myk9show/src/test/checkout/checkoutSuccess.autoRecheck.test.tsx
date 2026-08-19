@@ -161,6 +161,26 @@ describe('CheckoutSuccessPage background re-check (MYK9-207)', () => {
     expect(screen.getByText(/do not submit another payment/i)).toBeInTheDocument();
   });
 
+  it('does not promise a refund for unavailable states, but still says it keeps checking', async () => {
+    verifyCheckoutSessionMock.mockResolvedValue({
+      success: false,
+      verificationStatus: 'unavailable',
+      error: 'We could not check your payment status right now.',
+    });
+
+    render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_unavailable_copy',
+    });
+
+    await parkInitialPoll();
+
+    expect(screen.getByRole('heading', { name: 'Payment Status Unavailable' })).toBeInTheDocument();
+    // 'unavailable' can mean auth failure or a backend error — the refund
+    // promise would be invented, so it must not render here.
+    expect(screen.queryByText(/refunded automatically in full/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/keeps checking and will update on its own/i)).toBeInTheDocument();
+  });
+
   it('stops re-checking after the bounded number of background attempts', async () => {
     verifyCheckoutSessionMock.mockResolvedValue(processingResult);
 

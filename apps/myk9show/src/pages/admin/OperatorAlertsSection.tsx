@@ -33,6 +33,14 @@ const SEVERITY_LABEL: Record<OperatorAlert['severity'], string> = {
   error: 'Error',
 };
 
+/**
+ * Alerts shown before the list collapses behind "Show all". Money-path writers
+ * emit repeating pairs, so an incident can arrive as ten near-identical rows —
+ * uncapped, the aside grows to several thousand pixels and buries the Coverage
+ * and Environment cards beneath payload text.
+ */
+const VISIBLE_ALERTS_CAP = 5;
+
 function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
   const { mutateAsync, isPending } = useResolveOperatorAlert();
   const [resolving, setResolving] = useState(false);
@@ -83,6 +91,8 @@ function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
 export function OperatorAlertsSection() {
   const { data, isLoading, error } = useOperatorAlerts();
   const [now] = useState(() => Date.now());
+  const [showAll, setShowAll] = useState(false);
+  const visibleAlerts = data && !showAll ? data.slice(0, VISIBLE_ALERTS_CAP) : (data ?? []);
 
   return (
     <Card>
@@ -105,9 +115,18 @@ export function OperatorAlertsSection() {
           </Alert>
         ) : data && data.length > 0 ? (
           <div>
-            {data.map(alert => (
+            {visibleAlerts.map(alert => (
               <AlertRow key={alert.id} alert={alert} now={now} />
             ))}
+            {data.length > VISIBLE_ALERTS_CAP && (
+              <Button
+                variant="ghost"
+                className="mt-2 w-full"
+                onClick={() => setShowAll(current => !current)}
+              >
+                {showAll ? 'Show fewer' : `Show all ${data.length} alerts`}
+              </Button>
+            )}
           </div>
         ) : (
           <p className="flex items-center gap-2 py-6 text-center text-sm text-muted-foreground">

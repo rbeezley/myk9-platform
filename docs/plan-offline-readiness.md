@@ -78,6 +78,11 @@ Edge function `push-trigger-show-eve` + pg_cron schedule.
 - Migration through `migration-auditor` + `src/test/database/` contract suite
   before push; ACL verified against the applied DB (`relacl` + column ACLs).
 
+## Follow-ups filed during review
+
+- **MYK9-205** — RingsideShowBoundary blocks a cold device before the badge/prime action can render (judge-only accounts have no other recovery path).
+- **MYK9-206** — replication `totalRows` is rewritten from the local count, so partial quota eviction is undetectable; PR 1 works around it by rewinding scope watermarks before priming.
+
 ## Out of scope
 
 - Device-readiness heartbeat for targeted nudges (revisit if unconditional is

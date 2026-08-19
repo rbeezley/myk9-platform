@@ -103,6 +103,26 @@ describe('buildShowEveNudgePayload', () => {
     expect(payload.data.url).toBe('/at-show/show-1');
   });
 
+  it('carries a per-show notification tag so two shows do not collapse', () => {
+    const first = buildShowEveNudgePayload({
+      showName: 'Show One',
+      showId: 'show-1',
+      trialDate: '2026-08-20',
+    });
+    const second = buildShowEveNudgePayload({
+      showName: 'Show Two',
+      showId: 'show-2',
+      trialDate: '2026-08-20',
+    });
+
+    // sw-custom.ts derives the notification tag from payload.type when there
+    // is no announcementId/messageId; a shared tag would replace the earlier
+    // nudge instead of showing both.
+    expect(first.type).toBe('show-eve:show-1');
+    expect(second.type).toBe('show-eve:show-2');
+    expect(first.type).not.toBe(second.type);
+  });
+
   it('says "tomorrow" rather than printing a raw date', () => {
     const payload = buildShowEveNudgePayload({
       showName: 'Spring Trial',

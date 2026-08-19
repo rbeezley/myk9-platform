@@ -23,7 +23,7 @@ export interface ShowEveJudgeRow {
  * Long enough that a healthy in-flight run is never stolen from, far shorter
  * than the daily cadence so a crashed run costs at most one cycle.
  */
-export const CLAIM_LEASE_MS = 30 * 60 * 1000;
+export const CLAIM_LEASE_MS = 15 * 60 * 1000;
 
 export interface ShowEveClaimRow {
   claimed_at: string;
@@ -60,6 +60,8 @@ export function isJudgeAssignedToTrial(
 export interface ShowEveNudgePayload {
   title: string;
   body: string;
+  /** Becomes the service worker's notification tag (see sw-custom.ts). */
+  type: string;
   data: { url: string };
 }
 
@@ -106,6 +108,10 @@ export function buildShowEveNudgePayload({
   trialDate?: string;
 }): ShowEveNudgePayload {
   return {
+    // Per-show tag: sw-custom.ts falls back to payload.type for the
+    // notification tag, so a shared value would make a second show's nudge
+    // replace the first instead of showing both.
+    type: `show-eve:${showId}`,
     title: `${showName} starts tomorrow`,
     body: 'You judge or run rings tomorrow. Open the show now, while you have internet, so it works without internet at the venue.',
     // Tapping the notification opens the show, which primes the device — the

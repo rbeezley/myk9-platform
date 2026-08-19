@@ -45,6 +45,7 @@ import { getTrialTimezone } from '@/features/registries';
 import { AtShowClassRow } from './AtShowClassRow';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
+import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
@@ -405,6 +406,15 @@ export const AtShowClassListPage: React.FC = () => {
       </div>
 
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
+
+      {/* Staff run the show from this device — surface whether it would
+          survive losing internet (MYK9-203). Exhibitors don't operate the
+          show, so keep their view uncluttered. */}
+      {!isExhibitorOnly && (
+        <div className="mb-4 flex justify-center">
+          <OfflineReadyBadge showId={showId} />
+        </div>
+      )}
 
       {assignmentError && (
         <section

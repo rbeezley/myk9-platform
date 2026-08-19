@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
+  replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
@@ -39,15 +40,23 @@ async function gatherReadiness(showId: string, userId: string): Promise<OfflineR
   const cacheEntry = loadRbacPermissionsCache(userId);
   const permissionsCachedAt = cacheEntry ? Date.parse(cacheEntry.cachedAt) : null;
 
-  const [trialsMeta, entriesMeta, trialRows, entryRows] = await Promise.all([
+  const [trialsMeta, entriesMeta, trialRows, entryRows, showRow] = await Promise.all([
     replicatedTrialsTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
     replicatedEntriesTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
     replicatedTrialsTable.getTrialsByShow(showId),
     replicatedEntriesTable.getEntriesByShow(showId),
+    replicatedShowsTable.getShowById(showId),
   ]);
 
   const trialsScope = toScope('trials', trialsMeta, trialRows.length);
-  const scopes: ScopeReadiness[] = [trialsScope, toScope('entries', entriesMeta, entryRows.length)];
+  const scopes: ScopeReadiness[] = [
+    // The show row itself is load-bearing offline — /at-show/:showId reads
+    // replicatedShowsTable.getShowById. Shows sync is CLUB-scoped, so check
+    // row presence directly rather than a per-show watermark.
+    { label: 'show', hydrated: showRow !== null, lastSyncAt: null },
+    trialsScope,
+    toScope('entries', entriesMeta, entryRows.length),
+  ];
 
   // Classes are scoped by TRIAL id, so a truthful per-show answer fans out
   // over the show's trials — every trial's classes must be hydrated. Until the
@@ -132,7 +141,13 @@ export function useOfflineReadiness(showId: string | undefined) {
       // Permissions refresh re-persists the RBAC cache (MYK9-200), healing a
       // device whose cache was missing or expired — show data alone is not
       // enough to be offline ready.
-      await Promise.all([syncAtShowData(showId), refreshPermissions?.()]);
+      await Promise.all([
+        syncAtShowData(showId),
+        // Shows sync is club-scoped; the unscoped incremental sync is what the
+        // background provider runs and it carries the show row.
+        replicatedShowsTable.sync(''),
+        refreshPermissions?.(),
+      ]);
     } finally {
       setPriming(false);
     }

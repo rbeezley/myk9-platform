@@ -10,6 +10,7 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState } = vi.hoisted(() => (
       rowsByTrial: new Map<string, Array<{ id: string }>>(),
     },
     entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+    shows: { row: null as { id: string } | null },
   },
   rbacCache: { entry: null as { cachedAt: string } | null },
   syncSpy: vi.fn(async () => {}),
@@ -33,6 +34,10 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     getSyncMetadata: vi.fn(async () => tables.entries.meta),
     getEntriesByShow: vi.fn(async () => tables.entries.rows),
+  },
+  replicatedShowsTable: {
+    getShowById: vi.fn(async () => tables.shows.row),
+    sync: vi.fn(async () => ({ success: true })),
   },
 }));
 
@@ -60,6 +65,7 @@ const rows = (count: number) => Array.from({ length: count }, (_, i) => ({ id: `
 
 function primeAllSignals() {
   rbacCache.entry = { cachedAt: new Date(1_000).toISOString() };
+  tables.shows.row = { id: 'show-1' };
   tables.trials.meta = meta(2_000, 2);
   tables.trials.rows = [{ id: 'trial-1' }, { id: 'trial-2' }];
   tables.classes.metaByTrial.set('trial-1', meta(3_000, 1));
@@ -80,6 +86,7 @@ describe('useOfflineReadiness', () => {
     tables.classes.rowsByTrial.clear();
     tables.entries.meta = null;
     tables.entries.rows = [];
+    tables.shows.row = null;
     authState.userId = 'user-1';
     authState.isAnonymous = false;
   });
@@ -116,6 +123,18 @@ describe('useOfflineReadiness', () => {
       expect(result.current.readiness?.ready).toBe(false);
     });
     expect(result.current.readiness?.missing).toEqual(['classes']);
+  });
+
+  it('is not ready when the show row itself is missing locally — /at-show needs it', async () => {
+    primeAllSignals();
+    tables.shows.row = null;
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['show']);
   });
 
   it('treats an evicted scope (fewer local rows than the watermark counted) as cold', async () => {

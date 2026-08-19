@@ -21,11 +21,15 @@ export interface ShowEveJudgeRow {
 /**
  * How long a claim may sit undelivered before another run may take it over.
  *
- * Strictly SHORTER than the gap between runs in the nudge window, so each run
- * can reclaim what the previous one abandoned; a lease equal to the gap would
- * leave a crashed claim un-reclaimable by the very next run.
+ * Sits between two hard bounds, with margin on both sides:
+ *   - ABOVE the worst-case send (10 subscriptions x 8s = 80s), so a healthy
+ *     in-flight run is never robbed of a claim it is still working.
+ *   - BELOW the SMALLEST gap between cron runs (the :45 -> :55 pair, 10 min),
+ *     so every run can reclaim what its predecessor abandoned. A lease equal
+ *     to that gap would sit exactly on the boundary of this strict `>` and
+ *     leave the last run of the window unable to rescue the one before it.
  */
-export const CLAIM_LEASE_MS = 10 * 60 * 1000;
+export const CLAIM_LEASE_MS = 5 * 60 * 1000;
 
 export interface ShowEveClaimRow {
   claimed_at: string;

@@ -297,6 +297,9 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
   // it counts as notified, but the claim may later look abandoned and be
   // retried. Surfaced rather than hidden.
   let unstamped = 0;
+  // Claims we failed to release after a failed send. Self-healing (the lease
+  // lets a later run reclaim them) but reported so it is never invisible.
+  let unreleased = 0;
 
   const nudgeableTrials = ((trials ?? []) as unknown as TrialRow[]).filter(isTrialNudgeable);
   // One push per SHOW per evening, not one per trial: a show with two trials
@@ -358,13 +361,16 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
         // and both could read the same stale claim and send. Only the
         // invocation whose update actually matches proceeds.
         const reclaimToken = new Date().toISOString();
-        const { data: reclaimed } = await supabase
+        const { data: reclaimed, error: reclaimError } = await supabase
           .from('show_eve_nudge_log')
           .update({ claimed_at: reclaimToken })
           .match(claimKey)
           .eq('claimed_at', existing.claimed_at)
           .is('delivered_at', null)
           .select('id');
+        // A failed UPDATE is not a lost race — surface it rather than logging
+        // the recipient as an ordinary skip in an otherwise "successful" run.
+        if (reclaimError) throw reclaimError;
 
         if (!reclaimed?.length) {
           skipped += 1;
@@ -416,12 +422,15 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
       } else {
         // Nothing was delivered — release the claim we still hold so a later
         // run can retry, and never remove one already marked delivered.
-        await supabase
+        const { error: releaseError } = await supabase
           .from('show_eve_nudge_log')
           .delete()
           .match(claimKey)
           .eq('claimed_at', claimToken)
           .is('delivered_at', null);
+        // Not fatal — the claim is undelivered, so the lease still lets a
+        // later run in this window reclaim it — but it must not vanish.
+        if (releaseError) unreleased += 1;
         skipped += 1;
       }
     }
@@ -434,5 +443,6 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
     notified,
     skipped,
     unstamped,
+    unreleased,
   };
 });

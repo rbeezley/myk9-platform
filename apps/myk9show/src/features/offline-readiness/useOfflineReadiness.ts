@@ -105,9 +105,10 @@ async function gatherReadiness(
     // an unhydrated table, and an unresolved identity (databaseUserId comes
     // from the network profile query, not the RBAC cache, so a cold offline
     // boot can leave useMyAtShowJudgeAssignments equally blind).
-    const assignmentsMeta = (await replicatedJudgeAssignmentsTable.getSyncMetadata()) as
-      | ScopedMeta
-      | null;
+    const [assignmentsMeta, assignmentRows] = await Promise.all([
+      replicatedJudgeAssignmentsTable.getSyncMetadata() as Promise<ScopedMeta | null>,
+      replicatedJudgeAssignmentsTable.getAll(),
+    ]);
     if (judge.personId) {
       // Warm the filtered read the at-show surface uses, so a mismatch in that
       // path surfaces here rather than at the ring.
@@ -115,7 +116,10 @@ async function gatherReadiness(
     }
     scopes.push({
       label: 'judge assignments',
-      hydrated: Boolean(judge.personId) && assignmentsMeta?.expectedRemoteRows !== undefined,
+      hydrated:
+        Boolean(judge.personId) &&
+        assignmentsMeta?.expectedRemoteRows !== undefined &&
+        assignmentRows.length >= assignmentsMeta.expectedRemoteRows,
       lastSyncAt: null,
     });
   }

@@ -57,6 +57,7 @@ vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: {
     sync: vi.fn(async () => ({ success: true })),
     getSyncMetadata: vi.fn(async () => tables.judgeAssignments.meta),
+    getAll: vi.fn(async () => tables.judgeAssignments.rows),
   },
 }));
 
@@ -277,6 +278,20 @@ describe('useOfflineReadiness', () => {
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });
+  });
+
+  it('treats an evicted judge assignment scope as cold', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 2);
+    tables.judgeAssignments.rows = [{ id: 'assignment-1' }];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
   it('does not require judge assignments for a non-judge', async () => {

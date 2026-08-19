@@ -11,11 +11,16 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
     },
     entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
     shows: { row: null as { id: string } | null },
+    judgeAssignments: { rows: [] as Array<{ id: string }> },
   },
   rbacCache: { entry: null as { cachedAt: string } | null },
   syncSpy: vi.fn(async () => {}),
   refreshSpy: vi.fn(async () => {}),
-  authState: { userId: 'user-1' as string | undefined, isAnonymous: false },
+  authState: {
+    userId: 'user-1' as string | undefined,
+    isAnonymous: false,
+    isJudge: false,
+  },
   replicationState: { lastSyncAt: null as number | null },
 }));
 
@@ -44,6 +49,10 @@ vi.mock('@/services/replication', () => ({
     getShowById: vi.fn(async () => tables.shows.row),
     sync: vi.fn(async () => ({ success: true })),
   },
+  replicatedJudgeAssignmentsTable: {
+    getByShowId: vi.fn(async () => tables.judgeAssignments.rows),
+    sync: vi.fn(async () => ({ success: true })),
+  },
 }));
 
 vi.mock('@/context/rbacPermissionsCache', () => ({
@@ -57,6 +66,7 @@ vi.mock('@/features/at-show/atShowDataAdapter', () => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: authState.userId ? { id: authState.userId, is_anonymous: authState.isAnonymous } : null,
+    isJudge: authState.isJudge,
     refreshPermissions: refreshSpy,
   }),
 }));
@@ -92,7 +102,9 @@ describe('useOfflineReadiness', () => {
     tables.entries.meta = null;
     tables.entries.rows = [];
     tables.shows.row = null;
+    tables.judgeAssignments.rows = [];
     authState.userId = 'user-1';
+    authState.isJudge = false;
     authState.isAnonymous = false;
     replicationState.lastSyncAt = null;
   });
@@ -141,6 +153,42 @@ describe('useOfflineReadiness', () => {
       expect(result.current.readiness?.ready).toBe(false);
     });
     expect(result.current.readiness?.missing).toEqual(['show']);
+  });
+
+  it('is not ready for a JUDGE whose assignments are not cached', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.rows = [];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
+  });
+
+  it('is ready for a judge once assignments are cached', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.rows = [{ id: 'assignment-1' }];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+  });
+
+  it('does not require judge assignments for a non-judge', async () => {
+    primeAllSignals();
+    tables.judgeAssignments.rows = [];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
   });
 
   it('treats an evicted scope (fewer local rows than the watermark counted) as cold', async () => {

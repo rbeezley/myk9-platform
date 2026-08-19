@@ -232,4 +232,10 @@ describe('summarizeAlertDetail', () => {
   it('falls back when a markup value strips to nothing', () => {
     expect(summarizeAlertDetail({ html: '<br/>' })).toBe('No further detail recorded.');
   });
+
+  it('leaves comparison prose alone; only tag-shaped text is stripped', () => {
+    expect(summarizeAlertDetail({ message: 'cpu < 80 and mem > 90' })).toBe(
+      'cpu < 80 and mem > 90'
+    );
+  });
 });

@@ -5,6 +5,7 @@
  * falls back to 'error', the loudest state), never crash the board.
  */
 import type { StatusBadgeVariants } from '@myk9/ui';
+import { detailEntryToText } from './alertDetailText';
 import type { AlertSeverity, OperatorAlert, OperatorAlertRow } from './operatorAlertsTypes';
 
 type BadgeVariant = NonNullable<StatusBadgeVariants['variant']>;
@@ -51,27 +52,13 @@ export function severityToBadgeVariant(severity: AlertSeverity): BadgeVariant {
   }
 }
 
-/** Keys whose value IS the message; prefixing them ("html: …") is noise. */
-const MESSAGE_KEYS = /^(html|message|text|body|detail)$/i;
-
-/** Values can arrive as rendered markup (production alerts store serialized
- * HTML under an `html` key). Show the sentence, never the serialization. */
-function toPlainText(value: unknown): string {
-  return String(value)
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 /** Compact "key: value, key: value" rendering of an alert's structured detail. */
 export function formatAlertDetail(detail: Record<string, unknown> | null): string {
   if (!detail) return '';
   const parts: string[] = [];
   for (const [key, value] of Object.entries(detail)) {
-    if (value === null || typeof value === 'object') continue;
-    const text = toPlainText(value);
-    if (!text) continue;
-    parts.push(MESSAGE_KEYS.test(key) ? text : `${key}: ${text}`);
+    const text = detailEntryToText(key, value);
+    if (text) parts.push(text);
   }
   return parts.join(', ');
 }

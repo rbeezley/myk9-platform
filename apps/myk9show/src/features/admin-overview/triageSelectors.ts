@@ -15,6 +15,7 @@
  *
  * Side-effect free and `now`-injected, like the health selectors.
  */
+import { detailEntryToText } from '@/features/admin-system-health/alertDetailText';
 import { getHealthCheckRemediation } from '@/features/admin-system-health/systemHealthSelectors';
 import type { HealthCheck } from '@/features/admin-system-health/systemHealthTypes';
 import type { OperatorAlert } from '@/features/admin-system-health/operatorAlertsTypes';
@@ -65,28 +66,15 @@ const ALERT_SEVERITY: Record<OperatorAlert['severity'], TriageSeverity> = {
   info: 'Low',
 };
 
-/** Keys whose value IS the message; prefixing them ("html: …") is noise. */
-const MESSAGE_KEYS = /^(html|message|text|body|detail)$/i;
-
-/** Values can arrive as rendered markup (production alerts store serialized
- * HTML under an `html` key). Show the sentence, never the serialization. */
-function toPlainText(value: unknown): string {
-  return String(value)
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 /** Alert `detail` is arbitrary JSON. Render the most useful single line we can
  * without pretending to a schema it does not have. */
 export function summarizeAlertDetail(detail: Record<string, unknown> | null): string {
   if (!detail) return 'No further detail recorded.';
   const parts: string[] = [];
   for (const [key, value] of Object.entries(detail)) {
-    if (value === null || typeof value === 'object') continue;
-    const text = toPlainText(value);
+    const text = detailEntryToText(key, value);
     if (!text) continue;
-    parts.push(MESSAGE_KEYS.test(key) ? text : `${key}: ${text}`);
+    parts.push(text);
     if (parts.length === 3) break;
   }
   return parts.length > 0 ? parts.join(' · ') : 'No further detail recorded.';

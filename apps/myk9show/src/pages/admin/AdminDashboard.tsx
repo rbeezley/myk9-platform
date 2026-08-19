@@ -218,7 +218,7 @@ export default function AdminDashboard() {
               />
               <StatTile
                 label="Open alerts"
-                value={alertsUnavailable || alerts.isLoading ? '—' : openAlerts.length}
+                value={alertsUnavailable ? '—' : openAlerts.length}
                 isError={alertsUnavailable}
                 context={
                   alertsUnavailable

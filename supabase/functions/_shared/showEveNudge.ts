@@ -51,10 +51,31 @@ export function shouldReclaimStaleClaim(row: ShowEveClaimRow, now: number): bool
  * every day.
  */
 export function isJudgeAssignedToTrial(
-  assignment: { trial_id: string | null },
+  assignment: {
+    trial_id: string | null;
+    class_id?: string | null;
+    /** trial_id of the assigned class, resolved via the classes embed. */
+    class_trial_id?: string | null;
+  },
   trialId: string
 ): boolean {
-  return assignment.trial_id === null || assignment.trial_id === trialId;
+  if (assignment.trial_id !== null) return assignment.trial_id === trialId;
+
+  // A CLASS-level assignment also stores trial_id as null
+  // (ReplicatedJudgeAssignmentsTable.replaceClassAssignment writes
+  // `trialId: null`), so a null alone does not mean show-wide — the class
+  // decides the day.
+  if (assignment.class_id) {
+    if (!assignment.class_trial_id) {
+      // Unresolvable class (missing embed) is a data anomaly. Prefer one extra
+      // reminder for someone on this show over silence for someone working it.
+      return true;
+    }
+    return assignment.class_trial_id === trialId;
+  }
+
+  // No trial and no class: a genuine show-level assignment covers every day.
+  return true;
 }
 
 /**
@@ -88,7 +109,13 @@ export interface ShowEveNudgePayload {
  * Roles that operate a show day. Exhibitors are excluded (they attend, they do
  * not run rings) and so are site admins (platform staff, not show staff).
  */
-const SHOW_DAY_STAFF_ROLES = new Set(['secretary', 'club_admin', 'chairman', 'steward', 'judge']);
+/**
+ * Club-role holders who run a show day. `judge` is deliberately ABSENT: a club
+ * judge is only working a given show if `judge_assignments` says so, and the
+ * assignment path already carries them. Including the role here would nudge
+ * every judge in the club about a show they are not judging.
+ */
+const SHOW_DAY_STAFF_ROLES = new Set(['secretary', 'club_admin', 'chairman', 'steward']);
 
 /** Assignment states that mean the judge is actually expected at the show. */
 const ACTIVE_ASSIGNMENT_STATUSES = new Set(['confirmed', 'invited', 'accepted', 'pending']);

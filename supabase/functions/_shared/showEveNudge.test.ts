@@ -169,16 +169,41 @@ describe('shouldReclaimStaleClaim', () => {
 });
 
 describe('isJudgeAssignedToTrial', () => {
-  it('includes a judge assigned to this trial', () => {
-    expect(isJudgeAssignedToTrial({ trial_id: 'trial-1' }, 'trial-1')).toBe(true);
+  it('includes a judge assigned directly to this trial', () => {
+    expect(isJudgeAssignedToTrial({ trial_id: 'trial-1', class_id: null }, 'trial-1')).toBe(true);
   });
 
   it('excludes a judge assigned only to another day of the same show', () => {
-    expect(isJudgeAssignedToTrial({ trial_id: 'trial-2' }, 'trial-1')).toBe(false);
+    expect(isJudgeAssignedToTrial({ trial_id: 'trial-2', class_id: null }, 'trial-1')).toBe(false);
   });
 
-  it('includes a show-level assignment, which covers every day', () => {
-    expect(isJudgeAssignedToTrial({ trial_id: null }, 'trial-1')).toBe(true);
+  it('includes a true show-level assignment (no trial, no class)', () => {
+    expect(isJudgeAssignedToTrial({ trial_id: null, class_id: null }, 'trial-1')).toBe(true);
+  });
+
+  it('uses the CLASS trial for a class-level assignment, which stores a null trial_id', () => {
+    // replaceClassAssignment writes trialId: null with a class id, so a
+    // class-level assignment must not read as show-wide on a multi-day show.
+    expect(
+      isJudgeAssignedToTrial(
+        { trial_id: null, class_id: 'class-9', class_trial_id: 'trial-2' },
+        'trial-1'
+      )
+    ).toBe(false);
+    expect(
+      isJudgeAssignedToTrial(
+        { trial_id: null, class_id: 'class-9', class_trial_id: 'trial-1' },
+        'trial-1'
+      )
+    ).toBe(true);
+  });
+
+  it('includes a class assignment whose trial cannot be resolved', () => {
+    // Missing embed is a data anomaly; a judge on this show getting one extra
+    // reminder beats a judge who is working tomorrow getting none.
+    expect(
+      isJudgeAssignedToTrial({ trial_id: null, class_id: 'class-9' }, 'trial-1')
+    ).toBe(true);
   });
 });
 
@@ -205,5 +230,28 @@ describe('isTrialNudgeable', () => {
 
   it('rejects a trial whose show embed is missing', () => {
     expect(isTrialNudgeable({ show: null })).toBe(false);
+  });
+});
+
+describe('selectShowEveRecipients — judges come only from assignments', () => {
+  it('does not nudge a club judge who has no assignment for this show', () => {
+    const recipients = selectShowEveRecipients({
+      clubStaff: [
+        { auth_user_id: 'judge-not-working', role_name: 'judge' },
+        { auth_user_id: 'sec-1', role_name: 'secretary' },
+      ],
+      judges: [],
+    });
+
+    expect(recipients).toEqual(['sec-1']);
+  });
+
+  it('still nudges a club judge who IS assigned, via the assignment path', () => {
+    const recipients = selectShowEveRecipients({
+      clubStaff: [{ auth_user_id: 'judge-working', role_name: 'judge' }],
+      judges: [{ auth_user_id: 'judge-working', status: 'confirmed' }],
+    });
+
+    expect(recipients).toEqual(['judge-working']);
   });
 });

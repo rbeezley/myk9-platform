@@ -88,7 +88,9 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
   // through their assignments and resolve the person to their auth account.
   const { data: assignmentRows, error: assignmentError } = await supabase
     .from('judge_assignments')
-    .select('status, trial_id, people!inner(auth_user_id, deleted_at)')
+    // classes(trial_id) resolves the day for CLASS-level assignments, which
+    // store trial_id as null and would otherwise look show-wide.
+    .select('status, trial_id, class_id, classes(trial_id), people!inner(auth_user_id, deleted_at)')
     .eq('show_id', trial.show_id)
     // Soft-deleting a person deactivates their user_roles but leaves judge
     // assignments and push subscriptions intact — filter them out here.
@@ -97,7 +99,21 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
 
   const judges: ShowEveJudgeRow[] = (assignmentRows ?? [])
     // A multi-day show must not nudge Saturday's judge on Sunday's eve.
-    .filter(row => isJudgeAssignedToTrial(row as { trial_id: string | null }, trial.id))
+    .filter(row => {
+      const assignment = row as {
+        trial_id: string | null;
+        class_id: string | null;
+        classes?: { trial_id?: string | null } | null;
+      };
+      return isJudgeAssignedToTrial(
+        {
+          trial_id: assignment.trial_id,
+          class_id: assignment.class_id,
+          class_trial_id: assignment.classes?.trial_id ?? null,
+        },
+        trial.id
+      );
+    })
     .map(row => ({
       auth_user_id:
         (row as { people?: { auth_user_id?: string | null } }).people?.auth_user_id ?? null,

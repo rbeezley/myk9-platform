@@ -6,11 +6,13 @@ import { useDataTableContext } from './data-table-toolbar';
 interface DataTableSearchProps {
   placeholder?: string;
   debounceMs?: number;
+  ariaLabel?: string;
 }
 
 export function DataTableSearch({
   placeholder = 'Search...',
   debounceMs = 300,
+  ariaLabel = 'Search table',
 }: DataTableSearchProps) {
   const table = useDataTableContext<unknown>();
   const currentFilter = (table.getState().globalFilter as string) ?? '';
@@ -36,25 +38,26 @@ export function DataTableSearch({
   }, [value, debounceMs, applyFilter]);
 
   return (
-    <div className="relative max-w-sm">
-      <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <div className="relative w-full sm:max-w-sm">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
+        aria-label={ariaLabel}
         placeholder={placeholder}
         value={value}
         onChange={e => setValue(e.target.value)}
-        className="h-8 pl-8 pr-8 text-sm"
+        className="h-11 pl-9 pr-11 text-sm"
       />
       {value && (
         <button
           type="button"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={() => {
             setValue('');
             applyFilter('');
           }}
           aria-label="Clear search"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-4 w-4" />
         </button>
       )}
     </div>

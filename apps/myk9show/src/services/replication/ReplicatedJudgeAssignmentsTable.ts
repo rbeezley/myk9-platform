@@ -192,6 +192,31 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
 
     const adapter: SyncReplicatedTableAdapter<JudgeAssignmentJoinedRow, ReplicatedJudgeAssignment> =
       {
+        getRemoteRowCount: async () => {
+          try {
+            const { count, error } = await supabase
+              .from('judge_assignments')
+              .select('id', { count: 'exact', head: true });
+
+            if (error) {
+              logger.warn(
+                `[${this.getTableName()}] Judge assignment coverage count unavailable; continuing sync`,
+                'replication',
+                { message: error.message }
+              );
+              return undefined;
+            }
+
+            return count ?? 0;
+          } catch (error) {
+            logger.warn(
+              `[${this.getTableName()}] Judge assignment coverage count unavailable; continuing sync`,
+              'replication',
+              { message: error instanceof Error ? error.message : String(error) }
+            );
+            return undefined;
+          }
+        },
         fetchRemoteRows: async ({ since }) => {
           // Embed the class/trial snapshot so the globally-synced assignment row
           // is self-sufficient for the offline judge dashboard. To-one embeds via

@@ -2,7 +2,12 @@
 
 import { supabase } from '../supabaseClient';
 import type { TablesUpdate } from '@/types/supabase';
-import { type OnboardingRequest, type CreateOnboardingRequest } from './types';
+import {
+  mapDbRow,
+  type DbOnboardingRow,
+  type OnboardingRequest,
+  type CreateOnboardingRequest,
+} from './types';
 
 /**
  * Submit a new onboarding request (authenticated user).
@@ -30,15 +35,18 @@ export async function submitOnboardingRequest(request: CreateOnboardingRequest):
 export async function updateOnboardingRequest(
   requestId: string,
   updates: { status?: OnboardingRequest['status']; notes?: string }
-): Promise<void> {
+): Promise<OnboardingRequest> {
   const dbUpdates: TablesUpdate<'onboarding_requests'> = {};
   if (updates.status !== undefined) dbUpdates.status = updates.status;
   if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('onboarding_requests')
     .update(dbUpdates)
-    .eq('id', requestId);
+    .eq('id', requestId)
+    .select()
+    .single();
 
   if (error) throw error;
+  return mapDbRow(data as DbOnboardingRow);
 }

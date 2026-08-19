@@ -20,6 +20,7 @@ export { mapDbRoleRequest } from './types';
 const ROLE_REQUEST_SELECT = `
   *,
   person:people!role_requests_person_id_fkey(first_name,last_name,email),
+  reviewer:people!role_requests_reviewed_by_fkey(first_name,last_name,email),
   club:clubs(name)
 `;
 

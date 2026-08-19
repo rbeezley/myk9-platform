@@ -493,6 +493,34 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     };
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
+      getRemoteRowCount: async ({ scope }) => {
+        try {
+          let query = supabase.from('classes').select('id', { count: 'exact', head: true });
+
+          if (scope.value) {
+            query = query.eq('trial_id', scope.value);
+          }
+
+          const { count, error } = await query;
+          if (error) {
+            logger.warn(
+              `[${this.getTableName()}] Classes coverage count unavailable; continuing sync`,
+              'replication',
+              { message: error.message }
+            );
+            return undefined;
+          }
+
+          return count ?? 0;
+        } catch (error) {
+          logger.warn(
+            `[${this.getTableName()}] Classes coverage count unavailable; continuing sync`,
+            'replication',
+            { message: error instanceof Error ? error.message : String(error) }
+          );
+          return undefined;
+        }
+      },
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('classes')

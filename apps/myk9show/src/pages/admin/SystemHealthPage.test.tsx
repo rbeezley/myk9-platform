@@ -128,7 +128,7 @@ describe('SystemHealthPage', () => {
     mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
 
     render(<SystemHealthPage />);
-    fireEvent.click(screen.getByRole('tab', { name: /^Failing 0$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Failing 0$/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Run now' }));
 
     expect(mutateAsync).toHaveBeenCalledTimes(1);
@@ -142,10 +142,10 @@ describe('SystemHealthPage', () => {
     render(<SystemHealthPage />);
 
     // Verdict chips and filter tabs read the same summary.
-    expect(screen.getByRole('tab', { name: /^All 2$/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /^Failing 0$/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /^Unverified 1$/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /^Passing 1$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^All 2$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Failing 0$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Unverified 1$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Passing 1$/ })).toBeInTheDocument();
   });
 
   it('filters the list to the tab the admin picked', () => {
@@ -153,7 +153,7 @@ describe('SystemHealthPage', () => {
     mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
 
     render(<SystemHealthPage />);
-    fireEvent.click(screen.getByRole('tab', { name: /^Failing 0$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Failing 0$/ }));
 
     expect(screen.queryByText('Migration parity')).not.toBeInTheDocument();
     expect(screen.getByText(/nothing in this bucket/i)).toBeInTheDocument();
@@ -196,7 +196,7 @@ describe('SystemHealthPage', () => {
     render(<SystemHealthPage />);
 
     expect(screen.getByText(/system health didn.t load/i)).toBeInTheDocument();
-    expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
+    expect(screen.getByText('Unresolved alerts')).toBeInTheDocument();
   });
 
   it('renders a loading state while fetching', () => {
@@ -214,7 +214,7 @@ describe('SystemHealthPage', () => {
 
     render(<SystemHealthPage />);
 
-    expect(screen.getByText('Unresolved Alerts')).toBeInTheDocument();
+    expect(screen.getByText('Unresolved alerts')).toBeInTheDocument();
   });
 
   it('renders a per-check history strip, oldest run first', () => {

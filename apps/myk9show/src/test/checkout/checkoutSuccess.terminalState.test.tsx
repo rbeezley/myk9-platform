@@ -174,7 +174,12 @@ describe('CheckoutSuccessPage terminal verification states', () => {
       initialRoute: '/checkout/success?session_id=cs_slow_processing',
     });
 
-    await finishVerificationTimers();
+    // Advance just past the 30s initial window — runAllTimersAsync would also
+    // drain the MYK9-207 background re-check chain, which this test is not
+    // about. The deadline still bounds the INITIAL poll to 4 attempts.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(31_000);
+    });
 
     expect(verifyCheckoutSessionMock).toHaveBeenCalledTimes(4);
     expect(screen.getByRole('heading', { name: 'Payment Status Unavailable' })).toBeInTheDocument();

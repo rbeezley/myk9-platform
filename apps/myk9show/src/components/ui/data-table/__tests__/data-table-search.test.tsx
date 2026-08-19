@@ -36,6 +36,8 @@ describe('DataTableSearch', () => {
       />
     );
     const searchInput = screen.getByPlaceholderText('Search...');
+    expect(searchInput).toHaveAccessibleName('Search table');
+    expect(searchInput).toHaveClass('h-11');
     await user.type(searchInput, 'Alice');
     await new Promise(r => setTimeout(r, 400));
     expect(screen.getByText('Alice')).toBeInTheDocument();

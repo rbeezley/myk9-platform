@@ -50,10 +50,14 @@ export function StatusDot({ status }: { status: CheckStatus }) {
   );
 }
 
-/** 10px uppercase section label. */
+/**
+ * Uppercase section label. text-xs, not the design's 10px — the project floor
+ * is 14px for anything readable (docs/INTENT.md), and the repo raises text-xs
+ * to 14px for exactly that reason.
+ */
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
       {children}
     </p>
   );
@@ -77,7 +81,10 @@ export function CountChip({
       <div className={cn('font-mono text-2xl font-semibold tabular-nums', STATUS_TEXT[status])}>
         {value}
       </div>
-      <div className="mt-0.5 text-[11px] text-muted-foreground">{label}</div>
+      {/* Label shares the numeral's status colour: muted-foreground on the 10%
+          tints computed to 3.7-3.9:1 in dark mode (AA needs 4.5); the status
+          colours measure 5.3:1+ on their tints in both modes. */}
+      <div className={cn('mt-0.5 text-xs', STATUS_TEXT[status])}>{label}</div>
     </div>
   );
 }
@@ -91,7 +98,7 @@ export function CountChip({
  */
 export function HistoryStrip({ runs, label }: { runs: CheckRun[]; label: string }) {
   if (runs.length === 0) {
-    return <span className="text-[11px] text-muted-foreground">no history yet</span>;
+    return <span className="text-xs text-muted-foreground">no history yet</span>;
   }
   const newest = runs.length - 1;
   return (
@@ -133,19 +140,21 @@ export function FilterTabs<T extends string>({
   onChange: (value: T) => void;
   ariaLabel: string;
 }) {
+  // Not role="tablist": these are filters, not tab panels, and the ARIA tabs
+  // contract (arrow keys, roving tabindex, tabpanel) was never implemented —
+  // pressed buttons in a group describe exactly what screen readers get.
   return (
-    <div role="tablist" aria-label={ariaLabel} className="flex flex-wrap gap-1">
+    <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-1">
       {tabs.map(tab => {
         const selected = tab.value === active;
         return (
           <button
             key={tab.value}
             type="button"
-            role="tab"
-            aria-selected={selected}
+            aria-pressed={selected}
             onClick={() => onChange(tab.value)}
             className={cn(
-              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              'min-h-10 rounded-full px-3 py-1 text-xs font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               selected
                 ? 'bg-foreground text-background'
@@ -198,14 +207,14 @@ export function BoardError({ message, onRetry }: { message: string; onRetry: () 
     <BoardCard className="border-l-[3px] border-l-destructive">
       <Eyebrow>Couldn&apos;t load</Eyebrow>
       <h2 className="mt-2 text-lg font-medium text-foreground">System health didn&apos;t load</h2>
-      <p className="mt-1 text-[13px] text-muted-foreground">
+      <p className="mt-1 text-sm text-muted-foreground">
         {message} Nothing below is showing platform state — this is a failure to read the board, not
         a report that everything is fine.
       </p>
       <button
         type="button"
         onClick={onRetry}
-        className="mt-3 rounded-[9px] bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-3 inline-flex min-h-10 items-center rounded-[9px] bg-foreground px-4 text-xs font-medium text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Try again
       </button>

@@ -77,6 +77,8 @@ export interface ScopeSyncState {
   lastIncrementalSyncAt: number;
   /** Rows cached for this scope at the last successful sync. */
   totalRows?: number;
+  /** Server-reported rows visible to this scope at the last successful sync. */
+  expectedRemoteRows?: number;
 }
 
 /**
@@ -92,6 +94,8 @@ export interface SyncMetadata {
    */
   lastIncrementalSyncAt: number;
   totalRows?: number; // Total rows cached
+  /** Server-reported rows visible at the last successful sync. */
+  expectedRemoteRows?: number;
   syncStatus?: 'idle' | 'syncing' | 'error';
   errorMessage?: string | undefined;
   conflictCount?: number;

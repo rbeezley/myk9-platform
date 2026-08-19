@@ -139,11 +139,9 @@ describe('RoleAssignmentsPanel', () => {
     expect(screen.queryByText('Unknown User')).not.toBeInTheDocument();
     expect(screen.queryByText('Unknown Role')).not.toBeInTheDocument();
     expect(screen.getByText('Unresolved user')).toBeInTheDocument();
-    expect(
-      screen.getByText(/No people label resolved for user_id missing-user/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/could not be matched to a profile/i)).toBeInTheDocument();
     expect(screen.getByText('Unresolved role')).toBeInTheDocument();
-    expect(screen.getByText(/No roles row resolved for role_id missing-role/i)).toBeInTheDocument();
+    expect(screen.getByText(/could not be matched to a role definition/i)).toBeInTheDocument();
   });
 
   it('renders Active and Inactive status badges', async () => {
@@ -156,23 +154,18 @@ describe('RoleAssignmentsPanel', () => {
   it('renders a revoke action for each row', async () => {
     render(<RoleAssignmentsPanel />);
     await screen.findByRole('table');
-    const menuTriggers = screen
-      .getAllByRole('button')
-      .filter(btn => btn.querySelector('.sr-only')?.textContent === 'Open menu');
+    const menuTriggers = screen.getAllByRole('button', { name: /actions for/i });
     expect(menuTriggers.length).toBeGreaterThan(0);
   });
 
-  it('falls back to the role name in summary cards when display_name is absent', async () => {
+  it('summarizes the ledger without rendering a second role-card representation', async () => {
     render(<RoleAssignmentsPanel />);
     await screen.findByRole('table');
-    expect(screen.getByText('judge', { selector: '.text-lg' })).toBeInTheDocument();
-  });
-
-  it('shows the role summary without requiring a tab click', async () => {
-    render(<RoleAssignmentsPanel />);
-    await screen.findByRole('table');
-    expect(screen.queryByRole('tab', { name: /role summary/i })).not.toBeInTheDocument();
-    expect(screen.getByText('Secretary', { selector: '.text-lg' })).toBeInTheDocument();
+    expect(screen.getByText('3 active assignments')).toBeInTheDocument();
+    expect(screen.getByText('4 people')).toBeInTheDocument();
+    expect(screen.getByText('2 role types')).toBeInTheDocument();
+    expect(screen.queryByText('Total Assignments:')).not.toBeInTheDocument();
+    expect(screen.getByText('Judge')).toBeInTheDocument();
   });
 
   it('offers no way to assign a role, and points at User Management instead', async () => {
@@ -195,9 +188,15 @@ describe('RoleAssignmentsPanel', () => {
     render(<RoleAssignmentsPanel />);
     await screen.findByRole('table');
     // ur-2: club-scoped (club_id: 'club-1')
-    expect(screen.getByText('Club: club-1')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Club profile' })).toHaveAttribute(
+      'href',
+      '/clubs/club-1'
+    );
     // ur-4: show-scoped (show_id: 'show-9')
-    expect(screen.getByText('Show: show-9')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Show details' })).toHaveAttribute(
+      'href',
+      '/shows/show-9'
+    );
     // ur-1 and ur-3: unscoped
     expect(screen.getAllByText('Global').length).toBeGreaterThanOrEqual(2);
   });

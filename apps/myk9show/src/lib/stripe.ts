@@ -105,7 +105,7 @@ export type CheckoutVerificationResult =
     }
   | {
       success: false;
-      verificationStatus: 'processing' | 'failed' | 'refunded' | 'unavailable';
+      verificationStatus: 'processing' | 'not_found' | 'failed' | 'refunded' | 'unavailable';
       error: string;
     };
 
@@ -160,10 +160,15 @@ export async function verifyCheckoutSession(
 
   if (!order) {
     if (!error || error.code === 'PGRST116') {
+      // No visible order row. Right after payment this usually means the
+      // webhook hasn't written it yet — but it is ALSO what a viewer signed
+      // in to the wrong account (RLS hides the row) or a bogus session id
+      // sees, and those never resolve. Report it distinctly so the page can
+      // stop calling permanent states "still processing" (MYK9-207).
       return {
         success: false,
-        verificationStatus: 'processing',
-        error: 'Your payment is still processing.',
+        verificationStatus: 'not_found',
+        error: "We can't find this payment on this account yet.",
       };
     }
 

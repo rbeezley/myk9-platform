@@ -7,14 +7,14 @@
 // rest of this board — an unresolved alert must be visible with enough
 // context to act, and resolving it must be a single, explicit action.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from '@myk9/ui';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { BoardCard, Eyebrow } from './SystemHealth/HealthBoardPrimitives';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import { formatCheckedAgo } from '@/features/admin-system-health/systemHealthSelectors';
 import {
@@ -32,6 +32,14 @@ const SEVERITY_LABEL: Record<OperatorAlert['severity'], string> = {
   warn: 'Warning',
   error: 'Error',
 };
+
+/**
+ * Alerts shown before the list collapses behind "Show all". Money-path writers
+ * emit repeating pairs, so an incident can arrive as ten near-identical rows —
+ * uncapped, the aside grows to several thousand pixels and buries the Coverage
+ * and Environment cards beneath payload text.
+ */
+const VISIBLE_ALERTS_CAP = 5;
 
 function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
   const { mutateAsync, isPending } = useResolveOperatorAlert();
@@ -67,12 +75,9 @@ function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
         <span className="text-xs text-muted-foreground">
           {formatCheckedAgo(alert.createdAt, now)}
         </span>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleResolve}
-          disabled={isPending || resolving}
-        >
+        {/* Default size (40px), not sm (32px): resolving a money-path alert is
+            a real action and gets at least the sanctioned touch floor. */}
+        <Button variant="outline" onClick={handleResolve} disabled={isPending || resolving}>
           Resolve
         </Button>
       </div>
@@ -82,14 +87,20 @@ function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
 
 export function OperatorAlertsSection() {
   const { data, isLoading, error } = useOperatorAlerts();
-  const [now] = useState(() => Date.now());
+  // Ticks like the main board's clock: frozen-at-mount ages read "10 min ago"
+  // an hour later, silently wrong next to rows that do advance.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const clock = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(clock);
+  }, []);
+  const [showAll, setShowAll] = useState(false);
+  const visibleAlerts = data && !showAll ? data.slice(0, VISIBLE_ALERTS_CAP) : (data ?? []);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Unresolved Alerts</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <BoardCard>
+      <Eyebrow>Unresolved alerts</Eyebrow>
+      <div className="mt-2">
         {isLoading ? (
           <div role="status" aria-label="Loading unresolved alerts" className="space-y-2">
             <Skeleton className="h-12 rounded-md" />
@@ -105,9 +116,18 @@ export function OperatorAlertsSection() {
           </Alert>
         ) : data && data.length > 0 ? (
           <div>
-            {data.map(alert => (
+            {visibleAlerts.map(alert => (
               <AlertRow key={alert.id} alert={alert} now={now} />
             ))}
+            {data.length > VISIBLE_ALERTS_CAP && (
+              <Button
+                variant="ghost"
+                className="mt-2 w-full"
+                onClick={() => setShowAll(current => !current)}
+              >
+                {showAll ? 'Show fewer' : `Show all ${data.length} alerts`}
+              </Button>
+            )}
           </div>
         ) : (
           <p className="flex items-center gap-2 py-6 text-center text-sm text-muted-foreground">
@@ -115,7 +135,7 @@ export function OperatorAlertsSection() {
             No unresolved alerts.
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </BoardCard>
   );
 }

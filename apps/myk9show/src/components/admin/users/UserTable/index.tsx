@@ -198,7 +198,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   return (
     <div className="space-y-6">
       {/* The label and focus live on the element that actually scrolls (the
-          DataTable's own wrapper, via scrollRegionLabel below). This outer div
+          DataTable's own wrapper, via scrollAreaLabel below). This outer div
           only sizes the card: it never overflows, so labelling it as a scroll
           region gave keyboard users a focus stop that could not scroll. */}
       <div className="max-w-full rounded-xl">
@@ -228,7 +228,7 @@ export const UserTable: React.FC<UserTableProps> = ({
             onSortingChange={handleSortingChange}
             showSearch={false}
             showExport={false}
-            scrollRegionLabel="Users table"
+            scrollAreaLabel="Users table"
           />
         </div>
       </div>

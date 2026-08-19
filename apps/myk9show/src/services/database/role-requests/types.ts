@@ -22,6 +22,11 @@ export interface DbRoleRequestRow {
     last_name: string | null;
     email: string | null;
   } | null;
+  reviewer?: {
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
   club?: {
     name: string | null;
   } | null;
@@ -40,6 +45,8 @@ export interface RoleRequest {
   requesterNote: string | null;
   reviewerNote: string | null;
   reviewedBy: string | null;
+  reviewerName: string | null;
+  reviewerEmail: string | null;
   reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -91,6 +98,9 @@ export function mapDbRoleRequest(row: DbRoleRequestRow): RoleRequest {
   const firstName = row.person?.first_name?.trim() ?? '';
   const lastName = row.person?.last_name?.trim() ?? '';
   const requesterName = `${firstName} ${lastName}`.trim() || 'Unknown user';
+  const reviewerFirstName = row.reviewer?.first_name?.trim() ?? '';
+  const reviewerLastName = row.reviewer?.last_name?.trim() ?? '';
+  const reviewerName = `${reviewerFirstName} ${reviewerLastName}`.trim() || null;
 
   return {
     id: row.id,
@@ -105,6 +115,8 @@ export function mapDbRoleRequest(row: DbRoleRequestRow): RoleRequest {
     requesterNote: row.requester_note,
     reviewerNote: row.reviewer_note,
     reviewedBy: row.reviewed_by,
+    reviewerName,
+    reviewerEmail: row.reviewer?.email ?? null,
     reviewedAt: row.reviewed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

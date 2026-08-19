@@ -68,9 +68,7 @@ export function HealthCheckRow({
         <StatusDot status={check.status} />
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-foreground">
-            {check.label}
-          </span>
+          <span className="block truncate text-sm font-medium text-foreground">{check.label}</span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
             {check.detail || 'No detail reported.'}
           </span>
@@ -145,7 +143,7 @@ export function HealthCheckRow({
           <div className="mt-4">
             <a
               href={remediation.href}
-              className="inline-flex items-center rounded-[9px] bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-10 items-center rounded-[9px] bg-foreground px-4 text-xs font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {remediation.actionLabel}
             </a>

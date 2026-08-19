@@ -140,19 +140,21 @@ export function FilterTabs<T extends string>({
   onChange: (value: T) => void;
   ariaLabel: string;
 }) {
+  // Not role="tablist": these are filters, not tab panels, and the ARIA tabs
+  // contract (arrow keys, roving tabindex, tabpanel) was never implemented —
+  // pressed buttons in a group describe exactly what screen readers get.
   return (
-    <div role="tablist" aria-label={ariaLabel} className="flex flex-wrap gap-1">
+    <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-1">
       {tabs.map(tab => {
         const selected = tab.value === active;
         return (
           <button
             key={tab.value}
             type="button"
-            role="tab"
-            aria-selected={selected}
+            aria-pressed={selected}
             onClick={() => onChange(tab.value)}
             className={cn(
-              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              'min-h-10 rounded-full px-3 py-1 text-xs font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               selected
                 ? 'bg-foreground text-background'
@@ -212,7 +214,7 @@ export function BoardError({ message, onRetry }: { message: string; onRetry: () 
       <button
         type="button"
         onClick={onRetry}
-        className="mt-3 rounded-[9px] bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-3 inline-flex min-h-10 items-center rounded-[9px] bg-foreground px-4 text-xs font-medium text-background hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Try again
       </button>

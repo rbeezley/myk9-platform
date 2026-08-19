@@ -75,12 +75,9 @@ function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
         <span className="text-xs text-muted-foreground">
           {formatCheckedAgo(alert.createdAt, now)}
         </span>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleResolve}
-          disabled={isPending || resolving}
-        >
+        {/* Default size (40px), not sm (32px): resolving a money-path alert is
+            a real action and gets at least the sanctioned touch floor. */}
+        <Button variant="outline" onClick={handleResolve} disabled={isPending || resolving}>
           Resolve
         </Button>
       </div>

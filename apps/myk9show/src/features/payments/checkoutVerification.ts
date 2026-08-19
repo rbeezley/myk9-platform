@@ -2,6 +2,11 @@ import { type CheckoutVerificationResult, verifyCheckoutSession } from '@/lib/st
 
 export const CHECKOUT_VERIFICATION_TIMEOUT_MS = 8000;
 export const CHECKOUT_VERIFICATION_DEADLINE_MS = 30000;
+// After the initial 30s window parks, the page keeps re-checking slowly in the
+// background (plus on tab focus). Bounded so an abandoned tab — and fake-timer
+// tests running all timers — eventually stop: 20 × 20s ≈ 7 more minutes.
+export const BACKGROUND_RECHECK_INTERVAL_MS = 20000;
+export const MAX_BACKGROUND_RECHECKS = 20;
 const MAX_VERIFICATION_ATTEMPTS = 11;
 const VERIFICATION_POLL_INTERVAL_MS = 2000;
 const MAX_UNAVAILABLE_ATTEMPTS = 2;
@@ -70,7 +75,12 @@ export async function pollCheckoutSession(
     const retryUnavailable =
       result.verificationStatus === 'unavailable' &&
       ++unavailableAttempts < MAX_UNAVAILABLE_ATTEMPTS;
-    const retryProcessing = result.verificationStatus === 'processing';
+    // A missing row ('not_found') is retried like 'processing' during this
+    // initial window: seconds after payment it usually means the webhook
+    // hasn't written the order yet. Only after the window parks does the UI
+    // treat a persistent not_found differently from a pending order.
+    const retryProcessing =
+      result.verificationStatus === 'processing' || result.verificationStatus === 'not_found';
     if ((!retryUnavailable && !retryProcessing) || attempt === MAX_VERIFICATION_ATTEMPTS) {
       return result;
     }

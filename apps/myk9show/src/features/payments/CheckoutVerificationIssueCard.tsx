@@ -27,11 +27,18 @@ export function CheckoutVerificationIssueCard({
     titleOverride ??
     (issue.verificationStatus === 'processing'
       ? 'Payment Still Processing'
-      : issue.verificationStatus === 'failed'
-        ? 'Payment Not Completed'
-        : issue.verificationStatus === 'refunded'
-          ? 'Payment Refunded'
-          : 'Payment Status Unavailable');
+      : issue.verificationStatus === 'not_found'
+        ? 'Payment Not Found Yet'
+        : issue.verificationStatus === 'failed'
+          ? 'Payment Not Completed'
+          : issue.verificationStatus === 'refunded'
+            ? 'Payment Refunded'
+            : 'Payment Status Unavailable');
+
+  const mayStillResolve =
+    issue.verificationStatus === 'processing' ||
+    issue.verificationStatus === 'not_found' ||
+    issue.verificationStatus === 'unavailable';
 
   return (
     <div className="bg-background pt-6">
@@ -47,6 +54,18 @@ export function CheckoutVerificationIssueCard({
               <p className="mt-3 text-foreground max-w-md mx-auto">
                 <strong>Do not submit another payment.</strong> Check this payment again or look for
                 the entry in My Entries.
+              </p>
+            )}
+            {mayStillResolve && (
+              <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
+                If your entries could not be placed, your payment is refunded automatically in
+                full. This page keeps checking and will update on its own.
+              </p>
+            )}
+            {issue.verificationStatus === 'not_found' && (
+              <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
+                If you paid while signed in to a different account, sign in as that account to see
+                this payment.
               </p>
             )}
             <div className="mt-6 flex flex-col-reverse gap-3 justify-center sm:flex-row">

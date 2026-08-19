@@ -1,6 +1,6 @@
 /** Verifies the Stripe return and shows entry confirmation. */
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import {
   readCartSplitCheckoutSummary,
 } from '@/features/payments/cartSplitCheckoutStorage';
 import {
+  BACKGROUND_RECHECK_INTERVAL_MS,
+  MAX_BACKGROUND_RECHECKS,
   checkCheckoutSession,
   pollCheckoutSession,
 } from '@/features/payments/checkoutVerification';
@@ -201,6 +203,64 @@ export default function CheckoutSuccessPage() {
     };
   }, [completeCheckout, isWaitlistOnly, resetCart, sessionId, splitCheckoutId]);
 
+  // MYK9-207: once the initial 30s poll parks in a maybe-still-resolving state,
+  // keep re-checking slowly in the background and re-verify when the tab
+  // regains focus — a phone returning from a wallet sheet is exactly the
+  // resumed-tab case. Bounded (MAX_BACKGROUND_RECHECKS) so an abandoned tab
+  // eventually goes quiet; the manual button remains past that point.
+  const parkedStatus = verificationIssue?.verificationStatus;
+  const shouldBackgroundRecheck =
+    Boolean(sessionId) &&
+    (parkedStatus === 'processing' ||
+      parkedStatus === 'not_found' ||
+      parkedStatus === 'unavailable');
+
+  useEffect(() => {
+    if (!shouldBackgroundRecheck || !sessionId) return;
+
+    const generation = verificationGenerationRef.current;
+    let cancelled = false;
+    let scheduledChecks = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const runCheck = async () => {
+      if (cancelled || verificationGenerationRef.current !== generation) return;
+      if (manualCheckInFlightRef.current) {
+        scheduleNext();
+        return;
+      }
+      const result = await checkCheckoutSession(sessionId);
+      if (cancelled || verificationGenerationRef.current !== generation) return;
+      if (result.success) {
+        completeCheckout(result, generation);
+        return;
+      }
+      setVerificationIssue(result);
+      scheduleNext();
+    };
+
+    const scheduleNext = () => {
+      if (cancelled || scheduledChecks >= MAX_BACKGROUND_RECHECKS) return;
+      scheduledChecks += 1;
+      timeoutId = setTimeout(() => void runCheck(), BACKGROUND_RECHECK_INTERVAL_MS);
+    };
+
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') void runCheck();
+    };
+
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+    window.addEventListener('focus', onFocusOrVisible);
+    scheduleNext();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+      window.removeEventListener('focus', onFocusOrVisible);
+    };
+  }, [shouldBackgroundRecheck, sessionId, completeCheckout]);
+
   const handleCheckPaymentStatus = async () => {
     if (!sessionId || manualCheckInFlightRef.current) return;
 
@@ -265,17 +325,9 @@ export default function CheckoutSuccessPage() {
         issue={verificationIssue}
         {...(isWaitlistOnly &&
           !sessionId && { titleOverride: 'Wait List Confirmation Unavailable' })}
-        canCheckStatus={
-          Boolean(sessionId) &&
-          (verificationIssue.verificationStatus === 'processing' ||
-            verificationIssue.verificationStatus === 'unavailable')
-        }
+        canCheckStatus={shouldBackgroundRecheck}
         isCheckingStatus={isCheckingStatus}
-        warnAgainstNewPayment={
-          Boolean(sessionId) &&
-          (verificationIssue.verificationStatus === 'processing' ||
-            verificationIssue.verificationStatus === 'unavailable')
-        }
+        warnAgainstNewPayment={shouldBackgroundRecheck}
         onCheckStatus={handleCheckPaymentStatus}
       />
     );

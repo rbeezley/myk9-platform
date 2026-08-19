@@ -10,6 +10,9 @@ import {
   isJudgeAssignedToTrial,
   isTrialNudgeable,
   filterPushOptedIn,
+  filterClubStaffByMembership,
+  groupTrialsByShow,
+  type ShowEveTrialGroup,
   shouldReclaimStaleClaim,
   selectShowEveRecipients,
   type ShowEveClubStaffRow,
@@ -44,9 +47,11 @@ function targetTrialDate(now: Date): string {
   return tomorrow.toISOString().slice(0, 10);
 }
 
-async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promise<string[]> {
-  const clubId = trial.show?.club_id ?? null;
-
+async function loadRecipients(
+  supabase: SupabaseClient,
+  group: ShowEveTrialGroup,
+  clubId: string | null
+): Promise<string[]> {
   // Staff role rows come in TWO shapes and both must be reached:
   //   * club-wide  (club_id set, show_id null)      — ordinary club staff
   //   * show-scoped (show_id set, club_id may be NULL) — migration 099 wrote
@@ -54,36 +59,63 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
   // Two queries rather than one nested `.or()`: applyActiveRoleValidity already
   // contributes an `or` filter, and stacking a second is easy to get subtly
   // wrong. selectShowEveRecipients dedupes the union.
-  const roleSelect = 'auth_user_id, is_active, expires_at, club_id, show_id, roles!inner(name)';
+  const roleSelect =
+    'auth_user_id, user_id, is_active, expires_at, club_id, show_id, roles!inner(name)';
 
   const roleQueries = [
     applyActiveRoleValidity(
-      supabase.from('user_roles').select(roleSelect).eq('show_id', trial.show_id)
+      supabase.from('user_roles').select(roleSelect).eq('show_id', group.showId)
     ),
   ];
   if (clubId) {
     roleQueries.push(
       applyActiveRoleValidity(
-        supabase
-          .from('user_roles')
-          .select(roleSelect)
-          .eq('club_id', clubId)
-          .is('show_id', null)
+        supabase.from('user_roles').select(roleSelect).eq('club_id', clubId).is('show_id', null)
       )
     );
   }
 
-  const clubStaff: ShowEveClubStaffRow[] = [];
+  type RoleRow = {
+    auth_user_id: string | null;
+    user_id: string | null;
+    show_id: string | null;
+    roles?: { name?: string } | null;
+  };
+
+  const roleRows: RoleRow[] = [];
   for (const query of roleQueries) {
     const { data, error } = await query;
     if (error) throw error;
-    for (const row of data ?? []) {
-      clubStaff.push({
-        auth_user_id: (row as { auth_user_id: string | null }).auth_user_id,
-        role_name: (row as { roles?: { name?: string } }).roles?.name ?? '',
-      });
-    }
+    roleRows.push(...((data ?? []) as RoleRow[]));
   }
+
+  // A club-scoped role is only real staff alongside an ACTIVE club membership.
+  let activeMemberPersonIds = new Set<string>();
+  const clubScopedPersonIds = roleRows
+    .filter(row => !row.show_id && row.user_id)
+    .map(row => row.user_id as string);
+  if (clubId && clubScopedPersonIds.length > 0) {
+    const { data: members, error: membersError } = await supabase
+      .from('club_members')
+      .select('person_id')
+      .eq('club_id', clubId)
+      .eq('membership_status', 'active')
+      .in('person_id', clubScopedPersonIds);
+    if (membersError) throw membersError;
+    activeMemberPersonIds = new Set(
+      (members ?? []).map(m => (m as { person_id: string }).person_id)
+    );
+  }
+
+  const clubStaff: ShowEveClubStaffRow[] = filterClubStaffByMembership(
+    roleRows.map(row => ({
+      auth_user_id: row.auth_user_id,
+      user_id: row.user_id,
+      show_id: row.show_id,
+      role_name: row.roles?.name ?? '',
+    })),
+    activeMemberPersonIds
+  );
 
   // Judges are assigned per show rather than by club role, so target them
   // through their assignments and resolve the person to their auth account.
@@ -92,27 +124,30 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
     // classes(trial_id) resolves the day for CLASS-level assignments, which
     // store trial_id as null and would otherwise look show-wide.
     .select('status, trial_id, class_id, classes(trial_id), people!inner(auth_user_id, deleted_at)')
-    .eq('show_id', trial.show_id)
+    .eq('show_id', group.showId)
     // Soft-deleting a person deactivates their user_roles but leaves judge
     // assignments and push subscriptions intact — filter them out here.
     .is('people.deleted_at', null);
   if (assignmentError) throw assignmentError;
 
   const judges: ShowEveJudgeRow[] = (assignmentRows ?? [])
-    // A multi-day show must not nudge Saturday's judge on Sunday's eve.
+    // Judging ANY of this show's trials on this date earns the nudge; a judge
+    // working only another day does not.
     .filter(row => {
       const assignment = row as {
         trial_id: string | null;
         class_id: string | null;
         classes?: { trial_id?: string | null } | null;
       };
-      return isJudgeAssignedToTrial(
-        {
-          trial_id: assignment.trial_id,
-          class_id: assignment.class_id,
-          class_trial_id: assignment.classes?.trial_id ?? null,
-        },
-        trial.id
+      return group.trialIds.some(trialId =>
+        isJudgeAssignedToTrial(
+          {
+            trial_id: assignment.trial_id,
+            class_id: assignment.class_id,
+            class_trial_id: assignment.classes?.trial_id ?? null,
+          },
+          trialId
+        )
       );
     })
     .map(row => ({
@@ -261,31 +296,38 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
   let unstamped = 0;
 
   const nudgeableTrials = ((trials ?? []) as unknown as TrialRow[]).filter(isTrialNudgeable);
+  // One push per SHOW per evening, not one per trial: a show with two trials
+  // on the same date otherwise buzzed every secretary twice with the identical
+  // "<Show> starts tomorrow".
+  const groups = groupTrialsByShow(nudgeableTrials);
+  const clubIdByShow = new Map(
+    nudgeableTrials.map(trial => [trial.show_id, trial.show?.club_id ?? null])
+  );
 
-  for (const trial of nudgeableTrials) {
-    const showName = trial.show?.name ?? 'Your show';
+  for (const group of groups) {
     const payload = buildShowEveNudgePayload({
-      showName,
-      showId: trial.show_id,
-      trialDate: trial.date,
+      showName: group.showName,
+      showId: group.showId,
+      trialDate: group.trialDate,
     });
 
-    const recipients = await loadRecipients(supabase, trial);
+    const recipients = await loadRecipients(supabase, group, clubIdByShow.get(group.showId) ?? null);
 
     for (const authUserId of recipients) {
-      // Claim the (trial, recipient) pair FIRST. The unique constraint makes a
-      // concurrent or repeated cron run a no-op instead of a second buzz.
-      // Generate the claim token ourselves so every later write can be
+      // Claim the (show, date, recipient) triple FIRST. The unique constraint
+      // makes a concurrent or repeated cron run a no-op instead of a second
+      // buzz. Generate the claim token ourselves so every later write can be
       // conditional on holding THIS claim.
       let claimToken = new Date().toISOString();
+      const claimKey = {
+        show_id: group.showId,
+        auth_user_id: authUserId,
+        trial_date: group.trialDate,
+      };
+
       const { error: claimError } = await supabase
         .from('show_eve_nudge_log')
-        .insert({
-          trial_id: trial.id,
-          auth_user_id: authUserId,
-          trial_date: trial.date,
-          claimed_at: claimToken,
-        });
+        .insert({ ...claimKey, claimed_at: claimToken });
 
       if (claimError) {
         // A row already exists. That is only proof of DELIVERY if delivered_at
@@ -294,9 +336,7 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
         const { data: existing } = await supabase
           .from('show_eve_nudge_log')
           .select('claimed_at, delivered_at')
-          .eq('trial_id', trial.id)
-          .eq('auth_user_id', authUserId)
-          .eq('trial_date', trial.date)
+          .match(claimKey)
           .maybeSingle();
 
         if (!existing || !shouldReclaimStaleClaim(existing, Date.now())) {
@@ -304,17 +344,14 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
           continue;
         }
 
-        // Compare-and-swap, not a bare update: runs overlap on the 15-minute
-        // schedule, and both could read the same stale claim and send. Only
-        // the invocation whose update actually matches (still undelivered,
-        // still holding the claim we read) proceeds.
+        // Compare-and-swap, not a bare update: runs overlap on this schedule,
+        // and both could read the same stale claim and send. Only the
+        // invocation whose update actually matches proceeds.
         const reclaimToken = new Date().toISOString();
         const { data: reclaimed } = await supabase
           .from('show_eve_nudge_log')
           .update({ claimed_at: reclaimToken })
-          .eq('trial_id', trial.id)
-          .eq('auth_user_id', authUserId)
-          .eq('trial_date', trial.date)
+          .match(claimKey)
           .eq('claimed_at', existing.claimed_at)
           .is('delivered_at', null)
           .select('id');
@@ -345,16 +382,13 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
       }
 
       if (outcome === 'delivered') {
-        // Mark the claim as genuinely completed so no later run reclaims it.
         // Conditional on still holding this claim: if a send outlived the
         // lease and another run reclaimed it, that run owns the outcome.
         const stampDelivered = async () =>
           await supabase
             .from('show_eve_nudge_log')
             .update({ delivered_at: new Date().toISOString() })
-            .eq('trial_id', trial.id)
-            .eq('auth_user_id', authUserId)
-            .eq('trial_date', trial.date)
+            .match(claimKey)
             .eq('claimed_at', claimToken)
             .select('id');
 
@@ -370,16 +404,12 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
         }
         notified += 1;
       } else {
-        // Nothing was delivered (no usable subscription, or a transient
-        // failure) — release the claim so a later run can retry.
-        // Only release a claim we still hold, and never delete one another
-        // run has already marked delivered.
+        // Nothing was delivered — release the claim we still hold so a later
+        // run can retry, and never remove one already marked delivered.
         await supabase
           .from('show_eve_nudge_log')
           .delete()
-          .eq('trial_id', trial.id)
-          .eq('auth_user_id', authUserId)
-          .eq('trial_date', trial.date)
+          .match(claimKey)
           .eq('claimed_at', claimToken)
           .is('delivered_at', null);
         skipped += 1;
@@ -387,5 +417,12 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
     }
   }
 
-  return { trialDate, trials: nudgeableTrials.length, notified, skipped, unstamped };
+  return {
+    trialDate,
+    trials: nudgeableTrials.length,
+    shows: groups.length,
+    notified,
+    skipped,
+    unstamped,
+  };
 });

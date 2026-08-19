@@ -2,18 +2,20 @@
 --
 -- The evening before a trial day, `push-trigger-show-eve` reminds the people
 -- who will RUN that day to open the show while they still have internet. This
--- table is the idempotency ledger: one row per (trial, recipient, date) that was
+-- table is the idempotency ledger: one row per (show, date, recipient) that was
 -- actually notified, so a cron re-run in the same window cannot buzz anyone
--- twice. The function CLAIMS a pair before sending, stamps delivered_at only
+-- twice. Keyed by SHOW, not trial, because the notification says "<Show>
+-- starts tomorrow" — a show running two trials on one date must produce a
+-- single push per person. The function CLAIMS a pair before sending, stamps delivered_at only
 -- on a real delivery, and releases the claim when nothing was delivered — so a
 -- crashed run costs one cycle instead of suppressing that person forever.
 
 create table if not exists public.show_eve_nudge_log (
   id uuid primary key default gen_random_uuid(),
-  trial_id uuid not null references public.trials (id) on delete cascade,
+  show_id uuid not null references public.shows (id) on delete cascade,
   auth_user_id uuid not null,
-  -- The trial DATE this nudge announced. Part of the key so that rescheduling
-  -- a trial earns a fresh nudge for the new date instead of colliding with the
+  -- The DATE this nudge announced. Part of the key so that rescheduling a
+  -- trial earns a fresh nudge for the new date instead of colliding with the
   -- row from the old one and silently skipping everyone.
   trial_date date not null,
   -- Claim time, written before the send attempt.
@@ -23,15 +25,15 @@ create table if not exists public.show_eve_nudge_log (
   -- a lease window rather than treating the unique conflict as "already sent"
   -- and silently suppressing that person's nudge forever.
   delivered_at timestamptz,
-  constraint show_eve_nudge_log_unique_pair unique (trial_id, auth_user_id, trial_date)
+  constraint show_eve_nudge_log_unique_pair unique (show_id, auth_user_id, trial_date)
 );
 
 comment on table public.show_eve_nudge_log is
-  'MYK9-203: idempotency ledger for the show-eve offline-priming push. One row per (trial, recipient, date); delivered_at distinguishes a completed send from an abandoned claim.';
+  'MYK9-203: idempotency ledger for the show-eve offline-priming push. One row per (show, recipient, date); delivered_at distinguishes a completed send from an abandoned claim.';
 
--- Recipients are only ever looked up per trial when the cron runs.
-create index if not exists show_eve_nudge_log_trial_idx
-  on public.show_eve_nudge_log (trial_id);
+-- Claims are only ever looked up per show and date when the cron runs.
+create index if not exists show_eve_nudge_log_show_date_idx
+  on public.show_eve_nudge_log (show_id, trial_date);
 
 -- This ledger is written and read exclusively by the edge function running as
 -- service_role. No client role has any business touching it, and per this

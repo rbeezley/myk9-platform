@@ -10,6 +10,10 @@
 export interface ShowEveClubStaffRow {
   auth_user_id: string | null;
   role_name: string;
+  /** person id — used to check club membership; absent in older call shapes. */
+  user_id?: string | null;
+  /** Set for show-scoped official rows, which are membership-exempt. */
+  show_id?: string | null;
 }
 
 /** A judge assigned to this show, resolved to their auth account. */
@@ -116,6 +120,60 @@ export function filterPushOptedIn(
     preferences.filter(p => p.push_enabled === false).map(p => p.auth_user_id)
   );
   return recipients.filter(id => !optedOut.has(id));
+}
+
+/**
+ * The notification is about a SHOW ("<Show> starts tomorrow"), so a show with
+ * two trials on the same date must produce ONE push per person, not one per
+ * trial. Grouping here makes the ledger key (show, date, recipient) match what
+ * the recipient actually experiences.
+ */
+export interface ShowEveTrialGroup {
+  showId: string;
+  showName: string;
+  trialDate: string;
+  trialIds: string[];
+}
+
+export function groupTrialsByShow(
+  trials: Array<{
+    id: string;
+    date: string;
+    show_id: string;
+    show: { name?: string | null } | null;
+  }>
+): ShowEveTrialGroup[] {
+  const groups = new Map<string, ShowEveTrialGroup>();
+  for (const trial of trials) {
+    const key = `${trial.show_id}|${trial.date}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.trialIds.push(trial.id);
+      continue;
+    }
+    groups.set(key, {
+      showId: trial.show_id,
+      showName: trial.show?.name ?? 'Your show',
+      trialDate: trial.date,
+      trialIds: [trial.id],
+    });
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Club-scoped roles additionally require an ACTIVE club membership
+ * (20260802120000_enforce_club_membership_role_boundaries.sql), so a suspended
+ * or removed member with a lingering role row is not show staff. Show-scoped
+ * officials are explicitly exempt by that same migration.
+ */
+export function filterClubStaffByMembership<
+  T extends { user_id: string | null; show_id: string | null },
+>(rows: T[], activeMemberPersonIds: Set<string>): T[] {
+  return rows.filter(row => {
+    if (row.show_id) return true;
+    return row.user_id !== null && activeMemberPersonIds.has(row.user_id);
+  });
 }
 
 export interface ShowEveNudgePayload {

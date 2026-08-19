@@ -5,6 +5,8 @@ import {
   isJudgeAssignedToTrial,
   isTrialNudgeable,
   filterPushOptedIn,
+  filterClubStaffByMembership,
+  groupTrialsByShow,
   selectShowEveRecipients,
   shouldReclaimStaleClaim,
   type ShowEveClubStaffRow,
@@ -270,5 +272,48 @@ describe('filterPushOptedIn', () => {
 
   it('keeps a recipient whose push_enabled is null (unset, not disabled)', () => {
     expect(filterPushOptedIn(['a'], [{ auth_user_id: 'a', push_enabled: null }])).toEqual(['a']);
+  });
+});
+
+describe('groupTrialsByShow', () => {
+  it('collapses same-day trials of one show into a single nudge target', () => {
+    const groups = groupTrialsByShow([
+      { id: 't1', date: '2026-08-20', show_id: 's1', show: { name: 'Show One' } },
+      { id: 't2', date: '2026-08-20', show_id: 's1', show: { name: 'Show One' } },
+      { id: 't3', date: '2026-08-20', show_id: 's2', show: { name: 'Show Two' } },
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].showId).toBe('s1');
+    expect(groups[0].trialIds).toEqual(['t1', 't2']);
+    expect(groups[1].trialIds).toEqual(['t3']);
+  });
+});
+
+describe('filterClubStaffByMembership', () => {
+  const activeMembers = new Set(['person-active']);
+
+  it('drops a club-scoped secretary who is not an active club member', () => {
+    const kept = filterClubStaffByMembership(
+      [{ auth_user_id: 'a', user_id: 'person-inactive', role_name: 'secretary', show_id: null }],
+      activeMembers
+    );
+    expect(kept).toEqual([]);
+  });
+
+  it('keeps a club-scoped secretary with active membership', () => {
+    const kept = filterClubStaffByMembership(
+      [{ auth_user_id: 'a', user_id: 'person-active', role_name: 'secretary', show_id: null }],
+      activeMembers
+    );
+    expect(kept).toHaveLength(1);
+  });
+
+  it('keeps a SHOW-scoped official regardless of membership — explicitly exempt', () => {
+    const kept = filterClubStaffByMembership(
+      [{ auth_user_id: 'a', user_id: 'person-inactive', role_name: 'secretary', show_id: 'show-1' }],
+      activeMembers
+    );
+    expect(kept).toHaveLength(1);
   });
 });

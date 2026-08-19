@@ -193,7 +193,7 @@ export default function AdminDashboard() {
           <BoardSkeleton rows={4} />
         ) : (
           <div className="flex flex-col gap-[18px]">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatTile
                 label="Checks passing"
                 value={healthUnavailable ? '—' : checksLabel}
@@ -222,22 +222,9 @@ export default function AdminDashboard() {
                 }
                 href="/admin/health"
               />
-              <StatTile
-                label="Live shows"
-                value={counts ? counts.liveShows : '—'}
-                isError={Boolean(countsError)}
-                context={countsError ? "couldn't read shows" : 'published and running today'}
-                href="/shows"
-              />
-              {/* No href: there is no site-admin entries surface to open, and
-                  sending the admin to an unrelated page is worse than an inert
-                  tile. Give it a destination when one exists. */}
-              <StatTile
-                label="Entries today"
-                value={counts ? counts.entriesToday : '—'}
-                isError={Boolean(countsError)}
-                context={countsError ? "couldn't read entries" : 'since midnight Eastern'}
-              />
+              {/* Live shows and Entries today live in "Today at a glance" only —
+                  rendering the same number twice on one screen is the duplication
+                  this page's header comment exists to prevent. */}
               <StatTile
                 label="Error rate"
                 value={errorRateTile.value}

@@ -26,7 +26,7 @@ export function DataTableColumnHeader<TData>({
       // py-3/-my-3: the padding carries a ~44px hit area inside the header row
       // without changing the row's height or the label's position.
       className={cn(
-        'flex items-center gap-1.5 hover:text-foreground transition-colors -ml-1 px-1 py-3 -my-3',
+        'flex items-center gap-1.5 whitespace-nowrap hover:text-foreground transition-colors -ml-1 px-1 py-3 -my-3',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm',
         className
       )}

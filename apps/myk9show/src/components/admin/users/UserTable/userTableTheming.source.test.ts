@@ -15,7 +15,11 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, it, expect } from 'vitest';
 
-const tableSrc = readFileSync(join(__dirname, 'index.tsx'), 'utf8');
+// The table's presentation was split for the 500-line rule: index.tsx owns
+// state and layout, columns.tsx owns the column cells the pins below target.
+const tableSrc =
+  readFileSync(join(__dirname, 'index.tsx'), 'utf8') +
+  readFileSync(join(__dirname, 'columns.tsx'), 'utf8');
 const typesSrc = readFileSync(join(__dirname, 'types.ts'), 'utf8');
 const utilsSrc = readFileSync(join(__dirname, 'utils.ts'), 'utf8');
 const filtersSrc = readFileSync(join(__dirname, '..', 'UserFilters.tsx'), 'utf8');
@@ -29,7 +33,7 @@ const HEX = /#[0-9a-fA-F]{3,8}\b/;
 
 describe('no inline hex in the user table presentation layer', () => {
   it.each([
-    ['UserTable/index.tsx', tableSrc],
+    ['UserTable/index.tsx+columns.tsx', tableSrc],
     ['UserTable/types.ts', typesSrc],
     ['UserTable/utils.ts', utilsSrc],
     ['UserFilters.tsx', filtersSrc],
@@ -71,7 +75,7 @@ describe('role and status colour comes from --chip-* token pairs', () => {
 
 describe('the table inherits the app font (Montserrat), never SF Pro', () => {
   it.each([
-    ['UserTable/index.tsx', tableSrc],
+    ['UserTable/index.tsx+columns.tsx', tableSrc],
     ['UserTable/types.ts', typesSrc],
     ['UserFilters.tsx', filtersSrc],
   ])('%s does not force -apple-system/SF Pro', (_name, src) => {
@@ -144,7 +148,7 @@ describe('no hand-paired dark: status classes (eslint-backed)', () => {
   const banned = /dark:(?:text|bg|border)-(?:red|blue|amber|orange|yellow|green|emerald)-\d+/;
 
   it.each([
-    ['UserTable/index.tsx', tableSrc],
+    ['UserTable/index.tsx+columns.tsx', tableSrc],
     ['UserFilters.tsx', filtersSrc],
     ['BulkActionsBar.tsx', bulkSrc],
   ])('%s has no banned dark: status pair', (_name, src) => {

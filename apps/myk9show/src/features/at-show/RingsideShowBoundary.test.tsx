@@ -12,9 +12,39 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTestQueryClient, render, screen, act } from '@/test/utils/testUtils';
 import { RingsideShowBoundary } from './RingsideShowBoundary';
 import { replicatedShowsTable } from '@/services/replication';
+import { UserRole } from '@/types/auth-types';
+
+const { authState, networkState } = vi.hoisted(() => ({
+  authState: {
+    user: null as { id: string; is_anonymous?: boolean } | null,
+    roles: [] as UserRole[],
+  },
+  networkState: { isOnline: true },
+}));
 
 vi.mock('@/services/replication', () => ({
-  replicatedShowsTable: { getShowById: vi.fn() },
+  replicatedShowsTable: {
+    getShowById: vi.fn(),
+    sync: vi.fn(),
+    updateSyncMetadata: vi.fn(),
+  },
+}));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    user: authState.user,
+    hasRole: (role: UserRole) => authState.roles.includes(role),
+  }),
+}));
+
+vi.mock('@/lib/networkUtils', () => ({
+  useOnlineStatus: () => networkState.isOnline,
+}));
+
+vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
+  OfflineReadyBadge: ({ showId }: { showId: string }) => (
+    <button type="button">Load this show onto this device ({showId})</button>
+  ),
 }));
 
 const CHILD = 'RINGSIDE CONTENT';
@@ -38,6 +68,13 @@ function renderBoundary(showId: string, queryClient = createTestQueryClient()) {
 describe('RingsideShowBoundary', () => {
   beforeEach(() => {
     vi.mocked(replicatedShowsTable.getShowById).mockReset();
+    vi.mocked(replicatedShowsTable.sync)
+      .mockReset()
+      .mockResolvedValue({ success: true } as never);
+    vi.mocked(replicatedShowsTable.updateSyncMetadata).mockReset().mockResolvedValue(undefined);
+    authState.user = null;
+    authState.roles = [];
+    networkState.isOnline = true;
   });
 
   it('shows a loading state while the show is being fetched', () => {
@@ -61,14 +98,46 @@ describe('RingsideShowBoundary', () => {
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
   });
 
+  it('offers staff a way to prepare an uncached show while offline', async () => {
+    networkState.isOnline = false;
+    authState.user = { id: 'judge-1', is_anonymous: false };
+    authState.roles = [UserRole.JUDGE];
+    vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
+
+    renderBoundary('show-cold-offline');
+
+    expect(await screen.findByText("This show isn't saved on this device")).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /load this show onto this device/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
+    expect(replicatedShowsTable.sync).not.toHaveBeenCalled();
+  });
+
+  it('keeps the original not-found state for a genuinely unknown online show', async () => {
+    authState.user = { id: 'judge-1', is_anonymous: false };
+    authState.roles = [UserRole.JUDGE];
+    vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
+    renderBoundary('show-unknown');
+
+    expect(await screen.findByText('Show not found')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /load this show/i })).not.toBeInTheDocument();
+    expect(replicatedShowsTable.sync).toHaveBeenCalledWith('');
+    expect(replicatedShowsTable.updateSyncMetadata).toHaveBeenCalledWith({
+      lastIncrementalSyncAt: 0,
+      scopes: {},
+    });
+  });
+
   it('refetches after show replication sync invalidates the shows cache', async () => {
     const queryClient = createTestQueryClient();
+    networkState.isOnline = false;
     vi.mocked(replicatedShowsTable.getShowById)
       .mockResolvedValueOnce(null as never)
       .mockResolvedValueOnce({ id: 'show-after-sync' } as never);
 
     renderBoundary('show-after-sync', queryClient);
-    expect(await screen.findByText('Show not found')).toBeInTheDocument();
+    expect(await screen.findByText("This show isn't saved on this device")).toBeInTheDocument();
 
     await act(async () => {
       await queryClient.invalidateQueries({ queryKey: ['shows'] });

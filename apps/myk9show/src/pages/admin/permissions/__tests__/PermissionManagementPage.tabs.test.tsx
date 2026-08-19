@@ -28,10 +28,6 @@ vi.mock('@/services/rbac/RBACService', () => ({
   },
 }));
 
-vi.mock('@/components/rbac/RBACMigrationStatus', () => ({
-  RBACMigrationStatus: () => <div>Migration Status</div>,
-}));
-
 vi.mock('../PermissionAuditPage', () => ({ default: () => <div>Audit Content</div> }));
 
 // Must import AFTER mock setup
@@ -51,7 +47,10 @@ describe('PermissionManagementPage tab consolidation', () => {
   });
 
   it('renders the permission inventory when ?tab=permissions', async () => {
-    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions?tab=permissions' });
+    const { user } = render(<PermissionManagementPage />, {
+      initialRoute: '/admin/permissions?tab=permissions',
+    });
+    await user.click(await screen.findByRole('button', { name: /show 1 permission/i }));
     expect(await screen.findByText('Manage Shows')).toBeInTheDocument();
     expect(screen.getByText('show:manage')).toBeInTheDocument();
   });
@@ -68,19 +67,22 @@ describe('PermissionManagementPage tab consolidation', () => {
     expect(inventoryLinks.length).toBe(1);
   });
 
-  it('renders the quick-action labels on the overview tab', () => {
+  it('keeps the overview focused on the two places where access is managed', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
-    expect(screen.getByRole('heading', { name: 'Manage Roles' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Assign User Roles' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'View Audit Log' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Debug Permission Test' })).toBeInTheDocument();
-    expect(screen.getAllByText(/debug-only/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Manage roles' })).toHaveAttribute(
+      'href',
+      '/admin/permissions/roles'
+    );
+    expect(screen.getByRole('link', { name: 'Assign roles in User Management' })).toHaveAttribute(
+      'href',
+      '/admin/users'
+    );
   });
 
-  it('labels the current-user role count instead of implying platform active users', () => {
+  it('does not expose completed migration or debug tools in the routine admin path', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
-    expect(screen.getByText('Your Role Grants')).toBeInTheDocument();
-    expect(screen.queryByText('Active Users')).not.toBeInTheDocument();
+    expect(screen.queryByText(/migration complete/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/debug permission/i)).not.toBeInTheDocument();
   });
 
   it('uses an en dash (not an em dash) for empty stat counts before they load', () => {

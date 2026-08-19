@@ -45,6 +45,8 @@ import { getTrialTimezone } from '@/features/registries';
 import { AtShowClassRow } from './AtShowClassRow';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
+import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
+import { isJudgeOnlyAtShow } from './isJudgeOnlyAtShow';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
@@ -52,6 +54,27 @@ const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'in_progress',
   'offline-scoring',
 ]);
+
+/**
+ * Staff-only readiness action. Rendered in EVERY branch of the page — the
+ * moment the device most needs priming is precisely when classes or
+ * assignments failed to load, so hiding it behind the happy path would
+ * withhold the recovery action when it matters (MYK9-203).
+ */
+function AtShowOfflineReadySlot({
+  showId,
+  isExhibitorOnly,
+}: {
+  showId: string | undefined;
+  isExhibitorOnly: boolean;
+}) {
+  if (isExhibitorOnly) return null;
+  return (
+    <div className="mb-4 flex justify-center">
+      <OfflineReadyBadge showId={showId} />
+    </div>
+  );
+}
 
 function AtShowClassListSkeleton() {
   return (
@@ -185,14 +208,7 @@ export const AtShowClassListPage: React.FC = () => {
   // gates. Broader staff roles still need the full picker for show-day
   // coordination, while anonymous passcode sessions are show-wide by design.
   const isJudgeOnly =
-    Boolean(user && !user.is_anonymous && hasRole(UserRole.JUDGE)) &&
-    ![
-      UserRole.SITE_ADMIN,
-      UserRole.SECRETARY,
-      UserRole.CLUB_ADMIN,
-      UserRole.CHAIRMAN,
-      UserRole.STEWARD,
-    ].some(hasRole);
+    Boolean(user) && isJudgeOnlyAtShow({ isAnonymous: Boolean(user?.is_anonymous), hasRole });
 
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
@@ -320,7 +336,14 @@ export const AtShowClassListPage: React.FC = () => {
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
 
   if (isLoading || isClassDataStillSyncing || assignmentsLoading) {
-    return <AtShowClassListSkeleton />;
+    return (
+      <>
+        <div className="ringside-root mx-auto max-w-2xl px-4 pt-4">
+          <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
+        </div>
+        <AtShowClassListSkeleton />
+      </>
+    );
   }
 
   if (error) {
@@ -329,6 +352,7 @@ export const AtShowClassListPage: React.FC = () => {
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-lg font-medium text-destructive">Failed to load classes</p>
         <p className="text-sm text-muted-foreground">{error.message}</p>
+        <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
         <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
           <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
             Try again
@@ -351,6 +375,7 @@ export const AtShowClassListPage: React.FC = () => {
             ? 'Check your connection and try again. Your classes will appear here once assignments are available.'
             : 'Your secretary has not assigned you to a class for this show yet. Ask them to add your judge assignment.'}
         </p>
+        <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
         <div className="flex flex-col gap-2 sm:flex-row">
           {assignmentError && (
             <Button variant="outline" className="min-h-11" onClick={retryAssignments}>
@@ -405,6 +430,8 @@ export const AtShowClassListPage: React.FC = () => {
       </div>
 
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
+
+      <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
 
       {assignmentError && (
         <section

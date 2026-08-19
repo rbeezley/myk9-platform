@@ -5,25 +5,12 @@ vi.mock('@/components/admin/permissions/RoleAssignmentsPanel', () => ({
   RoleAssignmentsPanel: () => <div data-testid="role-assignments-panel">Assignments</div>,
 }));
 
-vi.mock('@/hooks/useRBAC', () => ({
-  useRBAC: () => ({
-    userRoles: [{ id: 'ur-1' }],
-    userPermissions: [],
-    effectivePermissions: [],
-    isLoading: false,
-  }),
-}));
-
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
     getAllRoles: vi.fn().mockResolvedValue([]),
     getAllPermissions: vi.fn().mockResolvedValue([]),
     clearAllCache: vi.fn(),
   },
-}));
-
-vi.mock('@/components/rbac/RBACMigrationStatus', () => ({
-  RBACMigrationStatus: () => null,
 }));
 
 vi.mock('../PermissionAuditPage', () => ({
@@ -44,9 +31,9 @@ describe('PermissionManagementPage — assignments tab', () => {
     expect(await screen.findByTestId('role-assignments-panel')).toBeInTheDocument();
   });
 
-  it('sends the assign-roles quick action to User Management, not the retired page', async () => {
+  it('sends the primary assign-roles action to User Management, not the retired page', async () => {
     render(<PermissionManagementPage />);
-    const link = await screen.findByRole('link', { name: /assign user roles/i });
+    const link = await screen.findByRole('link', { name: /assign roles in user management/i });
     expect(link).toHaveAttribute('href', '/admin/users');
   });
 
@@ -59,16 +46,18 @@ describe('PermissionManagementPage — assignments tab', () => {
     expect(stale).toEqual([]);
   });
 
-  it('keeps the personal role-grant card honest and points it at the ledger', async () => {
+  it('explains the canonical access workflow without a duplicate personal role card', async () => {
     render(<PermissionManagementPage />);
     await screen.findByRole('tab', { name: /assignments/i });
     expect(screen.queryByText('Your Active Roles')).not.toBeInTheDocument();
-    expect(screen.getByText('Your Role Grants')).toBeInTheDocument();
+    expect(screen.queryByText('Your Role Grants')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /how access works/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /assign access/i })).toBeInTheDocument();
   });
 
-  it('gives each quick-action link an accessible name that contains its visible "Get Started" text (WCAG 2.5.3 Label in Name)', async () => {
+  it('uses the visible assignment action label as its accessible name', async () => {
     render(<PermissionManagementPage />);
-    const link = await screen.findByRole('link', { name: /assign user roles/i });
-    expect(link).toHaveAccessibleName(/get started/i);
+    const link = await screen.findByRole('link', { name: /assign roles in user management/i });
+    expect(link).toHaveAccessibleName('Assign roles in User Management');
   });
 });

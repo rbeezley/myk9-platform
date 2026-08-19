@@ -60,6 +60,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [navigation-ia.md](navigation-ia.md)                                                                             | Reference | Navigation & IA Sketch — Fall 2026                                           |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)                                   | Active    | Active-Docs Triage — 2026-06-14                                              |
 | [plan-anon-grant-rls-tightening.md](plan-anon-grant-rls-tightening.md)                                           | Active    | MYK9-93 — Anon grant & RLS tightening (launch gate)                          |
+| [plan-offline-readiness.md](plan-offline-readiness.md)                                                           | Active    | MYK9-203 — Offline-ready badge + show-eve push nudge                         |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                                                 | Active    | Architecture Deepening Plan                                                  |
 | [plan-ia-admin-person-detail.md](plan-ia-admin-person-detail.md)                                                 | Active    | Admin Person Detail + Soft-Delete Lifecycle Consolidation (4 phases)         |
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                                                     | Active    | ASCA Level C — seed continuation classes into the wizard template            |

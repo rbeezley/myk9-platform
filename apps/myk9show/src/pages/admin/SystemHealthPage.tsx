@@ -81,7 +81,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
           <h1 className="text-[25px] font-medium tracking-[-0.018em] text-foreground">
             System health
           </h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Automated checks against the live platform. Times are Eastern.
           </p>
         </header>
@@ -119,31 +119,36 @@ function FreshnessBand({
       role={isStale || runError ? 'alert' : undefined}
       className={cn(
         'flex flex-col gap-3 rounded-[15px] px-5 py-3.5 sm:flex-row sm:items-start sm:justify-between',
-        isStale || isEmpty ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+        // A failed Run now is a problem being reported — it must not sit in a
+        // green band just because the last nightly run was fresh.
+        isStale || isEmpty || runError ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
       )}
     >
       <div className="flex min-w-0 items-start gap-2.5">
         <Clock aria-hidden className="mt-0.5 size-4 shrink-0" />
         <div className="min-w-0">
-          <p className="text-[13px] font-medium">
+          <p className="text-sm font-medium">
             {isEmpty
               ? 'No full run has been recorded yet'
               : isStale
                 ? `Some results are too old to answer “is it broken now?”`
                 : `All checks last ran ${age}`}
           </p>
-          <p className="mt-0.5 text-[14px] opacity-80">
+          {/* Full-strength status colour, no opacity: at 80% the warning/success
+              text computed to ~3.85:1 on the tinted band in light mode — under
+              the 4.5:1 AA floor for 14px text. Solid measures 5.7:1+. */}
+          <p className="mt-0.5 text-sm">
             {scheduleLabel(now)}
             {duration && ` · last run took ${duration}`}
           </p>
-          {runError && <p className="mt-2 text-[14px] font-medium">{runError}</p>}
+          {runError && <p className="mt-2 text-sm font-medium">{runError}</p>}
         </div>
       </div>
       <button
         type="button"
         onClick={onRunNow}
         disabled={isRunning}
-        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[9px] border border-current px-3 text-[14px] font-medium transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
+        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[9px] border border-current px-3 text-sm font-medium transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60"
       >
         {isRunning ? (
           <LoaderCircle aria-hidden className="size-4 animate-spin" />
@@ -234,7 +239,7 @@ function EnvironmentCard({
   return (
     <BoardCard>
       <Eyebrow>Environment</Eyebrow>
-      <dl className="mt-2 space-y-2 text-[11.5px]">
+      <dl className="mt-2 space-y-2 text-xs">
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Written by</dt>
           <dd className="font-mono text-foreground">{displaySource || 'unknown'}</dd>
@@ -325,10 +330,12 @@ export default function SystemHealthPage() {
         <BoardCard className={cn('border-l-[3px]', verdictAccent)}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <h2 className="text-[29px] font-medium leading-tight tracking-[-0.018em] text-foreground">
+              {/* 32px against the 25px h1: a full scale step (1.28) — the old
+                  29px was close enough to read as accidental. */}
+              <h2 className="text-[32px] font-medium leading-tight tracking-[-0.018em] text-foreground">
                 {headline}
               </h2>
-              <p className="mt-2 max-w-prose text-[13.5px] text-muted-foreground">{explanation}</p>
+              <p className="mt-2 max-w-prose text-sm text-muted-foreground">{explanation}</p>
             </div>
             {!effective.isEmpty && <VerdictChips summary={summary} />}
           </div>
@@ -368,10 +375,10 @@ export default function SystemHealthPage() {
                 <div className="flex items-start gap-2.5">
                   <ShieldAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
                   <div>
-                    <p className="text-[13px] font-medium text-foreground">
+                    <p className="text-sm font-medium text-foreground">
                       No checks have been recorded
                     </p>
-                    <p className="mt-1 text-[11.5px] text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       The nightly runner writes one snapshot per night. Until it does, this page has
                       nothing to report — which is not the same as nothing being wrong.
                     </p>
@@ -380,8 +387,8 @@ export default function SystemHealthPage() {
               </BoardCard>
             ) : visible.length === 0 ? (
               <BoardCard>
-                <p className="text-[13px] text-foreground">Nothing in this bucket.</p>
-                <p className="mt-1 text-[11.5px] text-muted-foreground">
+                <p className="text-sm text-foreground">Nothing in this bucket.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
                   Switch to All to see the other {summary.total} checks.
                 </p>
               </BoardCard>

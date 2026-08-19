@@ -855,9 +855,10 @@ describe('syncReplicatedTable', () => {
     });
 
     it('reports recoveredFromEmptyReplica when an emptied replica re-fetches', async () => {
-      // Metadata says the replica previously held rows (totalRows > 0) but the local
-      // store is now empty — an unexpected eviction. The result flags it for logging.
-      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, totalRows: 5 });
+      // Metadata says the replica previously held rows (expectedRemoteRows > 0) but
+      // the local store is now empty — an unexpected eviction. The result flags it
+      // for logging.
+      await table.updateSyncMetadata({ lastIncrementalSyncAt: 1000, expectedRemoteRows: 5 });
 
       const result = await syncReplicatedTable(
         table,
@@ -866,6 +867,41 @@ describe('syncReplicatedTable', () => {
 
       expect(result.recoveredFromEmptyReplica).toBe(true);
       expect(result.operation).toBe('full-sync');
+    });
+
+    it('forces a full re-fetch when server coverage exceeds the local replica', async () => {
+      await table.set('1', { id: '1', name: 'Rex' });
+      await table.set('2', { id: '2', name: 'Max' });
+      await table.updateSyncMetadata({
+        lastIncrementalSyncAt: 1000,
+        totalRows: 3,
+        expectedRemoteRows: 3,
+      });
+
+      const fetchRemoteRows = vi.fn(async ({ forceFullSync }: { forceFullSync: boolean }) => {
+        expect(forceFullSync).toBe(true);
+        return [
+          { id: 1, name: 'Rex', updated_at: 2000 },
+          { id: 2, name: 'Max', updated_at: 2000 },
+          { id: 3, name: 'Luna', updated_at: 2000 },
+        ];
+      });
+      const adapter: SyncReplicatedTableAdapter<RemoteEntry, LocalEntry> = {
+        fetchRemoteRows,
+        getRemoteRowCount: vi.fn(async () => 3),
+        getRemoteId: remote => String(remote.id),
+        getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
+        toLocalRow: remote => ({ id: String(remote.id), name: remote.name }),
+      };
+
+      const result = await syncReplicatedTable(table, adapter);
+
+      expect(result.operation).toBe('full-sync');
+      expect(await table.get('3')).toMatchObject({ id: '3', name: 'Luna' });
+      await expect(table.getSyncMetadata()).resolves.toMatchObject({
+        totalRows: 3,
+        expectedRemoteRows: 3,
+      });
     });
 
     it('forces a full re-sync when the last full sync is older than the heal interval', async () => {
@@ -1029,6 +1065,21 @@ describe('syncReplicatedTable', () => {
       const meta = await table.getSyncMetadata('show-1');
       expect(meta?.totalRows).toBe(1);
       expect((await table.getSyncMetadata('show-2'))?.lastIncrementalSyncAt).toBe(0);
+    });
+
+    it('projects server coverage metadata per scope', async () => {
+      await table.updateSyncMetadata(
+        { lastIncrementalSyncAt: 1000, totalRows: 2, expectedRemoteRows: 3 },
+        { scopeValue: 'show-1' }
+      );
+
+      await expect(table.getSyncMetadata('show-1')).resolves.toMatchObject({
+        totalRows: 2,
+        expectedRemoteRows: 3,
+      });
+      await expect(table.getSyncMetadata('show-2')).resolves.toMatchObject({
+        lastIncrementalSyncAt: 0,
+      });
     });
 
     it('mirrors a monotonic "last sync across any scope" onto the unscoped read', async () => {

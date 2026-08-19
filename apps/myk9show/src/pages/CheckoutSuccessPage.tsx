@@ -1,6 +1,6 @@
 /** Verifies the Stripe return and shows entry confirmation. */
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import {
   readCartSplitCheckoutSummary,
 } from '@/features/payments/cartSplitCheckoutStorage';
 import {
+  BACKGROUND_RECHECK_INTERVAL_MS,
+  MAX_BACKGROUND_RECHECKS,
   checkCheckoutSession,
   pollCheckoutSession,
 } from '@/features/payments/checkoutVerification';
@@ -45,6 +47,9 @@ export default function CheckoutSuccessPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  // True once the bounded background timer chain has spent its budget — the
+  // card must stop claiming automatic checking (focus/manual still re-verify).
+  const [backgroundRecheckExhausted, setBackgroundRecheckExhausted] = useState(false);
   const [verificationIssue, setVerificationIssue] = useState<VerificationIssue | null>(null);
   const [orderDetails, setOrderDetails] = useState<{
     orderId?: string;
@@ -63,12 +68,18 @@ export default function CheckoutSuccessPage() {
   const resetCart = useCartStore(state => state.reset);
   const activeCartIdRef = useRef(activeCartId);
   const verificationGenerationRef = useRef(0);
-  const manualCheckInFlightRef = useRef(false);
+  // Shared by the manual button AND the background re-check chain: at most one
+  // verification request in flight, whoever started it (review round 2).
+  const statusCheckInFlightRef = useRef(false);
+  // Once a verification SUCCEEDS, late-arriving failure responses from any
+  // overlapping check must not reopen the issue card.
+  const verificationSettledRef = useRef(false);
   activeCartIdRef.current = activeCartId;
 
   const completeCheckout = useCallback(
     (result: SuccessfulCheckoutVerification, generation: number) => {
       if (verificationGenerationRef.current !== generation) return;
+      verificationSettledRef.current = true;
 
       const nextSplitSummary = splitCheckoutId
         ? readCartSplitCheckoutSummary(splitCheckoutId)
@@ -147,9 +158,11 @@ export default function CheckoutSuccessPage() {
   useLayoutEffect(() => {
     const generation = verificationGenerationRef.current + 1;
     verificationGenerationRef.current = generation;
+    verificationSettledRef.current = false;
     const abortController = new AbortController();
     setIsLoading(true);
     setIsCheckingStatus(false);
+    setBackgroundRecheckExhausted(false);
     setVerificationIssue(null);
     setOrderDetails(null);
     setEntries([]);
@@ -196,15 +209,106 @@ export default function CheckoutSuccessPage() {
       if (verificationGenerationRef.current === generation) {
         verificationGenerationRef.current += 1;
       }
-      manualCheckInFlightRef.current = false;
+      statusCheckInFlightRef.current = false;
       abortController.abort();
     };
   }, [completeCheckout, isWaitlistOnly, resetCart, sessionId, splitCheckoutId]);
 
-  const handleCheckPaymentStatus = async () => {
-    if (!sessionId || manualCheckInFlightRef.current) return;
+  // MYK9-207: once the initial 30s poll parks in a maybe-still-resolving state,
+  // keep re-checking slowly in the background and re-verify when the tab
+  // regains focus — a phone returning from a wallet sheet is exactly the
+  // resumed-tab case. Bounded (MAX_BACKGROUND_RECHECKS) so an abandoned tab
+  // eventually goes quiet; the manual button remains past that point.
+  const parkedStatus = verificationIssue?.verificationStatus;
+  const shouldBackgroundRecheck =
+    Boolean(sessionId) &&
+    (parkedStatus === 'processing' ||
+      parkedStatus === 'not_found' ||
+      parkedStatus === 'unavailable');
 
-    manualCheckInFlightRef.current = true;
+  useEffect(() => {
+    if (!shouldBackgroundRecheck || !sessionId) return;
+
+    const generation = verificationGenerationRef.current;
+    let cancelled = false;
+    let scheduledChecks = 0;
+    let checkInFlight = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const runCheck = async () => {
+      if (cancelled || verificationGenerationRef.current !== generation) return;
+      // Serialize against BOTH the manual button and other background/focus
+      // triggers — at most one verification request in flight, ever.
+      if (checkInFlight) return;
+      if (statusCheckInFlightRef.current) {
+        scheduleNext();
+        return;
+      }
+      checkInFlight = true;
+      statusCheckInFlightRef.current = true;
+      // Surface the shared in-flight state on the manual button: while a
+      // background check runs, the button reads "Checking…" and disables
+      // instead of silently swallowing a click (review round 4).
+      setIsCheckingStatus(true);
+      try {
+        const result = await checkCheckoutSession(sessionId);
+        if (cancelled || verificationGenerationRef.current !== generation) return;
+        if (result.success) {
+          completeCheckout(result, generation);
+          return;
+        }
+        // A success from any overlapping check settles the page for good — a
+        // late failure must not reopen the issue card.
+        if (verificationSettledRef.current) return;
+        setVerificationIssue(result);
+        scheduleNext();
+      } finally {
+        checkInFlight = false;
+        statusCheckInFlightRef.current = false;
+        if (!cancelled && verificationGenerationRef.current === generation) {
+          setIsCheckingStatus(false);
+        }
+      }
+    };
+
+    const scheduleNext = () => {
+      if (cancelled) return;
+      if (scheduledChecks >= MAX_BACKGROUND_RECHECKS) {
+        // Budget spent: stop the timer chain and let the card stop claiming
+        // automatic checking. Focus re-verify is DELIBERATELY not capped —
+        // it costs a deliberate user action (same class as the manual
+        // button), is serialized, and the phone-out-of-the-pocket-later
+        // case is the very scenario MYK9-207 exists for.
+        setBackgroundRecheckExhausted(true);
+        return;
+      }
+      scheduledChecks += 1;
+      // Replace, never stack: a focus-triggered check that fails would
+      // otherwise add a second pending timer alongside the scheduled one.
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => void runCheck(), BACKGROUND_RECHECK_INTERVAL_MS);
+    };
+
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') void runCheck();
+    };
+
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+    window.addEventListener('focus', onFocusOrVisible);
+    scheduleNext();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+      window.removeEventListener('focus', onFocusOrVisible);
+    };
+  }, [shouldBackgroundRecheck, sessionId, completeCheckout]);
+
+  const handleCheckPaymentStatus = async () => {
+    if (!sessionId || statusCheckInFlightRef.current) return;
+
+    statusCheckInFlightRef.current = true;
     const generation = verificationGenerationRef.current;
     setIsCheckingStatus(true);
 
@@ -213,12 +317,12 @@ export default function CheckoutSuccessPage() {
       if (verificationGenerationRef.current !== generation) return;
       if (result.success) {
         completeCheckout(result, generation);
-      } else {
+      } else if (!verificationSettledRef.current) {
         setVerificationIssue(result);
       }
     } finally {
       if (verificationGenerationRef.current === generation) {
-        manualCheckInFlightRef.current = false;
+        statusCheckInFlightRef.current = false;
         setIsCheckingStatus(false);
       }
     }
@@ -265,17 +369,10 @@ export default function CheckoutSuccessPage() {
         issue={verificationIssue}
         {...(isWaitlistOnly &&
           !sessionId && { titleOverride: 'Wait List Confirmation Unavailable' })}
-        canCheckStatus={
-          Boolean(sessionId) &&
-          (verificationIssue.verificationStatus === 'processing' ||
-            verificationIssue.verificationStatus === 'unavailable')
-        }
+        canCheckStatus={shouldBackgroundRecheck}
         isCheckingStatus={isCheckingStatus}
-        warnAgainstNewPayment={
-          Boolean(sessionId) &&
-          (verificationIssue.verificationStatus === 'processing' ||
-            verificationIssue.verificationStatus === 'unavailable')
-        }
+        warnAgainstNewPayment={shouldBackgroundRecheck}
+        autoRecheckActive={shouldBackgroundRecheck && !backgroundRecheckExhausted}
         onCheckStatus={handleCheckPaymentStatus}
       />
     );

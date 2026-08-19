@@ -228,7 +228,10 @@ describe('ReplicatedClassesTable', () => {
         // Named columns, never `*`: authenticated has no SELECT on num_hides
         // (20260731160000, MYK9-127), so a star select 42501s for every user.
         // Assert that explicitly — a regression here is a silent sync outage.
-        const selectArg = mockSupabaseSelect.mock.calls[0]?.[0] as string;
+        const selectArg = mockSupabaseSelect.mock.calls
+          .map(call => call[0])
+          .find((value): value is string => typeof value === 'string' && value.includes('hides_known'));
+        expect(selectArg).toBeDefined();
         expect(selectArg).not.toContain('*,');
         expect(selectArg).not.toContain('num_hides');
         expect(selectArg).toContain('hides_known');

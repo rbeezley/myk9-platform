@@ -164,6 +164,34 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<TrialRow, ReplicatedTrial> = {
+      getRemoteRowCount: async ({ scope }) => {
+        try {
+          let query = supabase.from('trials').select('id', { count: 'exact', head: true });
+
+          if (scope.value) {
+            query = query.eq('show_id', scope.value);
+          }
+
+          const { count, error } = await query;
+          if (error) {
+            logger.warn(
+              `[${this.getTableName()}] Trials coverage count unavailable; continuing sync`,
+              'replication',
+              { message: error.message }
+            );
+            return undefined;
+          }
+
+          return count ?? 0;
+        } catch (error) {
+          logger.warn(
+            `[${this.getTableName()}] Trials coverage count unavailable; continuing sync`,
+            'replication',
+            { message: error instanceof Error ? error.message : String(error) }
+          );
+          return undefined;
+        }
+      },
       fetchRemoteRows: async ({ scope, since }) => {
         let query = supabase
           .from('trials')

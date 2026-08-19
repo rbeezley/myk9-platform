@@ -68,12 +68,12 @@ export const DogStrip: React.FC<DogStripProps> = ({
           Keep it out of the scroller, and keep the 44px target: the exhibitors
           most likely to zoom are the ones least able to hit a small control. */}
       <div className="mb-2 flex items-center gap-2">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           My Dogs
           <span className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5">
             {dogs.length}
           </span>
-        </p>
+        </h2>
         <button
           type="button"
           onClick={() => (onAddDog ? onAddDog() : navigate('/dogs'))}

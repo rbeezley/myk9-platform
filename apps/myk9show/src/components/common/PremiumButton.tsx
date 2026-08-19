@@ -42,6 +42,9 @@ export function PremiumButton({
     "font-medium transition-all duration-300 shadow-sm relative overflow-hidden",
     
     // Size variants
+    // 44px floor (PRODUCT.md): `min-h` only grows an undersized control, so the
+    // visual height of anything already at or above 44px is unchanged.
+    "min-h-[44px]",
     size === 'sm' && "h-8 px-3 text-sm",
     size === 'md' && "h-10 px-4 text-sm", 
     size === 'lg' && "h-12 px-6 text-base",

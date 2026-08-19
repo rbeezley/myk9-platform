@@ -75,7 +75,11 @@ export function CompactStatsRow({
       qualifier: CURRENT_ENTRIES_QUALIFIER,
       value: currentEntries,
       detail: `${acceptedEntries} accepted · ${pendingEntries} pending`,
-      href: '/exhibitor/entries',
+      // Was `/exhibitor/entries` — a navigation to the page you are already on,
+      // i.e. a chevron and a "View details" label that did nothing. This card
+      // counts upcoming + in-review entries, so the Upcoming tab is the filter
+      // that actually shows them.
+      href: '/exhibitor/entries?tab=upcoming',
       iconColor: 'text-muted-foreground',
     },
     {
@@ -148,9 +152,7 @@ export function CompactStatsRow({
               ${amountDue.toLocaleString()} due
             </span>
           ) : (
-            <span className="text-muted-foreground tabular-nums">
-              Paid in full
-            </span>
+            <span className="text-muted-foreground tabular-nums">Paid in full</span>
           )}
         </span>
         <ChevronDown

@@ -4,7 +4,8 @@
  * @module MyEntriesPage/hooks
  */
 
-import { useState, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
 import {
@@ -12,6 +13,7 @@ import {
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
 import { computeMyEntriesShowDateStats, isPastShowEntry } from './myEntriesStats.helpers';
+import { isEntryTabFilter } from './entryTabDefs';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
 /**
@@ -57,7 +59,38 @@ export function useMyEntriesFilters({
   entries,
   balanceSummary: externalBalanceSummary,
 }: UseMyEntriesFiltersProps): UseMyEntriesFiltersReturn {
-  const [selectedTab, setSelectedTab] = useState<EntryTabFilter>('all');
+  // The active tab lives in the URL, not in local state.
+  //
+  // It used to be a plain `useState`, and nothing on the page read `?tab` — so
+  // `/exhibitor/entries?tab=completed`, which the "Past shows" stat card
+  // navigates to, was a no-op that pushed a URL nobody consumed. The card
+  // rendered a chevron and an aria-label promising navigation and delivered
+  // nothing. `EntriesEmptyState` already speaks the same `?tab=` dialect, so
+  // the convention existed; only the reader was missing.
+  //
+  // Deriving straight from the URL rather than syncing two sources also makes
+  // the tab survive refresh, back/forward, and a shared link, and avoids a
+  // two-way effect sync (the `set-state-in-effect` trap).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const selectedTab: EntryTabFilter = isEntryTabFilter(tabParam) ? tabParam : 'all';
+
+  const setSelectedTab = useCallback(
+    (tab: EntryTabFilter) => {
+      setSearchParams(
+        previous => {
+          const next = new URLSearchParams(previous);
+          // 'all' is the default; keep it out of the URL so the canonical
+          // address of the page stays clean.
+          if (tab === 'all') next.delete('tab');
+          else next.set('tab', tab);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
   // Derive filtered and sorted entries from current tab and entries
   const filteredEntries = useMemo(() => {
     let filtered = [...entries];

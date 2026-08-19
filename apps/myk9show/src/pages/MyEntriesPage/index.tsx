@@ -412,7 +412,11 @@ const MyEntriesPage: React.FC = () => {
                     badge is always shown here. The scope note distinguishes this
                     all-time count from the "Current entries" stat card above,
                     which is scoped to upcoming/in-review only. */}
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
+                  {/* A real heading, not a styled <p>. This and "My Dogs" were
+                    the page's two section labels and neither was reachable by
+                    heading navigation, so a screen-reader user had exactly one
+                    landmark (the h1) for the whole surface. Styling unchanged. */}
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
                     {ALL_ENTRIES_LABEL}
                     <span
                       aria-hidden="true"
@@ -423,7 +427,7 @@ const MyEntriesPage: React.FC = () => {
                     <span className="normal-case tracking-normal font-normal text-muted-foreground">
                       {ALL_ENTRIES_SCOPE_NOTE}
                     </span>
-                  </p>
+                  </h2>
 
                   {/* Entries List */}
                   <PrimaryTabs
@@ -433,21 +437,36 @@ const MyEntriesPage: React.FC = () => {
                     className="space-y-6"
                   >
                     <TabsContent value={selectedTab} className="space-y-4">
+                      {/* Switching tabs changes the list silently for a screen
+                        reader — the visible count sits up in the tab strip that
+                        was just left. Announce what the new filter produced. */}
+                      <p className="sr-only" role="status" aria-live="polite">
+                        {filteredEntries.length === 1
+                          ? '1 entry'
+                          : `${filteredEntries.length} entries`}
+                      </p>
                       {filteredEntries.length === 0 ? (
                         <EntriesEmptyState selectedTab={selectedTab} onSwitchTab={setSelectedTab} />
                       ) : (
-                        filteredEntries.map(entry => (
-                          <MyEntryCard
-                            key={entry.id}
-                            entry={entry}
-                            selfCheckinByClassId={selfCheckinByClassId}
-                            onCheckInClick={handleCheckInClick}
-                            onEditClick={handleEditClick}
-                            onReceiptClick={handleReceiptClick}
-                            onResultRevealClick={setResultRevealModel}
-                            seenResultReleaseKeys={seenResultReleaseKeys}
-                          />
-                        ))
+                        // A real list, so assistive tech announces "list, N
+                        // items" and offers list navigation. This was a bare
+                        // stack of divs. `space-y-4` stays on the TabsContent,
+                        // so spacing is unchanged.
+                        <ul className="space-y-4">
+                          {filteredEntries.map(entry => (
+                            <li key={entry.id}>
+                              <MyEntryCard
+                                entry={entry}
+                                selfCheckinByClassId={selfCheckinByClassId}
+                                onCheckInClick={handleCheckInClick}
+                                onEditClick={handleEditClick}
+                                onReceiptClick={handleReceiptClick}
+                                onResultRevealClick={setResultRevealModel}
+                                seenResultReleaseKeys={seenResultReleaseKeys}
+                              />
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </TabsContent>
                   </PrimaryTabs>

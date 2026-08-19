@@ -121,7 +121,8 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
           overflow-x. Each dog's check-in click is scoped via `toDogEntryView`
           so the dialog shows that dog's identity, not the order's lead dog. */}
       <div className="myk9-entries-classes-section">
-        <h5 className="myk9-entries-classes-title">Classes Entered:</h5>
+        {/* h4, following the card title h3 — this was an h5 jumping straight from h1. */}
+        <h4 className="myk9-entries-classes-title">Classes Entered:</h4>
         {entry.dogs.length > 1 ? (
           <div className="myk9-entries-dogs-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {entry.dogs.map(dog => (

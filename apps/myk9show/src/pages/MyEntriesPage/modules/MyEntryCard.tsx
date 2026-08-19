@@ -104,10 +104,12 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           location/directions, and the single next-action button. */}
       <div className="myk9-entries-card-header">
         <div>
-          <div className="myk9-entries-card-title">
+          {/* h3: each entry card sits under the "All entries" h2. Was a <div>,
+            so the entry list had no navigable structure at all. */}
+          <h3 className="myk9-entries-card-title">
             {getStatusIcon(entry.entryStatus, entry.paymentStatus, entry.entryStatusKind)}
             {entry.showName}
-          </div>
+          </h3>
           <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-x-3 gap-y-1.5">
             {isMultiDogOrder ? (
               // Every dog's identity stays visible on the always-shown summary

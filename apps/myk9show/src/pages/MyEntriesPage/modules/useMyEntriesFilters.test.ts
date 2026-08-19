@@ -1,5 +1,7 @@
+import { createElement, type ReactNode } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useMyEntriesFilters } from './useMyEntriesFilters';
 import type { MyEntry } from './my-entries-types';
@@ -53,11 +55,21 @@ const endedShow = makeEntry({
   entryStatus: EntryStatus.ACCEPTED,
 });
 
+/**
+ * The active tab is read from `?tab=` rather than local state, so the hook needs
+ * a router. `at` seeds the starting URL, which is how the deep-link tests drive
+ * it. Renamed from a bare `renderHook` call so every test goes through one place.
+ */
+function renderFilters(props: Parameters<typeof useMyEntriesFilters>[0], at = '/exhibitor/entries') {
+  return renderHook(() => useMyEntriesFilters(props), {
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(MemoryRouter, { initialEntries: [at] }, children),
+  });
+}
+
 describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
   it('keeps a show running today in the Upcoming tab', () => {
-    const { result } = renderHook(() =>
-      useMyEntriesFilters({ entries: [runningTodayShow, endedShow] })
-    );
+    const { result } = renderFilters({ entries: [runningTodayShow, endedShow] });
     act(() => result.current.setSelectedTab('upcoming'));
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['running']);
   });
@@ -71,17 +83,13 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
       paymentStatus: PaymentStatus.PENDING,
     });
 
-    const { result } = renderHook(() =>
-      useMyEntriesFilters({ entries: [pendingFutureEntry, endedShow] })
-    );
+    const { result } = renderFilters({ entries: [pendingFutureEntry, endedShow] });
     act(() => result.current.setSelectedTab('upcoming'));
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['pending-future']);
   });
 
   it('puts only genuinely-ended shows in the Completed tab', () => {
-    const { result } = renderHook(() =>
-      useMyEntriesFilters({ entries: [runningTodayShow, endedShow] })
-    );
+    const { result } = renderFilters({ entries: [runningTodayShow, endedShow] });
     act(() => result.current.setSelectedTab('completed'));
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['ended']);
   });
@@ -129,8 +137,7 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
       totalFee: 50,
     });
 
-    const { result } = renderHook(() =>
-      useMyEntriesFilters({
+    const { result } = renderFilters({
         entries: [
           acceptedUnpaidCurrent,
           acceptedPaidCurrent,
@@ -138,8 +145,7 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
           waitlistCurrent,
           acceptedUnpaidPast,
         ],
-      })
-    );
+      });
 
     expect(result.current.entryStats.currentAcceptedEntries).toBe(2);
     expect(result.current.entryStats.currentPendingEntries).toBe(1);
@@ -170,9 +176,7 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
       paymentStatus: PaymentStatus.PAID_ONLINE,
     });
 
-    const { result } = renderHook(() =>
-      useMyEntriesFilters({ entries: [scored, moveUp, plainAccepted] })
-    );
+    const { result } = renderFilters({ entries: [scored, moveUp, plainAccepted] });
 
     expect(result.current.entryStats.accepted).toBe(3);
     expect(result.current.entryStats.pending).toBe(0);
@@ -185,5 +189,59 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
       'plain-accepted',
       'scored',
     ]);
+  });
+});
+
+describe('useMyEntriesFilters tab is addressable via ?tab=', () => {
+  // The "Past shows" stat card navigates to `/exhibitor/entries?tab=completed`
+  // and the "Current entries" card to `?tab=upcoming`. Nothing read the param,
+  // so both were no-ops: a chevron and a "View details" label that did nothing.
+  // These pin the reader, not the card, because the card was never the broken
+  // half — CompactStatsRow's own test asserted `onNavigate` was called with the
+  // string and passed the whole time.
+  it('opens on the tab named in the URL', () => {
+    const { result } = renderFilters(
+      { entries: [runningTodayShow, endedShow] },
+      '/exhibitor/entries?tab=completed'
+    );
+
+    expect(result.current.selectedTab).toBe('completed');
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['ended']);
+  });
+
+  it('opens on Upcoming for the current-entries deep link', () => {
+    const { result } = renderFilters(
+      { entries: [runningTodayShow, endedShow] },
+      '/exhibitor/entries?tab=upcoming'
+    );
+
+    expect(result.current.selectedTab).toBe('upcoming');
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['running']);
+  });
+
+  it('falls back to All for an unknown tab instead of rendering nothing', () => {
+    const { result } = renderFilters(
+      { entries: [runningTodayShow, endedShow] },
+      '/exhibitor/entries?tab=not-a-real-tab'
+    );
+
+    expect(result.current.selectedTab).toBe('all');
+    expect(result.current.filteredEntries).toHaveLength(2);
+  });
+
+  it('preserves an unrelated query param when the tab changes', () => {
+    // `?waitlistOffer=` arrives from a notification deep link and is read
+    // elsewhere on the page; changing tabs must not drop it.
+    const { result } = renderFilters(
+      { entries: [runningTodayShow, endedShow] },
+      '/exhibitor/entries?waitlistOffer=offer-1'
+    );
+
+    act(() => result.current.setSelectedTab('completed'));
+    expect(result.current.selectedTab).toBe('completed');
+
+    act(() => result.current.setSelectedTab('all'));
+    expect(result.current.selectedTab).toBe('all');
+    expect(result.current.filteredEntries).toHaveLength(2);
   });
 });

@@ -82,4 +82,21 @@ describe('formatAlertDetail', () => {
   it('returns an empty string for an empty object', () => {
     expect(formatAlertDetail({})).toBe('');
   });
+
+  it('strips HTML tags from string values so webhook payload markup reads as prose', () => {
+    expect(
+      formatAlertDetail({ html: '<p>Auto-refund <code>re_3U5z1FAIej</code> issued.</p>' })
+    ).toBe('html: Auto-refund re_3U5z1FAIej issued.');
+  });
+
+  it('truncates values longer than 120 characters with an ellipsis', () => {
+    const long = 'x'.repeat(150);
+    expect(formatAlertDetail({ note: long })).toBe(`note: ${'x'.repeat(120)}…`);
+  });
+
+  it('renders nested objects as compact JSON instead of [object Object]', () => {
+    expect(formatAlertDetail({ charge: { id: 'ch_1', amount: 500 } })).toBe(
+      'charge: {"id":"ch_1","amount":500}'
+    );
+  });
 });

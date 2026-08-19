@@ -114,6 +114,22 @@ describe('OperatorAlertsSection', () => {
     expect(screen.getByText(/no unresolved alerts/i)).toBeInTheDocument();
   });
 
+  it('caps the visible list at five alerts behind a Show all toggle', async () => {
+    const alerts = Array.from({ length: 7 }, (_, i) =>
+      alert({ id: `alert-${i}`, title: `Alert number ${i}` })
+    );
+    mockedUseOperatorAlerts.mockReturnValue(queryState({ data: alerts }));
+
+    const { user } = render(<OperatorAlertsSection />);
+
+    expect(screen.getAllByRole('button', { name: /resolve/i })).toHaveLength(5);
+
+    await user.click(screen.getByRole('button', { name: /show all 7 alerts/i }));
+
+    expect(screen.getAllByRole('button', { name: /resolve/i })).toHaveLength(7);
+    expect(screen.getByRole('button', { name: /show fewer/i })).toBeInTheDocument();
+  });
+
   it('renders a loading state while fetching', () => {
     mockedUseOperatorAlerts.mockReturnValue(queryState({ isLoading: true }));
 

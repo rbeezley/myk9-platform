@@ -333,7 +333,7 @@ const UserManagementPage: React.FC = () => {
           />
 
           {/* Statistics */}
-          <UserManagementStats users={users} filteredUsers={sortedUsers} roleStats={roleStats} />
+          <UserManagementStats filteredUsers={sortedUsers} />
 
           {/* Bulk Actions Bar */}
           {visibleSelection.length > 0 && (
@@ -397,13 +397,10 @@ const UserManagementPage: React.FC = () => {
               </div>
             )}
 
-            <p
-              className="pt-2 border-t border-border text-sm text-muted-foreground"
-              role="status"
-              aria-live="polite"
-            >
-              {`Showing ${sortedUsers.length} of ${users.length} user${users.length !== 1 ? 's' : ''}`}
-              {hasActiveFilters && ' (filtered)'}
+            <p className="sr-only" role="status" aria-live="polite">
+              {hasActiveFilters
+                ? `${sortedUsers.length} matching user${sortedUsers.length !== 1 ? 's' : ''}`
+                : `${sortedUsers.length} user${sortedUsers.length !== 1 ? 's' : ''} in view`}
             </p>
           </div>
 

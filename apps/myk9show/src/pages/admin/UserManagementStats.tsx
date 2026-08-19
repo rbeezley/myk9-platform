@@ -9,37 +9,30 @@ import React from 'react';
 import { Users, UserCheck, Shield } from 'lucide-react';
 import { StatCard, StatsGrid } from '@myk9/ui';
 import type { User } from '@/types/user-types';
-import { countActiveUsers } from './UserManagementPage.helpers';
+import { calculateRoleStats, countActiveUsers } from './UserManagementPage.helpers';
 
 interface UserManagementStatsProps {
-  users: User[];
   filteredUsers: User[];
-  roleStats: Record<string, number>;
 }
 
-export const UserManagementStats: React.FC<UserManagementStatsProps> = ({
-  users,
-  filteredUsers,
-  roleStats,
-}) => {
-  const activeCount = countActiveUsers(users);
-  const suspendedCount = users.length - activeCount;
+export const UserManagementStats: React.FC<UserManagementStatsProps> = ({ filteredUsers }) => {
+  const activeCount = countActiveUsers(filteredUsers);
+  const suspendedCount = filteredUsers.length - activeCount;
+  const roleStats = calculateRoleStats(filteredUsers);
   const totalRoles = Object.values(roleStats).reduce((sum, count) => sum + count, 0);
   const roleTypeCount = Object.keys(roleStats).length;
 
   return (
     <StatsGrid columns={3}>
       <StatCard
-        title="Total Users"
-        value={users.length.toLocaleString()}
+        title="Users in view"
+        value={filteredUsers.length.toLocaleString()}
         icon={Users}
         color="primary"
-        subtitle={
-          filteredUsers.length !== users.length ? `${filteredUsers.length} shown` : 'On the platform'
-        }
+        subtitle="Current roster"
       />
       <StatCard
-        title="Active Accounts"
+        title="Active in view"
         value={activeCount}
         icon={UserCheck}
         color="emerald"
@@ -50,7 +43,7 @@ export const UserManagementStats: React.FC<UserManagementStatsProps> = ({
         }
       />
       <StatCard
-        title="Roles Assigned"
+        title="Roles in view"
         value={totalRoles}
         icon={Shield}
         color="purple"

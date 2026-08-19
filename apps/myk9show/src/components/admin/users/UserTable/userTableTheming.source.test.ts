@@ -125,6 +125,17 @@ describe('accessibility pins', () => {
     // role="button", which destroys row/column semantics for screen readers.
     expect(tableSrc.match(/meta: \{ interactive: true \}/g) ?? []).toHaveLength(2);
   });
+
+  it('keeps profile navigation available as a keyboard-accessible control', () => {
+    expect(tableSrc).toContain('aria-label={`Open profile for ${fullName}`}');
+    expect(tableSrc).toContain('type="button"');
+  });
+
+  it('hides secondary columns before forcing a wider table', () => {
+    expect(tableSrc).toContain("meta: { responsiveHide: 'md' }");
+    expect(tableSrc).toContain("meta: { responsiveHide: 'lg' }");
+    expect(tableSrc).toContain('min-w-0 sm:min-w-[760px]');
+  });
 });
 
 describe('no hand-paired dark: status classes (eslint-backed)', () => {

@@ -175,7 +175,7 @@ describe('UserManagementPage (shared primitives migration)', () => {
   it('shows results count in a live region, so filtering announces itself', () => {
     renderPage();
     const status = screen.getByRole('status');
-    expect(status.textContent).toContain('Showing 1 of 1 user');
+    expect(status.textContent).toContain('1 user in view');
     expect(status).toHaveAttribute('aria-live', 'polite');
   });
 

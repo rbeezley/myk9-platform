@@ -246,15 +246,19 @@ const MyEntriesPage: React.FC = () => {
     }
   }, [entries, resultRevealModel, searchParams, setSearchParams]);
 
+  // INTENT: a rejection here must reach CheckInStatusDialog. The dialog awaits
+  // this handler and treats "resolved" as "saved" — it closes itself and only
+  // renders its error Alert when the promise rejects. Swallowing the throw made
+  // a failed check-in indistinguishable from a successful one: the dialog shut
+  // cleanly while `updateEntryCheckIn` reverted the optimistic status, so an
+  // exhibitor walked away believing their dog was checked in. Do not reintroduce
+  // a catch here; the hook logs and rethrows precisely so this caller can let
+  // the failure surface where the exhibitor took the action.
   const handleCheckInStatusUpdate = async (status: CheckInStatus, notes?: string) => {
     if (!checkInDialog.entry || !checkInDialog.classEntry) return;
 
-    try {
-      await updateEntryCheckIn(checkInDialog.entry.id, checkInDialog.classEntry.id, status, notes);
-      setCheckInDialog({ open: false, entry: null, classEntry: null });
-    } catch {
-      // Error handled in hook
-    }
+    await updateEntryCheckIn(checkInDialog.entry.id, checkInDialog.classEntry.id, status, notes);
+    setCheckInDialog({ open: false, entry: null, classEntry: null });
   };
 
   const handleResultRevealSeen = useCallback((releaseKey: string) => {
@@ -276,8 +280,12 @@ const MyEntriesPage: React.FC = () => {
   // `return` here, and do not merely duplicate the dialogs into each branch —
   // differently shaped top-level trees remount them just the same.
   const renderBody = () => {
-    // Error state
-    if (isError && !isLoading) {
+    // Error state — only takes over the page when there is genuinely nothing to
+    // show. With entries already loaded, a failed reload keeps the list on
+    // screen and the same card renders inline above it (see the `inline`
+    // variant); replacing a readable list with an error is the opposite of
+    // "offline is normal, not broken".
+    if (isError && !isLoading && entries.length === 0) {
       return <EntriesLoadErrorCard refreshing={refreshing} onRetry={refreshEntries} />;
     }
 
@@ -309,6 +317,15 @@ const MyEntriesPage: React.FC = () => {
             Desktop keeps source order (dog strip above entries) — INTENT.md
             Exhibitor: "this respects my time". gap-8 == the prior space-y-8. */}
           <div className="flex flex-col gap-8">
+            {/* A reload that failed while entries are already on screen. The
+              list below stays readable; this only offers the retry. */}
+            {isError && (
+              <EntriesLoadErrorCard
+                variant="inline"
+                refreshing={refreshing}
+                onRetry={refreshEntries}
+              />
+            )}
             <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>

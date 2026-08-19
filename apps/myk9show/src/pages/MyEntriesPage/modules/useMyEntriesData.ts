@@ -242,8 +242,12 @@ export function useMyEntriesData({
 
       if (error) {
         logger.error('Failed to load entries:', 'pages', {}, error as Error);
+        // INTENT: keep whatever we already loaded. The error surface tells the
+        // exhibitor "Your saved information is still here" — clearing `entries`
+        // here made that sentence false and emptied the page on a transient
+        // reload failure, which is exactly the "poor connectivity feels like
+        // user failure" state PRODUCT.md forbids. Only the flag changes.
         setIsError(true);
-        setEntries([]);
         return;
       }
 
@@ -260,9 +264,10 @@ export function useMyEntriesData({
       setIsError(false);
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
+      // Same contract as the `error` branch above: preserve the last good read.
+      // Zeroing `balanceSummary` was the worse half — a $0 amount due is a
+      // positive claim about what the exhibitor owes, not an absence of data.
       setIsError(true);
-      setEntries([]);
-      setBalanceSummary(summarizeEntryBalances([]));
     } finally {
       setIsLoading(false);
     }

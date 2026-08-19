@@ -14,7 +14,7 @@ const MESSAGE_KEYS = /^(html|message|text|body|detail)$/i;
  * Only strips things shaped like tags (`<p>`, `</code>`, `<br/>`), so prose
  * like "cpu < 80 and mem > 90" survives intact.
  */
-export function toPlainText(value: unknown): string {
+function toPlainText(value: unknown): string {
   return String(value)
     .replace(/<\/?[a-z][^>]*>/gi, ' ')
     .replace(/\s+/g, ' ')

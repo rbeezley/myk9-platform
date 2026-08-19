@@ -9,21 +9,33 @@
 
 const EASTERN = 'America/New_York';
 
+// Formatters are built once: constructing an Intl.DateTimeFormat resolves
+// locale and timezone data, and these run on every render of a dashboard whose
+// clock ticks every 60s.
+const EASTERN_PARTS_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: EASTERN,
+  hour12: false,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
+
+const EASTERN_DATE_KEY_FMT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: EASTERN,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
 /**
- * Milliseconds to add to a UTC instant to get the wall-clock time in `tz`.
+ * Milliseconds to add to a UTC instant to get the Eastern wall-clock time.
  * Derived from Intl rather than hardcoded, so DST is handled without a table.
  */
-function tzOffsetMs(utcMs: number, tz: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(new Date(utcMs));
+function easternOffsetMs(utcMs: number): number {
+  const parts = EASTERN_PARTS_FMT.formatToParts(new Date(utcMs));
 
   const at = (type: string) => Number(parts.find(p => p.type === type)?.value ?? '0');
   // `hour` comes back as 24 at midnight under hour12:false in some engines.
@@ -47,7 +59,7 @@ function tzOffsetMs(utcMs: number, tz: string): number {
  * boundary that feeds four counters.
  */
 export function easternDayStartMs(now: number): number {
-  const offset = tzOffsetMs(now, EASTERN);
+  const offset = easternOffsetMs(now);
   const local = new Date(now + offset);
   const localMidnight = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
   return localMidnight - offset;
@@ -60,10 +72,5 @@ export function easternDayStartIso(now: number): string {
 
 /** `YYYY-MM-DD` for the current Eastern day — for comparing against date columns. */
 export function easternDateKey(now: number): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: EASTERN,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(now));
+  return EASTERN_DATE_KEY_FMT.format(new Date(now));
 }

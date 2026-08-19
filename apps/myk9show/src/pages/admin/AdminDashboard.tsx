@@ -45,9 +45,9 @@ import { NeedsALookSection } from './AdminDashboard/NeedsALookSection';
 
 /**
  * `href` is optional on purpose. A tile that navigates somewhere unrelated to
- * its number is worse than a tile that does not navigate — "Entries today" has
- * no site-admin entries surface to open, so it stays inert rather than sending
- * the admin to a page that cannot explain the figure.
+ * its number is worse than a tile that does not navigate. The Sentry tiles
+ * (Error rate, Client p95) have no in-app surface that explains their figure,
+ * so they stay inert rather than sending the admin somewhere that cannot.
  */
 function StatTile({
   label,
@@ -145,13 +145,9 @@ export default function AdminDashboard() {
   );
 
   const counts = overview.data;
-  // An errored count must never render as a zero, and "—" alone is not an error
-  // state — it looks like a number that has not arrived. Say what failed.
-  const countsError = overview.error
-    ? overview.error instanceof Error
-      ? overview.error.message
-      : 'The count query failed.'
-    : null;
+  // An errored count must never render as a zero. Each tile says so in its own
+  // context line; the raw query message is not something an operator can act on.
+  const countsError = overview.error != null;
   const checksLabel =
     effective.isEmpty || effective.isStale ? '—' : `${summary.passing}/${summary.total}`;
   const errorRateTile = getSentryMetricTileState(

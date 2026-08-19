@@ -1,0 +1,178 @@
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import webpush from 'npm:web-push@3';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
+
+import { handle } from '../_shared/http/handler.ts';
+import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
+import {
+  buildShowEveNudgePayload,
+  selectShowEveRecipients,
+  type ShowEveClubStaffRow,
+  type ShowEveJudgeRow,
+} from '../_shared/showEveNudge.ts';
+
+/**
+ * push-trigger-show-eve (MYK9-203) — the evening before a trial day, remind
+ * the people who will RUN that day to open the show while they still have
+ * internet, so their device carries it to a venue that may not have any.
+ *
+ * Invoked by pg_cron. Idempotent: every (trial, recipient) pair it notifies is
+ * recorded in `show_eve_nudge_log`, so a re-run in the same window is a no-op.
+ */
+
+interface TrialRow {
+  id: string;
+  date: string;
+  show_id: string;
+  show: { id: string; name: string | null; club_id: string | null } | null;
+}
+
+function targetTrialDate(now: Date): string {
+  const tomorrow = new Date(now.getTime());
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  return tomorrow.toISOString().slice(0, 10);
+}
+
+async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promise<string[]> {
+  const clubId = trial.show?.club_id ?? null;
+
+  // Staff roles in this repo are CLUB-scoped (verified: zero show-scoped rows),
+  // so club membership is how show-day staff are reached.
+  const clubStaff: ShowEveClubStaffRow[] = [];
+  if (clubId) {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('auth_user_id, is_active, roles!inner(name)')
+      .eq('club_id', clubId)
+      .eq('is_active', true);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      const roleName = (row as { roles?: { name?: string } }).roles?.name ?? '';
+      clubStaff.push({
+        auth_user_id: (row as { auth_user_id: string | null }).auth_user_id,
+        role_name: roleName,
+      });
+    }
+  }
+
+  // Judges are assigned per show rather than by club role, so target them
+  // through their assignments and resolve the person to their auth account.
+  const { data: assignmentRows, error: assignmentError } = await supabase
+    .from('judge_assignments')
+    .select('status, people!inner(auth_user_id)')
+    .eq('show_id', trial.show_id);
+  if (assignmentError) throw assignmentError;
+
+  const judges: ShowEveJudgeRow[] = (assignmentRows ?? []).map(row => ({
+    auth_user_id:
+      (row as { people?: { auth_user_id?: string | null } }).people?.auth_user_id ?? null,
+    status: (row as { status: string | null }).status,
+  }));
+
+  return selectShowEveRecipients({ clubStaff, judges });
+}
+
+async function sendNudge(
+  supabase: SupabaseClient,
+  authUserId: string,
+  payload: ReturnType<typeof buildShowEveNudgePayload>
+): Promise<boolean> {
+  const { data: subscriptions, error } = await supabase
+    .from('push_subscriptions')
+    .select('endpoint, p256dh, auth')
+    .eq('user_id', authUserId);
+  if (error) throw error;
+  if (!subscriptions?.length) return false;
+
+  const expiredEndpoints: string[] = [];
+  let delivered = false;
+
+  for (const sub of subscriptions) {
+    try {
+      await webpush.sendNotification(
+        {
+          endpoint: (sub as { endpoint: string }).endpoint,
+          keys: {
+            p256dh: (sub as { p256dh: string }).p256dh,
+            auth: (sub as { auth: string }).auth,
+          },
+        },
+        JSON.stringify(payload)
+      );
+      delivered = true;
+    } catch (err: unknown) {
+      const statusCode = (err as { statusCode?: number }).statusCode;
+      if (statusCode === 410 || statusCode === 404) {
+        expiredEndpoints.push((sub as { endpoint: string }).endpoint);
+      }
+    }
+  }
+
+  if (expiredEndpoints.length > 0) {
+    await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', authUserId)
+      .in('endpoint', expiredEndpoints);
+  }
+
+  return delivered;
+}
+
+handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase }) => {
+  webpush.setVapidDetails(
+    `mailto:${Deno.env.get('VAPID_CONTACT_EMAIL') ?? 'support@myk9show.com'}`,
+    Deno.env.get('VAPID_PUBLIC_KEY') ?? '',
+    Deno.env.get('VAPID_PRIVATE_KEY') ?? ''
+  );
+
+  const trialDate = targetTrialDate(new Date());
+
+  const { data: trials, error: trialsError } = await supabase
+    .from('trials')
+    .select('id, date, show_id, show:shows!inner(id, name, club_id)')
+    .eq('date', trialDate);
+  if (trialsError) throw trialsError;
+
+  let notified = 0;
+  let skipped = 0;
+
+  for (const trial of (trials ?? []) as unknown as TrialRow[]) {
+    const showName = trial.show?.name ?? 'Your show';
+    const payload = buildShowEveNudgePayload({
+      showName,
+      showId: trial.show_id,
+      trialDate: trial.date,
+    });
+
+    const recipients = await loadRecipients(supabase, trial);
+
+    for (const authUserId of recipients) {
+      // Claim the (trial, recipient) pair FIRST. The unique constraint makes a
+      // concurrent or repeated cron run a no-op instead of a second buzz.
+      const { error: claimError } = await supabase
+        .from('show_eve_nudge_log')
+        .insert({ trial_id: trial.id, auth_user_id: authUserId });
+      if (claimError) {
+        skipped += 1;
+        continue;
+      }
+
+      const delivered = await sendNudge(supabase, authUserId, payload);
+      if (delivered) {
+        notified += 1;
+      } else {
+        // No usable subscription — release the claim so a later run can retry
+        // once the person actually enables notifications.
+        await supabase
+          .from('show_eve_nudge_log')
+          .delete()
+          .eq('trial_id', trial.id)
+          .eq('auth_user_id', authUserId);
+        skipped += 1;
+      }
+    }
+  }
+
+  return { trialDate, trials: trials?.length ?? 0, notified, skipped };
+});

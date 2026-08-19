@@ -294,7 +294,10 @@ describe('verifyCheckoutSession', () => {
     expect(result.refundStatus).toBe('processing');
   });
 
-  it('classifies an order that is not created yet as still processing', async () => {
+  it('classifies a missing order row as not_found, never as processing (MYK9-207)', async () => {
+    // No visible row covers three cases — not written yet, hidden by RLS from
+    // a different account, or a bogus session id. Two of those are permanent,
+    // so calling them "processing" would be untruthful.
     mockSingle.mockResolvedValue({
       data: null,
       error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' },
@@ -303,7 +306,8 @@ describe('verifyCheckoutSession', () => {
     const result = await verifyCheckoutSession('cs_test_abc123');
 
     expectUnsuccessfulVerification(result);
-    expect(result.verificationStatus).toBe('processing');
+    expect(result.verificationStatus).toBe('not_found');
+    expect(result.error).toMatch(/can't find this payment on this account/i);
   });
 
   it('classifies an unexpected order query failure as verification unavailable', async () => {

@@ -94,7 +94,7 @@ export function NeedsALookSection({
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-semibold text-foreground">
+              <span className="block text-[13px] font-semibold text-foreground line-clamp-2 sm:line-clamp-1">
                 {item.title}
               </span>
               <span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -108,7 +108,7 @@ export function NeedsALookSection({
 
             <a
               href={item.action.href}
-              className="shrink-0 self-start rounded-[9px] border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:self-auto"
+              className="inline-flex min-h-10 shrink-0 items-center self-start rounded-[9px] border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:self-auto"
             >
               {item.action.label}
             </a>

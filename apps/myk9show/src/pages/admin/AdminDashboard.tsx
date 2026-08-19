@@ -175,13 +175,13 @@ export default function AdminDashboard() {
             className="text-[25px] tracking-[-0.018em]"
           />
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" asChild>
               <Link to="/admin/users">
                 <Users className="mr-2 h-4 w-4" />
                 Manage users
               </Link>
             </Button>
-            <Button size="sm" asChild>
+            <Button asChild>
               <Link to="/admin/permissions">
                 <Settings className="mr-2 h-4 w-4" />
                 Permissions

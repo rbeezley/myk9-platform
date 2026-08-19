@@ -147,7 +147,7 @@ export function FilterTabs<T extends string>({
             aria-selected={selected}
             onClick={() => onChange(tab.value)}
             className={cn(
-              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              'min-h-10 rounded-full px-3 py-1 text-xs font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               selected
                 ? 'bg-foreground text-background'

@@ -94,5 +94,9 @@ export function useAdminOverview(now: number) {
     queryKey: ['admin', 'overview', 'counts', easternDateKey(now)],
     queryFn: () => fetchOverviewCounts(now),
     staleTime: 30_000,
+    // "Today at a glance" has to actually track today: the key only changes at
+    // the Eastern day boundary, so without polling these counters freeze at
+    // their mount values and a failed read never recovers.
+    refetchInterval: 60_000,
   });
 }

@@ -341,9 +341,10 @@ export const RoleAssignmentsPanel: React.FC = () => {
         </span>
       </div>
 
-      <div aria-label="User role assignments table" role="region">
+      <div>
         <DataTable
           tableId="userRoleAssignments"
+          scrollAreaLabel="User role assignments table"
           columns={columns}
           data={userRoles}
           emptyState={

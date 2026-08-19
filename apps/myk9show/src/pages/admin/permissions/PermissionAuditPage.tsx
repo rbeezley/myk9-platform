@@ -318,9 +318,10 @@ const PermissionAuditPage: React.FC = () => {
             </span>
           </div>
 
-          <div aria-label="Permission audit log table" role="region">
+          <div>
             <DataTable
               tableId="permissionAudit"
+              scrollAreaLabel="Permission audit log table"
               columns={columns}
               data={filteredLogs}
               initialSorting={[{ id: 'created_at', desc: true }]}

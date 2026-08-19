@@ -57,6 +57,8 @@ export type { UseScoringModeProps, UseScoringModeReturn } from './data-table-sco
 
 interface DataTableProps<TData> {
   tableId?: string;
+  /** Accessible name for the keyboard-focusable horizontal scroll area. */
+  scrollAreaLabel?: string;
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   pageSize?: number;
@@ -207,6 +209,7 @@ function isInteractiveElement(target: EventTarget | null, boundary: Element): bo
 
 export function DataTable<TData>({
   tableId,
+  scrollAreaLabel,
   columns,
   data,
   pageSize = 25,
@@ -427,7 +430,7 @@ export function DataTable<TData>({
           )}
 
       {/* Table component has its own overflow-auto wrapper */}
-      <Table>
+      <Table scrollAreaLabel={scrollAreaLabel}>
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id} className="border-b border-border/50 bg-muted/30">

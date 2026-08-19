@@ -68,6 +68,15 @@ describe('DataTable', () => {
     expect(within(rows[3]).getByText('Alice')).toBeInTheDocument();
   });
 
+  it('names and focuses the horizontal scroll area when requested', () => {
+    render(<DataTable columns={columns} data={testData} scrollAreaLabel="Test records table" />);
+
+    expect(screen.getByRole('region', { name: 'Test records table' })).toHaveAttribute(
+      'tabindex',
+      '0'
+    );
+  });
+
   it('calls onRowClick when a row is clicked', async () => {
     const handleClick = vi.fn();
     const { user } = render(

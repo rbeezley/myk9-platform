@@ -18,12 +18,20 @@ interface ScopedMeta {
   lastIncrementalSyncAt?: number;
 }
 
-function toScope(label: string, meta: ScopedMeta | null): ScopeReadiness {
-  const hydrated = meta?.totalRows !== undefined;
+/**
+ * A scope counts as hydrated only when its watermark exists AND the local row
+ * count has not fallen below what that watermark recorded — quota eviction
+ * deletes cached rows without touching the metadata, and a badge that says
+ * "Offline ready" over an evicted store is worse than no badge. A zero
+ * watermark (synced-but-empty shape) is treated as "time unknown", never as
+ * epoch 1970.
+ */
+function toScope(label: string, meta: ScopedMeta | null, localRowCount: number): ScopeReadiness {
+  const hydrated = meta?.totalRows !== undefined && localRowCount >= meta.totalRows;
   return {
     label,
     hydrated,
-    lastSyncAt: hydrated ? (meta?.lastIncrementalSyncAt ?? null) : null,
+    lastSyncAt: hydrated ? meta?.lastIncrementalSyncAt || null : null,
   };
 }
 
@@ -31,25 +39,33 @@ async function gatherReadiness(showId: string, userId: string): Promise<OfflineR
   const cacheEntry = loadRbacPermissionsCache(userId);
   const permissionsCachedAt = cacheEntry ? Date.parse(cacheEntry.cachedAt) : null;
 
-  const [trialsMeta, entriesMeta] = await Promise.all([
+  const [trialsMeta, entriesMeta, trialRows, entryRows] = await Promise.all([
     replicatedTrialsTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
     replicatedEntriesTable.getSyncMetadata(showId) as Promise<ScopedMeta | null>,
+    replicatedTrialsTable.getTrialsByShow(showId),
+    replicatedEntriesTable.getEntriesByShow(showId),
   ]);
 
-  const scopes: ScopeReadiness[] = [toScope('trials', trialsMeta), toScope('entries', entriesMeta)];
+  const trialsScope = toScope('trials', trialsMeta, trialRows.length);
+  const scopes: ScopeReadiness[] = [trialsScope, toScope('entries', entriesMeta, entryRows.length)];
 
   // Classes are scoped by TRIAL id, so a truthful per-show answer fans out
   // over the show's trials — every trial's classes must be hydrated. Until the
   // trials scope itself is hydrated the fan-out is unknowable: report cold.
-  if (trialsMeta?.totalRows !== undefined) {
-    const trials = await replicatedTrialsTable.getTrialsByShow(showId);
-    const classMetas = (await Promise.all(
-      trials.map(trial => replicatedClassesTable.getSyncMetadata(trial.id))
-    )) as Array<ScopedMeta | null>;
-    const allHydrated = classMetas.every(meta => meta?.totalRows !== undefined);
-    const watermarks = classMetas
-      .map(meta => meta?.lastIncrementalSyncAt)
-      .filter((t): t is number => typeof t === 'number');
+  if (trialsScope.hydrated) {
+    const perTrial = await Promise.all(
+      trialRows.map(async trial => {
+        const [classMeta, classRows] = await Promise.all([
+          replicatedClassesTable.getSyncMetadata(trial.id) as Promise<ScopedMeta | null>,
+          replicatedClassesTable.getClassesByTrial(trial.id),
+        ]);
+        return toScope('classes', classMeta, classRows.length);
+      })
+    );
+    const allHydrated = perTrial.every(scope => scope.hydrated);
+    const watermarks = perTrial
+      .map(scope => scope.lastSyncAt)
+      .filter((t): t is number => t !== null);
     scopes.push({
       label: 'classes',
       hydrated: allHydrated,
@@ -66,18 +82,24 @@ async function gatherReadiness(showId: string, userId: string): Promise<OfflineR
  * Per-show offline readiness for the badge (MYK9-203): does THIS device hold
  * the permissions cache and this show's replicated data? Recomputes on mount,
  * window focus, reconnect, and after prime(). `prime()` runs the canonical
- * at-show hydration for the show, then re-checks.
+ * at-show hydration AND a permissions refresh (which re-persists the RBAC
+ * cache), then re-checks.
+ *
+ * Anonymous passcode sessions get no readiness at all: they have no RBAC
+ * cache and never will, so the badge would be permanently — and wrongly —
+ * red for them.
  */
 export function useOfflineReadiness(showId: string | undefined) {
-  const { user } = useAuthContext();
+  const { user, refreshPermissions } = useAuthContext();
   const userId = user?.id;
+  const isAnonymous = user?.is_anonymous === true;
   const [readiness, setReadiness] = useState<OfflineReadiness | null>(null);
   const [checking, setChecking] = useState(false);
   const [priming, setPriming] = useState(false);
   const generationRef = useRef(0);
 
   const check = useCallback(async () => {
-    if (!showId || !userId) {
+    if (!showId || !userId || isAnonymous) {
       setReadiness(null);
       return;
     }
@@ -89,7 +111,7 @@ export function useOfflineReadiness(showId: string | undefined) {
     } finally {
       if (generationRef.current === generation) setChecking(false);
     }
-  }, [showId, userId]);
+  }, [showId, userId, isAnonymous]);
 
   useEffect(() => {
     void check();
@@ -104,15 +126,18 @@ export function useOfflineReadiness(showId: string | undefined) {
   }, [check]);
 
   const prime = useCallback(async () => {
-    if (!showId) return;
+    if (!showId || isAnonymous) return;
     setPriming(true);
     try {
-      await syncAtShowData(showId);
+      // Permissions refresh re-persists the RBAC cache (MYK9-200), healing a
+      // device whose cache was missing or expired — show data alone is not
+      // enough to be offline ready.
+      await Promise.all([syncAtShowData(showId), refreshPermissions?.()]);
     } finally {
       setPriming(false);
     }
     await check();
-  }, [showId, check]);
+  }, [showId, isAnonymous, refreshPermissions, check]);
 
   return { readiness, checking, priming, prime };
 }

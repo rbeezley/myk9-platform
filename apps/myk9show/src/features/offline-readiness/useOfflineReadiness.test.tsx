@@ -2,29 +2,37 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
-const { tables, rbacCache, syncSpy, authState } = vi.hoisted(() => ({
+const { tables, rbacCache, syncSpy, refreshSpy, authState } = vi.hoisted(() => ({
   tables: {
-    trials: { meta: null as unknown, trialsByShow: [] as Array<{ id: string }> },
-    classes: { metaByTrial: new Map<string, unknown>() },
-    entries: { meta: null as unknown },
+    trials: { meta: null as unknown, rows: [] as Array<{ id: string }> },
+    classes: {
+      metaByTrial: new Map<string, unknown>(),
+      rowsByTrial: new Map<string, Array<{ id: string }>>(),
+    },
+    entries: { meta: null as unknown, rows: [] as Array<{ id: string }> },
   },
   rbacCache: { entry: null as { cachedAt: string } | null },
   syncSpy: vi.fn(async () => {}),
-  authState: { userId: 'user-1' as string | undefined },
+  refreshSpy: vi.fn(async () => {}),
+  authState: { userId: 'user-1' as string | undefined, isAnonymous: false },
 }));
 
 vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: {
     getSyncMetadata: vi.fn(async () => tables.trials.meta),
-    getTrialsByShow: vi.fn(async () => tables.trials.trialsByShow),
+    getTrialsByShow: vi.fn(async () => tables.trials.rows),
   },
   replicatedClassesTable: {
     getSyncMetadata: vi.fn(
       async (trialId: string) => tables.classes.metaByTrial.get(trialId) ?? null
     ),
+    getClassesByTrial: vi.fn(
+      async (trialId: string) => tables.classes.rowsByTrial.get(trialId) ?? []
+    ),
   },
   replicatedEntriesTable: {
     getSyncMetadata: vi.fn(async () => tables.entries.meta),
+    getEntriesByShow: vi.fn(async () => tables.entries.rows),
   },
 }));
 
@@ -37,18 +45,29 @@ vi.mock('@/features/at-show/atShowDataAdapter', () => ({
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: authState.userId ? { id: authState.userId } : null }),
+  useAuthContext: () => ({
+    user: authState.userId ? { id: authState.userId, is_anonymous: authState.isAnonymous } : null,
+    refreshPermissions: refreshSpy,
+  }),
 }));
 
-const hydratedMeta = (lastIncrementalSyncAt: number) => ({ totalRows: 5, lastIncrementalSyncAt });
+const meta = (lastIncrementalSyncAt: number, totalRows: number) => ({
+  totalRows,
+  lastIncrementalSyncAt,
+});
+
+const rows = (count: number) => Array.from({ length: count }, (_, i) => ({ id: `row-${i}` }));
 
 function primeAllSignals() {
   rbacCache.entry = { cachedAt: new Date(1_000).toISOString() };
-  tables.trials.meta = hydratedMeta(2_000);
-  tables.trials.trialsByShow = [{ id: 'trial-1' }, { id: 'trial-2' }];
-  tables.classes.metaByTrial.set('trial-1', hydratedMeta(3_000));
-  tables.classes.metaByTrial.set('trial-2', hydratedMeta(4_000));
-  tables.entries.meta = hydratedMeta(5_000);
+  tables.trials.meta = meta(2_000, 2);
+  tables.trials.rows = [{ id: 'trial-1' }, { id: 'trial-2' }];
+  tables.classes.metaByTrial.set('trial-1', meta(3_000, 1));
+  tables.classes.metaByTrial.set('trial-2', meta(4_000, 1));
+  tables.classes.rowsByTrial.set('trial-1', rows(1));
+  tables.classes.rowsByTrial.set('trial-2', rows(1));
+  tables.entries.meta = meta(5_000, 3);
+  tables.entries.rows = rows(3) as Array<{ id: string }>;
 }
 
 describe('useOfflineReadiness', () => {
@@ -56,10 +75,13 @@ describe('useOfflineReadiness', () => {
     vi.clearAllMocks();
     rbacCache.entry = null;
     tables.trials.meta = null;
-    tables.trials.trialsByShow = [];
+    tables.trials.rows = [];
     tables.classes.metaByTrial.clear();
+    tables.classes.rowsByTrial.clear();
     tables.entries.meta = null;
+    tables.entries.rows = [];
     authState.userId = 'user-1';
+    authState.isAnonymous = false;
   });
 
   it('reports ready with the oldest timestamp when everything is on disk', async () => {
@@ -96,6 +118,30 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(['classes']);
   });
 
+  it('treats an evicted scope (fewer local rows than the watermark counted) as cold', async () => {
+    primeAllSignals();
+    tables.entries.rows = rows(1); // metadata still claims 3 — quota eviction
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['entries']);
+  });
+
+  it('ignores a zero watermark instead of reporting a 1970 as-of', async () => {
+    primeAllSignals();
+    tables.entries.meta = meta(0, 3); // synced-but-empty-watermark shape
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+    expect(result.current.readiness?.asOf).toBe(1_000);
+  });
+
   it('prime() runs the at-show sync and re-checks to ready', async () => {
     const { result } = renderHook(() => useOfflineReadiness('show-1'));
     await waitFor(() => {
@@ -113,6 +159,40 @@ describe('useOfflineReadiness', () => {
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });
+  });
+
+  it('prime() also refreshes permissions so a missing RBAC cache can heal', async () => {
+    primeAllSignals();
+    rbacCache.entry = null;
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['permissions']);
+    });
+
+    refreshSpy.mockImplementationOnce(async () => {
+      rbacCache.entry = { cachedAt: new Date(1_000).toISOString() };
+    });
+    await act(async () => {
+      await result.current.prime();
+    });
+
+    expect(refreshSpy).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+  });
+
+  it('returns no readiness for an anonymous passcode session', async () => {
+    primeAllSignals();
+    authState.isAnonymous = true;
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.readiness).toBeNull();
   });
 
   it('returns no readiness without a show id or user', async () => {

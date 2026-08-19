@@ -19,19 +19,83 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, SearchX } from 'lucide-react';
 import { replicatedShowsTable } from '@/services/replication';
 import { EmptyState, ErrorEmptyState, LoadingEmptyState } from '@/components/common/EmptyState';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { useOnlineStatus } from '@/lib/networkUtils';
+import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
+import { hasRingsideStaffRole } from './ringsideAccountAccess';
 
 /** Full-screen wrapper — `/at-show` renders outside the sidebar layout. */
 function FullScreen({ children }: { children: ReactNode }) {
   return <div className="flex min-h-dvh items-center justify-center p-6">{children}</div>;
 }
 
+async function loadShow(showId: string, isOnline: boolean, canVerifyOnline: boolean) {
+  const show = await replicatedShowsTable.getShowById(showId);
+  if (show || !isOnline || !canVerifyOnline) return { show, verifiedOnline: false };
+
+  // A local miss while online is not enough to call the show unknown: the
+  // replica may simply be cold. Sync the show table, then make the same local
+  // read again so a real 404 remains distinguishable from an uncached show.
+  await replicatedShowsTable.updateSyncMetadata({
+    lastIncrementalSyncAt: 0,
+    // The table may be partially populated, so resetting only the global
+    // watermark could still skip the missing show in a scoped sync.
+    scopes: {},
+  });
+  const syncResult = await replicatedShowsTable.sync('');
+  if (!syncResult.success) {
+    throw syncResult.error ?? new Error("We couldn't refresh shows");
+  }
+
+  return {
+    show: await replicatedShowsTable.getShowById(showId),
+    verifiedOnline: true,
+  };
+}
+
+function MissingShowState({
+  showId,
+  verifiedOnline,
+}: {
+  showId: string | undefined;
+  verifiedOnline: boolean;
+}) {
+  const { user, hasRole } = useAuthContext();
+  const navigate = useNavigate();
+  const isOnline = useOnlineStatus();
+  const canPrime = Boolean(user && !user.is_anonymous && hasRingsideStaffRole(hasRole));
+  const showIsUncached = !verifiedOnline && !isOnline;
+
+  return (
+    <div className="flex flex-col items-center">
+      <EmptyState
+        icon={SearchX}
+        title={showIsUncached ? "This show isn't saved on this device" : 'Show not found'}
+        description={
+          showIsUncached
+            ? 'This device has no saved copy of this show. Connect to the internet and prepare it for offline use before continuing.'
+            : "We couldn't find this show. It may have been removed, or the link may be out of date. Head back to your dashboard to find it."
+        }
+        action={{ label: 'Back to dashboard', onClick: () => navigate('/'), icon: ArrowLeft }}
+      />
+      {showIsUncached && canPrime && showId && (
+        <div className="-mt-6 mb-16">
+          <OfflineReadyBadge showId={showId} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RingsideShowBoundary({ children }: { children: ReactNode }) {
   const { showId } = useParams<{ showId: string }>();
-  const navigate = useNavigate();
+  const { user } = useAuthContext();
+  const isOnline = useOnlineStatus();
+  const canVerifyOnline = Boolean(user && !user.is_anonymous);
 
   const showQuery = useQuery({
-    queryKey: ['shows', 'at-show', 'ringside-boundary', showId],
-    queryFn: () => replicatedShowsTable.getShowById(showId as string),
+    queryKey: ['shows', 'at-show', 'ringside-boundary', showId, isOnline, canVerifyOnline],
+    queryFn: () => loadShow(showId as string, isOnline, canVerifyOnline),
     enabled: !!showId,
   });
 
@@ -56,14 +120,12 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!showQuery.data) {
+  if (!showQuery.data?.show) {
     return (
       <FullScreen>
-        <EmptyState
-          icon={SearchX}
-          title="Show not found"
-          description="We couldn't find this show. It may have been removed, or the link may be out of date. Head back to your dashboard to find it."
-          action={{ label: 'Back to dashboard', onClick: () => navigate('/'), icon: ArrowLeft }}
+        <MissingShowState
+          showId={showId}
+          verifiedOnline={showQuery.data?.verifiedOnline ?? false}
         />
       </FullScreen>
     );

@@ -47,6 +47,9 @@ export default function CheckoutSuccessPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  // True once the bounded background timer chain has spent its budget — the
+  // card must stop claiming automatic checking (focus/manual still re-verify).
+  const [backgroundRecheckExhausted, setBackgroundRecheckExhausted] = useState(false);
   const [verificationIssue, setVerificationIssue] = useState<VerificationIssue | null>(null);
   const [orderDetails, setOrderDetails] = useState<{
     orderId?: string;
@@ -159,6 +162,7 @@ export default function CheckoutSuccessPage() {
     const abortController = new AbortController();
     setIsLoading(true);
     setIsCheckingStatus(false);
+    setBackgroundRecheckExhausted(false);
     setVerificationIssue(null);
     setOrderDetails(null);
     setEntries([]);
@@ -261,7 +265,16 @@ export default function CheckoutSuccessPage() {
     };
 
     const scheduleNext = () => {
-      if (cancelled || scheduledChecks >= MAX_BACKGROUND_RECHECKS) return;
+      if (cancelled) return;
+      if (scheduledChecks >= MAX_BACKGROUND_RECHECKS) {
+        // Budget spent: stop the timer chain and let the card stop claiming
+        // automatic checking. Focus re-verify is DELIBERATELY not capped —
+        // it costs a deliberate user action (same class as the manual
+        // button), is serialized, and the phone-out-of-the-pocket-later
+        // case is the very scenario MYK9-207 exists for.
+        setBackgroundRecheckExhausted(true);
+        return;
+      }
       scheduledChecks += 1;
       // Replace, never stack: a focus-triggered check that fails would
       // otherwise add a second pending timer alongside the scheduled one.
@@ -352,7 +365,7 @@ export default function CheckoutSuccessPage() {
         canCheckStatus={shouldBackgroundRecheck}
         isCheckingStatus={isCheckingStatus}
         warnAgainstNewPayment={shouldBackgroundRecheck}
-        autoRecheckActive={shouldBackgroundRecheck}
+        autoRecheckActive={shouldBackgroundRecheck && !backgroundRecheckExhausted}
         onCheckStatus={handleCheckPaymentStatus}
       />
     );

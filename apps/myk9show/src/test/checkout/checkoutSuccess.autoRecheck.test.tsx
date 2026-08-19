@@ -206,5 +206,38 @@ describe('CheckoutSuccessPage background re-check (MYK9-207)', () => {
     expect(verifyCheckoutSessionMock).toHaveBeenCalledTimes(11 + MAX_BACKGROUND_RECHECKS);
     expect(screen.getByRole('heading', { name: 'Payment Still Processing' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check Payment Status' })).toBeInTheDocument();
+    // Budget spent: the card must stop claiming automatic checking…
+    expect(
+      screen.queryByText(/keeps checking and will update on its own/i)
+    ).not.toBeInTheDocument();
+    // …but the refund reassurance for a proven-pending order stays.
+    expect(screen.getByText(/refunded automatically in full/i)).toBeInTheDocument();
+  });
+
+  it('still re-verifies on focus after the background budget is spent', async () => {
+    // DELIBERATE: focus re-verify is exempt from MAX_BACKGROUND_RECHECKS — it
+    // costs a user action (like the manual button) and the phone opened long
+    // after payment is the exact MYK9-207 scenario. Do not "fix" by capping it.
+    verifyCheckoutSessionMock.mockResolvedValue(processingResult);
+
+    render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_focus_after_cap',
+    });
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(verifyCheckoutSessionMock).toHaveBeenCalledTimes(11 + MAX_BACKGROUND_RECHECKS);
+
+    verifyCheckoutSessionMock.mockResolvedValue(overflowRefundResult);
+    await act(async () => {
+      fireEvent(window, new Event('focus'));
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('Payment Refunded')).toBeInTheDocument();
   });
 });

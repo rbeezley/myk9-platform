@@ -55,8 +55,12 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
     const { data, error } = await applyActiveRoleValidity(
       supabase
         .from('user_roles')
-        .select('auth_user_id, is_active, expires_at, roles!inner(name)')
+        .select('auth_user_id, is_active, expires_at, show_id, roles!inner(name)')
         .eq('club_id', clubId)
+        // grant_show_official writes SHOW-scoped rows that still carry the
+        // club id, so a club_id-only filter would nudge officials assigned to
+        // a different show of the same club.
+        .or(`show_id.is.null,show_id.eq.${trial.show_id}`)
     );
     if (error) throw error;
     for (const row of data ?? []) {
@@ -175,9 +179,12 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
     for (const authUserId of recipients) {
       // Claim the (trial, recipient) pair FIRST. The unique constraint makes a
       // concurrent or repeated cron run a no-op instead of a second buzz.
+      // Generate the claim token ourselves so every later write can be
+      // conditional on holding THIS claim.
+      let claimToken = new Date().toISOString();
       const { error: claimError } = await supabase
         .from('show_eve_nudge_log')
-        .insert({ trial_id: trial.id, auth_user_id: authUserId });
+        .insert({ trial_id: trial.id, auth_user_id: authUserId, claimed_at: claimToken });
 
       if (claimError) {
         // A row already exists. That is only proof of DELIVERY if delivered_at
@@ -199,9 +206,10 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
         // schedule, and both could read the same stale claim and send. Only
         // the invocation whose update actually matches (still undelivered,
         // still holding the claim we read) proceeds.
+        const reclaimToken = new Date().toISOString();
         const { data: reclaimed } = await supabase
           .from('show_eve_nudge_log')
-          .update({ claimed_at: new Date().toISOString() })
+          .update({ claimed_at: reclaimToken })
           .eq('trial_id', trial.id)
           .eq('auth_user_id', authUserId)
           .eq('claimed_at', existing.claimed_at)
@@ -212,6 +220,7 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
           skipped += 1;
           continue;
         }
+        claimToken = reclaimToken;
       }
 
       let delivered = false;
@@ -226,20 +235,27 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
 
       if (delivered) {
         // Mark the claim as genuinely completed so no later run reclaims it.
+        // Conditional on still holding this claim: if a send outlived the
+        // lease and another run reclaimed it, that run owns the outcome.
         await supabase
           .from('show_eve_nudge_log')
           .update({ delivered_at: new Date().toISOString() })
           .eq('trial_id', trial.id)
-          .eq('auth_user_id', authUserId);
+          .eq('auth_user_id', authUserId)
+          .eq('claimed_at', claimToken);
         notified += 1;
       } else {
         // Nothing was delivered (no usable subscription, or a transient
         // failure) — release the claim so a later run can retry.
+        // Only release a claim we still hold, and never delete one another
+        // run has already marked delivered.
         await supabase
           .from('show_eve_nudge_log')
           .delete()
           .eq('trial_id', trial.id)
-          .eq('auth_user_id', authUserId);
+          .eq('auth_user_id', authUserId)
+          .eq('claimed_at', claimToken)
+          .is('delivered_at', null);
         skipped += 1;
       }
     }

@@ -214,6 +214,16 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
  * may still land. Releasing the claim would risk a duplicate, and stamping it
  * delivered would risk silence — so the claim is left in place and the lease
  * decides, which is exactly what the lease is for.
+ *
+ * KNOWN RESIDUAL, accepted deliberately: withTimeout rejects but cannot abort
+ * the underlying request. If one stays pending past the 5-minute lease and
+ * then succeeds after a later run has re-sent, that recipient gets two
+ * reminders. web-push@3 is consumed here as a Deno npm: import and exposes no
+ * cancellation we can verify, so the alternative would be guessing at a
+ * library API. The trade is chosen on consequences: a duplicate reminder is a
+ * moment's annoyance, while suppressing the nudge means someone arrives at a
+ * venue with an unprimed device — the exact failure this feature exists to
+ * prevent.
  */
 type SendOutcome = 'delivered' | 'failed' | 'uncertain';
 

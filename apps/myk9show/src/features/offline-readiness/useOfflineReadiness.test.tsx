@@ -70,7 +70,7 @@ vi.mock('@/features/at-show/atShowDataAdapter', () => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: authState.userId ? { id: authState.userId, is_anonymous: authState.isAnonymous } : null,
-    isJudge: authState.isJudge,
+    hasRole: (role: string) => (authState.isJudge ? role === 'judge' : false),
     userWithRoles: authState.userId ? { databaseUserId: 'person-1' } : null,
     refreshPermissions: refreshSpy,
   }),

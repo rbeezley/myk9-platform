@@ -36,7 +36,7 @@ describe('OfflineReadyBadge', () => {
 
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent(/offline ready/i);
-    expect(status.getAttribute('title')).toMatch(/as of/i);
+    expect(status.getAttribute('title')).toMatch(/oldest sync/i);
   });
 
   it('renders a not-ready BUTTON that primes the show on click', async () => {

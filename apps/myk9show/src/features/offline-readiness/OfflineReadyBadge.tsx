@@ -27,7 +27,14 @@ export function OfflineReadyBadge({ showId }: OfflineReadyBadgeProps) {
     return (
       <span
         role="status"
-        title={asOf ? `Show data and permissions saved on this device as of ${asOf}` : undefined}
+        // "Oldest sync" rather than "as of": some scopes (the show row, judge
+        // assignments) have no per-scope watermark, so this is the oldest
+        // KNOWN sync, not a guarantee about every cached row.
+        title={
+          asOf
+            ? `This show and your permissions are saved on this device. Oldest sync: ${asOf}.`
+            : 'This show and your permissions are saved on this device.'
+        }
         className="inline-flex min-h-11 items-center gap-2 rounded-md border border-success/30 bg-success/10 px-3 text-sm text-success"
       >
         <ShieldCheck className="h-4 w-4" />

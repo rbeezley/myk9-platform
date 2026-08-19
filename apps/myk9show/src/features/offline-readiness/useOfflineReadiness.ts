@@ -7,6 +7,7 @@ import {
   replicatedTrialsTable,
 } from '@/services/replication';
 import { getActiveJudgeAssignmentsForShow } from '@/services/database/judges/assignmentReads';
+import { isJudgeOnlyAtShow } from '@/features/at-show/isJudgeOnlyAtShow';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
 import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -121,10 +122,15 @@ async function gatherReadiness(
  * red for them.
  */
 export function useOfflineReadiness(showId: string | undefined) {
-  const { user, isJudge, userWithRoles, refreshPermissions } = useAuthContext();
+  const { user, hasRole, userWithRoles, refreshPermissions } = useAuthContext();
   const userId = user?.id;
-  // Judge readiness keys off the PERSON id the assignment rows carry.
-  const judgePersonId = isJudge ? (userWithRoles?.databaseUserId ?? null) : null;
+  // Only a judge-ONLY account depends on the assignment cache; a secretary who
+  // also judges gets the full picker, so demanding assignments from them would
+  // be a false red. Same rule as AtShowClassListPage, shared to keep them so.
+  const judgePersonId =
+    user && isJudgeOnlyAtShow({ isAnonymous: Boolean(user.is_anonymous), hasRole })
+      ? (userWithRoles?.databaseUserId ?? null)
+      : null;
   const isAnonymous = user?.is_anonymous === true;
   const [readiness, setReadiness] = useState<OfflineReadiness | null>(null);
   const [checking, setChecking] = useState(false);

@@ -46,6 +46,7 @@ import { AtShowClassRow } from './AtShowClassRow';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
+import { isJudgeOnlyAtShow } from './isJudgeOnlyAtShow';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
@@ -186,14 +187,7 @@ export const AtShowClassListPage: React.FC = () => {
   // gates. Broader staff roles still need the full picker for show-day
   // coordination, while anonymous passcode sessions are show-wide by design.
   const isJudgeOnly =
-    Boolean(user && !user.is_anonymous && hasRole(UserRole.JUDGE)) &&
-    ![
-      UserRole.SITE_ADMIN,
-      UserRole.SECRETARY,
-      UserRole.CLUB_ADMIN,
-      UserRole.CHAIRMAN,
-      UserRole.STEWARD,
-    ].some(hasRole);
+    Boolean(user) && isJudgeOnlyAtShow({ isAnonymous: Boolean(user?.is_anonymous), hasRole });
 
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(

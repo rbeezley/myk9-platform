@@ -232,18 +232,29 @@ export function selectShowEveRecipients({
 export function buildShowEveNudgePayload({
   showName,
   showId,
+  trialDate,
+  showStartDate,
 }: {
   showName: string;
   showId: string;
-  /** Present for caller clarity/logging; the copy deliberately says "tomorrow". */
+  /** The day being announced; the copy itself deliberately says "tomorrow". */
   trialDate?: string;
+  /** shows.start_date, used only to choose "starts" vs "continues". */
+  showStartDate?: string | null;
 }): ShowEveNudgePayload {
+  // A multi-day show gets a nudge on the eve of every day it runs, so telling
+  // a secretary on Sunday night that the show "starts tomorrow" is simply
+  // false. Only claim "starts" for the first day (or when the start date is
+  // unknown, where the plainer wording is the safer default).
+  const isLaterDay = Boolean(trialDate && showStartDate && trialDate > showStartDate);
+  const verb = isLaterDay ? 'continues' : 'starts';
+
   return {
     // Per-show tag: sw-custom.ts falls back to payload.type for the
     // notification tag, so a shared value would make a second show's nudge
     // replace the first instead of showing both.
     type: `show-eve:${showId}`,
-    title: `${showName} starts tomorrow`,
+    title: `${showName} ${verb} tomorrow`,
     body: 'You judge or run rings tomorrow. Open the show now, while you have internet, so it works without internet at the venue.',
     // Tapping the notification opens the show, which primes the device — the
     // reminder and the fix are the same action.

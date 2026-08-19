@@ -38,6 +38,7 @@ interface TrialRow {
     club_id: string | null;
     status: string | null;
     deleted_at: string | null;
+    start_date: string | null;
   } | null;
 }
 
@@ -184,6 +185,13 @@ async function loadRecipients(
 const PUSH_CALL_TIMEOUT_MS = 8_000;
 const PUSH_TIMEOUT_MESSAGE = 'push send timed out';
 const MAX_SUBSCRIPTIONS_PER_RECIPIENT = 10;
+/**
+ * Whole-invocation budget. Recipients are processed serially, so a slow push
+ * endpoint could otherwise keep one run alive until the runtime kills it — and
+ * the later recipients, always the same ones, would never be reached. Stopping
+ * cleanly hands them to the next run in the window instead.
+ */
+const RUN_DEADLINE_MS = 120_000;
 
 function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -281,7 +289,9 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
 
   const { data: trials, error: trialsError } = await supabase
     .from('trials')
-    .select('id, date, show_id, show:shows!inner(id, name, club_id, status, deleted_at)')
+    .select(
+      'id, date, show_id, show:shows!inner(id, name, club_id, status, deleted_at, start_date)'
+    )
     .eq('date', trialDate)
     // Trial-level state filters only. The SHOW-level checks run in TS via
     // isTrialNudgeable: embedded PostgREST filters must name the SELECT alias
@@ -309,17 +319,32 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
   const clubIdByShow = new Map(
     nudgeableTrials.map(trial => [trial.show_id, trial.show?.club_id ?? null])
   );
+  const startDateByShow = new Map(
+    nudgeableTrials.map(trial => [trial.show_id, trial.show?.start_date ?? null])
+  );
+
+  const runDeadline = Date.now() + RUN_DEADLINE_MS;
+  let deadlineReached = false;
 
   for (const group of groups) {
+    if (Date.now() > runDeadline) {
+      deadlineReached = true;
+      break;
+    }
     const payload = buildShowEveNudgePayload({
       showName: group.showName,
       showId: group.showId,
       trialDate: group.trialDate,
+      showStartDate: startDateByShow.get(group.showId) ?? null,
     });
 
     const recipients = await loadRecipients(supabase, group, clubIdByShow.get(group.showId) ?? null);
 
     for (const authUserId of recipients) {
+      if (Date.now() > runDeadline) {
+        deadlineReached = true;
+        break;
+      }
       // Claim the (show, date, recipient) triple FIRST. The unique constraint
       // makes a concurrent or repeated cron run a no-op instead of a second
       // buzz. Generate the claim token ourselves so every later write can be
@@ -444,5 +469,7 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
     skipped,
     unstamped,
     unreleased,
+    // True when the run stopped early; the next run in the window continues.
+    deadlineReached,
   };
 });

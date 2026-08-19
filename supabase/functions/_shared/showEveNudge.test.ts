@@ -109,6 +109,37 @@ describe('buildShowEveNudgePayload', () => {
     expect(payload.data.actionUrl).toBe('/at-show/show-1');
   });
 
+  it('says CONTINUES for a later day of a multi-day show', () => {
+    const payload = buildShowEveNudgePayload({
+      showName: 'Autumn Classic',
+      showId: 'show-1',
+      trialDate: '2026-08-21',
+      showStartDate: '2026-08-20',
+    });
+
+    expect(payload.title).toMatch(/continues tomorrow/i);
+    expect(payload.title).not.toMatch(/starts tomorrow/i);
+  });
+
+  it('says STARTS on the first day, and when the start date is unknown', () => {
+    expect(
+      buildShowEveNudgePayload({
+        showName: 'Autumn Classic',
+        showId: 'show-1',
+        trialDate: '2026-08-20',
+        showStartDate: '2026-08-20',
+      }).title
+    ).toMatch(/starts tomorrow/i);
+
+    expect(
+      buildShowEveNudgePayload({
+        showName: 'Autumn Classic',
+        showId: 'show-1',
+        trialDate: '2026-08-21',
+      }).title
+    ).toMatch(/starts tomorrow/i);
+  });
+
   it('carries a per-show notification tag so two shows do not collapse', () => {
     const first = buildShowEveNudgePayload({
       showName: 'Show One',

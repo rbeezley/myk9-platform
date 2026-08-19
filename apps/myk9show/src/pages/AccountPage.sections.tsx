@@ -7,11 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { getInitials } from '@/lib/utils';
 import { useProfileForm } from '@/hooks/useProfileForm';
 import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 import { useUpdatePerson } from '@/hooks/useUsers';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { USER_ROLE_HIERARCHY } from '@/types/auth-types';
+import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { deleteUser } from '@/services/database/users/reads';
 import { revokeSelfAuthIdentity } from '@/services/auth/revokeSelfAuthIdentity';
 import { getUserFriendlyError } from '@/utils/errorMessages';
@@ -29,6 +32,7 @@ function getPendingSelfDeleteRevocationKey(authUserId: string) {
 export function ProfileSection() {
   const form = useProfileForm();
   const updatePerson = useUpdatePerson();
+  const { getUserRoles } = useAuthContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const onSuccess = useCallback(
@@ -40,6 +44,8 @@ export function ProfileSection() {
 
   const { upload, uploading, error: avatarError } = useAvatarUpload({ onSuccess });
   const fullName = `${form.person?.firstName || ''} ${form.person?.lastName || ''}`.trim();
+  const userRoles = new Set(getUserRoles());
+  const roles = USER_ROLE_HIERARCHY.filter(role => userRoles.has(role));
 
   // Auto-clear the inline success indicator after a few seconds, matching
   // SecuritySettings' password-update feedback pattern.
@@ -206,6 +212,31 @@ export function ProfileSection() {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Your roles</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            These roles determine which parts of myK9Show are available to you.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {roles.length > 0 ? (
+            <div className="flex flex-wrap gap-2" aria-label="Assigned roles">
+              {roles.map(role => (
+                <Badge key={role} variant="secondary">
+                  {ROLE_LABELS[role] ?? role}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No roles assigned.</p>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Roles are managed by your organization administrator.
+          </p>
         </CardContent>
       </Card>
     </div>

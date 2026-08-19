@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
 import AccountPage from '@/pages/AccountPage';
+import { UserRole } from '@/types/auth-types';
 
 const mockForm = {
   personId: 'p-1',
@@ -34,8 +35,13 @@ vi.mock('@/hooks/useUsers', () => ({
 
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 let mockAuthUserId = 'u-1';
+const mockGetUserRoles = vi.fn(() => [UserRole.SECRETARY, UserRole.STEWARD, UserRole.EXHIBITOR]);
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ signOut: mockSignOut, user: { id: mockAuthUserId } }),
+  useAuthContext: () => ({
+    signOut: mockSignOut,
+    user: { id: mockAuthUserId },
+    getUserRoles: mockGetUserRoles,
+  }),
 }));
 
 const mockDeleteUser = vi.fn();
@@ -145,6 +151,16 @@ describe('AccountPage', () => {
     render();
     expect(screen.getByText('Profile photo')).toBeInTheDocument();
     expect(screen.getByText('Personal information')).toBeInTheDocument();
+  });
+
+  it('shows the signed-in user roles as read-only information', () => {
+    render();
+
+    expect(screen.getByText('Your roles')).toBeInTheDocument();
+    expect(screen.getByLabelText('Assigned roles')).toHaveTextContent('SecretaryStewardExhibitor');
+    expect(
+      screen.getByText('Roles are managed by your organization administrator.')
+    ).toBeInTheDocument();
   });
 
   it('opens the requested section from the section query param', () => {

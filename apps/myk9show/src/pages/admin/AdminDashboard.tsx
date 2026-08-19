@@ -137,7 +137,7 @@ export default function AdminDashboard() {
       alertsUnavailable,
       effective.isEmpty,
       effective.isStale,
-      latest,
+      latest?.createdAt,
     ]
   );
 

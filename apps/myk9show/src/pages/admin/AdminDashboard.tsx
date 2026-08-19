@@ -65,7 +65,7 @@ function StatTile({
 }) {
   const body = (
     <>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </p>
       <p className="mt-1.5 font-mono text-[25px] font-semibold leading-none tabular-nums text-foreground">
@@ -73,7 +73,7 @@ function StatTile({
       </p>
       <p
         className={cn(
-          'mt-1.5 text-[11px]',
+          'mt-1.5 text-xs',
           isError ? 'text-destructive' : isStale ? 'text-warning' : 'text-muted-foreground'
         )}
       >
@@ -169,6 +169,7 @@ export default function AdminDashboard() {
       <div className="container mx-auto max-w-6xl px-6 pb-10 pt-8">
         <header className="mb-[22px] flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <DashboardGreeting
+            as="h1"
             firstName={firstName}
             subtitle="Platform oversight. All times are Eastern."
             className="text-[25px] tracking-[-0.018em]"
@@ -253,7 +254,7 @@ export default function AdminDashboard() {
 
               <aside className="flex flex-col gap-[18px]">
                 <BoardCard>
-                  <Eyebrow>Today at a glance</Eyebrow>
+                  <Eyebrow as="h2">Today at a glance</Eyebrow>
                   <dl className="mt-3 grid grid-cols-2 gap-y-3">
                     {[
                       ['Entries', counts?.entriesToday],
@@ -262,7 +263,7 @@ export default function AdminDashboard() {
                       ['Live shows', counts?.liveShows],
                     ].map(([label, value]) => (
                       <div key={String(label)}>
-                        <dt className="text-[11px] text-muted-foreground">{label}</dt>
+                        <dt className="text-xs text-muted-foreground">{label}</dt>
                         <dd className="mt-0.5 font-mono text-[19px] font-semibold tabular-nums text-foreground">
                           {value ?? '—'}
                         </dd>
@@ -272,7 +273,7 @@ export default function AdminDashboard() {
                   {/* Fees processed is the fourth number the design asks for. It
                       has no clean source — money lives in Stripe and there is no
                       payments table — so it is left out rather than approximated. */}
-                  <p className="mt-3 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                  <p className="mt-3 border-t border-border pt-2.5 text-xs text-muted-foreground">
                     {countsError ? (
                       <span className="text-destructive">
                         Today&apos;s counts didn&apos;t load; they retry automatically.
@@ -284,23 +285,21 @@ export default function AdminDashboard() {
                 </BoardCard>
 
                 <BoardCard>
-                  <Eyebrow>Services</Eyebrow>
+                  <Eyebrow as="h2">Services</Eyebrow>
                   {/* Derived from the SAME snapshot /admin/health reads. Querying
                       this twice with different logic is how two pages start
                       disagreeing about whether the platform is up. */}
                   <ul className="mt-2.5 space-y-2">
                     {checks.length === 0 ? (
-                      <li className="text-[11.5px] text-muted-foreground">
-                        No checks in the last run.
-                      </li>
+                      <li className="text-xs text-muted-foreground">No checks in the last run.</li>
                     ) : (
                       checks.map(check => (
                         <li key={check.key} className="flex items-center gap-2">
                           <StatusDot status={check.status} />
-                          <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+                          <span className="min-w-0 flex-1 truncate text-xs text-foreground">
                             {check.label}
                           </span>
-                          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                          <span className="shrink-0 font-mono text-xs text-muted-foreground">
                             {statusLabel(check.status, check.verification)}
                           </span>
                         </li>
@@ -309,7 +308,7 @@ export default function AdminDashboard() {
                   </ul>
                   <Link
                     to="/admin/health"
-                    className="mt-3 inline-block border-t border-border pt-2.5 text-[11.5px] font-medium text-foreground hover:underline"
+                    className="mt-3 inline-block border-t border-border pt-2.5 text-xs font-medium text-foreground hover:underline"
                   >
                     Open system health →
                   </Link>

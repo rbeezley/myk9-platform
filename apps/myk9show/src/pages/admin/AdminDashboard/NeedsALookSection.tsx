@@ -44,9 +44,9 @@ export function NeedsALookSection({
   if (summary.total === 0) {
     return (
       <BoardCard>
-        <Eyebrow>Needs a look</Eyebrow>
+        <Eyebrow as="h2">Needs a look</Eyebrow>
         <p className="mt-2 text-[13px] text-foreground">Nothing is waiting on you.</p>
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           No checks are failing and no alerts are unresolved. This list fills itself from those two
           places. It is not a to-do list you can add to.
         </p>
@@ -58,7 +58,7 @@ export function NeedsALookSection({
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Eyebrow>Needs a look</Eyebrow>
+          <Eyebrow as="h2">Needs a look</Eyebrow>
           <span className="rounded-full bg-destructive/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-destructive">
             {summary.total}
           </span>
@@ -84,7 +84,7 @@ export function NeedsALookSection({
           >
             <span
               className={cn(
-                'shrink-0 self-start rounded-[5px] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em]',
+                'shrink-0 self-start rounded-[5px] px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-[0.05em]',
                 SEVERITY_CHIP[item.severity]
               )}
             >
@@ -95,12 +95,12 @@ export function NeedsALookSection({
               <span className="block truncate text-[13px] font-semibold text-foreground">
                 {item.title}
               </span>
-              <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                 {item.detail}
               </span>
             </span>
 
-            <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground sm:w-[92px]">
+            <span className="shrink-0 font-mono text-xs text-muted-foreground sm:w-[92px]">
               {formatCheckedAgo(item.openedAt, now)}
             </span>
 
@@ -114,7 +114,7 @@ export function NeedsALookSection({
         ))}
       </div>
 
-      <p className="text-[11.5px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Showing {visible.length} of {summary.total} open item{summary.total === 1 ? '' : 's'} from
         health checks and alerts.
       </p>

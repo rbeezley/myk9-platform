@@ -50,12 +50,14 @@ export function StatusDot({ status }: { status: CheckStatus }) {
   );
 }
 
-/** 10px uppercase section label. */
-export function Eyebrow({ children }: { children: ReactNode }) {
+/** 12px uppercase section label. Pass `as="h2"` when it titles a section, so
+ * screen-reader heading navigation can find the board's parts. */
+export function Eyebrow({ children, as }: { children: ReactNode; as?: 'p' | 'h2' | 'h3' }) {
+  const Tag = as ?? 'p';
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+    <Tag className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
       {children}
-    </p>
+    </Tag>
   );
 }
 
@@ -77,7 +79,7 @@ export function CountChip({
       <div className={cn('font-mono text-2xl font-semibold tabular-nums', STATUS_TEXT[status])}>
         {value}
       </div>
-      <div className="mt-0.5 text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -91,7 +93,7 @@ export function CountChip({
  */
 export function HistoryStrip({ runs, label }: { runs: CheckRun[]; label: string }) {
   if (runs.length === 0) {
-    return <span className="text-[11px] text-muted-foreground">no history yet</span>;
+    return <span className="text-xs text-muted-foreground">no history yet</span>;
   }
   const newest = runs.length - 1;
   return (

@@ -2,7 +2,7 @@
 --
 -- The evening before a trial day, `push-trigger-show-eve` reminds the people
 -- who will RUN that day to open the show while they still have internet. This
--- table is the idempotency ledger: one row per (trial, recipient) that was
+-- table is the idempotency ledger: one row per (trial, recipient, date) that was
 -- actually notified, so a cron re-run in the same window cannot buzz anyone
 -- twice. The function CLAIMS a pair before sending, stamps delivered_at only
 -- on a real delivery, and releases the claim when nothing was delivered — so a
@@ -12,6 +12,10 @@ create table if not exists public.show_eve_nudge_log (
   id uuid primary key default gen_random_uuid(),
   trial_id uuid not null references public.trials (id) on delete cascade,
   auth_user_id uuid not null,
+  -- The trial DATE this nudge announced. Part of the key so that rescheduling
+  -- a trial earns a fresh nudge for the new date instead of colliding with the
+  -- row from the old one and silently skipping everyone.
+  trial_date date not null,
   -- Claim time, written before the send attempt.
   claimed_at timestamptz not null default now(),
   -- Set only after a push is actually delivered. A row with a NULL here is a
@@ -19,11 +23,11 @@ create table if not exists public.show_eve_nudge_log (
   -- a lease window rather than treating the unique conflict as "already sent"
   -- and silently suppressing that person's nudge forever.
   delivered_at timestamptz,
-  constraint show_eve_nudge_log_unique_pair unique (trial_id, auth_user_id)
+  constraint show_eve_nudge_log_unique_pair unique (trial_id, auth_user_id, trial_date)
 );
 
 comment on table public.show_eve_nudge_log is
-  'MYK9-203: idempotency ledger for the show-eve offline-priming push. One row per (trial, recipient); delivered_at distinguishes a completed send from an abandoned claim.';
+  'MYK9-203: idempotency ledger for the show-eve offline-priming push. One row per (trial, recipient, date); delivered_at distinguishes a completed send from an abandoned claim.';
 
 -- Recipients are only ever looked up per trial when the cron runs.
 create index if not exists show_eve_nudge_log_trial_idx

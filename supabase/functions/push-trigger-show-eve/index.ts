@@ -9,6 +9,7 @@ import {
   buildShowEveNudgePayload,
   isJudgeAssignedToTrial,
   isTrialNudgeable,
+  filterPushOptedIn,
   shouldReclaimStaleClaim,
   selectShowEveRecipients,
   type ShowEveClubStaffRow,
@@ -120,7 +121,20 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
       status: (row as { status: string | null }).status,
     }));
 
-  return selectShowEveRecipients({ clubStaff, judges });
+  const recipients = selectShowEveRecipients({ clubStaff, judges });
+  if (recipients.length === 0) return recipients;
+
+  // Respect the persisted push opt-out, as push-trigger-run-proximity does.
+  const { data: preferences, error: preferencesError } = await supabase
+    .from('notification_preferences')
+    .select('auth_user_id, push_enabled')
+    .in('auth_user_id', recipients);
+  if (preferencesError) throw preferencesError;
+
+  return filterPushOptedIn(
+    recipients,
+    (preferences ?? []) as Array<{ auth_user_id: string | null; push_enabled: boolean | null }>
+  );
 }
 
 /**
@@ -266,7 +280,12 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
       let claimToken = new Date().toISOString();
       const { error: claimError } = await supabase
         .from('show_eve_nudge_log')
-        .insert({ trial_id: trial.id, auth_user_id: authUserId, claimed_at: claimToken });
+        .insert({
+          trial_id: trial.id,
+          auth_user_id: authUserId,
+          trial_date: trial.date,
+          claimed_at: claimToken,
+        });
 
       if (claimError) {
         // A row already exists. That is only proof of DELIVERY if delivered_at
@@ -277,6 +296,7 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
           .select('claimed_at, delivered_at')
           .eq('trial_id', trial.id)
           .eq('auth_user_id', authUserId)
+          .eq('trial_date', trial.date)
           .maybeSingle();
 
         if (!existing || !shouldReclaimStaleClaim(existing, Date.now())) {
@@ -294,6 +314,7 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
           .update({ claimed_at: reclaimToken })
           .eq('trial_id', trial.id)
           .eq('auth_user_id', authUserId)
+          .eq('trial_date', trial.date)
           .eq('claimed_at', existing.claimed_at)
           .is('delivered_at', null)
           .select('id');
@@ -333,6 +354,7 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
             .update({ delivered_at: new Date().toISOString() })
             .eq('trial_id', trial.id)
             .eq('auth_user_id', authUserId)
+            .eq('trial_date', trial.date)
             .eq('claimed_at', claimToken)
             .select('id');
 
@@ -357,6 +379,7 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
           .delete()
           .eq('trial_id', trial.id)
           .eq('auth_user_id', authUserId)
+          .eq('trial_date', trial.date)
           .eq('claimed_at', claimToken)
           .is('delivered_at', null);
         skipped += 1;

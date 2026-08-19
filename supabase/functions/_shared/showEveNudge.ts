@@ -102,6 +102,22 @@ export function isTrialNudgeable(trial: {
   return show.status !== 'cancelled';
 }
 
+/**
+ * Honour the persisted push opt-out. `notification_preferences.push_enabled`
+ * exists so server-side senders suppress delivery; only an explicit `false`
+ * opts out, since the column defaults to true and a user with no row at all
+ * has never opted out of anything.
+ */
+export function filterPushOptedIn(
+  recipients: string[],
+  preferences: Array<{ auth_user_id: string | null; push_enabled: boolean | null }>
+): string[] {
+  const optedOut = new Set(
+    preferences.filter(p => p.push_enabled === false).map(p => p.auth_user_id)
+  );
+  return recipients.filter(id => !optedOut.has(id));
+}
+
 export interface ShowEveNudgePayload {
   title: string;
   body: string;

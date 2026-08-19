@@ -4,6 +4,7 @@ import {
   CLAIM_LEASE_MS,
   isJudgeAssignedToTrial,
   isTrialNudgeable,
+  filterPushOptedIn,
   selectShowEveRecipients,
   shouldReclaimStaleClaim,
   type ShowEveClubStaffRow,
@@ -253,5 +254,21 @@ describe('selectShowEveRecipients — judges come only from assignments', () => 
     });
 
     expect(recipients).toEqual(['judge-working']);
+  });
+});
+
+describe('filterPushOptedIn', () => {
+  it('keeps a recipient who has no preferences row — push_enabled defaults to true', () => {
+    expect(filterPushOptedIn(['a', 'b'], [])).toEqual(['a', 'b']);
+  });
+
+  it('drops a recipient who explicitly turned push off', () => {
+    expect(
+      filterPushOptedIn(['a', 'b'], [{ auth_user_id: 'b', push_enabled: false }])
+    ).toEqual(['a']);
+  });
+
+  it('keeps a recipient whose push_enabled is null (unset, not disabled)', () => {
+    expect(filterPushOptedIn(['a'], [{ auth_user_id: 'a', push_enabled: null }])).toEqual(['a']);
   });
 });

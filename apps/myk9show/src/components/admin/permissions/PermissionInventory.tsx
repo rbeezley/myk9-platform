@@ -7,18 +7,16 @@
  * the role matrix of PermissionGrid (which is per-role) or the change-log of
  * PermissionAuditPage.
  */
-import React, { useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Search, KeyRound, RotateCcw, AlertCircle } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Search, RotateCcw, AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
 import type { Permission } from '@/types/rbac-types';
-import {
-  getPermissionResource,
-  getPermissionDisplayName,
-} from './permissionDisplay';
+import { getPermissionResource, getPermissionDisplayName } from './permissionDisplay';
 
 interface PermissionInventoryProps {
   permissions: Permission[];
@@ -26,14 +24,18 @@ interface PermissionInventoryProps {
   isLoading?: boolean;
   /** Non-null when the fetch failed; shown instead of the (false) empty state. */
   error?: string | null;
+  /** Reloads the permission list after an error. */
+  onRetry?: () => void;
 }
 
 export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
   permissions,
   isLoading = false,
   error = null,
+  onRetry,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [openResources, setOpenResources] = useState<Set<string>>(new Set());
 
   const permissionsByResource = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -68,11 +70,26 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
 
   const matchCount = resources.reduce((sum, r) => sum + permissionsByResource[r].length, 0);
 
+  useEffect(() => {
+    setOpenResources(searchTerm ? new Set(resources) : new Set());
+  }, [resources, searchTerm]);
+
+  const formatResource = (resource: string) =>
+    resource.replace(/[_-]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+
   if (error) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          {onRetry && (
+            <Button variant="outline" className="h-11" onClick={onRetry}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try again
+            </Button>
+          )}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -87,10 +104,8 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
         </Card>
         {[...Array(3)].map((_, i) => (
           <Card key={i}>
-            <CardHeader className="pb-3">
+            <CardContent className="space-y-3 p-6">
               <div className="h-5 w-40 bg-muted rounded animate-pulse" />
-            </CardHeader>
-            <CardContent className="pt-0 space-y-3">
               <div className="h-4 bg-muted rounded animate-pulse" />
               <div className="h-4 w-3/4 bg-muted rounded animate-pulse" />
             </CardContent>
@@ -103,13 +118,7 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5" />
-            Permission Inventory
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -117,7 +126,7 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
                 placeholder="Search permissions by name, code, or resource..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="h-11 pl-10"
                 aria-label="Search permissions"
               />
             </div>
@@ -126,7 +135,7 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
                 {matchCount} of {permissions.length} permissions
               </Badge>
               {searchTerm && (
-                <Button variant="outline" size="sm" onClick={() => setSearchTerm('')}>
+                <Button variant="outline" className="h-11" onClick={() => setSearchTerm('')}>
                   <RotateCcw className="h-4 w-4 mr-2" />
                   Clear
                 </Button>
@@ -136,42 +145,67 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
         </CardContent>
       </Card>
 
-      {resources.map(resource => (
-        <Card key={resource}>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <CardTitle className="text-lg capitalize">{resource} Permissions</CardTitle>
-              <Badge variant="outline">
-                {permissionsByResource[resource].length} permissions
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-2">
-              {permissionsByResource[resource].map(permission => (
-                <div
-                  key={permission.id}
-                  className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-b-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+      {resources.length > 0 && (
+        <Card>
+          <CardContent className="divide-y p-0">
+            {resources.map(resource => {
+              const count = permissionsByResource[resource].length;
+              const isOpen = openResources.has(resource);
+              return (
+                <Collapsible
+                  key={resource}
+                  open={isOpen}
+                  onOpenChange={open =>
+                    setOpenResources(current => {
+                      const next = new Set(current);
+                      if (open) next.add(resource);
+                      else next.delete(resource);
+                      return next;
+                    })
+                  }
                 >
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm">
-                      {getPermissionDisplayName(permission)}
+                  <CollapsibleTrigger
+                    className="min-h-14 px-5 text-left hover:no-underline"
+                    aria-label={`${formatResource(resource)} ${count} ${count === 1 ? 'permission' : 'permissions'}`}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="font-semibold">{formatResource(resource)}</span>
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {count} {count === 1 ? 'permission' : 'permissions'}
+                      </span>
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-state" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-5">
+                    <div className="space-y-1 border-t border-border pt-2">
+                      {permissionsByResource[resource].map(permission => (
+                        <div
+                          key={permission.id}
+                          className="flex flex-col gap-1 border-b border-border/50 py-3 last:border-b-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-medium">
+                              {getPermissionDisplayName(permission)}
+                            </div>
+                            {permission.description && (
+                              <div className="mt-1 text-sm text-muted-foreground">
+                                {permission.description}
+                              </div>
+                            )}
+                          </div>
+                          <code className="shrink-0 self-start rounded bg-muted px-2 py-1 text-sm">
+                            {permission.code}
+                          </code>
+                        </div>
+                      ))}
                     </div>
-                    {permission.description && (
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {permission.description}
-                      </div>
-                    )}
-                  </div>
-                  <code className="text-xs bg-muted px-1.5 py-0.5 rounded shrink-0 self-start">
-                    {permission.code}
-                  </code>
-                </div>
-              ))}
-            </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
           </CardContent>
         </Card>
-      ))}
+      )}
 
       {resources.length === 0 && (
         <Card>

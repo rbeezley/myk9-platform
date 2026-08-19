@@ -137,18 +137,18 @@ function FreshnessBand({
           {/* Full-strength status colour, no opacity: at 80% the warning/success
               text computed to ~3.85:1 on the tinted band in light mode — under
               the 4.5:1 AA floor for 14px text. Solid measures 5.7:1+. */}
-          <p className="mt-0.5 text-[14px]">
+          <p className="mt-0.5 text-sm">
             {scheduleLabel(now)}
             {duration && ` · last run took ${duration}`}
           </p>
-          {runError && <p className="mt-2 text-[14px] font-medium">{runError}</p>}
+          {runError && <p className="mt-2 text-sm font-medium">{runError}</p>}
         </div>
       </div>
       <button
         type="button"
         onClick={onRunNow}
         disabled={isRunning}
-        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[9px] border border-current px-3 text-[14px] font-medium transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
+        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[9px] border border-current px-3 text-sm font-medium transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60"
       >
         {isRunning ? (
           <LoaderCircle aria-hidden className="size-4 animate-spin" />

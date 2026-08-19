@@ -21,19 +21,19 @@ import {
 
 interface ScopedMeta {
   totalRows?: number;
+  expectedRemoteRows?: number;
   lastIncrementalSyncAt?: number;
 }
 
 /**
- * A scope counts as hydrated only when its watermark exists AND the local row
- * count has not fallen below what that watermark recorded — quota eviction
- * deletes cached rows without touching the metadata, and a badge that says
- * "Offline ready" over an evicted store is worse than no badge. A zero
- * watermark (synced-but-empty shape) is treated as "time unknown", never as
- * epoch 1970.
+ * A scope counts as hydrated only when its server-derived expected row count is
+ * known and every expected row is present locally. The older local-only
+ * `totalRows` value is intentionally not sufficient: quota eviction can
+ * rewrite it downward and make a partial replica look complete.
  */
 function toScope(label: string, meta: ScopedMeta | null, localRowCount: number): ScopeReadiness {
-  const hydrated = meta?.totalRows !== undefined && localRowCount >= meta.totalRows;
+  const hydrated =
+    meta?.expectedRemoteRows !== undefined && localRowCount >= meta.expectedRemoteRows;
   return {
     label,
     hydrated,
@@ -115,7 +115,7 @@ async function gatherReadiness(
     }
     scopes.push({
       label: 'judge assignments',
-      hydrated: Boolean(judge.personId) && assignmentsMeta?.totalRows !== undefined,
+      hydrated: Boolean(judge.personId) && assignmentsMeta?.expectedRemoteRows !== undefined,
       lastSyncAt: null,
     });
   }

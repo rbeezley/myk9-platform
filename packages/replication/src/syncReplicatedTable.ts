@@ -22,8 +22,18 @@ export interface RemoteFetchContext<TLocal extends { id: string }> {
   forceFullSync: boolean;
 }
 
+export interface RemoteRowCountContext {
+  scope: SyncScope;
+}
+
 export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string }> {
   fetchRemoteRows(context: RemoteFetchContext<TLocal>): Promise<TRemote[]>;
+  /**
+   * Return the server-side row count visible to this sync scope. This count is
+   * persisted separately from the local cache count so quota eviction cannot
+   * make a partial replica appear complete.
+   */
+  getRemoteRowCount?: (context: RemoteRowCountContext) => Promise<number | undefined>;
   getRemoteId(remote: TRemote): string;
   toLocalRow(remote: TRemote): TLocal;
 
@@ -127,9 +137,9 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   try {
     // Snapshot metadata BEFORE the 'syncing' write below, scoped to this sync's
     // scope.value so `since` is derived from the correct per-scope watermark. A
-    // partial updateSyncMetadata does not preserve `totalRows`, so reading after
-    // the status write would lose the previous row count needed to detect an
-    // unexpected empty-replica recovery.
+    // partial updateSyncMetadata does not preserve scope coverage metadata, so
+    // reading after the status write would lose the prior counts needed to
+    // detect an unexpected replica recovery.
     const metadata = await table.getSyncMetadata(scope.value);
 
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
@@ -152,6 +162,14 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     const localRows = await getLocalRowsForScope();
 
+    const rawExpectedRemoteRows = await adapter.getRemoteRowCount?.({ scope });
+    const expectedRemoteRows =
+      typeof rawExpectedRemoteRows === 'number' &&
+      Number.isFinite(rawExpectedRemoteRows) &&
+      rawExpectedRemoteRows >= 0
+        ? Math.floor(rawExpectedRemoteRows)
+        : undefined;
+
     // Periodic self-heal. The server-authoritative watermark below removes the
     // systemic drop, but a *partially* stale replica (most rows present, a few
     // missing) would never re-run a full sync on its own — `forceFullSync` would
@@ -162,13 +180,17 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
     const fullSyncStale = lastFullSyncAt > 0 && Date.now() - lastFullSyncAt > fullSyncIntervalMs;
 
-    const forceFullSync = options.forceFullSync === true || localRows.length === 0 || fullSyncStale;
+    const partialReplica =
+      expectedRemoteRows !== undefined && localRows.length < expectedRemoteRows;
+    const forceFullSync =
+      options.forceFullSync === true || localRows.length === 0 || partialReplica || fullSyncStale;
 
     // Observability: a full sync triggered by an empty local replica that metadata
     // says previously held rows is an unexpected eviction/heal — the silent failure
-    // mode this engine guards against. Surfaced on the result so callers can log it
-    // (the engine itself stays logger-free).
-    const recoveredFromEmptyReplica = localRows.length === 0 && (metadata?.totalRows ?? 0) > 0;
+    // mode this engine guards against. Prefer server coverage when available; the
+    // local count is retained as a legacy fallback for older metadata.
+    const recoveredFromEmptyReplica =
+      localRows.length === 0 && (metadata?.expectedRemoteRows ?? metadata?.totalRows ?? 0) > 0;
 
     // Finite-guard the persisted watermark: a corrupt IDB value (NaN/Infinity)
     // would otherwise reach `new Date(since).toISOString()` in the adapter and
@@ -354,6 +376,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         errorMessage: undefined,
         conflictCount: conflictsResolved,
         totalRows: (await getLocalRowsForScope()).length,
+        ...(expectedRemoteRows !== undefined ? { expectedRemoteRows } : {}),
       },
       { scopeValue: scope.value, advanceWatermarkMonotonically: advanceWatermark }
     );

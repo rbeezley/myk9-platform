@@ -83,6 +83,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 const meta = (lastIncrementalSyncAt: number, totalRows: number) => ({
   totalRows,
+  expectedRemoteRows: totalRows,
   lastIncrementalSyncAt,
 });
 
@@ -141,6 +142,17 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(
       expect.arrayContaining(['permissions', 'trials', 'classes', 'entries'])
     );
+  });
+
+  it('does not trust legacy local-only row counts as offline coverage', async () => {
+    primeAllSignals();
+    tables.entries.meta = { totalRows: 3, lastIncrementalSyncAt: 5_000 };
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries']);
+    });
   });
 
   it("treats one cold trial's classes as a cold classes scope", async () => {

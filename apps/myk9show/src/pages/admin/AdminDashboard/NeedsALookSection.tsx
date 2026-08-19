@@ -20,8 +20,10 @@ import {
 } from '@/features/admin-overview/triageSelectors';
 import { BoardCard, Eyebrow, FilterTabs } from '../SystemHealth/HealthBoardPrimitives';
 
+// Critical is the only solid fill so it outranks High at a glance; both modes
+// pass AA (light: white on rgb(185,28,28); dark: #450a0a on rgb(248,113,113)).
 const SEVERITY_CHIP: Record<TriageSeverity, string> = {
-  Critical: 'bg-destructive/10 text-destructive',
+  Critical: 'bg-destructive text-destructive-foreground',
   High: 'bg-destructive/10 text-destructive',
   Medium: 'bg-warning/10 text-warning',
   Low: 'bg-muted text-muted-foreground',

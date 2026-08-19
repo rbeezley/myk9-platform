@@ -57,6 +57,7 @@ vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: {
     sync: vi.fn(async () => ({ success: true })),
     getSyncMetadata: vi.fn(async () => tables.judgeAssignments.meta),
+    getAll: vi.fn(async () => tables.judgeAssignments.rows),
   },
 }));
 
@@ -83,6 +84,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 const meta = (lastIncrementalSyncAt: number, totalRows: number) => ({
   totalRows,
+  expectedRemoteRows: totalRows,
   lastIncrementalSyncAt,
 });
 
@@ -141,6 +143,17 @@ describe('useOfflineReadiness', () => {
     expect(result.current.readiness?.missing).toEqual(
       expect.arrayContaining(['permissions', 'trials', 'classes', 'entries'])
     );
+  });
+
+  it('does not trust legacy local-only row counts as offline coverage', async () => {
+    primeAllSignals();
+    tables.entries.meta = { totalRows: 3, lastIncrementalSyncAt: 5_000 };
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries']);
+    });
   });
 
   it("treats one cold trial's classes as a cold classes scope", async () => {
@@ -265,6 +278,20 @@ describe('useOfflineReadiness', () => {
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });
+  });
+
+  it('treats an evicted judge assignment scope as cold', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.meta = meta(6_000, 2);
+    tables.judgeAssignments.rows = [{ id: 'assignment-1' }];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
   it('does not require judge assignments for a non-judge', async () => {

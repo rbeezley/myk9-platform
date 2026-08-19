@@ -364,7 +364,8 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    * Get sync metadata for this table.
    *
    * When `scopeValue` is provided, the returned `lastIncrementalSyncAt` and
-   * `totalRows` are projected from that scope's `scopes[scopeValue]` sub-record
+   * `totalRows` and `expectedRemoteRows` are projected from that scope's
+   * `scopes[scopeValue]` sub-record
    * (defaulting to `0` when the scope has never synced). Callers therefore read
    * a scope-correct watermark without any branching. When `scopeValue` is
    * `undefined`, the raw table-global row is returned unchanged (back-compat).
@@ -420,6 +421,11 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     } else {
       delete projected.totalRows;
     }
+    if (scoped?.expectedRemoteRows !== undefined) {
+      projected.expectedRemoteRows = scoped.expectedRemoteRows;
+    } else {
+      delete projected.expectedRemoteRows;
+    }
     return projected;
   }
 
@@ -427,7 +433,8 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    * Update sync metadata (with atomic increment for numeric fields).
    *
    * When `options.scopeValue` is provided, the scope-sensitive fields
-   * (`lastIncrementalSyncAt`, `totalRows`) are routed into `scopes[scopeValue]`
+   * (`lastIncrementalSyncAt`, `totalRows`, `expectedRemoteRows`) are routed
+   * into `scopes[scopeValue]`
    * instead of the table-global slot — table-global fields (`syncStatus`,
    * `errorMessage`, `conflictCount`, `pendingMutations`) still update globally.
    * The full `scopes` map is always preserved across calls so an unscoped
@@ -479,8 +486,12 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
             : rawWatermark;
         const nextScope: ScopeSyncState = { lastIncrementalSyncAt: nextWatermark };
         const nextTotalRows = updates.totalRows ?? prevScope?.totalRows;
+        const nextExpectedRemoteRows = updates.expectedRemoteRows ?? prevScope?.expectedRemoteRows;
         if (nextTotalRows !== undefined) {
           nextScope.totalRows = nextTotalRows;
+        }
+        if (nextExpectedRemoteRows !== undefined) {
+          nextScope.expectedRemoteRows = nextExpectedRemoteRows;
         }
         scopes = { ...existing?.scopes, [scopeValue]: nextScope };
 
@@ -500,6 +511,8 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         }
         // totalRows has no meaningful table-global aggregate — keep it scope-only.
         delete atomicUpdates.totalRows;
+        // expectedRemoteRows is also scope-specific — keep it scope-only.
+        delete atomicUpdates.expectedRemoteRows;
       } else if (advanceWatermarkMonotonically && updates.lastIncrementalSyncAt !== undefined) {
         // No scope: advance table-global watermark monotonically.
         const existingWatermark = Number.isFinite(existing?.lastIncrementalSyncAt)

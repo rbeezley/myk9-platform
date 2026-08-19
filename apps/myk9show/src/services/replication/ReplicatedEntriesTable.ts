@@ -75,6 +75,32 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
+      getRemoteRowCount: async () => {
+        try {
+          const { count, error } = await supabase
+            .from('view_authenticated_entry_results')
+            .select('id', { count: 'exact', head: true })
+            .eq('show_id', showScopeId);
+
+          if (error) {
+            logger.warn(
+              `[${showScopeId}] Entries coverage count unavailable; continuing sync`,
+              'replication',
+              { message: error.message }
+            );
+            return undefined;
+          }
+
+          return count ?? 0;
+        } catch (error) {
+          logger.warn(
+            `[${showScopeId}] Entries coverage count unavailable; continuing sync`,
+            'replication',
+            { message: error instanceof Error ? error.message : String(error) }
+          );
+          return undefined;
+        }
+      },
       fetchRemoteRows: async ({ since }) => {
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
         // Read through the authenticated result view instead of public.entries:

@@ -65,6 +65,17 @@ describe('PayoutLedgerPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Platform fee updated to 8%');
   });
 
+  it('does not treat an empty fee field as zero', () => {
+    render(<PayoutLedgerPage />);
+
+    const input = screen.getByRole('spinbutton', { name: /fee percent/i });
+    fireEvent.change(input, { target: { value: '' } });
+
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: 'Update fee' })).toBeDisabled();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
   it('prioritizes platform income and the payout ledger above checkout settings', () => {
     render(<PayoutLedgerPage />);
     const headings = screen.getAllByRole('heading').map(heading => heading.textContent);

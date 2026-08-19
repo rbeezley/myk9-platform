@@ -76,6 +76,7 @@ function PlatformFeeCard() {
 
   const parsed = Number(value);
   const invalid =
+    value.trim() === '' ||
     !Number.isFinite(parsed) ||
     parsed < MIN_PLATFORM_FEE_PERCENT ||
     parsed > MAX_PLATFORM_FEE_PERCENT;

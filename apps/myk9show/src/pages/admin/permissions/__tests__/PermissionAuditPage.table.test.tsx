@@ -78,13 +78,13 @@ describe('PermissionAuditPage DataTable migration', () => {
     expect(screen.getByRole('combobox', { name: /action filter/i })).toBeInTheDocument();
   });
 
-  it('renders stat cards above the table', async () => {
+  it('renders a compact audit summary above the table', async () => {
     render(<PermissionAuditPage />);
     await screen.findByRole('table');
-    expect(screen.getByText('Total Events')).toBeInTheDocument();
-    expect(screen.getByText('Role Changes')).toBeInTheDocument();
-    expect(screen.getByText('Permission Changes')).toBeInTheDocument();
-    expect(screen.getByText('Unique Users')).toBeInTheDocument();
+    expect(screen.getByText('3 changes')).toBeInTheDocument();
+    expect(screen.getByText('2 role changes')).toBeInTheDocument();
+    expect(screen.getByText('1 permission change')).toBeInTheDocument();
+    expect(screen.queryByText('Total Events')).not.toBeInTheDocument();
   });
 
   it('renders column visibility toggle', async () => {

@@ -1,24 +1,12 @@
 /**
- * Permission Audit Log Page
- * Phase 3.5: View audit trail of permission changes
- * Created: December 2024
+ * View the audit trail for permission changes.
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  History,
-  Filter,
-  Calendar,
-  User,
-  Shield,
-  Settings,
-  Download,
-  RefreshCw,
-} from 'lucide-react';
+import { History, Filter, Calendar, Shield, Settings, Download, RefreshCw } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -35,24 +23,28 @@ import {
 } from '@/components/ui/data-table';
 import type { DataTableColumnMeta } from '@/components/ui/data-table';
 import { rbacService } from '@/services/rbac/RBACService';
-import { PermissionAuditLog } from '@/types/rbac-types';
+import type { PermissionAuditLog } from '@/types/rbac-types';
 import { formatDistanceToNow } from 'date-fns';
 
 function getActionIcon(actionType: string) {
   switch (actionType) {
     case 'assign_role':
     case 'create_role':
-      return <Shield className="h-4 w-4 text-green-600" />;
+      return <Shield className="h-4 w-4 text-primary" />;
     case 'revoke_role':
     case 'delete_role':
       return <Shield className="h-4 w-4 text-destructive" />;
     case 'grant_permission':
-      return <Settings className="h-4 w-4 text-blue-600" />;
+      return <Settings className="h-4 w-4 text-primary" />;
     case 'revoke_permission':
-      return <Settings className="h-4 w-4 text-orange-600" />;
+      return <Settings className="h-4 w-4 text-warning" />;
     default:
-      return <History className="h-4 w-4 text-gray-600" />;
+      return <History className="h-4 w-4 text-muted-foreground" />;
   }
+}
+
+function formatAction(action: string) {
+  return action.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
 function getActionBadgeVariant(actionType: string) {
@@ -76,7 +68,7 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
       <div className="flex items-center gap-2">
         {getActionIcon(row.original.action)}
         <Badge variant={getActionBadgeVariant(row.original.action) as 'default'}>
-          {row.original.action.replace(/_/g, ' ').toUpperCase()}
+          {formatAction(row.original.action)}
         </Badge>
       </div>
     ),
@@ -88,7 +80,12 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
       <div>
         <div className="font-medium">{row.original.user_id ? 'User' : 'System'}</div>
         {row.original.user_id && (
-          <div className="text-xs text-muted-foreground font-mono">{row.original.user_id}</div>
+          <div
+            className="max-w-40 truncate font-mono text-sm text-muted-foreground"
+            title={row.original.user_id}
+          >
+            {row.original.user_id}
+          </div>
         )}
       </div>
     ),
@@ -103,7 +100,7 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
         {row.original.target_id && row.original.target_type && (
           <div className="text-sm">
             {row.original.target_type}:{' '}
-            <span className="font-medium font-mono text-xs">{row.original.target_id}</span>
+            <span className="font-mono text-sm font-medium">{row.original.target_id}</span>
           </div>
         )}
       </div>
@@ -123,7 +120,7 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
       const val = row.original.new_value;
       if (!val || typeof val !== 'object') return null;
       return (
-        <div className="text-xs">
+        <div className="text-sm">
           {Object.entries(val).map(([key, value]) => (
             <div key={key}>
               <span className="text-muted-foreground">{key}:</span> {String(value)}
@@ -143,7 +140,7 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
             ? formatDistanceToNow(new Date(row.original.created_at), { addSuffix: true })
             : 'N/A'}
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           {row.original.created_at ? new Date(row.original.created_at).toLocaleTimeString() : ''}
         </div>
       </div>
@@ -189,8 +186,8 @@ const PermissionAuditPage: React.FC = () => {
       });
 
       setAuditLogs(logs);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load audit logs');
+    } catch {
+      setError("We couldn't load the permission history.");
     } finally {
       setIsLoading(false);
     }
@@ -238,41 +235,29 @@ const PermissionAuditPage: React.FC = () => {
     [auditLogs]
   );
 
+  const auditSummary = useMemo(() => {
+    const roleChanges = auditLogs.filter(log => log.action.includes('role')).length;
+    const permissionChanges = auditLogs.filter(log => log.action.includes('permission')).length;
+    return { roleChanges, permissionChanges };
+  }, [auditLogs]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
-          <div className="space-y-8">
-            {/* Header Skeleton */}
+      <div
+        className="min-h-screen bg-background"
+        role="status"
+        aria-label="Loading permission history"
+        aria-busy="true"
+      >
+        <div className="container mx-auto max-w-7xl px-6 pb-8 pt-8">
+          <div className="space-y-6">
             <div className="space-y-3">
               <div className="h-8 bg-muted rounded-lg w-64 animate-pulse" />
               <div className="h-4 bg-muted rounded w-96 animate-pulse" />
             </div>
-
-            {/* Stats Cards Skeleton */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="p-6 rounded-2xl border bg-card">
-                  <div className="space-y-3">
-                    <div className="h-4 bg-muted rounded w-24 animate-pulse" />
-                    <div className="h-8 bg-muted rounded w-16 animate-pulse" />
-                    <div className="h-3 bg-muted rounded w-20 animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Content Skeleton */}
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="p-6 rounded-2xl border bg-card">
-                  <div className="space-y-3">
-                    <div className="h-5 bg-muted rounded w-48 animate-pulse" />
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                    <div className="h-4 bg-muted rounded w-3/4 animate-pulse" />
-                  </div>
-                </div>
-              ))}
+            <div className="rounded-xl border bg-card p-5">
+              <div className="h-11 animate-pulse rounded bg-muted" />
+              <div className="mt-4 h-64 animate-pulse rounded bg-muted" />
             </div>
           </div>
         </div>
@@ -284,23 +269,17 @@ const PermissionAuditPage: React.FC = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
         <div className="space-y-8">
-          {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                <History className="h-8 w-8 text-primary" />
-                Permission Audit Log
+              <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight">
+                <History className="h-6 w-6 text-primary" />
+                Permission Audit
               </h1>
               <p className="text-muted-foreground mt-2">
-                Track all permission and role changes in the system
+                Review role and permission changes across the platform.
               </p>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => loadAuditLogs()}
-              className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40
-                         hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
-            >
+            <Button variant="outline" className="h-11" onClick={() => void loadAuditLogs()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
@@ -309,190 +288,96 @@ const PermissionAuditPage: React.FC = () => {
           {/* Error Display */}
           {error && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>{error}</span>
+                <Button variant="outline" className="h-11" onClick={() => void loadAuditLogs()}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Try again
+                </Button>
+              </AlertDescription>
             </Alert>
           )}
 
-          {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
-                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
-                         transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
-            >
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
-                           opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              />
-              <div className="relative flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Total Events
-                  </p>
-                  <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
-                    {auditLogs.length}
-                  </p>
-                </div>
-                <div
-                  className="p-2 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl
-                             shadow-sm group-hover:shadow-xl group-hover:scale-110
-                             transition-all duration-300"
-                >
-                  <History className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </Card>
-
-            <Card
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
-                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
-                         transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
-            >
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
-                           opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              />
-              <div className="relative flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Role Changes
-                  </p>
-                  <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
-                    {auditLogs.filter(log => log.action.includes('role')).length}
-                  </p>
-                </div>
-                <div
-                  className="p-2 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-xl
-                             shadow-sm group-hover:shadow-xl group-hover:scale-110
-                             transition-all duration-300"
-                >
-                  <Shield className="h-5 w-5 text-green-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
-                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
-                         transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
-            >
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
-                           opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              />
-              <div className="relative flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Permission Changes
-                  </p>
-                  <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
-                    {auditLogs.filter(log => log.action.includes('permission')).length}
-                  </p>
-                </div>
-                <div
-                  className="p-2 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-xl
-                             shadow-sm group-hover:shadow-xl group-hover:scale-110
-                             transition-all duration-300"
-                >
-                  <Settings className="h-5 w-5 text-purple-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card
-              className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80
-                         border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
-                         transition-all duration-500 hover:shadow-xl hover:-translate-y-2"
-            >
-              <div
-                className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent
-                           opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              />
-              <div className="relative flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                    Unique Users
-                  </p>
-                  <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
-                    {new Set(auditLogs.map(log => log.user_id)).size}
-                  </p>
-                </div>
-                <div
-                  className="p-2 bg-gradient-to-br from-orange-500/20 to-orange-500/10 rounded-xl
-                             shadow-sm group-hover:shadow-xl group-hover:scale-110
-                             transition-all duration-300"
-                >
-                  <User className="h-5 w-5 text-orange-500" />
-                </div>
-              </div>
-            </Card>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-card px-4 py-3 text-sm">
+            <span className="font-medium">
+              {auditLogs.length} {auditLogs.length === 1 ? 'change' : 'changes'}
+            </span>
+            <span aria-hidden="true" className="text-border">
+              •
+            </span>
+            <span className="text-muted-foreground">
+              {auditSummary.roleChanges}{' '}
+              {auditSummary.roleChanges === 1 ? 'role change' : 'role changes'}
+            </span>
+            <span aria-hidden="true" className="text-border">
+              •
+            </span>
+            <span className="text-muted-foreground">
+              {auditSummary.permissionChanges}{' '}
+              {auditSummary.permissionChanges === 1 ? 'permission change' : 'permission changes'}
+            </span>
           </div>
 
-          {/* Audit Log DataTable */}
-          <div
-            className="max-w-full overflow-x-auto rounded-lg"
-            aria-label="Permission audit log table scroll area"
-            role="region"
-            tabIndex={0}
-          >
-            <div className="min-w-[720px]">
-              <DataTable
-                tableId="permissionAudit"
-                columns={columns}
-                data={filteredLogs}
-                initialSorting={[{ id: 'created_at', desc: true }]}
-                emptyState={
-                  <div className="text-center py-8">
-                    <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No audit events found</h3>
-                    <p className="text-muted-foreground">
-                      No audit events in the selected time range
-                    </p>
-                  </div>
-                }
-                toolbar={({ table }) => (
-                  <DataTableToolbar table={table}>
-                    <DataTableSearch placeholder="Search audit logs..." />
-                    <Select value={dateRange} onValueChange={setDateRange}>
-                      <SelectTrigger className="w-40 h-8 text-xs" aria-label="Date range">
-                        <Calendar className="h-3.5 w-3.5 mr-1" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1d">Last 24 hours</SelectItem>
-                        <SelectItem value="7d">Last 7 days</SelectItem>
-                        <SelectItem value="30d">Last 30 days</SelectItem>
-                        <SelectItem value="90d">Last 90 days</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={actionFilter} onValueChange={setActionFilter}>
-                      <SelectTrigger className="w-44 h-8 text-xs" aria-label="Action filter">
-                        <Filter className="h-3.5 w-3.5 mr-1" />
-                        <SelectValue placeholder="Filter by action" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Actions</SelectItem>
-                        {actionTypes.map(actionType => (
-                          <SelectItem key={actionType} value={actionType}>
-                            {actionType.replace(/_/g, ' ').toUpperCase()}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <DataTableColumnToggle />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={handleExport}
+          <div aria-label="Permission audit log table" role="region">
+            <DataTable
+              tableId="permissionAudit"
+              columns={columns}
+              data={filteredLogs}
+              initialSorting={[{ id: 'created_at', desc: true }]}
+              emptyState={
+                <div className="text-center py-8">
+                  <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No audit events found</h3>
+                  <p className="text-muted-foreground">
+                    Try a wider date range or clear the action filter.
+                  </p>
+                </div>
+              }
+              toolbar={({ table }) => (
+                <DataTableToolbar table={table}>
+                  <DataTableSearch placeholder="Search audit logs..." />
+                  <Select value={dateRange} onValueChange={setDateRange}>
+                    <SelectTrigger className="h-11 w-full text-sm sm:w-40" aria-label="Date range">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1d">Last 24 hours</SelectItem>
+                      <SelectItem value="7d">Last 7 days</SelectItem>
+                      <SelectItem value="30d">Last 30 days</SelectItem>
+                      <SelectItem value="90d">Last 90 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={actionFilter} onValueChange={setActionFilter}>
+                    <SelectTrigger
+                      className="h-11 w-full text-sm sm:w-44"
+                      aria-label="Action filter"
                     >
-                      <Download className="h-3.5 w-3.5 mr-1" />
-                      Export
-                    </Button>
-                  </DataTableToolbar>
-                )}
-              />
-            </div>
+                      <Filter className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="Filter by action" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Actions</SelectItem>
+                      {actionTypes.map(actionType => (
+                        <SelectItem key={actionType} value={actionType}>
+                          {formatAction(actionType)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <DataTableColumnToggle />
+                  <Button
+                    variant="outline"
+                    className="h-11"
+                    disabled={filteredLogs.length === 0}
+                    onClick={handleExport}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </DataTableToolbar>
+              )}
+            />
           </div>
         </div>
       </div>

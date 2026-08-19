@@ -380,10 +380,7 @@ export function DataTable<TData>({
   return (
     <div
       data-datatable
-      className={cn(
-        'rounded-xl border border-border/50 bg-card/95 backdrop-blur-sm overflow-hidden',
-        className
-      )}
+      className={cn('overflow-hidden rounded-xl border border-border/50 bg-card', className)}
     >
       {toolbar
         ? toolbar({ table })

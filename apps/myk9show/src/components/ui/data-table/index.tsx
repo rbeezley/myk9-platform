@@ -430,7 +430,7 @@ export function DataTable<TData>({
           )}
 
       {/* Table component has its own overflow-auto wrapper */}
-      <Table scrollAreaLabel={scrollAreaLabel}>
+      <Table {...(scrollAreaLabel ? { scrollAreaLabel } : {})}>
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id} className="border-b border-border/50 bg-muted/30">

@@ -29,6 +29,7 @@ import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
+import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 import type { Show } from '@/types/show-types';
 
 function ShowDeskSyncStatus() {
@@ -100,10 +101,7 @@ export function ShowDeskCompactContext({
               Shows
             </Link>
             <span aria-hidden="true">/</span>
-            <Link
-              to={canonicalShowHref}
-              className="hover:text-foreground hover:underline"
-            >
+            <Link to={canonicalShowHref} className="hover:text-foreground hover:underline">
               Overview
             </Link>
             <span aria-hidden="true">/</span>
@@ -122,6 +120,7 @@ export function ShowDeskCompactContext({
         <div className="flex flex-wrap items-center justify-end gap-2">
           {(armbandCount ?? 0) > 0 && <ArmbandLookup showId={show.id} />}
           <ShowDeskSyncStatus />
+          <OfflineReadyBadge showId={show.id} />
           <LiveUpdateIndicator />
           <ShowPresenceStack />
           <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">

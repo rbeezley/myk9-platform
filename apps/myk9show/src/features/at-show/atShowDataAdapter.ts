@@ -34,7 +34,7 @@ import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSigna
 
 const atShowSyncsInFlight = new Map<string, Promise<void>>();
 
-function syncAtShowData(showId: string): Promise<void> {
+export function syncAtShowData(showId: string): Promise<void> {
   const existing = atShowSyncsInFlight.get(showId);
   if (existing) return existing;
 

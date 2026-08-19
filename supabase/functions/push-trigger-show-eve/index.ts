@@ -144,11 +144,17 @@ async function sendNudge(
   }
 
   if (expiredEndpoints.length > 0) {
-    await supabase
-      .from('push_subscriptions')
-      .delete()
-      .eq('user_id', authUserId)
-      .in('endpoint', expiredEndpoints);
+    try {
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', authUserId)
+        .in('endpoint', expiredEndpoints);
+    } catch {
+      // Housekeeping only. Letting this throw would unwind a push that was
+      // already delivered, and the caller would release the claim and send
+      // the same nudge again on the next run.
+    }
   }
 
   return delivered;
@@ -177,6 +183,10 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
 
   let notified = 0;
   let skipped = 0;
+  // A push that went out but whose ledger stamp failed: the send succeeded, so
+  // it counts as notified, but the claim may later look abandoned and be
+  // retried. Surfaced rather than hidden.
+  let unstamped = 0;
 
   const nudgeableTrials = ((trials ?? []) as unknown as TrialRow[]).filter(isTrialNudgeable);
 
@@ -251,12 +261,22 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
         // Mark the claim as genuinely completed so no later run reclaims it.
         // Conditional on still holding this claim: if a send outlived the
         // lease and another run reclaimed it, that run owns the outcome.
-        await supabase
-          .from('show_eve_nudge_log')
-          .update({ delivered_at: new Date().toISOString() })
-          .eq('trial_id', trial.id)
-          .eq('auth_user_id', authUserId)
-          .eq('claimed_at', claimToken);
+        const stampDelivered = async () =>
+          await supabase
+            .from('show_eve_nudge_log')
+            .update({ delivered_at: new Date().toISOString() })
+            .eq('trial_id', trial.id)
+            .eq('auth_user_id', authUserId)
+            .eq('claimed_at', claimToken)
+            .select('id');
+
+        let stamp = await stampDelivered();
+        if (stamp.error) stamp = await stampDelivered();
+        if (stamp.error) {
+          // The push WAS delivered; only the bookkeeping failed. Never delete
+          // the claim here — that would guarantee a duplicate next run.
+          unstamped += 1;
+        }
         notified += 1;
       } else {
         // Nothing was delivered (no usable subscription, or a transient
@@ -275,5 +295,5 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
     }
   }
 
-  return { trialDate, trials: nudgeableTrials.length, notified, skipped };
+  return { trialDate, trials: nudgeableTrials.length, notified, skipped, unstamped };
 });

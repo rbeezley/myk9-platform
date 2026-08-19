@@ -81,7 +81,10 @@ export function CountChip({
       <div className={cn('font-mono text-2xl font-semibold tabular-nums', STATUS_TEXT[status])}>
         {value}
       </div>
-      <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
+      {/* Label shares the numeral's status colour: muted-foreground on the 10%
+          tints computed to 3.7-3.9:1 in dark mode (AA needs 4.5); the status
+          colours measure 5.3:1+ on their tints in both modes. */}
+      <div className={cn('mt-0.5 text-xs', STATUS_TEXT[status])}>{label}</div>
     </div>
   );
 }

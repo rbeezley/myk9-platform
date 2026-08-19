@@ -132,7 +132,10 @@ function FreshnessBand({
                 ? `Some results are too old to answer “is it broken now?”`
                 : `All checks last ran ${age}`}
           </p>
-          <p className="mt-0.5 text-[14px] opacity-80">
+          {/* Full-strength status colour, no opacity: at 80% the warning/success
+              text computed to ~3.85:1 on the tinted band in light mode — under
+              the 4.5:1 AA floor for 14px text. Solid measures 5.7:1+. */}
+          <p className="mt-0.5 text-[14px]">
             {scheduleLabel(now)}
             {duration && ` · last run took ${duration}`}
           </p>

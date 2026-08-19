@@ -30,7 +30,7 @@ export function DataTableColumnToggle() {
     <div className="ml-auto">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8 text-xs" aria-label="Toggle columns">
+          <Button variant="outline" className="text-xs" aria-label="Toggle columns">
             <Columns3 className="h-3.5 w-3.5 mr-1" />
             Columns
           </Button>

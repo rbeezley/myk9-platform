@@ -20,6 +20,18 @@
   position: relative;
 }
 
+/* One scroller, and it's the labeled one. UserTable wraps this container in a
+   keyboard-focusable `role="region"` with overflow-x-auto; the DataTable root
+   (overflow-hidden) and the Table's own wrapper (overflow-auto) would otherwise
+   clip/scroll first, leaving keyboard users a focusable region that never
+   scrolls while the real scrollbar lives on an unfocusable inner div. */
+.myk9-table-container [data-datatable] {
+  overflow: visible;
+}
+.myk9-table-container [data-slot='table-scroll'] {
+  overflow: visible;
+}
+
 /* Table styling */
 .myk9-table {
   width: 100% !important;

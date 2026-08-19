@@ -457,7 +457,11 @@ export const UserTable: React.FC<UserTableProps> = ({
         handleRestoreUser,
         onManageRoles,
         hasPermission('admin:manage') ? handleChangeStatusUser : undefined,
-        currentUser?.id
+        // Roster rows are people rows, so the self-row guard needs the
+        // caller's PEOPLE id (databaseUserId). The auth uuid alone never
+        // matched: get_admin_user_list returns no auth_user_id, so every
+        // row's user_id is undefined and the guard silently never fired.
+        currentUser?.databaseUserId ?? currentUser?.id
       ),
     [
       selectedUsers,
@@ -472,6 +476,7 @@ export const UserTable: React.FC<UserTableProps> = ({
       handleRestoreUser,
       onManageRoles,
       handleChangeStatusUser,
+      currentUser?.databaseUserId,
       currentUser?.id,
       hasPermission,
     ]
@@ -500,7 +505,9 @@ export const UserTable: React.FC<UserTableProps> = ({
         role="region"
         tabIndex={0}
       >
-        <div className="myk9-table-container min-w-0 sm:min-w-[760px]">
+        {/* lg, not sm: at 640-1023px the responsive column set fits naturally,
+            and a 760px floor there forced a permanent ~50px sideways scroll. */}
+        <div className="myk9-table-container min-w-0 lg:min-w-[760px]">
           {/* pageSize is deliberately huge: the page already sliced these rows,
               so the table must render all of them and never paginate again.
               That slicing is also why search and export are turned off here —

@@ -134,7 +134,9 @@ describe('accessibility pins', () => {
   it('hides secondary columns before forcing a wider table', () => {
     expect(tableSrc).toContain("meta: { responsiveHide: 'md' }");
     expect(tableSrc).toContain("meta: { responsiveHide: 'lg' }");
-    expect(tableSrc).toContain('min-w-0 sm:min-w-[760px]');
+    // lg, not sm: at 640-1023px the reduced column set fits naturally; a
+    // 760px floor there forced a permanent ~50px sideways scroll at 768.
+    expect(tableSrc).toContain('min-w-0 lg:min-w-[760px]');
   });
 });
 

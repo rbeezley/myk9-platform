@@ -20,6 +20,7 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = 
     userId: 'user-1' as string | undefined,
     isAnonymous: false,
     isJudge: false,
+    databaseUserId: 'person-1' as string | undefined,
   },
   replicationState: { lastSyncAt: null as number | null },
 }));
@@ -71,7 +72,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: authState.userId ? { id: authState.userId, is_anonymous: authState.isAnonymous } : null,
     hasRole: (role: string) => (authState.isJudge ? role === 'judge' : false),
-    userWithRoles: authState.userId ? { databaseUserId: 'person-1' } : null,
+    userWithRoles: authState.userId ? { databaseUserId: authState.databaseUserId } : null,
     refreshPermissions: refreshSpy,
   }),
 }));
@@ -111,6 +112,7 @@ describe('useOfflineReadiness', () => {
     authState.userId = 'user-1';
     authState.isJudge = false;
     authState.isAnonymous = false;
+    authState.databaseUserId = 'person-1';
     replicationState.lastSyncAt = null;
   });
 
@@ -203,9 +205,25 @@ describe('useOfflineReadiness', () => {
     const { replicatedShowsTable } = await import('@/services/replication');
     // A club-scoped incremental sync would skip a show older than the
     // table-global watermark; resetting it first guarantees the fetch.
+    // The scoped watermark ('' scope) is what sync('') actually reads, so the
+    // table-global reset alone would still skip the missing show.
     expect(replicatedShowsTable.updateSyncMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({ lastIncrementalSyncAt: 0 })
+      expect.objectContaining({ lastIncrementalSyncAt: 0, scopes: {} })
     );
+  });
+
+  it('is NOT ready for a judge whose person identity is unresolved offline', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    authState.databaseUserId = undefined; // profile query never ran (cold boot offline)
+    tables.judgeAssignments.rows = [{ id: 'assignment-1' }];
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    expect(result.current.readiness?.missing).toEqual(['judge assignments']);
   });
 
   it('is ready for a judge once assignments are cached', async () => {

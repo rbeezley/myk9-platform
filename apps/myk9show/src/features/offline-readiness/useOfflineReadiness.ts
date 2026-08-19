@@ -9,6 +9,7 @@ import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
 import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
+import { logger } from '@/services/LoggingService';
 import {
   computeOfflineReadiness,
   type OfflineReadiness,
@@ -112,16 +113,26 @@ export function useOfflineReadiness(showId: string | undefined) {
   // badge goes green on its own instead of waiting for a focus or a click.
   const lastSyncAt = useOptionalReplicationSync()?.status?.lastSyncAt ?? null;
 
-  const check = useCallback(async () => {
+  const check = useCallback(async (): Promise<OfflineReadiness | null> => {
     if (!showId || !userId || isAnonymous) {
       setReadiness(null);
-      return;
+      return null;
     }
     const generation = ++generationRef.current;
     setChecking(true);
     try {
       const result = await gatherReadiness(showId, userId);
       if (generationRef.current === generation) setReadiness(result);
+      return result;
+    } catch (error) {
+      // A storage read failed, so readiness is genuinely UNKNOWN — claiming
+      // either state would be a lie, and an escaped rejection here would
+      // surface as an unhandled rejection from every caller's `void check()`.
+      logger.warn('Offline readiness probe failed', 'app', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      if (generationRef.current === generation) setReadiness(null);
+      return null;
     } finally {
       if (generationRef.current === generation) setChecking(false);
     }
@@ -162,10 +173,17 @@ export function useOfflineReadiness(showId: string | undefined) {
       // this badge is that they are already offline. Surface the failure on
       // the badge instead of throwing out of an onClick handler.
       setPrimeFailed(true);
-    } finally {
       setPriming(false);
+      await check();
+      return;
     }
-    await check();
+    setPriming(false);
+    // Sync methods report network/RLS failures as `{ success: false }` rather
+    // than throwing, and refreshPermissions swallows its own errors — so the
+    // only trustworthy verdict is the re-check itself. Still not ready after
+    // a completed prime means the prime did not work.
+    const result = await check();
+    setPrimeFailed(result !== null && !result.ready);
   }, [showId, isAnonymous, refreshPermissions, check]);
 
   return { readiness, checking, priming, primeFailed, prime };

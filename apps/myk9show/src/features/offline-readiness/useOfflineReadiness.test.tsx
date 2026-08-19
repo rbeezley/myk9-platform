@@ -224,6 +224,51 @@ describe('useOfflineReadiness', () => {
     expect(result.current.priming).toBe(false);
   });
 
+  it('degrades to unknown (no badge) when a storage probe rejects, without an unhandled rejection', async () => {
+    const { replicatedTrialsTable } = await import('@/services/replication');
+    vi.mocked(replicatedTrialsTable.getSyncMetadata).mockRejectedValueOnce(
+      new Error('IDB transaction error')
+    );
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+
+    try {
+      const { result } = renderHook(() => useOfflineReadiness('show-1'));
+
+      await waitFor(() => {
+        expect(result.current.checking).toBe(false);
+      });
+      // Let any escaped rejection surface before asserting.
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+      expect(result.current.readiness).toBeNull();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  it('flags primeFailed when a sync resolves unsuccessfully instead of throwing', async () => {
+    const { replicatedShowsTable } = await import('@/services/replication');
+    vi.mocked(replicatedShowsTable.sync).mockResolvedValueOnce({
+      success: false,
+    } as Awaited<ReturnType<typeof replicatedShowsTable.sync>>);
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.prime();
+    });
+
+    expect(result.current.primeFailed).toBe(true);
+  });
+
   it('rechecks when a background replication sync completes', async () => {
     const { result, rerender } = renderHook(() => useOfflineReadiness('show-1'));
     await waitFor(() => {

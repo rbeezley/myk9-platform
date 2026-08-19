@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
-const { tables, rbacCache, syncSpy, refreshSpy, authState } = vi.hoisted(() => ({
+const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = vi.hoisted(() => ({
   tables: {
     trials: { meta: null as unknown, rows: [] as Array<{ id: string }> },
     classes: {
@@ -16,6 +16,11 @@ const { tables, rbacCache, syncSpy, refreshSpy, authState } = vi.hoisted(() => (
   syncSpy: vi.fn(async () => {}),
   refreshSpy: vi.fn(async () => {}),
   authState: { userId: 'user-1' as string | undefined, isAnonymous: false },
+  replicationState: { lastSyncAt: null as number | null },
+}));
+
+vi.mock('@/hooks/useOptionalReplicationSync', () => ({
+  useOptionalReplicationSync: () => ({ status: { lastSyncAt: replicationState.lastSyncAt } }),
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -89,6 +94,7 @@ describe('useOfflineReadiness', () => {
     tables.shows.row = null;
     authState.userId = 'user-1';
     authState.isAnonymous = false;
+    replicationState.lastSyncAt = null;
   });
 
   it('reports ready with the oldest timestamp when everything is on disk', async () => {
@@ -197,6 +203,39 @@ describe('useOfflineReadiness', () => {
     });
 
     expect(refreshSpy).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(true);
+    });
+  });
+
+  it('surfaces a prime failure instead of rejecting', async () => {
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+
+    syncSpy.mockRejectedValueOnce(new Error('TypeError: Failed to fetch'));
+
+    await act(async () => {
+      await expect(result.current.prime()).resolves.toBeUndefined();
+    });
+
+    expect(result.current.primeFailed).toBe(true);
+    expect(result.current.priming).toBe(false);
+  });
+
+  it('rechecks when a background replication sync completes', async () => {
+    const { result, rerender } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+
+    // A background sync finishing advances the provider's lastSyncAt; the
+    // badge must notice without waiting for focus or another click.
+    primeAllSignals();
+    replicationState.lastSyncAt = 9_999;
+    rerender();
+
     await waitFor(() => {
       expect(result.current.readiness?.ready).toBe(true);
     });

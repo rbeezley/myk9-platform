@@ -11,7 +11,7 @@ interface OfflineReadyBadgeProps {
  * Not ready: the badge itself is the fix — clicking it primes the show.
  */
 export function OfflineReadyBadge({ showId }: OfflineReadyBadgeProps) {
-  const { readiness, priming, prime } = useOfflineReadiness(showId);
+  const { readiness, priming, primeFailed, prime } = useOfflineReadiness(showId);
 
   if (!readiness) return null;
 
@@ -41,7 +41,11 @@ export function OfflineReadyBadge({ showId }: OfflineReadyBadgeProps) {
       type="button"
       onClick={() => void prime()}
       disabled={priming}
-      title="This device would not survive losing internet for this show. Tap to save the show to this device."
+      title={
+        primeFailed
+          ? "Couldn't save the show to this device — you may be offline. Try again once you have a connection."
+          : 'This device would not survive losing internet for this show. Tap to save the show to this device.'
+      }
       className="inline-flex min-h-11 items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 text-sm text-warning hover:bg-warning/20 disabled:opacity-70"
     >
       {priming ? (
@@ -52,7 +56,7 @@ export function OfflineReadyBadge({ showId }: OfflineReadyBadgeProps) {
       ) : (
         <>
           <CloudDownload className="h-4 w-4" />
-          Not offline ready
+          {primeFailed ? "Couldn't prepare — retry" : 'Not offline ready'}
         </>
       )}
     </button>

@@ -8,6 +8,7 @@ import {
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
 import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import {
   computeOfflineReadiness,
   type OfflineReadiness,
@@ -105,7 +106,11 @@ export function useOfflineReadiness(showId: string | undefined) {
   const [readiness, setReadiness] = useState<OfflineReadiness | null>(null);
   const [checking, setChecking] = useState(false);
   const [priming, setPriming] = useState(false);
+  const [primeFailed, setPrimeFailed] = useState(false);
   const generationRef = useRef(0);
+  // A background sync finishing advances lastSyncAt; re-check then so the
+  // badge goes green on its own instead of waiting for a focus or a click.
+  const lastSyncAt = useOptionalReplicationSync()?.status?.lastSyncAt ?? null;
 
   const check = useCallback(async () => {
     if (!showId || !userId || isAnonymous) {
@@ -124,6 +129,9 @@ export function useOfflineReadiness(showId: string | undefined) {
 
   useEffect(() => {
     void check();
+  }, [check, lastSyncAt]);
+
+  useEffect(() => {
     const handleRecheck = () => void check();
     window.addEventListener('online', handleRecheck);
     window.addEventListener('focus', handleRecheck);
@@ -137,6 +145,7 @@ export function useOfflineReadiness(showId: string | undefined) {
   const prime = useCallback(async () => {
     if (!showId || isAnonymous) return;
     setPriming(true);
+    setPrimeFailed(false);
     try {
       // Permissions refresh re-persists the RBAC cache (MYK9-200), healing a
       // device whose cache was missing or expired — show data alone is not
@@ -148,11 +157,16 @@ export function useOfflineReadiness(showId: string | undefined) {
         replicatedShowsTable.sync(''),
         refreshPermissions?.(),
       ]);
+    } catch {
+      // Priming needs the network, and the likeliest reason someone clicks
+      // this badge is that they are already offline. Surface the failure on
+      // the badge instead of throwing out of an onClick handler.
+      setPrimeFailed(true);
     } finally {
       setPriming(false);
     }
     await check();
   }, [showId, isAnonymous, refreshPermissions, check]);
 
-  return { readiness, checking, priming, prime };
+  return { readiness, checking, priming, primeFailed, prime };
 }

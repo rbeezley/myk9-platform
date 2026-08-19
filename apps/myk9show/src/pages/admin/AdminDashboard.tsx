@@ -159,7 +159,7 @@ export default function AdminDashboard() {
   );
   const apiP95Tile = getSentryMetricTileState(
     sentry.data?.apiP95,
-    'API p95',
+    'Client p95',
     sentry.isLoading,
     sentry.error
   );
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
         <header className="mb-[22px] flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <DashboardGreeting
             firstName={firstName}
-            subtitle="Platform oversight. Every number here is measured; times are Eastern."
+            subtitle="Platform oversight. All times are Eastern."
             className="text-[25px] tracking-[-0.018em]"
           />
           <div className="flex flex-wrap gap-2">
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
                 isError={healthUnavailable}
                 context={
                   healthUnavailable
-                    ? "couldn't read the snapshot"
+                    ? "couldn't read the snapshot; will retry"
                     : effective.isEmpty
                       ? 'no run recorded'
                       : effective.isStale
@@ -215,7 +215,7 @@ export default function AdminDashboard() {
                 isError={alertsUnavailable}
                 context={
                   alertsUnavailable
-                    ? "couldn't read alerts"
+                    ? "couldn't read alerts; will retry"
                     : openAlerts.length === 0
                       ? 'nothing unresolved'
                       : 'awaiting a human'
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
                   <p className="mt-3 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
                     {countsError ? (
                       <span className="text-destructive">
-                        Counts didn&apos;t load: {countsError}
+                        Today&apos;s counts didn&apos;t load; they retry automatically.
                       </span>
                     ) : (
                       'Day boundary is Eastern, matching show schedules.'

@@ -98,7 +98,7 @@ export function HistoryStrip({ runs, label }: { runs: CheckRun[]; label: string 
     <div
       className="flex items-center gap-[2px]"
       role="img"
-      aria-label={`${label}: last ${runs.length} runs, oldest first — ${runs
+      aria-label={`${label}: last ${runs.length} runs, oldest first: ${runs
         .map(r => r.status)
         .join(', ')}`}
     >
@@ -199,7 +199,7 @@ export function BoardError({ message, onRetry }: { message: string; onRetry: () 
       <Eyebrow>Couldn&apos;t load</Eyebrow>
       <h2 className="mt-2 text-lg font-medium text-foreground">System health didn&apos;t load</h2>
       <p className="mt-1 text-[13px] text-muted-foreground">
-        {message} Nothing below is showing platform state — this is a failure to read the board, not
+        {message} Nothing below is showing platform state. This is a failure to read the board, not
         a report that everything is fine.
       </p>
       <button

@@ -48,7 +48,7 @@ export function NeedsALookSection({
         <p className="mt-2 text-[13px] text-foreground">Nothing is waiting on you.</p>
         <p className="mt-1 text-[11.5px] text-muted-foreground">
           No checks are failing and no alerts are unresolved. This list fills itself from those two
-          places — it is not a to-do list you can add to.
+          places. It is not a to-do list you can add to.
         </p>
       </BoardCard>
     );
@@ -115,7 +115,8 @@ export function NeedsALookSection({
       </div>
 
       <p className="text-[11.5px] text-muted-foreground">
-        Showing {visible.length} of {summary.total} open item{summary.total === 1 ? '' : 's'}.
+        Showing {visible.length} of {summary.total} open item{summary.total === 1 ? '' : 's'} from
+        health checks and alerts.
       </p>
     </section>
   );

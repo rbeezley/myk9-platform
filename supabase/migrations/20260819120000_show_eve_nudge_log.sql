@@ -4,19 +4,26 @@
 -- who will RUN that day to open the show while they still have internet. This
 -- table is the idempotency ledger: one row per (trial, recipient) that was
 -- actually notified, so a cron re-run in the same window cannot buzz anyone
--- twice. The function INSERTs to claim a pair before sending and deletes the
--- claim when no usable push subscription exists, so a later run can retry.
+-- twice. The function CLAIMS a pair before sending, stamps delivered_at only
+-- on a real delivery, and releases the claim when nothing was delivered — so a
+-- crashed run costs one cycle instead of suppressing that person forever.
 
 create table if not exists public.show_eve_nudge_log (
   id uuid primary key default gen_random_uuid(),
   trial_id uuid not null references public.trials (id) on delete cascade,
   auth_user_id uuid not null,
-  sent_at timestamptz not null default now(),
+  -- Claim time, written before the send attempt.
+  claimed_at timestamptz not null default now(),
+  -- Set only after a push is actually delivered. A row with a NULL here is a
+  -- claim whose run may have crashed mid-send; the function reclaims it after
+  -- a lease window rather than treating the unique conflict as "already sent"
+  -- and silently suppressing that person's nudge forever.
+  delivered_at timestamptz,
   constraint show_eve_nudge_log_unique_pair unique (trial_id, auth_user_id)
 );
 
 comment on table public.show_eve_nudge_log is
-  'MYK9-203: idempotency ledger for the show-eve offline-priming push. One row per (trial, recipient) notified.';
+  'MYK9-203: idempotency ledger for the show-eve offline-priming push. One row per (trial, recipient); delivered_at distinguishes a completed send from an abandoned claim.';
 
 -- Recipients are only ever looked up per trial when the cron runs.
 create index if not exists show_eve_nudge_log_trial_idx
@@ -33,9 +40,10 @@ alter table public.show_eve_nudge_log force row level security;
 
 revoke all on public.show_eve_nudge_log from anon;
 revoke all on public.show_eve_nudge_log from authenticated;
--- The function only ever INSERTs a claim and DELETEs it when delivery finds no
--- subscription; it never SELECTs, so no read grant is issued.
-grant insert, delete on public.show_eve_nudge_log to service_role;
+-- The function INSERTs a claim, SELECTs an existing claim to judge whether it
+-- is a stale lease, UPDATEs it on delivery, and DELETEs it when nothing was
+-- delivered.
+grant select, insert, update, delete on public.show_eve_nudge_log to service_role;
 
 -- Explicit deny-all rather than relying on "RLS enabled with no policies":
 -- the disposition is then visible in the SQL and enforced even if a future

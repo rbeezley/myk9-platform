@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildShowEveNudgePayload,
+  CLAIM_LEASE_MS,
+  isJudgeAssignedToTrial,
   selectShowEveRecipients,
+  shouldReclaimStaleClaim,
   type ShowEveClubStaffRow,
   type ShowEveJudgeRow,
 } from './showEveNudge.ts';
@@ -109,5 +112,49 @@ describe('buildShowEveNudgePayload', () => {
 
     expect(payload.body).toMatch(/tomorrow/i);
     expect(payload.body).not.toContain('2026-08-20');
+  });
+});
+
+describe('shouldReclaimStaleClaim', () => {
+  const now = Date.parse('2026-08-19T23:10:00Z');
+
+  it('does not reclaim a delivered nudge — that would double-buzz someone', () => {
+    expect(
+      shouldReclaimStaleClaim(
+        { claimed_at: '2026-08-19T23:00:00Z', delivered_at: '2026-08-19T23:00:05Z' },
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('does not reclaim a fresh undelivered claim — another run may be mid-send', () => {
+    expect(
+      shouldReclaimStaleClaim({ claimed_at: '2026-08-19T23:09:30Z', delivered_at: null }, now)
+    ).toBe(false);
+  });
+
+  it('reclaims an undelivered claim older than the lease — a crashed run left it', () => {
+    const stale = new Date(now - CLAIM_LEASE_MS - 1000).toISOString();
+    expect(shouldReclaimStaleClaim({ claimed_at: stale, delivered_at: null }, now)).toBe(true);
+  });
+
+  it('reclaims when the claim timestamp is unreadable rather than suppressing forever', () => {
+    expect(shouldReclaimStaleClaim({ claimed_at: 'not-a-date', delivered_at: null }, now)).toBe(
+      true
+    );
+  });
+});
+
+describe('isJudgeAssignedToTrial', () => {
+  it('includes a judge assigned to this trial', () => {
+    expect(isJudgeAssignedToTrial({ trial_id: 'trial-1' }, 'trial-1')).toBe(true);
+  });
+
+  it('excludes a judge assigned only to another day of the same show', () => {
+    expect(isJudgeAssignedToTrial({ trial_id: 'trial-2' }, 'trial-1')).toBe(false);
+  });
+
+  it('includes a show-level assignment, which covers every day', () => {
+    expect(isJudgeAssignedToTrial({ trial_id: null }, 'trial-1')).toBe(true);
   });
 });

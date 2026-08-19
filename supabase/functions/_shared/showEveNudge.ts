@@ -18,6 +18,45 @@ export interface ShowEveJudgeRow {
   status: string | null;
 }
 
+/**
+ * How long a claim may sit undelivered before another run may take it over.
+ * Long enough that a healthy in-flight run is never stolen from, far shorter
+ * than the daily cadence so a crashed run costs at most one cycle.
+ */
+export const CLAIM_LEASE_MS = 30 * 60 * 1000;
+
+export interface ShowEveClaimRow {
+  claimed_at: string;
+  delivered_at: string | null;
+}
+
+/**
+ * A claim exists but the notification may never have been sent — the run could
+ * have crashed between claiming and delivering. Without this, the unique
+ * constraint would read as "already sent" forever and that person would
+ * silently never be nudged again.
+ */
+export function shouldReclaimStaleClaim(row: ShowEveClaimRow, now: number): boolean {
+  if (row.delivered_at) return false;
+  const claimedAt = Date.parse(row.claimed_at);
+  // An unreadable timestamp must not permanently suppress a nudge; retrying
+  // risks at worst one duplicate, while skipping risks silence forever.
+  if (Number.isNaN(claimedAt)) return true;
+  return now - claimedAt > CLAIM_LEASE_MS;
+}
+
+/**
+ * A show can span several days. A judge assigned to Saturday should not be
+ * nudged the night before Sunday; a show-level assignment (no trial) covers
+ * every day.
+ */
+export function isJudgeAssignedToTrial(
+  assignment: { trial_id: string | null },
+  trialId: string
+): boolean {
+  return assignment.trial_id === null || assignment.trial_id === trialId;
+}
+
 export interface ShowEveNudgePayload {
   title: string;
   body: string;

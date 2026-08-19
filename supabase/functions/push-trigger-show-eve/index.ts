@@ -7,6 +7,8 @@ import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import {
   buildShowEveNudgePayload,
+  isJudgeAssignedToTrial,
+  shouldReclaimStaleClaim,
   selectShowEveRecipients,
   type ShowEveClubStaffRow,
   type ShowEveJudgeRow,
@@ -70,15 +72,18 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
   // through their assignments and resolve the person to their auth account.
   const { data: assignmentRows, error: assignmentError } = await supabase
     .from('judge_assignments')
-    .select('status, people!inner(auth_user_id)')
+    .select('status, trial_id, people!inner(auth_user_id)')
     .eq('show_id', trial.show_id);
   if (assignmentError) throw assignmentError;
 
-  const judges: ShowEveJudgeRow[] = (assignmentRows ?? []).map(row => ({
-    auth_user_id:
-      (row as { people?: { auth_user_id?: string | null } }).people?.auth_user_id ?? null,
-    status: (row as { status: string | null }).status,
-  }));
+  const judges: ShowEveJudgeRow[] = (assignmentRows ?? [])
+    // A multi-day show must not nudge Saturday's judge on Sunday's eve.
+    .filter(row => isJudgeAssignedToTrial(row as { trial_id: string | null }, trial.id))
+    .map(row => ({
+      auth_user_id:
+        (row as { people?: { auth_user_id?: string | null } }).people?.auth_user_id ?? null,
+      status: (row as { status: string | null }).status,
+    }));
 
   return selectShowEveRecipients({ clubStaff, judges });
 }
@@ -170,9 +175,28 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
       const { error: claimError } = await supabase
         .from('show_eve_nudge_log')
         .insert({ trial_id: trial.id, auth_user_id: authUserId });
+
       if (claimError) {
-        skipped += 1;
-        continue;
+        // A row already exists. That is only proof of DELIVERY if delivered_at
+        // is set; otherwise it may be a claim abandoned by a crashed run, and
+        // treating it as sent would suppress this person's nudge forever.
+        const { data: existing } = await supabase
+          .from('show_eve_nudge_log')
+          .select('claimed_at, delivered_at')
+          .eq('trial_id', trial.id)
+          .eq('auth_user_id', authUserId)
+          .maybeSingle();
+
+        if (!existing || !shouldReclaimStaleClaim(existing, Date.now())) {
+          skipped += 1;
+          continue;
+        }
+
+        await supabase
+          .from('show_eve_nudge_log')
+          .update({ claimed_at: new Date().toISOString() })
+          .eq('trial_id', trial.id)
+          .eq('auth_user_id', authUserId);
       }
 
       let delivered = false;
@@ -186,6 +210,12 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
       }
 
       if (delivered) {
+        // Mark the claim as genuinely completed so no later run reclaims it.
+        await supabase
+          .from('show_eve_nudge_log')
+          .update({ delivered_at: new Date().toISOString() })
+          .eq('trial_id', trial.id)
+          .eq('auth_user_id', authUserId);
         notified += 1;
       } else {
         // Nothing was delivered (no usable subscription, or a transient

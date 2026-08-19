@@ -123,6 +123,31 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
   return selectShowEveRecipients({ clubStaff, judges });
 }
 
+/**
+ * Hard bounds on one recipient's fan-out, chosen so the total send time
+ * (10 x 8s = 80s worst case) stays far below CLAIM_LEASE_MS. If a send could
+ * outlive the lease, the next cron run would reclaim a still-active claim and
+ * deliver the same nudge twice.
+ */
+const PUSH_CALL_TIMEOUT_MS = 8_000;
+const MAX_SUBSCRIPTIONS_PER_RECIPIENT = 10;
+
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('push send timed out')), ms);
+    work.then(
+      value => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 async function sendNudge(
   supabase: SupabaseClient,
   authUserId: string,
@@ -138,17 +163,20 @@ async function sendNudge(
   const expiredEndpoints: string[] = [];
   let delivered = false;
 
-  for (const sub of subscriptions) {
+  for (const sub of subscriptions.slice(0, MAX_SUBSCRIPTIONS_PER_RECIPIENT)) {
     try {
-      await webpush.sendNotification(
-        {
-          endpoint: (sub as { endpoint: string }).endpoint,
-          keys: {
-            p256dh: (sub as { p256dh: string }).p256dh,
-            auth: (sub as { auth: string }).auth,
+      await withTimeout(
+        webpush.sendNotification(
+          {
+            endpoint: (sub as { endpoint: string }).endpoint,
+            keys: {
+              p256dh: (sub as { p256dh: string }).p256dh,
+              auth: (sub as { auth: string }).auth,
+            },
           },
-        },
-        JSON.stringify(payload)
+          JSON.stringify(payload)
+        ),
+        PUSH_CALL_TIMEOUT_MS
       );
       delivered = true;
     } catch (err: unknown) {

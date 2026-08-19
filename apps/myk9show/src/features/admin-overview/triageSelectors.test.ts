@@ -212,4 +212,24 @@ describe('summarizeAlertDetail', () => {
     expect(summarizeAlertDetail(null)).toBe('No further detail recorded.');
     expect(summarizeAlertDetail({ nested: { only: true } })).toBe('No further detail recorded.');
   });
+
+  // Production operator_alerts store rendered markup under an `html` key; the
+  // queue must show the sentence, never the serialization.
+  it('shows markup-valued keys as their text, without the key prefix', () => {
+    expect(
+      summarizeAlertDetail({
+        html: '<p>Cart <code>04dae7f1</code> was PAID but has no entries.</p>',
+      })
+    ).toBe('Cart 04dae7f1 was PAID but has no entries.');
+  });
+
+  it('strips tags and collapses whitespace inside prefixed values too', () => {
+    expect(summarizeAlertDetail({ reason: 'Refund <b>failed</b>\n twice', amount: 20 })).toBe(
+      'reason: Refund failed twice · amount: 20'
+    );
+  });
+
+  it('falls back when a markup value strips to nothing', () => {
+    expect(summarizeAlertDetail({ html: '<br/>' })).toBe('No further detail recorded.');
+  });
 });

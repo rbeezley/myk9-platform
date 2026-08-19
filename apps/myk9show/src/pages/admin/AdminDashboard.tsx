@@ -22,6 +22,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useNow } from '@/hooks/useNow';
 import { Link } from 'react-router-dom';
 import { Settings, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -100,7 +101,9 @@ function StatTile({
 
 export default function AdminDashboard() {
   const { firstName } = useAuthContext();
-  const [now] = useState(() => Date.now());
+  // Ticks with the queries (60s). Frozen-at-mount `now` meant staleness could
+  // never trip after load and "checked X ago" never aged on a long-lived tab.
+  const now = useNow(60_000);
   const [triageFilter, setTriageFilter] = useState<TriageCategory | 'all'>('all');
 
   const health = useSystemHealthSnapshots();
@@ -190,7 +193,10 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {health.isLoading ? (
+        {/* Wait for BOTH sources: rendering on health alone let the queue
+            announce "nothing is waiting on you" while alerts were still
+            in flight. */}
+        {health.isLoading || alerts.isLoading ? (
           <BoardSkeleton rows={4} />
         ) : (
           <div className="flex flex-col gap-[18px]">

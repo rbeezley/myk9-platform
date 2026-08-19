@@ -123,7 +123,11 @@ export interface FilterTab<T extends string> {
   count: number;
 }
 
-/** Filter tabs whose counts are always passed in, never recomputed locally. */
+/** Filter tabs whose counts are always passed in, never recomputed locally.
+ *
+ * Semantically these are toggle buttons in a group, not ARIA tabs: there is no
+ * tabpanel and no roving focus, so `role="tab"` would promise arrow-key
+ * behavior that does not exist. */
 export function FilterTabs<T extends string>({
   tabs,
   active,
@@ -136,15 +140,14 @@ export function FilterTabs<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="flex flex-wrap gap-1">
+    <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-1">
       {tabs.map(tab => {
         const selected = tab.value === active;
         return (
           <button
             key={tab.value}
             type="button"
-            role="tab"
-            aria-selected={selected}
+            aria-pressed={selected}
             onClick={() => onChange(tab.value)}
             className={cn(
               'min-h-10 rounded-full px-3 py-1 text-xs font-medium transition-colors',

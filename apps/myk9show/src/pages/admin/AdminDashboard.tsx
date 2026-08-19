@@ -91,7 +91,7 @@ function StatTile({
       to={href}
       className={cn(
         shell,
-        'transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+        'transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:translate-y-0'
       )}
     >
       {body}
@@ -316,7 +316,7 @@ export default function AdminDashboard() {
                     to="/admin/health"
                     className="mt-3 inline-block border-t border-border pt-2.5 text-xs font-medium text-foreground hover:underline"
                   >
-                    Open system health →
+                    Open system health <span aria-hidden>→</span>
                   </Link>
                 </BoardCard>
               </aside>

@@ -52,7 +52,9 @@ export function severityToBadgeVariant(severity: AlertSeverity): BadgeVariant {
   }
 }
 
-/** Compact "key: value, key: value" rendering of an alert's structured detail. */
+/** Compact "key: value, key: value" rendering of an alert's structured detail.
+ * Value formatting (markup stripping, object JSON, the length cap) lives in
+ * `alertDetailText` so this board and the admin dashboard read alerts alike. */
 export function formatAlertDetail(detail: Record<string, unknown> | null): string {
   if (!detail) return '';
   const parts: string[] = [];

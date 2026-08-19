@@ -3,31 +3,53 @@
  * admin dashboard's triage queue (summarizeAlertDetail) and the system-health
  * alerts rail (formatAlertDetail) so the two surfaces can never disagree about
  * how a detail value reads.
+ *
+ * Merged from two independent fixes for the same defect (#1689 and #1694):
+ * object values render as compact JSON rather than being dropped, values are
+ * capped, and tag stripping is narrowed to tag-shaped text.
  */
 
 /** Keys whose value IS the message; prefixing them ("html: …") is noise. */
 const MESSAGE_KEYS = /^(html|message|text|body|detail)$/i;
 
+/** Longest value a detail line renders before truncating. */
+const DETAIL_VALUE_MAX_CHARS = 120;
+
 /**
  * Values can arrive as rendered markup (production alerts store serialized
- * HTML under an `html` key). Show the sentence, never the serialization.
- * Only strips things shaped like tags (`<p>`, `</code>`, `<br/>`), so prose
- * like "cpu < 80 and mem > 90" survives intact.
+ * HTML under an `html` key) or as nested objects. Show the sentence, never the
+ * serialization, and never `[object Object]`.
+ *
+ * The tag pattern deliberately requires a letter after `<`, so prose such as
+ * "cpu < 80 and mem > 90" survives while `<p>` / `</code>` / `<br/>` do not.
  */
 function toPlainText(value: unknown): string {
-  return String(value)
+  let text: string;
+  if (value !== null && typeof value === 'object') {
+    try {
+      text = JSON.stringify(value);
+    } catch {
+      text = String(value);
+    }
+  } else {
+    text = String(value);
+  }
+
+  return text
     .replace(/<\/?[a-z][^>]*>/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 /**
- * One detail entry as display text, or null when it should be skipped
- * (nested objects, nulls, values that strip to nothing).
+ * One detail entry as display text, or null when there is nothing to show
+ * (null values, or values that strip to nothing).
  */
 export function detailEntryToText(key: string, value: unknown): string | null {
-  if (value === null || typeof value === 'object') return null;
+  if (value === null) return null;
   const text = toPlainText(value);
   if (!text) return null;
-  return MESSAGE_KEYS.test(key) ? text : `${key}: ${text}`;
+  const capped =
+    text.length > DETAIL_VALUE_MAX_CHARS ? `${text.slice(0, DETAIL_VALUE_MAX_CHARS)}…` : text;
+  return MESSAGE_KEYS.test(key) ? capped : `${key}: ${capped}`;
 }

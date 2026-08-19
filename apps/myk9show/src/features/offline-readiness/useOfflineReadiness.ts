@@ -21,19 +21,19 @@ import {
 
 interface ScopedMeta {
   totalRows?: number;
+  expectedRemoteRows?: number;
   lastIncrementalSyncAt?: number;
 }
 
 /**
- * A scope counts as hydrated only when its watermark exists AND the local row
- * count has not fallen below what that watermark recorded — quota eviction
- * deletes cached rows without touching the metadata, and a badge that says
- * "Offline ready" over an evicted store is worse than no badge. A zero
- * watermark (synced-but-empty shape) is treated as "time unknown", never as
- * epoch 1970.
+ * A scope counts as hydrated only when its server-derived expected row count is
+ * known and every expected row is present locally. The older local-only
+ * `totalRows` value is intentionally not sufficient: quota eviction can
+ * rewrite it downward and make a partial replica look complete.
  */
 function toScope(label: string, meta: ScopedMeta | null, localRowCount: number): ScopeReadiness {
-  const hydrated = meta?.totalRows !== undefined && localRowCount >= meta.totalRows;
+  const hydrated =
+    meta?.expectedRemoteRows !== undefined && localRowCount >= meta.expectedRemoteRows;
   return {
     label,
     hydrated,
@@ -105,9 +105,10 @@ async function gatherReadiness(
     // an unhydrated table, and an unresolved identity (databaseUserId comes
     // from the network profile query, not the RBAC cache, so a cold offline
     // boot can leave useMyAtShowJudgeAssignments equally blind).
-    const assignmentsMeta = (await replicatedJudgeAssignmentsTable.getSyncMetadata()) as
-      | ScopedMeta
-      | null;
+    const [assignmentsMeta, assignmentRows] = await Promise.all([
+      replicatedJudgeAssignmentsTable.getSyncMetadata() as Promise<ScopedMeta | null>,
+      replicatedJudgeAssignmentsTable.getAll(),
+    ]);
     if (judge.personId) {
       // Warm the filtered read the at-show surface uses, so a mismatch in that
       // path surfaces here rather than at the ring.
@@ -115,7 +116,10 @@ async function gatherReadiness(
     }
     scopes.push({
       label: 'judge assignments',
-      hydrated: Boolean(judge.personId) && assignmentsMeta?.totalRows !== undefined,
+      hydrated:
+        Boolean(judge.personId) &&
+        assignmentsMeta?.expectedRemoteRows !== undefined &&
+        assignmentRows.length >= assignmentsMeta.expectedRemoteRows,
       lastSyncAt: null,
     });
   }

@@ -83,16 +83,29 @@ describe('formatAlertDetail', () => {
     expect(formatAlertDetail({})).toBe('');
   });
 
-  // Production alerts store rendered markup under an `html` key; show the
-  // sentence, never the serialization (same rule as summarizeAlertDetail on
-  // the admin dashboard).
-  it('shows markup-valued keys as their text, without the key prefix', () => {
-    expect(formatAlertDetail({ html: '<p>Auto-refund <code>re_123</code> issued.</p>' })).toBe(
-      'Auto-refund re_123 issued.'
+  // A key whose value IS the message needs no "html:" label in front of it.
+  it('strips HTML tags from string values, and drops the message key prefix', () => {
+    expect(
+      formatAlertDetail({ html: '<p>Auto-refund <code>re_3U5z1FAIej</code> issued.</p>' })
+    ).toBe('Auto-refund re_3U5z1FAIej issued.');
+  });
+
+  it('keeps the key prefix for keys that label their value', () => {
+    expect(formatAlertDetail({ amount: 20, note: 'partial' })).toBe('amount: 20, note: partial');
+  });
+
+  it('truncates values longer than 120 characters with an ellipsis', () => {
+    const long = 'x'.repeat(150);
+    expect(formatAlertDetail({ note: long })).toBe(`note: ${'x'.repeat(120)}…`);
+  });
+
+  it('renders nested objects as compact JSON instead of [object Object]', () => {
+    expect(formatAlertDetail({ charge: { id: 'ch_1', amount: 500 } })).toBe(
+      'charge: {"id":"ch_1","amount":500}'
     );
   });
 
-  it('skips nested objects instead of printing [object Object]', () => {
-    expect(formatAlertDetail({ amount: 20, meta: { a: 1 } })).toBe('amount: 20');
+  it('leaves comparison prose alone; only tag-shaped text is stripped', () => {
+    expect(formatAlertDetail({ message: 'cpu < 80 and mem > 90' })).toBe('cpu < 80 and mem > 90');
   });
 });

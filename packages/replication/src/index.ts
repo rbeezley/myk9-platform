@@ -18,6 +18,7 @@ export type {
   ReplicationConflictResolution,
   SyncStatus,
   SyncMetadata,
+  ScopeSyncState,
   PendingMutation,
   MutationOperation,
   MutationStatus,
@@ -141,6 +142,7 @@ export {
 } from './syncReplicatedTable';
 export type {
   RemoteFetchContext,
+  RemoteRowCountContext,
   SyncReplicatedTableAdapter,
   SyncReplicatedTableOptions,
   SyncScope,

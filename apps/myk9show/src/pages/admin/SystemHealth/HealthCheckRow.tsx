@@ -68,15 +68,19 @@ export function HealthCheckRow({
         <StatusDot status={check.status} />
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-medium text-foreground">
-            {check.label}
-          </span>
-          <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
+          <span className="block truncate text-sm font-medium text-foreground">{check.label}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
             {check.detail || 'No detail reported.'}
           </span>
         </span>
 
-        <span className="hidden w-[150px] shrink-0 justify-start sm:flex">
+        {/* Fixed columns must never starve the label: beside the 256px admin
+            sidebar the main column is ~424px at 768px and ~360px at lg (the
+            two-column grid starts there), while strip+observed+badge total
+            ~437px — so `flex-1 truncate` ate the label to 0px. The strip only
+            fits once the grid widens at xl; "observed" fits in the md-lg
+            single-column window and again at xl. */}
+        <span className="hidden w-[150px] shrink-0 justify-start xl:flex">
           <HistoryStrip runs={check.history} label={check.label} />
         </span>
 
@@ -87,7 +91,7 @@ export function HealthCheckRow({
             it contradicts the freshness band. */}
         <span
           title={`Observed ${formatCheckedAgo(check.checkedAt, now)}`}
-          className="hidden w-[96px] shrink-0 font-mono text-[11.5px] text-muted-foreground md:block"
+          className="hidden w-[96px] shrink-0 font-mono text-xs text-muted-foreground md:block lg:hidden xl:block"
         >
           <span className="sr-only">observed </span>
           {formatCheckedAgo(check.checkedAt, now)}
@@ -115,17 +119,17 @@ export function HealthCheckRow({
 
       {isOpen && (
         <div id={panelId} className="border-t border-border bg-card pb-5 pl-[42px] pr-5 pt-4">
-          <pre className="overflow-x-auto whitespace-pre-wrap rounded-[9px] bg-muted px-3 py-2.5 font-mono text-[11.5px] leading-[1.7] text-foreground">
+          <pre className="overflow-x-auto whitespace-pre-wrap rounded-[9px] bg-muted px-3 py-2.5 font-mono text-xs leading-[1.7] text-foreground">
             {check.detail || 'The runner recorded no evidence for this check.'}
           </pre>
 
-          <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-[11.5px]">
+          <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-xs">
             <div>
               <dt className="text-muted-foreground">Owner</dt>
               <dd className="mt-0.5 text-foreground">{remediation.ownerLabel}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Blast radius</dt>
+              <dt className="text-muted-foreground">Next step</dt>
               <dd className="mt-0.5 text-foreground">{remediation.nextStep}</dd>
             </div>
             <div>
@@ -139,7 +143,7 @@ export function HealthCheckRow({
           <div className="mt-4">
             <a
               href={remediation.href}
-              className="inline-flex items-center rounded-[9px] bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-10 items-center rounded-[9px] bg-foreground px-4 text-xs font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {remediation.actionLabel}
             </a>

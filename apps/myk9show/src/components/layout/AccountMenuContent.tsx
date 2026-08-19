@@ -19,6 +19,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getSignOutGuardMode, type SignOutWarningContext } from '@/components/layout/signOutGuard';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
@@ -31,6 +32,11 @@ import { AskQIcon } from '@/components/layout/AskQIcon';
 interface AccountMenuContentProps {
   /** Opens the About dialog owned by the shared account-menu host. */
   onAbout: () => void;
+  /**
+   * Opens the sign-out warning dialog owned by the host (MYK9-202). Hosted
+   * like the About dialog so the closing menu can never stack above it.
+   */
+  onGuardedSignOut: (context: SignOutWarningContext) => void;
   align?: 'start' | 'center' | 'end';
 }
 
@@ -39,7 +45,11 @@ function AccountMenuSeparator() {
 }
 
 /** Shared account dropdown body used by the mobile header and desktop sidebar. */
-export function AccountMenuContent({ onAbout, align = 'end' }: AccountMenuContentProps) {
+export function AccountMenuContent({
+  onAbout,
+  onGuardedSignOut,
+  align = 'end',
+}: AccountMenuContentProps) {
   const { user, signOut, userWithRoles, getUserRoles } = useAuthContext();
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
@@ -72,6 +82,23 @@ export function AccountMenuContent({ onAbout, align = 'end' }: AccountMenuConten
     ) {
       resetAllMockData();
     }
+  };
+
+  // MYK9-202: signing out destroys the session AND the persisted RBAC cache,
+  // and sign-in needs the auth server — so a signed-out device at an offline
+  // venue is locked out of a show fully replicated on its own disk. Warn at
+  // the click; documentation is not a guard.
+  const signOutGuardMode = getSignOutGuardMode({ isOffline, roles: getUserRoles() });
+  // `status` collapses to 'offline' regardless of the queue, so the pending
+  // mutation count must drive the unsynced-changes line on its own.
+  const hasUnsyncedChanges = isSaving || needsAttention || globalSync.queueSize > 0;
+
+  const handleSignOutClick = () => {
+    if (signOutGuardMode === 'none') {
+      signOut();
+      return;
+    }
+    onGuardedSignOut({ mode: signOutGuardMode, hasUnsyncedChanges });
   };
 
   const handleClearCache = async () => {
@@ -181,9 +208,7 @@ export function AccountMenuContent({ onAbout, align = 'end' }: AccountMenuConten
       )}
       <AccountMenuSeparator />
       <DropdownMenuItem
-        onClick={() => {
-          signOut();
-        }}
+        onClick={handleSignOutClick}
         className="focus:bg-destructive/10 focus:text-destructive"
       >
         <LogOut className="h-4 w-4 mr-2" />

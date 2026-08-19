@@ -4,6 +4,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { handle } from '../_shared/http/handler.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
+import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import {
   buildShowEveNudgePayload,
   selectShowEveRecipients,
@@ -24,7 +25,13 @@ interface TrialRow {
   id: string;
   date: string;
   show_id: string;
-  show: { id: string; name: string | null; club_id: string | null } | null;
+  show: {
+    id: string;
+    name: string | null;
+    club_id: string | null;
+    status: string | null;
+    deleted_at: string | null;
+  } | null;
 }
 
 function targetTrialDate(now: Date): string {
@@ -40,11 +47,15 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
   // so club membership is how show-day staff are reached.
   const clubStaff: ShowEveClubStaffRow[] = [];
   if (clubId) {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('auth_user_id, is_active, roles!inner(name)')
-      .eq('club_id', clubId)
-      .eq('is_active', true);
+    // A role can be active but EXPIRED; the shared helper carries the repo's
+    // role-validity contract (active AND not expired) so this handler cannot
+    // drift to an is_active-only check.
+    const { data, error } = await applyActiveRoleValidity(
+      supabase
+        .from('user_roles')
+        .select('auth_user_id, is_active, expires_at, roles!inner(name)')
+        .eq('club_id', clubId)
+    );
     if (error) throw error;
     for (const row of data ?? []) {
       const roleName = (row as { roles?: { name?: string } }).roles?.name ?? '';
@@ -130,8 +141,14 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
 
   const { data: trials, error: trialsError } = await supabase
     .from('trials')
-    .select('id, date, show_id, show:shows!inner(id, name, club_id)')
-    .eq('date', trialDate);
+    .select('id, date, show_id, show:shows!inner(id, name, club_id, status, deleted_at)')
+    .eq('date', trialDate)
+    // Never announce a trial that will not run: cancelled or soft-deleted
+    // trials, and trials whose show was cancelled or soft-deleted.
+    .neq('status', 'cancelled')
+    .is('deleted_at', null)
+    .neq('shows.status', 'cancelled')
+    .is('shows.deleted_at', null);
   if (trialsError) throw trialsError;
 
   let notified = 0;
@@ -158,12 +175,21 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
         continue;
       }
 
-      const delivered = await sendNudge(supabase, authUserId, payload);
+      let delivered = false;
+      try {
+        delivered = await sendNudge(supabase, authUserId, payload);
+      } catch {
+        // A transient lookup/cleanup failure must not leave the claim behind:
+        // every later run would read the unique conflict as "already sent" and
+        // skip this person forever, having never delivered anything.
+        delivered = false;
+      }
+
       if (delivered) {
         notified += 1;
       } else {
-        // No usable subscription — release the claim so a later run can retry
-        // once the person actually enables notifications.
+        // Nothing was delivered (no usable subscription, or a transient
+        // failure) — release the claim so a later run can retry.
         await supabase
           .from('show_eve_nudge_log')
           .delete()

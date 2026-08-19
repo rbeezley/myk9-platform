@@ -20,10 +20,12 @@ export interface ShowEveJudgeRow {
 
 /**
  * How long a claim may sit undelivered before another run may take it over.
- * Long enough that a healthy in-flight run is never stolen from, far shorter
- * than the daily cadence so a crashed run costs at most one cycle.
+ *
+ * Strictly SHORTER than the gap between runs in the nudge window, so each run
+ * can reclaim what the previous one abandoned; a lease equal to the gap would
+ * leave a crashed claim un-reclaimable by the very next run.
  */
-export const CLAIM_LEASE_MS = 15 * 60 * 1000;
+export const CLAIM_LEASE_MS = 10 * 60 * 1000;
 
 export interface ShowEveClaimRow {
   claimed_at: string;

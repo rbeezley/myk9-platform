@@ -55,18 +55,23 @@ create policy show_eve_nudge_log_deny_all
   using (false)
   with check (false);
 
--- Every 15 minutes through the 23:00 UTC hour — evening across US time zones,
+-- Repeatedly through the 23:00 UTC hour — evening across US time zones,
 -- i.e. the night before the trial. Repeats are nearly free (a delivered pair
 -- is skipped on sight) and they are what makes the claim lease meaningful: a
 -- run that crashes or finds no subscription at 23:00 gets retried at 23:15,
 -- rather than the failure waiting for a tomorrow that never comes for this
 -- trial. Per-trial timezone precision is a deliberate follow-up; a nudge that
 -- lands an hour early still does its job.
+--
+-- The trailing :55 run exists so the :45 run also has a successor able to
+-- reclaim a claim it abandoned. The chain has to end somewhere: a crash during
+-- the final run of the window misses that trial's nudge, because once the
+-- clock passes midnight no run targets this trial date again.
 select cron.unschedule(jobid) from cron.job where jobname = 'show-eve-offline-nudge';
 
 select cron.schedule(
   'show-eve-offline-nudge',
-  '*/15 23 * * *',
+  '0,15,30,45,55 23 * * *',
   $show_eve_nudge$
   do $nudge$
   declare

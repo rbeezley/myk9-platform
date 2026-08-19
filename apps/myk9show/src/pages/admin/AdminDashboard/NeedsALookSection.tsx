@@ -83,7 +83,7 @@ export function NeedsALookSection({
         {visible.map(item => (
           <div
             key={item.id}
-            className="flex min-w-0 flex-col gap-2 bg-card px-5 py-[13px] sm:flex-row sm:items-center sm:gap-3"
+            className="flex min-w-0 flex-col gap-2 bg-card px-5 py-[13px] lg:flex-row lg:items-center lg:gap-3"
           >
             <span
               className={cn(
@@ -95,7 +95,7 @@ export function NeedsALookSection({
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-foreground line-clamp-2 sm:line-clamp-1">
+              <span className="block text-[13px] font-semibold text-foreground line-clamp-2 lg:line-clamp-1">
                 {item.title}
               </span>
               <span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -103,13 +103,13 @@ export function NeedsALookSection({
               </span>
             </span>
 
-            <span className="shrink-0 font-mono text-xs text-muted-foreground sm:w-[92px]">
+            <span className="shrink-0 font-mono text-xs text-muted-foreground lg:w-[92px]">
               {formatCheckedAgo(item.openedAt, now)}
             </span>
 
             <Link
               to={item.action.href}
-              className="inline-flex min-h-10 shrink-0 items-center self-start rounded-[9px] border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:self-auto"
+              className="inline-flex min-h-10 shrink-0 items-center self-start rounded-[9px] border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:self-auto"
             >
               {item.action.label}
             </Link>

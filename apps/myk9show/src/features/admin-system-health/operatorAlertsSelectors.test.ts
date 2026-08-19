@@ -82,4 +82,17 @@ describe('formatAlertDetail', () => {
   it('returns an empty string for an empty object', () => {
     expect(formatAlertDetail({})).toBe('');
   });
+
+  // Production alerts store rendered markup under an `html` key; show the
+  // sentence, never the serialization (same rule as summarizeAlertDetail on
+  // the admin dashboard).
+  it('shows markup-valued keys as their text, without the key prefix', () => {
+    expect(formatAlertDetail({ html: '<p>Auto-refund <code>re_123</code> issued.</p>' })).toBe(
+      'Auto-refund re_123 issued.'
+    );
+  });
+
+  it('skips nested objects instead of printing [object Object]', () => {
+    expect(formatAlertDetail({ amount: 20, meta: { a: 1 } })).toBe('amount: 20');
+  });
 });

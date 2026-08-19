@@ -51,10 +51,27 @@ export function severityToBadgeVariant(severity: AlertSeverity): BadgeVariant {
   }
 }
 
+/** Keys whose value IS the message; prefixing them ("html: …") is noise. */
+const MESSAGE_KEYS = /^(html|message|text|body|detail)$/i;
+
+/** Values can arrive as rendered markup (production alerts store serialized
+ * HTML under an `html` key). Show the sentence, never the serialization. */
+function toPlainText(value: unknown): string {
+  return String(value)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Compact "key: value, key: value" rendering of an alert's structured detail. */
 export function formatAlertDetail(detail: Record<string, unknown> | null): string {
   if (!detail) return '';
-  const entries = Object.entries(detail);
-  if (entries.length === 0) return '';
-  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(', ');
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(detail)) {
+    if (value === null || typeof value === 'object') continue;
+    const text = toPlainText(value);
+    if (!text) continue;
+    parts.push(MESSAGE_KEYS.test(key) ? text : `${key}: ${text}`);
+  }
+  return parts.join(', ');
 }

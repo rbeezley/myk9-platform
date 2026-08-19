@@ -55,6 +55,8 @@ snippets in [`macros.md`](../support/macros.md).
 | "I never got my confirmation email"             | [investigation-cookbook § Confirmation Email Not Received](../support/investigation-cookbook.md) → [`supabase-auth-email.md`](supabase-auth-email.md)           |
 | "My payment wasn't confirmed / Stripe question" | [common-issues § Payment Not Confirmed](../support/common-issues-outline.md), [`stripe-platform-setup.md`](stripe-platform-setup.md)                            |
 | "Our club hasn't received its payout"           | [investigation-cookbook § Club Payout Not Received](../support/investigation-cookbook.md), [`stripe-platform-setup.md`](stripe-platform-setup.md) (payout cron) |
+| Refund owed after the club was already paid out | [`post-payout-clawback.md`](post-payout-clawback.md) — manual refund + transfer reversal                                                                        |
+| Chargeback/dispute alert from Stripe            | [`post-payout-clawback.md`](post-payout-clawback.md) § Case B — evidence first, then recovery                                                                   |
 | "Stripe says my account is under review"        | [investigation-cookbook § Stripe Connect Account Under Review](../support/investigation-cookbook.md)                                                            |
 | "My data isn't syncing / offline problem"       | [investigation-cookbook § Offline or Sync Issue](../support/investigation-cookbook.md)                                                                          |
 | "I can't find my show" / entry status confusion | [common-issues-outline.md](../support/common-issues-outline.md)                                                                                                 |

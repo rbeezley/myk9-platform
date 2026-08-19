@@ -113,7 +113,11 @@ describe('RefundEntryDialog', () => {
 
     await user.click(screen.getByRole('button', { name: /issue refund/i }));
 
-    expect(await screen.findByText(/already been paid out to the club/i)).toBeInTheDocument();
+    // The blocked-refund message must route somewhere actionable, not dead-end
+    // (MYK9-195): the operator completes it via the post-payout clawback runbook.
+    expect(
+      await screen.findByText(/already been paid out to the club.*post-payout-clawback/i)
+    ).toBeInTheDocument();
     expect(onRefunded).not.toHaveBeenCalled();
   });
 

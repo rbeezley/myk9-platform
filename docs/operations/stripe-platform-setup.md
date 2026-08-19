@@ -247,7 +247,10 @@ by phone.
   show id in `transfer_group`).
 - **Never refund from the Stripe dashboard** for entries — use the app's refund dialog. A
   dashboard refund only syncs the order-level record; the entry-level refund columns and
-  status stay stale and need manual reconciliation.
+  status stay stale and need manual reconciliation. **One documented exception:** once the
+  show's payout has settled, the app refuses (`payout_already_sent`) and the dashboard IS
+  the path — but only via [`post-payout-clawback.md`](post-payout-clawback.md), which
+  includes the manual entry stamps and transfer reversal that make it safe.
 - **Rotating `PAYOUT_CRON_SECRET`**: new migration with `cron.unschedule` + `cron.schedule`
   carrying the new literal, plus `supabase secrets set` — the documented migration-194
   procedure.

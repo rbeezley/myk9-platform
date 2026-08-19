@@ -304,8 +304,9 @@ What remains is operational rather than financial. A legitimate post-payout refu
 has no in-app path — the guard blocks it, and completing it means a manual Stripe
 dashboard refund plus a transfer reversal, with no runbook.
 `cron-process-payouts` already emails exactly that instruction on a post-transfer
-mismatch, which is evidence the manual procedure is real, needed, and undocumented.
-Tracked as **MYK9-195**.
+mismatch, which is evidence the manual procedure is real and needed. The procedure
+is now written down: [`post-payout-clawback.md`](post-payout-clawback.md). The
+remaining in-app path is tracked as **MYK9-195**.
 
 ---
 

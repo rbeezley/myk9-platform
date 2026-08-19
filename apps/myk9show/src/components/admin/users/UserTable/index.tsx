@@ -155,13 +155,21 @@ function buildColumns(
             </div>
 
             <div className="min-w-0 flex-1 max-w-[220px]">
-              <div className={`font-semibold text-foreground truncate ${density.fontSize}`}>
+              <button
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  onViewUser(user);
+                }}
+                aria-label={`Open profile for ${fullName}`}
+                className={`block max-w-full truncate text-left font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${density.fontSize}`}
+              >
                 {!user.firstName && !user.lastName ? (
                   <span className="italic text-muted-foreground">No name on file</span>
                 ) : (
                   highlightSearchTerm(fullName, searchTerm)
                 )}
-              </div>
+              </button>
             </div>
           </div>
         );
@@ -172,6 +180,7 @@ function buildColumns(
     {
       id: 'email',
       header: 'Contact',
+      meta: { responsiveHide: 'md' },
       accessorFn: (row: AdminUser) => row.email?.toLowerCase() ?? '',
       cell: ({ row }) => {
         const user = row.original;
@@ -203,6 +212,7 @@ function buildColumns(
     {
       id: 'role',
       header: 'Roles',
+      meta: { responsiveHide: 'lg' },
       accessorFn: (row: AdminUser) => row.roles?.[0] ?? '',
       cell: ({ row }) => {
         const user = row.original;
@@ -241,6 +251,7 @@ function buildColumns(
     {
       id: 'lastLogin',
       header: 'Last Login',
+      meta: { responsiveHide: 'lg' },
       accessorFn: (row: AdminUser) => row.lastSignInAt ?? '',
       cell: ({ row }) => {
         const user = row.original;
@@ -489,7 +500,7 @@ export const UserTable: React.FC<UserTableProps> = ({
         role="region"
         tabIndex={0}
       >
-        <div className="myk9-table-container min-w-[760px]">
+        <div className="myk9-table-container min-w-0 sm:min-w-[760px]">
           {/* pageSize is deliberately huge: the page already sliced these rows,
               so the table must render all of them and never paginate again.
               That slicing is also why search and export are turned off here —

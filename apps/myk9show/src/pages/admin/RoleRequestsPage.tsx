@@ -136,6 +136,21 @@ export default function RoleRequestsPage() {
     });
   };
 
+  const markRequestReviewed = (
+    requestId: string,
+    status: Extract<RoleRequestStatus, 'approved' | 'denied'>,
+    updates: Pick<RoleRequest, 'clubId' | 'clubName' | 'reviewerNote'>
+  ) => {
+    const reviewedAt = new Date().toISOString();
+    setRequests(previous =>
+      previous.map(request =>
+        request.id === requestId
+          ? { ...request, ...updates, status, reviewedAt, updatedAt: reviewedAt }
+          : request
+      )
+    );
+  };
+
   const handleApprove = async (request: RoleRequest) => {
     clearActionError(request.id);
     const clubId = selectedClubs[request.id] || request.clubId;
@@ -156,6 +171,11 @@ export default function RoleRequestsPage() {
       setBusyAction('approve');
       await approveRoleRequest(request.id, {
         clubId,
+        reviewerNote: notes[request.id]?.trim() || null,
+      });
+      markRequestReviewed(request.id, 'approved', {
+        clubId,
+        clubName: clubs.find(club => club.id === clubId)?.name ?? request.clubName,
         reviewerNote: notes[request.id]?.trim() || null,
       });
       notifications.success('Role request approved');
@@ -186,7 +206,13 @@ export default function RoleRequestsPage() {
     try {
       setBusyId(request.id);
       setBusyAction('deny');
-      await denyRoleRequest(request.id, notes[request.id]?.trim() || 'Denied by site admin.');
+      const reviewerNote = notes[request.id]?.trim() || 'Denied by site admin.';
+      await denyRoleRequest(request.id, reviewerNote);
+      markRequestReviewed(request.id, 'denied', {
+        clubId: request.clubId,
+        clubName: request.clubName,
+        reviewerNote,
+      });
       notifications.success('Role request denied');
       await loadRequests();
     } catch (err) {

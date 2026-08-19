@@ -197,6 +197,43 @@ describe('RoleRequestsPage', () => {
     await waitFor(() => expect(approveRoleRequest).toHaveBeenCalledTimes(2));
   });
 
+  it('removes a successfully reviewed request from the pending queue when refresh fails', async () => {
+    const user = userEvent.setup();
+    getAllRoleRequests
+      .mockResolvedValueOnce([
+        {
+          id: 'request-1',
+          authUserId: 'auth-1',
+          personId: 'person-1',
+          requestedRole: 'club_admin',
+          requestedScope: 'club',
+          clubId: null,
+          clubName: null,
+          showId: null,
+          status: 'pending',
+          requesterNote: 'Created from signup role intent.',
+          reviewerNote: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          createdAt: '2026-05-24T12:00:00Z',
+          updatedAt: '2026-05-24T12:00:00Z',
+          requesterName: 'Pat Morgan',
+          requesterEmail: 'pat@example.com',
+        },
+      ])
+      .mockRejectedValueOnce(new Error('refresh failed'));
+    approveRoleRequest.mockResolvedValueOnce(undefined);
+
+    render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
+
+    expect(await screen.findByText('Pat Morgan')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText(/club/i), 'club-1');
+    await user.click(screen.getByRole('button', { name: 'Approve' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load role requests.');
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+  });
+
   it('reveals reviewer and access details inline', async () => {
     const user = userEvent.setup();
     getAllRoleRequests.mockResolvedValueOnce([

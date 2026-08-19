@@ -7,7 +7,7 @@
 // rest of this board — an unresolved alert must be visible with enough
 // context to act, and resolving it must be a single, explicit action.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from '@myk9/ui';
@@ -87,7 +87,13 @@ function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
 
 export function OperatorAlertsSection() {
   const { data, isLoading, error } = useOperatorAlerts();
-  const [now] = useState(() => Date.now());
+  // Ticks like the main board's clock: frozen-at-mount ages read "10 min ago"
+  // an hour later, silently wrong next to rows that do advance.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const clock = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(clock);
+  }, []);
   const [showAll, setShowAll] = useState(false);
   const visibleAlerts = data && !showAll ? data.slice(0, VISIBLE_ALERTS_CAP) : (data ?? []);
 

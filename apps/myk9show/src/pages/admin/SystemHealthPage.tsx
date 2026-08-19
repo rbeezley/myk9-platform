@@ -119,7 +119,9 @@ function FreshnessBand({
       role={isStale || runError ? 'alert' : undefined}
       className={cn(
         'flex flex-col gap-3 rounded-[15px] px-5 py-3.5 sm:flex-row sm:items-start sm:justify-between',
-        isStale || isEmpty ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+        // A failed Run now is a problem being reported — it must not sit in a
+        // green band just because the last nightly run was fresh.
+        isStale || isEmpty || runError ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
       )}
     >
       <div className="flex min-w-0 items-start gap-2.5">

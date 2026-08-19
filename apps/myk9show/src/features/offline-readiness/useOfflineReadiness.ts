@@ -207,10 +207,18 @@ export function useOfflineReadiness(showId: string | undefined) {
       // Permissions refresh re-persists the RBAC cache (MYK9-200), healing a
       // device whose cache was missing or expired — show data alone is not
       // enough to be offline ready.
-      // A show absent from the local store may predate the shows table's
-      // watermark (another show hydrated it), so an incremental sync would
-      // skip it forever. Rewind the watermark first — this re-fetches rows
-      // without clearing them, unlike clearCache().
+      // Rewind the watermark of every cold/short scope before syncing. An
+      // incremental sync does not restore rows that quota eviction removed
+      // (the engine only force-syncs a COMPLETELY empty replica) and then
+      // rewrites totalRows down to the reduced local count — which would turn
+      // the badge falsely green. Rewinding re-fetches without clearing rows.
+      const missing = readiness?.missing ?? [];
+      const REWIND = { lastIncrementalSyncAt: 0, scopes: {} };
+      await Promise.all([
+        missing.includes('trials') ? replicatedTrialsTable.updateSyncMetadata(REWIND) : null,
+        missing.includes('entries') ? replicatedEntriesTable.updateSyncMetadata(REWIND) : null,
+        missing.includes('classes') ? replicatedClassesTable.updateSyncMetadata(REWIND) : null,
+      ]);
       if (readiness?.missing.includes('show')) {
         await replicatedShowsTable.updateSyncMetadata({
           lastIncrementalSyncAt: 0,

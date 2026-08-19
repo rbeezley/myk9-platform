@@ -33,6 +33,7 @@ vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: {
     getSyncMetadata: vi.fn(async () => tables.trials.meta),
     getTrialsByShow: vi.fn(async () => tables.trials.rows),
+    updateSyncMetadata: vi.fn(async () => {}),
   },
   replicatedClassesTable: {
     getSyncMetadata: vi.fn(
@@ -41,10 +42,12 @@ vi.mock('@/services/replication', () => ({
     getClassesByTrial: vi.fn(
       async (trialId: string) => tables.classes.rowsByTrial.get(trialId) ?? []
     ),
+    updateSyncMetadata: vi.fn(async () => {}),
   },
   replicatedEntriesTable: {
     getSyncMetadata: vi.fn(async () => tables.entries.meta),
     getEntriesByShow: vi.fn(async () => tables.entries.rows),
+    updateSyncMetadata: vi.fn(async () => {}),
   },
   replicatedShowsTable: {
     getShowById: vi.fn(async () => tables.shows.row),
@@ -228,6 +231,27 @@ describe('useOfflineReadiness', () => {
       expect(result.current.readiness?.ready).toBe(false);
     });
     expect(result.current.readiness?.missing).toEqual(['judge assignments']);
+  });
+
+  it('rewinds an evicted scope watermark so prime() actually restores the rows', async () => {
+    primeAllSignals();
+    tables.entries.rows = rows(1); // metadata claims 3 — quota eviction
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.missing).toEqual(['entries']);
+    });
+
+    await act(async () => {
+      await result.current.prime();
+    });
+
+    const { replicatedEntriesTable } = await import('@/services/replication');
+    // An incremental sync would not restore unchanged evicted rows, and would
+    // then rewrite totalRows DOWN to the reduced count — a false green.
+    expect(replicatedEntriesTable.updateSyncMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({ lastIncrementalSyncAt: 0, scopes: {} })
+    );
   });
 
   it('is ready for a judge whose assignment table is hydrated but genuinely empty', async () => {

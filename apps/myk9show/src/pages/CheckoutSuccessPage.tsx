@@ -246,6 +246,10 @@ export default function CheckoutSuccessPage() {
       }
       checkInFlight = true;
       statusCheckInFlightRef.current = true;
+      // Surface the shared in-flight state on the manual button: while a
+      // background check runs, the button reads "Checking…" and disables
+      // instead of silently swallowing a click (review round 4).
+      setIsCheckingStatus(true);
       try {
         const result = await checkCheckoutSession(sessionId);
         if (cancelled || verificationGenerationRef.current !== generation) return;
@@ -261,6 +265,9 @@ export default function CheckoutSuccessPage() {
       } finally {
         checkInFlight = false;
         statusCheckInFlightRef.current = false;
+        if (!cancelled && verificationGenerationRef.current === generation) {
+          setIsCheckingStatus(false);
+        }
       }
     };
 

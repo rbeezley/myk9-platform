@@ -47,6 +47,8 @@ describe('role request database service', () => {
       requesterNote: 'I run the club.',
       reviewerNote: null,
       reviewedBy: null,
+      reviewerName: null,
+      reviewerEmail: null,
       reviewedAt: null,
       createdAt: '2026-05-24T12:00:00Z',
       updatedAt: '2026-05-24T12:00:00Z',
@@ -125,6 +127,35 @@ describe('role request database service', () => {
         club: null,
       })
     ).toThrow(/status.*rejected/);
+  });
+
+  it('maps reviewer profile details for completed requests', () => {
+    const request = mapDbRoleRequest({
+      id: 'request-reviewed',
+      auth_user_id: 'auth-1',
+      person_id: 'person-1',
+      requested_role: 'secretary',
+      requested_scope: 'club',
+      club_id: 'club-1',
+      show_id: null,
+      status: 'approved',
+      requester_note: null,
+      reviewer_note: 'Confirmed by phone.',
+      reviewed_by: 'reviewer-1',
+      reviewed_at: '2026-05-25T12:00:00Z',
+      created_at: '2026-05-24T12:00:00Z',
+      updated_at: '2026-05-25T12:00:00Z',
+      person: null,
+      reviewer: {
+        first_name: 'Alex',
+        last_name: 'Rivera',
+        email: 'alex@example.com',
+      },
+      club: { name: 'Best Club' },
+    });
+
+    expect(request.reviewerName).toBe('Alex Rivera');
+    expect(request.reviewerEmail).toBe('alex@example.com');
   });
 
   it('reads all role requests newest first for site admins', async () => {

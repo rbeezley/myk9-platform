@@ -38,7 +38,12 @@ describe('OnboardingInboxPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getAllOnboardingRequests.mockResolvedValue([pendingRequest]);
-    updateOnboardingRequest.mockResolvedValue(undefined);
+    updateOnboardingRequest.mockImplementation(
+      async (_requestId: string, updates: Partial<typeof pendingRequest>) => ({
+        ...pendingRequest,
+        ...updates,
+      })
+    );
   });
 
   it('lists a pending onboarding request with its contact details', async () => {
@@ -86,6 +91,23 @@ describe('OnboardingInboxPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Your edits are still here');
     expect(noteInput).toHaveValue('Call again Friday');
+  });
+
+  it('uses the authoritative saved row after a concurrent status change', async () => {
+    const user = userEvent.setup();
+    updateOnboardingRequest.mockResolvedValueOnce({
+      ...pendingRequest,
+      status: 'contacted',
+      notes: 'Updated by another admin',
+    });
+    render(<OnboardingInboxPage />, { initialRoute: '/admin/onboarding' });
+
+    expect(await screen.findByText('Tri-State Kennel Club')).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/internal note/i), 'My follow-up note');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByText(/No pending requests/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /contacted \(1\)/i })).toBeInTheDocument();
   });
 
   it('keeps an unsaved edit in one row when a different row is saved', async () => {

@@ -106,22 +106,12 @@ export default function OnboardingInboxPage() {
         delete next[request.id];
         return next;
       });
-      await updateOnboardingRequest(request.id, {
+      const updatedRequest = await updateOnboardingRequest(request.id, {
         ...(statusChanged ? { status: nextStatus } : {}),
         ...(noteChanged ? { notes: nextNote.trim() } : {}),
       });
       notifications.success('Onboarding request updated');
-      setRequests(prev =>
-        prev.map(item =>
-          item.id === request.id
-            ? {
-                ...item,
-                status: nextStatus,
-                notes: noteChanged ? nextNote.trim() : request.notes,
-              }
-            : item
-        )
-      );
+      setRequests(prev => prev.map(item => (item.id === request.id ? updatedRequest : item)));
       // Drop only this row's drafts while leaving unsaved edits in other rows intact.
       setStatusDrafts(prev => {
         const next = { ...prev };

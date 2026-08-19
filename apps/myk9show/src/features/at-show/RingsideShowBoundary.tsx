@@ -36,6 +36,12 @@ async function loadShow(showId: string, isOnline: boolean, canVerifyOnline: bool
   // A local miss while online is not enough to call the show unknown: the
   // replica may simply be cold. Sync the show table, then make the same local
   // read again so a real 404 remains distinguishable from an uncached show.
+  await replicatedShowsTable.updateSyncMetadata({
+    lastIncrementalSyncAt: 0,
+    // The table may be partially populated, so resetting only the global
+    // watermark could still skip the missing show in a scoped sync.
+    scopes: {},
+  });
   const syncResult = await replicatedShowsTable.sync('');
   if (!syncResult.success) {
     throw syncResult.error ?? new Error("We couldn't refresh shows");

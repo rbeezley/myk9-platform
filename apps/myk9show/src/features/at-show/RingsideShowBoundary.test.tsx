@@ -23,7 +23,11 @@ const { authState, networkState } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/replication', () => ({
-  replicatedShowsTable: { getShowById: vi.fn(), sync: vi.fn() },
+  replicatedShowsTable: {
+    getShowById: vi.fn(),
+    sync: vi.fn(),
+    updateSyncMetadata: vi.fn(),
+  },
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -67,6 +71,7 @@ describe('RingsideShowBoundary', () => {
     vi.mocked(replicatedShowsTable.sync)
       .mockReset()
       .mockResolvedValue({ success: true } as never);
+    vi.mocked(replicatedShowsTable.updateSyncMetadata).mockReset().mockResolvedValue(undefined);
     authState.user = null;
     authState.roles = [];
     networkState.isOnline = true;
@@ -118,6 +123,10 @@ describe('RingsideShowBoundary', () => {
     expect(await screen.findByText('Show not found')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /load this show/i })).not.toBeInTheDocument();
     expect(replicatedShowsTable.sync).toHaveBeenCalledWith('');
+    expect(replicatedShowsTable.updateSyncMetadata).toHaveBeenCalledWith({
+      lastIncrementalSyncAt: 0,
+      scopes: {},
+    });
   });
 
   it('refetches after show replication sync invalidates the shows cache', async () => {

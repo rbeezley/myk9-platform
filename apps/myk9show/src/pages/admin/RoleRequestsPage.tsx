@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock, ShieldCheck, XCircle } from 'lucide-react';
+import { RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageShell } from '@/components/common/PageShell';
 import { useClubsQuery } from '@/hooks/queries/useClubsDatabase';
-import { formatShortDate } from '@/lib/format/dates';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import {
@@ -15,26 +15,56 @@ import {
   type RoleRequest,
   type RoleRequestStatus,
 } from '@/services/database/role-requests';
-import {
-  getRoleRequestFilterLabel,
-  getRoleRequestStatusPresentation,
-  ROLE_REQUEST_STATUS_FILTERS,
-} from './adminStatusPresentation';
+import { getRoleRequestFilterLabel, ROLE_REQUEST_STATUS_FILTERS } from './adminStatusPresentation';
+import { RoleRequestCard, type ActionError } from './RoleRequestCard';
+import { getRoleLabel } from './roleRequestPresentation';
 
-const roleLabels: Record<RoleRequest['requestedRole'], string> = {
-  club_admin: 'Club admin',
-  secretary: 'Show secretary',
-};
+function getEmptyStateCopy(filter: RoleRequestStatus | 'all') {
+  switch (filter) {
+    case 'pending':
+      return {
+        title: 'No requests waiting for review',
+        description: 'New elevated access requests will appear here when someone signs up.',
+      };
+    case 'approved':
+      return {
+        title: 'No approved requests yet',
+        description: 'Approved requests will stay here so you can review the access history.',
+      };
+    case 'denied':
+      return {
+        title: 'No denied requests yet',
+        description: 'Denied requests will stay here with the note from the review.',
+      };
+    default:
+      return {
+        title: 'No role requests yet',
+        description: 'Elevated access requests will appear here for site admin review.',
+      };
+  }
+}
 
-function StatusBadge({ status }: { status: RoleRequestStatus }) {
-  const presentation = getRoleRequestStatusPresentation(status);
-
+function LoadingState() {
   return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${presentation.className}`}
-    >
-      {presentation.label}
-    </span>
+    <div aria-label="Loading role requests" className="space-y-4" role="status">
+      <span className="sr-only">Loading role requests...</span>
+      {[1, 2].map(item => (
+        <div key={item} className="rounded-xl border border-border bg-card p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-4 w-72 max-w-[70vw]" />
+            </div>
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <Skeleton className="h-11" />
+            <Skeleton className="h-11" />
+            <Skeleton className="h-11" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -43,9 +73,13 @@ export default function RoleRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<RoleRequestStatus | 'all'>('pending');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedClubs, setSelectedClubs] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [actionErrors, setActionErrors] = useState<Record<string, ActionError>>({});
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<'approve' | 'deny' | null>(null);
   const { data: clubs = [] } = useClubsQuery();
 
   const loadRequests = useCallback(async () => {
@@ -65,10 +99,25 @@ export default function RoleRequestsPage() {
     loadRequests();
   }, [loadRequests]);
 
-  const filteredRequests = useMemo(
-    () => (filter === 'all' ? requests : requests.filter(request => request.status === filter)),
-    [filter, requests]
-  );
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredRequests = useMemo(() => {
+    const statusRequests =
+      filter === 'all' ? requests : requests.filter(request => request.status === filter);
+
+    if (!normalizedSearchTerm) return statusRequests;
+
+    return statusRequests.filter(request =>
+      [
+        request.requesterName,
+        request.requesterEmail,
+        request.clubName,
+        request.requesterNote,
+        getRoleLabel(request.requestedRole),
+      ]
+        .filter(Boolean)
+        .some(value => value?.toLowerCase().includes(normalizedSearchTerm))
+    );
+  }, [filter, normalizedSearchTerm, requests]);
 
   const counts = useMemo(() => {
     const result: Record<string, number> = {};
@@ -76,15 +125,35 @@ export default function RoleRequestsPage() {
     return result;
   }, [requests]);
 
+  const pendingCount = counts.pending ?? 0;
+
+  const clearActionError = (requestId: string) => {
+    setActionErrors(previous => {
+      if (!previous[requestId]) return previous;
+      const next = { ...previous };
+      delete next[requestId];
+      return next;
+    });
+  };
+
   const handleApprove = async (request: RoleRequest) => {
+    clearActionError(request.id);
     const clubId = selectedClubs[request.id] || request.clubId;
     if (!clubId) {
+      setActionErrors(previous => ({
+        ...previous,
+        [request.id]: {
+          action: 'approve',
+          message: 'Choose a club before approving this request.',
+        },
+      }));
       notifications.error('Choose a club before approving this request.');
       return;
     }
 
     try {
       setBusyId(request.id);
+      setBusyAction('approve');
       await approveRoleRequest(request.id, {
         clubId,
         reviewerNote: notes[request.id]?.trim() || null,
@@ -98,23 +167,41 @@ export default function RoleRequestsPage() {
         { requestId: request.id },
         err as Error
       );
+      setActionErrors(previous => ({
+        ...previous,
+        [request.id]: {
+          action: 'approve',
+          message: "We couldn't approve this request. Try again.",
+        },
+      }));
       notifications.error('Failed to approve role request.');
     } finally {
       setBusyId(null);
+      setBusyAction(null);
     }
   };
 
   const handleDeny = async (request: RoleRequest) => {
+    clearActionError(request.id);
     try {
       setBusyId(request.id);
+      setBusyAction('deny');
       await denyRoleRequest(request.id, notes[request.id]?.trim() || 'Denied by site admin.');
       notifications.success('Role request denied');
       await loadRequests();
     } catch (err) {
       logger.error('Failed to deny role request', 'admin', { requestId: request.id }, err as Error);
+      setActionErrors(previous => ({
+        ...previous,
+        [request.id]: {
+          action: 'deny',
+          message: "We couldn't deny this request. Try again.",
+        },
+      }));
       notifications.error('Failed to deny role request.');
     } finally {
       setBusyId(null);
+      setBusyAction(null);
     }
   };
 
@@ -122,12 +209,20 @@ export default function RoleRequestsPage() {
     { label: 'Admin', href: '/admin' },
     { label: 'Role Requests', href: '/admin/role-requests' },
   ];
+  const hasSearch = normalizedSearchTerm.length > 0;
+  const emptyStateCopy = hasSearch
+    ? {
+        title: 'No matching requests',
+        description: 'Try a different name, email address, club, or role.',
+      }
+    : getEmptyStateCopy(filter);
 
   return (
     <PageShell>
       <PageHeader
         breadcrumbs={breadcrumbs}
         title="Role Requests"
+        showTitle
         actions={
           <Button variant="outline" asChild>
             <Link to="/admin/users">Manage Users</Link>
@@ -135,21 +230,62 @@ export default function RoleRequestsPage() {
         }
       />
 
-      <div className="mb-6 mt-4">
-        <h2 className="text-2xl font-semibold text-foreground">Role Requests</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <div className="-mt-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-2xl text-base text-muted-foreground">
           Review new signup requests for elevated club access.
         </p>
+        <Button
+          type="button"
+          variant="ghost"
+          className="min-h-11 gap-2"
+          onClick={loadRequests}
+          disabled={loading}
+          aria-busy={loading}
+        >
+          <RefreshCw
+            className={`h-4 w-4 motion-reduce:animate-none ${loading ? 'animate-spin' : ''}`}
+            aria-hidden="true"
+          />
+          Refresh
+        </Button>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Review queue</p>
+          {loading && <Skeleton className="mt-1 h-4 w-44" />}
+          {!loading && error && (
+            <p className="text-sm text-muted-foreground">We couldn&apos;t refresh this queue.</p>
+          )}
+          {!loading && !error && (
+            <p className="text-sm text-muted-foreground">
+              {pendingCount > 0
+                ? `${pendingCount} ${pendingCount === 1 ? 'request' : 'requests'} waiting for review`
+                : 'Nothing is waiting for review'}
+            </p>
+          )}
+        </div>
+        {loading && <Skeleton className="h-7 w-24 rounded-full" />}
+        {!loading && error && (
+          <span className="rounded-full bg-background px-3 py-1 text-sm font-medium text-muted-foreground">
+            Unavailable
+          </span>
+        )}
+        {!loading && !error && (
+          <span className="rounded-full bg-background px-3 py-1 text-sm font-medium text-foreground">
+            {pendingCount} pending
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2" aria-label="Filter role requests" role="group">
         {ROLE_REQUEST_STATUS_FILTERS.map(status => (
           <button
             key={status}
             type="button"
             aria-pressed={filter === status}
             onClick={() => setFilter(status)}
-            className={`rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+            className={`min-h-11 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
               filter === status
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -162,143 +298,102 @@ export default function RoleRequestsPage() {
         ))}
       </div>
 
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative min-w-0 flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <label htmlFor="role-request-search" className="sr-only">
+            Search role requests
+          </label>
+          <input
+            id="role-request-search"
+            type="search"
+            value={searchTerm}
+            onChange={event => setSearchTerm(event.target.value)}
+            placeholder="Search by name, email, club, or role"
+            className="min-h-11 w-full rounded-lg border border-input bg-background py-2 pl-11 pr-11 text-base focus-visible:border-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Clear search"
+              onClick={() => setSearchTerm('')}
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {hasSearch
+            ? `${filteredRequests.length} matching ${filteredRequests.length === 1 ? 'request' : 'requests'}`
+            : `${filteredRequests.length} shown`}
+        </p>
+      </div>
+
       {error && (
-        <div className="mb-6 rounded-md border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          <span>{error}</span>
+          <Button type="button" variant="outline" className="min-h-11" onClick={loadRequests}>
+            Try again
+          </Button>
         </div>
       )}
 
-      {loading && (
-        <div className="py-12 text-center text-muted-foreground">Loading requests...</div>
-      )}
+      {loading && <LoadingState />}
 
       {!loading && filteredRequests.length === 0 && (
-        <div className="rounded-md border border-border bg-card px-6 py-12 text-center">
+        <div className="rounded-xl border border-border bg-card px-6 py-14 text-center">
           <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">
-            No {getRoleRequestFilterLabel(filter).toLowerCase()} requests
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            New elevated signup requests will appear here for site-admin review.
+          <h2 className="text-lg font-semibold">{emptyStateCopy.title}</h2>
+          <p className="mx-auto mt-2 max-w-md text-base text-muted-foreground">
+            {emptyStateCopy.description}
           </p>
+          {hasSearch && (
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-5 min-h-11"
+              onClick={() => setSearchTerm('')}
+            >
+              Clear search
+            </Button>
+          )}
         </div>
       )}
 
       {!loading && filteredRequests.length > 0 && (
-        <div className="space-y-3">
-          {filteredRequests.map(request => {
-            const isPending = request.status === 'pending';
-            const selectedClubId = selectedClubs[request.id] ?? request.clubId ?? '';
-
-            return (
-              <article key={request.id} className="rounded-md border border-border bg-card p-5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold text-foreground">
-                        {request.requesterName}
-                      </h3>
-                      <StatusBadge status={request.status} />
-                      <span className="text-sm text-muted-foreground">
-                        {roleLabels[request.requestedRole]}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      {request.requesterEmail ?? 'No email'} · Requested{' '}
-                      {formatShortDate(request.createdAt)}
-                      {request.clubName ? ` · ${request.clubName}` : ''}
-                    </div>
-                    {request.requesterNote && (
-                      <p className="mt-3 rounded-md border border-border bg-background px-3 py-2 text-sm">
-                        {request.requesterNote}
-                      </p>
-                    )}
-                  </div>
-                  {request.status === 'approved' && (
-                    <div className="inline-flex items-center gap-2 text-sm text-success">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Approved {request.reviewedAt ? formatShortDate(request.reviewedAt) : ''}
-                    </div>
-                  )}
-                  {request.status === 'denied' && (
-                    <div className="inline-flex items-center gap-2 text-sm text-destructive">
-                      <XCircle className="h-4 w-4" />
-                      Denied {request.reviewedAt ? formatShortDate(request.reviewedAt) : ''}
-                    </div>
-                  )}
-                  {request.status === 'pending' && (
-                    <div className="inline-flex items-center gap-2 text-sm text-warning">
-                      <Clock className="h-4 w-4" />
-                      Needs review
-                    </div>
-                  )}
-                </div>
-
-                {isPending && (
-                  <div className="mt-4 grid gap-3 md:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_auto] md:items-end">
-                    <label className="block text-sm font-medium">
-                      Club
-                      <select
-                        value={selectedClubId}
-                        onChange={event =>
-                          setSelectedClubs(prev => ({
-                            ...prev,
-                            [request.id]: event.target.value,
-                          }))
-                        }
-                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary/15"
-                      >
-                        <option value="">Choose a club...</option>
-                        {clubs.map(club => (
-                          <option key={club.id} value={club.id}>
-                            {club.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-sm font-medium">
-                      Admin note
-                      <input
-                        type="text"
-                        value={notes[request.id] ?? ''}
-                        onChange={event =>
-                          setNotes(prev => ({
-                            ...prev,
-                            [request.id]: event.target.value,
-                          }))
-                        }
-                        placeholder="Optional note"
-                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary/15"
-                      />
-                    </label>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        onClick={() => handleApprove(request)}
-                        disabled={busyId === request.id || !selectedClubId}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleDeny(request)}
-                        disabled={busyId === request.id}
-                      >
-                        Deny
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {!isPending && request.reviewerNote && (
-                  <p className="mt-4 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-                    {request.reviewerNote}
-                  </p>
-                )}
-              </article>
-            );
-          })}
+        <div className="space-y-4">
+          {filteredRequests.map(request => (
+            <RoleRequestCard
+              key={request.id}
+              request={request}
+              clubs={clubs}
+              selectedClubId={selectedClubs[request.id] ?? request.clubId ?? ''}
+              note={notes[request.id] ?? ''}
+              busyId={busyId}
+              busyAction={busyAction}
+              actionError={actionErrors[request.id]}
+              detailsOpen={expandedRequestId === request.id}
+              onClubChange={clubId =>
+                setSelectedClubs(previous => ({ ...previous, [request.id]: clubId }))
+              }
+              onNoteChange={note => setNotes(previous => ({ ...previous, [request.id]: note }))}
+              onApprove={handleApprove}
+              onDeny={handleDeny}
+              onRetry={(retryRequest, action) =>
+                action === 'approve' ? handleApprove(retryRequest) : handleDeny(retryRequest)
+              }
+              onToggleDetails={() =>
+                setExpandedRequestId(current => (current === request.id ? null : request.id))
+              }
+            />
+          ))}
         </div>
       )}
     </PageShell>

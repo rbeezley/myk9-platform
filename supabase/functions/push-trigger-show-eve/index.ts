@@ -130,11 +130,12 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
  * deliver the same nudge twice.
  */
 const PUSH_CALL_TIMEOUT_MS = 8_000;
+const PUSH_TIMEOUT_MESSAGE = 'push send timed out';
 const MAX_SUBSCRIPTIONS_PER_RECIPIENT = 10;
 
 function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('push send timed out')), ms);
+    const timer = setTimeout(() => reject(new Error(PUSH_TIMEOUT_MESSAGE)), ms);
     work.then(
       value => {
         clearTimeout(timer);
@@ -148,20 +149,29 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/**
+ * 'uncertain' exists because a timed-out push cannot be cancelled: the request
+ * may still land. Releasing the claim would risk a duplicate, and stamping it
+ * delivered would risk silence — so the claim is left in place and the lease
+ * decides, which is exactly what the lease is for.
+ */
+type SendOutcome = 'delivered' | 'failed' | 'uncertain';
+
 async function sendNudge(
   supabase: SupabaseClient,
   authUserId: string,
   payload: ReturnType<typeof buildShowEveNudgePayload>
-): Promise<boolean> {
+): Promise<SendOutcome> {
   const { data: subscriptions, error } = await supabase
     .from('push_subscriptions')
     .select('endpoint, p256dh, auth')
     .eq('user_id', authUserId);
   if (error) throw error;
-  if (!subscriptions?.length) return false;
+  if (!subscriptions?.length) return 'failed';
 
   const expiredEndpoints: string[] = [];
   let delivered = false;
+  let timedOut = false;
 
   for (const sub of subscriptions.slice(0, MAX_SUBSCRIPTIONS_PER_RECIPIENT)) {
     try {
@@ -183,6 +193,9 @@ async function sendNudge(
       const statusCode = (err as { statusCode?: number }).statusCode;
       if (statusCode === 410 || statusCode === 404) {
         expiredEndpoints.push((sub as { endpoint: string }).endpoint);
+      } else if (err instanceof Error && err.message === PUSH_TIMEOUT_MESSAGE) {
+        // The request was not cancelled and may still be delivered.
+        timedOut = true;
       }
     }
   }
@@ -201,7 +214,8 @@ async function sendNudge(
     }
   }
 
-  return delivered;
+  if (delivered) return 'delivered';
+  return timedOut ? 'uncertain' : 'failed';
 }
 
 handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase }) => {
@@ -291,17 +305,25 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
         claimToken = reclaimToken;
       }
 
-      let delivered = false;
+      let outcome: SendOutcome = 'failed';
       try {
-        delivered = await sendNudge(supabase, authUserId, payload);
+        outcome = await sendNudge(supabase, authUserId, payload);
       } catch {
-        // A transient lookup/cleanup failure must not leave the claim behind:
-        // every later run would read the unique conflict as "already sent" and
-        // skip this person forever, having never delivered anything.
-        delivered = false;
+        // A transient lookup failure must not leave the claim behind: every
+        // later run would read the unique conflict as "already sent" and skip
+        // this person forever, having never delivered anything.
+        outcome = 'failed';
       }
 
-      if (delivered) {
+      if (outcome === 'uncertain') {
+        // Leave the claim exactly as it is. If the timed-out request landed,
+        // nobody gets a second buzz; if it did not, the lease expires and a
+        // later run in this window retries.
+        skipped += 1;
+        continue;
+      }
+
+      if (outcome === 'delivered') {
         // Mark the claim as genuinely completed so no later run reclaims it.
         // Conditional on still holding this claim: if a send outlived the
         // lease and another run reclaimed it, that run owns the outcome.

@@ -271,10 +271,13 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
             .select('id');
 
         let stamp = await stampDelivered();
-        if (stamp.error) stamp = await stampDelivered();
-        if (stamp.error) {
-          // The push WAS delivered; only the bookkeeping failed. Never delete
-          // the claim here — that would guarantee a duplicate next run.
+        // An empty data array is NOT success: it means another invocation
+        // reclaimed or removed this claim, so nothing recorded our delivery.
+        if (stamp.error || !stamp.data?.length) stamp = await stampDelivered();
+        if (stamp.error || !stamp.data?.length) {
+          // The push WAS delivered; only the bookkeeping failed or the claim
+          // was lost. Never delete the claim here — that would guarantee a
+          // duplicate next run.
           unstamped += 1;
         }
         notified += 1;

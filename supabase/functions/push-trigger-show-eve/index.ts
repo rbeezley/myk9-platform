@@ -72,8 +72,11 @@ async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promis
   // through their assignments and resolve the person to their auth account.
   const { data: assignmentRows, error: assignmentError } = await supabase
     .from('judge_assignments')
-    .select('status, trial_id, people!inner(auth_user_id)')
-    .eq('show_id', trial.show_id);
+    .select('status, trial_id, people!inner(auth_user_id, deleted_at)')
+    .eq('show_id', trial.show_id)
+    // Soft-deleting a person deactivates their user_roles but leaves judge
+    // assignments and push subscriptions intact — filter them out here.
+    .is('people.deleted_at', null);
   if (assignmentError) throw assignmentError;
 
   const judges: ShowEveJudgeRow[] = (assignmentRows ?? [])
@@ -192,11 +195,23 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
           continue;
         }
 
-        await supabase
+        // Compare-and-swap, not a bare update: runs overlap on the 15-minute
+        // schedule, and both could read the same stale claim and send. Only
+        // the invocation whose update actually matches (still undelivered,
+        // still holding the claim we read) proceeds.
+        const { data: reclaimed } = await supabase
           .from('show_eve_nudge_log')
           .update({ claimed_at: new Date().toISOString() })
           .eq('trial_id', trial.id)
-          .eq('auth_user_id', authUserId);
+          .eq('auth_user_id', authUserId)
+          .eq('claimed_at', existing.claimed_at)
+          .is('delivered_at', null)
+          .select('id');
+
+        if (!reclaimed?.length) {
+          skipped += 1;
+          continue;
+        }
       }
 
       let delivered = false;

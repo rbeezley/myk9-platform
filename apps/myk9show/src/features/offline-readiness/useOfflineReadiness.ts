@@ -6,6 +6,7 @@ import {
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
+import { getActiveJudgeAssignmentsForShow } from '@/services/database/judges/assignmentReads';
 import { loadRbacPermissionsCache } from '@/context/rbacPermissionsCache';
 import { syncAtShowData } from '@/features/at-show/atShowDataAdapter';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -42,7 +43,7 @@ function toScope(label: string, meta: ScopedMeta | null, localRowCount: number):
 async function gatherReadiness(
   showId: string,
   userId: string,
-  isJudge: boolean
+  judgePersonId: string | null
 ): Promise<OfflineReadiness> {
   const cacheEntry = loadRbacPermissionsCache(userId);
   const permissionsCachedAt = cacheEntry ? Date.parse(cacheEntry.cachedAt) : null;
@@ -93,9 +94,11 @@ async function gatherReadiness(
 
   // A judge's at-show surface is driven by useMyAtShowJudgeAssignments; with
   // no cached assignments they see "No classes assigned yet" offline even
-  // though the show data is all present. Only judges depend on this table.
-  if (isJudge) {
-    const assignments = await replicatedJudgeAssignmentsTable.getByShowId(showId);
+  // though the show data is all present. Use the SAME filtered read that
+  // surface uses — another judge's assignment, an inactive row, or a
+  // show-level row proves nothing about what this judge can open.
+  if (judgePersonId) {
+    const assignments = await getActiveJudgeAssignmentsForShow(showId, judgePersonId);
     scopes.push({
       label: 'judge assignments',
       hydrated: assignments.length > 0,
@@ -118,8 +121,10 @@ async function gatherReadiness(
  * red for them.
  */
 export function useOfflineReadiness(showId: string | undefined) {
-  const { user, isJudge, refreshPermissions } = useAuthContext();
+  const { user, isJudge, userWithRoles, refreshPermissions } = useAuthContext();
   const userId = user?.id;
+  // Judge readiness keys off the PERSON id the assignment rows carry.
+  const judgePersonId = isJudge ? (userWithRoles?.databaseUserId ?? null) : null;
   const isAnonymous = user?.is_anonymous === true;
   const [readiness, setReadiness] = useState<OfflineReadiness | null>(null);
   const [checking, setChecking] = useState(false);
@@ -138,7 +143,7 @@ export function useOfflineReadiness(showId: string | undefined) {
     const generation = ++generationRef.current;
     setChecking(true);
     try {
-      const result = await gatherReadiness(showId, userId, isJudge);
+      const result = await gatherReadiness(showId, userId, judgePersonId);
       if (generationRef.current === generation) setReadiness(result);
       return result;
     } catch (error) {
@@ -153,7 +158,7 @@ export function useOfflineReadiness(showId: string | undefined) {
     } finally {
       if (generationRef.current === generation) setChecking(false);
     }
-  }, [showId, userId, isAnonymous, isJudge]);
+  }, [showId, userId, isAnonymous, judgePersonId]);
 
   useEffect(() => {
     void check();
@@ -178,13 +183,20 @@ export function useOfflineReadiness(showId: string | undefined) {
       // Permissions refresh re-persists the RBAC cache (MYK9-200), healing a
       // device whose cache was missing or expired — show data alone is not
       // enough to be offline ready.
+      // A show absent from the local store may predate the shows table's
+      // watermark (another show hydrated it), so an incremental sync would
+      // skip it forever. Rewind the watermark first — this re-fetches rows
+      // without clearing them, unlike clearCache().
+      if (readiness?.missing.includes('show')) {
+        await replicatedShowsTable.updateSyncMetadata({ lastIncrementalSyncAt: 0 });
+      }
       await Promise.all([
         syncAtShowData(showId),
         // Shows sync is club-scoped; the unscoped incremental sync is what the
         // background provider runs and it carries the show row.
         replicatedShowsTable.sync(''),
         // Judges' at-show view is empty without their assignments cached.
-        isJudge ? replicatedJudgeAssignmentsTable.sync(showId) : Promise.resolve(),
+        judgePersonId ? replicatedJudgeAssignmentsTable.sync(showId) : Promise.resolve(),
         refreshPermissions?.(),
       ]);
     } catch {
@@ -203,7 +215,7 @@ export function useOfflineReadiness(showId: string | undefined) {
     // a completed prime means the prime did not work.
     const result = await check();
     setPrimeFailed(result !== null && !result.ready);
-  }, [showId, isAnonymous, isJudge, refreshPermissions, check]);
+  }, [showId, isAnonymous, judgePersonId, readiness, refreshPermissions, check]);
 
   return { readiness, checking, priming, primeFailed, prime };
 }

@@ -48,11 +48,15 @@ vi.mock('@/services/replication', () => ({
   replicatedShowsTable: {
     getShowById: vi.fn(async () => tables.shows.row),
     sync: vi.fn(async () => ({ success: true })),
+    updateSyncMetadata: vi.fn(async () => {}),
   },
   replicatedJudgeAssignmentsTable: {
-    getByShowId: vi.fn(async () => tables.judgeAssignments.rows),
     sync: vi.fn(async () => ({ success: true })),
   },
+}));
+
+vi.mock('@/services/database/judges/assignmentReads', () => ({
+  getActiveJudgeAssignmentsForShow: vi.fn(async () => tables.judgeAssignments.rows),
 }));
 
 vi.mock('@/context/rbacPermissionsCache', () => ({
@@ -67,6 +71,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: authState.userId ? { id: authState.userId, is_anonymous: authState.isAnonymous } : null,
     isJudge: authState.isJudge,
+    userWithRoles: authState.userId ? { databaseUserId: 'person-1' } : null,
     refreshPermissions: refreshSpy,
   }),
 }));
@@ -166,6 +171,41 @@ describe('useOfflineReadiness', () => {
       expect(result.current.readiness?.ready).toBe(false);
     });
     expect(result.current.readiness?.missing).toEqual(['judge assignments']);
+  });
+
+  it('uses the judge-filtered assignment read, not every assignment on the show', async () => {
+    primeAllSignals();
+    authState.isJudge = true;
+    tables.judgeAssignments.rows = [{ id: 'assignment-1' }];
+
+    renderHook(() => useOfflineReadiness('show-1'));
+
+    const { getActiveJudgeAssignmentsForShow } =
+      await import('@/services/database/judges/assignmentReads');
+    await waitFor(() => {
+      expect(getActiveJudgeAssignmentsForShow).toHaveBeenCalledWith('show-1', 'person-1');
+    });
+  });
+
+  it('forces a full shows re-fetch when the show row is missing', async () => {
+    primeAllSignals();
+    tables.shows.row = null;
+
+    const { result } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.prime();
+    });
+
+    const { replicatedShowsTable } = await import('@/services/replication');
+    // A club-scoped incremental sync would skip a show older than the
+    // table-global watermark; resetting it first guarantees the fetch.
+    expect(replicatedShowsTable.updateSyncMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({ lastIncrementalSyncAt: 0 })
+    );
   });
 
   it('is ready for a judge once assignments are cached', async () => {

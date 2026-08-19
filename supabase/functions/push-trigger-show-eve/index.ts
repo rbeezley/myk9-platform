@@ -8,6 +8,7 @@ import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import {
   buildShowEveNudgePayload,
   isJudgeAssignedToTrial,
+  isTrialNudgeable,
   shouldReclaimStaleClaim,
   selectShowEveRecipients,
   type ShowEveClubStaffRow,
@@ -45,29 +46,40 @@ function targetTrialDate(now: Date): string {
 async function loadRecipients(supabase: SupabaseClient, trial: TrialRow): Promise<string[]> {
   const clubId = trial.show?.club_id ?? null;
 
-  // Staff roles in this repo are CLUB-scoped (verified: zero show-scoped rows),
-  // so club membership is how show-day staff are reached.
-  const clubStaff: ShowEveClubStaffRow[] = [];
+  // Staff role rows come in TWO shapes and both must be reached:
+  //   * club-wide  (club_id set, show_id null)      — ordinary club staff
+  //   * show-scoped (show_id set, club_id may be NULL) — migration 099 wrote
+  //     secretaries/chairmen with show_id only, so a club_id filter drops them
+  // Two queries rather than one nested `.or()`: applyActiveRoleValidity already
+  // contributes an `or` filter, and stacking a second is easy to get subtly
+  // wrong. selectShowEveRecipients dedupes the union.
+  const roleSelect = 'auth_user_id, is_active, expires_at, club_id, show_id, roles!inner(name)';
+
+  const roleQueries = [
+    applyActiveRoleValidity(
+      supabase.from('user_roles').select(roleSelect).eq('show_id', trial.show_id)
+    ),
+  ];
   if (clubId) {
-    // A role can be active but EXPIRED; the shared helper carries the repo's
-    // role-validity contract (active AND not expired) so this handler cannot
-    // drift to an is_active-only check.
-    const { data, error } = await applyActiveRoleValidity(
-      supabase
-        .from('user_roles')
-        .select('auth_user_id, is_active, expires_at, show_id, roles!inner(name)')
-        .eq('club_id', clubId)
-        // grant_show_official writes SHOW-scoped rows that still carry the
-        // club id, so a club_id-only filter would nudge officials assigned to
-        // a different show of the same club.
-        .or(`show_id.is.null,show_id.eq.${trial.show_id}`)
+    roleQueries.push(
+      applyActiveRoleValidity(
+        supabase
+          .from('user_roles')
+          .select(roleSelect)
+          .eq('club_id', clubId)
+          .is('show_id', null)
+      )
     );
+  }
+
+  const clubStaff: ShowEveClubStaffRow[] = [];
+  for (const query of roleQueries) {
+    const { data, error } = await query;
     if (error) throw error;
     for (const row of data ?? []) {
-      const roleName = (row as { roles?: { name?: string } }).roles?.name ?? '';
       clubStaff.push({
         auth_user_id: (row as { auth_user_id: string | null }).auth_user_id,
-        role_name: roleName,
+        role_name: (row as { roles?: { name?: string } }).roles?.name ?? '',
       });
     }
   }
@@ -155,20 +167,20 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
     .from('trials')
     .select('id, date, show_id, show:shows!inner(id, name, club_id, status, deleted_at)')
     .eq('date', trialDate)
-    // Never announce a trial that will not run: cancelled or soft-deleted
-    // trials, and trials whose show was cancelled or soft-deleted.
-    // NULL status is not cancellation, but PostgREST's `neq` compiles to `<>`
-    // which never matches NULL — a legacy row would be silently skipped.
+    // Trial-level state filters only. The SHOW-level checks run in TS via
+    // isTrialNudgeable: embedded PostgREST filters must name the SELECT alias
+    // (`show`, not `shows`) and `neq` never matches NULL — both silent ways to
+    // drop every trial or announce a cancelled one.
     .or('status.is.null,status.neq.cancelled')
-    .is('deleted_at', null)
-    .or('status.is.null,status.neq.cancelled', { referencedTable: 'shows' })
-    .is('shows.deleted_at', null);
+    .is('deleted_at', null);
   if (trialsError) throw trialsError;
 
   let notified = 0;
   let skipped = 0;
 
-  for (const trial of (trials ?? []) as unknown as TrialRow[]) {
+  const nudgeableTrials = ((trials ?? []) as unknown as TrialRow[]).filter(isTrialNudgeable);
+
+  for (const trial of nudgeableTrials) {
     const showName = trial.show?.name ?? 'Your show';
     const payload = buildShowEveNudgePayload({
       showName,
@@ -263,5 +275,5 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
     }
   }
 
-  return { trialDate, trials: trials?.length ?? 0, notified, skipped };
+  return { trialDate, trials: nudgeableTrials.length, notified, skipped };
 });

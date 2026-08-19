@@ -3,6 +3,7 @@ import {
   buildShowEveNudgePayload,
   CLAIM_LEASE_MS,
   isJudgeAssignedToTrial,
+  isTrialNudgeable,
   selectShowEveRecipients,
   shouldReclaimStaleClaim,
   type ShowEveClubStaffRow,
@@ -178,5 +179,31 @@ describe('isJudgeAssignedToTrial', () => {
 
   it('includes a show-level assignment, which covers every day', () => {
     expect(isJudgeAssignedToTrial({ trial_id: null }, 'trial-1')).toBe(true);
+  });
+});
+
+describe('isTrialNudgeable', () => {
+  const show = (over: Partial<{ status: string | null; deleted_at: string | null }> = {}) => ({
+    show: { status: 'upcoming' as string | null, deleted_at: null as string | null, ...over },
+  });
+
+  it('accepts an ordinary upcoming trial', () => {
+    expect(isTrialNudgeable(show())).toBe(true);
+  });
+
+  it('accepts a NULL show status — absent is not cancelled', () => {
+    expect(isTrialNudgeable(show({ status: null }))).toBe(true);
+  });
+
+  it('rejects a cancelled show — nobody should be told it starts tomorrow', () => {
+    expect(isTrialNudgeable(show({ status: 'cancelled' }))).toBe(false);
+  });
+
+  it('rejects a soft-deleted show', () => {
+    expect(isTrialNudgeable(show({ deleted_at: '2026-08-18T00:00:00Z' }))).toBe(false);
+  });
+
+  it('rejects a trial whose show embed is missing', () => {
+    expect(isTrialNudgeable({ show: null })).toBe(false);
   });
 });

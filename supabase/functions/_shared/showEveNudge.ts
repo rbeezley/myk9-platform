@@ -57,6 +57,24 @@ export function isJudgeAssignedToTrial(
   return assignment.trial_id === null || assignment.trial_id === trialId;
 }
 
+/**
+ * Whether a trial's show is in a state worth announcing.
+ *
+ * Deliberately evaluated in TypeScript rather than as PostgREST embedded
+ * filters: those must name the SELECT alias (`show`, not `shows`), and `neq`
+ * compiles to `<>` which never matches NULL — two silent ways to either drop
+ * every trial or announce a cancelled one. A plain predicate is testable.
+ */
+export function isTrialNudgeable(trial: {
+  show: { status?: string | null; deleted_at?: string | null } | null;
+}): boolean {
+  const show = trial.show;
+  if (!show) return false;
+  if (show.deleted_at) return false;
+  // A NULL status is "unset", not "cancelled".
+  return show.status !== 'cancelled';
+}
+
 export interface ShowEveNudgePayload {
   title: string;
   body: string;

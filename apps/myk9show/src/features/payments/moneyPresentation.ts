@@ -41,6 +41,24 @@ export function isRetryablePaymentStatus(status: string): boolean {
   return s === 'failed' || s === 'cancelled' || s === 'canceled';
 }
 
+// Only the two in-flight values stripe_orders.status can actually hold. The
+// column carries CHECK (status IN ('pending','processing','succeeded',
+// 'failed','refunded','cancelled')) — migration 005 — so Stripe's raw intent
+// statuses (requires_action and friends) cannot reach this code, and listing
+// them would be unreachable branch surface.
+const SETTLING_STATUSES = new Set(['pending', 'processing']);
+
+/**
+ * Money that is in flight: the order exists and is moving, but has neither
+ * settled into a receipt nor failed into something the exhibitor can retry.
+ * Kept separate from `isRetryablePaymentStatus` because offering a "Finish
+ * payment" link here would invite a second charge on an order Stripe is still
+ * working on.
+ */
+export function isSettlingPaymentStatus(status: string): boolean {
+  return SETTLING_STATUSES.has(status.toLowerCase());
+}
+
 export function isPaidPaymentStatus(status: string): boolean {
   return PAID_STATUSES.has(status.toLowerCase());
 }

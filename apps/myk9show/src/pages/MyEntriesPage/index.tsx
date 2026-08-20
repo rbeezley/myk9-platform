@@ -246,15 +246,19 @@ const MyEntriesPage: React.FC = () => {
     }
   }, [entries, resultRevealModel, searchParams, setSearchParams]);
 
+  // INTENT: a rejection here must reach CheckInStatusDialog. The dialog awaits
+  // this handler and treats "resolved" as "saved" — it closes itself and only
+  // renders its error Alert when the promise rejects. Swallowing the throw made
+  // a failed check-in indistinguishable from a successful one: the dialog shut
+  // cleanly while `updateEntryCheckIn` reverted the optimistic status, so an
+  // exhibitor walked away believing their dog was checked in. Do not reintroduce
+  // a catch here; the hook logs and rethrows precisely so this caller can let
+  // the failure surface where the exhibitor took the action.
   const handleCheckInStatusUpdate = async (status: CheckInStatus, notes?: string) => {
     if (!checkInDialog.entry || !checkInDialog.classEntry) return;
 
-    try {
-      await updateEntryCheckIn(checkInDialog.entry.id, checkInDialog.classEntry.id, status, notes);
-      setCheckInDialog({ open: false, entry: null, classEntry: null });
-    } catch {
-      // Error handled in hook
-    }
+    await updateEntryCheckIn(checkInDialog.entry.id, checkInDialog.classEntry.id, status, notes);
+    setCheckInDialog({ open: false, entry: null, classEntry: null });
   };
 
   const handleResultRevealSeen = useCallback((releaseKey: string) => {
@@ -276,8 +280,12 @@ const MyEntriesPage: React.FC = () => {
   // `return` here, and do not merely duplicate the dialogs into each branch —
   // differently shaped top-level trees remount them just the same.
   const renderBody = () => {
-    // Error state
-    if (isError && !isLoading) {
+    // Error state — only takes over the page when there is genuinely nothing to
+    // show. With entries already loaded, a failed reload keeps the list on
+    // screen and the same card renders inline above it (see the `inline`
+    // variant); replacing a readable list with an error is the opposite of
+    // "offline is normal, not broken".
+    if (isError && !isLoading && entries.length === 0) {
       return <EntriesLoadErrorCard refreshing={refreshing} onRetry={refreshEntries} />;
     }
 
@@ -287,11 +295,11 @@ const MyEntriesPage: React.FC = () => {
         <div className="bg-background">
           <div className="container mx-auto px-6 py-6 max-w-7xl">
             <div className="grid gap-8">
-              <div className="h-8 bg-muted/50 rounded-lg animate-pulse" />
-              <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+              <div className="h-8 bg-muted rounded-lg animate-pulse" />
+              <div className="h-12 bg-muted rounded-lg animate-pulse" />
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-32 bg-muted/50 rounded-xl animate-pulse" />
+                  <div key={i} className="h-32 bg-muted rounded-xl animate-pulse" />
                 ))}
               </div>
             </div>
@@ -309,7 +317,25 @@ const MyEntriesPage: React.FC = () => {
             Desktop keeps source order (dog strip above entries) — INTENT.md
             Exhibitor: "this respects my time". gap-8 == the prior space-y-8. */}
           <div className="flex flex-col gap-8">
-            <div className="rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/10 p-5 sm:p-6">
+            {/* A reload that failed while entries are already on screen. The
+              list below stays readable; this only offers the retry. */}
+            {isError && (
+              <EntriesLoadErrorCard
+                variant="inline"
+                refreshing={refreshing}
+                onRetry={refreshEntries}
+              />
+            )}
+            {/* A flat card, not a tinted gradient. The previous primary-tinted
+              gradient panel never actually rendered: opacity modifiers on
+              var()-backed tokens do not compile, and only the handful written
+              out by hand in index.css (see the color-mix block near line 265)
+              produce any CSS at all. None of this panel's three were on that
+              list, so the header has been an unpainted box the whole time.
+              DESIGN.md's Flat-by-Default rule says a resting surface is carried
+              by border and tone rather than decorative chroma, so it becomes a
+              real card instead of a gradient that was only ever theoretical. */}
+            <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
@@ -386,7 +412,11 @@ const MyEntriesPage: React.FC = () => {
                     badge is always shown here. The scope note distinguishes this
                     all-time count from the "Current entries" stat card above,
                     which is scoped to upcoming/in-review only. */}
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
+                  {/* A real heading, not a styled <p>. This and "My Dogs" were
+                    the page's two section labels and neither was reachable by
+                    heading navigation, so a screen-reader user had exactly one
+                    landmark (the h1) for the whole surface. Styling unchanged. */}
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
                     {ALL_ENTRIES_LABEL}
                     <span
                       aria-hidden="true"
@@ -394,10 +424,10 @@ const MyEntriesPage: React.FC = () => {
                     >
                       {entries.length}
                     </span>
-                    <span className="normal-case tracking-normal font-normal text-muted-foreground/80">
+                    <span className="normal-case tracking-normal font-normal text-muted-foreground">
                       {ALL_ENTRIES_SCOPE_NOTE}
                     </span>
-                  </p>
+                  </h2>
 
                   {/* Entries List */}
                   <PrimaryTabs
@@ -407,21 +437,36 @@ const MyEntriesPage: React.FC = () => {
                     className="space-y-6"
                   >
                     <TabsContent value={selectedTab} className="space-y-4">
+                      {/* Switching tabs changes the list silently for a screen
+                        reader — the visible count sits up in the tab strip that
+                        was just left. Announce what the new filter produced. */}
+                      <p className="sr-only" role="status" aria-live="polite">
+                        {filteredEntries.length === 1
+                          ? '1 entry'
+                          : `${filteredEntries.length} entries`}
+                      </p>
                       {filteredEntries.length === 0 ? (
                         <EntriesEmptyState selectedTab={selectedTab} onSwitchTab={setSelectedTab} />
                       ) : (
-                        filteredEntries.map(entry => (
-                          <MyEntryCard
-                            key={entry.id}
-                            entry={entry}
-                            selfCheckinByClassId={selfCheckinByClassId}
-                            onCheckInClick={handleCheckInClick}
-                            onEditClick={handleEditClick}
-                            onReceiptClick={handleReceiptClick}
-                            onResultRevealClick={setResultRevealModel}
-                            seenResultReleaseKeys={seenResultReleaseKeys}
-                          />
-                        ))
+                        // A real list, so assistive tech announces "list, N
+                        // items" and offers list navigation. This was a bare
+                        // stack of divs. `space-y-4` stays on the TabsContent,
+                        // so spacing is unchanged.
+                        <ul className="space-y-4">
+                          {filteredEntries.map(entry => (
+                            <li key={entry.id}>
+                              <MyEntryCard
+                                entry={entry}
+                                selfCheckinByClassId={selfCheckinByClassId}
+                                onCheckInClick={handleCheckInClick}
+                                onEditClick={handleEditClick}
+                                onReceiptClick={handleReceiptClick}
+                                onResultRevealClick={setResultRevealModel}
+                                seenResultReleaseKeys={seenResultReleaseKeys}
+                              />
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </TabsContent>
                   </PrimaryTabs>

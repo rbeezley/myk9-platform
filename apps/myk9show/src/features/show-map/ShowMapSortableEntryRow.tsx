@@ -114,7 +114,7 @@ export function ShowMapSortableEntryRow({
             <div className="flex min-w-0 items-center gap-3">
               <ArmbandBadge
                 armband={display.armband}
-                className="size-12 rounded-[10px] text-base"
+                className="h-12 min-w-12 rounded-[10px] text-base"
               />
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{display.dogName}</div>

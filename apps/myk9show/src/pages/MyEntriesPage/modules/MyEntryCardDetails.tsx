@@ -121,17 +121,18 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
           overflow-x. Each dog's check-in click is scoped via `toDogEntryView`
           so the dialog shows that dog's identity, not the order's lead dog. */}
       <div className="myk9-entries-classes-section">
-        <h5 className="myk9-entries-classes-title">Classes Entered:</h5>
+        {/* h4, following the card title h3 — this was an h5 jumping straight from h1. */}
+        <h4 className="myk9-entries-classes-title">Classes Entered:</h4>
         {entry.dogs.length > 1 ? (
           <div className="myk9-entries-dogs-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {entry.dogs.map(dog => (
               <div
                 key={dog.dogId}
-                className="myk9-entries-dog-group rounded-lg border border-border/60 p-3"
+                className="myk9-entries-dog-group rounded-lg border border-border p-3"
               >
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                   {dog.armband && (
-                    <ArmbandBadge armband={dog.armband} className="size-6 rounded text-[10px]" />
+                    <ArmbandBadge armband={dog.armband} className="h-6 min-w-6 rounded text-xs" />
                   )}
                   <span>{dog.dogName}</span>
                 </div>
@@ -156,7 +157,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
+              className="min-h-[44px] text-primary transition-all duration-state"
             >
               <Link to={`/shows/${entry.showId}`}>
                 <Eye className="h-5 w-5 mr-1.5" />
@@ -169,7 +170,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               onClick={() => onEditClick(editReceiptEntry)}
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
             >
               <Edit className="h-5 w-5 mr-1.5" />
               Edit Entry
@@ -180,7 +181,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
             >
               <Link to={`/shows/${entry.showId}?tab=classes`}>
                 <ListOrdered className="h-5 w-5 mr-1.5" />
@@ -193,7 +194,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               asChild
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
             >
               <Link to={`/messages/${entry.showId}`}>
                 <MessageSquare className="h-5 w-5 mr-1.5" />
@@ -206,7 +207,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             <Button
               variant="outline"
               onClick={() => onReceiptClick(editReceiptEntry)}
-              className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
             >
               <Download className="h-5 w-5 mr-1.5" />
               Receipt
@@ -250,7 +251,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             {(cls.trialDate || cls.trialNumber) && (
               <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                 {cls.trialDate && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-muted/70 px-2 py-1 font-medium">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 font-medium">
                     <CalendarDays className="h-3 w-3" />
                     {formatMonthDay(cls.trialDate)}
                   </span>
@@ -296,8 +297,8 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
               onClick={() => onResultRevealClick(resultModel)}
               className={
                 showNewResult
-                  ? 'min-h-[44px] w-full shrink-0 border-primary/30 text-primary sm:w-auto'
-                  : 'min-h-[44px] w-full shrink-0 border-muted-foreground/25 text-muted-foreground sm:w-auto'
+                  ? 'min-h-[44px] w-full shrink-0 border-primary text-primary sm:w-auto'
+                  : 'min-h-[44px] w-full shrink-0 border-border text-muted-foreground sm:w-auto'
               }
             >
               {showNewResult ? 'New result' : 'Result card'}
@@ -320,7 +321,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
                 type="button"
                 onClick={() => onCheckInClick(dogView, cls)}
                 aria-label={`Update check-in for ${dogView.dogName} in ${cls.name}`}
-                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-border/60 bg-background px-2 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md border border-border bg-background px-2 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform"
               >
                 <CheckInStatusIndicator
                   status={cls.checkInStatus || 'no-status'}

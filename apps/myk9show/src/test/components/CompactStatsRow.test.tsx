@@ -82,8 +82,13 @@ describe('CompactStatsRow', () => {
     expect(entriesCard.querySelector('.h-1')).not.toBeInTheDocument();
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveClass('text-muted-foreground');
-    expect(icon).toHaveClass('border-muted-foreground/20');
-    expect(icon).toHaveClass('bg-muted/25');
+    // These previously pinned `border-muted-foreground/20` and `bg-muted/25`,
+    // neither of which compiles: an opacity modifier on a var()-backed token
+    // emits no CSS unless it has been written out by hand in index.css, so the
+    // chip rendered with no fill and the assertions pinned an intention rather
+    // than a rendered style. Pin the tokens that actually paint.
+    expect(icon).toHaveClass('border-border');
+    expect(icon).toHaveClass('bg-muted');
     expect(icon?.compareDocumentPosition(label) ?? Node.DOCUMENT_POSITION_PRECEDING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
@@ -158,13 +163,39 @@ describe('CompactStatsRow', () => {
     expect(screen.getByText('Past Shows')).toBeInTheDocument();
   });
 
-  it('navigates to entries page when entries card is clicked', async () => {
+  it('sends the current-entries card to the Upcoming filter, not to itself', async () => {
+    // This card used to navigate to `/exhibitor/entries` — the page the user is
+    // already on — while rendering a chevron and a "View details" label. The
+    // assertion passed the whole time because it only checked that `onNavigate`
+    // received a string, never that the destination differed from the origin or
+    // that anything read it. Both halves are now pinned: the card names a tab,
+    // and useMyEntriesFilters opens on it (see useMyEntriesFilters.test.ts).
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
     const entriesCard = screen.getByLabelText(/Entries.*View details/i);
     await userEvent.click(entriesCard);
-    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries');
+
+    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries?tab=upcoming');
+    // A destination equal to the current page is not navigation.
+    expect(onNavigate).not.toHaveBeenCalledWith('/exhibitor/entries');
+  });
+
+  it('gives every stat card a destination that carries a filter or leaves the page', async () => {
+    const onNavigate = vi.fn();
+    render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
+
+    for (const card of screen.getAllByLabelText(/View details/i)) {
+      await userEvent.click(card);
+    }
+
+    const destinations = onNavigate.mock.calls.map(([path]) => path as string);
+    expect(destinations.length).toBeGreaterThan(0);
+    for (const destination of destinations) {
+      // Either it goes somewhere else, or it changes the filter here. A bare
+      // `/exhibitor/entries` is a no-op dressed up as a control.
+      expect(destination).not.toBe('/exhibitor/entries');
+    }
   });
 
   it('navigates to shows page when shows card is clicked', async () => {

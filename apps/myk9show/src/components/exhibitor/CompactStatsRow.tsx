@@ -75,7 +75,11 @@ export function CompactStatsRow({
       qualifier: CURRENT_ENTRIES_QUALIFIER,
       value: currentEntries,
       detail: `${acceptedEntries} accepted · ${pendingEntries} pending`,
-      href: '/exhibitor/entries',
+      // Was `/exhibitor/entries` — a navigation to the page you are already on,
+      // i.e. a chevron and a "View details" label that did nothing. This card
+      // counts upcoming + in-review entries, so the Upcoming tab is the filter
+      // that actually shows them.
+      href: '/exhibitor/entries?tab=upcoming',
       iconColor: 'text-muted-foreground',
     },
     {
@@ -124,8 +128,8 @@ export function CompactStatsRow({
         aria-expanded={expanded}
         aria-controls="exhibitor-stat-cards"
         className={cn(
-          'hidden max-[720px]:flex w-full items-center justify-between gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 text-left shadow-sm',
-          'active:scale-[0.99] transition-all duration-200',
+          'hidden max-[720px]:flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm',
+          'active:scale-[0.99] transition-all duration-state',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
           expanded && 'mb-3'
         )}
@@ -135,12 +139,12 @@ export function CompactStatsRow({
           <span className="text-muted-foreground">
             {currentEntries === 1 ? 'entry' : 'entries'}
           </span>
-          <span aria-hidden className="text-muted-foreground/50">
+          <span aria-hidden className="text-muted-foreground">
             ·
           </span>
           <span className="font-semibold text-foreground tabular-nums">{upcomingShows}</span>
           <span className="text-muted-foreground">upcoming</span>
-          <span aria-hidden className="text-muted-foreground/50">
+          <span aria-hidden className="text-muted-foreground">
             ·
           </span>
           {amountDue > 0 ? (
@@ -148,15 +152,13 @@ export function CompactStatsRow({
               ${amountDue.toLocaleString()} due
             </span>
           ) : (
-            <span className="text-muted-foreground tabular-nums">
-              Paid in full
-            </span>
+            <span className="text-muted-foreground tabular-nums">Paid in full</span>
           )}
         </span>
         <ChevronDown
           aria-hidden
           className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-state',
             expanded && 'rotate-180'
           )}
         />
@@ -180,22 +182,22 @@ export function CompactStatsRow({
             type="button"
             onClick={() => onNavigate(stat.href)}
             className={cn(
-              'group relative min-h-[92px] overflow-hidden rounded-xl border border-border/60 bg-card p-3 text-left shadow-sm',
+              'group relative min-h-[92px] overflow-hidden rounded-xl border border-border bg-card p-3 text-left shadow-sm',
               'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]',
-              'transition-all duration-300',
+              'transition-all duration-enter',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
             )}
             aria-label={`${stat.label}: ${stat.quietValue ?? stat.value}.${stat.qualifier ? ` ${stat.qualifier}.` : ''}${stat.detail ? ` ${stat.detail}.` : ''} View details.`}
           >
             <ChevronRight
               aria-hidden="true"
-              className="absolute right-3 top-3 h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-muted-foreground"
+              className="absolute right-3 top-3 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-muted-foreground"
             />
             <span className="flex items-start gap-4 pr-4">
               <span
                 data-slot="icon"
                 className={cn(
-                  'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/20 bg-muted/25 shadow-sm',
+                  'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted shadow-sm',
                   stat.iconChipClassName,
                   stat.iconColor
                 )}

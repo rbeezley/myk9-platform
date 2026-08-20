@@ -104,6 +104,20 @@ export const ROLE_CONFIG: Record<UserRoleType, RoleConfigEntry> = {
 /** Fallback for a role the config doesn't know about. */
 export const UNKNOWN_ROLE_CHIP = chip('stone');
 
+/**
+ * Human label for a role name, however it arrived (enum value, DB row name).
+ * ROLE_CONFIG is the vocabulary; the fallback prettifies unknown names
+ * ("some_role" -> "Some Role") instead of leaking snake_case into the UI.
+ */
+export function getRoleLabel(role: string): string {
+  const known = ROLE_CONFIG[role as UserRoleType];
+  if (known) return known.label;
+  return role
+    .split('_')
+    .map(word => (word ? word[0]!.toUpperCase() + word.slice(1) : word))
+    .join(' ');
+}
+
 // Density mode configurations
 export interface DensityConfig {
   rowHeight: string;

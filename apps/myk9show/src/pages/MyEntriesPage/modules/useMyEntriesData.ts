@@ -249,7 +249,10 @@ export function useMyEntriesData({
       setIsError(false);
     }
 
-    if (!identity) {
+    // `user?.id` and `personId` are restated rather than inferred from
+    // `identity`: TypeScript cannot narrow them through the template literal
+    // above, and `getUserEntries` takes a non-null id.
+    if (!identity || !user?.id || !personId) {
       setIsLoading(false);
       return;
     }

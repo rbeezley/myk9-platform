@@ -37,6 +37,46 @@ export async function createCheckoutSession(priceId: string, mode: 'payment' | '
 }
 
 /**
+ * A checkout failure that carries the server's HTTP status alongside its
+ * message, so callers can react to the specific failure (re-hydrating the cart
+ * on a 409 re-pricing) instead of showing one generic retry.
+ */
+export class CheckoutSessionError extends Error {
+  readonly status: number | null;
+
+  constructor(message: string, status: number | null = null) {
+    super(message);
+    this.name = 'CheckoutSessionError';
+    this.status = status;
+  }
+}
+
+/**
+ * Pull the status and server-authored message out of a supabase-js function
+ * error. Returns nulls rather than throwing: a failure to parse the failure
+ * must never replace the original error with a parsing error.
+ */
+async function readEdgeFunctionError(
+  error: unknown
+): Promise<{ status: number | null; message: string | null }> {
+  const context = (error as { context?: unknown })?.context;
+  if (!context || typeof context !== 'object') return { status: null, message: null };
+
+  const response = context as { status?: number; json?: () => Promise<unknown> };
+  const status = typeof response.status === 'number' ? response.status : null;
+
+  if (typeof response.json !== 'function') return { status, message: null };
+
+  try {
+    const body = (await response.json()) as { error?: unknown } | null;
+    const message = typeof body?.error === 'string' && body.error.trim() ? body.error : null;
+    return { status, message };
+  } catch {
+    return { status, message: null };
+  }
+}
+
+/**
  * Create a Stripe checkout session for entry cart payment
  *
  * @param cartId - The ID of the entry cart to checkout
@@ -67,10 +107,30 @@ export async function createEntryCheckoutSession(
   });
 
   if (error) {
-    if (error.message?.includes('401') || error.message?.includes('auth')) {
-      throw new Error('Session expired. Please sign in again.');
+    // supabase.functions.invoke reports every non-2xx as a FunctionsHttpError
+    // whose `.message` is the generic "Edge Function returned a non-2xx status
+    // code" - the server's actual message lives in the JSON body, reachable
+    // only through `.context`. Without reading it, three genuinely different
+    // and genuinely actionable failures (409 fees were re-priced, 403 the club
+    // has no payout account, 401 session expired) all reached the exhibitor as
+    // one dead-end "try again", and the 409 case retried forever because the
+    // client kept re-sending the same stale cart.
+    const parsed = await readEdgeFunctionError(error);
+
+    if (
+      parsed.status === 401 ||
+      error.message?.includes('401') ||
+      error.message?.includes('auth')
+    ) {
+      throw new CheckoutSessionError('Session expired. Please sign in again.', 401);
     }
-    throw new Error(error.message || 'Failed to create checkout session');
+    if (parsed.message) {
+      throw new CheckoutSessionError(parsed.message, parsed.status);
+    }
+    throw new CheckoutSessionError(
+      error.message || 'Failed to create checkout session',
+      parsed.status
+    );
   }
 
   if (!data?.url) {

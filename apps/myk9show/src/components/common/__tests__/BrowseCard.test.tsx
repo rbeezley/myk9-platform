@@ -1,20 +1,26 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { BrowseCard, BrowseCardAvatar, BrowseCardDetail } from '../BrowseCard';
 import { PawPrint } from 'lucide-react';
 
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-}));
+vi.mock('react-router-dom', async importOriginal => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
+/** The card's name is a real <Link>, so it needs a router in the tree. */
+const renderCard = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
+
 describe('BrowseCard', () => {
   it('renders the entity name', () => {
-    render(
+    renderCard(
       <BrowseCard href="/dogs/1" actionLabel="View Dog" name="Maggie" avatar={<div />}>
         {null}
       </BrowseCard>
@@ -23,31 +29,37 @@ describe('BrowseCard', () => {
   });
 
   it('renders the action button with provided label', () => {
-    render(<BrowseCard href="/dogs/1" actionLabel="View Dog" name="Maggie" avatar={<div />} />);
+    renderCard(<BrowseCard href="/dogs/1" actionLabel="View Dog" name="Maggie" avatar={<div />} />);
     expect(screen.getByRole('button', { name: /view dog/i })).toBeInTheDocument();
   });
 
-  it('clicking the card navigates to href', () => {
-    render(<BrowseCard href="/dogs/42" actionLabel="View Dog" name="Maggie" avatar={<div />} />);
-    fireEvent.click(screen.getByRole('link'));
-    expect(mockNavigate).toHaveBeenCalledWith('/dogs/42');
+  // The card used to be a div[role=link] driven by navigate(), which meant no
+  // href: cmd-click, middle-click, "open in new tab" and the browser's URL
+  // preview all did nothing, and the accessible name computed empty.
+  it('exposes a real link carrying the href, named for the entity', () => {
+    renderCard(
+      <BrowseCard href="/dogs/42" actionLabel="View Dog" name="Maggie" avatar={<div />} />
+    );
+    const link = screen.getByRole('link', { name: 'Maggie' });
+    expect(link).toHaveAttribute('href', '/dogs/42');
   });
 
-  it('pressing Enter on the card navigates to href', () => {
-    render(<BrowseCard href="/dogs/42" actionLabel="View Dog" name="Maggie" avatar={<div />} />);
-    fireEvent.keyDown(screen.getByRole('link'), { key: 'Enter' });
-    expect(mockNavigate).toHaveBeenCalledWith('/dogs/42');
+  it('stretches the link across the whole card so the card stays clickable', () => {
+    renderCard(<BrowseCard href="/dogs/42" name="Maggie" avatar={<div />} />);
+    expect(screen.getByRole('link', { name: 'Maggie' }).className).toMatch(/after:inset-0/);
   });
 
   it('clicking the action button navigates without bubbling a second navigation', () => {
-    render(<BrowseCard href="/dogs/42" actionLabel="View Dog" name="Maggie" avatar={<div />} />);
+    renderCard(
+      <BrowseCard href="/dogs/42" actionLabel="View Dog" name="Maggie" avatar={<div />} />
+    );
     fireEvent.click(screen.getByRole('button', { name: /view dog/i }));
     expect(mockNavigate).toHaveBeenCalledTimes(1);
     expect(mockNavigate).toHaveBeenCalledWith('/dogs/42');
   });
 
   it('renders badges when provided', () => {
-    render(
+    renderCard(
       <BrowseCard
         href="/dogs/1"
         actionLabel="View Dog"
@@ -60,7 +72,7 @@ describe('BrowseCard', () => {
   });
 
   it('renders children when provided', () => {
-    render(
+    renderCard(
       <BrowseCard href="/dogs/1" actionLabel="View Dog" name="Maggie" avatar={<div />}>
         <span>Golden Retriever</span>
       </BrowseCard>
@@ -69,7 +81,7 @@ describe('BrowseCard', () => {
   });
 
   it('renders the avatar slot', () => {
-    render(
+    renderCard(
       <BrowseCard
         href="/dogs/1"
         actionLabel="View Dog"
@@ -81,34 +93,25 @@ describe('BrowseCard', () => {
   });
 
   it('omits the action button entirely when actionLabel is not provided', () => {
-    render(<BrowseCard href="/dogs/1" name="Maggie" avatar={<div />} />);
+    renderCard(<BrowseCard href="/dogs/1" name="Maggie" avatar={<div />} />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('still navigates on card click when actionLabel is omitted', () => {
-    render(<BrowseCard href="/dogs/42" name="Maggie" avatar={<div />} />);
-    const card = screen.getByRole('link');
-    expect(card).toHaveAttribute('tabIndex', '0');
-    fireEvent.click(card);
-    expect(mockNavigate).toHaveBeenCalledWith('/dogs/42');
-  });
-
-  it('still navigates on Enter when actionLabel is omitted', () => {
-    render(<BrowseCard href="/dogs/42" name="Maggie" avatar={<div />} />);
-    fireEvent.keyDown(screen.getByRole('link'), { key: 'Enter' });
-    expect(mockNavigate).toHaveBeenCalledWith('/dogs/42');
+  it('still links out when actionLabel is omitted', () => {
+    renderCard(<BrowseCard href="/dogs/42" name="Maggie" avatar={<div />} />);
+    expect(screen.getByRole('link', { name: 'Maggie' })).toHaveAttribute('href', '/dogs/42');
   });
 });
 
 describe('BrowseCardAvatar', () => {
   it('renders an img when src is provided', () => {
-    render(<BrowseCardAvatar src="/dog.jpg" fallback="M" alt="Maggie" />);
+    renderCard(<BrowseCardAvatar src="/dog.jpg" fallback="M" alt="Maggie" />);
     const img = screen.getByRole('img', { name: 'Maggie' });
     expect(img).toHaveAttribute('src', '/dog.jpg');
   });
 
   it('renders the fallback letter when src is absent', () => {
-    render(<BrowseCardAvatar fallback="M" alt="Maggie" />);
+    renderCard(<BrowseCardAvatar fallback="M" alt="Maggie" />);
     expect(screen.getByText('M')).toBeInTheDocument();
   });
 
@@ -125,7 +128,7 @@ describe('BrowseCardAvatar', () => {
 
 describe('BrowseCardDetail', () => {
   it('renders children text', () => {
-    render(
+    renderCard(
       <BrowseCardDetail icon={<PawPrint className="h-3.5 w-3.5" />}>
         Golden Retriever
       </BrowseCardDetail>

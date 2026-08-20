@@ -226,6 +226,7 @@ export class RBACService {
     fromDate?: string;
     toDate?: string;
     limit?: number;
+    targetType?: string;
   }): Promise<AuditLogEntry[]> {
     return this.auditLogger.getAuditLogs(filter);
   }

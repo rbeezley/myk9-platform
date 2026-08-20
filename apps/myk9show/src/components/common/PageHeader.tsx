@@ -38,7 +38,13 @@ export function PageHeader({
           aria-label="Breadcrumb"
           className="flex items-center gap-1.5 text-sm text-muted-foreground"
         >
-          <Link to="/" aria-label="Home" className="hover:text-foreground transition-colors p-1">
+          {/* -my-2 keeps the breadcrumb row its original height while giving the
+              only tap target in it a 44px box instead of the old 24px. */}
+          <Link
+            to="/"
+            aria-label="Home"
+            className="-my-2 inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <Home className="h-4 w-4" />
           </Link>
           {breadcrumbs.map((item, i) => (

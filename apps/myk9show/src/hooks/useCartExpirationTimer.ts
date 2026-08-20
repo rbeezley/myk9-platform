@@ -29,8 +29,16 @@ const WARNING_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const URGENT_WARNING_THRESHOLD_MS = 1 * 60 * 1000; // 1 minute
 const TOTAL_EXPIRATION_MS = 30 * 60 * 1000; // 30 minutes
 
-// Update interval
+// Update interval, once the warning banner is actually on screen. Second-level
+// precision only has a consumer while `timeRemainingFormatted` is rendered.
 const UPDATE_INTERVAL_MS = 1000; // 1 second
+
+// Before the warning threshold nothing derived from the tick is visible, so
+// ticking every second re-rendered CartSummary and its subtree ~1,500 times per
+// 30-minute hold for zero pixel change. Sample coarsely until there is
+// something to show. This removes work; it does not add a countdown, which the
+// CartSummary INTENT rules out.
+const COARSE_INTERVAL_MS = 30 * 1000;
 
 /**
  * Hook to manage cart expiration timer
@@ -41,12 +49,13 @@ export function useCartExpirationTimer(options?: {
   onUrgentWarning?: () => void;
 }): CartExpirationState {
   const cart = useCartStore(state => state.cart);
+  const hasCart = Boolean(cart);
   const expiresAt = cart?.expires_at ?? null;
   const extendExpirationAction = useCartStore(state => state.extendExpiration);
 
   const [timeRemainingMs, setTimeRemainingMs] = useState<number | null>(null);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Use refs for trigger state to avoid stale closures in interval callback
   const hasTriggeredWarningRef = useRef(false);
@@ -83,7 +92,7 @@ export function useCartExpirationTimer(options?: {
       }
     }
 
-    if (!expiresAt || !cart) {
+    if (!expiresAt || !hasCart) {
       // No cart or expiration - clear any existing interval but don't set state synchronously
       // The timeRemainingMs will be handled via the tick function when cart/expiration exists
       return;
@@ -124,19 +133,43 @@ export function useCartExpirationTimer(options?: {
       }
     };
 
-    // Run immediately then set interval
+    // Self-scheduling rather than a fixed setInterval, so the cadence can
+    // follow how far out expiry is without the effect re-running (a dep on
+    // timeRemainingMs would tear down and rebuild the timer on every tick,
+    // which is the churn this is removing).
+    const schedule = () => {
+      const remaining = calculateTimeRemaining();
+      const delay =
+        remaining !== null && remaining > WARNING_THRESHOLD_MS
+          ? Math.max(
+              UPDATE_INTERVAL_MS,
+              Math.min(COARSE_INTERVAL_MS, remaining - WARNING_THRESHOLD_MS)
+            )
+          : UPDATE_INTERVAL_MS;
+
+      intervalRef.current = setTimeout(() => {
+        tick();
+        schedule();
+      }, delay);
+    };
+
+    // Run immediately, then keep sampling.
     tick();
-    intervalRef.current = setInterval(tick, UPDATE_INTERVAL_MS);
+    schedule();
 
     return () => {
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        clearTimeout(intervalRef.current);
         intervalRef.current = null;
       }
       // Reset timeRemainingMs to null when effect cleans up (cart/expiration no longer exists)
       setTimeRemainingMs(null);
     };
-  }, [expiresAt, cart, calculateTimeRemaining]);
+    // `hasCart`, not `cart`: Zustand returns a new cart object on every
+    // mutation, so depending on identity tore down and rebuilt the timer on
+    // each add/remove (and fired the cleanup's setTimeRemainingMs(null), an
+    // extra render each time). Only its presence matters here.
+  }, [expiresAt, hasCart, calculateTimeRemaining]);
 
   // Format time remaining
   const formatTimeRemaining = (ms: number | null): string => {

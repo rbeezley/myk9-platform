@@ -5,8 +5,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
-// useNavigate not used
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +31,7 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { Role, Permission, RolePermission } from '@/types/rbac-types';
 import { RolePermissionsEditor } from '@/components/admin/permissions/RolePermissionsEditor';
 import { PermissionGrid } from '@/components/admin/permissions/PermissionGrid';
+import { RoleActionsCard } from '@/components/admin/permissions/RoleActionsCard';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 import {
   AlertDialog,
@@ -55,7 +55,7 @@ const ROLE_TAB_DEFS: PrimaryTabDef[] = [
 
 const RoleEditPage: React.FC = () => {
   const { roleId } = useParams<{ roleId: string }>();
-  // const navigate = useNavigate(); // Not used
+  const navigate = useNavigate();
   const [activeTab, setTab] = useUrlTab(ROLE_TAB_IDS, 'editor');
 
   const [role, setRole] = useState<Role | null>(null);
@@ -276,6 +276,13 @@ const RoleEditPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Role Actions */}
+      <RoleActionsCard
+        role={role}
+        roleId={roleId!}
+        onDeleted={() => navigate('/admin/permissions')}
+      />
 
       {/* Permission Management Tabs */}
       <PrimaryTabs

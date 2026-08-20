@@ -41,7 +41,9 @@ vi.mock('@/hooks/useRBAC', () => ({
 vi.mock('@/hooks/queries/useUsersQuery', () => ({
   useDeletedUserQuery: (id: string, enabled: boolean) => {
     deletedQuerySpy(id, enabled);
-    return enabled ? deletedQuery() : { data: null, isLoading: false, error: null, refetch: vi.fn() };
+    return enabled
+      ? deletedQuery()
+      : { data: null, isLoading: false, error: null, refetch: vi.fn() };
   },
 }));
 
@@ -87,7 +89,12 @@ describe('PersonDetailPage — removed people', () => {
   });
 
   it('renders a removed person for an admin instead of bouncing', () => {
-    deletedQuery.mockReturnValue({ data: removed, isLoading: false, error: null, refetch: vi.fn() });
+    deletedQuery.mockReturnValue({
+      data: removed,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
 
     renderAt('gone-1');
 
@@ -97,7 +104,12 @@ describe('PersonDetailPage — removed people', () => {
 
   it('does not ask for removed people without admin:manage', () => {
     rbac.hasPermission = vi.fn(() => false);
-    deletedQuery.mockReturnValue({ data: removed, isLoading: false, error: null, refetch: vi.fn() });
+    deletedQuery.mockReturnValue({
+      data: removed,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
 
     renderAt('gone-1');
 

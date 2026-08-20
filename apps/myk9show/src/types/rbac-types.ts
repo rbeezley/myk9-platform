@@ -16,7 +16,10 @@ export interface Role {
   display_name?: string;
   is_active?: boolean;
   permission_count?: number;
+  /** Distinct people holding this role (not a count of user_roles grant rows — one person can hold a role in several shows/clubs). */
   user_count?: number;
+  /** Active `user_roles` grant rows for this role — one person holding the role in three scopes counts as three grants here (unlike `user_count`). */
+  grant_count?: number;
 }
 
 export interface Permission {

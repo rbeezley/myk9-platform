@@ -235,7 +235,9 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
       initialRoute: '/shows/show-1/register',
     });
 
-    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection'));
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection')
+    );
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
     await user.click(screen.getByRole('button', { name: 'Next' }));
 
@@ -261,7 +263,9 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
       initialRoute: '/shows/show-1/register',
     });
 
-    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection'));
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection')
+    );
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
     await user.click(screen.getByRole('button', { name: 'Next' }));
 

@@ -26,7 +26,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
-import { createEntryCheckoutSession } from '@/lib/stripe';
+import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
@@ -62,9 +62,13 @@ export default function CartPage() {
     isLoading: isCapacityLoading,
     isFetching: isCapacityFetching,
     error: capacityError,
+    refetch: refetchCapacity,
   } = useJudgeDayCapacity(cart?.show_id);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+  const [removalAnnouncement, setRemovalAnnouncement] = useState('');
+  const entriesHeadingRef = useRef<HTMLHeadingElement>(null);
+  const announcementSeqRef = useRef(0);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -75,8 +79,12 @@ export default function CartPage() {
   const checkoutInFlightRef = useRef(false);
   const [cancelNoticeDismissed, setCancelNoticeDismissed] = useState(false);
 
-  // Reading the Stripe cancel return param is purely informational — the cart
-  // itself is untouched, so this banner reassures rather than alarms.
+  // The cart is NOT necessarily untouched on a cancelled return. A split
+  // checkout commits wait list rows and removes those lines from the cart
+  // BEFORE redirecting to Stripe (see handleCheckout), so an exhibitor who
+  // abandons payment comes back to a smaller cart. The banner therefore
+  // promises only what is always true - no charge - and never that the cart
+  // is unchanged.
   const showCancelNotice =
     readCheckoutReturnStatus(searchParams) === 'cancelled' && !cancelNoticeDismissed;
 
@@ -94,7 +102,25 @@ export default function CartPage() {
   // the total, and then disappearing once checkout routes it to the wait list.
   // `null` while capacity is loading or errored: unknown availability must not
   // be presented as a final amount.
-  const capacityResolved = !isCapacityLoading && !isCapacityFetching && !capacityError;
+  // A query gated by `enabled` is not "resolved" just because it is not
+  // loading: with no showId, useJudgeDayCapacity is disabled and reports
+  // isLoading:false / isFetching:false / error:null while returning an empty
+  // judgeDays array. Treating that as settled would read "never asked" as
+  // "this show has no capacity limits" and mark every line payable. Require
+  // that the query was actually asked. (Same class of bug as PR #1697.)
+  const capacityQueried = Boolean(cart?.show_id);
+  // `isCheckingOut` deliberately keeps the last resolved view on screen. The
+  // submit-time refetch sets isFetching, which would otherwise flip the summary
+  // to capacityUnknown at the exact instant Pay is pressed: wait-list badges
+  // vanish, their lines flip from "Pending" to a dollar figure, and the Total
+  // blanks to "Pending" - the summary contradicting itself at the highest-stakes
+  // moment. The button already reads "Processing...", and the refetch result
+  // replaces this view a moment later either way.
+  const capacityResolved =
+    capacityQueried &&
+    !isCapacityLoading &&
+    (!isCapacityFetching || isCheckingOut) &&
+    !capacityError;
   const fulfillment = useMemo(
     () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, fullClassIds),
     [items, judgeDays, fullClassIds, capacityResolved]
@@ -137,13 +163,40 @@ export default function CartPage() {
   }, [profile?.id, loadActiveCart, recoveryShowId, recoveryEntryIds]);
 
   const handleRemoveItem = async (itemId: string) => {
+    const removed = items.find(item => item.id === itemId);
     setRemovingItemId(itemId);
     setError(null);
 
     const success = await removeItem(itemId);
 
-    if (!success) {
-      // Error is set in store
+    if (success) {
+      const wasLastItem = items.length <= 1;
+
+      // The card holding the focused Remove button just unmounted, which drops
+      // focus to <body> and restarts a keyboard user's Tab order at the top of
+      // the document. Send focus to the entry-count heading - it is the thing
+      // that changed, and it reads the new count aloud. Removing the LAST item
+      // swaps the page for the empty-cart branch, where that heading does not
+      // exist, so there is nothing to focus and the announcement has to carry
+      // the whole message on its own.
+      if (!wasLastItem) {
+        entriesHeadingRef.current?.focus();
+      }
+
+      // Nothing else announces this: the subtotal, fee, total and the Pay
+      // button's own label all change silently, on a money screen. The counter
+      // suffix forces a re-read when two removals produce identical text (two
+      // unnamed entries both yield "Removed entry."), which a live region
+      // otherwise ignores as an unchanged value.
+      const what = `${removed?.dog?.call_name ?? 'entry'}${
+        removed?.class?.name ? ` from ${removed.class.name}` : ''
+      }`;
+      announcementSeqRef.current += 1;
+      setRemovalAnnouncement(
+        `Removed ${what}.${wasLastItem ? ' Your cart is now empty.' : ''}${'\u200b'.repeat(
+          announcementSeqRef.current % 2
+        )}`
+      );
     }
 
     setRemovingItemId(null);
@@ -185,7 +238,39 @@ export default function CartPage() {
     setError(null);
 
     try {
-      const splitDecision = splitCartItemsByJudgeDayCapacity(items, judgeDays, fullClassIds);
+      // Re-check capacity at submit rather than trusting the render-time
+      // snapshot. Global query defaults are staleTime 5min with
+      // refetchOnWindowFocus:false, so an exhibitor who leaves the tab open
+      // while deciding can submit against capacity that is many minutes old.
+      // A class that filled in that window would be classified payable, sent
+      // to Stripe, charged, and then refunded by the server's overflow path -
+      // money made whole, but a charge-then-refund the exhibitor never
+      // expected. One refetch routes it to the wait list cleanly instead.
+      const fresh = await refetchCapacity();
+
+      // Fail closed. refetch() resolves with the error inside the result rather
+      // than rejecting, and on failure `fresh.data` still holds the last
+      // SUCCESSFUL payload - so a naive `fresh.data ?? judgeDays` would hand
+      // back exactly the stale snapshot this re-check exists to replace, and
+      // send the exhibitor to Stripe as though availability had been confirmed.
+      // Better to stop and say so than to charge against capacity we could not
+      // verify.
+      if (fresh.isError || !fresh.data) {
+        setError(
+          'We could not confirm which classes are still open. Please check availability and try again.'
+        );
+        stopCheckingOut();
+        return;
+      }
+
+      const freshJudgeDays = fresh.data.judgeDays;
+      const freshFullClassIds = fresh.data.fullClassIds;
+
+      const splitDecision = splitCartItemsByJudgeDayCapacity(
+        items,
+        freshJudgeDays,
+        freshFullClassIds
+      );
       const blockedItems = splitDecision.blockedItems;
 
       if (blockedItems.length > 0) {
@@ -245,8 +330,38 @@ export default function CartPage() {
       // This will redirect to Stripe Checkout for the remaining confirmed entries.
       await createEntryCheckoutSession(cart.id, splitCheckoutId ? { splitCheckoutId } : undefined);
       // If we get here, the redirect didn't happen (shouldn't normally occur)
-    } catch (_err) {
-      setError('Something went wrong starting checkout. Please try again.');
+    } catch (err) {
+      // Say what the server actually said. It distinguishes failures the
+      // exhibitor can act on (fees were re-priced, review and retry) from ones
+      // they cannot (the club has no payout account), and a flat "try again"
+      // erased both. Worse, the 409 re-pricing case looped forever: the server
+      // heals the stored cart, but the client kept re-sending the stale
+      // in-memory copy, so every retry failed identically until a hard reload.
+      const status = err instanceof CheckoutSessionError ? err.status : null;
+      const message =
+        err instanceof CheckoutSessionError && err.message
+          ? err.message
+          : 'Something went wrong starting checkout. Please try again.';
+
+      if (status === 409 && profile?.id) {
+        // Re-hydrate so "review your cart" is actually possible - with the same
+        // options as the mount-time load. An empty object drops the recovery
+        // showId, and cartStore then falls back to "most recently created
+        // active cart", which for someone who arrived via /cart?showId=X on an
+        // older cart would silently swap them onto a different show's cart
+        // underneath a 409 about the one they were paying for.
+        const reloadOptions: Parameters<typeof loadActiveCart>[1] = {};
+        if (recoveryShowId) {
+          reloadOptions.showId = recoveryShowId;
+        }
+        // Awaited before the latch is released. Fire-and-forget left the cart
+        // visible with its stale in-memory fees while the reload was still in
+        // flight, so a quick retry re-submitted exactly the same stale cart and
+        // earned another 409 - the loop this fix exists to break.
+        await loadActiveCart(profile.id, reloadOptions);
+      }
+
+      setError(message);
       stopCheckingOut();
     }
   };
@@ -272,9 +387,28 @@ export default function CartPage() {
   // initiated yet" still counts as hydrating.
   const awaitingCartLoad = Boolean(profile?.id) && !loadInitiated;
   const isHydrating = items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad);
+
+  // Rendered by every branch below, deliberately. Removing the last item flips
+  // the page to the empty-cart branch, so a live region living inside the
+  // items.length > 0 return unmounted before it could speak - silently losing
+  // the announcement in the single-entry case, which is the common one.
+  // Rendered as the FIRST child of the same root element in every branch
+  // below. All three branches return the same root element type, so React
+  // reconciles this <p> in place rather than unmounting it when the cart
+  // empties - which matters because screen readers announce CHANGES to a live
+  // region that is already mounted, not the initial content of a region that
+  // has just appeared. A region that mounts already-populated is silent, so the
+  // single-entry removal (the common case) would still say nothing.
+  const liveRegion = (
+    <p aria-live="polite" className="sr-only">
+      {removalAnnouncement}
+    </p>
+  );
+
   if (isHydrating) {
     return (
       <div className="bg-background pt-6">
+        {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="space-y-6 py-8" role="status" aria-label="Loading cart">
             <div className="space-y-2">
@@ -297,9 +431,13 @@ export default function CartPage() {
   if (!cart || items.length === 0) {
     return (
       <div className="bg-background pt-6">
+        {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+            {/* --chip-stone-bg, not bg-muted: --muted equals --card and sits at
+                1.08:1 on --background, so the circle was a void in both themes
+                and a border on it was equally inert. */}
+            <div className="w-20 h-20 rounded-full bg-[color:var(--chip-stone-bg)] flex items-center justify-center mb-6">
               <ShoppingCart className="h-10 w-10 text-muted-foreground" />
             </div>
             <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
@@ -318,6 +456,7 @@ export default function CartPage() {
 
   return (
     <div className="bg-background pt-6">
+      {liveRegion}
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -366,8 +505,13 @@ export default function CartPage() {
             <Info className="h-4 w-4 text-primary" />
             <AlertDescription className="flex items-start justify-between gap-4">
               <span className="text-foreground">
-                <span className="font-medium">Checkout cancelled — no charge was made.</span> Your
-                cart is saved exactly as you left it. Pick up whenever you're ready.
+                <span className="font-medium">Checkout cancelled. Your card was not charged.</span>{' '}
+                Anything still in your cart is below. Any wait list requests you made are saved
+                under{' '}
+                <Link to="/exhibitor/entries" className="text-primary hover:underline">
+                  My Shows
+                </Link>
+                .
               </span>
               <button
                 type="button"
@@ -394,7 +538,7 @@ export default function CartPage() {
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
+              <h2 className="text-lg font-semibold" tabIndex={-1} ref={entriesHeadingRef}>
                 {items.length} {items.length === 1 ? 'Entry' : 'Entries'}
               </h2>
             </div>
@@ -419,6 +563,7 @@ export default function CartPage() {
                 isCheckingOut={isCheckingOut}
                 fulfillment={fulfillment}
                 capacityUnavailable={Boolean(capacityError)}
+                onRetryCapacity={() => void refetchCapacity()}
               />
             </div>
           </div>

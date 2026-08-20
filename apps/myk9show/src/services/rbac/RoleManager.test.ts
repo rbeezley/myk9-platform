@@ -171,3 +171,108 @@ describe('RoleManager.updateRolePermissions — audit trail', () => {
     expect(clearAllCache).toHaveBeenCalled();
   });
 });
+
+describe('RoleManager.getAllRoles — Members column counts distinct people', () => {
+  const roleRows = [
+    {
+      id: 'role-1',
+      name: 'secretary',
+      description: null,
+      is_system: false,
+      permissions: [],
+      created_at: null,
+    },
+    {
+      id: 'role-2',
+      name: 'judge',
+      description: null,
+      is_system: false,
+      permissions: [],
+      created_at: null,
+    },
+  ];
+
+  it('counts a person once per role even when they hold it via several grant rows (e.g. multiple shows)', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'roles') {
+        return createChainableQuery({ data: roleRows, error: null });
+      }
+      if (table === 'role_permissions') {
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      }
+      if (table === 'user_roles') {
+        // person-1 holds role-1 via three separate grant rows (three shows).
+        // A row-count would report 3 "Members"; the fix must report 1.
+        return {
+          select: vi.fn().mockResolvedValue({
+            data: [
+              { role_id: 'role-1', user_id: 'person-1', is_active: true },
+              { role_id: 'role-1', user_id: 'person-1', is_active: true },
+              { role_id: 'role-1', user_id: 'person-1', is_active: true },
+              { role_id: 'role-1', user_id: 'person-2', is_active: true },
+              { role_id: 'role-2', user_id: 'person-3', is_active: true },
+            ],
+            error: null,
+          }),
+        };
+      }
+      return createChainableQuery();
+    });
+
+    const { manager } = buildManager();
+    const roles = await manager.getAllRoles();
+
+    const role1 = roles.find(r => r.id === 'role-1');
+    const role2 = roles.find(r => r.id === 'role-2');
+    expect(role1?.user_count).toBe(2); // person-1 + person-2, not 4 rows
+    expect(role2?.user_count).toBe(1);
+  });
+
+  it('excludes inactive grants from the distinct-user count', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'roles') {
+        return createChainableQuery({ data: [roleRows[0]], error: null });
+      }
+      if (table === 'role_permissions') {
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      }
+      if (table === 'user_roles') {
+        return {
+          select: vi.fn().mockResolvedValue({
+            data: [
+              { role_id: 'role-1', user_id: 'person-1', is_active: true },
+              { role_id: 'role-1', user_id: 'person-2', is_active: false },
+            ],
+            error: null,
+          }),
+        };
+      }
+      return createChainableQuery();
+    });
+
+    const { manager } = buildManager();
+    const roles = await manager.getAllRoles();
+
+    expect(roles.find(r => r.id === 'role-1')?.user_count).toBe(1);
+  });
+
+  it('reports 0 members for a role with no grant rows', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'roles') {
+        return createChainableQuery({ data: [roleRows[1]], error: null });
+      }
+      if (table === 'role_permissions') {
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      }
+      if (table === 'user_roles') {
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      }
+      return createChainableQuery();
+    });
+
+    const { manager } = buildManager();
+    const roles = await manager.getAllRoles();
+
+    expect(roles.find(r => r.id === 'role-2')?.user_count).toBe(0);
+  });
+});

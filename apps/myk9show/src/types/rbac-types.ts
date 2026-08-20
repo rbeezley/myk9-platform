@@ -16,6 +16,7 @@ export interface Role {
   display_name?: string;
   is_active?: boolean;
   permission_count?: number;
+  /** Distinct people holding this role (not a count of user_roles grant rows — one person can hold a role in several shows/clubs). */
   user_count?: number;
 }
 

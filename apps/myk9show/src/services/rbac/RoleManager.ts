@@ -60,6 +60,7 @@ interface RolePermissionCountRow {
 
 interface UserRoleCountRow {
   role_id: string;
+  user_id: string;
   is_active: boolean | null;
 }
 
@@ -103,10 +104,31 @@ function formatPersonLabel(person: PeopleLabelRow | undefined): string | undefin
   return name || person.email || undefined;
 }
 
-function countByRoleId(rows: RolePermissionCountRow[] | UserRoleCountRow[]): Map<string, number> {
+function countByRoleId(rows: RolePermissionCountRow[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const row of rows) {
     counts.set(row.role_id, (counts.get(row.role_id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * Count DISTINCT people holding each role, not rows in `user_roles`. A
+ * person granted the same role in three different shows is one member, not
+ * three — the "Members" column must not overstate headcount by counting
+ * grant rows. The page's separate "Active grants" summary stat legitimately
+ * keeps counting `user_roles` rows; only this per-role column is wrong today.
+ */
+function countDistinctUsersByRoleId(rows: UserRoleCountRow[]): Map<string, number> {
+  const usersByRole = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const users = usersByRole.get(row.role_id) ?? new Set<string>();
+    users.add(row.user_id);
+    usersByRole.set(row.role_id, users);
+  }
+  const counts = new Map<string, number>();
+  for (const [roleId, users] of usersByRole) {
+    counts.set(roleId, users.size);
   }
   return counts;
 }
@@ -562,7 +584,7 @@ export class RoleManager {
     const [rolesResult, rolePermissionsResult, userRolesResult] = await Promise.all([
       supabase.from('roles').select('*').order('name'),
       loadRoleCountRows('role_permissions', 'role_id'),
-      loadRoleCountRows('user_roles', 'role_id, is_active'),
+      loadRoleCountRows('user_roles', 'role_id, user_id, is_active'),
     ]);
 
     if (rolesResult.error) {
@@ -570,7 +592,7 @@ export class RoleManager {
     }
 
     const permissionCounts = countByRoleId(rolePermissionsResult as RolePermissionCountRow[]);
-    const userCounts = countByRoleId(
+    const userCounts = countDistinctUsersByRoleId(
       (userRolesResult as UserRoleCountRow[]).filter(row => row.is_active !== false)
     );
 

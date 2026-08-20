@@ -203,6 +203,11 @@ export function buildEntryBalanceRecoveryHref(summary: EntryBalanceSummary): str
   ) {
     return summary.onlineShowBalances[0].paymentHref;
   }
+  // `due=1` is a provenance marker, not a view mode: My Payments renders the
+  // amount-due card first in every state, so arriving with money owed already
+  // lands on it and there is nothing for the page to read. Kept because it
+  // distinguishes "sent here because you owe" from a plain nav click; don't
+  // add a searchParams branch on the page to "honor" it.
   if (summary.amountDueCents > 0) return '/exhibitor/payments?due=1';
   return '/exhibitor/entries';
 }

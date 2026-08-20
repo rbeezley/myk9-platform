@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RoleManager } from './RoleManager';
-import { RoleError } from '@/types/rbac-types';
+import { ActionType, RoleError } from '@/types/rbac-types';
 import { mockSupabase, createChainableQuery, resetMockSupabase } from '@/test/mocks/supabase';
 import type { AuditLogger } from './AuditLogger';
 
@@ -120,5 +120,206 @@ describe('RoleManager.ensureUserHasRole', () => {
     const result = await manager.ensureUserHasRole('user-1', 'secretary');
     expect(result).toBe(true);
     expect(clearUserCache).toHaveBeenCalledWith('user-1');
+  });
+});
+
+/**
+ * Regression coverage for the audit gap fixed here: editing a role's
+ * permissions is the primary action on RoleEditPage, but updateRolePermissions
+ * previously wrote no audit event at all — so the permission edit never showed
+ * up in the audit log, the roles table's "Last changed" column, or the recent
+ * changes rail. The UI's buildLastChangedMap (rolesOverview.ts) matches audit
+ * rows on target_type === 'role' && target_id === roleId exactly, so the
+ * assertions below pin that shape, not just "some event was logged".
+ */
+describe('RoleManager.updateRolePermissions — audit trail', () => {
+  it('replaces role_permissions rows and logs a ROLE_UPDATED audit event targeted at the role', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'role_permissions') {
+        return createChainableQuery({ data: null, error: null });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger } = buildManager();
+    await manager.updateRolePermissions('role-1', ['perm-a', 'perm-b']);
+
+    expect(auditLogger.logAuditEvent).toHaveBeenCalledWith(
+      ActionType.ROLE_UPDATED,
+      expect.objectContaining({
+        targetId: 'role-1',
+        targetType: 'role',
+      })
+    );
+  });
+
+  it('logs the audit event even when clearing permissions down to an empty set', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'role_permissions') {
+        return createChainableQuery({ data: null, error: null });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger, clearAllCache } = buildManager();
+    await manager.updateRolePermissions('role-1', []);
+
+    expect(auditLogger.logAuditEvent).toHaveBeenCalledWith(
+      ActionType.ROLE_UPDATED,
+      expect.objectContaining({ targetId: 'role-1', targetType: 'role' })
+    );
+    expect(clearAllCache).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Regression coverage for the audit-integrity gap: updateRolePermissions
+ * previously ignored the `error` field supabase-js returns from `.delete()`
+ * and `.insert()` (neither call throws on failure), so a failed permission
+ * write still fell through to logAuditEvent — recording a ROLE_UPDATED event
+ * for a change that never actually happened. The fix must throw on either
+ * failure AND must not log an audit event when it does.
+ */
+describe('RoleManager.updateRolePermissions — surfaces write failures', () => {
+  it('throws and logs no audit event when the delete of existing role_permissions fails', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'role_permissions') {
+        return createChainableQuery({
+          data: null,
+          error: { message: 'delete failed' },
+        });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger } = buildManager();
+
+    await expect(manager.updateRolePermissions('role-1', ['perm-a'])).rejects.toThrow();
+    expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it('throws and logs no audit event when the insert of new role_permissions fails', async () => {
+    let callCount = 0;
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'role_permissions') {
+        callCount += 1;
+        // 1st call: delete() — succeeds. 2nd call: insert() — fails.
+        if (callCount === 1) {
+          return createChainableQuery({ data: null, error: null });
+        }
+        return createChainableQuery({ data: null, error: { message: 'insert failed' } });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger } = buildManager();
+
+    await expect(manager.updateRolePermissions('role-1', ['perm-a', 'perm-b'])).rejects.toThrow();
+    expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe('RoleManager.getAllRoles — Members column counts distinct people', () => {
+  const roleRows = [
+    {
+      id: 'role-1',
+      name: 'secretary',
+      description: null,
+      is_system: false,
+      permissions: [],
+      created_at: null,
+    },
+    {
+      id: 'role-2',
+      name: 'judge',
+      description: null,
+      is_system: false,
+      permissions: [],
+      created_at: null,
+    },
+  ];
+
+  it('counts a person once per role even when they hold it via several grant rows (e.g. multiple shows)', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'roles') {
+        return createChainableQuery({ data: roleRows, error: null });
+      }
+      if (table === 'role_permissions') {
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      }
+      if (table === 'user_roles') {
+        // person-1 holds role-1 via three separate grant rows (three shows).
+        // A row-count would report 3 "Members"; the fix must report 1.
+        return {
+          select: vi.fn().mockResolvedValue({
+            data: [
+              { role_id: 'role-1', user_id: 'person-1', is_active: true },
+              { role_id: 'role-1', user_id: 'person-1', is_active: true },
+              { role_id: 'role-1', user_id: 'person-1', is_active: true },
+              { role_id: 'role-1', user_id: 'person-2', is_active: true },
+              { role_id: 'role-2', user_id: 'person-3', is_active: true },
+            ],
+            error: null,
+          }),
+        };
+      }
+      return createChainableQuery();
+    });
+
+    const { manager } = buildManager();
+    const roles = await manager.getAllRoles();
+
+    const role1 = roles.find(r => r.id === 'role-1');
+    const role2 = roles.find(r => r.id === 'role-2');
+    expect(role1?.user_count).toBe(2); // person-1 + person-2, not 4 rows
+    expect(role2?.user_count).toBe(1);
+  });
+
+  it('excludes inactive grants from the distinct-user count', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'roles') {
+        return createChainableQuery({ data: [roleRows[0]], error: null });
+      }
+      if (table === 'role_permissions') {
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      }
+      if (table === 'user_roles') {
+        return {
+          select: vi.fn().mockResolvedValue({
+            data: [
+              { role_id: 'role-1', user_id: 'person-1', is_active: true },
+              { role_id: 'role-1', user_id: 'person-2', is_active: false },
+            ],
+            error: null,
+          }),
+        };
+      }
+      return createChainableQuery();
+    });
+
+    const { manager } = buildManager();
+    const roles = await manager.getAllRoles();
+
+    expect(roles.find(r => r.id === 'role-1')?.user_count).toBe(1);
+  });
+
+  it('reports 0 members for a role with no grant rows', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'roles') {
+        return createChainableQuery({ data: [roleRows[1]], error: null });
+      }
+      if (table === 'role_permissions') {
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      }
+      if (table === 'user_roles') {
+        return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+      }
+      return createChainableQuery();
+    });
+
+    const { manager } = buildManager();
+    const roles = await manager.getAllRoles();
+
+    expect(roles.find(r => r.id === 'role-2')?.user_count).toBe(0);
   });
 });

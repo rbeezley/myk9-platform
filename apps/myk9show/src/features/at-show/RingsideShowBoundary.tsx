@@ -105,7 +105,8 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
     // when connectivity returns. Keep the last verified show during that key
     // transition: replacing children with the loading state unmounts an open
     // nested scoresheet and restarts its scoped hydration while offline.
-    placeholderData: previousData => previousData,
+    placeholderData: previousData =>
+      previousData?.show?.id === showId ? previousData : undefined,
   });
 
   if (showQuery.isLoading) {

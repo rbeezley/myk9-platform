@@ -7,7 +7,7 @@
  * show that loads — rendering the children.
  */
 
-import { Routes, Route } from 'react-router-dom';
+import { Link, Routes, Route } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { onlineManager } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -138,6 +138,22 @@ describe('RingsideShowBoundary', () => {
 
     expect(screen.getByTestId('nested-scoresheet')).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading ringside…' })).not.toBeInTheDocument();
+  });
+
+  it('does not preserve a previous show while navigating between show IDs', async () => {
+    vi.mocked(replicatedShowsTable.getShowById)
+      .mockResolvedValueOnce({ id: 'show-first' } as never)
+      .mockReturnValueOnce(new Promise(() => {}) as never);
+
+    const { user } = renderBoundary(
+      'show-first',
+      createTestQueryClient(),
+      <Link to="/at-show/show-second">Open another show</Link>
+    );
+    await user.click(await screen.findByRole('link', { name: 'Open another show' }));
+
+    expect(screen.getByRole('status', { name: 'Loading ringside…' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open another show' })).not.toBeInTheDocument();
   });
 
   it('renders the missing-show notice (not a 404) when the show is absent', async () => {

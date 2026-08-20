@@ -26,6 +26,26 @@ interface CartItemCardProps {
   className?: string;
 }
 
+/**
+ * Badge surfaces that survive dark mode.
+ *
+ * `variant="secondary"` was invisible there: `--secondary`, `--card` and
+ * `--secondary-foreground`/`--card-foreground` are all pairwise identical in
+ * `.dark` (#1e1c19 / #faf7f2), and the variant sets `border-transparent` - so
+ * the pill had no fill, no border and no distinguishing text color, and
+ * "Wait list request" rendered as plain body text beside the class name at
+ * 1.00:1. That badge is the only per-line cue that a line will NOT be charged,
+ * which is precisely the signal that must not disappear. The blocked badge
+ * (`destructive`) kept its fill, so the hard-stop state survived while the
+ * softer money-relevant one did not.
+ *
+ * The wait-list badge takes the warning family, matching its meaning and
+ * measuring 6.08:1 light / 8.27:1 dark; the level badge just needs a real
+ * boundary.
+ */
+const WAITLIST_BADGE = 'border-warning/40 bg-warning/10 text-warning';
+const LEVEL_BADGE = 'border-border text-muted-foreground';
+
 export function CartItemCard({
   item,
   onRemove,
@@ -67,12 +87,12 @@ export function CartItemCard({
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="text-sm font-medium">{className_}</span>
               {classLevel && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="outline" className={cn('text-xs', LEVEL_BADGE)}>
                   {classLevel}
                 </Badge>
               )}
               {isWaitlist && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="outline" className={cn('text-xs', WAITLIST_BADGE)}>
                   Wait list request
                 </Badge>
               )}
@@ -127,7 +147,9 @@ export function CartItemCard({
           <div className="flex flex-col items-end gap-2">
             {isWaitlist || isBlocked ? (
               <span className="text-right">
-                <span className="block text-lg font-semibold">{isWaitlist ? 'Pending' : '—'}</span>
+                <span className="block text-lg font-semibold">
+                  {isWaitlist ? 'Pending' : <span aria-hidden="true">-</span>}
+                </span>
                 <span className="block text-xs text-muted-foreground">
                   {isWaitlist ? 'Amount confirmed at submission' : 'Cannot be paid'}
                 </span>

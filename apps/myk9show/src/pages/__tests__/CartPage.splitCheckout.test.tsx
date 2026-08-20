@@ -87,6 +87,11 @@ const judgeDayCapacityState = vi.hoisted(() => ({
   isLoading: false,
   isFetching: false,
   error: null as string | null,
+  // handleCheckout re-checks capacity at submit rather than trusting the
+  // render-time snapshot, so the mock must answer a refetch. Resolving with
+  // `data: undefined` makes the page fall back to the rendered values, which
+  // keeps these cases asserting the split logic rather than the refetch.
+  refetch: vi.fn().mockResolvedValue({ data: undefined }),
 }));
 
 vi.mock('react-router-dom', async () => {

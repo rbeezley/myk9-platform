@@ -26,7 +26,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
-import { createEntryCheckoutSession } from '@/lib/stripe';
+import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
@@ -62,6 +62,7 @@ export default function CartPage() {
     isLoading: isCapacityLoading,
     isFetching: isCapacityFetching,
     error: capacityError,
+    refetch: refetchCapacity,
   } = useJudgeDayCapacity(cart?.show_id);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
@@ -75,8 +76,12 @@ export default function CartPage() {
   const checkoutInFlightRef = useRef(false);
   const [cancelNoticeDismissed, setCancelNoticeDismissed] = useState(false);
 
-  // Reading the Stripe cancel return param is purely informational — the cart
-  // itself is untouched, so this banner reassures rather than alarms.
+  // The cart is NOT necessarily untouched on a cancelled return. A split
+  // checkout commits wait list rows and removes those lines from the cart
+  // BEFORE redirecting to Stripe (see handleCheckout), so an exhibitor who
+  // abandons payment comes back to a smaller cart. The banner therefore
+  // promises only what is always true - no charge - and never that the cart
+  // is unchanged.
   const showCancelNotice =
     readCheckoutReturnStatus(searchParams) === 'cancelled' && !cancelNoticeDismissed;
 
@@ -94,7 +99,15 @@ export default function CartPage() {
   // the total, and then disappearing once checkout routes it to the wait list.
   // `null` while capacity is loading or errored: unknown availability must not
   // be presented as a final amount.
-  const capacityResolved = !isCapacityLoading && !isCapacityFetching && !capacityError;
+  // A query gated by `enabled` is not "resolved" just because it is not
+  // loading: with no showId, useJudgeDayCapacity is disabled and reports
+  // isLoading:false / isFetching:false / error:null while returning an empty
+  // judgeDays array. Treating that as settled would read "never asked" as
+  // "this show has no capacity limits" and mark every line payable. Require
+  // that the query was actually asked. (Same class of bug as PR #1697.)
+  const capacityQueried = Boolean(cart?.show_id);
+  const capacityResolved =
+    capacityQueried && !isCapacityLoading && !isCapacityFetching && !capacityError;
   const fulfillment = useMemo(
     () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, fullClassIds),
     [items, judgeDays, fullClassIds, capacityResolved]
@@ -185,7 +198,23 @@ export default function CartPage() {
     setError(null);
 
     try {
-      const splitDecision = splitCartItemsByJudgeDayCapacity(items, judgeDays, fullClassIds);
+      // Re-check capacity at submit rather than trusting the render-time
+      // snapshot. Global query defaults are staleTime 5min with
+      // refetchOnWindowFocus:false, so an exhibitor who leaves the tab open
+      // while deciding can submit against capacity that is many minutes old.
+      // A class that filled in that window would be classified payable, sent
+      // to Stripe, charged, and then refunded by the server's overflow path -
+      // money made whole, but a charge-then-refund the exhibitor never
+      // expected. One refetch routes it to the wait list cleanly instead.
+      const fresh = await refetchCapacity();
+      const freshJudgeDays = fresh.data?.judgeDays ?? judgeDays;
+      const freshFullClassIds = fresh.data?.fullClassIds ?? fullClassIds;
+
+      const splitDecision = splitCartItemsByJudgeDayCapacity(
+        items,
+        freshJudgeDays,
+        freshFullClassIds
+      );
       const blockedItems = splitDecision.blockedItems;
 
       if (blockedItems.length > 0) {
@@ -245,8 +274,25 @@ export default function CartPage() {
       // This will redirect to Stripe Checkout for the remaining confirmed entries.
       await createEntryCheckoutSession(cart.id, splitCheckoutId ? { splitCheckoutId } : undefined);
       // If we get here, the redirect didn't happen (shouldn't normally occur)
-    } catch (_err) {
-      setError('Something went wrong starting checkout. Please try again.');
+    } catch (err) {
+      // Say what the server actually said. It distinguishes failures the
+      // exhibitor can act on (fees were re-priced, review and retry) from ones
+      // they cannot (the club has no payout account), and a flat "try again"
+      // erased both. Worse, the 409 re-pricing case looped forever: the server
+      // heals the stored cart, but the client kept re-sending the stale
+      // in-memory copy, so every retry failed identically until a hard reload.
+      const status = err instanceof CheckoutSessionError ? err.status : null;
+      const message =
+        err instanceof CheckoutSessionError && err.message
+          ? err.message
+          : 'Something went wrong starting checkout. Please try again.';
+
+      if (status === 409 && profile?.id) {
+        // Re-hydrate so "review your cart" is actually possible.
+        loadActiveCart(profile.id, {});
+      }
+
+      setError(message);
       stopCheckingOut();
     }
   };
@@ -366,8 +412,13 @@ export default function CartPage() {
             <Info className="h-4 w-4 text-primary" />
             <AlertDescription className="flex items-start justify-between gap-4">
               <span className="text-foreground">
-                <span className="font-medium">Checkout cancelled — no charge was made.</span> Your
-                cart is saved exactly as you left it. Pick up whenever you're ready.
+                <span className="font-medium">Checkout cancelled. Your card was not charged.</span>{' '}
+                Anything still in your cart is below. Any wait list requests you made are saved
+                under{' '}
+                <Link to="/exhibitor/entries" className="text-primary hover:underline">
+                  My Shows
+                </Link>
+                .
               </span>
               <button
                 type="button"
@@ -419,6 +470,7 @@ export default function CartPage() {
                 isCheckingOut={isCheckingOut}
                 fulfillment={fulfillment}
                 capacityUnavailable={Boolean(capacityError)}
+                onRetryCapacity={() => void refetchCapacity()}
               />
             </div>
           </div>

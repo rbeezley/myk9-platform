@@ -56,7 +56,7 @@ describe('CartSummary — entries-closed gating', () => {
     render(<CartSummary />);
 
     expect(screen.getByText('Entries are closed for this show')).toBeInTheDocument();
-    const payButton = screen.getByRole('button', { name: /entries closed — cannot pay online/i });
+    const payButton = screen.getByRole('button', { name: /entries closed. cannot pay online/i });
     expect(payButton).toBeDisabled();
     expect(
       screen.queryByRole('button', { name: /pay \$.* and confirm/i })
@@ -102,7 +102,7 @@ describe('CartSummary — entries-closed gating', () => {
 
       expect(screen.getByText('Entries are closed for this show')).toBeInTheDocument();
       expect(
-        screen.getByRole('button', { name: /entries closed — cannot pay online/i })
+        screen.getByRole('button', { name: /entries closed. cannot pay online/i })
       ).toBeDisabled();
     });
   });

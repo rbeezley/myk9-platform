@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   CreditCard,
   AlertTriangle,
+  RefreshCw,
   AlertCircle,
   ShoppingCart,
   ArrowRight,
@@ -43,6 +44,14 @@ interface CartSummaryProps {
    * does not sit on a spinner label forever.
    */
   capacityUnavailable?: boolean;
+  /**
+   * Retry the class-availability query. Optional so existing call sites keep
+   * working; when supplied, a failed capacity load offers a one-tap retry
+   * instead of telling the exhibitor to reload a checkout page - the one
+   * instruction someone mid-purchase is least willing to follow, because it
+   * reads as "you may lose your cart".
+   */
+  onRetryCapacity?: () => void;
   className?: string;
 }
 
@@ -52,6 +61,7 @@ export function CartSummary({
   isCheckingOut = false,
   fulfillment,
   capacityUnavailable = false,
+  onRetryCapacity,
   className,
 }: CartSummaryProps) {
   const navigate = useNavigate();
@@ -65,7 +75,14 @@ export function CartSummary({
   // user by redirecting to /shows mid-payment (UX walk remediation 4.B). The
   // timer still runs so we can show an ACTIONABLE heads-up (with one-tap Extend)
   // only as the hold nears its end — never a clock counting the whole time.
-  const { timeRemainingFormatted, showWarning, showUrgentWarning, extendExpiration } =
+  // `isExpired` is consumed deliberately. Both showWarning and
+  // showUrgentWarning require timeRemainingMs > 0, so at the instant the hold
+  // lapsed the banner unmounted and took the one-tap Extend with it - the card
+  // went back to looking healthy while Pay stayed enabled over a dead hold.
+  // That is a failure of the INTENT above, not a conflict with it: the heads-up
+  // has to stay ACTIONABLE at the moment it matters most. Still no countdown,
+  // still no redirect.
+  const { timeRemainingFormatted, isExpired, showWarning, showUrgentWarning, extendExpiration } =
     useCartExpirationTimer();
 
   const formatCurrency = (cents: number) => {
@@ -179,11 +196,11 @@ export function CartSummary({
         )}
 
         {/* Expiration Warning */}
-        {!entriesClosed && (showWarning || showUrgentWarning) && (
+        {!entriesClosed && (showWarning || showUrgentWarning || isExpired) && (
           <div
             className={cn(
               'flex items-center gap-2 p-3 rounded-lg',
-              showUrgentWarning
+              showUrgentWarning || isExpired
                 ? 'bg-destructive/10 text-destructive border border-destructive/30 '
                 : 'bg-warning/10 text-warning border border-warning/30 '
             )}
@@ -191,10 +208,16 @@ export function CartSummary({
             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-sm font-medium">
-                {showUrgentWarning ? 'Cart expiring very soon!' : 'Cart will expire soon'}
+                {isExpired
+                  ? 'Your hold has lapsed'
+                  : showUrgentWarning
+                    ? 'Cart expiring very soon'
+                    : 'Cart will expire soon'}
               </p>
               <p className="text-xs mt-0.5">
-                {timeRemainingFormatted} remaining - complete checkout or extend time
+                {isExpired
+                  ? 'Extend to keep these spots. Nothing has been removed from your cart.'
+                  : `${timeRemainingFormatted} remaining. Complete checkout or extend the hold.`}
               </p>
             </div>
             <Button
@@ -248,9 +271,15 @@ export function CartSummary({
             <span>{formatCurrency(platformFee)}</span>
           </div>
           <Separator />
-          <div className="flex justify-between text-lg font-semibold">
-            <span>{capacityUnknown || waitlistCount > 0 ? 'Total (pending)' : 'Total'}</span>
-            <span>{waitlistCount > 0 ? 'Pending' : formatCurrency(total)}</span>
+          {/* State the amount whenever it is known. A wait list line contributes
+              $0 to what is payable now, so `total` is exact even with wait list
+              requests present - printing "Pending" here hid a figure the page
+              had already computed, and disagreed with the Pay button directly
+              below it, which showed the real number. "Pending" is reserved for
+              the genuinely unknown case, where capacity has not resolved. */}
+          <div className="flex justify-between text-xl font-semibold">
+            <span>{capacityUnknown ? 'Total (pending)' : waitlistCount > 0 ? 'Due now' : 'Total'}</span>
+            <span>{capacityUnknown ? 'Pending' : formatCurrency(total)}</span>
           </div>
           {/* Until availability resolves, no line has been judged against real
               capacity — so this figure is not yet a claim about what is due. */}
@@ -259,7 +288,7 @@ export function CartSummary({
               {waitlistCount > 0
                 ? 'Final availability and payment status are confirmed at submission.'
                 : capacityFailed
-                  ? 'We could not check which classes are still open, so this amount is not final. Reload to try again.'
+                  ? 'We could not check which classes are still open, so this amount is not final.'
                   : 'Still checking which classes are still open. This amount will drop if a class turns out to be full.'}
             </p>
           )}
@@ -282,7 +311,12 @@ export function CartSummary({
         <Button
           onClick={handleCheckout}
           disabled={
-            isCheckingOut || itemCount === 0 || entriesClosed || blockedCount > 0 || capacityUnknown
+            isCheckingOut ||
+            itemCount === 0 ||
+            entriesClosed ||
+            blockedCount > 0 ||
+            capacityUnknown ||
+            isExpired
           }
           className="w-full"
           size="lg"
@@ -292,10 +326,15 @@ export function CartSummary({
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processing...
             </>
+          ) : isExpired ? (
+            <>
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Extend your hold to continue
+            </>
           ) : entriesClosed ? (
             <>
               <Lock className="h-4 w-4 mr-2" />
-              Entries closed — cannot pay online
+              Entries closed. Cannot pay online
             </>
           ) : capacityPending ? (
             <>
@@ -305,7 +344,7 @@ export function CartSummary({
           ) : capacityFailed ? (
             <>
               <AlertCircle className="h-4 w-4 mr-2" />
-              Class availability unavailable — reload to try again
+              Class availability unavailable
             </>
           ) : blockedCount > 0 ? (
             <>
@@ -326,6 +365,12 @@ export function CartSummary({
             </>
           )}
         </Button>
+        {capacityFailed && onRetryCapacity && (
+          <Button variant="outline" onClick={onRetryCapacity} className="min-h-11 w-full">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Check availability again
+          </Button>
+        )}
         <Button variant="outline" onClick={handleContinueShopping} className="min-h-11 w-full">
           Continue Shopping
           <ArrowRight className="h-4 w-4 ml-2" />

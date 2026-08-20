@@ -41,7 +41,13 @@ export interface SentryMetricResult {
   unit: 'percent' | 'milliseconds';
   status: MetricStatus;
   observedAt: string | null;
-  error?: 'Sentry metric unavailable';
+  /**
+   * Why the metric is degraded. The two strings are deliberately distinct so an
+   * admin can tell an unprovisioned secret from Sentry itself erroring — see
+   * SentryNotConfiguredError below. Keep this a literal union rather than
+   * `string`, so a new degrade reason cannot be added without being named here.
+   */
+  error?: 'Sentry metric unavailable' | 'Sentry metrics are not configured';
 }
 
 export interface SentryDashboardMetricsResponse {
@@ -146,12 +152,27 @@ function parseSessionsMetricResponse(payload: SentrySessionsResponse): {
   return { value: value * 100, observedAt: date.toISOString() };
 }
 
+/**
+ * Raised when SENTRY_API_TOKEN / SENTRY_ORGANIZATION_SLUG are unset.
+ *
+ * INTENT: a missing-config state degrades to an `unavailable` tile rather than
+ * failing the whole endpoint. This previously threw HttpError(500), so one
+ * unprovisioned secret both broke /admin/dashboard and blocked the admin e2e
+ * route-health sweep at its first admin route — which is how it went unnoticed
+ * for months (MYK9-213). Do not convert this back to an HttpError.
+ *
+ * The surfaced message stays specific ("not configured", never the generic
+ * "unavailable") so a misconfiguration is still legible to an admin instead of
+ * looking like Sentry itself being down.
+ */
+class SentryNotConfiguredError extends Error {}
+
 async function fetchMetric(
   key: MetricKey,
   deps: SentryDashboardMetricsDeps
 ): Promise<{ value: number; observedAt: string }> {
   if (!deps.organization || !deps.apiToken) {
-    throw new HttpError(500, 'Sentry metrics are not configured');
+    throw new SentryNotConfiguredError('Sentry metrics are not configured');
   }
 
   const response = await deps.fetch(buildSentryMetricUrl(deps.organization, key), {
@@ -189,13 +210,18 @@ async function readMetric(
   } catch (error) {
     if (error instanceof HttpError) throw error;
 
+    const reason =
+      error instanceof SentryNotConfiguredError
+        ? 'Sentry metrics are not configured'
+        : 'Sentry metric unavailable';
+
     if (cached) {
       return {
         value: cached.value,
         unit: config.unit,
         status: 'stale',
         observedAt: cached.observedAt,
-        error: 'Sentry metric unavailable',
+        error: reason,
       };
     }
 
@@ -204,7 +230,7 @@ async function readMetric(
       unit: config.unit,
       status: 'unavailable',
       observedAt: null,
-      error: 'Sentry metric unavailable',
+      error: reason,
     };
   }
 }

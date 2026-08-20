@@ -2,6 +2,14 @@ import { supabase } from '@/services/database/supabaseClient';
 
 export type SentryMetricStatus = 'fresh' | 'stale' | 'unavailable';
 
+/**
+ * Mirrors the edge function's not-configured degrade reason
+ * (supabase/functions/sentry-dashboard-metrics/metrics.ts). Kept as a shared
+ * constant so the two sides cannot drift apart silently — the tile copy below
+ * depends on matching this string exactly.
+ */
+export const SENTRY_NOT_CONFIGURED = 'Sentry metrics are not configured';
+
 export interface SentryMetricResult {
   value: number | null;
   unit: 'percent' | 'milliseconds';
@@ -96,6 +104,19 @@ export function getSentryMetricTileState(
   }
 
   if (queryError || !metric || metric.status === 'unavailable') {
+    // An unprovisioned server-side secret never resolves on its own, so
+    // "will retry" would be a false promise — and a silent one, since the
+    // endpoint now degrades instead of erroring (MYK9-213). Say what is
+    // actually wrong so the misconfiguration stays visible.
+    if (metric?.error === SENTRY_NOT_CONFIGURED) {
+      return {
+        value: '—',
+        context: 'not configured — add Sentry credentials',
+        isError: true,
+        isStale: false,
+      };
+    }
+
     return {
       value: '—',
       context: `couldn't read ${label.toLowerCase()}; will retry`,

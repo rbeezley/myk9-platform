@@ -4,6 +4,7 @@ import {
   formatSentryMetricValue,
   getSentryMetricTileState,
   parseSentryDashboardMetrics,
+  SENTRY_NOT_CONFIGURED,
   type SentryMetricResult,
 } from './sentryDashboardMetrics';
 import { mockSupabase } from '@/test/mocks/supabase';
@@ -101,6 +102,38 @@ describe('sentryDashboardMetrics', () => {
       isError: false,
       isStale: true,
     });
+  });
+
+  // MYK9-213: the endpoint degrades on a missing secret rather than 500ing, so
+  // the tile is now the only place a misconfiguration is visible. It must not
+  // claim a retry will fix something that needs a human to provision a secret.
+  it('says a missing config is not configured, rather than promising a retry', () => {
+    const state = getSentryMetricTileState(
+      metric({ value: null, status: 'unavailable', error: SENTRY_NOT_CONFIGURED }),
+      'Client p95',
+      false,
+      null
+    );
+
+    expect(state).toEqual({
+      value: '—',
+      context: 'not configured — add Sentry credentials',
+      isError: true,
+      isStale: false,
+    });
+    expect(state.context).not.toContain('will retry');
+  });
+
+  it('still promises a retry when Sentry is merely erroring', () => {
+    const state = getSentryMetricTileState(
+      metric({ value: null, status: 'unavailable', error: 'Sentry metric unavailable' }),
+      'Client p95',
+      false,
+      null
+    );
+
+    // Same status, different cause: this one genuinely can resolve on its own.
+    expect(state.context).toBe("couldn't read client p95; will retry");
   });
 
   it('does not turn unavailable data into zero', () => {

@@ -224,7 +224,7 @@ BEGIN
       'ringside_containment','ringside_containment_audit','ringside_sessions',
       'role_permissions','role_requests','roles','rule_organizations','rule_sports','rulebooks',
       'rules','rules_feedback','rules_query_log','secretary_tasks','show_announcement_reads',
-      'show_announcements','show_incidents','show_lifecycle_email_attempts',
+      'show_announcements','show_eve_nudge_log','show_incidents','show_lifecycle_email_attempts',
       'show_lifecycle_email_jobs','show_lifecycle_email_steps','show_message_threads',
       'show_messages','show_money_locks','show_passcodes','show_payouts','show_templates',
       'show_visibility_settings','shows','sport_class_rules','sport_templates','sport_titles',

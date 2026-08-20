@@ -11,7 +11,11 @@ import {
   summarizeEntryBalances,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
-import { computeMyEntriesShowDateStats, isPastShowEntry } from './myEntriesStats.helpers';
+import {
+  computeMyEntriesShowDateStats,
+  isCompletedEntry,
+  isPastShowEntry,
+} from './myEntriesStats.helpers';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
 /**
@@ -74,14 +78,14 @@ export function useMyEntriesFilters({
         break;
       case 'upcoming': {
         const now = new Date();
-        // Date-range aware: all non-past entry rows belong here, including
-        // entries that still need payment or review.
-        filtered = filtered.filter(entry => !isPastShowEntry(entry, now));
+        // Strict complement of Completed: everything still ahead of the
+        // exhibitor, including entries that need payment or review.
+        filtered = filtered.filter(entry => !isCompletedEntry(entry, now));
         break;
       }
       case 'completed': {
         const now = new Date();
-        filtered = filtered.filter(entry => isPastShowEntry(entry, now));
+        filtered = filtered.filter(entry => isCompletedEntry(entry, now));
         break;
       }
       default:
@@ -89,15 +93,16 @@ export function useMyEntriesFilters({
         break;
     }
 
-    // Sort by show date — upcoming first (nearest date at top). Use the same
-    // date-range rule as the tabs so a show running today sorts as upcoming.
+    // Sort by show date — still-ahead entries first (nearest date at top). Uses
+    // the same rule as the tabs so ordering and tab membership never disagree:
+    // a show running today sorts as upcoming, a scored entry sorts as done.
     const now = new Date();
     filtered.sort((a, b) => {
-      const aUpcoming = !isPastShowEntry(a, now);
-      const bUpcoming = !isPastShowEntry(b, now);
-      // Upcoming entries before past entries
+      const aUpcoming = !isCompletedEntry(a, now);
+      const bUpcoming = !isCompletedEntry(b, now);
+      // Upcoming entries before completed ones
       if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
-      // Within upcoming: soonest first; within past: most recent first
+      // Within upcoming: soonest first; within completed: most recent first
       return aUpcoming
         ? a.showDate.getTime() - b.showDate.getTime()
         : b.showDate.getTime() - a.showDate.getTime();
@@ -114,7 +119,12 @@ export function useMyEntriesFilters({
     const accepted = entries.filter(isExhibitorInEntry);
     const pending = entries.filter(isPendingEntry);
     const waitlist = entries.filter(isWaitlistEntry);
+    // Date-only, for the summary cards and money math — a scored entry at a
+    // show that has not happened yet can still owe an entry fee.
     const currentEntries = entries.filter(entry => !isPastShowEntry(entry, now));
+    // Tab axis — see `isCompletedEntry`. Kept separate from `currentEntries`
+    // on purpose so folding scored entries into Completed cannot move fees.
+    const completedEntries = entries.filter(entry => isCompletedEntry(entry, now));
     const currentAcceptedEntries = currentEntries.filter(isExhibitorInEntry);
     const currentPendingEntries = currentEntries.filter(isPendingEntry);
     // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day
@@ -167,8 +177,8 @@ export function useMyEntriesFilters({
         pending: pending.length,
         accepted: accepted.length,
         waitlist: waitlist.length,
-        upcoming: currentEntries.length,
-        completed: entries.length - currentEntries.length,
+        upcoming: entries.length - completedEntries.length,
+        completed: completedEntries.length,
       },
     };
   }, [entries, externalBalanceSummary]);

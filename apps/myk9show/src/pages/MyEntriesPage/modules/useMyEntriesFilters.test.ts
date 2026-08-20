@@ -187,3 +187,97 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
     ]);
   });
 });
+
+// Reported 2026-08-19 on /exhibitor/entries against seeded data: the tab strip
+// read `Completed 0` while cards on screen carried a "Scored" badge, and
+// `Upcoming 68` equalled `All 68`. Two definitions of "done" were in play — the
+// card badge reads `entryStatusKind` (myEntriesUtils.getEntryStatusBadge labels
+// it "Scored"), the Completed tab read `isPastShowEntry` (show date only). The
+// seeded show ends Aug 30 2026 yet already carries scored entries, so a scored
+// entry counted as Upcoming. Completed now means scored OR show ended.
+describe('Completed tab agrees with the "Scored" card badge', () => {
+  const scoredAtFutureShow = makeEntry({
+    id: 'scored-future',
+    showId: 'scored-future-show',
+    showDate: new Date(2026, 7, 29), // Aug 29 2026 — after the pinned "now"
+    showEndDate: new Date(2026, 7, 30),
+    entryStatus: EntryStatus.COMPLETED,
+    entryStatusKind: 'completed',
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+  });
+
+  it('places a scored entry at a future-dated show in the Completed tab', () => {
+    const { result } = renderHook(() => useMyEntriesFilters({ entries: [scoredAtFutureShow] }));
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+
+    act(() => result.current.setSelectedTab('completed'));
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['scored-future']);
+  });
+
+  it('keeps a scored future entry out of the Upcoming tab', () => {
+    const unscoredFuture = makeEntry({
+      id: 'unscored-future',
+      showId: 'unscored-future-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+    });
+
+    const { result } = renderHook(() =>
+      useMyEntriesFilters({ entries: [scoredAtFutureShow, unscoredFuture] })
+    );
+    act(() => result.current.setSelectedTab('upcoming'));
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['unscored-future']);
+  });
+
+  // The badge is driven by `entryStatusKind`, which folds `check_in_status` in:
+  // seeded rows exist at entry_status='confirmed' + check_in_status='completed'
+  // and render "Scored". Keying the tab on `entryStatus` alone would miss them.
+  it('treats a check-in-only scored entry (confirmed + completed) as Completed', () => {
+    const checkInScored = makeEntry({
+      id: 'check-in-scored',
+      showId: 'check-in-scored-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'completed',
+    });
+
+    const { result } = renderHook(() => useMyEntriesFilters({ entries: [checkInScored] }));
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+  });
+
+  it('still counts an unscored entry at an ended show as Completed', () => {
+    const { result } = renderHook(() => useMyEntriesFilters({ entries: [endedShow] }));
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+  });
+
+  it('leaves the fee and summary stats on the show-date axis', () => {
+    // A scored entry at a show that has not happened yet can still owe money,
+    // so folding it into Completed must not move `currentFees`/amount due.
+    const scoredUnpaidFuture = makeEntry({
+      id: 'scored-unpaid-future',
+      showId: 'scored-unpaid-future-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      paymentStatus: PaymentStatus.PENDING,
+      totalFee: 35,
+    });
+
+    const { result } = renderHook(() => useMyEntriesFilters({ entries: [scoredUnpaidFuture] }));
+
+    expect(result.current.entryStats.currentFees).toBe(35);
+    expect(result.current.entryStats.currentAmountDue).toBe(35);
+    expect(result.current.entryStats.upcomingShows).toBe(1);
+    expect(result.current.entryStats.pastShows).toBe(0);
+    // ...while the tab axis still calls it done.
+    expect(result.current.tabCounts.completed).toBe(1);
+  });
+});

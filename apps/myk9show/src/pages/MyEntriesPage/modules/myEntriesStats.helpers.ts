@@ -18,6 +18,7 @@
  */
 
 import { parseLocalDateString } from '@/utils/dateLocal';
+import { EntryStatus } from '@/types/show-registration-types';
 import type { MyEntry } from './my-entries-types';
 
 /**
@@ -54,6 +55,37 @@ function showLastDay(entry: MyEntry): Date {
  */
 export function isPastShowEntry(entry: MyEntry, now: Date): boolean {
   return startOfLocalDay(showLastDay(entry)).getTime() < startOfLocalDay(now).getTime();
+}
+
+/**
+ * Has this entry been scored? Reads `entryStatusKind` — the display classifier
+ * that folds `check_in_status` into `entry_status` — so this matches the card's
+ * own "Scored" badge exactly. An entry can sit at `entry_status='confirmed'`
+ * with `check_in_status='completed'` and still render as Scored, which keying
+ * on `entryStatus` alone would miss. Falls back to the raw status for callers
+ * (unit tests, legacy rows) that construct a `MyEntry` without a kind.
+ */
+export function isScoredEntry(entry: MyEntry): boolean {
+  return entry.entryStatusKind === 'completed' || entry.entryStatus === EntryStatus.COMPLETED;
+}
+
+/**
+ * The exhibitor's "nothing further will happen here" predicate, and the single
+ * rule behind the Upcoming / Completed tab pair.
+ *
+ * These two tabs used to split on `isPastShowEntry` alone, i.e. purely on the
+ * calendar. That let a scored entry at a show whose last day is still in the
+ * future render a "Scored" badge on its card while the strip read
+ * `Completed 0` and counted it as Upcoming — two different definitions of
+ * "done" on one screen. Folding the scored check in makes the tab agree with
+ * the badge in both directions.
+ *
+ * Deliberately NOT used by `computeMyEntriesShowDateStats` or the fee math:
+ * "Past Shows" / "Upcoming Shows" and amount-due are genuine show-date
+ * questions, and a scored entry can still owe money.
+ */
+export function isCompletedEntry(entry: MyEntry, now: Date): boolean {
+  return isScoredEntry(entry) || isPastShowEntry(entry, now);
 }
 
 export interface MyEntriesShowDateStats {

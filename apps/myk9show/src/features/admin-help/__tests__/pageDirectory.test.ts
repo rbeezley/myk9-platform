@@ -107,6 +107,15 @@ describe('pageDirectory (invariant)', () => {
     expect(entry?.linksTo).toContain('/admin/users');
   });
 
+  // The directory is hand-authored and deliberately omits redirect-only routes
+  // (asserted above for the legacy /secretary/shows paths), and nothing enforces
+  // that a new route gets an entry — the drift panel reports that at runtime.
+  // So no copy on this surface may claim it covers "every page".
+  it('the self-entry does not claim to cover every page', () => {
+    const entry = pageDirectory.find(e => e.path === '/admin/help');
+    expect(entry?.description).not.toMatch(/every page/i);
+  });
+
   it('every linksTo path resolves to an existing PageEntry path', () => {
     const knownPaths = new Set(pageDirectory.map(e => e.path));
     const orphans: string[] = [];

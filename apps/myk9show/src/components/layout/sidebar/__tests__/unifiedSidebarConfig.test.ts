@@ -257,6 +257,17 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(item?.description).not.toMatch(/receipt/i);
   });
 
+  // Same defect class as My Payments: the directory is hand-authored, excludes
+  // redirect-only routes by design, and renders its own "Directory drift" panel
+  // listing what it lacks — so "every page" was contradicted on-screen.
+  it('Help description does not claim the directory covers every page', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN]);
+    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'Help');
+
+    expect(item?.description).toBe('Page directory, grouped by role');
+    expect(item?.description).not.toMatch(/every/i);
+  });
+
   // The permanent Ringside entry targets the bare /at-show route, which resolves
   // the showId at the destination (RingsideEntryPage) — so a static link is safe
   // for an exhibitor with several shows. It replaces the old retired

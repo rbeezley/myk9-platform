@@ -89,8 +89,12 @@ export function AdminHelpPage() {
     <div className="container mx-auto max-w-5xl space-y-4 py-6">
       <header>
         <h1 className="font-display text-2xl font-bold">Page Directory</h1>
+        {/* Not "every page". This sits on the same screen as the amber
+          drift panel below, which lists the routes the directory does NOT
+          carry — the old copy contradicted it in view. */}
         <p className="text-sm text-muted-foreground">
-          Every page in myK9Show, grouped by role.
+          myK9Show&apos;s user-facing pages, grouped by role. Redirect-only routes are excluded;
+          anything else uncatalogued is flagged under Directory drift.
         </p>
       </header>
 

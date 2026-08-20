@@ -2,8 +2,14 @@ import type { PageEntry } from '../types';
 import { UserRole } from '@/types/auth-types';
 
 /**
- * Hand-authored directory of every user-facing page in myK9Show.
- * Must stay in sync with fullRouteRegistry (enforced by pageDirectory.test.ts).
+ * Hand-authored directory of myK9Show's user-facing pages.
+ *
+ * pageDirectory.test.ts enforces only ONE direction of sync: that no entry
+ * points at a path fullRouteRegistry does not have. The reverse — a route
+ * with no entry — is NOT asserted; it surfaces at runtime in the Directory
+ * drift panel on /admin/help. So this list is not guaranteed exhaustive, and
+ * redirect-only routes are deliberately left out (see the legacy
+ * /secretary/shows/:showId assertions in that test).
  */
 export const pageDirectory: readonly PageEntry[] = [
   // =========================
@@ -33,7 +39,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/help',
     title: 'Help — Page Directory',
-    description: 'Directory of every page in myK9Show, grouped by role.',
+    description:
+      "Searchable directory of myK9Show's user-facing pages, grouped by role, plus a drift panel for uncatalogued routes.",
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',

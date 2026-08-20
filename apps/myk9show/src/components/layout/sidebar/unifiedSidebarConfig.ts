@@ -320,7 +320,10 @@ export function buildUnifiedSidebarConfig(
           title: 'Help',
           href: '/admin/help',
           icon: HelpCircle,
-          description: 'Directory of every page in myK9Show',
+          // Not "every page": the directory is hand-authored and excludes
+          // redirect-only routes by design, and the page's own drift panel
+          // lists whatever is uncatalogued.
+          description: 'Page directory, grouped by role',
         },
       ],
     });

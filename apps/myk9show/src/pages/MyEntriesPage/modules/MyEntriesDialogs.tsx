@@ -46,8 +46,7 @@ export const CheckInDialog: React.FC<CheckInDialogProps> = ({
         // person's name belongs, which reads as leaked plumbing rather than
         // "your dog, your class". Same derivation the receipt dialog already
         // uses below, so the exhibitor sees one identity across both.
-        handlerName:
-          user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Handler',
+        handlerName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Handler',
         className: dialog.classEntry.name,
         classNumber: dialog.classEntry.number,
       }}
@@ -125,6 +124,16 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   const exhibitorName = user?.user_metadata?.full_name || user?.email?.split('@')[0];
   const exhibitorEmail = user?.email;
 
+  // KNOWN LIMITATION (pre-dates the receipt deep-link): this receipt is
+  // CARD-scoped, not order-scoped. A card is one grouped registration, and a
+  // registration can be paid by more than one Stripe order — a capacity split
+  // sends the overflow to the wait list, and its later promotion pays
+  // separately. In that case every class row and `entry.totalFee` below cover
+  // BOTH orders, so a receipt reached from either payment overstates it. My
+  // Payments' Receipt link reports `partial` rather than claiming an exact
+  // match for exactly this reason (see entryScopeFilter), but the fix is an
+  // order-aware receipt, which this dialog cannot express today.
+  //
   // Map classes to match EntryReceipt's expected type
   const mappedClasses = entry.classes.map(c => ({
     id: c.id,

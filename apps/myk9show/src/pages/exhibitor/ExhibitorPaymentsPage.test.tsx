@@ -87,7 +87,7 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.queryByText('pi_abc123')).not.toBeInTheDocument();
     const receipt = screen.getByRole('link', { name: /receipt for spring trial/i });
-    expect(receipt).toHaveAttribute('href', '/exhibitor/entries');
+    expect(receipt).toHaveAttribute('href', '/exhibitor/entries?showId=show-1&entryIds=e1');
     // Settled orders offer no retry affordance.
     expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
   });
@@ -702,12 +702,29 @@ describe('ExhibitorPaymentsPage', () => {
       expect(screen.queryByText('No receipt available')).not.toBeInTheDocument();
     });
 
-    it('says where the receipt actually lives, in the visible label', () => {
+    it('scopes the receipt link to the entries the order actually covered', () => {
+      state.data = [{ ...payment, showId: 'show-1', entryIds: ['e1', 'e2'] }];
       render(<ExhibitorPaymentsPage />);
-      // "Receipt" alone promised a document and delivered an unfiltered list;
-      // the qualifier used to exist only in the accessible name.
-      expect(screen.getByRole('link', { name: /receipt for spring trial/i })).toHaveTextContent(
-        'Receipt in My Shows'
+
+      const link = screen.getByRole('link', { name: /receipt for spring trial/i });
+      // Mirrors buildFinishPaymentHref's shape: My Shows reads both params and
+      // narrows to this order instead of listing every entry ever made.
+      expect(link).toHaveAttribute('href', '/exhibitor/entries?showId=show-1&entryIds=e1%2Ce2');
+      // The label can be a bare "Receipt" again now that it is honest.
+      expect(link).toHaveTextContent('Receipt');
+      expect(link).not.toHaveTextContent('Receipt in My Shows');
+      // The accessible name still names the show, so tabbing the column can
+      // still tell one row's receipt from another's.
+      expect(link).toHaveAccessibleName('Receipt for Spring Trial in My Shows');
+    });
+
+    it('falls back to an entry-only scope when the order carries no show id', () => {
+      state.data = [{ ...payment, showId: null, showName: null, entryIds: ['e1'] }];
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByRole('link', { name: /receipt for this payment/i })).toHaveAttribute(
+        'href',
+        '/exhibitor/entries?entryIds=e1'
       );
     });
 

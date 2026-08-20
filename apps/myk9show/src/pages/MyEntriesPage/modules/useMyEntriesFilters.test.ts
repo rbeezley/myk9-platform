@@ -60,7 +60,10 @@ const endedShow = makeEntry({
  * a router. `at` seeds the starting URL, which is how the deep-link tests drive
  * it. Renamed from a bare `renderHook` call so every test goes through one place.
  */
-function renderFilters(props: Parameters<typeof useMyEntriesFilters>[0], at = '/exhibitor/entries') {
+function renderFilters(
+  props: Parameters<typeof useMyEntriesFilters>[0],
+  at = '/exhibitor/entries'
+) {
   return renderHook(() => useMyEntriesFilters(props), {
     wrapper: ({ children }: { children: ReactNode }) =>
       createElement(MemoryRouter, { initialEntries: [at] }, children),
@@ -138,14 +141,14 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
     });
 
     const { result } = renderFilters({
-        entries: [
-          acceptedUnpaidCurrent,
-          acceptedPaidCurrent,
-          pendingReviewCurrent,
-          waitlistCurrent,
-          acceptedUnpaidPast,
-        ],
-      });
+      entries: [
+        acceptedUnpaidCurrent,
+        acceptedPaidCurrent,
+        pendingReviewCurrent,
+        waitlistCurrent,
+        acceptedUnpaidPast,
+      ],
+    });
 
     expect(result.current.entryStats.currentAcceptedEntries).toBe(2);
     expect(result.current.entryStats.currentPendingEntries).toBe(1);
@@ -445,6 +448,89 @@ describe('useMyEntriesFilters tab is addressable via ?tab=', () => {
 
     act(() => result.current.setSelectedTab('all'));
     expect(result.current.selectedTab).toBe('all');
+    expect(result.current.filteredEntries).toHaveLength(2);
+  });
+});
+
+describe('useMyEntriesFilters inbound receipt scope', () => {
+  const scopedClass: EntryClass = {
+    id: 'e-running',
+    name: 'Novice A',
+    number: '1',
+    fee: 30,
+    status: 'entered',
+  };
+  const scopedEntry = makeEntry({
+    ...runningTodayShow,
+    classes: [scopedClass],
+  });
+  const otherEntry = makeEntry({
+    ...endedShow,
+    classes: [{ ...scopedClass, id: 'e-ended' }],
+  });
+  const both = [scopedEntry, otherEntry];
+
+  it('narrows the list to the entries a receipt link named', () => {
+    const { result } = renderFilters(
+      { entries: both },
+      '/exhibitor/entries?showId=running-show&entryIds=e-running'
+    );
+
+    expect(result.current.scopeMatch.kind).toBe('entries');
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['running']);
+  });
+
+  it('counts the tabs against the scoped list, not the full one', () => {
+    // A tab label is a promise about what clicking it shows. "Completed 1"
+    // above a list scoped to an upcoming entry would be the old lie relocated.
+    const { result } = renderFilters(
+      { entries: both },
+      '/exhibitor/entries?showId=running-show&entryIds=e-running'
+    );
+
+    expect(result.current.tabCounts.all).toBe(1);
+    expect(result.current.tabCounts.completed).toBe(0);
+    expect(result.current.tabCounts.upcoming).toBe(1);
+  });
+
+  it('leaves the page-level stat row unscoped so money still matches My Payments', () => {
+    const { result } = renderFilters(
+      { entries: both },
+      '/exhibitor/entries?showId=running-show&entryIds=e-running'
+    );
+
+    expect(result.current.entryStats.total).toBe(2);
+  });
+
+  it('clears the scope without disturbing the active tab', () => {
+    const { result } = renderFilters(
+      { entries: both },
+      '/exhibitor/entries?tab=upcoming&showId=running-show&entryIds=e-running'
+    );
+    expect(result.current.filteredEntries).toHaveLength(1);
+
+    act(() => result.current.clearScope());
+
+    expect(result.current.scopeMatch.kind).toBe('none');
+    expect(result.current.selectedTab).toBe('upcoming');
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['running']);
+    expect(result.current.tabCounts.all).toBe(2);
+  });
+
+  it('shows every entry, flagged unmatched, when the link has gone stale', () => {
+    const { result } = renderFilters(
+      { entries: both },
+      '/exhibitor/entries?showId=gone&entryIds=gone'
+    );
+
+    expect(result.current.scopeMatch.kind).toBe('unmatched');
+    expect(result.current.filteredEntries).toHaveLength(2);
+  });
+
+  it('is inert on an ordinary unscoped visit', () => {
+    const { result } = renderFilters({ entries: both });
+
+    expect(result.current.scopeMatch.kind).toBe('none');
     expect(result.current.filteredEntries).toHaveLength(2);
   });
 });

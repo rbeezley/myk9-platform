@@ -32,6 +32,10 @@ import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
 import { buildCartFulfillmentView } from '@/features/payments/cartFulfillmentView';
+import {
+  ENTRY_SCOPE_ENTRIES_PARAM,
+  ENTRY_SCOPE_SHOW_PARAM,
+} from '@/features/payments/entryScopeParams';
 
 function createSplitCheckoutCorrelationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -126,8 +130,10 @@ export default function CartPage() {
     [items, judgeDays, fullClassIds, capacityResolved]
   );
 
-  const recoveryShowId = searchParams.get('showId') ?? undefined;
-  const recoveryEntryIdsParam = searchParams.get('entryIds') ?? '';
+  // Param names come from the shared module `buildFinishPaymentHref` writes,
+  // so a rename cannot reach the producer without reaching this reader.
+  const recoveryShowId = searchParams.get(ENTRY_SCOPE_SHOW_PARAM) ?? undefined;
+  const recoveryEntryIdsParam = searchParams.get(ENTRY_SCOPE_ENTRIES_PARAM) ?? '';
   const recoveryEntryIds = useMemo(
     () =>
       recoveryEntryIdsParam

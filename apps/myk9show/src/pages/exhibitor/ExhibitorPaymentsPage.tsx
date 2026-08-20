@@ -2,13 +2,13 @@
  * ExhibitorPaymentsPage — the logged-in exhibitor's own online payment history.
  *
  * Mostly read-only list of stripe_orders (RLS-scoped to the caller): date, show,
- * amount, status, and a per-row action. For settled orders the
- * action links to the entries the payment covers (where the printable per-entry
- * receipt lives — receipts are entry-scoped, not stored on the order). For
- * failed/cancelled orders it instead deep-links to the cart-recovery / "Finish
- * Payment" flow (`/cart`, scoped by the order's show + entry ids) so the
- * exhibitor can retry without hunting through My Shows. Complements MyEntriesPage's
- * per-entry Receipt / Finish Payment actions with a single chronological money view.
+ * amount, status, and a per-row action, deep-linked by the order's show + entry
+ * ids. For settled orders that action points at My Shows, where the printable
+ * per-entry receipt lives (receipts are entry-scoped, not stored on the order).
+ * For failed/cancelled orders it points at the cart-recovery / "Finish Payment"
+ * flow (`/cart`) with the same scoping, so the exhibitor can retry without
+ * hunting through My Shows. Complements MyEntriesPage's per-entry Receipt /
+ * Finish Payment actions with a single chronological money view.
  *
  * The list is scoped by a single control — a calendar-year filter backed by
  * `?year=` — because the job this page is asked to do once a year is "what did
@@ -39,6 +39,7 @@ import { useElementWidth } from '@/hooks/useElementWidth';
 import { useMyPayments } from '@/features/payments/useMyPayments';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
+import { buildEntryReceiptHref } from '@/features/payments/entryReceiptHref';
 import {
   buildPaymentDisplayRows,
   formatPaymentCents,
@@ -126,22 +127,21 @@ function PaymentActionContent({ row }: { row: PaymentDisplayRow }) {
   }
 
   if (row.entryIds.length > 0 && !isRefundedPaymentStatus(row.status)) {
-    // Settled orders: the per-entry printable receipt lives on My Shows.
-    // My Entries has no inbound entry/show filter, so this is a plain link
-    // to that page, not a row-scoped filter. The visible label says so —
-    // a bare "Receipt" promises a document and delivers a list, and the
-    // qualifying words used to exist only in the accessible name, which
-    // left sighted users worse informed than screen-reader users. The
-    // accessible name still names the show so each link is distinguishable
-    // when tabbing through the column.
+    // Settled orders: the per-entry printable receipt lives on My Shows, so
+    // this links there SCOPED to the entries this order covered — the same
+    // `showId` + `entryIds` shape the retry branch above uses for the cart.
+    // The label is a bare "Receipt" again because it is finally honest: the
+    // link no longer dumps the exhibitor into every entry they have ever made
+    // to hunt for the right one. The accessible name still names the show, so
+    // the column's links stay distinguishable when tabbing through them.
     return (
       <Link
-        to="/exhibitor/entries"
-        aria-label={`Receipt for ${row.showName ?? 'this payment'} under My Shows`}
+        to={buildEntryReceiptHref(row.showId, row.entryIds)}
+        aria-label={`Receipt for ${row.showName ?? 'this payment'} in My Shows`}
         className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
       >
         <ReceiptIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-        Receipt in My Shows
+        Receipt
       </Link>
     );
   }

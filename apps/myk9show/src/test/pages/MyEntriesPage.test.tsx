@@ -805,3 +805,89 @@ describe('Add Dog panel survives page loading states', () => {
     expect(await screen.findByTestId('add-dog-panel')).toBeInTheDocument();
   });
 });
+
+/**
+ * My Payments' per-row "Receipt" link arrives here carrying the order it came
+ * from. Before the reader existed the link dropped the exhibitor into every
+ * entry they had ever made; these assert the narrowing, the explanation, and
+ * the way back out.
+ */
+describe('Receipt deep-link scope from My Payments', () => {
+  const unscored = {
+    is_scored: false,
+    result_status: null,
+    final_placement: null,
+    class_results_released_at: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
+    mockUseCurrentUserPersonId.mockReturnValue(null);
+    seedAuthWithPerson();
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [
+        makeResultRow(unscored),
+        makeResultRow({
+          ...unscored,
+          id: 'entry-2',
+          registration_id: 'reg-2',
+          show_id: 'show-2',
+          class_id: 'class-2',
+          class: { id: 'class-2', name: 'Interior Novice A', class_number: '102' },
+          show: {
+            id: 'show-2',
+            name: 'Autumn Classic',
+            start_date: '2026-10-10',
+            end_date: '2026-10-10',
+            entry_close_date: '2026-10-01',
+            venue_name: 'Fairgrounds',
+            city: 'Denver',
+            state: 'CO',
+          },
+          registration: { id: 'reg-2', confirmation_number: 'DEF456' },
+        }),
+      ],
+      error: null,
+    });
+  });
+
+  it('narrows the list to the order the link named, and says why', async () => {
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=show-1&entryIds=entry-1');
+
+    expect(await screen.findByText('Rocky Mountain Classic')).toBeInTheDocument();
+    expect(screen.queryByText('Autumn Classic')).not.toBeInTheDocument();
+    // A silently short list would read as "the rest of my entries are gone".
+    expect(
+      screen.getByText(/Showing 1 of 2 entries — the ones your payment for Rocky Mountain/)
+    ).toBeInTheDocument();
+  });
+
+  it('restores the full list from the banner', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=show-1&entryIds=entry-1');
+
+    await screen.findByText('Rocky Mountain Classic');
+    await user.click(screen.getByRole('button', { name: 'Show all entries' }));
+
+    expect(await screen.findByText('Autumn Classic')).toBeInTheDocument();
+    expect(screen.queryByText(/Showing 1 of 2 entries/)).not.toBeInTheDocument();
+  });
+
+  it('shows everything and admits the link is stale when nothing matches', async () => {
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=gone&entryIds=gone');
+
+    expect(await screen.findByText('Rocky Mountain Classic')).toBeInTheDocument();
+    expect(screen.getByText('Autumn Classic')).toBeInTheDocument();
+    expect(screen.getByText(/could not find the entries from that payment/)).toBeInTheDocument();
+  });
+
+  it('renders no scope banner on an ordinary visit', async () => {
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
+
+    await screen.findByText('Rocky Mountain Classic');
+    expect(screen.getByText('Autumn Classic')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show all entries' })).not.toBeInTheDocument();
+  });
+});

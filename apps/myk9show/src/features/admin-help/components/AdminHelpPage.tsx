@@ -91,10 +91,13 @@ export function AdminHelpPage() {
         <h1 className="font-display text-2xl font-bold">Page Directory</h1>
         {/* Not "every page". This sits on the same screen as the amber
           drift panel below, which lists the routes the directory does NOT
-          carry — the old copy contradicted it in view. */}
+          carry — the old copy contradicted it in view. Make no claim about
+          which kinds of route are in or out: the list carries some redirects
+          (/my-entries, /browse-shows) and omits others, so any such rule
+          would be the same overclaim one step sideways. */}
         <p className="text-sm text-muted-foreground">
-          myK9Show&apos;s user-facing pages, grouped by role. Redirect-only routes are excluded;
-          anything else uncatalogued is flagged under Directory drift.
+          myK9Show&apos;s user-facing pages, grouped by role. The list is hand-authored, so
+          anything uncatalogued is flagged under Directory drift below.
         </p>
       </header>
 

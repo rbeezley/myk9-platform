@@ -7,9 +7,14 @@ import { UserRole } from '@/types/auth-types';
  * pageDirectory.test.ts enforces only ONE direction of sync: that no entry
  * points at a path fullRouteRegistry does not have. The reverse — a route
  * with no entry — is NOT asserted; it surfaces at runtime in the Directory
- * drift panel on /admin/help. So this list is not guaranteed exhaustive, and
- * redirect-only routes are deliberately left out (see the legacy
- * /secretary/shows/:showId assertions in that test).
+ * drift panel on /admin/help. So this list is not guaranteed exhaustive.
+ *
+ * Being a redirect is not itself grounds for exclusion — /my-entries,
+ * /browse-shows and /admin/permissions/users are all catalogued as redirects.
+ * The only deliberate omissions are the legacy /secretary/shows/:showId
+ * routes, superseded by the canonical /shows/:showId/* paths and asserted
+ * absent in that test. They are therefore permanent entries in the drift
+ * panel's missing list.
  */
 export const pageDirectory: readonly PageEntry[] = [
   // =========================

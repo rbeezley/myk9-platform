@@ -4,7 +4,7 @@
  * @module MyEntriesPage/hooks
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { auditService } from '@/services/AuditService';
@@ -88,6 +88,8 @@ export function useMyEntriesData({
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  /** The `user.id::personId` the rows in `entries` were loaded for. */
+  const loadedIdentityRef = useRef<string | null>(null);
 
   /**
    * Transforms database entry to MyEntry format
@@ -232,7 +234,22 @@ export function useMyEntriesData({
    * Loads user entries from the database
    */
   const loadMyEntries = useCallback(async () => {
-    if (!user?.id || !personId) {
+    // Which account the rows currently in state belong to. Preserving entries
+    // across a failed reload is only correct for a RETRY BY THE SAME PERSON.
+    // If the identity changed, the rows on screen are someone else's: without
+    // this, a signed-in-as-B fetch that fails would leave A's dogs, shows and
+    // balance rendered on B's page. Clearing happens BEFORE the fetch, so a
+    // rejection cannot leave the previous exhibitor's data behind.
+    const identity = user?.id && personId ? `${user.id}::${personId}` : null;
+
+    if (identity !== loadedIdentityRef.current) {
+      loadedIdentityRef.current = null;
+      setEntries([]);
+      setBalanceSummary(summarizeEntryBalances([]));
+      setIsError(false);
+    }
+
+    if (!identity) {
       setIsLoading(false);
       return;
     }
@@ -261,6 +278,7 @@ export function useMyEntriesData({
           rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow))
         )
       );
+      loadedIdentityRef.current = identity;
       setIsError(false);
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);

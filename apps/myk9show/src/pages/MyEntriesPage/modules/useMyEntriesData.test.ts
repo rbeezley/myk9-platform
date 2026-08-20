@@ -137,3 +137,70 @@ describe('useMyEntriesData — a failed reload must not discard loaded entries',
     expect(result.current.entries).toHaveLength(0);
   });
 });
+
+describe('useMyEntriesData — preserved entries must not cross an identity change', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-A', email: 'a@test.com' },
+      userWithRoles: { databaseUserId: 'person-A' },
+      isAuthenticated: true,
+    });
+    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-A');
+  });
+
+  // Raised by Codex review on PR #1696. Preserving entries across a failed
+  // reload is only correct for a RETRY BY THE SAME PERSON. If the signed-in
+  // identity changes and the new account's fetch fails, the rows still in state
+  // belong to the previous exhibitor — rendering them would show one person's
+  // dogs, shows and balance to another.
+  it('drops the previous account rows when the identity changes and the new fetch fails', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: [entryRow()],
+      error: null,
+    });
+
+    const { result, rerender } = renderData();
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    // Same page, different person, and their read fails.
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-B', email: 'b@test.com' },
+      userWithRoles: { databaseUserId: 'person-B' },
+      isAuthenticated: true,
+    });
+    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-B');
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: new Error('network down'),
+    });
+
+    rerender();
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.balanceSummary.amountDueCents).toBe(0);
+  });
+
+  it('still preserves entries across a failed retry by the SAME identity', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: [entryRow()],
+      error: null,
+    });
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: null,
+      error: new Error('network down'),
+    });
+
+    await act(async () => {
+      await result.current.refreshEntries();
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.entries).toHaveLength(1);
+  });
+});

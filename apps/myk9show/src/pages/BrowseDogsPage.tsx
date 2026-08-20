@@ -36,7 +36,7 @@ const BrowseDogsPage: React.FC = () => {
   );
 
   const currentUserPersonId = useCurrentUserPersonId();
-  const { hasPermission, isLoading: rbacLoading } = useRBAC();
+  const { hasPermission, isLoading: rbacLoading, refresh: refreshRbac } = useRBAC();
 
   const {
     dogs,
@@ -58,6 +58,14 @@ const BrowseDogsPage: React.FC = () => {
   // that false empty state is terminal rather than a flash.
   const identityResolved = Boolean(userWithRoles);
   const isResolvingIdentity = !identityResolved && (rbacLoading || isLoading);
+
+  // The unresolved-identity state is caused by RBAC, not by the dogs query, so
+  // its retry has to re-run the RBAC lookup as well — refetching the dog store
+  // alone would land the user back on the same screen.
+  const retryIdentity = useCallback(() => {
+    void refreshRbac();
+    handleRetry();
+  }, [refreshRbac, handleRetry]);
 
   const canCreateDogs = !rbacLoading && hasPermission('dog:create');
   // Bulk selection/actions gated the same coarse way as the rest of this page
@@ -159,7 +167,7 @@ const BrowseDogsPage: React.FC = () => {
           icon={PawPrint}
           title="We couldn't confirm your account"
           description="Your dogs are safe. Reconnect or try again to load them."
-          action={{ label: 'Try again', onClick: handleRetry }}
+          action={{ label: 'Try again', onClick: retryIdentity }}
         />
       );
     }

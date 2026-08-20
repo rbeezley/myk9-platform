@@ -80,10 +80,13 @@ vi.mock('@/hooks/useRoleBasedData', () => ({
   useCurrentUserPersonId: () => 'person-1',
 }));
 
+const mockRefreshRbac = vi.fn();
+
 vi.mock('@/hooks/useRBAC', () => ({
   useRBAC: () => ({
     hasPermission: () => true,
     isLoading: false,
+    refresh: mockRefreshRbac,
   }),
 }));
 
@@ -404,6 +407,26 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       expect(screen.getByText("We couldn't confirm your account")).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
       expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
+    });
+
+    it('retries the RBAC lookup, not just the dogs query', async () => {
+      // RBAC is what failed here, so refetching the dog store alone would put
+      // the user straight back on this screen (Codex review finding).
+      mockUserWithRoles = null;
+      const handleRetry = vi.fn();
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        isLoading: false,
+        dogs: [],
+        filteredDogs: [],
+        handleRetry,
+      };
+
+      renderPage();
+      await userEvent.click(screen.getByRole('button', { name: /try again/i }));
+
+      expect(mockRefreshRbac).toHaveBeenCalled();
+      expect(handleRetry).toHaveBeenCalled();
     });
 
     it('still shows the real empty state once identity is known', () => {

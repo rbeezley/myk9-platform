@@ -45,6 +45,16 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
   { id: 'members', label: 'Members', icon: Users },
@@ -66,6 +76,12 @@ const ClubMembersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAssignOfficer, setShowAssignOfficer] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    kind: 'member' | 'officer';
+    id: string;
+    name: string;
+    hasShowAccess: boolean;
+  } | null>(null);
 
   const clubId = clubContext.status === 'ready' ? clubContext.clubId : undefined;
   const clubName = clubContext.status === 'ready' ? clubContext.clubName : 'Club';
@@ -236,8 +252,42 @@ const ClubMembersPage: React.FC = () => {
     updateMemberMutation.mutate({ memberId, updates: { membershipStatus } });
   };
 
+  // Removal is a hard DELETE of the person's membership record - join date,
+  // dues history, voting eligibility - and it also ends any show access they
+  // hold, because every server-side secretary predicate gates on
+  // is_active_club_member(). It sat one row below "Resigned" in the same menu
+  // with no confirmation, no undo and no message. PRODUCT.md rules out confirm
+  // dialogs for ROUTINE actions; permanently deleting a person's club record
+  // is not routine.
   const handleRemoveMember = (memberId: string) => {
-    removeMemberMutation.mutate(memberId);
+    const member = members.find(m => m.id === memberId);
+    setPendingRemoval(
+      member
+        ? {
+            kind: 'member',
+            id: memberId,
+            name: member.personName ?? 'this member',
+            hasShowAccess: member.personId ? showManagerIds.has(member.personId) : false,
+          }
+        : { kind: 'member', id: memberId, name: 'this member', hasShowAccess: false }
+    );
+  };
+
+  const handleRemoveOfficer = (officerId: string) => {
+    const officer = officers.find(o => o.id === officerId);
+    setPendingRemoval({
+      kind: 'officer',
+      id: officerId,
+      name: officer?.personName ?? 'this officer',
+      hasShowAccess: false,
+    });
+  };
+
+  const confirmRemoval = () => {
+    if (!pendingRemoval) return;
+    if (pendingRemoval.kind === 'member') removeMemberMutation.mutate(pendingRemoval.id);
+    else removeOfficerMutation.mutate(pendingRemoval.id);
+    setPendingRemoval(null);
   };
 
   const handleToggleShowAccess = (personId: string, grant: boolean) => {
@@ -380,6 +430,7 @@ const ClubMembersPage: React.FC = () => {
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    aria-label="Search members by name or email"
                     placeholder="Search by name or email..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
@@ -412,7 +463,7 @@ const ClubMembersPage: React.FC = () => {
                 <OfficersTable
                   officers={sortedOfficers}
                   onAssignOfficer={() => setShowAssignOfficer(true)}
-                  onRemoveOfficer={officerId => removeOfficerMutation.mutate(officerId)}
+                  onRemoveOfficer={handleRemoveOfficer}
                 />
               </TabsContent>
             </PrimaryTabs>
@@ -421,6 +472,36 @@ const ClubMembersPage: React.FC = () => {
       </div>
 
       {/* Dialogs */}
+      <AlertDialog
+        open={pendingRemoval !== null}
+        onOpenChange={open => !open && setPendingRemoval(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingRemoval?.kind === 'officer'
+                ? `Remove ${pendingRemoval?.name} from this position?`
+                : `Remove ${pendingRemoval?.name} from the club?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRemoval?.kind === 'officer'
+                ? 'The officer record is deleted. Their club membership is not affected.'
+                : 'Their membership record, join date and dues history are deleted.'}
+              {pendingRemoval?.kind === 'member' && pendingRemoval?.hasShowAccess
+                ? ' They also lose show access, so they can no longer run shows for this club.'
+                : ''}{' '}
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep them</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoval}>
+              {pendingRemoval?.kind === 'officer' ? 'Remove officer' : 'Remove member'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AddMemberDialog
         open={showAddMember}
         onClose={() => setShowAddMember(false)}

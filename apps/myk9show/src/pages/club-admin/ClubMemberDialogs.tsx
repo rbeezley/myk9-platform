@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -235,18 +235,18 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
     onClose();
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 " onClick={handleClose} />
-      <Card className="relative z-10 w-full max-w-md mx-4 border-border shadow-2xl">
-        <div className="flex items-center justify-between p-6 pb-2">
+    <Dialog open={open} onOpenChange={next => !next && handleClose()}>
+      {/* max-h + overflow so the dialog stays usable at --font-scale 1.4,
+          where the hand-rolled fixed-inset shell pushed Save off-screen with
+          no way to scroll to it. */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <div className="flex items-center justify-between pb-2">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Plus className="h-4 w-4 text-primary" />
             </div>
-            <h2 className="text-lg font-semibold text-foreground">Add Member</h2>
+            <DialogTitle className="text-lg font-semibold text-foreground">Add Member</DialogTitle>
           </div>
           <button
             onClick={handleClose}
@@ -256,7 +256,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <CardContent className="space-y-4 pt-2">
+        <div className="space-y-4 pt-2">
           {/* Person search */}
           <FormField label="Person" fieldId="member-search">
             <div className="relative">
@@ -293,6 +293,11 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 ))
               )}
             </div>
+            {availablePeople.length > 20 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Showing the first 20 of {availablePeople.length}. Keep typing to narrow the list.
+              </p>
+            )}
           </FormField>
 
           {/* Membership type */}
@@ -301,7 +306,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
               id="membership-type"
               value={membershipType}
               onChange={e => setMembershipType(e.target.value as MembershipType)}
-              className="w-full rounded-lg border border-border  px-3 py-2 text-sm text-foreground"
+              className="w-full min-h-11 rounded-lg border border-border px-3 py-2 text-sm text-foreground"
             >
               {(Object.entries(MEMBERSHIP_TYPE_LABELS) as [MembershipType, string][]).map(
                 ([value, label]) => (
@@ -322,9 +327,9 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
               {isSaving ? 'Adding...' : 'Add Member'}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -381,18 +386,20 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
     onClose();
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 " onClick={handleClose} />
-      <Card className="relative z-10 w-full max-w-md mx-4 border-border shadow-2xl">
-        <div className="flex items-center justify-between p-6 pb-2">
+    <Dialog open={open} onOpenChange={next => !next && handleClose()}>
+      {/* max-h + overflow so the dialog stays usable at --font-scale 1.4,
+          where the hand-rolled fixed-inset shell pushed Save off-screen with
+          no way to scroll to it. */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <div className="flex items-center justify-between pb-2">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Shield className="h-5 w-5 text-primary" />
             </div>
-            <h2 className="text-lg font-semibold text-foreground">Assign Officer</h2>
+            <DialogTitle className="text-lg font-semibold text-foreground">
+              Assign Officer
+            </DialogTitle>
           </div>
           <button
             onClick={handleClose}
@@ -402,14 +409,14 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <CardContent className="space-y-4 pt-2">
+        <div className="space-y-4 pt-2">
           {/* Person search */}
           <FormField label="Person" fieldId="officer-search">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="officer-search"
-                placeholder="Search members..."
+                placeholder="Search people by name or email..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9  border-border"
@@ -447,6 +454,11 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                 })
               )}
             </div>
+            {candidateList.length > 20 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Showing the first 20 of {candidateList.length}. Keep typing to narrow the list.
+              </p>
+            )}
           </FormField>
 
           {/* Position select */}
@@ -455,7 +467,7 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
               id="officer-position"
               value={position}
               onChange={e => setPosition(e.target.value as OfficerPosition)}
-              className="w-full rounded-lg border border-border  px-3 py-2 text-sm text-foreground"
+              className="w-full min-h-11 rounded-lg border border-border px-3 py-2 text-sm text-foreground"
             >
               {OFFICER_POSITION_ORDER.map(pos => (
                 <option key={pos} value={pos}>
@@ -474,8 +486,8 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
               {isSaving ? 'Assigning...' : 'Assign Officer'}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

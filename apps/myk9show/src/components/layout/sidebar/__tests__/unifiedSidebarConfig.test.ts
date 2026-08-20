@@ -245,6 +245,18 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(items.find(item => item.title === 'Ringside')?.description).toBeDefined();
   });
 
+  // The nav description is a promise about what the destination holds. Receipts
+  // are entry-scoped and live on My Shows (/exhibitor/entries) — the payments
+  // page only links out to them, and its own header says as much. Promising
+  // receipts here sent exhibitors to the wrong surface.
+  it('My Payments description does not promise receipts', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+    const item = config.groups.flatMap(g => g.items).find(i => i.title === 'My Payments');
+
+    expect(item?.description).toBe('Your balance and online entry payments');
+    expect(item?.description).not.toMatch(/receipt/i);
+  });
+
   // The permanent Ringside entry targets the bare /at-show route, which resolves
   // the showId at the destination (RingsideEntryPage) — so a static link is safe
   // for an exhibitor with several shows. It replaces the old retired

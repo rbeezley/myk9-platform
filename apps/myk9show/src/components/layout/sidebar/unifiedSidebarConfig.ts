@@ -128,7 +128,9 @@ export function buildUnifiedSidebarConfig(
           title: 'My Payments',
           href: '/exhibitor/payments',
           icon: Wallet,
-          description: 'Your online entry payments and receipts',
+          // Not "and receipts": receipts are entry-scoped and live on My Shows.
+          // This page only links out to them, and its own header says so.
+          description: 'Your balance and online entry payments',
         },
         // Ringside resolves the right showId at the destination (RingsideEntryPage),
         // so a static link is safe even though an exhibitor may have several

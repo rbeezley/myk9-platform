@@ -181,7 +181,7 @@ export interface MyEntryStats {
   /** Entries belonging to a non-past (current or future) show. */
   upcoming: number;
   /** Distinct shows whose final day is before today. */
-  pastShows: number;
+  completedShows: number;
   /** Distinct shows running today or in the future. */
   upcomingShows: number;
   /** Accepted entries belonging to a non-past/current-or-upcoming show. */

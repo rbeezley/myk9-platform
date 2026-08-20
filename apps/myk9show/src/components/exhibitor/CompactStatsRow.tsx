@@ -39,7 +39,7 @@ interface CompactStatsRowProps {
   acceptedEntries: number;
   pendingEntries: number;
   upcomingShows: number;
-  pastShows: number;
+  completedShows: number;
   currentFees: number;
   amountDue: number;
   currentFeesHref?: string;
@@ -51,7 +51,7 @@ export function CompactStatsRow({
   acceptedEntries,
   pendingEntries,
   upcomingShows,
-  pastShows,
+  completedShows,
   currentFees,
   amountDue,
   currentFeesHref,
@@ -92,8 +92,12 @@ export function CompactStatsRow({
     },
     {
       icon: <History className="h-5 w-5" />,
-      label: pastShows === 1 ? 'Past Show' : 'Past Shows',
-      value: pastShows,
+      // Counts shows the exhibitor is DONE with — every run scored, or the
+      // show over — because this card deep-links to the Completed tab, which
+      // uses that same rule. Labelled "Past" while counting past-by-date, it
+      // could read 0 beside a non-empty tab during a show being scored.
+      label: completedShows === 1 ? 'Completed Show' : 'Completed Shows',
+      value: completedShows,
       detail: 'entered',
       href: '/exhibitor/entries?tab=completed',
       iconColor: 'text-muted-foreground',

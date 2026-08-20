@@ -3,10 +3,12 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   startOfLocalDay,
   isPastShowEntry,
-  computeMyEntriesShowDateStats,
+  computeMyEntriesShowProgressStats,
   parseShowDate,
+  getPartiallyScoredState,
+  isScoredEntry,
 } from './myEntriesStats.helpers';
-import type { MyEntry } from './my-entries-types';
+import type { EntryClass, MyEntry } from './my-entries-types';
 
 const NOW = new Date(2026, 5, 2, 20, 0, 0); // Tue Jun 2 2026, 20:00 local
 
@@ -104,7 +106,7 @@ describe('isPastShowEntry', () => {
   });
 });
 
-describe('computeMyEntriesShowDateStats', () => {
+describe('computeMyEntriesShowProgressStats', () => {
   // Mirrors the real staging fixture for exhibitor1:
   //  - Heritage: started May 31, still running today  -> 1 upcoming show, 1 entry
   //  - QA Walk 1593 (May 21): past                    -> contributes to past shows
@@ -125,21 +127,256 @@ describe('computeMyEntriesShowDateStats', () => {
   ];
 
   it('counts DISTINCT shows, not entries', () => {
-    const stats = computeMyEntriesShowDateStats(entries, NOW);
-    expect(stats.pastShows).toBe(2); // qa1593 + qa0779, not 5 entries
+    const stats = computeMyEntriesShowProgressStats(entries, NOW);
+    expect(stats.completedShows).toBe(2); // qa1593 + qa0779, not 5 entries
     expect(stats.upcomingShows).toBe(1); // heritage (running today)
   });
 
   it('counts upcoming entries (entries in non-past shows)', () => {
-    const stats = computeMyEntriesShowDateStats(entries, NOW);
+    const stats = computeMyEntriesShowProgressStats(entries, NOW);
     expect(stats.upcomingEntries).toBe(1); // only the single Heritage entry
   });
 
   it('returns zeroed stats for no entries', () => {
-    expect(computeMyEntriesShowDateStats([], NOW)).toEqual({
-      pastShows: 0,
+    expect(computeMyEntriesShowProgressStats([], NOW)).toEqual({
+      completedShows: 0,
       upcomingShows: 0,
       upcomingEntries: 0,
     });
+  });
+});
+
+describe('getPartiallyScoredState', () => {
+  function makeClass(id: string, overrides: Partial<EntryClass> = {}): EntryClass {
+    return {
+      id,
+      name: `Class ${id}`,
+      number: id,
+      fee: 0,
+      status: 'entered',
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'accepted',
+      ...overrides,
+    };
+  }
+
+  // Real scored rows carry is_scored; the canonical accounting rules read that
+  // rather than the lifecycle status.
+  const scored = (id: string) =>
+    makeClass(id, {
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      isScored: true,
+      resultStatus: 'qualified',
+    });
+
+  it('reports the classes still to run on a part-scored order', () => {
+    // The order card itself reads `completed` (COMPLETED tops the grouping's
+    // priority scale) — the point of this helper is to see past that.
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [scored('a'), makeClass('b'), makeClass('c')],
+    });
+
+    expect(getPartiallyScoredState(entry)).toEqual({
+      remainingClasses: 2,
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'accepted',
+    });
+  });
+
+  it('resolves the remaining status by the same precedence the card uses', () => {
+    // A dog already in the ring outranks a plain accepted sibling, so the card
+    // never tells the exhibitor "accepted" about a dog currently running.
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        makeClass('b'),
+        makeClass('c', { entryStatus: EntryStatus.ACCEPTED, entryStatusKind: 'in_ring' }),
+      ],
+    });
+
+    expect(getPartiallyScoredState(entry)?.entryStatusKind).toBe('in_ring');
+  });
+
+  it('returns undefined for an untouched order', () => {
+    const entry = makeEntry({ classes: [makeClass('a'), makeClass('b')] });
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+
+  it('returns undefined once every class is scored', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [scored('a'), scored('b')],
+    });
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+
+  it('ignores classes the exhibitor will not run', () => {
+    // One scored, one scratched — nothing is left to run, so this is finished,
+    // not partial.
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        makeClass('b', {
+          status: 'scratched',
+          entryStatus: EntryStatus.SCRATCHED,
+          entryStatusKind: 'scratched',
+        }),
+      ],
+    });
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+
+  // Every score-reset path clears `is_scored` but leaves `check_in_status` on
+  // 'completed'. Reading the status alone would keep the reset run filed as
+  // done, with no way back out of the Completed tab.
+  it('treats an explicitly reset class as unscored despite a stale completed status', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        // Reset: is_scored cleared, status left behind.
+        makeClass('b', {
+          isScored: false,
+          // No result: the reset cleared it, leaving only the stale status.
+          resultStatus: undefined,
+          entryStatus: EntryStatus.COMPLETED,
+          entryStatusKind: 'completed',
+        }),
+      ],
+    });
+
+    expect(getPartiallyScoredState(entry)?.remainingClasses).toBe(1);
+  });
+
+  // `absent` / `excused` settle a run WITHOUT a score, so `is_scored` stays
+  // false on a run that is nonetheless over. Reading is_scored alone would keep
+  // promising the exhibitor a run that already came and went.
+  it.each(['absent', 'excused'] as const)(
+    'treats a %s result as settled even though it was never scored',
+    resultStatus => {
+      const entry = makeEntry({
+        entryStatus: EntryStatus.COMPLETED,
+        entryStatusKind: 'completed',
+        classes: [scored('a'), makeClass('b', { isScored: false, resultStatus })],
+      });
+
+      expect(getPartiallyScoredState(entry)).toBeUndefined();
+    }
+  );
+
+  // The source row of a move-up is superseded by the destination row that now
+  // carries the run. The shared accounting predicate does not exclude it, so
+  // without this the order advertises a class that no longer exists.
+  it('ignores a moved source row once the real class is scored', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        makeClass('b', {
+          status: 'moved',
+          entryStatus: EntryStatus.MOVED,
+          entryStatusKind: 'moved',
+        }),
+      ],
+    });
+
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+    expect(isScoredEntry(entry)).toBe(true);
+  });
+
+  // An absent run is settled without ever being scored, so there is no score
+  // for the order to be "partially" through.
+  it('does not call an order partially scored when nothing was actually scored', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.ACCEPTED,
+      classes: [makeClass('a', { isScored: false, resultStatus: 'absent' }), makeClass('b')],
+    });
+
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+
+  // A reset row is outstanding, so its leftover 'completed' status must not
+  // reach the summary — that would pair a completed icon with "still to run".
+  it('does not carry a reset class\'s stale completed status into the summary', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        makeClass('b', {
+          isScored: false,
+          resultStatus: undefined,
+          entryStatus: EntryStatus.COMPLETED,
+          entryStatusKind: 'completed',
+        }),
+      ],
+    });
+
+    const state = getPartiallyScoredState(entry);
+    expect(state?.remainingClasses).toBe(1);
+    expect(state?.entryStatus).not.toBe(EntryStatus.COMPLETED);
+    expect(state?.entryStatusKind).not.toBe('completed');
+  });
+
+  it('returns undefined for a legacy order with no class rows', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [],
+    });
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+});
+
+describe('computeMyEntriesShowProgressStats — one verdict per show', () => {
+  // A show holding both a finished order and an unfinished one must be counted
+  // once. Classifying per entry put it in BOTH sets, so the two cards summed to
+  // more shows than the exhibitor had entered.
+  it('counts a show with one finished and one unfinished order as upcoming only', () => {
+    const shared = { showId: 'mixed-show', showDate: new Date(2026, 5, 20) };
+    const finished = makeEntry({
+      ...shared,
+      id: 'finished',
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+    });
+    const unfinished = makeEntry({ ...shared, id: 'unfinished', entryStatus: EntryStatus.ACCEPTED });
+
+    const stats = computeMyEntriesShowProgressStats([finished, unfinished], NOW);
+
+    expect(stats.upcomingShows).toBe(1);
+    expect(stats.completedShows).toBe(0);
+    expect(stats.upcomingShows + stats.completedShows).toBe(1);
+  });
+
+  it('counts a show as completed only when every order on it is done', () => {
+    const shared = { showId: 'done-show', showDate: new Date(2026, 5, 20) };
+    const one = makeEntry({
+      ...shared,
+      id: 'one',
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+    });
+    const two = makeEntry({
+      ...shared,
+      id: 'two',
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+    });
+
+    const stats = computeMyEntriesShowProgressStats([one, two], NOW);
+
+    expect(stats.completedShows).toBe(1);
+    expect(stats.upcomingShows).toBe(0);
   });
 });

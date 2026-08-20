@@ -10,6 +10,12 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { StatusBadge, StatusIcon } from '@/components/status';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import {
+  getPartiallyScoredState,
+  isPastShowEntry,
+  isSettledWithoutScore,
+} from './myEntriesStats.helpers';
+import type { EntryClass } from './my-entries-types';
 
 /**
  * Normalize a raw DB check-in status into the dialog's model. Both `null` and
@@ -36,6 +42,14 @@ export function formatTrialLabel(trialNumber: string): string {
 interface StatusBadgeOptions {
   isPastShow?: boolean;
   statusKind?: EntryStatusKind | undefined;
+  /**
+   * This order has results for some of its classes but not all. The caller
+   * (see `getPartiallyScoredState`) passes the dominant status of the classes
+   * still to RUN as `status`/`statusKind`, so the icon and colour describe the
+   * work remaining; this flag only replaces the label, which would otherwise
+   * describe the unrun classes and never mention the results already in.
+   */
+  partiallyScored?: boolean | undefined;
 }
 
 function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind): string {
@@ -89,6 +103,11 @@ export function getEntryStatusBadge(
       contextualLabel = 'Move-Up Requested';
       break;
   }
+  // Wins over every label above: on a part-scored order those describe only the
+  // classes still to run, so "Accepted" would silently drop the results already
+  // recorded — the contradiction that had a card reading "Scored" while runs
+  // were outstanding, just inverted.
+  if (options.partiallyScored) contextualLabel = 'Partially scored';
   return (
     <StatusBadge
       family="entry"
@@ -166,6 +185,10 @@ export function getContextualStatusMessage(
     paymentStatus: PaymentStatus;
     submittedAt: Date;
     lastUpdated: Date;
+    /** Class rows, when the caller has them — see the part-scored branch. */
+    classes?: EntryClass[] | undefined;
+    /** Final day the show runs, so past-show copy stays in the past tense. */
+    showEndDate?: Date | undefined;
   },
   formatDistanceToNow: (date: Date, options?: { addSuffix?: boolean }) => string,
   format: (date: Date, formatStr: string) => string,
@@ -175,6 +198,43 @@ export function getContextualStatusMessage(
 ): { message: string; className?: string } {
   const showDate = new Date(entry.showDate);
   const daysUntilShow = differenceInDays(showDate, new Date());
+
+  // Checked BEFORE the kind branches below: an order with one class scored and
+  // others still to run reports `completed` at the top level, so those branches
+  // would announce "Scored" while runs are outstanding. Describe what is LEFT —
+  // the badge beside this line already carries "Partially scored", so the count
+  // adds the detail rather than repeating it.
+  const partiallyScored = entry.classes
+    ? getPartiallyScoredState({ classes: entry.classes, entryStatus: entry.entryStatus })
+    : undefined;
+  if (partiallyScored) {
+    const { remainingClasses } = partiallyScored;
+    const plural = remainingClasses === 1 ? 'class' : 'classes';
+    // A show that has already ended cannot have runs outstanding — an unscored
+    // row there is missing scoring data, not a run the exhibitor still has to
+    // make. Promising "still to run" on a finished show would be a fresh lie in
+    // the same shape as the one this branch exists to remove.
+    if (isPastShowEntry({ showDate: entry.showDate, showEndDate: entry.showEndDate }, new Date())) {
+      return {
+        message: `${remainingClasses} ${plural} without a result`,
+        className: 'text-muted-foreground',
+      };
+    }
+    if (partiallyScored.entryStatusKind === 'in_ring') {
+      return { message: 'In ring', className: 'text-info' };
+    }
+    return {
+      message: `${remainingClasses} ${plural} still to run`,
+      className: 'text-info',
+    };
+  }
+
+  // Settled entirely by absences: done, but with no result to report. The
+  // lifecycle columns still read 'confirmed', so without this the card shows
+  // upcoming copy from inside the Completed tab.
+  if (entry.classes && isSettledWithoutScore({ classes: entry.classes })) {
+    return { message: 'No result recorded', className: 'text-muted-foreground' };
+  }
 
   if (entry.entryStatusKind === 'in_ring') {
     return { message: 'In ring', className: 'text-info' };

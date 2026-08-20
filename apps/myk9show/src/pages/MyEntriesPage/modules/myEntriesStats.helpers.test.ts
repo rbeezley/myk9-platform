@@ -6,6 +6,7 @@ import {
   computeMyEntriesShowProgressStats,
   parseShowDate,
   getPartiallyScoredState,
+  isScoredEntry,
 } from './myEntriesStats.helpers';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -271,6 +272,38 @@ describe('getPartiallyScoredState', () => {
       expect(getPartiallyScoredState(entry)).toBeUndefined();
     }
   );
+
+  // The source row of a move-up is superseded by the destination row that now
+  // carries the run. The shared accounting predicate does not exclude it, so
+  // without this the order advertises a class that no longer exists.
+  it('ignores a moved source row once the real class is scored', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        makeClass('b', {
+          status: 'moved',
+          entryStatus: EntryStatus.MOVED,
+          entryStatusKind: 'moved',
+        }),
+      ],
+    });
+
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+    expect(isScoredEntry(entry)).toBe(true);
+  });
+
+  // An absent run is settled without ever being scored, so there is no score
+  // for the order to be "partially" through.
+  it('does not call an order partially scored when nothing was actually scored', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.ACCEPTED,
+      classes: [makeClass('a', { isScored: false, resultStatus: 'absent' }), makeClass('b')],
+    });
+
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
 
   it('returns undefined for a legacy order with no class rows', () => {
     const entry = makeEntry({

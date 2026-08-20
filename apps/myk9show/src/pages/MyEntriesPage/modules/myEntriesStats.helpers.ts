@@ -88,12 +88,36 @@ export function isPastShowEntry(
  *  - scratched / withdrawn / cancelled rows are not expected to run at all.
  */
 function outstandingClasses(classes: EntryClass[]): EntryClass[] {
-  return classes.filter(cls => isExpectedEntry(cls) && !isAccountedFor(cls));
+  return expectedClasses(classes).filter(cls => !isAccountedFor(cls));
+}
+
+/**
+ * The source row of a move-up, superseded by the destination row that now
+ * carries the run. `isExpectedEntry` does NOT exclude these — it only knows
+ * scratched, withdrawn, cancelled and pulled — so a moved row would sit in
+ * `outstandingClasses` forever, keeping the order in Upcoming and advertising
+ * a class that no longer exists as "still to run".
+ */
+function isSupersededClass(cls: EntryClass): boolean {
+  return (
+    cls.status === 'moved' ||
+    cls.entryStatusKind === 'moved' ||
+    cls.entryStatus === EntryStatus.MOVED
+  );
 }
 
 /** Class rows the show expects to put in the ring, settled or not. */
 function expectedClasses(classes: EntryClass[]): EntryClass[] {
-  return classes.filter(isExpectedEntry);
+  return classes.filter(cls => isExpectedEntry(cls) && !isSupersededClass(cls));
+}
+
+/**
+ * Genuinely SCORED, as opposed to merely settled. An `absent` or `excused` run
+ * is accounted for without ever being scored, so it must not make a card claim
+ * a score exists.
+ */
+function isGenuinelyScoredClass(cls: EntryClass): boolean {
+  return cls.isScored === true;
 }
 
 /**
@@ -152,6 +176,10 @@ export function getPartiallyScoredState(
   const remaining = outstandingClasses(entry.classes);
   // Untouched (nothing settled) or finished (nothing left) — neither is partial.
   if (remaining.length === 0 || remaining.length === expected.length) return undefined;
+  // Settled-but-unscored does not count: an order whose only closed class was
+  // marked absent has no score to be "partially" through, and the card's
+  // "Partially scored" label would invent one.
+  if (!expected.some(isGenuinelyScoredClass)) return undefined;
 
   let entryStatus: EntryStatus | undefined;
   let entryStatusKind: EntryStatusKind | undefined;

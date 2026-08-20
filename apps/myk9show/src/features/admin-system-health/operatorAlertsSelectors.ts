@@ -5,6 +5,7 @@
  * falls back to 'error', the loudest state), never crash the board.
  */
 import type { StatusBadgeVariants } from '@myk9/ui';
+import { detailEntryToText } from './alertDetailText';
 import type { AlertSeverity, OperatorAlert, OperatorAlertRow } from './operatorAlertsTypes';
 
 type BadgeVariant = NonNullable<StatusBadgeVariants['variant']>;
@@ -51,30 +52,15 @@ export function severityToBadgeVariant(severity: AlertSeverity): BadgeVariant {
   }
 }
 
-/** Longest value the compact detail line renders before truncating. */
-const DETAIL_VALUE_MAX_CHARS = 120;
-
-function formatDetailValue(value: unknown): string {
-  // Webhook payloads arrive with object values and HTML fragments; both must
-  // still degrade to something a human can read on the board.
-  let text: string;
-  if (value !== null && typeof value === 'object') {
-    try {
-      text = JSON.stringify(value);
-    } catch {
-      text = String(value);
-    }
-  } else {
-    text = String(value);
-  }
-  text = text.replace(/<[^>]+>/g, '');
-  return text.length > DETAIL_VALUE_MAX_CHARS ? `${text.slice(0, DETAIL_VALUE_MAX_CHARS)}…` : text;
-}
-
-/** Compact "key: value, key: value" rendering of an alert's structured detail. */
+/** Compact "key: value, key: value" rendering of an alert's structured detail.
+ * Value formatting (markup stripping, object JSON, the length cap) lives in
+ * `alertDetailText` so this board and the admin dashboard read alerts alike. */
 export function formatAlertDetail(detail: Record<string, unknown> | null): string {
   if (!detail) return '';
-  const entries = Object.entries(detail);
-  if (entries.length === 0) return '';
-  return entries.map(([key, value]) => `${key}: ${formatDetailValue(value)}`).join(', ');
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(detail)) {
+    const text = detailEntryToText(key, value);
+    if (text) parts.push(text);
+  }
+  return parts.join(', ');
 }

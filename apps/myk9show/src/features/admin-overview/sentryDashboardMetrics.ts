@@ -98,7 +98,7 @@ export function getSentryMetricTileState(
   if (queryError || !metric || metric.status === 'unavailable') {
     return {
       value: '—',
-      context: `couldn't read ${label.toLowerCase()}`,
+      context: `couldn't read ${label.toLowerCase()}; will retry`,
       isError: true,
       isStale: false,
     };

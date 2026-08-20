@@ -89,9 +89,14 @@ async function fetchOverviewCounts(now: number): Promise<AdminOverviewCounts> {
 
 export function useAdminOverview(now: number) {
   return useQuery({
-    // `now` is frozen at mount by the page, so this key is stable per visit.
-    queryKey: ['admin', 'overview', 'counts'],
+    // Keyed by the Eastern calendar day, not the raw timestamp: the page's
+    // `now` ticks, and the counts only mean something new when the day flips.
+    queryKey: ['admin', 'overview', 'counts', easternDateKey(now)],
     queryFn: () => fetchOverviewCounts(now),
     staleTime: 30_000,
+    // "Today at a glance" has to actually track today: the key only changes at
+    // the Eastern day boundary, so without polling these counters freeze at
+    // their mount values and a failed read never recovers.
+    refetchInterval: 60_000,
   });
 }

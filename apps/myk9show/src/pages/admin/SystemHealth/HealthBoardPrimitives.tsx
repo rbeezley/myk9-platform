@@ -54,12 +54,16 @@ export function StatusDot({ status }: { status: CheckStatus }) {
  * Uppercase section label. text-xs, not the design's 10px — the project floor
  * is 14px for anything readable (docs/INTENT.md), and the repo raises text-xs
  * to 14px for exactly that reason.
+ *
+ * Pass `as="h2"` when it titles a section, so screen-reader heading navigation
+ * can find the board's parts.
  */
-export function Eyebrow({ children }: { children: ReactNode }) {
+export function Eyebrow({ children, as }: { children: ReactNode; as?: 'p' | 'h2' | 'h3' }) {
+  const Tag = as ?? 'p';
   return (
-    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+    <Tag className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
       {children}
-    </p>
+    </Tag>
   );
 }
 
@@ -105,7 +109,7 @@ export function HistoryStrip({ runs, label }: { runs: CheckRun[]; label: string 
     <div
       className="flex items-center gap-[2px]"
       role="img"
-      aria-label={`${label}: last ${runs.length} runs, oldest first — ${runs
+      aria-label={`${label}: last ${runs.length} runs, oldest first: ${runs
         .map(r => r.status)
         .join(', ')}`}
     >
@@ -128,7 +132,11 @@ export interface FilterTab<T extends string> {
   count: number;
 }
 
-/** Filter tabs whose counts are always passed in, never recomputed locally. */
+/** Filter tabs whose counts are always passed in, never recomputed locally.
+ *
+ * Semantically these are toggle buttons in a group, not ARIA tabs: there is no
+ * tabpanel and no roving focus, so `role="tab"` would promise arrow-key
+ * behavior that does not exist. */
 export function FilterTabs<T extends string>({
   tabs,
   active,
@@ -140,9 +148,6 @@ export function FilterTabs<T extends string>({
   onChange: (value: T) => void;
   ariaLabel: string;
 }) {
-  // Not role="tablist": these are filters, not tab panels, and the ARIA tabs
-  // contract (arrow keys, roving tabindex, tabpanel) was never implemented —
-  // pressed buttons in a group describe exactly what screen readers get.
   return (
     <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-1">
       {tabs.map(tab => {
@@ -208,7 +213,7 @@ export function BoardError({ message, onRetry }: { message: string; onRetry: () 
       <Eyebrow>Couldn&apos;t load</Eyebrow>
       <h2 className="mt-2 text-lg font-medium text-foreground">System health didn&apos;t load</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {message} Nothing below is showing platform state — this is a failure to read the board, not
+        {message} Nothing below is showing platform state. This is a failure to read the board, not
         a report that everything is fine.
       </p>
       <button

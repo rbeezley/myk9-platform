@@ -22,6 +22,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useNow } from '@/hooks/useNow';
 import { Link } from 'react-router-dom';
 import { Settings, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,9 +45,9 @@ import { NeedsALookSection } from './AdminDashboard/NeedsALookSection';
 
 /**
  * `href` is optional on purpose. A tile that navigates somewhere unrelated to
- * its number is worse than a tile that does not navigate — "Entries today" has
- * no site-admin entries surface to open, so it stays inert rather than sending
- * the admin to a page that cannot explain the figure.
+ * its number is worse than a tile that does not navigate. The Sentry tiles
+ * (Error rate, Client p95) have no in-app surface that explains their figure,
+ * so they stay inert rather than sending the admin somewhere that cannot.
  */
 function StatTile({
   label,
@@ -65,7 +66,7 @@ function StatTile({
 }) {
   const body = (
     <>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         {label}
       </p>
       <p className="mt-1.5 font-mono text-[25px] font-semibold leading-none tabular-nums text-foreground">
@@ -73,7 +74,7 @@ function StatTile({
       </p>
       <p
         className={cn(
-          'mt-1.5 text-[11px]',
+          'mt-1.5 text-xs',
           isError ? 'text-destructive' : isStale ? 'text-warning' : 'text-muted-foreground'
         )}
       >
@@ -90,7 +91,7 @@ function StatTile({
       to={href}
       className={cn(
         shell,
-        'transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+        'transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:translate-y-0'
       )}
     >
       {body}
@@ -100,7 +101,9 @@ function StatTile({
 
 export default function AdminDashboard() {
   const { firstName } = useAuthContext();
-  const [now] = useState(() => Date.now());
+  // Ticks with the queries (60s). Frozen-at-mount `now` meant staleness could
+  // never trip after load and "checked X ago" never aged on a long-lived tab.
+  const now = useNow(60_000);
   const [triageFilter, setTriageFilter] = useState<TriageCategory | 'all'>('all');
 
   const health = useSystemHealthSnapshots();
@@ -137,18 +140,14 @@ export default function AdminDashboard() {
       alertsUnavailable,
       effective.isEmpty,
       effective.isStale,
-      latest,
+      latest?.createdAt,
     ]
   );
 
   const counts = overview.data;
-  // An errored count must never render as a zero, and "—" alone is not an error
-  // state — it looks like a number that has not arrived. Say what failed.
-  const countsError = overview.error
-    ? overview.error instanceof Error
-      ? overview.error.message
-      : 'The count query failed.'
-    : null;
+  // An errored count must never render as a zero. Each tile says so in its own
+  // context line; the raw query message is not something an operator can act on.
+  const countsError = overview.error != null;
   const checksLabel =
     effective.isEmpty || effective.isStale ? '—' : `${summary.passing}/${summary.total}`;
   const errorRateTile = getSentryMetricTileState(
@@ -159,7 +158,7 @@ export default function AdminDashboard() {
   );
   const apiP95Tile = getSentryMetricTileState(
     sentry.data?.apiP95,
-    'API p95',
+    'Client p95',
     sentry.isLoading,
     sentry.error
   );
@@ -169,18 +168,19 @@ export default function AdminDashboard() {
       <div className="container mx-auto max-w-6xl px-6 pb-10 pt-8">
         <header className="mb-[22px] flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <DashboardGreeting
+            as="h1"
             firstName={firstName}
-            subtitle="Platform oversight. Every number here is measured; times are Eastern."
+            subtitle="Platform oversight. All times are Eastern."
             className="text-[25px] tracking-[-0.018em]"
           />
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" asChild>
               <Link to="/admin/users">
                 <Users className="mr-2 h-4 w-4" />
                 Manage users
               </Link>
             </Button>
-            <Button size="sm" asChild>
+            <Button asChild>
               <Link to="/admin/permissions">
                 <Settings className="mr-2 h-4 w-4" />
                 Permissions
@@ -189,18 +189,21 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {health.isLoading ? (
+        {/* Wait for BOTH sources: rendering on health alone let the queue
+            announce "nothing is waiting on you" while alerts were still
+            in flight. */}
+        {health.isLoading || alerts.isLoading ? (
           <BoardSkeleton rows={4} />
         ) : (
           <div className="flex flex-col gap-[18px]">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatTile
                 label="Checks passing"
                 value={healthUnavailable ? '—' : checksLabel}
                 isError={healthUnavailable}
                 context={
                   healthUnavailable
-                    ? "couldn't read the snapshot"
+                    ? "couldn't read the snapshot; will retry"
                     : effective.isEmpty
                       ? 'no run recorded'
                       : effective.isStale
@@ -211,33 +214,20 @@ export default function AdminDashboard() {
               />
               <StatTile
                 label="Open alerts"
-                value={alertsUnavailable || alerts.isLoading ? '—' : openAlerts.length}
+                value={alertsUnavailable ? '—' : openAlerts.length}
                 isError={alertsUnavailable}
                 context={
                   alertsUnavailable
-                    ? "couldn't read alerts"
+                    ? "couldn't read alerts; will retry"
                     : openAlerts.length === 0
                       ? 'nothing unresolved'
                       : 'awaiting a human'
                 }
                 href="/admin/health"
               />
-              <StatTile
-                label="Live shows"
-                value={counts ? counts.liveShows : '—'}
-                isError={Boolean(countsError)}
-                context={countsError ? "couldn't read shows" : 'published and running today'}
-                href="/shows"
-              />
-              {/* No href: there is no site-admin entries surface to open, and
-                  sending the admin to an unrelated page is worse than an inert
-                  tile. Give it a destination when one exists. */}
-              <StatTile
-                label="Entries today"
-                value={counts ? counts.entriesToday : '—'}
-                isError={Boolean(countsError)}
-                context={countsError ? "couldn't read entries" : 'since midnight Eastern'}
-              />
+              {/* Live shows and Entries today live in "Today at a glance" only —
+                  rendering the same number twice on one screen is the duplication
+                  this page's header comment exists to prevent. */}
               <StatTile
                 label="Error rate"
                 value={errorRateTile.value}
@@ -266,7 +256,7 @@ export default function AdminDashboard() {
 
               <aside className="flex flex-col gap-[18px]">
                 <BoardCard>
-                  <Eyebrow>Today at a glance</Eyebrow>
+                  <Eyebrow as="h2">Today at a glance</Eyebrow>
                   <dl className="mt-3 grid grid-cols-2 gap-y-3">
                     {[
                       ['Entries', counts?.entriesToday],
@@ -275,7 +265,7 @@ export default function AdminDashboard() {
                       ['Live shows', counts?.liveShows],
                     ].map(([label, value]) => (
                       <div key={String(label)}>
-                        <dt className="text-[11px] text-muted-foreground">{label}</dt>
+                        <dt className="text-xs text-muted-foreground">{label}</dt>
                         <dd className="mt-0.5 font-mono text-[19px] font-semibold tabular-nums text-foreground">
                           {value ?? '—'}
                         </dd>
@@ -285,10 +275,10 @@ export default function AdminDashboard() {
                   {/* Fees processed is the fourth number the design asks for. It
                       has no clean source — money lives in Stripe and there is no
                       payments table — so it is left out rather than approximated. */}
-                  <p className="mt-3 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                  <p className="mt-3 border-t border-border pt-2.5 text-xs text-muted-foreground">
                     {countsError ? (
                       <span className="text-destructive">
-                        Counts didn&apos;t load: {countsError}
+                        Today&apos;s counts didn&apos;t load; they retry automatically.
                       </span>
                     ) : (
                       'Day boundary is Eastern, matching show schedules.'
@@ -297,23 +287,21 @@ export default function AdminDashboard() {
                 </BoardCard>
 
                 <BoardCard>
-                  <Eyebrow>Services</Eyebrow>
+                  <Eyebrow as="h2">Services</Eyebrow>
                   {/* Derived from the SAME snapshot /admin/health reads. Querying
                       this twice with different logic is how two pages start
                       disagreeing about whether the platform is up. */}
                   <ul className="mt-2.5 space-y-2">
                     {checks.length === 0 ? (
-                      <li className="text-[11.5px] text-muted-foreground">
-                        No checks in the last run.
-                      </li>
+                      <li className="text-xs text-muted-foreground">No checks in the last run.</li>
                     ) : (
                       checks.map(check => (
                         <li key={check.key} className="flex items-center gap-2">
                           <StatusDot status={check.status} />
-                          <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+                          <span className="min-w-0 flex-1 truncate text-xs text-foreground">
                             {check.label}
                           </span>
-                          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                          <span className="shrink-0 font-mono text-xs text-muted-foreground">
                             {statusLabel(check.status, check.verification)}
                           </span>
                         </li>
@@ -322,9 +310,9 @@ export default function AdminDashboard() {
                   </ul>
                   <Link
                     to="/admin/health"
-                    className="mt-3 inline-block border-t border-border pt-2.5 text-[11.5px] font-medium text-foreground hover:underline"
+                    className="mt-3 inline-block border-t border-border pt-2.5 text-xs font-medium text-foreground hover:underline"
                   >
-                    Open system health →
+                    Open system health <span aria-hidden>→</span>
                   </Link>
                 </BoardCard>
               </aside>

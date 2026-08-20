@@ -124,7 +124,14 @@ export function summarizePaymentLedgerTotals(
       acc.paymentCount += 1;
     }
 
-    acc.netPaidCents = Math.max(0, acc.grossPaidCents - acc.refundCents);
+    // Deliberately NOT clamped at zero. Over the whole ledger every refund row
+    // sits beside the charge it reverses, so gross >= refunds and the clamp was
+    // a no-op. Once the ledger can be scoped to one calendar year that
+    // invariant breaks: a year holding only a refund for a prior year's charge
+    // has gross 0 and refunds 3000, and clamping reported "Net paid $0.00" for
+    // $30 that demonstrably came back. A signed total is the arithmetically
+    // honest answer, and the negative is exactly what a cash-basis year wants.
+    acc.netPaidCents = acc.grossPaidCents - acc.refundCents;
     byCurrency.set(currency, acc);
   }
 

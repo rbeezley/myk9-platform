@@ -9,10 +9,18 @@
  * flow (`/cart`) with the same scoping, so the exhibitor can retry without
  * hunting through My Shows. Complements MyEntriesPage's per-entry Receipt /
  * Finish Payment actions with a single chronological money view.
+ *
+ * The list is scoped by a single control — a calendar-year filter backed by
+ * `?year=` — because the job this page is asked to do once a year is "what did
+ * I spend last season". Nothing else on the exhibitor side answers that: My
+ * Shows filters by entry lifecycle, the printable receipt is per-entry, and the
+ * report registry has no exhibitor audience. Deliberately ONE control: no
+ * search, no sort, no date range, no export. Filtering display rows means the
+ * existing totals card re-totals the chosen year for free.
  */
 
-import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Receipt as ReceiptIcon, CreditCard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +50,16 @@ import {
   paymentStatusLabel,
   type PaymentDisplayRow,
 } from '@/features/payments/moneyPresentation';
-import { summarizePaymentLedgerTotals } from '@/features/payments/paymentsSummary';
+import {
+  ALL_PAYMENT_YEARS,
+  canFilterPaymentYears,
+  filterPaymentRowsByYear,
+  isPaymentYearSelection,
+  listPaymentYears,
+  type PaymentYearSelection,
+} from '@/features/payments/paymentYearFilter';
+import { PaymentsSummary } from './PaymentsSummaryCard';
+import { PaymentYearFilter } from './PaymentYearFilter';
 
 /** Placeholder for a missing cell value. Hyphen-minus, never an em dash (UI-copy rule). */
 const EMPTY = '-';
@@ -230,59 +247,6 @@ function PaymentCard({ row }: { row: PaymentDisplayRow }) {
   );
 }
 
-/**
- * At-a-glance net total from the same visible rows in the table, so refunds
- * cannot disappear from the header math.
- */
-function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
-  const totals = useMemo(() => summarizePaymentLedgerTotals(rows), [rows]);
-  if (totals.length === 0) return null;
-
-  // Only pair the cards up when there is genuinely more than one currency.
-  // An unconditional two-column grid left the single-currency case (the normal
-  // case) occupying half the container with an empty half beside it, which
-  // reads as a broken layout rather than deliberate whitespace.
-  return (
-    <div className={totals.length > 1 ? 'grid grid-cols-1 gap-4 sm:grid-cols-2' : 'grid gap-4'}>
-      {totals.map(t => (
-        <Card key={t.currency} className="border-primary/40">
-          <CardContent className="py-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Gross paid</p>
-                <p className="text-xl font-semibold tabular-nums">
-                  {formatPaymentCents(t.grossPaidCents, t.currency)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Refunds</p>
-                <p className="text-xl font-semibold tabular-nums text-muted-foreground">
-                  {/* Only negate an actual refund: Intl formats -0 as "-$0.00",
-                      so every exhibitor with no refunds was shown a negative
-                      zero on a money surface. */}
-                  {formatPaymentCents(t.refundCents > 0 ? -t.refundCents : 0, t.currency)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Net paid</p>
-                <p className="text-xl font-semibold tabular-nums text-primary">
-                  {formatPaymentCents(t.netPaidCents, t.currency)}
-                </p>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              {t.paymentCount} {t.paymentCount === 1 ? 'payment' : 'payments'}
-              {t.refundCount > 0
-                ? `, ${t.refundCount} ${t.refundCount === 1 ? 'refund' : 'refunds'}`
-                : ''}
-            </p>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
 /** Below this measured container width the desktop table's Description and
  * Date columns no longer fit alongside Amount/Status/Receipt, so those three
  * facts are reshaped into stacked cards instead. */
@@ -348,6 +312,44 @@ export default function ExhibitorPaymentsPage() {
     [payments]
   );
 
+  // The selected year lives in the URL, not local state — same convention as
+  // My Shows' `?tab=`, so the view survives refresh, back/forward, and a link
+  // an exhibitor mails to their accountant. Derived straight from the params
+  // rather than synced into state (no set-state-in-effect).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paymentYears = useMemo(() => listPaymentYears(paymentRows), [paymentRows]);
+  const yearParam = searchParams.get('year');
+  // Defaults to all time, and an unrecognized `?year=` falls back to it. A
+  // money surface must not open having silently hidden rows, and an empty
+  // ledger from a stale link reads as "you paid nothing" rather than "that
+  // year has no payments".
+  const selectedYear: PaymentYearSelection = isPaymentYearSelection(yearParam, paymentYears)
+    ? yearParam
+    : ALL_PAYMENT_YEARS;
+
+  const setSelectedYear = useCallback(
+    (year: PaymentYearSelection) => {
+      setSearchParams(
+        previous => {
+          const next = new URLSearchParams(previous);
+          // 'all' is the default; keep it out of the canonical URL.
+          if (year === ALL_PAYMENT_YEARS) next.delete('year');
+          else next.set('year', year);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const canFilterByYear = useMemo(() => canFilterPaymentYears(paymentRows), [paymentRows]);
+
+  const visibleRows = useMemo(
+    () => filterPaymentRowsByYear(paymentRows, selectedYear),
+    [paymentRows, selectedYear]
+  );
+
   return (
     <div className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
       <div>
@@ -408,11 +410,26 @@ export default function ExhibitorPaymentsPage() {
         // heading at all — the whole page exposed a single h1 to a screen
         // reader's heading rotor.
         <section aria-labelledby="payment-history-heading" className="space-y-6">
-          <h2 id="payment-history-heading" className="text-sm font-medium text-muted-foreground">
-            Payment history
-          </h2>
-          <PaymentsSummary rows={paymentRows} />
-          <PaymentsHistoryList rows={paymentRows} />
+          {/* The filter sits with the heading it scopes, below the Amount due
+              card, so it reads as covering the history and not the balances
+              above it. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="payment-history-heading" className="text-sm font-medium text-muted-foreground">
+              Payment history
+            </h2>
+            {canFilterByYear ? (
+              <PaymentYearFilter
+                years={paymentYears}
+                value={selectedYear}
+                onChange={setSelectedYear}
+              />
+            ) : null}
+          </div>
+          <PaymentsSummary
+            rows={visibleRows}
+            yearLabel={selectedYear === ALL_PAYMENT_YEARS ? null : selectedYear}
+          />
+          <PaymentsHistoryList rows={visibleRows} />
         </section>
       )}
     </div>

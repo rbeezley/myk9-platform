@@ -61,6 +61,7 @@ describe('useMyPayments', () => {
         currency: 'usd',
         status: 'succeeded',
         reference: 'pi_1',
+        refundedAt: null,
         entryIds: ['e1', 'e2'],
         refunds: [],
       },

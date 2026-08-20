@@ -1,4 +1,4 @@
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import type { MyPayment } from '@/features/payments/useMyPayments';
@@ -55,6 +55,7 @@ const payment: MyPayment = {
   currency: 'usd',
   status: 'succeeded',
   reference: 'pi_abc123',
+  refundedAt: null,
   entryIds: ['e1'],
   refunds: [],
 };
@@ -739,5 +740,123 @@ describe('ExhibitorPaymentsPage', () => {
   it('gives the payment history section a heading of its own', () => {
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByRole('heading', { name: 'Payment history' })).toBeInTheDocument();
+  });
+
+  describe('year filter', () => {
+    // Mid-year, midday UTC on purpose: these dates must land in the same
+    // calendar year under every US timezone the suite might run in, so the
+    // assertions are about the filter and not about a New Year's Eve edge.
+    const olderPayment: MyPayment = {
+      ...payment,
+      id: 'o0',
+      date: '2025-05-02T12:00:00Z',
+      showName: 'Autumn Trial',
+      amountCents: 2000,
+      netPaidCents: 2000,
+      entryIds: ['e9'],
+    };
+    const bothYears = [payment, olderPayment];
+
+    it('offers no control when every payment is in the same year', () => {
+      render(<ExhibitorPaymentsPage />);
+      expect(
+        screen.queryByRole('combobox', { name: /filter payment history by year/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it('offers the years the exhibitor actually has, newest first, plus all time', async () => {
+      state.data = bothYears;
+      const { user } = render(<ExhibitorPaymentsPage />);
+
+      await user.click(screen.getByRole('combobox', { name: /filter payment history by year/i }));
+      const options = await screen.findAllByRole('option');
+      expect(options.map(o => o.textContent)).toEqual(['All time', '2026', '2025']);
+    });
+
+    it('shows every year by default, so no payment is hidden on arrival', () => {
+      state.data = bothYears;
+      render(<ExhibitorPaymentsPage />);
+      expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+      expect(screen.getByText('Autumn Trial')).toBeInTheDocument();
+    });
+
+    it('scopes the list and the totals card to a year chosen from the control', async () => {
+      state.data = bothYears;
+      const { user } = render(<ExhibitorPaymentsPage />);
+
+      await user.click(screen.getByRole('combobox', { name: /filter payment history by year/i }));
+      await user.click(await screen.findByRole('option', { name: '2025' }));
+
+      await waitFor(() => expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument());
+      expect(screen.getByText('Autumn Trial')).toBeInTheDocument();
+      // The totals card re-totals the visible rows, and says which year it
+      // is talking about — an unlabelled total under a filter is a money
+      // claim about a period the exhibitor never named.
+      expect(screen.getByText('1 payment in 2025')).toBeInTheDocument();
+      expect(screen.getAllByText('$20.00').length).toBeGreaterThan(0);
+      expect(screen.queryByText('$53.00')).not.toBeInTheDocument();
+    });
+
+    it('honors ?year= on arrival so a shared or refreshed link keeps the view', () => {
+      state.data = bothYears;
+      render(<ExhibitorPaymentsPage />, { initialRoute: '/exhibitor/payments?year=2026' });
+      expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+      expect(screen.queryByText('Autumn Trial')).not.toBeInTheDocument();
+      expect(screen.getByText('1 payment in 2026')).toBeInTheDocument();
+    });
+
+    it('falls back to all time for a year the exhibitor has no payments in', () => {
+      // A stale link must not render an empty ledger — on a money surface
+      // that reads as "you paid nothing", not "that year is empty".
+      state.data = bothYears;
+      render(<ExhibitorPaymentsPage />, { initialRoute: '/exhibitor/payments?year=2019' });
+      expect(screen.getByText('Spring Trial')).toBeInTheDocument();
+      expect(screen.getByText('Autumn Trial')).toBeInTheDocument();
+      expect(screen.queryByText(/in 2019/)).not.toBeInTheDocument();
+    });
+
+    it('leaves the totals card unscoped when showing all time', () => {
+      state.data = bothYears;
+      render(<ExhibitorPaymentsPage />);
+      expect(screen.getByText('2 payments')).toBeInTheDocument();
+    });
+
+    it('keeps the control reachable when a valid ?year= hides undated rows', () => {
+      // One year plus an undated row is still two buckets — only All time
+      // shows the undated one. Hiding the control here stranded the exhibitor
+      // on a filtered ledger with no way back (stripe_orders.created_at is
+      // DEFAULT NOW(), not NOT NULL, so an undated row is possible).
+      state.data = [payment, { ...payment, id: 'o-undated', date: null, showName: 'Undated Trial' }];
+      render(<ExhibitorPaymentsPage />, { initialRoute: '/exhibitor/payments?year=2026' });
+
+      expect(screen.queryByText('Undated Trial')).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('combobox', { name: /filter payment history by year/i })
+      ).toBeInTheDocument();
+    });
+
+    it('reports a negative net for a year holding only a refund of an earlier charge', () => {
+      // Cash basis across a year boundary. The totals card clamped net at zero,
+      // so $53 that demonstrably came back in 2026 read as "Net paid $0.00".
+      state.data = [
+        {
+          ...payment,
+          date: '2025-12-20T12:00:00Z',
+          status: 'refunded',
+          refundedAt: '2026-01-08T12:00:00Z',
+          refunds: [],
+        },
+      ];
+      render(<ExhibitorPaymentsPage />, { initialRoute: '/exhibitor/payments?year=2026' });
+
+      // Three occurrences: the Refunds figure, the Net paid figure, and the
+      // table row. Clamped, Net paid read "$0.00" and there were only two —
+      // so the count is what actually pins the fix.
+      expect(screen.getAllByText('-$53.00')).toHaveLength(3);
+      // Gross paid is legitimately $0.00 for this year: the charge was 2025.
+      expect(screen.getByText('Gross paid')).toBeInTheDocument();
+      // (getAllBy: the Amount due card above renders $0.00 too.)
+      expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
+    });
   });
 });

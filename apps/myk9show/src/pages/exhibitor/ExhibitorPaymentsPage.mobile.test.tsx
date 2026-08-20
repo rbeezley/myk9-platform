@@ -52,6 +52,7 @@ const payment: MyPayment = {
   currency: 'usd',
   status: 'succeeded',
   reference: 'pi_abc123',
+  refundedAt: null,
   entryIds: ['e1'],
   refunds: [],
 };

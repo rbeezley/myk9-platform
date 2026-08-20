@@ -81,11 +81,13 @@ const PermissionManagementPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4" role="group" aria-label="Access summary">
                     <div className="rounded-xl border bg-card p-4">
                       <p className="font-medium text-muted-foreground">Active grants</p>
                       <p className="mt-1 text-2xl font-semibold tabular-nums">
-                        {roles.reduce((sum, role) => sum + (role.user_count ?? 0), 0)}
+                        {isLoading
+                          ? '–'
+                          : roles.reduce((sum, role) => sum + (role.user_count ?? 0), 0)}
                       </p>
                     </div>
                     <Link

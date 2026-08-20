@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { within } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 
 vi.mock('@/hooks/useRBAC', () => ({
@@ -102,11 +103,14 @@ describe('PermissionManagementPage tab consolidation', () => {
 
   it('uses an en dash (not an em dash) for empty stat counts before they load', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
-    // Counts resolve to [] async; on first paint the placeholder is shown.
-    // The UI-copy ban forbids em dashes — assert the en dash glyph is used.
-    const placeholders = screen.getAllByText('–');
-    expect(placeholders.length).toBeGreaterThan(0);
-    expect(screen.queryByText('—')).not.toBeInTheDocument();
+    // Both stats (Active grants, Permissions) are unresolved on first paint.
+    // Scope to the stat region so the table's own, sanctioned em-dash
+    // ("Last changed" with no audit entry) can never satisfy this assertion.
+    const statSummary = screen.getByRole('group', { name: 'Access summary' });
+    const placeholders = within(statSummary).getAllByText('–');
+    expect(placeholders.length).toBe(2);
+    // The UI-copy ban forbids em dashes in the stats specifically.
+    expect(within(statSummary).queryByText('—')).not.toBeInTheDocument();
   });
 
   it('lands the admin on the roles themselves, not a lobby', async () => {

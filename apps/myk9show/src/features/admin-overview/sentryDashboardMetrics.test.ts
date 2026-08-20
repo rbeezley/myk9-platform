@@ -4,6 +4,7 @@ import {
   formatSentryMetricValue,
   getSentryMetricTileState,
   parseSentryDashboardMetrics,
+  SENTRY_NOT_CONFIGURED,
   type SentryMetricResult,
 } from './sentryDashboardMetrics';
 import { mockSupabase } from '@/test/mocks/supabase';
@@ -101,6 +102,75 @@ describe('sentryDashboardMetrics', () => {
       isError: false,
       isStale: true,
     });
+  });
+
+  // MYK9-213: the endpoint degrades on a missing secret rather than 500ing, so
+  // the tile is now the only place a misconfiguration is visible. It must not
+  // claim a retry will fix something that needs a human to provision a secret.
+  it('says a missing config is not configured, rather than promising a retry', () => {
+    const state = getSentryMetricTileState(
+      metric({ value: null, status: 'unavailable', error: SENTRY_NOT_CONFIGURED }),
+      'Client p95',
+      false,
+      null
+    );
+
+    expect(state).toEqual({
+      value: '—',
+      context: 'not configured — add Sentry credentials',
+      isError: true,
+      isStale: false,
+    });
+    expect(state.context).not.toContain('will retry');
+  });
+
+  // Regression: the config check must sit ABOVE the status branching. A stale
+  // cached value carrying the not-configured reason previously fell through to
+  // the stale branch and rendered as a non-error ("using an older reading"),
+  // hiding the misconfiguration behind a number that can never refresh.
+  it('still flags a missing config when a stale cached value is being served', () => {
+    const state = getSentryMetricTileState(
+      metric({ value: 640, unit: 'milliseconds', status: 'stale', error: SENTRY_NOT_CONFIGURED }),
+      'Client p95',
+      false,
+      null
+    );
+
+    expect(state.isError).toBe(true);
+    expect(state.context).toBe('not configured — add Sentry credentials');
+    expect(state.context).not.toBe('using an older reading');
+    // The cached reading is real data, so it is still shown — just marked stale.
+    expect(state.value).toBe('640 ms');
+    expect(state.isStale).toBe(true);
+  });
+
+  // Pins the full precedence: a live query failure is NEWER information than
+  // anything the cached payload carries. React Query keeps the previous
+  // response across a failed refetch, so without this ordering the tile would
+  // keep saying "add Sentry credentials" after they had already been added.
+  it('lets a live query failure override a cached not-configured reason', () => {
+    const state = getSentryMetricTileState(
+      metric({ value: null, status: 'unavailable', error: SENTRY_NOT_CONFIGURED }),
+      'Client p95',
+      false,
+      new Error('network down')
+    );
+
+    expect(state.context).toBe("couldn't read client p95; will retry");
+    expect(state.context).not.toContain('add Sentry credentials');
+    expect(state.isError).toBe(true);
+  });
+
+  it('still promises a retry when Sentry is merely erroring', () => {
+    const state = getSentryMetricTileState(
+      metric({ value: null, status: 'unavailable', error: 'Sentry metric unavailable' }),
+      'Client p95',
+      false,
+      null
+    );
+
+    // Same status, different cause: this one genuinely can resolve on its own.
+    expect(state.context).toBe("couldn't read client p95; will retry");
   });
 
   it('does not turn unavailable data into zero', () => {

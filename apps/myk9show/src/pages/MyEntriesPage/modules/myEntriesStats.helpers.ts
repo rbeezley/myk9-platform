@@ -20,6 +20,7 @@
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -68,19 +69,31 @@ export function isPastShowEntry(
  * can sit at `entry_status='confirmed'` with `check_in_status='completed'` and
  * still be scored, which keying on `entryStatus` alone would miss.
  */
-function isScoredClass(cls: EntryClass): boolean {
-  // An explicit `is_scored: false` outranks a stale completed status. Every
-  // score-reset path (usePaperScoring.clearEntry, useClassResults,
-  // useAtShowEntryListActions) clears `is_scored` and the result fields but
-  // leaves `check_in_status` / `entry_status` on 'completed', so reading the
-  // status alone would keep a reset run filed as done and stick its order in
-  // the Completed tab with no way back.
-  if (cls.isScored === false) return false;
-  return (
-    cls.isScored === true ||
-    cls.entryStatusKind === 'completed' ||
-    cls.entryStatus === EntryStatus.COMPLETED
-  );
+/**
+ * Class rows the exhibitor still has to run, via the CANONICAL accounting rules
+ * (`@/features/_shared/entryAccounting`) rather than a local variant.
+ *
+ * That file carries an explicit warning, and MYK9-118 as the precedent: a
+ * surface that reports outstanding scoring work with its own slightly different
+ * rule is how a page ends up disagreeing with the server about whether a class
+ * is finished. Reading them buys three behaviours a hand-rolled status check
+ * kept getting wrong:
+ *
+ *  - `absent` / `excused` settle a run WITHOUT a score, so `is_scored` stays
+ *    false on a run that is nonetheless over;
+ *  - an explicit `is_scored: false` outranks a stale `completed` status, which
+ *    is what every score-reset path leaves behind (usePaperScoring.clearEntry,
+ *    useClassResults, useAtShowEntryListActions all clear the result fields but
+ *    not `check_in_status`);
+ *  - scratched / withdrawn / cancelled rows are not expected to run at all.
+ */
+function outstandingClasses(classes: EntryClass[]): EntryClass[] {
+  return classes.filter(cls => isExpectedEntry(cls) && !isAccountedFor(cls));
+}
+
+/** Class rows the show expects to put in the ring, settled or not. */
+function expectedClasses(classes: EntryClass[]): EntryClass[] {
+  return classes.filter(isExpectedEntry);
 }
 
 /**
@@ -104,9 +117,7 @@ function isScoredClass(cls: EntryClass): boolean {
  * `groupEntriesByOrder`) this falls back to the order's own status.
  */
 export function isScoredEntry(entry: MyEntry): boolean {
-  if (entry.classes.length > 0) {
-    return entry.classes.filter(cls => cls.status === 'entered').every(isScoredClass);
-  }
+  if (entry.classes.length > 0) return outstandingClasses(entry.classes).length === 0;
   return entry.entryStatusKind === 'completed' || entry.entryStatus === EntryStatus.COMPLETED;
 }
 
@@ -137,10 +148,10 @@ export interface PartiallyScoredState {
 export function getPartiallyScoredState(
   entry: Pick<MyEntry, 'classes' | 'entryStatus'>
 ): PartiallyScoredState | undefined {
-  const liveClasses = entry.classes.filter(cls => cls.status === 'entered');
-  const remaining = liveClasses.filter(cls => !isScoredClass(cls));
-  // Untouched (nothing scored) or finished (nothing left) — neither is partial.
-  if (remaining.length === 0 || remaining.length === liveClasses.length) return undefined;
+  const expected = expectedClasses(entry.classes);
+  const remaining = outstandingClasses(entry.classes);
+  // Untouched (nothing settled) or finished (nothing left) — neither is partial.
+  if (remaining.length === 0 || remaining.length === expected.length) return undefined;
 
   let entryStatus: EntryStatus | undefined;
   let entryStatusKind: EntryStatusKind | undefined;
@@ -220,22 +231,29 @@ export function computeMyEntriesShowProgressStats(
   entries: MyEntry[],
   now: Date
 ): MyEntriesShowProgressStats {
-  const completedShowIds = new Set<string>();
-  const upcomingShowIds = new Set<string>();
+  // Classify each SHOW once. Adding to a set per entry double-counts a show
+  // that holds both a finished order and an unfinished one — it would appear
+  // as an Upcoming Show AND a Completed Show, and the two cards would sum to
+  // more shows than the exhibitor has entered. A show is done only when none
+  // of its entries are still ahead.
+  const showHasUpcoming = new Map<string, boolean>();
   let upcomingEntries = 0;
 
   for (const entry of entries) {
-    if (isCompletedEntry(entry, now)) {
-      completedShowIds.add(showKey(entry));
-    } else {
-      upcomingShowIds.add(showKey(entry));
-      upcomingEntries += 1;
-    }
+    const key = showKey(entry);
+    const upcoming = !isCompletedEntry(entry, now);
+    if (upcoming) upcomingEntries += 1;
+    showHasUpcoming.set(key, (showHasUpcoming.get(key) ?? false) || upcoming);
+  }
+
+  let upcomingShows = 0;
+  for (const hasUpcoming of showHasUpcoming.values()) {
+    if (hasUpcoming) upcomingShows += 1;
   }
 
   return {
-    completedShows: completedShowIds.size,
-    upcomingShows: upcomingShowIds.size,
+    completedShows: showHasUpcoming.size - upcomingShows,
+    upcomingShows,
     upcomingEntries,
   };
 }

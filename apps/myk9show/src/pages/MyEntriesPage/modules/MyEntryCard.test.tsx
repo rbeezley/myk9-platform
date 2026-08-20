@@ -1300,6 +1300,10 @@ describe('MyEntryCard part-scored order badge', () => {
       number: '102',
       entryStatus: EntryStatus.COMPLETED,
       entryStatusKind: 'completed',
+      // Real scored rows carry is_scored; the canonical accounting rules read
+      // it rather than the lifecycle status.
+      isScored: true,
+      resultStatus: 'qualified',
     });
   const unrunClass = () =>
     makeClass({ entryStatus: EntryStatus.ACCEPTED, entryStatusKind: 'accepted' });
@@ -1355,7 +1359,14 @@ describe('MyEntryCard part-scored order badge', () => {
   });
 
   it('reads "Scored" when the only unrun class was scratched', () => {
-    renderCard(makePartScoredEntry([scoredClass(), makeClass({ status: 'scratched' })]));
+    renderCard(makePartScoredEntry([
+        scoredClass(),
+        makeClass({
+          status: 'scratched',
+          entryStatus: EntryStatus.SCRATCHED,
+          entryStatusKind: 'scratched',
+        }),
+      ]));
 
     expect(screen.getAllByText('Scored').length).toBeGreaterThan(0);
     expect(screen.queryByText('Partially scored')).not.toBeInTheDocument();

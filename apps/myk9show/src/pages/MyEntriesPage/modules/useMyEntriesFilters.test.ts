@@ -210,6 +210,22 @@ function makeClass(id: string, scored: boolean): EntryClass {
     status: 'entered',
     entryStatus: scored ? EntryStatus.COMPLETED : EntryStatus.ACCEPTED,
     entryStatusKind: scored ? 'completed' : 'accepted',
+    // Real scored rows always carry is_scored — verified across every
+    // 'completed' row on the project. The canonical accounting rules read it
+    // rather than the lifecycle status, so a fixture without it is not a row
+    // the app can actually produce.
+    isScored: scored,
+    resultStatus: scored ? 'qualified' : undefined,
+  };
+}
+
+/** A row the exhibitor will not run — status and lifecycle agree, as in the DB. */
+function makeScratchedClass(id: string): EntryClass {
+  return {
+    ...makeClass(id, false),
+    status: 'scratched',
+    entryStatus: EntryStatus.SCRATCHED,
+    entryStatusKind: 'scratched',
   };
 }
 
@@ -351,7 +367,7 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
       showEndDate: new Date(2026, 7, 30),
       entryStatus: EntryStatus.COMPLETED,
       entryStatusKind: 'completed',
-      classes: [makeClass('a', true), { ...makeClass('b', false), status: 'scratched' }],
+      classes: [makeClass('a', true), makeScratchedClass('b')],
     });
 
     const { result } = renderFilters({ entries: [scratchedSibling] });
@@ -369,10 +385,7 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
       showEndDate: new Date(2026, 7, 30),
       entryStatus: EntryStatus.SCRATCHED,
       entryStatusKind: 'scratched',
-      classes: [
-        { ...makeClass('a', false), status: 'scratched' },
-        { ...makeClass('b', false), status: 'scratched' },
-      ],
+      classes: [makeScratchedClass('a'), makeScratchedClass('b')],
     });
 
     const { result } = renderFilters({ entries: [allScratched] });

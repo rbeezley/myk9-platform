@@ -19,7 +19,7 @@ describe('CompactStatsRow', () => {
     acceptedEntries: 3,
     pendingEntries: 2,
     upcomingShows: 2,
-    pastShows: 1,
+    completedShows: 1,
     currentFees: 150,
     amountDue: 75,
     onNavigate: vi.fn(),
@@ -35,7 +35,7 @@ describe('CompactStatsRow', () => {
     expect(grid.getByText('2')).toBeInTheDocument();
     expect(grid.getByText('Upcoming Shows')).toBeInTheDocument();
     expect(grid.getByText('1')).toBeInTheDocument();
-    expect(grid.getByText('Past Show')).toBeInTheDocument();
+    expect(grid.getByText('Completed Show')).toBeInTheDocument();
     expect(grid.getAllByText('entered')).toHaveLength(2);
     expect(grid.getByText('$150')).toBeInTheDocument();
     expect(grid.getByText('Current Fees')).toBeInTheDocument();
@@ -140,12 +140,12 @@ describe('CompactStatsRow', () => {
         acceptedEntries={1}
         pendingEntries={0}
         upcomingShows={1}
-        pastShows={1}
+        completedShows={1}
       />
     );
     expect(screen.getByText(CURRENT_ENTRIES_LABEL)).toBeInTheDocument();
     expect(screen.getByText('Upcoming Show')).toBeInTheDocument();
-    expect(screen.getByText('Past Show')).toBeInTheDocument();
+    expect(screen.getByText('Completed Show')).toBeInTheDocument();
   });
 
   it('uses plural label for shows when count is not 1', () => {
@@ -155,12 +155,12 @@ describe('CompactStatsRow', () => {
         acceptedEntries={0}
         pendingEntries={5}
         upcomingShows={5}
-        pastShows={3}
+        completedShows={3}
       />
     );
     expect(screen.getByText(CURRENT_ENTRIES_LABEL)).toBeInTheDocument();
     expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
-    expect(screen.getByText('Past Shows')).toBeInTheDocument();
+    expect(screen.getByText('Completed Shows')).toBeInTheDocument();
   });
 
   it('sends the current-entries card to the Upcoming filter, not to itself', async () => {
@@ -211,7 +211,7 @@ describe('CompactStatsRow', () => {
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
-    const pastCard = screen.getByLabelText(/Past Show.*View details/i);
+    const pastCard = screen.getByLabelText(/Completed Show.*View details/i);
     await userEvent.click(pastCard);
     expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries?tab=completed');
   });
@@ -294,7 +294,7 @@ describe('CompactStatsRow', () => {
       // Every deep-linked card is still reachable after expanding.
       expect(screen.getByLabelText(/Entries.*View details/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Upcoming Shows.*View details/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Past Show.*View details/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Completed Show.*View details/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Current Fees.*View details/i)).toBeInTheDocument();
     });
 
@@ -326,7 +326,7 @@ describe('CompactStatsRow', () => {
         acceptedEntries={0}
         pendingEntries={0}
         upcomingShows={0}
-        pastShows={0}
+        completedShows={0}
         currentFees={0}
         amountDue={0}
       />

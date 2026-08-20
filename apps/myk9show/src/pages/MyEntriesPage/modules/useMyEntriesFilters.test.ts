@@ -4,7 +4,7 @@ import { act, renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useMyEntriesFilters } from './useMyEntriesFilters';
-import type { MyEntry } from './my-entries-types';
+import type { EntryClass, MyEntry } from './my-entries-types';
 
 // The hook reads `new Date()` internally; pin the clock so the test is
 // deterministic regardless of when it runs.
@@ -189,6 +189,209 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
       'plain-accepted',
       'scored',
     ]);
+  });
+});
+
+// Reported 2026-08-19 on /exhibitor/entries against seeded data: the tab strip
+// read `Completed 0` while cards on screen carried a "Scored" badge, and
+// `Upcoming 68` equalled `All 68`. Two definitions of "done" were in play — the
+// card badge reads `entryStatusKind` (myEntriesUtils.getEntryStatusBadge labels
+// it "Scored"), the Completed tab read `isPastShowEntry` (show date only). The
+// seeded show ends Aug 30 2026 yet already carries scored entries, so a scored
+// entry counted as Upcoming. Completed now means scored OR show ended.
+// A class row as `groupEntriesByOrder` produces it. `scored` drives both the
+// row status and its display kind, mirroring the DB's completed/completed pair.
+function makeClass(id: string, scored: boolean): EntryClass {
+  return {
+    id,
+    name: `Class ${id}`,
+    number: id,
+    fee: 0,
+    status: 'entered',
+    entryStatus: scored ? EntryStatus.COMPLETED : EntryStatus.ACCEPTED,
+    entryStatusKind: scored ? 'completed' : 'accepted',
+    // Real scored rows always carry is_scored — verified across every
+    // 'completed' row on the project. The canonical accounting rules read it
+    // rather than the lifecycle status, so a fixture without it is not a row
+    // the app can actually produce.
+    isScored: scored,
+    resultStatus: scored ? 'qualified' : undefined,
+  };
+}
+
+/** A row the exhibitor will not run — status and lifecycle agree, as in the DB. */
+function makeScratchedClass(id: string): EntryClass {
+  return {
+    ...makeClass(id, false),
+    status: 'scratched',
+    entryStatus: EntryStatus.SCRATCHED,
+    entryStatusKind: 'scratched',
+  };
+}
+
+describe('Completed tab agrees with the "Scored" card badge', () => {
+  const scoredAtFutureShow = makeEntry({
+    id: 'scored-future',
+    showId: 'scored-future-show',
+    showDate: new Date(2026, 7, 29), // Aug 29 2026 — after the pinned "now"
+    showEndDate: new Date(2026, 7, 30),
+    entryStatus: EntryStatus.COMPLETED,
+    entryStatusKind: 'completed',
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+  });
+
+  it('places a scored entry at a future-dated show in the Completed tab', () => {
+    const { result } = renderFilters({ entries: [scoredAtFutureShow] });
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+
+    act(() => result.current.setSelectedTab('completed'));
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['scored-future']);
+  });
+
+  it('keeps a scored future entry out of the Upcoming tab', () => {
+    const unscoredFuture = makeEntry({
+      id: 'unscored-future',
+      showId: 'unscored-future-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+    });
+
+    const { result } = renderFilters({ entries: [scoredAtFutureShow, unscoredFuture] });
+    act(() => result.current.setSelectedTab('upcoming'));
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['unscored-future']);
+  });
+
+  // The badge is driven by `entryStatusKind`, which folds `check_in_status` in:
+  // seeded rows exist at entry_status='confirmed' + check_in_status='completed'
+  // and render "Scored". Keying the tab on `entryStatus` alone would miss them.
+  it('treats a check-in-only scored entry (confirmed + completed) as Completed', () => {
+    const checkInScored = makeEntry({
+      id: 'check-in-scored',
+      showId: 'check-in-scored-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'completed',
+    });
+
+    const { result } = renderFilters({ entries: [checkInScored] });
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+  });
+
+  it('still counts an unscored entry at an ended show as Completed', () => {
+    const { result } = renderFilters({ entries: [endedShow] });
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+  });
+
+  it('leaves the FEE stats on the show-date axis while the counts follow the tabs', () => {
+    // A scored entry at a show that has not happened yet can still owe money,
+    // so folding it into Completed must not move `currentFees`/amount due.
+    // The show COUNTS do move with it: their cards deep-link to the tabs.
+    const scoredUnpaidFuture = makeEntry({
+      id: 'scored-unpaid-future',
+      showId: 'scored-unpaid-future-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      paymentStatus: PaymentStatus.PENDING,
+      totalFee: 35,
+    });
+
+    const { result } = renderFilters({ entries: [scoredUnpaidFuture] });
+
+    // Money: unchanged, still owed.
+    expect(result.current.entryStats.currentFees).toBe(35);
+    expect(result.current.entryStats.currentAmountDue).toBe(35);
+    // Counts: done, and agreeing with the tab the card links to.
+    expect(result.current.entryStats.completedShows).toBe(1);
+    expect(result.current.entryStats.upcomingShows).toBe(0);
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+  });
+
+  // Live seed shape (Aug 29 2026 show): `groupEntriesByOrder` merges a dog's
+  // classes into one card and resolves the card's status by highest priority,
+  // with COMPLETED at the top of the scale — so a one-of-two scored order reads
+  // `entryStatusKind: 'completed'`. Keying the tab on that aggregate would file
+  // the card as done while a class is still unrun, hiding the remaining run.
+  it('keeps a partially scored order in Upcoming', () => {
+    const partiallyScored = makeEntry({
+      id: 'partially-scored',
+      showId: 'partially-scored-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed', // dominant status — one class IS scored
+      classes: [makeClass('a', true), makeClass('b', false)],
+    });
+
+    const { result } = renderFilters({ entries: [partiallyScored] });
+
+    expect(result.current.tabCounts.completed).toBe(0);
+    expect(result.current.tabCounts.upcoming).toBe(1);
+
+    act(() => result.current.setSelectedTab('upcoming'));
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['partially-scored']);
+  });
+
+  it('completes an order once every class is scored', () => {
+    const fullyScored = makeEntry({
+      id: 'fully-scored',
+      showId: 'fully-scored-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [makeClass('a', true), makeClass('b', true)],
+    });
+
+    const { result } = renderFilters({ entries: [fullyScored] });
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+  });
+
+  // A class the exhibitor will not run must not hold the order open.
+  it('ignores scratched classes when deciding an order is done', () => {
+    const scratchedSibling = makeEntry({
+      id: 'scratched-sibling',
+      showId: 'scratched-sibling-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [makeClass('a', true), makeScratchedClass('b')],
+    });
+
+    const { result } = renderFilters({ entries: [scratchedSibling] });
+
+    expect(result.current.tabCounts.completed).toBe(1);
+  });
+
+  // No runnable classes left at all — the exhibitor withdrew from everything,
+  // so there is nothing still ahead of them even though no row carries a result.
+  it('treats an order with only scratched classes as done', () => {
+    const allScratched = makeEntry({
+      id: 'all-scratched',
+      showId: 'all-scratched-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.SCRATCHED,
+      entryStatusKind: 'scratched',
+      classes: [makeScratchedClass('a'), makeScratchedClass('b')],
+    });
+
+    const { result } = renderFilters({ entries: [allScratched] });
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
   });
 });
 

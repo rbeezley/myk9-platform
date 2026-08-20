@@ -12,7 +12,7 @@ import {
   summarizeEntryBalances,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
-import { computeMyEntriesShowDateStats, isPastShowEntry } from './myEntriesStats.helpers';
+import { computeMyEntriesShowProgressStats, isCompletedEntry } from './myEntriesStats.helpers';
 import { isEntryTabFilter } from './entryTabDefs';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
@@ -107,14 +107,14 @@ export function useMyEntriesFilters({
         break;
       case 'upcoming': {
         const now = new Date();
-        // Date-range aware: all non-past entry rows belong here, including
-        // entries that still need payment or review.
-        filtered = filtered.filter(entry => !isPastShowEntry(entry, now));
+        // Strict complement of Completed: everything still ahead of the
+        // exhibitor, including entries that need payment or review.
+        filtered = filtered.filter(entry => !isCompletedEntry(entry, now));
         break;
       }
       case 'completed': {
         const now = new Date();
-        filtered = filtered.filter(entry => isPastShowEntry(entry, now));
+        filtered = filtered.filter(entry => isCompletedEntry(entry, now));
         break;
       }
       default:
@@ -122,15 +122,16 @@ export function useMyEntriesFilters({
         break;
     }
 
-    // Sort by show date — upcoming first (nearest date at top). Use the same
-    // date-range rule as the tabs so a show running today sorts as upcoming.
+    // Sort by show date — still-ahead entries first (nearest date at top). Uses
+    // the same rule as the tabs so ordering and tab membership never disagree:
+    // a show running today sorts as upcoming, a scored entry sorts as done.
     const now = new Date();
     filtered.sort((a, b) => {
-      const aUpcoming = !isPastShowEntry(a, now);
-      const bUpcoming = !isPastShowEntry(b, now);
-      // Upcoming entries before past entries
+      const aUpcoming = !isCompletedEntry(a, now);
+      const bUpcoming = !isCompletedEntry(b, now);
+      // Upcoming entries before completed ones
       if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
-      // Within upcoming: soonest first; within past: most recent first
+      // Within upcoming: soonest first; within completed: most recent first
       return aUpcoming
         ? a.showDate.getTime() - b.showDate.getTime()
         : b.showDate.getTime() - a.showDate.getTime();
@@ -147,12 +148,20 @@ export function useMyEntriesFilters({
     const accepted = entries.filter(isExhibitorInEntry);
     const pending = entries.filter(isPendingEntry);
     const waitlist = entries.filter(isWaitlistEntry);
-    const currentEntries = entries.filter(entry => !isPastShowEntry(entry, now));
+    // Same axis as the Upcoming tab, deliberately. The "Current Entries" stat
+    // card deep-links to `?tab=upcoming` (#1696 made that link live), so a
+    // count derived from a different rule would promise entries the tab then
+    // refuses to show — the card reading 1 and the tab rendering empty.
+    // Fees are NOT derived from this: `resolvedBalanceSummary` below runs its
+    // own show-date math, because a scored entry at a show that has not
+    // happened yet can still owe an entry fee.
+    const currentEntries = entries.filter(entry => !isCompletedEntry(entry, now));
+    const completedEntries = entries.filter(entry => isCompletedEntry(entry, now));
     const currentAcceptedEntries = currentEntries.filter(isExhibitorInEntry);
     const currentPendingEntries = currentEntries.filter(isPendingEntry);
     // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day
     // show running today counts as upcoming, not past, matching the Show Today banner.
-    const showDateStats = computeMyEntriesShowDateStats(entries, now);
+    const showProgressStats = computeMyEntriesShowProgressStats(entries, now);
     const paidEntries = entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
     const unpaidEntries = entries.filter(e => e.paymentStatus === PaymentStatus.PENDING);
     const acceptedPaid = accepted.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
@@ -176,9 +185,9 @@ export function useMyEntriesFilters({
         total: entries.length,
         accepted: accepted.length,
         pending: pending.length,
-        upcoming: showDateStats.upcomingEntries,
-        pastShows: showDateStats.pastShows,
-        upcomingShows: showDateStats.upcomingShows,
+        upcoming: showProgressStats.upcomingEntries,
+        completedShows: showProgressStats.completedShows,
+        upcomingShows: showProgressStats.upcomingShows,
         currentAcceptedEntries: currentAcceptedEntries.length,
         currentPendingEntries: currentPendingEntries.length,
         acceptedPaid: acceptedPaid.length,
@@ -200,8 +209,8 @@ export function useMyEntriesFilters({
         pending: pending.length,
         accepted: accepted.length,
         waitlist: waitlist.length,
-        upcoming: currentEntries.length,
-        completed: entries.length - currentEntries.length,
+        upcoming: entries.length - completedEntries.length,
+        completed: completedEntries.length,
       },
     };
   }, [entries, externalBalanceSummary]);

@@ -13,7 +13,7 @@
  *
  * No new aggregate/summary selector is introduced — every assertion reuses an
  * existing lifecycle selector:
- *  - `computeMyEntriesShowDateStats` (MyEntriesPage/My Shows: current vs.
+ *  - `computeMyEntriesShowProgressStats` (MyEntriesPage/My Shows: current vs.
  *    all-time order-level entries, and distinct shows)
  *  - `buildSubmittedEntryProjection` (show-detail "My Entries" tab / "My run
  *    schedule" banner: per-show class-entry rows and history)
@@ -23,7 +23,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { computeMyEntriesShowDateStats } from './myEntriesStats.helpers';
+import { computeMyEntriesShowProgressStats } from './myEntriesStats.helpers';
 import type { MyEntry, MyEntryDogGroup, EntryClass } from './my-entries-types';
 import {
   buildSubmittedEntryProjection,
@@ -126,11 +126,11 @@ describe('cross-surface count fixture — MyEntriesPage/My Shows (order-level)',
     expect(classEntryCount).toBe(5);
   });
 
-  it("current entries (upcomingEntries): reuses computeMyEntriesShowDateStats, counts ORDER-level rows in non-past shows only — 1, not 2 (all orders) or 3 (Rex's classes)", () => {
-    const stats = computeMyEntriesShowDateStats(allOrders, NOW);
+  it("current entries (upcomingEntries): reuses computeMyEntriesShowProgressStats, counts ORDER-level rows in non-past shows only — 1, not 2 (all orders) or 3 (Rex's classes)", () => {
+    const stats = computeMyEntriesShowProgressStats(allOrders, NOW);
     expect(stats.upcomingEntries).toBe(1); // only orderA — orderB's show has ended
     expect(stats.upcomingShows).toBe(1); // Heritage
-    expect(stats.pastShows).toBe(1); // QA Walk
+    expect(stats.completedShows).toBe(1); // QA Walk
   });
 
   it('history (all-time, all-status): every order record regardless of show date is 2 — the "All entries / includes past shows" scope', () => {
@@ -138,7 +138,7 @@ describe('cross-surface count fixture — MyEntriesPage/My Shows (order-level)',
   });
 
   it('current entries and history are DIFFERENT SCOPES of the same order-level unit, and must stay labeled distinctly (1 vs. 2)', () => {
-    const stats = computeMyEntriesShowDateStats(allOrders, NOW);
+    const stats = computeMyEntriesShowProgressStats(allOrders, NOW);
     const historyCount = allOrders.length;
     expect(stats.upcomingEntries).not.toBe(historyCount);
   });

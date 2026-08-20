@@ -59,7 +59,7 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     // with the all-time "All entries" list below it.
     await expect(page.getByRole('button', { name: /^Current entries:/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Upcoming Shows?:/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Past Shows?:/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Completed Shows?:/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Current Fees:/ })).toBeVisible();
 
     const currentEntriesCard = page.getByRole('button', { name: /^Current entries:/ });

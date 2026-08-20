@@ -375,7 +375,7 @@ const MyEntriesPage: React.FC = () => {
                   acceptedEntries={entryStats.currentAcceptedEntries}
                   pendingEntries={entryStats.currentPendingEntries}
                   upcomingShows={entryStats.upcomingShows}
-                  pastShows={entryStats.pastShows}
+                  completedShows={entryStats.completedShows}
                   currentFees={entryStats.currentFees}
                   amountDue={entryStats.currentAmountDue}
                   currentFeesHref={currentFeesHref}

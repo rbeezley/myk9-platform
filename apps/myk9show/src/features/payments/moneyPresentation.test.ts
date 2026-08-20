@@ -107,12 +107,12 @@ describe('moneyPresentation', () => {
 });
 
 describe('isSettlingPaymentStatus', () => {
-  it.each(['pending', 'processing', 'requires_action', 'requires_capture', 'requires_confirmation'])(
-    'treats %s as money still in flight',
-    status => {
-      expect(isSettlingPaymentStatus(status)).toBe(true);
-    }
-  );
+  // The two in-flight values stripe_orders.status is allowed to hold; the
+  // column's CHECK constraint (migration 005) forbids Stripe's raw intent
+  // statuses, so there is nothing else to cover here.
+  it.each(['pending', 'processing'])('treats %s as money still in flight', status => {
+    expect(isSettlingPaymentStatus(status)).toBe(true);
+  });
 
   it('is case-insensitive, matching the other status predicates', () => {
     expect(isSettlingPaymentStatus('PENDING')).toBe(true);
@@ -131,9 +131,6 @@ describe('isSettlingPaymentStatus', () => {
     const statuses = [
       'pending',
       'processing',
-      'requires_action',
-      'requires_capture',
-      'requires_confirmation',
       'failed',
       'cancelled',
       'canceled',

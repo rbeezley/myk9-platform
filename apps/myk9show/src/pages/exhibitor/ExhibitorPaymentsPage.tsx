@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom';
 import { Receipt as ReceiptIcon, CreditCard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -173,15 +174,20 @@ function PaymentCard({ row }: { row: PaymentDisplayRow }) {
   const showName = row.showName ?? EMPTY;
   const dateLabel = formatPaymentDate(row.date);
   // The divider is a full-strength border, not border/60: at 60% it measured
-  // 1.20:1 in light and 1.11:1 in dark, which is invisible outdoors and let
-  // three payments read as one block, undoing the grouping this card layout
-  // exists to provide. The zebra tint carries the grouping where the hairline
-  // is still hard to see.
+  // 1.20:1 in light and 1.11:1 in dark. Full strength reaches 1.36:1 and
+  // 1.20:1 — better, still a hairline, so the real grouping work is done by
+  // the py-5 rhythm and the role="group" name rather than by the rule.
+  //
+  // No zebra tint here on purpose: --muted and --card are both #1e1c19 in
+  // dark, so an odd:bg-muted stripe composites to the card color exactly
+  // (1.00:1) and is dead in one theme while contributing 1.03:1 in the other.
+  // A striping token has to differ from --card in BOTH themes to be worth the
+  // class.
   return (
     <div
       role="group"
       aria-label={`Payment for ${showName} on ${dateLabel}`}
-      className="space-y-2 border-b border-border px-4 py-5 odd:bg-muted/30 last:border-b-0"
+      className="space-y-2 border-b border-border px-4 py-5 last:border-b-0"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -209,10 +215,11 @@ function PaymentCard({ row }: { row: PaymentDisplayRow }) {
           </dd>
         </div>
       </dl>
-      {/* Receipt is the third term in the same description list as Amount and
-          Status. It was previously a span + a div carrying aria-labelledby,
-          which ARIA drops on a generic role, so the label/value pairing never
-          reached assistive tech. dt/dd makes the same pairing real. */}
+      {/* A second description list, kept separate from Amount/Status because
+          those two sit side by side and this spans the full width. It was
+          previously a span plus a div carrying aria-labelledby, which ARIA
+          drops on a generic role, so the label/value pairing never reached
+          assistive tech; dt/dd makes it real. */}
       <dl>
         <dt className="text-xs text-muted-foreground">Receipt</dt>
         <dd>
@@ -327,15 +334,15 @@ function PaymentsHistoryList({ rows }: { rows: PaymentDisplayRow[] }) {
 }
 
 export default function ExhibitorPaymentsPage() {
-  const { data: payments, isLoading, isError } = useMyPayments();
+  const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments();
   const {
     data: balanceSummary,
     isLoading: isBalanceLoading,
     isError: isBalanceError,
   } = useMyEntryBalanceSummary();
-  // Stable identity, not CPU: a fresh array every render defeats memoization
-  // downstream, and AuthContext refetches the user profile on a 60s interval,
-  // so this page re-renders in the background on its own.
+  // Stable identity for PaymentsSummary's own memo, and one less array
+  // allocation on every background render: AuthContext refetches the user
+  // profile on a 60s interval, so this page re-renders on its own.
   const paymentRows = useMemo(
     () => (payments ? buildPaymentDisplayRows(payments) : []),
     [payments]
@@ -371,9 +378,22 @@ export default function ExhibitorPaymentsPage() {
         </Card>
       ) : isError ? (
         <Card>
-          <CardContent role="alert" className="py-12 text-center text-muted-foreground">
-            We couldn&apos;t reach your payment history. It will load again once you&apos;re back
-            online.
+          {/* Cause-agnostic on purpose. useMyPayments throws on any query
+              failure, connectivity included but also permissions and 5xx, so
+              naming a cause here would be a guess — and promising it will
+              come back on its own is a guess that never resolves. Say what
+              happened, offer the retry, keep it calm (PRODUCT.md: poor
+              connectivity must not read as user failure). */}
+          <CardContent role="alert" className="space-y-3 py-12 text-center text-muted-foreground">
+            <p>We couldn&apos;t load your payment history just now.</p>
+            <Button
+              variant="outline"
+              size="touch"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+            >
+              {isFetching ? 'Trying again...' : 'Try again'}
+            </Button>
           </CardContent>
         </Card>
       ) : !payments || payments.length === 0 ? (

@@ -1,12 +1,21 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import type { MyPayment } from '@/features/payments/useMyPayments';
 import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 
-const state: { data: MyPayment[]; isLoading: boolean; isError: boolean } = {
+const state: {
+  data: MyPayment[];
+  isLoading: boolean;
+  isError: boolean;
+  isFetching: boolean;
+  refetch: ReturnType<typeof vi.fn>;
+} = {
   data: [],
   isLoading: false,
   isError: false,
+  isFetching: false,
+  refetch: vi.fn(),
 };
 // `data` is deliberately optional. A React Query gated by `enabled` reports
 // isLoading:false / isError:false / data:undefined, and typing this as a
@@ -55,6 +64,8 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [payment];
     state.isLoading = false;
     state.isError = false;
+    state.isFetching = false;
+    state.refetch = vi.fn();
     balanceState.data = {
       currentFeesCents: 0,
       amountDueCents: 0,
@@ -338,8 +349,23 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [];
     state.isError = true;
     render(<ExhibitorPaymentsPage />);
-    expect(screen.getByText(/couldn.t reach your payment history/i)).toBeInTheDocument();
+    expect(screen.getByText(/couldn.t load your payment history/i)).toBeInTheDocument();
     expect(screen.queryByText(/No payments yet/i)).not.toBeInTheDocument();
+  });
+
+  it('offers a retry on a failed load, and does not guess why it failed', async () => {
+    state.data = [];
+    state.isError = true;
+    render(<ExhibitorPaymentsPage />);
+
+    const retry = screen.getByRole('button', { name: /try again/i });
+    await userEvent.click(retry);
+    expect(state.refetch).toHaveBeenCalled();
+
+    // useMyPayments throws on any query failure, so the copy must not blame
+    // connectivity or promise a recovery it cannot deliver.
+    expect(screen.queryByText(/back online/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/refresh/i)).not.toBeInTheDocument();
   });
 
   describe('balance states', () => {

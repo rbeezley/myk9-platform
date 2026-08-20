@@ -41,13 +41,12 @@ export function isRetryablePaymentStatus(status: string): boolean {
   return s === 'failed' || s === 'cancelled' || s === 'canceled';
 }
 
-const SETTLING_STATUSES = new Set([
-  'pending',
-  'processing',
-  'requires_action',
-  'requires_capture',
-  'requires_confirmation',
-]);
+// Only the two in-flight values stripe_orders.status can actually hold. The
+// column carries CHECK (status IN ('pending','processing','succeeded',
+// 'failed','refunded','cancelled')) — migration 005 — so Stripe's raw intent
+// statuses (requires_action and friends) cannot reach this code, and listing
+// them would be unreachable branch surface.
+const SETTLING_STATUSES = new Set(['pending', 'processing']);
 
 /**
  * Money that is in flight: the order exists and is moving, but has neither

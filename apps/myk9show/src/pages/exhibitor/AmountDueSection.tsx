@@ -146,7 +146,7 @@ export function AmountDueSection({
             {summary.onlineShowBalances.map(show => (
               <div
                 key={show.showId}
-                className="flex flex-col gap-2 rounded-md border border-border/60 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span className="text-sm font-medium">{show.showName}</span>
                 <Button asChild variant="outline" size="touch">

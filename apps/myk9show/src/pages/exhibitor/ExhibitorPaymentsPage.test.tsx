@@ -247,6 +247,7 @@ describe('ExhibitorPaymentsPage', () => {
         {
           showId: 'show-1',
           showName: 'Spring Trial',
+          entryCloseDay: null,
           amountDueCents: 5500,
           onlineDueCents: 5500,
           payAtShowDueCents: 0,
@@ -277,6 +278,7 @@ describe('ExhibitorPaymentsPage', () => {
         {
           showId: 'show-1',
           showName: 'Spring Trial',
+          entryCloseDay: null,
           amountDueCents: 2500,
           onlineDueCents: 2500,
           payAtShowDueCents: 0,
@@ -308,6 +310,7 @@ describe('ExhibitorPaymentsPage', () => {
         {
           showId: 'show-1',
           showName: 'A Trial',
+          entryCloseDay: null,
           amountDueCents: 2500,
           onlineDueCents: 2500,
           payAtShowDueCents: 0,
@@ -317,6 +320,7 @@ describe('ExhibitorPaymentsPage', () => {
         {
           showId: 'show-2',
           showName: 'B Trial',
+          entryCloseDay: null,
           amountDueCents: 3000,
           onlineDueCents: 3000,
           payAtShowDueCents: 0,
@@ -337,6 +341,147 @@ describe('ExhibitorPaymentsPage', () => {
       'href',
       '/cart?showId=show-2&entryIds=e2'
     );
+  });
+
+  // The amount-due card answers "how much"; these cover the "by when" half.
+  // Fake timers pin "today" so the copy is the same in every timezone and on
+  // every future run — the deadline text is year-sensitive by design.
+  describe('entry-close deadline', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 8, 1, 12, 0, 0));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('names the entry-close date beside the show on a single-show balance', () => {
+      balanceState.data = {
+        currentFeesCents: 5500,
+        amountDueCents: 5500,
+        onlineDueCents: 5500,
+        payAtShowDueCents: 0,
+        onlineShowBalances: [
+          {
+            showId: 'show-1',
+            showName: 'Spring Trial',
+            entryCloseDay: '2026-09-14',
+            amountDueCents: 5500,
+            onlineDueCents: 5500,
+            payAtShowDueCents: 0,
+            entryIds: ['e1'],
+            paymentHref: '/cart?showId=show-1&entryIds=e1',
+          },
+        ],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByText('Spring Trial - pay by Sep 14')).toBeInTheDocument();
+    });
+
+    it('names the entry-close date in the qualified single-show line when other money is also due', () => {
+      balanceState.data = {
+        currentFeesCents: 5500,
+        amountDueCents: 5500,
+        onlineDueCents: 2500,
+        payAtShowDueCents: 3000,
+        onlineShowBalances: [
+          {
+            showId: 'show-1',
+            showName: 'Spring Trial',
+            entryCloseDay: '2026-09-14',
+            amountDueCents: 2500,
+            onlineDueCents: 2500,
+            payAtShowDueCents: 0,
+            entryIds: ['e1'],
+            paymentHref: '/cart?showId=show-1&entryIds=e1',
+          },
+        ],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(
+        screen.getByText('$25.00 of this is for Spring Trial - pay by Sep 14')
+      ).toBeInTheDocument();
+    });
+
+    it('names each show its own entry-close date in the multi-show breakdown', () => {
+      balanceState.data = {
+        currentFeesCents: 5500,
+        amountDueCents: 5500,
+        onlineDueCents: 5500,
+        payAtShowDueCents: 0,
+        onlineShowBalances: [
+          {
+            showId: 'show-1',
+            showName: 'A Trial',
+            entryCloseDay: '2026-09-14',
+            amountDueCents: 2500,
+            onlineDueCents: 2500,
+            payAtShowDueCents: 0,
+            entryIds: ['e1'],
+            paymentHref: '/cart?showId=show-1&entryIds=e1',
+          },
+          {
+            showId: 'show-2',
+            showName: 'B Trial',
+            entryCloseDay: '2026-10-02',
+            amountDueCents: 3000,
+            onlineDueCents: 3000,
+            payAtShowDueCents: 0,
+            entryIds: ['e2'],
+            paymentHref: '/cart?showId=show-2&entryIds=e2',
+          },
+        ],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByText('A Trial - pay by Sep 14')).toBeInTheDocument();
+      expect(screen.getByText('B Trial - pay by Oct 2')).toBeInTheDocument();
+    });
+
+    it('shows the bare show name when the close date is unknown or already past', () => {
+      balanceState.data = {
+        currentFeesCents: 5500,
+        amountDueCents: 5500,
+        onlineDueCents: 5500,
+        payAtShowDueCents: 0,
+        onlineShowBalances: [
+          {
+            showId: 'show-1',
+            showName: 'A Trial',
+            entryCloseDay: null,
+            amountDueCents: 2500,
+            onlineDueCents: 2500,
+            payAtShowDueCents: 0,
+            entryIds: ['e1'],
+            paymentHref: '/cart?showId=show-1&entryIds=e1',
+          },
+          {
+            showId: 'show-2',
+            showName: 'B Trial',
+            entryCloseDay: '2026-08-20',
+            amountDueCents: 3000,
+            onlineDueCents: 3000,
+            payAtShowDueCents: 0,
+            entryIds: ['e2'],
+            paymentHref: '/cart?showId=show-2&entryIds=e2',
+          },
+        ],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByText('A Trial')).toBeInTheDocument();
+      // Closed on Aug 20, rendered on Sep 1: state no deadline rather than an
+      // overdue-looking one the app cannot back up.
+      expect(screen.getByText('B Trial')).toBeInTheDocument();
+      expect(screen.queryByText(/pay by/i)).not.toBeInTheDocument();
+    });
   });
 
   it('shows the empty state when there are no payments', () => {
@@ -421,6 +566,7 @@ describe('ExhibitorPaymentsPage', () => {
           {
             showId: 'show-1',
             showName: 'Spring Trial',
+            entryCloseDay: null,
             amountDueCents: 5500,
             onlineDueCents: 5500,
             payAtShowDueCents: 0,
@@ -456,6 +602,7 @@ describe('ExhibitorPaymentsPage', () => {
           {
             showId: 'show-1',
             showName: 'Spring Trial',
+            entryCloseDay: null,
             amountDueCents: 5500,
             onlineDueCents: 5500,
             payAtShowDueCents: 0,

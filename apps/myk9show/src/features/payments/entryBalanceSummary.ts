@@ -2,6 +2,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { mapEntryStatus, mapPaymentStatus } from '@/utils/entryManagementUtils';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import { buildFinishPaymentHref } from './finishPaymentHref';
+import { toEntryCloseDay } from './entryCloseDeadline';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
 
 export interface EntryBalanceClassSource {
@@ -14,6 +15,12 @@ export interface EntryBalanceSource {
   showName?: string | null;
   showDate: Date;
   showEndDate?: Date | undefined;
+  /**
+   * The show's entry-close day as a bare `YYYY-MM-DD` calendar day, or `null`
+   * when the show has none. NOT a Date: see `./entryCloseDeadline` for why the
+   * day is carried as a string rather than an instant.
+   */
+  entryCloseDay?: string | null | undefined;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
   paymentMethod?: string | null | undefined;
@@ -25,6 +32,12 @@ export interface EntryBalanceSource {
 export interface EntryBalanceShowSummary {
   showId: string;
   showName: string;
+  /**
+   * Entry-close day for this show (`YYYY-MM-DD`), or `null` when unknown.
+   * Required rather than optional so a new caller has to decide what it knows
+   * instead of silently rendering a balance with no deadline.
+   */
+  entryCloseDay: string | null;
   amountDueCents: number;
   onlineDueCents: number;
   payAtShowDueCents: number;
@@ -58,6 +71,7 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
     name?: string | null;
     start_date?: string | null;
     end_date?: string | null;
+    entry_close_date?: string | null;
   } | null;
   registration?: {
     payment_status?: string | null;
@@ -84,6 +98,7 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     showName: show?.name ?? null,
     showDate: parseShowDate(show?.start_date) ?? new Date(),
     showEndDate: parseShowDate(show?.end_date),
+    entryCloseDay: toEntryCloseDay(show?.entry_close_date),
     entryStatus: mapEntryStatus(row.entry_status ?? 'pending'),
     paymentStatus: mapPaymentStatus(paymentStatus),
     paymentMethod: row.payment_method ?? null,
@@ -167,6 +182,7 @@ export function summarizeEntryBalances(
     const existing = showBalances.get(showId) ?? {
       showId,
       showName: entry.showName || 'This show',
+      entryCloseDay: entry.entryCloseDay ?? null,
       amountDueCents: 0,
       onlineDueCents: 0,
       payAtShowDueCents: 0,
@@ -174,6 +190,11 @@ export function summarizeEntryBalances(
     };
     existing.amountDueCents += cents;
     existing.onlineDueCents += cents;
+    // Every row for a show shares one close day, but rows can reach here from
+    // paths that resolved the show join and paths that did not. First known
+    // day wins so one relation-less row cannot erase a deadline the others
+    // carry.
+    existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
     existing.entryIds.push(...entryIdsForPayment(entry));
     showBalances.set(showId, existing);
   }

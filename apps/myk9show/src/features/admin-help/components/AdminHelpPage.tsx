@@ -89,15 +89,18 @@ export function AdminHelpPage() {
     <div className="container mx-auto max-w-5xl space-y-4 py-6">
       <header>
         <h1 className="font-display text-2xl font-bold">Page Directory</h1>
-        {/* Not "every page". This sits on the same screen as the amber
-          drift panel below, which lists the routes the directory does NOT
-          carry — the old copy contradicted it in view. Make no claim about
-          which kinds of route are in or out: the list carries some redirects
-          (/my-entries, /browse-shows) and omits others, so any such rule
-          would be the same overclaim one step sideways. */}
+        {/* Not "every page". This sits on the same screen as the amber drift
+          panel below, which lists routes the directory does NOT carry — the old
+          copy contradicted it in view. Two limits keep the replacement honest.
+          Make no claim about which KINDS of route are in or out: the list
+          carries some redirects (/my-entries, /browse-shows) and omits others.
+          And say "registered routes", because routeDiff compares against
+          fullRouteRegistry — a page routed but never registered there, like
+          /account, is invisible to the panel, so promising it flags anything
+          uncatalogued would be the same overclaim a third time. */}
         <p className="text-sm text-muted-foreground">
-          myK9Show&apos;s user-facing pages, grouped by role. The list is hand-authored, so
-          anything uncatalogued is flagged under Directory drift below.
+          myK9Show&apos;s user-facing pages, grouped by role. The list is hand-authored;
+          registered routes it does not carry are flagged under Directory drift below.
         </p>
       </header>
 

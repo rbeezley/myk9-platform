@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { pageDirectory } from '../data/pageDirectory';
 import { fullRouteRegistry } from '@/routes/routeRegistry';
+import { routeDiff } from '../utils/routeDiff';
 import { UserRole } from '@/types/auth-types';
 
 describe('pageDirectory (invariant)', () => {
@@ -128,12 +129,49 @@ describe('pageDirectory (invariant)', () => {
   });
 
   // The directory is hand-authored and deliberately omits redirect-only routes
-  // (asserted above for the legacy /secretary/shows paths), and nothing enforces
-  // that a new route gets an entry — the drift panel reports that at runtime.
+  // (asserted above for the legacy /secretary/shows paths), and the coverage
+  // gate below reaches only registered routes — a routed-but-unregistered page
+  // like /account is invisible to both it and the drift panel.
   // So no copy on this surface may claim it covers "every page".
   it('the self-entry does not claim to cover every page', () => {
     const entry = pageDirectory.find(e => e.path === '/admin/help');
     expect(entry?.description).not.toMatch(/every page/i);
+  });
+
+  /**
+   * Registered routes allowed to have no directory entry.
+   *
+   * Both are LegacySecretaryShowRedirect — redirects superseded by the
+   * canonical /shows/:showId/* paths, and asserted absent from the directory
+   * above. Being a redirect is NOT what earns a slot here (/my-entries and
+   * /browse-shows are redirects and ARE catalogued); being deliberately
+   * retired is.
+   */
+  const DRIFT_ALLOWLIST = ['/secretary/shows/:showId', '/secretary/shows/:showId/*'];
+
+  // The existing invariant at the top of this file enforces one direction only:
+  // no entry may point at a path the registry lacks. The reverse — a route with
+  // nobody documenting it — was left to the runtime drift panel, which is
+  // advisory: /support sat uncatalogued in it rather than failing anything.
+  //
+  // This closes that direction. A new route now fails here until it is either
+  // catalogued or consciously added to the allowlist above, and the allowlist is
+  // exact rather than a floor, so a retired route that regains an entry (or a
+  // stale allowlist line) fails too.
+  it('every registered route is catalogued, except the deliberately retired ones', () => {
+    const { missing, extra } = routeDiff(fullRouteRegistry, pageDirectory);
+
+    expect(extra).toEqual([]);
+    expect(missing).toEqual([...DRIFT_ALLOWLIST].sort());
+  });
+
+  // Guards the allowlist itself: a line that no longer names a real route is
+  // dead permission, and would silently keep excusing nothing while reading as
+  // though it still covers something.
+  it('every allowlisted path is still a registered route', () => {
+    const registryPaths = new Set(Object.keys(fullRouteRegistry));
+    const stale = DRIFT_ALLOWLIST.filter(p => !registryPaths.has(p));
+    expect(stale).toEqual([]);
   });
 
   it('every linksTo path resolves to an existing PageEntry path', () => {

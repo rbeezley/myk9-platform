@@ -4,10 +4,15 @@ import { UserRole } from '@/types/auth-types';
 /**
  * Hand-authored directory of myK9Show's user-facing pages.
  *
- * pageDirectory.test.ts enforces only ONE direction of sync: that no entry
- * points at a path fullRouteRegistry does not have. The reverse — a route
- * with no entry — is NOT asserted; it surfaces at runtime in the Directory
- * drift panel on /admin/help. So this list is not guaranteed exhaustive.
+ * pageDirectory.test.ts enforces BOTH directions of sync against
+ * fullRouteRegistry: no entry may point at a path the registry lacks, and no
+ * registered route may go uncatalogued except the ones on that file's
+ * DRIFT_ALLOWLIST. Adding a route without an entry fails the suite.
+ *
+ * The guarantee stops at the registry. A page that is routed but never
+ * registered — /account today — is outside both collections, so neither the
+ * test nor the Directory drift panel on /admin/help can see it. This list is
+ * exhaustive over registered routes, not over the app.
  *
  * Being a redirect is not itself grounds for exclusion — /my-entries,
  * /browse-shows and /admin/permissions/users are all catalogued as redirects.

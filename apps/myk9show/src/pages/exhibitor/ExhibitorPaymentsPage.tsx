@@ -9,10 +9,18 @@
  * Payment" flow (`/cart`, scoped by the order's show + entry ids) so the
  * exhibitor can retry without hunting through My Shows. Complements MyEntriesPage's
  * per-entry Receipt / Finish Payment actions with a single chronological money view.
+ *
+ * The list is scoped by a single control — a calendar-year filter backed by
+ * `?year=` — because the job this page is asked to do once a year is "what did
+ * I spend last season". Nothing else on the exhibitor side answers that: My
+ * Shows filters by entry lifecycle, the printable receipt is per-entry, and the
+ * report registry has no exhibitor audience. Deliberately ONE control: no
+ * search, no sort, no date range, no export. Filtering display rows means the
+ * existing totals card re-totals the chosen year for free.
  */
 
-import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Receipt as ReceiptIcon, CreditCard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +50,14 @@ import {
   type PaymentDisplayRow,
 } from '@/features/payments/moneyPresentation';
 import { summarizePaymentLedgerTotals } from '@/features/payments/paymentsSummary';
+import {
+  ALL_PAYMENT_YEARS,
+  filterPaymentRowsByYear,
+  isPaymentYearSelection,
+  listPaymentYears,
+  type PaymentYearSelection,
+} from '@/features/payments/paymentYearFilter';
+import { PaymentYearFilter } from './PaymentYearFilter';
 
 /** Placeholder for a missing cell value. Hyphen-minus, never an em dash (UI-copy rule). */
 const EMPTY = '-';
@@ -234,7 +250,14 @@ function PaymentCard({ row }: { row: PaymentDisplayRow }) {
  * At-a-glance net total from the same visible rows in the table, so refunds
  * cannot disappear from the header math.
  */
-function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
+function PaymentsSummary({
+  rows,
+  yearLabel,
+}: {
+  rows: PaymentDisplayRow[];
+  /** Selected calendar year, or null for all time. Scopes the count sentence. */
+  yearLabel: string | null;
+}) {
   const totals = useMemo(() => summarizePaymentLedgerTotals(rows), [rows]);
   if (totals.length === 0) return null;
 
@@ -270,11 +293,17 @@ function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
                 </p>
               </div>
             </div>
+            {/* The scope rides on the count sentence rather than a separate
+                caption because the card is one unit: "Gross paid $500" above
+                "12 payments in 2025" is scoped, whereas an unlabelled total
+                under a year filter is a money claim about a period the
+                exhibitor never named. */}
             <p className="mt-3 text-sm text-muted-foreground">
               {t.paymentCount} {t.paymentCount === 1 ? 'payment' : 'payments'}
               {t.refundCount > 0
                 ? `, ${t.refundCount} ${t.refundCount === 1 ? 'refund' : 'refunds'}`
                 : ''}
+              {yearLabel ? ` in ${yearLabel}` : ''}
             </p>
           </CardContent>
         </Card>
@@ -348,6 +377,42 @@ export default function ExhibitorPaymentsPage() {
     [payments]
   );
 
+  // The selected year lives in the URL, not local state — same convention as
+  // My Shows' `?tab=`, so the view survives refresh, back/forward, and a link
+  // an exhibitor mails to their accountant. Derived straight from the params
+  // rather than synced into state (no set-state-in-effect).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paymentYears = useMemo(() => listPaymentYears(paymentRows), [paymentRows]);
+  const yearParam = searchParams.get('year');
+  // Defaults to all time, and an unrecognized `?year=` falls back to it. A
+  // money surface must not open having silently hidden rows, and an empty
+  // ledger from a stale link reads as "you paid nothing" rather than "that
+  // year has no payments".
+  const selectedYear: PaymentYearSelection = isPaymentYearSelection(yearParam, paymentYears)
+    ? yearParam
+    : ALL_PAYMENT_YEARS;
+
+  const setSelectedYear = useCallback(
+    (year: PaymentYearSelection) => {
+      setSearchParams(
+        previous => {
+          const next = new URLSearchParams(previous);
+          // 'all' is the default; keep it out of the canonical URL.
+          if (year === ALL_PAYMENT_YEARS) next.delete('year');
+          else next.set('year', year);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const visibleRows = useMemo(
+    () => filterPaymentRowsByYear(paymentRows, selectedYear),
+    [paymentRows, selectedYear]
+  );
+
   return (
     <div className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
       <div>
@@ -408,11 +473,24 @@ export default function ExhibitorPaymentsPage() {
         // heading at all — the whole page exposed a single h1 to a screen
         // reader's heading rotor.
         <section aria-labelledby="payment-history-heading" className="space-y-6">
-          <h2 id="payment-history-heading" className="text-sm font-medium text-muted-foreground">
-            Payment history
-          </h2>
-          <PaymentsSummary rows={paymentRows} />
-          <PaymentsHistoryList rows={paymentRows} />
+          {/* The filter sits with the heading it scopes, below the Amount due
+              card, so it reads as covering the history and not the balances
+              above it. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="payment-history-heading" className="text-sm font-medium text-muted-foreground">
+              Payment history
+            </h2>
+            <PaymentYearFilter
+              years={paymentYears}
+              value={selectedYear}
+              onChange={setSelectedYear}
+            />
+          </div>
+          <PaymentsSummary
+            rows={visibleRows}
+            yearLabel={selectedYear === ALL_PAYMENT_YEARS ? null : selectedYear}
+          />
+          <PaymentsHistoryList rows={visibleRows} />
         </section>
       )}
     </div>

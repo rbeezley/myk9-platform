@@ -3,7 +3,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   startOfLocalDay,
   isPastShowEntry,
-  computeMyEntriesShowDateStats,
+  computeMyEntriesShowProgressStats,
   parseShowDate,
   getPartiallyScoredState,
 } from './myEntriesStats.helpers';
@@ -105,7 +105,7 @@ describe('isPastShowEntry', () => {
   });
 });
 
-describe('computeMyEntriesShowDateStats', () => {
+describe('computeMyEntriesShowProgressStats', () => {
   // Mirrors the real staging fixture for exhibitor1:
   //  - Heritage: started May 31, still running today  -> 1 upcoming show, 1 entry
   //  - QA Walk 1593 (May 21): past                    -> contributes to past shows
@@ -126,19 +126,19 @@ describe('computeMyEntriesShowDateStats', () => {
   ];
 
   it('counts DISTINCT shows, not entries', () => {
-    const stats = computeMyEntriesShowDateStats(entries, NOW);
-    expect(stats.pastShows).toBe(2); // qa1593 + qa0779, not 5 entries
+    const stats = computeMyEntriesShowProgressStats(entries, NOW);
+    expect(stats.completedShows).toBe(2); // qa1593 + qa0779, not 5 entries
     expect(stats.upcomingShows).toBe(1); // heritage (running today)
   });
 
   it('counts upcoming entries (entries in non-past shows)', () => {
-    const stats = computeMyEntriesShowDateStats(entries, NOW);
+    const stats = computeMyEntriesShowProgressStats(entries, NOW);
     expect(stats.upcomingEntries).toBe(1); // only the single Heritage entry
   });
 
   it('returns zeroed stats for no entries', () => {
-    expect(computeMyEntriesShowDateStats([], NOW)).toEqual({
-      pastShows: 0,
+    expect(computeMyEntriesShowProgressStats([], NOW)).toEqual({
+      completedShows: 0,
       upcomingShows: 0,
       upcomingEntries: 0,
     });
@@ -217,6 +217,27 @@ describe('getPartiallyScoredState', () => {
       classes: [scored('a'), makeClass('b', { status: 'scratched' })],
     });
     expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+
+  // Every score-reset path clears `is_scored` but leaves `check_in_status` on
+  // 'completed'. Reading the status alone would keep the reset run filed as
+  // done, with no way back out of the Completed tab.
+  it('treats an explicitly reset class as unscored despite a stale completed status', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        // Reset: is_scored cleared, status left behind.
+        makeClass('b', {
+          isScored: false,
+          entryStatus: EntryStatus.COMPLETED,
+          entryStatusKind: 'completed',
+        }),
+      ],
+    });
+
+    expect(getPartiallyScoredState(entry)?.remainingClasses).toBe(1);
   });
 
   it('returns undefined for a legacy order with no class rows', () => {

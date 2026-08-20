@@ -12,7 +12,7 @@ import {
   summarizeEntryBalances,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
-import { computeMyEntriesShowDateStats, isCompletedEntry } from './myEntriesStats.helpers';
+import { computeMyEntriesShowProgressStats, isCompletedEntry } from './myEntriesStats.helpers';
 import { isEntryTabFilter } from './entryTabDefs';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
@@ -161,7 +161,7 @@ export function useMyEntriesFilters({
     const currentPendingEntries = currentEntries.filter(isPendingEntry);
     // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day
     // show running today counts as upcoming, not past, matching the Show Today banner.
-    const showDateStats = computeMyEntriesShowDateStats(entries, now);
+    const showProgressStats = computeMyEntriesShowProgressStats(entries, now);
     const paidEntries = entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
     const unpaidEntries = entries.filter(e => e.paymentStatus === PaymentStatus.PENDING);
     const acceptedPaid = accepted.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
@@ -185,9 +185,9 @@ export function useMyEntriesFilters({
         total: entries.length,
         accepted: accepted.length,
         pending: pending.length,
-        upcoming: showDateStats.upcomingEntries,
-        pastShows: showDateStats.pastShows,
-        upcomingShows: showDateStats.upcomingShows,
+        upcoming: showProgressStats.upcomingEntries,
+        completedShows: showProgressStats.completedShows,
+        upcomingShows: showProgressStats.upcomingShows,
         currentAcceptedEntries: currentAcceptedEntries.length,
         currentPendingEntries: currentPendingEntries.length,
         acceptedPaid: acceptedPaid.length,

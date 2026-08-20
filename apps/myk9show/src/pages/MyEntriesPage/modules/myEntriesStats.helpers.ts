@@ -69,6 +69,13 @@ export function isPastShowEntry(
  * still be scored, which keying on `entryStatus` alone would miss.
  */
 function isScoredClass(cls: EntryClass): boolean {
+  // An explicit `is_scored: false` outranks a stale completed status. Every
+  // score-reset path (usePaperScoring.clearEntry, useClassResults,
+  // useAtShowEntryListActions) clears `is_scored` and the result fields but
+  // leaves `check_in_status` / `entry_status` on 'completed', so reading the
+  // status alone would keep a reset run filed as done and stick its order in
+  // the Completed tab with no way back.
+  if (cls.isScored === false) return false;
   return (
     cls.isScored === true ||
     cls.entryStatusKind === 'completed' ||
@@ -175,18 +182,19 @@ export function getPartiallyScoredState(
  * still reads "Scored" — the badge summarises by dominant status, which is a
  * separate question from whether the exhibitor is done.
  *
- * Deliberately NOT used by `computeMyEntriesShowDateStats` or the fee math:
- * "Past Shows" / "Upcoming Shows" and amount-due are genuine show-date
- * questions, and a scored entry can still owe money.
+ * Deliberately NOT used by the fee math: amount-due is a genuine show-date
+ * question, and a scored entry at a show that has not happened yet can still
+ * owe an entry fee. The show-level counts DO use it — the cards they feed deep
+ * link to the tabs, so they must agree with tab membership.
  */
 export function isCompletedEntry(entry: MyEntry, now: Date): boolean {
   return isScoredEntry(entry) || isPastShowEntry(entry, now);
 }
 
-export interface MyEntriesShowDateStats {
-  /** Distinct shows whose final day is before today. */
-  pastShows: number;
-  /** Distinct shows that are running today or in the future. */
+export interface MyEntriesShowProgressStats {
+  /** Distinct shows the exhibitor is done with — every run scored, or over. */
+  completedShows: number;
+  /** Distinct shows that still have something ahead of them. */
   upcomingShows: number;
   /** Entries belonging to a non-past (current or future) show. */
   upcomingEntries: number;
@@ -198,22 +206,27 @@ function showKey(entry: MyEntry): string {
 }
 
 /**
- * Compute show-date-derived stats from the user's entries.
+ * Compute show-level progress stats from the user's entries.
  *
- * Counts DISTINCT shows (deduped by show), not entries — the cards are labelled
- * "Past Shows" / "Upcoming Shows".
+ * Counts DISTINCT shows (deduped by show), not entries — the cards these feed
+ * are labelled "Completed Shows" / "Upcoming Shows".
+ *
+ * These use the same `isCompletedEntry` axis as the Upcoming/Completed tabs
+ * rather than the show date, because the cards deep-link into those tabs. A
+ * count on a different rule sends the exhibitor to a tab that disagrees with
+ * the number they just tapped.
  */
-export function computeMyEntriesShowDateStats(
+export function computeMyEntriesShowProgressStats(
   entries: MyEntry[],
   now: Date
-): MyEntriesShowDateStats {
-  const pastShowIds = new Set<string>();
+): MyEntriesShowProgressStats {
+  const completedShowIds = new Set<string>();
   const upcomingShowIds = new Set<string>();
   let upcomingEntries = 0;
 
   for (const entry of entries) {
-    if (isPastShowEntry(entry, now)) {
-      pastShowIds.add(showKey(entry));
+    if (isCompletedEntry(entry, now)) {
+      completedShowIds.add(showKey(entry));
     } else {
       upcomingShowIds.add(showKey(entry));
       upcomingEntries += 1;
@@ -221,7 +234,7 @@ export function computeMyEntriesShowDateStats(
   }
 
   return {
-    pastShows: pastShowIds.size,
+    completedShows: completedShowIds.size,
     upcomingShows: upcomingShowIds.size,
     upcomingEntries,
   };

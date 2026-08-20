@@ -273,9 +273,10 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
     expect(result.current.tabCounts.upcoming).toBe(0);
   });
 
-  it('leaves the fee and summary stats on the show-date axis', () => {
+  it('leaves the FEE stats on the show-date axis while the counts follow the tabs', () => {
     // A scored entry at a show that has not happened yet can still owe money,
     // so folding it into Completed must not move `currentFees`/amount due.
+    // The show COUNTS do move with it: their cards deep-link to the tabs.
     const scoredUnpaidFuture = makeEntry({
       id: 'scored-unpaid-future',
       showId: 'scored-unpaid-future-show',
@@ -289,12 +290,14 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
 
     const { result } = renderFilters({ entries: [scoredUnpaidFuture] });
 
+    // Money: unchanged, still owed.
     expect(result.current.entryStats.currentFees).toBe(35);
     expect(result.current.entryStats.currentAmountDue).toBe(35);
-    expect(result.current.entryStats.upcomingShows).toBe(1);
-    expect(result.current.entryStats.pastShows).toBe(0);
-    // ...while the tab axis still calls it done.
+    // Counts: done, and agreeing with the tab the card links to.
+    expect(result.current.entryStats.completedShows).toBe(1);
+    expect(result.current.entryStats.upcomingShows).toBe(0);
     expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
   });
 
   // Live seed shape (Aug 29 2026 show): `groupEntriesByOrder` merges a dog's

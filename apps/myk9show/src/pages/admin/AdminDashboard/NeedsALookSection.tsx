@@ -9,6 +9,7 @@
  * There is no owner column and no assignment control, on purpose — see
  * triageSelectors. Do not add one without a backend concept behind it.
  */
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { formatCheckedAgo } from '@/features/admin-system-health/systemHealthSelectors';
 import {
@@ -20,8 +21,10 @@ import {
 } from '@/features/admin-overview/triageSelectors';
 import { BoardCard, Eyebrow, FilterTabs } from '../SystemHealth/HealthBoardPrimitives';
 
+// Critical is the only solid fill so it outranks High at a glance; both modes
+// pass AA (light: white on rgb(185,28,28); dark: #450a0a on rgb(248,113,113)).
 const SEVERITY_CHIP: Record<TriageSeverity, string> = {
-  Critical: 'bg-destructive/10 text-destructive',
+  Critical: 'bg-destructive text-destructive-foreground',
   High: 'bg-destructive/10 text-destructive',
   Medium: 'bg-warning/10 text-warning',
   Low: 'bg-muted text-muted-foreground',
@@ -44,11 +47,11 @@ export function NeedsALookSection({
   if (summary.total === 0) {
     return (
       <BoardCard>
-        <Eyebrow>Needs a look</Eyebrow>
+        <Eyebrow as="h2">Needs a look</Eyebrow>
         <p className="mt-2 text-[13px] text-foreground">Nothing is waiting on you.</p>
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           No checks are failing and no alerts are unresolved. This list fills itself from those two
-          places — it is not a to-do list you can add to.
+          places. It is not a to-do list you can add to.
         </p>
       </BoardCard>
     );
@@ -58,8 +61,8 @@ export function NeedsALookSection({
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Eyebrow>Needs a look</Eyebrow>
-          <span className="rounded-full bg-destructive/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-destructive">
+          <Eyebrow as="h2">Needs a look</Eyebrow>
+          <span className="rounded-full bg-destructive/10 px-2 py-0.5 font-mono text-xs font-semibold text-destructive">
             {summary.total}
           </span>
         </div>
@@ -80,11 +83,11 @@ export function NeedsALookSection({
         {visible.map(item => (
           <div
             key={item.id}
-            className="flex min-w-0 flex-col gap-2 bg-card px-5 py-[13px] sm:flex-row sm:items-center sm:gap-3"
+            className="flex min-w-0 flex-col gap-2 bg-card px-5 py-[13px] lg:flex-row lg:items-center lg:gap-3"
           >
             <span
               className={cn(
-                'shrink-0 self-start rounded-[5px] px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.05em]',
+                'shrink-0 self-start rounded-[5px] px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-[0.05em]',
                 SEVERITY_CHIP[item.severity]
               )}
             >
@@ -92,30 +95,31 @@ export function NeedsALookSection({
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-semibold text-foreground">
+              <span className="block text-[13px] font-semibold text-foreground line-clamp-2 lg:line-clamp-1">
                 {item.title}
               </span>
-              <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                 {item.detail}
               </span>
             </span>
 
-            <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground sm:w-[92px]">
+            <span className="shrink-0 font-mono text-xs text-muted-foreground lg:w-[92px]">
               {formatCheckedAgo(item.openedAt, now)}
             </span>
 
-            <a
-              href={item.action.href}
-              className="shrink-0 self-start rounded-[9px] border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:self-auto"
+            <Link
+              to={item.action.href}
+              className="inline-flex min-h-10 shrink-0 items-center self-start rounded-[9px] border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:self-auto"
             >
               {item.action.label}
-            </a>
+            </Link>
           </div>
         ))}
       </div>
 
-      <p className="text-[11.5px] text-muted-foreground">
-        Showing {visible.length} of {summary.total} open item{summary.total === 1 ? '' : 's'}.
+      <p className="text-xs text-muted-foreground">
+        Showing {visible.length} of {summary.total} open item{summary.total === 1 ? '' : 's'} from
+        health checks and alerts.
       </p>
     </section>
   );

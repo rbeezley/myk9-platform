@@ -307,7 +307,9 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
 
             return (
               <div key={roleName} className="space-y-2">
-                <div className="flex items-center gap-3">
+                {/* The label, stretched to the full row, carries the 44px touch
+                    target; the checkbox stays its visual size. */}
+                <div className="flex min-h-11 items-center gap-3">
                   <Checkbox
                     id={`role-${roleName}`}
                     checked={isLocked ? true : checked}
@@ -316,11 +318,9 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
                   />
                   <Label
                     htmlFor={`role-${roleName}`}
-                    className={
-                      isLocked || isOtherGranted
-                        ? 'font-medium text-muted-foreground'
-                        : 'cursor-pointer font-medium'
-                    }
+                    className={`flex min-h-11 flex-1 items-center font-medium ${
+                      isLocked || isOtherGranted ? 'text-muted-foreground' : 'cursor-pointer'
+                    }`}
                   >
                     {ROLE_LABELS[roleName] ?? roleName}
                     {isLocked && <span className="ml-2 text-xs">(always assigned)</span>}
@@ -410,10 +410,15 @@ export const ManageUserRolesDialog: React.FC<ManageUserRolesDialogProps> = ({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button
+            variant="outline"
+            className="h-11"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving || isLoading}>
+          <Button className="h-11" onClick={handleSave} disabled={saving || isLoading}>
             {saving ? 'Saving…' : 'Save Roles'}
           </Button>
         </DialogFooter>

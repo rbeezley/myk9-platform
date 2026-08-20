@@ -43,6 +43,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { rbacService } from '@/services/rbac/RBACService';
 
 import { User } from '@/types/user-types';
+import { getRoleLabel } from './UserTable/types';
 import { useCreateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { commonValidations } from '@/lib/validation';
@@ -407,8 +408,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                         onCheckedChange={checked => handleRoleChange(role.name, !!checked)}
                       />
                       <div className="flex-1 min-w-0">
-                        <Label htmlFor={role.name} className="font-medium capitalize">
-                          {role.name}
+                        <Label htmlFor={role.name} className="font-medium">
+                          {getRoleLabel(role.name)}
                         </Label>
                         {role.description && (
                           <p className="text-sm text-muted-foreground">{role.description}</p>
@@ -423,8 +424,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                   <h4 className="font-medium mb-2">Selected Roles:</h4>
                   <div className="flex flex-wrap gap-2">
                     {form.data.roles.map(role => (
-                      <Badge key={role} variant="default" className="capitalize">
-                        {role}
+                      <Badge key={role} variant="default">
+                        {getRoleLabel(role)}
                       </Badge>
                     ))}
                     {form.data.roles.length === 0 && (

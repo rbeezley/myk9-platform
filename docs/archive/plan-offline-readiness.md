@@ -1,6 +1,6 @@
 # Offline Readiness — indicator and show-eve nudge (MYK9-203)
 
-> **Status:** Active
+> **Status:** Complete
 
 Companion to MYK9-200 (offline RBAC cache) and MYK9-202 (sign-out guard). The
 offline stack only works if the device was **primed while online**; today that
@@ -50,33 +50,57 @@ provider's `lastSyncAt` is deliberately NOT used — it is unscoped and can say
   `syncAtShowData` and flips on success.
 - All new/touched tests 6× under `--sequence.shuffle`.
 
-## PR 2 — show-eve push nudge (server)
+## PR 2 — show-eve push nudge (server) — as built
 
-Edge function `push-trigger-show-eve` + pg_cron schedule.
+Edge function `push-trigger-show-eve` + `show_eve_nudge_log` + pg_cron. The
+shape changed materially during review; this records what shipped.
 
-- **Query:** `trials` where `date` = tomorrow (UTC-evening cron at 23:00 UTC ≈
-  US evening; per-trial timezone refinement deferred, noted as limitation) →
-  join `shows` → staff = active `user_roles` rows (secretary / judge / steward
-  / club_admin / chairman / site-admin excluded) scoped to `show_id` or the
-  show's `club_id`, with `auth_user_id` present.
-- **Send:** webpush loop per user over `push_subscriptions`, the
-  `send-push-notification` pattern (410/404 endpoint cleanup). Copy: "<Show>
-  starts tomorrow — open the show now so it works without internet."
-- **Idempotency:** `show_eve_nudge_log (trial_id, auth_user_id, sent_at)` with
-  a unique constraint; cron re-runs skip logged pairs. Migration includes
-  explicit GRANTs/REVOKEs per the anon default-privileges rule.
-- **Auth:** cron invokes via Vault-stored secret, the waitlist/webhook pattern.
-- Starts **unconditional** for staff (no device-readiness heartbeat), per the
-  issue's fallback design.
+**Audience.** One push per **show per date**, not per trial — the copy names the
+show, so a show running two trials on one day must not buzz anyone twice.
+Recipients are the union of:
+
+- club-scoped staff roles (secretary / club_admin / chairman / steward) that
+  ALSO have an active `club_members` row, per
+  `20260802120000_enforce_club_membership_role_boundaries.sql`;
+- show-scoped official rows, which that migration exempts from membership and
+  which migration 099 wrote with `club_id` NULL — so they need their own query;
+- judges, only via `judge_assignments` for a trial running that date. Class-level
+  assignments store `trial_id` NULL, so the day is resolved through
+  `classes(trial_id)`, and soft-deleted classes and people are excluded.
+
+`notification_preferences.push_enabled` is honoured. Copy reads "starts
+tomorrow" on the first day and "continues tomorrow" thereafter.
+
+**Delivery.** Deep link is `data.actionUrl` (the only field
+`swClickNavigation.readActionUrl` reads), tagged per show so two shows do not
+collapse into one notification. Per-call 8s timeout, ≤10 subscriptions per
+recipient, 120s whole-run deadline.
+
+**Idempotency.** `show_eve_nudge_log` is keyed `(show_id, trial_date,
+auth_user_id)` and separates `claimed_at` from `delivered_at`: a claim is taken
+before sending, stamped only on real delivery via compare-and-swap, and released
+when nothing was delivered. A stale undelivered claim is reclaimable after a
+5-minute lease — deliberately longer than the worst-case send (~80s) and shorter
+than the smallest gap between cron runs (10 min), so each run can rescue its
+predecessor. Cron runs at :00/:15/:30/:45/:55 of the 23:00 UTC hour.
+
+**Accepted residuals** (documented at the code):
+
+- A timed-out push cannot be cancelled, so in a rare case a recipient may get a
+  duplicate. Chosen over suppressing the nudge.
+- A crash during the final run of the window misses that evening; no later run
+  targets the date.
+- Per-trial timezone precision is a follow-up; 23:00 UTC is evening in the US.
 
 ### Testing (PR 2)
 
-- Deno-free helper module with vitest coverage (registered in
-  `apps/myk9show/vitest.config.ts` include list if placed under
-  `supabase/functions/_shared/`): targeting query shaping, idempotent skip,
-  payload copy.
-- Migration through `migration-auditor` + `src/test/database/` contract suite
-  before push; ACL verified against the applied DB (`relacl` + column ACLs).
+- 35 unit tests on the Deno-free helper module, registered in
+  `apps/myk9show/vitest.config.ts` (root-`supabase` tests are an allowlist, so
+  an unregistered file silently never runs in CI).
+- Full DB contract suite green; 659 tests × 6 shuffled runs; typecheck + lint.
+- Migration reviewed by `migration-auditor` AND the contract suite — the suite
+  caught a missing `FORCE RLS` and an RLS-without-policy disposition that the
+  agent passed. The tests are the authority.
 
 ## Follow-ups filed during review
 

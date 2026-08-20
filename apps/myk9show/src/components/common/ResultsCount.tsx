@@ -15,13 +15,16 @@ export function ResultsCount({
   entityName = 'items',
   className,
 }: ResultsCountProps) {
+  // "68 dogs" when nothing is narrowed; "Showing 12 of 68 dogs" when it is.
+  // "Showing … of …" already tells the user the list is narrowed, so the older
+  // "(filtered)" parenthetical was redundant system-speak.
   const text =
-    showing === total ? `${total} ${entityName}` : `${showing} of ${total} ${entityName}`;
+    showing === total ? `${total} ${entityName}` : `Showing ${showing} of ${total} ${entityName}`;
 
   return (
     <span className={cn('text-sm text-muted-foreground', className)}>
       {text}
-      {filtered && ' (filtered)'}
+      {filtered && showing === total && ' (filtered)'}
     </span>
   );
 }

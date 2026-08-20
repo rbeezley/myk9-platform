@@ -23,8 +23,6 @@ import type { FilterDefinition as ChipFilterDefinition } from '@/components/comm
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
-import '@/styles/myk9-show-details.css';
-
 const BrowseDogsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -171,7 +169,7 @@ const BrowseDogsPage: React.FC = () => {
         <EmptyState
           icon={Search}
           title="No dogs match your filters"
-          description="Try adjusting your search or filter criteria."
+          description="Try a different search, or clear the filters to see every dog again."
           action={{ label: 'Clear Filters', onClick: clearAllFilters }}
           variant="filter"
         />
@@ -210,7 +208,12 @@ const BrowseDogsPage: React.FC = () => {
 
       {!isLoading && !hasError && (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title={pageTitle} actions={actionButtons} />
+          <PageHeader
+            breadcrumbs={breadcrumbs}
+            title={pageTitle}
+            actions={actionButtons}
+            showTitle
+          />
 
           <ListControls
             search={filters.search}

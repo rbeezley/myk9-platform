@@ -69,7 +69,7 @@ describe('dogActions bulk menu', () => {
     const dogs = [dog('1', 'active'), dog('2', 'retired'), dog('3', 'active')];
     const result = toBulkActions(dogs, handlers, dogActions);
     const retire = result.find(a => a.id === 'set-status-retired');
-    expect(retire?.label).toBe('Mark retired 2 of 3 selected');
+    expect(retire?.label).toBe('Mark 2 of 3 dogs retired');
     expect(retire?.disabled).toBe(false);
   });
 
@@ -104,7 +104,7 @@ describe('dogActions bulk menu', () => {
     const dogs = [dog('1'), dog('2')];
     const result = toBulkActions(dogs, { onBulkDelete }, dogActions);
     const del = result.find(a => a.id === 'delete');
-    expect(del?.label).toBe('Delete 2 of 2 selected');
+    expect(del?.label).toBe('Delete 2 dogs');
     del?.onSelect();
     expect(onBulkDelete).toHaveBeenCalledWith(dogs);
   });

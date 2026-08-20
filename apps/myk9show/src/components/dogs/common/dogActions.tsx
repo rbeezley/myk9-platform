@@ -32,6 +32,14 @@ const STATUS_LABEL: Record<DogStatus, string> = {
   deceased: 'Deceased',
 };
 
+/** "3 dogs", or "2 of 3 dogs" when some of the selection cannot take the action. */
+function dogCountPhrase(eligibleCount: number, selectedCount: number): string {
+  const noun = eligibleCount === 1 ? 'dog' : 'dogs';
+  return eligibleCount === selectedCount
+    ? `${eligibleCount} ${noun}`
+    : `${eligibleCount} of ${selectedCount} ${noun}`;
+}
+
 function makeStatusAction(
   status: DogStatus,
   icon: React.ReactNode
@@ -51,7 +59,7 @@ function makeStatusAction(
         Boolean(handlers.onBulkSetStatus) && (dog.status ?? 'active') !== status,
       label: (eligibleCount, selectedCount) =>
         eligibleCount > 0
-          ? `Mark ${STATUS_LABEL[status].toLowerCase()} ${eligibleCount} of ${selectedCount} selected`
+          ? `Mark ${dogCountPhrase(eligibleCount, selectedCount)} ${STATUS_LABEL[status].toLowerCase()}`
           : `Mark ${STATUS_LABEL[status].toLowerCase()}`,
       unavailableReason: `No selected dogs can be marked ${STATUS_LABEL[status].toLowerCase()}`,
       run: (eligible, handlers) => handlers.onBulkSetStatus?.(eligible, status),
@@ -80,7 +88,7 @@ export const dogActions: ReadonlyArray<EntityAction<Dog, DogActionHandlers>> = [
       // eligibility checks `onBulkDelete`, not the row `applicableWhen` default.
       applicableWhen: (_dog, handlers) => Boolean(handlers.onBulkDelete),
       label: (eligibleCount, selectedCount) =>
-        eligibleCount > 0 ? `Delete ${eligibleCount} of ${selectedCount} selected` : 'Delete',
+        eligibleCount > 0 ? `Delete ${dogCountPhrase(eligibleCount, selectedCount)}` : 'Delete',
       unavailableReason: 'No selected dogs can be deleted',
       run: (eligible, handlers) => handlers.onBulkDelete?.(eligible),
     },

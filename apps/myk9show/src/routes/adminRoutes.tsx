@@ -245,7 +245,9 @@ export const AdminRoutes = () => (
     {/* The roles list now lives on the overview console — see
         docs/plan-permissions-overview-roles-console.md. Kept as a redirect
         because CreateRolePage / CloneRolePage / RoleEditPage all link back
-        here, matching the /admin/permissions/users precedent below. */}
+        here. Wrapped in adminGuard (fail closed one hop earlier), matching
+        the /admin/permissions/audit precedent below — not the unguarded
+        /admin/permissions/users redirect further down. */}
     <Route
       path="/admin/permissions/roles"
       element={adminGuard(<Navigate to="/admin/permissions" replace />)}

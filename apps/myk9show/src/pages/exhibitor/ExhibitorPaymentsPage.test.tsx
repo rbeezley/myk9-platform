@@ -395,7 +395,10 @@ describe('ExhibitorPaymentsPage', () => {
           {
             showId: 'show-1',
             showName: 'Spring Trial',
+            amountDueCents: 5500,
             onlineDueCents: 5500,
+            payAtShowDueCents: 0,
+            entryIds: ['e1'],
             paymentHref: '/cart?showId=show-1&entryIds=e1',
           },
         ],

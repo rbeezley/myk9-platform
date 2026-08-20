@@ -13,10 +13,9 @@
 
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Receipt as ReceiptIcon, CreditCard, WalletCards } from 'lucide-react';
+import { Receipt as ReceiptIcon, CreditCard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -26,11 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { AmountDueSection } from './AmountDueSection';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { useMyPayments } from '@/features/payments/useMyPayments';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
-import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import {
   buildPaymentDisplayRows,
   formatPaymentCents,
@@ -274,160 +273,6 @@ function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
         </Card>
       ))}
     </div>
-  );
-}
-
-function AmountDueSection({
-  summary,
-  isLoading,
-  isError,
-}: {
-  summary: EntryBalanceSummary | undefined;
-  isLoading: boolean;
-  isError: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent
-          role="status"
-          aria-label="Loading your current balance"
-          className="space-y-3 py-5"
-        >
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-5 w-5/6" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (isError) {
-    return (
-      <Card>
-        <CardContent role="alert" className="py-5 text-sm text-muted-foreground">
-          We couldn&apos;t load your current balance. Your payment history is still below.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // "We don't know yet" is its own state and must never be drawn as "$0.00,
-  // paid up". useMyEntryBalanceSummary is gated on `enabled: user?.id &&
-  // personId`, and a *disabled* React Query reports isLoading:false,
-  // isError:false, data:undefined — settled-looking, but never asked. Folding
-  // that into the paid-up branch told an exhibitor who owed money that they
-  // owed nothing: a flicker on a warm load, and permanent on a cold offline
-  // boot where the person record never resolves (the MYK9-200 pattern).
-  if (!summary) {
-    return (
-      <Card>
-        <CardContent className="py-5">
-          <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            We can&apos;t show your balance right now. Check Current Fees on My Shows for what you
-            owe.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (summary.amountDueCents <= 0) {
-    return (
-      <Card className="border-success/30">
-        <CardContent className="flex flex-col gap-2 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
-            <p className="text-2xl font-semibold tabular-nums text-success">$0.00</p>
-          </div>
-          <p className="text-sm text-muted-foreground">Current entries are paid up.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const singleOnlineShowBalance =
-    summary.onlineShowBalances.length === 1 ? summary.onlineShowBalances[0] : null;
-  const singleOnlineCoversFullDue =
-    summary.onlineDueCents === summary.amountDueCents && summary.payAtShowDueCents === 0;
-  const singleOnlineButtonLabel =
-    singleOnlineShowBalance && singleOnlineCoversFullDue
-      ? 'Finish payment'
-      : singleOnlineShowBalance
-        ? `Pay ${formatPaymentCents(singleOnlineShowBalance.onlineDueCents, 'usd')} online`
-        : null;
-
-  return (
-    <Card className="border-warning/40">
-      <CardContent className="space-y-4 py-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-sm font-medium text-muted-foreground">Amount due</h2>
-            <p className="text-3xl font-semibold tabular-nums text-warning">
-              {formatPaymentCents(summary.amountDueCents, 'usd')}
-            </p>
-            {/* Name the show in the single-show case too. The show name used to
-                appear only in the multi-show breakdown below, so the common
-                case showed a total and a button with nothing saying what the
-                money was for. */}
-            {singleOnlineShowBalance && (
-              <p className="mt-1 text-sm font-medium">{singleOnlineShowBalance.showName}</p>
-            )}
-            <p className="mt-1 text-sm text-muted-foreground">
-              This matches Current Fees on My Shows for current entries.
-            </p>
-          </div>
-          {singleOnlineShowBalance && singleOnlineButtonLabel && (
-            <Button asChild className="min-h-11 shrink-0">
-              <Link to={singleOnlineShowBalance.paymentHref}>
-                <CreditCard className="h-4 w-4" aria-hidden="true" />
-                {singleOnlineButtonLabel}
-              </Link>
-            </Button>
-          )}
-        </div>
-
-        {/* A positive balance with no online breakdown and nothing marked pay
-            at show would otherwise render a number and no way to act on it.
-            Reachable when an entry carries a fee but no resolvable show id. */}
-        {summary.onlineShowBalances.length === 0 && summary.payAtShowDueCents === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Open{' '}
-            <Link to="/exhibitor/entries" className="text-primary hover:underline">
-              My Shows
-            </Link>{' '}
-            to pay for these entries.
-          </p>
-        )}
-
-        {summary.onlineShowBalances.length > 1 && (
-          <div className="space-y-2">
-            {summary.onlineShowBalances.map(show => (
-              <div
-                key={show.showId}
-                className="flex flex-col gap-2 rounded-md border border-border/60 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <span className="text-sm font-medium">{show.showName}</span>
-                <Button asChild variant="outline" size="touch">
-                  <Link to={show.paymentHref}>
-                    Pay {formatPaymentCents(show.onlineDueCents, 'usd')}
-                  </Link>
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {summary.payAtShowDueCents > 0 && (
-          <p className="flex items-start gap-2 text-sm text-muted-foreground">
-            <WalletCards className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            {formatPaymentCents(summary.payAtShowDueCents, 'usd')} is marked pay at show. Check each
-            entry under My Shows for cash or check instructions.
-          </p>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 

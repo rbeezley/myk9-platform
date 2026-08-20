@@ -37,7 +37,10 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/support': () => import('@/pages/admin/SupportInboxPage'),
   // Permission management
   '/admin/permissions': () => import('@/pages/admin/permissions/PermissionManagementPage'),
-  '/admin/permissions/roles': () => import('@/pages/admin/permissions/RoleListPage'),
+  // Compatibility redirect: /admin/permissions/roles renders <Navigate> to
+  // /admin/permissions (see adminRoutes.tsx). No dedicated page module exists
+  // for this path anymore — it resolves straight to the permissions page.
+  '/admin/permissions/roles': () => import('@/pages/admin/permissions/PermissionManagementPage'),
   '/admin/permissions/roles/new': () => import('@/pages/admin/permissions/CreateRolePage'),
   '/admin/permissions/roles/:roleId': () => import('@/pages/admin/permissions/RoleEditPage'),
   '/admin/permissions/roles/:roleId/clone': () => import('@/pages/admin/permissions/CloneRolePage'),

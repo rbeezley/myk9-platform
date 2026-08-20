@@ -23,8 +23,11 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
     className: 'text-xs bg-warning/10 text-warning ',
   },
   deceased: {
+    // Tokens, not raw gray: gray-500 on gray-100 measured 4.39:1 in light mode,
+    // under the 4.5:1 floor. bg-muted/text-muted-foreground is 5.09:1 light and
+    // 4.55:1 dark, and tracks the theme like the sibling badges above.
     label: 'Deceased',
-    className: 'text-xs bg-gray-100 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400',
+    className: 'text-xs bg-muted text-muted-foreground',
   },
 };
 

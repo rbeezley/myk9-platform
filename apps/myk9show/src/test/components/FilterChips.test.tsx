@@ -42,13 +42,42 @@ describe('FilterChips', () => {
     expect(onChange).toHaveBeenCalledWith('discipline', 'agility');
   });
 
-  it('renders compact h-8 chips (filter chips are secondary UI, not primary actions)', () => {
-    // Filter chips intentionally use h-8 (32px) — they are refinement controls,
-    // not primary tap targets. The 44px minimum (WCAG 2.5.5) applies to actions.
+  it('renders chips at the 44px touch floor', () => {
+    // Reverses an earlier decision to render these at h-8/32px as "secondary,
+    // not primary" controls. docs/INTENT.md sets a 44px floor for every tap
+    // target, not only primary actions, because the audience is largely older
+    // users working on tablets outdoors — and a filter chip is a tap target. A
+    // live audit measured these at 86x32 and 68x32.
     const { container } = render(<FilterChips filters={filters} values={{}} onChange={vi.fn()} />);
     const buttons = container.querySelectorAll('button');
     buttons.forEach(btn => {
-      expect(btn.className).toMatch(/h-8/);
+      expect(btn.className).toMatch(/h-11/);
     });
+  });
+
+  it('offers a keyboard-reachable reset once a filter is applied', () => {
+    // Regression guard: the clear control used to be a bare <X> SVG inside the
+    // dropdown trigger, so at >=640px an applied filter could not be removed by
+    // keyboard at all.
+    const onChange = vi.fn();
+    render(
+      <FilterChips filters={filters} values={{ discipline: 'agility' }} onChange={onChange} />
+    );
+
+    const clear = screen.getByRole('button', { name: /clear discipline filter/i });
+    fireEvent.click(clear);
+    expect(onChange).toHaveBeenCalledWith('discipline', null);
+  });
+
+  it('explains an empty option list instead of opening a blank menu', () => {
+    render(
+      <FilterChips
+        filters={[{ key: 'breed', label: 'Breed', options: [] }]}
+        values={{}}
+        onChange={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByText('Breed'));
+    expect(screen.getByText('No breed options yet')).toBeInTheDocument();
   });
 });

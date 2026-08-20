@@ -12,6 +12,13 @@
 // a green badge as though they described now; and a third status, Unverified,
 // for checks that cannot prove anything either way. Every count on the page
 // derives from one array — see checkHistorySelectors.
+//
+// The verdict also reads unresolved operator alerts, because it previously
+// announced "Everything's running" beside a column of unresolved Error alerts.
+// An error-severity alert withholds the all-clear in both the headline and the
+// stripe; warn/info are named in the explanation but do not override it. If the
+// alerts query has not answered, the verdict says nothing about alerts rather
+// than guessing a count.
 
 import { useEffect, useMemo, useState } from 'react';
 import { Clock, LoaderCircle, Play, ShieldAlert } from 'lucide-react';
@@ -35,6 +42,8 @@ import {
   verdictHeadline,
   type CheckFilter,
 } from '@/features/admin-system-health/checkHistorySelectors';
+import { useOperatorAlerts } from '@/features/admin-system-health/useOperatorAlerts';
+import { summarizeAlerts } from '@/features/admin-system-health/operatorAlertsSelectors';
 import { cn } from '@/lib/utils';
 import { OperatorAlertsSection } from './OperatorAlertsSection';
 import {
@@ -257,6 +266,10 @@ function EnvironmentCard({
 
 export default function SystemHealthPage() {
   const { data, isLoading, error, refetch } = useSystemHealthSnapshots();
+  // Same query key the alerts card reads, so this shares its cache rather than
+  // issuing a second fetch. `null` while the query has not answered: the
+  // verdict must not claim an alert count it does not have.
+  const { data: alertData } = useOperatorAlerts();
   const runHealthCheck = useRunSystemHealthCheck();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -305,8 +318,14 @@ export default function SystemHealthPage() {
 
   const latest = data?.latest ?? null;
   const effective = deriveEffectiveStatus(latest, now);
-  const headline = verdictHeadline(summary, effective.isStale, effective.isEmpty);
-  const explanation = verdictExplanation(summary, effective.isStale, effective.isEmpty);
+  const alertSummary = alertData ? summarizeAlerts(alertData) : null;
+  const headline = verdictHeadline(summary, effective.isStale, effective.isEmpty, alertSummary);
+  const explanation = verdictExplanation(
+    summary,
+    effective.isStale,
+    effective.isEmpty,
+    alertSummary
+  );
   const unprovableChecks = checks
     .filter(c => c.verification === 'unprovable')
     .map(c => ({ key: c.key, label: c.label }));
@@ -317,10 +336,13 @@ export default function SystemHealthPage() {
       ? 'The run was requested, but its result has not arrived yet. Refresh in a moment.'
       : null;
 
+  // The stripe says the same thing as the headline. A green edge beside
+  // "2 alerts need review" would reinstate in colour the all-clear the words
+  // just withheld.
   const verdictAccent =
     effective.status === 'fail'
       ? 'border-l-destructive'
-      : effective.status === 'warn'
+      : effective.status === 'warn' || (alertSummary?.needingReview ?? 0) > 0
         ? 'border-l-warning'
         : 'border-l-success';
 

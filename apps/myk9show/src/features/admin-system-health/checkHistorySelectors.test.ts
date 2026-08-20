@@ -217,4 +217,54 @@ describe('verdict', () => {
       verdictExplanation(s({ failing: 1, unverified: 2, passing: 3 }), false, false)
     ).toContain('Two more cannot prove either way');
   });
+  // The board carried two status systems that never referenced each other: the
+  // verdict read "Everything's running" beside ten unresolved Error alerts.
+  describe('unresolved operator alerts', () => {
+    const a = (unresolved: number, needingReview: number) => ({ unresolved, needingReview });
+
+    it('an error-severity alert blocks the all-clear headline', () => {
+      expect(verdictHeadline(s(), false, false, a(8, 8))).toBe(
+        'Nothing is failing, but 8 alerts need review'
+      );
+      expect(verdictHeadline(s(), false, false, a(1, 1))).toBe(
+        'Nothing is failing, but 1 alert needs review'
+      );
+    });
+
+    it('leaves the all-clear standing for warn/info-only alerts', () => {
+      expect(verdictHeadline(s(), false, false, a(3, 0))).toBe("Everything's running");
+    });
+
+    it('failing checks still outrank alerts in the headline', () => {
+      expect(verdictHeadline(s({ failing: 2 }), false, false, a(5, 5))).toBe(
+        'Two checks are failing'
+      );
+    });
+
+    it('staleness still outranks alerts', () => {
+      expect(verdictHeadline(s(), true, false, a(5, 5))).toContain('too old');
+    });
+
+    it('names the unresolved count in the explanation whatever the severity', () => {
+      expect(verdictExplanation(s(), false, false, a(3, 0))).toContain(
+        '3 operator alerts are unresolved'
+      );
+      expect(verdictExplanation(s(), false, false, a(1, 1))).toContain(
+        '1 operator alert is unresolved'
+      );
+    });
+
+    it('says nothing about alerts when the count is zero or unknown', () => {
+      expect(verdictExplanation(s(), false, false, a(0, 0))).not.toContain('operator alert');
+      // null = the alerts query is loading or failed. The board must not invent
+      // a count, and must not flash a claim it cannot back.
+      expect(verdictExplanation(s(), false, false, null)).not.toContain('operator alert');
+      expect(verdictHeadline(s(), false, false, null)).toBe("Everything's running");
+    });
+
+    it('keeps the pre-alert behaviour when no alert summary is passed at all', () => {
+      expect(verdictHeadline(s(), false, false)).toBe("Everything's running");
+      expect(verdictExplanation(s(), false, false)).toBe('All 6 checks passed on the last run.');
+    });
+  });
 });

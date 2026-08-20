@@ -383,4 +383,80 @@ describe('SystemHealthPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/3 of 13 surfaces unmonitored/i)).toBeInTheDocument();
   });
+  // The board carried two status systems that never referenced each other:
+  // "Everything's running" rendered beside ten unresolved Error alerts.
+  describe('unresolved operator alerts in the verdict', () => {
+    function allPassingSnapshot(): SystemHealthSnapshot {
+      const snap = freshSnapshot();
+      return { ...snap, checks: snap.checks.map(c => ({ ...c, status: 'ok' as const })) };
+    }
+
+    function withAlerts(severities: Array<'info' | 'warn' | 'error'>) {
+      mockedOperatorAlertsHook.mockReturnValue({
+        data: severities.map((severity, i) => ({
+          id: `alert-${i}`,
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+          source: 'stripe-webhook',
+          severity,
+          title: `Alert ${i}`,
+          detail: null,
+          dedupeKey: null,
+          resolvedAt: null,
+          resolvedBy: null,
+        })),
+        isLoading: false,
+        error: null,
+      } as unknown as ReturnType<typeof useOperatorAlerts>);
+    }
+
+    it('withholds the all-clear while error alerts are unresolved', () => {
+      const latest = allPassingSnapshot();
+      mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+      withAlerts(['error', 'error']);
+
+      render(<SystemHealthPage />);
+
+      expect(screen.getByText('Nothing is failing, but 2 alerts need review')).toBeInTheDocument();
+      expect(screen.queryByText("Everything's running")).not.toBeInTheDocument();
+      expect(screen.getByText(/2 operator alerts are unresolved/)).toBeInTheDocument();
+    });
+
+    it('drops the green verdict stripe with the all-clear it would contradict', () => {
+      const latest = allPassingSnapshot();
+      mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+      withAlerts(['error']);
+
+      const { container } = render(<SystemHealthPage />);
+
+      const verdict = container.querySelector('.border-l-\\[3px\\]');
+      expect(verdict).toHaveClass('border-l-warning');
+      expect(verdict).not.toHaveClass('border-l-success');
+    });
+
+    it('keeps the all-clear for warn-only alerts but still names them', () => {
+      const latest = allPassingSnapshot();
+      mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+      withAlerts(['warn', 'info']);
+
+      render(<SystemHealthPage />);
+
+      expect(screen.getByText("Everything's running")).toBeInTheDocument();
+      expect(screen.getByText(/2 operator alerts are unresolved/)).toBeInTheDocument();
+    });
+
+    it('claims nothing about alerts when their query has not answered', () => {
+      const latest = allPassingSnapshot();
+      mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+      mockedOperatorAlertsHook.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        error: new Error('boom'),
+      } as unknown as ReturnType<typeof useOperatorAlerts>);
+
+      render(<SystemHealthPage />);
+
+      expect(screen.getByText("Everything's running")).toBeInTheDocument();
+      expect(screen.queryByText(/operator alert/)).not.toBeInTheDocument();
+    });
+  });
 });

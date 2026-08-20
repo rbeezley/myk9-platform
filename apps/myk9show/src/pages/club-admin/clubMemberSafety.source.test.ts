@@ -29,6 +29,29 @@ describe('roster query gating', () => {
   });
 });
 
+describe('partial failure never asserts absence', () => {
+  it('suppresses the officer count when the officers query failed', () => {
+    // `officers` falls back to [] on failure, so "0 officers" is a claim the
+    // page cannot support. An inline "unavailable" notice alone is not enough:
+    // rendering it beside a count and an empty table says both things at once.
+    expect(page).toContain('officersUnavailable');
+    expect(page).toContain("'Officers unavailable'");
+  });
+
+  it('suppresses the officers table entirely when the query failed', () => {
+    // Its empty state reads "No Officers Assigned", which would confirm as
+    // fact the very thing the notice says could not be checked.
+    expect(page).toContain('{!officersUnavailable && (');
+  });
+
+  it('keeps the members roster visible when only an annotation query fails', () => {
+    // The full-page error takeover is members-only. Officers populate a
+    // different tab and show-managers annotate one column; letting either blank
+    // a roster that loaded fine is worse than the bug it was fixing.
+    expect(page).toContain('const rosterError = membersQuery.isError;');
+  });
+});
+
 describe('mutation failure reporting', () => {
   it('gives every mutation an onError', () => {
     // A rejected write used to do nothing at all. club_officers has

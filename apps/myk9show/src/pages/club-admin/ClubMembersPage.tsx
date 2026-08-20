@@ -410,8 +410,13 @@ const ClubMembersPage: React.FC = () => {
                 <Badge className="bg-primary/10 text-primary border-primary/20">
                   {activeMemberCount} active member{activeMemberCount !== 1 ? 's' : ''}
                 </Badge>
-                <Badge className="bg-muted text-muted-foreground border-border">
-                  {officers.length} officer{officers.length !== 1 ? 's' : ''}
+                {/* No count while the officers query is failed: `officers`
+                    falls back to [] there, and "0 officers" is a claim we
+                    cannot support. */}
+                <Badge className="bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]">
+                  {officersUnavailable
+                    ? 'Officers unavailable'
+                    : `${officers.length} officer${officers.length !== 1 ? 's' : ''}`}
                 </Badge>
               </div>
             </div>
@@ -500,11 +505,16 @@ const ClubMembersPage: React.FC = () => {
                   </Button>
                 </div>
 
-                <OfficersTable
-                  officers={sortedOfficers}
-                  onAssignOfficer={() => setShowAssignOfficer(true)}
-                  onRemoveOfficer={handleRemoveOfficer}
-                />
+                {/* Suppressed entirely on failure - its empty state says "No
+                    Officers Assigned", which would confirm as fact the thing
+                    the notice above says we could not check. */}
+                {!officersUnavailable && (
+                  <OfficersTable
+                    officers={sortedOfficers}
+                    onAssignOfficer={() => setShowAssignOfficer(true)}
+                    onRemoveOfficer={handleRemoveOfficer}
+                  />
+                )}
               </TabsContent>
             </PrimaryTabs>
           </CardContent>

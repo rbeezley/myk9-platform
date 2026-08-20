@@ -45,6 +45,7 @@ import {
   MyEntryCard,
   EntriesEmptyState,
   EntriesLoadErrorCard,
+  EntryScopeBanner,
   MyEntriesDialogGroup,
   WaitListSection,
   ENTRY_TAB_DEFS,
@@ -75,11 +76,18 @@ const MyEntriesPage: React.FC = () => {
   } = useMyEntriesData({
     persistCheckInStatus: checkInMutation.mutateAsync,
   });
-  const { filteredEntries, selectedTab, setSelectedTab, entryStats, tabCounts } =
-    useMyEntriesFilters({
-      entries,
-      balanceSummary,
-    });
+  const {
+    filteredEntries,
+    selectedTab,
+    setSelectedTab,
+    entryStats,
+    tabCounts,
+    scopeMatch,
+    clearScope,
+  } = useMyEntriesFilters({
+    entries,
+    balanceSummary,
+  });
 
   // Resolve the secretary's self-check-in cascade (class ?? trial ?? show ?? true)
   // for every entered class. The check-in control should reflect whether the
@@ -428,6 +436,16 @@ const MyEntriesPage: React.FC = () => {
                       {ALL_ENTRIES_SCOPE_NOTE}
                     </span>
                   </h2>
+
+                  {/* Inbound scope from My Payments' Receipt link. Sits above
+                    the tabs, not inside a tab panel: it describes the whole
+                    list the tabs are filtering, and it must stay on screen
+                    when the exhibitor switches tabs. */}
+                  <EntryScopeBanner
+                    scopeMatch={scopeMatch}
+                    totalEntries={entries}
+                    onClearScope={clearScope}
+                  />
 
                   {/* Entries List */}
                   <PrimaryTabs

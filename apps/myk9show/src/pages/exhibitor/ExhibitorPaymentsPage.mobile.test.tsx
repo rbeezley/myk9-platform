@@ -85,9 +85,10 @@ describe('ExhibitorPaymentsPage on a 390px phone', () => {
     // Status: reachable by an accessible label.
     expect(within(card).getByLabelText(/status: paid/i)).toBeInTheDocument();
 
-    // Receipt: an accessible, labeled link to where the receipt lives.
+    // Receipt: an accessible, labeled link to where the receipt lives, scoped
+    // to this order's entries exactly as on desktop.
     const receiptLink = within(card).getByRole('link', { name: /receipt for spring trial/i });
-    expect(receiptLink).toHaveAttribute('href', '/exhibitor/entries');
+    expect(receiptLink).toHaveAttribute('href', '/exhibitor/entries?showId=show-1&entryIds=e1');
   });
 
   it('gives every interactive target a 44px minimum height on a 390px phone', () => {

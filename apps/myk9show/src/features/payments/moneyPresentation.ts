@@ -99,10 +99,35 @@ export function paymentStatusLabel(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+/**
+ * Sort key for the ledger: newest first, undated rows last.
+ *
+ * Needed because rows do NOT arrive in display order. `useMyPayments` returns
+ * orders by `created_at DESC` and each order expands to a charge followed by
+ * its refunds, so a refund is positioned by the charge it reverses rather than
+ * by its own date — a 2026 refund of a 2024 charge sank below every 2026
+ * charge. Harmless while the whole ledger was one undifferentiated scroll;
+ * wrong the moment the page calls itself chronological AND can be scoped to a
+ * year, where ordering within the year would follow charge dates.
+ *
+ * The sort is stable (V8 guarantees it), so a charge and a same-instant refund
+ * keep their emitted order — charge first, then the refund that reverses it.
+ */
+function comparePaymentRowsByDate(a: PaymentDisplayRow, b: PaymentDisplayRow): number {
+  const at = a.date ? new Date(a.date).getTime() : Number.NaN;
+  const bt = b.date ? new Date(b.date).getTime() : Number.NaN;
+  const aBad = Number.isNaN(at);
+  const bBad = Number.isNaN(bt);
+  if (aBad && bBad) return 0;
+  if (aBad) return 1;
+  if (bBad) return -1;
+  return bt - at;
+}
+
 export function buildPaymentDisplayRows(
   payments: PaymentPresentationSource[]
 ): PaymentDisplayRow[] {
-  return payments.flatMap(payment => {
+  const rows: PaymentDisplayRow[] = payments.flatMap<PaymentDisplayRow>(payment => {
     if (
       isRefundedPaymentStatus(payment.status) &&
       (!payment.refunds || payment.refunds.length === 0)
@@ -176,4 +201,6 @@ export function buildPaymentDisplayRows(
 
     return [chargeRow, ...refundRows];
   });
+
+  return rows.sort(comparePaymentRowsByDate);
 }

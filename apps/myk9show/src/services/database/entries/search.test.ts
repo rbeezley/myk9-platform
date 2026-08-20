@@ -166,6 +166,14 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     );
   });
 
+  it("selects the show's full trial list for the primary-trial timezone", () => {
+    // The amount-due deadline picks the PRIMARY trial's zone, which needs every
+    // trial of the show — not just the one the entry is in.
+    expect(USER_ENTRIES_SELECT).toMatch(
+      /show:show_id\s*\([^)]*trials:trials\s*\([^)]*timezone/s
+    );
+  });
+
   it('selects enrollment payment status for secretary-recorded grouped payments', () => {
     expect(USER_ENTRIES_SELECT).toMatch(
       /registration:registration_id\s*\([^)]*confirmation_number[^)]*payment_status/s

@@ -194,6 +194,37 @@ describe('entry-close deadline on the amount-due summary', () => {
       .onlineShowBalances[0].showTimezone).toBe('America/Chicago');
   });
 
+  it("uses the show's primary trial timezone, not the one this entry is in", () => {
+    // A show spanning two zones. The guard closes entries on the PRIMARY
+    // (earliest-date) trial's clock, so an exhibitor entered only in the later
+    // western trial must still be told the eastern deadline.
+    const source = mapEntryRowToBalanceSource({
+      id: 'entry-1',
+      show: {
+        id: 'show-1',
+        name: 'Spring Trial',
+        trials: [
+          { id: 'trial-b', date: '2026-09-13', timezone: 'America/Los_Angeles' },
+          { id: 'trial-a', date: '2026-09-12', timezone: 'America/New_York' },
+        ],
+      },
+      trial: { timezone: 'America/Los_Angeles' },
+    });
+
+    expect(source.showTimezone).toBe('America/New_York');
+  });
+
+  it('falls back to the entry trial when the show carries no trial list', () => {
+    // Degraded read paths can omit the embed; a nearby zone beats the default.
+    const source = mapEntryRowToBalanceSource({
+      id: 'entry-1',
+      show: { id: 'show-1', name: 'Spring Trial', trials: [] },
+      trial: { timezone: 'America/Chicago' },
+    });
+
+    expect(source.showTimezone).toBe('America/Chicago');
+  });
+
   it('reads the timezone through class -> trial for rows with a null entries.trial_id', () => {
     const source = mapEntryRowToBalanceSource({
       id: 'entry-1',

@@ -3,6 +3,7 @@ import { mapEntryStatus, mapPaymentStatus } from '@/utils/entryManagementUtils';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import { buildFinishPaymentHref } from './finishPaymentHref';
 import { getTrialTimezone } from '@/features/registries';
+import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
 import { DEFAULT_SHOW_TIMEZONE, toEntryCloseDay } from './entryCloseDeadline';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
 
@@ -81,6 +82,7 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
     start_date?: string | null;
     end_date?: string | null;
     entry_close_date?: string | null;
+    trials?: EntryWindowTrial[] | null;
   } | null;
   registration?: {
     payment_status?: string | null;
@@ -99,6 +101,26 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
  * card for *display* (see `groupEntriesByOrder`) is fine, but money math must
  * run on the raw rows, not a lossy "first row wins" grouped summary.
  */
+/**
+ * The timezone the show's calendar days are reckoned in, matching the
+ * entry-close guard.
+ *
+ * The guard resolves the show's PRIMARY trial — earliest `date`, ties broken by
+ * id — and uses its timezone; `getEntryWindowTimezone` is the canonical client
+ * implementation of that ordering, so a show with trials in different zones
+ * (a supported configuration) picks the same one the server does rather than
+ * whichever trial this particular entry happens to be in.
+ *
+ * Falls back to the entry's own trial when the show's trial list is absent —
+ * a partial row from a degraded read path is better served by a nearby
+ * timezone than by the bare default.
+ */
+function resolveShowTimezone(row: EntryBalanceRawRow): string {
+  const trials = row.show?.trials;
+  if (trials && trials.length > 0) return getEntryWindowTimezone(trials);
+  return getTrialTimezone(row.trial ?? row.class?.trial ?? null);
+}
+
 export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanceSource {
   const show = row.show;
   const paymentStatus = row.registration?.payment_status ?? row.payment_status ?? 'pending';
@@ -110,11 +132,7 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     showDate: parseShowDate(show?.start_date) ?? new Date(),
     showEndDate: parseShowDate(show?.end_date),
     entryCloseDay: toEntryCloseDay(show?.entry_close_date),
-    // The entry's own trial stands in for the guard's primary-trial lookup:
-    // a show's trials share one timezone in practice, and `getTrialTimezone`
-    // falls back to the same America/New_York default the server uses when the
-    // value is missing or not a resolvable zone.
-    showTimezone: getTrialTimezone(row.trial ?? row.class?.trial ?? null),
+    showTimezone: resolveShowTimezone(row),
     entryStatus: mapEntryStatus(row.entry_status ?? 'pending'),
     paymentStatus: mapPaymentStatus(paymentStatus),
     paymentMethod: row.payment_method ?? null,

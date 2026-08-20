@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPaymentDisplayRows,
   formatPaymentCents,
+  isRetryablePaymentStatus,
+  isSettlingPaymentStatus,
   paymentStatusLabel,
   type PaymentPresentationSource,
 } from './moneyPresentation';
@@ -101,5 +103,42 @@ describe('moneyPresentation', () => {
       { id: 'order-1:refund', kind: 'refund', description: 'Refund', amountCents: -5300 },
     ]);
     expect(rows.reduce((sum, row) => sum + row.amountCents, 0)).toBe(0);
+  });
+});
+
+describe('isSettlingPaymentStatus', () => {
+  // The two in-flight values stripe_orders.status is allowed to hold; the
+  // column's CHECK constraint (migration 005) forbids Stripe's raw intent
+  // statuses, so there is nothing else to cover here.
+  it.each(['pending', 'processing'])('treats %s as money still in flight', status => {
+    expect(isSettlingPaymentStatus(status)).toBe(true);
+  });
+
+  it('is case-insensitive, matching the other status predicates', () => {
+    expect(isSettlingPaymentStatus('PENDING')).toBe(true);
+  });
+
+  it.each(['succeeded', 'paid', 'refunded', 'failed', 'cancelled', 'canceled', ''])(
+    'does not treat settled or failed status %s as in flight',
+    status => {
+      expect(isSettlingPaymentStatus(status)).toBe(false);
+    }
+  );
+
+  it('never overlaps with the retryable set', () => {
+    // The two drive mutually exclusive affordances: offering a retry link on
+    // an in-flight order invites a duplicate charge.
+    const statuses = [
+      'pending',
+      'processing',
+      'failed',
+      'cancelled',
+      'canceled',
+      'succeeded',
+      'refunded',
+    ];
+    for (const status of statuses) {
+      expect(isSettlingPaymentStatus(status) && isRetryablePaymentStatus(status)).toBe(false);
+    }
   });
 });

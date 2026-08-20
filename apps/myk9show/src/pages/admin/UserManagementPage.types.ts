@@ -4,6 +4,7 @@
 
 import type { UserRole as UserRoleType } from '@/types/user-types';
 import type { User } from '@/types/user-types';
+import { USER_ROLE_HIERARCHY } from '@/types/auth-types';
 
 export interface UserFilter {
   role: UserRoleType | 'all';
@@ -29,17 +30,12 @@ export interface SelectedUser {
 /**
  * The values each filter accepts. One source for the `<Select>` options and for
  * the URL codec's validation — a role that isn't here is not a role the roster
- * can filter by, however it arrived.
+ * can filter by, however it arrived. Derived from USER_ROLE_HIERARCHY so the
+ * filter can never drift from the roles users actually hold (a hand-written
+ * copy once offered phantom `admin`/`handler` values that matched nobody while
+ * omitting `site_admin`/`club_admin`/`chairman`).
  */
-export const USER_ROLE_FILTER_VALUES = [
-  'all',
-  'exhibitor',
-  'handler',
-  'judge',
-  'secretary',
-  'steward',
-  'admin',
-] as const;
+export const USER_ROLE_FILTER_VALUES = ['all', ...USER_ROLE_HIERARCHY] as const;
 
 export const USER_STATUS_FILTER_VALUES = ['all', 'active', 'suspended'] as const;
 

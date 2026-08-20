@@ -202,14 +202,49 @@ describe('summarizeTriage', () => {
 });
 
 describe('summarizeAlertDetail', () => {
-  it('renders scalar context and skips nested objects', () => {
-    expect(summarizeAlertDetail({ show: 'Heartland', amount: 4180, meta: { a: 1 } })).toBe(
-      'show: Heartland · amount: 4180'
+  it('renders scalar context, capped at three facts', () => {
+    expect(
+      summarizeAlertDetail({ show: 'Heartland', amount: 4180, kind: 'refund', extra: 'dropped' })
+    ).toBe('show: Heartland · amount: 4180 · kind: refund');
+  });
+
+  // Nested values used to be skipped, which reported "no detail" for an alert
+  // that had detail. They now render as compact JSON, matching the health
+  // board (#1689) — the length cap keeps the line bounded.
+  it('renders nested objects as compact JSON rather than dropping them', () => {
+    expect(summarizeAlertDetail({ show: 'Heartland', meta: { a: 1 } })).toBe(
+      'show: Heartland · meta: {"a":1}'
     );
   });
 
   it('says so plainly when there is nothing to show', () => {
     expect(summarizeAlertDetail(null)).toBe('No further detail recorded.');
-    expect(summarizeAlertDetail({ nested: { only: true } })).toBe('No further detail recorded.');
+    expect(summarizeAlertDetail({ blank: '' })).toBe('No further detail recorded.');
+  });
+
+  // Production operator_alerts store rendered markup under an `html` key; the
+  // queue must show the sentence, never the serialization.
+  it('shows markup-valued keys as their text, without the key prefix', () => {
+    expect(
+      summarizeAlertDetail({
+        html: '<p>Cart <code>04dae7f1</code> was PAID but has no entries.</p>',
+      })
+    ).toBe('Cart 04dae7f1 was PAID but has no entries.');
+  });
+
+  it('strips tags and collapses whitespace inside prefixed values too', () => {
+    expect(summarizeAlertDetail({ reason: 'Refund <b>failed</b>\n twice', amount: 20 })).toBe(
+      'reason: Refund failed twice · amount: 20'
+    );
+  });
+
+  it('falls back when a markup value strips to nothing', () => {
+    expect(summarizeAlertDetail({ html: '<br/>' })).toBe('No further detail recorded.');
+  });
+
+  it('leaves comparison prose alone; only tag-shaped text is stripped', () => {
+    expect(summarizeAlertDetail({ message: 'cpu < 80 and mem > 90' })).toBe(
+      'cpu < 80 and mem > 90'
+    );
   });
 });

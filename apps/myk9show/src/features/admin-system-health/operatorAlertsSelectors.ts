@@ -5,6 +5,7 @@
  * falls back to 'error', the loudest state), never crash the board.
  */
 import type { StatusBadgeVariants } from '@myk9/ui';
+import { detailEntryToText } from './alertDetailText';
 import type { AlertSeverity, OperatorAlert, OperatorAlertRow } from './operatorAlertsTypes';
 
 type BadgeVariant = NonNullable<StatusBadgeVariants['variant']>;
@@ -51,10 +52,15 @@ export function severityToBadgeVariant(severity: AlertSeverity): BadgeVariant {
   }
 }
 
-/** Compact "key: value, key: value" rendering of an alert's structured detail. */
+/** Compact "key: value, key: value" rendering of an alert's structured detail.
+ * Value formatting (markup stripping, object JSON, the length cap) lives in
+ * `alertDetailText` so this board and the admin dashboard read alerts alike. */
 export function formatAlertDetail(detail: Record<string, unknown> | null): string {
   if (!detail) return '';
-  const entries = Object.entries(detail);
-  if (entries.length === 0) return '';
-  return entries.map(([key, value]) => `${key}: ${String(value)}`).join(', ');
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(detail)) {
+    const text = detailEntryToText(key, value);
+    if (text) parts.push(text);
+  }
+  return parts.join(', ');
 }

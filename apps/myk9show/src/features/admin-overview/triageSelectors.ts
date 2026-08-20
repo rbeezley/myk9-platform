@@ -15,6 +15,7 @@
  *
  * Side-effect free and `now`-injected, like the health selectors.
  */
+import { detailEntryToText } from '@/features/admin-system-health/alertDetailText';
 import { getHealthCheckRemediation } from '@/features/admin-system-health/systemHealthSelectors';
 import type { HealthCheck } from '@/features/admin-system-health/systemHealthTypes';
 import type { OperatorAlert } from '@/features/admin-system-health/operatorAlertsTypes';
@@ -71,8 +72,9 @@ export function summarizeAlertDetail(detail: Record<string, unknown> | null): st
   if (!detail) return 'No further detail recorded.';
   const parts: string[] = [];
   for (const [key, value] of Object.entries(detail)) {
-    if (value === null || typeof value === 'object') continue;
-    parts.push(`${key}: ${String(value)}`);
+    const text = detailEntryToText(key, value);
+    if (!text) continue;
+    parts.push(text);
     if (parts.length === 3) break;
   }
   return parts.length > 0 ? parts.join(' · ') : 'No further detail recorded.';

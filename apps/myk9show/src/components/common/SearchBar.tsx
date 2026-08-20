@@ -57,6 +57,8 @@ export function SearchBar({
         onChange={e => onChange(e.target.value)}
         aria-label={ariaLabel ?? placeholder}
         className={cn(
+          // placeholder: the browser default gray reads at 2.5:1 on the white
+          // card in light mode; the muted token passes AA in both themes.
           'w-full bg-card shadow-card placeholder:text-muted-foreground focus:shadow-card-hover focus:ring-2 focus:ring-ring outline-none transition-all',
           styles.input
         )}

@@ -57,6 +57,8 @@ export type { UseScoringModeProps, UseScoringModeReturn } from './data-table-sco
 
 interface DataTableProps<TData> {
   tableId?: string;
+  /** Accessible name for the keyboard-focusable horizontal scroll area. */
+  scrollAreaLabel?: string;
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   pageSize?: number;
@@ -207,6 +209,7 @@ function isInteractiveElement(target: EventTarget | null, boundary: Element): bo
 
 export function DataTable<TData>({
   tableId,
+  scrollAreaLabel,
   columns,
   data,
   pageSize = 25,
@@ -380,10 +383,7 @@ export function DataTable<TData>({
   return (
     <div
       data-datatable
-      className={cn(
-        'rounded-xl border border-border/50 bg-card/95 backdrop-blur-sm overflow-hidden',
-        className
-      )}
+      className={cn('overflow-hidden rounded-xl border border-border/50 bg-card', className)}
     >
       {toolbar
         ? toolbar({ table })
@@ -394,8 +394,7 @@ export function DataTable<TData>({
               {showExport && (
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
+                  className="h-11 text-xs"
                   onClick={() => exportTableCsv(table, tableId)}
                 >
                   <Download className="h-3.5 w-3.5 mr-1" />
@@ -405,8 +404,7 @@ export function DataTable<TData>({
               {!controlledDensity && (
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
+                  className="h-11 text-xs"
                   onClick={() =>
                     setInternalDensity(internalDensity === 'compact' ? 'comfortable' : 'compact')
                   }
@@ -418,8 +416,7 @@ export function DataTable<TData>({
               )}
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-8 text-xs"
+                className="h-11 text-xs"
                 onClick={resetTableView}
                 aria-label="Reset table view"
               >
@@ -430,7 +427,7 @@ export function DataTable<TData>({
           )}
 
       {/* Table component has its own overflow-auto wrapper */}
-      <Table>
+      <Table {...(scrollAreaLabel ? { scrollAreaLabel } : {})}>
         <TableHeader>
           {table.getHeaderGroups().map(headerGroup => (
             <TableRow key={headerGroup.id} className="border-b border-border/50 bg-muted/30">

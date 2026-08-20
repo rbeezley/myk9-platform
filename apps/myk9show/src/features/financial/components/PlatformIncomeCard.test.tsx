@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { PlatformFinancialOverview } from './usePlatformFinancialOverview';
 
@@ -11,9 +11,10 @@ const overviewState: {
   isLoading: false,
   isError: false,
 };
+const refetchOverview = vi.fn();
 
 vi.mock('./usePlatformFinancialOverview', () => ({
-  usePlatformFinancialOverview: () => overviewState,
+  usePlatformFinancialOverview: () => ({ ...overviewState, refetch: refetchOverview }),
 }));
 
 import { PlatformIncomeCard } from './PlatformIncomeCard';
@@ -88,6 +89,17 @@ describe('PlatformIncomeCard', () => {
       screen.getByText(/Could not load platform financial reconciliation/i)
     ).toBeInTheDocument();
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+    expect(refetchOverview).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders financial figures as one labeled overview instead of a repeated card grid', () => {
+    overviewState.data = overview();
+    render(<PlatformIncomeCard />);
+
+    const overviewGroup = screen.getByRole('group', { name: /platform income overview/i });
+    expect(overviewGroup).toBeInTheDocument();
+    expect(within(overviewGroup).getAllByText('How this is calculated')).toHaveLength(3);
   });
 
   it('presents online collected, gross fee income, and net income as three separate figures with formula labels', () => {

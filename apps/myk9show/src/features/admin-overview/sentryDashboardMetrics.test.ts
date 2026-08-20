@@ -113,7 +113,7 @@ describe('sentryDashboardMetrics', () => {
       )
     ).toEqual({
       value: '—',
-      context: "couldn't read client p95",
+      context: "couldn't read client p95; will retry",
       isError: true,
       isStale: false,
     });

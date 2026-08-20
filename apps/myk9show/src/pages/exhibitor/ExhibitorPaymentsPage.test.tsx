@@ -1,15 +1,28 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import type { MyPayment } from '@/features/payments/useMyPayments';
 import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 
-const state: { data: MyPayment[]; isLoading: boolean; isError: boolean } = {
+const state: {
+  data: MyPayment[];
+  isLoading: boolean;
+  isError: boolean;
+  isFetching: boolean;
+  refetch: ReturnType<typeof vi.fn>;
+} = {
   data: [],
   isLoading: false,
   isError: false,
+  isFetching: false,
+  refetch: vi.fn(),
 };
+// `data` is deliberately optional. A React Query gated by `enabled` reports
+// isLoading:false / isError:false / data:undefined, and typing this as a
+// non-optional EntryBalanceSummary made that state literally untypeable —
+// which is why the page shipped a false "paid up" for it.
 const balanceState: {
-  data: EntryBalanceSummary;
+  data: EntryBalanceSummary | undefined;
   isLoading: boolean;
   isError: boolean;
 } = {
@@ -51,6 +64,8 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [payment];
     state.isLoading = false;
     state.isError = false;
+    state.isFetching = false;
+    state.refetch = vi.fn();
     balanceState.data = {
       currentFeesCents: 0,
       amountDueCents: 0,
@@ -89,7 +104,12 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [{ ...payment, status: 'failed', showId: 'show-1', entryIds: ['e1'] }];
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
-    expect(screen.queryByText('Payment history')).not.toBeInTheDocument();
+    // Assert the totals card itself is absent. "Payment history" is now the
+    // heading for the whole history section (the failed attempt is still
+    // history and still renders in the table), so its presence no longer
+    // distinguishes "has paid totals" from "has rows".
+    expect(screen.queryByText('Gross paid')).not.toBeInTheDocument();
+    expect(screen.queryByText('Net paid')).not.toBeInTheDocument();
   });
 
   it('offers the retry link for a cancelled payment too', () => {
@@ -329,7 +349,182 @@ describe('ExhibitorPaymentsPage', () => {
     state.data = [];
     state.isError = true;
     render(<ExhibitorPaymentsPage />);
-    expect(screen.getByText(/couldn.t load your payments/i)).toBeInTheDocument();
+    expect(screen.getByText(/couldn.t load your payment history/i)).toBeInTheDocument();
     expect(screen.queryByText(/No payments yet/i)).not.toBeInTheDocument();
+  });
+
+  it('offers a retry on a failed load, and does not guess why it failed', async () => {
+    state.data = [];
+    state.isError = true;
+    render(<ExhibitorPaymentsPage />);
+
+    const retry = screen.getByRole('button', { name: /try again/i });
+    await userEvent.click(retry);
+    expect(state.refetch).toHaveBeenCalled();
+
+    // useMyPayments throws on any query failure, so the copy must not blame
+    // connectivity or promise a recovery it cannot deliver.
+    expect(screen.queryByText(/back online/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/refresh/i)).not.toBeInTheDocument();
+  });
+
+  describe('balance states', () => {
+    it('never claims "paid up" when the balance is unknown rather than zero', () => {
+      // The shape of a React Query disabled by `enabled: user?.id && personId`:
+      // settled-looking, but never asked. Claiming $0.00 here told an exhibitor
+      // who owed money that they owed nothing.
+      balanceState.data = undefined;
+      balanceState.isLoading = false;
+      balanceState.isError = false;
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.queryByText('Current entries are paid up.')).not.toBeInTheDocument();
+      expect(screen.getByText(/can.t show your balance right now/i)).toBeInTheDocument();
+      // No zero drawn as a balance claim. (The history totals card legitimately
+      // shows $0.00 for refunds, so scope this to the success-styled figure the
+      // paid-up card renders.)
+      expect(
+        document.querySelector('.text-success.tabular-nums, .tabular-nums.text-success')
+      ).toBeNull();
+    });
+
+    it('still says "paid up" when the balance is genuinely zero', () => {
+      balanceState.data = {
+        currentFeesCents: 0,
+        amountDueCents: 0,
+        onlineDueCents: 0,
+        payAtShowDueCents: 0,
+        onlineShowBalances: [],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByText('Current entries are paid up.')).toBeInTheDocument();
+      expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
+    });
+
+    it('announces the balance skeleton to assistive tech while loading', () => {
+      balanceState.isLoading = true;
+      render(<ExhibitorPaymentsPage />);
+      expect(screen.getByRole('status', { name: /loading your current balance/i })).toBeVisible();
+      expect(screen.queryByText('Current entries are paid up.')).not.toBeInTheDocument();
+    });
+
+    it('names the show in the single-show amount-due case', () => {
+      balanceState.data = {
+        currentFeesCents: 5500,
+        amountDueCents: 5500,
+        onlineDueCents: 5500,
+        payAtShowDueCents: 0,
+        onlineShowBalances: [
+          {
+            showId: 'show-1',
+            showName: 'Spring Trial',
+            amountDueCents: 5500,
+            onlineDueCents: 5500,
+            payAtShowDueCents: 0,
+            entryIds: ['e1'],
+            paymentHref: '/cart?showId=show-1&entryIds=e1',
+          },
+        ],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByRole('heading', { name: 'Amount due' })).toBeInTheDocument();
+      // The show name must appear alongside the total, not only in the
+      // multi-show breakdown, or the common case says what but never what for.
+      expect(screen.getAllByText('Spring Trial').length).toBeGreaterThan(0);
+      expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
+    });
+
+    it('does not attribute a mixed balance to the single online show', () => {
+      // $55 owed online for Spring Trial, plus $30 marked pay at show that may
+      // belong to a different show entirely. The headline figure is the $85
+      // aggregate, so naming Spring Trial bare underneath it would claim the
+      // whole total is that show's.
+      // No payment rows, so the only "Spring Trial" that could match is the
+      // one in the balance card rather than a history table cell.
+      state.data = [];
+      balanceState.data = {
+        currentFeesCents: 8500,
+        amountDueCents: 8500,
+        onlineDueCents: 5500,
+        payAtShowDueCents: 3000,
+        onlineShowBalances: [
+          {
+            showId: 'show-1',
+            showName: 'Spring Trial',
+            amountDueCents: 5500,
+            onlineDueCents: 5500,
+            payAtShowDueCents: 0,
+            entryIds: ['e1'],
+            paymentHref: '/cart?showId=show-1&entryIds=e1',
+          },
+        ],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByText('$85.00')).toBeInTheDocument();
+      expect(screen.getByText(/\$55\.00 of this is for/)).toBeInTheDocument();
+      // The bare name must not stand alone under the aggregate.
+      expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument();
+    });
+
+    it('always offers a way to act on a positive balance with no payable breakdown', () => {
+      balanceState.data = {
+        currentFeesCents: 4000,
+        amountDueCents: 4000,
+        onlineDueCents: 4000,
+        payAtShowDueCents: 0,
+        onlineShowBalances: [],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByText('$40.00')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'My Shows' })).toHaveAttribute(
+        'href',
+        '/exhibitor/entries'
+      );
+    });
+  });
+
+  describe('in-flight and settled money', () => {
+    it('tells the exhibitor a pending order is still moving instead of dead-ending', () => {
+      state.data = [{ ...payment, status: 'pending', showId: 'show-1', entryIds: ['e1'] }];
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByText('Processing, check back shortly')).toBeInTheDocument();
+      // No retry link: Stripe is still working the order, and a second
+      // attempt risks a duplicate charge.
+      expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
+      expect(screen.queryByText('No receipt available')).not.toBeInTheDocument();
+    });
+
+    it('says where the receipt actually lives, in the visible label', () => {
+      render(<ExhibitorPaymentsPage />);
+      // "Receipt" alone promised a document and delivered an unfiltered list;
+      // the qualifier used to exist only in the accessible name.
+      expect(screen.getByRole('link', { name: /receipt for spring trial/i })).toHaveTextContent(
+        'Receipt in My Shows'
+      );
+    });
+
+    it('does not render a negative zero when there are no refunds', () => {
+      state.data = [{ ...payment, amountCents: 10000, netPaidCents: 10000 }];
+      render(<ExhibitorPaymentsPage />);
+      expect(screen.getByText('Refunds')).toBeInTheDocument();
+      expect(screen.queryByText('-$0.00')).not.toBeInTheDocument();
+      expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('gives the payment history section a heading of its own', () => {
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getByRole('heading', { name: 'Payment history' })).toBeInTheDocument();
   });
 });

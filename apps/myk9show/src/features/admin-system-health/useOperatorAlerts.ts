@@ -29,6 +29,10 @@ export function useOperatorAlerts() {
     queryKey: OPERATOR_ALERTS_QUERY_KEY,
     queryFn: fetchUnresolvedOperatorAlerts,
     staleTime: 30_000,
+    // Polls like the health snapshot beside it. Without this a failed read
+    // stays failed for the life of the tab, and both surfaces that show this
+    // count tell the operator it will retry when nothing would.
+    refetchInterval: 60_000,
   });
 }
 

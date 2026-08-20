@@ -2,6 +2,9 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { mapEntryStatus, mapPaymentStatus } from '@/utils/entryManagementUtils';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import { buildFinishPaymentHref } from './finishPaymentHref';
+import { getTrialTimezone } from '@/features/registries';
+import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
+import { DEFAULT_SHOW_TIMEZONE, toEntryCloseDay } from './entryCloseDeadline';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
 
 export interface EntryBalanceClassSource {
@@ -14,6 +17,18 @@ export interface EntryBalanceSource {
   showName?: string | null;
   showDate: Date;
   showEndDate?: Date | undefined;
+  /**
+   * The show's entry-close day as a bare `YYYY-MM-DD` calendar day, or `null`
+   * when the show has none. NOT a Date: see `./entryCloseDeadline` for why the
+   * day is carried as a string rather than an instant.
+   */
+  entryCloseDay?: string | null | undefined;
+  /**
+   * IANA timezone the show's calendar days are reckoned in. The entry-close
+   * guard decides "closed" in this zone, not the viewer's, so the deadline
+   * copy must too.
+   */
+  showTimezone?: string | undefined;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
   paymentMethod?: string | null | undefined;
@@ -25,6 +40,14 @@ export interface EntryBalanceSource {
 export interface EntryBalanceShowSummary {
   showId: string;
   showName: string;
+  /**
+   * Entry-close day for this show (`YYYY-MM-DD`), or `null` when unknown.
+   * Required rather than optional so a new caller has to decide what it knows
+   * instead of silently rendering a balance with no deadline.
+   */
+  entryCloseDay: string | null;
+  /** IANA timezone for deciding whether this show's close day has passed. */
+  showTimezone: string;
   amountDueCents: number;
   onlineDueCents: number;
   payAtShowDueCents: number;
@@ -58,10 +81,14 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
     name?: string | null;
     start_date?: string | null;
     end_date?: string | null;
+    entry_close_date?: string | null;
+    trials?: EntryWindowTrial[] | null;
   } | null;
   registration?: {
     payment_status?: string | null;
   } | null;
+  trial?: { timezone?: string | null } | null;
+  class?: { trial?: { timezone?: string | null } | null } | null;
 };
 
 /**
@@ -74,6 +101,26 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
  * card for *display* (see `groupEntriesByOrder`) is fine, but money math must
  * run on the raw rows, not a lossy "first row wins" grouped summary.
  */
+/**
+ * The timezone the show's calendar days are reckoned in, matching the
+ * entry-close guard.
+ *
+ * The guard resolves the show's PRIMARY trial — earliest `date`, ties broken by
+ * id — and uses its timezone; `getEntryWindowTimezone` is the canonical client
+ * implementation of that ordering, so a show with trials in different zones
+ * (a supported configuration) picks the same one the server does rather than
+ * whichever trial this particular entry happens to be in.
+ *
+ * Falls back to the entry's own trial when the show's trial list is absent —
+ * a partial row from a degraded read path is better served by a nearby
+ * timezone than by the bare default.
+ */
+function resolveShowTimezone(row: EntryBalanceRawRow): string {
+  const trials = row.show?.trials;
+  if (trials && trials.length > 0) return getEntryWindowTimezone(trials);
+  return getTrialTimezone(row.trial ?? row.class?.trial ?? null);
+}
+
 export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanceSource {
   const show = row.show;
   const paymentStatus = row.registration?.payment_status ?? row.payment_status ?? 'pending';
@@ -84,6 +131,8 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     showName: show?.name ?? null,
     showDate: parseShowDate(show?.start_date) ?? new Date(),
     showEndDate: parseShowDate(show?.end_date),
+    entryCloseDay: toEntryCloseDay(show?.entry_close_date),
+    showTimezone: resolveShowTimezone(row),
     entryStatus: mapEntryStatus(row.entry_status ?? 'pending'),
     paymentStatus: mapPaymentStatus(paymentStatus),
     paymentMethod: row.payment_method ?? null,
@@ -167,6 +216,8 @@ export function summarizeEntryBalances(
     const existing = showBalances.get(showId) ?? {
       showId,
       showName: entry.showName || 'This show',
+      entryCloseDay: entry.entryCloseDay ?? null,
+      showTimezone: entry.showTimezone || DEFAULT_SHOW_TIMEZONE,
       amountDueCents: 0,
       onlineDueCents: 0,
       payAtShowDueCents: 0,
@@ -174,6 +225,11 @@ export function summarizeEntryBalances(
     };
     existing.amountDueCents += cents;
     existing.onlineDueCents += cents;
+    // Every row for a show shares one close day, but rows can reach here from
+    // paths that resolved the show join and paths that did not. First known
+    // day wins so one relation-less row cannot erase a deadline the others
+    // carry.
+    existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
     existing.entryIds.push(...entryIdsForPayment(entry));
     showBalances.set(showId, existing);
   }

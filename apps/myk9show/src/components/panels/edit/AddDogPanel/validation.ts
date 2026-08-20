@@ -67,8 +67,8 @@ export const addDogSchema = z.object({
   // path. Trimming here also means every consumer receives a normalised value.
   callName: z.string().trim().min(1, 'Please enter a call name').max(120, 'Call name is too long'),
   gender: z
-    .enum(['Male', 'Female', ''] as const, { message: 'Please select a gender' })
-    .refine(v => v !== '', 'Please select a gender'),
+    .enum(['Male', 'Female', ''] as const, { message: 'Please select a sex' })
+    .refine(v => v !== '', 'Please select a sex'),
   dateOfBirth: z
     .string()
     .min(1, 'Please enter a date of birth')

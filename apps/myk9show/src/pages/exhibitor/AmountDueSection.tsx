@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
+import { formatShowWithEntryCloseDeadline } from '@/features/payments/entryCloseDeadline';
+import { useNow } from '@/hooks/useNow';
 
 export function AmountDueSection({
   summary,
@@ -26,6 +28,15 @@ export function AmountDueSection({
   isLoading: boolean;
   isError: boolean;
 }) {
+  // One clock for the whole card, above every early return so the hook order
+  // is stable. A deadline lapses at midnight in the SHOW's timezone, and this
+  // page's queries never refetch on window focus (`refetchOnWindowFocus` is
+  // false globally), so a `now` frozen at mount would leave a tab opened the
+  // night before still promising a deadline that has since passed. A 15-minute
+  // tick bounds that lag in every IANA zone, including the :30/:45-offset ones
+  // whose midnight does not land on an hour boundary.
+  const nowMs = useNow(15 * 60 * 1000);
+
   if (isLoading) {
     return (
       <Card>
@@ -87,6 +98,9 @@ export function AmountDueSection({
     );
   }
 
+  // Shared by every row so the multi-show breakdown can never disagree with
+  // the single-show line about what day it is.
+  const now = new Date(nowMs);
   const singleOnlineShowBalance =
     summary.onlineShowBalances.length === 1 ? summary.onlineShowBalances[0] : null;
   const singleOnlineCoversFullDue =
@@ -117,14 +131,35 @@ export function AmountDueSection({
                 to other shows. An unqualified name sitting directly under it
                 would attribute the whole total to this one show, so name it
                 bare only when this show's online balance IS the whole total,
-                and otherwise say which part of it this show accounts for. */}
+                and otherwise say which part of it this show accounts for.
+
+                The name now carries the show's entry-close day ("Spring Trial
+                - pay by Sep 14") so the card answers "by when" as well as
+                "how much". A show with no close date, or one whose close day
+                has passed, renders the bare name — see
+                `formatEntryCloseDeadline` for why a past deadline is silence
+                rather than a warning. */}
             {singleOnlineShowBalance &&
               (singleOnlineCoversFullDue ? (
-                <p className="mt-1 text-sm font-medium">{singleOnlineShowBalance.showName}</p>
-              ) : (
                 <p className="mt-1 text-sm font-medium">
-                  {formatPaymentCents(singleOnlineShowBalance.onlineDueCents, 'usd')} of this is for{' '}
-                  {singleOnlineShowBalance.showName}
+                  {formatShowWithEntryCloseDeadline(
+                    singleOnlineShowBalance.showName,
+                    singleOnlineShowBalance.entryCloseDay,
+                    now,
+                    singleOnlineShowBalance.showTimezone
+                  )}
+                </p>
+              ) : (
+                /* Built as one string rather than interpolated JSX so the
+                   sentence is a single text node — a screen reader reads it as
+                   one phrase instead of three fragments. */
+                <p className="mt-1 text-sm font-medium">
+                  {`${formatPaymentCents(singleOnlineShowBalance.onlineDueCents, 'usd')} of this is for ${formatShowWithEntryCloseDeadline(
+                    singleOnlineShowBalance.showName,
+                    singleOnlineShowBalance.entryCloseDay,
+                    now,
+                    singleOnlineShowBalance.showTimezone
+                  )}`}
                 </p>
               ))}
             <p className="mt-1 text-sm text-muted-foreground">
@@ -161,7 +196,14 @@ export function AmountDueSection({
                 key={show.showId}
                 className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
               >
-                <span className="text-sm font-medium">{show.showName}</span>
+                <span className="text-sm font-medium">
+                  {formatShowWithEntryCloseDeadline(
+                    show.showName,
+                    show.entryCloseDay,
+                    now,
+                    show.showTimezone
+                  )}
+                </span>
                 <Button asChild variant="outline" size="touch">
                   <Link to={show.paymentHref}>
                     Pay {formatPaymentCents(show.onlineDueCents, 'usd')}

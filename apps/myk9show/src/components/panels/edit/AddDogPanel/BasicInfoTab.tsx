@@ -126,7 +126,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
         {/* Form Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField label="Gender" fieldId="gender" required error={form.getError('gender')}>
+          {/* Labelled "Sex" to match the `dogs.sex` column, the Sex filter chip,
+              and dog-sport usage. The form key stays `gender` — renaming it is a
+              wider refactor with no user-visible effect. */}
+          <FormField label="Sex" fieldId="gender" required error={form.getError('gender')}>
             <Select
               value={formData.gender}
               onValueChange={value => {
@@ -136,11 +139,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             >
               {/* 4.E: no onBlur→touchField here. Opening the dropdown blurs the
                   trigger (focus moves to the listbox), which used to mark the
-                  field touched and flash "Please select a gender" before the
+                  field touched and flash "Please select a sex" before the
                   novice had a chance to pick. onValueChange marks it touched on
                   an actual selection; submit marks everything touched. */}
               <SelectTrigger {...form.getFieldProps('gender')}>
-                <SelectValue placeholder="Choose gender" />
+                <SelectValue placeholder="Choose sex" />
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl">
                 <SelectItem value="Male" className="rounded-lg transition-colors">

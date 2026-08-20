@@ -55,7 +55,7 @@ typography:
     lineHeight: 1.6
   label:
     fontFamily: "Montserrat, system-ui, sans-serif"
-    fontSize: "0.75rem"
+    fontSize: "0.875rem"
     fontWeight: 500
     lineHeight: 1.25
   mono:
@@ -124,7 +124,7 @@ Warm early light at the venue. Rings taped, catalogs stacked, armbands sorted, c
 
 The visual foundation is warm paper, not cold glass: a catalog-cream canvas (`#faf7f2`) carrying pure-white cards with warm sand borders and ink text — every neutral has a yellow-brown undertone, with no cool grays anywhere. Montserrat carries the entire working interface; Fraunces serif appears only at celebration moments (The Podium), so the typeface itself signals that something was earned. Color arrives through a **user-selectable accent**: Clay terracotta by default, with Grove teal, Dusk slate-blue, and Heather aubergine as the exhibitor's choice. Components never hardcode an accent; they speak `var(--primary)` and let the user's preference flow through. Dark mode is not an inversion but a different time of day — warm olive-dark surfaces (`#181411`, `#1e1c19`) like the show grounds after sunset, with the accent brightened one step for legibility.
 
-Built for older, non-technical users operating outdoors under time pressure: 44px minimum touch targets, 16px+ body text with a user-controlled font scale (`--font-scale`), user-selectable layout density (compact / comfortable / spacious), high contrast, and no hover-only or gesture-only interactions. Components feel **calm and tactile** — soft 8px corners, gentle 1px hover lifts, quiet feedback.
+Built for older, non-technical users operating outdoors under time pressure: 44px minimum touch targets, a 14px floor on working UI and 16px prose, both multiplied by a user-controlled font scale (`--font-scale`), user-selectable layout density (compact / comfortable / spacious), high contrast, and no hover-only or gesture-only interactions. Components feel **calm and tactile** — soft 8px corners, gentle 1px hover lifts, quiet feedback.
 
 **Key Characteristics:**
 
@@ -189,15 +189,23 @@ The canonical surface values live in `index.css`'s `@layer base :root` block (th
 - **Display / h1** (Montserrat 600, `clamp(36px, 5vw, 60px)`, 1.05, -0.01em): Page titles.
 - **Headline / h2** (Montserrat 600, `clamp(28px, 3.5vw, 40px)`, 1.2, -0.01em): Major section headings.
 - **Title / h3–h4** (Montserrat 600, 1.125–1.25rem × `--font-scale`, 1.3): Card titles, sub-sections.
-- **Body** (Montserrat 400, 1rem × `--font-scale`, 1.6): All standard text. 16px minimum before scaling; generous book-like line height is deliberate. Respect a 65–75ch line cap in prose contexts.
-- **Label** (Montserrat 500, 0.75rem, 1.25): Chips, badges, form labels, metadata.
+- **Body / prose** (Montserrat 400, 1rem × `--font-scale`, 1.6): Text meant to be *read* — paragraphs, empty states, help and error copy. 16px before scaling; generous book-like line height is deliberate. Respect a 65–75ch line cap.
+- **Working UI** (Montserrat 400, 0.875rem × `--font-scale`, 1.4): Text meant to be *scanned* — table cells, form values, dense list rows. 14px before scaling. This is the app's real default and it is deliberate: tabular density earns its keep on a secretary's laptop, and the font-scale preference (below) is how a user who needs larger gets it.
+- **Label** (Montserrat 500, 0.875rem, 1.25): Chips, badges, form labels, metadata. Note this is the *same rendered size* as working UI — `text-xs` is remapped to 0.875rem (see The 14px Floor Rule), so `text-xs` and `text-sm` are aliases. A label is distinguished from its value by **weight, letter-spacing and color, never by size.**
 - **Eyebrow** (Montserrat 600, 12px, 0.12em tracking, uppercase, terra-700): Kicker labels above display headings.
 - **Celebration** (Fraunces via `.display-serif` at heading sizes, `.celebration-serif` at text sizes): The Podium and result celebrations only.
 - **Mono** (JetBrains Mono 400, `tabular-nums`): Armband numbers, times, scores — the `.numeric` utility, plus `code` and `kbd`.
 
 **The Podium Rule.** Fraunces is forbidden in working UI. If the screen helps someone do a task, it is Montserrat. If the screen honors something a dog just did — a placement, a title, a qualifying run — Fraunces may speak. Use `.display-serif` above ~20px and `.celebration-serif` below it (the text optical axis keeps small sizes sturdy).
 
-**The Font Scale Rule.** Body and h3-and-below sizes multiply by `--font-scale` (user preference); h1/h2 use viewport clamps instead. Never set working text in fixed px that escapes the scale, and never below 12px equivalent.
+**The Font Scale Rule.** Body and h3-and-below sizes multiply by `--font-scale` (user preference); h1/h2 use viewport clamps instead. Never set working text in fixed px that escapes the scale, and never below the 14px floor.
+
+`--font-scale` is set on `html` as `calc(16px * var(--font-scale))` (`styles/theme-preferences.css`) and everything downstream is in rem, so it moves the whole app together. Users choose it in Account settings: large = 1.2, extra-large = 1.4 — which renders 14px working UI at 16.8px and 19.6px respectively. **This preference, not a larger default, is how the accessibility commitment to older users is met.** Scales below 1 are clamped away so the floor cannot be undercut.
+
+**The 14px Floor Rule.** `tailwind.config.js` remaps `text-xs` from Tailwind's 12px to 0.875rem under an `// INTENT:` comment: 12px is too small for show-day tablet use and retired exhibitors. Two consequences worth stating plainly, because every design review rediscovers them:
+
+1. **`text-xs` and `text-sm` render identically at 14px.** That step in the scale does nothing. Do not "fix" it by restoring `text-xs` to 0.75rem — that reintroduces the 12px the floor exists to prevent. Differentiate with weight and color instead.
+2. **The scale's small end is compressed on purpose.** Step ratios below `2xl` fall short of the 1.25 guideline. That is a consequence of the floor, not an oversight; hierarchy in dense UI comes from weight, color and spacing. Print and export templates fitting fixed-format official forms are the one sanctioned exception to the floor.
 
 > Note: global serif h1/h2 existed briefly during the Fall 2026 redesign and was deliberately reverted (PR #659) — don't reintroduce it. The original `design-tokens.css` intent ("Reserved for celebration/editorial moments — The Podium") is the standing doctrine. The public landing page keeps its own editorial serif (Playfair) scoped under `.landing-v2`.
 
@@ -268,7 +276,7 @@ One learnable motion vocabulary across myK9Show + ringside. **Durations and easi
 
 - **Do** keep every neutral warm-toned — if a gray has no yellow-brown undertone, it doesn't belong here.
 - **Do** route all accent color through `var(--primary)` / `var(--accent)` tokens so Clay, Grove, Dusk, and Heather all render correctly.
-- **Do** keep touch targets at 44px minimum and body text at 16px+ before user scaling — the audience is older, outdoors, often wearing gloves.
+- **Do** keep touch targets at 44px minimum, prose at 16px, and working UI at the 14px floor before user scaling — the audience is older, outdoors, often wearing gloves, and the `--font-scale` preference is how they get larger.
 - **Do** use the existing status vocabulary (`--status-*`, chip pairs) for any state communication; check both light and dark renderings.
 - **Do** make offline and sync states quiet and reassuring — "Offline is normal, not broken" (PRODUCT.md).
 - **Do** write plain-English microcopy in dog-show terminology; "plain language beats clever language."
@@ -283,6 +291,7 @@ One learnable motion vocabulary across myK9Show + ringside. **Durations and easi
 - **Don't** show "technical error messages, sync anxiety, or anything that makes poor connectivity feel like user failure."
 - **Don't** use pure white as a *page background* (cards and inputs are the sanctioned white surfaces), pure black as text, or cool blue-grays anywhere outside the status vocabulary.
 - **Don't** hardcode `#c96442` (or any accent hex) in a component — it breaks the other three accents.
+- **Don't** restore `text-xs` to 0.75rem to "repair" the flat step between it and `text-sm` — they are aliases at 14px on purpose, and 12px is what the floor exists to keep out. Use weight and color for that contrast.
 - **Don't** use Fraunces in working UI (headings, body, buttons, labels, tables), Ring Green outside live-judging, or status colors as decoration.
 - **Don't** use colored side-stripe borders (`border-left` > 1px) on cards or alerts; use full borders, tints, or nothing.
 - **Don't** reach for a modal first — exhaust inline and progressive disclosure; modals are for genuine interruptions.

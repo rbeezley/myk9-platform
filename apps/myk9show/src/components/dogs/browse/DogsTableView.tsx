@@ -59,11 +59,9 @@ function getStatusBadge(status: DogStatus | undefined) {
         </Badge>
       );
     case 'deceased':
+      // Tokens, not raw gray — see the note in DogsGridView's STATUS_BADGES.
       return (
-        <Badge
-          variant="secondary"
-          className="text-xs bg-gray-100 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400"
-        >
+        <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
           Deceased
         </Badge>
       );

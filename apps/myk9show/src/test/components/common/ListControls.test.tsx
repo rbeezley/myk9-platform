@@ -100,10 +100,11 @@ describe('ListControls', () => {
     expect(button).toHaveTextContent('1');
   });
 
-  it('shows the result count with the filtered indicator', () => {
+  it('shows the result count when the list is narrowed', () => {
+    // "Showing 12 of 40" already conveys that the list is narrowed, so the
+    // separate "(filtered)" tag is now kept only for the showing === total case.
     setup();
-    expect(screen.getByText(/12 of 40 people/)).toBeInTheDocument();
-    expect(screen.getByText(/\(filtered\)/)).toBeInTheDocument();
+    expect(screen.getByText('Showing 12 of 40 people')).toBeInTheDocument();
   });
 
   it('omits the filter row when there are no filters', () => {

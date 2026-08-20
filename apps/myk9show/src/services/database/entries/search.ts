@@ -124,7 +124,12 @@ export const USER_ENTRIES_SELECT = `
         entry_close_date,
         venue_name,
         city,
-        state
+        state,
+        trials:trials (
+          id,
+          date,
+          timezone
+        )
       ),
       class:class_id (
         id,
@@ -134,14 +139,16 @@ export const USER_ENTRIES_SELECT = `
           id,
           trial_type,
           date,
-          trial_number
+          trial_number,
+          timezone
         )
       ),
       trial:trial_id (
         id,
         trial_type,
         date,
-        trial_number
+        trial_number,
+        timezone
       )
     `;
 

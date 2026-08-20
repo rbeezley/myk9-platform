@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { within } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 
 vi.mock('@/hooks/useRBAC', () => ({
@@ -12,7 +13,20 @@ vi.mock('@/hooks/useRBAC', () => ({
 
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
-    getAllRoles: vi.fn().mockResolvedValue([]),
+    getAllRoles: vi.fn().mockResolvedValue([
+      {
+        id: 'r1',
+        name: 'show_secretary',
+        description: 'Runs entries, classes, and results',
+        is_system: true,
+        permissions: null,
+        created_at: null,
+        display_name: 'Show Secretary',
+        permission_count: 37,
+        user_count: 14,
+        grant_count: 20,
+      },
+    ]),
     getAllPermissions: vi.fn().mockResolvedValue([
       {
         id: 'p1',
@@ -23,6 +37,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
         created_at: null,
       },
     ]),
+    getAuditLogs: vi.fn().mockResolvedValue([]),
     clearAllCache: vi.fn(),
     clearUserCache: vi.fn(),
   },
@@ -59,8 +74,8 @@ describe('PermissionManagementPage tab consolidation', () => {
     const { container } = render(<PermissionManagementPage />, {
       initialRoute: '/admin/permissions',
     });
-    // Wait for the async permission count to resolve so the stat card is rendered.
-    await screen.findByText('Total Permissions');
+    // Wait for the async load to resolve so the stat card is rendered.
+    await screen.findByRole('row', { name: /Show Secretary/ });
     const inventoryLinks = container.querySelectorAll(
       'a[href="/admin/permissions?tab=permissions"]'
     );
@@ -69,9 +84,11 @@ describe('PermissionManagementPage tab consolidation', () => {
 
   it('keeps the overview focused on the two places where access is managed', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
-    expect(screen.getByRole('link', { name: 'Manage roles' })).toHaveAttribute(
+    // The explainer section is gone; the roles table is now the console itself,
+    // and these two actions remain the only way out of the overview.
+    expect(screen.getByRole('link', { name: 'New role' })).toHaveAttribute(
       'href',
-      '/admin/permissions/roles'
+      '/admin/permissions/roles/new'
     );
     expect(screen.getByRole('link', { name: 'Assign roles in User Management' })).toHaveAttribute(
       'href',
@@ -87,10 +104,89 @@ describe('PermissionManagementPage tab consolidation', () => {
 
   it('uses an en dash (not an em dash) for empty stat counts before they load', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
-    // Counts resolve to [] async; on first paint the placeholder is shown.
-    // The UI-copy ban forbids em dashes — assert the en dash glyph is used.
-    const placeholders = screen.getAllByText('–');
-    expect(placeholders.length).toBeGreaterThan(0);
-    expect(screen.queryByText('—')).not.toBeInTheDocument();
+    // Both stats (Active grants, Permissions) are unresolved on first paint.
+    // Scope to the stat region so the table's own, sanctioned em-dash
+    // ("Last changed" with no audit entry) can never satisfy this assertion.
+    const statSummary = screen.getByRole('group', { name: 'Access summary' });
+    const placeholders = within(statSummary).getAllByText('–');
+    expect(placeholders.length).toBe(2);
+    // The UI-copy ban forbids em dashes in the stats specifically.
+    expect(within(statSummary).queryByText('—')).not.toBeInTheDocument();
+  });
+
+  it('labels the "Active grants" stat with a number that matches its name (grant rows, not distinct members)', async () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    await screen.findByRole('row', { name: /Show Secretary/ });
+    const statSummary = screen.getByRole('group', { name: 'Access summary' });
+    // Fixture: user_count (distinct members) = 14, grant_count (active
+    // user_roles rows) = 20. "Active grants" must report 20 — the row count
+    // the label promises — not the distinct-member figure from user_count.
+    expect(within(statSummary).getByText('20')).toBeInTheDocument();
+    expect(within(statSummary).queryByText('14')).not.toBeInTheDocument();
+  });
+
+  it('lands the admin on the roles themselves, not a lobby', async () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    const row = await screen.findByRole('row', { name: /Show Secretary/ });
+    expect(row).toHaveTextContent('37');
+    expect(screen.getByRole('link', { name: /Show Secretary/ })).toHaveAttribute(
+      'href',
+      '/admin/permissions/roles/r1'
+    );
+  });
+
+  it('keeps the recent-changes rail pointed at the audit tab', async () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    expect(await screen.findByRole('link', { name: /view full audit/i })).toHaveAttribute(
+      'href',
+      '/admin/permissions?tab=audit'
+    );
+  });
+
+  it('still shows the roles console when the audit log fails to load', async () => {
+    const { rbacService } = await import('@/services/rbac/RBACService');
+    vi.mocked(rbacService.getAuditLogs).mockRejectedValueOnce(new Error('audit down'));
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    expect(await screen.findByRole('row', { name: /Show Secretary/ })).toBeInTheDocument();
+    // The audit read failed — the rail must say so, not assert the false
+    // fact that nothing has ever changed.
+    expect(screen.getByText(/recent changes couldn't be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no access changes recorded yet/i)).not.toBeInTheDocument();
+  });
+
+  it('does not claim a role has no recorded change when the audit read simply failed', async () => {
+    const { rbacService } = await import('@/services/rbac/RBACService');
+    // Only the role-targeted query (the one that feeds "Last changed") fails
+    // here — the unfiltered query still succeeds. This is deliberate: the
+    // "Last changed" column must react to its OWN query's failure, not to
+    // whichever of the two audit reads happens to fail.
+    vi.mocked(rbacService.getAuditLogs).mockImplementation(async filter => {
+      if (filter?.targetType === 'role') {
+        throw new Error('audit down');
+      }
+      return [];
+    });
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    const row = await screen.findByRole('row', { name: /Show Secretary/ });
+    // The em dash reads as "no recorded change" — a fact the failed audit
+    // read cannot support. The row must say the change history is unknown.
+    expect(row).not.toHaveTextContent('—');
+    expect(row).toHaveTextContent('Unknown');
+  });
+
+  it('does not state false facts on the overview when roles fail to load', async () => {
+    const { rbacService } = await import('@/services/rbac/RBACService');
+    vi.mocked(rbacService.getAllRoles).mockRejectedValueOnce(new Error('roles down'));
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    expect(await screen.findByText(/couldn't load the access summary/i)).toBeInTheDocument();
+
+    const statSummary = screen.getByRole('group', { name: 'Access summary' });
+    // "Active grants" must not settle on a confident 0 while the alert says
+    // nothing loaded — both stats stay unresolved.
+    expect(within(statSummary).getAllByText('–')).toHaveLength(2);
+    expect(within(statSummary).queryByText('0')).not.toBeInTheDocument();
+
+    // The rail must not assert "nothing has ever happened" either.
+    expect(screen.queryByText(/no access changes recorded yet/i)).not.toBeInTheDocument();
   });
 });

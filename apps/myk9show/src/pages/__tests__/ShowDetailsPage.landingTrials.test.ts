@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { pickLandingTrials } from '../ShowDetailsPage.landingTrials';
 
-const storeTrial = (id: string): Trial =>
-  ({ id, showId: 'show-1', name: `Store ${id}` }) as Trial;
+const storeTrial = (id: string): Trial => ({ id, showId: 'show-1', name: `Store ${id}` }) as Trial;
 
 const publicRow = (id: string) => ({
   id,

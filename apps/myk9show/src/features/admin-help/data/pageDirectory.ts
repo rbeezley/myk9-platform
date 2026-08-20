@@ -49,22 +49,24 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: ['/admin/permissions/roles', '/admin/permissions/audit', '/admin/users'],
+    linksTo: [
+      '/admin/permissions/roles/new',
+      '/admin/permissions/roles/:roleId',
+      '/admin/permissions/audit',
+      '/admin/users',
+    ],
   },
   {
     path: '/admin/permissions/roles',
-    title: 'Role List',
-    description: 'Browse all roles and their assigned permissions.',
+    title: 'Role List (redirects to Roles & Permissions)',
+    description: 'Redirects to the Roles & Permissions console, where the roles list now lives.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Admin',
     status: 'working',
-    linksTo: [
-      '/admin/permissions',
-      '/admin/permissions/roles/new',
-      '/admin/permissions/roles/:roleId',
-      '/admin/permissions/roles/:roleId/clone',
-    ],
+    // A bare redirect (<Navigate replace>, no rendered UI) has no links of
+    // its own to declare.
+    linksTo: [],
   },
   {
     path: '/admin/permissions/roles/new',
@@ -79,7 +81,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/permissions/roles/:roleId',
     title: 'Edit Role',
-    description: "Modify a role's display name and assigned permissions.",
+    description:
+      "Modify a role's display name and assigned permissions, clone it as a starting point for a new role, or delete it — the only place in the app either capability exists.",
     roles: [UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Admin',

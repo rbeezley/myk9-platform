@@ -4,12 +4,10 @@
  * Created: December 2024
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 
@@ -19,55 +17,30 @@ const PERMISSION_TABS: PrimaryTabDef[] = [
   { id: 'permissions', label: 'Permissions' },
   { id: 'audit', label: 'Permission Audit' },
 ];
-import {
-  Shield,
-  Users,
-  Settings,
-  History,
-  Plus,
-  ArrowRight,
-  AlertCircle,
-  RefreshCw,
-} from 'lucide-react';
-import { rbacService } from '@/services/rbac/RBACService';
+import { Shield, Users, Settings, Plus } from 'lucide-react';
+import { usePermissionsOverview } from '@/hooks/usePermissionsOverview';
 import { PermissionInventory } from '@/components/admin/permissions/PermissionInventory';
 import { RoleAssignmentsPanel } from '@/components/admin/permissions/RoleAssignmentsPanel';
-import type { Permission } from '@/types/rbac-types';
+import { RolesOverviewTable } from '@/components/admin/permissions/RolesOverviewTable';
+import { RecentAccessChanges } from '@/components/admin/permissions/RecentAccessChanges';
 import PermissionAuditPage from './PermissionAuditPage';
 
 const PermissionManagementPage: React.FC = () => {
-  const [roleCount, setRoleCount] = useState<number | null>(null);
-  const [permissions, setPermissions] = useState<Permission[] | null>(null);
-  const [permissionsError, setPermissionsError] = useState<string | null>(null);
+  const {
+    roles,
+    permissions,
+    auditEntries,
+    auditFailed,
+    roleAuditFailed,
+    lastChanged,
+    isLoading,
+    error,
+    reload,
+  } = usePermissionsOverview();
   const [activeTab, setActiveTab] = useUrlTab(
     ['overview', 'assignments', 'permissions', 'audit'] as const,
     'overview'
   );
-
-  const loadCounts = useCallback(async () => {
-    try {
-      const [roles, allPermissions] = await Promise.all([
-        rbacService.getAllRoles(),
-        rbacService.getAllPermissions(),
-      ]);
-      setRoleCount(roles.length);
-      setPermissions(allPermissions);
-      setPermissionsError(null);
-    } catch {
-      setPermissionsError("We couldn't load the access summary.");
-    }
-  }, []);
-
-  useEffect(() => {
-    // This starts an external service read; state updates occur after the promise settles.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadCounts();
-  }, [loadCounts]);
-
-  const permissionCount = permissions?.length ?? null;
-  // Distinguish "still fetching" from "genuinely empty" so the inventory tab
-  // doesn't flash a false "No permissions defined" during a direct deep-load.
-  const permissionsLoading = permissions === null && !permissionsError;
 
   return (
     <PrimaryTabs
@@ -87,7 +60,7 @@ const PermissionManagementPage: React.FC = () => {
                     Roles &amp; Permissions
                   </h1>
                   <p className="mt-2 max-w-2xl text-muted-foreground">
-                    Define what each role can do, review who has access, and trace every change.
+                    Every role in the system — open one to change what it can do.
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
@@ -98,99 +71,55 @@ const PermissionManagementPage: React.FC = () => {
                     </Link>
                   </Button>
                   <Button asChild className="h-11 w-full sm:w-auto">
-                    <Link to="/admin/permissions/roles">
+                    <Link to="/admin/permissions/roles/new">
                       <Plus className="mr-2 h-4 w-4" />
-                      Manage roles
+                      New role
                     </Link>
                   </Button>
                 </div>
               </div>
 
-              {permissionsError && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span>{permissionsError}</span>
-                    <Button variant="outline" className="h-11" onClick={() => void loadCounts()}>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Try again
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <Card>
-                <CardContent className="p-0">
-                  <div className="grid md:grid-cols-2 md:divide-x md:divide-border">
-                    <div className="flex items-center justify-between gap-4 p-5">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">System Roles</p>
-                        <p className="mt-1 text-2xl font-semibold tabular-nums">
-                          {roleCount?.toString() ?? '–'}
-                        </p>
-                      </div>
-                      <Button asChild variant="ghost" className="h-11">
-                        <Link to="/admin/permissions/roles">
-                          Review roles <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 border-t border-border p-5 md:border-t-0">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Total Permissions
-                        </p>
-                        <p className="mt-1 text-2xl font-semibold tabular-nums">
-                          {permissionCount?.toString() ?? '–'}
-                        </p>
-                      </div>
-                      <Button asChild variant="ghost" className="h-11">
-                        <Link to="/admin/permissions?tab=permissions">
-                          Review permissions <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <section
-                aria-labelledby="access-flow-heading"
-                className="rounded-xl border bg-card p-6"
-              >
-                <h2 id="access-flow-heading" className="text-lg font-semibold">
-                  How access works
-                </h2>
-                <div className="mt-5 grid gap-5 md:grid-cols-3">
-                  <div className="flex gap-3">
-                    <Shield className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                    <div>
-                      <h3 className="font-medium">Define roles</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Choose the permissions each role includes.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <Users className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                    <div>
-                      <h3 className="font-medium">Assign access</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Grant roles to people from User Management.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <History className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                    <div>
-                      <h3 className="font-medium">Trace changes</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Use Permission Audit to review every access change.
-                      </p>
-                    </div>
-                  </div>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <RolesOverviewTable
+                    roles={roles}
+                    lastChanged={lastChanged}
+                    isLoading={isLoading}
+                    error={error}
+                    onRetry={reload}
+                    auditFailed={roleAuditFailed}
+                  />
                 </div>
-              </section>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4" role="group" aria-label="Access summary">
+                    <div className="rounded-xl border bg-card p-4">
+                      <p className="font-medium text-muted-foreground">Active grants</p>
+                      <p className="mt-1 text-2xl font-semibold tabular-nums">
+                        {isLoading || error
+                          ? '–'
+                          : roles.reduce((sum, role) => sum + (role.grant_count ?? 0), 0)}
+                      </p>
+                    </div>
+                    <Link
+                      to="/admin/permissions?tab=permissions"
+                      className="rounded-xl border bg-card p-4"
+                    >
+                      <p className="font-medium text-muted-foreground">Permissions</p>
+                      <p className="mt-1 text-2xl font-semibold tabular-nums">
+                        {permissions?.length.toString() ?? '–'}
+                      </p>
+                    </Link>
+                  </div>
+                  <RecentAccessChanges
+                    entries={auditEntries}
+                    isLoading={isLoading}
+                    // A load failure means the audit rail's [] is unfetched
+                    // state, not a genuine "nothing happened" — same
+                    // principle as a standalone audit-fetch failure.
+                    auditFailed={auditFailed || Boolean(error)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -215,9 +144,9 @@ const PermissionManagementPage: React.FC = () => {
               </div>
               <PermissionInventory
                 permissions={permissions ?? []}
-                isLoading={permissionsLoading}
-                error={permissionsError}
-                onRetry={() => void loadCounts()}
+                isLoading={isLoading}
+                error={error}
+                onRetry={reload}
               />
             </div>
           </div>

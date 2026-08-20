@@ -49,11 +49,6 @@ const PermissionManagementPage = createEnhancedLazy(
   { ...RouteLazyPresets.critical, displayName: 'PermissionManagementPage' }
 );
 
-const RoleListPage = createEnhancedLazy(() => import('@/pages/admin/permissions/RoleListPage'), {
-  ...RouteLazyPresets.mediumPriority,
-  displayName: 'RoleListPage',
-});
-
 const RoleEditPage = createEnhancedLazy(() => import('@/pages/admin/permissions/RoleEditPage'), {
   ...RouteLazyPresets.mediumPriority,
   displayName: 'RoleEditPage',
@@ -247,15 +242,15 @@ export const AdminRoutes = () => (
         </SuspenseWrapper>
       )}
     />
+    {/* The roles list now lives on the overview console — see
+        docs/plan-permissions-overview-roles-console.md. Kept as a redirect
+        because CreateRolePage / CloneRolePage / RoleEditPage all link back
+        here. Wrapped in adminGuard (fail closed one hop earlier), matching
+        the /admin/permissions/audit precedent below — not the unguarded
+        /admin/permissions/users redirect further down. */}
     <Route
       path="/admin/permissions/roles"
-      element={adminGuard(
-        <SuspenseWrapper>
-          <PageTransition>
-            <RoleListPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      )}
+      element={adminGuard(<Navigate to="/admin/permissions" replace />)}
     />
     <Route
       path="/admin/permissions/roles/new"

@@ -11,8 +11,9 @@
  *
  *  1. `entryIds` — a card matches when any of its class rows is in the set.
  *     This is the precise scope and the normal case. It only counts as EXACT
- *     when every named id was found; a subset resolves to `partial` so the
- *     copy cannot overclaim while rows are still arriving.
+ *     when the named ids and the matched cards' rows agree in BOTH directions
+ *     — nothing named is missing, and nothing unnamed rode along. Anything
+ *     else resolves to `partial` so the copy cannot overclaim.
  *  2. `showId` — used only when step 1 matched nothing. An entry row that has
  *     not replicated yet, or one since regrouped, would otherwise produce an
  *     empty page; narrowing to the show is still far better than the whole
@@ -46,9 +47,10 @@ export type EntryScopeMatch =
   /** Narrowed to the entry rows the link named, and ALL of them were found. */
   | { kind: 'entries'; entries: MyEntry[] }
   /**
-   * Narrowed, but some named rows are missing — still replicating, or since
-   * withdrawn. Kept separate from 'entries' because the copy must not claim
-   * these are everything the payment covered when they demonstrably are not.
+   * Narrowed, but the match is not one-to-one: named rows are missing (still
+   * replicating, or since withdrawn), or a matched card carries rows this
+   * payment did not cover. Kept separate from 'entries' because the copy must
+   * not call this list the payment's contents when it demonstrably is not.
    */
   | { kind: 'partial'; entries: MyEntry[] }
   /** Named ids matched nothing; narrowed to the show they belong to. */
@@ -99,7 +101,16 @@ export function applyEntryScope(entries: MyEntry[], scope: EntryScope | null): E
       if (hit) matched.push(entry);
     }
     if (matched.length > 0) {
-      return { kind: found.size === wanted.size ? 'entries' : 'partial', entries: matched };
+      // Exact requires BOTH directions to line up: every named id present, and
+      // no extra rows riding along on a matched card. A card is one grouped
+      // registration, and a registration can be paid by more than one order
+      // (a capacity split sends the overflow to the wait list, and its later
+      // promotion pays separately). Checking only for missing ids would let a
+      // card carrying a sibling order's classes still claim to BE this payment.
+      const exact =
+        found.size === wanted.size &&
+        matched.every(entry => entry.classes.every(cls => wanted.has(cls.id)));
+      return { kind: exact ? 'entries' : 'partial', entries: matched };
     }
   }
 

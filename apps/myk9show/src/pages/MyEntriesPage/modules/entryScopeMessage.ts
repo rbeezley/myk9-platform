@@ -50,10 +50,11 @@ export function buildScopeMessage(scopeMatch: EntryScopeMatch, totalCount: numbe
     return `Showing ${count}${where} — we could not pin down which of them that payment covered.`;
   }
   if (scopeMatch.kind === 'partial') {
-    // Some named rows are missing (still replicating, or since withdrawn), so
-    // this must not say "the ones your payment covered".
+    // The match is not one-to-one — rows missing, or extra rows on a card the
+    // payment only partly covered. Either way this must not say "the ones your
+    // payment covered", and the wording has to cover both causes.
     const where = showName ? ` for ${showName}` : '';
-    return `Showing ${count}${where}. We could not find every entry that payment covered — some may still be syncing.`;
+    return `Showing ${count}${where} — we could not match this list exactly to that payment.`;
   }
   return showName
     ? `Showing ${count} — the ones your payment for ${showName} covered.`

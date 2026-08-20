@@ -74,13 +74,15 @@ describe('applyEntryScope', () => {
   });
 
   it('narrows to the orders whose class rows the link named', () => {
-    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1'] });
+    // orderB is a single-row order, so naming e3 covers it exactly.
+    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e3'] });
     expect(result.kind).toBe('entries');
-    expect(result.entries).toEqual([orderA]);
+    expect(result.entries).toEqual([orderB]);
   });
 
   it('matches every order the id set spans, not just the first', () => {
-    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e2', 'e3'] });
+    // e1+e2 is all of orderA, e3 is all of orderB — both covered exactly.
+    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1', 'e2', 'e3'] });
     expect(result.kind).toBe('entries');
     expect(result.entries).toEqual([orderA, orderB]);
   });
@@ -89,21 +91,31 @@ describe('applyEntryScope', () => {
     // A card is one grouped ORDER, so orderA matches on e1 alone. Calling that
     // exact would let the banner claim these are everything the payment
     // covered while e3 is still replicating.
-    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1', 'e3-not-yet'] });
+    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e3', 'e4-not-yet'] });
     expect(result.kind).toBe('partial');
-    expect(result.entries).toEqual([orderA]);
+    expect(result.entries).toEqual([orderB]);
   });
 
   it('keeps the narrowing on a partial match rather than dumping the whole show', () => {
     // The show fallback would show orderA AND orderB here; the partial subset
     // is still the more useful answer, it just may not claim to be complete.
-    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1', 'gone'] });
-    expect(result.entries).toEqual([orderA]);
+    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e3', 'gone'] });
+    expect(result.entries).toEqual([orderB]);
   });
 
   it('counts a fully-covered multi-row order as exact', () => {
     const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1', 'e2'] });
     expect(result.kind).toBe('entries');
+    expect(result.entries).toEqual([orderA]);
+  });
+
+  it('reports partial when a matched card carries rows the payment did not cover', () => {
+    // orderA holds e1 and e2. A payment naming only e1 covers half that card:
+    // a registration can be paid by more than one order (a capacity split
+    // sends the overflow to the wait list, whose later promotion pays
+    // separately). Claiming this card IS the payment would overstate it.
+    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1'] });
+    expect(result.kind).toBe('partial');
     expect(result.entries).toEqual([orderA]);
   });
 

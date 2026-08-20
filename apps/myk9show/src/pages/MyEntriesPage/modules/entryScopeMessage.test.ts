@@ -74,7 +74,7 @@ describe('buildScopeMessage', () => {
   it('does NOT claim completeness when some named rows are missing', () => {
     const message = buildScopeMessage({ kind: 'partial', entries: [entryAt('Spring Trial')] }, 12);
     expect(message).toBe(
-      'Showing 1 of 12 entries for Spring Trial. We could not find every entry that payment covered — some may still be syncing.'
+      'Showing 1 of 12 entries for Spring Trial — we could not match this list exactly to that payment.'
     );
     expect(message).not.toContain('the ones your payment');
   });

@@ -10,7 +10,9 @@
  * rows while the list is grouped one card per order (`groupEntriesByOrder`):
  *
  *  1. `entryIds` — a card matches when any of its class rows is in the set.
- *     This is the precise scope and the normal case.
+ *     This is the precise scope and the normal case. It only counts as EXACT
+ *     when every named id was found; a subset resolves to `partial` so the
+ *     copy cannot overclaim while rows are still arriving.
  *  2. `showId` — used only when step 1 matched nothing. An entry row that has
  *     not replicated yet, or one since regrouped, would otherwise produce an
  *     empty page; narrowing to the show is still far better than the whole
@@ -41,8 +43,14 @@ export interface EntryScope {
 export type EntryScopeMatch =
   /** No scope params in the URL — the page is showing everything, as normal. */
   | { kind: 'none'; entries: MyEntry[] }
-  /** Narrowed to the exact entry rows the link named. */
+  /** Narrowed to the entry rows the link named, and ALL of them were found. */
   | { kind: 'entries'; entries: MyEntry[] }
+  /**
+   * Narrowed, but some named rows are missing — still replicating, or since
+   * withdrawn. Kept separate from 'entries' because the copy must not claim
+   * these are everything the payment covered when they demonstrably are not.
+   */
+  | { kind: 'partial'; entries: MyEntry[] }
   /** Named ids matched nothing; narrowed to the show they belong to. */
   | { kind: 'show'; entries: MyEntry[] }
   /** Nothing matched; showing everything rather than an empty page. */
@@ -75,8 +83,24 @@ export function applyEntryScope(entries: MyEntry[], scope: EntryScope | null): E
 
   if (scope.entryIds.length > 0) {
     const wanted = new Set(scope.entryIds);
-    const matched = entries.filter(entry => entry.classes.some(cls => wanted.has(cls.id)));
-    if (matched.length > 0) return { kind: 'entries', entries: matched };
+    // Track WHICH ids were found, not merely that something matched. A card is
+    // one grouped order, so a single surviving class row makes its whole card
+    // match — and reporting that as an exact scope would let the banner claim
+    // "the ones your payment covered" while siblings are still replicating.
+    const found = new Set<string>();
+    const matched: MyEntry[] = [];
+    for (const entry of entries) {
+      let hit = false;
+      for (const cls of entry.classes) {
+        if (!wanted.has(cls.id)) continue;
+        found.add(cls.id);
+        hit = true;
+      }
+      if (hit) matched.push(entry);
+    }
+    if (matched.length > 0) {
+      return { kind: found.size === wanted.size ? 'entries' : 'partial', entries: matched };
+    }
   }
 
   if (scope.showId) {

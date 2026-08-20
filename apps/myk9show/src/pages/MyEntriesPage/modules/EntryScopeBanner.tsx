@@ -36,10 +36,11 @@ function scopedShowName(entries: MyEntry[]): string | null {
 
 /**
  * The sentence for one resolved scope. Each branch describes what is ACTUALLY
- * on screen. The 'show' fallback in particular must not borrow the 'entries'
- * sentence: it is listing the whole show precisely BECAUSE the named entry rows
- * were not found, so calling those "the ones your payment covered" would be the
- * same false promise the bare "Receipt" label used to make, one screen along.
+ * on screen, and only 'entries' — every named row found — may claim these are
+ * what the payment covered. The 'show' and 'partial' branches must not borrow
+ * that sentence: one is listing a whole show because the named rows were not
+ * found, the other is missing some of them. Either would be the same false
+ * promise the bare "Receipt" label used to make, moved one screen along.
  */
 export function buildScopeMessage(scopeMatch: EntryScopeMatch, totalCount: number): string | null {
   if (scopeMatch.kind === 'none') return null;
@@ -54,6 +55,12 @@ export function buildScopeMessage(scopeMatch: EntryScopeMatch, totalCount: numbe
   if (scopeMatch.kind === 'show') {
     const where = showName ? ` for ${showName}` : ' for one show';
     return `Showing ${count}${where} — we could not pin down which of them that payment covered.`;
+  }
+  if (scopeMatch.kind === 'partial') {
+    // Some named rows are missing (still replicating, or since withdrawn), so
+    // this must not say "the ones your payment covered".
+    const where = showName ? ` for ${showName}` : '';
+    return `Showing ${count}${where}. We could not find every entry that payment covered — some may still be syncing.`;
   }
   return showName
     ? `Showing ${count} — the ones your payment for ${showName} covered.`

@@ -81,7 +81,30 @@ describe('applyEntryScope', () => {
 
   it('matches every order the id set spans, not just the first', () => {
     const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e2', 'e3'] });
+    expect(result.kind).toBe('entries');
     expect(result.entries).toEqual([orderA, orderB]);
+  });
+
+  it('reports partial — not exact — when only some named rows are on screen', () => {
+    // A card is one grouped ORDER, so orderA matches on e1 alone. Calling that
+    // exact would let the banner claim these are everything the payment
+    // covered while e3 is still replicating.
+    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1', 'e3-not-yet'] });
+    expect(result.kind).toBe('partial');
+    expect(result.entries).toEqual([orderA]);
+  });
+
+  it('keeps the narrowing on a partial match rather than dumping the whole show', () => {
+    // The show fallback would show orderA AND orderB here; the partial subset
+    // is still the more useful answer, it just may not claim to be complete.
+    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1', 'gone'] });
+    expect(result.entries).toEqual([orderA]);
+  });
+
+  it('counts a fully-covered multi-row order as exact', () => {
+    const result = applyEntryScope(all, { showId: 'show-1', entryIds: ['e1', 'e2'] });
+    expect(result.kind).toBe('entries');
+    expect(result.entries).toEqual([orderA]);
   });
 
   it('falls back to the show when the named ids are not on screen yet', () => {

@@ -71,6 +71,14 @@ describe('buildScopeMessage', () => {
     ).toContain('for one show');
   });
 
+  it('does NOT claim completeness when some named rows are missing', () => {
+    const message = buildScopeMessage({ kind: 'partial', entries: [entryAt('Spring Trial')] }, 12);
+    expect(message).toBe(
+      'Showing 1 of 12 entries for Spring Trial. We could not find every entry that payment covered — some may still be syncing.'
+    );
+    expect(message).not.toContain('the ones your payment');
+  });
+
   it('admits a stale link instead of implying entries vanished', () => {
     expect(buildScopeMessage({ kind: 'unmatched', entries: [] }, 12)).toBe(
       'That receipt link no longer matches any of your entries, so all of them are shown below.'

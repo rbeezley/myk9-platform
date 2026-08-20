@@ -23,10 +23,10 @@ interface EntryScopeBannerProps {
 }
 
 /**
- * The show the scope belongs to, when every scoped entry agrees on one. A
- * cross-show order is not a thing the checkout can produce, but the list is
- * grouped data — deriving rather than asserting keeps the copy honest if that
- * ever changes.
+ * The show the scope belongs to, when every scoped entry agrees on one — else
+ * null, and the copy drops the name rather than naming the wrong show. A
+ * cross-show order is not a thing the checkout can produce today; deriving
+ * rather than asserting keeps the copy honest if that ever changes.
  */
 function scopedShowName(entries: MyEntry[]): string | null {
   if (entries.length === 0) return null;
@@ -34,34 +34,45 @@ function scopedShowName(entries: MyEntry[]): string | null {
   return entries.every(entry => entry.showName === first) ? first : null;
 }
 
+/**
+ * The sentence for one resolved scope. Each branch describes what is ACTUALLY
+ * on screen. The 'show' fallback in particular must not borrow the 'entries'
+ * sentence: it is listing the whole show precisely BECAUSE the named entry rows
+ * were not found, so calling those "the ones your payment covered" would be the
+ * same false promise the bare "Receipt" label used to make, one screen along.
+ */
+export function buildScopeMessage(scopeMatch: EntryScopeMatch, totalCount: number): string | null {
+  if (scopeMatch.kind === 'none') return null;
+  if (scopeMatch.kind === 'unmatched') {
+    return 'That receipt link no longer matches any of your entries, so all of them are shown below.';
+  }
+
+  const shown = scopeMatch.entries.length;
+  const count = `${shown} of ${totalCount} ${totalCount === 1 ? 'entry' : 'entries'}`;
+  const showName = scopedShowName(scopeMatch.entries);
+
+  if (scopeMatch.kind === 'show') {
+    const where = showName ? ` for ${showName}` : ' for one show';
+    return `Showing ${count}${where} — we could not pin down which of them that payment covered.`;
+  }
+  return showName
+    ? `Showing ${count} — the ones your payment for ${showName} covered.`
+    : `Showing ${count} from one payment.`;
+}
+
 export function EntryScopeBanner({
   scopeMatch,
   totalEntries,
   onClearScope,
 }: EntryScopeBannerProps) {
-  if (scopeMatch.kind === 'none') return null;
-
-  const unmatched = scopeMatch.kind === 'unmatched';
-  const showName = unmatched ? null : scopedShowName(scopeMatch.entries);
-  const shown = scopeMatch.entries.length;
-  const total = totalEntries.length;
-
-  // Say what happened, not what the URL said. "Showing 1 of 12" is the fact an
-  // exhibitor needs; the entry ids that produced it are not.
-  const message = unmatched
-    ? 'That receipt link no longer matches any of your entries, so all of them are shown below.'
-    : showName
-      ? `Showing ${shown} of ${total} ${total === 1 ? 'entry' : 'entries'} — the ones your payment for ${showName} covered.`
-      : `Showing ${shown} of ${total} ${total === 1 ? 'entry' : 'entries'} from one payment.`;
+  const message = buildScopeMessage(scopeMatch, totalEntries.length);
+  if (!message) return null;
 
   return (
     <div
       role="status"
-      // bg-muted, not bg-muted/50: opacity modifiers on var()-backed tokens do
-      // not compile here, so the /50 variant paints nothing at all (see
-      // tokenOpacityContract). Full --muted differs from --background in both
-      // themes (#f0eee6 vs #faf7f2 light, #1e1c19 vs #181411 dark), so the
-      // strip reads as a distinct surface without a decorative tint.
+      // bg-muted, not bg-muted/50 — opacity modifiers on var()-backed tokens
+      // do not compile here; see tokenOpacityContract.test.ts.
       className="flex flex-col gap-3 rounded-xl border border-border bg-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
     >
       <p className="flex items-start gap-2 text-sm text-foreground">

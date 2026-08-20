@@ -2,14 +2,13 @@
  * ExhibitorPaymentsPage — the logged-in exhibitor's own online payment history.
  *
  * Mostly read-only list of stripe_orders (RLS-scoped to the caller): date, show,
- * amount, status, and a per-row action. For settled orders the
- * action deep-links to the entries the payment covers, scoped by the order's
- * show + entry ids (where the printable per-entry receipt lives — receipts are
- * entry-scoped, not stored on the order). For
- * failed/cancelled orders it instead deep-links to the cart-recovery / "Finish
- * Payment" flow (`/cart`, scoped by the order's show + entry ids) so the
- * exhibitor can retry without hunting through My Shows. Complements MyEntriesPage's
- * per-entry Receipt / Finish Payment actions with a single chronological money view.
+ * amount, status, and a per-row action, deep-linked by the order's show + entry
+ * ids. For settled orders that action points at My Shows, where the printable
+ * per-entry receipt lives (receipts are entry-scoped, not stored on the order).
+ * For failed/cancelled orders it points at the cart-recovery / "Finish Payment"
+ * flow (`/cart`) with the same scoping, so the exhibitor can retry without
+ * hunting through My Shows. Complements MyEntriesPage's per-entry Receipt /
+ * Finish Payment actions with a single chronological money view.
  */
 
 import { useMemo } from 'react';

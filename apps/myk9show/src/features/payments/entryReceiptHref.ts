@@ -11,15 +11,11 @@
  * fallback the reader uses when none of those ids are on screen (a row still
  * replicating, or an entry since regrouped), which narrows to the right show
  * rather than giving up and showing everything.
- *
- * The param NAMES are exported so producer and reader cannot drift; import
- * these constants rather than re-typing the strings.
  */
-export const ENTRY_SCOPE_SHOW_PARAM = 'showId';
-export const ENTRY_SCOPE_ENTRIES_PARAM = 'entryIds';
+import { ENTRY_SCOPE_ENTRIES_PARAM, ENTRY_SCOPE_SHOW_PARAM } from './entryScopeParams';
 
 /** Route the scoped receipt link targets — My Shows (a.k.a. My Entries). */
-export const MY_SHOWS_PATH = '/exhibitor/entries';
+const MY_SHOWS_PATH = '/exhibitor/entries';
 
 export function buildEntryReceiptHref(showId: string | null, entryIds: string[]): string {
   const params = new URLSearchParams();

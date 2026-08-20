@@ -25,7 +25,7 @@
 import {
   ENTRY_SCOPE_ENTRIES_PARAM,
   ENTRY_SCOPE_SHOW_PARAM,
-} from '@/features/payments/entryReceiptHref';
+} from '@/features/payments/entryScopeParams';
 import type { MyEntry } from './my-entries-types';
 
 export interface EntryScope {
@@ -33,16 +33,20 @@ export interface EntryScope {
   entryIds: string[];
 }
 
-/** How the scope resolved against the entries actually on screen. */
+/**
+ * How the scope resolved against the entries actually on screen. Deliberately
+ * carries no copy of the scope itself: callers need to know what they are
+ * showing and why, never which raw entry ids produced it.
+ */
 export type EntryScopeMatch =
   /** No scope params in the URL — the page is showing everything, as normal. */
-  | { kind: 'none'; entries: MyEntry[]; scope: null }
+  | { kind: 'none'; entries: MyEntry[] }
   /** Narrowed to the exact entry rows the link named. */
-  | { kind: 'entries'; entries: MyEntry[]; scope: EntryScope }
+  | { kind: 'entries'; entries: MyEntry[] }
   /** Named ids matched nothing; narrowed to the show they belong to. */
-  | { kind: 'show'; entries: MyEntry[]; scope: EntryScope }
+  | { kind: 'show'; entries: MyEntry[] }
   /** Nothing matched; showing everything rather than an empty page. */
-  | { kind: 'unmatched'; entries: MyEntry[]; scope: EntryScope };
+  | { kind: 'unmatched'; entries: MyEntry[] };
 
 /**
  * Read the scope out of a query string. Returns null when neither param is
@@ -67,18 +71,18 @@ export function clearEntryScopeParams(params: URLSearchParams): URLSearchParams 
 }
 
 export function applyEntryScope(entries: MyEntry[], scope: EntryScope | null): EntryScopeMatch {
-  if (!scope) return { kind: 'none', entries, scope: null };
+  if (!scope) return { kind: 'none', entries };
 
   if (scope.entryIds.length > 0) {
     const wanted = new Set(scope.entryIds);
     const matched = entries.filter(entry => entry.classes.some(cls => wanted.has(cls.id)));
-    if (matched.length > 0) return { kind: 'entries', entries: matched, scope };
+    if (matched.length > 0) return { kind: 'entries', entries: matched };
   }
 
   if (scope.showId) {
     const byShow = entries.filter(entry => entry.showId === scope.showId);
-    if (byShow.length > 0) return { kind: 'show', entries: byShow, scope };
+    if (byShow.length > 0) return { kind: 'show', entries: byShow };
   }
 
-  return { kind: 'unmatched', entries, scope };
+  return { kind: 'unmatched', entries };
 }

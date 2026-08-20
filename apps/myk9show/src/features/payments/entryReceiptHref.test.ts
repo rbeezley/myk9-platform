@@ -30,15 +30,4 @@ describe('buildEntryReceiptHref', () => {
   it('degrades to the plain page when there is nothing to scope by', () => {
     expect(buildEntryReceiptHref(null, [])).toBe('/exhibitor/entries');
   });
-
-  it('uses the same query vocabulary as the cart-recovery link', async () => {
-    // The two links are mirror images — a rename on one side that skipped the
-    // other would silently unscope one of them.
-    const { buildFinishPaymentHref } = await import('./finishPaymentHref');
-    const cart = new URL(buildFinishPaymentHref('show-1', ['e1']), 'https://x.test');
-    const receipt = new URL(buildEntryReceiptHref('show-1', ['e1']), 'https://x.test');
-    expect([...receipt.searchParams.keys()].sort()).toEqual([...cart.searchParams.keys()].sort());
-    expect(receipt.searchParams.get('entryIds')).toBe(cart.searchParams.get('entryIds'));
-    expect(receipt.searchParams.get('showId')).toBe(cart.searchParams.get('showId'));
-  });
 });

@@ -22,7 +22,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
-import { calculatePlatformFeeCents, formatPlatformFeeLabel } from '@/store/cartStore.helpers';
+import {
+  calculatePlatformFeeCents,
+  formatCartCurrency,
+  formatPlatformFeeLabel,
+} from '@/store/cartStore.helpers';
 import { usePlatformFeePercent } from '@/hooks/queries/usePlatformFeePercent';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
@@ -84,10 +88,6 @@ export function CartSummary({
   // still no redirect.
   const { timeRemainingFormatted, isExpired, showWarning, showUrgentWarning, extendExpiration } =
     useCartExpirationTimer();
-
-  const formatCurrency = (cents: number) => {
-    return `$${(cents / 100).toFixed(2)}`;
-  };
 
   // exhibitor-ux-remediation (cart-integrity): a cart drafted before entries
   // closed must never let checkout proceed — the audit found a week-old draft
@@ -256,7 +256,7 @@ export function CartSummary({
             <span className="text-muted-foreground">
               Entry Fees ({payableCount} {payableCount === 1 ? 'entry' : 'entries'})
             </span>
-            <span>{formatCurrency(subtotal)}</span>
+            <span>{formatCartCurrency(subtotal)}</span>
           </div>
           {waitlistCount > 0 && (
             <div className="flex justify-between text-sm">
@@ -268,7 +268,7 @@ export function CartSummary({
             <span className="text-muted-foreground">
               Platform Fee ({formatPlatformFeeLabel(feePercent)})
             </span>
-            <span>{formatCurrency(platformFee)}</span>
+            <span>{formatCartCurrency(platformFee)}</span>
           </div>
           <Separator />
           {/* State the amount whenever it is known. A wait list line contributes
@@ -278,8 +278,10 @@ export function CartSummary({
               below it, which showed the real number. "Pending" is reserved for
               the genuinely unknown case, where capacity has not resolved. */}
           <div className="flex justify-between text-xl font-semibold">
-            <span>{capacityUnknown ? 'Total (pending)' : waitlistCount > 0 ? 'Due now' : 'Total'}</span>
-            <span>{capacityUnknown ? 'Pending' : formatCurrency(total)}</span>
+            <span>
+              {capacityUnknown ? 'Total (pending)' : waitlistCount > 0 ? 'Due now' : 'Total'}
+            </span>
+            <span>{capacityUnknown ? 'Pending' : formatCartCurrency(total)}</span>
           </div>
           {/* Until availability resolves, no line has been judged against real
               capacity — so this figure is not yet a claim about what is due. */}
@@ -359,7 +361,7 @@ export function CartSummary({
           ) : (
             <>
               <CreditCard className="h-4 w-4 mr-2" />
-              Pay {formatCurrency(total)} and confirm {payableCount === 1 ? 'entry' : 'entries'}
+              Pay {formatCartCurrency(total)} and confirm {payableCount === 1 ? 'entry' : 'entries'}
               {waitlistCount > 0 &&
                 ` · ${waitlistCount} wait list ${waitlistCount === 1 ? 'request' : 'requests'}`}
             </>

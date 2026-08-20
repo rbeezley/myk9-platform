@@ -117,7 +117,11 @@ export async function createEntryCheckoutSession(
     // client kept re-sending the same stale cart.
     const parsed = await readEdgeFunctionError(error);
 
-    if (parsed.status === 401 || error.message?.includes('401') || error.message?.includes('auth')) {
+    if (
+      parsed.status === 401 ||
+      error.message?.includes('401') ||
+      error.message?.includes('auth')
+    ) {
       throw new CheckoutSessionError('Session expired. Please sign in again.', 401);
     }
     if (parsed.message) {

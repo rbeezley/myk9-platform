@@ -66,6 +66,8 @@ export default function CartPage() {
   } = useJudgeDayCapacity(cart?.show_id);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+  const [removalAnnouncement, setRemovalAnnouncement] = useState('');
+  const entriesHeadingRef = useRef<HTMLHeadingElement>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -150,13 +152,25 @@ export default function CartPage() {
   }, [profile?.id, loadActiveCart, recoveryShowId, recoveryEntryIds]);
 
   const handleRemoveItem = async (itemId: string) => {
+    const removed = items.find(item => item.id === itemId);
     setRemovingItemId(itemId);
     setError(null);
 
     const success = await removeItem(itemId);
 
-    if (!success) {
-      // Error is set in store
+    if (success) {
+      // The card holding the focused Remove button just unmounted, which drops
+      // focus to <body> and restarts a keyboard user's Tab order at the top of
+      // the document. Send focus to the entry-count heading instead - it is the
+      // thing that just changed, and it reads the new count aloud.
+      entriesHeadingRef.current?.focus();
+      // Nothing else announces this: the subtotal, fee, total and the Pay
+      // button's own label all change silently, on a money screen.
+      setRemovalAnnouncement(
+        `Removed ${removed?.dog?.call_name ?? 'entry'}${
+          removed?.class?.name ? ` from ${removed.class.name}` : ''
+        }.`
+      );
     }
 
     setRemovingItemId(null);
@@ -345,7 +359,7 @@ export default function CartPage() {
       <div className="bg-background pt-6">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+            <div className="w-20 h-20 rounded-full border border-border bg-muted flex items-center justify-center mb-6">
               <ShoppingCart className="h-10 w-10 text-muted-foreground" />
             </div>
             <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
@@ -440,12 +454,18 @@ export default function CartPage() {
           </Alert>
         )}
 
+        {/* Removal and total changes are otherwise silent to assistive tech.
+            Kept out of the visual flow, polite so it never interrupts. */}
+        <p aria-live="polite" className="sr-only">
+          {removalAnnouncement}
+        </p>
+
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
+              <h2 className="text-lg font-semibold" tabIndex={-1} ref={entriesHeadingRef}>
                 {items.length} {items.length === 1 ? 'Entry' : 'Entries'}
               </h2>
             </div>

@@ -58,9 +58,7 @@ describe('CartSummary — entries-closed gating', () => {
     expect(screen.getByText('Entries are closed for this show')).toBeInTheDocument();
     const payButton = screen.getByRole('button', { name: /entries closed. cannot pay online/i });
     expect(payButton).toBeDisabled();
-    expect(
-      screen.queryByRole('button', { name: /pay \$.* and confirm/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /pay \$.* and confirm/i })).not.toBeInTheDocument();
   });
 
   it('allows checkout when entries are still open', () => {

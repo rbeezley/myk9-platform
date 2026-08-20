@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { formatCartCurrency } from '@/store/cartStore.helpers';
 import type { CartItemWithDetails } from '@/store/cartStore';
 import type { CartItemFulfillment } from '@/features/payments/cartFulfillmentView';
 
@@ -53,10 +54,6 @@ export function CartItemCard({
   fulfillment = 'payable',
   className,
 }: CartItemCardProps) {
-  const formatCurrency = (cents: number) => {
-    return `$${(cents / 100).toFixed(2)}`;
-  };
-
   const isWaitlist = fulfillment === 'waitlist';
   const isBlocked = fulfillment === 'blocked';
 
@@ -155,7 +152,9 @@ export function CartItemCard({
                 </span>
               </span>
             ) : (
-              <span className="text-lg font-semibold">{formatCurrency(item.entry_fee_cents)}</span>
+              <span className="text-lg font-semibold">
+                {formatCartCurrency(item.entry_fee_cents)}
+              </span>
             )}
             <Button
               variant="ghost"

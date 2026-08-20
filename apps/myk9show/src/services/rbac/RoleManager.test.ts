@@ -92,13 +92,51 @@ describe('RoleManager.ensureUserHasRole', () => {
       return createChainableQuery();
     });
 
-    const { manager, clearUserCache } = buildManager();
+    const { manager, auditLogger, clearUserCache } = buildManager();
     const result = await manager.ensureUserHasRole('user-1', 'secretary');
     expect(result).toBe(true);
     expect(clearUserCache).toHaveBeenCalledWith('user-1');
     // The reactivation must set is_active:true and target the existing row id.
     expect(userRolesQuery.update).toHaveBeenCalledWith({ is_active: true });
     expect(userRolesQuery.eq).toHaveBeenCalledWith('id', 'ur-1');
+    expect(userRolesQuery.eq).toHaveBeenCalledWith('is_active', false);
+    expect(auditLogger.logAuditEvent).toHaveBeenCalledWith(ActionType.ROLE_ASSIGNED, {
+      targetId: 'user-1',
+      targetType: 'user',
+      newValue: {
+        role_id: 'role-1',
+        role_name: 'secretary',
+        club_id: null,
+        show_id: null,
+      },
+    });
+  });
+
+  it('concurrent reactivation returns false and logs nothing when no inactive row is changed', async () => {
+    let userRolesCall = 0;
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'roles') {
+        return createChainableQuery({ data: { id: 'role-1' }, error: null });
+      }
+      if (table === 'user_roles') {
+        userRolesCall += 1;
+        if (userRolesCall === 1) {
+          return createChainableQuery({
+            data: [{ id: 'ur-1', is_active: false }],
+            error: null,
+          });
+        }
+        return createChainableQuery({ data: null, error: null });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger, clearUserCache } = buildManager();
+    const result = await manager.ensureUserHasRole('user-1', 'secretary');
+
+    expect(result).toBe(false);
+    expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
+    expect(clearUserCache).not.toHaveBeenCalled();
   });
 
   it('no existing assignment -> grants a new role, returns true', async () => {

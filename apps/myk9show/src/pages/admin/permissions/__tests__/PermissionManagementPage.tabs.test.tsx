@@ -12,7 +12,19 @@ vi.mock('@/hooks/useRBAC', () => ({
 
 vi.mock('@/services/rbac/RBACService', () => ({
   rbacService: {
-    getAllRoles: vi.fn().mockResolvedValue([]),
+    getAllRoles: vi.fn().mockResolvedValue([
+      {
+        id: 'r1',
+        name: 'show_secretary',
+        description: 'Runs entries, classes, and results',
+        is_system: true,
+        permissions: null,
+        created_at: null,
+        display_name: 'Show Secretary',
+        permission_count: 37,
+        user_count: 14,
+      },
+    ]),
     getAllPermissions: vi.fn().mockResolvedValue([
       {
         id: 'p1',
@@ -23,6 +35,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
         created_at: null,
       },
     ]),
+    getAuditLogs: vi.fn().mockResolvedValue([]),
     clearAllCache: vi.fn(),
     clearUserCache: vi.fn(),
   },
@@ -59,8 +72,8 @@ describe('PermissionManagementPage tab consolidation', () => {
     const { container } = render(<PermissionManagementPage />, {
       initialRoute: '/admin/permissions',
     });
-    // Wait for the async permission count to resolve so the stat card is rendered.
-    await screen.findByText('Total Permissions');
+    // Wait for the async load to resolve so the stat card is rendered.
+    await screen.findByRole('row', { name: /Show Secretary/ });
     const inventoryLinks = container.querySelectorAll(
       'a[href="/admin/permissions?tab=permissions"]'
     );
@@ -69,9 +82,11 @@ describe('PermissionManagementPage tab consolidation', () => {
 
   it('keeps the overview focused on the two places where access is managed', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
-    expect(screen.getByRole('link', { name: 'Manage roles' })).toHaveAttribute(
+    // The explainer section is gone; the roles table is now the console itself,
+    // and these two actions remain the only way out of the overview.
+    expect(screen.getByRole('link', { name: 'New role' })).toHaveAttribute(
       'href',
-      '/admin/permissions/roles'
+      '/admin/permissions/roles/new'
     );
     expect(screen.getByRole('link', { name: 'Assign roles in User Management' })).toHaveAttribute(
       'href',
@@ -92,5 +107,31 @@ describe('PermissionManagementPage tab consolidation', () => {
     const placeholders = screen.getAllByText('–');
     expect(placeholders.length).toBeGreaterThan(0);
     expect(screen.queryByText('—')).not.toBeInTheDocument();
+  });
+
+  it('lands the admin on the roles themselves, not a lobby', async () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    const row = await screen.findByRole('row', { name: /Show Secretary/ });
+    expect(row).toHaveTextContent('37');
+    expect(screen.getByRole('link', { name: /Show Secretary/ })).toHaveAttribute(
+      'href',
+      '/admin/permissions/roles/r1'
+    );
+  });
+
+  it('keeps the recent-changes rail pointed at the audit tab', async () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    expect(await screen.findByRole('link', { name: /view full audit/i })).toHaveAttribute(
+      'href',
+      '/admin/permissions?tab=audit'
+    );
+  });
+
+  it('still shows the roles console when the audit log fails to load', async () => {
+    const { rbacService } = await import('@/services/rbac/RBACService');
+    vi.mocked(rbacService.getAuditLogs).mockRejectedValueOnce(new Error('audit down'));
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    expect(await screen.findByRole('row', { name: /Show Secretary/ })).toBeInTheDocument();
+    expect(screen.getByText(/no access changes recorded yet/i)).toBeInTheDocument();
   });
 });

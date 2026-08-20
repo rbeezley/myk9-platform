@@ -433,6 +433,23 @@ describe('SystemHealthPage', () => {
       expect(verdict).not.toHaveClass('border-l-success');
     });
 
+    // Codex review: React Query keeps the last successful data through a failed
+    // background refetch, so a cached empty list must not keep asserting an
+    // all-clear while the alerts card reports it couldn't load.
+    it('stops trusting cached alert data once a refetch has failed', () => {
+      const latest = allPassingSnapshot();
+      mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+      mockedOperatorAlertsHook.mockReturnValue({
+        data: [],
+        isLoading: false,
+        error: new Error('refetch failed'),
+      } as unknown as ReturnType<typeof useOperatorAlerts>);
+
+      render(<SystemHealthPage />);
+
+      expect(screen.queryByText(/operator alert/)).not.toBeInTheDocument();
+    });
+
     it('keeps the all-clear for warn-only alerts but still names them', () => {
       const latest = allPassingSnapshot();
       mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));

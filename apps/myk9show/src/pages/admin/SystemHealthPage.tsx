@@ -269,7 +269,7 @@ export default function SystemHealthPage() {
   // Same query key the alerts card reads, so this shares its cache rather than
   // issuing a second fetch. `null` while the query has not answered: the
   // verdict must not claim an alert count it does not have.
-  const { data: alertData } = useOperatorAlerts();
+  const { data: alertData, error: alertError } = useOperatorAlerts();
   const runHealthCheck = useRunSystemHealthCheck();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -318,7 +318,11 @@ export default function SystemHealthPage() {
 
   const latest = data?.latest ?? null;
   const effective = deriveEffectiveStatus(latest, now);
-  const alertSummary = alertData ? summarizeAlerts(alertData) : null;
+  // `alertError` is checked as well as `alertData`: React Query keeps the last
+  // successful data through a FAILED background refetch, so reading data alone
+  // would let a cached empty list keep asserting an all-clear while the alerts
+  // card two columns away says it couldn't load. Unknown must read as unknown.
+  const alertSummary = alertData && !alertError ? summarizeAlerts(alertData) : null;
   const headline = verdictHeadline(summary, effective.isStale, effective.isEmpty, alertSummary);
   const explanation = verdictExplanation(
     summary,

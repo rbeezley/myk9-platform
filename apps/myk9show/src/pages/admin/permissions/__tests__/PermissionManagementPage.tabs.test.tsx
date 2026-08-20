@@ -136,6 +136,36 @@ describe('PermissionManagementPage tab consolidation', () => {
     vi.mocked(rbacService.getAuditLogs).mockRejectedValueOnce(new Error('audit down'));
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
     expect(await screen.findByRole('row', { name: /Show Secretary/ })).toBeInTheDocument();
-    expect(screen.getByText(/no access changes recorded yet/i)).toBeInTheDocument();
+    // The audit read failed — the rail must say so, not assert the false
+    // fact that nothing has ever changed.
+    expect(screen.getByText(/recent changes couldn't be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no access changes recorded yet/i)).not.toBeInTheDocument();
+  });
+
+  it('does not claim a role has no recorded change when the audit read simply failed', async () => {
+    const { rbacService } = await import('@/services/rbac/RBACService');
+    vi.mocked(rbacService.getAuditLogs).mockRejectedValueOnce(new Error('audit down'));
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    const row = await screen.findByRole('row', { name: /Show Secretary/ });
+    // The em dash reads as "no recorded change" — a fact the failed audit
+    // read cannot support. The row must say the change history is unknown.
+    expect(row).not.toHaveTextContent('—');
+    expect(row).toHaveTextContent('Unknown');
+  });
+
+  it('does not state false facts on the overview when roles fail to load', async () => {
+    const { rbacService } = await import('@/services/rbac/RBACService');
+    vi.mocked(rbacService.getAllRoles).mockRejectedValueOnce(new Error('roles down'));
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    expect(await screen.findByText(/couldn't load the access summary/i)).toBeInTheDocument();
+
+    const statSummary = screen.getByRole('group', { name: 'Access summary' });
+    // "Active grants" must not settle on a confident 0 while the alert says
+    // nothing loaded — both stats stay unresolved.
+    expect(within(statSummary).getAllByText('–')).toHaveLength(2);
+    expect(within(statSummary).queryByText('0')).not.toBeInTheDocument();
+
+    // The rail must not assert "nothing has ever happened" either.
+    expect(screen.queryByText(/no access changes recorded yet/i)).not.toBeInTheDocument();
   });
 });

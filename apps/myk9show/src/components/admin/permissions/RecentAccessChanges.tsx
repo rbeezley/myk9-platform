@@ -9,13 +9,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow, isValid } from 'date-fns';
-import { ArrowRight, History } from 'lucide-react';
+import { AlertCircle, ArrowRight, History } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { AuditLogEntry } from '@/types/rbac-types';
 
 export interface RecentAccessChangesProps {
   entries: AuditLogEntry[];
   isLoading: boolean;
+  /** True when the audit-log read failed — entries is a swallowed-failure []. */
+  auditFailed?: boolean;
 }
 
 const MAX_ENTRIES = 5;
@@ -40,7 +42,11 @@ function getDotClass(action: string): string {
   return 'bg-warning';
 }
 
-export const RecentAccessChanges: React.FC<RecentAccessChangesProps> = ({ entries, isLoading }) => (
+export const RecentAccessChanges: React.FC<RecentAccessChangesProps> = ({
+  entries,
+  isLoading,
+  auditFailed = false,
+}) => (
   <section aria-labelledby="recent-access-heading" className="rounded-xl border bg-card">
     <div className="flex items-center justify-between gap-3 border-b border-border p-4">
       <h2 id="recent-access-heading" className="font-semibold">
@@ -60,6 +66,11 @@ export const RecentAccessChanges: React.FC<RecentAccessChangesProps> = ({ entrie
         <Skeleton className="h-5 w-2/3" />
         <Skeleton className="h-5 w-1/2" />
       </div>
+    ) : auditFailed ? (
+      <p className="flex items-center gap-2 p-4 text-muted-foreground">
+        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+        Recent changes couldn&apos;t be loaded.
+      </p>
     ) : entries.length === 0 ? (
       <p className="p-4 text-muted-foreground">No access changes recorded yet.</p>
     ) : (

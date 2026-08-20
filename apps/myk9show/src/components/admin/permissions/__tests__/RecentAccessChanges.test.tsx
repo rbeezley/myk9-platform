@@ -64,6 +64,18 @@ describe('RecentAccessChanges', () => {
     expect(dot).toBeInTheDocument();
   });
 
+  it('says the read failed rather than claiming nothing happened, when the audit fetch failed', () => {
+    render(<RecentAccessChanges entries={[]} isLoading={false} auditFailed />);
+    expect(screen.getByText(/recent changes couldn't be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no access changes recorded yet/i)).not.toBeInTheDocument();
+  });
+
+  it('prefers the loading state over the failure state while still loading', () => {
+    render(<RecentAccessChanges entries={[]} isLoading auditFailed />);
+    expect(screen.queryByText(/recent changes couldn't be loaded/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /loading recent changes/i })).toBeInTheDocument();
+  });
+
   it('gracefully handles malformed created_at timestamps', () => {
     render(
       <RecentAccessChanges

@@ -26,7 +26,7 @@ import { RecentAccessChanges } from '@/components/admin/permissions/RecentAccess
 import PermissionAuditPage from './PermissionAuditPage';
 
 const PermissionManagementPage: React.FC = () => {
-  const { roles, permissions, auditEntries, lastChanged, isLoading, error, reload } =
+  const { roles, permissions, auditEntries, auditFailed, lastChanged, isLoading, error, reload } =
     usePermissionsOverview();
   const [activeTab, setActiveTab] = useUrlTab(
     ['overview', 'assignments', 'permissions', 'audit'] as const,
@@ -78,6 +78,7 @@ const PermissionManagementPage: React.FC = () => {
                     isLoading={isLoading}
                     error={error}
                     onRetry={reload}
+                    auditFailed={auditFailed}
                   />
                 </div>
                 <div className="space-y-4">
@@ -85,7 +86,7 @@ const PermissionManagementPage: React.FC = () => {
                     <div className="rounded-xl border bg-card p-4">
                       <p className="font-medium text-muted-foreground">Active grants</p>
                       <p className="mt-1 text-2xl font-semibold tabular-nums">
-                        {isLoading
+                        {isLoading || error
                           ? '–'
                           : roles.reduce((sum, role) => sum + (role.user_count ?? 0), 0)}
                       </p>
@@ -100,7 +101,14 @@ const PermissionManagementPage: React.FC = () => {
                       </p>
                     </Link>
                   </div>
-                  <RecentAccessChanges entries={auditEntries} isLoading={isLoading} />
+                  <RecentAccessChanges
+                    entries={auditEntries}
+                    isLoading={isLoading}
+                    // A load failure means the audit rail's [] is unfetched
+                    // state, not a genuine "nothing happened" — same
+                    // principle as a standalone audit-fetch failure.
+                    auditFailed={auditFailed || Boolean(error)}
+                  />
                 </div>
               </div>
             </div>

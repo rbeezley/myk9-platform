@@ -26,15 +26,13 @@ import {
   TreePine,
   Grid3X3,
   ClipboardList,
-  Copy,
-  Trash2,
 } from 'lucide-react';
 import { rbacService } from '@/services/rbac/RBACService';
 import { Role, Permission, RolePermission } from '@/types/rbac-types';
 import { RolePermissionsEditor } from '@/components/admin/permissions/RolePermissionsEditor';
 import { PermissionGrid } from '@/components/admin/permissions/PermissionGrid';
+import { RoleActionsCard } from '@/components/admin/permissions/RoleActionsCard';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
-import { notifications } from '@/lib/notifications';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,8 +66,6 @@ const RoleEditPage: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadRoleData = useCallback(async () => {
     if (!roleId) return;
@@ -154,22 +150,6 @@ const RoleEditPage: React.FC = () => {
     await loadRoleData();
     setHasUnsavedChanges(false);
     setShowResetDialog(false);
-  };
-
-  const handleDeleteRole = async () => {
-    if (!roleId) return;
-
-    try {
-      setIsDeleting(true);
-      await rbacService.deleteRole(roleId);
-      navigate('/admin/permissions');
-    } catch (err) {
-      setIsDeleting(false);
-      setShowDeleteDialog(false);
-      notifications.error(
-        `Failed to delete role: ${err instanceof Error ? err.message : 'Unknown error'}`
-      );
-    }
   };
 
   if (isLoading) {
@@ -298,38 +278,11 @@ const RoleEditPage: React.FC = () => {
       </Card>
 
       {/* Role Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Copy className="h-5 w-5" />
-            Role Actions
-          </CardTitle>
-          <CardDescription>
-            Clone this role as a starting point for a new one, or remove it entirely.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="lg" asChild>
-              <Link to={`/admin/permissions/roles/${roleId}/clone`}>
-                <Copy className="h-4 w-4 mr-2" />
-                Clone Role
-              </Link>
-            </Button>
-            {!role.is_system && (
-              <Button
-                variant="destructive"
-                size="lg"
-                className="ml-auto"
-                onClick={() => setShowDeleteDialog(true)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Role
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <RoleActionsCard
+        role={role}
+        roleId={roleId!}
+        onDeleted={() => navigate('/admin/permissions')}
+      />
 
       {/* Permission Management Tabs */}
       <PrimaryTabs
@@ -513,32 +466,6 @@ const RoleEditPage: React.FC = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleResetChanges}>Discard Changes</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={showDeleteDialog}
-        onOpenChange={open => !open && setShowDeleteDialog(open)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Role</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the role &quot;{role.display_name || role.name}&quot;?
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteRole}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? 'Deleting…' : 'Delete'}
-            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

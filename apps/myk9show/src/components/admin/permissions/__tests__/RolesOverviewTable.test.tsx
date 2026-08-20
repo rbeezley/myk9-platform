@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { within } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 import type { Role } from '@/types/rbac-types';
 import { RolesOverviewTable } from '../RolesOverviewTable';
@@ -54,7 +55,17 @@ describe('RolesOverviewTable', () => {
       'href',
       '/admin/permissions/roles/r1'
     );
-    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+
+    // The whole point of this table is NAVIGATION-ONLY: no inline edit
+    // affordance of any shape may live in the row body. The search input
+    // lives outside the tbody, so scope the query there.
+    const tbody = screen.getByRole('table').querySelector('tbody');
+    expect(tbody).not.toBeNull();
+    const scope = within(tbody as HTMLElement);
+    expect(scope.queryAllByRole('textbox')).toHaveLength(0);
+    expect(scope.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(scope.queryAllByRole('combobox')).toHaveLength(0);
+    expect(scope.queryAllByRole('button')).toHaveLength(0);
   });
 
   it('marks system roles and custom roles distinctly', () => {
@@ -66,6 +77,16 @@ describe('RolesOverviewTable', () => {
   it('shows an em-dash when a role has no recorded change', () => {
     renderTable();
     expect(screen.getByRole('row', { name: /Ring Helper/ })).toHaveTextContent('—');
+  });
+
+  it('does not claim "no recorded change" when the audit read failed', () => {
+    // lastChanged is empty here too, but for a different reason: the audit
+    // fetch failed, so the map was built from a swallowed-failure []. The
+    // em dash reads as a fact ("never changed") the failed read can't back.
+    renderTable({ lastChanged: new Map(), auditFailed: true });
+    const row = screen.getByRole('row', { name: /Show Secretary/ });
+    expect(row).not.toHaveTextContent('—');
+    expect(row).toHaveTextContent('Unknown');
   });
 
   it('filters rows as the admin types', async () => {

@@ -25,6 +25,12 @@ export interface RolesOverviewTableProps {
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
+  /**
+   * True when the audit-log read failed, so `lastChanged` is built from a
+   * swallowed-failure []. In that case an empty lookup means "unknown", not
+   * "never changed" — the column must not assert the latter.
+   */
+  auditFailed?: boolean;
 }
 
 export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
@@ -33,6 +39,7 @@ export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
   isLoading,
   error,
   onRetry,
+  auditFailed = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const visibleRoles = useMemo(() => filterRoles(roles, searchTerm), [roles, searchTerm]);
@@ -174,7 +181,9 @@ export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
                     <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">
                       {changedAt
                         ? formatDistanceToNow(new Date(changedAt), { addSuffix: true })
-                        : '—'}
+                        : auditFailed
+                          ? 'Unknown'
+                          : '—'}
                     </td>
                   </tr>
                 );

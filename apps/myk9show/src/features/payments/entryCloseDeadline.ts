@@ -16,15 +16,53 @@
  * it back a day (`new Date('2026-09-14T00:00:00Z')` is Sep 13 in every US zone
  * — that day-shift is a real, repeatedly-hit bug on other surfaces).
  *
+ * The other half of the guard's rule is what counts as "today": the server
+ * compares against `(now() AT TIME ZONE show_tz)::date`, the show's own
+ * calendar day, NOT the viewer's. `todayInTimeZone` below mirrors the
+ * `calendarDateInTz` helper in the `stripe-checkout` edge function so the card
+ * and the checkout gate agree at the boundary — otherwise an exhibitor in
+ * Hawaii still reads "pay by Sep 14" after an Eastern show has rolled to
+ * Sep 15 and checkout is already refusing them.
+ *
  * This deliberately does NOT reuse `toLocalDateOnly`: its non-midnight branch
  * falls back to local getters, which is the wrong rule for a column whose day
  * is defined in UTC.
  */
 
-import { formatDateLocal } from '@/utils/dateLocal';
+/**
+ * Same fallback the server guard and `getTrialTimezone` use, so an unknown
+ * show timezone lands on the same day both sides of the wire.
+ */
+export const DEFAULT_SHOW_TIMEZONE = 'America/New_York';
 
 /** A bare calendar day, `YYYY-MM-DD`. */
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The calendar day `instant` falls on in `timeZone`, as `YYYY-MM-DD`.
+ *
+ * `en-CA` renders exactly that shape, which is why the edge-function guard
+ * uses it too. An unresolvable zone would make `Intl` throw, so callers pass a
+ * zone already validated by `getTrialTimezone`; the catch is a last resort
+ * that degrades to the viewer's day rather than blanking the card.
+ */
+function todayInTimeZone(instant: Date, timeZone: string): string | null {
+  if (Number.isNaN(instant.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  } catch {
+    return new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(instant);
+  }
+}
 
 /**
  * Read the intended close *day* from a raw `entry_close_date` value.
@@ -53,29 +91,35 @@ export function toEntryCloseDay(value: string | null | undefined): string | null
  *  - **Close day already past.** "pay by Sep 14" printed on Sep 20 reads as an
  *    accusation the app cannot back up: entries close, but a balance owed on a
  *    closed show is settled with the club, not by a missed deadline. Saying
- *    nothing is honest; a red overdue banner would be alarming and, since
- *    "today" here is the *viewer's* calendar day rather than the show's
- *    timezone (which the balance summary does not carry), it could also be a
- *    day wrong. Suppression fails safe in a way an assertion does not.
+ *    nothing is honest, and a red overdue banner would be alarming.
+ *    Suppression fails safe in a way an assertion does not.
+ *
+ * "Past" is decided in the SHOW's timezone, matching the server guard — see
+ * the module comment. Entries stay open through the whole of the close day, so
+ * the close day itself is not past.
  *
  * The year is appended only when it differs from the current year, so the
  * common near-term show reads "Sep 14" and a distant one is never ambiguous.
  */
 export function formatEntryCloseDeadline(
   day: string | null | undefined,
-  now: Date = new Date()
+  now: Date = new Date(),
+  timeZone: string = DEFAULT_SHOW_TIMEZONE
 ): string | null {
   if (!day || !DAY_PATTERN.test(day)) return null;
 
   // Both sides are `YYYY-MM-DD`, so a lexical compare IS a calendar compare.
-  // `formatDateLocal` gives the viewer's own day, matching how the rest of the
-  // balance summary decides what counts as past.
-  const today = formatDateLocal(now);
+  const today = todayInTimeZone(now, timeZone);
   if (!today || today > day) return null;
 
   const [year, month, date] = day.split('-').map(Number);
   const asUtc = new Date(Date.UTC(Number(year), Number(month) - 1, Number(date)));
   if (Number.isNaN(asUtc.getTime())) return null;
+
+  // Compare against the show's current year for the same reason "past" uses
+  // the show's day: on Dec 31 / Jan 1 the viewer and the show can disagree
+  // about what year it is, and the year suffix would flicker between them.
+  const currentYear = Number(today.slice(0, 4));
 
   // `timeZone: 'UTC'` pins the formatter to the same parts we just built, so
   // the rendered day can never differ from the stored one.
@@ -83,7 +127,7 @@ export function formatEntryCloseDeadline(
     timeZone: 'UTC',
     month: 'short',
     day: 'numeric',
-    ...(Number(year) === now.getFullYear() ? {} : { year: 'numeric' }),
+    ...(Number(year) === currentYear ? {} : { year: 'numeric' }),
   });
 }
 
@@ -97,8 +141,9 @@ export function formatEntryCloseDeadline(
 export function formatShowWithEntryCloseDeadline(
   showName: string,
   day: string | null | undefined,
-  now: Date = new Date()
+  now: Date = new Date(),
+  timeZone: string = DEFAULT_SHOW_TIMEZONE
 ): string {
-  const deadline = formatEntryCloseDeadline(day, now);
+  const deadline = formatEntryCloseDeadline(day, now, timeZone);
   return deadline ? `${showName} - pay by ${deadline}` : showName;
 }

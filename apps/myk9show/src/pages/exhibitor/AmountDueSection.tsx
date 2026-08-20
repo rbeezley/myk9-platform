@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
 import { formatShowWithEntryCloseDeadline } from '@/features/payments/entryCloseDeadline';
+import { useNow } from '@/hooks/useNow';
 
 export function AmountDueSection({
   summary,
@@ -27,6 +28,15 @@ export function AmountDueSection({
   isLoading: boolean;
   isError: boolean;
 }) {
+  // One clock for the whole card, above every early return so the hook order
+  // is stable. A deadline lapses at midnight in the SHOW's timezone, and this
+  // page's queries never refetch on window focus (`refetchOnWindowFocus` is
+  // false globally), so a `now` frozen at mount would leave a tab opened the
+  // night before still promising a deadline that has since passed. A 15-minute
+  // tick bounds that lag in every IANA zone, including the :30/:45-offset ones
+  // whose midnight does not land on an hour boundary.
+  const nowMs = useNow(15 * 60 * 1000);
+
   if (isLoading) {
     return (
       <Card>
@@ -88,9 +98,9 @@ export function AmountDueSection({
     );
   }
 
-  // One `now` for the whole card so the multi-show rows can never disagree
-  // with the single-show line about what day it is.
-  const now = new Date();
+  // Shared by every row so the multi-show breakdown can never disagree with
+  // the single-show line about what day it is.
+  const now = new Date(nowMs);
   const singleOnlineShowBalance =
     summary.onlineShowBalances.length === 1 ? summary.onlineShowBalances[0] : null;
   const singleOnlineCoversFullDue =
@@ -135,7 +145,8 @@ export function AmountDueSection({
                   {formatShowWithEntryCloseDeadline(
                     singleOnlineShowBalance.showName,
                     singleOnlineShowBalance.entryCloseDay,
-                    now
+                    now,
+                    singleOnlineShowBalance.showTimezone
                   )}
                 </p>
               ) : (
@@ -146,7 +157,8 @@ export function AmountDueSection({
                   {`${formatPaymentCents(singleOnlineShowBalance.onlineDueCents, 'usd')} of this is for ${formatShowWithEntryCloseDeadline(
                     singleOnlineShowBalance.showName,
                     singleOnlineShowBalance.entryCloseDay,
-                    now
+                    now,
+                    singleOnlineShowBalance.showTimezone
                   )}`}
                 </p>
               ))}
@@ -185,7 +197,12 @@ export function AmountDueSection({
                 className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span className="text-sm font-medium">
-                  {formatShowWithEntryCloseDeadline(show.showName, show.entryCloseDay, now)}
+                  {formatShowWithEntryCloseDeadline(
+                    show.showName,
+                    show.entryCloseDay,
+                    now,
+                    show.showTimezone
+                  )}
                 </span>
                 <Button asChild variant="outline" size="touch">
                   <Link to={show.paymentHref}>

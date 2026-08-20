@@ -2,7 +2,8 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { mapEntryStatus, mapPaymentStatus } from '@/utils/entryManagementUtils';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import { buildFinishPaymentHref } from './finishPaymentHref';
-import { toEntryCloseDay } from './entryCloseDeadline';
+import { getTrialTimezone } from '@/features/registries';
+import { DEFAULT_SHOW_TIMEZONE, toEntryCloseDay } from './entryCloseDeadline';
 import { getEntryPaymentPrompt } from './entryPaymentPrompt';
 
 export interface EntryBalanceClassSource {
@@ -21,6 +22,12 @@ export interface EntryBalanceSource {
    * day is carried as a string rather than an instant.
    */
   entryCloseDay?: string | null | undefined;
+  /**
+   * IANA timezone the show's calendar days are reckoned in. The entry-close
+   * guard decides "closed" in this zone, not the viewer's, so the deadline
+   * copy must too.
+   */
+  showTimezone?: string | undefined;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
   paymentMethod?: string | null | undefined;
@@ -38,6 +45,8 @@ export interface EntryBalanceShowSummary {
    * instead of silently rendering a balance with no deadline.
    */
   entryCloseDay: string | null;
+  /** IANA timezone for deciding whether this show's close day has passed. */
+  showTimezone: string;
   amountDueCents: number;
   onlineDueCents: number;
   payAtShowDueCents: number;
@@ -76,6 +85,8 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
   registration?: {
     payment_status?: string | null;
   } | null;
+  trial?: { timezone?: string | null } | null;
+  class?: { trial?: { timezone?: string | null } | null } | null;
 };
 
 /**
@@ -99,6 +110,11 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     showDate: parseShowDate(show?.start_date) ?? new Date(),
     showEndDate: parseShowDate(show?.end_date),
     entryCloseDay: toEntryCloseDay(show?.entry_close_date),
+    // The entry's own trial stands in for the guard's primary-trial lookup:
+    // a show's trials share one timezone in practice, and `getTrialTimezone`
+    // falls back to the same America/New_York default the server uses when the
+    // value is missing or not a resolvable zone.
+    showTimezone: getTrialTimezone(row.trial ?? row.class?.trial ?? null),
     entryStatus: mapEntryStatus(row.entry_status ?? 'pending'),
     paymentStatus: mapPaymentStatus(paymentStatus),
     paymentMethod: row.payment_method ?? null,
@@ -183,6 +199,7 @@ export function summarizeEntryBalances(
       showId,
       showName: entry.showName || 'This show',
       entryCloseDay: entry.entryCloseDay ?? null,
+      showTimezone: entry.showTimezone || DEFAULT_SHOW_TIMEZONE,
       amountDueCents: 0,
       onlineDueCents: 0,
       payAtShowDueCents: 0,

@@ -134,14 +134,16 @@ export const USER_ENTRIES_SELECT = `
           id,
           trial_type,
           date,
-          trial_number
+          trial_number,
+          timezone
         )
       ),
       trial:trial_id (
         id,
         trial_type,
         date,
-        trial_number
+        trial_number,
+        timezone
       )
     `;
 

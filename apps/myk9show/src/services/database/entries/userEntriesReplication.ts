@@ -87,6 +87,10 @@ export async function buildReplicatedUserEntryRows(
             trial_type: trial.trialType ?? null,
             date: trial.date ?? trial.trial_date ?? null,
             trial_number: trial.trialNumber ?? trial.trial_number ?? null,
+            // Keeps the offline path's trial shape identical to the PostgREST
+            // embed. Without it the amount-due deadline would reckon "past" in
+            // a different timezone offline than online.
+            timezone: trial.timezone ?? null,
           }
         : null,
     });

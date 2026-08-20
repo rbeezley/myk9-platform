@@ -150,6 +150,10 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     'confirmation_number',
     'class_number',
     'trial_type',
+    // The amount-due deadline decides "entries have closed" in the SHOW's
+    // timezone, matching the server guard. Dropping this would silently fall
+    // back to America/New_York and disagree with checkout at the boundary.
+    'timezone',
   ];
 
   it.each(requiredColumns)('selects "%s"', column => {

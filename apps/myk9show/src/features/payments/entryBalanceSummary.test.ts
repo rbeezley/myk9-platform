@@ -7,6 +7,7 @@ import {
   type EntryBalanceSource,
 } from './entryBalanceSummary';
 import {
+  DEFAULT_SHOW_TIMEZONE,
   formatEntryCloseDeadline,
   formatShowWithEntryCloseDeadline,
 } from './entryCloseDeadline';
@@ -181,6 +182,37 @@ describe('entry-close deadline on the amount-due summary', () => {
     expect(summary.onlineShowBalances[0].entryCloseDay).toBe('2026-06-14');
   });
 
+  it('carries the show timezone from the entry trial onto the balance', () => {
+    const source = mapEntryRowToBalanceSource({
+      id: 'entry-1',
+      show: { id: 'show-1', name: 'Spring Trial', entry_close_date: '2026-09-14T00:00:00+00:00' },
+      trial: { timezone: 'America/Chicago' },
+    });
+
+    expect(source.showTimezone).toBe('America/Chicago');
+    expect(summarizeEntryBalances([entry({ showTimezone: 'America/Chicago' })], now)
+      .onlineShowBalances[0].showTimezone).toBe('America/Chicago');
+  });
+
+  it('reads the timezone through class -> trial for rows with a null entries.trial_id', () => {
+    const source = mapEntryRowToBalanceSource({
+      id: 'entry-1',
+      show: { id: 'show-1', name: 'Spring Trial' },
+      class: { trial: { timezone: 'America/Denver' } },
+    });
+
+    expect(source.showTimezone).toBe('America/Denver');
+  });
+
+  it('falls back to the server guard default when no trial timezone is known', () => {
+    const source = mapEntryRowToBalanceSource({ id: 'entry-1', show: { id: 'show-1' } });
+
+    expect(source.showTimezone).toBe(DEFAULT_SHOW_TIMEZONE);
+    expect(summarizeEntryBalances([entry({})], now).onlineShowBalances[0].showTimezone).toBe(
+      DEFAULT_SHOW_TIMEZONE
+    );
+  });
+
   it("keeps each show's own close day when several shows owe money", () => {
     const summary = summarizeEntryBalances(
       [
@@ -224,6 +256,33 @@ describe('formatEntryCloseDeadline', () => {
 
   it('says nothing for an unparseable value', () => {
     expect(formatEntryCloseDeadline('not-a-date', now)).toBeNull();
+  });
+
+  it('decides "past" in the show timezone, not the viewer\'s', () => {
+    // Midnight Sep 15 in New York — still the evening of Sep 14 in Hawaii.
+    // The checkout guard has already closed this show, so the card must not
+    // still be promising the exhibitor a Sep 14 deadline.
+    const justAfterMidnightEastern = new Date('2026-09-15T04:00:00Z');
+
+    expect(
+      formatEntryCloseDeadline('2026-09-14', justAfterMidnightEastern, 'America/New_York')
+    ).toBeNull();
+  });
+
+  it('keeps the deadline while the show timezone is still on the close day', () => {
+    // The same instant, for a show that reckons its days in Hawaii: there it
+    // is still Sep 14, entries are open, and the deadline stands.
+    const justAfterMidnightEastern = new Date('2026-09-15T04:00:00Z');
+
+    expect(
+      formatEntryCloseDeadline('2026-09-14', justAfterMidnightEastern, 'Pacific/Honolulu')
+    ).toBe('Sep 14');
+  });
+
+  it('degrades to a deadline rather than blanking on an unresolvable timezone', () => {
+    // getTrialTimezone should never hand us one, but Intl throws on a bad zone
+    // and a thrown card is worse than a slightly-off boundary.
+    expect(formatEntryCloseDeadline('2026-06-14', now, 'Not/AZone')).toBe('Jun 14');
   });
 });
 

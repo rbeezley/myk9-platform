@@ -1,6 +1,6 @@
 # MYK9-156 — Sentry proxy for admin dashboard metrics
 
-> **Status:** Active
+> **Status:** Complete
 
 ## Scope
 

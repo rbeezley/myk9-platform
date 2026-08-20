@@ -5,8 +5,7 @@ import { cn } from '../../utils/cn';
 
 const Sheet = DialogPrimitive.Root;
 
-interface SheetTriggerProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Trigger> {
+interface SheetTriggerProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Trigger> {
   asChild?: boolean;
 }
 
@@ -74,8 +73,7 @@ const sizeClasses: Record<SheetSize, string> = {
   full: 'w-full',
 };
 
-interface SheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Popup> {
+interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Popup> {
   /** Sheet width size */
   size?: SheetSize;
   /** Whether to show the close button. Default: true */
@@ -108,6 +106,9 @@ const SheetContent = React.forwardRef<
         <DialogPrimitive.Close
           className={cn(
             'absolute right-4 top-4 rounded-sm opacity-70',
+            // The padding carries a 44px touch target around the 20px icon
+            // without moving it visually.
+            'p-3 -m-3 box-content',
             'ring-offset-background transition-opacity',
             'hover:opacity-100',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
@@ -153,13 +154,7 @@ const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 SheetHeader.displayName = 'SheetHeader';
 
 const SheetBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      'flex-1 overflow-y-auto px-6 py-4',
-      className
-    )}
-    {...props}
-  />
+  <div className={cn('flex-1 overflow-y-auto px-6 py-4', className)} {...props} />
 );
 SheetBody.displayName = 'SheetBody';
 

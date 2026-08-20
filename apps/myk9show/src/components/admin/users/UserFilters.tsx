@@ -31,6 +31,7 @@ import {
   USER_ROLE_FILTER_VALUES,
   USER_STATUS_FILTER_VALUES,
 } from '@/pages/admin/UserManagementPage.types';
+import { ROLE_CONFIG } from './UserTable/types';
 
 interface UserFiltersProps {
   filters: UserFilter;
@@ -40,19 +41,18 @@ interface UserFiltersProps {
 
 // Labels for the shared filter values. The VALUES live in
 // UserManagementPage.types so the URL codec validates against the same list this
-// dropdown offers — a role the codec rejects must not be selectable here.
+// dropdown offers — a role the codec rejects must not be selectable here. Role
+// labels come from ROLE_CONFIG so the dropdown, the table chips, and the role
+// dialogs all speak one vocabulary.
 const ROLE_LABELS: Record<(typeof USER_ROLE_FILTER_VALUES)[number], string> = {
-  all: 'All Roles',
-  exhibitor: 'Exhibitor',
-  handler: 'Handler',
-  judge: 'Judge',
-  secretary: 'Secretary',
-  steward: 'Steward',
-  admin: 'Admin',
-};
+  all: 'All roles',
+  ...Object.fromEntries(
+    Object.entries(ROLE_CONFIG).map(([value, config]) => [value, config.label])
+  ),
+} as Record<(typeof USER_ROLE_FILTER_VALUES)[number], string>;
 
 const STATUS_LABELS: Record<(typeof USER_STATUS_FILTER_VALUES)[number], string> = {
-  all: 'All Status',
+  all: 'Any status',
   active: 'Active',
   suspended: 'Suspended',
 };
@@ -139,7 +139,10 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
             onValueChange={value => updateFilter('role', value as UserFilter['role'])}
           >
             <SelectTrigger id="role-filter" className={FIELD_CLASS}>
-              <SelectValue placeholder="Select role" />
+              {/* Base UI's Select.Value renders the raw value by default —
+                  pass the label as children so the trigger says "Judge",
+                  not "judge". */}
+              <SelectValue placeholder="Select role">{ROLE_LABELS[filters.role]}</SelectValue>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border bg-popover shadow-lg">
               {ROLE_OPTIONS.map(option => (
@@ -174,7 +177,7 @@ export const UserFilters: React.FC<UserFiltersProps> = ({
             onValueChange={value => updateFilter('status', value as UserFilter['status'])}
           >
             <SelectTrigger id="status-filter" className={FIELD_CLASS}>
-              <SelectValue placeholder="Select status" />
+              <SelectValue placeholder="Select status">{STATUS_LABELS[filters.status]}</SelectValue>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-border bg-popover shadow-lg">
               {STATUS_OPTIONS.map(option => (

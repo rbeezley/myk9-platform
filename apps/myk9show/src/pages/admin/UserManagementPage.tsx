@@ -117,7 +117,17 @@ const UserManagementPage: React.FC = () => {
   const deepLinkUserId = searchParams.get('userId');
 
   // Data fetching with error handling
-  const { data: users = [], isLoading, error, refetch } = useAdminUsersQuery(filters.showDeleted);
+  const {
+    data: users = [],
+    isLoading,
+    error,
+    refetch,
+    fetchStatus,
+  } = useAdminUsersQuery(filters.showDeleted);
+  // Offline with nothing cached: React Query parks the request (`paused`)
+  // with isLoading true and error null, so without this the page shows a
+  // skeleton forever and neither the error state nor content can appear.
+  const isOfflineColdLoad = isLoading && fetchStatus === 'paused';
   const updateUserMutation = useUpdateUserMutation();
 
   // Filter, sort, then paginate — in that order, so a sort covers every match
@@ -322,8 +332,17 @@ const UserManagementPage: React.FC = () => {
         />
       )}
 
+      {/* Offline before the roster ever loaded — calm, not alarming */}
+      {!error && isOfflineColdLoad && (
+        <ErrorState
+          message="Waiting for a connection"
+          description="The user roster loads over the network. It will appear automatically once you're back online."
+          onRetry={() => refetch()}
+        />
+      )}
+
       {/* Normal content */}
-      {!error && (
+      {!error && !isOfflineColdLoad && (
         <>
           <PageHeader
             breadcrumbs={breadcrumbs}

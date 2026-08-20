@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import type { User } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { UserRole } from '@/types/auth-types';
-import { countActiveUsers, filterUsers, sortUsers } from './UserManagementPage.helpers';
+import {
+  countActiveUsers,
+  escapeCsvCell,
+  filterUsers,
+  sortUsers,
+} from './UserManagementPage.helpers';
 import {
   DEFAULT_USER_FILTER,
   countActiveUserFilters,
@@ -206,5 +211,21 @@ describe('active-filter predicates', () => {
     expect(hasActiveUserFilters(DEFAULT_USER_FILTER, 'ann')).toBe(true);
     expect(countActiveUserFilters(DEFAULT_USER_FILTER)).toBe(0);
     expect(hasActiveUserFilters(DEFAULT_USER_FILTER, '   ')).toBe(false);
+  });
+});
+
+// A first name of `=HYPERLINK(...)` must open in a spreadsheet as text, not
+// execute — admin exports carry user-supplied names and emails.
+describe('escapeCsvCell', () => {
+  it('defuses leading formula characters with a tab prefix', () => {
+    expect(escapeCsvCell('=HYPERLINK("http://evil")')).toBe('"\t=HYPERLINK(""http://evil"")"');
+    expect(escapeCsvCell('+1-555-0100')).toBe('"\t+1-555-0100"');
+    expect(escapeCsvCell('-lead')).toBe('"\t-lead"');
+    expect(escapeCsvCell('@handle')).toBe('"\t@handle"');
+  });
+
+  it('quotes ordinary values without altering them', () => {
+    expect(escapeCsvCell('Ada Lovelace')).toBe('"Ada Lovelace"');
+    expect(escapeCsvCell('a "quoted" name')).toBe('"a ""quoted"" name"');
   });
 });

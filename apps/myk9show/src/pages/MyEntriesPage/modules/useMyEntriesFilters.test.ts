@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useMyEntriesFilters } from './useMyEntriesFilters';
-import type { MyEntry } from './my-entries-types';
+import type { EntryClass, MyEntry } from './my-entries-types';
 
 // The hook reads `new Date()` internally; pin the clock so the test is
 // deterministic regardless of when it runs.
@@ -195,6 +195,20 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
 // it "Scored"), the Completed tab read `isPastShowEntry` (show date only). The
 // seeded show ends Aug 30 2026 yet already carries scored entries, so a scored
 // entry counted as Upcoming. Completed now means scored OR show ended.
+// A class row as `groupEntriesByOrder` produces it. `scored` drives both the
+// row status and its display kind, mirroring the DB's completed/completed pair.
+function makeClass(id: string, scored: boolean): EntryClass {
+  return {
+    id,
+    name: `Class ${id}`,
+    number: id,
+    fee: 0,
+    status: 'entered',
+    entryStatus: scored ? EntryStatus.COMPLETED : EntryStatus.ACCEPTED,
+    entryStatusKind: scored ? 'completed' : 'accepted',
+  };
+}
+
 describe('Completed tab agrees with the "Scored" card badge', () => {
   const scoredAtFutureShow = makeEntry({
     id: 'scored-future',
@@ -278,6 +292,65 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
     expect(result.current.entryStats.upcomingShows).toBe(1);
     expect(result.current.entryStats.pastShows).toBe(0);
     // ...while the tab axis still calls it done.
+    expect(result.current.tabCounts.completed).toBe(1);
+  });
+
+  // Live seed shape (Aug 29 2026 show): `groupEntriesByOrder` merges a dog's
+  // classes into one card and resolves the card's status by highest priority,
+  // with COMPLETED at the top of the scale — so a one-of-two scored order reads
+  // `entryStatusKind: 'completed'`. Keying the tab on that aggregate would file
+  // the card as done while a class is still unrun, hiding the remaining run.
+  it('keeps a partially scored order in Upcoming', () => {
+    const partiallyScored = makeEntry({
+      id: 'partially-scored',
+      showId: 'partially-scored-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed', // dominant status — one class IS scored
+      classes: [makeClass('a', true), makeClass('b', false)],
+    });
+
+    const { result } = renderHook(() => useMyEntriesFilters({ entries: [partiallyScored] }));
+
+    expect(result.current.tabCounts.completed).toBe(0);
+    expect(result.current.tabCounts.upcoming).toBe(1);
+
+    act(() => result.current.setSelectedTab('upcoming'));
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['partially-scored']);
+  });
+
+  it('completes an order once every class is scored', () => {
+    const fullyScored = makeEntry({
+      id: 'fully-scored',
+      showId: 'fully-scored-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [makeClass('a', true), makeClass('b', true)],
+    });
+
+    const { result } = renderHook(() => useMyEntriesFilters({ entries: [fullyScored] }));
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+  });
+
+  // A class the exhibitor will not run must not hold the order open.
+  it('ignores scratched classes when deciding an order is done', () => {
+    const scratchedSibling = makeEntry({
+      id: 'scratched-sibling',
+      showId: 'scratched-sibling-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [makeClass('a', true), { ...makeClass('b', false), status: 'scratched' }],
+    });
+
+    const { result } = renderHook(() => useMyEntriesFilters({ entries: [scratchedSibling] }));
+
     expect(result.current.tabCounts.completed).toBe(1);
   });
 });

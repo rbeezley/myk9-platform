@@ -19,7 +19,7 @@
 
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { EntryStatus } from '@/types/show-registration-types';
-import type { MyEntry } from './my-entries-types';
+import type { EntryClass, MyEntry } from './my-entries-types';
 
 /**
  * Parse a show date that may be a date-only string ("YYYY-MM-DD") or a full
@@ -58,14 +58,41 @@ export function isPastShowEntry(entry: MyEntry, now: Date): boolean {
 }
 
 /**
- * Has this entry been scored? Reads `entryStatusKind` — the display classifier
- * that folds `check_in_status` into `entry_status` — so this matches the card's
- * own "Scored" badge exactly. An entry can sit at `entry_status='confirmed'`
- * with `check_in_status='completed'` and still render as Scored, which keying
- * on `entryStatus` alone would miss. Falls back to the raw status for callers
- * (unit tests, legacy rows) that construct a `MyEntry` without a kind.
+ * Is this individual class row scored? Reads `entryStatusKind` — the display
+ * classifier that folds `check_in_status` into `entry_status` — because a row
+ * can sit at `entry_status='confirmed'` with `check_in_status='completed'` and
+ * still be scored, which keying on `entryStatus` alone would miss.
+ */
+function isScoredClass(cls: EntryClass): boolean {
+  return (
+    cls.isScored === true ||
+    cls.entryStatusKind === 'completed' ||
+    cls.entryStatus === EntryStatus.COMPLETED
+  );
+}
+
+/**
+ * Is this ORDER fully scored — i.e. every class the exhibitor still has to run
+ * has a result?
+ *
+ * Deliberately per-class, NOT read off the order's aggregated
+ * `entryStatusKind`. `groupEntriesByOrder` resolves an order's top-level status
+ * by highest priority and puts `COMPLETED` at the top of that scale, so a
+ * single scored class makes the whole order read `completed` while its sibling
+ * classes are still unrun. Keying the Completed tab on that aggregate would
+ * file a card as done mid-show and hide the exhibitor's remaining runs — the
+ * seeded Aug 29 show has exactly this shape (two of its three scored rows sit
+ * in two-row orders with one class still to run).
+ *
+ * Rows the exhibitor will not run — scratched, moved, absent — do not hold an
+ * order open. When no class rows are present at all (hand-built fixtures and
+ * legacy rows that never went through `groupEntriesByOrder`) this falls back to
+ * the order's own status.
  */
 export function isScoredEntry(entry: MyEntry): boolean {
+  const liveClasses = entry.classes.filter(cls => cls.status === 'entered');
+  if (liveClasses.length > 0) return liveClasses.every(isScoredClass);
+  if (entry.classes.length > 0) return entry.classes.some(isScoredClass);
   return entry.entryStatusKind === 'completed' || entry.entryStatus === EntryStatus.COMPLETED;
 }
 
@@ -78,7 +105,10 @@ export function isScoredEntry(entry: MyEntry): boolean {
  * future render a "Scored" badge on its card while the strip read
  * `Completed 0` and counted it as Upcoming — two different definitions of
  * "done" on one screen. Folding the scored check in makes the tab agree with
- * the badge in both directions.
+ * the exhibitor's actual state in both directions. Note that a PARTIALLY
+ * scored order stays Upcoming (see `isScoredEntry`) even though its card badge
+ * still reads "Scored" — the badge summarises by dominant status, which is a
+ * separate question from whether the exhibitor is done.
  *
  * Deliberately NOT used by `computeMyEntriesShowDateStats` or the fee math:
  * "Past Shows" / "Upcoming Shows" and amount-due are genuine show-date

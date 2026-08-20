@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isValid } from 'date-fns';
 import { ArrowRight, History } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { AuditLogEntry } from '@/types/rbac-types';
@@ -24,9 +24,17 @@ function formatAction(action: string): string {
   return action.replace(/[_-]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 }
 
+function formatRelativeTime(isoString: string | null | undefined): string | null {
+  if (!isoString) return null;
+  const date = new Date(isoString);
+  if (!isValid(date)) return null;
+  return formatDistanceToNow(date, { addSuffix: true });
+}
+
 /** Grant-shaped actions read as additions, revoke-shaped ones as removals. */
 function getDotClass(action: string): string {
-  if (action.includes('revoke') || action.includes('delete')) return 'bg-destructive';
+  if (action.includes('revoke') || action.includes('delete') || action.includes('removed'))
+    return 'bg-destructive';
   if (action.includes('assign') || action.includes('grant') || action.includes('create'))
     return 'bg-success';
   return 'bg-warning';
@@ -66,9 +74,10 @@ export const RecentAccessChanges: React.FC<RecentAccessChangesProps> = ({ entrie
               <p className="font-medium">{formatAction(entry.action)}</p>
               <p className="text-muted-foreground">
                 {entry.target_display ?? entry.target_type ?? 'Access change'}
-                {entry.created_at
-                  ? ` · ${formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}`
-                  : ''}
+                {(() => {
+                  const relTime = formatRelativeTime(entry.created_at);
+                  return relTime ? ` · ${relTime}` : '';
+                })()}
               </p>
             </div>
           </li>

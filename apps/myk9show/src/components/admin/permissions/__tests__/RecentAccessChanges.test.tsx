@@ -51,4 +51,28 @@ describe('RecentAccessChanges', () => {
     expect(screen.queryByText(/no access changes recorded yet/i)).not.toBeInTheDocument();
     expect(screen.getByRole('status', { name: /loading recent changes/i })).toBeInTheDocument();
   });
+
+  it('marks permission_override_removed as destructive', () => {
+    render(
+      <RecentAccessChanges
+        entries={[makeEntry({ action: 'permission_override_removed' })]}
+        isLoading={false}
+      />
+    );
+    const listItem = screen.getByRole('listitem');
+    const dot = listItem.querySelector('[class*="bg-destructive"]');
+    expect(dot).toBeInTheDocument();
+  });
+
+  it('gracefully handles malformed created_at timestamps', () => {
+    render(
+      <RecentAccessChanges
+        entries={[makeEntry({ created_at: 'not-a-valid-date' })]}
+        isLoading={false}
+      />
+    );
+    // Should render without throwing, and omit the timestamp
+    expect(screen.getByText('Assign Role')).toBeInTheDocument();
+    expect(screen.getByText('role')).toBeInTheDocument(); // target_type should still show
+  });
 });

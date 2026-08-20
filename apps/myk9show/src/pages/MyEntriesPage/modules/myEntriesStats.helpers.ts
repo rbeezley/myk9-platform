@@ -202,19 +202,20 @@ export function getPartiallyScoredState(
   let entryStatus: EntryStatus | undefined;
   let entryStatusKind: EntryStatusKind | undefined;
   for (const cls of remaining) {
-    const classStatus = cls.entryStatus ?? entry.entryStatus;
+    // A row in `remaining` is outstanding BY DEFINITION, so a 'completed'
+    // lifecycle value on it is stale — the leftovers of a score reset, which
+    // clears `is_scored` but not `entry_status` / `check_in_status`. Folding it
+    // in unchanged would put a completed icon beside "still to run".
+    const rawStatus = cls.entryStatus ?? entry.entryStatus;
+    const classStatus = rawStatus === EntryStatus.COMPLETED ? EntryStatus.ACCEPTED : rawStatus;
+    const classKind = cls.entryStatusKind === 'completed' ? 'accepted' : cls.entryStatusKind;
     if (entryStatus === undefined) {
       entryStatus = classStatus;
-      entryStatusKind = cls.entryStatusKind;
+      entryStatusKind = classKind;
       continue;
     }
     // Resolve the kind against the PREVIOUS status, before it is reassigned.
-    entryStatusKind = dominantStatusKind(
-      entryStatus,
-      entryStatusKind,
-      classStatus,
-      cls.entryStatusKind
-    );
+    entryStatusKind = dominantStatusKind(entryStatus, entryStatusKind, classStatus, classKind);
     entryStatus = dominantStatus(entryStatus, classStatus);
   }
 

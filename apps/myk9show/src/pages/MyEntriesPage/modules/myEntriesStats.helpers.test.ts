@@ -305,6 +305,29 @@ describe('getPartiallyScoredState', () => {
     expect(getPartiallyScoredState(entry)).toBeUndefined();
   });
 
+  // A reset row is outstanding, so its leftover 'completed' status must not
+  // reach the summary — that would pair a completed icon with "still to run".
+  it('does not carry a reset class\'s stale completed status into the summary', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        makeClass('b', {
+          isScored: false,
+          resultStatus: undefined,
+          entryStatus: EntryStatus.COMPLETED,
+          entryStatusKind: 'completed',
+        }),
+      ],
+    });
+
+    const state = getPartiallyScoredState(entry);
+    expect(state?.remainingClasses).toBe(1);
+    expect(state?.entryStatus).not.toBe(EntryStatus.COMPLETED);
+    expect(state?.entryStatusKind).not.toBe('completed');
+  });
+
   it('returns undefined for a legacy order with no class rows', () => {
     const entry = makeEntry({
       entryStatus: EntryStatus.COMPLETED,

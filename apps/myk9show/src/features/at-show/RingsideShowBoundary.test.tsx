@@ -8,6 +8,7 @@
  */
 
 import { Routes, Route } from 'react-router-dom';
+import { onlineManager } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTestQueryClient, render, screen, act } from '@/test/utils/testUtils';
 import { RingsideShowBoundary } from './RingsideShowBoundary';
@@ -67,6 +68,7 @@ function renderBoundary(showId: string, queryClient = createTestQueryClient()) {
 
 describe('RingsideShowBoundary', () => {
   beforeEach(() => {
+    onlineManager.setOnline(true);
     vi.mocked(replicatedShowsTable.getShowById).mockReset();
     vi.mocked(replicatedShowsTable.sync)
       .mockReset()
@@ -89,6 +91,18 @@ describe('RingsideShowBoundary', () => {
     vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({ id: 'show-on' } as never);
     renderBoundary('show-on');
     expect(await screen.findByText(CHILD)).toBeInTheDocument();
+  });
+
+  it('reads a durable cached show while React Query is offline', async () => {
+    networkState.isOnline = false;
+    onlineManager.setOnline(false);
+    vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({ id: 'show-offline' } as never);
+
+    renderBoundary('show-offline');
+
+    expect(await screen.findByText(CHILD)).toBeInTheDocument();
+    expect(replicatedShowsTable.getShowById).toHaveBeenCalledWith('show-offline');
+    expect(screen.queryByText("This show isn't saved on this device")).not.toBeInTheDocument();
   });
 
   it('renders the missing-show notice (not a 404) when the show is absent', async () => {

@@ -97,6 +97,10 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
     queryKey: ['shows', 'at-show', 'ringside-boundary', showId, isOnline, canVerifyOnline],
     queryFn: () => loadShow(showId as string, isOnline, canVerifyOnline),
     enabled: !!showId,
+    // This query reads IndexedDB first and must run without a network. The
+    // default "online" mode pauses queryFn offline, which bypasses the durable
+    // show row and incorrectly falls through to the uncached-show state.
+    networkMode: 'always',
   });
 
   if (showQuery.isLoading) {

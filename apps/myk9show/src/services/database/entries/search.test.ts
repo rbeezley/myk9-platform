@@ -150,6 +150,10 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     'confirmation_number',
     'class_number',
     'trial_type',
+    // The amount-due deadline decides "entries have closed" in the SHOW's
+    // timezone, matching the server guard. Dropping this would silently fall
+    // back to America/New_York and disagree with checkout at the boundary.
+    'timezone',
   ];
 
   it.each(requiredColumns)('selects "%s"', column => {
@@ -159,6 +163,14 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
   it('selects trial type through class_id for legacy rows with entries.trial_id null', () => {
     expect(USER_ENTRIES_SELECT).toMatch(
       /class:class_id\s*\([^)]*trial:trial_id\s*\([^)]*trial_type/s
+    );
+  });
+
+  it("selects the show's full trial list for the primary-trial timezone", () => {
+    // The amount-due deadline picks the PRIMARY trial's zone, which needs every
+    // trial of the show — not just the one the entry is in.
+    expect(USER_ENTRIES_SELECT).toMatch(
+      /show:show_id\s*\([^)]*trials:trials\s*\([^)]*timezone/s
     );
   });
 

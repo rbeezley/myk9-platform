@@ -880,7 +880,7 @@ describe('Receipt deep-link scope from My Payments', () => {
 
     expect(await screen.findByText('Rocky Mountain Classic')).toBeInTheDocument();
     expect(screen.getByText('Autumn Classic')).toBeInTheDocument();
-    expect(screen.getByText(/no longer matches any of your entries/)).toBeInTheDocument();
+    expect(screen.getByText(/could not find the entries from that payment/)).toBeInTheDocument();
   });
 
   it('renders no scope banner on an ordinary visit', async () => {

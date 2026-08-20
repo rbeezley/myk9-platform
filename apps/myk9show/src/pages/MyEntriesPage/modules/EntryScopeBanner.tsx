@@ -13,66 +13,17 @@
 import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { EntryScopeMatch } from './entryScopeFilter';
-import type { MyEntry } from './my-entries-types';
+import { buildScopeMessage } from './entryScopeMessage';
 
 interface EntryScopeBannerProps {
   scopeMatch: EntryScopeMatch;
-  /** The exhibitor's FULL entry list, for the "N of M" denominator. */
-  totalEntries: MyEntry[];
+  /** How many entries the exhibitor has in total — the "N of M" denominator. */
+  totalCount: number;
   onClearScope: () => void;
 }
 
-/**
- * The show the scope belongs to, when every scoped entry agrees on one — else
- * null, and the copy drops the name rather than naming the wrong show. A
- * cross-show order is not a thing the checkout can produce today; deriving
- * rather than asserting keeps the copy honest if that ever changes.
- */
-function scopedShowName(entries: MyEntry[]): string | null {
-  if (entries.length === 0) return null;
-  const first = entries[0].showName;
-  return entries.every(entry => entry.showName === first) ? first : null;
-}
-
-/**
- * The sentence for one resolved scope. Each branch describes what is ACTUALLY
- * on screen, and only 'entries' — every named row found — may claim these are
- * what the payment covered. The 'show' and 'partial' branches must not borrow
- * that sentence: one is listing a whole show because the named rows were not
- * found, the other is missing some of them. Either would be the same false
- * promise the bare "Receipt" label used to make, moved one screen along.
- */
-export function buildScopeMessage(scopeMatch: EntryScopeMatch, totalCount: number): string | null {
-  if (scopeMatch.kind === 'none') return null;
-  if (scopeMatch.kind === 'unmatched') {
-    return 'That receipt link no longer matches any of your entries, so all of them are shown below.';
-  }
-
-  const shown = scopeMatch.entries.length;
-  const count = `${shown} of ${totalCount} ${totalCount === 1 ? 'entry' : 'entries'}`;
-  const showName = scopedShowName(scopeMatch.entries);
-
-  if (scopeMatch.kind === 'show') {
-    const where = showName ? ` for ${showName}` : ' for one show';
-    return `Showing ${count}${where} — we could not pin down which of them that payment covered.`;
-  }
-  if (scopeMatch.kind === 'partial') {
-    // Some named rows are missing (still replicating, or since withdrawn), so
-    // this must not say "the ones your payment covered".
-    const where = showName ? ` for ${showName}` : '';
-    return `Showing ${count}${where}. We could not find every entry that payment covered — some may still be syncing.`;
-  }
-  return showName
-    ? `Showing ${count} — the ones your payment for ${showName} covered.`
-    : `Showing ${count} from one payment.`;
-}
-
-export function EntryScopeBanner({
-  scopeMatch,
-  totalEntries,
-  onClearScope,
-}: EntryScopeBannerProps) {
-  const message = buildScopeMessage(scopeMatch, totalEntries.length);
+export function EntryScopeBanner({ scopeMatch, totalCount, onClearScope }: EntryScopeBannerProps) {
+  const message = buildScopeMessage(scopeMatch, totalCount);
   if (!message) return null;
 
   return (

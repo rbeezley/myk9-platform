@@ -1,5 +1,5 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
-import { buildScopeMessage } from './EntryScopeBanner';
+import { buildScopeMessage } from './entryScopeMessage';
 import type { MyEntry } from './my-entries-types';
 
 function entryAt(showName: string): MyEntry {
@@ -80,8 +80,12 @@ describe('buildScopeMessage', () => {
   });
 
   it('admits a stale link instead of implying entries vanished', () => {
-    expect(buildScopeMessage({ kind: 'unmatched', entries: [] }, 12)).toBe(
-      'That receipt link no longer matches any of your entries, so all of them are shown below.'
+    const message = buildScopeMessage({ kind: 'unmatched', entries: [] }, 12);
+    expect(message).toBe(
+      'We could not find the entries from that payment, so all of yours are shown below.'
     );
+    // This state is also reachable while rows are still replicating, so the
+    // copy must not assert that the link is permanently dead.
+    expect(message).not.toContain('no longer');
   });
 });

@@ -443,7 +443,7 @@ const MyEntriesPage: React.FC = () => {
                     when the exhibitor switches tabs. */}
                   <EntryScopeBanner
                     scopeMatch={scopeMatch}
-                    totalEntries={entries}
+                    totalCount={entries.length}
                     onClearScope={clearScope}
                   />
 

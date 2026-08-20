@@ -1,14 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Tracks an element's content width so responsive decisions can follow the
  * space the page actually has, including when a persistent sidebar is open.
+ *
+ * The first measurement runs in a layout effect, before the browser paints.
+ * With a passive effect, `width` stayed null through the first commit, so
+ * every consumer painted one frame of its wide layout before swapping — on a
+ * phone that is a visible flash of a table the narrow layout exists to avoid.
  */
 export function useElementWidth<T extends HTMLElement = HTMLDivElement>() {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState<number | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
 

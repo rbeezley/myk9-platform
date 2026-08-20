@@ -37,8 +37,10 @@ const REGRESSION_SPECS = [
   '**/secretary/classCreation.spec.ts',
   '**/browse-shows-to-details.spec.ts',
   '**/my-entries-page-ui.spec.ts',
-  // Exhibitor-authed, so it cannot go in PR_SMOKE_SPECS (that job only receives
-  // E2E_SECRETARY_* credentials). Nightly supplies every E2E_* credential.
+  // Exhibitor-authed. That used to bar a spec from PR_SMOKE_SPECS outright,
+  // because the smoke job only received E2E_SECRETARY_*; it now also receives
+  // E2E_DEMO_EXHIBITOR_*, so exhibitor specs are eligible. This one stays
+  // Nightly-only on cost grounds rather than credentials.
   '**/myEntriesZoomReflow.spec.ts',
   '**/cross-role-workflows.spec.ts',
   '**/simple-connectivity.spec.ts',
@@ -47,14 +49,22 @@ const REGRESSION_SPECS = [
   '**/admin/userRosterDrilldown.spec.ts',
 ];
 
-// PR Smoke: 3 stable specs — connectivity, secretary regression proof, and the
-// secretary critical-path UAT suite. Verified green under this config before
-// promotion (2026-07-16). atShowOfflineScoring stays regression-only (depends on
-// staging seed data); payment specs are excluded entirely (see REGRESSION_SPECS).
+// PR Smoke: stable specs — connectivity, secretary regression proof, the
+// secretary critical-path UAT suite, and the exhibitor My Shows page. Verified
+// green under this config before promotion (2026-07-16; My Shows 2026-08-20).
+// atShowOfflineScoring stays regression-only (depends on staging seed data);
+// payment specs are excluded entirely (see REGRESSION_SPECS).
+//
+// my-entries-page-ui.spec.ts is here because a PR that rewrote that page's
+// entire status vocabulary (#1699) merged green while this spec was failing —
+// it was Nightly-only, so nothing caught a stale assertion until the page was
+// opened in a browser by hand. It is exhibitor-authed; the smoke job now
+// receives E2E_DEMO_EXHIBITOR_* alongside E2E_SECRETARY_* to support it.
 const PR_SMOKE_SPECS = [
   '**/simple-connectivity.spec.ts',
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',
+  '**/my-entries-page-ui.spec.ts',
 ];
 
 /**

@@ -354,7 +354,11 @@ export default function CartPage() {
         if (recoveryShowId) {
           reloadOptions.showId = recoveryShowId;
         }
-        loadActiveCart(profile.id, reloadOptions);
+        // Awaited before the latch is released. Fire-and-forget left the cart
+        // visible with its stale in-memory fees while the reload was still in
+        // flight, so a quick retry re-submitted exactly the same stale cart and
+        // earned another 409 - the loop this fix exists to break.
+        await loadActiveCart(profile.id, reloadOptions);
       }
 
       setError(message);
@@ -388,6 +392,13 @@ export default function CartPage() {
   // the page to the empty-cart branch, so a live region living inside the
   // items.length > 0 return unmounted before it could speak - silently losing
   // the announcement in the single-entry case, which is the common one.
+  // Rendered as the FIRST child of the same root element in every branch
+  // below. All three branches return the same root element type, so React
+  // reconciles this <p> in place rather than unmounting it when the cart
+  // empties - which matters because screen readers announce CHANGES to a live
+  // region that is already mounted, not the initial content of a region that
+  // has just appeared. A region that mounts already-populated is silent, so the
+  // single-entry removal (the common case) would still say nothing.
   const liveRegion = (
     <p aria-live="polite" className="sr-only">
       {removalAnnouncement}
@@ -397,6 +408,7 @@ export default function CartPage() {
   if (isHydrating) {
     return (
       <div className="bg-background pt-6">
+        {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="space-y-6 py-8" role="status" aria-label="Loading cart">
             <div className="space-y-2">
@@ -444,6 +456,7 @@ export default function CartPage() {
 
   return (
     <div className="bg-background pt-6">
+      {liveRegion}
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -519,8 +532,6 @@ export default function CartPage() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-
-        {liveRegion}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

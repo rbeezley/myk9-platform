@@ -103,20 +103,24 @@ export function getSentryMetricTileState(
     return { value: '—', context: 'checking platform metrics', isError: false, isStale: false };
   }
 
-  if (queryError || !metric || metric.status === 'unavailable') {
-    // An unprovisioned server-side secret never resolves on its own, so
-    // "will retry" would be a false promise — and a silent one, since the
-    // endpoint now degrades instead of erroring (MYK9-213). Say what is
-    // actually wrong so the misconfiguration stays visible.
-    if (metric?.error === SENTRY_NOT_CONFIGURED) {
-      return {
-        value: '—',
-        context: 'not configured — add Sentry credentials',
-        isError: true,
-        isStale: false,
-      };
-    }
+  // Checked BEFORE any status branch on purpose. The edge function reports the
+  // not-configured reason with status 'stale' too, whenever an expired cached
+  // value still exists — and the stale branch below renders as a non-error
+  // ("using an older reading"), which would hide the misconfiguration
+  // indefinitely behind a number that can never refresh. An unprovisioned
+  // secret never resolves on its own, so it is always an error state, whatever
+  // is left in the cache (MYK9-213).
+  if (metric?.error === SENTRY_NOT_CONFIGURED) {
+    return {
+      // Keep a cached reading if there is one — it is real data, just frozen.
+      value: metric.value !== null ? formatSentryMetricValue(metric) : '—',
+      context: 'not configured — add Sentry credentials',
+      isError: true,
+      isStale: metric.status === 'stale',
+    };
+  }
 
+  if (queryError || !metric || metric.status === 'unavailable') {
     return {
       value: '—',
       context: `couldn't read ${label.toLowerCase()}; will retry`,

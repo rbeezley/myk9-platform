@@ -124,6 +124,26 @@ describe('sentryDashboardMetrics', () => {
     expect(state.context).not.toContain('will retry');
   });
 
+  // Regression: the config check must sit ABOVE the status branching. A stale
+  // cached value carrying the not-configured reason previously fell through to
+  // the stale branch and rendered as a non-error ("using an older reading"),
+  // hiding the misconfiguration behind a number that can never refresh.
+  it('still flags a missing config when a stale cached value is being served', () => {
+    const state = getSentryMetricTileState(
+      metric({ value: 640, unit: 'milliseconds', status: 'stale', error: SENTRY_NOT_CONFIGURED }),
+      'Client p95',
+      false,
+      null
+    );
+
+    expect(state.isError).toBe(true);
+    expect(state.context).toBe('not configured — add Sentry credentials');
+    expect(state.context).not.toBe('using an older reading');
+    // The cached reading is real data, so it is still shown — just marked stale.
+    expect(state.value).toBe('640 ms');
+    expect(state.isStale).toBe(true);
+  });
+
   it('still promises a retry when Sentry is merely erroring', () => {
     const state = getSentryMetricTileState(
       metric({ value: null, status: 'unavailable', error: 'Sentry metric unavailable' }),

@@ -439,6 +439,40 @@ describe('ExhibitorPaymentsPage', () => {
       expect(screen.getByRole('link', { name: /finish payment/i })).toBeInTheDocument();
     });
 
+    it('does not attribute a mixed balance to the single online show', () => {
+      // $55 owed online for Spring Trial, plus $30 marked pay at show that may
+      // belong to a different show entirely. The headline figure is the $85
+      // aggregate, so naming Spring Trial bare underneath it would claim the
+      // whole total is that show's.
+      // No payment rows, so the only "Spring Trial" that could match is the
+      // one in the balance card rather than a history table cell.
+      state.data = [];
+      balanceState.data = {
+        currentFeesCents: 8500,
+        amountDueCents: 8500,
+        onlineDueCents: 5500,
+        payAtShowDueCents: 3000,
+        onlineShowBalances: [
+          {
+            showId: 'show-1',
+            showName: 'Spring Trial',
+            amountDueCents: 5500,
+            onlineDueCents: 5500,
+            payAtShowDueCents: 0,
+            entryIds: ['e1'],
+            paymentHref: '/cart?showId=show-1&entryIds=e1',
+          },
+        ],
+      };
+
+      render(<ExhibitorPaymentsPage />);
+
+      expect(screen.getByText('$85.00')).toBeInTheDocument();
+      expect(screen.getByText(/\$55\.00 of this is for/)).toBeInTheDocument();
+      // The bare name must not stand alone under the aggregate.
+      expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument();
+    });
+
     it('always offers a way to act on a positive balance with no payable breakdown', () => {
       balanceState.data = {
         currentFeesCents: 4000,

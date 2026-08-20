@@ -107,13 +107,26 @@ export function AmountDueSection({
             <p className="text-3xl font-semibold tabular-nums text-warning">
               {formatPaymentCents(summary.amountDueCents, 'usd')}
             </p>
-            {/* Name the show in the single-show case too. The show name used to
-                appear only in the multi-show breakdown below, so the common
-                case showed a total and a button with nothing saying what the
-                money was for. */}
-            {singleOnlineShowBalance && (
-              <p className="mt-1 text-sm font-medium">{singleOnlineShowBalance.showName}</p>
-            )}
+            {/* Name the show in the single-show case too: the name used to
+                appear only in the multi-show breakdown, so the common case
+                showed a total and a button with nothing saying what the money
+                was for.
+
+                The qualifier matters. The figure above is the AGGREGATE due,
+                which can include pay-at-show or unresolved balances belonging
+                to other shows. An unqualified name sitting directly under it
+                would attribute the whole total to this one show, so name it
+                bare only when this show's online balance IS the whole total,
+                and otherwise say which part of it this show accounts for. */}
+            {singleOnlineShowBalance &&
+              (singleOnlineCoversFullDue ? (
+                <p className="mt-1 text-sm font-medium">{singleOnlineShowBalance.showName}</p>
+              ) : (
+                <p className="mt-1 text-sm font-medium">
+                  {formatPaymentCents(singleOnlineShowBalance.onlineDueCents, 'usd')} of this is for{' '}
+                  {singleOnlineShowBalance.showName}
+                </p>
+              ))}
             <p className="mt-1 text-sm text-muted-foreground">
               This matches Current Fees on My Shows for current entries.
             </p>

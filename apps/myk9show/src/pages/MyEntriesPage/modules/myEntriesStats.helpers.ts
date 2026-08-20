@@ -19,6 +19,8 @@
 
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
 /**
@@ -96,6 +98,64 @@ export function isScoredEntry(entry: MyEntry): boolean {
     return entry.classes.filter(cls => cls.status === 'entered').every(isScoredClass);
   }
   return entry.entryStatusKind === 'completed' || entry.entryStatus === EntryStatus.COMPLETED;
+}
+
+export interface PartiallyScoredState {
+  /** Live classes on this order still awaiting a result. Always >= 1. */
+  remainingClasses: number;
+  /** Dominant status among those remaining classes — what the card still IS. */
+  entryStatus: EntryStatus;
+  /** Dominant display kind among them, resolved the same way the order card is. */
+  entryStatusKind: EntryStatusKind | undefined;
+}
+
+/**
+ * Describe an order that is *some* of the way through its runs, or `undefined`
+ * when it is either untouched or finished.
+ *
+ * `groupEntriesByOrder` resolves an order card's status by highest priority
+ * with COMPLETED at the top of the scale, so one scored class makes the whole
+ * card report `completed` and render a "Scored" badge — while sibling classes
+ * are still unrun. This recovers what the card should actually say: how many
+ * runs are left, and the dominant status among *those* rows, so the summary
+ * band describes the work remaining rather than the one result already in.
+ *
+ * The remaining rows are folded with the same `dominantStatus` /
+ * `dominantStatusKind` precedence the grouping itself uses, so a card never
+ * disagrees with its own class list about which state is showing.
+ */
+export function getPartiallyScoredState(
+  entry: Pick<MyEntry, 'classes' | 'entryStatus'>
+): PartiallyScoredState | undefined {
+  const liveClasses = entry.classes.filter(cls => cls.status === 'entered');
+  const remaining = liveClasses.filter(cls => !isScoredClass(cls));
+  // Untouched (nothing scored) or finished (nothing left) — neither is partial.
+  if (remaining.length === 0 || remaining.length === liveClasses.length) return undefined;
+
+  let entryStatus: EntryStatus | undefined;
+  let entryStatusKind: EntryStatusKind | undefined;
+  for (const cls of remaining) {
+    const classStatus = cls.entryStatus ?? entry.entryStatus;
+    if (entryStatus === undefined) {
+      entryStatus = classStatus;
+      entryStatusKind = cls.entryStatusKind;
+      continue;
+    }
+    // Resolve the kind against the PREVIOUS status, before it is reassigned.
+    entryStatusKind = dominantStatusKind(
+      entryStatus,
+      entryStatusKind,
+      classStatus,
+      cls.entryStatusKind
+    );
+    entryStatus = dominantStatus(entryStatus, classStatus);
+  }
+
+  return {
+    remainingClasses: remaining.length,
+    entryStatus: entryStatus ?? entry.entryStatus,
+    entryStatusKind,
+  };
 }
 
 /**

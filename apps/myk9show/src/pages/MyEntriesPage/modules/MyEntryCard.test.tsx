@@ -1291,3 +1291,80 @@ describe('MyEntryCard grouped-order dogs grid (task 8.2 — one card per online 
     expect(onReceiptClick.mock.calls[0][0].dogName).toBe('Rex');
   });
 });
+
+describe('MyEntryCard part-scored order badge', () => {
+  const scoredClass = () =>
+    makeClass({
+      id: 'c-scored',
+      name: 'Interior Search',
+      number: '102',
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+    });
+  const unrunClass = () =>
+    makeClass({ entryStatus: EntryStatus.ACCEPTED, entryStatusKind: 'accepted' });
+
+  /**
+   * `groupEntriesByOrder` resolves an order's top-level status by highest
+   * priority with COMPLETED at the top, so an order with one scored class
+   * arrives here already reporting `completed` — the shape these cases pin.
+   */
+  function makePartScoredEntry(classes: EntryClass[]) {
+    return makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes,
+    });
+  }
+
+  it('reads "Partially scored" while a class is still to run', () => {
+    renderCard(makePartScoredEntry([scoredClass(), unrunClass()]));
+
+    expect(screen.getByText('Partially scored')).toBeInTheDocument();
+    // The flat "Scored" must be gone from BOTH the badge and the status line —
+    // one saying done while the other says otherwise is the original defect.
+    expect(screen.queryByText('Scored')).not.toBeInTheDocument();
+    expect(screen.getByText('1 class still to run')).toBeInTheDocument();
+  });
+
+  it('counts every class still to run', () => {
+    renderCard(makePartScoredEntry([scoredClass(), unrunClass(), { ...unrunClass(), id: 'c2' }]));
+
+    expect(screen.getByText('2 classes still to run')).toBeInTheDocument();
+  });
+
+  it('says "In ring" when a remaining class is running now', () => {
+    renderCard(
+      makePartScoredEntry([
+        scoredClass(),
+        makeClass({ entryStatus: EntryStatus.ACCEPTED, entryStatusKind: 'in_ring' }),
+      ])
+    );
+
+    expect(screen.getByText('Partially scored')).toBeInTheDocument();
+    expect(screen.getByText('In ring')).toBeInTheDocument();
+  });
+
+  it('reads "Scored" once every class has a result', () => {
+    renderCard(
+      makePartScoredEntry([scoredClass(), { ...scoredClass(), id: 'c-scored-2', number: '103' }])
+    );
+
+    expect(screen.getAllByText('Scored').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Partially scored')).not.toBeInTheDocument();
+  });
+
+  it('reads "Scored" when the only unrun class was scratched', () => {
+    renderCard(makePartScoredEntry([scoredClass(), makeClass({ status: 'scratched' })]));
+
+    expect(screen.getAllByText('Scored').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Partially scored')).not.toBeInTheDocument();
+  });
+
+  it('leaves an untouched accepted order alone', () => {
+    renderCard(makeEntry({ classes: [unrunClass()] }));
+
+    expect(screen.getByText('Accepted')).toBeInTheDocument();
+    expect(screen.queryByText('Partially scored')).not.toBeInTheDocument();
+  });
+});

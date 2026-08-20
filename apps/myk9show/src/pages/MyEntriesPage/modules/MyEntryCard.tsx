@@ -28,6 +28,7 @@ import { MyEntryCardDetails } from './MyEntryCardDetails';
 import { AddToCalendarDialog } from '@/features/calendar-subscribe';
 import { toDogEntryView } from './myEntryDogView';
 import { deriveMyEntryCardState } from './myEntryCardState';
+import { getPartiallyScoredState } from './myEntriesStats.helpers';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -86,6 +87,13 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
     mapAddress,
     directionsUrl,
   } = deriveMyEntryCardState(entry, new Date(currentTime), selfCheckinByClassId);
+  // An order with results for SOME of its classes reports `completed` at the
+  // top level (COMPLETED tops the grouping's priority scale), which rendered a
+  // flat "Scored" badge while runs were still outstanding. Describe the classes
+  // still to run instead, and let the label carry the partial state.
+  const partiallyScored = React.useMemo(() => getPartiallyScoredState(entry), [entry]);
+  const summaryStatus = partiallyScored?.entryStatus ?? entry.entryStatus;
+  const summaryStatusKind = partiallyScored?.entryStatusKind ?? entry.entryStatusKind;
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
   // Falls back to a non-interactive row when no address parts are available.
@@ -105,7 +113,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-card-header">
         <div>
           <div className="myk9-entries-card-title">
-            {getStatusIcon(entry.entryStatus, entry.paymentStatus, entry.entryStatusKind)}
+            {getStatusIcon(summaryStatus, entry.paymentStatus, summaryStatusKind)}
             {entry.showName}
           </div>
           <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -131,9 +139,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           </div>
         </div>
         <div className="myk9-entries-badges">
-          {getEntryStatusBadge(entry.entryStatus, {
+          {getEntryStatusBadge(summaryStatus, {
             isPastShow,
-            statusKind: entry.entryStatusKind,
+            statusKind: summaryStatusKind,
+            partiallyScored: Boolean(partiallyScored),
           })}
           {/* Cash/check "pay at show" entries carry their own calm status line
               below — the red "Payment Due" debt chip would contradict it (4.C).

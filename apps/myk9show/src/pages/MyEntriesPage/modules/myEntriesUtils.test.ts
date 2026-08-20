@@ -84,6 +84,42 @@ describe('getEntryStatusBadge — preserved status kind', () => {
       container.querySelector('[data-family="entry"][data-status="completed"]')
     ).toBeInTheDocument();
   });
+
+  it('labels a part-scored order "Partially scored" over the remaining status', () => {
+    // The caller passes the dominant status of the classes still to RUN, so the
+    // icon describes the remaining work; only the label mentions the results in.
+    const { container } = render(
+      React.createElement(
+        React.Fragment,
+        null,
+        getEntryStatusBadge(EntryStatus.ACCEPTED, {
+          statusKind: 'accepted',
+          partiallyScored: true,
+        })
+      )
+    );
+
+    expect(screen.getByText('Partially scored')).toBeInTheDocument();
+    expect(screen.queryByText('Scored')).not.toBeInTheDocument();
+    expect(
+      container.querySelector('[data-family="entry"][data-status="accepted"]')
+    ).toBeInTheDocument();
+  });
+
+  it('leaves a fully scored order reading "Scored"', () => {
+    render(
+      React.createElement(
+        React.Fragment,
+        null,
+        getEntryStatusBadge(EntryStatus.COMPLETED, {
+          statusKind: 'completed',
+          partiallyScored: false,
+        })
+      )
+    );
+
+    expect(screen.getByText('Scored')).toBeInTheDocument();
+  });
 });
 
 describe('formatTrialLabel', () => {

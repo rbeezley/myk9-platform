@@ -5,8 +5,9 @@ import {
   isPastShowEntry,
   computeMyEntriesShowDateStats,
   parseShowDate,
+  getPartiallyScoredState,
 } from './myEntriesStats.helpers';
-import type { MyEntry } from './my-entries-types';
+import type { EntryClass, MyEntry } from './my-entries-types';
 
 const NOW = new Date(2026, 5, 2, 20, 0, 0); // Tue Jun 2 2026, 20:00 local
 
@@ -141,5 +142,89 @@ describe('computeMyEntriesShowDateStats', () => {
       upcomingShows: 0,
       upcomingEntries: 0,
     });
+  });
+});
+
+describe('getPartiallyScoredState', () => {
+  function makeClass(id: string, overrides: Partial<EntryClass> = {}): EntryClass {
+    return {
+      id,
+      name: `Class ${id}`,
+      number: id,
+      fee: 0,
+      status: 'entered',
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'accepted',
+      ...overrides,
+    };
+  }
+
+  const scored = (id: string) =>
+    makeClass(id, { entryStatus: EntryStatus.COMPLETED, entryStatusKind: 'completed' });
+
+  it('reports the classes still to run on a part-scored order', () => {
+    // The order card itself reads `completed` (COMPLETED tops the grouping's
+    // priority scale) — the point of this helper is to see past that.
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [scored('a'), makeClass('b'), makeClass('c')],
+    });
+
+    expect(getPartiallyScoredState(entry)).toEqual({
+      remainingClasses: 2,
+      entryStatus: EntryStatus.ACCEPTED,
+      entryStatusKind: 'accepted',
+    });
+  });
+
+  it('resolves the remaining status by the same precedence the card uses', () => {
+    // A dog already in the ring outranks a plain accepted sibling, so the card
+    // never tells the exhibitor "accepted" about a dog currently running.
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [
+        scored('a'),
+        makeClass('b'),
+        makeClass('c', { entryStatus: EntryStatus.ACCEPTED, entryStatusKind: 'in_ring' }),
+      ],
+    });
+
+    expect(getPartiallyScoredState(entry)?.entryStatusKind).toBe('in_ring');
+  });
+
+  it('returns undefined for an untouched order', () => {
+    const entry = makeEntry({ classes: [makeClass('a'), makeClass('b')] });
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+
+  it('returns undefined once every class is scored', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [scored('a'), scored('b')],
+    });
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+
+  it('ignores classes the exhibitor will not run', () => {
+    // One scored, one scratched — nothing is left to run, so this is finished,
+    // not partial.
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [scored('a'), makeClass('b', { status: 'scratched' })],
+    });
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
+  });
+
+  it('returns undefined for a legacy order with no class rows', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      classes: [],
+    });
+    expect(getPartiallyScoredState(entry)).toBeUndefined();
   });
 });

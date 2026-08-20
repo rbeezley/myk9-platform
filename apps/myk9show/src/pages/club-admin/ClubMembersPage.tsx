@@ -82,6 +82,7 @@ const ClubMembersPage: React.FC = () => {
     name: string;
     hasShowAccess: boolean;
   } | null>(null);
+  const [isRemovalOpen, setIsRemovalOpen] = useState(false);
 
   const clubId = clubContext.status === 'ready' ? clubContext.clubId : undefined;
   const clubName = clubContext.status === 'ready' ? clubContext.clubName : 'Club';
@@ -261,12 +262,13 @@ const ClubMembersPage: React.FC = () => {
   // is not routine.
   const handleRemoveMember = (memberId: string) => {
     const member = members.find(m => m.id === memberId);
+    setIsRemovalOpen(true);
     setPendingRemoval(
       member
         ? {
             kind: 'member',
             id: memberId,
-            name: member.personName ?? 'this member',
+            name: member.personName || 'this member',
             hasShowAccess: member.personId ? showManagerIds.has(member.personId) : false,
           }
         : { kind: 'member', id: memberId, name: 'this member', hasShowAccess: false }
@@ -275,10 +277,11 @@ const ClubMembersPage: React.FC = () => {
 
   const handleRemoveOfficer = (officerId: string) => {
     const officer = officers.find(o => o.id === officerId);
+    setIsRemovalOpen(true);
     setPendingRemoval({
       kind: 'officer',
       id: officerId,
-      name: officer?.personName ?? 'this officer',
+      name: officer?.personName || 'this officer',
       hasShowAccess: false,
     });
   };
@@ -287,7 +290,10 @@ const ClubMembersPage: React.FC = () => {
     if (!pendingRemoval) return;
     if (pendingRemoval.kind === 'member') removeMemberMutation.mutate(pendingRemoval.id);
     else removeOfficerMutation.mutate(pendingRemoval.id);
-    setPendingRemoval(null);
+    // Only the open flag flips. pendingRemoval stays populated so the dialog
+    // body still reads correctly through its 200ms exit animation - clearing it
+    // here put the literal string "undefined" in the title on every removal.
+    setIsRemovalOpen(false);
   };
 
   const handleToggleShowAccess = (personId: string, grant: boolean) => {
@@ -317,7 +323,16 @@ const ClubMembersPage: React.FC = () => {
   // not answered just because it is not loading (the PR #1697 class).
   const rosterLoading =
     membersQuery.isLoading || officersQuery.isLoading || showManagersQuery.isLoading;
-  const rosterError = membersQuery.isError || officersQuery.isError || showManagersQuery.isError;
+  // Only a failed MEMBERS load blanks the page. The other two are narrower:
+  // officers populate a different tab, and show-managers annotate one column.
+  // Letting either take the whole page down is a worse trade than the bug it
+  // was fixing - the roster that loaded fine disappears, and
+  // getClubShowManagerIds is the narrowest and most RLS-sensitive of the three,
+  // so it is the likeliest to fail. They still must not render absence as fact;
+  // they say so inline instead.
+  const rosterError = membersQuery.isError;
+  const officersUnavailable = officersQuery.isError;
+  const showAccessUnavailable = showManagersQuery.isError;
 
   const retryRoster = () => {
     if (membersQuery.isError) void membersQuery.refetch();
@@ -426,6 +441,15 @@ const ClubMembersPage: React.FC = () => {
             >
               {/* Members Tab */}
               <TabsContent value="members" className="mt-6 space-y-4">
+                {showAccessUnavailable && (
+                  <p
+                    role="status"
+                    className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
+                  >
+                    We couldn&apos;t check show access just now, so that column may be incomplete.
+                    Everything else on this roster is current.
+                  </p>
+                )}
                 {/* Search */}
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -434,7 +458,7 @@ const ClubMembersPage: React.FC = () => {
                     placeholder="Search by name or email..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="pl-9  border-border"
+                    className="pl-9 border-border"
                   />
                 </div>
 
@@ -453,6 +477,22 @@ const ClubMembersPage: React.FC = () => {
 
               {/* Officers Tab */}
               <TabsContent value="officers" className="mt-6 space-y-4">
+                {officersUnavailable && (
+                  <p
+                    role="status"
+                    className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
+                  >
+                    We couldn&apos;t load the officers list. This isn&apos;t the same as the club
+                    having none.{' '}
+                    <button
+                      type="button"
+                      onClick={() => void officersQuery.refetch()}
+                      className="underline underline-offset-2"
+                    >
+                      Try again
+                    </button>
+                  </p>
+                )}
                 <div className="flex justify-end">
                   <Button onClick={() => setShowAssignOfficer(true)}>
                     <Shield className="h-4 w-4 mr-2" />
@@ -472,10 +512,12 @@ const ClubMembersPage: React.FC = () => {
       </div>
 
       {/* Dialogs */}
-      <AlertDialog
-        open={pendingRemoval !== null}
-        onOpenChange={open => !open && setPendingRemoval(null)}
-      >
+      {/* AlertDialogContent animates out over 200ms, so it stays mounted after
+          pendingRemoval is cleared. Rendering the body from the live value put
+          the literal string "undefined" in the title on every confirm AND every
+          cancel, and flipped an officer removal to the member wording mid-fade.
+          Render from the last non-null value instead. */}
+      <AlertDialog open={isRemovalOpen} onOpenChange={open => !open && setIsRemovalOpen(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>

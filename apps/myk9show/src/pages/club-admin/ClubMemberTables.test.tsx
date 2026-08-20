@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
@@ -148,6 +150,18 @@ describe('membership badge tokens', () => {
       // value in each theme, which is what this rule is protecting.
       expect(cls).not.toMatch(/-(400|500|600|700|800|900|950)\b/);
       expect(cls).toMatch(/(info|warning|success|destructive|--chip-)/);
+    });
+  });
+
+  it('pins a hover background on every inline Badge in the tables too', () => {
+    // This assertion previously covered only the constant maps - the set that
+    // had already been fixed - so it passed vacuously while two inline badges
+    // in this very file still inherited hover:bg-primary/80.
+    const source = readFileSync(resolve(__dirname, 'ClubMemberTables.tsx'), 'utf8');
+    const inlineBadges = source.match(/<Badge className="[^"]*"/g) ?? [];
+    expect(inlineBadges.length).toBeGreaterThan(0);
+    inlineBadges.forEach(tag => {
+      expect(tag).toMatch(/hover:bg-/);
     });
   });
 

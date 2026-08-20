@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { Plus, Shield, Search, X, MoreVertical, Trash2, KeyRound } from 'lucide-react';
+import { Plus, Shield, Search, MoreVertical, Trash2, KeyRound } from 'lucide-react';
 import type { User } from '@/types/user-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import {
@@ -51,9 +51,15 @@ import {
 // membership *category* keyed to the user's chosen accent is legible for some
 // users and not others. Categories take a fixed chip pair; the accent stays the
 // user's brand preference.
+//
+// Purple specifically, not teal: the chip vocabulary reserves purple for "tag",
+// which is what a membership category is. Teal is BOTH the default --primary in
+// apps/myk9show/DESIGN.md and the existing "Paid" chip in entryManagementUtils,
+// so it would have re-keyed the category to the accent's own hue while reading
+// as a payment state on a page that has a Payments sibling.
 // eslint-disable-next-line react-refresh/only-export-components
 export const TYPE_BADGE_CLASSES: Record<MembershipType, string> = {
-  full: 'bg-[color:var(--chip-teal-bg)] text-[color:var(--chip-teal-fg)] border-transparent hover:bg-[color:var(--chip-teal-bg)]',
+  full: 'bg-[color:var(--chip-purple-bg)] text-[color:var(--chip-purple-fg)] border-transparent hover:bg-[color:var(--chip-purple-bg)]',
   associate: 'bg-info/10 text-info-strong border-info/20 hover:bg-info/10',
   junior: 'bg-warning/10 text-warning border-warning/20 hover:bg-warning/10',
   honorary: 'bg-success/10 text-success border-success/20 hover:bg-success/10',
@@ -248,13 +254,6 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
             </div>
             <DialogTitle className="text-lg font-semibold text-foreground">Add Member</DialogTitle>
           </div>
-          <button
-            onClick={handleClose}
-            aria-label="Close dialog"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
         <div className="space-y-4 pt-2">
           {/* Person search */}
@@ -266,7 +265,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 placeholder="Search by name or email..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-9  border-border"
+                className="pl-9 border-border"
               />
             </div>
             <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
@@ -277,10 +276,10 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                   <button
                     key={person.id}
                     onClick={() => setSelectedPersonId(person.id)}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    className={`w-full text-left px-3 py-2 text-sm min-h-11 transition-colors ${
                       selectedPersonId === person.id
                         ? 'bg-primary/10 text-primary'
-                        : 'hover:bg-accent text-foreground'
+                        : 'hover:bg-card text-foreground'
                     }`}
                   >
                     <span className="font-medium">
@@ -401,13 +400,6 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
               Assign Officer
             </DialogTitle>
           </div>
-          <button
-            onClick={handleClose}
-            aria-label="Close dialog"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
         <div className="space-y-4 pt-2">
           {/* Person search */}
@@ -419,7 +411,7 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                 placeholder="Search people by name or email..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-9  border-border"
+                className="pl-9 border-border"
               />
             </div>
             <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
@@ -432,10 +424,10 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                     <button
                       key={person.id}
                       onClick={() => setSelectedPersonId(person.id)}
-                      className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                      className={`w-full text-left px-3 py-2 text-sm min-h-11 transition-colors ${
                         selectedPersonId === person.id
                           ? 'bg-primary/10 text-primary'
-                          : 'hover:bg-accent text-foreground'
+                          : 'hover:bg-card text-foreground'
                       }`}
                     >
                       <span className="font-medium">

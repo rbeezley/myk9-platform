@@ -72,7 +72,7 @@ export const MembersTable: React.FC<MembersTableProps> = ({
               <span className="flex flex-wrap items-center gap-2">
                 {member.personName || 'Unknown'}
                 {showManagerIds.has(member.personId) && (
-                  <Badge className="bg-success/10 text-success border-success/20 text-xs">
+                  <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10 text-xs">
                     <KeyRound className="h-3 w-3 mr-1" />
                     Show Manager
                   </Badge>
@@ -168,7 +168,7 @@ export const OfficersTable: React.FC<OfficersTableProps> = ({
         {officers.map(officer => (
           <tr key={officer.id} className="border-b border-border hover:bg-accent transition-colors">
             <td className="px-4 py-3">
-              <Badge className="bg-primary/10 text-primary border-primary/20">
+              <Badge className="bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]">
                 {OFFICER_POSITION_LABELS[officer.position]}
               </Badge>
             </td>

@@ -328,15 +328,22 @@ export function CartSummary({
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Processing...
             </>
+          ) : entriesClosed ? (
+            // Ordered ahead of isExpired deliberately. The expiry banner (and
+            // the only Extend button) is gated on !entriesClosed, so a closed
+            // show whose hold also lapsed would otherwise read "Extend your
+            // hold to continue" with no Extend button anywhere on the page -
+            // an instruction pointing at an affordance that was removed, while
+            // suppressing the real reason. Entries closed is the permanent
+            // condition, so it wins.
+            <>
+              <Lock className="h-4 w-4 mr-2" />
+              Entries closed. Cannot pay online
+            </>
           ) : isExpired ? (
             <>
               <AlertTriangle className="h-4 w-4 mr-2" />
               Extend your hold to continue
-            </>
-          ) : entriesClosed ? (
-            <>
-              <Lock className="h-4 w-4 mr-2" />
-              Entries closed. Cannot pay online
             </>
           ) : capacityPending ? (
             <>

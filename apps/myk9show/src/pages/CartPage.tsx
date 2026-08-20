@@ -68,6 +68,7 @@ export default function CartPage() {
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [removalAnnouncement, setRemovalAnnouncement] = useState('');
   const entriesHeadingRef = useRef<HTMLHeadingElement>(null);
+  const announcementSeqRef = useRef(0);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -108,8 +109,18 @@ export default function CartPage() {
   // "this show has no capacity limits" and mark every line payable. Require
   // that the query was actually asked. (Same class of bug as PR #1697.)
   const capacityQueried = Boolean(cart?.show_id);
+  // `isCheckingOut` deliberately keeps the last resolved view on screen. The
+  // submit-time refetch sets isFetching, which would otherwise flip the summary
+  // to capacityUnknown at the exact instant Pay is pressed: wait-list badges
+  // vanish, their lines flip from "Pending" to a dollar figure, and the Total
+  // blanks to "Pending" - the summary contradicting itself at the highest-stakes
+  // moment. The button already reads "Processing...", and the refetch result
+  // replaces this view a moment later either way.
   const capacityResolved =
-    capacityQueried && !isCapacityLoading && !isCapacityFetching && !capacityError;
+    capacityQueried &&
+    !isCapacityLoading &&
+    (!isCapacityFetching || isCheckingOut) &&
+    !capacityError;
   const fulfillment = useMemo(
     () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, fullClassIds),
     [items, judgeDays, fullClassIds, capacityResolved]
@@ -159,17 +170,32 @@ export default function CartPage() {
     const success = await removeItem(itemId);
 
     if (success) {
+      const wasLastItem = items.length <= 1;
+
       // The card holding the focused Remove button just unmounted, which drops
       // focus to <body> and restarts a keyboard user's Tab order at the top of
-      // the document. Send focus to the entry-count heading instead - it is the
-      // thing that just changed, and it reads the new count aloud.
-      entriesHeadingRef.current?.focus();
+      // the document. Send focus to the entry-count heading - it is the thing
+      // that changed, and it reads the new count aloud. Removing the LAST item
+      // swaps the page for the empty-cart branch, where that heading does not
+      // exist, so there is nothing to focus and the announcement has to carry
+      // the whole message on its own.
+      if (!wasLastItem) {
+        entriesHeadingRef.current?.focus();
+      }
+
       // Nothing else announces this: the subtotal, fee, total and the Pay
-      // button's own label all change silently, on a money screen.
+      // button's own label all change silently, on a money screen. The counter
+      // suffix forces a re-read when two removals produce identical text (two
+      // unnamed entries both yield "Removed entry."), which a live region
+      // otherwise ignores as an unchanged value.
+      const what = `${removed?.dog?.call_name ?? 'entry'}${
+        removed?.class?.name ? ` from ${removed.class.name}` : ''
+      }`;
+      announcementSeqRef.current += 1;
       setRemovalAnnouncement(
-        `Removed ${removed?.dog?.call_name ?? 'entry'}${
-          removed?.class?.name ? ` from ${removed.class.name}` : ''
-        }.`
+        `Removed ${what}.${wasLastItem ? ' Your cart is now empty.' : ''}${'\u200b'.repeat(
+          announcementSeqRef.current % 2
+        )}`
       );
     }
 
@@ -221,8 +247,24 @@ export default function CartPage() {
       // money made whole, but a charge-then-refund the exhibitor never
       // expected. One refetch routes it to the wait list cleanly instead.
       const fresh = await refetchCapacity();
-      const freshJudgeDays = fresh.data?.judgeDays ?? judgeDays;
-      const freshFullClassIds = fresh.data?.fullClassIds ?? fullClassIds;
+
+      // Fail closed. refetch() resolves with the error inside the result rather
+      // than rejecting, and on failure `fresh.data` still holds the last
+      // SUCCESSFUL payload - so a naive `fresh.data ?? judgeDays` would hand
+      // back exactly the stale snapshot this re-check exists to replace, and
+      // send the exhibitor to Stripe as though availability had been confirmed.
+      // Better to stop and say so than to charge against capacity we could not
+      // verify.
+      if (fresh.isError || !fresh.data) {
+        setError(
+          'We could not confirm which classes are still open. Please check availability and try again.'
+        );
+        stopCheckingOut();
+        return;
+      }
+
+      const freshJudgeDays = fresh.data.judgeDays;
+      const freshFullClassIds = fresh.data.fullClassIds;
 
       const splitDecision = splitCartItemsByJudgeDayCapacity(
         items,
@@ -302,8 +344,17 @@ export default function CartPage() {
           : 'Something went wrong starting checkout. Please try again.';
 
       if (status === 409 && profile?.id) {
-        // Re-hydrate so "review your cart" is actually possible.
-        loadActiveCart(profile.id, {});
+        // Re-hydrate so "review your cart" is actually possible - with the same
+        // options as the mount-time load. An empty object drops the recovery
+        // showId, and cartStore then falls back to "most recently created
+        // active cart", which for someone who arrived via /cart?showId=X on an
+        // older cart would silently swap them onto a different show's cart
+        // underneath a 409 about the one they were paying for.
+        const reloadOptions: Parameters<typeof loadActiveCart>[1] = {};
+        if (recoveryShowId) {
+          reloadOptions.showId = recoveryShowId;
+        }
+        loadActiveCart(profile.id, reloadOptions);
       }
 
       setError(message);
@@ -332,6 +383,17 @@ export default function CartPage() {
   // initiated yet" still counts as hydrating.
   const awaitingCartLoad = Boolean(profile?.id) && !loadInitiated;
   const isHydrating = items.length === 0 && (isProfileLoading || isCartLoading || awaitingCartLoad);
+
+  // Rendered by every branch below, deliberately. Removing the last item flips
+  // the page to the empty-cart branch, so a live region living inside the
+  // items.length > 0 return unmounted before it could speak - silently losing
+  // the announcement in the single-entry case, which is the common one.
+  const liveRegion = (
+    <p aria-live="polite" className="sr-only">
+      {removalAnnouncement}
+    </p>
+  );
+
   if (isHydrating) {
     return (
       <div className="bg-background pt-6">
@@ -357,9 +419,13 @@ export default function CartPage() {
   if (!cart || items.length === 0) {
     return (
       <div className="bg-background pt-6">
+        {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-20 h-20 rounded-full border border-border bg-muted flex items-center justify-center mb-6">
+            {/* --chip-stone-bg, not bg-muted: --muted equals --card and sits at
+                1.08:1 on --background, so the circle was a void in both themes
+                and a border on it was equally inert. */}
+            <div className="w-20 h-20 rounded-full bg-[color:var(--chip-stone-bg)] flex items-center justify-center mb-6">
               <ShoppingCart className="h-10 w-10 text-muted-foreground" />
             </div>
             <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
@@ -454,11 +520,7 @@ export default function CartPage() {
           </Alert>
         )}
 
-        {/* Removal and total changes are otherwise silent to assistive tech.
-            Kept out of the visual flow, polite so it never interrupts. */}
-        <p aria-live="polite" className="sr-only">
-          {removalAnnouncement}
-        </p>
+        {liveRegion}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

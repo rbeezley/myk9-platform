@@ -91,6 +91,23 @@ describe('CartSummary — lapsed hold', () => {
     expect(screen.queryByRole('button', { name: /^pay \$/i })).not.toBeInTheDocument();
   });
 
+  it('names the real blocker when entries are closed AND the hold has lapsed', () => {
+    // The expiry banner - and the only Extend button - is gated on
+    // !entriesClosed. Testing isExpired first in the label chain therefore told
+    // the exhibitor to "Extend your hold to continue" on a page with no Extend
+    // button anywhere, while hiding the permanent reason.
+    timerState.isExpired = true;
+    (storeState.cart as { show: { entry_close_date: string } }).show.entry_close_date =
+      '2020-01-01';
+
+    render(<CartSummary />);
+
+    expect(screen.getByRole('button', { name: /entries closed/i })).toBeDisabled();
+    expect(
+      screen.queryByRole('button', { name: /extend your hold to continue/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('still offers payment while the hold is merely near its end', () => {
     timerState.showWarning = true;
     timerState.timeRemainingFormatted = '4:30';

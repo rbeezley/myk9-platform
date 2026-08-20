@@ -58,8 +58,11 @@ describe('CartItemCard line badges', () => {
     expect(cartItemCard).toContain('border-warning/40 bg-warning/10 text-warning');
   });
 
-  it('gives the level badge a real boundary rather than a transparent border', () => {
-    expect(cartItemCard).toContain('border-border text-muted-foreground');
+  it('gives the level badge the neutral chip surface, not an unfilled outline', () => {
+    // An outline is not enough: border-border on a card measures 1.36:1 light
+    // and 1.21:1 dark, so an unfilled pill still reads as loose text.
+    expect(cartItemCard).toContain('bg-[color:var(--chip-stone-bg)]');
+    expect(cartItemCard).not.toContain("LEVEL_BADGE = 'border-border");
   });
 
   it('keeps the blocked badge on the destructive variant', () => {

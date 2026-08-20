@@ -41,11 +41,17 @@ interface CartItemCardProps {
  * softer money-relevant one did not.
  *
  * The wait-list badge takes the warning family, matching its meaning and
- * measuring 6.08:1 light / 8.27:1 dark; the level badge just needs a real
- * boundary.
+ * measuring 6.07:1 light / 8.24:1 dark.
+ *
+ * The level badge is neutral, so it takes the design system's neutral chip
+ * pair. An outline treatment does not work here: `border-border` on a card is
+ * 1.36:1 light and 1.21:1 dark, so an unfilled pill still reads as loose text -
+ * the same failure, one shade along. `--chip-stone-bg` is the surface the
+ * system provides for exactly this.
  */
 const WAITLIST_BADGE = 'border-warning/40 bg-warning/10 text-warning';
-const LEVEL_BADGE = 'border-border text-muted-foreground';
+const LEVEL_BADGE =
+  'border-transparent bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)]';
 
 export function CartItemCard({
   item,

@@ -84,14 +84,17 @@ const judgeDayCapacityState = vi.hoisted(() => ({
       classNames: ['Full Class'],
     },
   ],
+  fullClassIds: [] as string[],
   isLoading: false,
   isFetching: false,
   error: null as string | null,
   // handleCheckout re-checks capacity at submit rather than trusting the
-  // render-time snapshot, so the mock must answer a refetch. Resolving with
-  // `data: undefined` makes the page fall back to the rendered values, which
-  // keeps these cases asserting the split logic rather than the refetch.
-  refetch: vi.fn().mockResolvedValue({ data: undefined }),
+  // render-time snapshot, and it fails CLOSED - an unresolved refetch stops
+  // checkout rather than proceeding on stale data. The default therefore
+  // answers with the same capacity these cases render, so they keep asserting
+  // the split logic; the refetch's own behaviour is covered separately below.
+  refetch: vi.fn(),
+  isError: false,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -165,6 +168,18 @@ describe('CartPage split checkout wiring', () => {
     vi.clearAllMocks();
     sessionStorage.clear();
     cartState.error = null;
+    judgeDayCapacityState.isError = false;
+    // Answer the submit-time re-check with the capacity these cases render.
+    // Read the state at CALL time, not at beforeEach time: cases below mutate
+    // judgeDays after this runs, and the submit-time re-check must see what the
+    // case set up rather than a snapshot taken before it.
+    judgeDayCapacityState.refetch = vi.fn().mockImplementation(async () => ({
+      data: {
+        judgeDays: judgeDayCapacityState.judgeDays,
+        fullClassIds: judgeDayCapacityState.fullClassIds,
+      },
+      isError: false,
+    }));
     cartItems.value = [
       {
         id: 'item-open',
@@ -420,5 +435,87 @@ describe('CartPage split checkout wiring', () => {
     );
     expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', undefined);
     expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
+  });
+
+  describe('submit-time capacity re-check', () => {
+    it('splits on capacity fetched at submit, not the render-time snapshot', async () => {
+      // Rendered with room for both lines...
+      judgeDayCapacityState.judgeDays = [
+        {
+          judgeId: 'judge-1',
+          judgeName: 'Judge Judy',
+          showDate: '2026-09-01',
+          capacity: 10,
+          confirmedCount: 8,
+          waitlistCount: 0,
+          mailInReserved: 0,
+          availableSpots: 2,
+          classIds: ['class-open', 'class-full'],
+          classNames: ['Open Class', 'Full Class'],
+        },
+      ];
+      checkoutWithWaitlistMock.mockResolvedValue({ confirmed: ['class-open'], waitlisted: [] });
+
+      // ...but the show fills up while the exhibitor is deciding. Assigned
+      // before render: CartPage captures the refetch reference when it renders.
+      // Without the re-check this went to Stripe as fully payable, was charged,
+      // and then refunded by the server's overflow path.
+      judgeDayCapacityState.refetch = vi.fn().mockResolvedValue({
+        data: {
+          judgeDays: [
+            {
+              judgeId: 'judge-1',
+              judgeName: 'Judge Judy',
+              showDate: '2026-09-01',
+              capacity: 10,
+              confirmedCount: 10,
+              waitlistCount: 0,
+              mailInReserved: 0,
+              availableSpots: 0,
+              classIds: ['class-open', 'class-full'],
+              classNames: ['Open Class', 'Full Class'],
+            },
+          ],
+          fullClassIds: [],
+        },
+        isError: false,
+      });
+
+      const { user } = render(<CartPage />, { initialRoute: '/cart' });
+
+      await user.click(screen.getByRole('button', { name: 'Checkout' }));
+
+      await waitFor(() => expect(checkoutWithWaitlistMock).toHaveBeenCalled());
+      const waitlistedIds = checkoutWithWaitlistMock.mock.calls[0][1] as Set<string>;
+      expect(waitlistedIds.size).toBeGreaterThan(0);
+    });
+
+    it('stops checkout rather than charging against capacity it could not verify', async () => {
+      judgeDayCapacityState.refetch = vi.fn().mockResolvedValue({
+        // refetch() resolves with the error inside the result, and `data` still
+        // holds the last SUCCESSFUL payload - so falling back to it would send
+        // the exhibitor to Stripe on exactly the stale snapshot the re-check
+        // exists to replace.
+        data: {
+          judgeDays: judgeDayCapacityState.judgeDays,
+          fullClassIds: judgeDayCapacityState.fullClassIds,
+        },
+        isError: true,
+      });
+
+      const { user } = render(<CartPage />, { initialRoute: '/cart' });
+
+      await user.click(screen.getByRole('button', { name: 'Checkout' }));
+
+      // setError is mocked at the store boundary in this suite, so assert the
+      // message the page reports rather than its rendered text.
+      await waitFor(() =>
+        expect(setErrorMock).toHaveBeenCalledWith(
+          expect.stringMatching(/could not confirm which classes are still open/i)
+        )
+      );
+      expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
+      expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
+    });
   });
 });

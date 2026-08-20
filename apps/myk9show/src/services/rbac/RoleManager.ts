@@ -691,6 +691,14 @@ export class RoleManager {
         await supabase.from('role_permissions').insert(rolePermissions);
       }
 
+      await this.auditLogger.logAuditEvent(ActionType.ROLE_UPDATED, {
+        targetId: roleId,
+        targetType: 'role',
+        newValue: {
+          permissions_count: permissionIds.length,
+        },
+      });
+
       this.clearAllCache();
     } catch (error) {
       logger.error(

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RoleManager } from './RoleManager';
-import { RoleError } from '@/types/rbac-types';
+import { ActionType, RoleError } from '@/types/rbac-types';
 import { mockSupabase, createChainableQuery, resetMockSupabase } from '@/test/mocks/supabase';
 import type { AuditLogger } from './AuditLogger';
 
@@ -120,5 +120,54 @@ describe('RoleManager.ensureUserHasRole', () => {
     const result = await manager.ensureUserHasRole('user-1', 'secretary');
     expect(result).toBe(true);
     expect(clearUserCache).toHaveBeenCalledWith('user-1');
+  });
+});
+
+/**
+ * Regression coverage for the audit gap fixed here: editing a role's
+ * permissions is the primary action on RoleEditPage, but updateRolePermissions
+ * previously wrote no audit event at all — so the permission edit never showed
+ * up in the audit log, the roles table's "Last changed" column, or the recent
+ * changes rail. The UI's buildLastChangedMap (rolesOverview.ts) matches audit
+ * rows on target_type === 'role' && target_id === roleId exactly, so the
+ * assertions below pin that shape, not just "some event was logged".
+ */
+describe('RoleManager.updateRolePermissions — audit trail', () => {
+  it('replaces role_permissions rows and logs a ROLE_UPDATED audit event targeted at the role', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'role_permissions') {
+        return createChainableQuery({ data: null, error: null });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger } = buildManager();
+    await manager.updateRolePermissions('role-1', ['perm-a', 'perm-b']);
+
+    expect(auditLogger.logAuditEvent).toHaveBeenCalledWith(
+      ActionType.ROLE_UPDATED,
+      expect.objectContaining({
+        targetId: 'role-1',
+        targetType: 'role',
+      })
+    );
+  });
+
+  it('logs the audit event even when clearing permissions down to an empty set', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'role_permissions') {
+        return createChainableQuery({ data: null, error: null });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger, clearAllCache } = buildManager();
+    await manager.updateRolePermissions('role-1', []);
+
+    expect(auditLogger.logAuditEvent).toHaveBeenCalledWith(
+      ActionType.ROLE_UPDATED,
+      expect.objectContaining({ targetId: 'role-1', targetType: 'role' })
+    );
+    expect(clearAllCache).toHaveBeenCalled();
   });
 });

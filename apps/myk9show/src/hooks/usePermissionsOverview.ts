@@ -70,7 +70,6 @@ export function usePermissionsOverview(): PermissionsOverviewState {
   useEffect(() => {
     // This starts an external service read; state updates occur after the
     // promise settles.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 

@@ -587,6 +587,31 @@ export const pageDirectory: readonly PageEntry[] = [
     status: 'working',
     linksTo: [],
   },
+  // Open to any authenticated user — the route is a bare <ProtectedRoute> with
+  // no requiredRoles — so every role section that exists is listed. CHAIRMAN and
+  // STEWARD are omitted only because AdminHelpPage's ROLE_ORDER has no section
+  // for them; an entry naming just those would render nowhere.
+  //
+  // linksTo is empty on purpose: the page's Back button and breadcrumb both
+  // point at /account, which is not in fullRouteRegistry and so has no entry to
+  // link to. Naming it here would fail the linksTo-resolves invariant.
+  {
+    path: '/support',
+    title: 'Support Ticket',
+    description:
+      'Read and reply to your own support ticket. Reached from a support notification, which deep-links with ?ticketId — without one the page renders "Ticket not found", so there is no way in from the nav. Staff side is the Support Inbox.',
+    roles: [
+      UserRole.SITE_ADMIN,
+      UserRole.SECRETARY,
+      UserRole.CLUB_ADMIN,
+      UserRole.JUDGE,
+      UserRole.EXHIBITOR,
+    ],
+    classification: 'critical-path',
+    category: 'Support',
+    status: 'working',
+    linksTo: [],
+  },
 
   // =========================
   // CLUB ADMIN

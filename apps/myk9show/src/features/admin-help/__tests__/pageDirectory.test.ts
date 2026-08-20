@@ -107,6 +107,26 @@ describe('pageDirectory (invariant)', () => {
     expect(entry?.linksTo).toContain('/admin/users');
   });
 
+  // /support was the directory's one genuine gap: a real, working, user-facing
+  // page with no entry. It is unreachable from the nav — its only entry point is
+  // the support push notification's ?ticketId deep link — which is exactly why
+  // it went uncatalogued, and exactly why a site admin needs it listed.
+  it('catalogs the notification-only /support page', () => {
+    const entry = pageDirectory.find(e => e.path === '/support');
+    expect(entry).toBeDefined();
+    // Bare <ProtectedRoute>, no requiredRoles: every role section gets it.
+    expect(entry?.roles).toEqual([
+      UserRole.SITE_ADMIN,
+      UserRole.SECRETARY,
+      UserRole.CLUB_ADMIN,
+      UserRole.JUDGE,
+      UserRole.EXHIBITOR,
+    ]);
+    // The deep-link requirement is the single most surprising thing about this
+    // page. If the description stops saying so, the entry has lost its point.
+    expect(entry?.description).toMatch(/ticketId/);
+  });
+
   // The directory is hand-authored and deliberately omits redirect-only routes
   // (asserted above for the legacy /secretary/shows paths), and nothing enforces
   // that a new route gets an entry — the drift panel reports that at runtime.

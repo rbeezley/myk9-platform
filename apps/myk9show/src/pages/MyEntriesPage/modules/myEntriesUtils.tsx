@@ -10,7 +10,11 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { StatusBadge, StatusIcon } from '@/components/status';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
-import { getPartiallyScoredState, isPastShowEntry } from './myEntriesStats.helpers';
+import {
+  getPartiallyScoredState,
+  isPastShowEntry,
+  isSettledWithoutScore,
+} from './myEntriesStats.helpers';
 import type { EntryClass } from './my-entries-types';
 
 /**
@@ -223,6 +227,13 @@ export function getContextualStatusMessage(
       message: `${remainingClasses} ${plural} still to run`,
       className: 'text-info',
     };
+  }
+
+  // Settled entirely by absences: done, but with no result to report. The
+  // lifecycle columns still read 'confirmed', so without this the card shows
+  // upcoming copy from inside the Completed tab.
+  if (entry.classes && isSettledWithoutScore({ classes: entry.classes })) {
+    return { message: 'No result recorded', className: 'text-muted-foreground' };
   }
 
   if (entry.entryStatusKind === 'in_ring') {

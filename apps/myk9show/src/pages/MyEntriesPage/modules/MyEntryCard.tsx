@@ -28,7 +28,7 @@ import { MyEntryCardDetails } from './MyEntryCardDetails';
 import { AddToCalendarDialog } from '@/features/calendar-subscribe';
 import { toDogEntryView } from './myEntryDogView';
 import { deriveMyEntryCardState } from './myEntryCardState';
-import { getPartiallyScoredState } from './myEntriesStats.helpers';
+import { getPartiallyScoredState, isSettledWithoutScore } from './myEntriesStats.helpers';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -92,8 +92,13 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   // flat "Scored" badge while runs were still outstanding. Describe the classes
   // still to run instead, and let the label carry the partial state.
   const partiallyScored = React.useMemo(() => getPartiallyScoredState(entry), [entry]);
+  // An order settled entirely by absences is done, but its lifecycle columns
+  // still read 'confirmed' — without this it renders a green "Accepted" badge
+  // from inside the Completed tab.
+  const settledWithoutScore = React.useMemo(() => isSettledWithoutScore(entry), [entry]);
   const summaryStatus = partiallyScored?.entryStatus ?? entry.entryStatus;
-  const summaryStatusKind = partiallyScored?.entryStatusKind ?? entry.entryStatusKind;
+  const summaryStatusKind =
+    partiallyScored?.entryStatusKind ?? (settledWithoutScore ? 'absent' : entry.entryStatusKind);
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
   // Falls back to a non-interactive row when no address parts are available.

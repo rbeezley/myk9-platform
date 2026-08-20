@@ -145,6 +145,24 @@ export function isScoredEntry(entry: MyEntry): boolean {
   return entry.entryStatusKind === 'completed' || entry.entryStatus === EntryStatus.COMPLETED;
 }
 
+/**
+ * An order that is finished WITHOUT a score — every run it expected is settled,
+ * and every one of them was settled by an absence rather than a result.
+ *
+ * These are done, so `isCompletedEntry` puts them in the Completed tab, but
+ * nothing in their lifecycle columns says so: `result_status` carries the
+ * absence while `entry_status` stays 'confirmed', so the order still aggregates
+ * to `accepted` and the card would render a green "Accepted" badge and upcoming
+ * copy from inside the Completed tab. `getPartiallyScoredState` deliberately
+ * declines these (there is no score to be partway through), so they need their
+ * own display state rather than falling through to the aggregate.
+ */
+export function isSettledWithoutScore(entry: Pick<MyEntry, 'classes'>): boolean {
+  const expected = expectedClasses(entry.classes);
+  if (expected.length === 0) return false;
+  return expected.every(isAccountedFor) && !expected.some(isGenuinelyScoredClass);
+}
+
 export interface PartiallyScoredState {
   /** Live classes on this order still awaiting a result. Always >= 1. */
   remainingClasses: number;

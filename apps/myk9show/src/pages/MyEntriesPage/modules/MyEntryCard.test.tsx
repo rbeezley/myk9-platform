@@ -1389,6 +1389,23 @@ describe('MyEntryCard part-scored order badge', () => {
     expect(screen.queryByText('1 class still to run')).not.toBeInTheDocument();
   });
 
+  // Done, but with nothing scored: result_status carries the absence while
+  // entry_status stays 'confirmed', so the order aggregates to accepted and
+  // would show a green "Accepted" badge from inside the Completed tab.
+  it('does not present an all-absent order as accepted', () => {
+    renderCard(
+      makeEntry({
+        entryStatus: EntryStatus.ACCEPTED,
+        entryStatusKind: 'accepted',
+        classes: [makeClass({ isScored: false, resultStatus: 'absent' })],
+      })
+    );
+
+    expect(screen.getByText('No result recorded')).toBeInTheDocument();
+    expect(screen.queryByText('Accepted')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partially scored')).not.toBeInTheDocument();
+  });
+
   it('leaves an untouched accepted order alone', () => {
     renderCard(makeEntry({ classes: [unrunClass()] }));
 

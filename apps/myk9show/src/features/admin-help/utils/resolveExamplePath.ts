@@ -71,7 +71,20 @@ const PATTERN_RESOLVERS: Record<string, Resolver> = {
 };
 
 /**
+ * Paths that are route-complete — no `:param` to substitute — but still cannot
+ * be opened cold, because the page needs a query string the directory has no
+ * sample value for. Navigating to the bare path lands on an error state, so
+ * these resolve to `null` and the row's Go button disables like any other
+ * unresolvable entry.
+ *
+ * /support renders "Ticket not found" without `?ticketId`; its only real entry
+ * point is the support notification's deep link.
+ */
+const QUERY_DEPENDENT_PATHS = new Set(['/support']);
+
+/**
  * Substitute :param tokens in a route pattern with sample ids.
+ * - If `pattern` is query-dependent, returns `null` regardless of ids.
  * - If `pattern` has no `:`, it is returned unchanged.
  * - If `pattern` has a `:` and is listed in PATTERN_RESOLVERS, the resolver
  *   returns the substituted path or `null` when any required id is missing.
@@ -79,6 +92,9 @@ const PATTERN_RESOLVERS: Record<string, Resolver> = {
  *   treat as "unresolvable — disable the Go button").
  */
 export function resolveExamplePath(pattern: string, ids: ExampleIds): string | null {
+  // Checked before the `:` test: these paths have no param, so the branch below
+  // would otherwise hand back an enabled link to a guaranteed error state.
+  if (QUERY_DEPENDENT_PATHS.has(pattern)) return null;
   if (!pattern.includes(':')) return pattern;
   const resolver = PATTERN_RESOLVERS[pattern];
   return resolver ? resolver(ids) : null;

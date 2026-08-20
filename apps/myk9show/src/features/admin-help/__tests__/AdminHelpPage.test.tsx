@@ -48,6 +48,19 @@ vi.mock('../data/pageDirectory', async () => {
 import { AdminHelpPage } from '../components/AdminHelpPage';
 
 describe('AdminHelpPage', () => {
+  // The header used to read "Every page in myK9Show" while the amber drift
+  // panel on the same screen listed pages it was missing. The replacement must
+  // stay scoped: routeDiff only compares against fullRouteRegistry, so a page
+  // that is routed but unregistered (/account) is invisible to the panel and
+  // the copy must not promise otherwise.
+  it('does not claim the directory or its drift panel is exhaustive', () => {
+    render(<AdminHelpPage />);
+    const intro = screen.getByText(/user-facing pages, grouped by role/i);
+
+    expect(intro.textContent).not.toMatch(/every page/i);
+    expect(intro.textContent).toMatch(/registered routes/i);
+  });
+
   it('hides parked entries by default', () => {
     render(<AdminHelpPage />);
     expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();

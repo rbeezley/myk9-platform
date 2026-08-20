@@ -94,6 +94,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   secretary_tasks: 'SELECT,INSERT,UPDATE,DELETE',
   show_announcement_reads: 'SELECT,INSERT,UPDATE,DELETE',
   show_announcements: 'SELECT,INSERT,UPDATE,DELETE',
+  // MYK9-203: service_role only; the ledger is never touched by a client role.
+  show_eve_nudge_log: '',
   show_incidents: 'SELECT,INSERT',
   show_lifecycle_email_attempts: 'SELECT',
   show_lifecycle_email_jobs: 'SELECT,UPDATE',

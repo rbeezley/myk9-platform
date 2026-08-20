@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { Plus, Shield, Search, X, MoreVertical, Trash2, KeyRound } from 'lucide-react';
+import { Plus, Shield, Search, MoreVertical, Trash2, KeyRound } from 'lucide-react';
 import type { User } from '@/types/user-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import {
@@ -35,23 +35,46 @@ import {
 
 // --- Badge color constants ---
 
-// Membership-type badges use semantic theme tokens (not raw palette) so they
-// stay WCAG-AA legible in both light and dark mode. info uses text-info-strong,
-// the AA-safe text shade for the bg-info/10 tint pattern.
+// Membership badges use semantic theme tokens (not raw palette) so they stay
+// WCAG-AA legible in both light and dark mode. info uses text-info-strong, the
+// AA-safe text shade for the bg-info/10 tint pattern.
+//
+// Every entry pins its own `hover:` background on purpose. Badge's default
+// variant carries `hover:bg-primary/80`, and tailwind-merge does NOT drop it
+// when a className overrides the base `bg-*` - verified against the repo's own
+// tailwind-merge. Without these, hovering any chip repainted it solid clay
+// while keeping the semantic text colour: 1.15:1 to 2.58:1 depending on the
+// chip, on every badge on the page.
+//
+// `full` deliberately does NOT use the accent. `bg-primary/10` + `text-primary`
+// measures 4.13:1 on Dusk and 3.91:1 on Heather in dark mode - below AA - so a
+// membership *category* keyed to the user's chosen accent is legible for some
+// users and not others. Categories take a fixed chip pair; the accent stays the
+// user's brand preference.
+//
+// Purple specifically, not teal: the chip vocabulary reserves purple for "tag",
+// which is what a membership category is. Teal is BOTH the default --primary in
+// apps/myk9show/DESIGN.md and the existing "Paid" chip in entryManagementUtils,
+// so it would have re-keyed the category to the accent's own hue while reading
+// as a payment state on a page that has a Payments sibling.
 // eslint-disable-next-line react-refresh/only-export-components
 export const TYPE_BADGE_CLASSES: Record<MembershipType, string> = {
-  full: 'bg-primary/10 text-primary border-primary/20',
-  associate: 'bg-info/10 text-info-strong border-info/20',
-  junior: 'bg-warning/10 text-warning border-warning/20',
-  honorary: 'bg-success/10 text-success border-success/20',
+  full: 'bg-[color:var(--chip-purple-bg)] text-[color:var(--chip-purple-fg)] border-transparent hover:bg-[color:var(--chip-purple-bg)]',
+  associate: 'bg-info/10 text-info-strong border-info/20 hover:bg-info/10',
+  junior: 'bg-warning/10 text-warning border-warning/20 hover:bg-warning/10',
+  honorary: 'bg-success/10 text-success border-success/20 hover:bg-success/10',
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const STATUS_BADGE_CLASSES: Record<MembershipStatus, string> = {
-  active: 'bg-success/10 text-success border-success/20',
-  lapsed: 'bg-warning/10 text-warning border-warning/20',
-  suspended: 'bg-destructive/10 text-destructive border-destructive/20',
-  resigned: 'bg-muted text-muted-foreground border-border',
+  active: 'bg-success/10 text-success border-success/20 hover:bg-success/10',
+  lapsed: 'bg-warning/10 text-warning border-warning/20 hover:bg-warning/10',
+  suspended: 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/10',
+  // --chip-stone-*, not bg-muted: --muted and --card are the same hex in dark,
+  // so "Resigned" rendered as bare text in a column of pills - reading as "no
+  // status set" rather than resigned.
+  resigned:
+    'bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]',
 };
 
 // --- Member Action Menu ---
@@ -89,7 +112,7 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
 }) => (
   <DropdownMenu>
     <DropdownMenuTrigger
-      className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label={`Actions for ${member.personName || 'member'}`}
     >
       <MoreVertical className="h-4 w-4" />
@@ -218,28 +241,21 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
     onClose();
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
-      <Card className="relative z-10 w-full max-w-md mx-4 bg-gradient-to-br from-card to-card/90 border-border/50 backdrop-blur-xl shadow-2xl">
-        <div className="flex items-center justify-between p-6 pb-2">
+    <Dialog open={open} onOpenChange={next => !next && handleClose()}>
+      {/* max-h + overflow so the dialog stays usable at --font-scale 1.4,
+          where the hand-rolled fixed-inset shell pushed Save off-screen with
+          no way to scroll to it. */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <div className="flex items-center justify-between pb-2">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Plus className="h-4 w-4 text-primary" />
             </div>
-            <h2 className="text-lg font-semibold text-foreground">Add Member</h2>
+            <DialogTitle className="text-lg font-semibold text-foreground">Add Member</DialogTitle>
           </div>
-          <button
-            onClick={handleClose}
-            aria-label="Close dialog"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
-        <CardContent className="space-y-4 pt-2">
+        <div className="space-y-4 pt-2">
           {/* Person search */}
           <FormField label="Person" fieldId="member-search">
             <div className="relative">
@@ -249,10 +265,10 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 placeholder="Search by name or email..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-9 bg-muted/30 border-border/50"
+                className="pl-9 border-border"
               />
             </div>
-            <div className="max-h-40 overflow-y-auto rounded-lg border border-border/30 bg-muted/20">
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
               {availablePeople.length === 0 ? (
                 <p className="p-3 text-sm text-muted-foreground text-center">No people found</p>
               ) : (
@@ -260,10 +276,10 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                   <button
                     key={person.id}
                     onClick={() => setSelectedPersonId(person.id)}
-                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    className={`w-full text-left px-3 py-2 text-sm min-h-11 transition-colors ${
                       selectedPersonId === person.id
                         ? 'bg-primary/10 text-primary'
-                        : 'hover:bg-muted/50 text-foreground'
+                        : 'hover:bg-card text-foreground'
                     }`}
                   >
                     <span className="font-medium">
@@ -276,6 +292,11 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
                 ))
               )}
             </div>
+            {availablePeople.length > 20 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Showing the first 20 of {availablePeople.length}. Keep typing to narrow the list.
+              </p>
+            )}
           </FormField>
 
           {/* Membership type */}
@@ -284,7 +305,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
               id="membership-type"
               value={membershipType}
               onChange={e => setMembershipType(e.target.value as MembershipType)}
-              className="w-full rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground"
+              className="w-full min-h-11 rounded-lg border border-border px-3 py-2 text-sm text-foreground"
             >
               {(Object.entries(MEMBERSHIP_TYPE_LABELS) as [MembershipType, string][]).map(
                 ([value, label]) => (
@@ -298,16 +319,16 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={handleClose} className="border-border/50">
+            <Button variant="outline" onClick={handleClose} className="border-border">
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={!selectedPersonId || isSaving}>
               {isSaving ? 'Adding...' : 'Add Member'}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -364,41 +385,36 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
     onClose();
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
-      <Card className="relative z-10 w-full max-w-md mx-4 bg-gradient-to-br from-card to-card/90 border-border/50 backdrop-blur-xl shadow-2xl">
-        <div className="flex items-center justify-between p-6 pb-2">
+    <Dialog open={open} onOpenChange={next => !next && handleClose()}>
+      {/* max-h + overflow so the dialog stays usable at --font-scale 1.4,
+          where the hand-rolled fixed-inset shell pushed Save off-screen with
+          no way to scroll to it. */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+        <div className="flex items-center justify-between pb-2">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Shield className="h-5 w-5 text-primary" />
             </div>
-            <h2 className="text-lg font-semibold text-foreground">Assign Officer</h2>
+            <DialogTitle className="text-lg font-semibold text-foreground">
+              Assign Officer
+            </DialogTitle>
           </div>
-          <button
-            onClick={handleClose}
-            aria-label="Close dialog"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
-        <CardContent className="space-y-4 pt-2">
+        <div className="space-y-4 pt-2">
           {/* Person search */}
           <FormField label="Person" fieldId="officer-search">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="officer-search"
-                placeholder="Search members..."
+                placeholder="Search people by name or email..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-9 bg-muted/30 border-border/50"
+                className="pl-9 border-border"
               />
             </div>
-            <div className="max-h-40 overflow-y-auto rounded-lg border border-border/30 bg-muted/20">
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-[color:var(--chip-stone-bg)]">
               {candidateList.length === 0 ? (
                 <p className="p-3 text-sm text-muted-foreground text-center">No people found</p>
               ) : (
@@ -408,10 +424,10 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                     <button
                       key={person.id}
                       onClick={() => setSelectedPersonId(person.id)}
-                      className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                      className={`w-full text-left px-3 py-2 text-sm min-h-11 transition-colors ${
                         selectedPersonId === person.id
                           ? 'bg-primary/10 text-primary'
-                          : 'hover:bg-muted/50 text-foreground'
+                          : 'hover:bg-card text-foreground'
                       }`}
                     >
                       <span className="font-medium">
@@ -430,6 +446,11 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
                 })
               )}
             </div>
+            {candidateList.length > 20 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Showing the first 20 of {candidateList.length}. Keep typing to narrow the list.
+              </p>
+            )}
           </FormField>
 
           {/* Position select */}
@@ -438,7 +459,7 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
               id="officer-position"
               value={position}
               onChange={e => setPosition(e.target.value as OfficerPosition)}
-              className="w-full rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground"
+              className="w-full min-h-11 rounded-lg border border-border px-3 py-2 text-sm text-foreground"
             >
               {OFFICER_POSITION_ORDER.map(pos => (
                 <option key={pos} value={pos}>
@@ -450,15 +471,15 @@ export const AssignOfficerDialog: React.FC<AssignOfficerDialogProps> = ({
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={handleClose} className="border-border/50">
+            <Button variant="outline" onClick={handleClose} className="border-border">
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={!selectedPersonId || isSaving}>
               {isSaving ? 'Assigning...' : 'Assign Officer'}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

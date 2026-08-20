@@ -1361,6 +1361,23 @@ describe('MyEntryCard part-scored order badge', () => {
     expect(screen.queryByText('Partially scored')).not.toBeInTheDocument();
   });
 
+  // A finished show cannot have runs outstanding — an unscored row there is
+  // missing scoring data, not a run the exhibitor still has to make.
+  it('uses past-tense copy when the show has already ended', () => {
+    const entry = makeEntry({
+      entryStatus: EntryStatus.COMPLETED,
+      entryStatusKind: 'completed',
+      showDate: new Date('2020-05-01'),
+      showEndDate: new Date('2020-05-02'),
+      classes: [scoredClass(), unrunClass()],
+    });
+
+    renderCard(entry);
+
+    expect(screen.getByText('1 class without a result')).toBeInTheDocument();
+    expect(screen.queryByText('1 class still to run')).not.toBeInTheDocument();
+  });
+
   it('leaves an untouched accepted order alone', () => {
     renderCard(makeEntry({ classes: [unrunClass()] }));
 

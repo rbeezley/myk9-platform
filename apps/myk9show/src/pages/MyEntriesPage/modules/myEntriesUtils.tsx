@@ -10,7 +10,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { StatusBadge, StatusIcon } from '@/components/status';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
-import { getPartiallyScoredState } from './myEntriesStats.helpers';
+import { getPartiallyScoredState, isPastShowEntry } from './myEntriesStats.helpers';
 import type { EntryClass } from './my-entries-types';
 
 /**
@@ -183,6 +183,8 @@ export function getContextualStatusMessage(
     lastUpdated: Date;
     /** Class rows, when the caller has them — see the part-scored branch. */
     classes?: EntryClass[] | undefined;
+    /** Final day the show runs, so past-show copy stays in the past tense. */
+    showEndDate?: Date | undefined;
   },
   formatDistanceToNow: (date: Date, options?: { addSuffix?: boolean }) => string,
   format: (date: Date, formatStr: string) => string,
@@ -202,12 +204,23 @@ export function getContextualStatusMessage(
     ? getPartiallyScoredState({ classes: entry.classes, entryStatus: entry.entryStatus })
     : undefined;
   if (partiallyScored) {
+    const { remainingClasses } = partiallyScored;
+    const plural = remainingClasses === 1 ? 'class' : 'classes';
+    // A show that has already ended cannot have runs outstanding — an unscored
+    // row there is missing scoring data, not a run the exhibitor still has to
+    // make. Promising "still to run" on a finished show would be a fresh lie in
+    // the same shape as the one this branch exists to remove.
+    if (isPastShowEntry({ showDate: entry.showDate, showEndDate: entry.showEndDate }, new Date())) {
+      return {
+        message: `${remainingClasses} ${plural} without a result`,
+        className: 'text-muted-foreground',
+      };
+    }
     if (partiallyScored.entryStatusKind === 'in_ring') {
       return { message: 'In ring', className: 'text-info' };
     }
-    const { remainingClasses } = partiallyScored;
     return {
-      message: `${remainingClasses} ${remainingClasses === 1 ? 'class' : 'classes'} still to run`,
+      message: `${remainingClasses} ${plural} still to run`,
       className: 'text-info',
     };
   }

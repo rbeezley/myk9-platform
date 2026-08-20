@@ -47,7 +47,7 @@ export function startOfLocalDay(date: Date): Date {
 }
 
 /** The last calendar day a show runs — its end date when known, else the start date. */
-function showLastDay(entry: MyEntry): Date {
+function showLastDay(entry: Pick<MyEntry, 'showDate' | 'showEndDate'>): Date {
   return entry.showEndDate ?? entry.showDate;
 }
 
@@ -55,7 +55,10 @@ function showLastDay(entry: MyEntry): Date {
  * A show is "past" only once its final day is before today. A multi-day show
  * that started earlier but is still running today is NOT past.
  */
-export function isPastShowEntry(entry: MyEntry, now: Date): boolean {
+export function isPastShowEntry(
+  entry: Pick<MyEntry, 'showDate' | 'showEndDate'>,
+  now: Date
+): boolean {
   return startOfLocalDay(showLastDay(entry)).getTime() < startOfLocalDay(now).getTime();
 }
 

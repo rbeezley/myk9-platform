@@ -12,11 +12,7 @@ import {
   summarizeEntryBalances,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
-import {
-  computeMyEntriesShowDateStats,
-  isCompletedEntry,
-  isPastShowEntry,
-} from './myEntriesStats.helpers';
+import { computeMyEntriesShowDateStats, isCompletedEntry } from './myEntriesStats.helpers';
 import { isEntryTabFilter } from './entryTabDefs';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
@@ -152,11 +148,14 @@ export function useMyEntriesFilters({
     const accepted = entries.filter(isExhibitorInEntry);
     const pending = entries.filter(isPendingEntry);
     const waitlist = entries.filter(isWaitlistEntry);
-    // Date-only, for the summary cards and money math — a scored entry at a
-    // show that has not happened yet can still owe an entry fee.
-    const currentEntries = entries.filter(entry => !isPastShowEntry(entry, now));
-    // Tab axis — see `isCompletedEntry`. Kept separate from `currentEntries`
-    // on purpose so folding scored entries into Completed cannot move fees.
+    // Same axis as the Upcoming tab, deliberately. The "Current Entries" stat
+    // card deep-links to `?tab=upcoming` (#1696 made that link live), so a
+    // count derived from a different rule would promise entries the tab then
+    // refuses to show — the card reading 1 and the tab rendering empty.
+    // Fees are NOT derived from this: `resolvedBalanceSummary` below runs its
+    // own show-date math, because a scored entry at a show that has not
+    // happened yet can still owe an entry fee.
+    const currentEntries = entries.filter(entry => !isCompletedEntry(entry, now));
     const completedEntries = entries.filter(entry => isCompletedEntry(entry, now));
     const currentAcceptedEntries = currentEntries.filter(isExhibitorInEntry);
     const currentPendingEntries = currentEntries.filter(isPendingEntry);

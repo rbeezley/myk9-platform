@@ -26,8 +26,17 @@ import { RecentAccessChanges } from '@/components/admin/permissions/RecentAccess
 import PermissionAuditPage from './PermissionAuditPage';
 
 const PermissionManagementPage: React.FC = () => {
-  const { roles, permissions, auditEntries, auditFailed, lastChanged, isLoading, error, reload } =
-    usePermissionsOverview();
+  const {
+    roles,
+    permissions,
+    auditEntries,
+    auditFailed,
+    roleAuditFailed,
+    lastChanged,
+    isLoading,
+    error,
+    reload,
+  } = usePermissionsOverview();
   const [activeTab, setActiveTab] = useUrlTab(
     ['overview', 'assignments', 'permissions', 'audit'] as const,
     'overview'
@@ -78,7 +87,7 @@ const PermissionManagementPage: React.FC = () => {
                     isLoading={isLoading}
                     error={error}
                     onRetry={reload}
-                    auditFailed={auditFailed}
+                    auditFailed={roleAuditFailed}
                   />
                 </div>
                 <div className="space-y-4">
@@ -88,7 +97,7 @@ const PermissionManagementPage: React.FC = () => {
                       <p className="mt-1 text-2xl font-semibold tabular-nums">
                         {isLoading || error
                           ? '–'
-                          : roles.reduce((sum, role) => sum + (role.user_count ?? 0), 0)}
+                          : roles.reduce((sum, role) => sum + (role.grant_count ?? 0), 0)}
                       </p>
                     </div>
                     <Link

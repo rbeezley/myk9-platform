@@ -109,3 +109,53 @@ describe('usePermissionsOverview — audit query shape', () => {
     expect(result.current.lastChanged.get('role-1')).toBe('2026-08-01T00:00:00Z');
   });
 });
+
+/**
+ * Regression coverage: a single shared `auditFailed` flag used to collapse
+ * the two independent audit reads together, so a failure in one query made
+ * the OTHER query's consumer falsely claim it failed too. Each read must
+ * report its own failure to its own consumer only.
+ */
+describe('usePermissionsOverview — independent audit failure flags', () => {
+  it('a role-targeted query failure sets roleAuditFailed but not auditFailed (rail unaffected)', async () => {
+    mockedRbacService.getAuditLogs.mockImplementation(async filter => {
+      if (filter?.targetType === 'role') {
+        throw new Error('role-targeted audit read failed');
+      }
+      return [userGrantEntry];
+    });
+
+    const { result } = renderHook(() => usePermissionsOverview());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.roleAuditFailed).toBe(true);
+    expect(result.current.auditFailed).toBe(false);
+    // The rail's data still loaded successfully and must not be discarded.
+    expect(result.current.auditEntries).toEqual([userGrantEntry]);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('an unfiltered query failure sets auditFailed but not roleAuditFailed (Last changed unaffected)', async () => {
+    mockedRbacService.getAuditLogs.mockImplementation(async filter => {
+      if (filter?.targetType === 'role') {
+        return [roleEntry];
+      }
+      throw new Error('unfiltered audit read failed');
+    });
+
+    const { result } = renderHook(() => usePermissionsOverview());
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.auditFailed).toBe(true);
+    expect(result.current.roleAuditFailed).toBe(false);
+    // "Last changed" still derives from the successful role-targeted read.
+    expect(result.current.lastChanged.get('role-1')).toBe('2026-08-01T00:00:00Z');
+    expect(result.current.error).toBeNull();
+  });
+});

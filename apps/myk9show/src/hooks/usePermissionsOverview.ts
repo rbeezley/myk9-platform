@@ -31,8 +31,19 @@ export interface PermissionsOverviewState {
   permissions: Permission[] | null;
   /** Unfiltered recent audit entries, for the "Recent access changes" rail. */
   auditEntries: AuditLogEntry[];
-  /** True when either audit-log read failed and its result is a swallowed-failure []. */
+  /**
+   * True when the UNFILTERED audit-log read failed and `auditEntries` is a
+   * swallowed-failure []. Only the "Recent access changes" rail depends on
+   * this — it must not affect the roles table's "Last changed" column.
+   */
   auditFailed: boolean;
+  /**
+   * True when the ROLE-TARGETED audit-log read failed and `lastChanged` is
+   * built from a swallowed-failure []. Only the roles table's "Last changed"
+   * column depends on this — it must not affect the "Recent access changes"
+   * rail.
+   */
+  roleAuditFailed: boolean;
   lastChanged: Map<string, string>;
   isLoading: boolean;
   error: string | null;
@@ -45,15 +56,19 @@ export function usePermissionsOverview(): PermissionsOverviewState {
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
   const [roleAuditEntries, setRoleAuditEntries] = useState<AuditLogEntry[]>([]);
   const [auditFailed, setAuditFailed] = useState(false);
+  const [roleAuditFailed, setRoleAuditFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setAuditFailed(false);
+    setRoleAuditFailed(false);
     // The audit reads are secondary: swallow their failure so a flaky log
     // read cannot blank the roles console beside it. Record that it failed
     // so downstream UI can say so instead of presenting the empty [] as fact.
+    // Each read's failure flag is tracked independently so a failure in one
+    // query never gets reported against the other query's consumer.
     const auditPromise = rbacService.getAuditLogs({ limit: AUDIT_FETCH_LIMIT }).catch(() => {
       setAuditFailed(true);
       return [] as AuditLogEntry[];
@@ -61,7 +76,7 @@ export function usePermissionsOverview(): PermissionsOverviewState {
     const roleAuditPromise = rbacService
       .getAuditLogs({ limit: ROLE_AUDIT_FETCH_LIMIT, targetType: 'role' })
       .catch(() => {
-        setAuditFailed(true);
+        setRoleAuditFailed(true);
         return [] as AuditLogEntry[];
       });
     try {
@@ -96,6 +111,7 @@ export function usePermissionsOverview(): PermissionsOverviewState {
     permissions,
     auditEntries,
     auditFailed,
+    roleAuditFailed,
     lastChanged,
     isLoading,
     error,

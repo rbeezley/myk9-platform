@@ -172,6 +172,53 @@ describe('RoleManager.updateRolePermissions — audit trail', () => {
   });
 });
 
+/**
+ * Regression coverage for the audit-integrity gap: updateRolePermissions
+ * previously ignored the `error` field supabase-js returns from `.delete()`
+ * and `.insert()` (neither call throws on failure), so a failed permission
+ * write still fell through to logAuditEvent — recording a ROLE_UPDATED event
+ * for a change that never actually happened. The fix must throw on either
+ * failure AND must not log an audit event when it does.
+ */
+describe('RoleManager.updateRolePermissions — surfaces write failures', () => {
+  it('throws and logs no audit event when the delete of existing role_permissions fails', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'role_permissions') {
+        return createChainableQuery({
+          data: null,
+          error: { message: 'delete failed' },
+        });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger } = buildManager();
+
+    await expect(manager.updateRolePermissions('role-1', ['perm-a'])).rejects.toThrow();
+    expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it('throws and logs no audit event when the insert of new role_permissions fails', async () => {
+    let callCount = 0;
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'role_permissions') {
+        callCount += 1;
+        // 1st call: delete() — succeeds. 2nd call: insert() — fails.
+        if (callCount === 1) {
+          return createChainableQuery({ data: null, error: null });
+        }
+        return createChainableQuery({ data: null, error: { message: 'insert failed' } });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger } = buildManager();
+
+    await expect(manager.updateRolePermissions('role-1', ['perm-a', 'perm-b'])).rejects.toThrow();
+    expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
+  });
+});
+
 describe('RoleManager.getAllRoles — Members column counts distinct people', () => {
   const roleRows = [
     {

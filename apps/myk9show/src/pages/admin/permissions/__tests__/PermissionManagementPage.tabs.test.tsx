@@ -24,6 +24,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
         display_name: 'Show Secretary',
         permission_count: 37,
         user_count: 14,
+        grant_count: 20,
       },
     ]),
     getAllPermissions: vi.fn().mockResolvedValue([
@@ -113,6 +114,17 @@ describe('PermissionManagementPage tab consolidation', () => {
     expect(within(statSummary).queryByText('—')).not.toBeInTheDocument();
   });
 
+  it('labels the "Active grants" stat with a number that matches its name (grant rows, not distinct members)', async () => {
+    render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
+    await screen.findByRole('row', { name: /Show Secretary/ });
+    const statSummary = screen.getByRole('group', { name: 'Access summary' });
+    // Fixture: user_count (distinct members) = 14, grant_count (active
+    // user_roles rows) = 20. "Active grants" must report 20 — the row count
+    // the label promises — not the distinct-member figure from user_count.
+    expect(within(statSummary).getByText('20')).toBeInTheDocument();
+    expect(within(statSummary).queryByText('14')).not.toBeInTheDocument();
+  });
+
   it('lands the admin on the roles themselves, not a lobby', async () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
     const row = await screen.findByRole('row', { name: /Show Secretary/ });
@@ -144,7 +156,16 @@ describe('PermissionManagementPage tab consolidation', () => {
 
   it('does not claim a role has no recorded change when the audit read simply failed', async () => {
     const { rbacService } = await import('@/services/rbac/RBACService');
-    vi.mocked(rbacService.getAuditLogs).mockRejectedValueOnce(new Error('audit down'));
+    // Only the role-targeted query (the one that feeds "Last changed") fails
+    // here — the unfiltered query still succeeds. This is deliberate: the
+    // "Last changed" column must react to its OWN query's failure, not to
+    // whichever of the two audit reads happens to fail.
+    vi.mocked(rbacService.getAuditLogs).mockImplementation(async filter => {
+      if (filter?.targetType === 'role') {
+        throw new Error('audit down');
+      }
+      return [];
+    });
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
     const row = await screen.findByRole('row', { name: /Show Secretary/ });
     // The em dash reads as "no recorded change" — a fact the failed audit

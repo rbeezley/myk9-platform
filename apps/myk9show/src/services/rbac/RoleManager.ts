@@ -592,9 +592,11 @@ export class RoleManager {
     }
 
     const permissionCounts = countByRoleId(rolePermissionsResult as RolePermissionCountRow[]);
-    const userCounts = countDistinctUsersByRoleId(
-      (userRolesResult as UserRoleCountRow[]).filter(row => row.is_active !== false)
+    const activeUserRoles = (userRolesResult as UserRoleCountRow[]).filter(
+      row => row.is_active !== false
     );
+    const userCounts = countDistinctUsersByRoleId(activeUserRoles);
+    const grantCounts = countByRoleId(activeUserRoles);
 
     return (rolesResult.data || []).map(row => {
       const role = toRole(row);
@@ -602,6 +604,7 @@ export class RoleManager {
         ...role,
         permission_count: permissionCounts.get(role.id) ?? role.permissions?.length ?? 0,
         user_count: userCounts.get(role.id) ?? 0,
+        grant_count: grantCounts.get(role.id) ?? 0,
       };
     });
   }
@@ -701,7 +704,14 @@ export class RoleManager {
    */
   async updateRolePermissions(roleId: string, permissionIds: string[]): Promise<void> {
     try {
-      await supabase.from('role_permissions').delete().eq('role_id', roleId);
+      const { error: deleteError } = await supabase
+        .from('role_permissions')
+        .delete()
+        .eq('role_id', roleId);
+
+      if (deleteError) {
+        throw new Error(`Failed to update role permissions: ${deleteError.message}`);
+      }
 
       if (permissionIds.length > 0) {
         // role_permissions table: role_id, permission_id (created_at is auto)
@@ -710,7 +720,13 @@ export class RoleManager {
           permission_id: permissionId,
         }));
 
-        await supabase.from('role_permissions').insert(rolePermissions);
+        const { error: insertError } = await supabase
+          .from('role_permissions')
+          .insert(rolePermissions);
+
+        if (insertError) {
+          throw new Error(`Failed to update role permissions: ${insertError.message}`);
+        }
       }
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_UPDATED, {

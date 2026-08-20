@@ -122,6 +122,17 @@ const ClubMembersPage: React.FC = () => {
   }, [members, searchQuery]);
 
   // Mutations
+  // A rejected write used to do nothing at all: five of these six mutations
+  // defined onSuccess only, so an RLS 42501 or the club_officers UNIQUE
+  // violation left the dialog open, the button live, and no message anywhere.
+  // toggleShowAccess already did this correctly; this generalises its shape.
+  const reportMutationFailure = (what: string, error: unknown) => {
+    notifications.error(what);
+    logger.error(what, 'club-admin', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  };
+
   const addMemberMutation = useMutation({
     mutationFn: (data: { personId: string; membershipType: MembershipType }) =>
       addClubMember({
@@ -133,6 +144,11 @@ const ClubMembersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
       setShowAddMember(false);
     },
+    onError: error =>
+      reportMutationFailure(
+        "We couldn't add that member. Check your club access and try again.",
+        error
+      ),
   });
 
   const updateMemberMutation = useMutation({
@@ -144,13 +160,20 @@ const ClubMembersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
     },
+    onError: error =>
+      reportMutationFailure("We couldn't update that member. Please try again.", error),
   });
 
   const removeMemberMutation = useMutation({
     mutationFn: (memberId: string) => removeClubMember(memberId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
+      // Removing a member changes who can manage shows for this club, because
+      // every server-side secretary predicate gates on is_active_club_member().
+      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
     },
+    onError: error =>
+      reportMutationFailure("We couldn't remove that member. Please try again.", error),
   });
 
   const addOfficerMutation = useMutation({
@@ -164,6 +187,14 @@ const ClubMembersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['club-officers', clubId] });
       setShowAssignOfficer(false);
     },
+    onError: error =>
+      reportMutationFailure(
+        // club_officers carries UNIQUE(club_id, person_id, position), so the
+        // reachable failure is a duplicate assignment. Name it rather than
+        // reporting a generic problem the admin cannot act on.
+        'That person already holds this position, or we could not save the change.',
+        error
+      ),
   });
 
   const removeOfficerMutation = useMutation({
@@ -171,6 +202,8 @@ const ClubMembersPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-officers', clubId] });
     },
+    onError: error =>
+      reportMutationFailure("We couldn't remove that officer. Please try again.", error),
   });
 
   const toggleShowAccessMutation = useMutation({
@@ -226,8 +259,24 @@ const ClubMembersPage: React.FC = () => {
     );
   }
 
+  // All three queries gate the page, not just members. officersQuery and
+  // showManagersQuery were rendered through `?? []` / `?? new Set()`, so the
+  // moment members resolved the page asserted "0 officers" and dropped the
+  // Show Manager badge from everyone who holds it - and on a failed fetch that
+  // wrong answer was permanent, with no error state and no retry. A query is
+  // not answered just because it is not loading (the PR #1697 class).
+  const rosterLoading =
+    membersQuery.isLoading || officersQuery.isLoading || showManagersQuery.isLoading;
+  const rosterError = membersQuery.isError || officersQuery.isError || showManagersQuery.isError;
+
+  const retryRoster = () => {
+    if (membersQuery.isError) void membersQuery.refetch();
+    if (officersQuery.isError) void officersQuery.refetch();
+    if (showManagersQuery.isError) void showManagersQuery.refetch();
+  };
+
   // Loading state
-  if (membersQuery.isLoading) {
+  if (rosterLoading) {
     return (
       <PageTransition>
         <div role="status" aria-label="Loading club members" className="space-y-6">
@@ -247,22 +296,22 @@ const ClubMembersPage: React.FC = () => {
 
   // Error state — distinguish a failed load from a genuinely empty roster, so an
   // admin never mistakes "couldn't load" for "no members yet".
-  if (membersQuery.isError) {
+  if (rosterError) {
     return (
       <PageTransition>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 backdrop-blur-xl">
+          <Card className="border-border ">
             <CardContent className="pt-6 flex flex-col items-center text-center max-w-sm">
               <div className="bg-destructive/10 rounded-full p-4 mb-4">
                 <AlertTriangle className="h-8 w-8 text-destructive" />
               </div>
               <h2 className="text-lg font-semibold text-foreground mb-1">
-                We couldn&apos;t load your members
+                We couldn&apos;t load your roster
               </h2>
               <p className="text-muted-foreground mb-4">
                 Something went wrong reaching the roster. Check your connection and try again.
               </p>
-              <Button onClick={() => membersQuery.refetch()}>Try again</Button>
+              <Button onClick={retryRoster}>Try again</Button>
             </CardContent>
           </Card>
         </div>
@@ -285,7 +334,7 @@ const ClubMembersPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl">
+            <div className="p-3 bg-[color:var(--chip-stone-bg)] rounded-xl">
               <Users className="h-6 w-6 text-primary" />
             </div>
             <div>
@@ -318,7 +367,7 @@ const ClubMembersPage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <Card className="bg-gradient-to-br from-card to-card/80 border border-border/50 rounded-2xl shadow-sm backdrop-blur-xl">
+        <Card className="border border-border rounded-2xl shadow-sm ">
           <CardContent className="p-6">
             <PrimaryTabs
               tabs={CLUB_MEMBERS_TABS}
@@ -334,7 +383,7 @@ const ClubMembersPage: React.FC = () => {
                     placeholder="Search by name or email..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-muted/30 border-border/50"
+                    className="pl-9  border-border"
                   />
                 </div>
 

@@ -103,13 +103,29 @@ export function getSentryMetricTileState(
     return { value: '—', context: 'checking platform metrics', isError: false, isStale: false };
   }
 
-  // Checked BEFORE any status branch on purpose. The edge function reports the
-  // not-configured reason with status 'stale' too, whenever an expired cached
-  // value still exists — and the stale branch below renders as a non-error
-  // ("using an older reading"), which would hide the misconfiguration
-  // indefinitely behind a number that can never refresh. An unprovisioned
-  // secret never resolves on its own, so it is always an error state, whatever
-  // is left in the cache (MYK9-213).
+  // INTENT: the branch ORDER below is the whole design here; each step is newer
+  // information than the one after it (MYK9-213).
+  //
+  //   1. queryError  — the live request just failed. Newest signal there is, and
+  //      it must win over anything `metric` still holds: React Query keeps the
+  //      previous payload across a failed refetch, so a cached not-configured
+  //      reason would otherwise keep claiming "add credentials" after they were
+  //      already added.
+  //   2. not-configured — a server-reported config gap. Checked before any
+  //      status branch because the edge function reports it with status 'stale'
+  //      too (whenever an expired cached value survives), and the stale branch
+  //      renders as a NON-error — which would hide the misconfiguration behind
+  //      a number that can never refresh.
+  //   3. unavailable / stale / fresh — ordinary freshness reporting.
+  if (queryError) {
+    return {
+      value: '—',
+      context: `couldn't read ${label.toLowerCase()}; will retry`,
+      isError: true,
+      isStale: false,
+    };
+  }
+
   if (metric?.error === SENTRY_NOT_CONFIGURED) {
     return {
       // Keep a cached reading if there is one — it is real data, just frozen.
@@ -120,7 +136,7 @@ export function getSentryMetricTileState(
     };
   }
 
-  if (queryError || !metric || metric.status === 'unavailable') {
+  if (!metric || metric.status === 'unavailable') {
     return {
       value: '—',
       context: `couldn't read ${label.toLowerCase()}; will retry`,

@@ -144,6 +144,23 @@ describe('sentryDashboardMetrics', () => {
     expect(state.isStale).toBe(true);
   });
 
+  // Pins the full precedence: a live query failure is NEWER information than
+  // anything the cached payload carries. React Query keeps the previous
+  // response across a failed refetch, so without this ordering the tile would
+  // keep saying "add Sentry credentials" after they had already been added.
+  it('lets a live query failure override a cached not-configured reason', () => {
+    const state = getSentryMetricTileState(
+      metric({ value: null, status: 'unavailable', error: SENTRY_NOT_CONFIGURED }),
+      'Client p95',
+      false,
+      new Error('network down')
+    );
+
+    expect(state.context).toBe("couldn't read client p95; will retry");
+    expect(state.context).not.toContain('add Sentry credentials');
+    expect(state.isError).toBe(true);
+  });
+
   it('still promises a retry when Sentry is merely erroring', () => {
     const state = getSentryMetricTileState(
       metric({ value: null, status: 'unavailable', error: 'Sentry metric unavailable' }),

@@ -32,12 +32,15 @@ const STATUS_LABEL: Record<DogStatus, string> = {
   deceased: 'Deceased',
 };
 
-/** "3 dogs", or "2 of 3 dogs" when some of the selection cannot take the action. */
+/**
+ * "3 dogs", or "2 of 3 dogs" when part of the selection cannot take the action.
+ * In the "X of Y" form the noun agrees with Y, so 1-of-2 reads "1 of 2 dogs".
+ */
 function dogCountPhrase(eligibleCount: number, selectedCount: number): string {
-  const noun = eligibleCount === 1 ? 'dog' : 'dogs';
-  return eligibleCount === selectedCount
-    ? `${eligibleCount} ${noun}`
-    : `${eligibleCount} of ${selectedCount} ${noun}`;
+  if (eligibleCount === selectedCount) {
+    return `${eligibleCount} ${eligibleCount === 1 ? 'dog' : 'dogs'}`;
+  }
+  return `${eligibleCount} of ${selectedCount} ${selectedCount === 1 ? 'dog' : 'dogs'}`;
 }
 
 function makeStatusAction(

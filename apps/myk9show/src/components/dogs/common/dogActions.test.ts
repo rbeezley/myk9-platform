@@ -73,6 +73,24 @@ describe('dogActions bulk menu', () => {
     expect(retire?.disabled).toBe(false);
   });
 
+  it('pluralises the "X of Y" form on the selected count, not the eligible one', () => {
+    // One eligible of two selected must read "1 of 2 dogs", never "1 of 2 dog".
+    const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
+    const dogs = [dog('1', 'active'), dog('2', 'retired')];
+    const retire = toBulkActions(dogs, handlers, dogActions).find(
+      a => a.id === 'set-status-retired'
+    );
+    expect(retire?.label).toBe('Mark 1 of 2 dogs retired');
+  });
+
+  it('uses the singular when a single dog is both selected and eligible', () => {
+    const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
+    const retire = toBulkActions([dog('1', 'active')], handlers, dogActions).find(
+      a => a.id === 'set-status-retired'
+    );
+    expect(retire?.label).toBe('Mark 1 dog retired');
+  });
+
   it('disables a bulk status action with zero eligible items', () => {
     const handlers: DogActionHandlers = { onBulkSetStatus: vi.fn() };
     const dogs = [dog('1', 'retired'), dog('2', 'retired')];

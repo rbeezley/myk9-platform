@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
 
@@ -22,13 +22,11 @@ export function BrowseCard({ href, actionLabel, badges, avatar, name, children }
   const navigate = useNavigate();
 
   return (
-    <div
-      className="group cursor-pointer rounded-xl bg-card shadow-card transition-all hover:shadow-card-hover"
-      onClick={() => navigate(href)}
-      role="link"
-      tabIndex={0}
-      onKeyDown={e => e.key === 'Enter' && navigate(href)}
-    >
+    // A real <Link> on the name, stretched over the card by its ::after, rather
+    // than a div[role=link] driven by navigate(). The old shape had no href, so
+    // cmd-click, middle-click, "open in new tab" and the browser's own URL
+    // preview all did nothing, and the accessible name came out empty.
+    <div className="group relative rounded-xl bg-card shadow-card transition-all hover:shadow-card-hover focus-within:ring-2 focus-within:ring-ring">
       <div className="flex items-center gap-4 p-4">
         {/* Cover / avatar */}
         <div className="shrink-0">{avatar}</div>
@@ -36,15 +34,23 @@ export function BrowseCard({ href, actionLabel, badges, avatar, name, children }
         {/* Facts */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-semibold text-card-foreground truncate">{name}</h3>
+            <h3 className="text-base font-semibold text-card-foreground truncate">
+              <Link
+                to={href}
+                className="after:absolute after:inset-0 after:rounded-xl focus:outline-none"
+              >
+                {name}
+              </Link>
+            </h3>
             {badges && <div className="flex flex-wrap gap-1">{badges}</div>}
           </div>
           {children && <div className="mt-1.5">{children}</div>}
         </div>
 
-        {/* Action */}
+        {/* Action. `relative z-10` keeps it above the stretched link's ::after
+            overlay; without it the overlay would swallow the click. */}
         {actionLabel && (
-          <div className="shrink-0 ml-2">
+          <div className="relative z-10 shrink-0 ml-2">
             <Button
               variant="outline"
               size="sm"

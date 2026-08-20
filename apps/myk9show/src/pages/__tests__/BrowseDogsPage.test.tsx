@@ -60,6 +60,9 @@ vi.mock('@/hooks/useBrowseDogsData', () => ({
 
 const mockGetUserRoles = vi.fn().mockReturnValue(['secretary']);
 const mockHasRole = vi.fn().mockReturnValue(false);
+// `useRoleBasedDogs` scopes the roster off `userWithRoles`, so the page treats a
+// null value as "identity not resolved yet" rather than "this user owns no dogs".
+let mockUserWithRoles: unknown = { id: 'user-1', databaseUserId: 'person-1', roles: [] };
 
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const actual = await importOriginal();
@@ -68,6 +71,7 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
     useAuthContext: () => ({
       getUserRoles: mockGetUserRoles,
       hasRole: mockHasRole,
+      userWithRoles: mockUserWithRoles,
     }),
   };
 });
@@ -129,6 +133,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     vi.clearAllMocks();
     localStorage.clear();
     mockGetUserRoles.mockReturnValue(['secretary']);
+    mockUserWithRoles = { id: 'user-1', databaseUserId: 'person-1', roles: [] };
     mockBrowseDogsReturn = {
       dogs: [makeDog()],
       filteredDogs: [makeDog()],
@@ -363,5 +368,55 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     expect(screen.getByRole('heading', { name: 'My Dogs' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Search your dogs by name or breed...')).toBeInTheDocument();
+  });
+
+  describe('unresolved identity', () => {
+    // useRoleBasedDogs returns [] until userWithRoles resolves, while isLoading
+    // tracks only the dogs query. The page used to fall straight through to
+    // "No dogs yet" in that window — and on a cold offline boot roles settle at
+    // [] permanently, so the lie was terminal, not a flash (MYK9-200).
+    it('does not claim the roster is empty while identity is still resolving', () => {
+      mockUserWithRoles = null;
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        isLoading: true,
+        dogs: [],
+        filteredDogs: [],
+      };
+
+      renderPage();
+
+      expect(screen.getByTestId('dogs-skeleton')).toBeInTheDocument();
+      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
+    });
+
+    it('offers a retry instead of "No dogs yet" when identity never resolves', () => {
+      mockUserWithRoles = null;
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        isLoading: false,
+        dogs: [],
+        filteredDogs: [],
+      };
+
+      renderPage();
+
+      expect(screen.getByText("We couldn't confirm your account")).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
+    });
+
+    it('still shows the real empty state once identity is known', () => {
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        isLoading: false,
+        dogs: [],
+        filteredDogs: [],
+      };
+
+      renderPage();
+
+      expect(screen.getByText('No dogs yet')).toBeInTheDocument();
+    });
   });
 });

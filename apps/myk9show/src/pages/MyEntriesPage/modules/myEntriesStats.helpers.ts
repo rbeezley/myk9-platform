@@ -85,14 +85,16 @@ function isScoredClass(cls: EntryClass): boolean {
  * in two-row orders with one class still to run).
  *
  * Rows the exhibitor will not run — scratched, moved, absent — do not hold an
- * order open. When no class rows are present at all (hand-built fixtures and
- * legacy rows that never went through `groupEntriesByOrder`) this falls back to
- * the order's own status.
+ * order open, so an order with no runnable classes left is done even though
+ * none of its rows carry a result (`every` on an empty list is vacuously
+ * true, which is the behaviour we want here). When no class rows are present
+ * at all (hand-built fixtures and legacy rows that never went through
+ * `groupEntriesByOrder`) this falls back to the order's own status.
  */
 export function isScoredEntry(entry: MyEntry): boolean {
-  const liveClasses = entry.classes.filter(cls => cls.status === 'entered');
-  if (liveClasses.length > 0) return liveClasses.every(isScoredClass);
-  if (entry.classes.length > 0) return entry.classes.some(isScoredClass);
+  if (entry.classes.length > 0) {
+    return entry.classes.filter(cls => cls.status === 'entered').every(isScoredClass);
+  }
   return entry.entryStatusKind === 'completed' || entry.entryStatus === EntryStatus.COMPLETED;
 }
 

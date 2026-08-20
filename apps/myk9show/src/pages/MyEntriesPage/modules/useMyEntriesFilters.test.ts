@@ -353,4 +353,26 @@ describe('Completed tab agrees with the "Scored" card badge', () => {
 
     expect(result.current.tabCounts.completed).toBe(1);
   });
+
+  // No runnable classes left at all — the exhibitor withdrew from everything,
+  // so there is nothing still ahead of them even though no row carries a result.
+  it('treats an order with only scratched classes as done', () => {
+    const allScratched = makeEntry({
+      id: 'all-scratched',
+      showId: 'all-scratched-show',
+      showDate: new Date(2026, 7, 29),
+      showEndDate: new Date(2026, 7, 30),
+      entryStatus: EntryStatus.SCRATCHED,
+      entryStatusKind: 'scratched',
+      classes: [
+        { ...makeClass('a', false), status: 'scratched' },
+        { ...makeClass('b', false), status: 'scratched' },
+      ],
+    });
+
+    const { result } = renderHook(() => useMyEntriesFilters({ entries: [allScratched] }));
+
+    expect(result.current.tabCounts.completed).toBe(1);
+    expect(result.current.tabCounts.upcoming).toBe(0);
+  });
 });

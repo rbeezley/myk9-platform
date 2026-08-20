@@ -12,9 +12,11 @@
  * page's retry affordance for failed/cancelled orders, so both produce an
  * identical recovery URL.
  */
+import { ENTRY_SCOPE_ENTRIES_PARAM, ENTRY_SCOPE_SHOW_PARAM } from './entryScopeParams';
+
 export function buildFinishPaymentHref(showId: string, entryIds: string[]): string {
   const params = new URLSearchParams();
-  params.set('showId', showId);
-  params.set('entryIds', entryIds.join(','));
+  params.set(ENTRY_SCOPE_SHOW_PARAM, showId);
+  params.set(ENTRY_SCOPE_ENTRIES_PARAM, entryIds.join(','));
   return `/cart?${params.toString()}`;
 }

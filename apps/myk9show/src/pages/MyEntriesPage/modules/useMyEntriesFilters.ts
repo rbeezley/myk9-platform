@@ -14,6 +14,12 @@ import {
 } from '@/features/payments/entryBalanceSummary';
 import { computeMyEntriesShowProgressStats, isCompletedEntry } from './myEntriesStats.helpers';
 import { isEntryTabFilter } from './entryTabDefs';
+import {
+  applyEntryScope,
+  clearEntryScopeParams,
+  parseEntryScope,
+  type EntryScopeMatch,
+} from './entryScopeFilter';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
 /**
@@ -50,6 +56,14 @@ interface UseMyEntriesFiltersReturn {
   setSelectedTab: (tab: EntryTabFilter) => void;
   entryStats: MyEntryStats;
   tabCounts: Record<EntryTabFilter, number>;
+  /**
+   * How the inbound `?showId=/?entryIds=` scope resolved. `kind: 'none'` is the
+   * ordinary unscoped visit; anything else means the list below is narrower
+   * than the exhibitor's full set and the page owes them a banner saying so.
+   */
+  scopeMatch: EntryScopeMatch;
+  /** Drop the scope params, returning the page to the exhibitor's full list. */
+  clearScope: () => void;
 }
 
 /**
@@ -75,6 +89,25 @@ export function useMyEntriesFilters({
   const tabParam = searchParams.get('tab');
   const selectedTab: EntryTabFilter = isEntryTabFilter(tabParam) ? tabParam : 'all';
 
+  // Inbound scope from My Payments' per-row Receipt link (`?showId=&entryIds=`).
+  // Applied BEFORE the tab filter and the tab counts so the tab strip describes
+  // the list it actually controls — a tab reading "Completed 4" above a
+  // one-entry scoped list would be the same lie in a new place.
+  //
+  // `entryStats` deliberately does NOT narrow: the stat row is a page-level
+  // summary of everything the exhibitor owes and has entered, and scoping it
+  // would make "Amount due" disagree with My Payments for as long as the scope
+  // is on — the exact contradiction #1697 closed.
+  const scopeMatch = useMemo(
+    () => applyEntryScope(entries, parseEntryScope(searchParams)),
+    [entries, searchParams]
+  );
+  const scopedEntries = scopeMatch.entries;
+
+  const clearScope = useCallback(() => {
+    setSearchParams(previous => clearEntryScopeParams(previous), { replace: true });
+  }, [setSearchParams]);
+
   const setSelectedTab = useCallback(
     (tab: EntryTabFilter) => {
       setSearchParams(
@@ -93,7 +126,7 @@ export function useMyEntriesFilters({
   );
   // Derive filtered and sorted entries from current tab and entries
   const filteredEntries = useMemo(() => {
-    let filtered = [...entries];
+    let filtered = [...scopedEntries];
 
     switch (selectedTab) {
       case 'pending':
@@ -138,16 +171,12 @@ export function useMyEntriesFilters({
     });
 
     return filtered;
-  }, [entries, selectedTab]);
+  }, [scopedEntries, selectedTab]);
 
-  const { entryStats, tabCounts } = useMemo<{
-    entryStats: MyEntryStats;
-    tabCounts: Record<EntryTabFilter, number>;
-  }>(() => {
+  const entryStats = useMemo<MyEntryStats>(() => {
     const now = new Date();
     const accepted = entries.filter(isExhibitorInEntry);
     const pending = entries.filter(isPendingEntry);
-    const waitlist = entries.filter(isWaitlistEntry);
     // Same axis as the Upcoming tab, deliberately. The "Current Entries" stat
     // card deep-links to `?tab=upcoming` (#1696 made that link live), so a
     // count derived from a different rule would promise entries the tab then
@@ -156,7 +185,6 @@ export function useMyEntriesFilters({
     // own show-date math, because a scored entry at a show that has not
     // happened yet can still owe an entry fee.
     const currentEntries = entries.filter(entry => !isCompletedEntry(entry, now));
-    const completedEntries = entries.filter(entry => isCompletedEntry(entry, now));
     const currentAcceptedEntries = currentEntries.filter(isExhibitorInEntry);
     const currentPendingEntries = currentEntries.filter(isPendingEntry);
     // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day
@@ -181,39 +209,45 @@ export function useMyEntriesFilters({
     const currentAmountDue = resolvedBalanceSummary.amountDueCents / 100;
 
     return {
-      entryStats: {
-        total: entries.length,
-        accepted: accepted.length,
-        pending: pending.length,
-        upcoming: showProgressStats.upcomingEntries,
-        completedShows: showProgressStats.completedShows,
-        upcomingShows: showProgressStats.upcomingShows,
-        currentAcceptedEntries: currentAcceptedEntries.length,
-        currentPendingEntries: currentPendingEntries.length,
-        acceptedPaid: acceptedPaid.length,
-        acceptedUnpaid: acceptedUnpaid.length,
-        needsAction: needsAction.length,
-        currentFees,
-        currentAmountDue,
-        totalFees,
-        paidFees,
-        unpaidFees,
-        acceptedPercent:
-          entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
-        paidPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0,
-        needsActionPercent:
-          entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,
-      },
-      tabCounts: {
-        all: entries.length,
-        pending: pending.length,
-        accepted: accepted.length,
-        waitlist: waitlist.length,
-        upcoming: entries.length - completedEntries.length,
-        completed: completedEntries.length,
-      },
+      total: entries.length,
+      accepted: accepted.length,
+      pending: pending.length,
+      upcoming: showProgressStats.upcomingEntries,
+      completedShows: showProgressStats.completedShows,
+      upcomingShows: showProgressStats.upcomingShows,
+      currentAcceptedEntries: currentAcceptedEntries.length,
+      currentPendingEntries: currentPendingEntries.length,
+      acceptedPaid: acceptedPaid.length,
+      acceptedUnpaid: acceptedUnpaid.length,
+      needsAction: needsAction.length,
+      currentFees,
+      currentAmountDue,
+      totalFees,
+      paidFees,
+      unpaidFees,
+      acceptedPercent:
+        entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
+      paidPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0,
+      needsActionPercent:
+        entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,
     };
   }, [entries, externalBalanceSummary]);
+
+  // Counts for the tab strip. Derived from the SCOPED set, unlike entryStats
+  // above: a tab label is a promise about what clicking it will show, and the
+  // tabs filter the scoped list.
+  const tabCounts = useMemo<Record<EntryTabFilter, number>>(() => {
+    const now = new Date();
+    const completed = scopedEntries.filter(entry => isCompletedEntry(entry, now));
+    return {
+      all: scopedEntries.length,
+      pending: scopedEntries.filter(isPendingEntry).length,
+      accepted: scopedEntries.filter(isExhibitorInEntry).length,
+      waitlist: scopedEntries.filter(isWaitlistEntry).length,
+      upcoming: scopedEntries.length - completed.length,
+      completed: completed.length,
+    };
+  }, [scopedEntries]);
 
   return {
     filteredEntries,
@@ -221,5 +255,7 @@ export function useMyEntriesFilters({
     setSelectedTab,
     entryStats,
     tabCounts,
+    scopeMatch,
+    clearScope,
   };
 }

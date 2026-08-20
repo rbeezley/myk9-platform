@@ -97,7 +97,18 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
 
   return (
     <div className="container mx-auto px-6 pb-4 max-w-7xl">
-      <Card className="border border-warning/30 bg-warning/10 ">
+      {/* A neutral card, not an amber one. Two reasons, one measured and one
+        from the design system. Measured: `text-muted-foreground` on a
+        `bg-warning/10` fill reaches only 3.70:1 in dark mode against a 4.5:1
+        floor — the 10% tint lifts the surface just enough to break a token that
+        passes everywhere else. On a plain card the same text clears AA.
+        Design: amber means caution, and a wait-list position is not a problem —
+        it is a normal queue state. Tinting the whole container amber spent a
+        status colour on chrome, then rendered a green "Spot offered" badge
+        inside it, which is what DESIGN.md's "The Status Is Sacred" rule
+        forbids. The time-sensitive signal now lives on the title and the
+        position chip, where it actually means something. */}
+      <Card className="border border-border bg-card">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-warning ">
             <Users className="h-4 w-4" />
@@ -108,7 +119,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
           {isLoading ? (
             <div className="space-y-2">
               {[1, 2].map(i => (
-                <div key={i} className="h-14 bg-muted/50 rounded-lg animate-pulse" />
+                <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />
               ))}
             </div>
           ) : entries.length === 0 ? (
@@ -131,10 +142,10 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                     role="region"
                     aria-label={`Waitlist offer for ${entry.dogName}`}
                     tabIndex={-1}
-                    className={`rounded-lg border bg-background/60 px-4 py-3 outline-none transition-colors ${
+                    className={`rounded-lg border bg-background px-4 py-3 outline-none transition-colors ${
                       isFocused
                         ? 'border-primary ring-2 ring-ring ring-offset-2 ring-offset-background'
-                        : 'border-border/40'
+                        : 'border-border'
                     }`}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

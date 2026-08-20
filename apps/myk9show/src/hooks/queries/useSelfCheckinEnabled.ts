@@ -7,6 +7,7 @@
  * Note: these tables are added by migration 007 and are not yet in the
  * generated Supabase types, so we use `untypedSupabase` to bypass codegen.
  */
+import { useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveCheckinCascade } from '@myk9/secretary';
@@ -85,11 +86,27 @@ export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
     })),
   });
 
-  const map: Record<string, boolean> = {};
-  classIds.forEach((id, i) => {
-    map[id] = results[i].data ?? true;
-  });
-  return map;
+  // `useQueries` hands back a fresh array on every render, so building the map
+  // inline produced a new object identity every time. My Shows passes this map
+  // to every MyEntryCard, and MyEntryCard is React.memo'd — one unstable prop
+  // out of six was enough to defeat the memo entirely and re-render the whole
+  // entry list on every parent render, including each replication sync tick.
+  // Memoise on the resolved values rather than on `results`, whose identity is
+  // exactly the thing that keeps changing.
+  const resolved = results.map(r => r.data ?? true);
+  const signature = resolved.map(v => (v ? '1' : '0')).join('');
+
+  return useMemo(() => {
+    const map: Record<string, boolean> = {};
+    classIds.forEach((id, i) => {
+      map[id] = resolved[i] ?? true;
+    });
+    return map;
+    // `classIds` is memoised by the caller; `signature` collapses the query
+    // results to a value-equal key so the map is rebuilt only when an answer
+    // actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classIds, signature]);
 }
 
 export function useSelfCheckinEnabled(classId: string | null): SelfCheckinResult {

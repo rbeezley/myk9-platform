@@ -9,6 +9,7 @@ import { createElement } from 'react';
 import { List, CalendarDays } from 'lucide-react';
 import type { PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { StatusIcon } from '@/components/status';
+import type { EntryTabFilter } from './my-entries-types';
 
 export const ENTRY_TAB_DEFS = [
   { id: 'all', label: 'All', icon: List },
@@ -54,3 +55,13 @@ export const ENTRY_TAB_DEFS = [
     }),
   },
 ] as const satisfies Omit<PrimaryTabDef, 'count'>[];
+
+/**
+ * Narrows an untrusted `?tab=` value to a real tab id. Derived from
+ * ENTRY_TAB_DEFS rather than a second hand-written list, so adding a tab cannot
+ * leave the URL reader behind. An unknown value falls back to 'all' at the call
+ * site instead of rendering an empty list for a typo'd or stale link.
+ */
+export function isEntryTabFilter(value: string | null | undefined): value is EntryTabFilter {
+  return !!value && ENTRY_TAB_DEFS.some(tab => tab.id === value);
+}

@@ -1,7 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import type { WaitListEntry } from '@/types/waitlist-types';
+
+/** Stable empty result. `query.data ?? []` would allocate a fresh array on
+ * every render, which alone is enough to defeat the memo below. */
+const NO_ENTRIES: WaitListEntry[] = [];
 
 interface WaitlistEntryRow {
   id: string;
@@ -95,7 +99,9 @@ export function useMyWaitlistEntries(
 
       if (error) throw error;
 
-      return (data as unknown as WaitlistEntryRow[]).map(row => mapWaitlistEntry(row, exhibitorId!));
+      return (data as unknown as WaitlistEntryRow[]).map(row =>
+        mapWaitlistEntry(row, exhibitorId!)
+      );
     },
     enabled: !!exhibitorId,
   });
@@ -168,12 +174,21 @@ export function useMyWaitlistEntries(
     onError: (_error, waitlistEntryId) => invalidateWaitlistOffer(waitlistEntryId),
   });
 
-  const entries = query.data ?? [];
+  const entries = query.data ?? NO_ENTRIES;
   const focusedOffer = focusedOfferQuery.data;
-  const combinedEntries =
-    focusedOffer && !entries.some(entry => entry.id === focusedOffer.id)
-      ? [focusedOffer, ...entries]
-      : entries;
+  // Memoised because WaitListSection runs an effect over this array that can
+  // call back into a refetch. An unstable identity turned that into a loop:
+  // refetch -> new array -> effect re-fires -> refetch. The trigger is real —
+  // returning from Stripe with `?waitlistOffer=<id>` for an offer that has
+  // expired but is still in `offered` state, so it is not in the active list
+  // and arrives only through the focused query.
+  const combinedEntries = useMemo(
+    () =>
+      focusedOffer && !entries.some(entry => entry.id === focusedOffer.id)
+        ? [focusedOffer, ...entries]
+        : entries,
+    [entries, focusedOffer]
+  );
 
   const { refetch: refetchActiveWaitlistOffers } = query;
   const { refetch: refetchFocusedWaitlistOffer } = focusedOfferQuery;

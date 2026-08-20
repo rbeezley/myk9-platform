@@ -33,7 +33,7 @@ export function EntryCard({ entry, scoringRoute, onStatusClick }: EntryCardProps
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
       )}
     >
-      <ArmbandBadge armband={entry.armband} className="size-12 rounded-[10px] text-lg" />
+      <ArmbandBadge armband={entry.armband} className="h-12 min-w-12 rounded-[10px] text-lg" />
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start gap-2">
           <span className="font-semibold text-[15px] text-foreground truncate">

@@ -119,11 +119,11 @@ export function getPaymentStatusBadge(
       );
     case PaymentStatus.REFUNDED:
       return (
-        <Badge className="bg-primary/10 text-primary border-primary/20 border">Refunded</Badge>
+        <Badge className="bg-primary/10 text-primary border-border border">Refunded</Badge>
       );
     case PaymentStatus.PARTIAL_REFUND:
       return (
-        <Badge className="bg-primary/10 text-primary border-primary/20 border">
+        <Badge className="bg-primary/10 text-primary border-border border">
           Partial Refund
         </Badge>
       );

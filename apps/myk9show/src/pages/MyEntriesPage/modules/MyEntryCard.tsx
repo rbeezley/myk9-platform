@@ -104,10 +104,12 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           location/directions, and the single next-action button. */}
       <div className="myk9-entries-card-header">
         <div>
-          <div className="myk9-entries-card-title">
+          {/* h3: each entry card sits under the "All entries" h2. Was a <div>,
+            so the entry list had no navigable structure at all. */}
+          <h3 className="myk9-entries-card-title">
             {getStatusIcon(entry.entryStatus, entry.paymentStatus, entry.entryStatusKind)}
             {entry.showName}
-          </div>
+          </h3>
           <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-x-3 gap-y-1.5">
             {isMultiDogOrder ? (
               // Every dog's identity stays visible on the always-shown summary
@@ -115,7 +117,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
               entry.dogs.map(dog => (
                 <span key={dog.dogId} className="inline-flex items-center gap-1.5">
                   {dog.armband && (
-                    <ArmbandBadge armband={dog.armband} className="size-8 rounded-lg text-xs" />
+                    <ArmbandBadge armband={dog.armband} className="h-8 min-w-8 rounded-lg text-xs" />
                   )}
                   <span>{dog.dogName}</span>
                 </span>
@@ -123,7 +125,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             ) : (
               <>
                 {entry.armband && (
-                  <ArmbandBadge armband={entry.armband} className="size-8 rounded-lg text-xs" />
+                  <ArmbandBadge armband={entry.armband} className="h-8 min-w-8 rounded-lg text-xs" />
                 )}
                 <span>{entry.dogName}</span>
               </>
@@ -210,7 +212,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-action-buttons">
         {nextAction.kind === 'finish-payment' &&
           (paymentHref ? (
-            <Button asChild className="min-h-[44px] transition-all duration-200">
+            <Button asChild className="min-h-[44px] transition-all duration-state">
               <Link to={paymentHref}>
                 <CreditCard className="h-5 w-5 mr-1.5" />
                 Finish Payment
@@ -239,7 +241,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
                 nextActionClass
               )
             }
-            className="min-h-[44px] transition-all duration-200"
+            className="min-h-[44px] transition-all duration-state"
           >
             <ClipboardCheck className="h-5 w-5 mr-1.5" />
             Check In
@@ -250,7 +252,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           <Button
             variant="outline"
             asChild
-            className="min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
+            className="min-h-[44px] text-primary transition-all duration-state"
           >
             <Link to={`/shows/${entry.showId}`}>
               <Eye className="h-5 w-5 mr-1.5" />
@@ -263,7 +265,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           <Button
             variant="outline"
             onClick={() => setCalendarOpen(true)}
-            className="min-h-[44px] transition-all duration-200"
+            className="min-h-[44px] transition-all duration-state"
           >
             <CalendarPlus className="h-5 w-5 mr-1.5" />
             Add to Calendar
@@ -287,7 +289,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         onClick={() => setDetailsOpen(open => !open)}
         aria-expanded={detailsOpen}
         aria-controls={detailsId}
-        className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-border/60 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+        className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors duration-micro focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         {detailsOpen ? 'Hide details' : 'Show details'}
         <ChevronDown

@@ -111,7 +111,7 @@ export function EntryIdentity({
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <ArmbandBadge armband={display.armband} className="size-12 rounded-[10px] text-base" />
+      <ArmbandBadge armband={display.armband} className="h-12 min-w-12 rounded-[10px] text-base" />
       <div className="min-w-0">
         {display.dogHref && onNavigate ? (
           <button

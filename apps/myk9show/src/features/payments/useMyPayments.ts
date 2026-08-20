@@ -26,6 +26,14 @@ export interface MyPayment {
   status: string;
   /** Stripe payment intent id — the reference an exhibitor can quote to support. */
   reference: string | null;
+  /**
+   * When the ORDER as a whole was refunded. Only meaningful for the legacy /
+   * dashboard-refund path, where the money came back without entry-level
+   * `entries.refund_amount` rows to date it. Without this the synthetic refund
+   * row inherits the charge date and a 2025 charge refunded in 2026 subtotals
+   * under 2025, which is wrong on a cash basis.
+   */
+  refundedAt: string | null;
   /** entries this payment covers — drives the "View entries" receipt link. */
   entryIds: string[];
   /** Synthetic entry-level refund rows; current data stores refunds on entries. */
@@ -45,7 +53,7 @@ export function useMyPayments() {
       const { data, error } = await supabase
         .from('stripe_orders')
         .select(
-          'id, amount_cents, currency, status, paid_at, created_at, stripe_payment_intent_id, entry_ids, show_id, show:show_id(name)'
+          'id, amount_cents, currency, status, paid_at, refunded_at, created_at, stripe_payment_intent_id, entry_ids, show_id, show:show_id(name)'
         )
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -94,6 +102,7 @@ export function useMyPayments() {
           currency: o.currency ?? 'usd',
           status: o.status ?? 'unknown',
           reference: o.stripe_payment_intent_id,
+          refundedAt: o.refunded_at ?? null,
           entryIds: o.entry_ids ?? [],
           refunds: (o.entry_ids ?? [])
             .map(entryId => refundDetailsByEntryId.get(entryId))

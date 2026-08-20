@@ -1,5 +1,6 @@
 import {
   ALL_PAYMENT_YEARS,
+  canFilterPaymentYears,
   filterPaymentRowsByYear,
   isPaymentYearSelection,
   listPaymentYears,
@@ -55,6 +56,33 @@ describe('isPaymentYearSelection', () => {
     expect(isPaymentYearSelection('2019', years)).toBe(false);
     expect(isPaymentYearSelection(null, years)).toBe(false);
     expect(isPaymentYearSelection('', years)).toBe(false);
+  });
+});
+
+describe('canFilterPaymentYears', () => {
+  it('is false for a single season, so no inert control is rendered', () => {
+    expect(
+      canFilterPaymentYears([
+        { date: '2026-03-01T12:00:00Z' },
+        { date: '2026-09-01T12:00:00Z' },
+      ])
+    ).toBe(false);
+  });
+
+  it('is false with no rows at all', () => {
+    expect(canFilterPaymentYears([])).toBe(false);
+  });
+
+  it('is true across two seasons', () => {
+    expect(
+      canFilterPaymentYears([{ date: '2026-03-01T12:00:00Z' }, { date: '2025-03-01T12:00:00Z' }])
+    ).toBe(true);
+  });
+
+  it('is true for one season plus undated rows — only All time shows those', () => {
+    // Otherwise arriving on a valid ?year= link hides the undated rows with no
+    // control left to get back to them.
+    expect(canFilterPaymentYears([{ date: '2026-03-01T12:00:00Z' }, { date: null }])).toBe(true);
   });
 });
 

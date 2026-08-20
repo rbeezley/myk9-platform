@@ -73,6 +73,20 @@ export function isPaymentYearSelection(
 }
 
 /**
+ * Whether a year control can change what the exhibitor sees.
+ *
+ * More than one year is the obvious case. The subtle one: a single year PLUS
+ * undated rows is still two buckets, because only "All time" shows the undated
+ * ones. Hiding the control there strands anyone who arrives on a valid
+ * `?year=` link with no way back to the rows it filtered out.
+ */
+export function canFilterPaymentYears(rows: PaymentYearFilterRow[]): boolean {
+  const years = listPaymentYears(rows);
+  if (years.length > 1) return true;
+  return years.length === 1 && rows.some(row => paymentRowYear(row) === null);
+}
+
+/**
  * Rows for the selected year. `'all'` (or any unrecognized selection) returns
  * the input untouched, including undated rows.
  */

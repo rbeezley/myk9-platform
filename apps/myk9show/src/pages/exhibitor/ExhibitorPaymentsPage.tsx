@@ -52,6 +52,7 @@ import {
 import { summarizePaymentLedgerTotals } from '@/features/payments/paymentsSummary';
 import {
   ALL_PAYMENT_YEARS,
+  canFilterPaymentYears,
   filterPaymentRowsByYear,
   isPaymentYearSelection,
   listPaymentYears,
@@ -408,6 +409,8 @@ export default function ExhibitorPaymentsPage() {
     [setSearchParams]
   );
 
+  const canFilterByYear = useMemo(() => canFilterPaymentYears(paymentRows), [paymentRows]);
+
   const visibleRows = useMemo(
     () => filterPaymentRowsByYear(paymentRows, selectedYear),
     [paymentRows, selectedYear]
@@ -480,11 +483,13 @@ export default function ExhibitorPaymentsPage() {
             <h2 id="payment-history-heading" className="text-sm font-medium text-muted-foreground">
               Payment history
             </h2>
-            <PaymentYearFilter
-              years={paymentYears}
-              value={selectedYear}
-              onChange={setSelectedYear}
-            />
+            {canFilterByYear ? (
+              <PaymentYearFilter
+                years={paymentYears}
+                value={selectedYear}
+                onChange={setSelectedYear}
+              />
+            ) : null}
           </div>
           <PaymentsSummary
             rows={visibleRows}

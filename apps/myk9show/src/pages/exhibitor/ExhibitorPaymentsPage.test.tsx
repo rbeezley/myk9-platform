@@ -55,6 +55,7 @@ const payment: MyPayment = {
   currency: 'usd',
   status: 'succeeded',
   reference: 'pi_abc123',
+  refundedAt: null,
   entryIds: ['e1'],
   refunds: [],
 };
@@ -605,6 +606,44 @@ describe('ExhibitorPaymentsPage', () => {
       state.data = bothYears;
       render(<ExhibitorPaymentsPage />);
       expect(screen.getByText('2 payments')).toBeInTheDocument();
+    });
+
+    it('keeps the control reachable when a valid ?year= hides undated rows', () => {
+      // One year plus an undated row is still two buckets — only All time
+      // shows the undated one. Hiding the control here stranded the exhibitor
+      // on a filtered ledger with no way back (stripe_orders.created_at is
+      // DEFAULT NOW(), not NOT NULL, so an undated row is possible).
+      state.data = [payment, { ...payment, id: 'o-undated', date: null, showName: 'Undated Trial' }];
+      render(<ExhibitorPaymentsPage />, { initialRoute: '/exhibitor/payments?year=2026' });
+
+      expect(screen.queryByText('Undated Trial')).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('combobox', { name: /filter payment history by year/i })
+      ).toBeInTheDocument();
+    });
+
+    it('reports a negative net for a year holding only a refund of an earlier charge', () => {
+      // Cash basis across a year boundary. The totals card clamped net at zero,
+      // so $53 that demonstrably came back in 2026 read as "Net paid $0.00".
+      state.data = [
+        {
+          ...payment,
+          date: '2025-12-20T12:00:00Z',
+          status: 'refunded',
+          refundedAt: '2026-01-08T12:00:00Z',
+          refunds: [],
+        },
+      ];
+      render(<ExhibitorPaymentsPage />, { initialRoute: '/exhibitor/payments?year=2026' });
+
+      // Three occurrences: the Refunds figure, the Net paid figure, and the
+      // table row. Clamped, Net paid read "$0.00" and there were only two —
+      // so the count is what actually pins the fix.
+      expect(screen.getAllByText('-$53.00')).toHaveLength(3);
+      // Gross paid is legitimately $0.00 for this year: the charge was 2025.
+      expect(screen.getByText('Gross paid')).toBeInTheDocument();
+      // (getAllBy: the Amount due card above renders $0.00 too.)
+      expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0);
     });
   });
 });

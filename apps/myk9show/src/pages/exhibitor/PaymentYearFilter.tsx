@@ -13,11 +13,13 @@ import {
 /**
  * The page's one filter: which calendar year the ledger covers.
  *
- * Rendered only when the exhibitor actually has payments in more than one
- * year — a single-season exhibitor gets no control rather than a Select whose
- * every option shows the same rows, which is the inert-affordance trap this
- * codebase keeps paying for (the `SlideOverPanel` size prop, the 25 dead style
- * classes in #1696).
+ * The caller decides whether to render it at all (`canFilterPaymentYears`), so
+ * a single-season exhibitor gets no control rather than a Select whose every
+ * option shows the same rows — the inert-affordance trap this codebase keeps
+ * paying for (the `SlideOverPanel` size prop, the 25 dead style classes in
+ * #1696). That rule lives with the row data, not here, because "can this
+ * filter hide anything" also depends on undated rows, which the year list
+ * alone cannot see.
  *
  * Options are chronological and self-limiting, so the >4-options-per-decision
  * guideline is satisfied in spirit even for a long-tenured exhibitor: there is
@@ -33,7 +35,9 @@ export function PaymentYearFilter({
   value: PaymentYearSelection;
   onChange: (year: PaymentYearSelection) => void;
 }) {
-  if (years.length < 2) return null;
+  // Defensive only: with no years the Select would offer "All time" alone.
+  // The real visibility decision is the caller's `canFilterPaymentYears`.
+  if (years.length === 0) return null;
 
   return (
     <Select value={value} onValueChange={onChange}>

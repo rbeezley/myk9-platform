@@ -104,6 +104,33 @@ describe('moneyPresentation', () => {
     ]);
     expect(rows.reduce((sum, row) => sum + row.amountCents, 0)).toBe(0);
   });
+
+  it('dates a legacy full refund by refunded_at, not by the charge it reverses', () => {
+    // The synthetic refund used to inherit `payment.date`, which was invisible
+    // until the ledger could be scoped by year: a 2025 charge refunded in 2026
+    // then subtotaled under 2025, contradicting cash basis.
+    const rows = buildPaymentDisplayRows([
+      payment({
+        status: 'refunded',
+        refunds: [],
+        date: '2025-12-20T12:00:00Z',
+        refundedAt: '2026-01-08T12:00:00Z',
+      }),
+    ]);
+
+    expect(rows).toMatchObject([
+      { id: 'order-1:charge', kind: 'charge', date: '2025-12-20T12:00:00Z' },
+      { id: 'order-1:refund', kind: 'refund', date: '2026-01-08T12:00:00Z' },
+    ]);
+  });
+
+  it('falls back to the charge date when a legacy refund has no refunded_at', () => {
+    const rows = buildPaymentDisplayRows([
+      payment({ status: 'refunded', refunds: [], date: '2025-12-20T12:00:00Z', refundedAt: null }),
+    ]);
+
+    expect(rows[1]).toMatchObject({ kind: 'refund', date: '2025-12-20T12:00:00Z' });
+  });
 });
 
 describe('isSettlingPaymentStatus', () => {

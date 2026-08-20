@@ -14,6 +14,8 @@ export interface PaymentPresentationSource {
   currency: string;
   status: string;
   reference: string | null;
+  /** When the whole order was refunded, for orders with no entry-level refunds. */
+  refundedAt?: string | null;
   entryIds: string[];
   refunds?: PaymentPresentationRefund[];
 }
@@ -122,7 +124,12 @@ export function buildPaymentDisplayRows(
         {
           id: `${payment.id}:refund`,
           kind: 'refund',
-          date: payment.date,
+          // The refund's OWN date, not the charge's. This branch covers a fully
+          // refunded order with no entry-level refund rows (the legacy /
+          // dashboard path); inheriting `payment.date` filed the refund under
+          // the year the charge was made, so a 2025 charge refunded in 2026
+          // subtotaled under 2025 once the ledger could be scoped by year.
+          date: payment.refundedAt ?? payment.date,
           showId: payment.showId,
           showName: payment.showName,
           description: 'Refund',

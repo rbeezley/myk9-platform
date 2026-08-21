@@ -72,10 +72,23 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const clearConnectParam = useClearConnectParam(setSearchParams);
   const { status: connectReturnStatus } = useConnectReturn({
     connectParam,
-    accountPresent: !!account,
+    // The webhook-owned flag, not row presence: stripe-connect-onboard inserts
+    // the row before the redirect, so presence is true the whole time and would
+    // end the wait before it began.
+    onboardingSettled: !!account?.onboarding_complete,
     refetchAccount: refetch,
     clearConnectParam,
   });
+  // While we are waiting on Stripe, the row's un-updated flags describe the
+  // state BEFORE the treasurer filled the form, so every branch derived from
+  // them is a claim about stale data.
+  const awaitingStripeConfirmation =
+    connectReturnStatus === 'confirming' || connectReturnStatus === 'timed-out';
+  // An expired link only needs explaining while the setup is genuinely
+  // unfinished. Gating this on `notConnected` would have hidden it always, for
+  // the same reason the poll used to exit early: the row is never missing.
+  const showLinkExpired =
+    connectReturnStatus === 'link-expired' && !account?.onboarding_complete;
 
   const handleContinueToStripe = async () => {
     if (inFlightRef.current) return;
@@ -237,7 +250,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {inReview && (
+              {inReview && !awaitingStripeConfirmation && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Stripe is verifying your club&apos;s details. This usually finishes within a day
@@ -259,7 +272,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {onboardingIncomplete && (
+              {onboardingIncomplete && !awaitingStripeConfirmation && !showLinkExpired && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Your setup with Stripe isn&apos;t finished yet. You can pick up right where you
@@ -271,7 +284,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {notConnected && connectReturnStatus === 'confirming' && (
+              {connectReturnStatus === 'confirming' && (
                 <div className="space-y-3" role="status">
                   <p className="text-sm text-muted-foreground">
                     Confirming your setup with Stripe. This usually takes a few seconds.
@@ -279,7 +292,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {notConnected && connectReturnStatus === 'timed-out' && (
+              {connectReturnStatus === 'timed-out' && (
                 <div className="space-y-3" role="status">
                   <p className="text-sm text-muted-foreground">
                     Stripe hasn&apos;t confirmed your setup yet. This can take another minute to
@@ -291,7 +304,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {notConnected && connectReturnStatus === 'link-expired' && (
+              {showLinkExpired && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Your Stripe setup link expired before you finished. Nothing you entered was
@@ -303,7 +316,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {notConnected && connectReturnStatus === 'idle' && !showChecklist && (
+              {notConnected && !awaitingStripeConfirmation && !showLinkExpired && !showChecklist && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     No bank account is connected yet, so your club can&apos;t receive entry fees.
@@ -313,7 +326,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {notConnected && connectReturnStatus === 'idle' && showChecklist && (
+              {notConnected && !awaitingStripeConfirmation && !showLinkExpired && showChecklist && (
                 <div className="space-y-4 rounded-lg border p-4">
                   <div>
                     <h4 className="font-medium">Before you start, have these four things ready:</h4>

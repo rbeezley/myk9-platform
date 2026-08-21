@@ -2,19 +2,24 @@
  * What the Bank account card shows in the seconds AFTER a treasurer comes back
  * from Stripe's hosted onboarding form.
  *
- * INTENT: the row this card reads (`club_stripe_accounts`) is written by a
- * Stripe *webhook*, not by the redirect. So on `?connect=return` the row is
- * routinely still absent for a few seconds. The card used to do one `refetch()`
- * and then render its ordinary not-connected copy, which told a treasurer who
- * had just spent ten minutes entering an EIN and the last 4 of their SSN that
- * "No bank account is connected yet, so your club can't receive entry fees."
- * That is the precise abandonment moment the pre-flight checklist exists to
- * prevent, and the likely recovery is to redo onboarding from the start.
+ * INTENT: `stripe-connect-onboard` INSERTS the `club_stripe_accounts` row
+ * before it creates the onboarding link, so the row is already present when the
+ * treasurer comes back. What is NOT present is the part a Stripe *webhook*
+ * owns: `onboarding_complete` and `payouts_enabled`. Both sit false until the
+ * `account.updated` event lands, seconds later.
  *
- * So absence is treated as "not confirmed yet" for a bounded window, and only
- * then as a fact the treasurer should act on. `?connect=refresh` is Stripe's
- * signal that the link expired or was abandoned, which is a different sentence
- * and a different button.
+ * The card used to do one `refetch()` and then render whatever the un-updated
+ * row implied, which told a treasurer who had just finished the Stripe form,
+ * after entering an EIN and the last 4 of their SSN, that "Your setup with
+ * Stripe isn't finished yet." That is the precise abandonment moment the
+ * pre-flight checklist exists to prevent, and the likely recovery is to walk
+ * back through onboarding they already completed.
+ *
+ * So an unsettled flag is treated as "not confirmed yet" for a bounded window,
+ * and only then as a fact the treasurer should act on. Waiting on row PRESENCE
+ * instead would exit before the first poll, since the row never went missing.
+ * `?connect=refresh` is Stripe's signal that the link expired or was abandoned,
+ * which is a different sentence and a different button.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -28,8 +33,11 @@ export const CONNECT_MAX_POLLS = 6;
 interface UseConnectReturnOptions {
   /** The `connect` search param Stripe redirected back with. */
   connectParam: string | null;
-  /** Whether the account row is present yet. */
-  accountPresent: boolean;
+  /**
+   * Whether the webhook-owned half of the account row has landed. NOT "does the
+   * row exist" -- the row is inserted client-side before the redirect.
+   */
+  onboardingSettled: boolean;
   refetchAccount: () => void;
   /** Remove `?connect=` so a reload does not replay this flow. */
   clearConnectParam: () => void;
@@ -41,7 +49,7 @@ export interface UseConnectReturnResult {
 
 export function useConnectReturn({
   connectParam,
-  accountPresent,
+  onboardingSettled,
   refetchAccount,
   clearConnectParam,
 }: UseConnectReturnOptions): UseConnectReturnResult {
@@ -60,10 +68,10 @@ export function useConnectReturn({
   });
 
   // Read inside the poll callback, which outlives the render that scheduled it.
-  const accountPresentRef = useRef(accountPresent);
+  const settledRef = useRef(onboardingSettled);
   useEffect(() => {
-    accountPresentRef.current = accountPresent;
-  }, [accountPresent]);
+    settledRef.current = onboardingSettled;
+  }, [onboardingSettled]);
 
   useEffect(() => {
     if (!initialParam) return;
@@ -79,7 +87,7 @@ export function useConnectReturn({
     // loop instead of running out the full window.
     const poll = () => {
       if (cancelled) return;
-      if (accountPresentRef.current) return;
+      if (settledRef.current) return;
       if (attempts >= CONNECT_MAX_POLLS) {
         setStatus('timed-out');
         return;
@@ -96,11 +104,11 @@ export function useConnectReturn({
     };
   }, [initialParam, clearConnectParam, refetchAccount]);
 
-  // Derived, not stored: the moment the row shows up, any waiting copy is stale
+  // Derived, not stored: the moment the webhook lands, any waiting copy is stale
   // regardless of which phase the poll loop reached. Deriving avoids a
   // state-sync effect that would race the loop's own setStatus.
   const resolved =
-    accountPresent && (status === 'confirming' || status === 'timed-out') ? 'idle' : status;
+    onboardingSettled && (status === 'confirming' || status === 'timed-out') ? 'idle' : status;
 
   return { status: resolved };
 }

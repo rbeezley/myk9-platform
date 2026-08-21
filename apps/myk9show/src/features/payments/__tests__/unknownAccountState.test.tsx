@@ -14,6 +14,7 @@
  * untypeable.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ClubPaymentsCard } from '../ClubPaymentsCard';
 import { resolvePayoutBadge } from '../payoutBadge';
@@ -140,5 +141,54 @@ describe('the badge an unknown account state produces', () => {
   it('only the two known states make a claim about the bank account', () => {
     expect(resolvePayoutBadge(pending, 'enabled').label).toBe('Scheduled');
     expect(resolvePayoutBadge(pending, 'not-enabled').label).toBe('Waiting for account');
+  });
+});
+
+
+describe('returning from Stripe does not read the pre-form state back to the treasurer', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const justSubmitted: ClubStripeAccount = {
+    id: 'csa-1',
+    club_id: 'club-1',
+    stripe_account_id: 'acct_test',
+    // stripe-connect-onboard inserted this row BEFORE the redirect. Both flags
+    // stay false until the account.updated webhook lands, which is the whole
+    // window this behaviour covers.
+    onboarding_complete: false,
+    payouts_enabled: false,
+  };
+
+  it('waits, instead of saying the setup is unfinished, while the webhook is in flight', () => {
+    mockAccount({ isSuccess: true, data: justSubmitted });
+    render(<ClubPaymentsCard clubId="club-1" />, {
+      initialRoute: '/club-admin/payments?connect=return',
+    });
+
+    expect(screen.getByText(/Confirming your setup with Stripe/i)).toBeInTheDocument();
+    expect(screen.queryByText(/setup with Stripe isn.t finished yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No bank account is connected yet/i)).not.toBeInTheDocument();
+  });
+
+  it('says so plainly when the treasurer did not arrive from Stripe', () => {
+    mockAccount({ isSuccess: true, data: justSubmitted });
+    render(<ClubPaymentsCard clubId="club-1" />, {
+      initialRoute: '/club-admin/payments',
+    });
+
+    expect(screen.getByText(/setup with Stripe isn.t finished yet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Confirming your setup with Stripe/i)).not.toBeInTheDocument();
+  });
+
+  it('an expired link is explained, not reported as an unfinished setup', () => {
+    mockAccount({ isSuccess: true, data: justSubmitted });
+    render(<ClubPaymentsCard clubId="club-1" />, {
+      initialRoute: '/club-admin/payments?connect=refresh',
+    });
+
+    expect(screen.getByText(/setup link expired before you finished/i)).toBeInTheDocument();
+    expect(screen.queryByText(/setup with Stripe isn.t finished yet/i)).not.toBeInTheDocument();
   });
 });

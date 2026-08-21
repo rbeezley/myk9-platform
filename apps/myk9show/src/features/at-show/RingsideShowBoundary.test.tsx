@@ -62,15 +62,8 @@ function boundaryRoutes(showId: string, child: ReactNode = <div>{CHILD}</div>) {
   );
 }
 
-function renderBoundary(
-  showId: string,
-  queryClient = createTestQueryClient(),
-  child?: ReactNode
-) {
-  return render(
-    boundaryRoutes(showId, child),
-    { initialRoute: `/at-show/${showId}`, queryClient }
-  );
+function renderBoundary(showId: string, queryClient = createTestQueryClient(), child?: ReactNode) {
+  return render(boundaryRoutes(showId, child), { initialRoute: `/at-show/${showId}`, queryClient });
 }
 
 describe('RingsideShowBoundary', () => {
@@ -130,10 +123,7 @@ describe('RingsideShowBoundary', () => {
     networkState.isOnline = false;
     onlineManager.setOnline(false);
     view.rerender(
-      boundaryRoutes(
-        'show-transition',
-        <div data-testid="nested-scoresheet">Open scoresheet</div>
-      )
+      boundaryRoutes('show-transition', <div data-testid="nested-scoresheet">Open scoresheet</div>)
     );
 
     expect(screen.getByTestId('nested-scoresheet')).toBeInTheDocument();
@@ -218,5 +208,82 @@ describe('RingsideShowBoundary', () => {
     expect(await screen.findByText('Oops! Something went wrong')).toBeInTheDocument();
     expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
+  });
+
+  /**
+   * MYK9-205, the half PR #1687 left open.
+   *
+   * The sharp case is NOT a browser that knows it is offline — that path
+   * already worked. It is venue Wi-Fi that associates but carries no traffic:
+   * `navigator.onLine` is true, so the boundary tries to verify the local miss
+   * against the server, the sync throws, and the generic error card takes over
+   * before `MissingShowState` is ever reached. A judge is then offered exactly
+   * one button, "Try Again", which cannot succeed, and the priming action that
+   * would actually fix the device is nowhere on screen.
+   */
+  describe('when the device reports being online but the backend is unreachable', () => {
+    beforeEach(() => {
+      networkState.isOnline = true;
+      authState.user = { id: 'judge-1', is_anonymous: false };
+      authState.roles = [UserRole.JUDGE];
+      vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
+      vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
+        success: false,
+        error: new Error('Failed to fetch'),
+      } as never);
+    });
+
+    it('offers a judge the priming action instead of a dead-end error card', async () => {
+      renderBoundary('show-unreachable');
+
+      expect(await screen.findByText("This show isn't saved on this device")).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /load this show onto this device/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument();
+    });
+
+    it('keeps a retry available, and an exit that is not the retry', async () => {
+      renderBoundary('show-unreachable-actions');
+
+      expect(await screen.findByRole('button', { name: /try again/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /back to dashboard/i })).toBeInTheDocument();
+    });
+
+    it('does not tell the user the show is missing', async () => {
+      renderBoundary('show-unreachable-copy');
+
+      await screen.findByText("This show isn't saved on this device");
+      expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
+      // "Check your connection" is actively misleading here: the connection is
+      // up, which is why the user got this far at all.
+      expect(screen.queryByText(/check your connection/i)).not.toBeInTheDocument();
+    });
+
+    it('still withholds the priming action from a non-staff account', async () => {
+      authState.roles = [UserRole.EXHIBITOR];
+      renderBoundary('show-unreachable-exhibitor');
+
+      expect(await screen.findByText("This show isn't saved on this device")).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /load this show onto this device/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it('recovers once the backend comes back, without a reload', async () => {
+      renderBoundary('show-recovers');
+      const retry = await screen.findByRole('button', { name: /try again/i });
+
+      vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
+        id: 'show-recovers',
+      } as never);
+      vi.mocked(replicatedShowsTable.sync).mockResolvedValue({ success: true } as never);
+
+      await act(async () => {
+        retry.click();
+      });
+
+      expect(await screen.findByText(CHILD)).toBeInTheDocument();
+    });
   });
 });

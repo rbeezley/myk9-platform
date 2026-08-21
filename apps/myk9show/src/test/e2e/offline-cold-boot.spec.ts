@@ -107,27 +107,21 @@ test.describe('offline cold boot', () => {
     expect(interceptedCount()).toBeGreaterThan(0);
   });
 
-  // KNOWN FAILING — documents MYK9-205, confirmed by this walk on 2026-08-20.
+  // The negative half of MYK9-203 AC 2, and the regression guard for MYK9-205.
   //
-  // This is the negative half of MYK9-203 AC 2, and the product does not yet
-  // satisfy it. With the replicated show data gone and the backend
-  // unreachable, the at-show page hits its error boundary BEFORE the readiness
-  // badge renders, so the observed page is:
+  // Until MYK9-205 this test could not pass. With the replicated show data
+  // gone and Supabase unreachable, the boundary hit its generic error card
+  // BEFORE the readiness badge rendered, so the page read:
   //
   //   "Oops! Something went wrong / We couldn't load this show.
   //    Check your connection and try again. [Try Again]"
   //
-  // The good news is the badge does not lie green. The bad news is it never
-  // appears at all, so the "tap to prime" recovery MYK9-203 shipped is
-  // unreachable in exactly the state it was built for, and the only offered
-  // action — Try Again — cannot succeed while offline. (The MYK9-200 cache is
-  // fine here: the "working offline, permissions as of ..." notice renders
-  // correctly above the error.)
-  //
-  // Left as `fixme` rather than rewritten to assert the broken behaviour, so
-  // the intended contract stays written down. When MYK9-205 is fixed this test
-  // should be un-fixme'd and should pass as written.
-  test.fixme('the readiness badge tells the truth when the device is NOT primed', async ({
+  // The badge never appeared at all, which made the "tap to prime" recovery
+  // MYK9-203 shipped unreachable in exactly the state it was built for, and
+  // the only offered action could not succeed. Note this route-abort setup
+  // leaves `navigator.onLine` TRUE — the venue-Wi-Fi shape — which is why the
+  // boundary attempted a sync and threw rather than taking the offline path.
+  test('the readiness badge tells the truth when the device is NOT primed', async ({
     page,
     context,
   }) => {

@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useClubFinancialReconciliation } from './useClubFinancialReconciliation';
 import * as reconciliation from './financialReconciliation';
-import type { ShowPayoutRow } from '@/features/payments/useClubStripeAccount';
 
 vi.mock('./financialReconciliation', async importOriginal => {
   const original = await importOriginal<typeof reconciliation>();
@@ -92,20 +91,8 @@ describe('useClubFinancialReconciliation', () => {
         createdAt: '2026-07-04T00:00:00Z',
       },
     ]);
-    const history: ShowPayoutRow[] = [
-      {
-        id: 'sp-1',
-        show_id: 'show-1',
-        amount_cents: 10000,
-        status: 'completed',
-        failure_reason: null,
-        completed_at: '2026-07-05T00:00:00Z',
-        created_at: '2026-07-04T00:00:00Z',
-        show: { name: 'Cedar Valley Classic', club_id: 'club-1' },
-      },
-    ];
 
-    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled', history), {
+    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled'), {
       wrapper,
     });
 
@@ -146,7 +133,7 @@ describe('useClubFinancialReconciliation', () => {
 
     const { result } = renderHook(
       // `undefined` history is exactly what the RLS-filtered read returns here.
-      () => useClubFinancialReconciliation('club-1', 'enabled', undefined),
+      () => useClubFinancialReconciliation('club-1', 'enabled'),
       { wrapper }
     );
 
@@ -175,7 +162,7 @@ describe('useClubFinancialReconciliation', () => {
       .mockResolvedValueOnce([makeOrder({ orderId: 'c-0', showId: 'show-3' })]);
     mockedPayouts.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled', undefined), {
+    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled'), {
       wrapper,
     });
 
@@ -195,7 +182,7 @@ describe('useClubFinancialReconciliation', () => {
     mockedOrders.mockRejectedValue(new Error('offline'));
     mockedPayouts.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled', undefined), {
+    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled'), {
       wrapper,
     });
 
@@ -204,7 +191,7 @@ describe('useClubFinancialReconciliation', () => {
   });
 
   it('does not fetch when clubId is undefined', () => {
-    renderHook(() => useClubFinancialReconciliation(undefined, 'enabled', undefined), { wrapper });
+    renderHook(() => useClubFinancialReconciliation(undefined, 'enabled'), { wrapper });
     expect(mockedOrders).not.toHaveBeenCalled();
     expect(mockedPayouts).not.toHaveBeenCalled();
   });

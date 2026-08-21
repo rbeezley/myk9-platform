@@ -17,7 +17,6 @@ import {
   buildClubShowReconciliationRows,
   type ClubShowReconciliationRow,
 } from './clubShowReconciliation';
-import type { ShowPayoutRow } from '@/features/payments/useClubStripeAccount';
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 
 export interface UseClubFinancialReconciliationResult {
@@ -44,14 +43,14 @@ export interface UseClubFinancialReconciliationResult {
  * shows_select soft-delete predicate, so a soft-deleted show is still named
  * rather than falling through to the generic "Show".
  *
- * Payout history remains only as a last resort, for a row the RPC could not
- * name. The reconciliation payout's `payoutId` is the same `show_payouts.id`
- * the history rows key on, so matching by id is safe.
+ * A third source, payout history, was dropped when the two per-show lists were
+ * merged. It was an RLS-filtered read, so it could only ever name shows the RPC
+ * had already named, and never the soft-deleted ones -- the exact rows the
+ * fallback appeared to exist for.
  */
 function resolveShowNames(
   orders: Array<{ showId: string | null; showName: string | null }>,
-  reconciliationPayouts: Array<{ payoutId: string; showId: string | null; showName: string | null }>,
-  history: ShowPayoutRow[] | undefined
+  reconciliationPayouts: Array<{ payoutId: string; showId: string | null; showName: string | null }>
 ): Map<string, string> {
   const names = new Map<string, string>();
 
@@ -62,15 +61,6 @@ function resolveShowNames(
   for (const payout of reconciliationPayouts) {
     if (!payout.showId || names.has(payout.showId)) continue;
     if (payout.showName) names.set(payout.showId, payout.showName);
-  }
-
-  if (history && history.length > 0) {
-    const nameById = new Map(history.map(row => [row.id, row.show?.name]));
-    for (const payout of reconciliationPayouts) {
-      if (!payout.showId || names.has(payout.showId)) continue;
-      const name = nameById.get(payout.payoutId);
-      if (name) names.set(payout.showId, name);
-    }
   }
 
   return names;
@@ -113,14 +103,13 @@ async function fetchAllPages<T extends { createdAt: string; orderId?: string; pa
 
 /**
  * Club-scoped per-show reconciliation: net-to-club, charge verification, and
- * payout settlement (including the copyable stripe_transfer_id). `payoutHistory`
- * is the existing, already-tested useClubPayoutHistory result — passed in so
- * this hook never duplicates that read, only borrows its show names.
+ * payout settlement (including the copyable stripe_transfer_id). Since the two
+ * per-show lists merged, this is the ONLY per-show money view on the page, so
+ * it no longer borrows anything from the payout-history read.
  */
 export function useClubFinancialReconciliation(
   clubId: string | undefined,
-  accountState: PayoutsAccountState,
-  payoutHistory: ShowPayoutRow[] | undefined
+  accountState: PayoutsAccountState
 ): UseClubFinancialReconciliationResult {
   const ordersQuery = useQuery({
     queryKey: ['club-financial-reconciliation-orders', clubId],
@@ -156,9 +145,9 @@ export function useClubFinancialReconciliation(
     if (!ordersQuery.data && !payoutsQuery.data) return [];
     const orders = ordersQuery.data ?? [];
     const payouts = payoutsQuery.data ?? [];
-    const showNames = resolveShowNames(orders, payouts, payoutHistory);
+    const showNames = resolveShowNames(orders, payouts);
     return buildClubShowReconciliationRows(orders, payouts, accountState, showNames);
-  }, [ordersQuery.data, payoutsQuery.data, payoutHistory, accountState]);
+  }, [ordersQuery.data, payoutsQuery.data, accountState]);
 
   return {
     rows,

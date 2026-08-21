@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,36 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Landmark, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-import {
-  useClubStripeAccount,
-  useClubPayoutHistory,
-  startConnectOnboarding,
-} from './useClubStripeAccount';
-import { resolvePayoutBadge, type PayoutsAccountState } from './payoutBadge';
+import { useClubStripeAccount, startConnectOnboarding } from './useClubStripeAccount';
+import type { PayoutsAccountState } from './payoutBadge';
 import { NEUTRAL_STATUS_CHIP } from '@/components/ui/statusChip';
 import { useConnectReturn, useClearConnectParam } from './useConnectReturn';
-import { isSupersededFailure } from '@/features/financial/payoutSupersession';
-import type { ShowPayoutRow } from './useClubStripeAccount';
 import { ClubFinancialReconciliationCard } from '@/features/financial/components/ClubFinancialReconciliationCard';
 
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-});
-
-/** Cents -> a fully formatted USD string with thousands separators ($1,240.00). */
-function formatPayoutAmount(amountCents: number): string {
-  return currencyFormatter.format(amountCents / 100);
-}
-
 const RETURN_PATH = '/club-admin/payments';
-
-/** Ordering facts for the supersession rule. */
-const readPayoutOrdering = (row: ShowPayoutRow) => ({
-  status: row.status,
-  createdAt: row.created_at,
-  id: row.id,
-});
 
 // INTENT: The pre-flight checklist exists to pre-answer the SSN fear and
 // prevent mid-form abandonment by non-technical club treasurers. Do not
@@ -66,10 +43,6 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
       ? 'enabled'
       : 'not-enabled';
   const enabled = accountState === 'enabled';
-  // Only load payout history once payouts are actually enabled. Otherwise a
-  // failed history fetch would surface a "Couldn't load your payout history"
-  // error beside the connect/setup flow for a club that isn't connected yet.
-  const payoutHistory = useClubPayoutHistory(enabled ? clubId : undefined);
   const [showChecklist, setShowChecklist] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [isStartingOnboarding, setIsStartingOnboarding] = useState(false);
@@ -89,31 +62,6 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
     refetchAccount: refetch,
     clearConnectParam,
   });
-  // A show can hold several payout rows: the cron leaves a failed row in place
-  // and inserts a new one on retry. Without this, an attempt that already
-  // succeeded on retry keeps a red "Needs attention" beside money that landed.
-  const payoutRows = payoutHistory.data;
-  const supersededPayoutIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (!payoutRows) return ids;
-    const byShow = new Map<string, ShowPayoutRow[]>();
-    for (const row of payoutRows) {
-      // Never group rows whose show is unknown: supersession is a claim about
-      // ONE show's attempts, and a shared placeholder key would let an
-      // unrelated show's later payout mute this row's "Needs attention".
-      if (!row.show_id) continue;
-      const list = byShow.get(row.show_id) ?? [];
-      list.push(row);
-      byShow.set(row.show_id, list);
-    }
-    for (const rows of byShow.values()) {
-      for (const row of rows) {
-        if (isSupersededFailure(row, rows, readPayoutOrdering)) ids.add(row.id);
-      }
-    }
-    return ids;
-  }, [payoutRows]);
-
   // While we are waiting on Stripe, the row's un-updated flags describe the
   // state BEFORE the treasurer filled the form, so every branch derived from
   // them is a claim about stale data.
@@ -217,76 +165,6 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
 
           {accountQuery.isSuccess && (
             <>
-              {enabled &&
-                !payoutHistory.isLoading &&
-                !payoutHistory.isError &&
-                (payoutHistory.data?.length ?? 0) === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    You&apos;re all set. Payouts appear here after your first show closes.
-                  </p>
-                )}
-
-              {enabled && payoutHistory.isError && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                  <AlertDescription className="space-y-3">
-                    <p>Couldn&apos;t load your payout history.</p>
-                    <Button
-                      variant="outline"
-                      size="touch"
-                      onClick={() => void payoutHistory.refetch()}
-                    >
-                      Try again
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {enabled && (payoutHistory.data?.length ?? 0) > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Show payouts</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Amounts shown are deposited to your club&apos;s bank account.
-                  </p>
-                  <ul className="divide-y rounded-lg border">
-                    {payoutHistory.data!.map(payout => {
-                      const badge = resolvePayoutBadge(
-                        { ...payout, superseded: supersededPayoutIds.has(payout.id) },
-                        accountState
-                      );
-                      const isPaid = !!payout.completed_at;
-                      const dateLabel = isPaid ? 'Paid' : 'Started';
-                      const dateValue = new Date(
-                        payout.completed_at ?? payout.created_at
-                      ).toLocaleDateString();
-                      return (
-                        <li
-                          key={payout.id}
-                          className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">
-                              {payout.show?.name ?? 'Show'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {dateLabel} {dateValue}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold tabular-nums">
-                              {formatPayoutAmount(payout.amount_cents)}
-                            </span>
-                            <Badge variant={badge.variant} className={badge.className}>
-                              {badge.label}
-                            </Badge>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-
               {inReview && !awaitingStripeConfirmation && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
@@ -403,11 +281,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           renders at all. It is deliberately a tri-state: this card sits outside
           the guard above, so it renders while the account query is still in
           flight, and a boolean would assert "not onboarded" the whole time. */}
-      <ClubFinancialReconciliationCard
-        clubId={clubId}
-        accountState={accountState}
-        payoutHistory={payoutHistory.data}
-      />
+      <ClubFinancialReconciliationCard clubId={clubId} accountState={accountState} />
     </div>
   );
 }

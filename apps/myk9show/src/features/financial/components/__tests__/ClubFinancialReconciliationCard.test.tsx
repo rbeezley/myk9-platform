@@ -23,6 +23,8 @@ function row(overrides: Partial<ClubShowReconciliationRow> = {}): ClubShowReconc
       state: 'settled',
       amountCents: 9680, // $96.80 actually transferred — intentionally != net
       stripeTransferId: 'tr_123',
+      completedAt: '2026-07-05T00:00:00Z',
+      createdAt: '2026-07-04T00:00:00Z',
     },
     orderCount: 1,
     ...overrides,
@@ -36,7 +38,7 @@ beforeEach(() => {
 describe('ClubFinancialReconciliationCard', () => {
   it('loading: shows a skeleton, not a false verified/unavailable state', () => {
     mockedHook.mockReturnValue({ rows: [], isLoading: true, isError: false, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     expect(screen.queryByText(/verified/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('reconciliation-unavailable')).not.toBeInTheDocument();
@@ -44,7 +46,7 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('unavailable/error: shows an explicit unavailable state and never a verified badge (INTENT gate)', () => {
     mockedHook.mockReturnValue({ rows: [], isLoading: false, isError: true, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     expect(screen.getByTestId('reconciliation-unavailable')).toBeInTheDocument();
     expect(screen.getByText(/unavailable right now/i)).toBeInTheDocument();
@@ -55,7 +57,7 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('empty: calm explanatory copy, no error styling', () => {
     mockedHook.mockReturnValue({ rows: [], isLoading: false, isError: false, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     expect(screen.getByText(/no shows to reconcile yet/i)).toBeInTheDocument();
   });
@@ -67,7 +69,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     expect(screen.getByText('Cedar Valley Classic')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
@@ -91,7 +93,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     // Entry-fee net present as its own figure...
     expect(screen.getByText('$100.00')).toBeInTheDocument();
@@ -106,6 +108,60 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(transferLine).not.toHaveTextContent('$100.00');
   });
 
+  it('carries the payout date across from the list this card replaced', () => {
+    // The ONE field the merged row did not already hold. A treasurer reconciles
+    // against a bank statement; a money row with no date ties to nothing.
+    mockedHook.mockReturnValue({
+      rows: [
+        row({
+          settlement: {
+            payoutId: 'payout-1',
+            badgeLabel: 'Paid',
+            state: 'settled',
+            amountCents: 9680,
+            stripeTransferId: 'tr_123',
+            completedAt: '2026-07-05T00:00:00Z',
+            createdAt: '2026-07-04T00:00:00Z',
+          },
+        }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+
+    const when = screen.getByText(/Paid on/);
+    expect(when).toHaveTextContent(new Date('2026-07-05T00:00:00Z').toLocaleDateString());
+    // Machine-readable, which the old list never was.
+    expect(when.querySelector('time')?.getAttribute('datetime')).toBe('2026-07-05T00:00:00Z');
+  });
+
+  it('an unsettled payout is dated by when it STARTED, not by a settlement that has not happened', () => {
+    mockedHook.mockReturnValue({
+      rows: [
+        row({
+          settlement: {
+            payoutId: 'payout-2',
+            badgeLabel: 'Scheduled',
+            state: 'in_progress',
+            amountCents: 5000,
+            stripeTransferId: null,
+            completedAt: null,
+            createdAt: '2026-07-04T00:00:00Z',
+          },
+        }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
+
+    expect(screen.getByText(/Started on/)).toBeInTheDocument();
+    expect(screen.queryByText(/Paid on/)).not.toBeInTheDocument();
+  });
+
   it('Attested row: shows the Attested badge, not Verified', () => {
     mockedHook.mockReturnValue({
       rows: [row({ chargeVerification: 'Attested', settlement: null })],
@@ -113,7 +169,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     expect(screen.getByText('Attested')).toBeInTheDocument();
     expect(screen.queryByText('Verified')).not.toBeInTheDocument();
@@ -132,7 +188,7 @@ describe('ClubFinancialReconciliationCard', () => {
         refetch: vi.fn(),
       });
       const view = render(
-        <ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />
+        <ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />
       );
       expect(screen.getByText(state)).toBeInTheDocument();
       expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
@@ -147,7 +203,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     expect(screen.getByText('Net pending')).toBeInTheDocument();
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
@@ -160,7 +216,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /view transfer/i })).not.toBeInTheDocument();
@@ -176,6 +232,8 @@ describe('ClubFinancialReconciliationCard', () => {
             state: 'attention',
             amountCents: 5000,
             stripeTransferId: null,
+            completedAt: '2026-07-05T00:00:00Z',
+            createdAt: '2026-07-04T00:00:00Z',
           },
         }),
       ],
@@ -183,7 +241,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     // The destructive variant keeps its own colours; it must NOT pick up the
     // neutral chip that every other settlement state now carries.

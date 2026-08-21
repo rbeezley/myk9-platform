@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClubFinancialReconciliation } from '../useClubFinancialReconciliation';
-import type { ShowPayoutRow } from '@/features/payments/useClubStripeAccount';
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 import { ChargeVerificationBadge } from './ChargeVerificationBadge';
 import { CopyableTransferId } from './CopyableTransferId';
@@ -38,19 +37,13 @@ interface ClubFinancialReconciliationCardProps {
    * every pending payout "Waiting for account" against data never read.
    */
   accountState: PayoutsAccountState;
-  payoutHistory: ShowPayoutRow[] | undefined;
 }
 
 export function ClubFinancialReconciliationCard({
   clubId,
   accountState,
-  payoutHistory,
 }: ClubFinancialReconciliationCardProps) {
-  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(
-    clubId,
-    accountState,
-    payoutHistory
-  );
+  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(clubId, accountState);
 
   return (
     <Card>
@@ -159,6 +152,21 @@ export function ClubFinancialReconciliationCard({
                         <span className="sr-only"> awaiting transfer, not yet sent</span>
                       )}
                     </span>
+                  </p>
+                )}
+                {row.settlement && (
+                  /* Carried over from the "Show payouts" list this card
+                     replaced. A treasurer reconciles against a bank statement,
+                     and a row without a date cannot be tied to a line on it.
+                     <time> so the value is machine-readable, which the old list
+                     never was. */
+                  <p className="text-xs text-muted-foreground">
+                    {row.settlement.completedAt ? 'Paid on ' : 'Started on '}
+                    <time dateTime={row.settlement.completedAt ?? row.settlement.createdAt}>
+                      {new Date(
+                        row.settlement.completedAt ?? row.settlement.createdAt
+                      ).toLocaleDateString()}
+                    </time>
                   </p>
                 )}
                 {row.settlement?.stripeTransferId && (

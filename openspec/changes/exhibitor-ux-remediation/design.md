@@ -106,7 +106,7 @@ Add an explicit **exhibitor variant** to that shared module rather than creating
 
 ## Risks / Trade-offs
 
-- **The toast-offset mechanism is app-wide.** Every dialog, panel, and wizard inherits it, so a regression is broad. Mitigated by component-level regression tests asserting the collision specifically (a footer button remains the hit-test target with a toast present), which is the test the codebase currently lacks.
+- **The toast-offset mechanism is app-wide.** Every dialog, panel, and wizard inherits it, so a regression is broad. Mitigated by component-level offset-contract tests plus the real-browser mobile coordinate hit-test recorded in task 6.2.1, which proves the primary footer control remains the actual click target while an actionable toast is visible.
 - **Two toast systems are mounted** (`<Toaster>` and `<ToastContainer>`). Only sonner is in scope here; the second must be checked for the same collision. If it shares the corner, it needs the same offset — flagged in tasks rather than silently assumed.
 - **The legacy `dogs.name` constraint remains.** The UI must not leak that storage workaround back into the owner-facing domain model; the separate `dog-identity-normalization` change owns removing it.
 - **Dirty-form guards can become nagging** if they fire on trivial or programmatic changes. The guard consumes the existing `hasChanges` signal and must exclude the form's own Cancel path, which the spec states normatively.

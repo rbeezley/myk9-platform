@@ -73,7 +73,7 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 
 ### 6.2 Component / regression tests (these pin the Critical finding)
 
-- [ ] 6.2.1 **Toast does not steal the footer tap** — with a toast visible and a panel open, a click at the primary control's position resolves to that control, not to anything in the toast. This is the direct regression test for audit finding #1. **Current evidence:** PR #1574 and this slice prove the desktop/mobile offset contract, but a real-browser coordinate hit-test is still required before checking this direct regression off.
+- [x] 6.2.1 **Toast does not steal the footer tap** — with a toast visible and a panel open, a click at the primary control's position resolves to that control, not to anything in the toast. This is the direct regression test for audit finding #1. **Evidence (2026-08-20):** Playwright CLI exercised the real app at 390×844 with the Edit Dog panel dirty and a 30-second Sonner `Dog added` / `Undo` toast visible. The Save center was `(280.23, 808)`; `document.elementFromPoint` and the captured browser click both resolved to `Save Changes`. The toast action occupied y=735–759, above the Save control at y=788–828. A capture-phase handler prevented the test click from dispatching the save mutation.
 - [x] 6.2.2 Toast is dismissed on route change. (PR #1574; re-run in this slice.)
 - [x] 6.2.3 Dirty-form guard prompts on navigation with unsaved changes, preserves data when the user stays, and does **not** fire on the form's own Cancel path. (PR #1609; re-run in this slice.)
 - [x] 6.2.4 Footer at 390px with the unsaved-changes indicator present: the primary control renders fully inside the viewport with its complete label; also assert at 320px.

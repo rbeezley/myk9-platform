@@ -64,3 +64,23 @@ export function formatAlertDetail(detail: Record<string, unknown> | null): strin
   }
   return parts.join(', ');
 }
+
+/**
+ * Unresolved alerts as the health verdict reads them. Deliberately two numbers,
+ * not one: every unresolved alert is worth naming, but only an error-severity
+ * one is loud enough to withdraw the board's all-clear.
+ */
+export interface AlertSummary {
+  unresolved: number;
+  /** Error severity — the bucket that blocks "Everything's running". */
+  needingReview: number;
+}
+
+/** Fold the unresolved-alerts list into the counts the verdict needs. */
+export function summarizeAlerts(alerts: OperatorAlert[]): AlertSummary {
+  let needingReview = 0;
+  for (const alert of alerts) {
+    if (alert.severity === 'error') needingReview += 1;
+  }
+  return { unresolved: alerts.length, needingReview };
+}

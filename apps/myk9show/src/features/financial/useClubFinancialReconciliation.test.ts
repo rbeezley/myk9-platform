@@ -103,7 +103,7 @@ describe('useClubFinancialReconciliation', () => {
       },
     ];
 
-    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', true, history), {
+    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled', history), {
       wrapper,
     });
 
@@ -140,7 +140,7 @@ describe('useClubFinancialReconciliation', () => {
       .mockResolvedValueOnce([makeOrder({ orderId: 'c-0', showId: 'show-3' })]);
     mockedPayouts.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', true, undefined), {
+    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled', undefined), {
       wrapper,
     });
 
@@ -160,7 +160,7 @@ describe('useClubFinancialReconciliation', () => {
     mockedOrders.mockRejectedValue(new Error('offline'));
     mockedPayouts.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', true, undefined), {
+    const { result } = renderHook(() => useClubFinancialReconciliation('club-1', 'enabled', undefined), {
       wrapper,
     });
 
@@ -169,7 +169,7 @@ describe('useClubFinancialReconciliation', () => {
   });
 
   it('does not fetch when clubId is undefined', () => {
-    renderHook(() => useClubFinancialReconciliation(undefined, true, undefined), { wrapper });
+    renderHook(() => useClubFinancialReconciliation(undefined, 'enabled', undefined), { wrapper });
     expect(mockedOrders).not.toHaveBeenCalled();
     expect(mockedPayouts).not.toHaveBeenCalled();
   });

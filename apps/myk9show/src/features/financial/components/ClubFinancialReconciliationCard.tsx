@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClubFinancialReconciliation } from '../useClubFinancialReconciliation';
 import type { ShowPayoutRow } from '@/features/payments/useClubStripeAccount';
+import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 import { ChargeVerificationBadge } from './ChargeVerificationBadge';
 import { CopyableTransferId } from './CopyableTransferId';
 import { StripeLinkOut } from './StripeLinkOut';
@@ -29,18 +30,24 @@ function formatCents(cents: number): string {
 
 interface ClubFinancialReconciliationCardProps {
   clubId: string;
-  payoutsEnabled: boolean;
+  /**
+   * Tri-state, never a boolean: while the Stripe account row is loading or has
+   * failed to load we know nothing about payouts, and this card renders OUTSIDE
+   * the account card's loading/error guard. Collapsing that to `false` labelled
+   * every pending payout "Waiting for account" against data never read.
+   */
+  accountState: PayoutsAccountState;
   payoutHistory: ShowPayoutRow[] | undefined;
 }
 
 export function ClubFinancialReconciliationCard({
   clubId,
-  payoutsEnabled,
+  accountState,
   payoutHistory,
 }: ClubFinancialReconciliationCardProps) {
   const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(
     clubId,
-    payoutsEnabled,
+    accountState,
     payoutHistory
   );
 

@@ -34,18 +34,26 @@ const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
 const mockedUsePayoutHistory = vi.mocked(accountModule.useClubPayoutHistory);
 const mockedStartOnboarding = vi.mocked(accountModule.startConnectOnboarding);
 
-function mockAccountState(data: ClubStripeAccount | null, overrides: Record<string, unknown> = {}) {
+function mockAccountState(
+  data: ClubStripeAccount | null,
+  overrides: Record<string, unknown> = {},
+  historyOverrides: Record<string, unknown> = {}
+) {
+  const base = { data, isLoading: false, isError: false, refetch: vi.fn(), ...overrides };
   mockedUseAccount.mockReturnValue({
-    data,
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-    ...overrides,
+    // `isSuccess` is what the card reads to mean "we have a real answer", so the
+    // fixture has to carry it or every settled-state test silently exercises the
+    // unknown branch. Derived by default so overriding isLoading/isError stays
+    // coherent, and still overridable alone for the never-asked (disabled) case.
+    isSuccess: !base.isLoading && !base.isError,
+    ...base,
   } as unknown as ReturnType<typeof accountModule.useClubStripeAccount>);
   mockedUsePayoutHistory.mockReturnValue({
     data: [],
     isLoading: false,
     isError: false,
+    refetch: vi.fn(),
+    ...historyOverrides,
   } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
 }
 

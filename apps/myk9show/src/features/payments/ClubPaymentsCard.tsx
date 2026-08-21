@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import {
   useClubPayoutHistory,
   startConnectOnboarding,
 } from './useClubStripeAccount';
-import { resolvePayoutBadge } from './payoutBadge';
+import { resolvePayoutBadge, type PayoutsAccountState } from './payoutBadge';
+import { useConnectReturn, useClearConnectParam } from './useConnectReturn';
 import { ClubFinancialReconciliationCard } from '@/features/financial/components/ClubFinancialReconciliationCard';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
@@ -45,41 +46,64 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const accountQuery = useClubStripeAccount(clubId);
   const account = accountQuery.data;
-  const enabled = !!account && account.payouts_enabled;
+  // `isSuccess` is the only state that means "we have a real answer". Deriving
+  // from `!!account` instead folds loading, error, and never-asked into the same
+  // `false` as a genuinely un-onboarded club, and that false claim then reaches
+  // the treasurer as a badge (see PayoutsAccountState).
+  const accountState: PayoutsAccountState = !accountQuery.isSuccess
+    ? 'unknown'
+    : account?.payouts_enabled
+      ? 'enabled'
+      : 'not-enabled';
+  const enabled = accountState === 'enabled';
   // Only load payout history once payouts are actually enabled. Otherwise a
   // failed history fetch would surface a "Couldn't load your payout history"
   // error beside the connect/setup flow for a club that isn't connected yet.
   const payoutHistory = useClubPayoutHistory(enabled ? clubId : undefined);
   const [showChecklist, setShowChecklist] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [isStartingOnboarding, setIsStartingOnboarding] = useState(false);
   const inFlightRef = useRef(false);
 
-  // Returning from Stripe (?connect=return|refresh): refresh the account row
-  // so the card reflects whatever the treasurer just completed.
+  // Returning from Stripe (?connect=return|refresh): the account row is written
+  // by a webhook, so absence right after the redirect means "not yet", not "no".
   const connectParam = searchParams.get('connect');
   const { refetch } = accountQuery;
-  useEffect(() => {
-    if (!connectParam) return;
-    refetch();
-    setSearchParams(
-      prev => {
-        const next = new URLSearchParams(prev);
-        next.delete('connect');
-        return next;
-      },
-      { replace: true }
-    );
-  }, [connectParam, refetch, setSearchParams]);
+  const clearConnectParam = useClearConnectParam(setSearchParams);
+  const { status: connectReturnStatus } = useConnectReturn({
+    connectParam,
+    // The webhook-owned flag, not row presence: stripe-connect-onboard inserts
+    // the row before the redirect, so presence is true the whole time and would
+    // end the wait before it began.
+    onboardingSettled: !!account?.onboarding_complete,
+    refetchAccount: refetch,
+    clearConnectParam,
+  });
+  // While we are waiting on Stripe, the row's un-updated flags describe the
+  // state BEFORE the treasurer filled the form, so every branch derived from
+  // them is a claim about stale data.
+  const awaitingStripeConfirmation =
+    connectReturnStatus === 'confirming' || connectReturnStatus === 'timed-out';
+  // An expired link only needs explaining while the setup is genuinely
+  // unfinished. Gating this on `notConnected` would have hidden it always, for
+  // the same reason the poll used to exit early: the row is never missing.
+  const showLinkExpired =
+    connectReturnStatus === 'link-expired' && !account?.onboarding_complete;
 
   const handleContinueToStripe = async () => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
+    setIsStartingOnboarding(true);
     setConnectError(null);
     try {
       const url = await startConnectOnboarding(clubId, RETURN_PATH);
       window.location.assign(url);
     } catch (error) {
       setConnectError(error instanceof Error ? error.message : 'Something went wrong');
+      // Only released on the failure path: on success the browser is navigating
+      // away, and re-enabling the button would invite a second click during the
+      // hand-off to Stripe.
+      setIsStartingOnboarding(false);
     } finally {
       inFlightRef.current = false;
     }
@@ -157,7 +181,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
             </Alert>
           )}
 
-          {!accountQuery.isLoading && !accountQuery.isError && (
+          {accountQuery.isSuccess && (
             <>
               {enabled &&
                 !payoutHistory.isLoading &&
@@ -192,7 +216,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                   </p>
                   <ul className="divide-y rounded-lg border">
                     {payoutHistory.data!.map(payout => {
-                      const badge = resolvePayoutBadge(payout, enabled);
+                      const badge = resolvePayoutBadge(payout, accountState);
                       const isPaid = !!payout.completed_at;
                       const dateLabel = isPaid ? 'Paid' : 'Started';
                       const dateValue = new Date(
@@ -226,7 +250,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {inReview && (
+              {inReview && !awaitingStripeConfirmation && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Stripe is verifying your club&apos;s details. This usually finishes within a day
@@ -238,23 +262,61 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                     the treasurer can un-stick it. Resuming is harmless when
                     nothing is due: Stripe just confirms they're all set.
                     2026-06-10 walkthrough finding. */}
-                  <Button variant="outline" onClick={handleContinueToStripe}>
-                    Add missing information
+                  <Button
+                    variant="outline"
+                    onClick={handleContinueToStripe}
+                    disabled={isStartingOnboarding}
+                  >
+                    {isStartingOnboarding ? 'Opening Stripe' : 'Add missing information'}
                   </Button>
                 </div>
               )}
 
-              {onboardingIncomplete && (
+              {onboardingIncomplete && !awaitingStripeConfirmation && !showLinkExpired && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Your setup with Stripe isn&apos;t finished yet. You can pick up right where you
                     left off.
                   </p>
-                  <Button onClick={handleContinueToStripe}>Finish setting up</Button>
+                  <Button onClick={handleContinueToStripe} disabled={isStartingOnboarding}>
+                    {isStartingOnboarding ? 'Opening Stripe' : 'Finish setting up'}
+                  </Button>
                 </div>
               )}
 
-              {notConnected && !showChecklist && (
+              {connectReturnStatus === 'confirming' && (
+                <div className="space-y-3" role="status">
+                  <p className="text-sm text-muted-foreground">
+                    Confirming your setup with Stripe. This usually takes a few seconds.
+                  </p>
+                </div>
+              )}
+
+              {connectReturnStatus === 'timed-out' && (
+                <div className="space-y-3" role="status">
+                  <p className="text-sm text-muted-foreground">
+                    Stripe hasn&apos;t confirmed your setup yet. This can take another minute to
+                    come through, and nothing you entered was lost.
+                  </p>
+                  <Button variant="outline" onClick={() => void refetch()}>
+                    Check again
+                  </Button>
+                </div>
+              )}
+
+              {showLinkExpired && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Your Stripe setup link expired before you finished. Nothing you entered was
+                    lost, and you can pick up where you left off.
+                  </p>
+                  <Button onClick={handleContinueToStripe} disabled={isStartingOnboarding}>
+                    {isStartingOnboarding ? 'Opening Stripe' : 'Continue to Stripe'}
+                  </Button>
+                </div>
+              )}
+
+              {notConnected && !awaitingStripeConfirmation && !showLinkExpired && !showChecklist && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     No bank account is connected yet, so your club can&apos;t receive entry fees.
@@ -264,7 +326,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {notConnected && showChecklist && (
+              {notConnected && !awaitingStripeConfirmation && !showLinkExpired && showChecklist && (
                 <div className="space-y-4 rounded-lg border p-4">
                   <div>
                     <h4 className="font-medium">Before you start, have these four things ready:</h4>
@@ -282,7 +344,9 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                     This takes about 10 minutes. You can safely stop and resume later.
                   </p>
                   <div className="flex gap-2">
-                    <Button onClick={handleContinueToStripe}>Continue to Stripe</Button>
+                    <Button onClick={handleContinueToStripe} disabled={isStartingOnboarding}>
+                      {isStartingOnboarding ? 'Opening Stripe' : 'Continue to Stripe'}
+                    </Button>
                     <Button variant="ghost" onClick={() => setShowChecklist(false)}>
                       Not now
                     </Button>
@@ -297,11 +361,14 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           pending settlement BEFORE Stripe onboarding finishes — gating the whole
           card on payouts_enabled hid charge verification and net-to-club exactly
           when settlement was pending and the treasurer most wanted to see it.
-          `payoutsEnabled` governs the payout BADGE WORDING inside the card
-          (Scheduled vs Waiting for account), not whether it renders at all. */}
+          `accountState` governs the payout BADGE WORDING inside the card
+          (Scheduled vs Waiting for account vs Not sent yet), not whether it
+          renders at all. It is deliberately a tri-state: this card sits outside
+          the guard above, so it renders while the account query is still in
+          flight, and a boolean would assert "not onboarded" the whole time. */}
       <ClubFinancialReconciliationCard
         clubId={clubId}
-        payoutsEnabled={enabled}
+        accountState={accountState}
         payoutHistory={payoutHistory.data}
       />
     </div>

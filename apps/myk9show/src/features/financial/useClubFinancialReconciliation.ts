@@ -18,6 +18,7 @@ import {
   type ClubShowReconciliationRow,
 } from './clubShowReconciliation';
 import type { ShowPayoutRow } from '@/features/payments/useClubStripeAccount';
+import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 
 export interface UseClubFinancialReconciliationResult {
   rows: ClubShowReconciliationRow[];
@@ -108,7 +109,7 @@ async function fetchAllPages<T extends { createdAt: string; orderId?: string; pa
  */
 export function useClubFinancialReconciliation(
   clubId: string | undefined,
-  payoutsEnabled: boolean,
+  accountState: PayoutsAccountState,
   payoutHistory: ShowPayoutRow[] | undefined
 ): UseClubFinancialReconciliationResult {
   const ordersQuery = useQuery({
@@ -146,8 +147,8 @@ export function useClubFinancialReconciliation(
     const orders = ordersQuery.data ?? [];
     const payouts = payoutsQuery.data ?? [];
     const showNames = resolveShowNames(orders, payouts, payoutHistory);
-    return buildClubShowReconciliationRows(orders, payouts, payoutsEnabled, showNames);
-  }, [ordersQuery.data, payoutsQuery.data, payoutHistory, payoutsEnabled]);
+    return buildClubShowReconciliationRows(orders, payouts, accountState, showNames);
+  }, [ordersQuery.data, payoutsQuery.data, payoutHistory, accountState]);
 
   return {
     rows,

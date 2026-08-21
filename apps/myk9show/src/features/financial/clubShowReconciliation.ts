@@ -33,6 +33,7 @@ import type {
   FinancialReconciliationPayout,
 } from './financialReconciliation';
 import { resolvePayoutSettlement, type PayoutSettlementRow } from './payoutSettlement';
+import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 
 export type ClubShowChargeVerification = 'Verified' | 'Attested';
 
@@ -135,7 +136,7 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
 export function buildClubShowReconciliationRows(
   orders: FinancialReconciliationOrder[],
   payouts: FinancialReconciliationPayout[],
-  payoutsEnabled: boolean,
+  accountState: PayoutsAccountState,
   showNamesById: Map<string, string> = new Map()
 ): ClubShowReconciliationRow[] {
   const ordersByShow = new Map<string, FinancialReconciliationOrder[]>();
@@ -163,7 +164,7 @@ export function buildClubShowReconciliationRows(
     const showOrders = ordersByShow.get(showId) ?? [];
     const { net, chargeVerification } = aggregateShowOrders(showOrders);
     const payout = payoutByShow.get(showId);
-    const settlement = payout ? resolvePayoutSettlement(payout, payoutsEnabled) : null;
+    const settlement = payout ? resolvePayoutSettlement(payout, accountState) : null;
 
     rows.push({
       showId,

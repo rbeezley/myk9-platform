@@ -8,7 +8,7 @@
 // as a financial failure — only 'Needs attention' is a real attention item.
 //
 // Pure TypeScript only. Money is integer cents.
-import { resolvePayoutBadge } from '@/features/payments/payoutBadge';
+import { resolvePayoutBadge, type PayoutsAccountState } from '@/features/payments/payoutBadge';
 import type { ShowPayoutRow } from '@/features/payments/useClubStripeAccount';
 import type { FinancialReconciliationPayout } from './financialReconciliation';
 
@@ -40,19 +40,21 @@ type PayoutFacts = Pick<
 /**
  * Resolve the settlement row for one payout, reusing resolvePayoutBadge.
  *
- * `payoutsEnabled` is the discriminator the cron itself routes on: it decides
+ * `accountState` is the discriminator the cron itself routes on: it decides
  * whether a `pending` row reads as "Scheduled" (onboarded club, transfer not yet
- * sent) or "Waiting for account" (club has not onboarded).
+ * sent) or "Waiting for account" (club has not onboarded). Its third state,
+ * `'unknown'`, must be passed through honestly rather than collapsed to
+ * "not onboarded" — see PayoutsAccountState.
  */
 export function resolvePayoutSettlement(
   payout: PayoutFacts,
-  payoutsEnabled: boolean
+  accountState: PayoutsAccountState
 ): PayoutSettlementRow {
   const badge = resolvePayoutBadge(
     // The reconciliation RPC types status as a plain string; it carries the same
     // show_payouts status domain resolvePayoutBadge expects.
     { status: payout.status as ShowPayoutRow['status'], failure_reason: payout.failureReason },
-    payoutsEnabled
+    accountState
   );
   return {
     payoutId: payout.payoutId,
@@ -74,9 +76,9 @@ export interface PayoutSettlementSummary {
 /** Summarize a page of payout rows into settlement buckets by badge state. */
 export function summarizePayoutSettlement(
   payouts: PayoutFacts[],
-  payoutsEnabled: boolean
+  accountState: PayoutsAccountState
 ): PayoutSettlementSummary {
-  const rows = payouts.map(payout => resolvePayoutSettlement(payout, payoutsEnabled));
+  const rows = payouts.map(payout => resolvePayoutSettlement(payout, accountState));
   const summary: PayoutSettlementSummary = {
     settledCents: 0,
     inProgressCents: 0,

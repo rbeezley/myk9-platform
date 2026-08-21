@@ -302,8 +302,14 @@ export default function ExhibitorPaymentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const yearParam = searchParams.get('year');
   const queryYear = paymentYearQueryRange(yearParam) ? yearParam! : ALL_PAYMENT_YEARS;
+  const needsPaymentYearMetadata = queryYear !== ALL_PAYMENT_YEARS;
   const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments(queryYear);
-  const { data: knownPaymentYears } = useMyPaymentYears(queryYear !== ALL_PAYMENT_YEARS);
+  const {
+    data: knownPaymentYears,
+    isError: isPaymentYearsError,
+    isFetching: isPaymentYearsFetching,
+    refetch: refetchPaymentYears,
+  } = useMyPaymentYears(needsPaymentYearMetadata);
   const {
     data: balanceSummary,
     isLoading: isBalanceLoading,
@@ -387,9 +393,9 @@ export default function ExhibitorPaymentsPage() {
             <Skeleton className="h-6 w-5/6" />
           </CardContent>
         </Card>
-      ) : isError ? (
+      ) : isError || isPaymentYearsError ? (
         <Card>
-          {/* Cause-agnostic on purpose. useMyPayments throws on any query
+          {/* Cause-agnostic on purpose. The payment queries throw on any
               failure, connectivity included but also permissions and 5xx, so
               naming a cause here would be a guess — and promising it will
               come back on its own is a guess that never resolves. Say what
@@ -400,10 +406,13 @@ export default function ExhibitorPaymentsPage() {
             <Button
               variant="outline"
               size="touch"
-              onClick={() => void refetch()}
-              disabled={isFetching}
+              onClick={() => {
+                void refetch();
+                if (needsPaymentYearMetadata) void refetchPaymentYears();
+              }}
+              disabled={isFetching || isPaymentYearsFetching}
             >
-              {isFetching ? 'Trying again...' : 'Try again'}
+              {isFetching || isPaymentYearsFetching ? 'Trying again...' : 'Try again'}
             </Button>
           </CardContent>
         </Card>

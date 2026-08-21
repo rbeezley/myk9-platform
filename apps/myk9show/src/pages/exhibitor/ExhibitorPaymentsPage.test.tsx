@@ -36,7 +36,17 @@ const balanceState: {
   isLoading: false,
   isError: false,
 };
-const paymentYearsState: { data: string[] | undefined } = { data: undefined };
+const paymentYearsState: {
+  data: string[] | undefined;
+  isError: boolean;
+  isFetching: boolean;
+  refetch: ReturnType<typeof vi.fn>;
+} = {
+  data: undefined,
+  isError: false,
+  isFetching: false,
+  refetch: vi.fn(),
+};
 vi.mock('@/features/payments/useMyPayments', () => ({
   useMyPayments: () => state,
   useMyPaymentYears: () => paymentYearsState,
@@ -70,6 +80,9 @@ describe('ExhibitorPaymentsPage', () => {
     state.isFetching = false;
     state.refetch = vi.fn();
     paymentYearsState.data = undefined;
+    paymentYearsState.isError = false;
+    paymentYearsState.isFetching = false;
+    paymentYearsState.refetch = vi.fn();
     balanceState.data = {
       currentFeesCents: 0,
       amountDueCents: 0,
@@ -557,11 +570,26 @@ describe('ExhibitorPaymentsPage', () => {
     const retry = screen.getByRole('button', { name: /try again/i });
     await userEvent.click(retry);
     expect(state.refetch).toHaveBeenCalled();
+    expect(paymentYearsState.refetch).not.toHaveBeenCalled();
 
-    // useMyPayments throws on any query failure, so the copy must not blame
+    // Payment queries throw on any failure, so the copy must not blame
     // connectivity or promise a recovery it cannot deliver.
     expect(screen.queryByText(/back online/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/refresh/i)).not.toBeInTheDocument();
+  });
+
+  it('surfaces a selected-year metadata failure and retries both payment queries', async () => {
+    paymentYearsState.isError = true;
+    render(<ExhibitorPaymentsPage />, {
+      initialRoute: '/exhibitor/payments?year=2026',
+    });
+
+    expect(screen.getByText(/couldn.t load your payment history/i)).toBeInTheDocument();
+    expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /try again/i }));
+    expect(state.refetch).toHaveBeenCalledOnce();
+    expect(paymentYearsState.refetch).toHaveBeenCalledOnce();
   });
 
   describe('balance states', () => {

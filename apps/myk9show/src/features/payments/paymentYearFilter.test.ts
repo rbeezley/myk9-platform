@@ -23,7 +23,8 @@ describe('paymentYearQueryRange', () => {
       expect(paymentRowYear({ date: '2027-01-01T05:59:59.999Z' })).toBe('2026');
       expect(paymentRowYear({ date: '2027-01-01T06:00:00.000Z' })).toBe('2027');
     } finally {
-      process.env.TZ = originalTimezone;
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
     }
   });
 

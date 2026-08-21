@@ -19,7 +19,7 @@ const data: Omit<EmergencyPacketInput, 'generatedAt'> = {
     id: 'c1', trialId: 't1', name: 'Container Novice', element: 'Container', level: 'Novice',
     section: null, classNumber: '101', displayOrder: 1, judgeName: 'Judge One', ringLabel: 'Ring 1',
     startTime: '08:00', timeLimitSeconds: 120,
-    timeLimitArea2Seconds: null, timeLimitArea3Seconds: null,
+    timeLimitArea2Seconds: null, timeLimitArea3Seconds: null, numAreas: null,
   }],
   entries: [{
     id: 'e1', armband: 101, runOrder: 1, callName: 'Maple', breed: 'All-American Dog',

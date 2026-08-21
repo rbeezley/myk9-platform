@@ -311,6 +311,7 @@ export function buildEmergencyPacketData(input: {
         timeLimitSeconds: classItem.time_limit_seconds,
         timeLimitArea2Seconds: (raw.time_limit_area2_seconds as number | null) ?? null,
         timeLimitArea3Seconds: (raw.time_limit_area3_seconds as number | null) ?? null,
+        numAreas: (raw.num_areas as number | null) ?? null,
       };
     }),
     entries: mappedEntries,

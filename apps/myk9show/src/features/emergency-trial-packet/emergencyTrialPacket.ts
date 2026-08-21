@@ -114,29 +114,51 @@ export function emergencyPacketAvailability(
 }
 
 /**
- * The class maximum, stated on every page that a judge or timekeeper writes on.
+ * The class maximum, stated on every page a judge or timekeeper writes on.
  *
- * Returns undefined rather than an empty or zero label when nothing is
- * configured: on a page the ring actually runs on, silence is safer than a
- * confident "Max time 0:00".
+ * Two traps, both caught in review and both reachable in live data:
+ *
+ *  1. The three limit columns are INDEPENDENTLY nullable. Compacting the
+ *     configured values renumbers them, so an area-3 limit prints as "Area 2".
+ *     A wrong number on the sheet the ring times from is worse than no number,
+ *     so each limit keeps its own area index and a missing one is named.
+ *  2. `num_areas` is the authoritative area count, not "how many limits happen
+ *     to be filled in". A class with two areas and only an area-1 limit would
+ *     otherwise print a bare "Max time 3:00" and imply a single-area search.
+ *     Naming the gap lets the secretary write it in at the briefing.
+ *
+ * Returns undefined when nothing is configured at all: on a page the ring runs
+ * on, silence beats a confident "Max time 0:00".
  */
 export function formatClassTimeLimits(classItem: {
   timeLimitSeconds: number | null;
   timeLimitArea2Seconds?: number | null;
   timeLimitArea3Seconds?: number | null;
+  numAreas?: number | null;
 }): string | undefined {
-  const areas = [
+  const configured = [
     classItem.timeLimitSeconds,
     classItem.timeLimitArea2Seconds,
     classItem.timeLimitArea3Seconds,
   ].map(seconds => formatTimeLimitSeconds(seconds));
 
-  const configured = areas.filter(label => label !== '');
-  if (configured.length === 0) return undefined;
-  if (configured.length === 1) return `Max time ${configured[0]}`;
+  if (configured.every(label => label === '')) return undefined;
+
+  // Report every area the class searches, and never hide a limit configured
+  // beyond that count — a stale value is still information the ring can use.
+  const highestConfigured = configured.reduce(
+    (highest, label, index) => (label === '' ? highest : index + 1),
+    1
+  );
+  const areaCount = Math.min(3, Math.max(classItem.numAreas ?? 1, highestConfigured));
+
+  if (areaCount === 1) {
+    return configured[0] === '' ? undefined : `Max time ${configured[0]}`;
+  }
 
   return `Max time — ${configured
-    .map((label, index) => `Area ${index + 1} ${label}`)
+    .slice(0, areaCount)
+    .map((label, index) => `Area ${index + 1} ${label === '' ? 'not set' : label}`)
     .join(' · ')}`;
 }
 

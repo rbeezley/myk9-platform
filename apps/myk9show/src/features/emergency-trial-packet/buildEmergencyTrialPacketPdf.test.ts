@@ -56,6 +56,7 @@ const fixture: EmergencyPacketInput = {
       timeLimitSeconds: 120,
       timeLimitArea2Seconds: null,
       timeLimitArea3Seconds: null,
+      numAreas: null,
     },
     {
       id: 'c2',
@@ -72,6 +73,7 @@ const fixture: EmergencyPacketInput = {
       timeLimitSeconds: 180,
       timeLimitArea2Seconds: 120,
       timeLimitArea3Seconds: 90,
+      numAreas: null,
     },
   ],
   entries: [

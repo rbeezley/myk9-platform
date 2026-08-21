@@ -71,6 +71,7 @@ const input: EmergencyPacketInput = {
       timeLimitSeconds: 240,
       timeLimitArea2Seconds: null,
       timeLimitArea3Seconds: null,
+      numAreas: null,
     },
     {
       id: 'class-novice',
@@ -87,6 +88,7 @@ const input: EmergencyPacketInput = {
       timeLimitSeconds: 120,
       timeLimitArea2Seconds: null,
       timeLimitArea3Seconds: null,
+      numAreas: null,
     },
   ],
   entries: [
@@ -190,6 +192,7 @@ describe('formatClassTimeLimits', () => {
     timeLimitSeconds: null as number | null,
     timeLimitArea2Seconds: null as number | null,
     timeLimitArea3Seconds: null as number | null,
+    numAreas: null as number | null,
   };
 
   it('states a single-area maximum', () => {
@@ -205,6 +208,7 @@ describe('formatClassTimeLimits', () => {
         timeLimitSeconds: 180,
         timeLimitArea2Seconds: 120,
         timeLimitArea3Seconds: 90,
+        numAreas: null,
       })
     ).toBe('Max time — Area 1 3:00 · Area 2 2:00 · Area 3 1:30');
   });
@@ -212,6 +216,42 @@ describe('formatClassTimeLimits', () => {
   it('does not invent areas that are not configured', () => {
     expect(
       formatClassTimeLimits({ ...base, timeLimitSeconds: 180, timeLimitArea2Seconds: 120 })
+    ).toBe('Max time — Area 1 3:00 · Area 2 2:00');
+  });
+
+  it('keeps each limit on its own area when an earlier one is unset', () => {
+    // The columns are independently nullable. Compacting the configured values
+    // renumbers them, so an area-3 limit gets printed as "Area 2" — a wrong
+    // number on the page the ring times runs from (Codex review).
+    expect(
+      formatClassTimeLimits({
+        ...base,
+        timeLimitSeconds: null,
+        timeLimitArea2Seconds: 120,
+        timeLimitArea3Seconds: 90,
+        numAreas: null,
+      })
+    ).toBe('Max time — Area 1 not set · Area 2 2:00 · Area 3 1:30');
+  });
+
+  it('does not present an area-2-only limit as the whole class maximum', () => {
+    expect(formatClassTimeLimits({ ...base, timeLimitArea2Seconds: 120 })).toBe(
+      'Max time — Area 1 not set · Area 2 2:00'
+    );
+  });
+
+  it('names every area the class actually searches, even with no limit set', () => {
+    // Live data has a class with num_areas > 1 and no area-2 limit. Printing a
+    // bare "Max time 3:00" would imply a single-area search; the honest paper
+    // output names the gap so it can be filled in by hand at the briefing.
+    expect(formatClassTimeLimits({ ...base, timeLimitSeconds: 180, numAreas: 2 })).toBe(
+      'Max time — Area 1 3:00 · Area 2 not set'
+    );
+  });
+
+  it('still reports a stale limit configured beyond the declared area count', () => {
+    expect(
+      formatClassTimeLimits({ ...base, timeLimitSeconds: 180, timeLimitArea2Seconds: 120, numAreas: 1 })
     ).toBe('Max time — Area 1 3:00 · Area 2 2:00');
   });
 

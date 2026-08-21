@@ -36,6 +36,8 @@ export interface EmergencyPacketClass {
   // A sheet showing only the first is wrong at areas 2 and 3, not merely thin.
   timeLimitArea2Seconds: number | null;
   timeLimitArea3Seconds: number | null;
+  /** Authoritative count of areas searched — not "how many limits are filled in". */
+  numAreas: number | null;
 }
 
 export interface EmergencyPacketInput {

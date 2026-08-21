@@ -86,7 +86,9 @@ function statusBadge(row: LedgerRow, today: string) {
     const presentation = getPayoutStatusPresentation(row.payoutStatus);
     return <Badge className={presentation.className}>{presentation.label}</Badge>;
   }
-  switch (resolveUnsettledState(row.settleDate, today)) {
+  switch (resolveUnsettledState(row.settleDate, today, row.netOwedCents)) {
+    case 'nothing-owed':
+      return <Badge variant="outline">Nothing owed</Badge>;
     case 'overdue':
       return (
         <Badge className={OVERDUE_STATUS_CLASS}>
@@ -160,6 +162,13 @@ function PlatformFeeCard() {
   const handleSave = () => {
     updateFee.mutate(parsed, {
       onSuccess: p => {
+        // Move the sync baseline to what was just saved. Without this, `value`
+        // stays different from `syncedFrom` forever, the field reads as dirty,
+        // and the clean-field guard below then IGNORES every future refetch —
+        // so a rate changed elsewhere would never appear. The dirty guard
+        // protects an unsaved edit; a saved edit is not one.
+        setSyncedFrom(p);
+        setValue(String(p));
         const message = `Platform fee updated to ${p}%`;
         setFeedback({ tone: 'success', message });
         toast.success(message);

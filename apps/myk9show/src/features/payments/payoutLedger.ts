@@ -12,6 +12,8 @@ import { isUnresolvedPullRefundDecision } from './pullReconciliation';
 
 /** entries row shape needed to compute a club's online liability for a show. */
 export interface LedgerEntryRow {
+  /** entries.id — selected only so the scan can detect a repeated page. */
+  id?: string;
   show_id: string;
   entry_status: string | null;
   /** entries.entry_fee — DECIMAL dollars (no cents column). */
@@ -93,9 +95,20 @@ export type NetOwedSource = 'computed' | 'transfer';
  * ever created. The second is money stuck behind a cron that did not run, and
  * it looked identical to the first.
  */
-export type UnsettledState = 'unscheduled' | 'scheduled' | 'overdue';
+export type UnsettledState = 'nothing-owed' | 'unscheduled' | 'scheduled' | 'overdue';
 
-export function resolveUnsettledState(settleDate: string | null, today: string): UnsettledState {
+export function resolveUnsettledState(
+  settleDate: string | null,
+  today: string,
+  netOwedCents: number
+): UnsettledState {
+  // A show with nothing owed has no missing transfer. The payout cron SKIPS
+  // amountCents <= 0 (payoutCalc), so a fully refunded show correctly never gets
+  // a payout row — calling that "Past due" would report the cron's correct
+  // behaviour as a failure, which is the same class of false alarm this whole
+  // change set removes. Checked BEFORE the date, because no date makes a
+  // zero-liability show overdue.
+  if (netOwedCents <= 0) return 'nothing-owed';
   if (!settleDate) return 'unscheduled';
   return settleDate < today ? 'overdue' : 'scheduled';
 }

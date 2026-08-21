@@ -524,3 +524,76 @@ describe("PayoutLedgerPage — says which situation a row is actually in", () =>
     ).toHaveValue(8);
   });
 });
+/**
+ * Codex round 7. All three were consequences of the majors fixes themselves.
+ */
+describe("PayoutLedgerPage — the majors fixes do not misfire", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ledgerState.data = [row];
+    ledgerState.refundDecisionChecked = true;
+    ledgerState.isLoading = false;
+    ledgerState.isError = false;
+    feeState.percent = 7;
+    feeState.state = "ready";
+  });
+
+  it("does not call a fully refunded show past due", () => {
+    // The cron SKIPS amountCents <= 0, so no payout row is the correct outcome.
+    // "Past due" would report correct behaviour as a cron failure.
+    ledgerState.data = [
+      {
+        ...row,
+        payoutStatus: null,
+        settleDate: "2020-01-01",
+        onlineCollectedCents: 5000,
+        refundedCents: 5000,
+        netOwedCents: 0,
+        netOwedSource: "computed",
+      },
+    ];
+
+    render(<PayoutLedgerPage />);
+    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+
+    expect(within(table).getByText("Nothing owed")).toBeInTheDocument();
+    expect(within(table).queryByText("Past due")).not.toBeInTheDocument();
+  });
+
+  it("still flags an overdue show that IS owed money", () => {
+    ledgerState.data = [
+      {
+        ...row,
+        payoutStatus: null,
+        settleDate: "2020-01-01",
+        netOwedCents: 5000,
+        netOwedSource: "computed",
+      },
+    ];
+
+    render(<PayoutLedgerPage />);
+    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+
+    expect(within(table).getByText("Past due")).toBeInTheDocument();
+  });
+
+  it("adopts a later rate change after the admin saves their own edit", () => {
+    // The dirty-field guard protects an UNSAVED edit. Once saved, the baseline
+    // has to move — otherwise the field reads as dirty forever and every future
+    // refetch is ignored, stranding the editor on a stale rate.
+    mutate.mockImplementationOnce((_percent, options) => options.onSuccess(9));
+    const { rerender } = render(<PayoutLedgerPage />);
+
+    const input = screen.getByRole("spinbutton", { name: /fee percent/i });
+    fireEvent.change(input, { target: { value: "9" } });
+    fireEvent.click(screen.getByRole("button", { name: /update fee/i }));
+
+    // Someone else moves it to 12; the refetch must now be adopted.
+    feeState.percent = 12;
+    rerender(<PayoutLedgerPage />);
+
+    expect(
+      screen.getByRole("spinbutton", { name: /fee percent/i }),
+    ).toHaveValue(12);
+  });
+});

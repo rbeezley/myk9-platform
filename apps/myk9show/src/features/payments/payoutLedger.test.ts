@@ -399,22 +399,34 @@ describe("sumRefundedCents filters like sumOnlineCollectedCents", () => {
 });
 
 describe("resolveUnsettledState", () => {
+  const OWED = 5000;
+
   // "Not settled" collapsed three situations, hiding the only one that needs
   // the operator: a settle date that has passed with no transfer created.
-  it("a settle date in the past with no payout row is overdue", () => {
-    expect(resolveUnsettledState("2026-06-01", "2026-08-21")).toBe("overdue");
+  it("a settle date in the past with money owed is overdue", () => {
+    expect(resolveUnsettledState("2026-06-01", "2026-08-21", OWED)).toBe("overdue");
   });
 
   it("a future settle date is merely scheduled", () => {
-    expect(resolveUnsettledState("2026-12-01", "2026-08-21")).toBe("scheduled");
+    expect(resolveUnsettledState("2026-12-01", "2026-08-21", OWED)).toBe("scheduled");
   });
 
   it("today is not yet overdue", () => {
-    expect(resolveUnsettledState("2026-08-21", "2026-08-21")).toBe("scheduled");
+    expect(resolveUnsettledState("2026-08-21", "2026-08-21", OWED)).toBe("scheduled");
   });
 
   it("no settle date is unscheduled, which is a show-data gap, not a payout one", () => {
-    expect(resolveUnsettledState(null, "2026-08-21")).toBe("unscheduled");
+    expect(resolveUnsettledState(null, "2026-08-21", OWED)).toBe("unscheduled");
+  });
+
+  it("a fully refunded show is NOT past due, however old", () => {
+    // The cron skips amountCents <= 0, so no payout row is the CORRECT outcome
+    // here. Calling it "Past due" would report correct behaviour as a failure.
+    expect(resolveUnsettledState("2020-01-01", "2026-08-21", 0)).toBe("nothing-owed");
+  });
+
+  it("nothing owed wins over a missing settle date too", () => {
+    expect(resolveUnsettledState(null, "2026-08-21", 0)).toBe("nothing-owed");
   });
 });
 

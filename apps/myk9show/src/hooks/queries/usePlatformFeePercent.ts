@@ -58,17 +58,42 @@ function platformFeePercentQueryOptions() {
   };
 }
 
+/**
+ * Why a nominal union and not `{ percent, isLoading, isError }`: those three
+ * booleans cannot express the two states that actually matter here, and both
+ * resolve toward the confident answer if you let them.
+ *
+ *  - 'unavailable' covers BOTH a failed read and a PAUSED one. React Query keeps
+ *    the last good `data` when a refetch fails, so `isError` alongside a stale
+ *    number would let the card show that number as current and let an admin
+ *    overwrite the live checkout rate from it. And with networkMode:'online' an
+ *    offline load is neither loading nor errored, so anything keyed on those two
+ *    booleans reads a never-executed query as a definite answer.
+ *  - 'absent' is the one genuine fact in that neighbourhood: the row resolved and
+ *    holds no usable rate. It is the only arm that may say so to the operator.
+ */
+export type PlatformFeeRateState = 'loading' | 'unavailable' | 'absent' | 'ready';
+
 export interface PlatformFeePercentQuery {
-  /** The live rate, or null when it has not been read (loading / failed / absent). */
+  /** Non-null ONLY when `state` is 'ready'. Never a cached value from a failed read. */
   percent: number | null;
-  isLoading: boolean;
-  isError: boolean;
+  state: PlatformFeeRateState;
 }
 
 /** The fee rate WITH its query state, for the surface that edits it. */
 export function usePlatformFeePercentQuery(): PlatformFeePercentQuery {
-  const { data, isLoading, isError } = useQuery(platformFeePercentQueryOptions());
-  return { percent: data ?? null, isLoading, isError };
+  const { data, isPending, isError, fetchStatus } = useQuery(platformFeePercentQueryOptions());
+
+  // Order matters. isError first: it must DISCARD any cached rate, because the
+  // caller may act on it. Paused next: a paused query is not loading and not
+  // errored, so it would otherwise fall through to a definite answer.
+  if (isError) return { percent: null, state: 'unavailable' };
+  if (fetchStatus === 'paused' && data === undefined) {
+    return { percent: null, state: 'unavailable' };
+  }
+  if (isPending) return { percent: null, state: 'loading' };
+  if (data === null || data === undefined) return { percent: null, state: 'absent' };
+  return { percent: data, state: 'ready' };
 }
 
 /** The fee rate for DISPLAY, with the cart-preview fallback baked in. */

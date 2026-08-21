@@ -1,6 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { LedgerRow } from '@/features/payments/payoutLedger';
+import type { PlatformFeeRateState } from '@/hooks/queries/usePlatformFeePercent';
 
 const mutate = vi.fn();
 const refetchLedger = vi.fn();
@@ -8,10 +9,9 @@ const refetchLedger = vi.fn();
 // stub was a literal `() => 7`, which made "loading" and "read failed"
 // inexpressible — the exact reason the fee card could assert a rate it had never
 // read without failing a test.
-const feeState: { percent: number | null; isLoading: boolean; isError: boolean } = {
+const feeState: { percent: number | null; state: PlatformFeeRateState } = {
   percent: 7,
-  isLoading: false,
-  isError: false,
+  state: 'ready',
 };
 vi.mock('@/hooks/queries/usePlatformFeePercent', () => ({
   usePlatformFeePercentQuery: () => feeState,
@@ -61,8 +61,7 @@ describe('PayoutLedgerPage', () => {
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.percent = 7;
-    feeState.isLoading = false;
-    feeState.isError = false;
+    feeState.state = 'ready';
   });
 
   it('renders the platform fee card with the current rate', () => {
@@ -197,8 +196,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.percent = 7;
-    feeState.isLoading = false;
-    feeState.isError = false;
+    feeState.state = 'ready';
   });
 
   it('a PAUSED ledger query is not a platform that owes nothing', () => {
@@ -248,7 +246,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
 
   it('does not state a fee rate it has not read, and refuses the edit', () => {
     feeState.percent = null;
-    feeState.isError = true;
+    feeState.state = 'unavailable';
 
     render(<PayoutLedgerPage />);
 
@@ -260,7 +258,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
 
   it('does not state a fee rate while it is still loading', () => {
     feeState.percent = null;
-    feeState.isLoading = true;
+    feeState.state = 'loading';
 
     render(<PayoutLedgerPage />);
 
@@ -268,12 +266,50 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     expect(screen.getByText(/loading the current rate/i)).toBeInTheDocument();
   });
 
+  it('never offers a CACHED rate for editing after a failed refetch', () => {
+    // React Query keeps the last good `data` when a refetch fails, and
+    // refetchOnWindowFocus is on. Showing that stale number as "current" would
+    // let an admin overwrite the live checkout rate from a value we no longer
+    // know to be true. The hook reports 'unavailable' with percent: null.
+    feeState.percent = null;
+    feeState.state = 'unavailable';
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /update fee/i })).toBeDisabled();
+    expect(screen.queryByText(/current rate:/i)).not.toBeInTheDocument();
+  });
+
+  it('does not claim NO rate is set when the query never ran', () => {
+    // A paused (offline) fee query is not loading and not errored. Reporting it
+    // as "No platform fee rate is set. Contact support" would raise a false
+    // alarm about a row that was never read — the same class of mistake this
+    // whole change set exists to remove.
+    feeState.percent = null;
+    feeState.state = 'unavailable';
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.queryByText(/no platform fee rate is set/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
+  });
+
+  it('does say so when the rate genuinely resolved to nothing', () => {
+    feeState.percent = null;
+    feeState.state = 'absent';
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.getByText(/no platform fee rate is set/i)).toBeInTheDocument();
+  });
+
   it('does not invert the Save gate when the rate is unknown', () => {
     // The sharpest edge of the old bug: with a live rate of 4.5 and a failed
     // read, the page compared against a fabricated 7 — so typing the TRUE rate
     // looked unchanged (Save disabled) and typing 7 looked like an edit.
     feeState.percent = null;
-    feeState.isError = true;
+    feeState.state = 'unavailable';
 
     render(<PayoutLedgerPage />);
 

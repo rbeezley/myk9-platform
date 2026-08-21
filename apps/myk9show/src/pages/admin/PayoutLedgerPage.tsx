@@ -77,7 +77,7 @@ function PlatformFeeCard() {
   // a failed read, which would (a) print "Current rate: 7%" over an unread row
   // and (b) INVERT the Save gate — typing the true rate would look unchanged and
   // disable Save, while typing 7 would look like an edit.
-  const { percent: currentPercent, isLoading, isError } = usePlatformFeePercentQuery();
+  const { percent: currentPercent, state: rateState } = usePlatformFeePercentQuery();
   const updateFee = useUpdatePlatformFee();
   const [value, setValue] = useState<string>('');
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(
@@ -93,15 +93,16 @@ function PlatformFeeCard() {
   }
 
   // No usable rate means no safe edit: an admin must never overwrite a value the
-  // page could not read.
-  const rateUnavailable = currentPercent === null && !isLoading;
+  // page could not read. Every non-'ready' state disables the field, including
+  // the one where a stale rate is still cached from an earlier successful read.
+  const rateEditable = rateState === 'ready';
   const parsed = Number(value);
   const invalid =
     value.trim() === '' ||
     !Number.isFinite(parsed) ||
     parsed < MIN_PLATFORM_FEE_PERCENT ||
     parsed > MAX_PLATFORM_FEE_PERCENT;
-  const unchanged = currentPercent !== null && parsed === currentPercent;
+  const unchanged = rateEditable && parsed === currentPercent;
 
   const handleSave = () => {
     updateFee.mutate(parsed, {
@@ -148,7 +149,7 @@ function PlatformFeeCard() {
                 }}
                 aria-invalid={invalid}
                 aria-describedby="platform-fee-guidance"
-                disabled={isLoading || rateUnavailable}
+                disabled={!rateEditable}
                 className="h-11 w-28"
               />
               <span className="text-muted-foreground">%</span>
@@ -157,7 +158,7 @@ function PlatformFeeCard() {
           <Button
             className="min-h-11"
             onClick={handleSave}
-            disabled={invalid || unchanged || updateFee.isPending || isLoading || rateUnavailable}
+            disabled={!rateEditable || invalid || unchanged || updateFee.isPending}
           >
             {updateFee.isPending
               ? 'Updating fee…'
@@ -169,7 +170,7 @@ function PlatformFeeCard() {
         <p
           id="platform-fee-guidance"
           className={
-            invalid || rateUnavailable
+            rateState === 'unavailable' || rateState === 'absent' || (rateEditable && invalid)
               ? 'text-sm text-destructive'
               : 'text-sm text-muted-foreground'
           }
@@ -177,13 +178,11 @@ function PlatformFeeCard() {
           {/* Order matters: an unread rate is reported BEFORE any judgement about
               the typed value, because "is this valid?" and "has this changed?"
               are both meaningless without a rate to compare against. */}
-          {rateUnavailable ? (
-            isError ? (
-              'The current rate could not be loaded, so it cannot be changed here. Reload to try again.'
-            ) : (
-              'No platform fee rate is set. Contact support before charging entries.'
-            )
-          ) : isLoading ? (
+          {rateState === 'unavailable' ? (
+            'The current rate could not be loaded, so it cannot be changed here. Reload to try again.'
+          ) : rateState === 'absent' ? (
+            'No platform fee rate is set. Contact support before charging entries.'
+          ) : rateState === 'loading' ? (
             'Loading the current rate…'
           ) : invalid ? (
             `Enter a percent between ${MIN_PLATFORM_FEE_PERCENT} and ${MAX_PLATFORM_FEE_PERCENT}.`

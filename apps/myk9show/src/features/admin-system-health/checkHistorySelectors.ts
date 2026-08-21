@@ -183,6 +183,13 @@ export function verdictHeadline(
     return `Nothing is failing, but ${needingReview} alert${needingReview === 1 ? ' needs' : 's need'} review`;
   }
   if (summary.unverified > 0) return 'Nothing is failing, but not everything is proven';
+  // `null` means the alerts query has not answered — deliberately distinct from
+  // `undefined`, which means this caller does not weigh alerts at all. Unknown
+  // must not collapse into an all-clear. The costly case is a refetch failing
+  // AFTER error alerts were on screen: the board would drop from "2 alerts need
+  // review" back to "Everything's running", which an admin reads as the alerts
+  // having been resolved. A network blip must not look like good news.
+  if (alerts === null) return 'Nothing is failing, but the alerts list is unavailable';
   return "Everything's running";
 }
 

@@ -343,10 +343,15 @@ export default function SystemHealthPage() {
   // The stripe says the same thing as the headline. A green edge beside
   // "2 alerts need review" would reinstate in colour the all-clear the words
   // just withheld.
+  // Green requires alerts to be KNOWN and clear. `alertSummary === null` is the
+  // unanswered/failed case, and a green edge there would reinstate in colour the
+  // all-clear the headline just withheld — the same contradiction, one channel over.
   const verdictAccent =
     effective.status === 'fail'
       ? 'border-l-destructive'
-      : effective.status === 'warn' || (alertSummary?.needingReview ?? 0) > 0
+      : effective.status === 'warn' ||
+          alertSummary === null ||
+          (alertSummary?.needingReview ?? 0) > 0
         ? 'border-l-warning'
         : 'border-l-success';
 

@@ -448,6 +448,31 @@ describe('SystemHealthPage', () => {
       render(<SystemHealthPage />);
 
       expect(screen.queryByText(/operator alert/)).not.toBeInTheDocument();
+      // Second Codex round: dropping the alert TEXT is not enough. Reading the
+      // unknown state as zero also dropped the verdict back to an all-clear, so
+      // a failed refetch downgraded the board from warning to green — the exact
+      // false green this change exists to prevent, reachable by a network blip.
+      expect(screen.queryByText("Everything's running")).not.toBeInTheDocument();
+    });
+
+    // The regression in full: error alerts are on screen, then a refetch fails.
+    // The board must not improve. This is the transition an admin misreads as
+    // "the alerts got resolved".
+    it('does not downgrade a standing alert warning to green when a refetch fails', () => {
+      const latest = allPassingSnapshot();
+      mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+      mockedOperatorAlertsHook.mockReturnValue({
+        // React Query still serves the last good payload through a failed refetch.
+        data: [{ id: 'a1', severity: 'error' }],
+        isLoading: false,
+        error: new Error('refetch failed'),
+      } as unknown as ReturnType<typeof useOperatorAlerts>);
+
+      const { container } = render(<SystemHealthPage />);
+
+      expect(screen.queryByText("Everything's running")).not.toBeInTheDocument();
+      const verdict = container.querySelector('.border-l-\\[3px\\]');
+      expect(verdict).not.toHaveClass('border-l-success');
     });
 
     it('keeps the all-clear for warn-only alerts but still names them', () => {
@@ -472,7 +497,10 @@ describe('SystemHealthPage', () => {
 
       render(<SystemHealthPage />);
 
-      expect(screen.getByText("Everything's running")).toBeInTheDocument();
+      expect(screen.queryByText("Everything's running")).not.toBeInTheDocument();
+      expect(
+        screen.getByText('Nothing is failing, but the alerts list is unavailable')
+      ).toBeInTheDocument();
       expect(screen.queryByText(/operator alert/)).not.toBeInTheDocument();
     });
   });

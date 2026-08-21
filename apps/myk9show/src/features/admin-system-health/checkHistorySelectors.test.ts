@@ -259,7 +259,21 @@ describe('verdict', () => {
       // null = the alerts query is loading or failed. The board must not invent
       // a count, and must not flash a claim it cannot back.
       expect(verdictExplanation(s(), false, false, null)).not.toContain('operator alert');
-      expect(verdictHeadline(s(), false, false, null)).toBe("Everything's running");
+    });
+
+    // Unknown is not zero. Withholding the all-clear here is what stops a failed
+    // refetch from turning a standing "2 alerts need review" back into good news.
+    it('withholds the all-clear when the alert state is unknown', () => {
+      expect(verdictHeadline(s(), false, false, null)).toBe(
+        'Nothing is failing, but the alerts list is unavailable'
+      );
+      expect(verdictHeadline(s(), false, false, null)).not.toBe("Everything's running");
+    });
+
+    // The distinction the null branch depends on: a caller that passes no
+    // summary at all is not claiming ignorance, it is not weighing alerts.
+    it('separates unknown (null) from not-considered (undefined)', () => {
+      expect(verdictHeadline(s(), false, false, undefined)).toBe("Everything's running");
     });
 
     it('keeps the pre-alert behaviour when no alert summary is passed at all', () => {

@@ -1,4 +1,5 @@
 import { supabase as defaultSupabase } from '@/lib/supabase';
+import { hash as sha256 } from 'fast-sha256';
 import { buildEmergencyPacketStoragePath } from './emergencyTrialPacket';
 import type { EmergencyPacketDeliveryResult } from './types';
 
@@ -49,11 +50,8 @@ function bytesToBlob(bytes: Uint8Array): Blob {
   return new Blob([copy.buffer], { type: 'application/pdf' });
 }
 
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  const digest = await crypto.subtle.digest('SHA-256', copy.buffer);
-  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+function sha256Hex(bytes: Uint8Array): string {
+  return Array.from(sha256(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function isDeliveryResult(value: unknown): value is EmergencyPacketDeliveryResult {
@@ -74,7 +72,7 @@ export async function deliverEmergencyTrialPacket(
 ): Promise<EmergencyPacketDeliveryResult> {
   const storagePath = buildEmergencyPacketStoragePath(input.showId, input.snapshotId);
   const pdf = bytesToBlob(input.bytes);
-  const sha256 = await sha256Hex(input.bytes);
+  const sha256 = sha256Hex(input.bytes);
   const { error: uploadError } = await client.storage.from(TRIAL_PACKET_BUCKET).upload(
     storagePath,
     pdf,

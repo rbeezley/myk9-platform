@@ -51,8 +51,9 @@ CREATE INDEX trial_packet_snapshots_snapshot_idx
 ALTER TABLE public.trial_packet_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trial_packet_snapshots FORCE ROW LEVEL SECURITY;
 
-REVOKE ALL ON TABLE public.trial_packet_snapshots FROM anon;
+REVOKE ALL ON TABLE public.trial_packet_snapshots FROM anon, authenticated;
 GRANT SELECT ON TABLE public.trial_packet_snapshots TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.trial_packet_snapshots TO service_role;
 
 DROP POLICY IF EXISTS "Show managers can read trial packet snapshots"
   ON public.trial_packet_snapshots;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { formatTimeLimitSeconds } from '@myk9/core';
 import type { ReportEntry } from '@/lib/reports/types';
 import {
   buildEmergencyPacketFilename,
@@ -372,5 +373,29 @@ describe('splitPacketInputByTrialDay', () => {
     expect(splitPacketInputByTrialDay({ ...input, trials: [], classes: [], entries: [] })).toEqual(
       []
     );
+  });
+});
+
+/**
+ * MYK9-228 phase 2. The packet module carries its own copy of the seconds
+ * formatter so it has no workspace imports and a Deno edge function can read
+ * it verbatim. A copy that can drift is worse than an import, so pin the two
+ * together here — this test is the reason the duplicate is allowed to exist.
+ */
+describe('packet seconds formatter mirrors @myk9/core', () => {
+  it('agrees with formatTimeLimitSeconds across the values a class can carry', () => {
+    const cases = [null, undefined, 0, 1, 30, 59, 60, 61, 90, 120, 150, 180, 240, 3599, 3600];
+    for (const seconds of cases) {
+      // Reached through the public surface: a single-area class renders
+      // "Max time <formatted>".
+      const label = formatClassTimeLimits({
+        timeLimitSeconds: seconds ?? null,
+        timeLimitArea2Seconds: null,
+        timeLimitArea3Seconds: null,
+        numAreas: null,
+      });
+      const expected = formatTimeLimitSeconds(seconds);
+      expect(label ?? '').toBe(expected === '' ? '' : `Max time ${expected}`);
+    }
   });
 });

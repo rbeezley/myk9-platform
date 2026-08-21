@@ -7,11 +7,13 @@ import {
 } from './emergencyTrialPacket';
 import jsPDF from 'jspdf';
 import {
-  buildEmergencyTrialPacketPdf,
   layoutDetailLines,
   maxDetailLinesForKind,
   MAX_EMERGENCY_PACKET_BYTES,
 } from './buildEmergencyTrialPacketPdf';
+// Exercise the APP binding, so these tests cover the same path the product
+// uses rather than a hand-passed constructor.
+import { renderEmergencyTrialPacketPdf as buildEmergencyTrialPacketPdf } from './renderPacketPdf';
 import type { EmergencyPacketInput } from './types';
 
 function reportEntry(id: string, classId: string, trialId: string, armband: number): ReportEntry {

@@ -15,7 +15,7 @@ phase is the one that closes MYK9-198's headline criterion, but shipping the
 earlier ones first means the automation generates the _right_ artifact rather
 than automating today's wrong one.
 
-## Phase 1 — the packet unit becomes a trial day
+## Phase 1 — the packet unit becomes a trial day ✅
 
 The packet is whole-show today. With a nightly trigger that means reprinting
 every page every evening, including the previous day's spent pages — the exact
@@ -34,7 +34,7 @@ per-trial sections (and their per-registry certification pages) inside.
 reachable by `classId` and by `trialId`); rendered-PDF assertions that a day's
 packet contains only that day's trials; panel tests for the multi-packet flow.
 
-## Phase 2 — share the renderer with Deno
+## Phase 2 — share the renderer with Deno ✅
 
 Move the model builder and PDF renderer somewhere both the app and an edge
 function import. The spike measured the gap at three import lines. Wrap the
@@ -43,6 +43,16 @@ npm interop) lives in one adapter rather than in two copies of the file.
 
 **Testing:** the existing packet suite must pass unchanged against the moved
 module — the point is that there is exactly one implementation.
+
+**Done.** The module was decoupled in place rather than relocated: the jsPDF
+constructor is injected, the entry shape is declared locally, and the seconds
+formatter is mirrored with a contract test pinning it to `@myk9/core`. Proof is that the three source files pass `deno check` AND run under Deno
+**byte-identical to the app's copies** — the spike needed three edits, this
+needs none. `deno check` is the load-bearing half: `deno run` does not type
+check by default in Deno 2, so a bare `import type ... from 'jspdf'` passed at
+runtime and failed the check, which is why the PDF surface is declared
+structurally rather than imported. Relocation can wait for the
+edge function in Phase 3, where a real deploy verifies it.
 
 ## Phase 3 — `generate-trial-packet` edge function
 

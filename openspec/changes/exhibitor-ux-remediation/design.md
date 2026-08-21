@@ -88,12 +88,7 @@ The three together are defence in depth: the collision stops happening, stale to
 
 This is a net _reduction_ in scope: a required field is removed from the create/edit path rather than added to it.
 
-**Decision — per-organization registered names:** the domain requirement is that a registered name is tied to a _registration number_, which is per organization (AKC, UKC, ASCA…) — usually identical across organizations, but not necessarily. **This is already modelled and needs no schema work:** `dog_registrations` carries a nullable per-org `registered_name` (migration 014) under `UNIQUE(dog_id, organization)`. The contract is therefore:
-
-- `dogs.name` — the dog's canonical registered name, required, the default shown everywhere.
-- `dog_registrations.registered_name` — an optional per-organization override, used only when that registry's name differs.
-
-Display resolves per organization as `registration.registered_name ?? dog.name`. The registration editor should present its name field pre-filled from `dogs.name` and make clear it only needs changing when that registry differs — matching the "typically the same" reality rather than asking the question twice.
+**Decision — per-organization registered names:** the domain requirement is that a registered name is tied to a _registration number_, which is per organization (AKC, UKC, ASCA…) — usually identical across organizations, but not necessarily. **This is already modelled and needs no schema work:** `dog_registrations` carries a nullable per-org `registered_name` (migration 014) under `UNIQUE(dog_id, organization)`. `dogs.name` remains only as a documented legacy constraint-satisfier in this migration-free change and SHALL NOT be presented as a canonical registered name. Organization-scoped display resolves from `dog_registrations.registered_name`; otherwise the owner-facing identity remains the call name.
 
 **Decision — read path:** extract a pure empty-state/display helper used by the dog list, dog detail, and the registration wizard's dog-selection step, so one stored value cannot render as both "Unknown" and "Breed not set". Being a pure function it is directly unit-testable against the exact null/empty/whitespace shapes the UI emits — the assertion-first pattern this repo prefers.
 
@@ -113,7 +108,7 @@ Add an explicit **exhibitor variant** to that shared module rather than creating
 
 - **The toast-offset mechanism is app-wide.** Every dialog, panel, and wizard inherits it, so a regression is broad. Mitigated by component-level regression tests asserting the collision specifically (a footer button remains the hit-test target with a toast present), which is the test the codebase currently lacks.
 - **Two toast systems are mounted** (`<Toaster>` and `<ToastContainer>`). Only sonner is in scope here; the second must be checked for the same collision. If it shares the corner, it needs the same offset — flagged in tasks rather than silently assumed.
-- **Making registered name optional is a product decision, not purely technical.** It is called out explicitly here for review. If the answer is instead "collect it on Add", the spec's first scenario still holds — it requires only that create and edit agree.
+- **The legacy `dogs.name` constraint remains.** The UI must not leak that storage workaround back into the owner-facing domain model; the separate `dog-identity-normalization` change owns removing it.
 - **Dirty-form guards can become nagging** if they fire on trivial or programmatic changes. The guard consumes the existing `hasChanges` signal and must exclude the form's own Cancel path, which the spec states normatively.
 
 ## Migration Plan
@@ -134,10 +129,9 @@ Pre-launch with no real users, none of these need a backwards-compatibility shim
 
 ## Resolved Questions
 
-1. **Registered name — optional on Edit, or collected on Add?** **Resolved: collect it on Add.** `dogs.name` is `NOT NULL`, so optional was never available. Per-organization variation is handled by the existing `dog_registrations.registered_name` rather than by relaxing the dog record. See decision 3.
+1. **Registered name — optional on Edit, or collected on Add?** **Resolved: neither on the base dog record.** Collect and edit it only with an organization registration. The create path may continue mirroring call name into legacy `dogs.name` solely to satisfy the current `NOT NULL` constraint, but no owner-facing surface treats that placeholder as a registered name. See decision 3.
 2. **Class eligibility guidance — computed or static?** **Resolved: static plain-language hint first.** It resolves the persona's failure without depending on title data whose per-registry completeness was not verified in this audit. Computed per-registry eligibility is recorded as a follow-up, not scoped here.
 
 ## Open Questions
 
-1. **Does `<ToastContainer />` share sonner's corner?** `main.tsx` mounts it alongside `<Toaster>`. To be confirmed in task 1.1; if it shares the bottom-right corner it needs the same offset treatment.
-2. **Does saving Edit Dog rewrite `dogs.breed` when the field is untouched?** Observed but not isolated during the walk (see decision 3). Task 2.1 requires reproducing it before any fix.
+1. **Does saving Edit Dog rewrite `dogs.breed` when the field is untouched?** Observed but not isolated during the walk (see decision 3). Task 2.10 requires reproducing it before any fix.

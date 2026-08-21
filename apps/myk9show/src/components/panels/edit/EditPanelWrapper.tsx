@@ -166,6 +166,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const [isLoading, setIsLoading] = useState(false);
   const [, setLastAutoSave] = useState<number>(Date.now());
   const [isTouched, setIsTouched] = useState(false);
+  const [showAllErrors, setShowAllErrors] = useState(false);
 
   // Update legacy data when initialData changes
   useEffect(() => {
@@ -183,6 +184,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const isValid = useSchemaPath ? form.isValid : legacyIsValid;
   const errors = useSchemaPath ? Object.values(form.errors) : legacyErrors;
   const errorCount = useSchemaPath ? Object.keys(form.errors).length : legacyErrors.length;
+
+  useEffect(() => {
+    if (errorCount <= 2) setShowAllErrors(false);
+  }, [errorCount]);
 
   // Legacy: Track changes and validate
   useEffect(() => {
@@ -372,58 +377,95 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     setIsLoading,
   };
 
-  // Footer content
-  // The ref publishes this bar's height to the action-bar registry so the
-  // toaster stacks above it instead of on top of Save (MYK9-88): the audit
-  // recorded a tap meant for Save landing on a toast CTA, which navigated away
-  // and discarded the edit silently.
+  const visibleErrors = showAllErrors ? errors : errors.slice(0, 2);
+  const hiddenErrorCount = Math.max(0, errorCount - visibleErrors.length);
+
+  // Footer content. Dialogs register this whole footer below; SlideOverPanel
+  // registers its generic footer container so every slide-out consumer gets
+  // the same toast clearance without each caller remembering the hook.
   const footer = (
-    <div ref={actionBarRef} className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-4">
-        {/* Status indicators */}
-        {hasChanges && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in-0 slide-in-from-left-1 duration-200 ease-out">
-            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-            <span>Unsaved changes</span>
-          </div>
-        )}
-
-        {enableAutoSave && <div className="text-xs text-muted-foreground">Auto-save enabled</div>}
-
-        {errorCount > 0 && (
-          <div className="flex items-center gap-1 text-sm text-destructive">
-            <AlertCircle className="h-3 w-3" />
-            <span>
-              {errors.slice(0, 2).join(' \u2022 ')}
-              {errorCount > 2 && ` (+${errorCount - 2} more)`}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2">
-        {footerActions}
-        <Button
-          variant="outline"
-          onClick={handleClose}
-          disabled={isLoading}
-          className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+    <div className="flex w-full flex-col gap-3">
+      {errorCount > 0 && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="w-full rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
-          <X className="h-4 w-4" />
-          {cancelLabel}
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={
-            useSchemaPath
-              ? (!hasChanges && !forceHasChanges) || isLoading
-              : (!hasChanges && !forceHasChanges) || !isValid || isLoading
-          }
-          className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Please fix the following errors:</p>
+              <ul className="mt-1 space-y-1">
+                {visibleErrors.map((error, index) => (
+                  <li key={`${error}-${index}`}>• {error}</li>
+                ))}
+              </ul>
+              {errorCount > 2 && (
+                <button
+                  type="button"
+                  className="mt-1 min-h-11 rounded-md font-medium underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-expanded={showAllErrors}
+                  onClick={() => setShowAllErrors(current => !current)}
+                >
+                  {showAllErrors
+                    ? 'Show fewer errors'
+                    : `Show ${hiddenErrorCount} more ${hiddenErrorCount === 1 ? 'error' : 'errors'}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div
+        data-testid="edit-panel-action-row"
+        className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2"
+      >
+        <div
+          data-testid="edit-panel-status-group"
+          className="flex min-w-0 flex-1 items-center gap-4"
         >
-          <Save className="h-4 w-4" />
-          {isLoading ? 'Saving...' : saveLabel}
-        </Button>
+          {/* Status indicators */}
+          {hasChanges && (
+            <div
+              role="status"
+              aria-label="Unsaved changes"
+              className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in-0 slide-in-from-left-1 duration-200 ease-out"
+            >
+              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" aria-hidden />
+              <span className="hidden sm:inline" aria-hidden>
+                Unsaved changes
+              </span>
+            </div>
+          )}
+
+          {enableAutoSave && <div className="text-xs text-muted-foreground">Auto-save enabled</div>}
+        </div>
+
+        <div data-testid="edit-panel-action-group" className="flex shrink-0 items-center gap-2">
+          {footerActions}
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={isLoading}
+            className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            <X className="h-4 w-4" />
+            {cancelLabel}
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={
+              useSchemaPath
+                ? (!hasChanges && !forceHasChanges) || isLoading
+                : (!hasChanges && !forceHasChanges) || !isValid || isLoading
+            }
+            className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            <Save className="h-4 w-4" />
+            {isLoading ? 'Saving...' : saveLabel}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -442,7 +484,9 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
               <DialogTitle>{title}</DialogTitle>
             </DialogHeader>
             <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{children}</div>
-            <div className="border-t px-6 py-4 shrink-0">{footer}</div>
+            <div ref={actionBarRef} className="border-t px-6 py-4 shrink-0">
+              {footer}
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -475,27 +519,6 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         preventClose={hasChanges && showUnsavedWarning}
       >
         <div className="flex flex-col h-full animate-in fade-in-0 duration-300 ease-out">
-          {/* Error display — legacy path only (schema path uses inline FormField errors) */}
-          {!useSchemaPath && errors.length > 0 && (
-            <div className="flex-shrink-0 mx-6 mt-4 mb-2 animate-in slide-in-from-top-2 duration-200 ease-out">
-              <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 backdrop-blur-sm transition-all duration-200 hover:bg-destructive/15">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="text-sm font-medium text-destructive mb-1">
-                      Please fix the following errors:
-                    </h4>
-                    <ul className="text-xs text-destructive/80 space-y-1">
-                      {errors.map((error, index) => (
-                        <li key={index}>• {error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Main content - no overflow here, SlideOverPanel handles scrolling */}
           <div className="flex-1 animate-in slide-in-from-bottom-1 duration-400 ease-out">
             {children}

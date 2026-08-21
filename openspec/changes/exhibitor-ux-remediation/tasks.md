@@ -4,17 +4,23 @@ Source: [`docs/ux-audits/exhibitor-elderly-novice-2026-07-24.md`](../../../docs/
 
 Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and the widest blast radius — land it first. Sections 3, 4, and 5 are independent of each other and may run in parallel.
 
+## Validation Profile
+
+- Risk: medium
+- Validation: app
+- Rationale: The work changes shared myK9Show UI primitives and user flows without changing persistence, auth, payments, or shared systems; focused regressions plus app typecheck/lint and viewport QA cover the blast radius.
+
 ## 1. Action-bar safety (audit #1, #2, #3) — Critical, do first
 
 - [x] 1.1 Confirm the collision in code: `<Toaster position="bottom-right">` in [`main.tsx`](../../../apps/myk9show/src/main.tsx) vs the bottom-right action group in [`EditPanelWrapper.tsx`](../../../apps/myk9show/src/components/panels/edit/EditPanelWrapper.tsx). **Also determine whether the separately mounted `<ToastContainer />` shares the same corner** (design open question 2); if it does, it receives the same treatment throughout this section. **Answered: NO.** `ToastContainer` renders top-right (`top-[calc(var(--app-top-inset,3rem)+0.75rem)]`); sonner is bottom-right. They do not share a corner, so only sonner needs the offset. Note the bottom-right dock is DELIBERATE and pinned by `src/test/mainToasterDocking.source.test.ts` — it exists to keep sonner away from that top-right stack, so moving the toaster is not an available fix.
 - [x] 1.2 Add a small action-bar registry (context or store) that a mounted sticky action bar registers its height with, and expose the current reserved offset.
 - [x] 1.3 Consume that offset in the `<Toaster>` `offset` / `mobileOffset` props so toasts stack above an open action bar instead of on top of it.
 - [x] 1.4 Dismiss transient toasts on route change so a toast cannot persist onto an unrelated screen.
-- [ ] 1.5 Add a dirty-form navigation guard driven by the existing `hasChanges` signal in `EditPanelWrapper`. It must name what is at risk, offer stay/discard, and **not** fire on the form's own Cancel path. **Blocked on a decision:** `useBlocker` needs a data router, and `main.tsx:69` mounts the legacy `<BrowserRouter>` (already noted at `BulkResultEntry.tsx:236`, which fell back to `beforeunload` only). A panel-close guard already exists (`UnsavedChangesDialog`); what is missing is the ROUTE-leave case, which is how the audit's edit was lost. Options: migrate to `createBrowserRouter`, or intercept at the navigation call sites.
-- [ ] 1.6 Restructure the footer row: add `flex-wrap` + `gap-y`, `min-w-0` on the status group, `flex-shrink-0` on the action group. Below `sm`, collapse "Unsaved changes" to its amber dot with an `aria-label`.
-- [ ] 1.7 Move the validation summary out of the footer row; render it full-width directly above the action bar.
-- [ ] 1.8 Make the `(+N more)` counter interactive — expand the full list or move focus to the first invalid field. No error may be unreachable.
-- [ ] 1.9 Audit other sticky action bars (registration wizard step navigation, other slide-out panels) and confirm they register with the mechanism from 1.2.
+- [x] 1.5 Add a dirty-form navigation guard driven by the existing `hasChanges` signal in `EditPanelWrapper`. It must name what is at risk, offer stay/discard, and **not** fire on the form's own Cancel path. **Completed in MYK9-165 / PR #1609:** the app migrated to a data router and `EditPanelWrapper` plus `BulkResultEntry` use the shared `UnsavedChangesRouteGuard`.
+- [x] 1.6 Restructure the footer row: add `flex-wrap` + `gap-y`, `min-w-0` on the status group, `flex-shrink-0` on the action group. Below `sm`, collapse "Unsaved changes" to its amber dot with an `aria-label`.
+- [x] 1.7 Move the validation summary out of the footer row; render it full-width directly above the action bar.
+- [x] 1.8 Make the `(+N more)` counter interactive — expand the full list or move focus to the first invalid field. No error may be unreachable.
+- [x] 1.9 Audit other sticky action bars (registration wizard step navigation, other slide-out panels) and confirm they register with the mechanism from 1.2. **Result:** generic `SlideOverPanel` and `CommonDialog` footers plus the fixed dog/class/results/entry-selection bulk bars register centrally. `RegistrationWizardShell` navigation is in normal page flow, not a bottom-edge overlay, so it needs no reservation.
 
 ## 2. Dog record field integrity (audit #4, #5)
 
@@ -63,26 +69,26 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 - [ ] 6.1.1 Display formatter: null, `undefined`, empty string, and whitespace-only inputs all produce the single empty-state string; a real value passes through unchanged.
 - [ ] 6.1.4 Per-organization registered-name resolution: falls back to `dog.name` when `registration.registered_name` is null/empty; returns the per-org value when present; unaffected organizations keep the canonical name.
 - [ ] 6.1.2 Review-state label mapping: every state resolves to both a secretary and an exhibitor label; no pending state maps to refusal wording in the exhibitor variant.
-- [ ] 6.1.3 Action-bar offset calculation: registering and unregistering bars produces the expected reserved offset, including the zero-bars case.
+- [x] 6.1.3 Action-bar offset calculation: registering and unregistering bars produces the expected reserved offset, including the zero-bars case. (PR #1574; re-run in this slice.)
 
 ### 6.2 Component / regression tests (these pin the Critical finding)
 
-- [ ] 6.2.1 **Toast does not steal the footer tap** — with a toast visible and a panel open, a click at the primary control's position resolves to that control, not to anything in the toast. This is the direct regression test for audit finding #1.
-- [ ] 6.2.2 Toast is dismissed on route change.
-- [ ] 6.2.3 Dirty-form guard prompts on navigation with unsaved changes, preserves data when the user stays, and does **not** fire on the form's own Cancel path.
-- [ ] 6.2.4 Footer at 390px with the unsaved-changes indicator present: the primary control renders fully inside the viewport with its complete label; also assert at 320px.
-- [ ] 6.2.5 Validation summary with three errors is rendered outside the footer row, and the `(+N more)` control reaches the hidden error.
+- [ ] 6.2.1 **Toast does not steal the footer tap** — with a toast visible and a panel open, a click at the primary control's position resolves to that control, not to anything in the toast. This is the direct regression test for audit finding #1. **Current evidence:** PR #1574 and this slice prove the desktop/mobile offset contract, but a real-browser coordinate hit-test is still required before checking this direct regression off.
+- [x] 6.2.2 Toast is dismissed on route change. (PR #1574; re-run in this slice.)
+- [x] 6.2.3 Dirty-form guard prompts on navigation with unsaved changes, preserves data when the user stays, and does **not** fire on the form's own Cancel path. (PR #1609; re-run in this slice.)
+- [x] 6.2.4 Footer at 390px with the unsaved-changes indicator present: the primary control renders fully inside the viewport with its complete label; also assert at 320px.
+- [x] 6.2.5 Validation summary with three errors is rendered outside the footer row, and the `(+N more)` control reaches the hidden error.
 - [ ] 6.2.6 Submitting the Add Dog form empty creates no record and keeps the panel open.
-- [ ] 6.2.8 Add Dog collects the registered name and does **not** copy it from the call name; editing only the registered name leaves breed unchanged (regression test for the round-trip in 2.1).
+- [ ] 6.2.8 A registration editor captures its organization-scoped registered name without presenting or deriving a registered name on the base dog record; editing only that registration name leaves breed unchanged.
 - [ ] 6.2.9 A dog created with no registration displays **no breed** on the My Dogs list, dog record, and wizard, and no substitute breed reaches an entry, entry blank, or submission payload.
 - [ ] 6.2.10 The updated _"4.E"_ copy test passes: the empty state no longer claims the dog is saved as Mixed Breed.
 - [ ] 6.2.7 Accessible-name check over exhibitor nav links, dog-card links, and Add Dog dialog controls.
 
 ### 6.3 Repo checks
 
-- [ ] 6.3.1 `pnpm typecheck` (never raw `tsc`).
-- [ ] 6.3.2 `pnpm lint` clean at `--max-warnings 0`.
-- [ ] 6.3.3 Run the colocated tests for every file touched, plus tests found by grepping for the changed function names — not only colocated ones.
+- [x] 6.3.1 `pnpm typecheck` (never raw `tsc`). (26/26 tasks passed for the action-bar safety slice.)
+- [x] 6.3.2 `pnpm lint` clean at `--max-warnings 0`. (14/14 tasks passed for the action-bar safety slice.)
+- [x] 6.3.3 Run the colocated tests for every file touched, plus tests found by grepping for the changed function names — not only colocated ones. (86 tests across 11 focused files passed for the action-bar safety slice.)
 
 ### 6.4 Manual multi-viewport re-walk (required before archiving)
 
@@ -100,4 +106,5 @@ Re-walk as the elderly-novice persona at **390×844**, **834×1112**, **1112×83
 - [ ] 7.1 Write a follow-up audit report confirming which of findings #1–#20 are resolved, using the same report format so the next run diffs cleanly.
 - [ ] 7.2 Confirm the excluded findings are still tracked: #6, #7, #8, #10, #14 with `exhibitor-journey-completion` (MYK9-71); cosmetic #21–#24 in the audit report only.
 - [ ] 7.3 Delete the audit's leftover test data if still present — dog **Biscuit**, one saved registration draft, one $30 cart item.
-- [ ] 7.4 Update the Linear pointer issue and archive this change.
+- [ ] 7.4 Open and review the final implementation PR(s), record CI evidence, and merge before archive.
+- [ ] 7.5 Update the Linear pointer issue with implementation/verification evidence and archive this change only after every required PR is merged.

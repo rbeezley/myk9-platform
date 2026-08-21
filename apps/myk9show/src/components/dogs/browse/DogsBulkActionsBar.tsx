@@ -16,6 +16,7 @@ import { useUpdateDogMutation, useDeleteDogMutation } from '@/hooks/queries/useD
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
 import { dogActions } from '@/components/dogs/common/dogActions';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 
 interface DogsBulkActionsBarProps {
   selectedDogs: Dog[];
@@ -37,6 +38,7 @@ export function DogsBulkActionsBar({
   const updateDogMutation = useUpdateDogMutation();
   const deleteDogMutation = useDeleteDogMutation();
   const [pendingDelete, setPendingDelete] = useState<Dog[] | null>(null);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
 
   const statusDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
   const deleteDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
@@ -109,6 +111,7 @@ export function DogsBulkActionsBar({
   return (
     <>
       <div
+        ref={actionBarRef}
         className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
         role="region"
         aria-label="Bulk dog actions"

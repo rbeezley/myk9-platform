@@ -3,6 +3,7 @@ import { X, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 
 export interface SlideOverPanelProps {
   open: boolean;
@@ -74,6 +75,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   preventClose = false,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
   // Stable per-instance id for the open-panel stack (topmost-only Escape).
   const panelIdRef = useRef<symbol>(Symbol('slide-over-panel'));
   // Initialize mounted to true - portal is always ready in modern React
@@ -292,6 +294,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
         {/* Clean Footer - consistent with design system */}
         {footer && (
           <div
+            ref={actionBarRef}
             className={cn(
               'flex-shrink-0 px-6 py-4',
               appleDesign.footerBackground,

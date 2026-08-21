@@ -26,6 +26,7 @@ import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secret
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 
 interface BulkOperationsBarProps {
   showId: string;
@@ -59,6 +60,7 @@ export function BulkOperationsBar({
   const bulkUpdate = useBulkUpdateClassOverrides();
   const releaseResults = useReleaseResults();
   const unreleaseResults = useUnreleaseResults();
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
 
   if (selectedClasses.size === 0) return null;
 
@@ -174,7 +176,10 @@ export function BulkOperationsBar({
   const showReleaseHint = !hasManualReleaseClasses;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg">
+    <div
+      ref={actionBarRef}
+      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
+    >
       <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-sm font-medium">

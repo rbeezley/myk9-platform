@@ -184,4 +184,61 @@ describe('AuditLogger.getAuditLogs — target-type filter', () => {
 
     expect(limitSpy).toHaveBeenCalledWith(200);
   });
+
+  it('enriches role-change rows with readable actor and target person labels', async () => {
+    const auditRow = {
+      id: 'audit-1',
+      action: ActionType.ROLE_ASSIGNED,
+      user_id: 'actor-person',
+      target_id: 'target-person',
+      target_type: 'user',
+      old_value: null,
+      new_value: { role_name: 'secretary' },
+      ip_address: null,
+      user_agent: null,
+      created_at: '2026-08-20T12:00:00.000Z',
+    };
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'permission_audit_log') {
+        return {
+          select: vi.fn().mockReturnValue({
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({ data: [auditRow], error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'people') {
+        return {
+          select: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'actor-person',
+                  first_name: 'Alex',
+                  last_name: 'Admin',
+                  email: 'alex@example.com',
+                },
+                {
+                  id: 'target-person',
+                  first_name: 'Sam',
+                  last_name: 'Secretary',
+                  email: 'sam@example.com',
+                },
+              ],
+              error: null,
+            }),
+          }),
+        };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const auditLogger = new AuditLogger();
+    const [entry] = await auditLogger.getAuditLogs({ limit: 200 });
+
+    expect(entry.actor_email).toBe('alex@example.com');
+    expect(entry.target_display).toBe('Sam Secretary (sam@example.com)');
+  });
 });

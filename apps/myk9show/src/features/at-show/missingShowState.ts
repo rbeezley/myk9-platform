@@ -16,6 +16,8 @@
  * returns, and it hid the one affordance that fixes the device (MYK9-205).
  */
 
+import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
+
 /**
  * Thrown when a local miss could not be resolved against the server.
  *
@@ -41,7 +43,31 @@ export function isShowUnreachableError(error: unknown): boolean {
   );
 }
 
-export type MissingShowReason = 'not-found' | 'uncached-offline' | 'unreachable';
+export type MissingShowReason =
+  | 'not-found'
+  | 'uncached-offline'
+  | 'unreachable'
+  | 'refresh-failed';
+
+/**
+ * Not every failed refresh is a network failure.
+ *
+ * `syncReplicatedTable` catches EVERYTHING into `{ success: false, error }` —
+ * an IndexedDB quota error during write-back looks exactly like a dead uplink
+ * from here. Blaming venue Wi-Fi for a full disk sends the user hunting for
+ * signal they already have, so an unrecognised cause gets copy that makes no
+ * claim about the network at all.
+ *
+ * The cause arrives as a STRING (`syncReplicatedTable` stringifies before
+ * returning), which is why this cannot call `isTransientBrowserFetchError`
+ * directly — that guard requires an `Error` instance.
+ */
+export function classifyRefreshFailure(cause: unknown): 'unreachable' | 'refresh-failed' {
+  const message =
+    typeof cause === 'string' ? cause : cause instanceof Error ? cause.message : null;
+  if (!message) return 'refresh-failed';
+  return isTransientBrowserFetchError(new Error(message)) ? 'unreachable' : 'refresh-failed';
+}
 
 /**
  * `verifiedOnline` means we successfully re-read the show table from the
@@ -86,6 +112,16 @@ export function missingShowCopy(reason: MissingShowReason): MissingShowCopy {
       // the one case where the device claims to be online.
       description:
         "This device has no saved copy of this show, and we couldn't reach the server to download it. Venue Wi-Fi often connects without working internet. Try again, or prepare the show for offline use once you have a real connection.",
+    };
+  }
+
+  if (reason === 'refresh-failed') {
+    return {
+      title: "This show isn't saved on this device",
+      // Deliberately makes NO claim about the network: we could not tell why
+      // the download failed, and a wrong diagnosis is worse than none.
+      description:
+        "This device has no saved copy of this show, and downloading it didn't finish. Try again, or prepare the show for offline use.",
     };
   }
 

@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ShowUnreachableError,
+  classifyRefreshFailure,
   isShowUnreachableError,
   missingShowCopy,
   resolveMissingShowReason,
@@ -41,6 +42,14 @@ describe('missingShowCopy', () => {
     expect(missingShowCopy('unreachable').title).toBe("This show isn't saved on this device");
   });
 
+  it('keeps the network-neutral arm free of any connectivity claim', () => {
+    const description = missingShowCopy('refresh-failed').description;
+    expect(missingShowCopy('refresh-failed').title).toBe("This show isn't saved on this device");
+    // "prepare for offline use" is the name of a feature, not a diagnosis.
+    // What must be absent is any claim about WHY it failed.
+    expect(description).not.toMatch(/wi-fi|check your connection|no internet|you are offline/i);
+  });
+
   it('explains that a connected-but-useless network is the likely cause', () => {
     // The whole point of the `unreachable` arm: navigator.onLine is true and
     // lying, so telling the user to "check your connection" reads as nonsense.
@@ -51,7 +60,7 @@ describe('missingShowCopy', () => {
 
 describe('shouldOfferPriming', () => {
   it('offers priming to staff on a device that is merely uncached', () => {
-    for (const reason of ['uncached-offline', 'unreachable'] as const) {
+    for (const reason of ['uncached-offline', 'unreachable', 'refresh-failed'] as const) {
       expect(shouldOfferPriming({ reason, isStaff: true, hasShowId: true })).toBe(true);
     }
   });
@@ -67,6 +76,33 @@ describe('shouldOfferPriming', () => {
     expect(shouldOfferPriming({ reason: 'unreachable', isStaff: true, hasShowId: false })).toBe(
       false
     );
+  });
+});
+
+describe('classifyRefreshFailure', () => {
+  it('blames the network only for browser fetch failures', () => {
+    for (const message of [
+      'Failed to fetch',
+      'Load failed',
+      'NetworkError when attempting to fetch resource',
+    ]) {
+      expect(classifyRefreshFailure(message)).toBe('unreachable');
+      expect(classifyRefreshFailure(new Error(message))).toBe('unreachable');
+    }
+  });
+
+  it('does not blame venue Wi-Fi for a local storage failure', () => {
+    // syncReplicatedTable funnels IndexedDB write errors into the same
+    // `{ success: false }` shape as a dead uplink. Telling someone with a full
+    // disk to go find better signal is a wrong diagnosis, not a vague one.
+    expect(classifyRefreshFailure('QuotaExceededError: storage is full')).toBe('refresh-failed');
+    expect(classifyRefreshFailure('permission denied for table shows')).toBe('refresh-failed');
+  });
+
+  it('falls back to the network-neutral reason when there is no cause at all', () => {
+    expect(classifyRefreshFailure(undefined)).toBe('refresh-failed');
+    expect(classifyRefreshFailure(null)).toBe('refresh-failed');
+    expect(classifyRefreshFailure({ weird: true })).toBe('refresh-failed');
   });
 });
 

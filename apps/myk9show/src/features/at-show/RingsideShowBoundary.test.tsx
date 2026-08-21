@@ -229,7 +229,9 @@ describe('RingsideShowBoundary', () => {
       vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
       vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
         success: false,
-        error: new Error('Failed to fetch'),
+        // syncReplicatedTable stringifies before returning, so the boundary
+        // classifies off a string, not an Error.
+        error: 'Failed to fetch',
       } as never);
     });
 
@@ -268,6 +270,24 @@ describe('RingsideShowBoundary', () => {
       expect(
         screen.queryByRole('button', { name: /load this show onto this device/i })
       ).not.toBeInTheDocument();
+    });
+
+    it('does not blame the network when the failure was local storage', async () => {
+      // Same `{ success: false }` shape, entirely different cause. Sending a
+      // user with a full disk to go hunt for signal is a wrong diagnosis.
+      vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
+        success: false,
+        error: 'QuotaExceededError: storage is full',
+      } as never);
+
+      renderBoundary('show-quota');
+
+      expect(await screen.findByText("This show isn't saved on this device")).toBeInTheDocument();
+      expect(screen.queryByText(/venue wi-fi/i)).not.toBeInTheDocument();
+      // Recovery is still reachable: the local-miss fact holds either way.
+      expect(
+        screen.getByRole('button', { name: /load this show onto this device/i })
+      ).toBeInTheDocument();
     });
 
     it('recovers once the backend comes back, without a reload', async () => {

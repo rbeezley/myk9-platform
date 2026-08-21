@@ -25,6 +25,7 @@ import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadg
 import { hasRingsideStaffRole } from './ringsideAccountAccess';
 import {
   ShowUnreachableError,
+  classifyRefreshFailure,
   isShowUnreachableError,
   missingShowCopy,
   resolveMissingShowReason,
@@ -157,7 +158,11 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
         <FullScreen>
           <MissingShowState
             showId={showId}
-            reason="unreachable"
+            // A dead uplink and a full disk both arrive here; only one of them
+            // gets to blame the network.
+            reason={classifyRefreshFailure(
+              (showQuery.error as ShowUnreachableError | null)?.reason
+            )}
             onRetry={() => void showQuery.refetch()}
           />
         </FullScreen>

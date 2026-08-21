@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -155,6 +156,7 @@ export function useOfflineReadiness(showId: string | undefined) {
   const [checking, setChecking] = useState(false);
   const [priming, setPriming] = useState(false);
   const [primeFailed, setPrimeFailed] = useState(false);
+  const queryClient = useQueryClient();
   const generationRef = useRef(0);
   // A background sync finishing advances lastSyncAt; re-check then so the
   // badge goes green on its own instead of waiting for a focus or a click.
@@ -250,6 +252,9 @@ export function useOfflineReadiness(showId: string | undefined) {
       setPrimeFailed(true);
       setPriming(false);
       await check();
+      // A prime that threw part-way through may still have written rows, so
+      // the rendered view is stale either way.
+      await queryClient.invalidateQueries({ queryKey: ['shows'] });
       return;
     }
     setPriming(false);
@@ -259,7 +264,25 @@ export function useOfflineReadiness(showId: string | undefined) {
     // a completed prime means the prime did not work.
     const result = await check();
     setPrimeFailed(result !== null && !result.ready);
-  }, [showId, isAnonymous, judgeAssignmentsRequired, readiness, refreshPermissions, check]);
+
+    // Priming is the only thing on screen that can rewrite the shows replica,
+    // and its callers RENDER off that replica through React Query. Without
+    // this, a successful prime from RingsideShowBoundary leaves the badge
+    // green while the page it sits on is still showing "this show isn't saved
+    // on this device" from an error/miss it cached before the prime ran — the
+    // user does the right thing and nothing happens (Codex review, MYK9-205).
+    // Invalidate unconditionally: a partial prime still changed local rows,
+    // and re-reading them is an IndexedDB read, not a network call.
+    await queryClient.invalidateQueries({ queryKey: ['shows'] });
+  }, [
+    showId,
+    isAnonymous,
+    judgeAssignmentsRequired,
+    readiness,
+    refreshPermissions,
+    check,
+    queryClient,
+  ]);
 
   return { readiness, checking, priming, primeFailed, prime };
 }

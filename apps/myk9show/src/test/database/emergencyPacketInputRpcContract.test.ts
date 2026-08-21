@@ -79,6 +79,19 @@ describe('emergency_packet_input contract', () => {
     expect(sql.match(/public\.emergency_packet_section\(/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
   });
 
+  it('backfills the armband from the authoritative table', () => {
+    // `entries.armband` is a denormalised copy that lags an unsynced
+    // replication UPDATE; `armbands` is written atomically by assign_armband
+    // and the Reports read path backfills from it by (show_id, dog_id).
+    // Without this, two seeded entries print as "#0" — two misidentified dogs
+    // on a scoresheet, and a wrong running order.
+    expect(sql).toMatch(/FROM public\.armbands a2/);
+    expect(sql).toMatch(/a2\.show_id = p_show_id/);
+    expect(sql).toMatch(/a2\.dog_id = e\.dog_id/);
+    // Denormalised value wins when present; the table fills the gap.
+    expect(sql).toMatch(/COALESCE\(NULLIF\(btrim\(e\.armband\), ''\), ab\.armband_number::text/);
+  });
+
   it('never casts a free-text armband straight to int', () => {
     // `entries.armband` is TEXT and unconstrained; a suffixed armband ("12A")
     // through a bare ::int aborts the whole packet for one odd value.

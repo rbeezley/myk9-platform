@@ -104,16 +104,26 @@ AS $$
       -- for one odd value, so parse only when numeric. (The Reports page does
       -- `Number(armband)`, which yields NaN and prints "#NaN" -- see the
       -- follow-up note in MYK9-228; neither is right, but this cannot crash.)
-      -- Digits alone are not enough: a long numeric string passes the regex
-      -- and then `integer out of range` aborts the WHOLE packet for one row.
+      -- `entries.armband` is a DENORMALISED copy that lags when the
+      -- replication UPDATE has not synced; `armbands` is the authoritative
+      -- source, written atomically by assign_armband. The Reports read path
+      -- backfills from it by (show_id, dog_id) and paper must not disagree —
+      -- a wrong armband misidentifies a dog and misorders the running order.
+      --
+      -- Digits alone are not enough to cast: a long numeric string passes an
+      -- unbounded regex and `integer out of range` aborts the WHOLE packet.
       CASE
-        WHEN btrim(COALESCE(e.armband, '')) ~ '^[0-9]{1,9}$' THEN btrim(e.armband)::int
+        WHEN btrim(COALESCE(NULLIF(btrim(e.armband), ''), ab.armband_number::text, '')) ~ '^[0-9]{1,9}$'
+          THEN btrim(COALESCE(NULLIF(btrim(e.armband), ''), ab.armband_number::text))::int
         ELSE 0
       END AS armband,
       e.run_order,
       -- Mirrors `mapReportEntry`: fall back to the armband so a paper row is
       -- never blank, and to '' for a breed we do not hold.
-      COALESCE(d.call_name, 'Dog ' || COALESCE(e.armband, '?')) AS call_name,
+      COALESCE(
+        d.call_name,
+        'Dog ' || COALESCE(NULLIF(btrim(e.armband), ''), ab.armband_number::text, '?')
+      ) AS call_name,
       COALESCE(d.breed, '') AS breed,
       -- `resolveReportHandlerName`: blank and whitespace both mean unknown.
       CASE WHEN COALESCE(btrim(e.handler), '') = '' THEN 'Unknown Handler' ELSE btrim(e.handler) END
@@ -126,6 +136,14 @@ AS $$
     FROM public.entries e
     JOIN class_rows cl ON cl.id = e.class_id
     LEFT JOIN public.dogs d ON d.id = e.dog_id AND d.deleted_at IS NULL
+    LEFT JOIN LATERAL (
+      SELECT a2.armband_number
+      FROM public.armbands a2
+      WHERE a2.show_id = p_show_id
+        AND a2.dog_id = e.dog_id
+      ORDER BY a2.assigned_at DESC NULLS LAST
+      LIMIT 1
+    ) ab ON TRUE
     WHERE e.deleted_at IS NULL
   )
   SELECT jsonb_build_object(

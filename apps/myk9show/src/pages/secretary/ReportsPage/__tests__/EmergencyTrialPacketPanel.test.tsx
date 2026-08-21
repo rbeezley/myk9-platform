@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { render, screen } from '@/test/utils/testUtils';
 import { EmergencyTrialPacketPanel } from '../EmergencyTrialPacketPanel';
 import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
+import { buildEmergencyPacketPaperworkDescriptor } from '@/features/show-map/cockpit/paperworkPrintState';
 
 const data: Omit<EmergencyPacketInput, 'generatedAt'> = {
   show: {
@@ -67,5 +68,45 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(await screen.findByText(/could not email the packet/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /mark packet printed/i })).toBeNull();
     expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
+  });
+
+  it('binds print evidence to the generated snapshot when report data later changes', async () => {
+    const user = userEvent.setup();
+    const prepare = vi.fn().mockResolvedValue({
+      snapshotId: 'snapshot-1',
+      generatedAt: '2026-08-20T22:00:00.000Z',
+      recipientCount: 2,
+      linkExpiresAt: '2026-10-19T22:00:00.000Z',
+      pageCount: 8,
+    });
+    const onMarkPrinted = vi.fn();
+    const view = render(
+      <EmergencyTrialPacketPanel data={data} prepare={prepare} onMarkPrinted={onMarkPrinted} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /prepare and email packet/i }));
+    await screen.findByRole('button', { name: /mark packet printed/i });
+    view.rerender(
+      <EmergencyTrialPacketPanel
+        data={{
+          ...data,
+          entries: [{ ...data.entries[0], id: 'e2' }],
+        }}
+        prepare={prepare}
+        onMarkPrinted={onMarkPrinted}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /mark packet printed/i }));
+    expect(onMarkPrinted).toHaveBeenCalledWith(
+      buildEmergencyPacketPaperworkDescriptor({
+        showId: 'show-1',
+        snapshotId: 'snapshot-1',
+        generatedAt: '2026-08-20T22:00:00.000Z',
+        entryIds: ['e1'],
+        classIds: ['c1'],
+        trialIds: ['t1'],
+      })
+    );
   });
 });

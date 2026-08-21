@@ -18,6 +18,11 @@ import {
 
 type PacketData = Omit<EmergencyPacketInput, 'generatedAt'>;
 
+interface PreparedPacket {
+  delivery: EmergencyPacketDeliveryResult;
+  printDescriptor: PaperworkDescriptor;
+}
+
 async function preparePacket(data: PacketData): Promise<EmergencyPacketDeliveryResult> {
   const generatedAt = new Date().toISOString();
   const model = buildEmergencyPacketModel({ ...data, generatedAt });
@@ -48,7 +53,7 @@ export function EmergencyTrialPacketPanel({
   onMarkPrinted,
 }: EmergencyTrialPacketPanelProps) {
   const [isPreparing, setIsPreparing] = useState(false);
-  const [result, setResult] = useState<EmergencyPacketDeliveryResult | null>(null);
+  const [preparedPacket, setPreparedPacket] = useState<PreparedPacket | null>(null);
   const [error, setError] = useState(false);
   const availability = useMemo(
     () =>
@@ -63,9 +68,20 @@ export function EmergencyTrialPacketPanel({
     setIsPreparing(true);
     setError(false);
     try {
-      setResult(await prepare(data));
+      const delivery = await prepare(data);
+      setPreparedPacket({
+        delivery,
+        printDescriptor: buildEmergencyPacketPaperworkDescriptor({
+          showId: data.show.id,
+          snapshotId: delivery.snapshotId,
+          generatedAt: delivery.generatedAt,
+          entryIds: data.entries.map(entry => entry.id),
+          classIds: data.classes.map(classItem => classItem.id),
+          trialIds: data.trials.map(trial => trial.id),
+        }),
+      });
     } catch {
-      setResult(null);
+      setPreparedPacket(null);
       setError(true);
     } finally {
       setIsPreparing(false);
@@ -73,18 +89,11 @@ export function EmergencyTrialPacketPanel({
   };
 
   const markPrinted = () => {
-    if (!data || !result || !onMarkPrinted) return;
-    onMarkPrinted(
-      buildEmergencyPacketPaperworkDescriptor({
-        showId: data.show.id,
-        snapshotId: result.snapshotId,
-        generatedAt: result.generatedAt,
-        entryIds: data.entries.map(entry => entry.id),
-        classIds: data.classes.map(classItem => classItem.id),
-        trialIds: data.trials.map(trial => trial.id),
-      })
-    );
+    if (!preparedPacket || !onMarkPrinted) return;
+    onMarkPrinted(preparedPacket.printDescriptor);
   };
+
+  const result = preparedPacket?.delivery ?? null;
 
   return (
     <Card className="mb-6 border-warning/30 bg-warning/10">

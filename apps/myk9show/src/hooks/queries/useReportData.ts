@@ -35,6 +35,8 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       if (trialId === 'all') {
         const trials = (trialsQuery.data ?? []) as Array<{ id: string }>;
         const results = await Promise.all(trials.map(trial => getClassesByTrialId(trial.id)));
+        const failedResult = results.find(result => result.error);
+        if (failedResult?.error) throw failedResult.error;
         return results.flatMap(({ data }) => data ?? []);
       }
       const { data, error } = await getClassesByTrialId(trialId);

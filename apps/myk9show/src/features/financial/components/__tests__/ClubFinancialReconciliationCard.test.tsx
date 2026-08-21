@@ -36,7 +36,7 @@ beforeEach(() => {
 describe('ClubFinancialReconciliationCard', () => {
   it('loading: shows a skeleton, not a false verified/unavailable state', () => {
     mockedHook.mockReturnValue({ rows: [], isLoading: true, isError: false, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     expect(screen.queryByText(/verified/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('reconciliation-unavailable')).not.toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('unavailable/error: shows an explicit unavailable state and never a verified badge (INTENT gate)', () => {
     mockedHook.mockReturnValue({ rows: [], isLoading: false, isError: true, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     expect(screen.getByTestId('reconciliation-unavailable')).toBeInTheDocument();
     expect(screen.getByText(/unavailable right now/i)).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe('ClubFinancialReconciliationCard', () => {
 
   it('empty: calm explanatory copy, no error styling', () => {
     mockedHook.mockReturnValue({ rows: [], isLoading: false, isError: false, refetch: vi.fn() });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     expect(screen.getByText(/no shows to reconcile yet/i)).toBeInTheDocument();
   });
@@ -67,7 +67,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     expect(screen.getByText('Cedar Valley Classic')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     // Entry-fee net present as its own figure...
     expect(screen.getByText('$100.00')).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     expect(screen.getByText('Attested')).toBeInTheDocument();
     expect(screen.queryByText('Verified')).not.toBeInTheDocument();
@@ -129,7 +129,7 @@ describe('ClubFinancialReconciliationCard', () => {
         refetch: vi.fn(),
       });
       const view = render(
-        <ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />
+        <ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />
       );
       expect(screen.getByText(state)).toBeInTheDocument();
       expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
@@ -144,7 +144,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     expect(screen.getByText('Net pending')).toBeInTheDocument();
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
@@ -157,7 +157,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /view transfer/i })).not.toBeInTheDocument();
@@ -180,7 +180,7 @@ describe('ClubFinancialReconciliationCard', () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(<ClubFinancialReconciliationCard clubId="club-1" payoutsEnabled payoutHistory={[]} />);
+    render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
     const badge = screen.getByText('Needs attention');
     expect(badge.getAttribute('aria-label')).toMatch(/payout settlement/i);

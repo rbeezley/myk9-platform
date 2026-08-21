@@ -34,20 +34,20 @@ describe('settlementStateForBadge', () => {
 
 describe('resolvePayoutSettlement', () => {
   it('completed transfer is Paid / settled and carries the copyable transfer id', () => {
-    const row = resolvePayoutSettlement(payout({ status: 'completed' }), true);
+    const row = resolvePayoutSettlement(payout({ status: 'completed' }), 'enabled');
     expect(row.badgeLabel).toBe('Paid');
     expect(row.state).toBe('settled');
     expect(row.stripeTransferId).toBe('tr_123');
   });
 
   it('pending on an enabled club reads as Scheduled (in progress), not a failure', () => {
-    const row = resolvePayoutSettlement(payout({ status: 'pending' }), true);
+    const row = resolvePayoutSettlement(payout({ status: 'pending' }), 'enabled');
     expect(row.badgeLabel).toBe('Scheduled');
     expect(row.state).toBe('in_progress');
   });
 
   it('pending on a not-yet-onboarded club reads as Waiting for account', () => {
-    const row = resolvePayoutSettlement(payout({ status: 'pending' }), false);
+    const row = resolvePayoutSettlement(payout({ status: 'pending' }), 'not-enabled');
     expect(row.badgeLabel).toBe('Waiting for account');
     expect(row.state).toBe('in_progress');
   });
@@ -55,7 +55,7 @@ describe('resolvePayoutSettlement', () => {
   it('self-healing failure reads as Retrying, not attention', () => {
     const row = resolvePayoutSettlement(
       payout({ status: 'failed', failureReason: 'insufficient_balance: retry tomorrow' }),
-      true
+      'enabled'
     );
     expect(row.badgeLabel).toBe('Retrying');
     expect(row.state).toBe('in_progress');
@@ -64,7 +64,7 @@ describe('resolvePayoutSettlement', () => {
   it('genuine failure reads as Needs attention', () => {
     const row = resolvePayoutSettlement(
       payout({ status: 'failed', failureReason: 'account_closed' }),
-      true
+      'enabled'
     );
     expect(row.badgeLabel).toBe('Needs attention');
     expect(row.state).toBe('attention');
@@ -84,7 +84,7 @@ describe('summarizePayoutSettlement', () => {
           amountCents: 500,
         }),
       ],
-      true
+      'enabled'
     );
     expect(summary.settledCents).toBe(10000);
     expect(summary.inProgressCents).toBe(4000);

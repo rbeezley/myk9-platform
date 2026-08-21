@@ -2,17 +2,88 @@
 
 > **Status:** Active
 
-**Goal:** Close all 47 open MYK9 issues (11 Todo, 36 Backlog) in the fewest wall-clock passes, using parallel sub-agent lanes where files don't overlap and serialized lanes where they do.
+**Goal:** Triage all 47 open MYK9 issues (11 Todo, 36 Backlog), close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do.
 
-**Inventory check:** every one of the 47 is assigned to exactly one lane, batch, operator-track item, or the deferred list below — verified mechanically, not by eye. Re-run after any edit:
+**Success condition:** “accounted for” is not the same as “closed.” Current-cycle work reaches Done only after its acceptance criteria and evidence gate pass. Deferred, parked, cutover, device, and other operator-gated work remains open in the appropriate Linear state with an owner and trigger; the plan does not manufacture closure by narrowing an issue while leaving stated scope incomplete.
+
+**Canonical primary-disposition registry:** every issue has exactly one primary execution disposition below. References elsewhere explain dependencies and do not count as additional assignments.
+
+<!--
+PRIMARY:MYK9-211=batch-4-verification
+PRIMARY:MYK9-163=batch-1-lane-1c
+PRIMARY:MYK9-57=batch-1-lane-1d
+PRIMARY:MYK9-54=batch-1-lane-1a
+PRIMARY:MYK9-225=batch-1-lane-1b
+PRIMARY:MYK9-224=batch-0-deploy
+PRIMARY:MYK9-161=batch-0-deploy
+PRIMARY:MYK9-26=batch-0-current-scope-plus-deferred-remainder
+PRIMARY:MYK9-199=batch-0-deploy
+PRIMARY:MYK9-195=decision-d7
+PRIMARY:MYK9-126=batch-4-analysis
+PRIMARY:MYK9-110=operator-track-1
+PRIMARY:MYK9-222=batch-3-lane-3c
+PRIMARY:MYK9-218=batch-3-lane-3c
+PRIMARY:MYK9-221=batch-3-lane-3b
+PRIMARY:MYK9-220=batch-3-lane-3d
+PRIMARY:MYK9-219=batch-3-lane-3c
+PRIMARY:MYK9-212=batch-1-lane-1f
+PRIMARY:MYK9-217=batch-2-lane-2a-step-3
+PRIMARY:MYK9-216=batch-2-lane-2a-step-2
+PRIMARY:MYK9-215=batch-2-lane-2a-step-1
+PRIMARY:MYK9-209=batch-1-lane-1e
+PRIMARY:MYK9-204=batch-2-lane-2c-plus-operator-track-4
+PRIMARY:MYK9-11=operator-track-8
+PRIMARY:MYK9-192=batch-2-lane-2b-step-2
+PRIMARY:MYK9-197=batch-3-lane-3a
+PRIMARY:MYK9-191=batch-2-lane-2b-step-1
+PRIMARY:MYK9-187=operator-track-3
+PRIMARY:MYK9-190=operator-track-3
+PRIMARY:MYK9-185=operator-track-6
+PRIMARY:MYK9-193=batch-2-lane-2b-step-3
+PRIMARY:MYK9-186=operator-track-6
+PRIMARY:MYK9-189=operator-track-3
+PRIMARY:MYK9-44=deferred
+PRIMARY:MYK9-188=operator-track-3
+PRIMARY:MYK9-184=operator-track-5
+PRIMARY:MYK9-183=operator-track-5
+PRIMARY:MYK9-31=deferred
+PRIMARY:MYK9-6=operator-track-7
+PRIMARY:MYK9-30=operator-track-7
+PRIMARY:MYK9-96=operator-track-7
+PRIMARY:MYK9-32=parked
+PRIMARY:MYK9-72=parked
+PRIMARY:MYK9-94=parked
+PRIMARY:MYK9-13=operator-track-7
+PRIMARY:MYK9-27=deferred-after-batch-3
+PRIMARY:MYK9-28=deferred-post-live-shows
+-->
+
+**Inventory check:** verify both the 47-ID source inventory and the primary registry mechanically after any edit:
 
 ```bash
-for id in 211 163 57 54 225 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28; do grep -qE "MYK9-${id}([^0-9]|$)" docs/plan-linear-backlog-batches.md || echo "MISSING: MYK9-${id}"; done
+plan=docs/plan-linear-backlog-batches.md
+for id in 211 163 57 54 225 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28; do
+  count=$(grep -c "^PRIMARY:MYK9-${id}=" "$plan")
+  test "$count" -eq 1 || echo "PRIMARY COUNT ${count}: MYK9-${id}"
+done
+test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 47 || echo "PRIMARY REGISTRY IS NOT 47 ROWS"
 ```
 
 **Sources reviewed:** full `get_issue` descriptions and reopen comments for every code-actionable issue (per the LESSONS rule that `list_issues` truncates acceptance criteria). Snapshot date 2026-08-21; the 2026-08-20 overnight audits reopened six previously-Done issues, which reshapes the priority order below.
 
-**Execution model:** each lane = one sub-agent in its own git worktree, one PR per issue, Codex review on every PR (gate), merge from the main repo checkout. Within a batch, lanes run in parallel; batches run in order. A batch is complete when its PRs are merged **and** each issue's closure proof (many now explicitly require a browser replay, not just tests) is recorded on the issue and the issue is moved to Done.
+**Execution model:** each active lane = one sub-agent in its own git worktree, one PR per issue, Codex review on every PR (gate), merge from the main repo checkout. This Codex environment has four total concurrency slots, including the coordinator, so at most **three worker lanes** run at once; larger batches run in explicit waves. Within a multi-issue lane, finish and merge one issue, clean/reset the worktree, then create the next issue branch from fresh `origin/main`—do not stack unrelated issue commits or reuse a merged branch. A batch is complete when its PRs are merged **and** each issue's closure proof (many now explicitly require a browser replay, not just tests) is recorded on the issue and the issue is moved to Done. Deferred/operator-gated issues exit the batch only when their owner, blocker, and resume trigger are recorded—not by moving them to Done.
+
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: The plan spans payments, auth/RBAC, database migrations, offline/show-day reliability, global UI tokens, external providers, and shared-system deployments.
+
+## OPSX / OpenSpec routing
+
+- Every non-trivial launch-readiness lane uses `opsx-ship` and the existing OpenSpec change when one exists; the Linear issue remains the PR-sized execution contract and the OpenSpec/plan remains the detailed source of truth.
+- Tiny docs-only edits, verification-only closeouts, deployment-drift correction, and narrow review fixes may use the lightweight workflow because they do not need a new proposal/spec. Record that rationale in the lane handoff when OPSX is skipped.
+- Do not create a competing spec. MYK9-54 and MYK9-219 must read and reconcile their linked OpenSpec material before editing.
 
 ---
 
@@ -28,13 +99,13 @@ for id in 211 163 57 54 225 224 161 26 199 195 126 110 222 218 221 220 219 212 2
 | [MYK9-161](https://linear.app/myk9-platform/issue/MYK9-161) | Deploy `cron-health-check` — hosted v25 predates `bb63c8fed`; causes persistent false-red `applied_acl_grants` (missing `show_eve_nudge_log` contract) |
 | [MYK9-211](https://linear.app/myk9-platform/issue/MYK9-211) | Code merged (#1716); reopen is **verification-only** — mutation-backed staging proof of grant/revoke audit events |
 
-This is exactly the "merge is not deploy" trap in memory. Batch 0 clears all five before any new code is written.
+This is exactly the "merge is not deploy" trap in memory. Batch 0 closes the four deploy-drift issues before new code begins; MYK9-211 is independently classified as verification-only and runs in Batch 4 once its mutation approval and disposable fixture are available.
 
 ---
 
 ## Batch 0 — Deploy-drift closeout (first; one session, operator confirmation required)
 
-**Closes:** MYK9-224 (P0), MYK9-199, MYK9-26, MYK9-161. **Not sub-agent work** — deploys are shared-system writes needing one up-front user confirmation, run from the Supabase-linked worktree.
+**Closes:** MYK9-224 (P0), MYK9-199, and MYK9-161. **Completes the current deploy scope without closing:** MYK9-26. **Not sub-agent work** — deploys are shared-system writes needing one up-front user confirmation, run from the Supabase-linked worktree.
 
 **[ADDED] Preconditions — do these once, before the first deploy:**
 
@@ -42,18 +113,27 @@ This is exactly the "merge is not deploy" trap in memory. Batch 0 clears all fiv
 - **Know the rollback before pushing.** Each function currently has a hosted version (`cron-waitlist-expiration` v52, `ask-myk9show` v46, `ask-operator-support` v6, `cron-health-check` v25). Record the current version number per function first; reverting means redeploying the prior bundle from the SHA that produced it. `cron-waitlist-expiration` is on the money path and runs on a schedule, so a bad deploy is live within one cron interval — deploy it when someone is watching, not last thing at night.
 - **Confirm the four are the whole list.** The 2026-08-20 audit named four drifted functions, but MYK9-54's root cause is recorded as *inconclusive* and its symptom (a financial read failing for an authorized site admin) is the same shape as a stale bundle or a missing grant. Before Batch 1 starts, diff deployed-vs-repo for the financial RPC/function path too. If it is a fifth drift instance, lane 1A becomes a deploy rather than a code fix — a materially cheaper outcome worth five minutes of checking.
 
-Per function, the sequence is: run the focused unit tests for the failure boundaries → `supabase functions deploy <fn> --no-verify-jwt --project-ref sojmvhhwsjxmfistvzbe --workdir apps/myk9show` (confirm the "Deployed Functions on project sojmvhhwsjxmfistvzbe" line) → re-download via `get_edge_function` and grep the live bundle for the fix (never trust the deploy timestamp) → record evidence on the issue.
+The functions live in two source trees, so there is no safe one-size-fits-all deploy command. Always pass the explicit project ref; never rely on either worktree's cached `.temp/project-ref`.
+
+| Function | Canonical source | Deploy command |
+| -- | -- | -- |
+| `cron-waitlist-expiration` | `apps/myk9show/supabase/functions/cron-waitlist-expiration` | `supabase functions deploy cron-waitlist-expiration --workdir apps/myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt` |
+| `ask-myk9show` | `supabase/functions/ask-myk9show` | `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt` |
+| `ask-operator-support` | `supabase/functions/ask-operator-support` | `supabase functions deploy ask-operator-support --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt` |
+| `cron-health-check` | `apps/myk9show/supabase/functions/cron-health-check` | `supabase functions deploy cron-health-check --workdir apps/myk9show --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt` |
+
+Per function, the sequence is: run the focused unit tests for the failure boundaries → run the mapped deploy command (confirm the “Deployed Functions on project sojmvhhwsjxmfistvzbe” line) → re-download the live bundle and grep for the fix (never trust the deploy timestamp) → record evidence on the issue. Use `get_edge_function` when available; otherwise use an isolated download directory: `verify_dir=$(mktemp -d)` then `supabase functions download <fn> --project-ref sojmvhhwsjxmfistvzbe --use-api --workdir "$verify_dir"`. Preserve that directory until the closure evidence is recorded, then remove only the explicit `verify_dir` path.
 
 1. **`cron-waitlist-expiration`** (MYK9-224, P0). Verify the repo's `waitlistExpiration` tests cover: payment-link query failure, missing Stripe key, session inspect/expire/recheck failure, paid race, decline, successful expiry. Deploy, verify bundle, confirm the next scheduled run reports healthy. **[ADDED]** Unit tests are not the whole bar here — the issue's verification plan also requires *controlled Stripe test-mode evidence for each failure boundary and the successful terminal path*, and its AC 7 requires the next scheduled execution to report healthy **without exposing sensitive payment data** (check the log output, not just the exit status). Budget for the test-mode exercise; do not close on green unit tests alone.
 2. **`ask-myk9show`** (MYK9-199). Deploy, verify bundle contains the base-table `get_class_summary` / `get_trial_overview`, exercise both tools against a seeded show.
 3. **`ask-operator-support`** (MYK9-26 reopen scope). Deploy, prove a stored failed health snapshot reports as failed and an ungrounded response carries the bounded-scope marker.
 4. **`cron-health-check`** (MYK9-161). Deploy, then **ask Richard to click "Run now"** on `/admin/health` — `applied_acl_grants` is outside `CONTINUOUS_HEALTH_CHECK_KEYS`, the 5-minute cron copies verdicts forward verbatim, and `run_system_health_check_now()` is `is_site_admin()`-gated (the MCP role gets 42501). Closure needs two subsequent `applied_acl_grants=ok` snapshots.
 
-After deployment evidence lands: move 224, 199, 161 to Done; MYK9-26 returns to Done with its remaining post-launch evaluation scope noted (the standalone-MCP/BYOK evaluation stays deferred — see Deferred section).
+After deployment evidence lands: move 224, 199, and 161 to Done. Record MYK9-26's deploy scope as complete, but keep the issue open in Backlog with the post-launch standalone-MCP/BYOK trigger unless its remaining acceptance criteria are split into a separate issue; do not mark an issue Done while stated scope remains unmet.
 
 ---
 
-## Batch 1 — Independent code fixes, six parallel lanes
+## Batch 1 — Independent code fixes, two capacity-bounded waves
 
 All six touch disjoint files. Every reopened issue's audit comment demands **browser replay at named viewports** as closure proof — the implementing agent records it after Vercel auto-deploys the merge (staging = myk9-platform-myk9show.vercel.app).
 
@@ -72,7 +152,12 @@ All six touch disjoint files. Every reopened issue's audit comment demands **bro
 - **1F (MYK9-212) and 2A step 1 (MYK9-215) collide on the payments data layer.** 1F bounds the `stripe_orders` query; 215's recommended fix *derives the receipt from `stripe_orders` directly*. If 1F lands a year-scoped or `.range()`-bounded query, 215's receipt lookup must not silently inherit that bound — a receipt for a 2025 order opened from a 2026-scoped page would find nothing. **Land 1F first, and give the 2A agent 1F's final query shape as an input.** 215's order lookup should be a keyed fetch by order id, independent of the list query's bounds.
 - **1E before 2A**, as noted in Lane 2A — 1E owns `entryNextAction.ts`, which sits in the same module tree 2A restructures.
 
-Everything else in Batch 1 is genuinely file-disjoint and can run fully parallel.
+Everything else in Batch 1 is file-disjoint, but the three-worker ceiling still applies:
+
+- **Wave 1:** 1A (money-path P1), 1D (shared tablet shell), 1E (show-day accounting/next action).
+- **Wave 2:** 1B (support failure state), 1C (RBAC scope clarity), 1F (payments query bound).
+
+Do not start Batch 2A until Wave 2's 1F and Wave 1's 1E are merged. Browser closure evidence for 1C/1D waits until both are merged, as stated above.
 
 ---
 
@@ -86,20 +171,21 @@ Everything else in Batch 1 is genuinely file-disjoint and can run fully parallel
 
 Bug fixes land before refactors so fixes never rebase over moved code. (1E touches `entryNextAction.ts` only; land 1E before starting 2A to be safe.)
 
-### Lane 2B — SMS L6 build (two agents then one; deploy gated on operator track)
+### Lane 2B — SMS L6 build (one serialized lane; deploy gated on operator track)
 
-1. **Parallel:** [MYK9-191](https://linear.app/myk9-platform/issue/MYK9-191) (opt-in UI + consent write + confirmation builder + Twilio client — canonical copy verbatim, one GSM-7 segment asserted via `estimateSegments()`, consent cleared on number change, ring-alerts-as-one-feature settings shape) ∥ [MYK9-192](https://linear.app/myk9-platform/issue/MYK9-192) (STOP/HELP webhook: `X-Twilio-Signature` HMAC-SHA1 verification fail-closed, six stop keywords, START no-op without consent row, settings shows STOP state + sending number instead of a toggle; decision already recorded: STOP mutes both channels, B + C messaging). The Twilio client lives in 191; 192 consumes it — agree the interface first.
-2. **Then:** [MYK9-193](https://linear.app/myk9-platform/issue/MYK9-193) (send path in `push-trigger-run-proximity`): per-recipient channel decision (kill the early `continue`), absent row = SMS off, `sms_opt_out_at is null` filter, sibling send in `Promise.allSettled`, **one SMS per entry** via the *recorded* idempotency approach (sent-marker migration — pick the timestamp against `origin/main` per LESSONS; explicit GRANTs/REVOKEs per migration rules).
-3. Code+tests complete now; **deploys and the end-to-end handset proof wait for MYK9-190 campaign approval** (operator track). Register any new edge-function tests in `apps/myk9show/vitest.config.ts` `test.include` (allowlist trap).
-4. **[ADDED] Secrets are an operator step, not an agent step.** The Twilio client needs an account SID, auth token, and Messaging Service SID. Following the `payout_cron_secret` / webhook-secret precedent these belong in Vault, set by Richard — writing them is a shared-system mutation and the agent must never handle the raw values. Both the send path and the webhook must **fail closed** when a secret is absent (the pattern MYK9-224 exists to enforce): missing config returns an error, never a silent skip that looks like "no one opted in." Add the secret names to the deploy checklist so the function is not deployed before its configuration exists.
+1. **First:** [MYK9-191](https://linear.app/myk9-platform/issue/MYK9-191) (opt-in UI + consent write + confirmation builder + Twilio client — canonical copy verbatim, one GSM-7 segment asserted via `estimateSegments()`, consent cleared on number change, ring-alerts-as-one-feature settings shape). Merge it before 192 so the provider interface and `NotificationSettings.tsx` shape are real, reviewed inputs rather than an agreement between diverging worktrees.
+2. **Then:** [MYK9-192](https://linear.app/myk9-platform/issue/MYK9-192) (STOP/HELP webhook: `X-Twilio-Signature` HMAC-SHA1 verification fail-closed, six stop keywords, START no-op without consent row, settings shows STOP state + sending number instead of a toggle; decision already recorded: STOP mutes both channels, B + C messaging). Branch from fresh `origin/main` after 191 merges; consume 191's Twilio client and extend the same settings surface.
+3. **Then:** [MYK9-193](https://linear.app/myk9-platform/issue/MYK9-193) (send path in `push-trigger-run-proximity`): per-recipient channel decision (kill the early `continue`), absent row = SMS off, `sms_opt_out_at is null` filter, sibling send in `Promise.allSettled`, **one SMS per entry** via the *recorded* idempotency approach (sent-marker migration — pick the timestamp against `origin/main` per LESSONS; explicit GRANTs/REVOKEs per migration rules).
+4. Code+tests complete now; **deploys and the end-to-end handset proof wait for MYK9-190 campaign approval** (operator track). Register any new edge-function tests in `apps/myk9show/vitest.config.ts` `test.include` (allowlist trap).
+5. **[ADDED] Secrets are an operator step, not an agent step.** The Twilio client needs an account SID, auth token, and Messaging Service SID. Following the `payout_cron_secret` / webhook-secret precedent these belong in Vault, set by Richard — writing them is a shared-system mutation and the agent must never handle the raw values. Both the send path and the webhook must **fail closed** when a secret is absent (the pattern MYK9-224 exists to enforce): missing config returns an error, never a silent skip that looks like "no one opted in." Add the secret names to the deploy checklist so the function is not deployed before its configuration exists.
 
 ### Lane 2C — [MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) code investigation (one agent, report-first)
 
-After Richard prunes the sandbox payment-methods dashboard (operator track item 2 — that confirms the mechanism), investigate whether `payment_method_configuration` or an API-version pin restores strict card-only rendering; **report findings on the issue before changing `stripe-checkout`**. Also PR the MYK9-11 runbook addition (live payment-methods pruning step) — docs change, safe now.
+After Richard prunes the sandbox payment-methods dashboard (operator track item 4 — that confirms the mechanism), investigate whether `payment_method_configuration` or an API-version pin restores strict card-only rendering; **report findings on the issue before changing `stripe-checkout`**. Also PR the MYK9-11 runbook addition (live payment-methods pruning step) — docs change, safe now.
 
 ---
 
-## Batch 3 — Decision-gated work (needs Richard's call, then 3–4 parallel lanes)
+## Batch 3 — Decision-gated work (needs Richard's call, then up to 3 parallel lanes)
 
 Decisions to make (recommendations from the issue analyses):
 
@@ -111,9 +197,9 @@ Decisions to make (recommendations from the issue analyses):
 | D4 | [MYK9-218](https://linear.app/myk9-platform/issue/MYK9-218) card-view ceiling | Paginate cards at 25 like the table — one contract per dataset; same rule answers MYK9-212's class of issue |
 | D5 | [MYK9-219](https://linear.app/myk9-platform/issue/MYK9-219) exhibitor dog-card content | Role-aware card: exhibitor sees breed/age/armband, secretary keeps owner. Reconcile breed display with OpenSpec `exhibitor-ux-remediation` tasks 2.1/2.2 |
 | D6 | [MYK9-220](https://linear.app/myk9-platform/issue/MYK9-220) type scale | 1.25 scale (14/16/20/25/31), 16px body floor per INTENT.md, single token change |
-| D7 | [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) in-app `reverse_transfer` + payout hold window | Defer both — the runbook (#1678) covers expected volume; revisit when manual clawbacks stop being rare. Move issue back to Done/park with the trigger noted |
+| D7 | [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) in-app `reverse_transfer` + payout hold window | Defer both — the runbook (#1678) covers expected volume; revisit when manual clawbacks stop being rare. Keep the issue open in Parked/Backlog with that trigger noted |
 
-**[ADDED] The decisions unblock independently — do not treat Batch 3 as one gate.** Each lane below depends on exactly one decision (3A↔D1, 3B↔D2, 3C↔D3/D4/D5, 3D↔D6), so an answer to any one starts that lane immediately. D7 gates no code at all — it only decides whether MYK9-195 returns to Done or stays open. If a decision doesn't come back, its lane waits and the rest proceed; nothing here is a whole-batch blocker.
+**[ADDED] The decisions unblock independently — do not treat Batch 3 as one gate.** Each lane below depends on exactly one decision (3A↔D1, 3B↔D2, 3C↔D3/D4/D5, 3D↔D6), so an answer to any one starts that lane immediately. D7 gates no code at all — it records MYK9-195's parked trigger while leaving the unmet work open. If a decision doesn't come back, its lane waits and the rest proceed; nothing here is a whole-batch blocker.
 
 Then dispatch:
 
@@ -143,16 +229,16 @@ Ten issues now require a recorded browser replay for closure, and several name v
 - **Which harness.** The `playwright-cli` skill for scripted role walks that need a real session; the Browser pane tools for a quick look. Either is fine — what matters is that the recorded evidence names the route, the viewport, the role, and the commit.
 - **Which viewports.** Take them from each issue, not from a house default: 1440×900 + 768×1024 (MYK9-225, MYK9-54, MYK9-163), 768×1024 + 1024×768 (MYK9-57), 768px (MYK9-222), 375/768/1280 (MYK9-220).
 - **Forced-failure replays.** MYK9-225 and MYK9-54 both require reproducing a **controlled HTTP 500** and then a recovery. That is request interception in the harness, not a real outage — never induce a failure by breaking staging for everyone.
-- **Where evidence goes.** Screenshots stay in the local/private evidence ledger. The prior audits were explicit that uploading images to Linear needs separate authorization, so closure comments describe the evidence and cite the file, and do not attach it.
+- **Where evidence goes.** Screenshots stay in the local/private evidence ledger unless Richard separately authorizes an upload. A local path alone is not durable closure evidence: the Linear comment must record route, role, viewport, deployed commit, timestamp, assertions observed, controlled-failure/recovery method where applicable, and the artifact filename plus checksum. Do not attach or upload evidence without authorization.
 
 ## Operator track (Richard — runs parallel to all batches, ordered by urgency)
 
-Wall-clock-bound and human-only items; agents cannot do these:
+Wall-clock-bound and human-only items; agents cannot do these. The first two launch-risk checks are deliberately ahead of optional integrations and visual work:
 
-1. **10DLC chain (start immediately — carrier approval is uncompressible):** [MYK9-187](https://linear.app/myk9-platform/issue/MYK9-187) EIN + legal identity → [MYK9-188](https://linear.app/myk9-platform/issue/MYK9-188) support@myk9show.com forwarding + [MYK9-189](https://linear.app/myk9-platform/issue/MYK9-189) point myk9show.com at the app (/sms, /privacy reachable) → [MYK9-190](https://linear.app/myk9-platform/issue/MYK9-190) file the Twilio brand + campaign. Gates Batch 2B's deploy.
-2. **[MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) step 1** (5 min): prune the **myK9Show dev sandbox** payment-methods config to Cards + Apple Pay + Google Pay; reload checkout on Android to confirm. Unblocks Lane 2C.
-3. **[MYK9-126](https://linear.app/myk9-platform/issue/MYK9-126):** fire the G9 rehearsal `workflow_dispatch` (harness is green since #1593).
-4. **[MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110) (Urgent):** verify PITR status/retention on `sojmvhhwsjxmfistvzbe` in the Supabase dashboard. If disabled → immediate launch blocker. An agent then drafts the DR section, RPO/RTO, and single-show recovery procedure; a tested restore into a branch project completes it.
+1. **[MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110) (Urgent):** verify PITR status/retention on `sojmvhhwsjxmfistvzbe` in the Supabase dashboard. If disabled → immediate launch blocker. An agent then drafts the DR section, RPO/RTO, and single-show recovery procedure; a tested restore into a branch project completes it.
+2. **[MYK9-126](https://linear.app/myk9-platform/issue/MYK9-126) (Urgent show-day reliability):** fire the G9 rehearsal `workflow_dispatch` (harness is green since #1593), but only in the approved load window and with the issue's teardown-safety gates.
+3. **10DLC chain (start immediately after the launch-risk checks; carrier approval is uncompressible):** [MYK9-187](https://linear.app/myk9-platform/issue/MYK9-187) EIN + legal identity → [MYK9-188](https://linear.app/myk9-platform/issue/MYK9-188) support@myk9show.com forwarding + [MYK9-189](https://linear.app/myk9-platform/issue/MYK9-189) point myk9show.com at the app (/sms, /privacy reachable) → [MYK9-190](https://linear.app/myk9-platform/issue/MYK9-190) file the Twilio brand + campaign. Gates Batch 2B's deploy.
+4. **[MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) step 1** (5 min): prune the **myK9Show dev sandbox** payment-methods config to Cards + Apple Pay + Google Pay; reload checkout on Android to confirm. Unblocks Lane 2C.
 5. **Integration configs:** [MYK9-184](https://linear.app/myk9-platform/issue/MYK9-184) two Google Maps keys + redeploy `send-confirmation-email`; [MYK9-183](https://linear.app/myk9-platform/issue/MYK9-183) Sign in with Apple.
 6. **Device verifications:** [MYK9-185](https://linear.app/myk9-platform/issue/MYK9-185) run-proximity push on a real device; [MYK9-186](https://linear.app/myk9-platform/issue/MYK9-186) calendar feed on iOS/Google/Outlook.
 7. **Show-day QA gates (near launch):** [MYK9-6](https://linear.app/myk9-platform/issue/MYK9-6) offline judge tablet round trip; [MYK9-30](https://linear.app/myk9-platform/issue/MYK9-30) venue print testing; [MYK9-96](https://linear.app/myk9-platform/issue/MYK9-96) low-tech walkthrough; [MYK9-13](https://linear.app/myk9-platform/issue/MYK9-13) real-user validation (last, once the product is stable).
@@ -171,7 +257,7 @@ Wall-clock-bound and human-only items; agents cannot do these:
 
 - Each PR: focused unit tests written/extended per the issue's ACs, run 6+ times with `--sequence.shuffle`; `pnpm typecheck`; `pnpm lint`; new test files registered in the relevant allowlist; Codex review before merge; CI authoritative over local runs.
 - Migrations (2B step 3, 3A): migration-auditor pass, timestamp picked against `origin/main`, grants verified against the **applied** DB (`pg_class.relacl` + column ACLs) after push.
-- **[ADDED] The full app suite hangs — do not let a lane grind on it.** This is a known, documented condition: if a runner produces no output for ~30 seconds, stop and report rather than retrying in a loop (a prior MYK9-211 attempt lost exactly this way). Focused suites plus typecheck plus CI are the real gate; the broad local run is optional.
+- **[EXPANDED] The full app suite hangs — do not let a lane grind on it.** This is a known, documented condition: if a runner appears stuck for more than 60 seconds without useful output, stop and report rather than retrying in a loop (a prior MYK9-211 attempt lost exactly this way). Focused suites plus typecheck plus CI are the real gate; the broad local run is optional.
 - **[ADDED] Migration timestamps are a cross-lane hazard, not a per-lane one.** Two lanes add migrations (2B step 3's SMS sent-marker, 3A's `platform_settings` columns). `migrationVersionUniqueness` only sees the lane's own tree, so both pass locally and the second to merge dies in CI. They sit in different batches so the ordering is naturally safe — but re-check `git ls-tree origin/main supabase/migrations/ | tail` immediately before naming each file, and again after any rebase, since either lane may sit open across other merges.
 - **[ADDED] A red check may be a verdict on a stale base.** Before treating a CI failure as a lane's own defect, compare the PR's `baseRefOid` against `origin/main` and the run timestamp against intervening merges — with this many PRs landing in sequence, a lane opened early in a batch will accumulate stale bases. Merge `main`, push, and judge the re-run; a `gh run rerun` alone keeps the stale merge ref.
 
@@ -190,4 +276,4 @@ Most lanes are ordinary revertible PRs on a pre-launch platform, so the default 
 
 - One worktree per lane; never edit the primary checkout; worktree workers must not sub-delegate.
 - Move each issue to In Progress at lane start; comment with what-changed/tests/PR/risks/AC status at finish; Done only after merge + closure proof.
-- Shared-system writes (deploys, `db push`, PR creation, Linear writes) follow the Auto Mode confirmation rules — Batch 0 needs one up-front deploy confirmation; PR creation per lane is covered by this plan's approval.
+- Shared-system writes follow the Auto Mode confirmation rules; accepting or editing this plan is **not** approval to mutate an external system. Before execution, request explicit up-front confirmation for each operation class needed in the session: Supabase deploys/DB pushes, GitHub PR creation/comments, and Linear status/comments. One confirmation may cover a defined sequence on the same system in that session; re-confirm when switching systems or operation type.

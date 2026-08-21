@@ -5,19 +5,19 @@
 | Dimension | Status |
 | --- | --- |
 | Completeness | 9/11 tasks complete; two coordinator/shared-system gates remain |
-| Correctness | Investigation outcome supported by route inventory, predicate parity, history, and 6× focused tests |
+| Correctness | Source-level conclusion supported by route inventory, predicate parity, history, and 6× focused tests; hosted real-flow proof remains open |
 | Coherence | Followed the reproduction-first, no-charge design; no production code changed |
 
 ### Reproduction result
 
-**Current `origin/main` does not reproduce MYK9-226 through the normal exhibitor UI.**
+**Current `origin/main` is fail-closed in source and page-level orchestration tests, but MYK9-226 is not yet closed because the required hosted real-flow attempt has not been recorded.**
 
 - The wizard's card path persists the selected lines and navigates to the existing `/cart` surface.
 - Cart hydration selects `classes.allow_waitlist` (`cartStore.ts:86-91`).
 - The cart blocks unresolved capacity and performs a fresh query at submit (`CartPage.tsx:223-279`).
 - A full line whose wait-list flag is false, NULL, or missing is classified `blocked` (`cartCapacitySplit.ts:32-49`).
 - The blocked branch returns before both cart submission and Stripe handoff (`CartPage.tsx:280-294`).
-- The exact page-level test asserts the user-facing denial and that neither boundary is called (`CartPage.splitCheckout.test.tsx:370-381`).
+- The exact page-level test asserts the user-facing denial and that neither boundary is called (`CartPage.splitCheckout.test.tsx:370-381`). This test mocks cart, capacity, database, and Stripe boundaries, so it is supporting evidence rather than the issue's required real-flow proof.
 - A separate test covers a tab that rendered with room and then receives zero spots from the submit-time refresh (`CartPage.splitCheckout.test.tsx:440-491`).
 
 ### Historical explanation
@@ -26,11 +26,11 @@ The four recorded carts were paid on 2026-08-18. Git history shows the decisive 
 
 ### Client/server predicate parity
 
-- Confirmed assignment scope: client `useJudgeDayCapacity.ts:65-70`; server migration lines 57-65 and 213-220.
-- Active entry statuses and soft-delete exclusion: client lines 100-113; server lines 108-113 and 200-207.
-- Per-class maximum: client lines 90-129; server lines 181-210.
-- Judge-day maximum and mail-in reserve: client lines 132-154; server lines 93-127 and 226-245.
-- No-waitlist denial: client `allow_waitlist !== true` at `cartCapacitySplit.ts:40-48`; server `COALESCE(..., false)` and denial at migration lines 181-185 and 266-272.
+- Confirmed assignment scope: client `useJudgeDayCapacity.ts:65-70`; server `supabase/migrations/20260712200000_entry_capacity_enforcement.sql:57-65,213-220`.
+- Active entry statuses and soft-delete exclusion: client `useJudgeDayCapacity.ts:100-113`; server `supabase/migrations/20260712200000_entry_capacity_enforcement.sql:108-113,200-207`.
+- Per-class maximum: client `useJudgeDayCapacity.ts:90-129`; server `supabase/migrations/20260712200000_entry_capacity_enforcement.sql:181-210`.
+- Judge-day maximum and mail-in reserve: client `useJudgeDayCapacity.ts:132-154`; server `supabase/migrations/20260712200000_entry_capacity_enforcement.sql:93-127,226-245`.
+- No-waitlist denial: client `allow_waitlist !== true` at `cartCapacitySplit.ts:40-48`; server `COALESCE(..., false)` and denial at `supabase/migrations/20260712200000_entry_capacity_enforcement.sql:181-185,266-272`.
 
 ### Verification commands
 
@@ -42,7 +42,7 @@ The four recorded carts were paid on 2026-08-18. Git history shows the decisive 
 
 ### CRITICAL
 
-- Coordinator gate 4.1 is incomplete: with approval, record the evidence in Linear and close MYK9-226 as already fixed by PR #1700.
+- Coordinator gate 4.1 is incomplete: record a hosted browser attempt through actual wizard/cart hydration, stopping before Stripe. Creating and cleaning a disposable shared cart fixture requires a separate shared-database mutation approval.
 - Coordinator gate 4.2 is incomplete: with approval, update the backlog plan and archive/push tracking artifacts.
 
 ### WARNING
@@ -55,4 +55,4 @@ The four recorded carts were paid on 2026-08-18. Git history shows the decisive 
 
 ### Final Assessment
 
-No production change is justified. The normal UI is fail-closed on current `main`, and the historical incidents predate the already-merged submit-time refresh. Keep the server denial, refund, and error alert as defense in depth. Archive only after the coordinator completes the approved Linear and plan gates.
+No production change is justified by the source-level evidence collected so far. The historical incidents predate the already-merged submit-time refresh, but the Linear issue remains open until hosted real-flow proof confirms the deployed wizard/cart path. Keep the server denial, refund, and error alert as defense in depth; do not archive this change yet.

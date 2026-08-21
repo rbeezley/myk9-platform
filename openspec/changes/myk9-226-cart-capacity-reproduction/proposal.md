@@ -9,9 +9,9 @@ This supports fall 2026 launch readiness by proving that an exhibitor cannot be 
 ## What Changes
 
 - Inventory the registration-wizard, cart-capacity, submit-time recheck, Stripe handoff, and authoritative server-capacity paths.
-- Reproduce the exact no-waitlist judge-day-full case at the existing page-level seam without creating a checkout session or mutating shared data.
+- Reproduce the exact no-waitlist judge-day-full case first at the existing page-level seam without creating a checkout session or mutating shared data, then require hosted wizard/cart hydration evidence before closure.
 - Compare the August event timestamps with the deployment history of the submit-time capacity refresh.
-- If current `main` reproduces, add the smallest assertion-first fix and focused tests. If it does not reproduce, preserve the evidence and recommend MYK9-226 closure without manufacturing a code change.
+- If current `main` reproduces in the hosted flow, add the smallest assertion-first fix and focused tests. If source/page tests pass but hosted proof is unavailable, preserve the evidence and leave MYK9-226 open rather than manufacturing a code change or claiming closure.
 - Non-goals: no new UI surface, no duplicate cart or checkout flow, no Stripe session, no charge/refund, no database write, no deployment, and no operator-alert severity change without a separately justified issue.
 - Duplication question: this adds no surface. The existing `/cart` route remains the single payment review and capacity-blocking surface; a link or duplicate page would not improve the capacity contract.
 

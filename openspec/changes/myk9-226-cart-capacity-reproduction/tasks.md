@@ -13,10 +13,10 @@
 ## 3. Verification
 
 - [x] 3.1 From `apps/myk9show`, run `pnpm exec vitest run src/features/payments/cartCapacitySplit.test.ts src/features/payments/cartFulfillmentView.test.ts src/components/cart/CartSummary.waitlist.test.tsx src/pages/__tests__/CartPage.splitCheckout.test.tsx --sequence.shuffle` at least six times; then run app typecheck, lint, OpenSpec validation, and `git diff --check`. **[EXPANDED]** Six focused runs and OpenSpec/diff checks passed; typecheck/lint exceeded the 60-second no-progress limit and were stopped as documented in `verification-report.md`.
-- [x] 3.2 Write the implementation-verification report and confirm no production change is justified.
+- [x] 3.2 Write the implementation-verification report and record the source/page-test conclusion without claiming the hosted real-flow gate passed.
 - [x] 3.3 Commit the investigation evidence locally without pushing or posting externally.
 
 ## 4. Coordinator gates
 
-- [ ] 4.1 With approval, record the reproduction and historical-fix evidence on MYK9-226 and close it without a code PR.
+- [ ] 4.1 With shared-database mutation approval if needed, record a hosted wizard/cart hydration attempt that stops before Stripe. Close MYK9-226 only if that real-flow gate passes.
 - [ ] 4.2 With approval, update the backlog plan, archive/sync the OpenSpec change as appropriate, and push the tracking-only commit.

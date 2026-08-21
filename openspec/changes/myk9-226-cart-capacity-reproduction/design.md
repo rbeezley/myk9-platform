@@ -9,6 +9,7 @@ The server remains authoritative and race-safe: both paid-cart processing and `s
 **Goals:**
 
 - Exercise the actual `/cart` page orchestration with a fresh response showing zero judge-day spots and `allow_waitlist = false`.
+- Record a hosted browser attempt through real wizard and cart hydration before claiming issue closure.
 - Prove neither `checkoutWithWaitlist` nor `createEntryCheckoutSession` is called.
 - Explain the August incidents using source history rather than speculation.
 - Preserve the outcome as repeatable, non-charging evidence.
@@ -22,9 +23,9 @@ The server remains authoritative and race-safe: both paid-cart processing and `s
 
 ## Decisions
 
-### Use the page-level Vitest seam as the primary reproduction
+### Use the page-level Vitest seam as the first reproduction, not the closure gate
 
-`CartPage.splitCheckout.test.tsx` renders the real page orchestration while replacing database and Stripe boundaries with deterministic spies. It can assert the exact harmful symptom—whether the Stripe session creator is called—without a charge or shared row. A live test-mode checkout was rejected because it would repeat the incident the issue is meant to prevent and is unnecessary to answer the current-code question.
+`CartPage.splitCheckout.test.tsx` renders the page orchestration while replacing database and Stripe boundaries with deterministic spies. It can assert the exact harmful symptom—whether the Stripe session creator is called—without a charge or shared row, but it cannot satisfy Linear's requested “real flow” evidence by itself. Hosted proof must use actual wizard/cart hydration and stop before Stripe; if that requires a disposable shared cart fixture, obtain shared-database mutation approval and clean up the fixture.
 
 **[ADDED] Source-parity check:** verify that the client and server both count the same active entry statuses, both limit judge assignments to confirmed class assignments, both apply per-class and judge-day limits, and both interpret a missing/NULL `allow_waitlist` as false. A passing UI test is insufficient if those predicates have drifted.
 
@@ -37,7 +38,7 @@ Ranked hypotheses:
 3. **Client/server assignment mismatch remains:** the capacity query omits a judge-day relationship the server sees. Prediction: source inventory would show different confirmed-assignment or active-entry predicates.
 4. **`allow_waitlist` is lost while hydrating the cart:** prediction: a no-waitlist item reaches the split with `undefined` and is treated as payable.
 
-Evidence favors hypothesis 1: PR #1700 added the submit-time refresh on August 20; current code treats any value other than literal `true` as no-waitlist; and the page-level test with fresh zero capacity blocks both submission and Stripe. A bypass remains possible by design, but it is outside the real UI flow and is exactly why the refund alert must remain severe.
+Source evidence favors hypothesis 1: PR #1700 added the submit-time refresh on August 20; current code treats any value other than literal `true` as no-waitlist; and the page-level test with fresh zero capacity blocks both submission and Stripe. The hosted real-flow gate remains open, and the refund alert must remain severe.
 
 ### Do not change alert severity
 

@@ -59,7 +59,9 @@ function getUserLabel(row: UserRole): { label: string; missingReason?: string } 
 // reading "Global".
 function getScopeLabel(row: UserRole): string {
   if (row.show_id) return 'Show';
-  if (row.club_id) return 'Club';
+  if (row.club_id) {
+    return row.club?.name ? `Club: ${row.club.name}` : `Club: unresolved (${row.club_id})`;
+  }
   return 'Global';
 }
 
@@ -77,7 +79,7 @@ function getRoleLabel(row: UserRole): { label: string; missingReason?: string } 
 }
 
 function makeColumns(
-  onRevoke: (id: string, email: string, roleName: string) => void
+  onRevoke: (id: string, email: string, roleName: string, scopeLabel: string) => void
 ): ColumnDef<UserRole, unknown>[] {
   return [
     {
@@ -117,23 +119,27 @@ function makeColumns(
       meta: { responsiveHide: 'md' } satisfies DataTableColumnMeta,
       accessorFn: row => getScopeLabel(row),
       cell: ({ row }) => {
+        const scopeLabel = getScopeLabel(row.original);
         if (row.original.show_id) {
           return (
             <Link
               className="font-medium text-primary hover:underline"
               to={`/shows/${row.original.show_id}`}
             >
-              Show details
+              {scopeLabel}
             </Link>
           );
         }
         if (row.original.club_id) {
+          if (!row.original.club?.name) {
+            return <span className="text-warning">{scopeLabel}</span>;
+          }
           return (
             <Link
               className="font-medium text-primary hover:underline"
               to={`/clubs/${row.original.club_id}`}
             >
-              Club profile
+              {scopeLabel}
             </Link>
           );
         }
@@ -212,7 +218,8 @@ function makeColumns(
                 onRevoke(
                   row.original.id,
                   getUserLabel(row.original).label,
-                  getRoleLabel(row.original).label
+                  getRoleLabel(row.original).label,
+                  getScopeLabel(row.original)
                 )
               }
             >
@@ -236,6 +243,7 @@ export const RoleAssignmentsPanel: React.FC = () => {
     id: string;
     email: string;
     roleName: string;
+    scopeLabel: string;
   } | null>(null);
 
   const loadData = async () => {
@@ -277,7 +285,10 @@ export const RoleAssignmentsPanel: React.FC = () => {
   };
 
   const columns = useMemo(
-    () => makeColumns((id, email, roleName) => setPendingRevoke({ id, email, roleName })),
+    () =>
+      makeColumns((id, email, roleName, scopeLabel) =>
+        setPendingRevoke({ id, email, roleName, scopeLabel })
+      ),
     []
   );
 
@@ -369,7 +380,7 @@ export const RoleAssignmentsPanel: React.FC = () => {
             <AlertDialogTitle>Revoke Role</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to revoke the &quot;{pendingRevoke?.roleName}&quot; role from{' '}
-              {pendingRevoke?.email}?
+              {pendingRevoke?.email} for {pendingRevoke?.scopeLabel}?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

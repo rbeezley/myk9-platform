@@ -2,7 +2,13 @@
 
 > **Status:** Active
 
-**Goal:** Close all 38 open MYK9 issues (11 Todo, 27 Backlog) in the fewest wall-clock passes, using parallel sub-agent lanes where files don't overlap and serialized lanes where they do.
+**Goal:** Close all 47 open MYK9 issues (11 Todo, 36 Backlog) in the fewest wall-clock passes, using parallel sub-agent lanes where files don't overlap and serialized lanes where they do.
+
+**Inventory check:** every one of the 47 is assigned to exactly one lane, batch, operator-track item, or the deferred list below — verified mechanically, not by eye. Re-run after any edit:
+
+```bash
+for id in 211 163 57 54 225 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28; do grep -qE "MYK9-${id}([^0-9]|$)" docs/plan-linear-backlog-batches.md || echo "MISSING: MYK9-${id}"; done
+```
 
 **Sources reviewed:** full `get_issue` descriptions and reopen comments for every code-actionable issue (per the LESSONS rule that `list_issues` truncates acceptance criteria). Snapshot date 2026-08-21; the 2026-08-20 overnight audits reopened six previously-Done issues, which reshapes the priority order below.
 
@@ -30,9 +36,15 @@ This is exactly the "merge is not deploy" trap in memory. Batch 0 clears all fiv
 
 **Closes:** MYK9-224 (P0), MYK9-199, MYK9-26, MYK9-161. **Not sub-agent work** — deploys are shared-system writes needing one up-front user confirmation, run from the Supabase-linked worktree.
 
+**[ADDED] Preconditions — do these once, before the first deploy:**
+
+- **Deploy from a clean checkout of `origin/main` at a recorded SHA — never from a feature worktree.** This plan was authored on branch `claude/linear-issues-prioritization-889120`; deploying from here would ship branch code. `git fetch origin main`, check out the SHA, record it, and cite it in every closure comment. The whole batch exists because deployed source diverged from intended source — deploying from the wrong tree recreates the bug while claiming to fix it.
+- **Know the rollback before pushing.** Each function currently has a hosted version (`cron-waitlist-expiration` v52, `ask-myk9show` v46, `ask-operator-support` v6, `cron-health-check` v25). Record the current version number per function first; reverting means redeploying the prior bundle from the SHA that produced it. `cron-waitlist-expiration` is on the money path and runs on a schedule, so a bad deploy is live within one cron interval — deploy it when someone is watching, not last thing at night.
+- **Confirm the four are the whole list.** The 2026-08-20 audit named four drifted functions, but MYK9-54's root cause is recorded as *inconclusive* and its symptom (a financial read failing for an authorized site admin) is the same shape as a stale bundle or a missing grant. Before Batch 1 starts, diff deployed-vs-repo for the financial RPC/function path too. If it is a fifth drift instance, lane 1A becomes a deploy rather than a code fix — a materially cheaper outcome worth five minutes of checking.
+
 Per function, the sequence is: run the focused unit tests for the failure boundaries → `supabase functions deploy <fn> --no-verify-jwt --project-ref sojmvhhwsjxmfistvzbe --workdir apps/myk9show` (confirm the "Deployed Functions on project sojmvhhwsjxmfistvzbe" line) → re-download via `get_edge_function` and grep the live bundle for the fix (never trust the deploy timestamp) → record evidence on the issue.
 
-1. **`cron-waitlist-expiration`** (MYK9-224, P0). Verify the repo's `waitlistExpiration` tests cover: payment-link query failure, missing Stripe key, session inspect/expire/recheck failure, paid race, decline, successful expiry. Deploy, verify bundle, confirm the next scheduled run reports healthy.
+1. **`cron-waitlist-expiration`** (MYK9-224, P0). Verify the repo's `waitlistExpiration` tests cover: payment-link query failure, missing Stripe key, session inspect/expire/recheck failure, paid race, decline, successful expiry. Deploy, verify bundle, confirm the next scheduled run reports healthy. **[ADDED]** Unit tests are not the whole bar here — the issue's verification plan also requires *controlled Stripe test-mode evidence for each failure boundary and the successful terminal path*, and its AC 7 requires the next scheduled execution to report healthy **without exposing sensitive payment data** (check the log output, not just the exit status). Budget for the test-mode exercise; do not close on green unit tests alone.
 2. **`ask-myk9show`** (MYK9-199). Deploy, verify bundle contains the base-table `get_class_summary` / `get_trial_overview`, exercise both tools against a seeded show.
 3. **`ask-operator-support`** (MYK9-26 reopen scope). Deploy, prove a stored failed health snapshot reports as failed and an ungrounded response carries the bounded-scope marker.
 4. **`cron-health-check`** (MYK9-161). Deploy, then **ask Richard to click "Run now"** on `/admin/health` — `applied_acl_grants` is outside `CONTINUOUS_HEALTH_CHECK_KEYS`, the 5-minute cron copies verdicts forward verbatim, and `run_system_health_check_now()` is `is_site_admin()`-gated (the MCP role gets 42501). Closure needs two subsequent `applied_acl_grants=ok` snapshots.
@@ -54,7 +66,13 @@ All six touch disjoint files. Every reopened issue's audit comment demands **bro
 | 1E | [MYK9-209](https://linear.app/myk9-platform/issue/MYK9-209) (P3) | "Check In" offered on classes settled absent/excused — route `deriveEntryNextAction` through `entryAccounting.ts` (`isAccountedFor`); cover scratched/withdrawn/pulled too; fixtures must keep lifecycle columns active | `pages/MyEntriesPage/modules/entryNextAction.ts` + test |
 | 1F | [MYK9-212](https://linear.app/myk9-platform/issue/MYK9-212) (P3) | Bound `useMyPayments` server-side (year-driven date predicate and/or `.range()`); bound or eliminate the entries `IN` follow-up; UTC boundaries must agree with `paymentYearFilter.ts` local-year filing; no silent truncation on a money surface | `features/payments/useMyPayments.ts` |
 
-Merge order within the batch doesn't matter except **1C before/independent of 1D** should both land before the closure replays run (both replay on `/admin/permissions`).
+**[EXPANDED] Collision map — the lanes are not as disjoint as they look:**
+
+- **1C and 1D** both replay on `/admin/permissions`. Either merge order works, but both must land before either records its closure replay, or the second merge invalidates the first's evidence.
+- **1F (MYK9-212) and 2A step 1 (MYK9-215) collide on the payments data layer.** 1F bounds the `stripe_orders` query; 215's recommended fix *derives the receipt from `stripe_orders` directly*. If 1F lands a year-scoped or `.range()`-bounded query, 215's receipt lookup must not silently inherit that bound — a receipt for a 2025 order opened from a 2026-scoped page would find nothing. **Land 1F first, and give the 2A agent 1F's final query shape as an input.** 215's order lookup should be a keyed fetch by order id, independent of the list query's bounds.
+- **1E before 2A**, as noted in Lane 2A — 1E owns `entryNextAction.ts`, which sits in the same module tree 2A restructures.
+
+Everything else in Batch 1 is genuinely file-disjoint and can run fully parallel.
 
 ---
 
@@ -73,6 +91,7 @@ Bug fixes land before refactors so fixes never rebase over moved code. (1E touch
 1. **Parallel:** [MYK9-191](https://linear.app/myk9-platform/issue/MYK9-191) (opt-in UI + consent write + confirmation builder + Twilio client — canonical copy verbatim, one GSM-7 segment asserted via `estimateSegments()`, consent cleared on number change, ring-alerts-as-one-feature settings shape) ∥ [MYK9-192](https://linear.app/myk9-platform/issue/MYK9-192) (STOP/HELP webhook: `X-Twilio-Signature` HMAC-SHA1 verification fail-closed, six stop keywords, START no-op without consent row, settings shows STOP state + sending number instead of a toggle; decision already recorded: STOP mutes both channels, B + C messaging). The Twilio client lives in 191; 192 consumes it — agree the interface first.
 2. **Then:** [MYK9-193](https://linear.app/myk9-platform/issue/MYK9-193) (send path in `push-trigger-run-proximity`): per-recipient channel decision (kill the early `continue`), absent row = SMS off, `sms_opt_out_at is null` filter, sibling send in `Promise.allSettled`, **one SMS per entry** via the *recorded* idempotency approach (sent-marker migration — pick the timestamp against `origin/main` per LESSONS; explicit GRANTs/REVOKEs per migration rules).
 3. Code+tests complete now; **deploys and the end-to-end handset proof wait for MYK9-190 campaign approval** (operator track). Register any new edge-function tests in `apps/myk9show/vitest.config.ts` `test.include` (allowlist trap).
+4. **[ADDED] Secrets are an operator step, not an agent step.** The Twilio client needs an account SID, auth token, and Messaging Service SID. Following the `payout_cron_secret` / webhook-secret precedent these belong in Vault, set by Richard — writing them is a shared-system mutation and the agent must never handle the raw values. Both the send path and the webhook must **fail closed** when a secret is absent (the pattern MYK9-224 exists to enforce): missing config returns an error, never a silent skip that looks like "no one opted in." Add the secret names to the deploy checklist so the function is not deployed before its configuration exists.
 
 ### Lane 2C — [MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) code investigation (one agent, report-first)
 
@@ -94,12 +113,14 @@ Decisions to make (recommendations from the issue analyses):
 | D6 | [MYK9-220](https://linear.app/myk9-platform/issue/MYK9-220) type scale | 1.25 scale (14/16/20/25/31), 16px body floor per INTENT.md, single token change |
 | D7 | [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) in-app `reverse_transfer` + payout hold window | Defer both — the runbook (#1678) covers expected volume; revisit when manual clawbacks stop being rare. Move issue back to Done/park with the trigger noted |
 
+**[ADDED] The decisions unblock independently — do not treat Batch 3 as one gate.** Each lane below depends on exactly one decision (3A↔D1, 3B↔D2, 3C↔D3/D4/D5, 3D↔D6), so an answer to any one starts that lane immediately. D7 gates no code at all — it only decides whether MYK9-195 returns to Done or stays open. If a decision doesn't come back, its lane waits and the rest proceed; nothing here is a whole-batch blocker.
+
 Then dispatch:
 
 - **Lane 3A** — MYK9-197: one atomic PR across all five fee sites (`platformFee.ts`, `cartStore.helpers.ts`, `stripe-payment-link`, `stripe-webhook` ×2, `platform_settings` migration defaulting to 0) + the shared client/server agreement test (integer math, half-cent boundaries) + `formatPlatformFeeLabel` copy + admin editability. Migration follows GRANT/REVOKE + timestamp-vs-origin/main rules.
 - **Lane 3B** — MYK9-221: `useUrlFilters` + wire into `/dogs`, `/shows`, `/clubs`, `/people`; preserve `?add=true` behavior.
 - **Lane 3C** — /dogs surface (serialize D3→D4→D5 in one lane: `DogsTableView.tsx`, `DogsGridView.tsx`, `BrowseDogsPage.tsx` overlap).
-- **Lane 3D (runs alone, after 3A–3C merge)** — MYK9-220 typography token change + breakpoint before/after review. Global reflow; landing it last avoids invalidating every other lane's visual verification.
+- **Lane 3D (runs alone, after 3A–3C merge)** — MYK9-220 typography token change + breakpoint before/after review. Global reflow; landing it last avoids invalidating every other lane's visual verification. **[EXPANDED] This is the one change here with no natural blast-radius limit**, so it needs its own safety story rather than inheriting the batch's. Land the scale as a **single token change** (per the issue's own suggested shape) precisely so revert is one commit, not a sweep through components. Before merging, capture before/after screenshots at 375 / 768 / 1280 on the surfaces most likely to break — the dense secretary tables (`/dogs` table view, entry management), the `/at-show` ringside layouts, and any fixed-height card grid — because a 14→16px body raises row heights everywhere and tables are where that first turns into clipping or a new horizontal scroll. Note the interaction with MYK9-222's sticky-column work and the `text-xs` override at `tailwind.config.js:171`. If the reflow damage is broader than expected, revert the token and re-scope to a role-limited rollout (exhibitor and judge surfaces first, per the issue's step 2) rather than patching per-component under a shipped global change.
 
 Lanes 3B and 3C both touch `BrowseDogsPage.tsx` — land 3B first, rebase 3C.
 
@@ -107,11 +128,22 @@ Lanes 3B and 3C both touch `BrowseDogsPage.tsx` — land 3B first, rebase 3C.
 
 ## Batch 4 — Closure proofs & analysis
 
-- [MYK9-211](https://linear.app/myk9-platform/issue/MYK9-211): staging mutation proof with a disposable fixture — grant a scoped role, verify the audit event (actor/target/role/exact scope/timestamp) and the `/admin/permissions` rail, revoke, verify again, prove failed/no-op writes nothing, clean up, record evidence → Done. Can run any time after Batch 0 (independent of Batch 1 code).
+- [MYK9-211](https://linear.app/myk9-platform/issue/MYK9-211): staging mutation proof with a disposable fixture — grant a scoped role, verify the audit event (actor/target/role/exact scope/timestamp) and the `/admin/permissions` rail, revoke, verify again, prove failed/no-op writes nothing, clean up, record evidence → Done. Can run any time after Batch 0 (independent of Batch 1 code). **[EXPANDED] This one needs explicit approval before it runs**: the issue's own reopen comment calls it an "explicitly approved safe test mutation," and it writes role grants plus permanent `permission_audit_log` rows to the shared staging database. Those audit rows are **not cleanable** — the table is an append-only access trail and deleting from it to tidy up would corrupt the very evidence surface under test. So the fixture must be a disposable *person*, the grant must be scoped to a disposable club or show, and the residue is accepted and named in the closure comment rather than removed. Confirm the fixture identity with Richard before writing anything.
 - Browser replays for 54/163/57/225 closure if not already recorded in-lane (each reopen comment forbids closing from code/tests alone).
 - [MYK9-126](https://linear.app/myk9-platform/issue/MYK9-126): after Richard fires the G9 `workflow_dispatch` (operator track), an agent lane does the evidence analysis, backend long-tail profiling (entries replication query, ringside update wrapper, authenticated entry results, account-today fanout), and page-readiness timeout reproduction. Load windows and any Supabase restart need explicit approval.
 
 ---
+
+## [ADDED] How the browser replays actually run
+
+Ten issues now require a recorded browser replay for closure, and several name viewports and a signed-in role. This is the plan's most under-specified dependency, so it is settled here once rather than re-derived per lane.
+
+- **Which build.** Replay against staging (`myk9-platform-myk9show.vercel.app`, auto-deploys from `main`) *after the lane's PR merges* — a replay against a local dev server proves the branch worked, not that the fix shipped. Confirm the deploy landed before capturing.
+- **Which account.** Only the `e2e-*` accounts can sign in on staging; the seeded named accounts (secretary/exhibitor/judge) cannot. Passwords live in env, never in the plan, the issue, or a commit. Use the existing sign-in helpers (`signInAsExhibitor` and siblings) which read credentials from env themselves — an agent must never type a password. A sign-in failure on staging usually means password drift, not a broken fix; check that before debugging the feature.
+- **Which harness.** The `playwright-cli` skill for scripted role walks that need a real session; the Browser pane tools for a quick look. Either is fine — what matters is that the recorded evidence names the route, the viewport, the role, and the commit.
+- **Which viewports.** Take them from each issue, not from a house default: 1440×900 + 768×1024 (MYK9-225, MYK9-54, MYK9-163), 768×1024 + 1024×768 (MYK9-57), 768px (MYK9-222), 375/768/1280 (MYK9-220).
+- **Forced-failure replays.** MYK9-225 and MYK9-54 both require reproducing a **controlled HTTP 500** and then a recovery. That is request interception in the harness, not a real outage — never induce a failure by breaking staging for everyone.
+- **Where evidence goes.** Screenshots stay in the local/private evidence ledger. The prior audits were explicit that uploading images to Linear needs separate authorization, so closure comments describe the evidence and cite the file, and do not attach it.
 
 ## Operator track (Richard — runs parallel to all batches, ordered by urgency)
 
@@ -139,6 +171,19 @@ Wall-clock-bound and human-only items; agents cannot do these:
 
 - Each PR: focused unit tests written/extended per the issue's ACs, run 6+ times with `--sequence.shuffle`; `pnpm typecheck`; `pnpm lint`; new test files registered in the relevant allowlist; Codex review before merge; CI authoritative over local runs.
 - Migrations (2B step 3, 3A): migration-auditor pass, timestamp picked against `origin/main`, grants verified against the **applied** DB (`pg_class.relacl` + column ACLs) after push.
+- **[ADDED] The full app suite hangs — do not let a lane grind on it.** This is a known, documented condition: if a runner produces no output for ~30 seconds, stop and report rather than retrying in a loop (a prior MYK9-211 attempt lost exactly this way). Focused suites plus typecheck plus CI are the real gate; the broad local run is optional.
+- **[ADDED] Migration timestamps are a cross-lane hazard, not a per-lane one.** Two lanes add migrations (2B step 3's SMS sent-marker, 3A's `platform_settings` columns). `migrationVersionUniqueness` only sees the lane's own tree, so both pass locally and the second to merge dies in CI. They sit in different batches so the ordering is naturally safe — but re-check `git ls-tree origin/main supabase/migrations/ | tail` immediately before naming each file, and again after any rebase, since either lane may sit open across other merges.
+- **[ADDED] A red check may be a verdict on a stale base.** Before treating a CI failure as a lane's own defect, compare the PR's `baseRefOid` against `origin/main` and the run timestamp against intervening merges — with this many PRs landing in sequence, a lane opened early in a batch will accumulate stale bases. Merge `main`, push, and judge the re-run; a `gh run rerun` alone keeps the stale merge ref.
+
+## [ADDED] Rollback posture
+
+Most lanes are ordinary revertible PRs on a pre-launch platform, so the default is: revert the commit. Three exceptions need their answer decided before they start, not after they break:
+
+| Change | Why revert isn't automatic | Answer |
+| -- | -- | -- |
+| Batch 0 deploys | A function deploy is not in git history and `cron-waitlist-expiration` runs on a schedule against the money path | Record the outgoing version number first; revert = redeploy the prior bundle from its SHA. Deploy while watching |
+| 3A fee change | Touches five sites plus a `platform_settings` migration, and a client/server divergence becomes a checkout loop rather than a rounding error | New columns default to **0**, so the deployed behavior is unchanged until the value is deliberately set — the setting is the kill switch, and the shared client/server agreement test is what makes the change safe to leave in |
+| 3D typography | Global reflow with no natural blast radius | Single token change so revert is one commit; re-scope to a role-limited rollout rather than patching components under a shipped global change |
 - Batch exit: all lane PRs merged, closure proof recorded on each issue (browser replay where the reopen demands it), issue → Done with the standard completion comment.
 
 ## Sub-agent dispatch rules (from project memory)

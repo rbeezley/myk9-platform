@@ -184,7 +184,11 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     // CamelCase fields
     element: (dbRow.element as string | undefined) ?? undefined,
     section: (dbRow.section as string | undefined) ?? undefined,
-    areaCount: (dbRow.area_count as number | undefined) ?? undefined,
+    // The column is `num_areas`; `area_count` has never existed on
+    // public.classes. Reading the wrong name left areaCount permanently
+    // undefined, which also made toDbRow write `num_areas: null` back on every
+    // class update (MYK9-198).
+    areaCount: (dbRow.num_areas as number | undefined) ?? undefined,
     timeLimitSeconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
     timeLimitArea2Seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
     timeLimitArea3Seconds: (dbRow.time_limit_area3_seconds as number | undefined) ?? undefined,

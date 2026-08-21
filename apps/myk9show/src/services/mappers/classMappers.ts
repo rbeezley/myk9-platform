@@ -463,6 +463,13 @@ export const mapReplicatedClassToDbRow = (
       estimated_duration: 'estimatedDuration',
       element: 'element',
       section: 'section',
+      // Trial-day timing. Omitting these made the reports/packet path read
+      // undefined on the replication-backed (normal authenticated/offline)
+      // route while working from a PostgREST row (MYK9-198).
+      time_limit_seconds: 'timeLimitSeconds',
+      time_limit_area2_seconds: 'timeLimitArea2Seconds',
+      time_limit_area3_seconds: 'timeLimitArea3Seconds',
+      num_areas: 'areaCount',
       status: 'classStatus',
       class_order: 'classOrder',
       display_order: 'displayOrder',

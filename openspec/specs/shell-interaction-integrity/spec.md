@@ -156,6 +156,17 @@ The system SHALL keep shared chrome and primary actions visible, non-overlapping
 - **WHEN** Manage Classes, Results Control, ringside entry cards, Copy Link/Headline, Show Desk, or My Entries render at 375px or 768px widths
 - **THEN** primary actions SHALL NOT be clipped, overlapped, or smaller than the touch-target minimum
 
+#### Scenario: Site-admin page renders beside the persistent sidebar
+- **WHEN** Permissions or Sync Monitoring renders with the persistent admin sidebar at a viewport from 768px through 1023px
+- **THEN** the page title and description SHALL remain readable without near-vertical word wrapping
+- **AND** the complete action group SHALL remain visible without horizontal clipping
+- **AND** each action SHALL expose a keyboard-reachable target at least 44px high
+
+#### Scenario: Site-admin constrained layout crosses its controls
+- **WHEN** the same Permissions or Sync Monitoring page renders at 1024×768 or below the persistent-sidebar breakpoint
+- **THEN** its established landscape-desktop or mobile-shell behavior SHALL remain usable
+- **AND** the responsive repair SHALL NOT create a second header, route, or duplicate action
+
 ### Requirement: Shell integrity verification
 The system SHALL include focused automated checks that prevent known shell regressions from returning.
 

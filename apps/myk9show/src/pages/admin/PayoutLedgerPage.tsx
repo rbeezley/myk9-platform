@@ -29,7 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { usePlatformFeePercent } from '@/hooks/queries/usePlatformFeePercent';
+import { usePlatformFeePercentQuery } from '@/hooks/queries/usePlatformFeePercent';
 import { useUpdatePlatformFee } from '@/features/payments/useUpdatePlatformFee';
 import { usePlatformPayoutLedger } from '@/features/payments/usePlatformPayoutLedger';
 import {
@@ -52,6 +52,18 @@ function formatRefundCents(cents: number): string {
   return cents > 0 ? `-${formatCents(cents)}` : formatCents(0);
 }
 
+/**
+ * What to call a show whose record we could not read (MYK9-233).
+ *
+ * Deliberately names the gap instead of falling back to "Unknown show": the
+ * operator needs to know the row is a READ FAILURE they can act on, not a show
+ * that happens to be missing a name. The id is shown because it is the only
+ * handle they have for chasing it.
+ */
+function showLabel(row: LedgerRow): string {
+  return row.showName ?? `Show unavailable (${row.showId.slice(0, 8)})`;
+}
+
 function statusBadge(status: PayoutStatus | null) {
   if (!status) return <Badge variant="outline">Not settled</Badge>;
   const presentation = getPayoutStatusPresentation(status);
@@ -59,28 +71,44 @@ function statusBadge(status: PayoutStatus | null) {
 }
 
 function PlatformFeeCard() {
-  const currentPercent = usePlatformFeePercent();
+  // The query-state hook, NOT usePlatformFeePercent(): this card states the rate
+  // as fact and gates Save on "did it change?", and both are wrong when the rate
+  // was never read. The plain hook returns the constant 7 while loading and after
+  // a failed read, which would (a) print "Current rate: 7%" over an unread row
+  // and (b) INVERT the Save gate — typing the true rate would look unchanged and
+  // disable Save, while typing 7 would look like an edit.
+  const { percent: currentPercent, state: rateState } = usePlatformFeePercentQuery();
   const updateFee = useUpdatePlatformFee();
-  const [value, setValue] = useState<string>(String(currentPercent));
+  const [value, setValue] = useState<string>('');
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(
     null
   );
 
   // Resync the field when the fetched rate changes (initial load / refetch),
   // following the adjust-state-during-render pattern (no setState in effect).
-  const [syncedFrom, setSyncedFrom] = useState<number>(currentPercent);
+  //
+  // The null branch is not symmetry for its own sake: without it, a successful
+  // load followed by a failed or paused refetch leaves the OLD rate sitting in
+  // the (now disabled) field. The hook would have correctly stopped returning
+  // that number, and the card would still be showing it — which is the same
+  // stale-rate claim, relocated from a paragraph into an input.
+  const [syncedFrom, setSyncedFrom] = useState<number | null>(null);
   if (syncedFrom !== currentPercent) {
     setSyncedFrom(currentPercent);
-    setValue(String(currentPercent));
+    setValue(currentPercent === null ? '' : String(currentPercent));
   }
 
+  // No usable rate means no safe edit: an admin must never overwrite a value the
+  // page could not read. Every non-'ready' state disables the field, including
+  // the one where a stale rate is still cached from an earlier successful read.
+  const rateEditable = rateState === 'ready';
   const parsed = Number(value);
   const invalid =
     value.trim() === '' ||
     !Number.isFinite(parsed) ||
     parsed < MIN_PLATFORM_FEE_PERCENT ||
     parsed > MAX_PLATFORM_FEE_PERCENT;
-  const unchanged = parsed === currentPercent;
+  const unchanged = rateEditable && parsed === currentPercent;
 
   const handleSave = () => {
     updateFee.mutate(parsed, {
@@ -127,6 +155,7 @@ function PlatformFeeCard() {
                 }}
                 aria-invalid={invalid}
                 aria-describedby="platform-fee-guidance"
+                disabled={!rateEditable}
                 className="h-11 w-28"
               />
               <span className="text-muted-foreground">%</span>
@@ -135,7 +164,7 @@ function PlatformFeeCard() {
           <Button
             className="min-h-11"
             onClick={handleSave}
-            disabled={invalid || unchanged || updateFee.isPending}
+            disabled={!rateEditable || invalid || unchanged || updateFee.isPending}
           >
             {updateFee.isPending
               ? 'Updating fee…'
@@ -146,9 +175,22 @@ function PlatformFeeCard() {
         </div>
         <p
           id="platform-fee-guidance"
-          className={invalid ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}
+          className={
+            rateState === 'unavailable' || rateState === 'absent' || (rateEditable && invalid)
+              ? 'text-sm text-destructive'
+              : 'text-sm text-muted-foreground'
+          }
         >
-          {invalid ? (
+          {/* Order matters: an unread rate is reported BEFORE any judgement about
+              the typed value, because "is this valid?" and "has this changed?"
+              are both meaningless without a rate to compare against. */}
+          {rateState === 'unavailable' ? (
+            'The current rate could not be loaded, so it cannot be changed here. Reload to try again.'
+          ) : rateState === 'absent' ? (
+            'No platform fee rate is set. Contact support before charging entries.'
+          ) : rateState === 'loading' ? (
+            'Loading the current rate…'
+          ) : invalid ? (
             `Enter a percent between ${MIN_PLATFORM_FEE_PERCENT} and ${MAX_PLATFORM_FEE_PERCENT}.`
           ) : (
             <>
@@ -172,7 +214,7 @@ function PlatformFeeCard() {
 }
 
 function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
-  const { outstandingCents, paidOutCents } = summarizeLedger(rows);
+  const { outstandingCents, paidOutCents, unavailableShowCount } = summarizeLedger(rows);
   return (
     <dl className="grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-2">
       <div className="border-b border-border p-5 sm:border-b-0 sm:border-r">
@@ -189,6 +231,18 @@ function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
         <dd className="mt-1 text-xl font-semibold tabular-nums">{formatCents(paidOutCents)}</dd>
         <dd className="mt-2 text-sm text-muted-foreground">Completed Stripe transfers.</dd>
       </div>
+      {unavailableShowCount > 0 && (
+        /* The cents ARE in the totals above; what is missing is the identity of
+           the show they belong to. Say exactly that — an operator who sees an
+           unnamed row must know the figure is complete, not that money is lost. */
+        <div className="border-t border-border p-4 sm:col-span-2">
+          <p className="text-sm text-muted-foreground">
+            {unavailableShowCount === 1
+              ? '1 show below could not be identified. Its money is included in the totals above.'
+              : `${unavailableShowCount} shows below could not be identified. Their money is included in the totals above.`}
+          </p>
+        </div>
+      )}
     </dl>
   );
 }
@@ -218,7 +272,7 @@ function LedgerMobileList({ rows }: { rows: LedgerRow[] }) {
             <CardContent className="space-y-4 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium text-foreground">{row.showName}</p>
+                  <p className="font-medium text-foreground">{showLabel(row)}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {row.clubName ?? 'Unknown club'}
                   </p>
@@ -291,7 +345,7 @@ function LedgerTable({ rows }: { rows: LedgerRow[] }) {
                   <TableCell className="font-medium">
                     {row.clubName ?? <span className="text-muted-foreground">Unknown club</span>}
                   </TableCell>
-                  <TableCell>{row.showName}</TableCell>
+                  <TableCell>{showLabel(row)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCents(row.onlineCollectedCents)}
                   </TableCell>
@@ -342,16 +396,28 @@ function RefundDecisionAdvisory({ rows }: { rows: LedgerRow[] }) {
           Resolve before payout or record the decision outside myK9.
         </p>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {unresolvedRows.map(row => (
-            <Link
-              key={row.showId}
-              className="font-medium text-primary underline underline-offset-4"
-              to={`/shows/${encodeURIComponent(row.showId)}/entry-management?tab=exceptions&exception=pulls`}
-              aria-label={`Review pulled entries for ${row.showName}`}
-            >
-              {row.showName} ({row.unresolvedRefundDecisionCount})
-            </Link>
-          ))}
+          {unresolvedRows.map(row =>
+            row.showUnavailable ? (
+              /* No link for a show we could not read. Entry Management resolves
+                 the URL's show through the same reads that failed here, so the
+                 page would load with nothing selected — an affordance that
+                 cannot work is worse than none, because the operator spends the
+                 trip before learning that. */
+              <span key={row.showId} className="font-medium">
+                {showLabel(row)} ({row.unresolvedRefundDecisionCount})
+                <span className="text-muted-foreground"> — show record unavailable</span>
+              </span>
+            ) : (
+              <Link
+                key={row.showId}
+                className="font-medium text-primary underline underline-offset-4"
+                to={`/shows/${encodeURIComponent(row.showId)}/entry-management?tab=exceptions&exception=pulls`}
+                aria-label={`Review pulled entries for ${showLabel(row)}`}
+              >
+                {showLabel(row)} ({row.unresolvedRefundDecisionCount})
+              </Link>
+            )
+          )}
         </div>
       </AlertDescription>
     </Alert>
@@ -391,13 +457,22 @@ export default function PayoutLedgerPage() {
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-64 w-full" />
           </div>
-        ) : isError ? (
+        ) : isError || !rows ? (
+          /* `!rows` is NOT redundant with isError. networkMode:'online'
+             (queryClient.ts:61) PAUSES a query with no connectivity, and a paused
+             query is neither loading nor errored — react-query computes
+             `isLoading = isPending && isFetching`, and a paused query is not
+             fetching. So a cold offline load arrives here as
+             isLoading:false / isError:false / data:undefined, and `rows ?? []`
+             would render "Outstanding to clubs $0.00" and "No online payments
+             yet": the platform owes nothing, stated as fact, because we never
+             asked. PlatformIncomeCard above already guards `isError || !data`. */
           <LedgerError onRetry={() => void refetch()} />
         ) : (
           <>
-            <LedgerSummary rows={rows ?? []} />
-            <RefundDecisionAdvisory rows={rows ?? []} />
-            <LedgerTable rows={rows ?? []} />
+            <LedgerSummary rows={rows} />
+            <RefundDecisionAdvisory rows={rows} />
+            <LedgerTable rows={rows} />
           </>
         )}
       </section>

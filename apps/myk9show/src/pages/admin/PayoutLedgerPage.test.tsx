@@ -266,6 +266,20 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     expect(screen.getByText(/loading the current rate/i)).toBeInTheDocument();
   });
 
+  it('clears the field when a loaded rate later becomes unavailable', () => {
+    // A successful read followed by a failed/paused refetch. The hook stops
+    // returning the number; the field must stop showing it too, or the stale
+    // claim just moves from the paragraph into the input.
+    const { rerender } = render(<PayoutLedgerPage />);
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
+
+    feeState.percent = null;
+    feeState.state = 'unavailable';
+    rerender(<PayoutLedgerPage />);
+
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(null);
+  });
+
   it('offers no dead-end link for pulled entries on an unreadable show', () => {
     // Entry Management resolves the show through the same reads that failed
     // here, so the page would open with nothing selected. The count still has to

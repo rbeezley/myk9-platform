@@ -86,10 +86,16 @@ function PlatformFeeCard() {
 
   // Resync the field when the fetched rate changes (initial load / refetch),
   // following the adjust-state-during-render pattern (no setState in effect).
+  //
+  // The null branch is not symmetry for its own sake: without it, a successful
+  // load followed by a failed or paused refetch leaves the OLD rate sitting in
+  // the (now disabled) field. The hook would have correctly stopped returning
+  // that number, and the card would still be showing it — which is the same
+  // stale-rate claim, relocated from a paragraph into an input.
   const [syncedFrom, setSyncedFrom] = useState<number | null>(null);
-  if (currentPercent !== null && syncedFrom !== currentPercent) {
+  if (syncedFrom !== currentPercent) {
     setSyncedFrom(currentPercent);
-    setValue(String(currentPercent));
+    setValue(currentPercent === null ? '' : String(currentPercent));
   }
 
   // No usable rate means no safe edit: an admin must never overwrite a value the

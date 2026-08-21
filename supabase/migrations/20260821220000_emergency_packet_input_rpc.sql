@@ -26,6 +26,24 @@
 -- The JSON keys are camelCase because they are consumed directly as
 -- `EmergencyPacketInput`; a rename here is a breaking change for the renderer.
 
+-- `resolveClassSection`: trim, and treat the '-' sentinel as absent. Emitting
+-- it raw builds labels like "Exterior Excellent -" on the printed page.
+CREATE OR REPLACE FUNCTION public.emergency_packet_section(p_section text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT CASE
+    WHEN p_section IS NULL THEN NULL
+    WHEN btrim(p_section) IN ('', '-') THEN NULL
+    ELSE btrim(p_section)
+  END;
+$$;
+
+REVOKE ALL ON FUNCTION public.emergency_packet_section(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.emergency_packet_section(text) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.emergency_packet_input(
   p_show_id     uuid,
   p_trial_date  date DEFAULT NULL
@@ -39,7 +57,7 @@ AS $$
   WITH show_row AS (
     SELECT s.id, s.name, s.organization, s.start_date, s.end_date, c.name AS club_name
     FROM public.shows s
-    LEFT JOIN public.clubs c ON c.id = s.club_id
+    LEFT JOIN public.clubs c ON c.id = s.club_id AND c.deleted_at IS NULL
     WHERE s.id = p_show_id
       AND s.deleted_at IS NULL
   ),
@@ -56,9 +74,26 @@ AS $$
       cl.id, cl.trial_id, cl.name, cl.element, cl.level, cl.section, cl.class_number,
       cl.display_order, cl.judge_name, cl.start_time,
       cl.time_limit_seconds, cl.time_limit_area2_seconds, cl.time_limit_area3_seconds,
-      cl.num_areas
+      cl.num_areas,
+      -- `resolveClassJudgeName` prefers the ASSIGNMENT over `classes.judge_name`,
+      -- and classes created through `create_show_with_children` leave
+      -- `judge_name` null entirely. Reading only the column would print an
+      -- empty judge on paper for normally configured classes.
+      COALESCE(
+        NULLIF(btrim(ja.judge_full_name), ''),
+        NULLIF(btrim(cl.judge_name), '')
+      ) AS judge_display_name
     FROM public.classes cl
     JOIN trial_rows t ON t.id = cl.trial_id
+    LEFT JOIN LATERAL (
+      SELECT btrim(concat_ws(' ', p.first_name, p.last_name)) AS judge_full_name
+      FROM public.judge_assignments a
+      JOIN public.people p ON p.id = a.person_id AND p.deleted_at IS NULL
+      WHERE a.class_id = cl.id
+        AND a.status = 'confirmed'
+      ORDER BY a.confirmed_at DESC NULLS LAST, a.created_at DESC
+      LIMIT 1
+    ) ja ON TRUE
     WHERE cl.deleted_at IS NULL
   ),
   entry_rows AS (
@@ -69,8 +104,10 @@ AS $$
       -- for one odd value, so parse only when numeric. (The Reports page does
       -- `Number(armband)`, which yields NaN and prints "#NaN" -- see the
       -- follow-up note in MYK9-228; neither is right, but this cannot crash.)
+      -- Digits alone are not enough: a long numeric string passes the regex
+      -- and then `integer out of range` aborts the WHOLE packet for one row.
       CASE
-        WHEN btrim(COALESCE(e.armband, '')) ~ '^[0-9]+$' THEN btrim(e.armband)::int
+        WHEN btrim(COALESCE(e.armband, '')) ~ '^[0-9]{1,9}$' THEN btrim(e.armband)::int
         ELSE 0
       END AS armband,
       e.run_order,
@@ -85,7 +122,7 @@ AS $$
       cl.trial_id,
       cl.element AS class_element,
       cl.level   AS class_level,
-      cl.section AS class_section
+      public.emergency_packet_section(cl.section) AS class_section
     FROM public.entries e
     JOIN class_rows cl ON cl.id = e.class_id
     LEFT JOIN public.dogs d ON d.id = e.dog_id AND d.deleted_at IS NULL
@@ -120,10 +157,10 @@ AS $$
         'name', COALESCE(cl.name, concat_ws(' ', cl.element, cl.level, cl.section)),
         'element', COALESCE(cl.element, ''),
         'level', COALESCE(cl.level, ''),
-        'section', cl.section,
+        'section', public.emergency_packet_section(cl.section),
         'classNumber', cl.class_number,
         'displayOrder', cl.display_order,
-        'judgeName', COALESCE(cl.judge_name, ''),
+        'judgeName', COALESCE(cl.judge_display_name, ''),
         -- Ring is sport-dependent and no column holds one; scent work does not
         -- use rings. Null prints nothing rather than "Ring unassigned"
         -- (#1728). See MYK9-227 for when a ring-using sport arrives.

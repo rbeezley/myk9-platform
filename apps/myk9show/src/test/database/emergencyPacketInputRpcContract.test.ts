@@ -29,8 +29,18 @@ describe('emergency_packet_input contract', () => {
   it('restates every soft-delete filter RLS would have applied', () => {
     // A tombstoned row reaching paper is worse than a missing packet: a judge
     // would score a dog that was withdrawn.
-    for (const table of ['shows', 'trials', 'classes', 'entries', 'dogs']) {
-      const alias = { shows: 's', trials: 't', classes: 'cl', entries: 'e', dogs: 'd' }[table];
+    for (const table of ['shows', 'trials', 'classes', 'entries', 'dogs', 'clubs', 'people']) {
+      const alias = {
+        shows: 's',
+        trials: 't',
+        classes: 'cl',
+        entries: 'e',
+        dogs: 'd',
+        // A show referencing a soft-deleted club would otherwise print that
+        // club's name on paperwork, since definer bypasses its RLS predicate.
+        clubs: 'c',
+        people: 'p',
+      }[table];
       expect(sql).toMatch(new RegExp(`${alias}\\.deleted_at IS NULL`));
     }
   });
@@ -51,10 +61,31 @@ describe('emergency_packet_input contract', () => {
     );
   });
 
+  it('prefers the judge assignment over the denormalised column', () => {
+    // `resolveClassJudgeName` reads the assignment FIRST, and classes created
+    // via create_show_with_children leave `judge_name` null — reading only the
+    // column prints an empty judge for normally configured classes.
+    expect(sql).toMatch(/FROM public\.judge_assignments a/);
+    expect(sql).toMatch(/a\.status = 'confirmed'/);
+    expect(sql).toMatch(/NULLIF\(btrim\(ja\.judge_full_name\), ''\),\s*\n\s*NULLIF\(btrim\(cl\.judge_name\), ''\)/);
+  });
+
+  it('normalises the section sentinel the way the app does', () => {
+    // `resolveClassSection` trims and treats '-' as absent; emitting it raw
+    // builds labels like "Exterior Excellent -" on the page.
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.emergency_packet_section/);
+    expect(sql).toMatch(/btrim\(p_section\) IN \('', '-'\)/);
+    // Applied to BOTH the class row and the entry's copy of it.
+    expect(sql.match(/public\.emergency_packet_section\(/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+  });
+
   it('never casts a free-text armband straight to int', () => {
     // `entries.armband` is TEXT and unconstrained; a suffixed armband ("12A")
     // through a bare ::int aborts the whole packet for one odd value.
-    expect(sql).toMatch(/~ '\^\[0-9\]\+\$'/);
+    // Bounded, not just numeric: a long digit string passes an unbounded
+    // regex and then `integer out of range` aborts the entire packet.
+    expect(sql).toMatch(/~ '\^\[0-9\]\{1,9\}\$'/);
+    expect(sql).not.toMatch(/~ '\^\[0-9\]\+\$'/);
     expect(sql).not.toMatch(/COALESCE\(e\.armband[^)]*\)::int/);
   });
 

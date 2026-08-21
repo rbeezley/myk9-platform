@@ -146,20 +146,27 @@ export function formatClassTimeLimits(classItem: {
 
   // Report every area the class searches, and never hide a limit configured
   // beyond that count — a stale value is still information the ring can use.
+  //
+  // `classes` stores only THREE per-area limits, and sport_class_rules tops out
+  // at three areas, but nothing in the schema constrains num_areas. Clamping to
+  // three silently dropped the rest; naming them with no limit is the truth,
+  // since the system has nowhere to record one. MAX_AREAS is a defensive bound
+  // so a data-entry typo cannot run the header off the page.
+  const MAX_AREAS = 10;
   const highestConfigured = configured.reduce(
     (highest, label, index) => (label === '' ? highest : index + 1),
     1
   );
-  const areaCount = Math.min(3, Math.max(classItem.numAreas ?? 1, highestConfigured));
+  const areaCount = Math.min(MAX_AREAS, Math.max(classItem.numAreas ?? 1, highestConfigured));
 
   if (areaCount === 1) {
     return configured[0] === '' ? undefined : `Max time ${configured[0]}`;
   }
 
-  return `Max time — ${configured
-    .slice(0, areaCount)
-    .map((label, index) => `Area ${index + 1} ${label === '' ? 'not set' : label}`)
-    .join(' · ')}`;
+  return `Max time — ${Array.from({ length: areaCount }, (_, index) => {
+    const label = configured[index] ?? '';
+    return `Area ${index + 1} ${label === '' ? 'not set' : label}`;
+  }).join(' · ')}`;
 }
 
 export function buildEmergencyPacketModel(input: EmergencyPacketInput): EmergencyPacketModel {

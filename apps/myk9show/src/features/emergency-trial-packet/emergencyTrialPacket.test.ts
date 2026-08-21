@@ -255,6 +255,22 @@ describe('formatClassTimeLimits', () => {
     ).toBe('Max time — Area 1 3:00 · Area 2 2:00');
   });
 
+  it('enumerates every declared area, even past the three limit columns', () => {
+    // `classes` stores only three per-area limits, and sport_class_rules tops
+    // out at three areas — but nothing in the schema CONSTRAINS num_areas, and
+    // clamping silently dropped the rest. Areas beyond the third are named with
+    // no limit, which is the truth: the system has nowhere to record one.
+    expect(formatClassTimeLimits({ ...base, timeLimitSeconds: 180, numAreas: 5 })).toBe(
+      'Max time — Area 1 3:00 · Area 2 not set · Area 3 not set · Area 4 not set · Area 5 not set'
+    );
+  });
+
+  it('refuses to let a nonsense area count run off the page', () => {
+    const label = formatClassTimeLimits({ ...base, timeLimitSeconds: 180, numAreas: 400 });
+    expect(label).toContain('Area 10 not set');
+    expect(label).not.toContain('Area 11');
+  });
+
   it('says nothing at all when no limit is configured', () => {
     // Silence beats a confident "Max time 0:00" on a page a judge runs on.
     expect(formatClassTimeLimits(base)).toBeUndefined();

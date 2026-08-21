@@ -82,6 +82,7 @@ describe('useClubFinancialReconciliation', () => {
       {
         payoutId: 'sp-1',
         showId: 'show-1',
+        showName: null,
         status: 'completed',
         amountCents: 10000,
         stripeTransferId: 'tr_1',
@@ -94,6 +95,7 @@ describe('useClubFinancialReconciliation', () => {
     const history: ShowPayoutRow[] = [
       {
         id: 'sp-1',
+        show_id: 'show-1',
         amount_cents: 10000,
         status: 'completed',
         failure_reason: null,
@@ -118,6 +120,39 @@ describe('useClubFinancialReconciliation', () => {
     expect(mockedOrders).toHaveBeenCalledWith(
       expect.objectContaining({ scope: 'club', clubId: 'club-1' })
     );
+  });
+
+  it('names a show from the payout RPC when payout history cannot see it', async () => {
+    // The soft-delete divergence. `useClubPayoutHistory` reads through an
+    // `!inner` embed on shows, so shows_select's `deleted_at is null` drops the
+    // row and history can never name it. The RPC is SECURITY DEFINER and is not
+    // filtered, so it carries the name itself (20260821120000). Without that,
+    // this row rendered as a dollar amount under the literal label "Show".
+    mockedOrders.mockResolvedValue([]);
+    mockedPayouts.mockResolvedValue([
+      {
+        payoutId: 'sp-9',
+        showId: 'show-deleted',
+        showName: 'Retired Autumn Trial',
+        status: 'completed',
+        amountCents: 10000,
+        stripeTransferId: 'tr_9',
+        scheduledDate: null,
+        completedAt: '2026-07-05T00:00:00Z',
+        failureReason: null,
+        createdAt: '2026-07-04T00:00:00Z',
+      },
+    ]);
+
+    const { result } = renderHook(
+      // `undefined` history is exactly what the RLS-filtered read returns here.
+      () => useClubFinancialReconciliation('club-1', 'enabled', undefined),
+      { wrapper }
+    );
+
+    await waitFor(() => expect(result.current.rows).toHaveLength(1));
+    expect(result.current.rows[0].showName).toBe('Retired Autumn Trial');
+    expect(result.current.rows[0].showName).not.toBe('Show');
   });
 
   it('paginates orders to completion: a club past one page keeps every show in the total', async () => {

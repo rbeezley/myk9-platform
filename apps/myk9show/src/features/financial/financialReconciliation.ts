@@ -127,6 +127,13 @@ export interface FinancialReconciliationOrder {
 export interface FinancialReconciliationPayout {
   payoutId: string;
   showId: string | null;
+  /**
+   * Comes from the RPC, which is SECURITY DEFINER and so is not filtered by the
+   * shows_select soft-delete predicate. That matters: the client's payout-history
+   * read IS filtered, so it cannot name a soft-deleted show, and the row used to
+   * fall back to the literal label "Show".
+   */
+  showName: string | null;
   status: string;
   amountCents: number;
   stripeTransferId: string | null;
@@ -213,6 +220,7 @@ interface OrderRow {
 interface PayoutRow {
   payout_id: string;
   show_id: string | null;
+  show_name: string | null;
   status: string;
   amount_cents: number | string;
   stripe_transfer_id: string | null;
@@ -272,6 +280,7 @@ export function mapPayoutRow(row: PayoutRow): FinancialReconciliationPayout {
   return {
     payoutId: row.payout_id,
     showId: row.show_id,
+    showName: row.show_name ?? null,
     status: row.status,
     amountCents: toNum(row.amount_cents),
     stripeTransferId: row.stripe_transfer_id,

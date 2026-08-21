@@ -6,7 +6,7 @@
 // green). Attested is a NEUTRAL state, not a warning: it means "recorded, but we
 // hold no Stripe snapshot", which is the normal shape of a desk payment or a
 // legacy order.
-import { CheckCircle2, FileCheck } from 'lucide-react';
+import { CheckCircle2, FileCheck, FileQuestion } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { ClubShowChargeVerification } from '../clubShowReconciliation';
 
@@ -26,14 +26,25 @@ export function ChargeVerificationBadge({ state }: ChargeVerificationBadgeProps)
       </Badge>
     );
   }
+  if (state === 'Attested') {
+    return (
+      <Badge
+        aria-label="Charge verification: Attested, no Stripe snapshot on record"
+        variant="secondary"
+        className="gap-1"
+      >
+        <FileCheck className="h-3.5 w-3.5" aria-hidden="true" />
+        Attested
+      </Badge>
+    );
+  }
+  // No order rows at all. Attested would be a claim about a charge we do not
+  // hold, so the visible text carries the whole meaning -- deliberately not an
+  // aria-label, which a role-less Badge drops anyway.
   return (
-    <Badge
-      aria-label="Charge verification: Attested, no Stripe snapshot on record"
-      variant="secondary"
-      className="gap-1"
-    >
-      <FileCheck className="h-3.5 w-3.5" aria-hidden="true" />
-      Attested
+    <Badge variant="secondary" className="gap-1">
+      <FileQuestion className="h-3.5 w-3.5" aria-hidden="true" />
+      No charge record
     </Badge>
   );
 }

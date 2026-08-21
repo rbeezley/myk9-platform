@@ -34,6 +34,7 @@ function payout(overrides: Partial<FinancialReconciliationPayout>): FinancialRec
   return {
     payoutId: 'payout-1',
     showId: 'show-1',
+    showName: null,
     status: 'completed',
     amountCents: 10000,
     stripeTransferId: 'tr_123',
@@ -222,9 +223,12 @@ describe('buildClubShowReconciliationRows', () => {
     expect(rows[0].chargeVerification).toBe('Attested');
   });
 
-  it('a show with a payout but no orders yet: Attested, net pending, settlement present', () => {
+  it('a show with a payout but no orders yet: charge state Unknown, not Attested', () => {
+    // Attested is a positive claim -- "recorded, we just hold no Stripe
+    // snapshot". With zero order rows there is no charge to attest to, and the
+    // net arm already said `pending` for the same input.
     const rows = buildClubShowReconciliationRows([], [payout({})], 'enabled');
-    expect(rows[0].chargeVerification).toBe('Attested');
+    expect(rows[0].chargeVerification).toBe('Unknown');
     expect(rows[0].net).toEqual({ status: 'pending' });
     expect(rows[0].settlement?.stripeTransferId).toBe('tr_123');
   });

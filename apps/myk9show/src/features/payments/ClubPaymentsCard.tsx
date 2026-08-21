@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import {
 } from './useClubStripeAccount';
 import { resolvePayoutBadge, type PayoutsAccountState } from './payoutBadge';
 import { useConnectReturn, useClearConnectParam } from './useConnectReturn';
+import { isSupersededFailure } from '@/features/financial/payoutSupersession';
+import type { ShowPayoutRow } from './useClubStripeAccount';
 import { ClubFinancialReconciliationCard } from '@/features/financial/components/ClubFinancialReconciliationCard';
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
@@ -26,6 +28,13 @@ function formatPayoutAmount(amountCents: number): string {
 }
 
 const RETURN_PATH = '/club-admin/payments';
+
+/** Ordering facts for the supersession rule. */
+const readPayoutOrdering = (row: ShowPayoutRow) => ({
+  status: row.status,
+  createdAt: row.created_at,
+  id: row.id,
+});
 
 // INTENT: The pre-flight checklist exists to pre-answer the SSN fear and
 // prevent mid-form abandonment by non-technical club treasurers. Do not
@@ -79,6 +88,31 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
     refetchAccount: refetch,
     clearConnectParam,
   });
+  // A show can hold several payout rows: the cron leaves a failed row in place
+  // and inserts a new one on retry. Without this, an attempt that already
+  // succeeded on retry keeps a red "Needs attention" beside money that landed.
+  const payoutRows = payoutHistory.data;
+  const supersededPayoutIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!payoutRows) return ids;
+    const byShow = new Map<string, ShowPayoutRow[]>();
+    for (const row of payoutRows) {
+      // Never group rows whose show is unknown: supersession is a claim about
+      // ONE show's attempts, and a shared placeholder key would let an
+      // unrelated show's later payout mute this row's "Needs attention".
+      if (!row.show_id) continue;
+      const list = byShow.get(row.show_id) ?? [];
+      list.push(row);
+      byShow.set(row.show_id, list);
+    }
+    for (const rows of byShow.values()) {
+      for (const row of rows) {
+        if (isSupersededFailure(row, rows, readPayoutOrdering)) ids.add(row.id);
+      }
+    }
+    return ids;
+  }, [payoutRows]);
+
   // While we are waiting on Stripe, the row's un-updated flags describe the
   // state BEFORE the treasurer filled the form, so every branch derived from
   // them is a claim about stale data.
@@ -216,7 +250,10 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                   </p>
                   <ul className="divide-y rounded-lg border">
                     {payoutHistory.data!.map(payout => {
-                      const badge = resolvePayoutBadge(payout, accountState);
+                      const badge = resolvePayoutBadge(
+                        { ...payout, superseded: supersededPayoutIds.has(payout.id) },
+                        accountState
+                      );
                       const isPaid = !!payout.completed_at;
                       const dateLabel = isPaid ? 'Paid' : 'Started';
                       const dateValue = new Date(

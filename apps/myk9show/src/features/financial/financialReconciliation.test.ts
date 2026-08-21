@@ -196,6 +196,7 @@ describe('mapPayoutRow', () => {
     const payout = mapPayoutRow({
       payout_id: 'p1',
       show_id: 's1',
+      show_name: 'Cedar Valley Classic',
       status: 'completed',
       amount_cents: 9500,
       stripe_transfer_id: 'tr_123',
@@ -206,6 +207,9 @@ describe('mapPayoutRow', () => {
     });
     expect(payout.stripeTransferId).toBe('tr_123');
     expect(payout.status).toBe('completed');
+    // The RPC names the show itself (20260821120000), so a reconciliation row
+    // never depends on the RLS-filtered payout-history read to be identifiable.
+    expect(payout.showName).toBe('Cedar Valley Classic');
   });
 });
 

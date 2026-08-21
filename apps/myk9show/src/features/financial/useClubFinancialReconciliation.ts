@@ -38,20 +38,30 @@ export interface UseClubFinancialReconciliationResult {
  * source is now the order rows themselves: the orders RPC returns the show name
  * from inside its own authorized scope (not PII, no extra client read).
  *
- * Payout history stays as a secondary source, which still covers the inverse
- * case: a show with a payout row but no order rows in this page set. The
- * reconciliation payout's `payoutId` is the same `show_payouts.id` the history
- * rows key on, so matching by id is safe.
+ * The payout RPC's own `showName` is the second source (20260821120000). It
+ * covers the inverse case -- a show with a payout row but no order rows in this
+ * page set -- and, unlike payout history, it is not filtered by the
+ * shows_select soft-delete predicate, so a soft-deleted show is still named
+ * rather than falling through to the generic "Show".
+ *
+ * Payout history remains only as a last resort, for a row the RPC could not
+ * name. The reconciliation payout's `payoutId` is the same `show_payouts.id`
+ * the history rows key on, so matching by id is safe.
  */
 function resolveShowNames(
   orders: Array<{ showId: string | null; showName: string | null }>,
-  reconciliationPayouts: Array<{ payoutId: string; showId: string | null }>,
+  reconciliationPayouts: Array<{ payoutId: string; showId: string | null; showName: string | null }>,
   history: ShowPayoutRow[] | undefined
 ): Map<string, string> {
   const names = new Map<string, string>();
 
   for (const order of orders) {
     if (order.showId && order.showName) names.set(order.showId, order.showName);
+  }
+
+  for (const payout of reconciliationPayouts) {
+    if (!payout.showId || names.has(payout.showId)) continue;
+    if (payout.showName) names.set(payout.showId, payout.showName);
   }
 
   if (history && history.length > 0) {

@@ -275,6 +275,7 @@ describe('ClubPaymentsCard', () => {
       data: [
         {
           id: 'p4',
+          show_id: 'show-benign',
           amount_cents: 3000,
           status: 'failed',
           failure_reason: 'insufficient_balance: balance too low',
@@ -284,6 +285,7 @@ describe('ClubPaymentsCard', () => {
         },
         {
           id: 'p5',
+          show_id: 'show-hard-fail',
           amount_cents: 4000,
           status: 'failed',
           failure_reason: 'No such external account; the bank account is closed',

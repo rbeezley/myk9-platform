@@ -10,6 +10,7 @@ function payout(overrides: Partial<FinancialReconciliationPayout>): FinancialRec
   return {
     payoutId: 'payout-1',
     showId: 'show-1',
+    showName: null,
     status: 'completed',
     amountCents: 10000,
     stripeTransferId: 'tr_123',

@@ -4,13 +4,29 @@ import type { LedgerRow } from '@/features/payments/payoutLedger';
 
 const mutate = vi.fn();
 const refetchLedger = vi.fn();
+// Mutable so each test can drive the states the page must distinguish. The old
+// stub was a literal `() => 7`, which made "loading" and "read failed"
+// inexpressible — the exact reason the fee card could assert a rate it had never
+// read without failing a test.
+const feeState: { percent: number | null; isLoading: boolean; isError: boolean } = {
+  percent: 7,
+  isLoading: false,
+  isError: false,
+};
 vi.mock('@/hooks/queries/usePlatformFeePercent', () => ({
-  usePlatformFeePercent: () => 7,
+  usePlatformFeePercentQuery: () => feeState,
 }));
 vi.mock('@/features/payments/useUpdatePlatformFee', () => ({
   useUpdatePlatformFee: () => ({ mutate, isPending: false }),
 }));
-const ledgerState = { data: [] as LedgerRow[], isLoading: false, isError: false };
+// `data` is deliberately `LedgerRow[] | undefined`: a paused (offline) query
+// delivers undefined with isLoading:false AND isError:false, and the previous
+// fixture could not represent that at all.
+const ledgerState: { data: LedgerRow[] | undefined; isLoading: boolean; isError: boolean } = {
+  data: [],
+  isLoading: false,
+  isError: false,
+};
 vi.mock('@/features/payments/usePlatformPayoutLedger', () => ({
   usePlatformPayoutLedger: () => ({ ...ledgerState, refetch: refetchLedger }),
 }));
@@ -28,6 +44,7 @@ const row: LedgerRow = {
   showName: 'Spring Trial',
   clubId: 'c1',
   clubName: 'Club One',
+  showUnavailable: false,
   onlineCollectedCents: 5000,
   refundedCents: 0,
   unresolvedRefundDecisionCount: 0,
@@ -43,6 +60,9 @@ describe('PayoutLedgerPage', () => {
     ledgerState.data = [row];
     ledgerState.isLoading = false;
     ledgerState.isError = false;
+    feeState.percent = 7;
+    feeState.isLoading = false;
+    feeState.isError = false;
   });
 
   it('renders the platform fee card with the current rate', () => {
@@ -163,5 +183,102 @@ describe('PayoutLedgerPage', () => {
     expect(within(table).getByText('Unknown club')).toBeInTheDocument();
     expect(within(table).getByText('Not scheduled')).toBeInTheDocument();
     expect(screen.queryByText('—')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The three states in which this page previously stated something it did not know.
+ * Each of these fails on the unfixed page — that is what makes them worth having.
+ */
+describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ledgerState.data = [row];
+    ledgerState.isLoading = false;
+    ledgerState.isError = false;
+    feeState.percent = 7;
+    feeState.isLoading = false;
+    feeState.isError = false;
+  });
+
+  it('a PAUSED ledger query is not a platform that owes nothing', () => {
+    // networkMode:'online' + no connectivity => neither loading nor errored, and
+    // data undefined. The old guard fell through to `rows ?? []` and rendered
+    // "Outstanding to clubs $0.00" plus "No online payments yet".
+    ledgerState.data = undefined;
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.getByText(/could not load the payout ledger/i)).toBeInTheDocument();
+    expect(screen.getByText(/unavailable right now, not zero/i)).toBeInTheDocument();
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.queryByText(/no online payments yet/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps an unreadable show’s money in the totals and says the show is missing', () => {
+    // MYK9-233: entries survive a soft-deleted show; the show row does not.
+    ledgerState.data = [
+      { ...row, netOwedCents: 5000, payoutStatus: 'completed' },
+      {
+        ...row,
+        showId: 'deadbeef-0000-4000-8000-000000000000',
+        showName: null,
+        clubId: null,
+        clubName: null,
+        showUnavailable: true,
+        payoutStatus: null,
+        settleDate: null,
+        onlineCollectedCents: 15_000,
+        refundedCents: 2_500,
+        netOwedCents: 12_500,
+      },
+    ];
+
+    render(<PayoutLedgerPage />);
+
+    // Scoped to the table because the page renders the ledger twice (a mobile
+    // list and a table, both always in the DOM under jsdom).
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
+    // The money is counted, not dropped.
+    expect(within(table).getByText('$125.00')).toBeInTheDocument();
+    expect(within(table).getByText(/Show unavailable \(deadbeef\)/)).toBeInTheDocument();
+    // And the operator is told why a row has no name.
+    expect(screen.getByText(/1 show below could not be identified/i)).toBeInTheDocument();
+  });
+
+  it('does not state a fee rate it has not read, and refuses the edit', () => {
+    feeState.percent = null;
+    feeState.isError = true;
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.queryByText('7%')).not.toBeInTheDocument();
+    expect(screen.getByText(/current rate could not be loaded/i)).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /update fee/i })).toBeDisabled();
+  });
+
+  it('does not state a fee rate while it is still loading', () => {
+    feeState.percent = null;
+    feeState.isLoading = true;
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.queryByText('7%')).not.toBeInTheDocument();
+    expect(screen.getByText(/loading the current rate/i)).toBeInTheDocument();
+  });
+
+  it('does not invert the Save gate when the rate is unknown', () => {
+    // The sharpest edge of the old bug: with a live rate of 4.5 and a failed
+    // read, the page compared against a fabricated 7 — so typing the TRUE rate
+    // looked unchanged (Save disabled) and typing 7 looked like an edit.
+    feeState.percent = null;
+    feeState.isError = true;
+
+    render(<PayoutLedgerPage />);
+
+    const input = screen.getByRole('spinbutton', { name: /fee percent/i });
+    fireEvent.change(input, { target: { value: '4.5' } });
+    expect(screen.getByRole('button', { name: /update fee/i })).toBeDisabled();
   });
 });

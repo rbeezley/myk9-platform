@@ -114,9 +114,21 @@ export function pickCanonicalPayout(payouts: LedgerPayout[]): LedgerPayout | und
 
 export interface LedgerRow {
   showId: string;
-  showName: string;
+  /** null only when the show row could not be read — see `showUnavailable`. */
+  showName: string | null;
   clubId: string | null;
   clubName: string | null;
+  /**
+   * The entries for this show were read, but the `shows` row was not.
+   *
+   * A site admin can hold entries for a show they cannot select: `entries_select`
+   * reaches admins via `manageable_show_ids()`, which is SECURITY DEFINER and
+   * carries NO `deleted_at` filter, while `shows_select` ANDs `deleted_at IS NULL`
+   * OUTSIDE its role arms — so soft-deleting a show hides the show and keeps its
+   * entries. This row exists so that money still reaches the totals instead of
+   * silently vanishing with the unreadable show (MYK9-233).
+   */
+  showUnavailable: boolean;
   onlineCollectedCents: number;
   refundedCents: number;
   unresolvedRefundDecisionCount: number;
@@ -167,6 +179,7 @@ export function buildLedgerRows(
       showName: show.name,
       clubId: show.club_id,
       clubName: show.clubName,
+      showUnavailable: false,
       onlineCollectedCents: sumOnlineCollectedCents(entries),
       refundedCents: sumRefundedCents(entries),
       unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
@@ -176,6 +189,33 @@ export function buildLedgerRows(
       stripeTransferId: payout?.stripe_transfer_id ?? null,
     };
   });
+
+  // Any show we hold entries for but could NOT read a `shows` row for. Mapping
+  // over `shows` alone would drop these rows AND their cents from every total,
+  // reporting a smaller liability than the platform actually owes — as a
+  // confident figure, with nothing on screen. Emit them instead: the money is
+  // real and counted; only the show's identity is missing.
+  const resolvedShowIds = new Set(shows.map(s => s.id));
+  for (const [showId, entries] of entriesByShow) {
+    if (resolvedShowIds.has(showId)) continue;
+    const payout = pickCanonicalPayout(payoutsByShow.get(showId) ?? []);
+    const useStoredAmount = !!payout && payout.status !== 'failed';
+    rows.push({
+      showId,
+      showName: null,
+      clubId: null,
+      clubName: null,
+      showUnavailable: true,
+      onlineCollectedCents: sumOnlineCollectedCents(entries),
+      refundedCents: sumRefundedCents(entries),
+      unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
+      netOwedCents: useStoredAmount ? payout.amount_cents : calculateShowPayoutCents(entries),
+      // No show row means no end_date, so no settle date can be derived.
+      settleDate: null,
+      payoutStatus: payout ? payout.status : null,
+      stripeTransferId: payout?.stripe_transfer_id ?? null,
+    });
+  }
 
   return rows.sort((a, b) => {
     if (a.settleDate === b.settleDate) return 0;
@@ -189,6 +229,12 @@ export function buildLedgerRows(
 export function summarizeLedger(rows: LedgerRow[]): {
   outstandingCents: number;
   paidOutCents: number;
+  /**
+   * How many rows carry money for a show whose record could not be read. The
+   * cents ARE included in the totals above; this count exists so the page can
+   * say the identities are missing rather than leave the operator to notice.
+   */
+  unavailableShowCount: number;
 } {
   return rows.reduce(
     (acc, r) => {
@@ -197,8 +243,9 @@ export function summarizeLedger(rows: LedgerRow[]): {
       } else {
         acc.outstandingCents += r.netOwedCents;
       }
+      if (r.showUnavailable) acc.unavailableShowCount += 1;
       return acc;
     },
-    { outstandingCents: 0, paidOutCents: 0 }
+    { outstandingCents: 0, paidOutCents: 0, unavailableShowCount: 0 }
   );
 }

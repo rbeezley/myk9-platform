@@ -12,7 +12,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { usePlatformFeePercent } from '../usePlatformFeePercent';
+import { usePlatformFeePercent, usePlatformFeePercentQuery } from '../usePlatformFeePercent';
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -55,5 +55,54 @@ describe('usePlatformFeePercent', () => {
     const { result } = renderHook(() => usePlatformFeePercent(), { wrapper: createWrapper() });
     // Stays at the fallback; never resolves to anything else.
     await waitFor(() => expect(result.current).toBe(7));
+  });
+});
+
+/**
+ * The same reads through the query-state hook. Every case the display hook
+ * collapses into 7 must be distinguishable here as `percent: null` — this is the
+ * whole reason the second hook exists. The fee-authoring card gates an
+ * overwrite of the live checkout rate on this distinction.
+ */
+describe('usePlatformFeePercentQuery', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reports the rate it actually read', async () => {
+    maybeSingle.mockResolvedValue({ data: { platform_fee_percent: 10 }, error: null });
+    const { result } = renderHook(() => usePlatformFeePercentQuery(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.percent).toBe(10));
+    expect(result.current.isError).toBe(false);
+  });
+
+  it('reports null — NOT 7 — on a query error', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    const { result } = renderHook(() => usePlatformFeePercentQuery(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.percent).toBeNull();
+  });
+
+  it('reports null when the row is missing', async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    const { result } = renderHook(() => usePlatformFeePercentQuery(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.percent).toBeNull();
+  });
+
+  it('reports null when the stored value is out of bounds', async () => {
+    maybeSingle.mockResolvedValue({ data: { platform_fee_percent: 99 }, error: null });
+    const { result } = renderHook(() => usePlatformFeePercentQuery(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.percent).toBeNull();
+  });
+
+  it('starts as loading with no rate, rather than asserting a default', async () => {
+    // The failure this prevents: a card that renders "Current rate: 7%" during
+    // the first paint, before any row has been read.
+    maybeSingle.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => usePlatformFeePercentQuery(), { wrapper: createWrapper() });
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.percent).toBeNull();
   });
 });

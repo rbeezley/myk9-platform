@@ -163,6 +163,17 @@ AS $$
       --     no longer in. `promotion-expired` and `rejected` fold onto
       --     not_accepted; `cancelled` onto withdrawn.
       --   replicatedRunQueue.NOT_RUNNING_LIFECYCLE -> adds `absent`
+      --
+      -- DENYLIST, deliberately, not an allowlist. `draft`, `submitted`,
+      -- `no-status` and `pending-payment` all fold onto kind `pending`, which
+      -- `isRunnableScheduleStatus` treats as RUNNABLE. Excluding them here
+      -- would make cron paper stricter than the Reports page the secretary
+      -- just looked at -- the exact divergence this function exists to remove
+      -- -- and would leave a dog who turns up with no row to write on, which
+      -- is worse than listing one who should not have. If those states should
+      -- be off paperwork, change `isRunnableScheduleStatus` so every surface
+      -- moves together, then mirror it here. Raised twice in review; the
+      -- answer is the same both times.
       AND COALESCE(e.entry_status, '') NOT IN (
         'withdrawn', 'cancelled',
         'not_accepted', 'rejected', 'promotion-expired',

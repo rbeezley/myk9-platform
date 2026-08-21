@@ -1,7 +1,10 @@
 import { PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import type { ReportEntry } from '@/lib/reports/types';
-import { buildEmergencyPacketModel } from './emergencyTrialPacket';
+import {
+  buildEmergencyPacketModel,
+  splitPacketInputByTrialDay,
+} from './emergencyTrialPacket';
 import jsPDF from 'jspdf';
 import {
   buildEmergencyTrialPacketPdf,
@@ -100,6 +103,30 @@ const fixture: EmergencyPacketInput = {
  * grep of the raw bytes finds nothing and silently passes; they have to be
  * decoded.
  */
+/**
+ * jsPDF writes text in WinAnsi, so an en dash is the single byte 0x96.
+ *
+ * Decoding that as UTF-8 yields U+FFFD, and `TextDecoder('windows-1252')`
+ * DROPS it outright on this Node build — either way an assertion on real copy
+ * ("2026-10-03–2026-10-04") fails while the PDF itself is perfectly correct.
+ * Map the bytes explicitly rather than depend on which ICU data is present.
+ */
+const WINANSI_PUNCTUATION: Record<number, string> = {
+  0x91: '\u2018',
+  0x92: '\u2019',
+  0x93: '\u201C',
+  0x94: '\u201D',
+  0x95: '\u2022',
+  0x96: '\u2013',
+  0x97: '\u2014',
+};
+
+function decodeWinAnsi(bytes: Uint8Array): string {
+  let out = '';
+  for (const byte of bytes) out += WINANSI_PUNCTUATION[byte] ?? String.fromCharCode(byte);
+  return out;
+}
+
 async function extractPdfText(bytes: Uint8Array): Promise<string> {
   const pdf = await PDFDocument.load(bytes);
   const chunks: string[] = [];
@@ -108,7 +135,7 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
     if (!contents) continue;
     const streams = contents instanceof PDFRawStream ? [contents] : [];
     for (const stream of streams) {
-      chunks.push(new TextDecoder().decode(decodePDFRawStream(stream).decode()));
+      chunks.push(decodeWinAnsi(decodePDFRawStream(stream).decode()));
     }
   }
   // jsPDF emits show-text operators as `(literal) Tj`.
@@ -243,5 +270,55 @@ describe('buildEmergencyTrialPacketPdf', () => {
     const text = await extractPdfText(buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture)));
     expect(text).toContain('Ring 1');
     expect(text).toContain('Ring 2');
+  });
+
+  /**
+   * MYK9-228. The fixture runs two trials on two different days. Split by day,
+   * each packet must stand alone: its own cover naming its own date, and only
+   * its own trial inside. A cover that still said "2026-10-03–2026-10-04"
+   * would leave two evenings' stacks indistinguishable at a glance.
+   */
+  describe('per-day packets', () => {
+    it('names its own day and its own trials on the cover', async () => {
+      const days = splitPacketInputByTrialDay(fixture);
+      expect(days.map(day => day.trialDate)).toEqual(['2026-10-03', '2026-10-04']);
+
+      const saturday = await extractPdfText(
+        buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(days[0].input))
+      );
+      expect(saturday).toContain('This packet covers: 2026-10-03');
+      expect(saturday).toContain('Trials in this packet:');
+      expect(saturday).toContain('• Saturday');
+      expect(saturday).not.toContain('Sunday');
+      expect(saturday).not.toContain('2026-10-04');
+    });
+
+    it('still prints the whole-show span when the packet holds every day', async () => {
+      const text = await extractPdfText(
+        buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture))
+      );
+      expect(text).toContain('This packet covers: 2026-10-03–2026-10-04');
+    });
+
+    it('never drops a trial name silently, however many a day holds', async () => {
+      // A cover that omits a trial fails at the one job it has. Past the line
+      // budget it must SAY how many are missing.
+      const busy = structuredClone(fixture) as EmergencyPacketInput;
+      busy.trials = Array.from({ length: 7 }, (_, i) => ({
+        id: `t${i}`,
+        date: '2026-10-03',
+        name: `Trial Number ${i}`,
+        trialNumber: String(i),
+        registryId: 'AKC',
+      }));
+      busy.classes = busy.classes.map(c => ({ ...c, trialId: 't0' }));
+      busy.entries = busy.entries.map(e => ({ ...e, trialId: 't0', classId: busy.classes[0].id }));
+
+      const text = await extractPdfText(
+        buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(busy))
+      );
+      expect(text).toContain('+4 more');
+      expect(text).toContain('see the trial sections inside');
+    });
   });
 });

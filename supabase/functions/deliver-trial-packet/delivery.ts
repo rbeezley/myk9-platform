@@ -22,6 +22,12 @@ export interface TrialPacketPayload {
   sha256: string;
   pageCount: number;
   byteSize: number;
+  /**
+   * The trial day this packet covers, when the show runs more than one.
+   * Optional: older clients (and whole-show packets) omit it. Without it a
+   * weekend's packets arrive as identical emails carrying opaque UUID links.
+   */
+  trialDate?: string;
 }
 
 const OPERATIONAL_ROLES = new Set(['secretary', 'trial_secretary', 'club_admin']);
@@ -36,6 +42,21 @@ export function payloadContainsRecipientFields(body: unknown): boolean {
   return ['to', 'cc', 'recipients', 'recipientEmails', 'replyTo'].some(key => keys.has(key));
 }
 
+export function isValidTrialDate(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  // Round-trip the components. `Date.parse` NORMALISES an impossible date —
+  // 2026-02-30 becomes March 2 rather than NaN — which would put a day that
+  // never existed in the email subject and the download filename.
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
 export function isValidTrialPacketPayload(body: TrialPacketPayload): boolean {
   return (
     UUID_PATTERN.test(body.showId) &&
@@ -47,7 +68,11 @@ export function isValidTrialPacketPayload(body: TrialPacketPayload): boolean {
     body.pageCount > 0 &&
     Number.isInteger(body.byteSize) &&
     body.byteSize > 0 &&
-    body.byteSize <= 20 * 1024 * 1024
+    body.byteSize <= 20 * 1024 * 1024 &&
+    // Optional, but if present it must be a canonical date: it reaches a
+    // Content-Disposition header, and an unvalidated non-string turns a bad
+    // request into a 500 inside the filename slugger.
+    isValidTrialDate(body.trialDate)
   );
 }
 
@@ -116,11 +141,37 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#039;');
 }
 
+/**
+ * What the recipient's browser saves the PDF as.
+ *
+ * The storage object is `<showId>/<snapshotId>.pdf`, so without a download
+ * name every day's packet lands in Downloads as the same opaque UUID and the
+ * per-day split buys nothing once the file leaves the mail (MYK9-228).
+ *
+ * Sanitised hard: this value becomes a Content-Disposition header.
+ */
+export function buildPacketDownloadFilename(input: {
+  showName: string;
+  trialDate?: string | undefined;
+  generatedAt: string;
+}): string {
+  const slug = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+  const show = slug(input.showName) || 'show';
+  const day = slug(input.trialDate ?? input.generatedAt.slice(0, 10)) || 'packet';
+  return `${show}-${day}-emergency-packet.pdf`;
+}
+
 export function buildTrialPacketEmailHtml(input: {
   showName: string;
   generatedAt: string;
   signedUrl: string;
   expiresAt: string;
+  trialDate?: string | undefined;
 }): string {
   const showName = escapeHtml(input.showName);
   const generatedAt = escapeHtml(input.generatedAt);
@@ -129,12 +180,18 @@ export function buildTrialPacketEmailHtml(input: {
   return `<!doctype html>
 <html lang="en">
   <body style="font-family:Arial,sans-serif;color:#172033;line-height:1.5">
-    <h1 style="font-size:22px">${showName} emergency trial packet</h1>
+    <h1 style="font-size:22px">${showName} emergency trial packet${
+      input.trialDate ? ` — ${escapeHtml(input.trialDate)}` : ''
+    }</h1>
     <div style="border:2px solid #991b1b;background:#fef2f2;padding:16px;margin:18px 0">
       <strong style="font-size:18px;color:#7f1d1d">PRINT IT AND PUT IT IN THE TRIAL BOX.</strong>
       <p style="margin-bottom:0">A PDF in email is not the final emergency fallback. The printed packet is.</p>
     </div>
-    <p>This is a <strong>snapshot, not live data</strong>, generated ${generatedAt}.</p>
+    <p>This is a <strong>snapshot, not live data</strong>, generated ${generatedAt}.</p>${
+      input.trialDate
+        ? `\n    <p>This packet covers <strong>${escapeHtml(input.trialDate)}</strong> only. Each trial day has its own packet — print them separately and keep them apart.</p>`
+        : ''
+    }
     <p><a href="${signedUrl}" style="display:inline-block;background:#172033;color:#fff;padding:12px 18px;text-decoration:none">Open and print the emergency packet</a></p>
     <p>The private link opens without a myK9 session and expires ${expiresAt}. Do not forward it outside the show team.</p>
     <p>After printing, use the existing <strong>Mark printed</strong> action in myK9 so the show team knows the paper is physically ready.</p>

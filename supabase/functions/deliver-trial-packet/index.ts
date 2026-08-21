@@ -5,6 +5,7 @@ import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import {
+  buildPacketDownloadFilename,
   buildTrialPacketEmailHtml,
   callerRoleAuthorizesPacket,
   isValidTrialPacketPayload,
@@ -141,7 +142,14 @@ handle<TrialPacketPayload>(
     const expiresAt = new Date(Date.now() + lifetimeSeconds * 1000).toISOString();
     const { data: signed, error: signedError } = await supabase.storage
       .from(BUCKET)
-      .createSignedUrl(body.storagePath, lifetimeSeconds);
+      .createSignedUrl(body.storagePath, lifetimeSeconds, {
+        // Otherwise every day's packet saves as the same opaque snapshot UUID.
+        download: buildPacketDownloadFilename({
+          showName: show.name,
+          trialDate: body.trialDate,
+          generatedAt: body.generatedAt,
+        }),
+      });
     if (signedError || !signed?.signedUrl) {
       throw new HttpError(500, 'Failed to create the private packet link.');
     }
@@ -174,12 +182,15 @@ handle<TrialPacketPayload>(
         snapshotId: body.snapshotId,
         from: FROM_EMAIL,
         recipients,
-        subject: `Print for the trial box — ${show.name} emergency packet`,
+        subject: body.trialDate
+          ? `Print for the trial box — ${show.name} emergency packet (${body.trialDate})`
+          : `Print for the trial box — ${show.name} emergency packet`,
         html: buildTrialPacketEmailHtml({
           showName: show.name,
           generatedAt: body.generatedAt,
           signedUrl: signed.signedUrl,
           expiresAt,
+          trialDate: body.trialDate,
         }),
       });
     } catch (error) {

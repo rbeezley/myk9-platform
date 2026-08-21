@@ -92,6 +92,12 @@ export interface EmergencyPacketTrialSection extends EmergencyPacketTrial {
   classes: EmergencyPacketClass[];
 }
 
+/** One trial day's worth of packet input — see `splitPacketInputByTrialDay`. */
+export interface EmergencyPacketDay {
+  trialDate: string;
+  input: EmergencyPacketInput;
+}
+
 export interface EmergencyPacketModel {
   generatedAt: string;
   show: EmergencyPacketShow;

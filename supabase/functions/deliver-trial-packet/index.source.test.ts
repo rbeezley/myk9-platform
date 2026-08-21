@@ -15,7 +15,10 @@ describe('deliver-trial-packet handler contract', () => {
     const emailSend = source.indexOf('await sendTrialPacketEmail');
     const sentAudit = source.indexOf("delivery_status: 'sent'", emailSend);
 
-    expect(source).toContain('.createSignedUrl(body.storagePath, lifetimeSeconds)');
+    // Intent: the link is minted from the VALIDATED path and the clamped
+    // lifetime. Options may follow (the download filename does), so do not pin
+    // the closing paren — that pins formatting, not the contract.
+    expect(source).toContain('.createSignedUrl(body.storagePath, lifetimeSeconds');
     expect(sentLookup).toBeGreaterThan(0);
     expect(sentReturn).toBeGreaterThan(sentLookup);
     expect(emailSend).toBeGreaterThan(sentReturn);

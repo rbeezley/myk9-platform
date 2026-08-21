@@ -32,6 +32,13 @@ export interface DeliverEmergencyPacketInput {
   generatedAt: string;
   bytes: Uint8Array;
   pageCount: number;
+  /**
+   * The trial day this packet covers. A weekend produces one packet per day
+   * and every one of them shares a `generatedAt`, so without this the emails
+   * are indistinguishable and the links are opaque UUIDs — the recipient
+   * cannot tell which packet is Saturday's without opening both (MYK9-228).
+   */
+  trialDate?: string;
 }
 
 export class EmergencyPacketDeliveryError extends Error {
@@ -93,6 +100,7 @@ export async function deliverEmergencyTrialPacket(
       snapshotId: input.snapshotId,
       storagePath,
       generatedAt: input.generatedAt,
+      ...(input.trialDate ? { trialDate: input.trialDate } : {}),
       sha256,
       pageCount: input.pageCount,
       byteSize: input.bytes.byteLength,

@@ -6,6 +6,7 @@ import {
   buildEmergencyPacketStoragePath,
   emergencyPacketAvailability,
   formatClassTimeLimits,
+  splitPacketInputByTrialDay,
   formatEmergencyPacketPageLabel,
 } from './emergencyTrialPacket';
 import type { EmergencyPacketInput } from './types';
@@ -275,5 +276,101 @@ describe('formatClassTimeLimits', () => {
     // Silence beats a confident "Max time 0:00" on a page a judge runs on.
     expect(formatClassTimeLimits(base)).toBeUndefined();
     expect(formatClassTimeLimits({ ...base, timeLimitSeconds: 0 })).toBeUndefined();
+  });
+});
+
+/**
+ * MYK9-228. A show is the whole event; a trial is a unit inside it, and a day
+ * can hold more than one. The packet was whole-show, which is wrong for a
+ * nightly trigger: regenerating it each evening reprints the previous day's
+ * spent pages and manufactures two near-identical stacks — the confusion the
+ * packet's own recovery page warns about.
+ */
+describe('splitPacketInputByTrialDay', () => {
+  const show = {
+    id: 'show-1',
+    name: 'Heartland Scent Work Classic',
+    startDate: '2026-08-01',
+    endDate: '2026-08-02',
+  };
+
+  function trial(id: string, date: string, name: string) {
+    return { id, date, name, trialNumber: name, registryId: 'AKC' };
+  }
+  function cls(id: string, trialId: string) {
+    return {
+      id,
+      trialId,
+      name: `Class ${id}`,
+      element: 'Container',
+      level: 'Novice',
+      section: null,
+      classNumber: null,
+      displayOrder: 1,
+      judgeName: 'Judge',
+      ringLabel: null,
+      startTime: null,
+      timeLimitSeconds: 120,
+      timeLimitArea2Seconds: null,
+      timeLimitArea3Seconds: null,
+      numAreas: null,
+    };
+  }
+
+  // Saturday holds one trial; Sunday holds three, as the seeded Heartland show
+  // does — and those three carry different sanctioning bodies.
+  const input = {
+    generatedAt: '2026-08-01T00:00:00.000Z',
+    show,
+    trials: [
+      trial('t-sat', '2026-08-01', 'Saturday Trial'),
+      trial('t-sun-akc', '2026-08-02', 'Sunday Trial'),
+      trial('t-sun-ukc', '2026-08-02', 'Sunday UKC Nosework'),
+      trial('t-sun-asca', '2026-08-02', 'Sunday ASCA Scent Detection'),
+    ],
+    classes: [cls('c-sat', 't-sat'), cls('c-sun-akc', 't-sun-akc'), cls('c-sun-ukc', 't-sun-ukc')],
+    entries: [
+      entry({ id: 'e-sat', classId: 'c-sat', trialId: 't-sat' }),
+      entry({ id: 'e-sun-akc', classId: 'c-sun-akc', trialId: 't-sun-akc' }),
+      entry({ id: 'e-sun-ukc', classId: 'c-sun-ukc', trialId: 't-sun-ukc' }),
+    ],
+  } as unknown as EmergencyPacketInput;
+
+  it('emits one packet per day, in date order, not one per trial', () => {
+    const days = splitPacketInputByTrialDay(input);
+    expect(days.map(day => day.trialDate)).toEqual(['2026-08-01', '2026-08-02']);
+    // Sunday's three trials belong in ONE packet: three links in one email is
+    // three print jobs and three things to mislay. Within the day they keep
+    // `compareTrials`' existing order (by trial number), not input order.
+    expect(days[1].input.trials.map(t => t.id)).toEqual(['t-sun-asca', 't-sun-akc', 't-sun-ukc']);
+  });
+
+  it('carries only the classes and entries belonging to that day', () => {
+    const [saturday, sunday] = splitPacketInputByTrialDay(input);
+    expect(saturday.input.classes.map(c => c.id)).toEqual(['c-sat']);
+    expect(saturday.input.entries.map(e => e.id)).toEqual(['e-sat']);
+    expect(sunday.input.classes.map(c => c.id)).toEqual(['c-sun-akc', 'c-sun-ukc']);
+    expect(sunday.input.entries.map(e => e.id)).toEqual(['e-sun-akc', 'e-sun-ukc']);
+  });
+
+  it('keeps an entry reachable only by trialId, with no class of its own', () => {
+    // The model builder matches entries by trialId OR classId; the partition
+    // must not be stricter than the thing it feeds, or entries vanish.
+    const orphan = entry({ id: 'e-orphan', trialId: 't-sat' });
+    const days = splitPacketInputByTrialDay({ ...input, entries: [...input.entries, orphan] });
+    expect(days[0].input.entries.map(e => e.id)).toContain('e-orphan');
+  });
+
+  it('preserves generatedAt and the show across every day', () => {
+    for (const day of splitPacketInputByTrialDay(input)) {
+      expect(day.input.generatedAt).toBe(input.generatedAt);
+      expect(day.input.show).toEqual(show);
+    }
+  });
+
+  it('returns nothing for a show with no trials', () => {
+    expect(splitPacketInputByTrialDay({ ...input, trials: [], classes: [], entries: [] })).toEqual(
+      []
+    );
   });
 });

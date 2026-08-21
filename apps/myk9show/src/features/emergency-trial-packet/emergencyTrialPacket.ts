@@ -10,6 +10,7 @@ import {
   type EmergencyPacketPage,
   type EmergencyPacketPageContext,
   type EmergencyPacketPageKind,
+  type EmergencyPacketDay,
   type EmergencyPacketTrial,
 } from './types';
 
@@ -72,6 +73,15 @@ function packetEntry(entry: ReportEntry): EmergencyPacketEntry {
 }
 
 function baseContext(input: EmergencyPacketInput): EmergencyPacketPageContext {
+  // A per-day packet must say which DAY it is for, on the cover and in every
+  // footer — that is what stops two evenings' stacks being confused. Derive it
+  // from the trials actually present rather than the show's span, so the same
+  // builder serves both a per-day packet and a whole-show one.
+  const dates = [...new Set(input.trials.map(trial => trial.date).filter(Boolean))].sort();
+  if (dates.length === 1) return { showName: input.show.name, trialDate: dates[0] };
+  if (dates.length > 1) {
+    return { showName: input.show.name, trialDate: `${dates[0]}–${dates[dates.length - 1]}` };
+  }
   return {
     showName: input.show.name,
     trialDate:
@@ -167,6 +177,57 @@ export function formatClassTimeLimits(classItem: {
     const label = configured[index] ?? '';
     return `Area ${index + 1} ${label === '' ? 'not set' : label}`;
   }).join(' · ')}`;
+}
+
+/**
+ * One packet per trial DAY, not per show and not per trial (MYK9-228).
+ *
+ * A show is the whole event; a trial is a unit inside it, and a day can hold
+ * several — the seeded Heartland weekend runs one trial on Saturday and three
+ * on Sunday, under three different sanctioning bodies.
+ *
+ * Per-show is wrong for a nightly trigger: regenerating each evening reprints
+ * the previous day's spent pages and leaves two near-identical stacks, the
+ * confusion the packet's own recovery page warns about. Per-trial is too
+ * granular to deliver: a three-trial Sunday becomes three links, three print
+ * jobs, three things to mislay. The per-trial STRUCTURE still matters and is
+ * preserved inside each day's packet, which is what keeps a separate
+ * certification page per sanctioning body.
+ *
+ * This partitions the INPUT and reuses `buildEmergencyPacketModel` unchanged,
+ * so a per-day packet cannot drift from the whole-show one.
+ */
+export function splitPacketInputByTrialDay(input: EmergencyPacketInput): EmergencyPacketDay[] {
+  const byDate = new Map<string, EmergencyPacketTrial[]>();
+  for (const trial of [...input.trials].sort(compareTrials)) {
+    const existing = byDate.get(trial.date);
+    if (existing) existing.push(trial);
+    else byDate.set(trial.date, [trial]);
+  }
+
+  return [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([trialDate, trials]) => {
+      const trialIds = new Set(trials.map(trial => trial.id));
+      const classes = input.classes.filter(classItem => trialIds.has(classItem.trialId));
+      const classIds = new Set(classes.map(classItem => classItem.id));
+      return {
+        trialDate,
+        input: {
+          ...input,
+          trials,
+          classes,
+          // Match on trialId OR classId, exactly as the model builder does. A
+          // stricter filter here would silently drop entries the packet would
+          // otherwise have rendered.
+          entries: input.entries.filter(
+            entry =>
+              (entry.trialId ? trialIds.has(entry.trialId) : false) ||
+              (entry.classId ? classIds.has(entry.classId) : false)
+          ),
+        },
+      };
+    });
 }
 
 export function buildEmergencyPacketModel(input: EmergencyPacketInput): EmergencyPacketModel {

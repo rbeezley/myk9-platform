@@ -11,7 +11,7 @@ import SyncMonitoringDashboard from '../../components/sync/SyncMonitoringDashboa
 const SyncMonitoringPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
+      <div className="manager-content-container container mx-auto px-6 pt-8 pb-8 max-w-7xl">
         <SyncMonitoringDashboard />
       </div>
     </div>

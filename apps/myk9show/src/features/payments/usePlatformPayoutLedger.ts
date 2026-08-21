@@ -28,6 +28,12 @@ export async function loadPlatformPayoutLedgerEntryPage(
       .from('entries')
       .select(includeRefundDecision ? LEDGER_ENTRY_PULL_SELECT : LEDGER_ENTRY_BASE_SELECT)
       .eq('payment_method', 'online')
+      // Same append-stable ordering as the payout pages below, and for the same
+      // reason: a random-UUID sort key lets a concurrent insert reorder pages
+      // mid-scan. Pre-dates this change; corrected here because it is the same
+      // defect in the same file, and this ledger's totals depend on the scan
+      // being complete.
+      .order('created_at')
       .order('id')
       .range(from, to);
 
@@ -39,6 +45,75 @@ export async function loadPlatformPayoutLedgerEntryPage(
 
   const rows = (response.data ?? []) as unknown as LedgerEntryWithoutDecision[];
   return rows.map(row => ({ ...row, refund_decision: row.refund_decision ?? null }));
+}
+
+/** PostgREST response cap. Anything that can exceed it must paginate. */
+const PAGE = 1000;
+/** Ids per `.in(...)` batch. Under PAGE so a one-row-per-id read cannot truncate. */
+const ID_CHUNK = 500;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+type ShowRow = {
+  id: string;
+  name: string;
+  club_id: string | null;
+  end_date: string | null;
+  club: { name: string } | null;
+};
+
+export async function loadShowsByIds(showIds: string[]): Promise<ShowRow[]> {
+  const rows: ShowRow[] = [];
+  for (const ids of chunk(showIds, ID_CHUNK)) {
+    const { data, error } = await supabase
+      .from('shows')
+      .select('id, name, club_id, end_date, club:clubs(name)')
+      .in('id', ids);
+    if (error) throw error;
+    rows.push(...((data ?? []) as unknown as ShowRow[]));
+  }
+  return rows;
+}
+
+type PayoutRow = {
+  show_id: string;
+  amount_cents: number;
+  status: string;
+  stripe_transfer_id: string | null;
+  completed_at: string | null;
+  created_at: string | null;
+};
+
+export async function loadPayoutsByShowIds(showIds: string[]): Promise<PayoutRow[]> {
+  const rows: PayoutRow[] = [];
+  for (const ids of chunk(showIds, ID_CHUNK)) {
+    // Range-paginated as well as chunked: failed retries accumulate, so one
+    // chunk of shows can hold more than PAGE payout rows.
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('show_payouts')
+        .select('show_id, amount_cents, status, stripe_transfer_id, completed_at, created_at')
+        .in('show_id', ids)
+        // Append-STABLE ordering. `id` alone is a random UUID, so a row the
+        // payout cron inserts between two range requests can sort BEFORE the
+        // current offset — shifting every later row down one, which duplicates a
+        // boundary row and drops another. Losing a live payout that way would
+        // show a completed transfer as outstanding. (created_at, id) only ever
+        // appends, and id breaks ties on identical timestamps.
+        .order('created_at')
+        .order('id')
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      const page = (data ?? []) as unknown as PayoutRow[];
+      rows.push(...page);
+      if (page.length < PAGE) break;
+    }
+  }
+  return rows;
 }
 
 /**
@@ -59,7 +134,6 @@ export function usePlatformPayoutLedger() {
       // read would silently understate collected/refunded/net once online
       // entries exceed the cap (same reason the payout cron paginates).
       const entriesByShow = new Map<string, LedgerEntryRow[]>();
-      const PAGE = 1000;
       for (let from = 0; ; from += PAGE) {
         const entryRows = await loadPlatformPayoutLedgerEntryPage(from, from + PAGE - 1);
         for (const row of entryRows) {
@@ -74,25 +148,28 @@ export function usePlatformPayoutLedger() {
       const showIds = [...entriesByShow.keys()];
       if (showIds.length === 0) return [];
 
-      const [{ data: showRows, error: showsError }, { data: payoutRows, error: payoutsError }] =
-        await Promise.all([
-          supabase
-            .from('shows')
-            .select('id, name, club_id, end_date, club:clubs(name)')
-            .in('id', showIds),
-          supabase
-            .from('show_payouts')
-            .select('show_id, amount_cents, status, stripe_transfer_id, completed_at, created_at')
-            .in('show_id', showIds),
-        ]);
-      if (showsError) throw showsError;
-      if (payoutsError) throw payoutsError;
+      // BOTH joined reads must be paginated, and this became load-bearing the
+      // moment a missing `shows` row started MEANING something. PostgREST caps a
+      // response at 1000 rows, so an unpaginated read silently truncates — and a
+      // truncated read is indistinguishable from a row we are not allowed to
+      // see. That would label readable shows "unavailable", and worse: a
+      // truncated COMPLETED payout row makes its show fall back to the computed
+      // liability with payoutStatus null, moving already-transferred money out
+      // of "paid out" and into "outstanding".
+      //
+      // Shows are chunked (one row per id, so a chunk under the cap is safe).
+      // Payouts are chunked AND range-paginated, because failed retries
+      // accumulate — one show can hold many payout rows.
+      const [showRows, payoutRows] = await Promise.all([
+        loadShowsByIds(showIds),
+        loadPayoutsByShowIds(showIds),
+      ]);
 
-      const shows: LedgerShow[] = (showRows ?? []).map(s => ({
+      const shows: LedgerShow[] = showRows.map(s => ({
         id: s.id,
         name: s.name,
         club_id: s.club_id,
-        clubName: (s.club as { name: string } | null)?.name ?? null,
+        clubName: s.club?.name ?? null,
         endDate: s.end_date,
       }));
 
@@ -101,7 +178,7 @@ export function usePlatformPayoutLedger() {
       // buildLedgerRows → pickCanonicalPayout choose the canonical one, so an
       // old failed row can't overwrite the current completed/pending row.
       const payoutsByShow = new Map<string, LedgerPayout[]>();
-      for (const p of payoutRows ?? []) {
+      for (const p of payoutRows) {
         const list = payoutsByShow.get(p.show_id) ?? [];
         list.push({
           show_id: p.show_id,

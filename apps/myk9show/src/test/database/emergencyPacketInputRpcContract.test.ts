@@ -106,6 +106,14 @@ describe('emergency_packet_input contract', () => {
     expect(sql).not.toMatch(/check_in_status[^\n]*'in-ring'/);
   });
 
+  it('drops a cancelled trial or class, which soft-delete does not cover', () => {
+    // Both `trials_status_check` and `classes_status_check` permit
+    // 'cancelled', and neither sets deleted_at. A day holding two trials, one
+    // cancelled, would otherwise print a full section for the one not running.
+    expect(sql).toMatch(/COALESCE\(t\.status, ''\) <> 'cancelled'/);
+    expect(sql).toMatch(/COALESCE\(cl\.status, ''\) <> 'cancelled'/);
+  });
+
   it('backfills the armband from the authoritative table', () => {
     // `entries.armband` is a denormalised copy that lags an unsynced
     // replication UPDATE; `armbands` is written atomically by assign_armband

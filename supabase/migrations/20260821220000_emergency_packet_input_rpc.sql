@@ -68,6 +68,10 @@ AS $$
       AND t.deleted_at IS NULL
       -- NULL means "the whole show"; a date restricts to that trial day.
       AND (p_trial_date IS NULL OR t.date = p_trial_date)
+      -- `trials_status_check` permits 'cancelled', and a cancelled trial is
+      -- not soft-deleted. A day holding two trials, one cancelled, would
+      -- otherwise print a full section for the one that will not run.
+      AND COALESCE(t.status, '') <> 'cancelled'
   ),
   class_rows AS (
     SELECT
@@ -95,6 +99,9 @@ AS $$
       LIMIT 1
     ) ja ON TRUE
     WHERE cl.deleted_at IS NULL
+      -- Same for a single cancelled class: `classes_status_check` permits it
+      -- without a soft delete, and its entries are otherwise active.
+      AND COALESCE(cl.status, '') <> 'cancelled'
   ),
   entry_rows AS (
     SELECT

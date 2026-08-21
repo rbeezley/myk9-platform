@@ -12,6 +12,7 @@ import {
   startConnectOnboarding,
 } from './useClubStripeAccount';
 import { resolvePayoutBadge, type PayoutsAccountState } from './payoutBadge';
+import { NEUTRAL_STATUS_CHIP } from '@/components/ui/statusChip';
 import { useConnectReturn, useClearConnectParam } from './useConnectReturn';
 import { isSupersededFailure } from '@/features/financial/payoutSupersession';
 import type { ShowPayoutRow } from './useClubStripeAccount';
@@ -154,7 +155,9 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Landmark className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-              <CardTitle>Bank account</CardTitle>
+              <CardTitle role="heading" aria-level={2}>
+                Bank account
+              </CardTitle>
             </div>
             {enabled && (
               <Badge className="shrink-0 bg-success text-success-foreground hover:bg-success">
@@ -163,7 +166,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
               </Badge>
             )}
             {inReview && (
-              <Badge variant="secondary" className="shrink-0">
+              <Badge variant="secondary" className={`shrink-0 ${NEUTRAL_STATUS_CHIP}`}>
                 <Clock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                 Under review by Stripe
               </Badge>
@@ -186,13 +189,9 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           {accountQuery.isError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
-              <AlertDescription>
-                Couldn&apos;t load your payment account status.{' '}
-                <Button
-                  variant="link"
-                  className="inline-flex min-h-[44px] items-center p-0"
-                  onClick={() => accountQuery.refetch()}
-                >
+              <AlertDescription className="space-y-3">
+                <p>Couldn&apos;t load your payment account status.</p>
+                <Button variant="outline" size="touch" onClick={() => void accountQuery.refetch()}>
                   Try again
                 </Button>
               </AlertDescription>
@@ -202,14 +201,15 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           {connectError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
-              <AlertDescription>
-                {connectError}{' '}
+              <AlertDescription className="space-y-3">
+                <p>{connectError}</p>
                 <Button
-                  variant="link"
-                  className="inline-flex min-h-[44px] items-center p-0"
+                  variant="outline"
+                  size="touch"
                   onClick={handleContinueToStripe}
+                  disabled={isStartingOnboarding}
                 >
-                  Try again
+                  {isStartingOnboarding ? 'Opening Stripe' : 'Try again'}
                 </Button>
               </AlertDescription>
             </Alert>
@@ -229,12 +229,12 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
               {enabled && payoutHistory.isError && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                  <AlertDescription>
-                    Couldn&apos;t load your payout history.{' '}
+                  <AlertDescription className="space-y-3">
+                    <p>Couldn&apos;t load your payout history.</p>
                     <Button
-                      variant="link"
-                      className="inline-flex min-h-[44px] items-center p-0"
-                      onClick={() => payoutHistory.refetch()}
+                      variant="outline"
+                      size="touch"
+                      onClick={() => void payoutHistory.refetch()}
                     >
                       Try again
                     </Button>
@@ -244,7 +244,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
 
               {enabled && (payoutHistory.data?.length ?? 0) > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Show payouts</h4>
+                  <h3 className="text-sm font-medium">Show payouts</h3>
                   <p className="text-xs text-muted-foreground">
                     Amounts shown are deposited to your club&apos;s bank account.
                   </p>
@@ -262,7 +262,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                       return (
                         <li
                           key={payout.id}
-                          className="flex items-center justify-between gap-2 px-3 py-2"
+                          className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
                         >
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">
@@ -272,7 +272,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                               {dateLabel} {dateValue}
                             </p>
                           </div>
-                          <div className="flex shrink-0 items-center gap-2">
+                          <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold tabular-nums">
                               {formatPayoutAmount(payout.amount_cents)}
                             </span>
@@ -366,7 +366,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
               {notConnected && !awaitingStripeConfirmation && !showLinkExpired && showChecklist && (
                 <div className="space-y-4 rounded-lg border p-4">
                   <div>
-                    <h4 className="font-medium">Before you start, have these four things ready:</h4>
+                    <h3 className="font-medium">Before you start, have these four things ready:</h3>
                     <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
                       {CHECKLIST_ITEMS.map(item => (
                         <li key={item}>{item}</li>

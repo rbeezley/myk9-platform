@@ -25,7 +25,7 @@ export function CopyableTransferId({ transferId }: CopyableTransferIdProps) {
     <Button
       variant="ghost"
       size="sm"
-      className="h-auto gap-1.5 px-2 py-1 font-mono text-xs"
+      className="min-h-11 gap-1.5 px-2 py-1 font-mono text-xs"
       aria-label={`Copy Stripe transfer id ${transferId}`}
       onClick={handleCopy}
     >

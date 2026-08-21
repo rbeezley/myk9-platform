@@ -97,10 +97,13 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(screen.getByText('$100.00')).toBeInTheDocument();
     // ...and the settled transfer amount is shown, labeled "Transferred:".
     expect(screen.getByText('Transferred:')).toBeInTheDocument();
-    const transferred = screen.getByLabelText(/settled transfer amount \$96\.80/i);
-    expect(transferred).toHaveTextContent('$96.80');
+    // Assert the rendered line, not an aria-label: Badge and bare <span> map to
+    // role="generic", which PROHIBITS naming, so the aria-label this used to
+    // check was dropped by every screen reader and the test proved nothing.
+    const transferLine = screen.getByText('Transferred:').closest('p');
+    expect(transferLine).toHaveTextContent('$96.80');
     // The two figures are textually distinguishable ($100.00 vs $96.80).
-    expect(transferred).not.toHaveTextContent('$100.00');
+    expect(transferLine).not.toHaveTextContent('$100.00');
   });
 
   it('Attested row: shows the Attested badge, not Verified', () => {
@@ -182,7 +185,10 @@ describe('ClubFinancialReconciliationCard', () => {
     });
     render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" payoutHistory={[]} />);
 
+    // The destructive variant keeps its own colours; it must NOT pick up the
+    // neutral chip that every other settlement state now carries.
     const badge = screen.getByText('Needs attention');
-    expect(badge.getAttribute('aria-label')).toMatch(/payout settlement/i);
+    expect(badge.className).toContain('destructive');
+    expect(badge.className).not.toContain('chip-stone');
   });
 });

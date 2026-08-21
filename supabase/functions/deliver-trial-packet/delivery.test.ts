@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPacketDownloadFilename,
+  isValidTrialDate,
   buildTrialPacketEmailHtml,
   callerRoleAuthorizesPacket,
   isValidTrialPacketPayload,
@@ -141,5 +142,17 @@ describe('trial packet delivery rules', () => {
     });
     expect(name).toMatch(/^[a-z0-9-]+\.pdf$/);
     expect(name).not.toContain('..');
+  });
+
+  it('accepts an absent trial date but rejects a malformed one', () => {
+    // The field reaches a Content-Disposition header. Unvalidated, a caller
+    // sending `trialDate: 123` turns a bad request into a 500 inside the
+    // filename slugger rather than a 400 (Codex review).
+    expect(isValidTrialDate(undefined)).toBe(true);
+    expect(isValidTrialDate('2026-08-02')).toBe(true);
+    expect(isValidTrialDate(123)).toBe(false);
+    expect(isValidTrialDate('2026-8-2')).toBe(false);
+    expect(isValidTrialDate('2026-13-40')).toBe(false);
+    expect(isValidTrialDate('../../etc/passwd')).toBe(false);
   });
 });

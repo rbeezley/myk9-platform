@@ -42,6 +42,12 @@ export function payloadContainsRecipientFields(body: unknown): boolean {
   return ['to', 'cc', 'recipients', 'recipientEmails', 'replyTo'].some(key => keys.has(key));
 }
 
+export function isValidTrialDate(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  return !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+}
+
 export function isValidTrialPacketPayload(body: TrialPacketPayload): boolean {
   return (
     UUID_PATTERN.test(body.showId) &&
@@ -53,7 +59,11 @@ export function isValidTrialPacketPayload(body: TrialPacketPayload): boolean {
     body.pageCount > 0 &&
     Number.isInteger(body.byteSize) &&
     body.byteSize > 0 &&
-    body.byteSize <= 20 * 1024 * 1024
+    body.byteSize <= 20 * 1024 * 1024 &&
+    // Optional, but if present it must be a canonical date: it reaches a
+    // Content-Disposition header, and an unvalidated non-string turns a bad
+    // request into a 500 inside the filename slugger.
+    isValidTrialDate(body.trialDate)
   );
 }
 

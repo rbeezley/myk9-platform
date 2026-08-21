@@ -5,13 +5,14 @@
  * Precedence: finish payment > check-in (first check-in-eligible class) >
  * view show. Reuses the exact predicates `MyEntryCard` already uses to decide
  * payment-button visibility (`getEntryPaymentPrompt` via the same
- * `canPayStatus` gate) and check-in control rendering (`!cls.isScored` gated
- * by the self-check-in cascade) so the summary-band action never disagrees
- * with the expanded details.
+ * `canPayStatus` gate) and check-in control rendering (the canonical entry-
+ * accounting rules gated by the self-check-in cascade) so the summary-band
+ * action never disagrees with the expanded details.
  *
  * @module MyEntriesPage/modules/entryNextAction
  */
 
+import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { EntryStatus } from '@/types/show-registration-types';
 import { getOrderOnlinePrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
@@ -90,7 +91,8 @@ export function deriveEntryNextAction(
     const eligibleClass = entry.classes.find(cls => {
       if (
         cls.unresolved ||
-        cls.isScored ||
+        !isExpectedEntry(cls) ||
+        isAccountedFor(cls) ||
         cls.entryStatusKind === 'completed' ||
         cls.status !== 'entered'
       ) {

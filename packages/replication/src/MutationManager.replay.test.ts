@@ -9,6 +9,7 @@ import { createMutationManagerTestDb } from './test-utils/createMutationManagerT
 
 const TEST_DB_NAME = 'test-mutation-manager-replay-db';
 const BACKUP_KEY = 'replication_mutation_backup';
+const TEST_AUTH_USER_ID = 'test-user';
 
 function createMockSupabaseClient() {
   const mockClient = {
@@ -35,6 +36,7 @@ function createMockLogger(): Logger {
 function makeMutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
     id: `mut-${Math.random().toString(36).slice(2)}`,
+    authUserId: TEST_AUTH_USER_ID,
     tableName: 'entries',
     operation: 'UPDATE',
     rowId: 'entry-1',
@@ -93,6 +95,11 @@ describe('MutationManager replay idempotency', () => {
       maxRetries: 3,
       retryBackoffBase: 10,
       logger: createMockLogger(),
+      getCurrentUserId: async () => TEST_AUTH_USER_ID,
+      getCurrentUploadContext: async () => ({
+        authUserId: TEST_AUTH_USER_ID,
+        supabaseClient: mockSupabase,
+      }),
     };
     manager = new MutationManager(mockSupabase, options);
   });

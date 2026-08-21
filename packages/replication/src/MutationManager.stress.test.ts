@@ -68,6 +68,7 @@ function makeMutationRecord(
   const tables = ['entries', 'classes', 'shows', 'trials', 'dogs'];
   return {
     id,
+    authUserId: 'test-user',
     tableName: tables[tableIndex % tables.length]!,
     operation: 'UPDATE',
     rowId: id,
@@ -131,17 +132,20 @@ describe('MutationManager: large-queue stress', () => {
 
     mockLogger = createMockLogger();
 
+    const initialSupabase = createTrackingMockSupabase(() => {});
     const options: MutationManagerOptions = {
       maxRetries: 3,
       retryBackoffBase: 10,
       logger: mockLogger,
+      getCurrentUserId: async () => 'test-user',
+      getCurrentUploadContext: async () => ({
+        authUserId: 'test-user',
+        supabaseClient: initialSupabase,
+      }),
     };
 
     // mockSupabase is set per-test below
-    manager = new MutationManager(
-      createTrackingMockSupabase(() => {}),
-      options
-    );
+    manager = new MutationManager(initialSupabase, options);
   });
 
   afterEach(async () => {
@@ -175,6 +179,11 @@ describe('MutationManager: large-queue stress', () => {
       maxRetries: 3,
       retryBackoffBase: 10,
       logger: mockLogger,
+      getCurrentUserId: async () => 'test-user',
+      getCurrentUploadContext: async () => ({
+        authUserId: 'test-user',
+        supabaseClient: trackingSupabase,
+      }),
     });
     vi.spyOn(databaseManager, 'getDatabase').mockResolvedValue(mockDb);
 
@@ -266,6 +275,11 @@ describe('MutationManager: large-queue stress', () => {
         maxRetries: 3,
         retryBackoffBase: 10,
         logger: mockLogger,
+        getCurrentUserId: async () => 'test-user',
+        getCurrentUploadContext: async () => ({
+          authUserId: 'test-user',
+          supabaseClient: midFlushMock,
+        }),
       });
       vi.spyOn(databaseManager, 'getDatabase').mockResolvedValue(mockDb);
 

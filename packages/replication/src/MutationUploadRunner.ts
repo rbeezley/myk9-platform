@@ -1,10 +1,10 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { executeMutation } from './mutation-execute';
 import { ContainmentError, OccRejectionError } from './mutation-occ';
 import { handleOccRejection } from './mutation-occ-rejection';
 import { sortMutationsByDependencies } from './mutation-ordering';
+import * as mutationOwner from './mutation-owner';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
 import { classifyMutationFailure } from './mutation-retry';
 import * as rowSync from './mutation-row-sync';
@@ -12,6 +12,7 @@ import * as uploadEvents from './mutation-upload-events';
 import { markPerf, measurePerf } from './perf';
 import type { PendingMutation, ReplicatedRow, SyncResult } from './types';
 import type { MutationQueueStore } from './MutationQueueStore';
+import type { MutationUploadAuthContext } from './mutation-manager-options';
 
 /**
  * RPCs the MYK9-115 breaker actually sheds.
@@ -45,21 +46,15 @@ export class MutationUploadRunner {
   private containmentUntil: number | null = null;
 
   constructor(
-    private readonly supabase: SupabaseClient,
     private readonly logger: Logger,
     private readonly maxRetries: number,
     private readonly retryBackoffBase: number,
     private readonly maxOccAttempts: number,
     private readonly queueStore: MutationQueueStore,
-    private readonly writeBackup: () => Promise<void>
+    private readonly writeBackup: () => Promise<void>,
+    private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext>
   ) {}
 
-  /**
-   * Schedule an upload attempt shortly after a mutation is queued.
-   *
-   * Debounced at 100ms so rapid mutations (e.g. batch inserts) are
-   * coalesced into a single upload pass. Skips if offline.
-   */
   scheduleUpload(uploadPendingMutations = () => this.uploadPendingMutations()): void {
     if (this.uploadDebounceTimer) {
       clearTimeout(this.uploadDebounceTimer);
@@ -68,7 +63,6 @@ export class MutationUploadRunner {
     this.uploadDebounceTimer = setTimeout(() => {
       this.uploadDebounceTimer = null;
 
-      // Skip if offline
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         this.logger.log('[MutationManager] Offline, deferring auto-upload');
         return;
@@ -135,10 +129,7 @@ export class MutationUploadRunner {
     return this.runUploadPass();
   }
 
-  /**
-   * Single upload pass (see uploadPendingMutations for the cross-tab wrapper).
-   * Processes mutations in topological order to respect causal dependencies.
-   */
+  // eslint-disable-next-line complexity -- branch order is part of queue correctness
   private async runUploadPass(): Promise<SyncResult[]> {
     // Prevent concurrent upload runs
     if (this.isUploading) {
@@ -154,6 +145,7 @@ export class MutationUploadRunner {
     markPerf('replication:flush:start');
 
     try {
+      const passAuthUserId = (await this.getCurrentUploadContext()).authUserId;
       const db = await databaseManager.getDatabase('MutationManager');
       const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
 
@@ -174,7 +166,6 @@ export class MutationUploadRunner {
 
       this.logger.log(`[MutationManager] Uploading ${pending.length} pending mutations...`);
 
-      // Sort mutations to respect dependencies
       const ordering = sortMutationsByDependencies(pending as PendingMutation[]);
       const sortedMutations = ordering.sorted;
       const queuedMutationIds = new Set(sortedMutations.map(mutation => mutation.id));
@@ -198,13 +189,16 @@ export class MutationUploadRunner {
       // logs at debug level — invisible with the app's default log filter,
       // which made a permanently-stalled queue indistinguishable from a
       // healthy empty one (MYK9-47 restored-queue investigation).
-      const skipped = { dependency: 0, backoff: 0, conflict: 0, vanished: 0 };
+      const skipped = mutationOwner.createMutationSkipCounts();
       const now = Date.now();
       // Independent mutations shouldn't stall on one mutation's backoff; track the
       // earliest skipped nextRetryAt so we can self-schedule a follow-up pass.
       let earliestBackoff: number | null = null;
 
       for (const mutation of sortedMutations) {
+        if (mutationOwner.holdForPassOwner(mutation, passAuthUserId, blockedDependencyIds, skipped))
+          continue;
+
         const unresolvedDependencies = (mutation.dependsOn ?? []).filter(
           dependencyId =>
             failedDependencyIds.has(dependencyId) ||
@@ -275,9 +269,17 @@ export class MutationUploadRunner {
           continue;
         }
 
+        const executionContext = await mutationOwner.holdAfterOwnerChange(
+          queuedMutation,
+          this.getCurrentUploadContext,
+          blockedDependencyIds,
+          skipped
+        );
+        if (executionContext === null) continue;
+
         try {
           const { newServerVersion, remappedRowId } = await executeMutation(
-            this.supabase,
+            executionContext.supabaseClient,
             this.logger,
             queuedMutation
           );
@@ -294,7 +296,8 @@ export class MutationUploadRunner {
             await this.queueStore.updateMutationServerVersions(
               uploadedMutation.tableName,
               uploadedMutation.rowId,
-              newServerVersion
+              newServerVersion,
+              executionContext.authUserId
             );
           }
 
@@ -443,14 +446,8 @@ export class MutationUploadRunner {
         }
       }
 
-      if (results.length === 0 && pending.length > 0) {
-        this.logger.warn(
-          `[MutationManager] Upload pass skipped all ${pending.length} pending mutation(s) — ` +
-            `dependency: ${skipped.dependency}, backoff: ${skipped.backoff}, ` +
-            `conflict: ${skipped.conflict}, vanished mid-pass: ${skipped.vanished}. ` +
-            `Queue is stalled until the blocking condition clears.`
-        );
-      }
+      mutationOwner.logOwnerIsolation(this.logger, skipped);
+      mutationOwner.warnIfUploadStalled(this.logger, skipped, pending.length, results.length);
 
       uploadEvents.notifyUserOfSyncFailure(this.logger, failedMutations);
 

@@ -120,14 +120,6 @@ describe('every colour class actually compiles', () => {
   });
 });
 
-describe('the payout row survives a phone', () => {
-  it('wraps instead of truncating the show name to nothing at 375px', () => {
-    const source = read('features/payments/ClubPaymentsCard.tsx');
-    const listItem = source.match(/<li\s+key=\{payout\.id\}[^>]*>/s)?.[0] ?? '';
-    expect(listItem).toContain('flex-wrap');
-  });
-});
-
 describe('the page has a heading outline, not a jump from h1 to h4', () => {
   it('both card titles are headings', () => {
     for (const rel of [

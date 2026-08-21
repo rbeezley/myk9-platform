@@ -1,4 +1,36 @@
-import type { ReportEntry } from '@/lib/reports/types';
+/**
+ * The entry fields the packet actually renders.
+ *
+ * Declared here rather than imported from `@/lib/reports/types` so this module
+ * has NO app-alias imports and can be read by a Deno edge function as-is
+ * (MYK9-228 phase 2). The app's `ReportEntry` satisfies this structurally, so
+ * every existing caller keeps working without a cast.
+ */
+export interface PacketReportEntry {
+  id: string;
+  armband: number;
+  runOrder: number | null;
+  callName: string;
+  breed: string;
+  handler: string;
+  registrationNumber: string | null;
+  section: string | null;
+  classId?: string | undefined;
+  classElement?: string | undefined;
+  classLevel?: string | undefined;
+  classSection?: string | undefined;
+  trialId?: string | undefined;
+  // Present on the app's ReportEntry and harmlessly carried through. Declared
+  // so a caller passing a literal is not tripped by excess-property checking,
+  // and so it is visible what this module chooses NOT to render.
+  dogId?: string | undefined;
+  checkInStatus?: string | null | undefined;
+  isScored?: boolean | undefined;
+  resultText?: string | null | undefined;
+  searchTimeSeconds?: number | null | undefined;
+  totalFaults?: number | null | undefined;
+  finalPlacement?: number | null | undefined;
+}
 
 export const EMERGENCY_PACKET_MARKER = 'SNAPSHOT — NOT LIVE' as const;
 
@@ -51,7 +83,7 @@ export interface EmergencyPacketInput {
   show: EmergencyPacketShow;
   trials: EmergencyPacketTrial[];
   classes: EmergencyPacketClass[];
-  entries: ReportEntry[];
+  entries: PacketReportEntry[];
 }
 
 export type EmergencyPacketPageKind =
@@ -72,7 +104,7 @@ export interface EmergencyPacketPageContext {
   timeLimitLabel?: string | undefined;
 }
 
-export interface EmergencyPacketEntry extends ReportEntry {
+export interface EmergencyPacketEntry extends PacketReportEntry {
   checkInMark: '';
   resultMark: '';
   runOrderDisplay: string;

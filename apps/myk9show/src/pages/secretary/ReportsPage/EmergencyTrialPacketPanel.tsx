@@ -34,10 +34,10 @@ async function preparePacket(
   trialDate?: string
 ): Promise<EmergencyPacketDeliveryResult> {
   const model = buildEmergencyPacketModel(input);
-  const { buildEmergencyTrialPacketPdf } = await import(
-    '@/features/emergency-trial-packet/buildEmergencyTrialPacketPdf'
+  const { renderEmergencyTrialPacketPdf } = await import(
+    '@/features/emergency-trial-packet/renderPacketPdf'
   );
-  const bytes = buildEmergencyTrialPacketPdf(model);
+  const bytes = renderEmergencyTrialPacketPdf(model);
   return deliverEmergencyTrialPacket({
     showId: input.show.id,
     snapshotId: crypto.randomUUID(),

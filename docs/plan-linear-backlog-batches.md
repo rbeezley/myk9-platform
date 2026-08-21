@@ -1,8 +1,8 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batch 0 complete 2026-08-21; Batch 1 is next
+> **Status:** Active — Batch 0 complete 2026-08-21; MYK9-228 is In Progress; Batch 1 is queued next
 
-**Goal:** Triage all 47 open MYK9 issues (11 Todo, 36 Backlog), close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do.
+**Goal:** Account for all 54 tracked MYK9 issues (current Linear snapshot: 7 Todo, 43 Backlog, 1 In Progress, 3 Done), close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do.
 
 **Success condition:** “accounted for” is not the same as “closed.” Current-cycle work reaches Done only after its acceptance criteria and evidence gate pass. Deferred, parked, cutover, device, and other operator-gated work remains open in the appropriate Linear state with an owner and trigger; the plan does not manufacture closure by narrowing an issue while leaving stated scope incomplete.
 
@@ -14,6 +14,13 @@ PRIMARY:MYK9-163=batch-1-lane-1c
 PRIMARY:MYK9-57=batch-1-lane-1d
 PRIMARY:MYK9-54=batch-1-lane-1a
 PRIMARY:MYK9-225=batch-1-lane-1b
+PRIMARY:MYK9-226=batch-1-lane-1g
+PRIMARY:MYK9-227=deferred-ring-sport-trigger
+PRIMARY:MYK9-228=batch-0.5-active
+PRIMARY:MYK9-229=decision-d8-batch-3-lane-3a-step-2
+PRIMARY:MYK9-230=batch-2-lane-2d-step-2
+PRIMARY:MYK9-231=batch-2-lane-2d-step-3
+PRIMARY:MYK9-232=batch-2-lane-2d-step-1
 PRIMARY:MYK9-224=batch-0-deploy
 PRIMARY:MYK9-161=batch-0-deploy
 PRIMARY:MYK9-26=batch-0-current-scope-plus-deferred-remainder
@@ -58,18 +65,18 @@ PRIMARY:MYK9-27=deferred-after-batch-3
 PRIMARY:MYK9-28=deferred-post-live-shows
 -->
 
-**Inventory check:** verify both the 47-ID source inventory and the primary registry mechanically after any edit:
+**Inventory check:** verify both the 54-ID source inventory and the primary registry mechanically after any edit:
 
 ```bash
 plan=docs/plan-linear-backlog-batches.md
-for id in 211 163 57 54 225 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28; do
+for id in 211 163 57 54 225 226 227 228 229 230 231 232 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28; do
   count=$(grep -c "^PRIMARY:MYK9-${id}=" "$plan")
   test "$count" -eq 1 || echo "PRIMARY COUNT ${count}: MYK9-${id}"
 done
-test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 47 || echo "PRIMARY REGISTRY IS NOT 47 ROWS"
+test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 54 || echo "PRIMARY REGISTRY IS NOT 54 ROWS"
 ```
 
-**Sources reviewed:** full `get_issue` descriptions and reopen comments for every code-actionable issue (per the LESSONS rule that `list_issues` truncates acceptance criteria). Snapshot date 2026-08-21; the 2026-08-20 overnight audits reopened six previously-Done issues, which reshapes the priority order below.
+**Sources reviewed:** full `get_issue` descriptions and reopen comments for every code-actionable issue (per the LESSONS rule that `list_issues` truncates acceptance criteria). Snapshot refreshed 2026-08-21 after MYK9-226–232 were added; the 2026-08-20 overnight audits reopened six previously-Done issues, which reshapes the priority order below.
 
 **Execution model:** each active lane = one sub-agent in its own git worktree, one PR per issue, Codex review on every PR (gate), merge from the main repo checkout. This Codex environment has four total concurrency slots, including the coordinator, so at most **three worker lanes** run at once; larger batches run in explicit waves. Within a multi-issue lane, finish and merge one issue, clean/reset the worktree, then create the next issue branch from fresh `origin/main`—do not stack unrelated issue commits or reuse a merged branch. A batch is complete when its PRs are merged **and** each issue's closure proof (many now explicitly require a browser replay, not just tests) is recorded on the issue and the issue is moved to Done. Deferred/operator-gated issues exit the batch only when their owner, blocker, and resume trigger are recorded—not by moving them to Done.
 
@@ -100,6 +107,8 @@ test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 47 || echo "PRIMARY REGIS
 | [MYK9-211](https://linear.app/myk9-platform/issue/MYK9-211) | Code merged (#1716); reopen is **verification-only** — mutation-backed staging proof of grant/revoke audit events |
 
 This is exactly the "merge is not deploy" trap in memory. Batch 0 corrected all four deployment drifts on 2026-08-21. MYK9-224, MYK9-199, and MYK9-161 are Done; MYK9-26 returned to Backlog because its post-launch MCP/BYOK scope remains. MYK9-211 is independently classified as verification-only and runs in Batch 4 once its mutation approval and disposable fixture are available.
+
+**The 2026-08-21 refresh adds seven issues and changes the immediate order.** MYK9-228 is already In Progress and closes the remaining "no app opened that day" gap in the emergency packet workflow, so it is the active launch-readiness lane before the queued Batch 1 work. MYK9-226 is a payment-integrity reproduction before implementation. MYK9-230/231/232 are one financial-semantics cluster that must follow MYK9-54. MYK9-229 is a fee-disclosure product decision that follows the fee-model decision in MYK9-197. MYK9-227 is explicitly parked until a ring-using sport ships.
 
 ---
 
@@ -144,9 +153,27 @@ Recorded in Linear on 2026-08-21: MYK9-224, MYK9-199, and MYK9-161 moved to Done
 
 ---
 
+## Batch 0.5 — Active show-day reliability lane
+
+### [MYK9-228](https://linear.app/myk9-platform/issue/MYK9-228) — Generate and deliver the emergency trial packet without an app open
+
+This High-priority issue is **In Progress** and takes the active slot before new Batch 1 starts. It is the remaining acceptance gap from MYK9-198: the manual packet works, but no packet exists if the secretary never opens the app. Use `opsx-ship`; this is non-trivial launch-readiness work spanning shared rendering, an Edge Function, cron/idempotency, Storage, email, and a human print-confirmation reminder.
+
+Execution contract:
+
+1. Extract one shared packet model/renderer used by both the browser and Edge runtime; preserve a thin jsPDF import adapter rather than copying the renderer.
+2. Generate **one packet per trial day** at entry close and show-eve, upload immutably, and hand off to the existing `deliver-trial-packet` path. Keep the manual regeneration escape hatch.
+3. Key idempotency by `(show, trial_date)` so retries produce neither a second packet nor a second email. Resolve `generated_by` explicitly for system generation; do not invent a user identity.
+4. Make failures visible through `delivery_status` / `error_message`. The reminder reads `paperwork_prints`, fires only when that day lacks print confirmation, and stops after confirmation; packet existence alone is not readiness.
+5. Verify the restricted Supabase Edge runtime with an approved scratch deploy/invocation, then verify the production bundle by source markers after deployment. Closure requires a hosted show-day proof where nobody opened the app, plus idempotent rerun, failure visibility, reminder suppression, and manual regeneration evidence.
+
+Any scratch or production deploy is a shared-system write and needs explicit approval. MYK9-228 occupies one of the three worker slots until it merges and its hosted proof is recorded; do not schedule three additional Batch 1 lanes beside it.
+
+---
+
 ## Batch 1 — Independent code fixes, two capacity-bounded waves
 
-All six touch disjoint files. Every reopened issue's audit comment demands **browser replay at named viewports** as closure proof — the implementing agent records it after Vercel auto-deploys the merge (staging = myk9-platform-myk9show.vercel.app).
+The six implementation lanes touch disjoint files; MYK9-226 is a reproduction-first investigation that may close without code. Every reopened issue's audit comment demands **browser replay at named viewports** as closure proof — the implementing agent records it after Vercel auto-deploys the merge (staging = myk9-platform-myk9show.vercel.app).
 
 | Lane | Issue | Scope | Key files |
 | -- | -- | -- | -- |
@@ -156,17 +183,20 @@ All six touch disjoint files. Every reopened issue's audit comment demands **bro
 | 1D | [MYK9-57](https://linear.app/myk9-platform/issue/MYK9-57) (P2, reopened 3rd time) | 768–1023px persistent-sidebar band now failing on `/admin/permissions` (title collapse, crowded actions) and `/admin/sync` (Sync Now clips). Audit the **shared admin/manager shell** across the band rather than another per-page patch — the `useElementWidth` + `manager-responsive.css` container-query layer from #1582 is the established pattern | admin shell/layout + the two pages |
 | 1E | [MYK9-209](https://linear.app/myk9-platform/issue/MYK9-209) (P3) | "Check In" offered on classes settled absent/excused — route `deriveEntryNextAction` through `entryAccounting.ts` (`isAccountedFor`); cover scratched/withdrawn/pulled too; fixtures must keep lifecycle columns active | `pages/MyEntriesPage/modules/entryNextAction.ts` + test |
 | 1F | [MYK9-212](https://linear.app/myk9-platform/issue/MYK9-212) (P3) | Bound `useMyPayments` server-side (year-driven date predicate and/or `.range()`); bound or eliminate the entries `IN` follow-up; UTC boundaries must agree with `paymentYearFilter.ts` local-year filing; no silent truncation on a money surface | `features/payments/useMyPayments.ts` |
+| 1G | [MYK9-226](https://linear.app/myk9-platform/issue/MYK9-226) (Medium, payment integrity, reproduce first) | Attempt a real-flow checkout for a judge-day-full class with `allow_waitlist=false`. If the cart still offers a payable line, align its gate with `submit_show_entries` and pin the case. If it does not reproduce, record the attempt and decide whether QA overflow should emit Error alerts; do not manufacture a code fix | cart/checkout capacity path; exact files determined by reproduction |
 
 **[EXPANDED] Collision map — the lanes are not as disjoint as they look:**
 
 - **1C and 1D** both replay on `/admin/permissions`. Either merge order works, but both must land before either records its closure replay, or the second merge invalidates the first's evidence.
 - **1F (MYK9-212) and 2A step 1 (MYK9-215) collide on the payments data layer.** 1F bounds the `stripe_orders` query; 215's recommended fix *derives the receipt from `stripe_orders` directly*. If 1F lands a year-scoped or `.range()`-bounded query, 215's receipt lookup must not silently inherit that bound — a receipt for a 2025 order opened from a 2026-scoped page would find nothing. **Land 1F first, and give the 2A agent 1F's final query shape as an input.** 215's order lookup should be a keyed fetch by order id, independent of the list query's bounds.
 - **1E before 2A**, as noted in Lane 2A — 1E owns `entryNextAction.ts`, which sits in the same module tree 2A restructures.
+- **1G before Batch 3's financial-policy work.** If MYK9-226 reproduces, its checkout-capacity fix lands before MYK9-197/MYK9-229 touch fee presentation and checkout copy. Keep the reproduction isolated from the historical seeded carts; do not create another paid/refunded Stripe session unless the non-charging path cannot answer the question and explicit approval is obtained.
 
 Everything else in Batch 1 is file-disjoint, but the three-worker ceiling still applies:
 
 - **Wave 1:** 1A (money-path P1), 1D (shared tablet shell), 1E (show-day accounting/next action).
 - **Wave 2:** 1B (support failure state), 1C (RBAC scope clarity), 1F (payments query bound).
+- **Investigation slot:** 1G starts as soon as a worker is free; it does not displace MYK9-228 and does not become implementation work until reproduction establishes the defect.
 
 Do not start Batch 2A until Wave 2's 1F and Wave 1's 1E are merged. Browser closure evidence for 1C/1D waits until both are merged, as stated above.
 
@@ -194,6 +224,16 @@ Bug fixes land before refactors so fixes never rebase over moved code. (1E touch
 
 After Richard prunes the sandbox payment-methods dashboard (operator track item 4 — that confirms the mechanism), investigate whether `payment_method_configuration` or an API-version pin restores strict card-only rendering; **report findings on the issue before changing `stripe-checkout`**. Also PR the MYK9-11 runbook addition (live payment-methods pruning step) — docs change, safe now.
 
+### Lane 2D — Financial semantics (one serialized lane, after MYK9-54)
+
+These issues share the reconciliation fetch/presentation layer and `resolveOrderChargeVerification`; do not run them in parallel or before Batch 1 lane 1A establishes the final MYK9-54 shape.
+
+1. **[MYK9-232](https://linear.app/myk9-platform/issue/MYK9-232) — investigate before fixing.** Trace every write to `entry_subtotal_cents` / `platform_fee_cents`, prove whether an uncaptured value can reach readers as `0`, and answer whether a legitimate zero-dollar order reaches show-level verification. If reachable, fix the representation at the write boundary; if not, document the invariant beside the NULL-is-pending contract.
+2. **[MYK9-230](https://linear.app/myk9-platform/issue/MYK9-230) — align the label with the evidence.** Rename the current `Verified` state to the claim the resolver actually proves (recommended: `Charge recorded`), update club and site-admin audiences together, preserve the module header's rejection of amount-comparison `Mismatch`, and assert the accessible text a screen reader receives.
+3. **[MYK9-231](https://linear.app/myk9-platform/issue/MYK9-231) — cause-neutral failure copy.** Preserve the payout reassurance while removing the unsupported claim that Stripe caused the fetch failure; review equivalent site-admin states. Record the Sentry decision, splitting observability into a new issue if it is more than a narrow addition.
+
+Land 232 before 230 so the label work is based on the proven snapshot invariant. Land 231 last because it touches the same presentation surface and its wording should describe the final fetch/verification contract.
+
 ---
 
 ## Batch 3 — Decision-gated work (needs Richard's call, then up to 3 parallel lanes)
@@ -209,12 +249,13 @@ Decisions to make (recommendations from the issue analyses):
 | D5 | [MYK9-219](https://linear.app/myk9-platform/issue/MYK9-219) exhibitor dog-card content | Role-aware card: exhibitor sees breed/age/armband, secretary keeps owner. Reconcile breed display with OpenSpec `exhibitor-ux-remediation` tasks 2.1/2.2 |
 | D6 | [MYK9-220](https://linear.app/myk9-platform/issue/MYK9-220) type scale | 1.25 scale (14/16/20/25/31), 16px body floor per INTENT.md, single token change |
 | D7 | [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) in-app `reverse_transfer` + payout hold window | Defer both — the runbook (#1678) covers expected volume; revisit when manual clawbacks stop being rare. Keep the issue open in Parked/Backlog with that trigger noted |
+| D8 | [MYK9-229](https://linear.app/myk9-platform/issue/MYK9-229) publish the approximate Stripe/myK9Show fee split? | Yes, after D1 settles the fee formula: computed per cart, explicitly approximate, public/shareable, and clear that clubs receive 100% of entry fees. Never split the Stripe receipt into estimated line items |
 
-**[ADDED] The decisions unblock independently — do not treat Batch 3 as one gate.** Each lane below depends on exactly one decision (3A↔D1, 3B↔D2, 3C↔D3/D4/D5, 3D↔D6), so an answer to any one starts that lane immediately. D7 gates no code at all — it records MYK9-195's parked trigger while leaving the unmet work open. If a decision doesn't come back, its lane waits and the rest proceed; nothing here is a whole-batch blocker.
+**[ADDED] The decisions unblock independently — do not treat Batch 3 as one gate.** Lanes 3B/3C/3D depend only on their named decisions. D7 gates no code at all — it records MYK9-195's parked trigger while leaving the unmet work open. Lane 3A is the exception: D1 settles the fee formula first, then D8 decides how to disclose that settled formula. If a decision doesn't come back, only its dependent work waits; nothing here is a whole-batch blocker.
 
 Then dispatch:
 
-- **Lane 3A** — MYK9-197: one atomic PR across all five fee sites (`platformFee.ts`, `cartStore.helpers.ts`, `stripe-payment-link`, `stripe-webhook` ×2, `platform_settings` migration defaulting to 0) + the shared client/server agreement test (integer math, half-cent boundaries) + `formatPlatformFeeLabel` copy + admin editability. Migration follows GRANT/REVOKE + timestamp-vs-origin/main rules.
+- **Lane 3A — financial policy, strict order.** First MYK9-197: one atomic PR across all five fee sites (`platformFee.ts`, `cartStore.helpers.ts`, `stripe-payment-link`, `stripe-webhook` ×2, `platform_settings` migration defaulting to 0) + the shared client/server agreement test (integer math, half-cent boundaries) + `formatPlatformFeeLabel` copy + admin editability. Migration follows GRANT/REVOKE + timestamp-vs-origin/main rules. Then MYK9-229 after D8: derive the approximate split from the same final `calculatePlatformFeeCents`, update cart and Stripe line-item copy, add the public fees page, and link it from cart + Club Payments. **Duplication check:** no existing public fee-explanation route was found; the new page is the one canonical shareable explanation, while Cart Summary and Club Payments only link to it rather than reimplementing the long-form content. Do not claim SMS, itemize infrastructure, or represent an estimate as an exact Stripe receipt amount.
 - **Lane 3B** — MYK9-221: `useUrlFilters` + wire into `/dogs`, `/shows`, `/clubs`, `/people`; preserve `?add=true` behavior.
 - **Lane 3C** — /dogs surface (serialize D3→D4→D5 in one lane: `DogsTableView.tsx`, `DogsGridView.tsx`, `BrowseDogsPage.tsx` overlap).
 - **Lane 3D (runs alone, after 3A–3C merge)** — MYK9-220 typography token change + breakpoint before/after review. Global reflow; landing it last avoids invalidating every other lane's visual verification. **[EXPANDED] This is the one change here with no natural blast-radius limit**, so it needs its own safety story rather than inheriting the batch's. Land the scale as a **single token change** (per the issue's own suggested shape) precisely so revert is one commit, not a sweep through components. Before merging, capture before/after screenshots at 375 / 768 / 1280 on the surfaces most likely to break — the dense secretary tables (`/dogs` table view, entry management), the `/at-show` ringside layouts, and any fixed-height card grid — because a 14→16px body raises row heights everywhere and tables are where that first turns into clipping or a new horizontal scroll. Note the interaction with MYK9-222's sticky-column work and the `text-xs` override at `tailwind.config.js:171`. If the reflow damage is broader than expected, revert the token and re-scope to a role-limited rollout (exhibitor and judge surfaces first, per the issue's step 2) rather than patching per-component under a shipped global change.
@@ -262,6 +303,7 @@ Wall-clock-bound and human-only items; agents cannot do these. The first two lau
 - [MYK9-28](https://linear.app/myk9-platform/issue/MYK9-28) kill-switch removal — explicitly **post first live shows**.
 - [MYK9-26](https://linear.app/myk9-platform/issue/MYK9-26) remaining evaluation scope (standalone read-only MCP / BYOK) — post-launch by its own framing; only the Batch 0 redeploy is current.
 - [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) steps 3–4 — pending D7 (recommend defer with trigger).
+- [MYK9-227](https://linear.app/myk9-platform/issue/MYK9-227) ring assignment — deliberately parked until a ring-using sport is actually added. Then use nullable free-text `ring_label` per class plus a sport-template `uses_rings` capability; scent work must never be asked for or display a ring.
 - [MYK9-32](https://linear.app/myk9-platform/issue/MYK9-32), [MYK9-72](https://linear.app/myk9-platform/issue/MYK9-72), [MYK9-94](https://linear.app/myk9-platform/issue/MYK9-94) — Parked by design.
 
 ## Testing phase (applies to every batch)

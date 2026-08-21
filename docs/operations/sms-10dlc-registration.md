@@ -233,9 +233,9 @@ Copy these. They are written to match what the code actually sends.
 
 Sample 3 is the opt-in confirmation. It carries the full disclosure so the
 recurring alerts do not have to — that is permitted, and it is why alerts 1–2
-fit one GSM-7 segment. **This message does not exist in the code yet**; it must
-be built and sent on opt-in, or the registration describes behaviour we do not
-have.
+fit one GSM-7 segment. `buildSmsOptInConfirmation()` pins this exact text and
+the authenticated opt-in function sends it after recording consent. Deployment
+remains blocked by the checklist below until the campaign is approved.
 
 **Opt-in workflow**
 
@@ -295,6 +295,9 @@ In rough order of frequency:
 - [ ] Brand registered and approved
 - [ ] Campaign submitted with the §5 copy, and approved
 - [ ] Messaging Service created, number attached, **Advanced Opt-Out enabled**
+- [ ] Operator confirms Edge Function secrets `TWILIO_ACCOUNT_SID`,
+      `TWILIO_AUTH_TOKEN`, and `TWILIO_MESSAGING_SERVICE_SID` are configured;
+      agents never inspect, copy, set, or log their values
 - [ ] Opt-in confirmation message implemented and sent on consent
 - [ ] Inbound webhook recording `sms_opt_out_at` on STOP
 - [ ] End-to-end test to a real handset: opt in → alert → STOP → verify no

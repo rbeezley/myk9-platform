@@ -5,14 +5,14 @@
 
 > **Progress as of 2026-08-16.** Phases 4, 5 and 6 have had their **database and edge-function halves applied** to `sojmvhhwsjxmfistvzbe`. Do not re-run their pre-flight expecting the migrations to be pending — `db push` is now up to date at `20260816140000`.
 >
-> | Phase | Applied | Still outstanding |
-> | ----- | ------- | ----------------- |
-> | 1 — L2 wallets | — | Stripe dashboard toggle (operator) |
-> | 2 — L1 Apple sign-in | — | Apple portal + Supabase provider (operator) |
-> | 3 — L3 map keys | — | Both Google keys, Vercel env, `send-confirmation-email` redeploy |
-> | 4 — L4 run-proximity push | Migration `20260816120000`; `push-trigger-run-proximity` deployed | §4.3 **functional** checks — device push with the app closed, pill-match, Vault failure mode |
-> | 5 — L5 calendar feed | Migration `20260816130000`; `calendar-feed` deployed; `CALENDAR_FEED_ORIGIN=myk9show.com` | §5.3 **functional** checks — iOS webcal subscribe, `.ics` import, feed-body field audit, revoke → 404. Optional `VITE_CALENDAR_FEED_URL` |
-> | 6 — L6 SMS consent | Migration `20260816140000` | Nothing — phase complete (see §6.5 for what it does _not_ unblock) |
+> | Phase                     | Applied                                                                                   | Still outstanding                                                                                                                        |
+> | ------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+> | 1 — L2 wallets            | —                                                                                         | Stripe dashboard toggle (operator)                                                                                                       |
+> | 2 — L1 Apple sign-in      | —                                                                                         | Apple portal + Supabase provider (operator)                                                                                              |
+> | 3 — L3 map keys           | —                                                                                         | Both Google keys, Vercel env, `send-confirmation-email` redeploy                                                                         |
+> | 4 — L4 run-proximity push | Migration `20260816120000`; `push-trigger-run-proximity` deployed                         | §4.3 **functional** checks — device push with the app closed, pill-match, Vault failure mode                                             |
+> | 5 — L5 calendar feed      | Migration `20260816130000`; `calendar-feed` deployed; `CALENDAR_FEED_ORIGIN=myk9show.com` | §5.3 **functional** checks — iOS webcal subscribe, `.ics` import, feed-body field audit, revoke → 404. Optional `VITE_CALENDAR_FEED_URL` |
+> | 6 — L6 SMS consent        | Migration `20260816140000`                                                                | Nothing — phase complete (see §6.5 for what it does _not_ unblock)                                                                       |
 >
 > Schema, table/column ACL and RLS verification passed for all three migrations, including the §5.3 and §6.3 queries. The constraint-bites test in §6.3 was run in a rolled-back transaction and failed as required. Everything left in the table above needs an operator, a device, or a Vercel deploy.
 
@@ -422,6 +422,24 @@ campaign additionally needs `/sms` publicly reachable at
 deploying the frontend, since a reviewer cannot load a Vercel preview URL. The
 full sequence is in
 [`operations/sms-10dlc-registration.md`](sms-10dlc-registration.md).
+
+### 6.6 Future SMS function deploy gate
+
+Source for the opt-in confirmation can merge before carrier approval, but do
+not deploy any SMS function or send to a US mobile number until all of these are
+recorded:
+
+- MYK9-190 A2P 10DLC campaign approval;
+- operator confirmation that Edge Function secrets `TWILIO_ACCOUNT_SID`,
+  `TWILIO_AUTH_TOKEN`, and `TWILIO_MESSAGING_SERVICE_SID` exist (never copy
+  their values into a command, issue, PR, or log); and
+- the inbound STOP/HELP path and once-per-entry sent marker are reviewed and
+  ready, so an enabled sender cannot ship without opt-out or idempotency.
+
+The future functions use `--no-verify-jwt` only because they authenticate
+internally: browser opt-in validates the bearer JWT, and the inbound webhook
+validates Twilio's signature. Missing provider configuration must return an
+error before a consent write or send; it is never a successful no-op.
 
 ---
 

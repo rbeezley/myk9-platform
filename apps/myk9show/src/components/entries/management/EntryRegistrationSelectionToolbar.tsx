@@ -4,6 +4,7 @@ import { EntryBulkActionMenu } from './EntryBulkActionMenu';
 import { getEntryBulkActions } from './entryBulkActions';
 import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntryStatus } from '@/types/show-registration-types';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 
 interface EntryRegistrationSelectionToolbarProps {
   registrations: number;
@@ -29,6 +30,10 @@ export function EntryRegistrationSelectionToolbar({
   onClear,
   busy = false,
 }: EntryRegistrationSelectionToolbarProps) {
+  // The toolbar floats 1.5rem above the safe-area bottom. Reserve that gap as
+  // occupied too, otherwise a toast can overlap the toolbar by up to 12px.
+  const actionBarRef = useRegisterActionBar<HTMLElement>({ bottomOffsetPx: 24 });
+
   if (registrations === 0) return null;
 
   const actions = getEntryBulkActions(selectedEntries, onBulkStatusChange, onBulkCheckIn, onClear);
@@ -39,6 +44,7 @@ export function EntryRegistrationSelectionToolbar({
 
   return (
     <aside
+      ref={actionBarRef}
       className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-xl border bg-foreground px-3 py-2 text-background shadow-2xl"
       aria-label="Selected registration actions"
     >

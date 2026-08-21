@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
 import { DeleteConfirmationDialog } from '@/components/base';
 import { classActions, type ClassActionItem, type ClassActionHandlers } from './classActions';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 
 interface ClassBulkActionsBarProps {
   selectedClasses: ClassActionItem[];
@@ -35,6 +36,7 @@ export function ClassBulkActionsBar({
   onClear,
 }: ClassBulkActionsBarProps) {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
 
   if (selectedClasses.length === 0) return null;
 
@@ -64,6 +66,7 @@ export function ClassBulkActionsBar({
   return (
     <>
       <div
+        ref={actionBarRef}
         className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
         role="region"
         aria-label="Bulk class actions"

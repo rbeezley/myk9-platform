@@ -84,7 +84,21 @@ describe('emergency_packet_input contract', () => {
     // lifecycle. `replicatedRunQueue`'s NOT_RUNNING_LIFECYCLE excludes exactly
     // these three, and paper that disagrees hands a judge a row for a dog that
     // is not competing.
-    expect(sql).toMatch(/NOT IN \('withdrawn', 'scratched', 'absent'\)/);
+    // Union of isRunnableScheduleStatus and the run queue's set, in the RAW
+    // spellings the column holds. `moved` is the sharpest: a move-up leaves
+    // the ORIGINAL row behind, so including it prints the dog twice.
+    for (const raw of [
+      'withdrawn',
+      'cancelled',
+      'not_accepted',
+      'rejected',
+      'promotion-expired',
+      'scratched',
+      'moved',
+      'absent',
+    ]) {
+      expect(sql).toContain(`'${raw}'`);
+    }
     // Two axes, and the check-in one wins: `pulled` only ever lives on
     // `check_in_status`, so a lifecycle-only filter leaves a dog pulled at the
     // gate on the sheet. `in-ring` must NOT be excluded — that dog is running.

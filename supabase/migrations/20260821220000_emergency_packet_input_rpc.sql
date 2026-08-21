@@ -145,12 +145,24 @@ AS $$
       LIMIT 1
     ) ab ON TRUE
     WHERE e.deleted_at IS NULL
-      -- Soft-delete is not the only way an entry stops running. Withdrawn and
-      -- scratched entries are NOT deleted -- that is the normal lifecycle --
-      -- and `replicatedRunQueue`'s NOT_RUNNING_LIFECYCLE excludes exactly
-      -- these three from the running order. Paper must agree, or a judge is
-      -- handed a scoresheet row for a dog that is not competing.
-      AND COALESCE(e.entry_status, '') NOT IN ('withdrawn', 'scratched', 'absent')
+      -- Soft-delete is not the only way an entry stops running, and these are
+      -- NOT deleted -- that is the normal lifecycle. This is the union of the
+      -- two canonical predicates, spelled with the RAW values the column holds
+      -- (`getEntryStatusKind` folds several spellings onto one kind):
+      --
+      --   isRunnableScheduleStatus -> withdrawn | not_accepted | scratched | moved
+      --     `moved` matters most: a move-up leaves the ORIGINAL row behind, so
+      --     including it prints the same dog twice, once under a class it is
+      --     no longer in. `promotion-expired` and `rejected` fold onto
+      --     not_accepted; `cancelled` onto withdrawn.
+      --   replicatedRunQueue.NOT_RUNNING_LIFECYCLE -> adds `absent`
+      AND COALESCE(e.entry_status, '') NOT IN (
+        'withdrawn', 'cancelled',
+        'not_accepted', 'rejected', 'promotion-expired',
+        'scratched',
+        'moved',
+        'absent'
+      )
       -- TWO axes, and the check-in one WINS. `pulled` lives on
       -- `check_in_status`, never on `entry_status` (migration 003 does not
       -- allow it there), so filtering the lifecycle alone leaves a dog pulled

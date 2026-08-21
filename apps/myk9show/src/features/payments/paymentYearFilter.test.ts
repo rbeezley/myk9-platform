@@ -4,8 +4,31 @@ import {
   filterPaymentRowsByYear,
   isPaymentYearSelection,
   listPaymentYears,
+  paymentYearQueryRange,
   paymentRowYear,
 } from './paymentYearFilter';
+
+describe('paymentYearQueryRange', () => {
+  it('builds UTC instants for the local calendar-year boundaries used by rendered dates', () => {
+    const range = paymentYearQueryRange('2026');
+
+    expect(range).not.toBeNull();
+    expect(paymentRowYear({ date: range!.start })).toBe('2026');
+    expect(paymentRowYear({ date: new Date(Date.parse(range!.start) - 1).toISOString() })).toBe(
+      '2025'
+    );
+    expect(paymentRowYear({ date: new Date(Date.parse(range!.end) - 1).toISOString() })).toBe(
+      '2026'
+    );
+    expect(paymentRowYear({ date: range!.end })).toBe('2027');
+  });
+
+  it('rejects untrusted non-calendar-year URL values', () => {
+    expect(paymentYearQueryRange('all')).toBeNull();
+    expect(paymentYearQueryRange('26')).toBeNull();
+    expect(paymentYearQueryRange('2026-or-true')).toBeNull();
+  });
+});
 
 describe('paymentRowYear', () => {
   it('reads the local calendar year, matching the date the row displays', () => {
@@ -62,10 +85,7 @@ describe('isPaymentYearSelection', () => {
 describe('canFilterPaymentYears', () => {
   it('is false for a single season, so no inert control is rendered', () => {
     expect(
-      canFilterPaymentYears([
-        { date: '2026-03-01T12:00:00Z' },
-        { date: '2026-09-01T12:00:00Z' },
-      ])
+      canFilterPaymentYears([{ date: '2026-03-01T12:00:00Z' }, { date: '2026-09-01T12:00:00Z' }])
     ).toBe(false);
   });
 

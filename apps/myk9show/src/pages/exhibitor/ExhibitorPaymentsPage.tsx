@@ -56,6 +56,7 @@ import {
   filterPaymentRowsByYear,
   isPaymentYearSelection,
   listPaymentYears,
+  paymentYearQueryRange,
   type PaymentYearSelection,
 } from '@/features/payments/paymentYearFilter';
 import { PaymentsSummary } from './PaymentsSummaryCard';
@@ -298,7 +299,10 @@ function PaymentsHistoryList({ rows }: { rows: PaymentDisplayRow[] }) {
 }
 
 export default function ExhibitorPaymentsPage() {
-  const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearParam = searchParams.get('year');
+  const queryYear = paymentYearQueryRange(yearParam) ? yearParam! : ALL_PAYMENT_YEARS;
+  const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments(queryYear);
   const {
     data: balanceSummary,
     isLoading: isBalanceLoading,
@@ -316,9 +320,7 @@ export default function ExhibitorPaymentsPage() {
   // My Shows' `?tab=`, so the view survives refresh, back/forward, and a link
   // an exhibitor mails to their accountant. Derived straight from the params
   // rather than synced into state (no set-state-in-effect).
-  const [searchParams, setSearchParams] = useSearchParams();
   const paymentYears = useMemo(() => listPaymentYears(paymentRows), [paymentRows]);
-  const yearParam = searchParams.get('year');
   // Defaults to all time, and an unrecognized `?year=` falls back to it. A
   // money surface must not open having silently hidden rows, and an empty
   // ledger from a stale link reads as "you paid nothing" rather than "that
@@ -343,7 +345,10 @@ export default function ExhibitorPaymentsPage() {
     [setSearchParams]
   );
 
-  const canFilterByYear = useMemo(() => canFilterPaymentYears(paymentRows), [paymentRows]);
+  const canFilterByYear = useMemo(
+    () => canFilterPaymentYears(paymentRows) || selectedYear !== ALL_PAYMENT_YEARS,
+    [paymentRows, selectedYear]
+  );
 
   const visibleRows = useMemo(
     () => filterPaymentRowsByYear(paymentRows, selectedYear),

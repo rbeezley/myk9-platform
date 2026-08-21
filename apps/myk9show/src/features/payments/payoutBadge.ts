@@ -63,7 +63,14 @@ function isSelfHealingFailure(failureReason: string | null | undefined): boolean
  *   reason won't self-heal and needs treasurer action → red "Needs attention".
  */
 export function resolvePayoutBadge(
-  payout: Pick<ShowPayoutRow, 'status' | 'failure_reason'>,
+  payout: Pick<ShowPayoutRow, 'status' | 'failure_reason'> & {
+    /**
+     * A later attempt for the same show succeeded, is in flight, or failed
+     * after this one. Such a row is history, and calling it "Needs attention"
+     * sends a treasurer chasing money that already moved.
+     */
+    superseded?: boolean;
+  },
   accountState: PayoutsAccountState
 ): PayoutBadge {
   switch (payout.status) {
@@ -84,6 +91,9 @@ export function resolvePayoutBadge(
       }
       return { label: 'Not sent yet', variant: 'secondary', className: '' };
     case 'failed':
+      if (payout.superseded) {
+        return { label: 'Earlier attempt', variant: 'secondary', className: '' };
+      }
       return isSelfHealingFailure(payout.failure_reason)
         ? { label: 'Retrying', variant: 'secondary', className: '' }
         : { label: 'Needs attention', variant: 'destructive', className: '' };

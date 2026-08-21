@@ -43,6 +43,8 @@ export interface ShowPayoutRow {
   failure_reason: string | null;
   completed_at: string | null;
   created_at: string;
+  /** Needed to group a show's attempts; a show can hold several payout rows. */
+  show_id: string;
   show: { name: string; club_id: string } | null;
 }
 
@@ -55,7 +57,9 @@ export function useClubPayoutHistory(clubId: string | undefined) {
       // embedded show shape to ShowPayoutRow['show'].
       const { data, error } = await supabase
         .from('show_payouts')
-        .select('id, amount_cents, status, failure_reason, completed_at, created_at, show:show_id!inner(name, club_id)')
+        .select(
+          'id, show_id, amount_cents, status, failure_reason, completed_at, created_at, show:show_id!inner(name, club_id)'
+        )
         .eq('show.club_id', clubId!)
         .order('created_at', { ascending: false });
       if (error) throw error;

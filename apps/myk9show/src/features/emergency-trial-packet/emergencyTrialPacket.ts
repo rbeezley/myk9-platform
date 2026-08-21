@@ -201,7 +201,7 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
       const classEntries = sortedEntries.filter(entry => entry.classId === classItem.id);
       const classContext: EmergencyPacketPageContext = {
         ...context,
-        ringLabel: classItem.ringLabel || 'Ring unassigned',
+        ringLabel: classItem.ringLabel || undefined,
         classLabel: classLabel(classItem),
         judgeName: classItem.judgeName || 'Judge unassigned',
         timeLimitLabel: formatClassTimeLimits(classItem),

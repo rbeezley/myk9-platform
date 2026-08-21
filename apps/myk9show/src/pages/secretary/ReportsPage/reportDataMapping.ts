@@ -306,7 +306,9 @@ export function buildEmergencyPacketData(input: {
         classNumber: classItem.class_number,
         displayOrder: classItem.display_order,
         judgeName: resolveClassJudgeName(classItem, input.show.assignedJudges ?? []),
-        ringLabel: ringLabel ?? 'Ring unassigned',
+        // No placeholder: `formatRingLabel` already returns null for absent or
+        // meaningless values, and a ringless sport should print nothing at all.
+        ringLabel: ringLabel,
         startTime: classItem.start_time,
         timeLimitSeconds: classItem.time_limit_seconds,
         timeLimitArea2Seconds: (raw.time_limit_area2_seconds as number | null) ?? null,

@@ -48,37 +48,48 @@ export function useBrowseDogsData(): BrowseDogsData {
     return [...breeds].sort((a, b) => a.localeCompare(b));
   }, [dogs]);
 
-  // Filter dogs by search, breed, and sex
+  // Sorted once per data change, NOT per keystroke. The sort does not depend on
+  // `filters` at all, but it used to sit at the end of the filter memo, so every
+  // character typed re-ran an O(n log n) pass of `localeCompare` (~100x the cost
+  // of a plain comparison) over the whole roster. Filtering preserves order, so
+  // sorting first is equivalent.
+  const sortedDogs = useMemo(
+    () =>
+      [...dogs].sort((a, b) =>
+        (getDogDisplayName(a) || '').localeCompare(getDogDisplayName(b) || '')
+      ),
+    [dogs]
+  );
+
+  // Lowercased once per roster change rather than once per dog per keystroke.
+  // Joined on an escaped NUL, which cannot appear in typed input, so a query
+  // still cannot match across a field boundary — preserving the original
+  // "any one field contains the query" semantics rather than widening them.
+  const searchIndex = useMemo(
+    () =>
+      sortedDogs.map(dog =>
+        [dog.callName, dog.name, dog.breed, dog.ownerName]
+          .filter(Boolean)
+          .join('\u0000')
+          .toLowerCase()
+      ),
+    [sortedDogs]
+  );
+
+  // Filter by search, breed, and sex.
   const filteredDogs = useMemo(() => {
-    let result = dogs;
+    const query = filters.search.trim().toLowerCase();
+    const byBreed = filters.breed !== 'all';
+    const bySex = filters.sex !== 'all';
+    if (!query && !byBreed && !bySex) return sortedDogs;
 
-    // Search filter: match call name, breed, owner name, or registered name
-    if (filters.search.trim()) {
-      const query = filters.search.toLowerCase().trim();
-      result = result.filter(
-        dog =>
-          dog.callName?.toLowerCase().includes(query) ||
-          dog.name?.toLowerCase().includes(query) ||
-          dog.breed?.toLowerCase().includes(query) ||
-          dog.ownerName?.toLowerCase().includes(query)
-      );
-    }
-
-    // Breed filter
-    if (filters.breed !== 'all') {
-      result = result.filter(dog => dog.breed === filters.breed);
-    }
-
-    // Sex filter
-    if (filters.sex !== 'all') {
-      result = result.filter(dog => dog.sex === filters.sex);
-    }
-
-    // Sort alphabetically by call name
-    return [...result].sort((a, b) =>
-      (getDogDisplayName(a) || '').localeCompare(getDogDisplayName(b) || '')
-    );
-  }, [dogs, filters]);
+    return sortedDogs.filter((dog, i) => {
+      if (query && !searchIndex[i]?.includes(query)) return false;
+      if (byBreed && dog.breed !== filters.breed) return false;
+      if (bySex && dog.sex !== filters.sex) return false;
+      return true;
+    });
+  }, [sortedDogs, searchIndex, filters]);
 
   const hasActiveFilters =
     filters.search.trim() !== '' || filters.breed !== 'all' || filters.sex !== 'all';

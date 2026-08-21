@@ -19,7 +19,7 @@ describe('CompactStatsRow', () => {
     acceptedEntries: 3,
     pendingEntries: 2,
     upcomingShows: 2,
-    pastShows: 1,
+    completedShows: 1,
     currentFees: 150,
     amountDue: 75,
     onNavigate: vi.fn(),
@@ -35,7 +35,7 @@ describe('CompactStatsRow', () => {
     expect(grid.getByText('2')).toBeInTheDocument();
     expect(grid.getByText('Upcoming Shows')).toBeInTheDocument();
     expect(grid.getByText('1')).toBeInTheDocument();
-    expect(grid.getByText('Past Show')).toBeInTheDocument();
+    expect(grid.getByText('Completed Show')).toBeInTheDocument();
     expect(grid.getAllByText('entered')).toHaveLength(2);
     expect(grid.getByText('$150')).toBeInTheDocument();
     expect(grid.getByText('Current Fees')).toBeInTheDocument();
@@ -82,8 +82,13 @@ describe('CompactStatsRow', () => {
     expect(entriesCard.querySelector('.h-1')).not.toBeInTheDocument();
     expect(icon).toBeInTheDocument();
     expect(icon).toHaveClass('text-muted-foreground');
-    expect(icon).toHaveClass('border-muted-foreground/20');
-    expect(icon).toHaveClass('bg-muted/25');
+    // These previously pinned `border-muted-foreground/20` and `bg-muted/25`,
+    // neither of which compiles: an opacity modifier on a var()-backed token
+    // emits no CSS unless it has been written out by hand in index.css, so the
+    // chip rendered with no fill and the assertions pinned an intention rather
+    // than a rendered style. Pin the tokens that actually paint.
+    expect(icon).toHaveClass('border-border');
+    expect(icon).toHaveClass('bg-muted');
     expect(icon?.compareDocumentPosition(label) ?? Node.DOCUMENT_POSITION_PRECEDING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
@@ -135,12 +140,12 @@ describe('CompactStatsRow', () => {
         acceptedEntries={1}
         pendingEntries={0}
         upcomingShows={1}
-        pastShows={1}
+        completedShows={1}
       />
     );
     expect(screen.getByText(CURRENT_ENTRIES_LABEL)).toBeInTheDocument();
     expect(screen.getByText('Upcoming Show')).toBeInTheDocument();
-    expect(screen.getByText('Past Show')).toBeInTheDocument();
+    expect(screen.getByText('Completed Show')).toBeInTheDocument();
   });
 
   it('uses plural label for shows when count is not 1', () => {
@@ -150,21 +155,47 @@ describe('CompactStatsRow', () => {
         acceptedEntries={0}
         pendingEntries={5}
         upcomingShows={5}
-        pastShows={3}
+        completedShows={3}
       />
     );
     expect(screen.getByText(CURRENT_ENTRIES_LABEL)).toBeInTheDocument();
     expect(screen.getByText('Upcoming Shows')).toBeInTheDocument();
-    expect(screen.getByText('Past Shows')).toBeInTheDocument();
+    expect(screen.getByText('Completed Shows')).toBeInTheDocument();
   });
 
-  it('navigates to entries page when entries card is clicked', async () => {
+  it('sends the current-entries card to the Upcoming filter, not to itself', async () => {
+    // This card used to navigate to `/exhibitor/entries` — the page the user is
+    // already on — while rendering a chevron and a "View details" label. The
+    // assertion passed the whole time because it only checked that `onNavigate`
+    // received a string, never that the destination differed from the origin or
+    // that anything read it. Both halves are now pinned: the card names a tab,
+    // and useMyEntriesFilters opens on it (see useMyEntriesFilters.test.ts).
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
     const entriesCard = screen.getByLabelText(/Entries.*View details/i);
     await userEvent.click(entriesCard);
-    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries');
+
+    expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries?tab=upcoming');
+    // A destination equal to the current page is not navigation.
+    expect(onNavigate).not.toHaveBeenCalledWith('/exhibitor/entries');
+  });
+
+  it('gives every stat card a destination that carries a filter or leaves the page', async () => {
+    const onNavigate = vi.fn();
+    render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
+
+    for (const card of screen.getAllByLabelText(/View details/i)) {
+      await userEvent.click(card);
+    }
+
+    const destinations = onNavigate.mock.calls.map(([path]) => path as string);
+    expect(destinations.length).toBeGreaterThan(0);
+    for (const destination of destinations) {
+      // Either it goes somewhere else, or it changes the filter here. A bare
+      // `/exhibitor/entries` is a no-op dressed up as a control.
+      expect(destination).not.toBe('/exhibitor/entries');
+    }
   });
 
   it('navigates to shows page when shows card is clicked', async () => {
@@ -180,7 +211,7 @@ describe('CompactStatsRow', () => {
     const onNavigate = vi.fn();
     render(<CompactStatsRow {...defaultProps} onNavigate={onNavigate} />);
 
-    const pastCard = screen.getByLabelText(/Past Show.*View details/i);
+    const pastCard = screen.getByLabelText(/Completed Show.*View details/i);
     await userEvent.click(pastCard);
     expect(onNavigate).toHaveBeenCalledWith('/exhibitor/entries?tab=completed');
   });
@@ -263,7 +294,7 @@ describe('CompactStatsRow', () => {
       // Every deep-linked card is still reachable after expanding.
       expect(screen.getByLabelText(/Entries.*View details/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Upcoming Shows.*View details/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/Past Show.*View details/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Completed Show.*View details/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Current Fees.*View details/i)).toBeInTheDocument();
     });
 
@@ -295,7 +326,7 @@ describe('CompactStatsRow', () => {
         acceptedEntries={0}
         pendingEntries={0}
         upcomingShows={0}
-        pastShows={0}
+        completedShows={0}
         currentFees={0}
         amountDue={0}
       />

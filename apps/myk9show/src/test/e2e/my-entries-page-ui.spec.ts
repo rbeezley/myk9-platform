@@ -59,7 +59,7 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     // with the all-time "All entries" list below it.
     await expect(page.getByRole('button', { name: /^Current entries:/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Upcoming Shows?:/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Past Shows?:/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Completed Shows?:/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Current Fees:/ })).toBeVisible();
 
     const currentEntriesCard = page.getByRole('button', { name: /^Current entries:/ });
@@ -197,14 +197,29 @@ test.describe('My Shows Page - Current Status', () => {
 
     if (entryCount > 0) {
       await expect(page.locator('.entry-status-stepper')).toHaveCount(0);
-      await expect(
-        entryCards
-          .first()
-          .getByText(
-            /Accepted|Pending Secretary Approval|Review incomplete|Waitlist|Rejected|Withdrawn|Scored|Move-Up Requested|Unknown/
-          )
-          .first()
-      ).toBeVisible();
+      // Assert the card carries a status BADGE, not that its text is one of a
+      // hand-listed set. The previous whitelist regex drifted from
+      // `getEntryStatusBadge` twice over: it omitted "In Ring", which the page
+      // plainly renders, and every label added since — and "Scored" never
+      // covered "Partially scored" anyway, the capital S stops it matching. It
+      // passed only while the first card happened to land in a listed state,
+      // then failed on correct UI. Every EntryStatus resolves to a descriptor
+      // label, so the durable check is that a badge is there and says
+      // something, scoped to the badge row so contextual copy elsewhere on the
+      // card ("1 class still to run") cannot stand in for it.
+      const statusBadge = entryCards
+        .first()
+        .locator('.myk9-entries-badges')
+        .locator(':scope > *')
+        // The status badge is the one carrying the entry-family icon; the
+        // payment badge sits beside it in the same row.
+        .filter({ has: page.locator('[data-family="entry"]') })
+        .first();
+      await expect(statusBadge).toBeVisible();
+      // Non-empty TEXT, not just a rendered badge: the icon alone would satisfy
+      // a container-level emptiness check, leaving a badge whose label span had
+      // vanished to pass a test whose whole subject is the label.
+      await expect(statusBadge).toHaveText(/\S/);
     }
   });
 });

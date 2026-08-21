@@ -47,10 +47,10 @@ export const MembersTable: React.FC<MembersTableProps> = ({
   onRemove,
   onToggleShowAccess,
 }) => (
-  <div className="overflow-x-auto rounded-xl border border-border/30">
+  <div className="overflow-x-auto rounded-xl border border-border">
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border/30 bg-muted/20">
+        <tr className="border-b border-border bg-[color:var(--chip-stone-bg)]">
           <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Name</th>
           <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">
             Email
@@ -67,15 +67,12 @@ export const MembersTable: React.FC<MembersTableProps> = ({
       </thead>
       <tbody>
         {members.map(member => (
-          <tr
-            key={member.id}
-            className="border-b border-border/20 hover:bg-muted/30 transition-colors"
-          >
+          <tr key={member.id} className="border-b border-border hover:bg-accent transition-colors">
             <td className="px-4 py-3 font-medium text-foreground">
               <span className="flex flex-wrap items-center gap-2">
                 {member.personName || 'Unknown'}
                 {showManagerIds.has(member.personId) && (
-                  <Badge className="bg-success/10 text-success border-success/20 text-xs">
+                  <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10 text-xs">
                     <KeyRound className="h-3 w-3 mr-1" />
                     Show Manager
                   </Badge>
@@ -115,7 +112,7 @@ export const MembersTable: React.FC<MembersTableProps> = ({
 
     {members.length === 0 && (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="bg-muted/50 rounded-full p-6 mb-4">
+        <div className="bg-[color:var(--chip-stone-bg)] rounded-full p-6 mb-4">
           <Users className="h-12 w-12 text-muted-foreground" />
         </div>
         <h3 className="text-lg font-semibold mb-2 text-foreground">
@@ -150,10 +147,10 @@ export const OfficersTable: React.FC<OfficersTableProps> = ({
   onAssignOfficer,
   onRemoveOfficer,
 }) => (
-  <div className="overflow-x-auto rounded-xl border border-border/30">
+  <div className="overflow-x-auto rounded-xl border border-border">
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-border/30 bg-muted/20">
+        <tr className="border-b border-border bg-[color:var(--chip-stone-bg)]">
           <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Position</th>
           <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Name</th>
           <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden sm:table-cell">
@@ -169,12 +166,9 @@ export const OfficersTable: React.FC<OfficersTableProps> = ({
       </thead>
       <tbody>
         {officers.map(officer => (
-          <tr
-            key={officer.id}
-            className="border-b border-border/20 hover:bg-muted/30 transition-colors"
-          >
+          <tr key={officer.id} className="border-b border-border hover:bg-accent transition-colors">
             <td className="px-4 py-3">
-              <Badge className="bg-primary/10 text-primary border-primary/20">
+              <Badge className="bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]">
                 {OFFICER_POSITION_LABELS[officer.position]}
               </Badge>
             </td>
@@ -208,7 +202,7 @@ export const OfficersTable: React.FC<OfficersTableProps> = ({
 
     {officers.length === 0 && (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="bg-muted/50 rounded-full p-6 mb-4">
+        <div className="bg-[color:var(--chip-stone-bg)] rounded-full p-6 mb-4">
           <Shield className="h-12 w-12 text-muted-foreground" />
         </div>
         <h3 className="text-lg font-semibold mb-2 text-foreground">No Officers Assigned</h3>

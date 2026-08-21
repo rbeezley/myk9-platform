@@ -12,16 +12,23 @@ interface SearchBarProps {
   size?: 'default' | 'sm';
 }
 
+// `clearButton` is the hit area, `clearIcon` only the glyph inside it. They were
+// previously the same class, which made the clear control as small as its 14px
+// icon — far under the 44px touch floor these users need on a tablet.
 const sizeConfig = {
   default: {
-    input: 'h-12 pl-11 pr-10 text-base rounded-xl',
+    input: 'h-12 pl-11 pr-12 text-base rounded-xl',
     searchIcon: 'left-3.5 h-5 w-5',
-    clearIcon: 'right-3 h-4 w-4',
+    clearButton: 'right-0 h-12 w-12',
+    clearIcon: 'h-4 w-4',
   },
   sm: {
-    input: 'h-8 pl-8 pr-8 text-sm rounded-lg',
-    searchIcon: 'left-2.5 h-4 w-4',
-    clearIcon: 'right-2 h-3.5 w-3.5',
+    // h-11 (44px), not h-8: this is the toolbar size used on every browse page,
+    // and the guardrail in docs/INTENT.md is a 44px minimum target.
+    input: 'h-11 pl-9 pr-11 text-sm rounded-lg',
+    searchIcon: 'left-3 h-4 w-4',
+    clearButton: 'right-0 h-11 w-11',
+    clearIcon: 'h-4 w-4',
   },
 };
 
@@ -50,7 +57,9 @@ export function SearchBar({
         onChange={e => onChange(e.target.value)}
         aria-label={ariaLabel ?? placeholder}
         className={cn(
-          'w-full bg-card shadow-card focus:shadow-card-hover focus:ring-2 focus:ring-ring outline-none transition-all',
+          // placeholder: the browser default gray reads at 2.5:1 on the white
+          // card in light mode; the muted token passes AA in both themes.
+          'w-full bg-card shadow-card placeholder:text-muted-foreground focus:shadow-card-hover focus:ring-2 focus:ring-ring outline-none transition-all',
           styles.input
         )}
       />
@@ -58,13 +67,13 @@ export function SearchBar({
         <button
           type="button"
           className={cn(
-            'absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors',
-            styles.clearIcon
+            'absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors',
+            styles.clearButton
           )}
           onClick={() => onChange('')}
           aria-label="Clear search"
         >
-          <X className="h-full w-full" />
+          <X className={styles.clearIcon} />
         </button>
       )}
     </div>

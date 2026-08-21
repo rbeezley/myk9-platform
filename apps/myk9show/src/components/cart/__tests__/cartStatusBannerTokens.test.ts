@@ -18,6 +18,8 @@ const sources = {
   CartSummary: read('../CartSummary.tsx'),
 };
 
+const cartItemCard = read('../CartItemCard.tsx');
+
 describe.each(Object.entries(sources))('%s expiration banner tokens', (_name, source) => {
   it('styles the urgent (error) case with the --destructive token', () => {
     expect(source).toContain('bg-destructive/10 text-destructive border border-destructive/30');
@@ -32,5 +34,38 @@ describe.each(Object.entries(sources))('%s expiration banner tokens', (_name, so
     expect(source).not.toContain('text-red-700');
     expect(source).not.toContain('bg-amber-50');
     expect(source).not.toContain('text-amber-700');
+  });
+});
+
+/**
+ * The same class of bug, one layer down and easier to miss: in dark mode
+ * `--secondary`, `--card` and their foregrounds are pairwise identical
+ * (#1e1c19 / #faf7f2), and `badgeVariants` sets `border-transparent` - so a
+ * `variant="secondary"` badge on a card has no fill, no border and no
+ * distinguishing text color. It measured 1.00:1 and simply was not there.
+ *
+ * That mattered here because the erased chip was "Wait list request", the only
+ * per-line cue that a line will NOT be charged. The blocked badge
+ * (`destructive`) kept its fill, so the hard-stop state survived while the
+ * softer money-relevant one vanished.
+ */
+describe('CartItemCard line badges', () => {
+  it('does not put a secondary-variant badge on a card surface', () => {
+    expect(cartItemCard).not.toContain('<Badge variant="secondary"');
+  });
+
+  it('gives the wait-list badge the warning token pair, matching its meaning', () => {
+    expect(cartItemCard).toContain('border-warning/40 bg-warning/10 text-warning');
+  });
+
+  it('gives the level badge the neutral chip surface, not an unfilled outline', () => {
+    // An outline is not enough: border-border on a card measures 1.36:1 light
+    // and 1.21:1 dark, so an unfilled pill still reads as loose text.
+    expect(cartItemCard).toContain('bg-[color:var(--chip-stone-bg)]');
+    expect(cartItemCard).not.toContain("LEVEL_BADGE = 'border-border");
+  });
+
+  it('keeps the blocked badge on the destructive variant', () => {
+    expect(cartItemCard).toContain('<Badge variant="destructive"');
   });
 });

@@ -7,13 +7,24 @@
 
 import React from 'react';
 import { Users, UserCheck, Shield } from 'lucide-react';
-import { StatCard, StatsGrid } from '@myk9/ui';
+import { StatCard } from '@myk9/ui';
 import type { User } from '@/types/user-types';
 import { calculateRoleStats, countActiveUsers } from './UserManagementPage.helpers';
 
 interface UserManagementStatsProps {
   filteredUsers: User[];
 }
+
+/**
+ * On phones the three cards sit side by side in one compact strip (icons and
+ * subtitles hidden) instead of stacking — stacked full-height cards pushed the
+ * roster, the page's actual object of work, ~1.5 viewports below the fold.
+ */
+const COMPACT_ON_MOBILE = [
+  'p-3 sm:p-5',
+  'max-sm:[&_[data-slot=icon]]:hidden',
+  'max-sm:[&_p]:hidden',
+].join(' ');
 
 export const UserManagementStats: React.FC<UserManagementStatsProps> = ({ filteredUsers }) => {
   const activeCount = countActiveUsers(filteredUsers);
@@ -23,13 +34,14 @@ export const UserManagementStats: React.FC<UserManagementStatsProps> = ({ filter
   const roleTypeCount = Object.keys(roleStats).length;
 
   return (
-    <StatsGrid columns={3}>
+    <div className="grid grid-cols-3 gap-2 sm:gap-4">
       <StatCard
         title="Users in view"
         value={filteredUsers.length.toLocaleString()}
         icon={Users}
         color="primary"
         subtitle="Current roster"
+        className={COMPACT_ON_MOBILE}
       />
       <StatCard
         title="Active in view"
@@ -41,6 +53,7 @@ export const UserManagementStats: React.FC<UserManagementStatsProps> = ({ filter
             ? `${suspendedCount} suspended or removed`
             : 'None suspended or removed'
         }
+        className={COMPACT_ON_MOBILE}
       />
       <StatCard
         title="Roles in view"
@@ -48,7 +61,8 @@ export const UserManagementStats: React.FC<UserManagementStatsProps> = ({ filter
         icon={Shield}
         color="purple"
         subtitle={`Across ${roleTypeCount} role type${roleTypeCount === 1 ? '' : 's'}`}
+        className={COMPACT_ON_MOBILE}
       />
-    </StatsGrid>
+    </div>
   );
 };

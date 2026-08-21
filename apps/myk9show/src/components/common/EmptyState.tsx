@@ -125,9 +125,19 @@ export function EmptyState({
                 to={action.href}
                 className={cn(
                   'inline-flex items-center justify-center gap-2 rounded-md px-4 font-medium transition-all',
+                  // An empty state's only action must still be tappable. `sm`
+                  // rendered a 32px control and the default 40px, both under the
+                  // 44px floor PRODUCT.md sets for an audience that is older,
+                  // outdoors, and often wearing gloves. `min-h` only grows the
+                  // control, so nothing that already cleared the floor moves.
+                  'min-h-[44px]',
                   size === 'sm' ? 'h-8 text-sm' : 'h-10 text-sm',
                   action.variant === 'outline'
-                    ? 'border border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                    // `border-border/50` and `hover:border-primary/30` emit no
+                    // CSS: an opacity modifier on a var()-backed token does not
+                    // compile, so the outline variant had no visible border and
+                    // no hover response at all.
+                    ? 'border border-border text-muted-foreground hover:border-primary hover:text-foreground'
                     : action.variant === 'secondary'
                       ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
                       : 'bg-primary text-primary-foreground hover:opacity-90'

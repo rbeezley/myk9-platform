@@ -41,9 +41,13 @@ export function PremiumButton({
     // Base styling
     "font-medium transition-all duration-300 shadow-sm relative overflow-hidden",
     
-    // Size variants
-    size === 'sm' && "h-8 px-3 text-sm",
-    size === 'md' && "h-10 px-4 text-sm", 
+    // Size variants. The 44px floor (PRODUCT.md) rides on the TEXT sizes, not on
+    // the shared base: a bare `min-h` here also reached IconButton, which sets
+    // its own square `h-8 w-8` / `h-10 w-10`, turning those round buttons into
+    // 32x44 and 40x44 pills while leaving the horizontal target below the floor.
+    // A square control has to grow in both dimensions or not at all.
+    size === 'sm' && "h-8 px-3 text-sm min-h-[44px]",
+    size === 'md' && "h-10 px-4 text-sm min-h-[44px]", 
     size === 'lg' && "h-12 px-6 text-base",
     
     // Variant styling
@@ -156,9 +160,11 @@ export function IconButton({
   className,
   ...props 
 }: IconButtonProps) {
+  // Square, and at least 44x44 — the floor applies to width as much as height
+  // on an icon-only control, where the label gives no extra hit area.
   const sizeClass = {
-    'sm': 'h-8 w-8 p-0',
-    'md': 'h-10 w-10 p-0',
+    'sm': 'h-11 w-11 p-0',
+    'md': 'h-11 w-11 p-0',
     'lg': 'h-12 w-12 p-0'
   }[size];
 

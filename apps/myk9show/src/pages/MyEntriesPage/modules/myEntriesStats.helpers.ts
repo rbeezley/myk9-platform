@@ -18,7 +18,11 @@
  */
 
 import { parseLocalDateString } from '@/utils/dateLocal';
-import type { MyEntry } from './my-entries-types';
+import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
+import type { EntryClass, MyEntry } from './my-entries-types';
 
 /**
  * Parse a show date that may be a date-only string ("YYYY-MM-DD") or a full
@@ -44,7 +48,7 @@ export function startOfLocalDay(date: Date): Date {
 }
 
 /** The last calendar day a show runs — its end date when known, else the start date. */
-function showLastDay(entry: MyEntry): Date {
+function showLastDay(entry: Pick<MyEntry, 'showDate' | 'showEndDate'>): Date {
   return entry.showEndDate ?? entry.showDate;
 }
 
@@ -52,14 +56,203 @@ function showLastDay(entry: MyEntry): Date {
  * A show is "past" only once its final day is before today. A multi-day show
  * that started earlier but is still running today is NOT past.
  */
-export function isPastShowEntry(entry: MyEntry, now: Date): boolean {
+export function isPastShowEntry(
+  entry: Pick<MyEntry, 'showDate' | 'showEndDate'>,
+  now: Date
+): boolean {
   return startOfLocalDay(showLastDay(entry)).getTime() < startOfLocalDay(now).getTime();
 }
 
-export interface MyEntriesShowDateStats {
-  /** Distinct shows whose final day is before today. */
-  pastShows: number;
-  /** Distinct shows that are running today or in the future. */
+/**
+ * Is this individual class row scored? Reads `entryStatusKind` — the display
+ * classifier that folds `check_in_status` into `entry_status` — because a row
+ * can sit at `entry_status='confirmed'` with `check_in_status='completed'` and
+ * still be scored, which keying on `entryStatus` alone would miss.
+ */
+/**
+ * Class rows the exhibitor still has to run, via the CANONICAL accounting rules
+ * (`@/features/_shared/entryAccounting`) rather than a local variant.
+ *
+ * That file carries an explicit warning, and MYK9-118 as the precedent: a
+ * surface that reports outstanding scoring work with its own slightly different
+ * rule is how a page ends up disagreeing with the server about whether a class
+ * is finished. Reading them buys three behaviours a hand-rolled status check
+ * kept getting wrong:
+ *
+ *  - `absent` / `excused` settle a run WITHOUT a score, so `is_scored` stays
+ *    false on a run that is nonetheless over;
+ *  - an explicit `is_scored: false` outranks a stale `completed` status, which
+ *    is what every score-reset path leaves behind (usePaperScoring.clearEntry,
+ *    useClassResults, useAtShowEntryListActions all clear the result fields but
+ *    not `check_in_status`);
+ *  - scratched / withdrawn / cancelled rows are not expected to run at all.
+ */
+function outstandingClasses(classes: EntryClass[]): EntryClass[] {
+  return expectedClasses(classes).filter(cls => !isAccountedFor(cls));
+}
+
+/**
+ * The source row of a move-up, superseded by the destination row that now
+ * carries the run. `isExpectedEntry` does NOT exclude these — it only knows
+ * scratched, withdrawn, cancelled and pulled — so a moved row would sit in
+ * `outstandingClasses` forever, keeping the order in Upcoming and advertising
+ * a class that no longer exists as "still to run".
+ */
+function isSupersededClass(cls: EntryClass): boolean {
+  return (
+    cls.status === 'moved' ||
+    cls.entryStatusKind === 'moved' ||
+    cls.entryStatus === EntryStatus.MOVED
+  );
+}
+
+/** Class rows the show expects to put in the ring, settled or not. */
+function expectedClasses(classes: EntryClass[]): EntryClass[] {
+  return classes.filter(cls => isExpectedEntry(cls) && !isSupersededClass(cls));
+}
+
+/**
+ * Genuinely SCORED, as opposed to merely settled. An `absent` or `excused` run
+ * is accounted for without ever being scored, so it must not make a card claim
+ * a score exists.
+ */
+function isGenuinelyScoredClass(cls: EntryClass): boolean {
+  return cls.isScored === true;
+}
+
+/**
+ * Is this ORDER fully scored — i.e. every class the exhibitor still has to run
+ * has a result?
+ *
+ * Deliberately per-class, NOT read off the order's aggregated
+ * `entryStatusKind`. `groupEntriesByOrder` resolves an order's top-level status
+ * by highest priority and puts `COMPLETED` at the top of that scale, so a
+ * single scored class makes the whole order read `completed` while its sibling
+ * classes are still unrun. Keying the Completed tab on that aggregate would
+ * file a card as done mid-show and hide the exhibitor's remaining runs — the
+ * seeded Aug 29 show has exactly this shape (two of its three scored rows sit
+ * in two-row orders with one class still to run).
+ *
+ * Rows the exhibitor will not run — scratched, moved, absent — do not hold an
+ * order open, so an order with no runnable classes left is done even though
+ * none of its rows carry a result (`every` on an empty list is vacuously
+ * true, which is the behaviour we want here). When no class rows are present
+ * at all (hand-built fixtures and legacy rows that never went through
+ * `groupEntriesByOrder`) this falls back to the order's own status.
+ */
+export function isScoredEntry(entry: MyEntry): boolean {
+  if (entry.classes.length > 0) return outstandingClasses(entry.classes).length === 0;
+  return entry.entryStatusKind === 'completed' || entry.entryStatus === EntryStatus.COMPLETED;
+}
+
+/**
+ * An order that is finished WITHOUT a score — every run it expected is settled,
+ * and every one of them was settled by an absence rather than a result.
+ *
+ * These are done, so `isCompletedEntry` puts them in the Completed tab, but
+ * nothing in their lifecycle columns says so: `result_status` carries the
+ * absence while `entry_status` stays 'confirmed', so the order still aggregates
+ * to `accepted` and the card would render a green "Accepted" badge and upcoming
+ * copy from inside the Completed tab. `getPartiallyScoredState` deliberately
+ * declines these (there is no score to be partway through), so they need their
+ * own display state rather than falling through to the aggregate.
+ */
+export function isSettledWithoutScore(entry: Pick<MyEntry, 'classes'>): boolean {
+  const expected = expectedClasses(entry.classes);
+  if (expected.length === 0) return false;
+  return expected.every(isAccountedFor) && !expected.some(isGenuinelyScoredClass);
+}
+
+export interface PartiallyScoredState {
+  /** Live classes on this order still awaiting a result. Always >= 1. */
+  remainingClasses: number;
+  /** Dominant status among those remaining classes — what the card still IS. */
+  entryStatus: EntryStatus;
+  /** Dominant display kind among them, resolved the same way the order card is. */
+  entryStatusKind: EntryStatusKind | undefined;
+}
+
+/**
+ * Describe an order that is *some* of the way through its runs, or `undefined`
+ * when it is either untouched or finished.
+ *
+ * `groupEntriesByOrder` resolves an order card's status by highest priority
+ * with COMPLETED at the top of the scale, so one scored class makes the whole
+ * card report `completed` and render a "Scored" badge — while sibling classes
+ * are still unrun. This recovers what the card should actually say: how many
+ * runs are left, and the dominant status among *those* rows, so the summary
+ * band describes the work remaining rather than the one result already in.
+ *
+ * The remaining rows are folded with the same `dominantStatus` /
+ * `dominantStatusKind` precedence the grouping itself uses, so a card never
+ * disagrees with its own class list about which state is showing.
+ */
+export function getPartiallyScoredState(
+  entry: Pick<MyEntry, 'classes' | 'entryStatus'>
+): PartiallyScoredState | undefined {
+  const expected = expectedClasses(entry.classes);
+  const remaining = outstandingClasses(entry.classes);
+  // Untouched (nothing settled) or finished (nothing left) — neither is partial.
+  if (remaining.length === 0 || remaining.length === expected.length) return undefined;
+  // Settled-but-unscored does not count: an order whose only closed class was
+  // marked absent has no score to be "partially" through, and the card's
+  // "Partially scored" label would invent one.
+  if (!expected.some(isGenuinelyScoredClass)) return undefined;
+
+  let entryStatus: EntryStatus | undefined;
+  let entryStatusKind: EntryStatusKind | undefined;
+  for (const cls of remaining) {
+    // A row in `remaining` is outstanding BY DEFINITION, so a 'completed'
+    // lifecycle value on it is stale — the leftovers of a score reset, which
+    // clears `is_scored` but not `entry_status` / `check_in_status`. Folding it
+    // in unchanged would put a completed icon beside "still to run".
+    const rawStatus = cls.entryStatus ?? entry.entryStatus;
+    const classStatus = rawStatus === EntryStatus.COMPLETED ? EntryStatus.ACCEPTED : rawStatus;
+    const classKind = cls.entryStatusKind === 'completed' ? 'accepted' : cls.entryStatusKind;
+    if (entryStatus === undefined) {
+      entryStatus = classStatus;
+      entryStatusKind = classKind;
+      continue;
+    }
+    // Resolve the kind against the PREVIOUS status, before it is reassigned.
+    entryStatusKind = dominantStatusKind(entryStatus, entryStatusKind, classStatus, classKind);
+    entryStatus = dominantStatus(entryStatus, classStatus);
+  }
+
+  return {
+    remainingClasses: remaining.length,
+    entryStatus: entryStatus ?? entry.entryStatus,
+    entryStatusKind,
+  };
+}
+
+/**
+ * The exhibitor's "nothing further will happen here" predicate, and the single
+ * rule behind the Upcoming / Completed tab pair.
+ *
+ * These two tabs used to split on `isPastShowEntry` alone, i.e. purely on the
+ * calendar. That let a scored entry at a show whose last day is still in the
+ * future render a "Scored" badge on its card while the strip read
+ * `Completed 0` and counted it as Upcoming — two different definitions of
+ * "done" on one screen. Folding the scored check in makes the tab agree with
+ * the exhibitor's actual state in both directions. Note that a PARTIALLY
+ * scored order stays Upcoming (see `isScoredEntry`) even though its card badge
+ * still reads "Scored" — the badge summarises by dominant status, which is a
+ * separate question from whether the exhibitor is done.
+ *
+ * Deliberately NOT used by the fee math: amount-due is a genuine show-date
+ * question, and a scored entry at a show that has not happened yet can still
+ * owe an entry fee. The show-level counts DO use it — the cards they feed deep
+ * link to the tabs, so they must agree with tab membership.
+ */
+export function isCompletedEntry(entry: MyEntry, now: Date): boolean {
+  return isScoredEntry(entry) || isPastShowEntry(entry, now);
+}
+
+export interface MyEntriesShowProgressStats {
+  /** Distinct shows the exhibitor is done with — every run scored, or over. */
+  completedShows: number;
+  /** Distinct shows that still have something ahead of them. */
   upcomingShows: number;
   /** Entries belonging to a non-past (current or future) show. */
   upcomingEntries: number;
@@ -71,31 +264,43 @@ function showKey(entry: MyEntry): string {
 }
 
 /**
- * Compute show-date-derived stats from the user's entries.
+ * Compute show-level progress stats from the user's entries.
  *
- * Counts DISTINCT shows (deduped by show), not entries — the cards are labelled
- * "Past Shows" / "Upcoming Shows".
+ * Counts DISTINCT shows (deduped by show), not entries — the cards these feed
+ * are labelled "Completed Shows" / "Upcoming Shows".
+ *
+ * These use the same `isCompletedEntry` axis as the Upcoming/Completed tabs
+ * rather than the show date, because the cards deep-link into those tabs. A
+ * count on a different rule sends the exhibitor to a tab that disagrees with
+ * the number they just tapped.
  */
-export function computeMyEntriesShowDateStats(
+export function computeMyEntriesShowProgressStats(
   entries: MyEntry[],
   now: Date
-): MyEntriesShowDateStats {
-  const pastShowIds = new Set<string>();
-  const upcomingShowIds = new Set<string>();
+): MyEntriesShowProgressStats {
+  // Classify each SHOW once. Adding to a set per entry double-counts a show
+  // that holds both a finished order and an unfinished one — it would appear
+  // as an Upcoming Show AND a Completed Show, and the two cards would sum to
+  // more shows than the exhibitor has entered. A show is done only when none
+  // of its entries are still ahead.
+  const showHasUpcoming = new Map<string, boolean>();
   let upcomingEntries = 0;
 
   for (const entry of entries) {
-    if (isPastShowEntry(entry, now)) {
-      pastShowIds.add(showKey(entry));
-    } else {
-      upcomingShowIds.add(showKey(entry));
-      upcomingEntries += 1;
-    }
+    const key = showKey(entry);
+    const upcoming = !isCompletedEntry(entry, now);
+    if (upcoming) upcomingEntries += 1;
+    showHasUpcoming.set(key, (showHasUpcoming.get(key) ?? false) || upcoming);
+  }
+
+  let upcomingShows = 0;
+  for (const hasUpcoming of showHasUpcoming.values()) {
+    if (hasUpcoming) upcomingShows += 1;
   }
 
   return {
-    pastShows: pastShowIds.size,
-    upcomingShows: upcomingShowIds.size,
+    completedShows: showHasUpcoming.size - upcomingShows,
+    upcomingShows,
     upcomingEntries,
   };
 }

@@ -46,8 +46,15 @@ async function updateCheckInStatus(
 
     await updateReplicatedCheckInStatus(entryId, newStatus);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Check-in update failed: ${message}`);
+    // This message is rendered verbatim to the exhibitor by CheckInStatusDialog,
+    // so it stays plain English and non-blaming (PRODUCT.md: no technical error
+    // messages, no sync anxiety). The original failure travels on `cause` for
+    // logging rather than being concatenated into the visible copy.
+    const friendly = new Error('We could not save your check-in. Please try again.');
+    // Assigned rather than passed to the constructor: the `cause` option needs a
+    // newer lib target than this project compiles against.
+    (friendly as Error & { cause?: unknown }).cause = error;
+    throw friendly;
   }
 }
 

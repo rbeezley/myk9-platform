@@ -145,7 +145,13 @@ describe('useCheckInMutation', () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.error?.message).toContain('Check-in update failed');
+    // The message reaches the exhibitor verbatim through CheckInStatusDialog, so
+    // it must stay plain English; the technical cause rides on `cause` instead.
+    expect(result.current.error?.message).toBe(
+      'We could not save your check-in. Please try again.'
+    );
+    expect(result.current.error?.message).not.toContain('Replica unavailable');
+    expect((result.current.error?.cause as Error | undefined)?.message).toBe('Replica unavailable');
     expect(mockUpdateSelfCheckInStatus).not.toHaveBeenCalled();
     expect(mockRpc).not.toHaveBeenCalled();
   });

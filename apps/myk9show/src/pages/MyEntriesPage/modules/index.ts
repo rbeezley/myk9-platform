@@ -19,12 +19,13 @@ export {
 } from './myEntriesUtils';
 
 // Constants & copy
-export { ENTRY_TAB_DEFS } from './entryTabDefs';
+export { ENTRY_TAB_DEFS, isEntryTabFilter } from './entryTabDefs';
 export { ALL_ENTRIES_LABEL, ALL_ENTRIES_SCOPE_NOTE } from './myShowsCopy';
 
 // Components
 export { MyEntryCard } from './MyEntryCard';
 export { EntriesEmptyState } from './EntriesEmptyState';
+export { EntryScopeBanner } from './EntryScopeBanner';
 export { EntriesLoadErrorCard } from './EntriesLoadErrorCard';
 export {
   CheckInDialog,

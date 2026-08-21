@@ -46,6 +46,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [feature-audit-2026.md](feature-audit-2026.md)                                                                   | Reference | Feature Audit — Fall 2026                                                    |
 | [ia-review-admin-person-detail.md](ia-review-admin-person-detail.md)                                             | Active    | IA Review: Admin Person Detail + Soft-Delete Lifecycle                       |
 | [ia-review-entry-status-surfaces.md](ia-review-entry-status-surfaces.md)                                         | Active    | IA Review: Entry-Status Surfaces (cross-role)                                |
+| [ia-review-exhibitor-surface.md](ia-review-exhibitor-surface.md)                                                 | Active    | IA Review: Exhibitor Surface (tab-axis + duplicate front doors)              |
 | [ia-review-secretary-entry-management.md](ia-review-secretary-entry-management.md)                               | Active    | IA Review: Secretary Entry Management (cognitive-load track)                 |
 | [improve-audit-2026-06/README.md](improve-audit-2026-06/README.md)                                               | Active    | Improve Audit — June 2026 (remaining plans 003–006)                          |
 | [improve-audit-2026-07/README.md](improve-audit-2026-07/README.md)                                               | Active    | Production-Readiness Bug Audit — July 2026 (5 plans; reconciled vs UX walk)  |
@@ -60,9 +61,9 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [navigation-ia.md](navigation-ia.md)                                                                             | Reference | Navigation & IA Sketch — Fall 2026                                           |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)                                   | Active    | Active-Docs Triage — 2026-06-14                                              |
 | [plan-anon-grant-rls-tightening.md](plan-anon-grant-rls-tightening.md)                                           | Active    | MYK9-93 — Anon grant & RLS tightening (launch gate)                          |
-| [plan-offline-readiness.md](plan-offline-readiness.md)                                                           | Active    | MYK9-203 — Offline-ready badge + show-eve push nudge                         |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                                                 | Active    | Architecture Deepening Plan                                                  |
 | [plan-ia-admin-person-detail.md](plan-ia-admin-person-detail.md)                                                 | Active    | Admin Person Detail + Soft-Delete Lifecycle Consolidation (4 phases)         |
+| [plan-ia-exhibitor-surface.md](plan-ia-exhibitor-surface.md)                                                     | Active    | Exhibitor Surface IA Remediation (4 phases)                                  |
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                                                     | Active    | ASCA Level C — seed continuation classes into the wizard template            |
 | [plan-askq-revival.md](plan-askq-revival.md)                                                                     | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                                             | Active    | Data Access Module Drift Plan                                                |
@@ -98,7 +99,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-ringside-occ-admission-control.md](plan-ringside-occ-admission-control.md)                                 | Active    | Ringside OCC admission control — MYK9-115 conflict-storm breaker             |
 | [plan-weekly-findings-remediation-2026-07-31.md](plan-weekly-findings-remediation-2026-07-31.md)                 | Active    | Weekly Findings Remediation — 2026-07-31 (3 P0 / 5 P1; phased opsx roadmap)  |
 | [plan-admin-dashboard-data-contract.md](plan-admin-dashboard-data-contract.md)                                   | Active    | Admin dashboard/health redesign — resolved data sources per element          |
-| [plan-myk9-156-sentry-proxy.md](plan-myk9-156-sentry-proxy.md)                                                   | Active    | MYK9-156 — Sentry proxy for admin dashboard metrics                          |
 | [plan-ux-journey-phase6.md](plan-ux-journey-phase6.md)                                                           | Active    | Plan: UX Journey Audit — Phase 6 (Remediation Verification)                  |
 | [plan-wave1-exhibitor-entry-payment-trust.md](plan-wave1-exhibitor-entry-payment-trust.md)                       | Active    | Wave 1 Exhibitor Entry And Payment Trust Implementation Plan                 |
 | [plan-workflow-process-consolidation.md](plan-workflow-process-consolidation.md)                                 | Active    | Workflow & process consolidation — PLAYBOOK.md, CLAUDE.md slim, skills audit |

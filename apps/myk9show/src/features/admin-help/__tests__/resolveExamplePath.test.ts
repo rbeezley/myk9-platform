@@ -22,6 +22,14 @@ describe('resolveExamplePath', () => {
     expect(resolveExamplePath('/shows', fullIds)).toBe('/shows');
   });
 
+  // A path can be route-complete and still not openable. /support has no
+  // :param, so the "no colon → return unchanged" branch used to hand back an
+  // enabled link that always landed on "Ticket not found" — the page needs a
+  // ?ticketId that only the support notification supplies.
+  it('returns null for query-dependent paths even though they have no :param', () => {
+    expect(resolveExamplePath('/support', fullIds)).toBeNull();
+  });
+
   it('resolves single-param patterns using the id map', () => {
     expect(resolveExamplePath('/shows/:id', fullIds)).toBe('/shows/SHOW_1');
     expect(resolveExamplePath('/dogs/:id', fullIds)).toBe('/dogs/DOG_1');

@@ -233,6 +233,62 @@ const seedLoadedEntry = () => {
   });
 };
 
+/**
+ * One accepted, unscored entry — the shape the exhibitor self check-in flow
+ * needs. Shared by the success and failure paths so the two tests cannot drift
+ * apart on fixture details that have nothing to do with what they assert.
+ */
+const buildSelfCheckinEntryRow = () => ({
+  id: 'entry-1',
+  registration_id: 'reg-1',
+  show_id: 'show-1',
+  dog_id: 'dog-1',
+  class_id: 'class-1',
+  trial_id: 'trial-1',
+  handler_id: 'person-1',
+  entry_status: 'accepted',
+  payment_status: 'paid_online',
+  entry_fee: 25,
+  check_in_status: 'no-status',
+  is_scored: false,
+  result_status: null,
+  search_time_seconds: null,
+  total_faults: null,
+  final_placement: null,
+  submitted_at: '2026-06-01T12:00:00.000Z',
+  created_at: '2026-06-01T12:00:00.000Z',
+  updated_at: '2026-06-01T12:00:00.000Z',
+  dog: { id: 'dog-1', name: 'Koda', call_name: 'Koda' },
+  show: {
+    id: 'show-1',
+    name: 'Spring Trial',
+    start_date: '2026-06-15',
+    end_date: '2026-06-16',
+    entry_close_date: '2026-06-01',
+    venue: 'Test Venue',
+    city: 'Portland',
+    state: 'OR',
+  },
+  class: { id: 'class-1', name: 'Novice A', class_number: '101' },
+  trial: { id: 'trial-1', trial_type: 'Scent Work' },
+  registration: { id: 'reg-1', confirmation_number: 'ABC123' },
+});
+
+/** Walks the collapsed details panel down to a submitted check-in status change. */
+const submitSelfCheckin = async (user: ReturnType<typeof userEvent.setup>) => {
+  await screen.findByText('Spring Trial');
+  // Per-class check-in controls live behind the collapsed details panel.
+  await user.click(screen.getByRole('button', { name: /show details/i }));
+  await user.click(screen.getByRole('button', { name: /update check-in for koda in novice a/i }));
+  const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
+  const checkedInOption = statusOptions.find(
+    option => option.getAttribute('aria-labelledby') === 'checked-in-label'
+  );
+  expect(checkedInOption).toBeDefined();
+  await user.click(checkedInOption as HTMLElement);
+  await user.click(screen.getByRole('button', { name: /update status/i }));
+};
+
 describe('MyEntriesPage UI Improvements', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -466,62 +522,14 @@ describe('MyEntriesPage UI Improvements', () => {
         isAuthenticated: true,
       });
       (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-        data: [
-          {
-            id: 'entry-1',
-            registration_id: 'reg-1',
-            show_id: 'show-1',
-            dog_id: 'dog-1',
-            class_id: 'class-1',
-            trial_id: 'trial-1',
-            handler_id: 'person-1',
-            entry_status: 'accepted',
-            payment_status: 'paid_online',
-            entry_fee: 25,
-            check_in_status: 'no-status',
-            is_scored: false,
-            result_status: null,
-            search_time_seconds: null,
-            total_faults: null,
-            final_placement: null,
-            submitted_at: '2026-06-01T12:00:00.000Z',
-            created_at: '2026-06-01T12:00:00.000Z',
-            updated_at: '2026-06-01T12:00:00.000Z',
-            dog: { id: 'dog-1', name: 'Koda', call_name: 'Koda' },
-            show: {
-              id: 'show-1',
-              name: 'Spring Trial',
-              start_date: '2026-06-15',
-              end_date: '2026-06-16',
-              entry_close_date: '2026-06-01',
-              venue: 'Test Venue',
-              city: 'Portland',
-              state: 'OR',
-            },
-            class: { id: 'class-1', name: 'Novice A', class_number: '101' },
-            trial: { id: 'trial-1', trial_type: 'Scent Work' },
-            registration: { id: 'reg-1', confirmation_number: 'ABC123' },
-          },
-        ],
+        data: [buildSelfCheckinEntryRow()],
         error: null,
       });
 
       renderWithProviders(<MyEntriesPage />);
 
       expect(mockUseCheckInMutation).toHaveBeenCalledWith({ writer: 'self-checkin-rpc' });
-      await screen.findByText('Spring Trial');
-      // Per-class check-in controls live behind the collapsed details panel.
-      await user.click(screen.getByRole('button', { name: /show details/i }));
-      await user.click(
-        screen.getByRole('button', { name: /update check-in for koda in novice a/i })
-      );
-      const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
-      const checkedInOption = statusOptions.find(
-        option => option.getAttribute('aria-labelledby') === 'checked-in-label'
-      );
-      expect(checkedInOption).toBeDefined();
-      await user.click(checkedInOption as HTMLElement);
-      await user.click(screen.getByRole('button', { name: /update status/i }));
+      await submitSelfCheckin(user);
 
       await waitFor(() =>
         expect(mockCheckInMutateAsync).toHaveBeenCalledWith({
@@ -533,6 +541,42 @@ describe('MyEntriesPage UI Improvements', () => {
         })
       );
       expect(updateCheckInStatus).not.toHaveBeenCalled();
+      // The success path is the ONLY path that may close the dialog. Pinned
+      // here so the failure-path fix below cannot regress into closing it too.
+      await waitFor(() =>
+        expect(screen.queryByText('Update Check-In Status')).not.toBeInTheDocument()
+      );
+    });
+
+    it('keeps the check-in dialog open and explains a failed check-in', async () => {
+      // Regression: the page handler wrapped `updateEntryCheckIn` in a bare
+      // `catch {}` labelled "Error handled in hook". The hook only logs and
+      // rethrows, so swallowing it here resolved the promise CheckInStatusDialog
+      // uses to decide success — the dialog closed as if the check-in saved
+      // while the status silently reverted. On show day that means an exhibitor
+      // believes their dog is checked in and is marked absent.
+      const user = userEvent.setup();
+      (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+        user: mockUser,
+        userWithRoles: { ...mockUser, databaseUserId: 'person-1' },
+        isAuthenticated: true,
+      });
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: [buildSelfCheckinEntryRow()],
+        error: null,
+      });
+      mockCheckInMutateAsync.mockRejectedValueOnce(
+        new Error('We could not save your check-in. Please try again.')
+      );
+
+      renderWithProviders(<MyEntriesPage />);
+      await submitSelfCheckin(user);
+
+      await waitFor(() => expect(mockCheckInMutateAsync).toHaveBeenCalled());
+
+      // The dialog must stay open, carrying the failure where the action was.
+      expect(await screen.findByRole('alert')).toHaveTextContent(/could not save your check-in/i);
+      expect(screen.getByText('Update Check-In Status')).toBeInTheDocument();
     });
 
     it('uses enrollment payment status when secretary marks a grouped entry paid', async () => {
@@ -759,5 +803,91 @@ describe('Add Dog panel survives page loading states', () => {
     renderWithProviders(<MyEntriesPage />);
 
     expect(await screen.findByTestId('add-dog-panel')).toBeInTheDocument();
+  });
+});
+
+/**
+ * My Payments' per-row "Receipt" link arrives here carrying the order it came
+ * from. Before the reader existed the link dropped the exhibitor into every
+ * entry they had ever made; these assert the narrowing, the explanation, and
+ * the way back out.
+ */
+describe('Receipt deep-link scope from My Payments', () => {
+  const unscored = {
+    is_scored: false,
+    result_status: null,
+    final_placement: null,
+    class_results_released_at: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
+    mockUseCurrentUserPersonId.mockReturnValue(null);
+    seedAuthWithPerson();
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [
+        makeResultRow(unscored),
+        makeResultRow({
+          ...unscored,
+          id: 'entry-2',
+          registration_id: 'reg-2',
+          show_id: 'show-2',
+          class_id: 'class-2',
+          class: { id: 'class-2', name: 'Interior Novice A', class_number: '102' },
+          show: {
+            id: 'show-2',
+            name: 'Autumn Classic',
+            start_date: '2026-10-10',
+            end_date: '2026-10-10',
+            entry_close_date: '2026-10-01',
+            venue_name: 'Fairgrounds',
+            city: 'Denver',
+            state: 'CO',
+          },
+          registration: { id: 'reg-2', confirmation_number: 'DEF456' },
+        }),
+      ],
+      error: null,
+    });
+  });
+
+  it('narrows the list to the order the link named, and says why', async () => {
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=show-1&entryIds=entry-1');
+
+    expect(await screen.findByText('Rocky Mountain Classic')).toBeInTheDocument();
+    expect(screen.queryByText('Autumn Classic')).not.toBeInTheDocument();
+    // A silently short list would read as "the rest of my entries are gone".
+    expect(
+      screen.getByText(/Showing 1 of 2 entries — the ones your payment for Rocky Mountain/)
+    ).toBeInTheDocument();
+  });
+
+  it('restores the full list from the banner', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=show-1&entryIds=entry-1');
+
+    await screen.findByText('Rocky Mountain Classic');
+    await user.click(screen.getByRole('button', { name: 'Show all entries' }));
+
+    expect(await screen.findByText('Autumn Classic')).toBeInTheDocument();
+    expect(screen.queryByText(/Showing 1 of 2 entries/)).not.toBeInTheDocument();
+  });
+
+  it('shows everything and admits the link is stale when nothing matches', async () => {
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=gone&entryIds=gone');
+
+    expect(await screen.findByText('Rocky Mountain Classic')).toBeInTheDocument();
+    expect(screen.getByText('Autumn Classic')).toBeInTheDocument();
+    expect(screen.getByText(/could not find the entries from that payment/)).toBeInTheDocument();
+  });
+
+  it('renders no scope banner on an ordinary visit', async () => {
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
+
+    await screen.findByText('Rocky Mountain Classic');
+    expect(screen.getByText('Autumn Classic')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show all entries' })).not.toBeInTheDocument();
   });
 });

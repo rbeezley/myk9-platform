@@ -50,8 +50,8 @@ export const FirstRunZeroState: React.FC<FirstRunZeroStateProps> = ({ hasDogs, o
       : 'Add your dog once and we’ll remember the details — entering a show takes about 30 seconds from here on.';
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-8 text-center sm:p-12">
-      <div className="mx-auto mb-5 inline-flex items-center justify-center rounded-full border border-primary/15 bg-primary/8 p-5">
+    <div className="rounded-2xl border border-border bg-card p-8 text-center sm:p-12">
+      <div className="mx-auto mb-5 inline-flex items-center justify-center rounded-full border border-border bg-primary/10 p-5">
         <Icon className="h-9 w-9 text-primary" />
       </div>
 

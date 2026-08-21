@@ -45,6 +45,16 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
   { id: 'members', label: 'Members', icon: Users },
@@ -66,6 +76,13 @@ const ClubMembersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAssignOfficer, setShowAssignOfficer] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    kind: 'member' | 'officer';
+    id: string;
+    name: string;
+    hasShowAccess: boolean;
+  } | null>(null);
+  const [isRemovalOpen, setIsRemovalOpen] = useState(false);
 
   const clubId = clubContext.status === 'ready' ? clubContext.clubId : undefined;
   const clubName = clubContext.status === 'ready' ? clubContext.clubName : 'Club';
@@ -122,6 +139,17 @@ const ClubMembersPage: React.FC = () => {
   }, [members, searchQuery]);
 
   // Mutations
+  // A rejected write used to do nothing at all: five of these six mutations
+  // defined onSuccess only, so an RLS 42501 or the club_officers UNIQUE
+  // violation left the dialog open, the button live, and no message anywhere.
+  // toggleShowAccess already did this correctly; this generalises its shape.
+  const reportMutationFailure = (what: string, error: unknown) => {
+    notifications.error(what);
+    logger.error(what, 'club-admin', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  };
+
   const addMemberMutation = useMutation({
     mutationFn: (data: { personId: string; membershipType: MembershipType }) =>
       addClubMember({
@@ -133,6 +161,11 @@ const ClubMembersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
       setShowAddMember(false);
     },
+    onError: error =>
+      reportMutationFailure(
+        "We couldn't add that member. Check your club access and try again.",
+        error
+      ),
   });
 
   const updateMemberMutation = useMutation({
@@ -144,13 +177,20 @@ const ClubMembersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
     },
+    onError: error =>
+      reportMutationFailure("We couldn't update that member. Please try again.", error),
   });
 
   const removeMemberMutation = useMutation({
     mutationFn: (memberId: string) => removeClubMember(memberId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
+      // Removing a member changes who can manage shows for this club, because
+      // every server-side secretary predicate gates on is_active_club_member().
+      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
     },
+    onError: error =>
+      reportMutationFailure("We couldn't remove that member. Please try again.", error),
   });
 
   const addOfficerMutation = useMutation({
@@ -164,6 +204,14 @@ const ClubMembersPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['club-officers', clubId] });
       setShowAssignOfficer(false);
     },
+    onError: error =>
+      reportMutationFailure(
+        // club_officers carries UNIQUE(club_id, person_id, position), so the
+        // reachable failure is a duplicate assignment. Name it rather than
+        // reporting a generic problem the admin cannot act on.
+        'That person already holds this position, or we could not save the change.',
+        error
+      ),
   });
 
   const removeOfficerMutation = useMutation({
@@ -171,6 +219,8 @@ const ClubMembersPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-officers', clubId] });
     },
+    onError: error =>
+      reportMutationFailure("We couldn't remove that officer. Please try again.", error),
   });
 
   const toggleShowAccessMutation = useMutation({
@@ -203,8 +253,47 @@ const ClubMembersPage: React.FC = () => {
     updateMemberMutation.mutate({ memberId, updates: { membershipStatus } });
   };
 
+  // Removal is a hard DELETE of the person's membership record - join date,
+  // dues history, voting eligibility - and it also ends any show access they
+  // hold, because every server-side secretary predicate gates on
+  // is_active_club_member(). It sat one row below "Resigned" in the same menu
+  // with no confirmation, no undo and no message. PRODUCT.md rules out confirm
+  // dialogs for ROUTINE actions; permanently deleting a person's club record
+  // is not routine.
   const handleRemoveMember = (memberId: string) => {
-    removeMemberMutation.mutate(memberId);
+    const member = members.find(m => m.id === memberId);
+    setIsRemovalOpen(true);
+    setPendingRemoval(
+      member
+        ? {
+            kind: 'member',
+            id: memberId,
+            name: member.personName || 'this member',
+            hasShowAccess: member.personId ? showManagerIds.has(member.personId) : false,
+          }
+        : { kind: 'member', id: memberId, name: 'this member', hasShowAccess: false }
+    );
+  };
+
+  const handleRemoveOfficer = (officerId: string) => {
+    const officer = officers.find(o => o.id === officerId);
+    setIsRemovalOpen(true);
+    setPendingRemoval({
+      kind: 'officer',
+      id: officerId,
+      name: officer?.personName || 'this officer',
+      hasShowAccess: false,
+    });
+  };
+
+  const confirmRemoval = () => {
+    if (!pendingRemoval) return;
+    if (pendingRemoval.kind === 'member') removeMemberMutation.mutate(pendingRemoval.id);
+    else removeOfficerMutation.mutate(pendingRemoval.id);
+    // Only the open flag flips. pendingRemoval stays populated so the dialog
+    // body still reads correctly through its 200ms exit animation - clearing it
+    // here put the literal string "undefined" in the title on every removal.
+    setIsRemovalOpen(false);
   };
 
   const handleToggleShowAccess = (personId: string, grant: boolean) => {
@@ -226,8 +315,33 @@ const ClubMembersPage: React.FC = () => {
     );
   }
 
+  // All three queries gate the page, not just members. officersQuery and
+  // showManagersQuery were rendered through `?? []` / `?? new Set()`, so the
+  // moment members resolved the page asserted "0 officers" and dropped the
+  // Show Manager badge from everyone who holds it - and on a failed fetch that
+  // wrong answer was permanent, with no error state and no retry. A query is
+  // not answered just because it is not loading (the PR #1697 class).
+  const rosterLoading =
+    membersQuery.isLoading || officersQuery.isLoading || showManagersQuery.isLoading;
+  // Only a failed MEMBERS load blanks the page. The other two are narrower:
+  // officers populate a different tab, and show-managers annotate one column.
+  // Letting either take the whole page down is a worse trade than the bug it
+  // was fixing - the roster that loaded fine disappears, and
+  // getClubShowManagerIds is the narrowest and most RLS-sensitive of the three,
+  // so it is the likeliest to fail. They still must not render absence as fact;
+  // they say so inline instead.
+  const rosterError = membersQuery.isError;
+  const officersUnavailable = officersQuery.isError;
+  const showAccessUnavailable = showManagersQuery.isError;
+
+  const retryRoster = () => {
+    if (membersQuery.isError) void membersQuery.refetch();
+    if (officersQuery.isError) void officersQuery.refetch();
+    if (showManagersQuery.isError) void showManagersQuery.refetch();
+  };
+
   // Loading state
-  if (membersQuery.isLoading) {
+  if (rosterLoading) {
     return (
       <PageTransition>
         <div role="status" aria-label="Loading club members" className="space-y-6">
@@ -247,22 +361,22 @@ const ClubMembersPage: React.FC = () => {
 
   // Error state — distinguish a failed load from a genuinely empty roster, so an
   // admin never mistakes "couldn't load" for "no members yet".
-  if (membersQuery.isError) {
+  if (rosterError) {
     return (
       <PageTransition>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="bg-gradient-to-br from-card to-card/80 border-border/50 backdrop-blur-xl">
+          <Card className="border-border ">
             <CardContent className="pt-6 flex flex-col items-center text-center max-w-sm">
               <div className="bg-destructive/10 rounded-full p-4 mb-4">
                 <AlertTriangle className="h-8 w-8 text-destructive" />
               </div>
               <h2 className="text-lg font-semibold text-foreground mb-1">
-                We couldn&apos;t load your members
+                We couldn&apos;t load your roster
               </h2>
               <p className="text-muted-foreground mb-4">
                 Something went wrong reaching the roster. Check your connection and try again.
               </p>
-              <Button onClick={() => membersQuery.refetch()}>Try again</Button>
+              <Button onClick={retryRoster}>Try again</Button>
             </CardContent>
           </Card>
         </div>
@@ -285,7 +399,7 @@ const ClubMembersPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl">
+            <div className="p-3 bg-[color:var(--chip-stone-bg)] rounded-xl">
               <Users className="h-6 w-6 text-primary" />
             </div>
             <div>
@@ -296,8 +410,13 @@ const ClubMembersPage: React.FC = () => {
                 <Badge className="bg-primary/10 text-primary border-primary/20">
                   {activeMemberCount} active member{activeMemberCount !== 1 ? 's' : ''}
                 </Badge>
-                <Badge className="bg-muted text-muted-foreground border-border">
-                  {officers.length} officer{officers.length !== 1 ? 's' : ''}
+                {/* No count while the officers query is failed: `officers`
+                    falls back to [] there, and "0 officers" is a claim we
+                    cannot support. */}
+                <Badge className="bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] border-transparent hover:bg-[color:var(--chip-stone-bg)]">
+                  {officersUnavailable
+                    ? 'Officers unavailable'
+                    : `${officers.length} officer${officers.length !== 1 ? 's' : ''}`}
                 </Badge>
               </div>
             </div>
@@ -318,7 +437,7 @@ const ClubMembersPage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <Card className="bg-gradient-to-br from-card to-card/80 border border-border/50 rounded-2xl shadow-sm backdrop-blur-xl">
+        <Card className="border border-border rounded-2xl shadow-sm ">
           <CardContent className="p-6">
             <PrimaryTabs
               tabs={CLUB_MEMBERS_TABS}
@@ -327,14 +446,24 @@ const ClubMembersPage: React.FC = () => {
             >
               {/* Members Tab */}
               <TabsContent value="members" className="mt-6 space-y-4">
+                {showAccessUnavailable && (
+                  <p
+                    role="status"
+                    className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
+                  >
+                    We couldn&apos;t check show access just now, so that column may be incomplete.
+                    Everything else on this roster is current.
+                  </p>
+                )}
                 {/* Search */}
                 <div className="relative max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    aria-label="Search members by name or email"
                     placeholder="Search by name or email..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-muted/30 border-border/50"
+                    className="pl-9 border-border"
                   />
                 </div>
 
@@ -353,6 +482,22 @@ const ClubMembersPage: React.FC = () => {
 
               {/* Officers Tab */}
               <TabsContent value="officers" className="mt-6 space-y-4">
+                {officersUnavailable && (
+                  <p
+                    role="status"
+                    className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning"
+                  >
+                    We couldn&apos;t load the officers list. This isn&apos;t the same as the club
+                    having none.{' '}
+                    <button
+                      type="button"
+                      onClick={() => void officersQuery.refetch()}
+                      className="underline underline-offset-2"
+                    >
+                      Try again
+                    </button>
+                  </p>
+                )}
                 <div className="flex justify-end">
                   <Button onClick={() => setShowAssignOfficer(true)}>
                     <Shield className="h-4 w-4 mr-2" />
@@ -360,11 +505,16 @@ const ClubMembersPage: React.FC = () => {
                   </Button>
                 </div>
 
-                <OfficersTable
-                  officers={sortedOfficers}
-                  onAssignOfficer={() => setShowAssignOfficer(true)}
-                  onRemoveOfficer={officerId => removeOfficerMutation.mutate(officerId)}
-                />
+                {/* Suppressed entirely on failure - its empty state says "No
+                    Officers Assigned", which would confirm as fact the thing
+                    the notice above says we could not check. */}
+                {!officersUnavailable && (
+                  <OfficersTable
+                    officers={sortedOfficers}
+                    onAssignOfficer={() => setShowAssignOfficer(true)}
+                    onRemoveOfficer={handleRemoveOfficer}
+                  />
+                )}
               </TabsContent>
             </PrimaryTabs>
           </CardContent>
@@ -372,6 +522,38 @@ const ClubMembersPage: React.FC = () => {
       </div>
 
       {/* Dialogs */}
+      {/* AlertDialogContent animates out over 200ms, so it stays mounted after
+          pendingRemoval is cleared. Rendering the body from the live value put
+          the literal string "undefined" in the title on every confirm AND every
+          cancel, and flipped an officer removal to the member wording mid-fade.
+          Render from the last non-null value instead. */}
+      <AlertDialog open={isRemovalOpen} onOpenChange={open => !open && setIsRemovalOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingRemoval?.kind === 'officer'
+                ? `Remove ${pendingRemoval?.name} from this position?`
+                : `Remove ${pendingRemoval?.name} from the club?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRemoval?.kind === 'officer'
+                ? 'The officer record is deleted. Their club membership is not affected.'
+                : 'Their membership record, join date and dues history are deleted.'}
+              {pendingRemoval?.kind === 'member' && pendingRemoval?.hasShowAccess
+                ? ' They also lose show access, so they can no longer run shows for this club.'
+                : ''}{' '}
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep them</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoval}>
+              {pendingRemoval?.kind === 'officer' ? 'Remove officer' : 'Remove member'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AddMemberDialog
         open={showAddMember}
         onClose={() => setShowAddMember(false)}

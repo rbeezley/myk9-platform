@@ -121,6 +121,30 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(addScoreToSession).toHaveBeenCalledTimes(1);
   });
 
+  it('durably queues a score and reports local success while offline', async () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    updateEntry.mockResolvedValue('offline-mutation-123');
+    const opts = baseOptions();
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    expect(updateEntry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        resultStatus: 'qualified',
+        searchTimeSeconds: 45,
+        totalFaults: 0,
+      })
+    );
+    expect(opts.onError).not.toHaveBeenCalled();
+    expect(opts.onSuccess).toHaveBeenCalledTimes(1);
+    expect(addScoreToSession).toHaveBeenCalledTimes(1);
+    expect(result.current.hasError).toBe(true);
+  });
+
   // Audit M3: full multi-area detail must reach the whitelisted ringside columns,
   // not just the 5 summary fields. Assertion-first — pins the exact column names
   // and values the write carries.

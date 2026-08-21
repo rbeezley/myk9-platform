@@ -67,13 +67,12 @@ describe('buildPublicShowClasses', () => {
   it('counts entries from the show-scoped entry list (matches the warm store path)', () => {
     const trials = [makeTrial()];
     const classesByTrial: TrialClassRows[] = [
-      { trialId: 'trial-1', rows: [makeClassRow({ id: 'class-1' }), makeClassRow({ id: 'class-2' })] },
+      {
+        trialId: 'trial-1',
+        rows: [makeClassRow({ id: 'class-1' }), makeClassRow({ id: 'class-2' })],
+      },
     ];
-    const showEntries = [
-      { class_id: 'class-1' },
-      { class_id: 'class-1' },
-      { class_id: 'class-2' },
-    ];
+    const showEntries = [{ class_id: 'class-1' }, { class_id: 'class-1' }, { class_id: 'class-2' }];
 
     const result = buildPublicShowClasses(trials, classesByTrial, showEntries);
 

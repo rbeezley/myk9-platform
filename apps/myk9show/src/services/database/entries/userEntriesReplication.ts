@@ -77,19 +77,37 @@ export async function buildReplicatedUserEntryRows(
     // it identically on both paths.
     const cls = entry.classId ? (maps.classesMap.get(entry.classId) ?? null) : null;
     const trial = cls?.trialId ? (maps.trialsMap.get(cls.trialId) ?? null) : null;
+    const show = entry.showId ? (maps.showsMap.get(entry.showId) ?? null) : null;
     const row = mapReplicatedEntryToDbRow(entry, {
       dog: entry.dogId ? (maps.dogsMap.get(entry.dogId) ?? null) : null,
       cls,
-      show: entry.showId ? (maps.showsMap.get(entry.showId) ?? null) : null,
+      show,
       trial: trial
         ? {
             id: trial.id,
             trial_type: trial.trialType ?? null,
             date: trial.date ?? trial.trial_date ?? null,
             trial_number: trial.trialNumber ?? trial.trial_number ?? null,
+            // Keeps the offline path's trial shape identical to the PostgREST
+            // embed. Without it the amount-due deadline would reckon "past" in
+            // a different timezone offline than online.
+            timezone: trial.timezone ?? null,
           }
         : null,
     });
+    // Mirror the PostgREST `show:show_id(..., trials:trials(...))` embed. The
+    // amount-due deadline picks the show's PRIMARY trial's timezone, which
+    // needs every trial of the show, not just the one this entry is in.
+    if (entry.showId && row.show && typeof row.show === 'object') {
+      (row.show as Record<string, unknown>).trials = [...maps.trialsMap.values()]
+        .filter(t => t.showId === entry.showId)
+        .map(t => ({
+          id: t.id,
+          date: t.date ?? t.trial_date ?? null,
+          timezone: t.timezone ?? null,
+        }));
+    }
+
     const dog = entry.dogId ? (maps.dogsMap.get(entry.dogId) ?? null) : null;
     const enrollment = entry.registrationId ? enrollmentsMap.get(entry.registrationId) : null;
     if (enrollment) {

@@ -56,12 +56,19 @@ describe('ShowTodayBanner', () => {
 
     renderBanner();
 
-    expect(screen.getByLabelText('Show today')).toHaveClass('rounded-lg', 'border', 'border-l-4');
+    const banner = screen.getByLabelText('Show today');
+    expect(banner).toHaveClass('rounded-lg', 'border', 'border-success/40');
+    // DESIGN.md bans colored side-stripe borders (border-left > 1px) on cards
+    // and alerts, and every green here must come from the --success token so it
+    // flips with the theme. Raw `emerald-*` used to sit beside `text-success`,
+    // rendering two different greens in one component.
+    expect(banner.className).not.toMatch(/border-l-\d/);
+    expect(banner.className).not.toMatch(/emerald/);
     expect(screen.getByText('Show day is here')).toBeInTheDocument();
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
-    expect(screen.getByText('First class 8:30 AM').parentElement).toHaveClass(
-      'text-muted-foreground'
-    );
+    // `text-foreground`, not muted: muted measures 4.10:1 on this bg-success/10
+    // fill in dark mode, under the 4.5:1 AA floor for body text.
+    expect(screen.getByText('First class 8:30 AM').parentElement).toHaveClass('text-foreground');
     expect(screen.getByText('1 entry')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /go to show day/i }));

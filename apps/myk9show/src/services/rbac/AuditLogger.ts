@@ -27,16 +27,45 @@ export class AuditLogger {
     try {
       const user = (await supabase.auth.getUser()).data.user;
 
-      await supabase
-        .from('permission_audit_log')
-        .insert({
-          action: action as string,
-          user_id: user?.id ?? null,
-          target_id: details.targetId ?? null,
-          target_type: details.targetType ?? null,
-          old_value: (details.oldValue ?? null) as Json,
-          new_value: (details.newValue ?? null) as Json,
-        });
+      // permission_audit_log.user_id references people.id, not auth.users.id
+      // (see supabase/migrations/005_myk9show_specific.sql:268 and
+      // 001_core_entities.sql:47/:70 — they are distinct identifiers, and
+      // people.id is never equal to the auth uid). Resolve the acting user's
+      // people row the same way RoleManager.assignRole resolves granted_by.
+      // If no people row matches (e.g. an auth user with no profile yet),
+      // insert null: user_id is nullable and FK-constrained, so a guessed
+      // value would either violate the FK or silently misattribute the event.
+      let actorPeopleId: string | null = null;
+      if (user?.id) {
+        const { data: personRow } = await supabase
+          .from('people')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+        actorPeopleId = personRow?.id ?? null;
+      }
+
+      const { error } = await supabase.from('permission_audit_log').insert({
+        action: action as string,
+        user_id: actorPeopleId,
+        target_id: details.targetId ?? null,
+        target_type: details.targetType ?? null,
+        old_value: (details.oldValue ?? null) as Json,
+        new_value: (details.newValue ?? null) as Json,
+      });
+
+      if (error) {
+        // This insert has a history of failing silently on the FK mismatch
+        // above (2 rows total in permission_audit_log before this fix, vs.
+        // hundreds of role/permission mutations). Log loudly — never let a
+        // failed audit write disappear without a trace.
+        logger.error(
+          'Audit log insert failed',
+          'rbac',
+          { action: action as string, targetId: details.targetId, targetType: details.targetType },
+          new Error(error.message)
+        );
+      }
     } catch (error) {
       logger.error('Failed to log audit event:', 'rbac', {}, error as Error);
       // Don't throw - audit logging should not break the main operation
@@ -46,7 +75,9 @@ export class AuditLogger {
   /**
    * Get audit logs with simple filter
    */
-  async getAuditLogs(filter: { fromDate?: string; toDate?: string; limit?: number } = {}): Promise<AuditLogEntry[]> {
+  async getAuditLogs(
+    filter: { fromDate?: string; toDate?: string; limit?: number; targetType?: string } = {}
+  ): Promise<AuditLogEntry[]> {
     let query = supabase
       .from('permission_audit_log')
       .select('*')
@@ -57,6 +88,9 @@ export class AuditLogger {
     }
     if (filter.toDate) {
       query = query.lte('created_at', filter.toDate);
+    }
+    if (filter.targetType) {
+      query = query.eq('target_type', filter.targetType);
     }
     if (filter.limit) {
       query = query.limit(filter.limit);
@@ -74,7 +108,9 @@ export class AuditLogger {
   /**
    * Get audit log with comprehensive filtering and pagination
    */
-  async getAuditLog(filters: AuditLogFilter): Promise<{ entries: AuditLogEntry[]; totalCount: number }> {
+  async getAuditLog(
+    filters: AuditLogFilter
+  ): Promise<{ entries: AuditLogEntry[]; totalCount: number }> {
     try {
       let query = supabase
         .from('permission_audit_log')

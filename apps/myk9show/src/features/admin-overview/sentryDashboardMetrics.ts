@@ -2,6 +2,14 @@ import { supabase } from '@/services/database/supabaseClient';
 
 export type SentryMetricStatus = 'fresh' | 'stale' | 'unavailable';
 
+/**
+ * Mirrors the edge function's not-configured degrade reason
+ * (supabase/functions/sentry-dashboard-metrics/metrics.ts). Kept as a shared
+ * constant so the two sides cannot drift apart silently — the tile copy below
+ * depends on matching this string exactly.
+ */
+export const SENTRY_NOT_CONFIGURED = 'Sentry metrics are not configured';
+
 export interface SentryMetricResult {
   value: number | null;
   unit: 'percent' | 'milliseconds';
@@ -95,7 +103,40 @@ export function getSentryMetricTileState(
     return { value: '—', context: 'checking platform metrics', isError: false, isStale: false };
   }
 
-  if (queryError || !metric || metric.status === 'unavailable') {
+  // INTENT: the branch ORDER below is the whole design here; each step is newer
+  // information than the one after it (MYK9-213).
+  //
+  //   1. queryError  — the live request just failed. Newest signal there is, and
+  //      it must win over anything `metric` still holds: React Query keeps the
+  //      previous payload across a failed refetch, so a cached not-configured
+  //      reason would otherwise keep claiming "add credentials" after they were
+  //      already added.
+  //   2. not-configured — a server-reported config gap. Checked before any
+  //      status branch because the edge function reports it with status 'stale'
+  //      too (whenever an expired cached value survives), and the stale branch
+  //      renders as a NON-error — which would hide the misconfiguration behind
+  //      a number that can never refresh.
+  //   3. unavailable / stale / fresh — ordinary freshness reporting.
+  if (queryError) {
+    return {
+      value: '—',
+      context: `couldn't read ${label.toLowerCase()}; will retry`,
+      isError: true,
+      isStale: false,
+    };
+  }
+
+  if (metric?.error === SENTRY_NOT_CONFIGURED) {
+    return {
+      // Keep a cached reading if there is one — it is real data, just frozen.
+      value: metric.value !== null ? formatSentryMetricValue(metric) : '—',
+      context: 'not configured — add Sentry credentials',
+      isError: true,
+      isStale: metric.status === 'stale',
+    };
+  }
+
+  if (!metric || metric.status === 'unavailable') {
     return {
       value: '—',
       context: `couldn't read ${label.toLowerCase()}; will retry`,

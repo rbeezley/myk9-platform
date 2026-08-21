@@ -31,15 +31,19 @@ export function PageHeader({
   return (
     <div className={cn('space-y-1', className)}>
       {!showTitle && <h1 className="sr-only">{title}</h1>}
-      <div className="flex items-center justify-between">
+      {/* Wrap, don't overflow: on phones the actions drop below the
+          breadcrumb instead of pushing the page into a horizontal pan. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <nav
           aria-label="Breadcrumb"
           className="flex items-center gap-1.5 text-sm text-muted-foreground"
         >
+          {/* -my-2 keeps the breadcrumb row its original height while giving the
+              only tap target in it a 44px box instead of the old 24px. */}
           <Link
             to="/"
             aria-label="Home"
-            className="hover:text-foreground transition-colors p-1"
+            className="-my-2 inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Home className="h-4 w-4" />
           </Link>
@@ -60,7 +64,7 @@ export function PageHeader({
             </span>
           ))}
         </nav>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
       {showTitle && <h1 className="text-2xl font-semibold text-foreground">{title}</h1>}
     </div>

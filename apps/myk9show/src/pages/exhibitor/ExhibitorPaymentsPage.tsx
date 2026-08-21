@@ -2,19 +2,26 @@
  * ExhibitorPaymentsPage — the logged-in exhibitor's own online payment history.
  *
  * Mostly read-only list of stripe_orders (RLS-scoped to the caller): date, show,
- * amount, status, Stripe reference, and a per-row action. For settled orders the
- * action links to the entries the payment covers (where the printable per-entry
- * receipt lives — receipts are entry-scoped, not stored on the order). For
- * failed/cancelled orders it instead deep-links to the cart-recovery / "Finish
- * Payment" flow (`/cart`, scoped by the order's show + entry ids) so the
- * exhibitor can retry without hunting through My Shows. Complements MyEntriesPage's
- * per-entry Receipt / Finish Payment actions with a single chronological money view.
+ * amount, status, and a per-row action, deep-linked by the order's show + entry
+ * ids. For settled orders that action points at My Shows, where the printable
+ * per-entry receipt lives (receipts are entry-scoped, not stored on the order).
+ * For failed/cancelled orders it points at the cart-recovery / "Finish Payment"
+ * flow (`/cart`) with the same scoping, so the exhibitor can retry without
+ * hunting through My Shows. Complements MyEntriesPage's per-entry Receipt /
+ * Finish Payment actions with a single chronological money view.
+ *
+ * The list is scoped by a single control — a calendar-year filter backed by
+ * `?year=` — because the job this page is asked to do once a year is "what did
+ * I spend last season". Nothing else on the exhibitor side answers that: My
+ * Shows filters by entry lifecycle, the printable receipt is per-entry, and the
+ * report registry has no exhibitor audience. Deliberately ONE control: no
+ * search, no sort, no date range, no export. Filtering display rows means the
+ * existing totals card re-totals the chosen year for free.
  */
 
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
-import { Receipt as ReceiptIcon, CreditCard, WalletCards } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Receipt as ReceiptIcon, CreditCard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,32 +34,59 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { AmountDueSection } from './AmountDueSection';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { useMyPayments } from '@/features/payments/useMyPayments';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
-import type { EntryBalanceSummary } from '@/features/payments/entryBalanceSummary';
+import { buildEntryReceiptHref } from '@/features/payments/entryReceiptHref';
 import {
   buildPaymentDisplayRows,
   formatPaymentCents,
   formatPaymentDate,
   isRefundedPaymentStatus,
   isRetryablePaymentStatus,
+  isSettlingPaymentStatus,
   paymentStatusLabel,
   type PaymentDisplayRow,
 } from '@/features/payments/moneyPresentation';
-import { summarizePaymentLedgerTotals } from '@/features/payments/paymentsSummary';
+import {
+  ALL_PAYMENT_YEARS,
+  canFilterPaymentYears,
+  filterPaymentRowsByYear,
+  isPaymentYearSelection,
+  listPaymentYears,
+  type PaymentYearSelection,
+} from '@/features/payments/paymentYearFilter';
+import { PaymentsSummary } from './PaymentsSummaryCard';
+import { PaymentYearFilter } from './PaymentYearFilter';
 
 /** Placeholder for a missing cell value. Hyphen-minus, never an em dash (UI-copy rule). */
 const EMPTY = '-';
+
+/**
+ * Status chips drawn from the design system's chip pairs rather than the
+ * generic Badge variants. `variant="secondary"` was invisible in dark mode:
+ * `--secondary` and `--card` are both #1e1c19 and the variant sets
+ * `border-transparent`, so the Refunded chip rendered as bare text on the
+ * card and the status column lost its color vocabulary exactly where an
+ * exhibitor needs to tell "money came back" from "money still moving".
+ */
+const REFUNDED_CHIP =
+  'border-transparent bg-[color:var(--chip-stone-bg)] text-[color:var(--chip-stone-fg)] hover:bg-[color:var(--chip-stone-bg)]';
+const SETTLING_CHIP =
+  'border-transparent bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)] hover:bg-[color:var(--chip-amber-bg)]';
 
 function statusBadge(status: string) {
   const s = status.toLowerCase();
   if (s === 'succeeded' || s === 'paid')
     return <Badge variant="default">{paymentStatusLabel(status)}</Badge>;
-  if (s === 'refunded') return <Badge variant="secondary">{paymentStatusLabel(status)}</Badge>;
+  if (isRefundedPaymentStatus(s))
+    return <Badge className={REFUNDED_CHIP}>{paymentStatusLabel(status)}</Badge>;
   if (s === 'failed' || s === 'cancelled' || s === 'canceled')
     return <Badge variant="destructive">{paymentStatusLabel(status)}</Badge>;
+  if (isSettlingPaymentStatus(s))
+    return <Badge className={SETTLING_CHIP}>{paymentStatusLabel(status)}</Badge>;
   return <Badge variant="outline">{paymentStatusLabel(status)}</Badge>;
 }
 
@@ -77,16 +111,33 @@ function PaymentActionContent({ row }: { row: PaymentDisplayRow }) {
     );
   }
 
+  // Checked before the receipt branch: an in-flight order usually DOES have
+  // linked entries, so testing for entries first would offer a receipt for
+  // money that has not settled and produced one yet.
+  if (isSettlingPaymentStatus(row.status)) {
+    // Money that has left the exhibitor's account but has not settled has no
+    // receipt to show and nothing to retry — say what is happening rather
+    // than falling through to "No receipt available", which reads as a dead
+    // end on an order that is still moving.
+    return (
+      <span className="inline-flex min-h-11 items-center text-sm text-muted-foreground">
+        Processing, check back shortly
+      </span>
+    );
+  }
+
   if (row.entryIds.length > 0 && !isRefundedPaymentStatus(row.status)) {
-    // Settled orders: the per-entry printable receipt lives on My Shows.
-    // My Entries has no inbound entry/show filter, so this is a plain link
-    // to that page (where the per-entry printable receipt lives), not a
-    // row-scoped filter. The accessible name names the show so each link
-    // is distinguishable when tabbing through the column.
+    // Settled orders: the per-entry printable receipt lives on My Shows, so
+    // this links there SCOPED to the entries this order covered — the same
+    // `showId` + `entryIds` shape the retry branch above uses for the cart.
+    // The label is a bare "Receipt" again because it is finally honest: the
+    // link no longer dumps the exhibitor into every entry they have ever made
+    // to hunt for the right one. The accessible name still names the show, so
+    // the column's links stay distinguishable when tabbing through them.
     return (
       <Link
-        to="/exhibitor/entries"
-        aria-label={`Receipt for ${row.showName ?? 'this payment'} under My Shows`}
+        to={buildEntryReceiptHref(row.showId, row.entryIds)}
+        aria-label={`Receipt for ${row.showName ?? 'this payment'} in My Shows`}
         className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
       >
         <ReceiptIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -139,20 +190,28 @@ function PaymentRow({ row }: { row: PaymentDisplayRow }) {
 function PaymentCard({ row }: { row: PaymentDisplayRow }) {
   const showName = row.showName ?? EMPTY;
   const dateLabel = formatPaymentDate(row.date);
+  // The divider is a full-strength border, not border/60: at 60% it measured
+  // 1.20:1 in light and 1.11:1 in dark. Full strength reaches 1.36:1 and
+  // 1.20:1 — better, still a hairline, so the real grouping work is done by
+  // the py-5 rhythm and the role="group" name rather than by the rule.
+  //
+  // No zebra tint here on purpose: --muted and --card are both #1e1c19 in
+  // dark, so an odd:bg-muted stripe composites to the card color exactly
+  // (1.00:1) and is dead in one theme while contributing 1.03:1 in the other.
+  // A striping token has to differ from --card in BOTH themes to be worth the
+  // class.
   return (
     <div
       role="group"
       aria-label={`Payment for ${showName} on ${dateLabel}`}
-      className="space-y-2 border-b border-border/60 px-4 py-4 last:border-b-0"
+      className="space-y-2 border-b border-border px-4 py-5 last:border-b-0"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium" title={showName}>
-            {showName}
-          </p>
-          <p className="truncate text-sm text-muted-foreground" title={row.description}>
-            {row.description}
-          </p>
+          {/* line-clamp, not truncate: the full name was reachable only through
+              the title attribute, which never fires on touch. */}
+          <p className="line-clamp-2 font-medium">{showName}</p>
+          <p className="line-clamp-2 text-sm text-muted-foreground">{row.description}</p>
         </div>
         <p className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">{dateLabel}</p>
       </div>
@@ -173,171 +232,18 @@ function PaymentCard({ row }: { row: PaymentDisplayRow }) {
           </dd>
         </div>
       </dl>
-      <div>
-        <span id={`payment-receipt-label-${row.id}`} className="text-xs text-muted-foreground">
-          Receipt
-        </span>
-        <div aria-labelledby={`payment-receipt-label-${row.id}`}>
+      {/* A second description list, kept separate from Amount/Status because
+          those two sit side by side and this spans the full width. It was
+          previously a span plus a div carrying aria-labelledby, which ARIA
+          drops on a generic role, so the label/value pairing never reached
+          assistive tech; dt/dd makes it real. */}
+      <dl>
+        <dt className="text-xs text-muted-foreground">Receipt</dt>
+        <dd>
           <PaymentActionContent row={row} />
-        </div>
-      </div>
+        </dd>
+      </dl>
     </div>
-  );
-}
-
-/**
- * At-a-glance net total from the same visible rows in the table, so refunds
- * cannot disappear from the header math.
- */
-function PaymentsSummary({ rows }: { rows: PaymentDisplayRow[] }) {
-  const totals = summarizePaymentLedgerTotals(rows);
-  if (totals.length === 0) return null;
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {totals.map(t => (
-        <Card key={t.currency} className="border-primary/40">
-          <CardContent className="py-4">
-            <p className="text-sm font-medium text-muted-foreground">Payment history</p>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Gross paid</p>
-                <p className="text-xl font-semibold tabular-nums">
-                  {formatPaymentCents(t.grossPaidCents, t.currency)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Refunds</p>
-                <p className="text-xl font-semibold tabular-nums text-muted-foreground">
-                  {formatPaymentCents(-t.refundCents, t.currency)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Net paid</p>
-                <p className="text-xl font-semibold tabular-nums text-primary">
-                  {formatPaymentCents(t.netPaidCents, t.currency)}
-                </p>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              {t.paymentCount} {t.paymentCount === 1 ? 'payment' : 'payments'}
-              {t.refundCount > 0
-                ? `, ${t.refundCount} ${t.refundCount === 1 ? 'refund' : 'refunds'}`
-                : ''}
-            </p>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function AmountDueSection({
-  summary,
-  isLoading,
-  isError,
-}: {
-  summary: EntryBalanceSummary | undefined;
-  isLoading: boolean;
-  isError: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="space-y-3 py-5">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-5 w-5/6" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (isError) {
-    return (
-      <Card>
-        <CardContent role="alert" className="py-5 text-sm text-muted-foreground">
-          We couldn&apos;t load your current balance. Your payment history is still below.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!summary || summary.amountDueCents <= 0) {
-    return (
-      <Card className="border-success/30">
-        <CardContent className="flex flex-col gap-2 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Amount due</p>
-            <p className="text-2xl font-semibold tabular-nums text-success">$0.00</p>
-          </div>
-          <p className="text-sm text-muted-foreground">Current entries are paid up.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const singleOnlineShowBalance =
-    summary.onlineShowBalances.length === 1 ? summary.onlineShowBalances[0] : null;
-  const singleOnlineCoversFullDue =
-    summary.onlineDueCents === summary.amountDueCents && summary.payAtShowDueCents === 0;
-  const singleOnlineButtonLabel =
-    singleOnlineShowBalance && singleOnlineCoversFullDue
-      ? 'Finish payment'
-      : singleOnlineShowBalance
-        ? `Pay ${formatPaymentCents(singleOnlineShowBalance.onlineDueCents, 'usd')} online`
-        : null;
-
-  return (
-    <Card className="border-warning/40">
-      <CardContent className="space-y-4 py-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Amount due</p>
-            <p className="text-3xl font-semibold tabular-nums text-warning">
-              {formatPaymentCents(summary.amountDueCents, 'usd')}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              This matches Current Fees on My Shows for current entries.
-            </p>
-          </div>
-          {singleOnlineShowBalance && singleOnlineButtonLabel && (
-            <Button asChild className="min-h-11 shrink-0">
-              <Link to={singleOnlineShowBalance.paymentHref}>
-                <CreditCard className="h-4 w-4 mr-1.5" />
-                {singleOnlineButtonLabel}
-              </Link>
-            </Button>
-          )}
-        </div>
-
-        {summary.onlineShowBalances.length > 1 && (
-          <div className="space-y-2">
-            {summary.onlineShowBalances.map(show => (
-              <div
-                key={show.showId}
-                className="flex flex-col gap-2 rounded-md border border-border/60 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <span className="text-sm font-medium">{show.showName}</span>
-                <Button asChild variant="outline" size="sm" className="min-h-11">
-                  <Link to={show.paymentHref}>
-                    Pay {formatPaymentCents(show.onlineDueCents, 'usd')}
-                  </Link>
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {summary.payAtShowDueCents > 0 && (
-          <p className="flex items-start gap-2 text-sm text-muted-foreground">
-            <WalletCards className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            {formatPaymentCents(summary.payAtShowDueCents, 'usd')} is marked pay at show. Check each
-            entry under My Shows for cash or check instructions.
-          </p>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -392,17 +298,57 @@ function PaymentsHistoryList({ rows }: { rows: PaymentDisplayRow[] }) {
 }
 
 export default function ExhibitorPaymentsPage() {
-  const { data: payments, isLoading, isError } = useMyPayments();
+  const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments();
   const {
     data: balanceSummary,
     isLoading: isBalanceLoading,
     isError: isBalanceError,
   } = useMyEntryBalanceSummary();
-  const paymentRows = payments ? buildPaymentDisplayRows(payments) : [];
+  // Stable identity for PaymentsSummary's own memo, and one less array
+  // allocation on every background render: AuthContext refetches the user
+  // profile on a 60s interval, so this page re-renders on its own.
+  const paymentRows = useMemo(
+    () => (payments ? buildPaymentDisplayRows(payments) : []),
+    [payments]
+  );
 
-  useEffect(() => {
-    if (isError) toast.error('Could not load your payments.');
-  }, [isError]);
+  // The selected year lives in the URL, not local state — same convention as
+  // My Shows' `?tab=`, so the view survives refresh, back/forward, and a link
+  // an exhibitor mails to their accountant. Derived straight from the params
+  // rather than synced into state (no set-state-in-effect).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paymentYears = useMemo(() => listPaymentYears(paymentRows), [paymentRows]);
+  const yearParam = searchParams.get('year');
+  // Defaults to all time, and an unrecognized `?year=` falls back to it. A
+  // money surface must not open having silently hidden rows, and an empty
+  // ledger from a stale link reads as "you paid nothing" rather than "that
+  // year has no payments".
+  const selectedYear: PaymentYearSelection = isPaymentYearSelection(yearParam, paymentYears)
+    ? yearParam
+    : ALL_PAYMENT_YEARS;
+
+  const setSelectedYear = useCallback(
+    (year: PaymentYearSelection) => {
+      setSearchParams(
+        previous => {
+          const next = new URLSearchParams(previous);
+          // 'all' is the default; keep it out of the canonical URL.
+          if (year === ALL_PAYMENT_YEARS) next.delete('year');
+          else next.set('year', year);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const canFilterByYear = useMemo(() => canFilterPaymentYears(paymentRows), [paymentRows]);
+
+  const visibleRows = useMemo(
+    () => filterPaymentRowsByYear(paymentRows, selectedYear),
+    [paymentRows, selectedYear]
+  );
 
   return (
     <div className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
@@ -421,7 +367,11 @@ export default function ExhibitorPaymentsPage() {
 
       {isLoading ? (
         <Card>
-          <CardContent className="space-y-3 py-6">
+          <CardContent
+            role="status"
+            aria-label="Loading your payment history"
+            className="space-y-3 py-6"
+          >
             <Skeleton className="h-6 w-full" />
             <Skeleton className="h-6 w-5/6" />
             <Skeleton className="h-6 w-4/6" />
@@ -430,8 +380,22 @@ export default function ExhibitorPaymentsPage() {
         </Card>
       ) : isError ? (
         <Card>
-          <CardContent role="alert" className="py-12 text-center text-muted-foreground">
-            We couldn&apos;t load your payments. Please refresh to try again.
+          {/* Cause-agnostic on purpose. useMyPayments throws on any query
+              failure, connectivity included but also permissions and 5xx, so
+              naming a cause here would be a guess — and promising it will
+              come back on its own is a guess that never resolves. Say what
+              happened, offer the retry, keep it calm (PRODUCT.md: poor
+              connectivity must not read as user failure). */}
+          <CardContent role="alert" className="space-y-3 py-12 text-center text-muted-foreground">
+            <p>We couldn&apos;t load your payment history just now.</p>
+            <Button
+              variant="outline"
+              size="touch"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+            >
+              {isFetching ? 'Trying again...' : 'Try again'}
+            </Button>
           </CardContent>
         </Card>
       ) : !payments || payments.length === 0 ? (
@@ -441,10 +405,32 @@ export default function ExhibitorPaymentsPage() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          <PaymentsSummary rows={paymentRows} />
-          <PaymentsHistoryList rows={paymentRows} />
-        </>
+        // One section, one heading. "Payment history" used to be a paragraph
+        // inside the totals card, which left the table card below it with no
+        // heading at all — the whole page exposed a single h1 to a screen
+        // reader's heading rotor.
+        <section aria-labelledby="payment-history-heading" className="space-y-6">
+          {/* The filter sits with the heading it scopes, below the Amount due
+              card, so it reads as covering the history and not the balances
+              above it. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="payment-history-heading" className="text-sm font-medium text-muted-foreground">
+              Payment history
+            </h2>
+            {canFilterByYear ? (
+              <PaymentYearFilter
+                years={paymentYears}
+                value={selectedYear}
+                onChange={setSelectedYear}
+              />
+            ) : null}
+          </div>
+          <PaymentsSummary
+            rows={visibleRows}
+            yearLabel={selectedYear === ALL_PAYMENT_YEARS ? null : selectedYear}
+          />
+          <PaymentsHistoryList rows={visibleRows} />
+        </section>
       )}
     </div>
   );

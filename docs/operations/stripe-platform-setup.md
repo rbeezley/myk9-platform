@@ -194,7 +194,7 @@ show payouts — Manual is simpler and safer at this scale).
 
 ## Go-live — Task 6.3 (later, ~30 min)
 
-Toggle: **Live mode ON**. Three things exist per-mode and must be redone:
+Toggle: **Live mode ON**. Five things exist per-mode and must be redone:
 
 1. **Enable Connect in live mode** (same questionnaire; live mode may include a short Stripe
    review of the platform before activation — plan a few days of buffer, don't do this the
@@ -228,6 +228,26 @@ Toggle: **Live mode ON**. Three things exist per-mode and must be redone:
 
    This keeps any live-mode rows intact while removing cached sandbox customers/accounts
    that live-mode Stripe cannot resolve.
+
+5. **Prune the live-mode payment-methods configuration to Cards + wallets.** Settings →
+   Payments → **Payment methods** → open the configuration for **Your platform account** →
+   disable everything except **Cards**, **Apple Pay**, and **Google Pay**. Specifically turn
+   off **Klarna**, **ACH Direct Debit**, **Cash App Pay**, **Amazon Pay**, and **Link**.
+   (Cartes Bancaires is a card sub-network and cannot be disabled independently — that is
+   fine, it settles synchronously.)
+
+   **This is not cosmetic, and the code does not protect you here.** `stripe-checkout` pins
+   `payment_method_types: ['card']`, and Stripe's own docs say that pin disables
+   dashboard-managed methods — but observed behavior on 2026-08-18 (MYK9-204) contradicts
+   that: a card-pinned session rendered Klarna on Android until the method was disabled in
+   the dashboard, which was the only variable changed. The dashboard configuration is the
+   effective control.
+
+   The consequence of skipping this: asynchronous methods complete Checkout with
+   `payment_status: 'unpaid'` and settle later, which `decideFreshSessionGate` and the
+   webhook refuse — leaving an exhibitor's money in flight against an entry the platform
+   never created. Verify by loading a real live checkout on a phone, not just by reading the
+   toggles.
 
 Then verify the mode-independent pieces survived (`supabase secrets list` —
 `PLATFORM_FEE_PERCENT`, `PAYOUT_CRON_SECRET` persist; verify, don't assume), run one real

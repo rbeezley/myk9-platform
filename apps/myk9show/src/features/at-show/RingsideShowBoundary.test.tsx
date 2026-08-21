@@ -7,7 +7,9 @@
  * show that loads — rendering the children.
  */
 
-import { Routes, Route } from 'react-router-dom';
+import { Link, Routes, Route } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { onlineManager } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTestQueryClient, render, screen, act } from '@/test/utils/testUtils';
 import { RingsideShowBoundary } from './RingsideShowBoundary';
@@ -49,24 +51,31 @@ vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
 
 const CHILD = 'RINGSIDE CONTENT';
 
-function renderBoundary(showId: string, queryClient = createTestQueryClient()) {
-  return render(
+function boundaryRoutes(showId: string, child: ReactNode = <div>{CHILD}</div>) {
+  return (
     <Routes>
       <Route
         path="/at-show/:showId"
-        element={
-          <RingsideShowBoundary>
-            <div>{CHILD}</div>
-          </RingsideShowBoundary>
-        }
+        element={<RingsideShowBoundary>{child}</RingsideShowBoundary>}
       />
-    </Routes>,
+    </Routes>
+  );
+}
+
+function renderBoundary(
+  showId: string,
+  queryClient = createTestQueryClient(),
+  child?: ReactNode
+) {
+  return render(
+    boundaryRoutes(showId, child),
     { initialRoute: `/at-show/${showId}`, queryClient }
   );
 }
 
 describe('RingsideShowBoundary', () => {
   beforeEach(() => {
+    onlineManager.setOnline(true);
     vi.mocked(replicatedShowsTable.getShowById).mockReset();
     vi.mocked(replicatedShowsTable.sync)
       .mockReset()
@@ -89,6 +98,62 @@ describe('RingsideShowBoundary', () => {
     vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({ id: 'show-on' } as never);
     renderBoundary('show-on');
     expect(await screen.findByText(CHILD)).toBeInTheDocument();
+  });
+
+  it('reads a durable cached show while React Query is offline', async () => {
+    networkState.isOnline = false;
+    onlineManager.setOnline(false);
+    vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({ id: 'show-offline' } as never);
+
+    renderBoundary('show-offline');
+
+    expect(await screen.findByText(CHILD)).toBeInTheDocument();
+    expect(replicatedShowsTable.getShowById).toHaveBeenCalledWith('show-offline');
+    expect(screen.queryByText("This show isn't saved on this device")).not.toBeInTheDocument();
+  });
+
+  it('keeps an open nested scoresheet mounted while transitioning offline', async () => {
+    const queryClient = createTestQueryClient();
+    vi.mocked(replicatedShowsTable.getShowById)
+      .mockResolvedValueOnce({ id: 'show-transition' } as never)
+      // Model an IndexedDB read that has not settled yet. Already-rendered
+      // ringside work must stay available during this transition.
+      .mockReturnValueOnce(new Promise(() => {}) as never);
+
+    const view = renderBoundary(
+      'show-transition',
+      queryClient,
+      <div data-testid="nested-scoresheet">Open scoresheet</div>
+    );
+    expect(await screen.findByTestId('nested-scoresheet')).toBeInTheDocument();
+
+    networkState.isOnline = false;
+    onlineManager.setOnline(false);
+    view.rerender(
+      boundaryRoutes(
+        'show-transition',
+        <div data-testid="nested-scoresheet">Open scoresheet</div>
+      )
+    );
+
+    expect(screen.getByTestId('nested-scoresheet')).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading ringside…' })).not.toBeInTheDocument();
+  });
+
+  it('does not preserve a previous show while navigating between show IDs', async () => {
+    vi.mocked(replicatedShowsTable.getShowById)
+      .mockResolvedValueOnce({ id: 'show-first' } as never)
+      .mockReturnValueOnce(new Promise(() => {}) as never);
+
+    const { user } = renderBoundary(
+      'show-first',
+      createTestQueryClient(),
+      <Link to="/at-show/show-second">Open another show</Link>
+    );
+    await user.click(await screen.findByRole('link', { name: 'Open another show' }));
+
+    expect(screen.getByRole('status', { name: 'Loading ringside…' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open another show' })).not.toBeInTheDocument();
   });
 
   it('renders the missing-show notice (not a 404) when the show is absent', async () => {

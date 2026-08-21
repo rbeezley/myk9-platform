@@ -97,6 +97,16 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
     queryKey: ['shows', 'at-show', 'ringside-boundary', showId, isOnline, canVerifyOnline],
     queryFn: () => loadShow(showId as string, isOnline, canVerifyOnline),
     enabled: !!showId,
+    // This query reads IndexedDB first and must run without a network. The
+    // default "online" mode pauses queryFn offline, which bypasses the durable
+    // show row and incorrectly falls through to the uncached-show state.
+    networkMode: 'always',
+    // Online status is part of the key so a cold offline route can re-verify
+    // when connectivity returns. Keep the last verified show during that key
+    // transition: replacing children with the loading state unmounts an open
+    // nested scoresheet and restarts its scoped hydration while offline.
+    placeholderData: previousData =>
+      previousData?.show?.id === showId ? previousData : undefined,
   });
 
   if (showQuery.isLoading) {

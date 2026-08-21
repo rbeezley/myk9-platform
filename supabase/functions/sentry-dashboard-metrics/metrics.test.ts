@@ -118,6 +118,66 @@ describe('sentryDashboardMetricsHandler', () => {
     expect(JSON.stringify(result)).not.toContain('sentry-secret-token');
   });
 
+  // MYK9-213: an unprovisioned secret used to throw HttpError(500), which took
+  // down the whole endpoint and blocked the admin e2e route-health sweep at its
+  // first admin route. It must degrade instead — and say WHY, so the failure is
+  // still legible rather than looking like Sentry being down.
+  it('degrades to unavailable tiles when the Sentry secrets are unset, instead of failing', async () => {
+    const fetch = vi.fn(async () => sentryResponse(640));
+
+    const result = await createSentryDashboardMetricsHandler(makeContext(makeAdminSupabase()), {
+      ...makeDeps(fetch),
+      organization: undefined,
+      apiToken: undefined,
+    });
+
+    expect(result.errorRate).toEqual({
+      value: null,
+      unit: 'percent',
+      status: 'unavailable',
+      observedAt: null,
+      error: 'Sentry metrics are not configured',
+    });
+    expect(result.apiP95).toEqual({
+      value: null,
+      unit: 'milliseconds',
+      status: 'unavailable',
+      observedAt: null,
+      error: 'Sentry metrics are not configured',
+    });
+
+    // Never call Sentry without credentials.
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes a missing config from Sentry being down', async () => {
+    const fetch = vi.fn(async () => new Response('nope', { status: 503 }));
+
+    const result = await createSentryDashboardMetricsHandler(
+      makeContext(makeAdminSupabase()),
+      makeDeps(fetch)
+    );
+
+    // Same 'unavailable' status, deliberately different reason — an admin must
+    // be able to tell "we never configured this" from "Sentry is erroring".
+    expect(result.errorRate.status).toBe('unavailable');
+    expect(result.errorRate.error).toBe('Sentry metric unavailable');
+    expect(result.errorRate.error).not.toBe('Sentry metrics are not configured');
+  });
+
+  it('degrades a partial config the same way as no config', async () => {
+    const fetch = vi.fn(async () => sentryResponse(640));
+
+    const result = await createSentryDashboardMetricsHandler(makeContext(makeAdminSupabase()), {
+      ...makeDeps(fetch),
+      apiToken: undefined,
+    });
+
+    expect(result.apiP95.status).toBe('unavailable');
+    expect(result.apiP95.error).toBe('Sentry metrics are not configured');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('does not select an arbitrary group from a non-aggregate response', async () => {
     const fetch = vi.fn(async (input: RequestInfo | URL) =>
       String(input).includes('/sessions/')

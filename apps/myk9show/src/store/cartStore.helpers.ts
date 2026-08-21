@@ -54,3 +54,12 @@ export function calculateCartTotals(items: CartItemWithDetails[]): {
   const total = subtotal + platformFee;
   return { subtotal, platformFee, total };
 }
+
+/**
+ * Format cart money for display. Lived twice, verbatim, in CartItemCard and
+ * CartSummary - and money formatting is exactly the thing that should have one
+ * home, next to the fee math it has to agree with.
+ */
+export function formatCartCurrency(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}

@@ -4,14 +4,22 @@
  * @module MyEntriesPage/hooks
  */
 
-import { useState, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
 import {
   summarizeEntryBalances,
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
-import { computeMyEntriesShowDateStats, isPastShowEntry } from './myEntriesStats.helpers';
+import { computeMyEntriesShowProgressStats, isCompletedEntry } from './myEntriesStats.helpers';
+import { isEntryTabFilter } from './entryTabDefs';
+import {
+  applyEntryScope,
+  clearEntryScopeParams,
+  parseEntryScope,
+  type EntryScopeMatch,
+} from './entryScopeFilter';
 import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
 
 /**
@@ -48,6 +56,14 @@ interface UseMyEntriesFiltersReturn {
   setSelectedTab: (tab: EntryTabFilter) => void;
   entryStats: MyEntryStats;
   tabCounts: Record<EntryTabFilter, number>;
+  /**
+   * How the inbound `?showId=/?entryIds=` scope resolved. `kind: 'none'` is the
+   * ordinary unscoped visit; anything else means the list below is narrower
+   * than the exhibitor's full set and the page owes them a banner saying so.
+   */
+  scopeMatch: EntryScopeMatch;
+  /** Drop the scope params, returning the page to the exhibitor's full list. */
+  clearScope: () => void;
 }
 
 /**
@@ -57,10 +73,60 @@ export function useMyEntriesFilters({
   entries,
   balanceSummary: externalBalanceSummary,
 }: UseMyEntriesFiltersProps): UseMyEntriesFiltersReturn {
-  const [selectedTab, setSelectedTab] = useState<EntryTabFilter>('all');
+  // The active tab lives in the URL, not in local state.
+  //
+  // It used to be a plain `useState`, and nothing on the page read `?tab` — so
+  // `/exhibitor/entries?tab=completed`, which the "Past shows" stat card
+  // navigates to, was a no-op that pushed a URL nobody consumed. The card
+  // rendered a chevron and an aria-label promising navigation and delivered
+  // nothing. `EntriesEmptyState` already speaks the same `?tab=` dialect, so
+  // the convention existed; only the reader was missing.
+  //
+  // Deriving straight from the URL rather than syncing two sources also makes
+  // the tab survive refresh, back/forward, and a shared link, and avoids a
+  // two-way effect sync (the `set-state-in-effect` trap).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const selectedTab: EntryTabFilter = isEntryTabFilter(tabParam) ? tabParam : 'all';
+
+  // Inbound scope from My Payments' per-row Receipt link (`?showId=&entryIds=`).
+  // Applied BEFORE the tab filter and the tab counts so the tab strip describes
+  // the list it actually controls — a tab reading "Completed 4" above a
+  // one-entry scoped list would be the same lie in a new place.
+  //
+  // `entryStats` deliberately does NOT narrow: the stat row is a page-level
+  // summary of everything the exhibitor owes and has entered, and scoping it
+  // would make "Amount due" disagree with My Payments for as long as the scope
+  // is on — the exact contradiction #1697 closed.
+  const scopeMatch = useMemo(
+    () => applyEntryScope(entries, parseEntryScope(searchParams)),
+    [entries, searchParams]
+  );
+  const scopedEntries = scopeMatch.entries;
+
+  const clearScope = useCallback(() => {
+    setSearchParams(previous => clearEntryScopeParams(previous), { replace: true });
+  }, [setSearchParams]);
+
+  const setSelectedTab = useCallback(
+    (tab: EntryTabFilter) => {
+      setSearchParams(
+        previous => {
+          const next = new URLSearchParams(previous);
+          // 'all' is the default; keep it out of the URL so the canonical
+          // address of the page stays clean.
+          if (tab === 'all') next.delete('tab');
+          else next.set('tab', tab);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
   // Derive filtered and sorted entries from current tab and entries
   const filteredEntries = useMemo(() => {
-    let filtered = [...entries];
+    let filtered = [...scopedEntries];
 
     switch (selectedTab) {
       case 'pending':
@@ -74,14 +140,14 @@ export function useMyEntriesFilters({
         break;
       case 'upcoming': {
         const now = new Date();
-        // Date-range aware: all non-past entry rows belong here, including
-        // entries that still need payment or review.
-        filtered = filtered.filter(entry => !isPastShowEntry(entry, now));
+        // Strict complement of Completed: everything still ahead of the
+        // exhibitor, including entries that need payment or review.
+        filtered = filtered.filter(entry => !isCompletedEntry(entry, now));
         break;
       }
       case 'completed': {
         const now = new Date();
-        filtered = filtered.filter(entry => isPastShowEntry(entry, now));
+        filtered = filtered.filter(entry => isCompletedEntry(entry, now));
         break;
       }
       default:
@@ -89,37 +155,41 @@ export function useMyEntriesFilters({
         break;
     }
 
-    // Sort by show date — upcoming first (nearest date at top). Use the same
-    // date-range rule as the tabs so a show running today sorts as upcoming.
+    // Sort by show date — still-ahead entries first (nearest date at top). Uses
+    // the same rule as the tabs so ordering and tab membership never disagree:
+    // a show running today sorts as upcoming, a scored entry sorts as done.
     const now = new Date();
     filtered.sort((a, b) => {
-      const aUpcoming = !isPastShowEntry(a, now);
-      const bUpcoming = !isPastShowEntry(b, now);
-      // Upcoming entries before past entries
+      const aUpcoming = !isCompletedEntry(a, now);
+      const bUpcoming = !isCompletedEntry(b, now);
+      // Upcoming entries before completed ones
       if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
-      // Within upcoming: soonest first; within past: most recent first
+      // Within upcoming: soonest first; within completed: most recent first
       return aUpcoming
         ? a.showDate.getTime() - b.showDate.getTime()
         : b.showDate.getTime() - a.showDate.getTime();
     });
 
     return filtered;
-  }, [entries, selectedTab]);
+  }, [scopedEntries, selectedTab]);
 
-  const { entryStats, tabCounts } = useMemo<{
-    entryStats: MyEntryStats;
-    tabCounts: Record<EntryTabFilter, number>;
-  }>(() => {
+  const entryStats = useMemo<MyEntryStats>(() => {
     const now = new Date();
     const accepted = entries.filter(isExhibitorInEntry);
     const pending = entries.filter(isPendingEntry);
-    const waitlist = entries.filter(isWaitlistEntry);
-    const currentEntries = entries.filter(entry => !isPastShowEntry(entry, now));
+    // Same axis as the Upcoming tab, deliberately. The "Current Entries" stat
+    // card deep-links to `?tab=upcoming` (#1696 made that link live), so a
+    // count derived from a different rule would promise entries the tab then
+    // refuses to show — the card reading 1 and the tab rendering empty.
+    // Fees are NOT derived from this: `resolvedBalanceSummary` below runs its
+    // own show-date math, because a scored entry at a show that has not
+    // happened yet can still owe an entry fee.
+    const currentEntries = entries.filter(entry => !isCompletedEntry(entry, now));
     const currentAcceptedEntries = currentEntries.filter(isExhibitorInEntry);
     const currentPendingEntries = currentEntries.filter(isPendingEntry);
     // Date-aware, distinct-show counts (see myEntriesStats.helpers). A multi-day
     // show running today counts as upcoming, not past, matching the Show Today banner.
-    const showDateStats = computeMyEntriesShowDateStats(entries, now);
+    const showProgressStats = computeMyEntriesShowProgressStats(entries, now);
     const paidEntries = entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
     const unpaidEntries = entries.filter(e => e.paymentStatus === PaymentStatus.PENDING);
     const acceptedPaid = accepted.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
@@ -139,39 +209,45 @@ export function useMyEntriesFilters({
     const currentAmountDue = resolvedBalanceSummary.amountDueCents / 100;
 
     return {
-      entryStats: {
-        total: entries.length,
-        accepted: accepted.length,
-        pending: pending.length,
-        upcoming: showDateStats.upcomingEntries,
-        pastShows: showDateStats.pastShows,
-        upcomingShows: showDateStats.upcomingShows,
-        currentAcceptedEntries: currentAcceptedEntries.length,
-        currentPendingEntries: currentPendingEntries.length,
-        acceptedPaid: acceptedPaid.length,
-        acceptedUnpaid: acceptedUnpaid.length,
-        needsAction: needsAction.length,
-        currentFees,
-        currentAmountDue,
-        totalFees,
-        paidFees,
-        unpaidFees,
-        acceptedPercent:
-          entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
-        paidPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0,
-        needsActionPercent:
-          entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,
-      },
-      tabCounts: {
-        all: entries.length,
-        pending: pending.length,
-        accepted: accepted.length,
-        waitlist: waitlist.length,
-        upcoming: currentEntries.length,
-        completed: entries.length - currentEntries.length,
-      },
+      total: entries.length,
+      accepted: accepted.length,
+      pending: pending.length,
+      upcoming: showProgressStats.upcomingEntries,
+      completedShows: showProgressStats.completedShows,
+      upcomingShows: showProgressStats.upcomingShows,
+      currentAcceptedEntries: currentAcceptedEntries.length,
+      currentPendingEntries: currentPendingEntries.length,
+      acceptedPaid: acceptedPaid.length,
+      acceptedUnpaid: acceptedUnpaid.length,
+      needsAction: needsAction.length,
+      currentFees,
+      currentAmountDue,
+      totalFees,
+      paidFees,
+      unpaidFees,
+      acceptedPercent:
+        entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
+      paidPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0,
+      needsActionPercent:
+        entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,
     };
   }, [entries, externalBalanceSummary]);
+
+  // Counts for the tab strip. Derived from the SCOPED set, unlike entryStats
+  // above: a tab label is a promise about what clicking it will show, and the
+  // tabs filter the scoped list.
+  const tabCounts = useMemo<Record<EntryTabFilter, number>>(() => {
+    const now = new Date();
+    const completed = scopedEntries.filter(entry => isCompletedEntry(entry, now));
+    return {
+      all: scopedEntries.length,
+      pending: scopedEntries.filter(isPendingEntry).length,
+      accepted: scopedEntries.filter(isExhibitorInEntry).length,
+      waitlist: scopedEntries.filter(isWaitlistEntry).length,
+      upcoming: scopedEntries.length - completed.length,
+      completed: completed.length,
+    };
+  }, [scopedEntries]);
 
   return {
     filteredEntries,
@@ -179,5 +255,7 @@ export function useMyEntriesFilters({
     setSelectedTab,
     entryStats,
     tabCounts,
+    scopeMatch,
+    clearScope,
   };
 }

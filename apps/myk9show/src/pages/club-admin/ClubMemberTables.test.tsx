@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
@@ -139,17 +141,46 @@ describe('OfficersTable', () => {
 });
 
 describe('membership badge tokens', () => {
-  it('maps every membership type to a semantic token class (no raw palette)', () => {
-    Object.values(TYPE_BADGE_CLASSES).forEach(cls => {
-      // Must use semantic tokens, never raw Tailwind palette shades.
+  const ALL = [...Object.values(TYPE_BADGE_CLASSES), ...Object.values(STATUS_BADGE_CLASSES)];
+
+  it('maps every badge to a semantic token class (no raw palette)', () => {
+    ALL.forEach(cls => {
+      // Must use semantic tokens, never raw Tailwind palette shades. The
+      // --chip-* pairs count: they are design-system tokens with a defined
+      // value in each theme, which is what this rule is protecting.
       expect(cls).not.toMatch(/-(400|500|600|700|800|900|950)\b/);
-      expect(cls).toMatch(/(primary|info|warning|success)/);
+      expect(cls).toMatch(/(info|warning|success|destructive|--chip-)/);
     });
   });
 
-  it('maps every membership status to a semantic token class', () => {
-    Object.values(STATUS_BADGE_CLASSES).forEach(cls => {
-      expect(cls).toMatch(/(success|warning|destructive|muted)/);
+  it('pins a hover background on every inline Badge in the tables too', () => {
+    // This assertion previously covered only the constant maps - the set that
+    // had already been fixed - so it passed vacuously while two inline badges
+    // in this very file still inherited hover:bg-primary/80.
+    const source = readFileSync(resolve(__dirname, 'ClubMemberTables.tsx'), 'utf8');
+    const inlineBadges = source.match(/<Badge className="[^"]*"/g) ?? [];
+    expect(inlineBadges.length).toBeGreaterThan(0);
+    inlineBadges.forEach(tag => {
+      expect(tag).toMatch(/hover:bg-/);
+    });
+  });
+
+  it('pins a hover background on every badge', () => {
+    // Badge's default variant carries hover:bg-primary/80, and tailwind-merge
+    // does NOT drop it when a className overrides the base bg-*. Without an
+    // explicit hover here, hovering any chip repaints it solid clay while
+    // keeping the semantic text colour - 1.15:1 to 2.58:1 depending on chip.
+    ALL.forEach(cls => {
+      expect(cls).toMatch(/hover:bg-/);
+    });
+  });
+
+  it('does not key a membership category to the user-selectable accent', () => {
+    // bg-primary/10 + text-primary measures 4.13:1 on Dusk and 3.91:1 on
+    // Heather in dark mode - below AA. A category must not be legible for some
+    // accent choices and not others.
+    Object.values(TYPE_BADGE_CLASSES).forEach(cls => {
+      expect(cls).not.toMatch(/text-primary\b/);
     });
   });
 });

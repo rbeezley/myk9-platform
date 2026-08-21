@@ -141,6 +141,16 @@ export function countActiveUsers(users: User[]): number {
 }
 
 /**
+ * One CSV cell, quoted and defused. User-supplied names/emails can start with
+ * `=`, `+`, `-` or `@`, which spreadsheet apps execute as formulas on open —
+ * a tab prefix makes them inert text without changing how the value reads.
+ */
+export function escapeCsvCell(value: string): string {
+  const defused = /^[=+\-@]/.test(value) ? `\t${value}` : value;
+  return `"${defused.replace(/"/g, '""')}"`;
+}
+
+/**
  * Export filtered users as a CSV download.
  */
 export function exportUsersCSV(filteredUsers: User[]): void {
@@ -148,7 +158,7 @@ export function exportUsersCSV(filteredUsers: User[]): void {
     ['Email', 'First Name', 'Last Name', 'Roles'].join(','),
     ...filteredUsers.map(u =>
       [u.email ?? '', u.firstName ?? '', u.lastName ?? '', (u.roles ?? []).join(';')]
-        .map(v => `"${v.replace(/"/g, '""')}"`)
+        .map(escapeCsvCell)
         .join(',')
     ),
   ];

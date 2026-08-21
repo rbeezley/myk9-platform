@@ -2,8 +2,24 @@ import type { PageEntry } from '../types';
 import { UserRole } from '@/types/auth-types';
 
 /**
- * Hand-authored directory of every user-facing page in myK9Show.
- * Must stay in sync with fullRouteRegistry (enforced by pageDirectory.test.ts).
+ * Hand-authored directory of myK9Show's user-facing pages.
+ *
+ * pageDirectory.test.ts enforces BOTH directions of sync against
+ * fullRouteRegistry: no entry may point at a path the registry lacks, and no
+ * registered route may go uncatalogued except the ones on that file's
+ * DRIFT_ALLOWLIST. Adding a route without an entry fails the suite.
+ *
+ * The guarantee stops at the registry. A page that is routed but never
+ * registered — /account today — is outside both collections, so neither the
+ * test nor the Directory drift panel on /admin/help can see it. This list is
+ * exhaustive over registered routes, not over the app.
+ *
+ * Being a redirect is not itself grounds for exclusion — /my-entries,
+ * /browse-shows and /admin/permissions/users are all catalogued as redirects.
+ * The only deliberate omissions are the legacy /secretary/shows/:showId
+ * routes, superseded by the canonical /shows/:showId/* paths and asserted
+ * absent in that test. They are therefore permanent entries in the drift
+ * panel's missing list.
  */
 export const pageDirectory: readonly PageEntry[] = [
   // =========================
@@ -33,7 +49,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/help',
     title: 'Help — Page Directory',
-    description: 'Directory of every page in myK9Show, grouped by role.',
+    description:
+      "Searchable directory of myK9Show's user-facing pages, grouped by role, plus a drift panel for uncatalogued routes.",
     roles: [UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Admin',
@@ -49,22 +66,24 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Admin',
     status: 'working',
-    linksTo: ['/admin/permissions/roles', '/admin/permissions/audit', '/admin/users'],
+    linksTo: [
+      '/admin/permissions/roles/new',
+      '/admin/permissions/roles/:roleId',
+      '/admin/permissions/audit',
+      '/admin/users',
+    ],
   },
   {
     path: '/admin/permissions/roles',
-    title: 'Role List',
-    description: 'Browse all roles and their assigned permissions.',
+    title: 'Role List (redirects to Roles & Permissions)',
+    description: 'Redirects to the Roles & Permissions console, where the roles list now lives.',
     roles: [UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Admin',
     status: 'working',
-    linksTo: [
-      '/admin/permissions',
-      '/admin/permissions/roles/new',
-      '/admin/permissions/roles/:roleId',
-      '/admin/permissions/roles/:roleId/clone',
-    ],
+    // A bare redirect (<Navigate replace>, no rendered UI) has no links of
+    // its own to declare.
+    linksTo: [],
   },
   {
     path: '/admin/permissions/roles/new',
@@ -79,7 +98,8 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/admin/permissions/roles/:roleId',
     title: 'Edit Role',
-    description: "Modify a role's display name and assigned permissions.",
+    description:
+      "Modify a role's display name and assigned permissions, clone it as a starting point for a new role, or delete it — the only place in the app either capability exists.",
     roles: [UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Admin',
@@ -572,6 +592,31 @@ export const pageDirectory: readonly PageEntry[] = [
     roles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Shows',
+    status: 'working',
+    linksTo: [],
+  },
+  // Open to any authenticated user — the route is a bare <ProtectedRoute> with
+  // no requiredRoles — so every role section that exists is listed. CHAIRMAN and
+  // STEWARD are omitted only because AdminHelpPage's ROLE_ORDER has no section
+  // for them; an entry naming just those would render nowhere.
+  //
+  // linksTo is empty on purpose: the page's Back button and breadcrumb both
+  // point at /account, which is not in fullRouteRegistry and so has no entry to
+  // link to. Naming it here would fail the linksTo-resolves invariant.
+  {
+    path: '/support',
+    title: 'Support Ticket',
+    description:
+      'Read and reply to your own support ticket. Reached from a support notification, which deep-links with ?ticketId — without one the page renders "Ticket not found", so there is no way in from the nav. Staff side is the Support Inbox.',
+    roles: [
+      UserRole.SITE_ADMIN,
+      UserRole.SECRETARY,
+      UserRole.CLUB_ADMIN,
+      UserRole.JUDGE,
+      UserRole.EXHIBITOR,
+    ],
+    classification: 'critical-path',
+    category: 'Support',
     status: 'working',
     linksTo: [],
   },

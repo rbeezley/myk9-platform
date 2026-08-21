@@ -394,8 +394,7 @@ export function DataTable<TData>({
               {showExport && (
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
+                  className="h-11 text-xs"
                   onClick={() => exportTableCsv(table, tableId)}
                 >
                   <Download className="h-3.5 w-3.5 mr-1" />
@@ -405,8 +404,7 @@ export function DataTable<TData>({
               {!controlledDensity && (
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
+                  className="h-11 text-xs"
                   onClick={() =>
                     setInternalDensity(internalDensity === 'compact' ? 'comfortable' : 'compact')
                   }
@@ -418,8 +416,7 @@ export function DataTable<TData>({
               )}
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-8 text-xs"
+                className="h-11 text-xs"
                 onClick={resetTableView}
                 aria-label="Reset table view"
               >

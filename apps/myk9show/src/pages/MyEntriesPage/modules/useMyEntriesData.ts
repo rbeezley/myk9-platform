@@ -4,7 +4,7 @@
  * @module MyEntriesPage/hooks
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { auditService } from '@/services/AuditService';
@@ -88,6 +88,8 @@ export function useMyEntriesData({
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  /** The `user.id::personId` the rows in `entries` were loaded for. */
+  const loadedIdentityRef = useRef<string | null>(null);
 
   /**
    * Transforms database entry to MyEntry format
@@ -232,7 +234,25 @@ export function useMyEntriesData({
    * Loads user entries from the database
    */
   const loadMyEntries = useCallback(async () => {
-    if (!user?.id || !personId) {
+    // Which account the rows currently in state belong to. Preserving entries
+    // across a failed reload is only correct for a RETRY BY THE SAME PERSON.
+    // If the identity changed, the rows on screen are someone else's: without
+    // this, a signed-in-as-B fetch that fails would leave A's dogs, shows and
+    // balance rendered on B's page. Clearing happens BEFORE the fetch, so a
+    // rejection cannot leave the previous exhibitor's data behind.
+    const identity = user?.id && personId ? `${user.id}::${personId}` : null;
+
+    if (identity !== loadedIdentityRef.current) {
+      loadedIdentityRef.current = null;
+      setEntries([]);
+      setBalanceSummary(summarizeEntryBalances([]));
+      setIsError(false);
+    }
+
+    // `user?.id` and `personId` are restated rather than inferred from
+    // `identity`: TypeScript cannot narrow them through the template literal
+    // above, and `getUserEntries` takes a non-null id.
+    if (!identity || !user?.id || !personId) {
       setIsLoading(false);
       return;
     }
@@ -242,8 +262,12 @@ export function useMyEntriesData({
 
       if (error) {
         logger.error('Failed to load entries:', 'pages', {}, error as Error);
+        // INTENT: keep whatever we already loaded. The error surface tells the
+        // exhibitor "Your saved information is still here" — clearing `entries`
+        // here made that sentence false and emptied the page on a transient
+        // reload failure, which is exactly the "poor connectivity feels like
+        // user failure" state PRODUCT.md forbids. Only the flag changes.
         setIsError(true);
-        setEntries([]);
         return;
       }
 
@@ -257,12 +281,14 @@ export function useMyEntriesData({
           rawRows.map(row => mapEntryRowToBalanceSource(row as EntryBalanceRawRow))
         )
       );
+      loadedIdentityRef.current = identity;
       setIsError(false);
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
+      // Same contract as the `error` branch above: preserve the last good read.
+      // Zeroing `balanceSummary` was the worse half — a $0 amount due is a
+      // positive claim about what the exhibitor owes, not an absence of data.
       setIsError(true);
-      setEntries([]);
-      setBalanceSummary(summarizeEntryBalances([]));
     } finally {
       setIsLoading(false);
     }

@@ -5,12 +5,26 @@ import { Button } from '@/components/ui/button';
 import { useShowTodayBanner } from './useShowTodayBanner';
 import { formatClassTime, type ShowTodayBannerItem } from './showTodayBanner.helpers';
 
+// Two DESIGN.md rules shape this banner.
+//
+// 1. No colored side-stripe borders (`border-left` > 1px) on cards or alerts —
+//    the old `border-l-4 border-l-emerald-500` was a direct violation. A full
+//    1px tinted border does the same containment job the system sanctions.
+// 2. The accent must survive the theme. Every green here used to be raw
+//    `emerald-500` (a COOL green, #10b981) sitting beside `text-success` (the
+//    WARM #4e7c53), so one component rendered two different greens and the
+//    palette never flipped for dark mode. `--success` is declared as an RGB
+//    triplet, so unlike the var()-backed tokens its `/N` opacity modifiers
+//    genuinely compile, and it carries a distinct light/dark value.
+//
+// Resting shadow and ring are gone too: Flat-by-Default says a surface earns
+// elevation by being interacted with, not by sitting on the page.
 const bannerClassName =
-  'overflow-hidden rounded-lg border border-l-4 border-emerald-500/20 border-l-emerald-500 bg-success/10 text-left shadow-sm ring-1 ring-emerald-500/10 ';
+  'overflow-hidden rounded-lg border border-success/40 bg-success/10 text-left ';
 const bannerLabelClassName = 'text-success ';
 const bannerTitleClassName = 'text-success ';
 const iconClassName =
-  'flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-success ring-1 ring-emerald-500/20 ';
+  'flex size-10 shrink-0 items-center justify-center rounded-lg bg-success/20 text-success ';
 
 function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return count === 1 ? singular : plural;
@@ -50,7 +64,7 @@ export function ShowTodayBanner() {
                 >
                   Show day is here
                 </span>
-                <span aria-hidden="true" className="text-muted-foreground/70">
+                <span aria-hidden="true" className="text-muted-foreground">
                   ·
                 </span>
                 <span
@@ -59,7 +73,12 @@ export function ShowTodayBanner() {
                   {singleItem.showName}
                 </span>
               </div>
-              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              {/* `text-foreground`, not muted: on the `bg-success/10` fill the
+                muted token measures 4.10:1 in dark mode, under the 4.5:1 floor.
+                It is also the wrong weight for the content — on show day the
+                first class time is primary information, and PRODUCT.md asks for
+                high-contrast primary content for people reading outdoors. */}
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-foreground">
                 <Clock size={14} />
                 <span>First class {formatClassTime(singleItem.earliestClassTime)}</span>
                 <span aria-hidden="true">·</span>
@@ -119,7 +138,7 @@ function ShowTodayRow({
     <button
       type="button"
       onClick={() => void onOpen(item.showId)}
-      className="flex min-h-14 w-full items-center justify-between gap-3 rounded-md border border-emerald-500/20 bg-background/80 px-4 py-3 text-left shadow-sm transition hover:border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-emerald-300 dark:focus:ring-offset-background"
+      className="flex min-h-14 w-full items-center justify-between gap-3 rounded-md border border-success/40 bg-background px-4 py-3 text-left transition hover:border-success focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       <span className="min-w-0">
         <span className={`block truncate font-semibold ${bannerTitleClassName}`}>

@@ -54,7 +54,7 @@ export function StatusPickerDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <ArmbandBadge armband={entry.armband} className="size-11 rounded-lg text-base" />
+            <ArmbandBadge armband={entry.armband} className="h-11 min-w-11 rounded-lg text-base" />
             <div className="min-w-0">
               <DialogTitle className="text-base truncate">{entry.dogName}</DialogTitle>
               <DialogDescription className="text-sm truncate">

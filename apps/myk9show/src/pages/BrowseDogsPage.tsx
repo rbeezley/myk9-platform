@@ -23,13 +23,11 @@ import type { FilterDefinition as ChipFilterDefinition } from '@/components/comm
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
-import '@/styles/myk9-show-details.css';
-
 const BrowseDogsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { getUserRoles } = useAuthContext();
+  const { getUserRoles, userWithRoles } = useAuthContext();
   // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
   const isExhibitorOnly = getPrimaryRole(getUserRoles()) === UserRole.EXHIBITOR;
   const [viewMode, setViewMode] = useViewPreference('dogs', isExhibitorOnly ? 'cards' : 'table');
@@ -38,7 +36,7 @@ const BrowseDogsPage: React.FC = () => {
   );
 
   const currentUserPersonId = useCurrentUserPersonId();
-  const { hasPermission, isLoading: rbacLoading } = useRBAC();
+  const { hasPermission, isLoading: rbacLoading, refresh: refreshRbac } = useRBAC();
 
   const {
     dogs,
@@ -52,6 +50,22 @@ const BrowseDogsPage: React.FC = () => {
     clearAllFilters,
     availableBreeds,
   } = useBrowseDogsData();
+
+  // `useRoleBasedDogs` returns [] until `userWithRoles` resolves, while
+  // `isLoading` tracks only the dogs query. Without this the page reaches
+  // "No dogs yet" with a full roster in IndexedDB — and on a cold offline boot
+  // roles settle at [] permanently (see the MYK9-200 note in CLAUDE.md), so
+  // that false empty state is terminal rather than a flash.
+  const identityResolved = Boolean(userWithRoles);
+  const isResolvingIdentity = !identityResolved && (rbacLoading || isLoading);
+
+  // The unresolved-identity state is caused by RBAC, not by the dogs query, so
+  // its retry has to re-run the RBAC lookup as well — refetching the dog store
+  // alone would land the user back on the same screen.
+  const retryIdentity = useCallback(() => {
+    void refreshRbac();
+    handleRetry();
+  }, [refreshRbac, handleRetry]);
 
   const canCreateDogs = !rbacLoading && hasPermission('dog:create');
   // Bulk selection/actions gated the same coarse way as the rest of this page
@@ -143,6 +157,21 @@ const BrowseDogsPage: React.FC = () => {
   );
 
   const renderContent = () => {
+    // Identity never resolved (the offline-cold case). Saying "No dogs yet"
+    // here would assert something we cannot know, and its "Add your first dog"
+    // CTA would be wrong. Stay calm and offer the retry instead — offline is
+    // normal, not an error.
+    if (!identityResolved) {
+      return (
+        <EmptyState
+          icon={PawPrint}
+          title="We couldn't confirm your account"
+          description="Your dogs are safe. Reconnect or try again to load them."
+          action={{ label: 'Try again', onClick: retryIdentity }}
+        />
+      );
+    }
+
     if (filteredDogs.length === 0 && !hasActiveFilters) {
       return (
         <EmptyState
@@ -171,7 +200,7 @@ const BrowseDogsPage: React.FC = () => {
         <EmptyState
           icon={Search}
           title="No dogs match your filters"
-          description="Try adjusting your search or filter criteria."
+          description="Try a different search, or clear the filters to see every dog again."
           action={{ label: 'Clear Filters', onClick: clearAllFilters }}
           variant="filter"
         />
@@ -200,7 +229,7 @@ const BrowseDogsPage: React.FC = () => {
 
   return (
     <PageShell>
-      {isLoading && dogs.length === 0 && (
+      {(isLoading || isResolvingIdentity) && dogs.length === 0 && (
         <BrowseDogsSkeleton viewMode={isExhibitorOnly || viewMode === 'cards' ? 'grid' : 'table'} />
       )}
 
@@ -208,9 +237,14 @@ const BrowseDogsPage: React.FC = () => {
         <ErrorState message="We couldn't load your dogs." onRetry={handleRetry} />
       )}
 
-      {!isLoading && !hasError && (
+      {!isLoading && !isResolvingIdentity && !hasError && (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title={pageTitle} actions={actionButtons} />
+          <PageHeader
+            breadcrumbs={breadcrumbs}
+            title={pageTitle}
+            actions={actionButtons}
+            showTitle
+          />
 
           <ListControls
             search={filters.search}

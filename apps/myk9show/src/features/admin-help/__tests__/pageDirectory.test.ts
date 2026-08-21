@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { pageDirectory } from '../data/pageDirectory';
 import { fullRouteRegistry } from '@/routes/routeRegistry';
+import { routeDiff } from '../utils/routeDiff';
 import { UserRole } from '@/types/auth-types';
 
 describe('pageDirectory (invariant)', () => {
@@ -105,6 +106,72 @@ describe('pageDirectory (invariant)', () => {
   it('links /admin/permissions to /admin/users, since it renders an unconditional quick-action card there', () => {
     const entry = pageDirectory.find(e => e.path === '/admin/permissions');
     expect(entry?.linksTo).toContain('/admin/users');
+  });
+
+  // /support was the directory's one genuine gap: a real, working, user-facing
+  // page with no entry. It is unreachable from the nav — its only entry point is
+  // the support push notification's ?ticketId deep link — which is exactly why
+  // it went uncatalogued, and exactly why a site admin needs it listed.
+  it('catalogs the notification-only /support page', () => {
+    const entry = pageDirectory.find(e => e.path === '/support');
+    expect(entry).toBeDefined();
+    // Bare <ProtectedRoute>, no requiredRoles: every role section gets it.
+    expect(entry?.roles).toEqual([
+      UserRole.SITE_ADMIN,
+      UserRole.SECRETARY,
+      UserRole.CLUB_ADMIN,
+      UserRole.JUDGE,
+      UserRole.EXHIBITOR,
+    ]);
+    // The deep-link requirement is the single most surprising thing about this
+    // page. If the description stops saying so, the entry has lost its point.
+    expect(entry?.description).toMatch(/ticketId/);
+  });
+
+  // The directory is hand-authored and deliberately omits redirect-only routes
+  // (asserted above for the legacy /secretary/shows paths), and the coverage
+  // gate below reaches only registered routes — a routed-but-unregistered page
+  // like /account is invisible to both it and the drift panel.
+  // So no copy on this surface may claim it covers "every page".
+  it('the self-entry does not claim to cover every page', () => {
+    const entry = pageDirectory.find(e => e.path === '/admin/help');
+    expect(entry?.description).not.toMatch(/every page/i);
+  });
+
+  /**
+   * Registered routes allowed to have no directory entry.
+   *
+   * Both are LegacySecretaryShowRedirect — redirects superseded by the
+   * canonical /shows/:showId/* paths, and asserted absent from the directory
+   * above. Being a redirect is NOT what earns a slot here (/my-entries and
+   * /browse-shows are redirects and ARE catalogued); being deliberately
+   * retired is.
+   */
+  const DRIFT_ALLOWLIST = ['/secretary/shows/:showId', '/secretary/shows/:showId/*'];
+
+  // The existing invariant at the top of this file enforces one direction only:
+  // no entry may point at a path the registry lacks. The reverse — a route with
+  // nobody documenting it — was left to the runtime drift panel, which is
+  // advisory: /support sat uncatalogued in it rather than failing anything.
+  //
+  // This closes that direction. A new route now fails here until it is either
+  // catalogued or consciously added to the allowlist above, and the allowlist is
+  // exact rather than a floor, so a retired route that regains an entry (or a
+  // stale allowlist line) fails too.
+  it('every registered route is catalogued, except the deliberately retired ones', () => {
+    const { missing, extra } = routeDiff(fullRouteRegistry, pageDirectory);
+
+    expect(extra).toEqual([]);
+    expect(missing).toEqual([...DRIFT_ALLOWLIST].sort());
+  });
+
+  // Guards the allowlist itself: a line that no longer names a real route is
+  // dead permission, and would silently keep excusing nothing while reading as
+  // though it still covers something.
+  it('every allowlisted path is still a registered route', () => {
+    const registryPaths = new Set(Object.keys(fullRouteRegistry));
+    const stale = DRIFT_ALLOWLIST.filter(p => !registryPaths.has(p));
+    expect(stale).toEqual([]);
   });
 
   it('every linksTo path resolves to an existing PageEntry path', () => {

@@ -48,11 +48,32 @@ describe('SearchBar', () => {
     expect(onChange).toHaveBeenCalledWith('');
   });
 
-  it('renders compact size with sm prop', () => {
+  it('renders the compact size at the 44px touch floor', () => {
+    // Was h-8/32px. docs/INTENT.md sets a 44px floor for tap targets, and this
+    // compact size is the toolbar search on every browse page.
     const { container } = render(
       <SearchBar value="" onChange={vi.fn()} placeholder="Search..." size="sm" />
     );
     const input = container.querySelector('input') as HTMLElement;
-    expect(input.className).toMatch(/h-8/);
+    expect(input.className).toMatch(/h-11/);
+  });
+
+  it('gives the clear control a full-size hit area, not just the icon box', () => {
+    // Regression guard: the clear button used to carry the icon's own h-3.5 w-3.5
+    // classes, rendering a 14x14 target.
+    render(<SearchBar value="Willow" onChange={vi.fn()} placeholder="Search..." size="sm" />);
+    const clear = screen.getByRole('button', { name: /clear search/i });
+    expect(clear.className).toMatch(/h-11/);
+    expect(clear.className).toMatch(/w-11/);
+  });
+
+  it('uses a token placeholder colour rather than the preflight gray', () => {
+    // Tailwind preflight paints ::placeholder gray-400, which measured 2.54:1 on
+    // white — under the 4.5:1 floor. muted-foreground is 5.91:1.
+    const { container } = render(
+      <SearchBar value="" onChange={vi.fn()} placeholder="Search..." size="sm" />
+    );
+    const input = container.querySelector('input') as HTMLElement;
+    expect(input.className).toMatch(/placeholder:text-muted-foreground/);
   });
 });

@@ -1,5 +1,15 @@
-import type { ReportEntry } from '@/lib/reports/types';
-import { formatTimeLimitSeconds } from '@myk9/core';
+/**
+ * No app-alias or workspace imports: this module is read verbatim by a Deno
+ * edge function (MYK9-228 phase 2). `formatPacketSeconds` mirrors
+ * `@myk9/core`'s `formatTimeLimitSeconds`, and a contract test asserts the two
+ * agree so the copy cannot drift.
+ */
+function formatPacketSeconds(seconds?: number | null): string {
+  if (!seconds || seconds === 0) return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 import {
   EMERGENCY_PACKET_MARKER,
   type EmergencyPacketAvailability,
@@ -12,7 +22,8 @@ import {
   type EmergencyPacketPageKind,
   type EmergencyPacketDay,
   type EmergencyPacketTrial,
-} from './types';
+  type PacketReportEntry,
+} from './types.ts';
 
 const CATALOG_ROWS_PER_PAGE = 24;
 const CHECK_IN_ROWS_PER_PAGE = 20;
@@ -39,7 +50,7 @@ function compareClasses(a: EmergencyPacketClass, b: EmergencyPacketClass): numbe
   );
 }
 
-function compareEntries(a: ReportEntry, b: ReportEntry): number {
+function compareEntries(a: PacketReportEntry, b: PacketReportEntry): number {
   const runOrderA = a.runOrder ?? Number.MAX_SAFE_INTEGER;
   const runOrderB = b.runOrder ?? Number.MAX_SAFE_INTEGER;
   return runOrderA - runOrderB || a.armband - b.armband || compareText(a.id, b.id);
@@ -63,7 +74,7 @@ function trialLabel(trial: EmergencyPacketTrial): string {
   return trial.trialNumber ? `Trial ${trial.trialNumber}` : trial.name;
 }
 
-function packetEntry(entry: ReportEntry): EmergencyPacketEntry {
+function packetEntry(entry: PacketReportEntry): EmergencyPacketEntry {
   return {
     ...entry,
     checkInMark: '',
@@ -96,7 +107,7 @@ function page(
   kind: EmergencyPacketPageKind,
   title: string,
   context: EmergencyPacketPageContext,
-  entries: ReportEntry[] = []
+  entries: PacketReportEntry[] = []
 ): Omit<EmergencyPacketPage, 'pageNumber'> {
   return {
     kind,
@@ -150,7 +161,7 @@ export function formatClassTimeLimits(classItem: {
     classItem.timeLimitSeconds,
     classItem.timeLimitArea2Seconds,
     classItem.timeLimitArea3Seconds,
-  ].map(seconds => formatTimeLimitSeconds(seconds));
+  ].map(seconds => formatPacketSeconds(seconds));
 
   if (configured.every(label => label === '')) return undefined;
 

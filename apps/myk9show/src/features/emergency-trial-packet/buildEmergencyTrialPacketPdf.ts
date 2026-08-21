@@ -1,6 +1,23 @@
-import jsPDF from 'jspdf';
-import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket';
-import type { EmergencyPacketModel, EmergencyPacketPage } from './types';
+// TYPE-only: erased at runtime, so neither Vite nor Deno resolves `jspdf`
+// from this module. The constructor is injected by the caller, which is what
+// lets the app pass `jspdf` and an edge function pass `npm:jspdf` without a
+// second copy of the renderer (MYK9-228 phase 2).
+import type JsPdfClass from 'jspdf';
+import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
+import type { EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
+
+type jsPDF = JsPdfClass;
+/**
+ * jsPDF's constructor is overloaded (options object OR positional
+ * orientation), so `ConstructorParameters` resolves to the wrong signature.
+ * Declare the options shape this renderer actually passes.
+ */
+export type JsPdfConstructor = new (options: {
+  unit: 'mm';
+  format: 'letter';
+  orientation: 'portrait';
+  compress: boolean;
+}) => JsPdfClass;
 
 export const MAX_EMERGENCY_PACKET_BYTES = 20 * 1024 * 1024;
 
@@ -390,8 +407,11 @@ function renderTranscription(doc: jsPDF, page: EmergencyPacketPage): void {
   }
 }
 
-export function buildEmergencyTrialPacketPdf(model: EmergencyPacketModel): Uint8Array {
-  const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
+export function buildEmergencyTrialPacketPdf(
+  model: EmergencyPacketModel,
+  JsPdf: JsPdfConstructor
+): Uint8Array {
+  const doc = new JsPdf({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
   doc.setProperties({
     title: `${model.show.name} — Emergency Trial Packet`,
     subject: 'Paper fallback snapshot for degraded show-day operation',

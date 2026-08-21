@@ -12,7 +12,7 @@
 PRIMARY:MYK9-211=batch-4-verification
 PRIMARY:MYK9-163=batch-1-lane-1c
 PRIMARY:MYK9-57=batch-1-lane-1d
-PRIMARY:MYK9-54=batch-1-lane-1a
+PRIMARY:MYK9-54=completed-batch-1-lane-1a
 PRIMARY:MYK9-225=batch-1-lane-1b
 PRIMARY:MYK9-226=batch-1-lane-1g
 PRIMARY:MYK9-227=deferred-ring-sport-trigger
@@ -177,7 +177,7 @@ The six implementation lanes touch disjoint files; MYK9-226 is a reproduction-fi
 
 | Lane | Issue | Scope | Key files |
 | -- | -- | -- | -- |
-| 1A | [MYK9-54](https://linear.app/myk9-platform/issue/MYK9-54) (P1, reopened) | `/admin/payouts` platform reconciliation fails 5/5 loads; Retry emits **zero requests**. Repair the MYK9-54 service path + Retry; investigate hook/query-client AND deployed financial-RPC authz together. Never render unavailable as zero | `features/financial/components/usePlatformFinancialOverview.ts`, `PlatformIncomeCard.tsx`, `financialReconciliation.ts` |
+| 1A | [MYK9-54](https://linear.app/myk9-platform/issue/MYK9-54) (P1, **Done 2026-08-21**) | Fixed by PR #1727: the financial RPC wrapper now invokes `supabase.rpc` on its receiver. Authenticated staging replays passed at 1440×900 and 768×1024, including controlled summary+payout HTTP 500s, honest unavailable-not-zero copy, fresh Retry requests, and recovery to current figures | `features/financial/components/usePlatformFinancialOverview.ts`, `PlatformIncomeCard.tsx`, `financialReconciliation.ts` |
 | 1B | [MYK9-225](https://linear.app/myk9-platform/issue/MYK9-225) (P2) | Support Inbox renders query failure as "No open tickets" + zero counts; make loading/error/success-empty/success mutually exclusive, add keyboard-accessible Retry, safe fallback copy | `pages/admin/SupportInboxPage.tsx`, its test, `features/support/useSupportTickets.ts` |
 | 1C | [MYK9-163](https://linear.app/myk9-platform/issue/MYK9-163) (P2, reopened) | Assignments-ledger club-scoped rows say only "Club profile" — name the exact club in visible+accessible text; revoke confirmation repeats user/role/club scope | `RoleAssignmentsPanel` (extracted in #1562) |
 | 1D | [MYK9-57](https://linear.app/myk9-platform/issue/MYK9-57) (P2, reopened 3rd time) | 768–1023px persistent-sidebar band now failing on `/admin/permissions` (title collapse, crowded actions) and `/admin/sync` (Sync Now clips). Audit the **shared admin/manager shell** across the band rather than another per-page patch — the `useElementWidth` + `manager-responsive.css` container-query layer from #1582 is the established pattern | admin shell/layout + the two pages |
@@ -191,6 +191,8 @@ The six implementation lanes touch disjoint files; MYK9-226 is a reproduction-fi
 - **1F (MYK9-212) and 2A step 1 (MYK9-215) collide on the payments data layer.** 1F bounds the `stripe_orders` query; 215's recommended fix *derives the receipt from `stripe_orders` directly*. If 1F lands a year-scoped or `.range()`-bounded query, 215's receipt lookup must not silently inherit that bound — a receipt for a 2025 order opened from a 2026-scoped page would find nothing. **Land 1F first, and give the 2A agent 1F's final query shape as an input.** 215's order lookup should be a keyed fetch by order id, independent of the list query's bounds.
 - **1E before 2A**, as noted in Lane 2A — 1E owns `entryNextAction.ts`, which sits in the same module tree 2A restructures.
 - **1G before Batch 3's financial-policy work.** If MYK9-226 reproduces, its checkout-capacity fix lands before MYK9-197/MYK9-229 touch fee presentation and checkout copy. Keep the reproduction isolated from the historical seeded carts; do not create another paid/refunded Stripe session unless the non-charging path cannot answer the question and explicit approval is obtained.
+
+**Batch 1 progress (2026-08-21):** Lane 1A is complete and MYK9-54 is Done. Its deployed build is PR #1727 / merge commit `b3f4cdd67cd487b24e2f579a94da25bde346bae0`; the private evidence ledger contains desktop and tablet controlled-failure and recovered-state screenshots with checksums recorded in Linear. This satisfies Lane 2D's MYK9-54 dependency; Lane 2D may now run in its required MYK9-232 → MYK9-230 → MYK9-231 order.
 
 Everything else in Batch 1 is file-disjoint, but the three-worker ceiling still applies:
 
@@ -224,9 +226,9 @@ Bug fixes land before refactors so fixes never rebase over moved code. (1E touch
 
 After Richard prunes the sandbox payment-methods dashboard (operator track item 2 — that confirms the mechanism), investigate whether `payment_method_configuration` or an API-version pin restores strict card-only rendering; **report findings on the issue before changing `stripe-checkout`**. Also PR the MYK9-11 runbook addition (live payment-methods pruning step) — docs change, safe now.
 
-### Lane 2D — Financial semantics (one serialized lane, after MYK9-54)
+### Lane 2D — Financial semantics (one serialized lane; MYK9-54 dependency satisfied 2026-08-21)
 
-These issues share the reconciliation fetch/presentation layer and `resolveOrderChargeVerification`; do not run them in parallel or before Batch 1 lane 1A establishes the final MYK9-54 shape.
+These issues share the reconciliation fetch/presentation layer and `resolveOrderChargeVerification`; do not run them in parallel. Batch 1 lane 1A established the final MYK9-54 shape in PR #1727, so this lane is now unblocked.
 
 1. **[MYK9-232](https://linear.app/myk9-platform/issue/MYK9-232) — investigate before fixing.** Trace every write to `entry_subtotal_cents` / `platform_fee_cents`, prove whether an uncaptured value can reach readers as `0`, and answer whether a legitimate zero-dollar order reaches show-level verification. If reachable, fix the representation at the write boundary; if not, document the invariant beside the NULL-is-pending contract.
 2. **[MYK9-230](https://linear.app/myk9-platform/issue/MYK9-230) — align the label with the evidence.** Rename the current `Verified` state to the claim the resolver actually proves (recommended: `Charge recorded`), update club and site-admin audiences together, preserve the module header's rejection of amount-comparison `Mismatch`, and assert the accessible text a screen reader receives.

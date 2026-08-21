@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/table';
 import { AmountDueSection } from './AmountDueSection';
 import { useElementWidth } from '@/hooks/useElementWidth';
-import { useMyPayments } from '@/features/payments/useMyPayments';
+import { useMyPaymentYears, useMyPayments } from '@/features/payments/useMyPayments';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 import { buildEntryReceiptHref } from '@/features/payments/entryReceiptHref';
@@ -303,6 +303,7 @@ export default function ExhibitorPaymentsPage() {
   const yearParam = searchParams.get('year');
   const queryYear = paymentYearQueryRange(yearParam) ? yearParam! : ALL_PAYMENT_YEARS;
   const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments(queryYear);
+  const { data: knownPaymentYears } = useMyPaymentYears(queryYear !== ALL_PAYMENT_YEARS);
   const {
     data: balanceSummary,
     isLoading: isBalanceLoading,
@@ -320,7 +321,10 @@ export default function ExhibitorPaymentsPage() {
   // My Shows' `?tab=`, so the view survives refresh, back/forward, and a link
   // an exhibitor mails to their accountant. Derived straight from the params
   // rather than synced into state (no set-state-in-effect).
-  const paymentYears = useMemo(() => listPaymentYears(paymentRows), [paymentRows]);
+  const paymentYears = useMemo(
+    () => knownPaymentYears ?? listPaymentYears(paymentRows),
+    [knownPaymentYears, paymentRows]
+  );
   // Defaults to all time, and an unrecognized `?year=` falls back to it. A
   // money surface must not open having silently hidden rows, and an empty
   // ledger from a stale link reads as "you paid nothing" rather than "that

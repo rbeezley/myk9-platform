@@ -4,6 +4,7 @@ import { cacheStrategies } from '@/lib/queryClient';
 import type { PaymentPresentationRefund } from './moneyPresentation';
 import {
   ALL_PAYMENT_YEARS,
+  listPaymentYears,
   paymentYearQueryRange,
   type PaymentYearQueryRange,
   type PaymentYearSelection,
@@ -26,6 +27,14 @@ interface StripeOrderRow {
   entry_ids: string[] | null;
   show_id: string | null;
   show: { name: string } | null;
+}
+
+interface PaymentYearMetadataOrderRow {
+  id: string;
+  paid_at: string | null;
+  refunded_at: string | null;
+  created_at: string | null;
+  entry_ids: string[] | null;
 }
 
 interface RefundEntryRow {
@@ -62,7 +71,11 @@ async function fetchOrderPages(options: {
     let query = supabase
       .from('stripe_orders')
       .select(ORDER_SELECT)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      // Supabase appends repeated order calls, producing
+      // `created_at.desc,id.desc`. The UUID primary key makes ties stable so
+      // range boundaries cannot duplicate or skip orders.
+      .order('id', { ascending: false });
 
     if (options.range) query = query.or(orderYearPredicate(options.range));
     if (options.refundedEntryIds) {
@@ -88,6 +101,7 @@ async function fetchRefundedEntryIds(range: PaymentYearQueryRange): Promise<stri
       .gte('refunded_at', range.start)
       .lt('refunded_at', range.end)
       .order('refunded_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(from, from + PAYMENT_ORDER_PAGE_SIZE - 1);
     if (error) throw error;
 
@@ -121,9 +135,10 @@ async function fetchOrders(selection: PaymentYearSelection): Promise<StripeOrder
     return fetchOrderPages({});
   }
 
-  return [...ordersById.values()].sort((a, b) =>
-    (b.created_at ?? '').localeCompare(a.created_at ?? '')
-  );
+  return [...ordersById.values()].sort((a, b) => {
+    const byCreatedAt = (b.created_at ?? '').localeCompare(a.created_at ?? '');
+    return byCreatedAt || b.id.localeCompare(a.id);
+  });
 }
 
 async function fetchEntryDetails(entryIds: string[]): Promise<RefundEntryRow[]> {
@@ -137,6 +152,61 @@ async function fetchEntryDetails(entryIds: string[]): Promise<RefundEntryRow[]> 
     rows.push(...((data ?? []) as unknown as RefundEntryRow[]));
   }
   return rows;
+}
+
+async function fetchPaymentYearMetadataOrders(): Promise<PaymentYearMetadataOrderRow[]> {
+  const rows: PaymentYearMetadataOrderRow[] = [];
+
+  for (let from = 0; ; from += PAYMENT_ORDER_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('stripe_orders')
+      .select('id, paid_at, refunded_at, created_at, entry_ids')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + PAYMENT_ORDER_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = (data ?? []) as PaymentYearMetadataOrderRow[];
+    rows.push(...page);
+    if (page.length < PAYMENT_ORDER_PAGE_SIZE) return rows;
+  }
+}
+
+async function fetchEntryRefundDates(entryIds: string[]): Promise<Array<string | null>> {
+  const dates: Array<string | null> = [];
+  for (const entryIdChunk of chunks(entryIds, ENTRY_ID_CHUNK_SIZE)) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('id, refunded_at')
+      .in('id', entryIdChunk);
+    if (error) throw error;
+    dates.push(...(data ?? []).map(entry => entry.refunded_at));
+  }
+  return dates;
+}
+
+/**
+ * The complete set of years for a server-scoped ledger view. This query is
+ * enabled only while a year is selected: it pages date/id metadata and chunks
+ * entry IDs, retaining picker options without re-fetching unbounded amounts or
+ * full order payloads.
+ */
+export function useMyPaymentYears(enabled: boolean) {
+  return useQuery({
+    queryKey: ['exhibitor', 'my-payment-years'],
+    queryFn: async (): Promise<string[]> => {
+      const orders = await fetchPaymentYearMetadataOrders();
+      const entryIds = [...new Set(orders.flatMap(order => order.entry_ids ?? []))];
+      const entryRefundDates = await fetchEntryRefundDates(entryIds);
+      return listPaymentYears([
+        ...orders.map(order => ({ date: order.paid_at ?? order.created_at })),
+        ...orders.map(order => ({ date: order.refunded_at })),
+        ...entryRefundDates.map(date => ({ date })),
+      ]);
+    },
+    enabled,
+    ...cacheStrategies.moderate,
+  });
 }
 
 export interface MyPayment {

@@ -9,18 +9,22 @@ import {
 } from './paymentYearFilter';
 
 describe('paymentYearQueryRange', () => {
-  it('builds UTC instants for the local calendar-year boundaries used by rendered dates', () => {
-    const range = paymentYearQueryRange('2026');
+  it('builds concrete America/Chicago UTC instants matching rendered New Year boundaries', () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = 'America/Chicago';
 
-    expect(range).not.toBeNull();
-    expect(paymentRowYear({ date: range!.start })).toBe('2026');
-    expect(paymentRowYear({ date: new Date(Date.parse(range!.start) - 1).toISOString() })).toBe(
-      '2025'
-    );
-    expect(paymentRowYear({ date: new Date(Date.parse(range!.end) - 1).toISOString() })).toBe(
-      '2026'
-    );
-    expect(paymentRowYear({ date: range!.end })).toBe('2027');
+    try {
+      expect(paymentYearQueryRange('2026')).toEqual({
+        start: '2026-01-01T06:00:00.000Z',
+        end: '2027-01-01T06:00:00.000Z',
+      });
+      expect(paymentRowYear({ date: '2026-01-01T05:59:59.999Z' })).toBe('2025');
+      expect(paymentRowYear({ date: '2026-01-01T06:00:00.000Z' })).toBe('2026');
+      expect(paymentRowYear({ date: '2027-01-01T05:59:59.999Z' })).toBe('2026');
+      expect(paymentRowYear({ date: '2027-01-01T06:00:00.000Z' })).toBe('2027');
+    } finally {
+      process.env.TZ = originalTimezone;
+    }
   });
 
   it('rejects untrusted non-calendar-year URL values', () => {

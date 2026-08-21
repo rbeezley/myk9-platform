@@ -36,8 +36,10 @@ const balanceState: {
   isLoading: false,
   isError: false,
 };
+const paymentYearsState: { data: string[] | undefined } = { data: undefined };
 vi.mock('@/features/payments/useMyPayments', () => ({
   useMyPayments: () => state,
+  useMyPaymentYears: () => paymentYearsState,
 }));
 vi.mock('@/features/payments/useMyEntryBalanceSummary', () => ({
   useMyEntryBalanceSummary: () => balanceState,
@@ -67,6 +69,7 @@ describe('ExhibitorPaymentsPage', () => {
     state.isError = false;
     state.isFetching = false;
     state.refetch = vi.fn();
+    paymentYearsState.data = undefined;
     balanceState.data = {
       currentFeesCents: 0,
       amountDueCents: 0,
@@ -805,6 +808,23 @@ describe('ExhibitorPaymentsPage', () => {
       expect(screen.getByText('1 payment in 2026')).toBeInTheDocument();
     });
 
+    it('retains known year options so the exhibitor can switch directly between years', async () => {
+      state.data = [payment];
+      paymentYearsState.data = ['2026', '2025'];
+      const { user } = render(<ExhibitorPaymentsPage />, {
+        initialRoute: '/exhibitor/payments?year=2026',
+      });
+
+      const picker = screen.getByRole('combobox', { name: /filter payment history by year/i });
+      await user.click(picker);
+      await user.click(await screen.findByRole('option', { name: '2025' }));
+      expect(picker).toHaveTextContent('2025');
+
+      await user.click(picker);
+      await user.click(await screen.findByRole('option', { name: '2026' }));
+      expect(picker).toHaveTextContent('2026');
+    });
+
     it('falls back to all time for a year the exhibitor has no payments in', () => {
       // A stale link must not render an empty ledger — on a money surface
       // that reads as "you paid nothing", not "that year is empty".
@@ -826,7 +846,10 @@ describe('ExhibitorPaymentsPage', () => {
       // shows the undated one. Hiding the control here stranded the exhibitor
       // on a filtered ledger with no way back (stripe_orders.created_at is
       // DEFAULT NOW(), not NOT NULL, so an undated row is possible).
-      state.data = [payment, { ...payment, id: 'o-undated', date: null, showName: 'Undated Trial' }];
+      state.data = [
+        payment,
+        { ...payment, id: 'o-undated', date: null, showName: 'Undated Trial' },
+      ];
       render(<ExhibitorPaymentsPage />, { initialRoute: '/exhibitor/payments?year=2026' });
 
       expect(screen.queryByText('Undated Trial')).not.toBeInTheDocument();

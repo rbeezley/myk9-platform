@@ -151,6 +151,12 @@ AS $$
       -- these three from the running order. Paper must agree, or a judge is
       -- handed a scoresheet row for a dog that is not competing.
       AND COALESCE(e.entry_status, '') NOT IN ('withdrawn', 'scratched', 'absent')
+      -- TWO axes, and the check-in one WINS. `pulled` lives on
+      -- `check_in_status`, never on `entry_status` (migration 003 does not
+      -- allow it there), so filtering the lifecycle alone leaves a dog pulled
+      -- at the gate on the sheet -- the exact trap `queueStatus` documents.
+      -- `in-ring` is NOT excluded: that dog is competing right now.
+      AND COALESCE(e.check_in_status, '') <> 'pulled'
   )
   SELECT jsonb_build_object(
     'show', (

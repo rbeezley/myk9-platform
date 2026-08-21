@@ -84,9 +84,12 @@ describe('emergency_packet_input contract', () => {
     // lifecycle. `replicatedRunQueue`'s NOT_RUNNING_LIFECYCLE excludes exactly
     // these three, and paper that disagrees hands a judge a row for a dog that
     // is not competing.
-    expect(sql).toMatch(
-      /NOT IN \('withdrawn', 'scratched', 'absent'\)/
-    );
+    expect(sql).toMatch(/NOT IN \('withdrawn', 'scratched', 'absent'\)/);
+    // Two axes, and the check-in one wins: `pulled` only ever lives on
+    // `check_in_status`, so a lifecycle-only filter leaves a dog pulled at the
+    // gate on the sheet. `in-ring` must NOT be excluded — that dog is running.
+    expect(sql).toMatch(/COALESCE\(e\.check_in_status, ''\) <> 'pulled'/);
+    expect(sql).not.toMatch(/check_in_status[^\n]*'in-ring'/);
   });
 
   it('backfills the armband from the authoritative table', () => {

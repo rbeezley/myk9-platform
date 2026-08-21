@@ -125,6 +125,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   training_milestones: 'SELECT,INSERT,UPDATE,DELETE',
   trial_checklist_state: 'SELECT,INSERT,UPDATE,DELETE',
   trial_judge_supplies: 'SELECT,INSERT,UPDATE,DELETE',
+  trial_packet_snapshots: 'SELECT',
   trial_visibility_overrides: 'SELECT,INSERT,UPDATE',
   trials: 'SELECT,INSERT,UPDATE,DELETE',
   user_guide: 'SELECT',

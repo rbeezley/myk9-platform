@@ -27,9 +27,9 @@ describe('sendTrialPacketEmail', () => {
   it('normalizes network and provider failures for append-only audit handling', async () => {
     await expect(
       sendTrialPacketEmail(input, vi.fn().mockRejectedValue(new Error('offline')))
-    ).rejects.toMatchObject<Partial<TrialPacketProviderError>>({ status: 'network_error' });
+    ).rejects.toMatchObject({ status: 'network_error' } satisfies Partial<TrialPacketProviderError>);
     await expect(
       sendTrialPacketEmail(input, vi.fn().mockResolvedValue(new Response('no', { status: 503 })))
-    ).rejects.toMatchObject<Partial<TrialPacketProviderError>>({ status: 503 });
+    ).rejects.toMatchObject({ status: 503 } satisfies Partial<TrialPacketProviderError>);
   });
 });

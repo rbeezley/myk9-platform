@@ -105,6 +105,21 @@ describe('recovery controls are readable in every accent and theme', () => {
   });
 });
 
+describe('every colour class actually compiles', () => {
+  // Tailwind CANNOT apply an alpha modifier to an arbitrary CSS variable, so
+  // `border-[color:var(--x)]/40` is dropped from the production stylesheet
+  // ENTIRELY and the element silently falls back to the preflight border. The
+  // codebase already documents this at index.css:265, and the fix is
+  // `color-mix(...)`. A source scan that only proves a class is PRESENT cannot
+  // see this, so the un-emittable syntax itself is what gets asserted.
+  const CSS_VAR_WITH_ALPHA = /\[color:var\(--[a-z0-9-]+\)\]\/\d/;
+
+  it.each(SURFACE)('%s never puts an opacity modifier on a CSS-var colour', rel => {
+    const offenders = (read(rel).match(new RegExp(CSS_VAR_WITH_ALPHA, 'g')) ?? []);
+    expect(offenders, `dropped by Tailwind at build time: ${offenders.join(', ')}`).toEqual([]);
+  });
+});
+
 describe('the payout row survives a phone', () => {
   it('wraps instead of truncating the show name to nothing at 375px', () => {
     const source = read('features/payments/ClubPaymentsCard.tsx');

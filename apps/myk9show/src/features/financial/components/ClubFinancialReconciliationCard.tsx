@@ -82,7 +82,7 @@ export function ClubFinancialReconciliationCard({
              payout failure. */
           <Alert
             data-testid="reconciliation-unavailable"
-            className="border-[color:var(--chip-amber-fg)]/40 bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)]"
+            className="border-[color-mix(in_srgb,var(--chip-amber-fg)_40%,transparent)] bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)]"
           >
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription className="space-y-3">

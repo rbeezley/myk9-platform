@@ -153,6 +153,11 @@ describe('trial packet delivery rules', () => {
     expect(isValidTrialDate(123)).toBe(false);
     expect(isValidTrialDate('2026-8-2')).toBe(false);
     expect(isValidTrialDate('2026-13-40')).toBe(false);
+    // Date.parse normalises this to March 2 rather than failing, so a format
+    // check alone would let a day that never existed onto the packet.
+    expect(isValidTrialDate('2026-02-30')).toBe(false);
+    expect(isValidTrialDate('2025-02-29')).toBe(false);
+    expect(isValidTrialDate('2024-02-29')).toBe(true);
     expect(isValidTrialDate('../../etc/passwd')).toBe(false);
   });
 });

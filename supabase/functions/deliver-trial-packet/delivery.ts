@@ -45,7 +45,16 @@ export function payloadContainsRecipientFields(body: unknown): boolean {
 export function isValidTrialDate(value: unknown): boolean {
   if (value === undefined || value === null) return true;
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  return !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+  // Round-trip the components. `Date.parse` NORMALISES an impossible date —
+  // 2026-02-30 becomes March 2 rather than NaN — which would put a day that
+  // never existed in the email subject and the download filename.
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
 }
 
 export function isValidTrialPacketPayload(body: TrialPacketPayload): boolean {

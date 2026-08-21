@@ -197,6 +197,32 @@ export function buildArmbandPaperworkDescriptor(
   );
 }
 
+export function buildEmergencyPacketPaperworkDescriptor(input: {
+  showId: string;
+  snapshotId: string;
+  generatedAt: string;
+  entryIds: readonly string[];
+  classIds: readonly string[];
+  trialIds: readonly string[];
+}): PaperworkDescriptor {
+  return buildDescriptor(
+    'emergency-trial-packet',
+    { kind: 'show', showId: input.showId },
+    [
+      {
+        key: `snapshot:${input.snapshotId}`,
+        facts: {
+          snapshotId: input.snapshotId,
+          generatedAt: input.generatedAt,
+          entryIds: [...input.entryIds].sort(),
+        },
+        classIds: input.classIds,
+        trialIds: input.trialIds,
+      },
+    ]
+  );
+}
+
 function readCoverage(record: PaperworkPrintEvidence): PaperworkCoverage | null {
   const scopeKind = record.coverage.scopeKind;
   const subjectFingerprints = record.coverage.subjectFingerprints;

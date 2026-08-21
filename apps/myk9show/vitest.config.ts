@@ -70,6 +70,7 @@ export default defineConfig({
       '../../supabase/functions/sentry-dashboard-metrics/metrics.test.ts',
       '../../supabase/functions/sentry-dashboard-metrics/index.source.test.ts',
       '../../supabase/functions/send-targeted-message/targeted-message-handler.test.ts',
+      '../../supabase/functions/deliver-trial-packet/*.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
     ],
     exclude: [

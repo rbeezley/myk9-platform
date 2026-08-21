@@ -145,6 +145,12 @@ AS $$
       LIMIT 1
     ) ab ON TRUE
     WHERE e.deleted_at IS NULL
+      -- Soft-delete is not the only way an entry stops running. Withdrawn and
+      -- scratched entries are NOT deleted -- that is the normal lifecycle --
+      -- and `replicatedRunQueue`'s NOT_RUNNING_LIFECYCLE excludes exactly
+      -- these three from the running order. Paper must agree, or a judge is
+      -- handed a scoresheet row for a dog that is not competing.
+      AND COALESCE(e.entry_status, '') NOT IN ('withdrawn', 'scratched', 'absent')
   )
   SELECT jsonb_build_object(
     'show', (

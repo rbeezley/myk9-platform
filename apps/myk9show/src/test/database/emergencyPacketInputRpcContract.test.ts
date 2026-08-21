@@ -79,6 +79,16 @@ describe('emergency_packet_input contract', () => {
     expect(sql.match(/public\.emergency_packet_section\(/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
   });
 
+  it('leaves entries that are not running off the paperwork', () => {
+    // Withdrawn and scratched entries are NOT soft-deleted; that is the normal
+    // lifecycle. `replicatedRunQueue`'s NOT_RUNNING_LIFECYCLE excludes exactly
+    // these three, and paper that disagrees hands a judge a row for a dog that
+    // is not competing.
+    expect(sql).toMatch(
+      /NOT IN \('withdrawn', 'scratched', 'absent'\)/
+    );
+  });
+
   it('backfills the armband from the authoritative table', () => {
     // `entries.armband` is a denormalised copy that lags an unsynced
     // replication UPDATE; `armbands` is written atomically by assign_armband

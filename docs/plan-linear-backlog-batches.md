@@ -26,8 +26,8 @@ PRIMARY:MYK9-161=batch-0-deploy
 PRIMARY:MYK9-26=batch-0-current-scope-plus-deferred-remainder
 PRIMARY:MYK9-199=batch-0-deploy
 PRIMARY:MYK9-195=decision-d7
-PRIMARY:MYK9-126=batch-4-analysis
-PRIMARY:MYK9-110=operator-track-1
+PRIMARY:MYK9-126=batch-5-final-resilience-g9
+PRIMARY:MYK9-110=batch-5-post-launch-pitr
 PRIMARY:MYK9-222=batch-3-lane-3c
 PRIMARY:MYK9-218=batch-3-lane-3c
 PRIMARY:MYK9-221=batch-3-lane-3b
@@ -38,29 +38,29 @@ PRIMARY:MYK9-217=batch-2-lane-2a-step-3
 PRIMARY:MYK9-216=batch-2-lane-2a-step-2
 PRIMARY:MYK9-215=batch-2-lane-2a-step-1
 PRIMARY:MYK9-209=batch-1-lane-1e
-PRIMARY:MYK9-204=batch-2-lane-2c-plus-operator-track-4
-PRIMARY:MYK9-11=operator-track-8
+PRIMARY:MYK9-204=batch-2-lane-2c-plus-operator-track-2
+PRIMARY:MYK9-11=operator-track-6
 PRIMARY:MYK9-192=batch-2-lane-2b-step-2
 PRIMARY:MYK9-197=batch-3-lane-3a
 PRIMARY:MYK9-191=batch-2-lane-2b-step-1
-PRIMARY:MYK9-187=operator-track-3
-PRIMARY:MYK9-190=operator-track-3
-PRIMARY:MYK9-185=operator-track-6
+PRIMARY:MYK9-187=operator-track-1
+PRIMARY:MYK9-190=operator-track-1
+PRIMARY:MYK9-185=operator-track-4
 PRIMARY:MYK9-193=batch-2-lane-2b-step-3
-PRIMARY:MYK9-186=operator-track-6
-PRIMARY:MYK9-189=operator-track-3
+PRIMARY:MYK9-186=operator-track-4
+PRIMARY:MYK9-189=operator-track-1
 PRIMARY:MYK9-44=deferred
-PRIMARY:MYK9-188=operator-track-3
-PRIMARY:MYK9-184=operator-track-5
-PRIMARY:MYK9-183=operator-track-5
+PRIMARY:MYK9-188=operator-track-1
+PRIMARY:MYK9-184=operator-track-3
+PRIMARY:MYK9-183=operator-track-3
 PRIMARY:MYK9-31=deferred
-PRIMARY:MYK9-6=operator-track-7
-PRIMARY:MYK9-30=operator-track-7
-PRIMARY:MYK9-96=operator-track-7
+PRIMARY:MYK9-6=operator-track-5
+PRIMARY:MYK9-30=operator-track-5
+PRIMARY:MYK9-96=operator-track-5
 PRIMARY:MYK9-32=parked
 PRIMARY:MYK9-72=parked
 PRIMARY:MYK9-94=parked
-PRIMARY:MYK9-13=operator-track-7
+PRIMARY:MYK9-13=operator-track-5
 PRIMARY:MYK9-27=deferred-after-batch-3
 PRIMARY:MYK9-28=deferred-post-live-shows
 -->
@@ -222,7 +222,7 @@ Bug fixes land before refactors so fixes never rebase over moved code. (1E touch
 
 ### Lane 2C — [MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) code investigation (one agent, report-first)
 
-After Richard prunes the sandbox payment-methods dashboard (operator track item 4 — that confirms the mechanism), investigate whether `payment_method_configuration` or an API-version pin restores strict card-only rendering; **report findings on the issue before changing `stripe-checkout`**. Also PR the MYK9-11 runbook addition (live payment-methods pruning step) — docs change, safe now.
+After Richard prunes the sandbox payment-methods dashboard (operator track item 2 — that confirms the mechanism), investigate whether `payment_method_configuration` or an API-version pin restores strict card-only rendering; **report findings on the issue before changing `stripe-checkout`**. Also PR the MYK9-11 runbook addition (live payment-methods pruning step) — docs change, safe now.
 
 ### Lane 2D — Financial semantics (one serialized lane, after MYK9-54)
 
@@ -264,11 +264,10 @@ Lanes 3B and 3C both touch `BrowseDogsPage.tsx` — land 3B first, rebase 3C.
 
 ---
 
-## Batch 4 — Closure proofs & analysis
+## Batch 4 — Closure proofs
 
 - [MYK9-211](https://linear.app/myk9-platform/issue/MYK9-211): staging mutation proof with a disposable fixture — grant a scoped role, verify the audit event (actor/target/role/exact scope/timestamp) and the `/admin/permissions` rail, revoke, verify again, prove failed/no-op writes nothing, clean up, record evidence → Done. Can run any time after Batch 0 (independent of Batch 1 code). **[EXPANDED] This one needs explicit approval before it runs**: the issue's own reopen comment calls it an "explicitly approved safe test mutation," and it writes role grants plus permanent `permission_audit_log` rows to the shared staging database. Those audit rows are **not cleanable** — the table is an append-only access trail and deleting from it to tidy up would corrupt the very evidence surface under test. So the fixture must be a disposable *person*, the grant must be scoped to a disposable club or show, and the residue is accepted and named in the closure comment rather than removed. Confirm the fixture identity with Richard before writing anything.
 - Browser replays for 54/163/57/225 closure if not already recorded in-lane (each reopen comment forbids closing from code/tests alone).
-- [MYK9-126](https://linear.app/myk9-platform/issue/MYK9-126): after Richard fires the G9 `workflow_dispatch` (operator track), an agent lane does the evidence analysis, backend long-tail profiling (entries replication query, ringside update wrapper, authenticated entry results, account-today fanout), and page-readiness timeout reproduction. Load windows and any Supabase restart need explicit approval.
 
 ---
 
@@ -283,18 +282,23 @@ Ten issues now require a recorded browser replay for closure, and several name v
 - **Forced-failure replays.** MYK9-225 and MYK9-54 both require reproducing a **controlled HTTP 500** and then a recovery. That is request interception in the harness, not a real outage — never induce a failure by breaking staging for everyone.
 - **Where evidence goes.** Screenshots stay in the local/private evidence ledger unless Richard separately authorizes an upload. A local path alone is not durable closure evidence: the Linear comment must record route, role, viewport, deployed commit, timestamp, assertions observed, controlled-failure/recovery method where applicable, and the artifact filename plus checksum. Do not attach or upload evidence without authorization.
 
-## Operator track (Richard — runs parallel to all batches, ordered by urgency)
+## Operator track (Richard — runs parallel to Batches 0.5–4)
 
-Wall-clock-bound and human-only items; agents cannot do these. The first two launch-risk checks are deliberately ahead of optional integrations and visual work:
+Wall-clock-bound and human-only items; agents cannot do these. PITR and the G9 rehearsal have moved to the final resilience batch by product-owner decision; this track now starts with the uncompressible external-registration work:
 
-1. **[MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110) (Urgent):** verify PITR status/retention on `sojmvhhwsjxmfistvzbe` in the Supabase dashboard. If disabled → immediate launch blocker. An agent then drafts the DR section, RPO/RTO, and single-show recovery procedure; a tested restore into a branch project completes it.
-2. **[MYK9-126](https://linear.app/myk9-platform/issue/MYK9-126) (Urgent show-day reliability):** fire the G9 rehearsal `workflow_dispatch` (harness is green since #1593), but only in the approved load window and with the issue's teardown-safety gates.
-3. **10DLC chain (start immediately after the launch-risk checks; carrier approval is uncompressible):** [MYK9-187](https://linear.app/myk9-platform/issue/MYK9-187) EIN + legal identity → [MYK9-188](https://linear.app/myk9-platform/issue/MYK9-188) support@myk9show.com forwarding + [MYK9-189](https://linear.app/myk9-platform/issue/MYK9-189) point myk9show.com at the app (/sms, /privacy reachable) → [MYK9-190](https://linear.app/myk9-platform/issue/MYK9-190) file the Twilio brand + campaign. Gates Batch 2B's deploy.
-4. **[MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) step 1** (5 min): prune the **myK9Show dev sandbox** payment-methods config to Cards + Apple Pay + Google Pay; reload checkout on Android to confirm. Unblocks Lane 2C.
-5. **Integration configs:** [MYK9-184](https://linear.app/myk9-platform/issue/MYK9-184) two Google Maps keys + redeploy `send-confirmation-email`; [MYK9-183](https://linear.app/myk9-platform/issue/MYK9-183) Sign in with Apple.
-6. **Device verifications:** [MYK9-185](https://linear.app/myk9-platform/issue/MYK9-185) run-proximity push on a real device; [MYK9-186](https://linear.app/myk9-platform/issue/MYK9-186) calendar feed on iOS/Google/Outlook.
-7. **Show-day QA gates (near launch):** [MYK9-6](https://linear.app/myk9-platform/issue/MYK9-6) offline judge tablet round trip; [MYK9-30](https://linear.app/myk9-platform/issue/MYK9-30) venue print testing; [MYK9-96](https://linear.app/myk9-platform/issue/MYK9-96) low-tech walkthrough; [MYK9-13](https://linear.app/myk9-platform/issue/MYK9-13) real-user validation (last, once the product is stable).
-8. **At cutover:** [MYK9-11](https://linear.app/myk9-platform/issue/MYK9-11) Stripe live-mode cutover incl. the payment-methods pruning step from MYK9-204.
+1. **10DLC chain (start early; carrier approval is uncompressible):** [MYK9-187](https://linear.app/myk9-platform/issue/MYK9-187) EIN + legal identity → [MYK9-188](https://linear.app/myk9-platform/issue/MYK9-188) support@myk9show.com forwarding + [MYK9-189](https://linear.app/myk9-platform/issue/MYK9-189) point myk9show.com at the app (/sms, /privacy reachable) → [MYK9-190](https://linear.app/myk9-platform/issue/MYK9-190) file the Twilio brand + campaign. Gates Batch 2B's deploy.
+2. **[MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) step 1** (5 min): prune the **myK9Show dev sandbox** payment-methods config to Cards + Apple Pay + Google Pay; reload checkout on Android to confirm. Unblocks Lane 2C.
+3. **Integration configs:** [MYK9-184](https://linear.app/myk9-platform/issue/MYK9-184) two Google Maps keys + redeploy `send-confirmation-email`; [MYK9-183](https://linear.app/myk9-platform/issue/MYK9-183) Sign in with Apple.
+4. **Device verifications:** [MYK9-185](https://linear.app/myk9-platform/issue/MYK9-185) run-proximity push on a real device; [MYK9-186](https://linear.app/myk9-platform/issue/MYK9-186) calendar feed on iOS/Google/Outlook.
+5. **Show-day QA gates (near launch):** [MYK9-6](https://linear.app/myk9-platform/issue/MYK9-6) offline judge tablet round trip; [MYK9-30](https://linear.app/myk9-platform/issue/MYK9-30) venue print testing; [MYK9-96](https://linear.app/myk9-platform/issue/MYK9-96) low-tech walkthrough; [MYK9-13](https://linear.app/myk9-platform/issue/MYK9-13) real-user validation (last, once the product is stable).
+6. **At cutover:** [MYK9-11](https://linear.app/myk9-platform/issue/MYK9-11) Stripe live-mode cutover incl. the payment-methods pruning step from MYK9-204.
+
+## Batch 5 — Final resilience and recovery
+
+This is deliberately the last batch. It does not block Batches 0.5–4. Keep both issues open until their original evidence gates are actually satisfied.
+
+1. **[MYK9-126](https://linear.app/myk9-platform/issue/MYK9-126) — G9 rehearsal, final pre-launch gate.** Richard fires the `workflow_dispatch` only in an approved load window with the teardown-safety gates. The agent lane then analyzes the evidence, profiles the backend long tail (entries replication query, ringside update wrapper, authenticated entry results, account-today fanout), and reproduces page-readiness timeouts. Any Supabase restart requires separate explicit approval. Run this after product and show-day workflow changes have landed so the rehearsal measures the release candidate rather than an intermediate build.
+2. **[MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110) — PITR, allowed after launch.** Interim posture is Supabase nightly backups rather than making PITR a launch gate. Before relying on that posture, confirm in the dashboard that nightly backups are enabled and retained for the intended project, record who owns recovery, and document the minimum restore path and expected data-loss window. Full PITR retention verification, RPO/RTO work, single-show recovery procedure, and tested branch-project restore may resume after launch. Escalate MYK9-110 back into pre-launch scope only if nightly backups are unavailable, the restore path cannot be established, or launch data exposure materially increases.
 
 ## Deferred / parked (no action this cycle)
 

@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active
+> **Status:** Active — Batch 0 deployed 2026-08-21; MYK9-224 retains one closure-evidence gate
 
 **Goal:** Triage all 47 open MYK9 issues (11 Todo, 36 Backlog), close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do.
 
@@ -99,13 +99,24 @@ test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 47 || echo "PRIMARY REGIS
 | [MYK9-161](https://linear.app/myk9-platform/issue/MYK9-161) | Deploy `cron-health-check` — hosted v25 predates `bb63c8fed`; causes persistent false-red `applied_acl_grants` (missing `show_eve_nudge_log` contract) |
 | [MYK9-211](https://linear.app/myk9-platform/issue/MYK9-211) | Code merged (#1716); reopen is **verification-only** — mutation-backed staging proof of grant/revoke audit events |
 
-This is exactly the "merge is not deploy" trap in memory. Batch 0 closes the four deploy-drift issues before new code begins; MYK9-211 is independently classified as verification-only and runs in Batch 4 once its mutation approval and disposable fixture are available.
+This is exactly the "merge is not deploy" trap in memory. Batch 0 corrected all four deployment drifts on 2026-08-21. MYK9-199 and MYK9-161 are Done; MYK9-26 returned to Backlog because its post-launch MCP/BYOK scope remains; MYK9-224 stays open until its remaining controlled Stripe evidence gate is satisfied or explicitly narrowed. MYK9-211 is independently classified as verification-only and runs in Batch 4 once its mutation approval and disposable fixture are available.
 
 ---
 
-## Batch 0 — Deploy-drift closeout (first; one session, operator confirmation required)
+## Batch 0 — Deploy-drift closeout (deployed 2026-08-21; one closure gate remains)
 
-**Closes:** MYK9-224 (P0), MYK9-199, and MYK9-161. **Completes the current deploy scope without closing:** MYK9-26. **Not sub-agent work** — deploys are shared-system writes needing one up-front user confirmation, run from the Supabase-linked worktree.
+**Closed:** MYK9-199 and MYK9-161. **Deployment complete without full issue closure:** MYK9-26 and MYK9-224 (P0). **Not sub-agent work** — deploys were shared-system writes run after one up-front user confirmation from a clean Supabase-linked checkout.
+
+### Execution record — 2026-08-21
+
+All four functions were deployed from clean `origin/main` SHA `895ecce0105c4420704ed3903f120b8ab144b555`; 115 focused tests passed, and each downloaded live bundle matched repository source exactly.
+
+| Issue | Deployment and proof | Linear disposition |
+| -- | -- | -- |
+| MYK9-199 | `ask-myk9show` v47; both restored tools exercised against a seeded show | Done |
+| MYK9-161 | `cron-health-check` v26; two subsequent `applied_acl_grants=ok` snapshots; secure applied replay passed and controlled insecure replay failed | Done |
+| MYK9-26 | `ask-operator-support` v7; grounded health failure semantics and zero-tool scope marker verified | Backlog — deploy scope complete; standalone MCP/BYOK remains post-launch |
+| MYK9-224 | `cron-waitlist-expiration` v53; live invalid-session fail-closed path and real Stripe test-mode successful expiration passed; scheduled runs healthy; disposable fixture fully removed | Todo — missing hosted controlled evidence for missing-key, expire/recheck-failure, and paid-race boundaries; unit coverage alone does not satisfy the issue's explicit gate |
 
 **[ADDED] Preconditions — do these once, before the first deploy:**
 
@@ -129,7 +140,7 @@ Per function, the sequence is: run the focused unit tests for the failure bounda
 3. **`ask-operator-support`** (MYK9-26 reopen scope). Deploy, prove a stored failed health snapshot reports as failed and an ungrounded response carries the bounded-scope marker.
 4. **`cron-health-check`** (MYK9-161). Deploy, then **ask Richard to click "Run now"** on `/admin/health` — `applied_acl_grants` is outside `CONTINUOUS_HEALTH_CHECK_KEYS`, the 5-minute cron copies verdicts forward verbatim, and `run_system_health_check_now()` is `is_site_admin()`-gated (the MCP role gets 42501). Closure needs two subsequent `applied_acl_grants=ok` snapshots.
 
-After deployment evidence lands: move 224, 199, and 161 to Done. Record MYK9-26's deploy scope as complete, but keep the issue open in Backlog with the post-launch standalone-MCP/BYOK trigger unless its remaining acceptance criteria are split into a separate issue; do not mark an issue Done while stated scope remains unmet.
+Recorded in Linear on 2026-08-21: MYK9-199 and MYK9-161 moved to Done; MYK9-26 moved to Backlog with its post-launch standalone-MCP/BYOK trigger; MYK9-224 remained Todo with the precise unsatisfied Stripe evidence gate. Do not mark MYK9-224 Done from unit coverage alone.
 
 ---
 

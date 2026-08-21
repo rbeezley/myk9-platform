@@ -76,7 +76,8 @@ BEGIN
     ('nationals_advancement','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('nationals_rankings','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('nationals_scores','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
-    ('notification_preferences','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
+    -- MYK9-191: authenticated mutations use caller-derived RPCs; consent evidence is service-only.
+    ('notification_preferences','SELECT','','SELECT,INSERT,UPDATE,DELETE'),
     ('notification_queue','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('notifications','SELECT,INSERT,UPDATE','','SELECT,INSERT,UPDATE,DELETE'),
     ('ofa_screenings','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
@@ -129,6 +130,7 @@ BEGIN
     ('show_templates','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
     ('show_visibility_settings','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
     ('shows','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
+    ('sms_opt_in_attempts','','','SELECT,INSERT,DELETE'),
     ('sport_class_rules','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
     ('sport_templates','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
     ('sport_titles','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
@@ -192,7 +194,7 @@ BEGIN
   IF v_count > 0 THEN
     RAISE EXCEPTION 'FAIL % table grant(s) drifted from the codified intent:%', v_count, v_mismatches;
   END IF;
-  RAISE NOTICE 'PASS all 124 tables grant exactly the codified CRUD to anon, authenticated and service_role';
+  RAISE NOTICE 'PASS all 127 tables grant exactly the codified CRUD to anon, authenticated and service_role';
 END;
 $$;
 
@@ -228,7 +230,7 @@ BEGIN
       'show_announcements','show_eve_nudge_log','show_incidents','show_lifecycle_email_attempts',
       'show_lifecycle_email_jobs','show_lifecycle_email_steps','show_message_threads',
       'show_messages','show_money_locks','show_passcodes','show_payouts','show_templates',
-      'show_visibility_settings','shows','sport_class_rules','sport_templates','sport_titles',
+      'show_visibility_settings','shows','sms_opt_in_attempts','sport_class_rules','sport_templates','sport_titles',
       'stripe_customers','stripe_order_refunds','stripe_orders','stripe_subscriptions',
       'subscription_entitlement_grants','support_ticket_messages','support_tickets',
       'sync_conflicts','system_health_snapshots','training_goals','training_journal_entries',

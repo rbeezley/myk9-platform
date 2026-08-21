@@ -54,7 +54,7 @@ The system SHALL keep one consent record per user, suppress the consent box when
 
 #### Scenario: Existing valid consent loads
 
-- **WHEN** Notification Settings loads a complete, non-opted-out consent record matching its SMS number
+- **WHEN** Notification Settings loads a complete, non-opted-out consent record matching its SMS number, including a retained record with in-app SMS delivery disabled
 - **THEN** the consent checkbox is not rendered
 - **AND** the user is not asked to consent again merely because in-app SMS delivery is off
 

@@ -96,7 +96,7 @@ describe('SMS notification preferences', () => {
     });
   });
 
-  it('requires complete same-number, non-opted-out consent', () => {
+  it('recognizes complete retained consent while in-app SMS delivery is disabled', () => {
     const valid = {
       auth_user_id: 'user-1',
       upcoming_runs: true,
@@ -109,6 +109,20 @@ describe('SMS notification preferences', () => {
       sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
     } as const;
     expect(isValidSmsConsent(valid, '(210) 555-0142')).toBe(true);
+  });
+
+  it('rejects opted-out or different-number consent', () => {
+    const valid = {
+      auth_user_id: 'user-1',
+      upcoming_runs: true,
+      sms_enabled: false,
+      sms_phone_e164: '+12105550142',
+      sms_opt_in_at: '2026-08-21T20:00:00Z',
+      sms_consent_text_version: 'sms-consent-v1',
+      sms_opt_in_source: 'account-settings',
+      sms_opt_out_at: null,
+      sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
+    } as const;
     expect(
       isValidSmsConsent({ ...valid, sms_opt_out_at: '2026-08-21T21:00:00Z' }, valid.sms_phone_e164)
     ).toBe(false);

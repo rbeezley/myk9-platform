@@ -49,6 +49,7 @@ TEST_FILES=(
   "$TEST_DIR/image_storage_upsert_rls_test.sql"
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"
   "$TEST_DIR/myk9_169_role_boundaries_test.sql"
+  "$TEST_DIR/notification_preferences_sms_rls_test.sql"
   "$TEST_DIR/paperwork_prints_rls_test.sql"
   "$TEST_DIR/placement_soft_delete_ranking_test.sql"
   "$TEST_DIR/pre_rule_table_grants_test.sql"

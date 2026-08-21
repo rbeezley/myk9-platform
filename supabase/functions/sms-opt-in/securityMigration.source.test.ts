@@ -58,6 +58,19 @@ describe('notification preference and SMS consent security migration', () => {
     expect(endpoint).toContain('.maybeSingle()');
   });
 
+  it('backfills tokens for retained valid consent even when in-app delivery is disabled', () => {
+    const backfill = migration.match(
+      /update public\.notification_preferences\s+set sms_consent_write_token = extensions\.uuid_generate_v4\(\)([\s\S]*?)alter table public\.notification_preferences/
+    )?.[1];
+
+    expect(backfill).toContain('where sms_phone_e164 is not null');
+    expect(backfill).toContain('and sms_opt_in_at is not null');
+    expect(backfill).toContain('and sms_consent_text_version is not null');
+    expect(backfill).toContain('and sms_opt_in_source is not null');
+    expect(backfill).toContain('and sms_opt_out_at is null');
+    expect(backfill).not.toContain('sms_enabled = true');
+  });
+
   it('uses a service-role-only serialized account and destination rate-limit claim', () => {
     expect(migration).toContain("'sms-opt-in-account:' || p_auth_user_id::text");
     expect(migration).toContain("'sms-opt-in-phone:' || p_phone_e164");

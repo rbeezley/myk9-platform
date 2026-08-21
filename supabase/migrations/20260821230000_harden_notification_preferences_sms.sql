@@ -30,7 +30,11 @@ where sms_enabled = true
 
 update public.notification_preferences
 set sms_consent_write_token = extensions.uuid_generate_v4()
-where sms_enabled = true
+where sms_phone_e164 is not null
+  and sms_opt_in_at is not null
+  and sms_consent_text_version is not null
+  and sms_opt_in_source is not null
+  and sms_opt_out_at is null
   and sms_consent_write_token is null;
 
 alter table public.notification_preferences

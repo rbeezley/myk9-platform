@@ -46,9 +46,12 @@ module — the point is that there is exactly one implementation.
 
 **Done.** The module was decoupled in place rather than relocated: the jsPDF
 constructor is injected, the entry shape is declared locally, and the seconds
-formatter is mirrored with a contract test pinning it to `@myk9/core`. Proof is
-that the three source files run under Deno **byte-identical to the app's copy**
-— the spike needed three edits, this needs none. Relocation can wait for the
+formatter is mirrored with a contract test pinning it to `@myk9/core`. Proof is that the three source files pass `deno check` AND run under Deno
+**byte-identical to the app's copies** — the spike needed three edits, this
+needs none. `deno check` is the load-bearing half: `deno run` does not type
+check by default in Deno 2, so a bare `import type ... from 'jspdf'` passed at
+runtime and failed the check, which is why the PDF surface is declared
+structurally rather than imported. Relocation can wait for the
 edge function in Phase 3, where a real deploy verifies it.
 
 ## Phase 3 — `generate-trial-packet` edge function

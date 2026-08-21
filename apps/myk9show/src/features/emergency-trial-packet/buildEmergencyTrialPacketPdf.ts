@@ -1,23 +1,57 @@
-// TYPE-only: erased at runtime, so neither Vite nor Deno resolves `jspdf`
-// from this module. The constructor is injected by the caller, which is what
-// lets the app pass `jspdf` and an edge function pass `npm:jspdf` without a
-// second copy of the renderer (MYK9-228 phase 2).
-import type JsPdfClass from 'jspdf';
 import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
 import type { EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
 
-type jsPDF = JsPdfClass;
 /**
- * jsPDF's constructor is overloaded (options object OR positional
- * orientation), so `ConstructorParameters` resolves to the wrong signature.
- * Declare the options shape this renderer actually passes.
+ * The PDF surface this renderer uses, declared structurally.
+ *
+ * Deliberately NOT `import type ... from 'jspdf'`. Deno resolves type-only
+ * imports during `deno check`, and `jspdf` is not a dependency relative to
+ * `supabase/functions`, so a bare specifier here fails the edge type-check
+ * even though it is erased at runtime. Declaring the surface locally is what
+ * makes this file genuinely portable — no import map, no source edit
+ * (MYK9-228 phase 2).
+ *
+ * jsPDF satisfies this structurally; `renderPacketPdf.ts` is where that is
+ * asserted for the browser, and the edge function does the same with
+ * `npm:jspdf`.
  */
+export interface PacketPdfDocument {
+  addPage(format?: string, orientation?: string): unknown;
+  getTextWidth(text: string): number;
+  line(x1: number, y1: number, x2: number, y2: number): unknown;
+  output(type: 'arraybuffer'): ArrayBuffer;
+  rect(x: number, y: number, w: number, h: number, style?: string): unknown;
+  roundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string): unknown;
+  setDrawColor(r: number, g?: number, b?: number): unknown;
+  setFillColor(r: number, g?: number, b?: number): unknown;
+  setFont(font: string, style?: string): unknown;
+  setFontSize(size: number): unknown;
+  setLineWidth(width: number): unknown;
+  setProperties(properties: {
+    title?: string;
+    subject?: string;
+    author?: string;
+    creator?: string;
+  }): unknown;
+  setTextColor(r: number, g?: number, b?: number): unknown;
+  splitTextToSize(text: string, size: number): string[];
+  text(
+    text: string | string[],
+    x: number,
+    y: number,
+    options?: { align?: string }
+  ): unknown;
+}
+
+/** Options this renderer passes; jsPDF's constructor is overloaded, so pin it. */
 export type JsPdfConstructor = new (options: {
   unit: 'mm';
   format: 'letter';
   orientation: 'portrait';
   compress: boolean;
-}) => JsPdfClass;
+}) => PacketPdfDocument;
+
+type jsPDF = PacketPdfDocument;
 
 export const MAX_EMERGENCY_PACKET_BYTES = 20 * 1024 * 1024;
 

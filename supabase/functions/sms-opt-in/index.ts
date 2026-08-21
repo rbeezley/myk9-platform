@@ -12,7 +12,7 @@ import {
 } from './handler.ts';
 
 const CONSENT_COLUMNS =
-  'sms_enabled, sms_phone_e164, sms_opt_in_at, sms_consent_text_version, sms_opt_in_source, sms_opt_out_at';
+  'sms_enabled, sms_phone_e164, sms_opt_in_at, sms_consent_text_version, sms_opt_in_source, sms_opt_out_at, sms_consent_write_token';
 
 handle<SmsOptInRequest>(
   { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
@@ -29,8 +29,21 @@ handle<SmsOptInRequest>(
 
     return handleSmsOptIn(body, {
       authUserId: user.id,
+      createWriteToken: () => crypto.randomUUID(),
       now: () => new Date(),
       provider,
+      rateLimit: {
+        async claim(authUserId, phone) {
+          const { data, error } = await supabase.rpc('claim_sms_opt_in_attempt', {
+            p_auth_user_id: authUserId,
+            p_phone_e164: phone,
+          });
+          if (error || typeof data !== 'boolean') {
+            throw new HttpError(503, 'Text alert confirmation is temporarily unavailable');
+          }
+          return data;
+        },
+      },
       preferences: {
         async findByUserId(authUserId) {
           const { data, error } = await supabase
@@ -43,13 +56,18 @@ handle<SmsOptInRequest>(
         },
         async saveConsent(values: SmsConsentWrite, rowExists) {
           const query = supabase.from('notification_preferences');
-          const { error } = rowExists
-            ? await query.update(values).eq('auth_user_id', values.auth_user_id)
-            : await query.insert(values);
+          const { data, error } = rowExists
+            ? await query
+                .update(values)
+                .eq('auth_user_id', values.auth_user_id)
+                .select('auth_user_id')
+                .maybeSingle()
+            : await query.insert(values).select('auth_user_id').single();
           if (error) throw new HttpError(500, 'Could not save text alert consent');
+          return data?.auth_user_id === values.auth_user_id;
         },
-        async clearConsent(authUserId) {
-          const { error } = await supabase
+        async clearConsent(authUserId, write) {
+          const { data, error } = await supabase
             .from('notification_preferences')
             .update({
               sms_enabled: false,
@@ -58,9 +76,16 @@ handle<SmsOptInRequest>(
               sms_consent_text_version: null,
               sms_opt_in_source: null,
               sms_opt_out_at: null,
+              sms_consent_write_token: null,
             })
-            .eq('auth_user_id', authUserId);
+            .eq('auth_user_id', authUserId)
+            .eq('sms_consent_write_token', write.sms_consent_write_token)
+            .eq('sms_phone_e164', write.sms_phone_e164)
+            .eq('sms_opt_in_at', write.sms_opt_in_at)
+            .select('auth_user_id')
+            .maybeSingle();
           if (error) throw new Error('Consent cleanup failed');
+          return data?.auth_user_id === authUserId;
         },
       },
     });

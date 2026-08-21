@@ -2,13 +2,14 @@
 
 ### Requirement: Unified ring-alert settings
 
-Notification Settings SHALL present ring alerts as one feature with an outer switch and push/text delivery options. The outer off state SHALL set the server-visible upcoming-runs preference false so both channels stop, while each delivery option remains independently controllable.
+Notification Settings SHALL present ring alerts as one feature with an outer switch and push/text delivery options. The outer off state SHALL set the server-visible upcoming-runs preference false so both channels stop, while each delivery option remains independently controllable. Ring-alert state SHALL NOT overwrite the global notification-engine enabled state or stop result-posted processing.
 
 #### Scenario: User turns all ring alerts off
 
 - **WHEN** a signed-in user turns the Ring alerts switch off
 - **THEN** upcoming-run delivery is disabled for both push and SMS
 - **AND** the UI makes that all-channel effect explicit
+- **AND** result-posted monitoring remains enabled
 
 #### Scenario: User turns off only in-app text delivery
 
@@ -18,7 +19,7 @@ Notification Settings SHALL present ring alerts as one feature with an outer swi
 
 ### Requirement: Explicit per-number SMS consent
 
-The system SHALL capture SMS consent with an unchecked box containing the canonical `sms-consent-v1` wording verbatim. It SHALL normalize the phone with `toE164()`, reject unresolvable input before database access, derive row ownership only from the verified JWT, and write `sms_enabled`, `sms_phone_e164`, `sms_opt_in_at`, `sms_consent_text_version`, and the caller-supplied capture source together on the single per-user preference row. **[EXPANDED after plan audit]**
+The system SHALL capture SMS consent with an unchecked box containing the canonical `sms-consent-v1` wording verbatim. It SHALL normalize the phone with `toE164()`, reject unresolvable input before database access, derive row ownership only from the verified JWT, and write `sms_enabled`, `sms_phone_e164`, `sms_opt_in_at`, `sms_consent_text_version`, the caller-supplied capture source, and a write token together on the single per-user preference row. Authenticated clients SHALL NOT have direct table mutation privileges and SHALL use caller-derived RPCs that cannot manufacture consent evidence. **[EXPANDED after security review]**
 
 #### Scenario: User opts in with a formatted US number
 
@@ -40,6 +41,12 @@ The system SHALL capture SMS consent with an unchecked box containing the canoni
 
 - **WHEN** an authenticated caller includes or otherwise attempts to supply another account identity
 - **THEN** the service ignores that identity and can mutate only the preference row derived from the verified JWT
+
+#### Scenario: Client attempts cross-account planting or consent fabrication
+
+- **WHEN** an authenticated client directly inserts another account's row or writes SMS consent columns
+- **THEN** table privileges and RLS reject the mutation
+- **AND** legitimate preference changes remain available through RPCs that derive identity from `auth.uid()`
 
 ### Requirement: Consent follows the number and is not repeatedly requested
 
@@ -64,13 +71,19 @@ The system SHALL keep one consent record per user, suppress the consent box when
 
 ### Requirement: Compliant opt-in confirmation delivery
 
-The system SHALL build the confirmation text exactly as campaign sample 3, prove with `estimateSegments()` that it is one GSM-7 segment, and send it through the configured provider only after the consent write succeeds.
+The system SHALL build the confirmation text exactly as campaign sample 3, prove with `estimateSegments()` that it is one GSM-7 segment, and send it through the configured provider only after a consent write proves exactly one affected row. Confirmation attempts SHALL be rate-limited per account and destination, and the provider request SHALL have a bounded timeout.
 
 #### Scenario: Successful opt-in sends confirmation
 
 - **WHEN** a valid authenticated opt-in write succeeds
 - **THEN** the provider sends `myK9Show: You're signed up for ring alerts. Msg & data rates may apply. Msg frequency varies. Reply HELP for help, STOP to cancel.` to the normalized consented number
 - **AND** the message estimate reports GSM-7 encoding and one segment
+
+#### Scenario: Concurrent delete removes the loaded row
+
+- **WHEN** an opt-in loads an existing row but its atomic update affects zero rows
+- **THEN** the endpoint returns a retryable conflict
+- **AND** no confirmation is sent
 
 #### Scenario: Provider configuration is absent
 
@@ -81,12 +94,23 @@ The system SHALL build the confirmation text exactly as campaign sample 3, prove
 #### Scenario: Provider send fails after consent write
 
 - **WHEN** Twilio rejects or cannot complete the confirmation send
-- **THEN** the system clears the consent fields and disables SMS in a compensating write
+- **THEN** the system compare-and-clears only the exact write token, phone, and timestamp and disables SMS
 - **AND** returns a retryable error rather than reporting success
+
+#### Scenario: Older send fails after newer consent succeeds
+
+- **WHEN** an older provider request fails after a newer consent write replaced its token
+- **THEN** the older compensation affects zero rows
+- **AND** the newer consent remains intact
+
+#### Scenario: Confirmation attempts exceed the fixed window
+
+- **WHEN** an account or destination has already claimed three sends in ten minutes
+- **THEN** another non-idempotent request is rejected before consent write or provider delivery
 
 ### Requirement: Twilio provider isolation
 
-SMS network calls SHALL use a provider interface implemented through Twilio’s Messaging Service REST API. Credentials SHALL remain server-side, empty configuration SHALL fail closed, and errors SHALL not log phone numbers or secret values.
+SMS network calls SHALL use a provider interface implemented through Twilio’s Messaging Service REST API. Credentials SHALL remain server-side, empty configuration SHALL fail closed, errors SHALL not log phone numbers or secret values, and a stalled request SHALL abort after a bounded timeout.
 
 #### Scenario: Twilio accepts a message
 

@@ -19,6 +19,7 @@ export interface SmsConsentRow {
   sms_consent_text_version: string | null;
   sms_opt_in_source: string | null;
   sms_opt_out_at: string | null;
+  sms_consent_write_token: string | null;
 }
 
 export interface SmsConsentWrite extends SmsConsentRow {
@@ -27,15 +28,21 @@ export interface SmsConsentWrite extends SmsConsentRow {
 
 export interface SmsOptInPreferences {
   findByUserId(authUserId: string): Promise<SmsConsentRow | null>;
-  saveConsent(values: SmsConsentWrite, rowExists: boolean): Promise<void>;
-  clearConsent(authUserId: string): Promise<void>;
+  saveConsent(values: SmsConsentWrite, rowExists: boolean): Promise<boolean>;
+  clearConsent(authUserId: string, write: SmsConsentWrite): Promise<boolean>;
+}
+
+export interface SmsOptInRateLimit {
+  claim(authUserId: string, phone: string): Promise<boolean>;
 }
 
 export interface SmsOptInDependencies {
   authUserId: string;
+  createWriteToken: () => string;
   now: () => Date;
   provider: SmsProvider;
   preferences: SmsOptInPreferences;
+  rateLimit: SmsOptInRateLimit;
 }
 
 function isSmsOptInSource(value: unknown): value is SmsOptInSource {
@@ -59,29 +66,41 @@ export async function handleSmsOptIn(body: SmsOptInRequest, deps: SmsOptInDepend
     current.sms_opt_in_at !== null &&
     current.sms_consent_text_version === SMS_CONSENT_TEXT_VERSION &&
     current.sms_opt_in_source === body.source &&
-    current.sms_opt_out_at === null
+    current.sms_opt_out_at === null &&
+    current.sms_consent_write_token !== null
   ) {
-    return { status: 'already_enabled' as const, phone };
+    return {
+      status: 'already_enabled' as const,
+      phone,
+      optInAt: current.sms_opt_in_at,
+      writeToken: current.sms_consent_write_token,
+    };
   }
 
-  await deps.preferences.saveConsent(
-    {
-      auth_user_id: deps.authUserId,
-      sms_enabled: true,
-      sms_phone_e164: phone,
-      sms_opt_in_at: deps.now().toISOString(),
-      sms_consent_text_version: SMS_CONSENT_TEXT_VERSION,
-      sms_opt_in_source: body.source,
-      sms_opt_out_at: null,
-    },
-    current !== null
-  );
+  if (!(await deps.rateLimit.claim(deps.authUserId, phone))) {
+    throw new HttpError(429, 'Too many confirmation attempts. Please wait and try again.');
+  }
+
+  const write: SmsConsentWrite = {
+    auth_user_id: deps.authUserId,
+    sms_enabled: true,
+    sms_phone_e164: phone,
+    sms_opt_in_at: deps.now().toISOString(),
+    sms_consent_text_version: SMS_CONSENT_TEXT_VERSION,
+    sms_opt_in_source: body.source,
+    sms_opt_out_at: null,
+    sms_consent_write_token: deps.createWriteToken(),
+  };
+
+  if (!(await deps.preferences.saveConsent(write, current !== null))) {
+    throw new HttpError(409, 'Text alert settings changed. Please try again.');
+  }
 
   try {
     await deps.provider.send({ to: phone, body: buildSmsOptInConfirmation() });
   } catch (error) {
     try {
-      await deps.preferences.clearConsent(deps.authUserId);
+      await deps.preferences.clearConsent(deps.authUserId, write);
     } catch (clearError) {
       console.error('sms-opt-in: failed to clear consent after provider error', {
         authUserId: deps.authUserId,
@@ -95,5 +114,10 @@ export async function handleSmsOptIn(body: SmsOptInRequest, deps: SmsOptInDepend
     throw new HttpError(502, 'We could not send the confirmation. Please try again.');
   }
 
-  return { status: 'enabled' as const, phone };
+  return {
+    status: 'enabled' as const,
+    phone,
+    optInAt: write.sms_opt_in_at,
+    writeToken: write.sms_consent_write_token,
+  };
 }

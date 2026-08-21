@@ -73,12 +73,22 @@ const mockSetRingAlertsEnabled = vi.fn<
 const mockSetSmsDeliveryEnabled = vi.fn<
   (authUserId: string | undefined, enabled: boolean) => Promise<boolean>
 >(() => Promise.resolve(true));
-const mockClearSmsConsent = vi.fn<(authUserId: string | undefined) => Promise<boolean>>(() =>
-  Promise.resolve(true)
-);
+const mockClearSmsConsent = vi.fn<
+  (authUserId: string | undefined, preference: Record<string, unknown>) => Promise<boolean>
+>(() => Promise.resolve(true));
 const mockRequestSmsOptIn = vi.fn<
-  (phone: string, source: string) => Promise<{ status: 'enabled'; phone: string }>
->(() => Promise.resolve({ status: 'enabled' as const, phone: '+12105550142' }));
+  (
+    phone: string,
+    source: string
+  ) => Promise<{ status: 'enabled'; phone: string; optInAt: string; writeToken: string }>
+>(() =>
+  Promise.resolve({
+    status: 'enabled' as const,
+    phone: '+12105550142',
+    optInAt: '2026-08-21T20:00:00.000Z',
+    writeToken: '00000000-0000-4000-8000-000000000191',
+  })
+);
 
 vi.mock('@/features/notifications/smsPreferenceService', () => ({
   SMS_CONSENT_TEXT_VERSION: 'sms-consent-v1',
@@ -96,7 +106,8 @@ vi.mock('@/features/notifications/smsPreferenceService', () => ({
     mockSetRingAlertsEnabled(authUserId, enabled),
   setSmsDeliveryEnabled: (authUserId: string | undefined, enabled: boolean) =>
     mockSetSmsDeliveryEnabled(authUserId, enabled),
-  clearSmsConsent: (authUserId: string | undefined) => mockClearSmsConsent(authUserId),
+  clearSmsConsent: (authUserId: string | undefined, preference: Record<string, unknown>) =>
+    mockClearSmsConsent(authUserId, preference),
   requestSmsOptIn: (phone: string, source: string) => mockRequestSmsOptIn(phone, source),
 }));
 
@@ -176,13 +187,13 @@ describe('NotificationSettings', () => {
     ).toBeInTheDocument();
   });
 
-  it('turns the server-visible outer switch off for both channels', async () => {
+  it('turns ring delivery off without stopping the global result-posted monitor', async () => {
     render(<NotificationSettings />);
     fireEvent.click(await screen.findByRole('switch', { name: /^ring alerts$/i }));
     await waitFor(() =>
       expect(mockSetRingAlertsEnabled).toHaveBeenCalledWith('test-user-id', false)
     );
-    expect(useNotificationStore.getState().preferences.enabled).toBe(false);
+    expect(useNotificationStore.getState().preferences.enabled).toBe(true);
   });
 
   it('renders canonical consent unchecked and normalizes through the opt-in service', async () => {
@@ -253,7 +264,12 @@ describe('NotificationSettings', () => {
     const input = await screen.findByLabelText(/mobile number/i);
     fireEvent.change(input, { target: { value: '2105559999' } });
     fireEvent.blur(input);
-    await waitFor(() => expect(mockClearSmsConsent).toHaveBeenCalledWith('test-user-id'));
+    await waitFor(() =>
+      expect(mockClearSmsConsent).toHaveBeenCalledWith(
+        'test-user-id',
+        expect.objectContaining({ sms_phone_e164: '+12105550142' })
+      )
+    );
     expect(screen.getByRole('checkbox', { name: /Text me when my dog/i })).not.toBeChecked();
   });
 

@@ -22,7 +22,8 @@ export function readTwilioConfig(getEnv: GetEnv): TwilioConfig {
 
 export function createTwilioSmsProvider(
   config: TwilioConfig,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs = 8_000
 ): SmsProvider {
   return {
     async send(input) {
@@ -41,6 +42,7 @@ export function createTwilioSmsProvider(
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: form,
+          signal: AbortSignal.timeout(timeoutMs),
         }
       );
 

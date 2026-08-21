@@ -16,11 +16,14 @@ export interface SmsNotificationPreference {
   sms_consent_text_version: string | null;
   sms_opt_in_source: string | null;
   sms_opt_out_at: string | null;
+  sms_consent_write_token: string | null;
 }
 
 export interface SmsOptInResult {
   status: 'enabled' | 'already_enabled';
   phone: string;
+  optInAt: string;
+  writeToken: string;
 }
 
 export const normalizeSmsPhone = toE164;
@@ -39,16 +42,20 @@ interface NotificationPreferencesTable {
       maybeSingle(): Promise<QueryResult<SmsNotificationPreference | null>>;
     };
   };
-  update(values: Record<string, unknown>): {
-    eq(column: string, value: string): Promise<QueryResult<unknown>>;
-  };
-  insert(values: Record<string, unknown>): Promise<QueryResult<unknown>>;
+}
+
+interface NotificationPreferencesRpc {
+  rpc(functionName: string, args: Record<string, unknown>): Promise<QueryResult<boolean | null>>;
 }
 
 function preferencesTable(): NotificationPreferencesTable {
   return (supabase as unknown as { from(table: string): NotificationPreferencesTable }).from(
     'notification_preferences'
   );
+}
+
+function preferencesRpc(): NotificationPreferencesRpc {
+  return supabase as unknown as NotificationPreferencesRpc;
 }
 
 const SMS_COLUMNS = [
@@ -60,6 +67,7 @@ const SMS_COLUMNS = [
   'sms_consent_text_version',
   'sms_opt_in_source',
   'sms_opt_out_at',
+  'sms_consent_write_token',
 ].join(', ');
 
 export async function loadSmsNotificationPreference(
@@ -80,12 +88,10 @@ export async function setRingAlertsEnabled(
 ): Promise<boolean> {
   if (!authUserId) return false;
   try {
-    const table = preferencesTable();
-    const current = await loadSmsNotificationPreference(authUserId);
-    const { error } = current
-      ? await table.update({ upcoming_runs: enabled }).eq('auth_user_id', authUserId)
-      : await table.insert({ auth_user_id: authUserId, upcoming_runs: enabled });
-    return error === null;
+    const { data, error } = await preferencesRpc().rpc('set_my_notification_preferences', {
+      p_upcoming_runs: enabled,
+    });
+    return error === null && data === true;
   } catch {
     return false;
   }
@@ -96,25 +102,38 @@ export async function setSmsDeliveryEnabled(
   enabled: boolean
 ): Promise<boolean> {
   if (!authUserId) return false;
-  const { error } = await preferencesTable()
-    .update({ sms_enabled: enabled })
-    .eq('auth_user_id', authUserId);
-  return error === null;
+  try {
+    const { data, error } = await preferencesRpc().rpc('set_my_notification_preferences', {
+      p_sms_enabled: enabled,
+    });
+    return error === null && data === true;
+  } catch {
+    return false;
+  }
 }
 
-export async function clearSmsConsent(authUserId: string | null | undefined): Promise<boolean> {
-  if (!authUserId) return false;
-  const { error } = await preferencesTable()
-    .update({
-      sms_enabled: false,
-      sms_phone_e164: null,
-      sms_opt_in_at: null,
-      sms_consent_text_version: null,
-      sms_opt_in_source: null,
-      sms_opt_out_at: null,
-    })
-    .eq('auth_user_id', authUserId);
-  return error === null;
+export async function clearSmsConsent(
+  authUserId: string | null | undefined,
+  preference: SmsNotificationPreference
+): Promise<boolean> {
+  if (
+    !authUserId ||
+    !preference.sms_phone_e164 ||
+    !preference.sms_opt_in_at ||
+    !preference.sms_consent_write_token
+  ) {
+    return false;
+  }
+  try {
+    const { data, error } = await preferencesRpc().rpc('clear_my_sms_consent', {
+      p_expected_phone_e164: preference.sms_phone_e164,
+      p_expected_opt_in_at: preference.sms_opt_in_at,
+      p_expected_write_token: preference.sms_consent_write_token,
+    });
+    return error === null && data === true;
+  } catch {
+    return false;
+  }
 }
 
 export async function requestSmsOptIn(
@@ -142,6 +161,7 @@ export function isValidSmsConsent(
     preference.sms_opt_in_at &&
     preference.sms_consent_text_version === SMS_CONSENT_TEXT_VERSION &&
     preference.sms_opt_in_source &&
-    preference.sms_opt_out_at === null
+    preference.sms_opt_out_at === null &&
+    preference.sms_consent_write_token
   );
 }

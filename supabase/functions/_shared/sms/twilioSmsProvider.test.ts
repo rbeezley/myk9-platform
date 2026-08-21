@@ -49,6 +49,7 @@ describe('createTwilioSmsProvider', () => {
       },
     });
     expect(String(init?.body)).toBe('To=%2B12105550142&Body=hello&MessagingServiceSid=MG123');
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('throws a sanitized error when Twilio rejects the send', async () => {
@@ -61,5 +62,20 @@ describe('createTwilioSmsProvider', () => {
     await expect(
       createTwilioSmsProvider(CONFIG, fetchMock).send({ to: '+12105550142', body: 'hello' })
     ).rejects.toThrow('SMS provider rejected the message');
+  });
+
+  it('aborts a provider request that exceeds the bounded timeout', async () => {
+    const fetchMock = vi.fn<typeof fetch>((_input, init) => {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+      });
+    });
+
+    await expect(
+      createTwilioSmsProvider(CONFIG, fetchMock, 5).send({
+        to: '+12105550142',
+        body: 'hello',
+      })
+    ).rejects.toBeDefined();
   });
 });

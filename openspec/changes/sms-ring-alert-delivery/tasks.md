@@ -2,10 +2,11 @@
 
 - [x] 1.1 Add assertion-first tests for the exact confirmation message, one GSM-7 segment, formatted-number normalization, atomic consent payload, source propagation, invalid input, number-change clearing, and safe in-app disable.
 - [x] 1.2 Add the provider interface and fail-closed Twilio Messaging Service REST client with focused success, provider-error, and missing-config tests.
-- [x] 1.3 Add the authenticated `sms-opt-in` edge-function handler: derive ownership only from the JWT, validate phone/version/source, make complete same-number submissions idempotent, save all consent fields plus `sms_enabled` in one write, send confirmation after the write, and clear consent on send failure. **[EXPANDED after plan audit]**
+- [x] 1.3 Add the authenticated `sms-opt-in` edge-function handler: derive ownership only from the JWT, validate phone/version/source, make complete same-number submissions idempotent, save all consent fields plus `sms_enabled` and a write token in one exactly-one-row write, send confirmation after the write, and compare-and-clear only that write on failure. **[EXPANDED after security review]**
 - [x] 1.4 Extend the existing notification preference service to load the single per-user row, synchronize `upcoming_runs`, enable/disable retained text consent safely, and clear consent when the normalized number changes.
 - [x] 1.5 Reshape the existing Notification Settings surface into one Ring alerts feature with outer all-channel control, push/text delivery options, verbatim unchecked consent, calm loading/error feedback, valid-consent suppression, and no checkout/per-show capture.
 - [x] 1.6 Register every new edge-function test in the myK9Show Vitest allowlist and update the SMS deploy checklist with `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_MESSAGING_SERVICE_SID` as operator-owned prerequisites.
+- [x] 1.7 Harden notification preference RLS/grants with caller-derived RPCs, adversarial SQL/source tests, a service-only per-account/destination rate limit, bounded provider timeout, and ring/global-monitor state separation. **[ADDED after security review]**
 
 ## 2. MYK9-192 — Carrier opt-out webhook (deferred until MYK9-191 merges)
 
@@ -31,7 +32,7 @@
 ## 5. Operator-gated deployment and closure
 
 - [ ] 5.1 Record MYK9-190 campaign approval and operator confirmation that all three Twilio secrets exist; do not inspect, copy, set, or log their values.
-- [ ] 5.2 With explicit approval, apply the MYK9-193 migration and deploy the SMS functions using the repository’s internal-auth deployment convention; record exact commands and revisions.
+- [ ] 5.2 With explicit approval, apply the MYK9-191 and MYK9-193 migrations and deploy the SMS functions using the repository’s internal-auth deployment convention; record exact commands and revisions.
 - [ ] 5.3 Complete the end-to-end handset proof for opt-in confirmation, HELP, every STOP keyword, carrier STOP settings state, START recovery, and once-per-entry proximity delivery.
 - [ ] 5.4 Archive the OpenSpec change only after every required PR is merged and all operator/handset evidence is recorded, then perform final branch/worktree cleanup.
 

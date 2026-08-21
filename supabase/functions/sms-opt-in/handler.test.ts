@@ -5,12 +5,14 @@ const send = vi.fn();
 const findByUserId = vi.fn();
 const saveConsent = vi.fn();
 const clearConsent = vi.fn();
+const claim = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
   findByUserId.mockResolvedValue(null);
-  saveConsent.mockResolvedValue(undefined);
-  clearConsent.mockResolvedValue(undefined);
+  saveConsent.mockResolvedValue(true);
+  clearConsent.mockResolvedValue(true);
+  claim.mockResolvedValue(true);
   send.mockResolvedValue({ messageId: 'SM123' });
 });
 
@@ -24,9 +26,11 @@ function run(body: Record<string, unknown> = {}) {
     },
     {
       authUserId: 'verified-user',
+      createWriteToken: () => '00000000-0000-4000-8000-000000000191',
       now: () => new Date('2026-08-21T20:00:00.000Z'),
       provider: { send },
       preferences: { findByUserId, saveConsent, clearConsent },
+      rateLimit: { claim },
     }
   );
 }
@@ -36,6 +40,8 @@ describe('handleSmsOptIn', () => {
     await expect(run({ authUserId: 'attacker-chosen-user' })).resolves.toEqual({
       status: 'enabled',
       phone: '+12105550142',
+      optInAt: '2026-08-21T20:00:00.000Z',
+      writeToken: '00000000-0000-4000-8000-000000000191',
     });
 
     expect(saveConsent).toHaveBeenCalledWith(
@@ -47,6 +53,7 @@ describe('handleSmsOptIn', () => {
         sms_consent_text_version: 'sms-consent-v1',
         sms_opt_in_source: 'account-settings',
         sms_opt_out_at: null,
+        sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
       },
       false
     );
@@ -73,6 +80,7 @@ describe('handleSmsOptIn', () => {
       sms_consent_text_version: null,
       sms_opt_in_source: null,
       sms_opt_out_at: null,
+      sms_consent_write_token: null,
     } satisfies SmsConsentRow);
 
     await run();
@@ -82,6 +90,30 @@ describe('handleSmsOptIn', () => {
   it('rejects invalid input without reading or writing preferences or sending', async () => {
     await expect(run({ phone: '555-0142' })).rejects.toMatchObject({ status: 400 });
     expect(findByUserId).not.toHaveBeenCalled();
+    expect(saveConsent).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(claim).not.toHaveBeenCalled();
+  });
+
+  it('does not send when a concurrent delete makes the atomic update affect zero rows', async () => {
+    findByUserId.mockResolvedValue({
+      sms_enabled: false,
+      sms_phone_e164: null,
+      sms_opt_in_at: null,
+      sms_consent_text_version: null,
+      sms_opt_in_source: null,
+      sms_opt_out_at: null,
+      sms_consent_write_token: null,
+    } satisfies SmsConsentRow);
+    saveConsent.mockResolvedValue(false);
+
+    await expect(run()).rejects.toMatchObject({ status: 409 });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('rate-limits confirmation sends before writing consent', async () => {
+    claim.mockResolvedValue(false);
+    await expect(run()).rejects.toMatchObject({ status: 429 });
     expect(saveConsent).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
   });
@@ -94,17 +126,51 @@ describe('handleSmsOptIn', () => {
       sms_consent_text_version: 'sms-consent-v1',
       sms_opt_in_source: 'account-settings',
       sms_opt_out_at: null,
+      sms_consent_write_token: '00000000-0000-4000-8000-000000000190',
     } satisfies SmsConsentRow);
 
-    await expect(run()).resolves.toEqual({ status: 'already_enabled', phone: '+12105550142' });
+    await expect(run()).resolves.toEqual({
+      status: 'already_enabled',
+      phone: '+12105550142',
+      optInAt: '2026-08-20T12:00:00.000Z',
+      writeToken: '00000000-0000-4000-8000-000000000190',
+    });
     expect(saveConsent).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
+    expect(claim).not.toHaveBeenCalled();
   });
 
   it('clears consent when provider delivery fails', async () => {
     send.mockRejectedValue(new Error('network unavailable'));
 
     await expect(run()).rejects.toMatchObject({ status: 502 });
-    expect(clearConsent).toHaveBeenCalledWith('verified-user');
+    expect(clearConsent).toHaveBeenCalledWith(
+      'verified-user',
+      expect.objectContaining({
+        sms_phone_e164: '+12105550142',
+        sms_opt_in_at: '2026-08-21T20:00:00.000Z',
+        sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
+      })
+    );
+  });
+
+  it('cannot let an older failed send erase a newer consent write', async () => {
+    let storedToken = '';
+    saveConsent.mockImplementation(async values => {
+      storedToken = values.sms_consent_write_token;
+      return true;
+    });
+    send.mockImplementation(async () => {
+      storedToken = '00000000-0000-4000-8000-000000000192';
+      throw new Error('older request timed out');
+    });
+    clearConsent.mockImplementation(async (_authUserId, write) => {
+      if (storedToken !== write.sms_consent_write_token) return false;
+      storedToken = '';
+      return true;
+    });
+
+    await expect(run()).rejects.toMatchObject({ status: 502 });
+    expect(storedToken).toBe('00000000-0000-4000-8000-000000000192');
   });
 });

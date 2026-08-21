@@ -36,6 +36,7 @@ const clearedSmsPreference = (
   sms_consent_text_version: null,
   sms_opt_in_source: null,
   sms_opt_out_at: null,
+  sms_consent_write_token: null,
 });
 
 export function RingAlertsSettings() {
@@ -45,6 +46,7 @@ export function RingAlertsSettings() {
   const { user } = useAuthContext();
   const { subscribe, unsubscribe, isSupported: isPushSupported } = usePushSubscription();
   const [smsPreference, setSmsPreference] = useState<SmsNotificationPreference | null>(null);
+  const [ringAlertsEnabled, setRingAlertsEnabledState] = useState(true);
   const [phone, setPhone] = useState('');
   const [consentChecked, setConsentChecked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,7 +67,7 @@ export function RingAlertsSettings() {
         setSmsPreference(row);
         setPhone(row?.sms_phone_e164 ?? '');
         if (typeof row?.upcoming_runs === 'boolean') {
-          updatePreferences({ enabled: row.upcoming_runs });
+          setRingAlertsEnabledState(row.upcoming_runs);
         }
       })
       .catch(() => {
@@ -86,11 +88,11 @@ export function RingAlertsSettings() {
   const hasValidConsent = isValidSmsConsent(smsPreference, phone);
 
   async function handleRingAlertsToggle(checked: boolean) {
-    const previous = preferences.enabled;
-    updatePreferences({ enabled: checked });
+    const previous = ringAlertsEnabled;
+    setRingAlertsEnabledState(checked);
     setError(null);
     if (!(await setRingAlertsEnabled(user?.id, checked))) {
-      updatePreferences({ enabled: previous });
+      setRingAlertsEnabledState(previous);
       setError('We could not update ring alerts. Please try again.');
     }
   }
@@ -145,7 +147,7 @@ export function RingAlertsSettings() {
 
     setIsSmsSaving(true);
     setError(null);
-    const cleared = await clearSmsConsent(user?.id);
+    const cleared = await clearSmsConsent(user?.id, smsPreference);
     if (cleared) {
       setSmsPreference(clearedSmsPreference(smsPreference));
       setConsentChecked(false);
@@ -173,13 +175,14 @@ export function RingAlertsSettings() {
       setPhone(result.phone);
       setSmsPreference({
         auth_user_id: user?.id ?? '',
-        upcoming_runs: preferences.enabled,
+        upcoming_runs: ringAlertsEnabled,
         sms_enabled: true,
         sms_phone_e164: result.phone,
-        sms_opt_in_at: new Date().toISOString(),
+        sms_opt_in_at: result.optInAt,
         sms_consent_text_version: SMS_CONSENT_TEXT_VERSION,
         sms_opt_in_source: 'account-settings',
         sms_opt_out_at: null,
+        sms_consent_write_token: result.writeToken,
       });
       setConsentChecked(false);
     } catch (requestError) {
@@ -210,7 +213,7 @@ export function RingAlertsSettings() {
           </div>
           <Switch
             id="ring-alerts-enabled"
-            checked={preferences.enabled}
+            checked={ringAlertsEnabled}
             disabled={isLoading}
             onCheckedChange={handleRingAlertsToggle}
           />
@@ -262,7 +265,7 @@ export function RingAlertsSettings() {
           <Switch
             id="push-enabled"
             checked={preferences.pushEnabled}
-            disabled={!preferences.enabled || !isPushSupported || isPushLoading}
+            disabled={!ringAlertsEnabled || !isPushSupported || isPushLoading}
             onCheckedChange={handlePushToggle}
           />
         </div>
@@ -284,11 +287,7 @@ export function RingAlertsSettings() {
               id="sms-enabled"
               checked={smsPreference?.sms_enabled === true}
               disabled={
-                !preferences.enabled ||
-                isLoading ||
-                isSmsSaving ||
-                smsLoadFailed ||
-                !hasValidConsent
+                !ringAlertsEnabled || isLoading || isSmsSaving || smsLoadFailed || !hasValidConsent
               }
               onCheckedChange={handleSmsToggle}
             />
@@ -328,7 +327,13 @@ export function RingAlertsSettings() {
                   />
                   <span>{SMS_CONSENT_TEXT}</span>
                 </label>
-                <Button type="button" size="sm" disabled={isSmsSaving} onClick={handleSmsOptIn}>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="min-h-11"
+                  disabled={isSmsSaving}
+                  onClick={handleSmsOptIn}
+                >
                   Turn on text alerts
                 </Button>
               </div>

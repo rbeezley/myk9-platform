@@ -8,18 +8,17 @@ import {
   setSmsDeliveryEnabled,
 } from './smsPreferenceService';
 
-const { maybeSingle, selectEq, select, updateEq, update, insert, invoke } = vi.hoisted(() => {
+const { maybeSingle, selectEq, select, rpc, invoke } = vi.hoisted(() => {
   const maybeSingle = vi.fn();
   const selectEq = vi.fn(() => ({ maybeSingle }));
   const select = vi.fn(() => ({ eq: selectEq }));
-  const updateEq = vi.fn();
-  const update = vi.fn(() => ({ eq: updateEq }));
-  return { maybeSingle, selectEq, select, updateEq, update, insert: vi.fn(), invoke: vi.fn() };
+  return { maybeSingle, selectEq, select, rpc: vi.fn(), invoke: vi.fn() };
 });
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
-    from: vi.fn(() => ({ select, update, insert })),
+    from: vi.fn(() => ({ select })),
+    rpc,
     functions: { invoke },
   },
 }));
@@ -27,9 +26,16 @@ vi.mock('@/lib/supabase', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   maybeSingle.mockResolvedValue({ data: null, error: null });
-  updateEq.mockResolvedValue({ error: null });
-  insert.mockResolvedValue({ error: null });
-  invoke.mockResolvedValue({ data: { status: 'enabled', phone: '+12105550142' }, error: null });
+  rpc.mockResolvedValue({ data: true, error: null });
+  invoke.mockResolvedValue({
+    data: {
+      status: 'enabled',
+      phone: '+12105550142',
+      optInAt: '2026-08-21T20:00:00.000Z',
+      writeToken: '00000000-0000-4000-8000-000000000191',
+    },
+    error: null,
+  });
 });
 
 describe('SMS notification preferences', () => {
@@ -42,36 +48,40 @@ describe('SMS notification preferences', () => {
 
   it('sets the outer ring-alert switch through upcoming_runs', async () => {
     await expect(setRingAlertsEnabled('user-1', false)).resolves.toBe(true);
-    expect(insert).toHaveBeenCalledWith({ auth_user_id: 'user-1', upcoming_runs: false });
-  });
-
-  it('updates the existing per-user row for the outer ring-alert switch', async () => {
-    maybeSingle.mockResolvedValue({ data: { auth_user_id: 'user-1' }, error: null });
-    await expect(setRingAlertsEnabled('user-1', true)).resolves.toBe(true);
-    expect(update).toHaveBeenCalledWith({ upcoming_runs: true });
-    expect(insert).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith('set_my_notification_preferences', {
+      p_upcoming_runs: false,
+    });
   });
 
   it('reports outer ring-alert read failures without throwing', async () => {
-    maybeSingle.mockResolvedValue({ data: null, error: { message: 'offline' } });
+    rpc.mockRejectedValue(new Error('offline'));
     await expect(setRingAlertsEnabled('user-1', true)).resolves.toBe(false);
-    expect(insert).not.toHaveBeenCalled();
   });
 
   it('turns in-app SMS off without clearing consent columns', async () => {
     await expect(setSmsDeliveryEnabled('user-1', false)).resolves.toBe(true);
-    expect(update).toHaveBeenCalledWith({ sms_enabled: false });
+    expect(rpc).toHaveBeenCalledWith('set_my_notification_preferences', {
+      p_sms_enabled: false,
+    });
   });
 
   it('clears every consent field when the number changes', async () => {
-    await expect(clearSmsConsent('user-1')).resolves.toBe(true);
-    expect(update).toHaveBeenCalledWith({
+    const preference = {
+      auth_user_id: 'user-1',
+      upcoming_runs: true,
       sms_enabled: false,
-      sms_phone_e164: null,
-      sms_opt_in_at: null,
-      sms_consent_text_version: null,
-      sms_opt_in_source: null,
+      sms_phone_e164: '+12105550142',
+      sms_opt_in_at: '2026-08-21T20:00:00.000Z',
+      sms_consent_text_version: 'sms-consent-v1',
+      sms_opt_in_source: 'account-settings',
       sms_opt_out_at: null,
+      sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
+    };
+    await expect(clearSmsConsent('user-1', preference)).resolves.toBe(true);
+    expect(rpc).toHaveBeenCalledWith('clear_my_sms_consent', {
+      p_expected_phone_e164: '+12105550142',
+      p_expected_opt_in_at: '2026-08-21T20:00:00.000Z',
+      p_expected_write_token: '00000000-0000-4000-8000-000000000191',
     });
   });
 
@@ -96,6 +106,7 @@ describe('SMS notification preferences', () => {
       sms_consent_text_version: 'sms-consent-v1',
       sms_opt_in_source: 'account-settings',
       sms_opt_out_at: null,
+      sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
     } as const;
     expect(isValidSmsConsent(valid, '(210) 555-0142')).toBe(true);
     expect(

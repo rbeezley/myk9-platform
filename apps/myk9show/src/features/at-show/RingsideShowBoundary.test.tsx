@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTestQueryClient, render, screen, act } from '@/test/utils/testUtils';
 import { RingsideShowBoundary } from './RingsideShowBoundary';
 import { replicatedShowsTable } from '@/services/replication';
+import { getSyncErrorMessage } from '@/services/replication/syncErrorUtils';
 import { UserRole } from '@/types/auth-types';
 
 const { authState, networkState } = vi.hoisted(() => ({
@@ -229,9 +230,10 @@ describe('RingsideShowBoundary', () => {
       vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue(null as never);
       vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
         success: false,
-        // syncReplicatedTable stringifies before returning, so the boundary
-        // classifies off a string, not an Error.
-        error: 'Failed to fetch',
+        // Production-shaped: the table throws `Supabase query failed: <cause>`
+        // and getSyncErrorMessage sanitises it, destroying the browser marker.
+        // A raw 'Failed to fetch' here would pass while production failed.
+        error: getSyncErrorMessage(new Error('Supabase query failed: Failed to fetch')),
       } as never);
     });
 
@@ -243,6 +245,8 @@ describe('RingsideShowBoundary', () => {
         screen.getByRole('button', { name: /load this show onto this device/i })
       ).toBeInTheDocument();
       expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument();
+      // The connectivity-specific arm, reached through the real sanitiser.
+      expect(screen.getByText(/venue wi-fi/i)).toBeInTheDocument();
     });
 
     it('keeps a retry available, and an exit that is not the retry', async () => {
@@ -277,7 +281,8 @@ describe('RingsideShowBoundary', () => {
       // user with a full disk to go hunt for signal is a wrong diagnosis.
       vi.mocked(replicatedShowsTable.sync).mockResolvedValue({
         success: false,
-        error: 'QuotaExceededError: storage is full',
+        // No remote marker, so the sanitiser passes it through untouched.
+        error: getSyncErrorMessage(new Error('QuotaExceededError: storage is full')),
       } as never);
 
       renderBoundary('show-quota');

@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { getSyncErrorMessage } from '@/services/replication/syncErrorUtils';
 import {
   ShowUnreachableError,
   classifyRefreshFailure,
@@ -89,6 +90,33 @@ describe('classifyRefreshFailure', () => {
       expect(classifyRefreshFailure(message)).toBe('unreachable');
       expect(classifyRefreshFailure(new Error(message))).toBe('unreachable');
     }
+  });
+
+  /**
+   * The test the first attempt was missing, and the reason it was wrong.
+   *
+   * Mocking `sync()` with a raw "Failed to fetch" proved nothing: the real
+   * pipeline never produces that string. `ReplicatedShowsTable` throws
+   * `Supabase query failed: <cause>`, and `getSyncErrorMessage` then matches
+   * `/supabase/i` and replaces the entire message. Driving the ACTUAL
+   * sanitiser here is what keeps the `unreachable` arm reachable in
+   * production rather than only in a mock.
+   */
+  it('survives the sanitiser that production errors pass through', () => {
+    const offline = getSyncErrorMessage(new Error('Supabase query failed: Failed to fetch'));
+    expect(offline).not.toMatch(/failed to fetch/i);
+    expect(classifyRefreshFailure(offline)).toBe('unreachable');
+
+    const safari = getSyncErrorMessage(new Error('Supabase query failed: Load failed'));
+    expect(classifyRefreshFailure(safari)).toBe('unreachable');
+  });
+
+  it('leaves a local storage failure unsanitised, and therefore not a network story', () => {
+    // A quota error carries no remote marker, so the sanitiser passes it
+    // through verbatim — which is exactly what keeps the two arms apart.
+    const quota = getSyncErrorMessage(new Error('QuotaExceededError: storage is full'));
+    expect(quota).toMatch(/QuotaExceededError/);
+    expect(classifyRefreshFailure(quota)).toBe('refresh-failed');
   });
 
   it('does not blame venue Wi-Fi for a local storage failure', () => {

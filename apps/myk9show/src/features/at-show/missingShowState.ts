@@ -17,6 +17,7 @@
  */
 
 import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker';
+import { SAFE_SYNC_REFRESH_ERROR } from '@/services/replication/syncErrorUtils';
 
 /**
  * Thrown when a local miss could not be resolved against the server.
@@ -58,14 +59,30 @@ export type MissingShowReason =
  * signal they already have, so an unrecognised cause gets copy that makes no
  * claim about the network at all.
  *
- * The cause arrives as a STRING (`syncReplicatedTable` stringifies before
- * returning), which is why this cannot call `isTransientBrowserFetchError`
- * directly — that guard requires an `Error` instance.
+ * Two things make the classification non-obvious, and both were live bugs
+ * caught in review:
+ *
+ *   1. The cause arrives as a STRING (`syncReplicatedTable` stringifies before
+ *      returning), so `isTransientBrowserFetchError` cannot be called on it
+ *      directly — that guard requires an `Error` instance.
+ *   2. The browser marker is usually GONE by the time we see it. The replicated
+ *      tables throw `Supabase query failed: Failed to fetch`, and
+ *      `getSyncErrorMessage` then matches `/supabase/i` and replaces the whole
+ *      string with `SAFE_SYNC_REFRESH_ERROR`. Matching only on "Failed to fetch"
+ *      therefore never fires in production.
+ *
+ * (2) has a useful inverse: that sanitised message is emitted ONLY for causes
+ * carrying remote markers (supabase/postgrest/statement timeout), so its
+ * presence is itself evidence of a REMOTE failure. A local storage error has no
+ * such marker and passes through verbatim. So the sanitiser is the signal, not
+ * an obstacle — but it means this classifier is coupled to that constant, which
+ * is why it imports it rather than re-spelling the sentence.
  */
 export function classifyRefreshFailure(cause: unknown): 'unreachable' | 'refresh-failed' {
   const message =
     typeof cause === 'string' ? cause : cause instanceof Error ? cause.message : null;
   if (!message) return 'refresh-failed';
+  if (message === SAFE_SYNC_REFRESH_ERROR) return 'unreachable';
   return isTransientBrowserFetchError(new Error(message)) ? 'unreachable' : 'refresh-failed';
 }
 

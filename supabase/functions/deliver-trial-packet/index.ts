@@ -174,12 +174,15 @@ handle<TrialPacketPayload>(
         snapshotId: body.snapshotId,
         from: FROM_EMAIL,
         recipients,
-        subject: `Print for the trial box — ${show.name} emergency packet`,
+        subject: body.trialDate
+          ? `Print for the trial box — ${show.name} emergency packet (${body.trialDate})`
+          : `Print for the trial box — ${show.name} emergency packet`,
         html: buildTrialPacketEmailHtml({
           showName: show.name,
           generatedAt: body.generatedAt,
           signedUrl: signed.signedUrl,
           expiresAt,
+          trialDate: body.trialDate,
         }),
       });
     } catch (error) {

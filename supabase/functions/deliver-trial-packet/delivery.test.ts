@@ -79,4 +79,37 @@ describe('trial packet delivery rules', () => {
     expect(html).toContain('&lt;Prairie &amp; Fall&gt;');
     expect(html).not.toContain('<Prairie & Fall>');
   });
+
+  /**
+   * MYK9-228. A weekend produces one packet per trial day, and every one of
+   * them shares a `generatedAt`. Without the day in the mail, the recipient
+   * gets several identical-looking emails carrying opaque UUID links and
+   * cannot tell which is Saturday's without opening both.
+   */
+  it('names the trial day the packet covers', () => {
+    const html = buildTrialPacketEmailHtml({
+      showName: 'Prairie Fall',
+      generatedAt: '2026-08-20T22:00:00.000Z',
+      signedUrl: 'https://storage.example/packet?token=abc',
+      expiresAt: '2026-10-19T22:00:00.000Z',
+      trialDate: '2026-10-04',
+    });
+
+    expect(html).toContain('2026-10-04');
+    expect(html).toContain('print them separately');
+  });
+
+  it('stays correct for a packet that covers the whole show', () => {
+    // Older clients omit the field; the mail must not grow an empty dash or
+    // claim a day it does not have.
+    const html = buildTrialPacketEmailHtml({
+      showName: 'Prairie Fall',
+      generatedAt: '2026-08-20T22:00:00.000Z',
+      signedUrl: 'https://storage.example/packet?token=abc',
+      expiresAt: '2026-10-19T22:00:00.000Z',
+    });
+
+    expect(html).toContain('Prairie Fall emergency trial packet</h1>');
+    expect(html).not.toContain('print them separately');
+  });
 });

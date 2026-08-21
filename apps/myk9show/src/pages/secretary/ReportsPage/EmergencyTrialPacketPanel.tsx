@@ -29,7 +29,10 @@ interface PreparedPacket {
  * One packet per trial DAY (MYK9-228). `generatedAt` is minted once for the
  * whole batch so a night's packets share a timestamp and sort together.
  */
-async function preparePacket(input: EmergencyPacketInput): Promise<EmergencyPacketDeliveryResult> {
+async function preparePacket(
+  input: EmergencyPacketInput,
+  trialDate?: string
+): Promise<EmergencyPacketDeliveryResult> {
   const model = buildEmergencyPacketModel(input);
   const { buildEmergencyTrialPacketPdf } = await import(
     '@/features/emergency-trial-packet/buildEmergencyTrialPacketPdf'
@@ -41,13 +44,17 @@ async function preparePacket(input: EmergencyPacketInput): Promise<EmergencyPack
     generatedAt: input.generatedAt,
     bytes,
     pageCount: model.pages.length,
+    ...(trialDate ? { trialDate } : {}),
   });
 }
 
 export interface EmergencyTrialPacketPanelProps {
   data: PacketData | null;
   unavailableReason?: string | undefined;
-  prepare?: (input: EmergencyPacketInput) => Promise<EmergencyPacketDeliveryResult>;
+  prepare?: (
+    input: EmergencyPacketInput,
+    trialDate?: string
+  ) => Promise<EmergencyPacketDeliveryResult>;
   onMarkPrinted?: (descriptor: PaperworkDescriptor) => void;
 }
 
@@ -74,28 +81,42 @@ export function EmergencyTrialPacketPanel({
     setError(false);
     try {
       const generatedAt = new Date().toISOString();
-      const days = splitPacketInputByTrialDay({ ...data, generatedAt });
-      const prepared: PreparedPacket[] = [];
+      const done = preparedPackets ?? [];
+      const finished = new Set(done.map(packet => packet.trialDate));
+      // Only attempt days that have not already been stored and emailed. A
+      // retry after a partial failure must NOT re-send a day that succeeded:
+      // that mints a second snapshot and a second email, producing exactly the
+      // duplicate stacks this per-day split exists to prevent (MYK9-228).
+      const days = splitPacketInputByTrialDay({ ...data, generatedAt }).filter(
+        day => !finished.has(day.trialDate)
+      );
+
+      const prepared: PreparedPacket[] = [...done];
+      let failed = false;
       for (const day of days) {
-        const delivery = await prepare(day.input);
-        prepared.push({
-          trialDate: day.trialDate,
-          delivery,
-          printDescriptor: buildEmergencyPacketPaperworkDescriptor({
-            showId: day.input.show.id,
-            snapshotId: delivery.snapshotId,
-            generatedAt: delivery.generatedAt,
-            entryIds: day.input.entries.map(entry => entry.id),
-            classIds: day.input.classes.map(classItem => classItem.id),
-            trialIds: day.input.trials.map(trial => trial.id),
-          }),
-        });
+        try {
+          const delivery = await prepare(day.input, day.trialDate);
+          prepared.push({
+            trialDate: day.trialDate,
+            delivery,
+            printDescriptor: buildEmergencyPacketPaperworkDescriptor({
+              showId: day.input.show.id,
+              snapshotId: delivery.snapshotId,
+              generatedAt: delivery.generatedAt,
+              entryIds: day.input.entries.map(entry => entry.id),
+              classIds: day.input.classes.map(classItem => classItem.id),
+              trialIds: day.input.trials.map(trial => trial.id),
+            }),
+          });
+        } catch {
+          // Keep going: one day's failure must not cost the others.
+          failed = true;
+        }
       }
+
+      prepared.sort((a, b) => a.trialDate.localeCompare(b.trialDate));
       setPreparedPackets(prepared.length > 0 ? prepared : null);
-      if (prepared.length === 0) setError(true);
-    } catch {
-      setPreparedPackets(null);
-      setError(true);
+      setError(failed || prepared.length === 0);
     } finally {
       setIsPreparing(false);
     }
@@ -122,7 +143,7 @@ export function EmergencyTrialPacketPanel({
         </div>
       </CardHeader>
       <CardContent>
-        {preparedPackets ? (
+        {preparedPackets && (
           <div className="space-y-4" role="status">
             {preparedPackets.map(packet => (
               <div key={packet.delivery.snapshotId} className="space-y-2">
@@ -161,11 +182,12 @@ export function EmergencyTrialPacketPanel({
               </p>
             </div>
           </div>
-        ) : (
+        )}
+        {(!preparedPackets || error) && (
           <div className="space-y-3">
             {!availability.available && (
               <p className="text-sm text-muted-foreground">{availability.reason}</p>
-            )}
+        )}
             {error && (
               <p className="text-sm font-medium text-destructive" role="alert">
                 We could not email the packet. The stored copy may still exist; try delivery again.

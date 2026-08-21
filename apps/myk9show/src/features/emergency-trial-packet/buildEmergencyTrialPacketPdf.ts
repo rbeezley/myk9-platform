@@ -177,8 +177,11 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   }
 
   doc.setFont('helvetica', 'bold');
-  doc.text(`Snapshot generated: ${formatGeneratedAt(page.generatedAt)}`, LEFT, 252);
-  doc.text(`This packet covers: ${page.context.trialDate}`, LEFT, 260);
+  // Budget upward from the footer at PAGE_HEIGHT - 8 (271.4mm): trial names may
+  // take two lines, so they start at 252 and end by 257 — the block cannot
+  // reach the footer however many trials a day holds.
+  doc.text(`Snapshot generated: ${formatGeneratedAt(page.generatedAt)}`, LEFT, 236);
+  doc.text(`This packet covers: ${page.context.trialDate}`, LEFT, 244);
   // Name the trials inside, so a secretary holding two evenings' stacks can
   // tell them apart without leafing through. A day can hold several trials,
   // and they can run under different sanctioning bodies.
@@ -186,7 +189,7 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   const trialNames = model.trials.map(trial => trial.name || trial.trialNumber).filter(Boolean);
   if (trialNames.length > 0) {
     const label = `Trials: ${trialNames.join(' · ')}`;
-    doc.text((doc.splitTextToSize(label, RIGHT - LEFT) as string[]).slice(0, 2), LEFT, 268);
+    doc.text((doc.splitTextToSize(label, RIGHT - LEFT) as string[]).slice(0, 2), LEFT, 252);
   }
 }
 

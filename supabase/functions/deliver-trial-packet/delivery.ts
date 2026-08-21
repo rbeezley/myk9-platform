@@ -22,6 +22,12 @@ export interface TrialPacketPayload {
   sha256: string;
   pageCount: number;
   byteSize: number;
+  /**
+   * The trial day this packet covers, when the show runs more than one.
+   * Optional: older clients (and whole-show packets) omit it. Without it a
+   * weekend's packets arrive as identical emails carrying opaque UUID links.
+   */
+  trialDate?: string;
 }
 
 const OPERATIONAL_ROLES = new Set(['secretary', 'trial_secretary', 'club_admin']);
@@ -121,6 +127,7 @@ export function buildTrialPacketEmailHtml(input: {
   generatedAt: string;
   signedUrl: string;
   expiresAt: string;
+  trialDate?: string | undefined;
 }): string {
   const showName = escapeHtml(input.showName);
   const generatedAt = escapeHtml(input.generatedAt);
@@ -129,12 +136,18 @@ export function buildTrialPacketEmailHtml(input: {
   return `<!doctype html>
 <html lang="en">
   <body style="font-family:Arial,sans-serif;color:#172033;line-height:1.5">
-    <h1 style="font-size:22px">${showName} emergency trial packet</h1>
+    <h1 style="font-size:22px">${showName} emergency trial packet${
+      input.trialDate ? ` — ${escapeHtml(input.trialDate)}` : ''
+    }</h1>
     <div style="border:2px solid #991b1b;background:#fef2f2;padding:16px;margin:18px 0">
       <strong style="font-size:18px;color:#7f1d1d">PRINT IT AND PUT IT IN THE TRIAL BOX.</strong>
       <p style="margin-bottom:0">A PDF in email is not the final emergency fallback. The printed packet is.</p>
     </div>
-    <p>This is a <strong>snapshot, not live data</strong>, generated ${generatedAt}.</p>
+    <p>This is a <strong>snapshot, not live data</strong>, generated ${generatedAt}.</p>${
+      input.trialDate
+        ? `\n    <p>This packet covers <strong>${escapeHtml(input.trialDate)}</strong> only. Each trial day has its own packet — print them separately and keep them apart.</p>`
+        : ''
+    }
     <p><a href="${signedUrl}" style="display:inline-block;background:#172033;color:#fff;padding:12px 18px;text-decoration:none">Open and print the emergency packet</a></p>
     <p>The private link opens without a myK9 session and expires ${expiresAt}. Do not forward it outside the show team.</p>
     <p>After printing, use the existing <strong>Mark printed</strong> action in myK9 so the show team knows the paper is physically ready.</p>

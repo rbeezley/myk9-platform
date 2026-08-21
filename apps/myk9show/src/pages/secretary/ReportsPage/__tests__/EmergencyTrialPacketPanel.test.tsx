@@ -157,4 +157,53 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(firstCall.trials.map(t => t.id)).toEqual(['t1']);
     expect(firstCall.entries.map(e => e.id)).toEqual(['e1']);
   });
+
+  /**
+   * MYK9-228 (Codex review). If Sunday fails after Saturday was stored and
+   * emailed, discarding Saturday means the retry mints a SECOND snapshot and
+   * sends a SECOND email for a day that already succeeded — producing exactly
+   * the duplicate stacks the per-day split exists to prevent.
+   */
+  it('keeps a successful day and retries only the one that failed', async () => {
+    const user = userEvent.setup();
+    const twoDays = {
+      ...data,
+      trials: [
+        ...data.trials,
+        { id: 't2', date: '2026-10-04', name: 'Trial 2', trialNumber: '2', registryId: 'AKC' },
+      ],
+      classes: [...data.classes, { ...data.classes[0], id: 'c2', trialId: 't2' }],
+      entries: [...data.entries, { ...data.entries[0], id: 'e2', classId: 'c2', trialId: 't2' }],
+    };
+    const ok = (id: string) => ({
+      snapshotId: id,
+      generatedAt: '2026-10-02T12:00:00.000Z',
+      recipientCount: 2,
+      linkExpiresAt: '2026-10-20T00:00:00.000Z',
+      pageCount: 4,
+    });
+    const prepare = vi
+      .fn()
+      .mockResolvedValueOnce(ok('snap-sat'))
+      .mockRejectedValueOnce(new Error('email failed'))
+      .mockResolvedValueOnce(ok('snap-sun'));
+
+    render(<EmergencyTrialPacketPanel data={twoDays} prepare={prepare} onMarkPrinted={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: /prepare and email packet/i }));
+
+    // Saturday survives the failure, and the retry is still offered.
+    expect(await screen.findByText(/2026-10-03 packet stored/i)).toBeInTheDocument();
+    expect(screen.queryByText(/2026-10-04 packet stored/i)).not.toBeInTheDocument();
+    const retry = screen.getByRole('button', { name: /try again/i });
+
+    await user.click(retry);
+
+    expect(await screen.findByText(/2026-10-04 packet stored/i)).toBeInTheDocument();
+    // Three calls, not four: Saturday was never re-sent.
+    expect(prepare).toHaveBeenCalledTimes(3);
+    const retriedDates = prepare.mock.calls.map(
+      call => (call[1] as string | undefined) ?? ''
+    );
+    expect(retriedDates).toEqual(['2026-10-03', '2026-10-04', '2026-10-04']);
+  });
 });

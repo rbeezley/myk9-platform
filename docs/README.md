@@ -77,6 +77,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-label-print-calibration.md](plan-label-print-calibration.md)                                               | Active    | Label print calibration — offsets, shared panel, alignment test sheet        |
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                                         | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                                                 | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
+| [plan-linear-backlog-batches.md](plan-linear-backlog-batches.md)                                                 | Active    | Linear Backlog Batch Plan — Todo + Backlog triage into parallel lanes        |
 | [plan-myk9-64-secretary-show-desk-simplification.md](plan-myk9-64-secretary-show-desk-simplification.md)         | Active    | MYK9-64 — Secretary Show Desk simplification (dedupe routes, affordances)    |
 | [plan-myk9-80-podium-completion-celebration.md](plan-myk9-80-podium-completion-celebration.md)                   | Active    | MYK9-80 — At-show podium + class completion celebration                      |
 | [plan-myk9-84-authz-dead-letter.md](plan-myk9-84-authz-dead-letter.md)                                           | Active    | MYK9-84 — Permanent Authorization Dead-Letter Messaging                      |

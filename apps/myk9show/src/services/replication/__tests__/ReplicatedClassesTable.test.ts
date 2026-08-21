@@ -1069,3 +1069,36 @@ describe('ReplicatedClassesTable', () => {
     });
   });
 });
+
+/**
+ * MYK9-198. `rowToClass` read `dbRow.area_count`, a column that has never
+ * existed on public.classes — the real one is `num_areas`, and it IS in the
+ * authenticated column select, so the value arrived and was thrown away.
+ *
+ * Two consequences: the trial packet could not state how many areas a class
+ * searches, and `toDbRow` writes `num_areas: cls.areaCount ?? null`, so every
+ * replicated class update pushed a NULL over a configured area count.
+ */
+describe('rowToClass — area count column name', () => {
+  it('reads the area count from num_areas', () => {
+    const cls = rowToClass({
+      id: 'c1',
+      name: 'Interior Advanced',
+      num_areas: 3,
+      time_limit_seconds: 180,
+    } as unknown as Parameters<typeof rowToClass>[0]);
+
+    expect(cls.areaCount).toBe(3);
+    expect(cls.timeLimitSeconds).toBe(180);
+  });
+
+  it('does not resurrect the non-existent area_count column', () => {
+    const cls = rowToClass({
+      id: 'c1',
+      name: 'Interior Advanced',
+      area_count: 9,
+    } as unknown as Parameters<typeof rowToClass>[0]);
+
+    expect(cls.areaCount).toBeUndefined();
+  });
+});

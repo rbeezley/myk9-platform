@@ -1,8 +1,14 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import type { ReportEntry } from '@/lib/reports/types';
 import { buildEmergencyPacketModel } from './emergencyTrialPacket';
-import { buildEmergencyTrialPacketPdf, MAX_EMERGENCY_PACKET_BYTES } from './buildEmergencyTrialPacketPdf';
+import jsPDF from 'jspdf';
+import {
+  buildEmergencyTrialPacketPdf,
+  layoutDetailLines,
+  maxDetailLinesForKind,
+  MAX_EMERGENCY_PACKET_BYTES,
+} from './buildEmergencyTrialPacketPdf';
 import type { EmergencyPacketInput } from './types';
 
 function reportEntry(id: string, classId: string, trialId: string, armband: number): ReportEntry {
@@ -54,6 +60,9 @@ const fixture: EmergencyPacketInput = {
       ringLabel: 'Ring 1',
       startTime: '08:00',
       timeLimitSeconds: 120,
+      timeLimitArea2Seconds: null,
+      timeLimitArea3Seconds: null,
+      numAreas: null,
     },
     {
       id: 'c2',
@@ -68,6 +77,9 @@ const fixture: EmergencyPacketInput = {
       ringLabel: 'Ring 2',
       startTime: '09:30',
       timeLimitSeconds: 180,
+      timeLimitArea2Seconds: 120,
+      timeLimitArea3Seconds: 90,
+      numAreas: null,
     },
   ],
   entries: [
@@ -76,6 +88,35 @@ const fixture: EmergencyPacketInput = {
     reportEntry('e3', 'c2', 't2', 201),
   ],
 };
+
+/**
+ * Read the text jsPDF actually drew.
+ *
+ * This suite previously asserted only page count, page size and title — none of
+ * which can tell whether a field reached the paper. That blind spot is exactly
+ * how the class time limit came to be read from the DB, mapped by the adapter,
+ * carried in the type and rendered nowhere for the life of the feature
+ * (MYK9-198 mock-trial-day audit). Content streams are Flate-compressed, so a
+ * grep of the raw bytes finds nothing and silently passes; they have to be
+ * decoded.
+ */
+async function extractPdfText(bytes: Uint8Array): Promise<string> {
+  const pdf = await PDFDocument.load(bytes);
+  const chunks: string[] = [];
+  for (const page of pdf.getPages()) {
+    const contents = page.node.Contents();
+    if (!contents) continue;
+    const streams = contents instanceof PDFRawStream ? [contents] : [];
+    for (const stream of streams) {
+      chunks.push(new TextDecoder().decode(decodePDFRawStream(stream).decode()));
+    }
+  }
+  // jsPDF emits show-text operators as `(literal) Tj`.
+  return chunks
+    .join('\n')
+    .replace(/\\\(/g, '(')
+    .replace(/\\\)/g, ')');
+}
 
 describe('buildEmergencyTrialPacketPdf', () => {
   it('creates one bounded vector PDF page for every modeled paper page', async () => {
@@ -90,5 +131,93 @@ describe('buildEmergencyTrialPacketPdf', () => {
     }
     expect(pdf.getTitle()).toBe('Prairie Fall Trial — Emergency Trial Packet');
     expect(bytes.byteLength).toBeLessThanOrEqual(MAX_EMERGENCY_PACKET_BYTES);
+  });
+
+  it('prints the class maximum on the pages a judge writes on', async () => {
+    const model = buildEmergencyPacketModel(fixture);
+    const text = await extractPdfText(buildEmergencyTrialPacketPdf(model));
+
+    // Single-area class.
+    expect(text).toContain('Max time 2:00');
+    // Multi-area class: a sheet showing only area 1 is wrong at areas 2 and 3.
+    expect(text).toContain('Area 1 3:00');
+    expect(text).toContain('Area 2 2:00');
+    expect(text).toContain('Area 3 1:30');
+  });
+
+  it('wraps rather than clips when the detail line overflows', async () => {
+    // The time limit sits LAST on that line, so truncating it away is the
+    // failure mode that matters: a long class name must not cost the judge the
+    // one number the ring runs on.
+    // `classLabel` builds from element/level/section and the judge name — NOT
+    // from `name` — so overflow has to be forced through the fields that
+    // actually reach the line.
+    const long = structuredClone(fixture) as EmergencyPacketInput;
+    long.classes[1].element = 'Interior and Exterior Combined Championship';
+    long.classes[1].level = 'Advanced Qualifying Round';
+    long.classes[1].judgeName = 'Alexandra Featherstonehaugh-Willoughby';
+    const text = await extractPdfText(buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(long)));
+
+    expect(text).toContain('Area 3 1:30');
+    expect(text).not.toContain('...');
+  });
+
+  describe('layoutDetailLines', () => {
+    // Row batching is fixed in the model, so a taller header eats the table's
+    // space rather than repaginating. The header therefore has to be bounded.
+    const doc = () => new jsPDF({ unit: 'mm', format: 'letter' });
+    const absurd = 'Interior and Exterior Combined Championship Qualifying Round'.repeat(12);
+
+    it('never exceeds the height the fixed row batches leave room for', () => {
+      expect(layoutDetailLines(doc(), [absurd], 'Max time 3:00').length).toBeLessThanOrEqual(4);
+      expect(
+        layoutDetailLines(doc(), [absurd], `Max time — ${'Area 1 3:00 · '.repeat(10)}`).length
+      ).toBeLessThanOrEqual(4);
+    });
+
+    it('truncates identity rather than the time limit', () => {
+      const lines = layoutDetailLines(doc(), [absurd], 'Max time 3:00');
+      expect(lines.at(-1)).toBe('Max time 3:00');
+      expect(lines.some(line => line.endsWith('...'))).toBe(true);
+    });
+
+    it('gives the catalog exactly one line and the writable pages four', () => {
+      // The catalog's 24-row batch already ends at 267mm against a 271.4mm
+      // footer, so a second line overlaps it. Pin the mapping, not the comment.
+      expect(maxDetailLinesForKind('catalog')).toBe(1);
+      expect(maxDetailLinesForKind('check-in')).toBe(4);
+      expect(maxDetailLinesForKind('score-recording')).toBe(4);
+    });
+
+    it('holds a catalog header to one line, whatever the trial is called', () => {
+      // A 24-row catalog already ends at 267mm against a 271.4mm footer, so a
+      // second header line overlaps it. A trial with a long name and no trial
+      // number is the way that happens.
+      expect(layoutDetailLines(doc(), [absurd], undefined, 1)).toHaveLength(1);
+    });
+
+    it('leaves a short header untouched', () => {
+      expect(layoutDetailLines(doc(), ['Trial 1', '2026-10-03'], 'Max time 2:00')).toEqual([
+        'Trial 1 · 2026-10-03',
+        'Max time 2:00',
+      ]);
+    });
+  });
+
+  it('keeps a long trial name from pushing the catalog table into the footer', async () => {
+    const long = structuredClone(fixture) as EmergencyPacketInput;
+    // No trial number, so `trialLabel` falls back to the name.
+    long.trials[0].trialNumber = '';
+    long.trials[0].name =
+      'The Greater Prairie Regional Autumn Scent Work Championship and Qualifying Trial';
+    const model = buildEmergencyPacketModel(long);
+    const bytes = buildEmergencyTrialPacketPdf(model);
+
+    // Renders, stays one page per modeled page, and the trial identity is
+    // present rather than dropped outright.
+    const pdf = await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBe(model.pages.length);
+    const text = await extractPdfText(bytes);
+    expect(text).toContain('The Greater Prairie');
   });
 });

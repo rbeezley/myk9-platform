@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { NEUTRAL_STATUS_CHIP, WAITING_STATUS_CHIP } from '@/components/ui/statusChip';
 import { resolvePayoutBadge } from '../payoutBadge';
 
 const row = (status: string, failure_reason: string | null = null) =>
@@ -18,7 +19,7 @@ describe('resolvePayoutBadge', () => {
     expect(resolvePayoutBadge(row('processing'), 'enabled')).toEqual({
       label: 'Sending',
       variant: 'secondary',
-      className: '',
+      className: NEUTRAL_STATUS_CHIP,
     });
   });
 
@@ -27,7 +28,7 @@ describe('resolvePayoutBadge', () => {
       expect(resolvePayoutBadge(row('pending'), 'enabled')).toEqual({
         label: 'Scheduled',
         variant: 'secondary',
-        className: '',
+        className: NEUTRAL_STATUS_CHIP,
       });
     });
 
@@ -35,7 +36,7 @@ describe('resolvePayoutBadge', () => {
       expect(resolvePayoutBadge(row('pending'), 'not-enabled')).toEqual({
         label: 'Waiting for account',
         variant: 'secondary',
-        className: '',
+        className: WAITING_STATUS_CHIP,
       });
     });
   });
@@ -49,7 +50,7 @@ describe('resolvePayoutBadge', () => {
       expect(resolvePayoutBadge(row('failed', reason), 'enabled')).toEqual({
         label: 'Retrying',
         variant: 'secondary',
-        className: '',
+        className: NEUTRAL_STATUS_CHIP,
       });
     });
 
@@ -57,6 +58,8 @@ describe('resolvePayoutBadge', () => {
       expect(resolvePayoutBadge(row('failed', 'No such external account'), 'enabled')).toEqual({
         label: 'Needs attention',
         variant: 'destructive',
+        // The one state a treasurer must act on keeps the destructive variant's
+        // own colours; it is the only badge here that should look alarming.
         className: '',
       });
     });
@@ -71,7 +74,7 @@ describe('resolvePayoutBadge', () => {
     expect(resolvePayoutBadge(row('weird-future-status'), 'enabled')).toEqual({
       label: 'Status unavailable',
       variant: 'secondary',
-      className: '',
+      className: NEUTRAL_STATUS_CHIP,
     });
   });
 });

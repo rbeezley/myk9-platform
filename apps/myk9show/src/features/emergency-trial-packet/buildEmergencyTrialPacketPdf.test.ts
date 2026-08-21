@@ -220,4 +220,28 @@ describe('buildEmergencyTrialPacketPdf', () => {
     const text = await extractPdfText(bytes);
     expect(text).toContain('The Greater Prairie');
   });
+
+  /**
+   * Ring is sport-dependent. Scent work — the only sport modeled today — does
+   * not use rings, and nothing in the schema persists one, so "Ring unassigned"
+   * appeared on every page of every packet. It does not read as neutral: it
+   * reads as a forgotten setting, and sends a secretary looking for a control
+   * that does not exist. Print where a class runs only when that is known.
+   */
+  it('says nothing about a ring when the sport does not use one', async () => {
+    const ringless = structuredClone(fixture) as EmergencyPacketInput;
+    for (const cls of ringless.classes) cls.ringLabel = null;
+    const text = await extractPdfText(buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(ringless)));
+
+    expect(text).not.toContain('Ring unassigned');
+    expect(text).not.toContain('Ring');
+    // The identity that actually reassembles a dropped stack is still there.
+    expect(text).toContain('Container Novice A');
+  });
+
+  it('still prints the ring for a sport that has one', async () => {
+    const text = await extractPdfText(buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture)));
+    expect(text).toContain('Ring 1');
+    expect(text).toContain('Ring 2');
+  });
 });

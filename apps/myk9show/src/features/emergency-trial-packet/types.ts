@@ -29,7 +29,13 @@ export interface EmergencyPacketClass {
   classNumber: string | null;
   displayOrder: number | null;
   judgeName: string;
-  ringLabel: string;
+  /**
+   * Where the class runs, when that is a thing this sport has. Scent work does
+   * not use rings; conformation and obedience usually do. Null means "no ring",
+   * NOT "unassigned" — nothing in the schema persists a ring today, so a
+   * placeholder would be a claim about configuration rather than a fact.
+   */
+  ringLabel: string | null;
   startTime: string | null;
   timeLimitSeconds: number | null;
   // A scent work class can search several areas, each with its own maximum.
@@ -60,7 +66,7 @@ export interface EmergencyPacketPageContext {
   showName: string;
   trialDate: string;
   trialLabel?: string;
-  ringLabel?: string;
+  ringLabel?: string | undefined;
   classLabel?: string;
   judgeName?: string;
   timeLimitLabel?: string | undefined;

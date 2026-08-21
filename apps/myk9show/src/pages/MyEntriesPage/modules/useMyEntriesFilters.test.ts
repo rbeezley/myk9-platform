@@ -183,10 +183,12 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
 
     expect(result.current.entryStats.accepted).toBe(3);
     expect(result.current.entryStats.pending).toBe(0);
-    expect(result.current.tabCounts.accepted).toBe(3);
-    expect(result.current.tabCounts.pending).toBe(0);
+    // Post-Phase-A these are status-FILTER counts, not tab counts; the
+    // membership rule they pin is unchanged.
+    expect(result.current.statusCounts.accepted).toBe(3);
+    expect(result.current.statusCounts.pending).toBe(0);
 
-    act(() => result.current.setSelectedTab('accepted'));
+    act(() => result.current.setSelectedStatus('accepted'));
     expect(result.current.filteredEntries.map(e => e.id).sort()).toEqual([
       'move-up',
       'plain-accepted',
@@ -532,5 +534,113 @@ describe('useMyEntriesFilters inbound receipt scope', () => {
 
     expect(result.current.scopeMatch.kind).toBe('none');
     expect(result.current.filteredEntries).toHaveLength(2);
+  });
+});
+
+// --- Phase A: time leads, status filters (docs/plan-ia-exhibitor-surface.md) ---
+//
+// The strip used to carry six tabs across two orthogonal axes — status
+// (Pending/Accepted/Waitlist) and time (Upcoming/Completed) — so each axis
+// independently accounted for every entry and the counts summed to double the
+// total. Selecting a status tab then a time tab replaced the filter instead of
+// refining it, making "accepted AND still ahead" unexpressable.
+describe('My Shows filters on one axis (time) with status composed', () => {
+  const mixed = [
+    makeEntry({ id: 'up-accepted', showId: 's1', showDate: new Date(2026, 5, 20) }),
+    makeEntry({
+      id: 'up-pending',
+      showId: 's2',
+      showDate: new Date(2026, 5, 21),
+      entryStatus: EntryStatus.PENDING,
+    }),
+    makeEntry({
+      id: 'up-waitlist',
+      showId: 's3',
+      showDate: new Date(2026, 5, 22),
+      entryStatus: EntryStatus.WAITLIST,
+    }),
+    makeEntry({
+      id: 'done-accepted',
+      showId: 's4',
+      showDate: new Date(2026, 4, 14),
+      showEndDate: new Date(2026, 4, 16),
+    }),
+  ];
+
+  it('offers exactly three tabs: All, Upcoming, Completed', () => {
+    const { result } = renderFilters({ entries: mixed });
+    expect(Object.keys(result.current.tabCounts).sort()).toEqual(['all', 'completed', 'upcoming']);
+  });
+
+  // THE invariant this phase exists to create: Upcoming and Completed partition
+  // All. Two axes rendered as siblings is what made the counts sum to 136 for
+  // 68 entries on the live page.
+  it('partitions All into Upcoming + Completed', () => {
+    const { result } = renderFilters({ entries: mixed });
+    const { all, upcoming, completed } = result.current.tabCounts;
+    expect(all).toBe(mixed.length);
+    expect(upcoming + completed).toBe(all);
+  });
+
+  it('keeps the partition intact under a status filter', () => {
+    const { result } = renderFilters({ entries: mixed }, '/exhibitor/entries?status=accepted');
+    const { all, upcoming, completed } = result.current.tabCounts;
+    expect(upcoming + completed).toBe(all);
+    expect(all).toBe(2); // up-accepted + done-accepted
+  });
+
+  // The combination the old strip could not express.
+  it('composes status with time instead of replacing it', () => {
+    const { result } = renderFilters({ entries: mixed }, '/exhibitor/entries?status=accepted');
+    act(() => result.current.setSelectedTab('upcoming'));
+
+    expect(result.current.selectedStatus).toBe('accepted');
+    expect(result.current.selectedTab).toBe('upcoming');
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['up-accepted']);
+  });
+
+  it('changing the tab preserves the status filter', () => {
+    const { result } = renderFilters({ entries: mixed }, '/exhibitor/entries?status=pending');
+    act(() => result.current.setSelectedTab('completed'));
+    expect(result.current.selectedStatus).toBe('pending');
+
+    act(() => result.current.setSelectedTab('upcoming'));
+    expect(result.current.selectedStatus).toBe('pending');
+    expect(result.current.filteredEntries.map(e => e.id)).toEqual(['up-pending']);
+  });
+
+  it('status chip counts describe the CURRENT tab, so a chip never promises rows the tab will not show', () => {
+    const { result } = renderFilters({ entries: mixed }, '/exhibitor/entries?tab=completed');
+    expect(result.current.statusCounts.accepted).toBe(1); // done-accepted only
+    expect(result.current.statusCounts.pending).toBe(0);
+  });
+
+  // Retired tab ids still arrive from bookmarks, the stat cards, and
+  // EntriesEmptyState's CTAs. They must land on the equivalent view, not on a
+  // silent fallback to All that quietly drops the filter.
+  it.each([
+    ['pending', 'up-pending'],
+    ['accepted', 'up-accepted'],
+    ['waitlist', 'up-waitlist'],
+  ] as const)('migrates a legacy ?tab=%s link to the status filter', (legacy, expectedId) => {
+    const { result } = renderFilters({ entries: mixed }, `/exhibitor/entries?tab=${legacy}`);
+
+    expect(result.current.selectedStatus).toBe(legacy);
+    expect(result.current.selectedTab).toBe('all');
+    expect(result.current.filteredEntries.map(e => e.id)).toContain(expectedId);
+  });
+
+  it('clears the status filter back to every status', () => {
+    const { result } = renderFilters({ entries: mixed }, '/exhibitor/entries?status=accepted');
+    act(() => result.current.setSelectedStatus('any'));
+
+    expect(result.current.selectedStatus).toBe('any');
+    expect(result.current.filteredEntries).toHaveLength(mixed.length);
+  });
+
+  it('falls back to every status for an unknown ?status value', () => {
+    const { result } = renderFilters({ entries: mixed }, '/exhibitor/entries?status=not-a-status');
+    expect(result.current.selectedStatus).toBe('any');
+    expect(result.current.filteredEntries).toHaveLength(mixed.length);
   });
 });

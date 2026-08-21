@@ -50,6 +50,8 @@ const DETAIL_LINE_HEIGHT = 5;
  * If a batch size changes, re-derive these.
  */
 const MAX_DETAIL_LINES = 4;
+/** Cover trial-name lines; four end at 265mm, clear of the 271.4mm footer. */
+const MAX_COVER_TRIAL_LINES = 4;
 const CATALOG_MAX_DETAIL_LINES = 1;
 
 /** Exported so the per-kind ceiling is pinned by a test, not just a comment. */
@@ -180,16 +182,30 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   // Budget upward from the footer at PAGE_HEIGHT - 8 (271.4mm): trial names may
   // take two lines, so they start at 252 and end by 257 — the block cannot
   // reach the footer however many trials a day holds.
-  doc.text(`Snapshot generated: ${formatGeneratedAt(page.generatedAt)}`, LEFT, 236);
-  doc.text(`This packet covers: ${page.context.trialDate}`, LEFT, 244);
+  // Budget upward from the footer at PAGE_HEIGHT - 8 (271.4mm). Four name
+  // lines end at 265mm, so this block cannot reach the footer.
+  doc.text(`Snapshot generated: ${formatGeneratedAt(page.generatedAt)}`, LEFT, 228);
+  doc.text(`This packet covers: ${page.context.trialDate}`, LEFT, 236);
   // Name the trials inside, so a secretary holding two evenings' stacks can
   // tell them apart without leafing through. A day can hold several trials,
   // and they can run under different sanctioning bodies.
-  doc.setFont('helvetica', 'normal');
   const trialNames = model.trials.map(trial => trial.name || trial.trialNumber).filter(Boolean);
   if (trialNames.length > 0) {
-    const label = `Trials: ${trialNames.join(' · ')}`;
-    doc.text((doc.splitTextToSize(label, RIGHT - LEFT) as string[]).slice(0, 2), LEFT, 252);
+    doc.text('Trials in this packet:', LEFT, 244);
+    doc.setFont('helvetica', 'normal');
+    // One per line, and never SILENTLY dropped: a cover that omits a trial
+    // fails at the one job it has here. Past the budget the last line says how
+    // many are missing, so the reader knows to look inside.
+    const shown =
+      trialNames.length <= MAX_COVER_TRIAL_LINES
+        ? trialNames
+        : [
+            ...trialNames.slice(0, MAX_COVER_TRIAL_LINES - 1),
+            `+${trialNames.length - (MAX_COVER_TRIAL_LINES - 1)} more — see the trial sections inside`,
+          ];
+    shown.forEach((name, index) => {
+      doc.text(fitTextToWidth(doc, `• ${name}`, RIGHT - LEFT - 4), LEFT + 3, 250 + index * 5);
+    });
   }
 }
 

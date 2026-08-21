@@ -287,7 +287,8 @@ describe('buildEmergencyTrialPacketPdf', () => {
         buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(days[0].input))
       );
       expect(saturday).toContain('This packet covers: 2026-10-03');
-      expect(saturday).toContain('Trials: Saturday');
+      expect(saturday).toContain('Trials in this packet:');
+      expect(saturday).toContain('• Saturday');
       expect(saturday).not.toContain('Sunday');
       expect(saturday).not.toContain('2026-10-04');
     });
@@ -297,6 +298,27 @@ describe('buildEmergencyTrialPacketPdf', () => {
         buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture))
       );
       expect(text).toContain('This packet covers: 2026-10-03–2026-10-04');
+    });
+
+    it('never drops a trial name silently, however many a day holds', async () => {
+      // A cover that omits a trial fails at the one job it has. Past the line
+      // budget it must SAY how many are missing.
+      const busy = structuredClone(fixture) as EmergencyPacketInput;
+      busy.trials = Array.from({ length: 7 }, (_, i) => ({
+        id: `t${i}`,
+        date: '2026-10-03',
+        name: `Trial Number ${i}`,
+        trialNumber: String(i),
+        registryId: 'AKC',
+      }));
+      busy.classes = busy.classes.map(c => ({ ...c, trialId: 't0' }));
+      busy.entries = busy.entries.map(e => ({ ...e, trialId: 't0', classId: busy.classes[0].id }));
+
+      const text = await extractPdfText(
+        buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(busy))
+      );
+      expect(text).toContain('+4 more');
+      expect(text).toContain('see the trial sections inside');
     });
   });
 });

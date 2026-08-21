@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildPacketDownloadFilename,
   buildTrialPacketEmailHtml,
   callerRoleAuthorizesPacket,
   isValidTrialPacketPayload,
@@ -111,5 +112,34 @@ describe('trial packet delivery rules', () => {
 
     expect(html).toContain('Prairie Fall emergency trial packet</h1>');
     expect(html).not.toContain('print them separately');
+  });
+
+  it('names the downloaded file by show and trial day', () => {
+    expect(
+      buildPacketDownloadFilename({
+        showName: 'Heartland Scent Work Classic',
+        trialDate: '2026-08-02',
+        generatedAt: '2026-08-01T23:00:00.000Z',
+      })
+    ).toBe('heartland-scent-work-classic-2026-08-02-emergency-packet.pdf');
+  });
+
+  it('falls back to the generation date when the packet covers the whole show', () => {
+    expect(
+      buildPacketDownloadFilename({
+        showName: 'Prairie Fall',
+        generatedAt: '2026-08-01T23:00:00.000Z',
+      })
+    ).toBe('prairie-fall-2026-08-01-emergency-packet.pdf');
+  });
+
+  it('sanitises the name it puts in a Content-Disposition header', () => {
+    const name = buildPacketDownloadFilename({
+      showName: 'Prairie "Fall"\r\nX-Injected: 1',
+      trialDate: '../../etc/passwd',
+      generatedAt: '2026-08-01T23:00:00.000Z',
+    });
+    expect(name).toMatch(/^[a-z0-9-]+\.pdf$/);
+    expect(name).not.toContain('..');
   });
 });

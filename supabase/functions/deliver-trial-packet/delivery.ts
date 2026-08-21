@@ -122,6 +122,31 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#039;');
 }
 
+/**
+ * What the recipient's browser saves the PDF as.
+ *
+ * The storage object is `<showId>/<snapshotId>.pdf`, so without a download
+ * name every day's packet lands in Downloads as the same opaque UUID and the
+ * per-day split buys nothing once the file leaves the mail (MYK9-228).
+ *
+ * Sanitised hard: this value becomes a Content-Disposition header.
+ */
+export function buildPacketDownloadFilename(input: {
+  showName: string;
+  trialDate?: string | undefined;
+  generatedAt: string;
+}): string {
+  const slug = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+  const show = slug(input.showName) || 'show';
+  const day = slug(input.trialDate ?? input.generatedAt.slice(0, 10)) || 'packet';
+  return `${show}-${day}-emergency-packet.pdf`;
+}
+
 export function buildTrialPacketEmailHtml(input: {
   showName: string;
   generatedAt: string;

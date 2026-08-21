@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import {
   buildEmergencyTrialPacketPdf,
   layoutDetailLines,
+  maxDetailLinesForKind,
   MAX_EMERGENCY_PACKET_BYTES,
 } from './buildEmergencyTrialPacketPdf';
 import type { EmergencyPacketInput } from './types';
@@ -180,11 +181,43 @@ describe('buildEmergencyTrialPacketPdf', () => {
       expect(lines.some(line => line.endsWith('...'))).toBe(true);
     });
 
+    it('gives the catalog exactly one line and the writable pages four', () => {
+      // The catalog's 24-row batch already ends at 267mm against a 271.4mm
+      // footer, so a second line overlaps it. Pin the mapping, not the comment.
+      expect(maxDetailLinesForKind('catalog')).toBe(1);
+      expect(maxDetailLinesForKind('check-in')).toBe(4);
+      expect(maxDetailLinesForKind('score-recording')).toBe(4);
+    });
+
+    it('holds a catalog header to one line, whatever the trial is called', () => {
+      // A 24-row catalog already ends at 267mm against a 271.4mm footer, so a
+      // second header line overlaps it. A trial with a long name and no trial
+      // number is the way that happens.
+      expect(layoutDetailLines(doc(), [absurd], undefined, 1)).toHaveLength(1);
+    });
+
     it('leaves a short header untouched', () => {
       expect(layoutDetailLines(doc(), ['Trial 1', '2026-10-03'], 'Max time 2:00')).toEqual([
         'Trial 1 · 2026-10-03',
         'Max time 2:00',
       ]);
     });
+  });
+
+  it('keeps a long trial name from pushing the catalog table into the footer', async () => {
+    const long = structuredClone(fixture) as EmergencyPacketInput;
+    // No trial number, so `trialLabel` falls back to the name.
+    long.trials[0].trialNumber = '';
+    long.trials[0].name =
+      'The Greater Prairie Regional Autumn Scent Work Championship and Qualifying Trial';
+    const model = buildEmergencyPacketModel(long);
+    const bytes = buildEmergencyTrialPacketPdf(model);
+
+    // Renders, stays one page per modeled page, and the trial identity is
+    // present rather than dropped outright.
+    const pdf = await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBe(model.pages.length);
+    const text = await extractPdfText(bytes);
+    expect(text).toContain('The Greater Prairie');
   });
 });

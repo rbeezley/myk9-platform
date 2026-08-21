@@ -35,12 +35,27 @@ function addPageFrame(doc: jsPDF, page: EmergencyPacketPage, totalPages: number)
 const TITLE_BASE_Y = 42;
 const DETAIL_LINE_HEIGHT = 5;
 /**
- * Row batching is fixed in the MODEL (20 check-in rows, 7 score blocks), so it
- * cannot react to a taller header — every extra header line eats the table's
- * space. At four lines the densest page still ends near 260mm against a
- * 271.4mm footer, so this is the ceiling.
+ * Row batching is fixed in the MODEL, so it cannot react to a taller header —
+ * every extra header line eats the table's space. The ceiling is therefore per
+ * page kind, set by how much slack that kind's batch leaves:
+ *
+ *   catalog        24 rows + header row = 225mm, ending at 267mm. A SECOND line
+ *                  would end at 272mm and overlap the 271.4mm footer, so this
+ *                  kind gets exactly one line. It carries no time limit, so
+ *                  nothing safety-critical is at stake in the truncation.
+ *   check-in       20 rows + header row = 189mm, ending at 231mm. Ample.
+ *   score          7 blocks x 29mm = 203mm, ending at 245mm; four lines ends
+ *                  near 260mm.
+ *
+ * If a batch size changes, re-derive these.
  */
 const MAX_DETAIL_LINES = 4;
+const CATALOG_MAX_DETAIL_LINES = 1;
+
+/** Exported so the per-kind ceiling is pinned by a test, not just a comment. */
+export function maxDetailLinesForKind(kind: EmergencyPacketPage['kind']): number {
+  return kind === 'catalog' ? CATALOG_MAX_DETAIL_LINES : MAX_DETAIL_LINES;
+}
 
 /**
  * Lay out the context line under the page title.
@@ -53,7 +68,8 @@ const MAX_DETAIL_LINES = 4;
 export function layoutDetailLines(
   doc: jsPDF,
   identityParts: Array<string | undefined>,
-  timeLimitLabel: string | undefined
+  timeLimitLabel: string | undefined,
+  maxLines: number = MAX_DETAIL_LINES
 ): string[] {
   const width = RIGHT - LEFT;
   const limitLines = timeLimitLabel
@@ -62,7 +78,7 @@ export function layoutDetailLines(
   const identity = identityParts.filter(Boolean).join(' · ');
   let identityLines = doc.splitTextToSize(identity, width) as string[];
 
-  const identityBudget = Math.max(1, MAX_DETAIL_LINES - limitLines.length);
+  const identityBudget = Math.max(1, maxLines - limitLines.length);
   if (identityLines.length > identityBudget) {
     identityLines = identityLines.slice(0, identityBudget);
     const last = identityBudget - 1;
@@ -87,7 +103,12 @@ function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
     page.context.classLabel,
     page.context.judgeName ? `Judge: ${page.context.judgeName}` : undefined,
   ];
-  const detailLines = layoutDetailLines(doc, details, page.context.timeLimitLabel);
+  const detailLines = layoutDetailLines(
+    doc,
+    details,
+    page.context.timeLimitLabel,
+    maxDetailLinesForKind(page.kind)
+  );
   doc.text(detailLines, LEFT, 34);
   return TITLE_BASE_Y + (detailLines.length - 1) * DETAIL_LINE_HEIGHT;
 }

@@ -14,6 +14,7 @@ const classifiedProductionResendWriters = {
   'apps/myk9show/supabase/functions/stripe-webhook/index.ts': 'show-owned',
   'supabase/functions/admin-invite-user/index.ts': 'platform-account',
   'supabase/functions/admin-invite-user/inviteUserHandler.ts': 'platform-account',
+  'supabase/functions/deliver-trial-packet/email.ts': 'show-owned',
   'supabase/functions/push-trigger-support-message/index.ts': 'platform-support',
   'supabase/functions/push-trigger-waitlist/index.ts': 'show-owned',
   'supabase/functions/send-auth-email/delivery.ts': 'platform-account',

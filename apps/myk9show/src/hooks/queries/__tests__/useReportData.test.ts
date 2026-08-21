@@ -106,6 +106,27 @@ describe('useReportData', () => {
     expect(mockGetClassesByTrialId).toHaveBeenCalledWith('trial-2');
   });
 
+  it('fails the whole-show query when any trial class fetch fails', async () => {
+    const mockTrials = [
+      { id: 'trial-1', show_id: 'show-1', date: '2026-04-12' },
+      { id: 'trial-2', show_id: 'show-1', date: '2026-04-13' },
+    ];
+    mockGetTrialsByShow.mockResolvedValue({ data: mockTrials, error: null } as never);
+    mockGetClassesByTrialId.mockImplementation(async trialId =>
+      trialId === 'trial-1'
+        ? ({ data: [{ id: 'class-1', trial_id: trialId }], error: null } as never)
+        : ({ data: null, error: new Error('class replica unavailable') } as never)
+    );
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.classes).toBeUndefined();
+    expect(mockGetEntriesByShow).not.toHaveBeenCalled();
+  });
+
   it('fetches entries by class when classId is specific', async () => {
     const mockTrials = [{ id: 'trial-1', show_id: 'show-1', date: '2026-04-12' }];
     const mockClasses = [{ id: 'class-1', trial_id: 'trial-1', element: 'Buried' }];

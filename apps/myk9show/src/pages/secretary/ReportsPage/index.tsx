@@ -12,7 +12,11 @@ import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
-import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
+import {
+  buildClassReportProps,
+  buildEmergencyPacketData,
+  buildTrialReportProps,
+} from './reportDataMapping';
 import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import type { ReportScope } from '@/lib/reports/types';
@@ -23,6 +27,7 @@ import { PaperworkPrintConfirmationDialog } from '@/features/show-map/cockpit/Pa
 import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkPrintState';
 import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { EmergencyTrialPacketPanel } from './EmergencyTrialPacketPanel';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -277,6 +282,16 @@ export default function ReportsPage() {
     officialClassPdfProps,
   });
 
+  const emergencyPacketData = useMemo(() => {
+    if (!show || isLoading || isError || effectiveScope.kind !== 'show') return null;
+    return buildEmergencyPacketData({
+      show,
+      trials: trials as Parameters<typeof buildEmergencyPacketData>[0]['trials'],
+      classes: classes as Parameters<typeof buildEmergencyPacketData>[0]['classes'],
+      entries: entries as Parameters<typeof buildEmergencyPacketData>[0]['entries'],
+    });
+  }, [show, trials, classes, entries, isLoading, isError, effectiveScope.kind]);
+
   return (
     <div className="container mx-auto py-6 flex flex-col">
       <ShowDeskReturnLink showId={showId} className="mb-2 self-start" />
@@ -288,6 +303,18 @@ export default function ReportsPage() {
           trial or class, then print or download.
         </p>
       </div>
+
+      <EmergencyTrialPacketPanel
+        data={emergencyPacketData}
+        unavailableReason={
+          effectiveScope.kind !== 'show'
+            ? 'Choose All Trials and All Classes to prepare the whole-show emergency packet.'
+            : isError
+              ? 'Report data could not be loaded. Retry before preparing the packet.'
+              : undefined
+        }
+        onMarkPrinted={setPendingConfirmation}
+      />
 
       {/* Controls */}
       <ReportControlsBar
@@ -368,7 +395,11 @@ export default function ReportsPage() {
       </div>
       <PaperworkPrintConfirmationDialog
         open={pendingConfirmation !== null}
-        reportLabel={report?.name ?? 'report'}
+        reportLabel={
+          pendingConfirmation?.reportId === 'emergency-trial-packet'
+            ? 'Emergency Trial Packet'
+            : (report?.name ?? 'report')
+        }
         isSaving={isConfirmingPrint}
         onConfirm={() => void confirmPrinted()}
         onOpenChange={open => {

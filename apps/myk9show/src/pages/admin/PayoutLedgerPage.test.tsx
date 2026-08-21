@@ -266,6 +266,39 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     expect(screen.getByText(/loading the current rate/i)).toBeInTheDocument();
   });
 
+  it('offers no dead-end link for pulled entries on an unreadable show', () => {
+    // Entry Management resolves the show through the same reads that failed
+    // here, so the page would open with nothing selected. The count still has to
+    // be visible — it is money awaiting a decision — but as text, not a trip.
+    ledgerState.data = [
+      {
+        ...row,
+        showId: 'deadbeef-0000-4000-8000-000000000000',
+        showName: null,
+        showUnavailable: true,
+        unresolvedRefundDecisionCount: 2,
+      },
+    ];
+
+    render(<PayoutLedgerPage />);
+
+    expect(
+      screen.getByText(/2 pulled entries with unresolved refund decisions/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /review pulled entries/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/show record unavailable/i)).toBeInTheDocument();
+  });
+
+  it('still links pulled entries for a show it CAN read', () => {
+    ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 2 }];
+
+    render(<PayoutLedgerPage />);
+
+    expect(
+      screen.getByRole('link', { name: /review pulled entries for spring trial/i })
+    ).toHaveAttribute('href', '/shows/s1/entry-management?tab=exceptions&exception=pulls');
+  });
+
   it('never offers a CACHED rate for editing after a failed refetch', () => {
     // React Query keeps the last good `data` when a refetch fails, and
     // refetchOnWindowFocus is on. Showing that stale number as "current" would

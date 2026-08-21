@@ -390,16 +390,28 @@ function RefundDecisionAdvisory({ rows }: { rows: LedgerRow[] }) {
           Resolve before payout or record the decision outside myK9.
         </p>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {unresolvedRows.map(row => (
-            <Link
-              key={row.showId}
-              className="font-medium text-primary underline underline-offset-4"
-              to={`/shows/${encodeURIComponent(row.showId)}/entry-management?tab=exceptions&exception=pulls`}
-              aria-label={`Review pulled entries for ${showLabel(row)}`}
-            >
-              {showLabel(row)} ({row.unresolvedRefundDecisionCount})
-            </Link>
-          ))}
+          {unresolvedRows.map(row =>
+            row.showUnavailable ? (
+              /* No link for a show we could not read. Entry Management resolves
+                 the URL's show through the same reads that failed here, so the
+                 page would load with nothing selected — an affordance that
+                 cannot work is worse than none, because the operator spends the
+                 trip before learning that. */
+              <span key={row.showId} className="font-medium">
+                {showLabel(row)} ({row.unresolvedRefundDecisionCount})
+                <span className="text-muted-foreground"> — show record unavailable</span>
+              </span>
+            ) : (
+              <Link
+                key={row.showId}
+                className="font-medium text-primary underline underline-offset-4"
+                to={`/shows/${encodeURIComponent(row.showId)}/entry-management?tab=exceptions&exception=pulls`}
+                aria-label={`Review pulled entries for ${showLabel(row)}`}
+              >
+                {showLabel(row)} ({row.unresolvedRefundDecisionCount})
+              </Link>
+            )
+          )}
         </div>
       </AlertDescription>
     </Alert>

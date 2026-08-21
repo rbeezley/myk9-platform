@@ -84,13 +84,19 @@ export interface PlatformFeePercentQuery {
 export function usePlatformFeePercentQuery(): PlatformFeePercentQuery {
   const { data, isPending, isError, fetchStatus } = useQuery(platformFeePercentQueryOptions());
 
-  // Order matters. isError first: it must DISCARD any cached rate, because the
-  // caller may act on it. Paused next: a paused query is not loading and not
-  // errored, so it would otherwise fall through to a definite answer.
+  // Exhaustive over the two things that can make a rate untrustworthy, BEFORE
+  // any arm that exposes a number. Both discard cached data, because React Query
+  // retains the last good `data` through a failed refetch AND through a paused
+  // one — and this rate can be overwritten by the caller, so a stale value is
+  // not a harmless placeholder here the way it is in the cart preview.
+  //
+  //   isError            a refetch failed; the cached rate may be out of date
+  //   fetchStatus paused offline. With refetchOnMount:'always' a remount while
+  //                      offline pauses WITH data still cached, so testing for
+  //                      `data === undefined` here would miss the case that
+  //                      matters most: an editor re-enabled on a stale rate.
   if (isError) return { percent: null, state: 'unavailable' };
-  if (fetchStatus === 'paused' && data === undefined) {
-    return { percent: null, state: 'unavailable' };
-  }
+  if (fetchStatus === 'paused') return { percent: null, state: 'unavailable' };
   if (isPending) return { percent: null, state: 'loading' };
   if (data === null || data === undefined) return { percent: null, state: 'absent' };
   return { percent: data, state: 'ready' };

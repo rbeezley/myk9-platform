@@ -151,4 +151,32 @@ describe('usePlatformFeePercentQuery', () => {
       onlineManager.setOnline(true);
     }
   });
+
+  it('does not re-enable a CACHED rate when a later fetch pauses offline', async () => {
+    // The case a `data === undefined` paused-guard misses. refetchOnMount is
+    // 'always', so remounting the page while offline pauses the query with the
+    // previous rate still in the cache. Reporting 'ready' there would hand the
+    // editor a stale rate to overwrite the live checkout value with — the same
+    // hazard as the failed-refetch case, arriving by a different route.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, networkMode: 'online' } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    maybeSingle.mockResolvedValue({ data: { platform_fee_percent: 4.5 }, error: null });
+    const first = renderHook(() => usePlatformFeePercentQuery(), { wrapper });
+    await waitFor(() => expect(first.result.current.state).toBe('ready'));
+    first.unmount();
+
+    onlineManager.setOnline(false);
+    try {
+      const { result } = renderHook(() => usePlatformFeePercentQuery(), { wrapper });
+      await waitFor(() => expect(result.current.state).toBe('unavailable'));
+      expect(result.current.percent).toBeNull();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
 });

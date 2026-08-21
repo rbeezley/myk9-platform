@@ -1,6 +1,57 @@
-import jsPDF from 'jspdf';
-import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket';
-import type { EmergencyPacketModel, EmergencyPacketPage } from './types';
+import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
+import type { EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
+
+/**
+ * The PDF surface this renderer uses, declared structurally.
+ *
+ * Deliberately NOT `import type ... from 'jspdf'`. Deno resolves type-only
+ * imports during `deno check`, and `jspdf` is not a dependency relative to
+ * `supabase/functions`, so a bare specifier here fails the edge type-check
+ * even though it is erased at runtime. Declaring the surface locally is what
+ * makes this file genuinely portable — no import map, no source edit
+ * (MYK9-228 phase 2).
+ *
+ * jsPDF satisfies this structurally; `renderPacketPdf.ts` is where that is
+ * asserted for the browser, and the edge function does the same with
+ * `npm:jspdf`.
+ */
+export interface PacketPdfDocument {
+  addPage(format?: string, orientation?: string): unknown;
+  getTextWidth(text: string): number;
+  line(x1: number, y1: number, x2: number, y2: number): unknown;
+  output(type: 'arraybuffer'): ArrayBuffer;
+  rect(x: number, y: number, w: number, h: number, style?: string): unknown;
+  roundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string): unknown;
+  setDrawColor(r: number, g?: number, b?: number): unknown;
+  setFillColor(r: number, g?: number, b?: number): unknown;
+  setFont(font: string, style?: string): unknown;
+  setFontSize(size: number): unknown;
+  setLineWidth(width: number): unknown;
+  setProperties(properties: {
+    title?: string;
+    subject?: string;
+    author?: string;
+    creator?: string;
+  }): unknown;
+  setTextColor(r: number, g?: number, b?: number): unknown;
+  splitTextToSize(text: string, size: number): string[];
+  text(
+    text: string | string[],
+    x: number,
+    y: number,
+    options?: { align?: string }
+  ): unknown;
+}
+
+/** Options this renderer passes; jsPDF's constructor is overloaded, so pin it. */
+export type JsPdfConstructor = new (options: {
+  unit: 'mm';
+  format: 'letter';
+  orientation: 'portrait';
+  compress: boolean;
+}) => PacketPdfDocument;
+
+type jsPDF = PacketPdfDocument;
 
 export const MAX_EMERGENCY_PACKET_BYTES = 20 * 1024 * 1024;
 
@@ -390,8 +441,11 @@ function renderTranscription(doc: jsPDF, page: EmergencyPacketPage): void {
   }
 }
 
-export function buildEmergencyTrialPacketPdf(model: EmergencyPacketModel): Uint8Array {
-  const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
+export function buildEmergencyTrialPacketPdf(
+  model: EmergencyPacketModel,
+  JsPdf: JsPdfConstructor
+): Uint8Array {
+  const doc = new JsPdf({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
   doc.setProperties({
     title: `${model.show.name} — Emergency Trial Packet`,
     subject: 'Paper fallback snapshot for degraded show-day operation',

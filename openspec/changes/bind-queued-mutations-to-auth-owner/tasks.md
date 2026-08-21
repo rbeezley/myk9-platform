@@ -23,7 +23,7 @@
 
 ## 4. Delivery and Tracking
 
-- [ ] 4.1 Commit the verified change and update MYK9-214 with implementation, tests, branch/PR, risks, and acceptance-criteria evidence.
+- [x] 4.1 Commit the verified change and update MYK9-214 with implementation, tests, branch/PR, risks, and acceptance-criteria evidence.
 - [ ] 4.2 Push the feature branch, open a PR containing `Tracked in openspec change: bind-queued-mutations-to-auth-owner`, and obtain required independent security/replication review.
 - [ ] 4.3 Confirm required CI passes, merge the PR, move MYK9-214 to Done with the PR and merge commit, then archive the OpenSpec change before branch/worktree cleanup.
 

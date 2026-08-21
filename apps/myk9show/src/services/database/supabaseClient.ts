@@ -34,6 +34,14 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+/** Creates a request client whose authorization cannot change with the shared auth session. */
+export const createSessionBoundSupabaseClient = (accessToken: string) =>
+  createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    accessToken: async () => accessToken,
+    db: { schema: 'public' },
+    global: { headers: { 'X-Client-Info': 'myK9Show@1.0.0' } },
+  });
+
 // Database connection health check
 export const checkDatabaseConnection = async (): Promise<{
   connected: boolean;

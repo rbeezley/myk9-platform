@@ -112,6 +112,9 @@ export interface SyncMetadata {
  */
 export interface PendingMutation {
   id: string; // UUID for mutation
+  /** Auth user that created this durable write. Optional only for legacy rows
+   *  persisted before owner isolation shipped; new mutations require it. */
+  authUserId?: string;
   tableName: string;
   operation: MutationOperation;
   rowId: string; // ID of affected row

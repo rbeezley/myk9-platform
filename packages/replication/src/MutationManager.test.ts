@@ -25,6 +25,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createMutationManagerTestDb } from './test-utils/createMutationManagerTestDb';
 
 const TEST_DB_NAME = 'test-mutation-manager-db';
+const TEST_AUTH_USER_ID = 'test-user';
 
 /**
  * Create a mock Supabase client that supports the full chain:
@@ -66,6 +67,7 @@ function createMockLogger(): Logger {
 function makeMutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
     id: `mut-${Math.random().toString(36).slice(2)}`,
+    authUserId: TEST_AUTH_USER_ID,
     tableName: 'entries',
     operation: 'UPDATE',
     rowId: 'entry-1',
@@ -136,6 +138,11 @@ describe('MutationManager', () => {
       maxRetries: 3,
       retryBackoffBase: 10, // Fast for tests
       logger: mockLogger,
+      getCurrentUserId: async () => TEST_AUTH_USER_ID,
+      getCurrentUploadContext: async () => ({
+        authUserId: TEST_AUTH_USER_ID,
+        supabaseClient: mockSupabase,
+      }),
     };
     manager = new MutationManager(mockSupabase, options);
   });
@@ -960,6 +967,18 @@ describe('MutationManager', () => {
           timestamp: Date.now() + 1,
         })
       );
+      await mockDb.put(
+        REPLICATION_STORES.PENDING_MUTATIONS,
+        makeMutation({
+          id: 'mut-foreign-entry',
+          authUserId: 'other-user',
+          tableName: 'entries',
+          operation: 'INSERT',
+          rowId: 'foreign-entry-1',
+          data: { id: 'foreign-entry-1', dog_id: 'dog-1' },
+          timestamp: Date.now() + 2,
+        })
+      );
 
       const results = await manager.uploadPendingMutations();
       const pending = (await mockDb.getAll(
@@ -984,7 +1003,13 @@ describe('MutationManager', () => {
 
       expect(results).toHaveLength(2);
       expect(results.every(result => result.success)).toBe(true);
-      expect(pending).toEqual([]);
+      expect(pending).toEqual([
+        expect.objectContaining({
+          id: 'mut-foreign-entry',
+          authUserId: 'other-user',
+          data: { id: 'foreign-entry-1', dog_id: 'dog-1' },
+        }),
+      ]);
       expect(failed).toEqual([]);
       expect(vi.mocked(mockSupabase.from)).toHaveBeenCalledWith('entries');
       expect(entryInsertMock).toHaveBeenCalledWith(
@@ -1276,6 +1301,11 @@ describe('MutationManager', () => {
       const smallCapManager = new MutationManager(mockSupabase, {
         logger: mockLogger,
         maxOccAttempts: 2,
+        getCurrentUserId: async () => TEST_AUTH_USER_ID,
+        getCurrentUploadContext: async () => ({
+          authUserId: TEST_AUTH_USER_ID,
+          supabaseClient: mockSupabase,
+        }),
       });
       await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, {
         tableName: 'entries',
@@ -1936,6 +1966,11 @@ describe('MutationManager', () => {
         maxRetries: 5,
         retryBackoffBase: 10,
         logger: mockLogger,
+        getCurrentUserId: async () => TEST_AUTH_USER_ID,
+        getCurrentUploadContext: async () => ({
+          authUserId: TEST_AUTH_USER_ID,
+          supabaseClient: mockSupabase,
+        }),
       });
 
       await mockDb.put(

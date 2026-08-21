@@ -23,12 +23,16 @@ function isBackupMutation(value: unknown): value is PendingMutation {
   if (typeof value !== 'object' || value === null) return false;
 
   const candidate = value as Record<string, unknown>;
+  const hasValidOwner =
+    !Object.prototype.hasOwnProperty.call(candidate, 'authUserId') ||
+    (typeof candidate.authUserId === 'string' && candidate.authUserId.trim().length > 0);
   return (
     typeof candidate.id === 'string' &&
     typeof candidate.tableName === 'string' &&
     typeof candidate.operation === 'string' &&
     MUTATION_OPERATIONS.includes(candidate.operation as PendingMutation['operation']) &&
-    typeof candidate.rowId === 'string'
+    typeof candidate.rowId === 'string' &&
+    hasValidOwner
   );
 }
 

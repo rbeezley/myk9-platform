@@ -82,6 +82,31 @@ describe('parseMutationBackup', () => {
     expect(result.failedMutations.map(m => m.id)).toEqual(['failed']);
     expect(result.failedCount).toBe(1);
   });
+
+  it('preserves authenticated ownership for pending and failed backup rows', () => {
+    const pending = { ...mutation({ id: 'pending' }), authUserId: 'user-a' };
+    const failed = {
+      ...mutation({ id: 'failed', status: 'failed', failedAt: 1 }),
+      authUserId: 'user-b',
+    };
+
+    const result = parseMutationBackup(JSON.stringify([pending, failed]));
+
+    expect(result.mutations[0]).toMatchObject({ id: 'pending', authUserId: 'user-a' });
+    expect(result.failedMutations[0]).toMatchObject({ id: 'failed', authUserId: 'user-b' });
+  });
+
+  it.each([null, '', '   ', 42, { id: 'not-a-string' }])(
+    'rejects a backup row with malformed owner metadata %j',
+    authUserId => {
+      const result = parseMutationBackup(
+        JSON.stringify([{ ...mutation({ id: 'malformed-owner' }), authUserId }])
+      );
+
+      expect(result.mutations).toEqual([]);
+      expect(result.malformedCount).toBe(1);
+    }
+  );
 });
 
 describe('writeMutationBackup', () => {

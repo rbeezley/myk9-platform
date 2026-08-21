@@ -9,6 +9,7 @@ import { createMutationManagerTestDb } from './test-utils/createMutationManagerT
 
 const TEST_DB_NAME = 'test-mutation-manager-startup-drain-db';
 const BACKUP_KEY = 'replication_mutation_backup';
+const TEST_AUTH_USER_ID = 'test-user';
 
 /**
  * Mock supabase client supporting the full UPDATE chain used by
@@ -47,6 +48,7 @@ function createMockLogger(): Logger {
 function makeRestoredMutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
     id: 'mut-undo-1',
+    authUserId: TEST_AUTH_USER_ID,
     tableName: 'entries',
     operation: 'UPDATE',
     rowId: 'entry-1',
@@ -70,6 +72,11 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
       maxRetries: 3,
       retryBackoffBase: 10,
       logger,
+      getCurrentUserId: async () => TEST_AUTH_USER_ID,
+      getCurrentUploadContext: async () => ({
+        authUserId: TEST_AUTH_USER_ID,
+        supabaseClient: supabase,
+      }),
     };
     return new MutationManager(supabase, options);
   }
@@ -243,7 +250,7 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
     const manager = createManager(client);
     try {
       const uploadPromise = manager.uploadPendingMutations();
-      await Promise.resolve();
+      await vi.waitFor(() => expect(rejectDatabase).toBeTypeOf('function'));
 
       const restorePromise = manager.restoreMutationsFromLocalStorage();
       rejectDatabase(new Error('IndexedDB unavailable during upload'));

@@ -25,6 +25,7 @@ const hoisted = vi.hoisted(() => {
   const clearEntriesCache = vi.fn().mockResolvedValue(undefined);
   const getEntryIds = vi.fn().mockResolvedValue(new Set(['cached-entry']));
   const getPendingCount = vi.fn().mockResolvedValue(0);
+  const uploadPendingMutations = vi.fn().mockResolvedValue([]);
   return {
     authState,
     unsubscribeSpy,
@@ -32,11 +33,19 @@ const hoisted = vi.hoisted(() => {
     clearEntriesCache,
     getEntryIds,
     getPendingCount,
+    uploadPendingMutations,
   };
 });
 
-const { authState, unsubscribeSpy, syncSpies, clearEntriesCache, getEntryIds, getPendingCount } =
-  hoisted;
+const {
+  authState,
+  unsubscribeSpy,
+  syncSpies,
+  clearEntriesCache,
+  getEntryIds,
+  getPendingCount,
+  uploadPendingMutations,
+} = hoisted;
 
 vi.mock('@/lib/notifications', () => ({
   notifications: {
@@ -110,7 +119,7 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
   return {
     ...actual,
     MutationManager: class {
-      uploadPendingMutations = vi.fn().mockResolvedValue([]);
+      uploadPendingMutations = hoisted.uploadPendingMutations;
       getPendingCount = hoisted.getPendingCount;
       restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);
     } as unknown as typeof actual.MutationManager,
@@ -154,6 +163,8 @@ describe('ReplicationSyncProvider — auth guard', () => {
     getEntryIds.mockResolvedValue(new Set(['cached-entry']));
     getPendingCount.mockReset();
     getPendingCount.mockResolvedValue(0);
+    uploadPendingMutations.mockReset();
+    uploadPendingMutations.mockResolvedValue([]);
     window.localStorage.clear();
     for (const spy of Object.values(syncSpies)) spy.mockClear();
   });
@@ -196,6 +207,7 @@ describe('ReplicationSyncProvider — auth guard', () => {
 
     expect(syncSpies.shows).toHaveBeenCalledTimes(1);
     expect(syncSpies.clubs).toHaveBeenCalledTimes(1);
+    expect(uploadPendingMutations).toHaveBeenCalledTimes(1);
   });
 
   it('refreshes the entries cache before the first authenticated sync for the result-view version', async () => {

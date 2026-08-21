@@ -106,6 +106,7 @@ export async function remapUploadedRpcInsertRowId(
   )) as PendingMutation[];
   for (const pendingMutation of pendingMutations) {
     if (pendingMutation.id === mutation.id) continue;
+    if (pendingMutation.authUserId !== mutation.authUserId) continue;
     const remapped = remapDogIdReferences(pendingMutation.data, oldRowId, newRowId);
     if (remapped.changed) {
       await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {

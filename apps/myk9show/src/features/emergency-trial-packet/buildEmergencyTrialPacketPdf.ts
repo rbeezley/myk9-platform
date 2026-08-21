@@ -45,9 +45,20 @@ function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
     page.context.ringLabel,
     page.context.classLabel,
     page.context.judgeName ? `Judge: ${page.context.judgeName}` : undefined,
+    page.context.timeLimitLabel,
   ].filter(Boolean);
-  doc.text(details.join(' · '), LEFT, 34);
-  return 42;
+  // Wrap rather than truncate. A multi-area class ("Max time — Area 1 3:00 ·
+  // Area 2 2:00 · Area 3 1:30") can exceed the text column, and the time limit
+  // sits LAST — `fitTextToWidth` would clip exactly the safety-critical part.
+  //
+  // Only class-scoped pages (check-in, score recording) can wrap, and both have
+  // vertical slack: check-in ends near 231mm and score recording near 250mm
+  // against a 271.4mm footer. Catalog pages run to ~267mm and are the tight
+  // ones, but they carry no class label, judge or time limit, so they stay a
+  // single line. Keep that true if this detail list ever grows.
+  const detailLines = doc.splitTextToSize(details.join(' · '), RIGHT - LEFT) as string[];
+  doc.text(detailLines, LEFT, 34);
+  return 42 + (detailLines.length - 1) * 5;
 }
 
 function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPacketPage): void {

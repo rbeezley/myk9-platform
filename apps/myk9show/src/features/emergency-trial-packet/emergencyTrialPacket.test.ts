@@ -5,6 +5,7 @@ import {
   buildEmergencyPacketModel,
   buildEmergencyPacketStoragePath,
   emergencyPacketAvailability,
+  formatClassTimeLimits,
   formatEmergencyPacketPageLabel,
 } from './emergencyTrialPacket';
 import type { EmergencyPacketInput } from './types';
@@ -68,6 +69,8 @@ const input: EmergencyPacketInput = {
       ringLabel: 'Ring 2',
       startTime: '10:00',
       timeLimitSeconds: 240,
+      timeLimitArea2Seconds: null,
+      timeLimitArea3Seconds: null,
     },
     {
       id: 'class-novice',
@@ -82,6 +85,8 @@ const input: EmergencyPacketInput = {
       ringLabel: 'Ring 1',
       startTime: '08:00',
       timeLimitSeconds: 120,
+      timeLimitArea2Seconds: null,
+      timeLimitArea3Seconds: null,
     },
   ],
   entries: [
@@ -170,5 +175,49 @@ describe('emergency trial packet model', () => {
     expect(buildEmergencyPacketStoragePath('show-1', 'snapshot-123')).toBe(
       'show-1/snapshot-123.pdf'
     );
+  });
+});
+
+/**
+ * MYK9-198 mock-trial-day audit. `timeLimitSeconds` was read from the DB,
+ * mapped by the adapter and carried in the type — then rendered nowhere, so
+ * the paper scoresheet offered "Time: ______" while never stating the class
+ * maximum. On paper there is no app to check it against, and in scent work
+ * the max time is the number the ring runs on.
+ */
+describe('formatClassTimeLimits', () => {
+  const base = {
+    timeLimitSeconds: null as number | null,
+    timeLimitArea2Seconds: null as number | null,
+    timeLimitArea3Seconds: null as number | null,
+  };
+
+  it('states a single-area maximum', () => {
+    expect(formatClassTimeLimits({ ...base, timeLimitSeconds: 120 })).toBe('Max time 2:00');
+    expect(formatClassTimeLimits({ ...base, timeLimitSeconds: 180 })).toBe('Max time 3:00');
+  });
+
+  it('names each area when a class searches more than one', () => {
+    // An Interior Advanced class can carry a separate limit per area; a sheet
+    // showing only the first would be wrong at areas 2 and 3, not merely thin.
+    expect(
+      formatClassTimeLimits({
+        timeLimitSeconds: 180,
+        timeLimitArea2Seconds: 120,
+        timeLimitArea3Seconds: 90,
+      })
+    ).toBe('Max time — Area 1 3:00 · Area 2 2:00 · Area 3 1:30');
+  });
+
+  it('does not invent areas that are not configured', () => {
+    expect(
+      formatClassTimeLimits({ ...base, timeLimitSeconds: 180, timeLimitArea2Seconds: 120 })
+    ).toBe('Max time — Area 1 3:00 · Area 2 2:00');
+  });
+
+  it('says nothing at all when no limit is configured', () => {
+    // Silence beats a confident "Max time 0:00" on a page a judge runs on.
+    expect(formatClassTimeLimits(base)).toBeUndefined();
+    expect(formatClassTimeLimits({ ...base, timeLimitSeconds: 0 })).toBeUndefined();
   });
 });

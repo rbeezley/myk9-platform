@@ -32,6 +32,10 @@ export interface EmergencyPacketClass {
   ringLabel: string;
   startTime: string | null;
   timeLimitSeconds: number | null;
+  // A scent work class can search several areas, each with its own maximum.
+  // A sheet showing only the first is wrong at areas 2 and 3, not merely thin.
+  timeLimitArea2Seconds: number | null;
+  timeLimitArea3Seconds: number | null;
 }
 
 export interface EmergencyPacketInput {
@@ -57,6 +61,7 @@ export interface EmergencyPacketPageContext {
   ringLabel?: string;
   classLabel?: string;
   judgeName?: string;
+  timeLimitLabel?: string | undefined;
 }
 
 export interface EmergencyPacketEntry extends ReportEntry {

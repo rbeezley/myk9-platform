@@ -1,4 +1,5 @@
 import type { ReportEntry } from '@/lib/reports/types';
+import { formatTimeLimitSeconds } from '@myk9/core';
 import {
   EMERGENCY_PACKET_MARKER,
   type EmergencyPacketAvailability,
@@ -112,6 +113,33 @@ export function emergencyPacketAvailability(
   return { available: true };
 }
 
+/**
+ * The class maximum, stated on every page that a judge or timekeeper writes on.
+ *
+ * Returns undefined rather than an empty or zero label when nothing is
+ * configured: on a page the ring actually runs on, silence is safer than a
+ * confident "Max time 0:00".
+ */
+export function formatClassTimeLimits(classItem: {
+  timeLimitSeconds: number | null;
+  timeLimitArea2Seconds?: number | null;
+  timeLimitArea3Seconds?: number | null;
+}): string | undefined {
+  const areas = [
+    classItem.timeLimitSeconds,
+    classItem.timeLimitArea2Seconds,
+    classItem.timeLimitArea3Seconds,
+  ].map(seconds => formatTimeLimitSeconds(seconds));
+
+  const configured = areas.filter(label => label !== '');
+  if (configured.length === 0) return undefined;
+  if (configured.length === 1) return `Max time ${configured[0]}`;
+
+  return `Max time — ${configured
+    .map((label, index) => `Area ${index + 1} ${label}`)
+    .join(' · ')}`;
+}
+
 export function buildEmergencyPacketModel(input: EmergencyPacketInput): EmergencyPacketModel {
   const sortedTrials = [...input.trials].sort(compareTrials);
   const sortedClasses = [...input.classes].sort(compareClasses);
@@ -147,6 +175,7 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
         ringLabel: classItem.ringLabel || 'Ring unassigned',
         classLabel: classLabel(classItem),
         judgeName: classItem.judgeName || 'Judge unassigned',
+        timeLimitLabel: formatClassTimeLimits(classItem),
       };
 
       chunks(classEntries, CHECK_IN_ROWS_PER_PAGE).forEach((entries, index, pages) => {

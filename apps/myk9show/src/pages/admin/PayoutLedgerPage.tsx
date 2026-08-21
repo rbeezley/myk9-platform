@@ -132,7 +132,9 @@ function PlatformFeeCard() {
   // stale-rate claim, relocated from a paragraph into an input.
   const [syncedFrom, setSyncedFrom] = useState<number | null>(null);
   // The rate this admin just saved, held until the query reports it back.
-  const [awaitingSave, setAwaitingSave] = useState<number | null>(null);
+  const [awaitingSave, setAwaitingSave] = useState<{ saved: number; before: number | null } | null>(
+    null
+  );
 
   // Whether an incoming rate may overwrite the field. Written as one explicit
   // decision rather than a chain of guards, because each of the three reasons
@@ -150,8 +152,18 @@ function PlatformFeeCard() {
   //   unchanged     nothing to do.
   const fieldIsClean = value === (syncedFrom === null ? '' : String(syncedFrom));
   if (awaitingSave !== null) {
-    // Only the saved value ends the wait; anything else is the stale cache.
-    if (currentPercent === awaitingSave) setAwaitingSave(null);
+    // The wait ends as soon as the query stops reporting the PRE-save value —
+    // whatever it reports next. Waiting for exact equality with our own saved
+    // number would wedge permanently if another admin's change arrived instead,
+    // and every later update would then be ignored.
+    if (currentPercent !== awaitingSave.before) {
+      setAwaitingSave(null);
+      if (currentPercent !== awaitingSave.saved) {
+        // Someone else's value won the race. Adopt it rather than sit on ours.
+        setSyncedFrom(currentPercent);
+        setValue(currentPercent === null ? '' : String(currentPercent));
+      }
+    }
   } else if (syncedFrom !== currentPercent && fieldIsClean) {
     setSyncedFrom(currentPercent);
     setValue(currentPercent === null ? '' : String(currentPercent));
@@ -176,9 +188,9 @@ function PlatformFeeCard() {
         // as dirty and future refetches are adopted again. `awaitingSave` holds
         // off that adoption until the query actually reports p back — the cache
         // still contains the pre-save rate at this moment.
+        setAwaitingSave({ saved: p, before: currentPercent });
         setSyncedFrom(p);
         setValue(String(p));
-        setAwaitingSave(p);
         const message = `Platform fee updated to ${p}%`;
         setFeedback({ tone: 'success', message });
         toast.success(message);
@@ -289,8 +301,8 @@ function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
           {formatCents(outstandingCents)}
         </dd>
         <dd className="mt-2 text-sm text-muted-foreground">
-          Online fees collected but not yet transferred — including shows with no transfer created
-          yet. Larger than &ldquo;In flight to Stripe&rdquo; above by exactly that amount.
+          Online fees collected but not yet paid out, across every show — including shows with no
+          payout record at all, which the figure above does not count.
         </dd>
       </div>
       <div className="p-5">
@@ -359,7 +371,7 @@ function LedgerMobileList({ rows, today }: { rows: LedgerRow[]; today: string })
                     {formatCents(row.netOwedCents)}
                     {row.netOwedSource === 'transfer' && (
                       <span className="block text-xs font-normal text-muted-foreground">
-                        as transferred
+                        {row.payoutStatus === 'completed' ? 'as transferred' : 'as recorded'}
                       </span>
                     )}
                   </dd>
@@ -441,7 +453,7 @@ function LedgerTable({ rows, today }: { rows: LedgerRow[]; today: string }) {
                          Say so rather than let the operator find it as an
                          arithmetic error in their own reconciliation. */
                       <span className="block text-xs font-normal text-muted-foreground">
-                        as transferred
+                        {row.payoutStatus === 'completed' ? 'as transferred' : 'as recorded'}
                       </span>
                     )}
                   </TableCell>

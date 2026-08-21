@@ -213,9 +213,11 @@ describe('PlatformIncomeCard', () => {
   it('shows outstanding transfer liability as its own figure, separate from income', () => {
     overviewState.data = overview();
     render(<PlatformIncomeCard />);
-    // Renamed to state its predicate: this counts only shows that HAVE a
-    // transfer row, unlike the ledger's "Owed to clubs (all shows)" below it.
-    expect(screen.getByText('In flight to Stripe (transfers created)')).toBeInTheDocument();
+    // Named for what these amounts actually share — a payout RECORD, not a
+    // transfer. The cron writes a pending row even when a club has not finished
+    // Stripe onboarding, and failed rows count here too, so "in flight to
+    // Stripe" would claim a transfer that may never have been attempted.
+    expect(screen.getByText('Owed where a payout record exists')).toBeInTheDocument();
     expect(screen.getByText('$300.00')).toBeInTheDocument();
   });
 

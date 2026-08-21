@@ -113,7 +113,11 @@ function OutstandingLiability({ payoutSettlement }: { payoutSettlement: PayoutSe
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-[color-mix(in_srgb,var(--primary)_30%,transparent)] bg-[color-mix(in_srgb,var(--primary)_5%,transparent)] p-5 sm:flex-row sm:items-start sm:justify-between">
       <div className="max-w-3xl">
-        <p className="text-sm font-medium text-foreground">In flight to Stripe (transfers created)</p>
+        {/* NOT "in flight to Stripe": the cron writes a pending row even when a
+            club has not finished Stripe onboarding, and failed rows are counted
+            here too — so a Stripe transfer may never have been attempted. What
+            these amounts have in common is a payout RECORD, not a transfer. */}
+        <p className="text-sm font-medium text-foreground">Owed where a payout record exists</p>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           Source: pending + processing Stripe transfers not yet completed
           {payoutSettlement.failedCents > 0

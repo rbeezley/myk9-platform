@@ -1,6 +1,27 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook as renderHookRaw, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestQueryClient } from '@/test/utils/testUtils';
+import { replicatedShowsTable } from '@/services/replication';
 import { useOfflineReadiness } from './useOfflineReadiness';
+
+/**
+ * `prime()` invalidates the `['shows']` query so the surfaces that RENDER off
+ * the shows replica re-read it (MYK9-205), which makes a QueryClientProvider a
+ * hard requirement of this hook. Wrap every case rather than each call site.
+ */
+function renderHook<T>(callback: () => T) {
+  const queryClient = createTestQueryClient();
+  return {
+    ...renderHookRaw(callback, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    }),
+    queryClient,
+  };
+}
 
 const { tables, rbacCache, syncSpy, refreshSpy, authState, replicationState } = vi.hoisted(() => ({
   tables: {
@@ -206,6 +227,50 @@ describe('useOfflineReadiness', () => {
     await waitFor(() => {
       expect(getActiveJudgeAssignmentsForShow).toHaveBeenCalledWith('show-1', 'person-1');
     });
+  });
+
+  /**
+   * MYK9-205 (Codex review). RingsideShowBoundary renders off the `['shows']`
+   * query. Before this, a successful prime from the boundary's own recovery
+   * badge flipped the badge green while the page underneath still showed the
+   * cached miss — the user did exactly the right thing and nothing happened.
+   */
+  it('invalidates the shows query so the surface it primed re-reads the replica', async () => {
+    primeAllSignals();
+    tables.shows.row = null;
+
+    const { result, queryClient } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await act(async () => {
+      await result.current.prime();
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['shows'] });
+  });
+
+  it('still invalidates when priming fails part-way through', async () => {
+    primeAllSignals();
+    tables.shows.row = null;
+    vi.mocked(replicatedShowsTable.sync).mockRejectedValueOnce(new Error('Failed to fetch'));
+
+    const { result, queryClient } = renderHook(() => useOfflineReadiness('show-1'));
+    await waitFor(() => {
+      expect(result.current.readiness?.ready).toBe(false);
+    });
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await act(async () => {
+      await result.current.prime();
+    });
+
+    // A prime that threw may still have written rows before it died, so the
+    // rendered view is stale either way.
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['shows'] });
+    expect(result.current.primeFailed).toBe(true);
   });
 
   it('forces a full shows re-fetch when the show row is missing', async () => {

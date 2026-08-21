@@ -32,7 +32,8 @@ const RETURN_PATH = '/club-admin/payments';
 /** Ordering facts for the supersession rule. */
 const readPayoutOrdering = (row: ShowPayoutRow) => ({
   status: row.status,
-  sortKey: row.created_at,
+  createdAt: row.created_at,
+  id: row.id,
 });
 
 // INTENT: The pre-flight checklist exists to pre-answer the SSN fear and

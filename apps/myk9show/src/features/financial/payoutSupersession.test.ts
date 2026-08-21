@@ -19,7 +19,7 @@ interface Row {
   status: string;
   createdAt: string;
 }
-const read = (row: Row) => ({ status: row.status, sortKey: row.createdAt });
+const read = (row: Row) => ({ status: row.status, createdAt: row.createdAt, id: row.id });
 
 const failed = (id: string, createdAt: string): Row => ({ id, status: 'failed', createdAt });
 const live = (id: string, status: string, createdAt: string): Row => ({ id, status, createdAt });
@@ -89,5 +89,32 @@ describe('isSupersededFailure', () => {
     expect(isSupersededFailure(paid, [paid, failed('f', '2026-06-09T00:00:00Z')], read)).toBe(
       false
     );
+  });
+});
+
+describe('ties on created_at', () => {
+  // The RPC orders by the tuple `(created_at, id)`. Rows inserted in one
+  // transaction, or imported, can share a timestamp -- and a timestamp-only
+  // comparison finds neither row newer, so BOTH failures read as outstanding
+  // and one show shows two "Needs attention" badges.
+  const SAME = '2026-06-09T00:00:00Z';
+
+  it('breaks a tie by id, the way the RPC does', () => {
+    const rows = [failed('aaa', SAME), failed('bbb', SAME)];
+    expect(selectAuthoritativePayout(rows, read)?.id).toBe('bbb');
+  });
+
+  it('supersedes the lower id, so exactly one failure stays outstanding', () => {
+    const lower = failed('aaa', SAME);
+    const higher = failed('bbb', SAME);
+    const rows = [lower, higher];
+    expect(isSupersededFailure(lower, rows, read)).toBe(true);
+    expect(isSupersededFailure(higher, rows, read)).toBe(false);
+  });
+
+  it('a live row still wins a tie against a failed one', () => {
+    const rows = [failed('zzz', SAME), live('aaa', 'completed', SAME)];
+    expect(selectAuthoritativePayout(rows, read)?.id).toBe('aaa');
+    expect(isSupersededFailure(rows[0], rows, read)).toBe(true);
   });
 });

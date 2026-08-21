@@ -143,7 +143,7 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
 
 /** Ordering facts for a reconciliation payout row. */
 function readPayoutOrdering(payout: FinancialReconciliationPayout) {
-  return { status: payout.status, sortKey: payout.createdAt };
+  return { status: payout.status, createdAt: payout.createdAt, id: payout.payoutId };
 }
 
 /**

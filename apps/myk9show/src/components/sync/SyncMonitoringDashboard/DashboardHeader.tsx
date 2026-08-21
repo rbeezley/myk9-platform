@@ -24,14 +24,14 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   isRefreshing,
 }) => {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="manager-page-header manager-page-header--compact">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Sync Monitoring</h1>
         <p className="text-muted-foreground">
           Real-time sync health metrics and performance monitoring
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="manager-page-actions self-center">
         <Select value={timeRange} onValueChange={(v: TimeRange) => onTimeRangeChange(v)}>
           <SelectTrigger className="w-32">
             <SelectValue />

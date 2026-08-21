@@ -577,21 +577,59 @@ describe("PayoutLedgerPage — the majors fixes do not misfire", () => {
     expect(within(table).getByText("Past due")).toBeInTheDocument();
   });
 
-  it("adopts a later rate change after the admin saves their own edit", () => {
-    // The dirty-field guard protects an UNSAVED edit. Once saved, the baseline
-    // has to move — otherwise the field reads as dirty forever and every future
-    // refetch is ignored, stranding the editor on a stale rate.
+});
+describe("PayoutLedgerPage — the fee field never contradicts the save", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ledgerState.data = [row];
+    ledgerState.refundDecisionChecked = true;
+    ledgerState.isLoading = false;
+    ledgerState.isError = false;
+    feeState.percent = 7;
+    feeState.state = "ready";
+  });
+
+  it("does not flash the pre-save rate while the refetch is in flight", () => {
+    // On success the cache still holds the OLD rate for a moment. Adopting it
+    // would show 7% in the field while the confirmation says it was set to 9%.
     mutate.mockImplementationOnce((_percent, options) => options.onSuccess(9));
     const { rerender } = render(<PayoutLedgerPage />);
 
-    const input = screen.getByRole("spinbutton", { name: /fee percent/i });
-    fireEvent.change(input, { target: { value: "9" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: /fee percent/i }), {
+      target: { value: "9" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /update fee/i }));
 
-    // Someone else moves it to 12; the refetch must now be adopted.
-    feeState.percent = 12;
+    // The refetch has not landed: the hook still reports the pre-save 7.
     rerender(<PayoutLedgerPage />);
 
+    expect(
+      screen.getByRole("spinbutton", { name: /fee percent/i }),
+    ).toHaveValue(9);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Platform fee updated to 9%",
+    );
+  });
+
+  it("resumes adopting outside changes once the save lands", () => {
+    mutate.mockImplementationOnce((_percent, options) => options.onSuccess(9));
+    const { rerender } = render(<PayoutLedgerPage />);
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: /fee percent/i }), {
+      target: { value: "9" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /update fee/i }));
+
+    // The query catches up to the saved value...
+    feeState.percent = 9;
+    rerender(<PayoutLedgerPage />);
+    expect(
+      screen.getByRole("spinbutton", { name: /fee percent/i }),
+    ).toHaveValue(9);
+
+    // ...and a later change by someone else is adopted again.
+    feeState.percent = 12;
+    rerender(<PayoutLedgerPage />);
     expect(
       screen.getByRole("spinbutton", { name: /fee percent/i }),
     ).toHaveValue(12);

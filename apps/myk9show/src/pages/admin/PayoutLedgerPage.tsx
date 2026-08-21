@@ -131,18 +131,28 @@ function PlatformFeeCard() {
   // that number, and the card would still be showing it — which is the same
   // stale-rate claim, relocated from a paragraph into an input.
   const [syncedFrom, setSyncedFrom] = useState<number | null>(null);
-  // Only resync a CLEAN field. `refetchOnWindowFocus` is on for this query, so
-  // an admin who types 9, tabs to Stripe to check something, and comes back
-  // would otherwise find their edit silently replaced by whatever the refetch
-  // returned — on the field that sets the live checkout rate.
+  // The rate this admin just saved, held until the query reports it back.
+  const [awaitingSave, setAwaitingSave] = useState<number | null>(null);
+
+  // Whether an incoming rate may overwrite the field. Written as one explicit
+  // decision rather than a chain of guards, because each of the three reasons
+  // below was added in response to a separate bug and reading them as a
+  // sequence is how the last one got introduced.
   //
-  // This is also where Codex's "disable the editor during a background refetch"
-  // review comment was heading. Disabling on `fetching` would null the percent
-  // and clear the field on EVERY refocus, which is this same bug with a
-  // different trigger. Guarding the resync is the fix; the refetch itself is
-  // fine.
+  //   awaitingSave  a save succeeded and the query has not caught up. The cache
+  //                 still holds the PRE-save rate, so adopting it would flip the
+  //                 field back to 7 while the toast says 9.
+  //   dirty field   the admin is mid-edit. refetchOnWindowFocus is on, so
+  //                 tabbing to Stripe and back would otherwise discard the edit.
+  //                 (This is also where Codex's "disable the editor while
+  //                 fetching" suggestion was heading — that clears the field on
+  //                 every refocus, which is this same bug via another route.)
+  //   unchanged     nothing to do.
   const fieldIsClean = value === (syncedFrom === null ? '' : String(syncedFrom));
-  if (syncedFrom !== currentPercent && fieldIsClean) {
+  if (awaitingSave !== null) {
+    // Only the saved value ends the wait; anything else is the stale cache.
+    if (currentPercent === awaitingSave) setAwaitingSave(null);
+  } else if (syncedFrom !== currentPercent && fieldIsClean) {
     setSyncedFrom(currentPercent);
     setValue(currentPercent === null ? '' : String(currentPercent));
   }
@@ -162,13 +172,13 @@ function PlatformFeeCard() {
   const handleSave = () => {
     updateFee.mutate(parsed, {
       onSuccess: p => {
-        // Move the sync baseline to what was just saved. Without this, `value`
-        // stays different from `syncedFrom` forever, the field reads as dirty,
-        // and the clean-field guard below then IGNORES every future refetch —
-        // so a rate changed elsewhere would never appear. The dirty guard
-        // protects an unsaved edit; a saved edit is not one.
+        // Move the baseline to what was just saved, so the field stops reading
+        // as dirty and future refetches are adopted again. `awaitingSave` holds
+        // off that adoption until the query actually reports p back — the cache
+        // still contains the pre-save rate at this moment.
         setSyncedFrom(p);
         setValue(String(p));
+        setAwaitingSave(p);
         const message = `Platform fee updated to ${p}%`;
         setFeedback({ tone: 'success', message });
         toast.success(message);

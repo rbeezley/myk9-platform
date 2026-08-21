@@ -114,11 +114,15 @@ describe('joined reads are paginated', () => {
     // One chunk of shows can hold more than 1000 payout rows, so chunking alone
     // is not enough here.
     const ranges: Array<[number, number]> = [];
+    const orderCols: string[] = [];
     supabaseFrom.mockImplementation(() => {
       const query = {
         select: vi.fn(() => query),
         in: vi.fn(() => query),
-        order: vi.fn(() => query),
+        order: vi.fn((col: string) => {
+          orderCols.push(col);
+          return query;
+        }),
         range: vi.fn((from: number, to: number) => {
           ranges.push([from, to]);
           // First page full (forces another request), second page short.
@@ -146,5 +150,10 @@ describe('joined reads are paginated', () => {
       [0, 999],
       [1000, 1999],
     ]);
+    // Append-stable sort key: a random-UUID `id` alone lets a concurrent cron
+    // insert reorder pages mid-scan, duplicating one row and dropping another.
+    expect(orderCols).toContain('created_at');
+    expect(orderCols).toContain('id');
+    expect(orderCols.indexOf('created_at')).toBeLessThan(orderCols.indexOf('id'));
   });
 });

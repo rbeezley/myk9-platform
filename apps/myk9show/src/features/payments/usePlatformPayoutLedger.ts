@@ -28,6 +28,12 @@ export async function loadPlatformPayoutLedgerEntryPage(
       .from('entries')
       .select(includeRefundDecision ? LEDGER_ENTRY_PULL_SELECT : LEDGER_ENTRY_BASE_SELECT)
       .eq('payment_method', 'online')
+      // Same append-stable ordering as the payout pages below, and for the same
+      // reason: a random-UUID sort key lets a concurrent insert reorder pages
+      // mid-scan. Pre-dates this change; corrected here because it is the same
+      // defect in the same file, and this ledger's totals depend on the scan
+      // being complete.
+      .order('created_at')
       .order('id')
       .range(from, to);
 
@@ -92,6 +98,13 @@ export async function loadPayoutsByShowIds(showIds: string[]): Promise<PayoutRow
         .from('show_payouts')
         .select('show_id, amount_cents, status, stripe_transfer_id, completed_at, created_at')
         .in('show_id', ids)
+        // Append-STABLE ordering. `id` alone is a random UUID, so a row the
+        // payout cron inserts between two range requests can sort BEFORE the
+        // current offset — shifting every later row down one, which duplicates a
+        // boundary row and drops another. Losing a live payout that way would
+        // show a completed transfer as outstanding. (created_at, id) only ever
+        // appends, and id breaks ties on identical timestamps.
+        .order('created_at')
         .order('id')
         .range(from, from + PAGE - 1);
       if (error) throw error;

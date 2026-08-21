@@ -177,8 +177,17 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   }
 
   doc.setFont('helvetica', 'bold');
-  doc.text(`Snapshot generated: ${formatGeneratedAt(page.generatedAt)}`, LEFT, 260);
-  doc.text(`Show dates: ${page.context.trialDate}`, LEFT, 268);
+  doc.text(`Snapshot generated: ${formatGeneratedAt(page.generatedAt)}`, LEFT, 252);
+  doc.text(`This packet covers: ${page.context.trialDate}`, LEFT, 260);
+  // Name the trials inside, so a secretary holding two evenings' stacks can
+  // tell them apart without leafing through. A day can hold several trials,
+  // and they can run under different sanctioning bodies.
+  doc.setFont('helvetica', 'normal');
+  const trialNames = model.trials.map(trial => trial.name || trial.trialNumber).filter(Boolean);
+  if (trialNames.length > 0) {
+    const label = `Trials: ${trialNames.join(' · ')}`;
+    doc.text((doc.splitTextToSize(label, RIGHT - LEFT) as string[]).slice(0, 2), LEFT, 268);
+  }
 }
 
 function fitTextToWidth(doc: jsPDF, value: string, width: number): string {

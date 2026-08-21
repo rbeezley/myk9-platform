@@ -442,13 +442,16 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           {enableAutoSave && <div className="text-xs text-muted-foreground">Auto-save enabled</div>}
         </div>
 
-        <div data-testid="edit-panel-action-group" className="flex shrink-0 items-center gap-2">
+        <div
+          data-testid="edit-panel-action-group"
+          className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto"
+        >
           {footerActions}
           <Button
             variant="outline"
             onClick={handleClose}
             disabled={isLoading}
-            className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="min-w-0 flex-1 gap-2 transition-all duration-200 hover:scale-105 active:scale-95 sm:flex-none"
           >
             <X className="h-4 w-4" />
             {cancelLabel}
@@ -460,7 +463,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
                 ? (!hasChanges && !forceHasChanges) || isLoading
                 : (!hasChanges && !forceHasChanges) || !isValid || isLoading
             }
-            className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="min-w-0 flex-1 gap-2 transition-all duration-200 hover:scale-105 active:scale-95 sm:flex-none"
           >
             <Save className="h-4 w-4" />
             {isLoading ? 'Saving...' : saveLabel}

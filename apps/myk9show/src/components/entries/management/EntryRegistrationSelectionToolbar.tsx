@@ -30,7 +30,9 @@ export function EntryRegistrationSelectionToolbar({
   onClear,
   busy = false,
 }: EntryRegistrationSelectionToolbarProps) {
-  const actionBarRef = useRegisterActionBar<HTMLElement>();
+  // The toolbar floats 1.5rem above the safe-area bottom. Reserve that gap as
+  // occupied too, otherwise a toast can overlap the toolbar by up to 12px.
+  const actionBarRef = useRegisterActionBar<HTMLElement>({ bottomOffsetPx: 24 });
 
   if (registrations === 0) return null;
 

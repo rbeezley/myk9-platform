@@ -67,7 +67,7 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 ### 6.1 Unit tests (pure logic)
 
 - [ ] 6.1.1 Display formatter: null, `undefined`, empty string, and whitespace-only inputs all produce the single empty-state string; a real value passes through unchanged.
-- [ ] 6.1.4 Per-organization registered-name resolution: falls back to `dog.name` when `registration.registered_name` is null/empty; returns the per-org value when present; unaffected organizations keep the canonical name.
+- [ ] 6.1.4 Per-organization registered-name resolution: returns `registration.registered_name` when present; when it is null/empty, owner-facing identity remains the call name and organization paperwork shows the shared empty-state label rather than deriving a registered name from legacy `dog.name`.
 - [ ] 6.1.2 Review-state label mapping: every state resolves to both a secretary and an exhibitor label; no pending state maps to refusal wording in the exhibitor variant.
 - [x] 6.1.3 Action-bar offset calculation: registering and unregistering bars produces the expected reserved offset, including the zero-bars case. (PR #1574; re-run in this slice.)
 
@@ -76,7 +76,7 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 - [x] 6.2.1 **Toast does not steal the footer tap** — with a toast visible and a panel open, a click at the primary control's position resolves to that control, not to anything in the toast. This is the direct regression test for audit finding #1. **Evidence (2026-08-20):** Playwright CLI exercised the real app at 390×844 with the Edit Dog panel dirty and a 30-second Sonner `Dog added` / `Undo` toast visible. The Save center was `(280.23, 808)`; `document.elementFromPoint` and the captured browser click both resolved to `Save Changes`. The toast action occupied y=735–759, above the Save control at y=788–828. A capture-phase handler prevented the test click from dispatching the save mutation.
 - [x] 6.2.2 Toast is dismissed on route change. (PR #1574; re-run in this slice.)
 - [x] 6.2.3 Dirty-form guard prompts on navigation with unsaved changes, preserves data when the user stays, and does **not** fire on the form's own Cancel path. (PR #1609; re-run in this slice.)
-- [x] 6.2.4 Footer at 390px with the unsaved-changes indicator present: the primary control renders fully inside the viewport with its complete label; also assert at 320px.
+- [x] 6.2.4 Footer at 390px with the unsaved-changes indicator present: the primary control renders fully inside the viewport with its complete label; also assert at 320px. **Evidence (2026-08-20):** the unit test pins the responsive class contract. Playwright CLI bounding-box checks in the real dirty Edit Dog panel recorded the complete `Save Changes` control inside both viewports: x=200.5–366 at 390×844 and x=165.5–296 at 320×844.
 - [x] 6.2.5 Validation summary with three errors is rendered outside the footer row, and the `(+N more)` control reaches the hidden error.
 - [ ] 6.2.6 Submitting the Add Dog form empty creates no record and keeps the panel open.
 - [ ] 6.2.8 A registration editor captures its organization-scoped registered name without presenting or deriving a registered name on the base dog record; editing only that registration name leaves breed unchanged.

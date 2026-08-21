@@ -213,7 +213,9 @@ describe('PlatformIncomeCard', () => {
   it('shows outstanding transfer liability as its own figure, separate from income', () => {
     overviewState.data = overview();
     render(<PlatformIncomeCard />);
-    expect(screen.getByText('Outstanding transfer liability')).toBeInTheDocument();
+    // Renamed to state its predicate: this counts only shows that HAVE a
+    // transfer row, unlike the ledger's "Owed to clubs (all shows)" below it.
+    expect(screen.getByText('In flight to Stripe (transfers created)')).toBeInTheDocument();
     expect(screen.getByText('$300.00')).toBeInTheDocument();
   });
 

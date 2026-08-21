@@ -56,9 +56,13 @@ describe('loadPlatformPayoutLedgerEntryPage', () => {
       return query;
     });
 
-    await expect(loadPlatformPayoutLedgerEntryPage(0, 999)).resolves.toEqual([
-      expect.objectContaining({ show_id: 'show-1', refund_decision: null }),
-    ]);
+    // The fallback is REPORTED, not just performed: every row is backfilled with
+    // refund_decision null, so a caller that cannot tell the fallback happened
+    // would show "no unresolved pulls" for a check that never ran.
+    await expect(loadPlatformPayoutLedgerEntryPage(0, 999)).resolves.toEqual({
+      rows: [expect.objectContaining({ show_id: 'show-1', refund_decision: null })],
+      refundDecisionChecked: false,
+    });
     expect(selects).toHaveLength(2);
     expect(selects[0]).toContain('refund_decision');
     expect(selects[1]).not.toContain('refund_decision');

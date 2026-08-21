@@ -60,11 +60,44 @@ export function sumOnlineCollectedCents(entries: LedgerEntryRow[]): number {
     .reduce((sum, e) => sum + Math.round((e.entry_fee ?? 0) * 100), 0);
 }
 
-/** Total refunded across a show's online entries. */
+/**
+ * Total refunded across a show's online entries.
+ *
+ * Filters on the SAME predicate as `sumOnlineCollectedCents`. It previously
+ * keyed on `payment_method` alone, so an online entry with a non-zero
+ * `refund_amount` but a payment_status of pending/failed/null contributed to
+ * Refunds while contributing nothing to Collected — and the table presents those
+ * two columns as a subtraction, so the row read as `$0.00 / -$25.00 / $0.00`.
+ * A refund of money that was never collected is a data error worth seeing, but
+ * not in a column that claims to net against a figure it is not part of.
+ */
 export function sumRefundedCents(entries: LedgerEntryRow[]): number {
   return entries
-    .filter(e => e.payment_method === 'online')
+    .filter(
+      e =>
+        e.payment_method === 'online' &&
+        (e.payment_status === 'paid' || e.payment_status === 'refunded')
+    )
     .reduce((sum, e) => sum + Math.round((e.refund_amount ?? 0) * 100), 0);
+}
+
+/** Where a row's Net owed figure came from. */
+export type NetOwedSource = 'computed' | 'transfer';
+
+/**
+ * How to describe a show with no payout row yet.
+ *
+ * `payoutStatus: null` covers two situations an operator must act on
+ * differently, and the old single "Not settled" badge collapsed them: a show
+ * settling next month, and a show whose settle date passed with no transfer
+ * ever created. The second is money stuck behind a cron that did not run, and
+ * it looked identical to the first.
+ */
+export type UnsettledState = 'unscheduled' | 'scheduled' | 'overdue';
+
+export function resolveUnsettledState(settleDate: string | null, today: string): UnsettledState {
+  if (!settleDate) return 'unscheduled';
+  return settleDate < today ? 'overdue' : 'scheduled';
 }
 
 export type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
@@ -134,6 +167,17 @@ export interface LedgerRow {
   unresolvedRefundDecisionCount: number;
   /** What the club is owed: the live payout row if one exists, else computed. */
   netOwedCents: number;
+  /**
+   * Whether netOwedCents was COMPUTED from entries or taken from the payout row.
+   *
+   * The table shows Collected / Refunds / Net owed side by side, which reads as
+   * a subtraction. For a 'transfer' row it is not one: the figure is what the
+   * cron will send (or sent), frozen when that row was written, so a refund
+   * landing afterwards leaves the three columns not adding up. The UI needs to
+   * say which it is rather than let the operator discover it as an arithmetic
+   * error in their own reconciliation.
+   */
+  netOwedSource: NetOwedSource;
   /** Settle date = end_date + 3 days, ISO date (null if the show has no end). */
   settleDate: string | null;
   payoutStatus: PayoutStatus | null;
@@ -184,6 +228,7 @@ export function buildLedgerRows(
       refundedCents: sumRefundedCents(entries),
       unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
       netOwedCents: useStoredAmount ? payout.amount_cents : computedNet,
+      netOwedSource: useStoredAmount ? 'transfer' : 'computed',
       settleDate: computeSettleDate(show.endDate),
       payoutStatus: payout ? payout.status : null,
       stripeTransferId: payout?.stripe_transfer_id ?? null,
@@ -210,6 +255,7 @@ export function buildLedgerRows(
       refundedCents: sumRefundedCents(entries),
       unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
       netOwedCents: useStoredAmount ? payout.amount_cents : calculateShowPayoutCents(entries),
+      netOwedSource: useStoredAmount ? 'transfer' : 'computed',
       // No show row means no end_date, so no settle date can be derived.
       settleDate: null,
       payoutStatus: payout ? payout.status : null,

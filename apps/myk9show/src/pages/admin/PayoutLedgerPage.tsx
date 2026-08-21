@@ -33,12 +33,18 @@ import { usePlatformFeePercentQuery } from '@/hooks/queries/usePlatformFeePercen
 import { useUpdatePlatformFee } from '@/features/payments/useUpdatePlatformFee';
 import { usePlatformPayoutLedger } from '@/features/payments/usePlatformPayoutLedger';
 import {
+  resolveUnsettledState,
   summarizeLedger,
   type LedgerRow,
-  type PayoutStatus,
 } from '@/features/payments/payoutLedger';
 import { PlatformIncomeCard } from '@/features/financial/components/PlatformIncomeCard';
 import { getPayoutStatusPresentation } from './adminStatusPresentation';
+
+/* Warning tone for a payout past its settle date. Uses the shared admin status
+   classes rather than a one-off so it stays consistent with the other badges,
+   and because `border-warning/*` / `bg-warning/*` DO compile — those tokens
+   carry <alpha-value>, unlike the plain var() tokens (see index.css:265). */
+const OVERDUE_STATUS_CLASS = 'border-warning/30 bg-warning/10 text-warning hover:bg-warning/10';
 
 const MIN_PLATFORM_FEE_PERCENT = 0;
 const MAX_PLATFORM_FEE_PERCENT = 20;
@@ -64,10 +70,40 @@ function showLabel(row: LedgerRow): string {
   return row.showName ?? `Show unavailable (${row.showId.slice(0, 8)})`;
 }
 
-function statusBadge(status: PayoutStatus | null) {
-  if (!status) return <Badge variant="outline">Not settled</Badge>;
-  const presentation = getPayoutStatusPresentation(status);
-  return <Badge className={presentation.className}>{presentation.label}</Badge>;
+/** Today as an ISO date, for comparing against a settle date. */
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * A show with no payout row is not one situation but three, and the single
+ * "Not settled" badge hid the only one that needs the operator: money whose
+ * settle date has passed with no transfer ever created. That is a cron that did
+ * not run, and it looked exactly like a show settling next month.
+ */
+function statusBadge(row: LedgerRow, today: string) {
+  if (row.payoutStatus) {
+    const presentation = getPayoutStatusPresentation(row.payoutStatus);
+    return <Badge className={presentation.className}>{presentation.label}</Badge>;
+  }
+  switch (resolveUnsettledState(row.settleDate, today)) {
+    case 'overdue':
+      return (
+        <Badge className={OVERDUE_STATUS_CLASS}>
+          Past due
+          <span className="sr-only">, settle date passed with no transfer created</span>
+        </Badge>
+      );
+    case 'scheduled':
+      return <Badge variant="outline">Scheduled</Badge>;
+    default:
+      return (
+        <Badge variant="outline">
+          Not scheduled
+          <span className="sr-only">, the show has no end date</span>
+        </Badge>
+      );
+  }
 }
 
 function PlatformFeeCard() {
@@ -93,7 +129,18 @@ function PlatformFeeCard() {
   // that number, and the card would still be showing it — which is the same
   // stale-rate claim, relocated from a paragraph into an input.
   const [syncedFrom, setSyncedFrom] = useState<number | null>(null);
-  if (syncedFrom !== currentPercent) {
+  // Only resync a CLEAN field. `refetchOnWindowFocus` is on for this query, so
+  // an admin who types 9, tabs to Stripe to check something, and comes back
+  // would otherwise find their edit silently replaced by whatever the refetch
+  // returned — on the field that sets the live checkout rate.
+  //
+  // This is also where Codex's "disable the editor during a background refetch"
+  // review comment was heading. Disabling on `fetching` would null the percent
+  // and clear the field on EVERY refocus, which is this same bug with a
+  // different trigger. Guarding the resync is the fix; the refetch itself is
+  // fine.
+  const fieldIsClean = value === (syncedFrom === null ? '' : String(syncedFrom));
+  if (syncedFrom !== currentPercent && fieldIsClean) {
     setSyncedFrom(currentPercent);
     setValue(currentPercent === null ? '' : String(currentPercent));
   }
@@ -218,12 +265,13 @@ function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
   return (
     <dl className="grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-2">
       <div className="border-b border-border p-5 sm:border-b-0 sm:border-r">
-        <dt className="text-sm text-muted-foreground">Outstanding to clubs</dt>
+        <dt className="text-sm text-muted-foreground">Owed to clubs (all shows)</dt>
         <dd className="mt-1 text-xl font-semibold tabular-nums text-primary">
           {formatCents(outstandingCents)}
         </dd>
         <dd className="mt-2 text-sm text-muted-foreground">
-          Online fees collected but not yet transferred.
+          Online fees collected but not yet transferred — including shows with no transfer created
+          yet. Larger than &ldquo;In flight to Stripe&rdquo; above by exactly that amount.
         </dd>
       </div>
       <div className="p-5">
@@ -255,7 +303,13 @@ function LedgerError({ onRetry }: { onRetry: () => void }) {
         <p className="mt-1 text-sm text-muted-foreground">
           Amounts are unavailable right now, not zero.
         </p>
-        <Button className="mt-4 min-h-11" variant="outline" onClick={onRetry}>
+        {/* NOT variant="outline": buttonVariants gives outline
+            `bg-secondary text-secondary-foreground`, and in `.dark`
+            --secondary (#1e1c19) is byte-identical to --card (#1e1c19), so the
+            control measures 1.00:1 against the card it sits on — invisible, on
+            the one affordance that only appears when the money failed to load.
+            The default filled variant clears 3:1 in both themes. */}
+        <Button className="mt-4 min-h-11" onClick={onRetry}>
           Try again
         </Button>
       </CardContent>
@@ -263,7 +317,7 @@ function LedgerError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function LedgerMobileList({ rows }: { rows: LedgerRow[] }) {
+function LedgerMobileList({ rows, today }: { rows: LedgerRow[]; today: string }) {
   return (
     <ul className="space-y-3 md:hidden" aria-label="Payouts by show">
       {rows.map(row => (
@@ -277,12 +331,19 @@ function LedgerMobileList({ rows }: { rows: LedgerRow[] }) {
                     {row.clubName ?? 'Unknown club'}
                   </p>
                 </div>
-                {statusBadge(row.payoutStatus)}
+                {statusBadge(row, today)}
               </div>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div>
                   <dt className="text-muted-foreground">Net owed</dt>
-                  <dd className="mt-1 font-medium tabular-nums">{formatCents(row.netOwedCents)}</dd>
+                  <dd className="mt-1 font-medium tabular-nums">
+                    {formatCents(row.netOwedCents)}
+                    {row.netOwedSource === 'transfer' && (
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        as transferred
+                      </span>
+                    )}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Settle date</dt>
@@ -312,7 +373,7 @@ function LedgerMobileList({ rows }: { rows: LedgerRow[] }) {
   );
 }
 
-function LedgerTable({ rows }: { rows: LedgerRow[] }) {
+function LedgerTable({ rows, today }: { rows: LedgerRow[]; today: string }) {
   if (rows.length === 0) {
     return (
       <Card>
@@ -324,10 +385,10 @@ function LedgerTable({ rows }: { rows: LedgerRow[] }) {
   }
   return (
     <>
-      <LedgerMobileList rows={rows} />
+      <LedgerMobileList rows={rows} today={today} />
       <Card className="hidden md:block">
         <CardContent className="p-0">
-          <Table aria-label="Payout ledger by show">
+          <Table aria-label="Payout ledger by show" scrollAreaLabel="Payout ledger">
             <TableHeader>
               <TableRow>
                 <TableHead>Club</TableHead>
@@ -354,13 +415,23 @@ function LedgerTable({ rows }: { rows: LedgerRow[] }) {
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatCents(row.netOwedCents)}
+                    {row.netOwedSource === 'transfer' && (
+                      /* Not Collected − Refunds. This is the amount the cron
+                         wrote onto the payout row, frozen at that moment, so a
+                         later refund leaves the three columns not adding up.
+                         Say so rather than let the operator find it as an
+                         arithmetic error in their own reconciliation. */
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        as transferred
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="tabular-nums">
                     {row.settleDate ?? <span className="text-muted-foreground">Not scheduled</span>}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {statusBadge(row.payoutStatus)}
+                      {statusBadge(row, today)}
                       {row.stripeTransferId && (
                         <span
                           className="inline-block max-w-[10rem] truncate font-mono text-xs text-muted-foreground"
@@ -381,15 +452,37 @@ function LedgerTable({ rows }: { rows: LedgerRow[] }) {
   );
 }
 
-function RefundDecisionAdvisory({ rows }: { rows: LedgerRow[] }) {
+function RefundDecisionAdvisory({
+  rows,
+  refundDecisionChecked,
+}: {
+  rows: LedgerRow[];
+  refundDecisionChecked: boolean;
+}) {
+  // A degraded read must not look like a clean one. When the pull-refund column
+  // could not be read, every row was backfilled with null, so the unresolved
+  // count is 0 for reasons that have nothing to do with the data. Rendering
+  // nothing here would be an absent warning that reads as "all resolved".
+  if (!refundDecisionChecked) {
+    return (
+      <Alert className="border-warning/30 bg-warning/10">
+        <AlertTriangle className="h-4 w-4 !text-warning" aria-hidden="true" />
+        <AlertDescription>
+          Pull-refund decisions could not be checked, so this page cannot tell you whether any are
+          outstanding. Amounts elsewhere on the page are unaffected.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   const unresolvedRows = rows.filter(row => row.unresolvedRefundDecisionCount > 0);
   if (unresolvedRows.length === 0) return null;
 
   const total = unresolvedRows.reduce((sum, row) => sum + row.unresolvedRefundDecisionCount, 0);
 
   return (
-    <Alert>
-      <AlertTriangle className="h-4 w-4" />
+    <Alert className="border-warning/30 bg-warning/10">
+      <AlertTriangle className="h-4 w-4 !text-warning" aria-hidden="true" />
       <AlertDescription className="space-y-2">
         <p>
           {total} pulled {total === 1 ? 'entry' : 'entries'} with unresolved refund decisions.
@@ -425,7 +518,8 @@ function RefundDecisionAdvisory({ rows }: { rows: LedgerRow[] }) {
 }
 
 export default function PayoutLedgerPage() {
-  const { data: rows, isLoading, isError, refetch } = usePlatformPayoutLedger();
+  const { data: ledger, isLoading, isError, refetch } = usePlatformPayoutLedger();
+  const rows = ledger?.rows;
 
   // Surface load failures without leaving the page blank (often RLS — only site
   // admins may read the cross-club entries/payouts this ledger joins).
@@ -471,8 +565,11 @@ export default function PayoutLedgerPage() {
         ) : (
           <>
             <LedgerSummary rows={rows} />
-            <RefundDecisionAdvisory rows={rows} />
-            <LedgerTable rows={rows} />
+            <RefundDecisionAdvisory
+              rows={rows}
+              refundDecisionChecked={ledger.refundDecisionChecked}
+            />
+            <LedgerTable rows={rows} today={todayIso()} />
           </>
         )}
       </section>

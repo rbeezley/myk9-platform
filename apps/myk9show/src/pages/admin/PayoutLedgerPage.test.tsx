@@ -22,13 +22,29 @@ vi.mock('@/features/payments/useUpdatePlatformFee', () => ({
 // `data` is deliberately `LedgerRow[] | undefined`: a paused (offline) query
 // delivers undefined with isLoading:false AND isError:false, and the previous
 // fixture could not represent that at all.
-const ledgerState: { data: LedgerRow[] | undefined; isLoading: boolean; isError: boolean } = {
+const ledgerState: {
+  data: LedgerRow[] | undefined;
+  refundDecisionChecked: boolean;
+  isLoading: boolean;
+  isError: boolean;
+} = {
   data: [],
+  refundDecisionChecked: true,
   isLoading: false,
   isError: false,
 };
 vi.mock('@/features/payments/usePlatformPayoutLedger', () => ({
-  usePlatformPayoutLedger: () => ({ ...ledgerState, refetch: refetchLedger }),
+  usePlatformPayoutLedger: () => ({
+    // The hook returns { rows, refundDecisionChecked }; `data: undefined` still
+    // has to be representable, so the wrapper is built conditionally.
+    data:
+      ledgerState.data === undefined
+        ? undefined
+        : { rows: ledgerState.data, refundDecisionChecked: ledgerState.refundDecisionChecked },
+    isLoading: ledgerState.isLoading,
+    isError: ledgerState.isError,
+    refetch: refetchLedger,
+  }),
 }));
 
 // PlatformIncomeCard has its own colocated tests (features/financial/components) —
@@ -49,6 +65,7 @@ const row: LedgerRow = {
   refundedCents: 0,
   unresolvedRefundDecisionCount: 0,
   netOwedCents: 5000,
+  netOwedSource: 'transfer',
   settleDate: '2026-06-13',
   payoutStatus: 'completed',
   stripeTransferId: 'tr_1',
@@ -58,6 +75,7 @@ describe('PayoutLedgerPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
+    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.percent = 7;
@@ -110,7 +128,7 @@ describe('PayoutLedgerPage', () => {
     expect(within(table).getByText('Spring Trial')).toBeInTheDocument();
     expect(within(table).getByText('tr_1')).toBeInTheDocument();
     expect(within(table).getByText('Paid')).toBeInTheDocument();
-    expect(screen.getByText('Outstanding to clubs')).toBeInTheDocument();
+    expect(screen.getByText('Owed to clubs (all shows)')).toBeInTheDocument();
     // Completed payout → counts toward "paid out", not outstanding.
     expect(screen.getByText('Paid out to date')).toBeInTheDocument();
   });
@@ -193,6 +211,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
+    ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.percent = 7;
@@ -202,7 +221,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
   it('a PAUSED ledger query is not a platform that owes nothing', () => {
     // networkMode:'online' + no connectivity => neither loading nor errored, and
     // data undefined. The old guard fell through to `rows ?? []` and rendered
-    // "Outstanding to clubs $0.00" plus "No online payments yet".
+    // "Owed to clubs $0.00" plus "No online payments yet".
     ledgerState.data = undefined;
 
     render(<PayoutLedgerPage />);
@@ -363,5 +382,145 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     const input = screen.getByRole('spinbutton', { name: /fee percent/i });
     fireEvent.change(input, { target: { value: '4.5' } });
     expect(screen.getByRole('button', { name: /update fee/i })).toBeDisabled();
+  });
+});
+/**
+ * The majors: things the page showed accurately but described in a way that led
+ * the operator to the wrong conclusion.
+ */
+describe("PayoutLedgerPage — says which situation a row is actually in", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ledgerState.data = [row];
+    ledgerState.refundDecisionChecked = true;
+    ledgerState.isLoading = false;
+    ledgerState.isError = false;
+    feeState.percent = 7;
+    feeState.state = "ready";
+  });
+
+  it("distinguishes a payout past its settle date from one merely scheduled", () => {
+    // Both used to render "Not settled". One is money stuck behind a cron that
+    // did not run; the other is a show settling next month.
+    ledgerState.data = [
+      {
+        ...row,
+        showId: "past",
+        showName: "Overdue Show",
+        payoutStatus: null,
+        settleDate: "2020-01-01",
+      },
+      {
+        ...row,
+        showId: "future",
+        showName: "Future Show",
+        payoutStatus: null,
+        settleDate: "2099-01-01",
+      },
+    ];
+
+    render(<PayoutLedgerPage />);
+    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+
+    expect(within(table).getByText("Past due")).toBeInTheDocument();
+    expect(within(table).getByText("Scheduled")).toBeInTheDocument();
+    expect(within(table).queryByText("Not settled")).not.toBeInTheDocument();
+  });
+
+  it("marks a Net owed figure that came from the transfer, not from the columns", () => {
+    // Collected / Refunds / Net owed read as a subtraction. For a row whose
+    // amount was frozen onto the payout record, it is not one.
+    ledgerState.data = [
+      {
+        ...row,
+        onlineCollectedCents: 5000,
+        refundedCents: 1000,
+        netOwedCents: 5000,
+        netOwedSource: "transfer",
+      },
+    ];
+
+    render(<PayoutLedgerPage />);
+    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+
+    expect(within(table).getByText("as transferred")).toBeInTheDocument();
+  });
+
+  it("does not mark a row whose columns do subtract", () => {
+    ledgerState.data = [
+      {
+        ...row,
+        onlineCollectedCents: 5000,
+        refundedCents: 1000,
+        netOwedCents: 4000,
+        netOwedSource: "computed",
+      },
+    ];
+
+    render(<PayoutLedgerPage />);
+    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+
+    expect(within(table).queryByText("as transferred")).not.toBeInTheDocument();
+  });
+
+  it("says the pull-refund check did not run, instead of rendering nothing", () => {
+    // The schema fallback backfills refund_decision null for every row, so the
+    // unresolved count collapses to 0 and the advisory disappears. An absent
+    // warning reads as "all resolved".
+    ledgerState.refundDecisionChecked = false;
+    ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 0 }];
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.getByText(/could not be checked/i)).toBeInTheDocument();
+  });
+
+  it("shows the ordinary advisory when the check did run", () => {
+    ledgerState.refundDecisionChecked = true;
+    ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 2 }];
+
+    render(<PayoutLedgerPage />);
+
+    expect(
+      screen.getByText(/2 pulled entries with unresolved refund decisions/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/could not be checked/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the scrolling ledger reachable from the keyboard", () => {
+    render(<PayoutLedgerPage />);
+
+    const region = screen.getByRole("region", { name: /payout ledger/i });
+    expect(region).toHaveAttribute("tabindex", "0");
+  });
+
+  it("does not overwrite an in-progress fee edit when the rate refetches", () => {
+    // refetchOnWindowFocus is on. Typing 9, tabbing away and returning used to
+    // replace the edit with whatever came back — on the field that sets the
+    // live checkout rate.
+    const { rerender } = render(<PayoutLedgerPage />);
+    const input = screen.getByRole("spinbutton", { name: /fee percent/i });
+    fireEvent.change(input, { target: { value: "9" } });
+
+    feeState.percent = 8;
+    rerender(<PayoutLedgerPage />);
+
+    expect(
+      screen.getByRole("spinbutton", { name: /fee percent/i }),
+    ).toHaveValue(9);
+  });
+
+  it("still adopts a new rate when the field is untouched", () => {
+    const { rerender } = render(<PayoutLedgerPage />);
+    expect(
+      screen.getByRole("spinbutton", { name: /fee percent/i }),
+    ).toHaveValue(7);
+
+    feeState.percent = 8;
+    rerender(<PayoutLedgerPage />);
+
+    expect(
+      screen.getByRole("spinbutton", { name: /fee percent/i }),
+    ).toHaveValue(8);
   });
 });

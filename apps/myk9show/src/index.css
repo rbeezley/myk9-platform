@@ -284,6 +284,20 @@
   .bg-primary\/90 {
     background-color: color-mix(in srgb, var(--primary) 90%, transparent);
   }
+  /* Muted opacity variants — same reason as the primary block above: --muted is
+     a plain var(), so Tailwind emits NOTHING for `bg-muted/50` and the class is
+     silently absent from the stylesheet. `hover:bg-muted/50` is written in
+     components/ui/table/table.tsx, so until this rule existed EVERY table in the
+     app had no row-hover feedback at all. */
+  .hover\:bg-muted\/50:hover {
+    background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+  }
+  .bg-muted\/50 {
+    background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+  }
+  .bg-muted\/30 {
+    background-color: color-mix(in srgb, var(--muted) 30%, transparent);
+  }
   .hover\:bg-primary\/90:hover {
     background-color: color-mix(in srgb, var(--primary) 90%, transparent);
   }

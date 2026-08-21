@@ -2,7 +2,12 @@ import { PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import type { ReportEntry } from '@/lib/reports/types';
 import { buildEmergencyPacketModel } from './emergencyTrialPacket';
-import { buildEmergencyTrialPacketPdf, MAX_EMERGENCY_PACKET_BYTES } from './buildEmergencyTrialPacketPdf';
+import jsPDF from 'jspdf';
+import {
+  buildEmergencyTrialPacketPdf,
+  layoutDetailLines,
+  MAX_EMERGENCY_PACKET_BYTES,
+} from './buildEmergencyTrialPacketPdf';
 import type { EmergencyPacketInput } from './types';
 
 function reportEntry(id: string, classId: string, trialId: string, armband: number): ReportEntry {
@@ -154,5 +159,32 @@ describe('buildEmergencyTrialPacketPdf', () => {
 
     expect(text).toContain('Area 3 1:30');
     expect(text).not.toContain('...');
+  });
+
+  describe('layoutDetailLines', () => {
+    // Row batching is fixed in the model, so a taller header eats the table's
+    // space rather than repaginating. The header therefore has to be bounded.
+    const doc = () => new jsPDF({ unit: 'mm', format: 'letter' });
+    const absurd = 'Interior and Exterior Combined Championship Qualifying Round'.repeat(12);
+
+    it('never exceeds the height the fixed row batches leave room for', () => {
+      expect(layoutDetailLines(doc(), [absurd], 'Max time 3:00').length).toBeLessThanOrEqual(4);
+      expect(
+        layoutDetailLines(doc(), [absurd], `Max time — ${'Area 1 3:00 · '.repeat(10)}`).length
+      ).toBeLessThanOrEqual(4);
+    });
+
+    it('truncates identity rather than the time limit', () => {
+      const lines = layoutDetailLines(doc(), [absurd], 'Max time 3:00');
+      expect(lines.at(-1)).toBe('Max time 3:00');
+      expect(lines.some(line => line.endsWith('...'))).toBe(true);
+    });
+
+    it('leaves a short header untouched', () => {
+      expect(layoutDetailLines(doc(), ['Trial 1', '2026-10-03'], 'Max time 2:00')).toEqual([
+        'Trial 1 · 2026-10-03',
+        'Max time 2:00',
+      ]);
+    });
   });
 });

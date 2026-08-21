@@ -32,6 +32,47 @@ function addPageFrame(doc: jsPDF, page: EmergencyPacketPage, totalPages: number)
   doc.text(`Page ${page.pageNumber} of ${totalPages}`, RIGHT, PAGE_HEIGHT - 8, { align: 'right' });
 }
 
+const TITLE_BASE_Y = 42;
+const DETAIL_LINE_HEIGHT = 5;
+/**
+ * Row batching is fixed in the MODEL (20 check-in rows, 7 score blocks), so it
+ * cannot react to a taller header — every extra header line eats the table's
+ * space. At four lines the densest page still ends near 260mm against a
+ * 271.4mm footer, so this is the ceiling.
+ */
+const MAX_DETAIL_LINES = 4;
+
+/**
+ * Lay out the context line under the page title.
+ *
+ * The time limit is the one item here a judge cannot reconstruct from the rest
+ * of the page, so it gets its own line and is never the thing that gets cut.
+ * Identity (trial, date, ring, class, judge) is what gets truncated when a
+ * pathological class or judge name would otherwise push the table off the page.
+ */
+export function layoutDetailLines(
+  doc: jsPDF,
+  identityParts: Array<string | undefined>,
+  timeLimitLabel: string | undefined
+): string[] {
+  const width = RIGHT - LEFT;
+  const limitLines = timeLimitLabel
+    ? (doc.splitTextToSize(timeLimitLabel, width) as string[]).slice(0, 2)
+    : [];
+  const identity = identityParts.filter(Boolean).join(' · ');
+  let identityLines = doc.splitTextToSize(identity, width) as string[];
+
+  const identityBudget = Math.max(1, MAX_DETAIL_LINES - limitLines.length);
+  if (identityLines.length > identityBudget) {
+    identityLines = identityLines.slice(0, identityBudget);
+    const last = identityBudget - 1;
+    // `fitTextToWidth` marks truncation with '...'; match the rest of the file.
+    identityLines[last] = fitTextToWidth(doc, `${identityLines[last]}...`, width);
+  }
+
+  return [...identityLines, ...limitLines];
+}
+
 function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
   doc.setTextColor(20, 20, 20);
   doc.setFont('helvetica', 'bold');
@@ -45,20 +86,10 @@ function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
     page.context.ringLabel,
     page.context.classLabel,
     page.context.judgeName ? `Judge: ${page.context.judgeName}` : undefined,
-    page.context.timeLimitLabel,
-  ].filter(Boolean);
-  // Wrap rather than truncate. A multi-area class ("Max time — Area 1 3:00 ·
-  // Area 2 2:00 · Area 3 1:30") can exceed the text column, and the time limit
-  // sits LAST — `fitTextToWidth` would clip exactly the safety-critical part.
-  //
-  // Only class-scoped pages (check-in, score recording) can wrap, and both have
-  // vertical slack: check-in ends near 231mm and score recording near 250mm
-  // against a 271.4mm footer. Catalog pages run to ~267mm and are the tight
-  // ones, but they carry no class label, judge or time limit, so they stay a
-  // single line. Keep that true if this detail list ever grows.
-  const detailLines = doc.splitTextToSize(details.join(' · '), RIGHT - LEFT) as string[];
+  ];
+  const detailLines = layoutDetailLines(doc, details, page.context.timeLimitLabel);
   doc.text(detailLines, LEFT, 34);
-  return 42 + (detailLines.length - 1) * 5;
+  return TITLE_BASE_Y + (detailLines.length - 1) * DETAIL_LINE_HEIGHT;
 }
 
 function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPacketPage): void {

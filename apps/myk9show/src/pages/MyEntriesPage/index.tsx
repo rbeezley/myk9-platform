@@ -4,7 +4,7 @@
  * @module pages/MyEntriesPage
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
@@ -23,14 +23,6 @@ import {
 } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
-import { CheckInStatus } from '@/types/check-in-types';
-import {
-  buildResultCardModel,
-  buildResultCardVisibility,
-  hasSeenResultReveal,
-  markResultRevealSeen,
-  type ResultCardModel,
-} from '@/features/result-card';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
@@ -38,10 +30,11 @@ import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
 import { useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
-import { toDogEntryView } from './modules/myEntryDogView';
 import {
   useMyEntriesData,
   useMyEntriesFilters,
+  useMyEntriesDialogs,
+  useResultReveal,
   MyEntryCard,
   EntriesEmptyState,
   EntriesLoadErrorCard,
@@ -52,11 +45,6 @@ import {
   EntryStatusFilterChips,
   ALL_ENTRIES_LABEL,
   ALL_ENTRIES_SCOPE_NOTE,
-  type MyEntry,
-  type EntryClass,
-  type CheckInDialogState,
-  type EditDialogState,
-  type ReceiptDialogState,
   type EntryTabFilter,
 } from './modules';
 
@@ -161,28 +149,10 @@ const MyEntriesPage: React.FC = () => {
     [balanceSummary, entries]
   );
 
-  // Dialog states
-  const [checkInDialog, setCheckInDialog] = useState<CheckInDialogState>({
-    open: false,
-    entry: null,
-    classEntry: null,
-  });
-
-  const [editDialog, setEditDialog] = useState<EditDialogState>({
-    open: false,
-    entry: null,
-  });
-
-  const [receiptDialog, setReceiptDialog] = useState<ReceiptDialogState>({
-    open: false,
-    entry: null,
-  });
-  const [resultRevealModel, setResultRevealModel] = useState<ResultCardModel | null>(null);
-  const [seenResultReleaseKeys, setSeenResultReleaseKeys] = useState<Set<string>>(() => {
-    return new Set();
-  });
-
-  const [addDogOpen, setAddDogOpen] = useState(false);
+  // Dialog state and the result-reveal cluster live in modules/ (MYK9-217).
+  // `useResultReveal` also owns the `?resultEntryId=` deep link.
+  const dialogs = useMyEntriesDialogs({ updateEntryCheckIn, refreshEntries });
+  const reveal = useResultReveal(entries);
 
   // Waitlist
   const { profile: exhibitorProfile } = useExhibitorProfile();
@@ -199,89 +169,6 @@ const MyEntriesPage: React.FC = () => {
   const handleWaitlistOfferDeadlineElapsed = useCallback(() => {
     void refetchWaitlistOffers();
   }, [refetchWaitlistOffers]);
-
-  // Handlers — stable identities so the memoized MyEntryCard list doesn't
-  // re-render every card when an unrelated dialog opens or a tab changes.
-  const handleCheckInClick = useCallback((entry: MyEntry, classEntry: EntryClass) => {
-    setCheckInDialog({ open: true, entry, classEntry });
-  }, []);
-
-  const handleEditClick = useCallback((entry: MyEntry) => {
-    setEditDialog({ open: true, entry });
-  }, []);
-
-  const handleReceiptClick = useCallback((entry: MyEntry) => {
-    setReceiptDialog({ open: true, entry });
-  }, []);
-
-  React.useEffect(() => {
-    const keys = new Set<string>();
-    // Build the model per dog, not per order — the result card needs the
-    // owning dog's identity, and an order can span several dogs.
-    for (const entry of entries) {
-      for (const dog of entry.dogs) {
-        const dogView = toDogEntryView(entry, dog);
-        for (const cls of dog.classes) {
-          const model = buildResultCardModel({
-            entry: dogView,
-            classEntry: cls,
-            visibility: buildResultCardVisibility(cls),
-          });
-          if (model && hasSeenResultReveal(model.releaseKey)) keys.add(model.releaseKey);
-        }
-      }
-    }
-    setSeenResultReleaseKeys(keys);
-  }, [entries]);
-
-  React.useEffect(() => {
-    const resultEntryId = searchParams.get('resultEntryId');
-    if (!resultEntryId || resultRevealModel) return;
-
-    outer: for (const entry of entries) {
-      for (const dog of entry.dogs) {
-        const classEntry = dog.classes.find(cls => cls.id === resultEntryId);
-        if (!classEntry) continue;
-        const model = buildResultCardModel({
-          entry: toDogEntryView(entry, dog),
-          classEntry,
-          visibility: buildResultCardVisibility(classEntry),
-        });
-        if (model) {
-          setResultRevealModel(model);
-          const next = new URLSearchParams(searchParams);
-          next.delete('resultEntryId');
-          setSearchParams(next, { replace: true });
-        }
-        break outer;
-      }
-    }
-  }, [entries, resultRevealModel, searchParams, setSearchParams]);
-
-  // INTENT: a rejection here must reach CheckInStatusDialog. The dialog awaits
-  // this handler and treats "resolved" as "saved" — it closes itself and only
-  // renders its error Alert when the promise rejects. Swallowing the throw made
-  // a failed check-in indistinguishable from a successful one: the dialog shut
-  // cleanly while `updateEntryCheckIn` reverted the optimistic status, so an
-  // exhibitor walked away believing their dog was checked in. Do not reintroduce
-  // a catch here; the hook logs and rethrows precisely so this caller can let
-  // the failure surface where the exhibitor took the action.
-  const handleCheckInStatusUpdate = async (status: CheckInStatus, notes?: string) => {
-    if (!checkInDialog.entry || !checkInDialog.classEntry) return;
-
-    await updateEntryCheckIn(checkInDialog.entry.id, checkInDialog.classEntry.id, status, notes);
-    setCheckInDialog({ open: false, entry: null, classEntry: null });
-  };
-
-  const handleResultRevealSeen = useCallback((releaseKey: string) => {
-    markResultRevealSeen(releaseKey);
-    setSeenResultReleaseKeys(prev => {
-      if (prev.has(releaseKey)) return prev;
-      const next = new Set(prev);
-      next.add(releaseKey);
-      return next;
-    });
-  }, []);
 
   // INTENT: the dialogs below are siblings of the page body, never children of
   // it. `isInitialEntriesSyncing` flips on replication sync ticks the exhibitor
@@ -380,7 +267,7 @@ const MyEntriesPage: React.FC = () => {
               INTENT: Exhibitor first run must feel frictionless ("respects my
               time"), never like a form to fill. */}
             {entries.length === 0 ? (
-              <FirstRunZeroState hasDogs={hasDogs} onAddDog={() => setAddDogOpen(true)} />
+              <FirstRunZeroState hasDogs={hasDogs} onAddDog={dialogs.openAddDog} />
             ) : (
               <>
                 <CompactStatsRow
@@ -412,7 +299,7 @@ const MyEntriesPage: React.FC = () => {
                       }[]
                     }
                     upcomingClassCountByDog={upcomingClassCountByDog}
-                    onAddDog={() => setAddDogOpen(true)}
+                    onAddDog={dialogs.openAddDog}
                   />
                 </div>
 
@@ -489,11 +376,11 @@ const MyEntriesPage: React.FC = () => {
                               <MyEntryCard
                                 entry={entry}
                                 selfCheckinByClassId={selfCheckinByClassId}
-                                onCheckInClick={handleCheckInClick}
-                                onEditClick={handleEditClick}
-                                onReceiptClick={handleReceiptClick}
-                                onResultRevealClick={setResultRevealModel}
-                                seenResultReleaseKeys={seenResultReleaseKeys}
+                                onCheckInClick={dialogs.openCheckIn}
+                                onEditClick={dialogs.openEdit}
+                                onReceiptClick={dialogs.openReceipt}
+                                onResultRevealClick={reveal.openResultReveal}
+                                seenResultReleaseKeys={reveal.seenResultReleaseKeys}
                               />
                             </li>
                           ))}
@@ -550,22 +437,19 @@ const MyEntriesPage: React.FC = () => {
 
       <MyEntriesDialogGroup
         user={user}
-        checkInDialog={checkInDialog}
-        onCloseCheckIn={() => setCheckInDialog({ open: false, entry: null, classEntry: null })}
-        onUpdateCheckInStatus={handleCheckInStatusUpdate}
-        editDialog={editDialog}
-        onCloseEdit={() => setEditDialog({ open: false, entry: null })}
-        onEntryUpdated={async () => {
-          await refreshEntries();
-          setEditDialog({ open: false, entry: null });
-        }}
-        receiptDialog={receiptDialog}
-        onCloseReceipt={() => setReceiptDialog({ open: false, entry: null })}
-        resultRevealModel={resultRevealModel}
-        onCloseResultReveal={() => setResultRevealModel(null)}
-        onResultRevealSeen={handleResultRevealSeen}
-        addDogOpen={addDogOpen}
-        onCloseAddDog={() => setAddDogOpen(false)}
+        checkInDialog={dialogs.checkInDialog}
+        onCloseCheckIn={dialogs.closeCheckIn}
+        onUpdateCheckInStatus={dialogs.submitCheckInStatus}
+        editDialog={dialogs.editDialog}
+        onCloseEdit={dialogs.closeEdit}
+        onEntryUpdated={dialogs.entryUpdated}
+        receiptDialog={dialogs.receiptDialog}
+        onCloseReceipt={dialogs.closeReceipt}
+        resultRevealModel={reveal.resultRevealModel}
+        onCloseResultReveal={reveal.closeResultReveal}
+        onResultRevealSeen={reveal.markSeen}
+        addDogOpen={dialogs.addDogOpen}
+        onCloseAddDog={dialogs.closeAddDog}
         currentUserPersonId={currentUserPersonId ?? undefined}
       />
     </>

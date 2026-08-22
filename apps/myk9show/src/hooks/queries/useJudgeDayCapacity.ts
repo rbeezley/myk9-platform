@@ -26,6 +26,7 @@ interface JudgeAssignmentCapacityRow {
 
 interface ClassCapacityRow {
   id: string;
+  name: string;
   max_entries: number | null;
 }
 
@@ -73,7 +74,7 @@ export function useJudgeDayCapacity(showId: string | undefined) {
       if (showResult.error) throw showResult.error;
       if (assignmentResult.error) throw assignmentResult.error;
 
-      const data = (summaryResult.data as JudgeDaySummaryRow[]) ?? [];
+      let data = (summaryResult.data as JudgeDaySummaryRow[]) ?? [];
       const show = showResult.data as unknown as ShowCapacityRow;
       const capacityOverrides = new Map<string, number>();
       for (const assignment of (assignmentResult.data as JudgeAssignmentCapacityRow[]) ?? []) {
@@ -89,7 +90,7 @@ export function useJudgeDayCapacity(showId: string | undefined) {
 
       const { data: classData, error: classError } = await supabase
         .from('classes')
-        .select('id, max_entries, trials!inner(show_id)')
+        .select('id, name, max_entries, trials!inner(show_id)')
         .eq('trials.show_id', showId!);
       if (classError) throw classError;
 
@@ -119,6 +120,45 @@ export function useJudgeDayCapacity(showId: string | undefined) {
             entryCounts.set(entry.class_id, (entryCounts.get(entry.class_id) ?? 0) + 1);
           }
         }
+
+        // `judge_day_summary` is not visible to exhibitors in hosted Supabase,
+        // even though the underlying assigned classes and entry rows are. An
+        // empty view response must not mean "unlimited capacity": rebuild the
+        // same judge-day groups from those exhibitor-readable rows. This keeps
+        // cart checkout aligned with the registration wizard and fail-closed
+        // when a judge-day is already full.
+        if (data.length === 0) {
+          const classById = new Map(classRows.map(row => [row.id, row]));
+          const fallbackDays = new Map<string, JudgeDaySummaryRow>();
+
+          for (const assignment of (assignmentResult.data as JudgeAssignmentCapacityRow[]) ?? []) {
+            const date = assignment.trials?.date;
+            const classId = assignment.class_id;
+            if (!classId || !date) continue;
+
+            const key = `${assignment.person_id}:${date}`;
+            const existing = fallbackDays.get(key) ?? {
+              show_id: showId!,
+              judge_id: assignment.person_id,
+              judge_name: 'Assigned judge',
+              show_date: date,
+              class_ids: [],
+              class_names: [],
+              confirmed_count: 0,
+              waitlist_count: 0,
+            };
+
+            if (!existing.class_ids.includes(classId)) {
+              existing.class_ids.push(classId);
+              existing.class_names.push(classById.get(classId)?.name ?? 'Class');
+              existing.confirmed_count += entryCounts.get(classId) ?? 0;
+            }
+            fallbackDays.set(key, existing);
+          }
+
+          data = Array.from(fallbackDays.values());
+        }
+
         fullClassIds = classRows
           .filter(
             row =>

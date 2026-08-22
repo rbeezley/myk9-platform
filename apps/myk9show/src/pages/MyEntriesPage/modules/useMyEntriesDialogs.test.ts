@@ -37,12 +37,27 @@ const ENTRY: MyEntry = {
   lastUpdated: new Date('2026-08-02T12:00:00Z'),
 };
 
-function setup(overrides: Partial<Parameters<typeof useMyEntriesDialogs>[0]> = {}) {
+type Options = Parameters<typeof useMyEntriesDialogs>[0];
+
+function setup(overrides: Partial<Options> = {}) {
   const updateEntryCheckIn = vi.fn(() => Promise.resolve());
   const refreshEntries = vi.fn(() => Promise.resolve());
-  const options = { updateEntryCheckIn, refreshEntries, ...overrides };
-  const hook = renderHook(() => useMyEntriesDialogs(options));
-  return { ...hook, updateEntryCheckIn, refreshEntries };
+  const options: Options = { updateEntryCheckIn, refreshEntries, ...overrides };
+  // Options travel as props so a test can swap a collaborator and prove the
+  // hook picked the new one up rather than closing over the first.
+  const hook = renderHook(({ opts }: { opts: Options }) => useMyEntriesDialogs(opts), {
+    initialProps: { opts: options },
+  });
+  return { ...hook, options, updateEntryCheckIn, refreshEntries };
+}
+
+/** A promise the test releases by hand, to observe the in-flight state. */
+function deferred() {
+  let release: () => void = () => {};
+  const promise = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  return { promise, release: () => release() };
 }
 
 describe('useMyEntriesDialogs', () => {
@@ -66,17 +81,50 @@ describe('useMyEntriesDialogs', () => {
     expect(result.current.addDogOpen).toBe(true);
   });
 
-  it('keeps handler identities stable across renders', () => {
-    // The card list is memoized on these props. If they changed identity every
-    // render, opening one dialog would re-render every card on the page.
-    const { result, rerender } = setup();
+  it('keeps every handler identity stable across renders', () => {
+    // The card list and the dialog group are memoized on these props. If any
+    // changed identity every render, opening one dialog would re-render every
+    // card on the page. `submitCheckInStatus` and `entryUpdated` are the two
+    // with non-empty deps, so they are the two that could quietly regress —
+    // they are asserted here rather than assumed.
+    const { result, rerender, options } = setup();
     const before = result.current;
-    rerender();
+    rerender({ opts: options });
 
-    expect(result.current.openCheckIn).toBe(before.openCheckIn);
-    expect(result.current.openEdit).toBe(before.openEdit);
-    expect(result.current.openReceipt).toBe(before.openReceipt);
-    expect(result.current.closeCheckIn).toBe(before.closeCheckIn);
+    for (const key of [
+      'openCheckIn',
+      'openEdit',
+      'openReceipt',
+      'openAddDog',
+      'closeCheckIn',
+      'closeEdit',
+      'closeReceipt',
+      'closeAddDog',
+      'submitCheckInStatus',
+      'entryUpdated',
+    ] as const) {
+      expect(result.current[key], key).toBe(before[key]);
+    }
+  });
+
+  it('closes each dialog it opened', () => {
+    const { result } = setup();
+
+    act(() => result.current.openCheckIn(ENTRY, CLASS_ROW));
+    act(() => result.current.closeCheckIn());
+    expect(result.current.checkInDialog).toEqual({ open: false, entry: null, classEntry: null });
+
+    act(() => result.current.openEdit(ENTRY));
+    act(() => result.current.closeEdit());
+    expect(result.current.editDialog).toEqual({ open: false, entry: null });
+
+    act(() => result.current.openReceipt(ENTRY));
+    act(() => result.current.closeReceipt());
+    expect(result.current.receiptDialog).toEqual({ open: false, entry: null });
+
+    act(() => result.current.openAddDog());
+    act(() => result.current.closeAddDog());
+    expect(result.current.addDogOpen).toBe(false);
   });
 
   it('closes the check-in dialog only after the write resolves', async () => {
@@ -136,18 +184,59 @@ describe('useMyEntriesDialogs', () => {
     expect(updateEntryCheckIn).not.toHaveBeenCalled();
   });
 
-  it('refreshes before closing the edit dialog, so the card shows the saved values', async () => {
-    const order: string[] = [];
-    const refreshEntries = vi.fn(() => {
-      order.push('refresh');
-      return Promise.resolve();
-    });
+  it('holds the edit dialog open until the refresh resolves', async () => {
+    // Ordering, asserted by observing the IN-FLIGHT state rather than by
+    // recording call order — a call-order array with one entry in it cannot
+    // tell "refresh then close" from "close then refresh". Closing first would
+    // drop the exhibitor back onto a card still showing the old values.
+    const gate = deferred();
+    const refreshEntries = vi.fn(() => gate.promise);
     const { result } = setup({ refreshEntries });
 
     act(() => result.current.openEdit(ENTRY));
+    let settled = false;
+    act(() => {
+      void result.current.entryUpdated().then(() => {
+        settled = true;
+      });
+    });
+
+    expect(refreshEntries).toHaveBeenCalledTimes(1);
+    expect(result.current.editDialog.open).toBe(true);
+
+    await act(async () => {
+      gate.release();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.editDialog).toEqual({ open: false, entry: null }));
+    expect(settled).toBe(true);
+  });
+
+  it('calls the current refresh, not the one it first rendered with', async () => {
+    // `entryUpdated` closes over `refreshEntries`. If that dependency were
+    // dropped, a remount-free swap of the collaborator would keep calling the
+    // stale one — an edit saved after a query-client swap would never refetch.
+    const { result, rerender, options, refreshEntries } = setup();
+    const nextRefresh = vi.fn(() => Promise.resolve());
+    rerender({ opts: { ...options, refreshEntries: nextRefresh } });
+
     await act(() => result.current.entryUpdated());
 
-    expect(order).toEqual(['refresh']);
-    expect(result.current.editDialog).toEqual({ open: false, entry: null });
+    expect(nextRefresh).toHaveBeenCalledTimes(1);
+    expect(refreshEntries).not.toHaveBeenCalled();
+  });
+
+  it('passes the exhibitor’s notes through to the write', async () => {
+    const { result, updateEntryCheckIn } = setup();
+
+    act(() => result.current.openCheckIn(ENTRY, CLASS_ROW));
+    await act(() => result.current.submitCheckInStatus(CHECKED_IN, 'running late'));
+
+    expect(updateEntryCheckIn).toHaveBeenCalledWith(
+      'order-1',
+      'class-row-1',
+      CHECKED_IN,
+      'running late'
+    );
   });
 });

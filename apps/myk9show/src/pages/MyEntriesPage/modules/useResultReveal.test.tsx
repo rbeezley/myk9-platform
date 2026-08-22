@@ -4,7 +4,7 @@
  * mounting the page — a router around the hook is the whole harness.
  */
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import React from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
@@ -61,21 +61,52 @@ function order(dogs: MyEntryDogGroup[]): MyEntry {
   };
 }
 
+/**
+ * A router around the hook, plus two handles the tests need: what the URL
+ * currently is, and a way to navigate AFTER mount. Without the second, every
+ * test would arrive with its param already present, and an implementation
+ * that read the param exactly once on mount would pass everything.
+ */
 function harness(initialUrl: string) {
   let location = '';
+  let go: (url: string) => void = () => {
+    throw new Error('router not mounted');
+  };
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <MemoryRouter initialEntries={[initialUrl]}>
-      <LocationProbe onChange={value => (location = value)} />
+      <RouterProbe
+        onLocation={value => (location = value)}
+        onNavigate={navigate => (go = navigate)}
+      />
       {children}
     </MemoryRouter>
   );
-  return { wrapper, currentUrl: () => location };
+  return { wrapper, currentUrl: () => location, navigate: (url: string) => go(url) };
 }
 
-function LocationProbe({ onChange }: { onChange: (url: string) => void }) {
+function RouterProbe({
+  onLocation,
+  onNavigate,
+}: {
+  onLocation: (url: string) => void;
+  onNavigate: (navigate: (url: string) => void) => void;
+}) {
   const { pathname, search } = useLocation();
-  onChange(`${pathname}${search}`);
+  const navigate = useNavigate();
+  onLocation(`${pathname}${search}`);
+  onNavigate(navigate);
   return null;
+}
+
+/** Renders the hook with `entries` as a prop, so a test can simulate a late
+ *  replication sync by rerendering with a different array. */
+function renderResultReveal(initialUrl: string, initialEntries: MyEntry[] = []) {
+  const { wrapper, currentUrl, navigate } = harness(initialUrl);
+  const view = renderHook(({ entries }: { entries: MyEntry[] }) => useResultReveal(entries), {
+    wrapper,
+    initialProps: { entries: initialEntries },
+  });
+  return { ...view, currentUrl, navigate };
 }
 
 beforeEach(() => {
@@ -132,7 +163,13 @@ describe('collectSeenResultReleaseKeys', () => {
   });
 
   it('ignores rows with no releasable result rather than keying on the row id', () => {
+    // A release key is `id:releasedAt:status:placement`, never the bare row id.
+    // Seeding the ROW ID as if it were a key is what makes this test able to
+    // see the difference: an implementation that fell back to `cls.id` when no
+    // model could be built would return a non-empty set here.
     const entries = [order([dogGroup({ classes: [classRow({ resultStatus: 'nq' })] })])];
+    localStorage.setItem('myk9:result-reveal-seen:class-row-1', '1');
+
     expect(collectSeenResultReleaseKeys(entries)).toEqual(new Set());
   });
 });
@@ -143,73 +180,146 @@ describe('useResultReveal — ?resultEntryId= deep link', () => {
   it('opens the reveal named by the param and strips the param', async () => {
     // Stripping matters: leaving it in place re-opens the reveal on a refresh
     // or a Back, after the exhibitor already dismissed it.
-    const { wrapper, currentUrl } = harness('/my-entries?resultEntryId=row-1&tab=upcoming');
-    const { result } = renderHook(() => useResultReveal(entries), { wrapper });
+    const { result, currentUrl } = renderResultReveal(
+      '/my-entries?resultEntryId=row-1&tab=upcoming',
+      entries
+    );
 
     await waitFor(() => expect(result.current.resultRevealModel?.entryId).toBe('row-1'));
     await waitFor(() => expect(currentUrl()).toBe('/my-entries?tab=upcoming'));
   });
 
   it('leaves unrelated params alone', async () => {
-    const { wrapper, currentUrl } = harness(
-      '/my-entries?waitlistOffer=offer-9&resultEntryId=row-1'
+    const { currentUrl } = renderResultReveal(
+      '/my-entries?waitlistOffer=offer-9&resultEntryId=row-1',
+      entries
     );
-    renderHook(() => useResultReveal(entries), { wrapper });
 
     await waitFor(() => expect(currentUrl()).toBe('/my-entries?waitlistOffer=offer-9'));
   });
 
-  it('keeps the param when the id resolves to nothing, so a late sync can still honour it', async () => {
-    // Entries replicate asynchronously. Consuming the param before the row
-    // exists would silently drop the deep link the exhibitor followed.
-    const { wrapper, currentUrl } = harness('/my-entries?resultEntryId=not-yet-synced');
-    const { result } = renderHook(() => useResultReveal(entries), { wrapper });
+  it('honours a param that arrives by navigation after mount', async () => {
+    // The param is not always present at mount — My Payments links here from
+    // inside the app. An implementation that read the URL once on mount would
+    // silently ignore that link, and every param-at-mount test would still
+    // pass, so this is what pins `searchParams` as a live dependency.
+    const { result, navigate } = renderResultReveal('/my-entries', entries);
+    expect(result.current.resultRevealModel).toBeNull();
 
-    await waitFor(() => expect(currentUrl()).toBe('/my-entries?resultEntryId=not-yet-synced'));
+    act(() => navigate('/my-entries?resultEntryId=row-1'));
+
+    await waitFor(() => expect(result.current.resultRevealModel?.entryId).toBe('row-1'));
+  });
+
+  it('keeps the param when the id resolves to nothing, then honours it once entries sync', async () => {
+    // Entries replicate asynchronously, so the row the link names routinely
+    // does not exist at mount. Consuming the param then would silently drop
+    // the deep link; ignoring the later sync would strand it forever. Both
+    // halves are asserted, because either one alone passes for the wrong code.
+    const { result, currentUrl, rerender } = renderResultReveal(
+      '/my-entries?resultEntryId=row-1',
+      []
+    );
+
+    await waitFor(() => expect(currentUrl()).toBe('/my-entries?resultEntryId=row-1'));
+    expect(result.current.resultRevealModel).toBeNull();
+
+    rerender({ entries });
+
+    await waitFor(() => expect(result.current.resultRevealModel?.entryId).toBe('row-1'));
+    await waitFor(() => expect(currentUrl()).toBe('/my-entries'));
+  });
+
+  it('leaves a param naming a row nobody owns in place', async () => {
+    const { result, currentUrl } = renderResultReveal('/my-entries?resultEntryId=ghost', entries);
+
+    await waitFor(() => expect(currentUrl()).toBe('/my-entries?resultEntryId=ghost'));
     expect(result.current.resultRevealModel).toBeNull();
   });
 
   it('does not reopen a reveal the exhibitor closed', async () => {
-    const { wrapper } = harness('/my-entries?resultEntryId=row-1');
-    const { result } = renderHook(() => useResultReveal(entries), { wrapper });
+    const { result } = renderResultReveal('/my-entries?resultEntryId=row-1', entries);
 
     await waitFor(() => expect(result.current.resultRevealModel).not.toBeNull());
     act(() => result.current.closeResultReveal());
 
-    await waitFor(() => expect(result.current.resultRevealModel).toBeNull());
+    expect(result.current.resultRevealModel).toBeNull();
+    // Give the effect every chance to fire again before believing it stayed shut.
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(result.current.resultRevealModel).toBeNull();
   });
 
+  it('opens the reveal a card tap hands it', async () => {
+    const { result } = renderResultReveal('/my-entries', entries);
+    const model = findResultRevealModel(entries, 'row-1')!;
+
+    act(() => result.current.openResultReveal(model));
+
+    await waitFor(() => expect(result.current.resultRevealModel).toBe(model));
+  });
+
   it('opens nothing when no param is present', async () => {
-    const { wrapper } = harness('/my-entries');
-    const { result } = renderHook(() => useResultReveal(entries), { wrapper });
+    const { result } = renderResultReveal('/my-entries', entries);
 
     await waitFor(() => expect(result.current.seenResultReleaseKeys).toEqual(new Set()));
     expect(result.current.resultRevealModel).toBeNull();
+  });
+
+  it('keeps closeResultReveal stable, so the dialog group does not remount', () => {
+    const { result, rerender } = renderResultReveal('/my-entries', entries);
+    const before = result.current.closeResultReveal;
+    rerender({ entries });
+
+    expect(result.current.closeResultReveal).toBe(before);
+    expect(result.current.markSeen).toBe(result.current.markSeen);
   });
 });
 
 describe('useResultReveal — seen markers', () => {
   const entries = [order([dogGroup({ classes: [classRow({ id: 'row-1' })] })])];
+  const key = () => findResultRevealModel(entries, 'row-1')!.releaseKey;
 
   it('records a reveal as seen in storage and in the returned set', async () => {
-    const { wrapper } = harness('/my-entries');
-    const { result } = renderHook(() => useResultReveal(entries), { wrapper });
-    const key = findResultRevealModel(entries, 'row-1')!.releaseKey;
+    const { result } = renderResultReveal('/my-entries', entries);
 
-    act(() => result.current.markSeen(key));
+    act(() => result.current.markSeen(key()));
 
-    await waitFor(() => expect(result.current.seenResultReleaseKeys.has(key)).toBe(true));
-    expect(localStorage.getItem(`myk9:result-reveal-seen:${key}`)).toBe('1');
+    await waitFor(() => expect(result.current.seenResultReleaseKeys.has(key())).toBe(true));
+    expect(localStorage.getItem(`myk9:result-reveal-seen:${key()}`)).toBe('1');
   });
 
   it('seeds the set from storage on mount', async () => {
-    const key = findResultRevealModel(entries, 'row-1')!.releaseKey;
-    localStorage.setItem(`myk9:result-reveal-seen:${key}`, '1');
+    localStorage.setItem(`myk9:result-reveal-seen:${key()}`, '1');
+    const { result } = renderResultReveal('/my-entries', entries);
 
-    const { wrapper } = harness('/my-entries');
-    const { result } = renderHook(() => useResultReveal(entries), { wrapper });
+    await waitFor(() => expect(result.current.seenResultReleaseKeys).toEqual(new Set([key()])));
+  });
 
-    await waitFor(() => expect(result.current.seenResultReleaseKeys).toEqual(new Set([key])));
+  it('re-reads storage when entries arrive later', async () => {
+    // The seen set is derived from the entries, so it has to be rebuilt when
+    // replication delivers them — otherwise every card on a cold boot renders
+    // its reveal as unseen and re-announces results the exhibitor has read.
+    localStorage.setItem(`myk9:result-reveal-seen:${key()}`, '1');
+    const { result, rerender } = renderResultReveal('/my-entries', []);
+
+    await waitFor(() => expect(result.current.seenResultReleaseKeys).toEqual(new Set()));
+    rerender({ entries });
+
+    await waitFor(() => expect(result.current.seenResultReleaseKeys).toEqual(new Set([key()])));
+  });
+
+  it('keeps the same Set when a key is marked twice', async () => {
+    // The set is a prop on the memoized card list. Returning a fresh Set for a
+    // no-op re-render every card on the page.
+    const { result } = renderResultReveal('/my-entries', entries);
+    act(() => result.current.markSeen(key()));
+    await waitFor(() => expect(result.current.seenResultReleaseKeys.has(key())).toBe(true));
+
+    const first = result.current.seenResultReleaseKeys;
+    act(() => result.current.markSeen(key()));
+
+    expect(result.current.seenResultReleaseKeys).toBe(first);
   });
 });

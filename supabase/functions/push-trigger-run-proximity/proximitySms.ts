@@ -26,6 +26,7 @@
  */
 
 import { buildProximitySms, estimateSegments } from '../_shared/sms/smsMessage.ts';
+import { smsDeliveryState } from '../_shared/sms/smsProvider.ts';
 import type { ProximityRecipient } from './runProximity.ts';
 
 export const DEFAULT_LEAD_DOGS = 3;
@@ -115,6 +116,14 @@ export interface ProximityDispatchResult {
   smsFailed: number;
   /** Already alerted for this entry, or over one segment. */
   smsSkipped: number;
+  /**
+   * Sends that failed in a way that cannot prove the message was NOT accepted,
+   * so the exactly-once claim was deliberately kept. Counted separately from
+   * `smsFailed` because it is the operator's only signal that an exhibitor may
+   * have silently lost their one text — and, if it ever spikes, that the
+   * provider is timing out rather than refusing.
+   */
+  smsUnconfirmed: number;
 }
 
 /**
@@ -134,6 +143,7 @@ export async function dispatchProximityAlerts(
     smsSent: 0,
     smsFailed: 0,
     smsSkipped: 0,
+    smsUnconfirmed: 0,
   };
 
   const tasks: Promise<void>[] = [];
@@ -219,6 +229,22 @@ async function sendOneSms(
   } catch (error) {
     result.smsFailed += 1;
     console.error('push-trigger-run-proximity: SMS send failed', errorMessage(error));
+
+    // RELEASE ONLY WHAT WE KNOW WAS NOT SENT (MYK9-193 review). Releasing on
+    // any failure looks generous and is a duplicate-billing bug: Twilio bills
+    // at acceptance, and a timeout or an unparseable 2xx means the message may
+    // already be queued. Release then, and the very next countdown position —
+    // seconds later — claims again and sends a second text, for every
+    // recipient at once, precisely while the provider is struggling.
+    if (smsDeliveryState(error) !== 'not-sent') {
+      result.smsUnconfirmed += 1;
+      console.warn(
+        'push-trigger-run-proximity: keeping the SMS claim, delivery unconfirmed',
+        JSON.stringify({ entryId: recipient.entryId })
+      );
+      return;
+    }
+
     try {
       await deps.ports.releaseSms(recipient.authUserId, recipient.entryId);
     } catch (releaseError) {

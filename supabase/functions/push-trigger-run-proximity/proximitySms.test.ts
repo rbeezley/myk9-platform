@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildProximitySms, estimateSegments } from '../_shared/sms/smsMessage';
 import type { ProximityRecipient } from './runProximity';
 import { shouldAlertOnTransition } from './runProximity';
+import { SmsSendError } from '../_shared/sms/smsProvider';
 import {
   decideChannels,
   dispatchProximityAlerts,
@@ -276,6 +277,113 @@ describe('dispatchProximityAlerts', () => {
     expect(estimate.encoding).toBe('GSM-7');
   });
 
+  it('KEEPS the claim when the send fails in a way that may already be billed', async () => {
+    // THE MONEY DEFECT (MYK9-193 review). Twilio bills at acceptance. A timeout
+    // that fires while the request is in flight, or a 2xx whose body will not
+    // parse, both mean the message may already be queued. Releasing there means
+    // the next countdown position — seconds later — claims again and sends a
+    // second text, for every recipient at once, exactly while the provider is
+    // struggling. One missed alert is the cheaper mistake; push still counts
+    // down regardless.
+    for (const thrown of [
+      new SmsSendError('SMS provider request failed: timeout', 'unknown'),
+      new SmsSendError('SMS provider returned an invalid response', 'unknown'),
+      new Error('something nobody classified'),
+    ]) {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const h = harness({
+        sendSms: async () => {
+          throw thrown;
+        },
+      });
+
+      const result = await dispatchWith([recipient({ dogsAhead: 2 })], bothChannels, h.ports);
+
+      expect(h.claims).toHaveLength(1);
+      expect(h.releases, String(thrown)).toHaveLength(0);
+      expect(result.smsUnconfirmed).toBe(1);
+      warn.mockRestore();
+      error.mockRestore();
+    }
+  });
+
+  it('does not re-send after an unconfirmed failure, even as the countdown advances', async () => {
+    // The end-to-end shape of the same defect: hold the claim, and the
+    // remaining countdown positions must find it held.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let failNext = true;
+    const h = harness({
+      sendSms: async () => {
+        if (failNext) {
+          failNext = false;
+          throw new SmsSendError('SMS provider request failed: timeout', 'unknown');
+        }
+      },
+    });
+
+    await dispatchWith([recipient({ dogsAhead: 2 })], bothChannels, h.ports);
+    await dispatchWith([recipient({ dogsAhead: 1 })], bothChannels, h.ports);
+    await dispatchWith([recipient({ dogsAhead: 0 })], bothChannels, h.ports);
+
+    // Three claim attempts, one won, zero releases, and — the assertion that
+    // matters — no second message handed to the provider.
+    expect(h.claims).toHaveLength(3);
+    expect(h.releases).toHaveLength(0);
+    expect(h.texts).toHaveLength(0);
+    warn.mockRestore();
+    error.mockRestore();
+  });
+
+  it('claims with (authUserId, entryId) in that order', async () => {
+    // The harness key is symmetric under swap, so length assertions cannot see
+    // a transposed pair. In production a swap sends an auth uid into
+    // `entry_id`, whose FK to entries rejects it with 23503; index.ts then
+    // treats an unknown claim state as already-sent and EVERY SMS silently
+    // stops, while the function still returns 200.
+    const h = harness();
+    await dispatchWith(
+      [recipient({ authUserId: 'user-9', entryId: 'entry-9', dogsAhead: 2 })],
+      bothChannels,
+      h.ports
+    );
+
+    expect(h.claims).toEqual([['user-9', 'entry-9']]);
+  });
+
+  it('counts a skip when the entry was already texted', async () => {
+    // smsSkipped rides in the HTTP response and is the only operator-visible
+    // signal that dedup is working at all.
+    const h = harness();
+    await dispatchWith([recipient({ dogsAhead: 2 })], bothChannels, h.ports);
+    const result = await dispatchWith([recipient({ dogsAhead: 1 })], bothChannels, h.ports);
+
+    expect(result.smsSkipped).toBe(1);
+    expect(result.smsSent).toBe(0);
+    expect(h.texts).toHaveLength(1);
+  });
+
+  it('refuses a message that is exactly two segments, not just an absurd one', async () => {
+    // The original fixture was a 300-character dog name, i.e. THREE segments,
+    // so a guard mutated to `segments > 2` survived. Two is the realistic
+    // overrun and the one that actually double-bills.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const context = { dogName: 'R'.repeat(200), className: 'Novice', armband: 1 };
+    const segments = estimateSegments(buildProximitySms({ ...context, dogsAhead: 2 })).segments;
+    expect(segments).toBe(2);
+
+    const h = harness();
+    const result = await dispatchWith([recipient({ dogsAhead: 2 })], bothChannels, h.ports, {
+      context,
+    });
+
+    expect(result.smsSkipped).toBe(1);
+    expect(h.claims).toHaveLength(0);
+    expect(h.texts).toHaveLength(0);
+    error.mockRestore();
+  });
+
   it('refuses to send, and does not claim, a message over one segment', async () => {
     // AC 5's failure branch: log rather than silently double-billing. Checked
     // before the claim so a refused message does not burn the entry's one text.
@@ -379,14 +487,16 @@ describe('dispatchProximityAlerts', () => {
     error.mockRestore();
   });
 
-  it('releases the claim when the send fails so the next transition retries', async () => {
+  it('releases the claim when the provider REFUSED the message', async () => {
+    // 'not-sent' is the only releasable case: Twilio declined it, so nothing is
+    // queued and nothing is billed.
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     let failNext = true;
     const h = harness({
       sendSms: async () => {
         if (failNext) {
           failNext = false;
-          throw new Error('twilio timeout');
+          throw new SmsSendError('SMS provider rejected the message', 'not-sent');
         }
       },
     });

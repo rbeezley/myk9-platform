@@ -22,7 +22,11 @@
 begin;
 
 create table if not exists public.sms_proximity_sends (
-  auth_user_id uuid not null,
+  -- FK to auth.users matches every other auth_user_id column in this schema.
+  -- Without it, deleting an account orphans its markers: they are keyed on
+  -- entry_id too, so the entry cascade clears them only when the ENTRY goes,
+  -- not when the account goes while the entry survives.
+  auth_user_id uuid not null references auth.users(id) on delete cascade,
   entry_id uuid not null references public.entries(id) on delete cascade,
   sent_at timestamptz not null default now(),
   primary key (auth_user_id, entry_id)
@@ -77,7 +81,15 @@ begin
   end if;
 
   -- Opportunistic pruning. An entry's marker is only meaningful while that
-  -- entry is still running today; the cascade clears the rest.
+  -- entry is still running today; the cascades clear the rest.
+  --
+  -- This runs on every claim, including the far more common already-claimed
+  -- path, which puts an index scan on a paid-send hot path. Measured against
+  -- real volume that is the right trade: a 200-exhibitor day at the default
+  -- lead_dogs is on the order of 600 claims, the predicate is covered by
+  -- sms_proximity_sends_sent_at_idx, and the deletes touch disjoint rows so
+  -- there is no meaningful lock contention. Revisit — probabilistic guard, or
+  -- a pg_cron job — only if claim volume grows by orders of magnitude.
   delete from public.sms_proximity_sends
   where sent_at < pg_catalog.now() - interval '30 days';
 

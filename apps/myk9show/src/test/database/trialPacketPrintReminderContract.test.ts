@@ -54,46 +54,82 @@ describe('print reminder ledger', () => {
 });
 
 describe('print reminder cron', () => {
-  it('fires the evening before and the morning of, both targeting the trial day', () => {
-    // 01:00 UTC is the evening before across US time zones and safely after
-    // generation (21:00-23:59 UTC targeting current_date + 1). 12:00 UTC is
-    // the morning of. Both resolve `current_date`, i.e. the trial day itself.
-    expect(sql).toMatch(/'trial-packet-print-reminder-evening',\s*\n\s*'0 1 \* \* \*'/);
-    expect(sql).toMatch(/'trial-packet-print-reminder-morning',\s*\n\s*'0 12 \* \* \*'/);
-    expect(statements).toMatch(/where t\.date = current_date\b/);
-    expect(statements).not.toMatch(/current_date \+ 1/);
+  it('chases in each trial own local window, after generation has run', () => {
+    // Generation fires in the trial's own 18:00-21:59 local; the evening chase
+    // follows at 21:00-22:59 local, and the morning chase is 06:00-08:59 on
+    // the day itself. A fixed UTC hour cannot be "evening" everywhere, and
+    // trials.timezone is populated on every row.
+    expect(statements).toMatch(/window_start := 21; window_end := 22;/);
+    expect(statements).toMatch(/window_start := 6; window_end := 8;/);
+    expect(statements).toMatch(/local_now := timezone\(rec\.tz, now\(\)\)/);
+    expect(statements).toMatch(/extract\(hour from local_now\) not between window_start and window_end/);
   });
 
-  it('replaces any previous schedule instead of stacking', () => {
-    const unschedule = sql.indexOf('cron.unschedule(jobid)');
-    expect(unschedule).toBeGreaterThan(-1);
-    expect(sql.indexOf("cron.schedule(\n  'trial-packet-print-reminder-evening'")).toBeGreaterThan(
-      unschedule
+  it('puts the evening chase on the eve and the morning chase on the day', () => {
+    expect(statements).toMatch(
+      /case when p_kind = 'evening-before' then local_now::date \+ 1 else local_now::date end/
     );
   });
 
+  it('gives each slot several attempts, so releasing a failed claim means something', () => {
+    // The first draft fired each slot exactly once, fire-and-forget. With no
+    // later run there was nothing to retry, so "a failed send releases the
+    // claim rather than burning the slot" was simply false.
+    expect(statements).toMatch(/'5,35 \* \* \* \*'/);
+    expect(statements).not.toMatch(/'0 1 \* \* \*'/);
+    expect(statements).not.toMatch(/'0 12 \* \* \*'/);
+  });
+
+  it('survives one row with an unusable timezone', () => {
+    expect(statements).toMatch(/exception when others then/);
+    expect(statements).toMatch(/coalesce\(nullif\(btrim\(t\.timezone\), ''\), 'UTC'\)/);
+  });
+
+  it('replaces any previous schedule instead of stacking', () => {
+    const unschedule = statements.indexOf('cron.unschedule(jobid)');
+    expect(unschedule).toBeGreaterThan(-1);
+    expect(statements.indexOf('cron.schedule(')).toBeGreaterThan(unschedule);
+  });
+
   it('does not chase paperwork for a draft or cancelled show', () => {
-    expect(sql).toMatch(/coalesce\(s\.status, ''\) not in \('draft', 'cancelled'\)/);
-    expect(sql).toMatch(/coalesce\(t\.status, ''\) <> 'cancelled'/);
-    expect(sql).toMatch(/t\.deleted_at is null/);
+    expect(statements).toMatch(/coalesce\(s\.status, ''\) not in \('draft', 'cancelled'\)/);
+    expect(statements).toMatch(/coalesce\(t\.status, ''\) <> 'cancelled'/);
+    expect(statements).toMatch(/t\.deleted_at is null/);
   });
 
-  it('fails loudly rather than posting unauthenticated requests twice a day', () => {
-    expect(sql).toMatch(/raise exception 'Missing Vault secret/);
-    expect(sql).toMatch(/name = 'packet_cron_secret'/);
-    expect(sql).not.toMatch(/service_role_key|SUPABASE_SERVICE_ROLE_KEY/);
+  it('keeps the Vault dependency visible to audit_cron_vault_secrets', () => {
+    // The first draft read Vault inside the function body, which hid the
+    // dependency from `list_cron_vault_secret_refs()` — it greps
+    // `cron.job.command` for exactly this text. The generation cron read it
+    // inline and was correctly caught; this one silently escaped the guard.
+    expect(statements).toMatch(
+      /select decrypted_secret from vault\.decrypted_secrets where name = 'packet_cron_secret'/
+    );
+    expect(statements).toMatch(/p_kind text,\s*\n\s*p_base_url text,\s*\n\s*p_secret text/);
+    expect(statements).not.toMatch(/service_role_key|SUPABASE_SERVICE_ROLE_KEY/);
   });
 
-  it('does not let a client role call the definer that reads Vault', () => {
-    expect(sql).toMatch(/security definer/);
-    expect(sql).toMatch(/set search_path = ''/);
-    expect(sql).toMatch(
-      /revoke all on function public\.request_trial_packet_print_reminders\(text\) from public, anon, authenticated/
+  it('does not schedule before the secret it needs exists', () => {
+    expect(statements).toMatch(
+      /if not exists \(select 1 from vault\.decrypted_secrets where name = 'packet_cron_secret'\)/
+    );
+    expect(statements).toMatch(/raise warning/);
+  });
+
+  it('fails loudly rather than posting unauthenticated requests', () => {
+    expect(statements).toMatch(/raise exception 'Missing Vault secret/);
+  });
+
+  it('does not let a client role call the definer that posts with a secret', () => {
+    expect(statements).toMatch(/security definer/);
+    expect(statements).toMatch(/set search_path = ''/);
+    expect(statements).toMatch(
+      /revoke all on function public\.request_trial_packet_print_reminders\(text, text, text\)\s*\n?\s*from public, anon, authenticated/
     );
   });
 
   it('leaves the send-or-not decision to the function, not the schedule', () => {
-    // The schedule stays dumb: it asks about every show running today. Whether
+    // The schedule stays dumb: it asks about every show in its window. Whether
     // a packet exists and whether it is already printed are decisions with
     // real consequences, and they belong where they can be unit-tested.
     expect(statements).not.toMatch(/paperwork_prints/);

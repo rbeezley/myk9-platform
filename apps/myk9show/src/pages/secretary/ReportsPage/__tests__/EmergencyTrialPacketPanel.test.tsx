@@ -217,3 +217,103 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(retriedDates).toEqual(['2026-10-03', '2026-10-04', '2026-10-04']);
   });
 });
+
+/**
+ * MYK9-228 phase 5. Once cron generates the packet overnight, the session-only
+ * list is empty and the secretary needs a way to confirm the print WITHOUT
+ * pressing Prepare — which would mint a new snapshot and email every official
+ * a second copy. Without this the print reminder has no reachable off switch.
+ */
+describe('packets prepared outside this session', () => {
+  const delivered = (overrides: Record<string, unknown> = {}) => ({
+    trialDate: '2026-10-03',
+    snapshotId: 'snap-cron',
+    generatedAt: '2026-10-02T22:00:00.000Z',
+    pageCount: 12,
+    printState: 'unconfirmed' as const,
+    descriptor: buildEmergencyPacketPaperworkDescriptor({
+      showId: 'show-1',
+      trialDate: '2026-10-03',
+      snapshotId: 'snap-cron',
+      generatedAt: '2026-10-02T22:00:00.000Z',
+      entryIds: ['e1'],
+      classIds: ['c1'],
+      trialIds: ['t1'],
+    }),
+    ...overrides,
+  });
+
+  it('offers a print confirmation for a packet cron generated overnight', async () => {
+    const user = userEvent.setup();
+    const onMarkPrinted = vi.fn();
+    render(
+      <EmergencyTrialPacketPanel
+        data={data}
+        deliveredPackets={[delivered()]}
+        onMarkPrinted={onMarkPrinted}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /mark 2026-10-03 packet printed/i }));
+
+    expect(onMarkPrinted).toHaveBeenCalledTimes(1);
+    expect(onMarkPrinted.mock.calls[0][0].coverage.snapshotId).toBe('snap-cron');
+  });
+
+  it('shows a confirmed day as printed, with no button to press again', () => {
+    render(
+      <EmergencyTrialPacketPanel
+        data={data}
+        deliveredPackets={[delivered({ printState: 'printed' })]}
+        onMarkPrinted={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/^Printed$/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /mark 2026-10-03 packet printed/i })).toBeNull();
+  });
+
+  it('says a printed packet was replaced rather than calling it unprinted', () => {
+    // Telling someone who printed Thursday's copy that it is simply
+    // unconfirmed invites a second identical stack.
+    render(
+      <EmergencyTrialPacketPanel
+        data={data}
+        deliveredPackets={[delivered({ printState: 'superseded' })]}
+        onMarkPrinted={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/newer packet replaced the one that was printed/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /mark 2026-10-03 packet printed/i })
+    ).toBeInTheDocument();
+  });
+
+  it('does not offer two buttons for a day prepared in this session', async () => {
+    const user = userEvent.setup();
+    const prepare = vi.fn().mockResolvedValue({
+      snapshotId: 'snapshot-1',
+      generatedAt: '2026-08-20T22:00:00.000Z',
+      recipientCount: 2,
+      linkExpiresAt: '2026-10-19T22:00:00.000Z',
+      pageCount: 8,
+    });
+    render(
+      <EmergencyTrialPacketPanel
+        data={data}
+        deliveredPackets={[delivered()]}
+        prepare={prepare}
+        onMarkPrinted={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /prepare and email packet/i }));
+    await screen.findByRole('button', { name: /mark .* packet printed/i });
+
+    expect(screen.getAllByRole('button', { name: /mark 2026-10-03 packet printed/i })).toHaveLength(
+      1
+    );
+  });
+});
+

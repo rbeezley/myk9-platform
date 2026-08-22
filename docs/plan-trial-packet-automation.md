@@ -116,38 +116,55 @@ rather than failing silently.
 Email to the show officials, evening before and morning of, firing only while
 `paperwork_prints` holds no confirmation covering that trial day.
 
-**5a — the day had to become addressable first.** Building the reminder
-surfaced that its exit condition was not answerable, and that the same gap was
-already mislabelling the UI. The packet is one artifact per trial DAY, but
-`ReportScope` has no 'day' kind and cannot get one (a day may hold three
-trials; a trial scope carries one id), so every confirmation writes
-`scope_kind='show'` with a null `trial_id`. Two consequences:
+**5a — the day had to become addressable first.** The packet is one artifact
+per trial DAY, but `ReportScope` has no 'day' kind and cannot get one (a day
+may hold three trials; a trial scope carries one id), so every confirmation
+writes `scope_kind='show'` with a null `trial_id`. Keyed by snapshot UUID, the
+day was unjoinable from SQL and no server-side reminder could ask "is day D
+printed?". Fixed by making the day first-class: subject key
+`packet-day:<date>`, plus `coverage.trialDate` and `coverage.snapshotId`.
 
-- `scopeCovers` made Saturday's confirmation a candidate for Sunday's
-  descriptor. Keyed by snapshot id the fingerprints differed, so Sunday read
-  **stale** — "you printed an older version" — when nobody had printed Sunday
-  at all. That is the difference between *reprint* and *print*, shown to
-  someone deciding whether to walk to the printer.
-- A snapshot UUID is unjoinable from SQL, so no server-side reminder could ask
-  the question.
-
-Fixed by making the day first-class: subject key `packet-day:<date>`, and
-`coverage.trialDate` participating in candidate selection. `snapshotId` stays in
-the facts, so regenerating the SAME day still reads stale — the distinction the
-old key was conflating. Narrow: only descriptors declaring a `trialDate` are
-affected, and every other report keeps its behaviour.
+**A correction, since this plan asserted otherwise.** The original write-up
+claimed 5a also fixed a live UI bug — Saturday's confirmation making Sunday
+read `stale`. It does not, because that state is unreachable:
+`derivePaperworkPrintState` has exactly one production caller,
+`buildClassPaperworkMap`, iterating a `REPORTS` list the packet is not in. The
+packet descriptor never reaches it. The candidate-selection guard is still
+correct and worth keeping for when it does, but the load-bearing half of 5a is
+the persisted key, and the UI story was written without checking the call
+sites.
 
 **5b — the reminder.** Email rather than push: it reuses the recipient
-resolution phase 3 extracted, reaching the same officials who got the packet,
-and the database holds exactly **one** push subscription, so push would reach
-nobody. Two slots at 01:00 and 12:00 UTC, both targeting `current_date`, kept
-as separate rows so a sent evening reminder cannot suppress the morning one —
-which is the last moment paper can reach the box. A failed send releases the
-claim rather than burning the slot.
+resolution phase 3 extracted, and the database holds exactly **one** push
+subscription. Two slots — the evening before and the morning of — in each
+trial's own local window, kept as separate rows so a sent evening reminder
+cannot suppress the morning one, which is the last moment paper can reach the
+box. It stays quiet when there is no packet.
 
-It stays quiet when there is no packet. A reminder to print something that does
-not exist is noise, and noise is how a channel stops being read; a generation
-failure is a different problem with its own visibility.
+**What adversarial review changed here.** Codex was at its usage limit, so
+subagents reviewed instead, and phase 5 did not survive intact:
+
+- **The Resend idempotency key had no show in it.** Two clubs trialling the
+  same date collided: Resend replayed the first response for the second, so
+  those officials got nothing while the function recorded `sent`. Silent, and
+  same-weekend multi-club trials are normal.
+- **The exit condition was unreachable.** "Mark printed" rendered only from
+  in-session state, so for a packet cron generated overnight there was no
+  button — and the only way to get one was to press Prepare, minting a new
+  snapshot and emailing everyone a second copy. A twice-daily chase whose only
+  escape was the duplicate-stack problem the per-day split exists to prevent.
+  The panel now lists packets that already exist, with `printed`, `superseded`
+  and `unconfirmed` distinguished.
+- **A superseded print silenced the chase.** Matching on the day alone meant a
+  Thursday print stayed "done" after Friday's regeneration added late entries —
+  the server called it printed while the UI model called the same state stale.
+  `coverage.snapshotId` now has to match the current packet.
+- **The claim had no lease and one run per slot**, so "a failed send releases
+  the claim rather than burning the slot" was false: nothing retried, and a
+  crash between claiming and sending stranded the slot forever.
+- **The cron read Vault inside a function body**, hiding the dependency from
+  `audit_cron_vault_secrets()`. The generation cron read it inline and was
+  correctly caught — the tidier shape was the one evading the guard.
 
 **Testing.** 12 pure tests over the decision and the wording, 8 over the run
 (both mutation-checked — removing the packet check, the printed check, the

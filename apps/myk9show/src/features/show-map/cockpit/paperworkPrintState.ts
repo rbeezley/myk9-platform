@@ -21,6 +21,14 @@ export interface PaperworkCoverage extends Record<string, unknown> {
    * read as evidence about Sunday (MYK9-228 phase 5).
    */
   trialDate?: string;
+  /**
+   * Which generated packet was printed. Read alongside `trialDate` by the
+   * print reminder: a confirmation for a SUPERSEDED snapshot means the box
+   * holds paper the evening regeneration has already invalidated, and going
+   * quiet on it would leave a trial running from a stale catalog. The UI model
+   * already calls that `stale`; without this the server called it done.
+   */
+  snapshotId?: string;
 }
 
 export interface PaperworkDescriptor {
@@ -108,7 +116,7 @@ function buildDescriptor(
   reportId: string,
   scope: ReportScope,
   subjects: readonly PaperworkSubject[],
-  trialDate?: string
+  dayIdentity?: { trialDate: string; snapshotId: string }
 ): PaperworkDescriptor {
   const subjectFingerprints = Object.fromEntries(
     [...subjects]
@@ -132,7 +140,7 @@ function buildDescriptor(
       scope,
       subjectFingerprints,
       subjectScopes,
-      ...(trialDate ? { trialDate } : {}),
+      ...(dayIdentity ? { trialDate: dayIdentity.trialDate, snapshotId: dayIdentity.snapshotId } : {}),
     },
     fingerprint: compactFingerprint(subjectFingerprints),
   };
@@ -213,6 +221,8 @@ export function buildArmbandPaperworkDescriptor(
   );
 }
 
+export const EMERGENCY_PACKET_REPORT_ID = 'emergency-trial-packet';
+
 /**
  * The packet is one artifact per trial DAY, but `ReportScope` has no 'day'
  * kind and cannot get one: a day may hold three trials while a trial scope
@@ -246,7 +256,7 @@ export function buildEmergencyPacketPaperworkDescriptor(input: {
   trialIds: readonly string[];
 }): PaperworkDescriptor {
   return buildDescriptor(
-    'emergency-trial-packet',
+    EMERGENCY_PACKET_REPORT_ID,
     { kind: 'show', showId: input.showId },
     [
       {
@@ -261,11 +271,23 @@ export function buildEmergencyPacketPaperworkDescriptor(input: {
         trialIds: input.trialIds,
       },
     ],
-    input.trialDate
+    // Empty strings would produce subject key `packet-day:` and no
+    // `coverage.trialDate`, i.e. a row the reminder can never join. Refuse
+    // rather than write evidence nothing can read.
+    { trialDate: requireNonEmpty(input.trialDate, 'trialDate'),
+      snapshotId: requireNonEmpty(input.snapshotId, 'snapshotId') }
   );
 }
 
-export const EMERGENCY_PACKET_REPORT_ID = 'emergency-trial-packet';
+function requireNonEmpty(value: string, field: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    throw new Error(`Emergency packet print evidence needs a ${field}.`);
+  }
+  return trimmed;
+}
+
+
 
 /** The one spelling of the key, shared by the writer and every reader. */
 export function emergencyPacketSubjectKey(trialDate: string): string {

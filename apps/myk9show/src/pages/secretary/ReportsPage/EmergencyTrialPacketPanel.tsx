@@ -16,6 +16,7 @@ import {
   buildEmergencyPacketPaperworkDescriptor,
   type PaperworkDescriptor,
 } from '@/features/show-map/cockpit/paperworkPrintState';
+import type { DeliveredPacketRow } from './deliveredPacketRows';
 
 type PacketData = Omit<EmergencyPacketInput, 'generatedAt'>;
 
@@ -50,6 +51,16 @@ async function preparePacket(
 
 export interface EmergencyTrialPacketPanelProps {
   data: PacketData | null;
+  /**
+   * Packets that already exist for this show, whoever made them.
+   *
+   * Once generation moved to cron (MYK9-228 phase 4) the session-only list
+   * below stopped being the whole story: the secretary arrives to a packet
+   * made overnight and needs to confirm printing it WITHOUT pressing Prepare,
+   * which would mint a new snapshot and email everyone a second copy. That is
+   * the only thing that stops the twice-daily print reminder.
+   */
+  deliveredPackets?: readonly DeliveredPacketRow[];
   unavailableReason?: string | undefined;
   prepare?: (
     input: EmergencyPacketInput,
@@ -60,6 +71,7 @@ export interface EmergencyTrialPacketPanelProps {
 
 export function EmergencyTrialPacketPanel({
   data,
+  deliveredPackets = [],
   unavailableReason,
   prepare = preparePacket,
   onMarkPrinted,
@@ -67,6 +79,12 @@ export function EmergencyTrialPacketPanel({
   const [isPreparing, setIsPreparing] = useState(false);
   const [preparedPackets, setPreparedPackets] = useState<PreparedPacket[] | null>(null);
   const [error, setError] = useState(false);
+  // A day prepared in THIS session already has its own row above, so showing
+  // the stored copy again would offer two buttons for one packet.
+  const outstandingPackets = useMemo(() => {
+    const preparedDays = new Set((preparedPackets ?? []).map(packet => packet.trialDate));
+    return deliveredPackets.filter(row => !preparedDays.has(row.trialDate));
+  }, [deliveredPackets, preparedPackets]);
   const availability = useMemo(
     () =>
       data
@@ -182,6 +200,50 @@ export function EmergencyTrialPacketPanel({
                   : ''}
               </p>
             </div>
+          </div>
+        )}
+        {outstandingPackets.length > 0 && (
+          <div className="mb-4 space-y-2" data-testid="delivered-packets">
+            <p className="text-sm font-medium">Packets already prepared for this show</p>
+            {outstandingPackets.map(row => (
+              <div
+                key={row.snapshotId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"
+              >
+                <div>
+                  <span className="font-medium">{row.trialDate}</span>
+                  <span className="text-muted-foreground">
+                    {' · '}
+                    {row.pageCount} pages · generated{' '}
+                    {new Date(row.generatedAt).toLocaleString()}
+                  </span>
+                  {row.printState === 'superseded' && (
+                    <p className="text-warning">
+                      A newer packet replaced the one that was printed. Print this one and confirm
+                      again.
+                    </p>
+                  )}
+                </div>
+                {row.printState === 'printed' ? (
+                  <span className="inline-flex items-center gap-1 text-success">
+                    <CheckCircle2 className="size-4" />
+                    Printed
+                  </span>
+                ) : (
+                  onMarkPrinted &&
+                  row.descriptor && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onMarkPrinted(row.descriptor as PaperworkDescriptor)}
+                    >
+                      <Printer className="size-4" />
+                      Mark {row.trialDate} packet printed
+                    </Button>
+                  )
+                )}
+              </div>
+            ))}
           </div>
         )}
         {(!preparedPackets || error) && (

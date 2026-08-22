@@ -67,6 +67,9 @@ export async function runPrintReminder(
     .eq('show_id', request.showId)
     .eq('trial_date', request.trialDate)
     .eq('delivery_status', 'sent')
+    // Newest first: the reminder must judge against the packet that is
+    // CURRENT, not the first one ever delivered for the day.
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (packetError) throw new HttpError(500, 'Failed to look up the packet.');
@@ -85,6 +88,7 @@ export async function runPrintReminder(
     hasDeliveredPacket: Boolean(packet),
     confirmations: (confirmations ?? []) as PrintConfirmationRow[],
     trialDate: request.trialDate,
+    ...(packet?.snapshot_id ? { currentSnapshotId: packet.snapshot_id as string } : {}),
   });
   if (!decision.remind) return { sent: false, reason: decision.reason };
 
@@ -131,9 +135,16 @@ export async function runPrintReminder(
   try {
     await sendEmail({
       apiKey: resendApiKey,
-      // Distinct from the packet delivery's key, or Resend would treat the
-      // reminder as a duplicate of the email carrying the link.
-      snapshotId: `print-reminder-${request.trialDate}-${request.kind}`,
+      // The SHOW is part of the key, not just the day and slot.
+      //
+      // This becomes Resend's `Idempotency-Key`. Without the show id, two
+      // clubs trialling on the same date collide: the first send succeeds and
+      // the second is answered with a REPLAY of the first — 200, no email, and
+      // this function stamps `sent_at` for officials who were never contacted.
+      // Silent, and same-weekend multi-club trials are the normal case. The
+      // packet-delivery path is safe only because its key is a real snapshot
+      // UUID.
+      snapshotId: `print-reminder-${request.showId}-${request.trialDate}-${request.kind}`,
       from: FROM_EMAIL,
       recipients,
       subject: buildPrintReminderSubject({

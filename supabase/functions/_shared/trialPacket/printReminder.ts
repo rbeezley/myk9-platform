@@ -38,7 +38,16 @@ export interface PrintConfirmationRow {
  */
 export function packetDayIsPrinted(
   rows: readonly PrintConfirmationRow[],
-  trialDate: string
+  trialDate: string,
+  /**
+   * The packet currently in Storage for this day. A confirmation for an
+   * EARLIER snapshot means the box holds paper that tonight's regeneration has
+   * superseded — the secretary printed Thursday's copy and Friday's run added
+   * the late entries. Going quiet on that is the failure this feature exists
+   * to prevent, and the UI model already calls it `stale`. Omit only when the
+   * caller genuinely does not know which packet is current.
+   */
+  currentSnapshotId?: string
 ): boolean {
   return rows.some(row => {
     if (row.report_id !== EMERGENCY_PACKET_REPORT_ID) return false;
@@ -46,7 +55,10 @@ export function packetDayIsPrinted(
     if (row.voided_at) return false;
     const coverage = row.coverage;
     if (!coverage || typeof coverage !== 'object' || Array.isArray(coverage)) return false;
-    return (coverage as { trialDate?: unknown }).trialDate === trialDate;
+    const record = coverage as { trialDate?: unknown; snapshotId?: unknown };
+    if (record.trialDate !== trialDate) return false;
+    if (currentSnapshotId === undefined) return true;
+    return record.snapshotId === currentSnapshotId;
   });
 }
 
@@ -63,9 +75,10 @@ export function decidePrintReminder(input: {
   hasDeliveredPacket: boolean;
   confirmations: readonly PrintConfirmationRow[];
   trialDate: string;
+  currentSnapshotId?: string;
 }): ReminderDecision {
   if (!input.hasDeliveredPacket) return { remind: false, reason: 'no-packet' };
-  if (packetDayIsPrinted(input.confirmations, input.trialDate)) {
+  if (packetDayIsPrinted(input.confirmations, input.trialDate, input.currentSnapshotId)) {
     return { remind: false, reason: 'already-printed' };
   }
   return { remind: true };

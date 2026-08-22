@@ -15,6 +15,12 @@ create table if not exists public.trial_packet_print_reminders (
   -- Each is its own decision to chase, so suppressing one must not suppress
   -- the other — the morning send is the last moment this can be acted on.
   reminder_kind text not null check (reminder_kind in ('evening-before', 'morning-of')),
+  -- Doubles as the CAS token. A claim with a null `sent_at` may belong to a
+  -- run that died between the INSERT and the send — resolving recipients is
+  -- two or three network round-trips — so after a lease another attempt takes
+  -- it over. The first draft had a claim with no lease AND one cron run per
+  -- slot, which meant releasing on failure achieved nothing: there was no
+  -- later run to retry, and a crash stranded the slot forever.
   claimed_at timestamptz not null default now(),
   sent_at timestamptz,
   recipient_count integer,
@@ -47,55 +53,84 @@ create policy trial_packet_print_reminders_deny_all
 -- and then filters by day in the function. `paperwork_prints_show_report_latest_idx`
 -- already covers (show_id, report_id) where voided_at is null, so no new index.
 
--- Two slots, both targeting `current_date` — the trial day itself:
---   01:00 UTC = evening BEFORE across US time zones (8pm EDT / 5pm PDT the
---               previous day), and safely after generation, which runs
---               21:00-23:59 UTC targeting `current_date + 1`.
---   12:00 UTC = the morning OF (8am EDT / 5am PDT), the last moment paper can
---               still reach the box.
 -- Deliberately not MYK9-198's original "48h out, daily": the evening-before
 -- regeneration supersedes anything printed earlier, so nagging before the
 -- packet is current asks for a print that will be stale by the trial.
-create or replace function public.request_trial_packet_print_reminders(p_kind text)
+-- Takes its credentials as ARGUMENTS rather than reading Vault itself.
+--
+-- The first draft read them in this body, and that quietly evaded
+-- `audit_cron_vault_secrets()`, which greps `cron.job.command` for
+-- `vault.decrypted_secrets where name = '...'`. The generation cron read Vault
+-- inline and was correctly flagged; this one was invisible — the tidier shape
+-- was the one escaping the guard built to catch exactly a missing or rotated
+-- secret. Values are computed at call time, so none appears in the stored
+-- command text.
+create or replace function public.request_trial_packet_print_reminders(
+  p_kind text,
+  p_base_url text,
+  p_secret text
+)
 returns void
 language plpgsql
 security definer
 set search_path = ''
 as $$
 declare
-  edge_function_base_url text;
-  packet_secret text;
   rec record;
+  local_now timestamp;
+  window_start int;
+  window_end int;
 begin
-  select decrypted_secret into edge_function_base_url
-  from vault.decrypted_secrets where name = 'edge_function_base_url';
-  select decrypted_secret into packet_secret
-  from vault.decrypted_secrets where name = 'packet_cron_secret';
-
-  -- Fail loudly rather than posting unauthenticated requests twice a day.
-  if nullif(edge_function_base_url, '') is null
-     or nullif(packet_secret, '') is null then
+  if nullif(p_base_url, '') is null or nullif(p_secret, '') is null then
     raise exception 'Missing Vault secret: edge_function_base_url or packet_cron_secret';
+  end if;
+
+  -- Local hours, not a fixed UTC hour. Generation fires in each trial's own
+  -- 18:00-21:59; the evening chase follows it at 21:00-22:59 local, and the
+  -- morning chase is 06:00-08:59 on the day itself — the last window in which
+  -- paper can still reach the box.
+  if p_kind = 'evening-before' then
+    window_start := 21; window_end := 22;
+  elsif p_kind = 'morning-of' then
+    window_start := 6; window_end := 8;
+  else
+    raise exception 'Unknown reminder kind: %', p_kind;
   end if;
 
   -- One request per (show, day). The function decides whether to actually
   -- send: it checks that a packet exists and that no confirmation covers the
   -- day, so the schedule stays dumb and the decision stays testable.
   for rec in
-    select distinct t.show_id, t.date
+    select distinct
+      t.show_id,
+      t.date,
+      coalesce(nullif(btrim(t.timezone), ''), 'UTC') as tz
     from public.trials t
     join public.shows s on s.id = t.show_id
-    where t.date = current_date
+    where t.date between current_date - 1 and current_date + 2
       and t.deleted_at is null
       and s.deleted_at is null
       and coalesce(t.status, '') <> 'cancelled'
       and coalesce(s.status, '') not in ('draft', 'cancelled')
   loop
+    -- One malformed timezone must not kill the chase for every other show.
+    begin
+      local_now := timezone(rec.tz, now());
+    exception when others then
+      local_now := timezone('UTC', now());
+    end;
+
+    -- The evening chase is the eve of the trial; the morning chase is the day.
+    continue when rec.date <> (
+      case when p_kind = 'evening-before' then local_now::date + 1 else local_now::date end
+    );
+    continue when extract(hour from local_now) not between window_start and window_end;
+
     perform net.http_post(
-      url := edge_function_base_url || '/remind-print-trial-packet',
+      url := p_base_url || '/remind-print-trial-packet',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || packet_secret
+        'Authorization', 'Bearer ' || p_secret
       ),
       body := jsonb_build_object(
         'showId', rec.show_id,
@@ -108,23 +143,56 @@ begin
 end;
 $$;
 
-comment on function public.request_trial_packet_print_reminders(text) is
-  'MYK9-228: cron entry point. Asks remind-print-trial-packet to consider every show running today.';
+comment on function public.request_trial_packet_print_reminders(text, text, text) is
+  'MYK9-228: cron entry point. Chases any trial day currently inside its own local reminder window.';
 
--- Definer, and it reads Vault — so it must not be callable by a client role.
-revoke all on function public.request_trial_packet_print_reminders(text) from public, anon, authenticated;
+-- Definer, and it posts with a secret — so no client role may call it.
+revoke all on function public.request_trial_packet_print_reminders(text, text, text)
+  from public, anon, authenticated;
 
 select cron.unschedule(jobid) from cron.job
 where jobname in ('trial-packet-print-reminder-evening', 'trial-packet-print-reminder-morning');
 
-select cron.schedule(
-  'trial-packet-print-reminder-evening',
-  '0 1 * * *',
-  $evening$select public.request_trial_packet_print_reminders('evening-before');$evening$
-);
+-- Twice an hour, like generation, so each slot gets several attempts and the
+-- claim lease means something: releasing a failed send only helps if a later
+-- run exists to pick it up. The first draft fired each slot exactly once, so
+-- "a failed send releases the claim rather than burning the slot" was false —
+-- there was nothing left to retry.
+--
+-- Scheduled only once `packet_cron_secret` exists: scheduling first would turn
+-- `cron-vault-secrets.integration.test.ts` red and leave both jobs raising
+-- into a void 96 times a day.
+do $schedule$
+declare
+  kinds text[] := array['evening-before', 'morning-of'];
+  kind text;
+  jobname text;
+begin
+  if not exists (select 1 from vault.decrypted_secrets where name = 'packet_cron_secret') then
+    raise warning '%',
+      'packet_cron_secret is not in Vault, so the print-reminder crons were NOT scheduled. '
+      'Create it and the matching PACKET_CRON_SECRET function secret, then re-run the '
+      'cron.schedule calls in 20260822130000_trial_packet_print_reminder.sql.';
+    return;
+  end if;
 
-select cron.schedule(
-  'trial-packet-print-reminder-morning',
-  '0 12 * * *',
-  $morning$select public.request_trial_packet_print_reminders('morning-of');$morning$
-);
+  foreach kind in array kinds loop
+    jobname := 'trial-packet-print-reminder-' ||
+      case when kind = 'evening-before' then 'evening' else 'morning' end;
+    perform cron.schedule(
+      jobname,
+      '5,35 * * * *',
+      format(
+        $job$
+        select public.request_trial_packet_print_reminders(
+          %L,
+          (select decrypted_secret from vault.decrypted_secrets where name = 'edge_function_base_url'),
+          (select decrypted_secret from vault.decrypted_secrets where name = 'packet_cron_secret')
+        );
+        $job$,
+        kind
+      )
+    );
+  end loop;
+end
+$schedule$;

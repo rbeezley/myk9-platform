@@ -149,11 +149,15 @@ describe('runPrintReminder', () => {
     expect(sendEmail.mock.calls[0][0].subject).toMatch(/Tonight: print/);
   });
 
-  it('goes quiet once the day is confirmed printed', async () => {
+  it('goes quiet once the CURRENT packet is confirmed printed', async () => {
     const sendEmail = vi.fn();
     const { supabase } = makeStub({
       confirmations: [
-        { report_id: 'emergency-trial-packet', coverage: { trialDate: DAY }, voided_at: null },
+        {
+          report_id: 'emergency-trial-packet',
+          coverage: { trialDate: DAY, snapshotId: 'snap-1' },
+          voided_at: null,
+        },
       ],
     });
 
@@ -161,6 +165,43 @@ describe('runPrintReminder', () => {
 
     expect(outcome).toEqual({ sent: false, reason: 'already-printed' });
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('still chases when the printed copy has been superseded', async () => {
+    // The secretary printed Thursday's packet and marked it. Friday evening's
+    // regeneration added the late entries, so the box now holds a stale
+    // catalog. Matching on the day alone went quiet here — the server called
+    // it done while the UI model called the same state `stale`.
+    const sendEmail = vi.fn().mockResolvedValue('msg-1');
+    const { supabase } = makeStub({
+      confirmations: [
+        {
+          report_id: 'emergency-trial-packet',
+          coverage: { trialDate: DAY, snapshotId: 'snap-thursday' },
+          voided_at: null,
+        },
+      ],
+    });
+
+    const outcome = await runPrintReminder(supabase, request, makeDeps(sendEmail));
+
+    expect(outcome).toEqual({ sent: true, recipientCount: 1 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('keys the provider idempotency on the SHOW as well as the day and slot', async () => {
+    // Two clubs trialling the same date shared a key, so Resend replayed the
+    // first response for the second and its officials got nothing — while
+    // this function recorded `sent`. Same-weekend multi-club trials are the
+    // normal case, not an edge case.
+    const sendEmail = vi.fn().mockResolvedValue('msg-1');
+    const { supabase } = makeStub();
+
+    await runPrintReminder(supabase, request, makeDeps(sendEmail));
+
+    expect(sendEmail.mock.calls[0][0].snapshotId).toBe(
+      `print-reminder-${SHOW_ID}-${DAY}-evening-before`
+    );
   });
 
   it('does not chase a print for a packet that does not exist', async () => {

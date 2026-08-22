@@ -28,6 +28,7 @@ import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkP
 import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { EmergencyTrialPacketPanel } from './EmergencyTrialPacketPanel';
+import { useDeliveredPackets } from './useDeliveredPackets';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -292,6 +293,11 @@ export default function ReportsPage() {
     });
   }, [show, trials, classes, entries, isLoading, isError, effectiveScope.kind]);
 
+  // Packets that already exist, including any cron generated overnight — the
+  // only way to confirm printing one without re-preparing it, which would mint
+  // a new snapshot and email every official a second copy (MYK9-228 phase 5).
+  const deliveredPackets = useDeliveredPackets(showId, emergencyPacketData);
+
   return (
     <div className="container mx-auto py-6 flex flex-col">
       <ShowDeskReturnLink showId={showId} className="mb-2 self-start" />
@@ -306,6 +312,7 @@ export default function ReportsPage() {
 
       <EmergencyTrialPacketPanel
         data={emergencyPacketData}
+        deliveredPackets={deliveredPackets}
         unavailableReason={
           effectiveScope.kind !== 'show'
             ? 'Choose All Trials and All Classes to prepare the whole-show emergency packet.'

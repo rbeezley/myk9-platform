@@ -13,7 +13,8 @@ import { createElement } from 'react';
 import { List, CalendarDays } from 'lucide-react';
 import type { PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { StatusIcon } from '@/components/status';
-import type { EntryStatusFilter, EntryTabFilter } from './my-entries-types';
+import { isCompletedEntry } from './myEntriesStats.helpers';
+import type { EntryStatusFilter, EntryTabFilter, MyEntry } from './my-entries-types';
 
 export const ENTRY_TAB_DEFS = [
   { id: 'all', label: 'All', icon: List },
@@ -29,6 +30,30 @@ export const ENTRY_TAB_DEFS = [
     }),
   },
 ] as const satisfies Omit<PrimaryTabDef, 'count'>[];
+
+/**
+ * What each tab MEANS, stated once.
+ *
+ * A tab label is a promise about what clicking it will show, so the list and
+ * the badge above it have to answer the same question. They used to answer it
+ * from two hand-maintained sites — a `switch` for the list and a separate set
+ * of `.filter()` calls for the counts — kept in agreement by vigilance.
+ * MYK9-208 was that agreement failing (the badge counted show dates while the
+ * cards counted scores), and #1707 had to add a test asserting the two match.
+ * Deriving both from this map makes the disagreement inexpressible instead of
+ * merely tested for.
+ *
+ * `now` is a parameter rather than read inside: every caller in one render
+ * must judge "completed" at the same instant, or a long-lived session crossing
+ * a show's end date can put an entry in the list and out of the count.
+ */
+export const TAB_PREDICATES: Record<EntryTabFilter, (entry: MyEntry, now: Date) => boolean> = {
+  all: () => true,
+  // Strict complement of completed, so `upcoming + completed === all` holds by
+  // construction — the partition invariant Phase A exists to create.
+  upcoming: (entry, now) => !isCompletedEntry(entry, now),
+  completed: (entry, now) => isCompletedEntry(entry, now),
+};
 
 /** The status chips shown beside the tabs. `any` is the default, first. */
 export const ENTRY_STATUS_FILTER_DEFS = [

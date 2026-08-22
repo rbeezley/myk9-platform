@@ -248,6 +248,17 @@ alter table public.sms_opt_in_attempts force row level security;
 revoke all on table public.sms_opt_in_attempts from public, anon, authenticated;
 grant select, insert, delete on table public.sms_opt_in_attempts to service_role;
 
+-- Explicit deny-all rather than relying on "RLS enabled with no policies": the
+-- disposition is then visible in the SQL and still holds if a later migration
+-- grants a client role by accident. service_role bypasses RLS, and
+-- claim_sms_opt_in_attempt is SECURITY DEFINER, so neither path is affected.
+create policy sms_opt_in_attempts_deny_all
+  on public.sms_opt_in_attempts
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
 create or replace function public.claim_sms_opt_in_attempt(
   p_auth_user_id uuid,
   p_phone_e164 text

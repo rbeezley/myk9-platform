@@ -385,7 +385,7 @@ table. The original own-row policy protects reads, but its `FOR ALL ... USING`
 shape and the table-wide authenticated CRUD grant do not prevent a client from
 planting another account row or fabricating SMS consent columns. Do not deploy
 an SMS client against that grant shape. Migration
-`20260821230000_harden_notification_preferences_sms.sql` closes the mutation
+`20260822120000_harden_notification_preferences_sms.sql` closes the mutation
 gap before the opt-in function is deployable; see §6.6.
 
 Then prove the constraint bites, which is the only behaviour this migration has:
@@ -426,7 +426,7 @@ Source for the opt-in confirmation can merge before carrier approval, but do
 not deploy any SMS function or send to a US mobile number until all of these are
 recorded:
 
-- migration `20260821230000_harden_notification_preferences_sms.sql` is applied
+- migration `20260822120000_harden_notification_preferences_sms.sql` is applied
   and its owner-read-only table grants plus caller-derived RPCs are verified;
 - MYK9-190 A2P 10DLC campaign approval;
 - operator confirmation that Edge Function secrets `TWILIO_ACCOUNT_SID`,

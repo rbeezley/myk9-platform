@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(
-  resolve(__dirname, '../../migrations/20260821230000_harden_notification_preferences_sms.sql'),
+  resolve(__dirname, '../../migrations/20260822120000_harden_notification_preferences_sms.sql'),
   'utf8'
 );
 const endpoint = readFileSync(resolve(__dirname, 'index.ts'), 'utf8');

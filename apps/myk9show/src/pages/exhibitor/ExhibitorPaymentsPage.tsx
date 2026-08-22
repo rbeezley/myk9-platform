@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/table';
 import { AmountDueSection } from './AmountDueSection';
 import { useElementWidth } from '@/hooks/useElementWidth';
-import { useMyPayments } from '@/features/payments/useMyPayments';
+import { useMyPaymentYears, useMyPayments } from '@/features/payments/useMyPayments';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 import { buildEntryReceiptHref } from '@/features/payments/entryReceiptHref';
@@ -56,6 +56,7 @@ import {
   filterPaymentRowsByYear,
   isPaymentYearSelection,
   listPaymentYears,
+  paymentYearQueryRange,
   type PaymentYearSelection,
 } from '@/features/payments/paymentYearFilter';
 import { PaymentsSummary } from './PaymentsSummaryCard';
@@ -298,7 +299,17 @@ function PaymentsHistoryList({ rows }: { rows: PaymentDisplayRow[] }) {
 }
 
 export default function ExhibitorPaymentsPage() {
-  const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearParam = searchParams.get('year');
+  const queryYear = paymentYearQueryRange(yearParam) ? yearParam! : ALL_PAYMENT_YEARS;
+  const needsPaymentYearMetadata = queryYear !== ALL_PAYMENT_YEARS;
+  const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments(queryYear);
+  const {
+    data: knownPaymentYears,
+    isError: isPaymentYearsError,
+    isFetching: isPaymentYearsFetching,
+    refetch: refetchPaymentYears,
+  } = useMyPaymentYears(needsPaymentYearMetadata);
   const {
     data: balanceSummary,
     isLoading: isBalanceLoading,
@@ -316,9 +327,10 @@ export default function ExhibitorPaymentsPage() {
   // My Shows' `?tab=`, so the view survives refresh, back/forward, and a link
   // an exhibitor mails to their accountant. Derived straight from the params
   // rather than synced into state (no set-state-in-effect).
-  const [searchParams, setSearchParams] = useSearchParams();
-  const paymentYears = useMemo(() => listPaymentYears(paymentRows), [paymentRows]);
-  const yearParam = searchParams.get('year');
+  const paymentYears = useMemo(
+    () => knownPaymentYears ?? listPaymentYears(paymentRows),
+    [knownPaymentYears, paymentRows]
+  );
   // Defaults to all time, and an unrecognized `?year=` falls back to it. A
   // money surface must not open having silently hidden rows, and an empty
   // ledger from a stale link reads as "you paid nothing" rather than "that
@@ -343,7 +355,10 @@ export default function ExhibitorPaymentsPage() {
     [setSearchParams]
   );
 
-  const canFilterByYear = useMemo(() => canFilterPaymentYears(paymentRows), [paymentRows]);
+  const canFilterByYear = useMemo(
+    () => canFilterPaymentYears(paymentRows) || selectedYear !== ALL_PAYMENT_YEARS,
+    [paymentRows, selectedYear]
+  );
 
   const visibleRows = useMemo(
     () => filterPaymentRowsByYear(paymentRows, selectedYear),
@@ -378,9 +393,9 @@ export default function ExhibitorPaymentsPage() {
             <Skeleton className="h-6 w-5/6" />
           </CardContent>
         </Card>
-      ) : isError ? (
+      ) : isError || isPaymentYearsError ? (
         <Card>
-          {/* Cause-agnostic on purpose. useMyPayments throws on any query
+          {/* Cause-agnostic on purpose. The payment queries throw on any
               failure, connectivity included but also permissions and 5xx, so
               naming a cause here would be a guess — and promising it will
               come back on its own is a guess that never resolves. Say what
@@ -391,10 +406,13 @@ export default function ExhibitorPaymentsPage() {
             <Button
               variant="outline"
               size="touch"
-              onClick={() => void refetch()}
-              disabled={isFetching}
+              onClick={() => {
+                void refetch();
+                if (needsPaymentYearMetadata) void refetchPaymentYears();
+              }}
+              disabled={isFetching || isPaymentYearsFetching}
             >
-              {isFetching ? 'Trying again...' : 'Try again'}
+              {isFetching || isPaymentYearsFetching ? 'Trying again...' : 'Try again'}
             </Button>
           </CardContent>
         </Card>

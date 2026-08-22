@@ -22,6 +22,8 @@
   - Verification: 18/18 focused assertions passed; `pnpm --filter @myk9/show typecheck` and `pnpm --filter @myk9/show lint` both exited 0.
 - [x] 3.2 Validate `myk9-57-admin-tablet-shell` with OpenSpec and complete implementation verification, resolving all critical findings.
   - Verification: OpenSpec validation passed. The responsive-shell requirement maps to the shared container-query rules and the two existing page headers, all focused tests pass, and the implementation follows the no-duplicate-surface design. No implementation-critical findings remain; delivery, staging replay, and tracking gates remain open before archive.
-- [ ] 3.3 Open the implementation PR linked to MYK9-57 and this OpenSpec change; obtain review and required CI.
-- [ ] 3.4 **[EXPANDED]** After merge and staging deployment, replay `/admin/permissions` and `/admin/sync` in light and dark themes at 768×1024 and 1024×768; verify no clipping/near-vertical wrapping, 44px actions, and keyboard access, then run the prior 720×450 mobile-shell control and record artifact checksums.
-- [ ] 3.5 Update MYK9-57 and `docs/plan-linear-backlog-batches.md` only when the evidence gate passes; archive the OpenSpec change and clean up the branch/worktree after every required PR is merged.
+- [x] 3.3 Open the implementation PR linked to MYK9-57 and this OpenSpec change; obtain review and required CI.
+  - Delivery: PR #1730 passed independent review and every required check, then squash-merged as `f3bed32435b5e657f13beb8308b05ab4dd13e624` on 2026-08-21.
+- [x] 3.4 **[EXPANDED]** After merge and staging deployment, replay `/admin/permissions` and `/admin/sync` in light and dark themes at 768×1024 and 1024×768; verify no clipping/near-vertical wrapping, 44px actions, and keyboard access, then run the prior 720×450 mobile-shell control and record artifact checksums.
+  - Final evidence: after MYK9-163 merged, the authenticated light/dark tablet matrix plus the light 720×450 control passed 10/10 with no document overflow. Private screenshot checksums are recorded in Linear.
+- [x] 3.5 Update MYK9-57 and `docs/plan-linear-backlog-batches.md` only when the evidence gate passes; archive the OpenSpec change and clean up the branch/worktree after every required PR is merged.

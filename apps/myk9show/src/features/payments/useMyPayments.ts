@@ -2,6 +2,40 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
 import type { PaymentPresentationRefund } from './moneyPresentation';
+import {
+  ALL_PAYMENT_YEARS,
+  listPaymentYears,
+  paymentYearQueryRange,
+  type PaymentYearQueryRange,
+  type PaymentYearSelection,
+} from './paymentYearFilter';
+
+const PAYMENT_ORDER_PAGE_SIZE = 100;
+const ENTRY_ID_CHUNK_SIZE = 100;
+const ORDER_SELECT =
+  'id, amount_cents, currency, status, paid_at, refunded_at, created_at, stripe_payment_intent_id, entry_ids, show_id, show:show_id(name)';
+
+interface StripeOrderRow {
+  id: string;
+  amount_cents: number;
+  currency: string | null;
+  status: string | null;
+  paid_at: string | null;
+  refunded_at: string | null;
+  created_at: string | null;
+  stripe_payment_intent_id: string | null;
+  entry_ids: string[] | null;
+  show_id: string | null;
+  show: { name: string } | null;
+}
+
+interface PaymentYearMetadataOrderRow {
+  id: string;
+  paid_at: string | null;
+  refunded_at: string | null;
+  created_at: string | null;
+  entry_ids: string[] | null;
+}
 
 interface RefundEntryRow {
   id: string;
@@ -9,6 +43,170 @@ interface RefundEntryRow {
   refunded_at: string | null;
   dogs: { call_name: string | null } | null;
   classes: { name: string | null } | null;
+}
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let offset = 0; offset < items.length; offset += size) {
+    result.push(items.slice(offset, offset + size));
+  }
+  return result;
+}
+
+function orderYearPredicate(range: PaymentYearQueryRange): string {
+  return [
+    `and(paid_at.gte.${range.start},paid_at.lt.${range.end})`,
+    `and(paid_at.is.null,created_at.gte.${range.start},created_at.lt.${range.end})`,
+    `and(refunded_at.gte.${range.start},refunded_at.lt.${range.end})`,
+  ].join(',');
+}
+
+async function fetchOrderPages(options: {
+  range?: PaymentYearQueryRange;
+  refundedEntryIds?: string[];
+}): Promise<StripeOrderRow[]> {
+  const rows: StripeOrderRow[] = [];
+
+  for (let from = 0; ; from += PAYMENT_ORDER_PAGE_SIZE) {
+    let query = supabase
+      .from('stripe_orders')
+      .select(ORDER_SELECT)
+      .order('created_at', { ascending: false })
+      // Supabase appends repeated order calls, producing
+      // `created_at.desc,id.desc`. The UUID primary key makes ties stable so
+      // range boundaries cannot duplicate or skip orders.
+      .order('id', { ascending: false });
+
+    if (options.range) query = query.or(orderYearPredicate(options.range));
+    if (options.refundedEntryIds) {
+      query = query.overlaps('entry_ids', options.refundedEntryIds);
+    }
+
+    const { data, error } = await query.range(from, from + PAYMENT_ORDER_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = (data ?? []) as unknown as StripeOrderRow[];
+    rows.push(...page);
+    if (page.length < PAYMENT_ORDER_PAGE_SIZE) return rows;
+  }
+}
+
+async function fetchRefundedEntryIds(range: PaymentYearQueryRange): Promise<string[]> {
+  const ids: string[] = [];
+
+  for (let from = 0; ; from += PAYMENT_ORDER_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('id')
+      .gte('refunded_at', range.start)
+      .lt('refunded_at', range.end)
+      .order('refunded_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + PAYMENT_ORDER_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = data ?? [];
+    ids.push(...page.map(entry => entry.id));
+    if (page.length < PAYMENT_ORDER_PAGE_SIZE) return ids;
+  }
+}
+
+async function fetchOrders(selection: PaymentYearSelection): Promise<StripeOrderRow[]> {
+  const range = paymentYearQueryRange(selection);
+  if (!range) return fetchOrderPages({});
+
+  const ordersById = new Map<string, StripeOrderRow>();
+  for (const order of await fetchOrderPages({ range })) ordersById.set(order.id, order);
+
+  // Entry-level refunds are the authoritative partial-refund record. Include
+  // their older owning order so a 2025 charge refunded in 2026 still produces
+  // the 2026 cash-basis refund row after the server-side order date filter.
+  const refundedEntryIds = await fetchRefundedEntryIds(range);
+  for (const entryIdChunk of chunks(refundedEntryIds, ENTRY_ID_CHUNK_SIZE)) {
+    for (const order of await fetchOrderPages({ refundedEntryIds: entryIdChunk })) {
+      ordersById.set(order.id, order);
+    }
+  }
+
+  if (ordersById.size === 0) {
+    // Preserve the existing stale-link contract: a year with no ledger rows
+    // falls back to the complete all-time ledger instead of claiming the user
+    // has no payments. Each all-time request is still explicitly paged.
+    return fetchOrderPages({});
+  }
+
+  return [...ordersById.values()].sort((a, b) => {
+    const byCreatedAt = (b.created_at ?? '').localeCompare(a.created_at ?? '');
+    return byCreatedAt || b.id.localeCompare(a.id);
+  });
+}
+
+async function fetchEntryDetails(entryIds: string[]): Promise<RefundEntryRow[]> {
+  const rows: RefundEntryRow[] = [];
+  for (const entryIdChunk of chunks(entryIds, ENTRY_ID_CHUNK_SIZE)) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('id, refund_amount, refunded_at, dogs(call_name), classes(name)')
+      .in('id', entryIdChunk);
+    if (error) throw error;
+    rows.push(...((data ?? []) as unknown as RefundEntryRow[]));
+  }
+  return rows;
+}
+
+async function fetchPaymentYearMetadataOrders(): Promise<PaymentYearMetadataOrderRow[]> {
+  const rows: PaymentYearMetadataOrderRow[] = [];
+
+  for (let from = 0; ; from += PAYMENT_ORDER_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('stripe_orders')
+      .select('id, paid_at, refunded_at, created_at, entry_ids')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + PAYMENT_ORDER_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = (data ?? []) as PaymentYearMetadataOrderRow[];
+    rows.push(...page);
+    if (page.length < PAYMENT_ORDER_PAGE_SIZE) return rows;
+  }
+}
+
+async function fetchEntryRefundDates(entryIds: string[]): Promise<Array<string | null>> {
+  const dates: Array<string | null> = [];
+  for (const entryIdChunk of chunks(entryIds, ENTRY_ID_CHUNK_SIZE)) {
+    const { data, error } = await supabase
+      .from('entries')
+      .select('id, refunded_at')
+      .in('id', entryIdChunk);
+    if (error) throw error;
+    dates.push(...(data ?? []).map(entry => entry.refunded_at));
+  }
+  return dates;
+}
+
+/**
+ * The complete set of years for a server-scoped ledger view. This query is
+ * enabled only while a year is selected: it pages date/id metadata and chunks
+ * entry IDs, retaining picker options without re-fetching unbounded amounts or
+ * full order payloads.
+ */
+export function useMyPaymentYears(enabled: boolean) {
+  return useQuery({
+    queryKey: ['exhibitor', 'my-payment-years'],
+    queryFn: async (): Promise<string[]> => {
+      const orders = await fetchPaymentYearMetadataOrders();
+      const entryIds = [...new Set(orders.flatMap(order => order.entry_ids ?? []))];
+      const entryRefundDates = await fetchEntryRefundDates(entryIds);
+      return listPaymentYears([
+        ...orders.map(order => ({ date: order.paid_at ?? order.created_at })),
+        ...orders.map(order => ({ date: order.refunded_at })),
+        ...entryRefundDates.map(date => ({ date })),
+      ]);
+    },
+    enabled,
+    ...cacheStrategies.moderate,
+  });
 }
 
 export interface MyPayment {
@@ -46,31 +244,17 @@ export interface MyPayment {
  * = get_my_person_id()), so no explicit owner filter is needed here. The show name
  * is embedded via the show_id FK (null for non-entry orders).
  */
-export function useMyPayments() {
+export function useMyPayments(selection: PaymentYearSelection = ALL_PAYMENT_YEARS) {
   return useQuery({
-    queryKey: ['exhibitor', 'my-payments'],
+    queryKey: ['exhibitor', 'my-payments', selection],
     queryFn: async (): Promise<MyPayment[]> => {
-      const { data, error } = await supabase
-        .from('stripe_orders')
-        .select(
-          'id, amount_cents, currency, status, paid_at, refunded_at, created_at, stripe_payment_intent_id, entry_ids, show_id, show:show_id(name)'
-        )
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-
-      const orders = data ?? [];
+      const orders = await fetchOrders(selection);
       const entryIds = [...new Set(orders.flatMap(o => o.entry_ids ?? []))];
       const refundsByEntryId = new Map<string, number>();
       const refundDetailsByEntryId = new Map<string, PaymentPresentationRefund>();
 
       if (entryIds.length > 0) {
-        const { data: entries, error: entriesError } = await supabase
-          .from('entries')
-          .select('id, refund_amount, refunded_at, dogs(call_name), classes(name)')
-          .in('id', entryIds);
-        if (entriesError) throw entriesError;
-
-        for (const entry of (entries ?? []) as RefundEntryRow[]) {
+        for (const entry of await fetchEntryDetails(entryIds)) {
           const refundCents = Math.round((entry.refund_amount ?? 0) * 100);
           refundsByEntryId.set(entry.id, refundCents);
           if (refundCents <= 0) continue;

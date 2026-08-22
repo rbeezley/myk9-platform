@@ -46,6 +46,7 @@ interface RolePermissionJoinRow {
 
 interface UserRoleWithJoinedRole extends UserRolesRow {
   role: RolesRow | null;
+  club: Pick<Database['public']['Tables']['clubs']['Row'], 'id' | 'name'> | null;
 }
 
 interface UserRoleAuditRow {
@@ -819,7 +820,8 @@ export class RoleManager {
       .select(
         `
         *,
-        role:roles(*)
+        role:roles(*),
+        club:clubs(id, name)
       `
       )
       .order('granted_at', { ascending: false });
@@ -853,6 +855,7 @@ export class RoleManager {
         expires_at: item.expires_at,
         is_active: item.is_active,
         ...(role ? { role } : {}),
+        club: item.club,
         ...(userEmail ? { user_email: userEmail } : {}),
         assigned_by_email: formatPersonLabel(peopleById.get(item.granted_by ?? '')) ?? 'System',
       };

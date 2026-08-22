@@ -4,6 +4,21 @@ import { describe, expect, it } from 'vitest';
 import { AUTHENTICATED_TABLE_GRANTS, appliedAclCheck } from './appliedAclChecks';
 import { appliedAclFacts } from './appliedAclTestFixtures';
 
+const sql = readFileSync(
+  resolve(__dirname, '../../../../../supabase/tests/pre_rule_table_grants_test.sql'),
+  'utf8'
+);
+
+/** Section A's `expected(tbl, authenticated, anon, service_role)` VALUES list. */
+const sqlGrants = Object.fromEntries(
+  [
+    ...sql
+      .split('WITH expected(tbl, authenticated, anon, service_role) AS (VALUES')[1]
+      .split('\n  )')[0]
+      .matchAll(/^\s*\('([a-z_]+)','([^']*)','([^']*)','([^']*)'\),?\s*$/gm),
+  ].map(m => [m[1], m[2]])
+);
+
 const PROBED_AT = '2026-08-04T12:00:00.000Z';
 
 describe('appliedAclCheck — authenticated and sequence ACL drift', () => {
@@ -11,7 +26,13 @@ describe('appliedAclCheck — authenticated and sequence ACL drift', () => {
     const check = appliedAclCheck(appliedAclFacts(), PROBED_AT);
 
     expect(check.status).toBe('ok');
-    expect(check.detail).toContain('127 authenticated table grants');
+    // Counted from the SQL contract, not written as a literal. Two PRs each
+    // adding one table would both have bumped a literal 127 to 128 -- an
+    // identical edit on both sides, which git merges CLEANLY and silently,
+    // leaving main asserting 128 against a 129-entry map.
+    expect(check.detail).toContain(
+      `${Object.keys(sqlGrants).length} authenticated table grants`
+    );
     expect(check.detail).toContain('4 public sequences');
   });
 
@@ -105,21 +126,6 @@ describe('appliedAclCheck — authenticated and sequence ACL drift', () => {
  * the second copy silently becomes fiction.
  */
 describe('AUTHENTICATED_TABLE_GRANTS agrees with the SQL contract', () => {
-  const sql = readFileSync(
-    resolve(__dirname, '../../../../../supabase/tests/pre_rule_table_grants_test.sql'),
-    'utf8'
-  );
-
-  /** Section A's `expected(tbl, authenticated, anon, service_role)` VALUES list. */
-  const sqlGrants = Object.fromEntries(
-    [
-      ...sql
-        .split('WITH expected(tbl, authenticated, anon, service_role) AS (VALUES')[1]
-        .split('\n  )')[0]
-        .matchAll(/^\s*\('([a-z_]+)','([^']*)','([^']*)','([^']*)'\),?\s*$/gm),
-    ].map(m => [m[1], m[2]])
-  );
-
   it('parses the SQL contract at all (guards the split/regex against a reformat)', () => {
     // A silently-empty parse would make every assertion below vacuous — the
     // very failure mode this block exists to prevent.

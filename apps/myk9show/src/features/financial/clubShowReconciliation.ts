@@ -10,21 +10,21 @@
 //                        clubNetContributionCents). Independent of payout
 //                        SETTLEMENT timing — a show can be charge-verified
 //                        before its payout settles.
-//   - chargeVerification: Verified / Attested across the show's Stripe orders.
-//                        Verified means EVERY order for the show carries a
+//   - chargeVerification: StripeRecord / NoStripeRecord across the show's Stripe orders.
+//                        StripeRecord means EVERY order for the show carries a
 //                        Stripe snapshot; if any order has no snapshot (legacy,
 //                        desk-recorded), or the show has no online orders at
-//                        all, the row reads Attested. INTENT: the club card must
+//                        all, the row reads NoStripeRecord. INTENT: the club card must
 //                        never imply a Stripe verification it cannot back up, so
-//                        the aggregate degrades to Attested rather than up to
-//                        Verified. There is no "Mismatch" — see
+//                        the aggregate degrades to NoStripeRecord rather than up to
+//                        StripeRecord. There is no "Mismatch" — see
 //                        chargeVerification.ts for why the amount-tie-out
 //                        inference was removed.
 //   - settlement:         the existing payout-settlement row (badge label,
 //                        state, copyable stripe_transfer_id), when the club
 //                        has a payout row for that show.
 //
-// A show's net is PENDING (never $0, never silently "Verified") whenever any
+// A show's net is PENDING (never $0, never silently 'StripeRecord') whenever any
 // of its orders has an uncaptured Stripe processing fee — the same
 // null-means-pending contract as derivePlatformIncome in financialSummary.ts.
 import { resolveOrderChargeVerification } from './chargeVerification';
@@ -37,16 +37,16 @@ import { selectAuthoritativePayout } from './payoutSupersession';
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 
 /**
- * 'Unknown' is not a weaker 'Attested'. Attested is a positive statement -- the
+ * 'Unknown' is not a weaker 'NoStripeRecord'. NoStripeRecord is a positive statement -- the
  * charge is recorded, we simply hold no Stripe snapshot for it, which is the
  * normal shape of a desk payment or a legacy order. A show with NO order rows
  * at all supports neither statement, and the card's INTENT header is explicit
  * that a missing fact must read as missing.
  *
  * `ClubShowNet` already had a `pending` arm for exactly this case, so the same
- * input used to produce an honest "net pending" beside a confident "Attested".
+ * input used to produce an honest "net pending" beside a confident 'NoStripeRecord'.
  */
-export type ClubShowChargeVerification = 'Verified' | 'Attested' | 'Unknown';
+export type ClubShowChargeVerification = 'StripeRecord' | 'NoStripeRecord' | 'Unknown';
 
 /** Never a bare number: a pending processing fee must read as pending, not $0. */
 export type ClubShowNet = { status: 'available'; netCents: number } | { status: 'pending' };
@@ -110,7 +110,7 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
 } {
   if (orders.length === 0) {
     // No Stripe trace at all for this show. Net is unknown rather than a
-    // misleading $0, and the charge state is Unknown rather than Attested:
+    // misleading $0, and the charge state is Unknown rather than NoStripeRecord:
     // there is no charge here to attest to.
     return { net: { status: 'pending' }, chargeVerification: 'Unknown' };
   }
@@ -121,9 +121,9 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
 
   for (const order of orders) {
     if (order.stripeProcessingFeeCents == null) anyPending = true;
-    // Degrade to Attested if ANY order lacks a Stripe snapshot — never claim a
+    // Degrade to NoStripeRecord if ANY order lacks a Stripe snapshot — never claim a
     // show-wide Stripe verification the record cannot back up.
-    if (resolveOrderChargeVerification(order) === 'Attested') anyUnverified = true;
+    if (resolveOrderChargeVerification(order) === 'NoStripeRecord') anyUnverified = true;
     // Net-to-club is the entry subtotal (the ACCEPTED, paid lines) MINUS only the
     // POST-HOC refunded portion — see clubNetContributionCents for why that ties
     // to the transfer and why a cart-overflow make-whole refund must NOT reduce
@@ -137,7 +137,7 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
   }
 
   const net: ClubShowNet = anyPending ? { status: 'pending' } : { status: 'available', netCents };
-  const chargeVerification: ClubShowChargeVerification = anyUnverified ? 'Attested' : 'Verified';
+  const chargeVerification: ClubShowChargeVerification = anyUnverified ? 'NoStripeRecord' : 'StripeRecord';
   return { net, chargeVerification };
 }
 

@@ -7,7 +7,7 @@
 //                          entry (entryAccounting.ts)
 //   2. platformIncome      gross vs net platform fee income, pending-aware
 //                          (orderSnapshot helpers + reconciliation RPC totals)
-//   3. chargeVerification  Verified / Attested + pending-net counts
+//   3. chargeVerification  StripeRecord / NoStripeRecord + pending-net counts
 //   4. payoutSettlement    transfer settlement, independent of charge verification
 //
 // It performs NO raw client reads that bypass RLS: the only server reads go
@@ -127,8 +127,8 @@ export interface FinancialSummaryInput extends FinancialScopeArgs {
   mode?: FinancialReportMode;
   /**
    * Optional Stripe order snapshots matched to entries by entry id, used to
-   * resolve Verified for online lines. When absent, online lines have no
-   * snapshot to point at and resolve to Attested — recorded, not Stripe-verified.
+   * resolve StripeRecord for online lines. When absent, online lines have no
+   * snapshot to point at and resolve to NoStripeRecord — recorded, with no Stripe row behind them.
    */
   matchedOrdersByEntryId?: Map<string, FinancialReconciliationOrder>;
 }
@@ -248,8 +248,8 @@ export function deriveChargeVerification(
       paymentLabel: line.paymentLabel,
       matchedOrder: matchedOrdersByEntryId?.get(line.entryId) ?? null,
     });
-    if (state === 'Verified') result.verifiedCount += 1;
-    else result.attestedCount += 1;
+    if (state === 'StripeRecord') result.stripeRecordCount += 1;
+    else result.noStripeRecordCount += 1;
   }
   result.pendingNetCount = summary.processingFeePendingCount;
   result.snapshotMissingCount = summary.snapshotMissingCount;

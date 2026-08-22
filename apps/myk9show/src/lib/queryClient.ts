@@ -1,10 +1,16 @@
 import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
+import { captureMonitoredQueryFailure } from '@/services/observability/sentry';
 
 // Create custom query cache with enhanced deduplication
 const queryCache = new QueryCache({
   onError: (error, query) => {
     logger.error('Query error', 'query', { queryKey: query.queryKey }, error as Error);
+    // `logger` does not reach Sentry, so a query that fails silently into
+    // `isError` leaves no trace anywhere an operator can see (MYK9-231).
+    // Opt-in per query, because on an offline-first app most query failures
+    // are ordinary connectivity and reporting them all would bury the rest.
+    if (query.meta?.reportToSentry) captureMonitoredQueryFailure(error, query.queryKey);
   },
   onSuccess: (data, query) => {
     // Log successful queries for debugging in development

@@ -6,7 +6,7 @@
 // INTENT: a treasurer trusts this as an authoritative record they can
 // explain (docs/INTENT.md, Site Admin oversight intent: "I can drill down").
 // When the reconciliation RPC is unavailable, this card MUST show an
-// explicit unavailable state and MUST NOT render any Verified/Attested/
+// explicit unavailable state and MUST NOT render any charge-state or
 // settlement badge — a missing fact reads as missing, never as a calm green
 // checkmark it cannot back up.
 import { AlertCircle, ScrollText } from 'lucide-react';
@@ -55,7 +55,8 @@ export function ClubFinancialReconciliationCard({
           </CardTitle>
         </div>
         <CardDescription>
-          Per-show net, Stripe verification, and transfer status for your club&apos;s shows.
+          Per-show net, which charges have a Stripe record, and transfer status for your
+          club&apos;s shows.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -79,10 +80,20 @@ export function ClubFinancialReconciliationCard({
           >
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription className="space-y-3">
+              {/* NAMES NO CAUSE (MYK9-231). This branch is React Query's verdict
+                  that the query function threw; it carries no information about
+                  WHERE it threw. The previous copy said we could not confirm the
+                  details "against Stripe", which asserts the request reached
+                  Stripe's side of the world. The #1727 outage was a detached-method
+                  TypeError that threw synchronously in the browser — no request was
+                  ever issued — and this sentence sent the investigation to Postgres,
+                  edge and RPC-grant logs, none of which can see a client-side throw.
+                  The payout reassurance stays: a failed READ must never read as a
+                  failed payout. */}
               <p>
-                Stripe verification is unavailable right now. This doesn&apos;t mean anything is
-                wrong with your payouts. We just can&apos;t confirm the details against Stripe at
-                the moment.
+                We can&apos;t load your show records right now. This doesn&apos;t mean anything is
+                wrong with your payouts — it&apos;s the lookup that&apos;s unavailable, not your
+                money.
               </p>
               {/* A real control rather than a link inside the sentence: `variant="link"`
                   is `text-primary`, which measures 4.40:1 under heather+dark and

@@ -17,10 +17,10 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import * as Sentry from 'npm:@sentry/deno@10.62.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
-  DAILY_HEALTH_MONITOR_SLUG,
   runWithBestEffortCronCheckIn,
   type CronCheckInClient,
 } from '../_shared/sentryCronCheckIn.ts';
+import { resolveHealthCheckRun } from '../_shared/healthCheckRun.ts';
 import {
   buildSnapshot,
   buildProbeFailureSnapshot,
@@ -116,12 +116,17 @@ async function fetchPreviousConflictBaseline(): Promise<{
   }
 }
 
-async function insertSnapshot(row: ReturnType<typeof buildSnapshot>) {
+/** `runMode` is what makes daily-health-snapshot-watchdog able to fire at all:
+ * it counts snapshots in the 07:00-08:00 UTC window that are NOT continuous, and
+ * before this column every five-minute run looked exactly like the nightly one.
+ * See migration 20260822180000 and QA-HEALTH-WATCHDOG-INERT-2026-08-22. */
+async function insertSnapshot(row: ReturnType<typeof buildSnapshot>, runMode: HealthCheckRunMode) {
   const { error } = await supabase.from('system_health_snapshots').insert({
     source: row.source,
     overall_status: row.overall_status,
     checks: row.checks,
     run_duration_ms: row.run_duration_ms,
+    run_mode: runMode,
   });
   if (error) throw new Error(`snapshot insert failed: ${error.message}`);
 }
@@ -160,7 +165,7 @@ async function runHealthSnapshot(
         check => check.key !== 'probe' && check.key !== 'public_schema_create_acl'
       )
     );
-    await insertSnapshot(snapshot);
+    await insertSnapshot(snapshot, mode);
     console.error('Health probe failed:', probeError?.message ?? 'no facts returned');
     return Response.json(
       { source: snapshot.source, overall_status: snapshot.overall_status, probe_error: true },
@@ -185,7 +190,7 @@ async function runHealthSnapshot(
       mode,
     }
   );
-  await insertSnapshot(snapshot);
+  await insertSnapshot(snapshot, mode);
 
   console.log(
     'Health check run:',
@@ -212,10 +217,11 @@ Deno.serve(async req => {
   }
 
   try {
-    const mode: HealthCheckRunMode =
-      req.headers.get('x-health-check-mode') === 'continuous' ? 'continuous' : 'full';
-    const runToken = req.headers.get('x-health-run-token');
-    return await runWithBestEffortCronCheckIn(sentryCronClient, DAILY_HEALTH_MONITOR_SLUG, () =>
+    // Which monitor this run reports to is resolved, not branched on — see
+    // resolveHealthCheckRun. Continuous runs keep their own monitor so a total
+    // continuous outage still pages within minutes.
+    const { mode, runToken, monitorSlug } = resolveHealthCheckRun(req.headers);
+    return await runWithBestEffortCronCheckIn(sentryCronClient, monitorSlug, () =>
       runHealthSnapshot(mode, runToken)
     );
   } catch (err) {

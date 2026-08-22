@@ -84,3 +84,52 @@ export function summarizeAlerts(alerts: OperatorAlert[]): AlertSummary {
   }
   return { unresolved: alerts.length, needingReview };
 }
+
+/**
+ * One repeated alert type, with every occurrence that shares its identity.
+ *
+ * Grouped on source + severity + title, NOT on `dedupe_key`: that key embeds
+ * the event's own identifiers (`cart-overflow-refund-issued-re_3U5z1F...`) so
+ * it is an idempotency key for a single write, and grouping on it would return
+ * N groups of one. Every member is therefore a DISTINCT event - four
+ * occurrences are four different refunds - which is why the UI collapses them
+ * for reading but still resolves them one at a time.
+ */
+export interface AlertGroup {
+  key: string;
+  source: string;
+  severity: AlertSeverity;
+  title: string;
+  /** Occurrences, in the newest-first order the query returned. */
+  alerts: OperatorAlert[];
+  newestAt: string;
+  oldestAt: string;
+}
+
+/** Collapse repeated alert types, preserving the query's newest-first order. */
+export function groupOperatorAlerts(alerts: OperatorAlert[]): AlertGroup[] {
+  const byKey = new Map<string, AlertGroup>();
+
+  for (const alert of alerts) {
+    const key = `${alert.source} ${alert.severity} ${alert.title}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, {
+        key,
+        source: alert.source,
+        severity: alert.severity,
+        title: alert.title,
+        alerts: [alert],
+        newestAt: alert.createdAt,
+        oldestAt: alert.createdAt,
+      });
+      continue;
+    }
+    existing.alerts.push(alert);
+    // Do not assume the caller sorted: take the extremes as they are seen.
+    if (alert.createdAt > existing.newestAt) existing.newestAt = alert.createdAt;
+    if (alert.createdAt < existing.oldestAt) existing.oldestAt = alert.createdAt;
+  }
+
+  return [...byKey.values()];
+}

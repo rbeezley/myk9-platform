@@ -19,7 +19,7 @@
 
 ## 4. Delivery and closure gates
 
-- [ ] 4.1 With shared-system approval, push the branch, open a PR linked to MYK9-163, pass independent review and CI, and merge.
-- [ ] 4.2 After merge, replay `/admin/permissions?tab=assignments` and its revoke confirmation as a site admin at 1440×900 and 768×1024; record visible/accessibility scope evidence in the private ledger.
-- [ ] 4.3 Post PR, checks, hosted browser evidence, risks, and acceptance results to MYK9-163; move it to Done only if every closure checkbox passes.
-- [ ] 4.4 Update `docs/plan-linear-backlog-batches.md`, rerun MYK9-57’s shared permissions-page closure replay, sync/archive the OpenSpec change, and perform branch/worktree cleanup.
+- [x] 4.1 With shared-system approval, push the branch, open a PR linked to MYK9-163, pass independent review and CI, and merge. (PR #1733; merge `080b56f62e1fde6115ac092751fa4b20b0b0f0c7`.)
+- [x] 4.2 After merge, replay `/admin/permissions?tab=assignments` and its revoke confirmation as a site admin at 1440×900 and 768×1024; record visible/accessibility scope evidence in the private ledger. (Exact club label and revoke copy passed; dialog cancelled without mutation. The shared tablet matrix passed through MYK9-57.)
+- [x] 4.3 Post PR, checks, hosted browser evidence, risks, and acceptance results to MYK9-163; move it to Done only if every closure checkbox passes. (Done 2026-08-21.)
+- [x] 4.4 Update `docs/plan-linear-backlog-batches.md`, rerun MYK9-57’s shared permissions-page closure replay, sync/archive the OpenSpec change, and perform branch/worktree cleanup.

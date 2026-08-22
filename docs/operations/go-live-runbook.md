@@ -1125,6 +1125,28 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
       provider-native recovery evidence. Focused tests separately prove that failed Sentry delivery
       does not suppress a committed snapshot.
 
+> **Amended 2026-08-22 (PR #1750).** The evidence above was gathered when `cron-health-check`
+> was invoked once a day. Since MYK9-157 (2026-08-04) the `continuous-health-check` pg_cron calls
+> the same function every five minutes, and until this PR **every one of those ~288 daily
+> invocations checked in to the `daily-health-check` monitor** — so with failure tolerance 1, one
+> transient blip paged (2026-08-22 08:45 UTC), and an `ok` from any continuous run satisfied the
+> 07:00 window. Runs now report to two monitors: `daily-health-check` for the 07:00 nightly full
+> run **and** for the manual `Run now` full run (which is the only in-product way to clear a missed
+> page — the "Deploy check-ins" bullet above depends on that path staying open), and
+> `continuous-health-check` for the five-minute runs.
+>
+> **Required console step, not code:** create the `continuous-health-check` monitor in Sentry at
+> `*/5 * * * *` UTC with **failure tolerance above 1** (2-3). Tolerance 1 reproduces the exact false
+> page this change fixes. `cronHealthCheck.source.test.ts` forbids `monitorConfig` in the function,
+> so monitor configuration is console-managed by design and cannot be asserted by CI.
+>
+> **The "Independent SQL path" bullet above was inert from 2026-08-04 to 2026-08-22.** The watchdog
+> looked for `source = 'cron-health-check'` between 07:00 and 08:00 UTC, and continuous runs write
+> that same source — 13 snapshots landed in that window every day, so the predicate could not be
+> satisfied. Migration `20260822180000_health_snapshot_run_mode.sql` adds a `run_mode` discriminator
+> and rescopes the watchdog to `run_mode IS DISTINCT FROM 'continuous'`. Treat the pre-2026-08-22
+> evidence for that bullet as proving the alert path, not the detection predicate.
+
 Rollback: redeploy the last-good `cron-health-check`, remove/restore the Sentry secrets as
 appropriate, disable the Sentry monitor, and unschedule `daily-health-snapshot-watchdog` in a new
 migration. Do not edit an applied migration in place.

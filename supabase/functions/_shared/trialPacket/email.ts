@@ -1,7 +1,7 @@
 import {
   sendResendEmailWithRetry,
   type ResendEmailRequestInit,
-} from '../_shared/resendEmail.ts';
+} from '../resendEmail.ts';
 
 export class TrialPacketProviderError extends Error {
   readonly status: number | 'network_error';

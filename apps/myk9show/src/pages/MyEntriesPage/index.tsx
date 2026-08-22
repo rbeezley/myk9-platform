@@ -50,6 +50,7 @@ import {
   MyEntriesDialogGroup,
   WaitListSection,
   ENTRY_TAB_DEFS,
+  EntryStatusFilterChips,
   ALL_ENTRIES_LABEL,
   ALL_ENTRIES_SCOPE_NOTE,
   type MyEntry,
@@ -80,6 +81,9 @@ const MyEntriesPage: React.FC = () => {
   const {
     filteredEntries,
     selectedTab,
+    selectedStatus,
+    setSelectedStatus,
+    statusCounts,
     setSelectedTab,
     entryStats,
     tabCounts,
@@ -456,6 +460,11 @@ const MyEntriesPage: React.FC = () => {
                     onValueChange={value => setSelectedTab(value as EntryTabFilter)}
                     className="space-y-6"
                   >
+                    <EntryStatusFilterChips
+                      selectedStatus={selectedStatus}
+                      onSelectStatus={setSelectedStatus}
+                      statusCounts={statusCounts}
+                    />
                     <TabsContent value={selectedTab} className="space-y-4">
                       {/* Switching tabs changes the list silently for a screen
                         reader — the visible count sits up in the tab strip that
@@ -466,7 +475,11 @@ const MyEntriesPage: React.FC = () => {
                           : `${filteredEntries.length} entries`}
                       </p>
                       {filteredEntries.length === 0 ? (
-                        <EntriesEmptyState selectedTab={selectedTab} onSwitchTab={setSelectedTab} />
+                        <EntriesEmptyState
+                          selectedTab={selectedTab}
+                          selectedStatus={selectedStatus}
+                          onSwitchTab={setSelectedTab}
+                        />
                       ) : (
                         // A real list, so assistive tech announces "list, N
                         // items" and offers list navigation. This was a bare

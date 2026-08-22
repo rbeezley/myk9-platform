@@ -20,5 +20,5 @@
   - Verification: `pnpm typecheck` completed 26/26 tasks and `pnpm lint` completed 14/14 tasks.
 - [x] 3.3 Validate and verify `myk9-212-bounded-payment-history`, resolving critical findings.
   - Verification: OpenSpec validation passed. All four requirements map to bounded range/chunk code and focused tests; the implementation preserves the canonical page and follows the online-only design. No implementation-critical findings remain. PR/CI and post-merge tracking/archive remain required before closure.
-- [ ] 3.4 Open the MYK9-212 implementation PR; obtain independent review, required CI, and merge approval.
-- [ ] 3.5 After merge, update MYK9-212 and the batch plan, sync/archive the OpenSpec change, and clean up its branch/worktree.
+- [x] 3.4 Open the MYK9-212 implementation PR; obtain independent review, required CI, and merge approval. (PR #1737; merge `78d2e0ec6ac35e4b7c1630ee2bad85d5c602a773`.)
+- [x] 3.5 After merge, update MYK9-212 and the batch plan, sync/archive the OpenSpec change, and clean up its branch/worktree. (Linear moved to Done with verification and merge evidence; archive and cleanup complete in this maintenance change.)

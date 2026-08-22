@@ -18,6 +18,17 @@ const state: { data: MyPayment[]; isLoading: boolean; isError: boolean } = {
   isLoading: false,
   isError: false,
 };
+const paymentYearsState: {
+  data: string[] | undefined;
+  isError: boolean;
+  isFetching: boolean;
+  refetch: ReturnType<typeof vi.fn>;
+} = {
+  data: undefined,
+  isError: false,
+  isFetching: false,
+  refetch: vi.fn(),
+};
 const balanceState: {
   data: EntryBalanceSummary;
   isLoading: boolean;
@@ -35,12 +46,7 @@ const balanceState: {
 };
 vi.mock('@/features/payments/useMyPayments', () => ({
   useMyPayments: () => state,
-  useMyPaymentYears: () => ({
-    data: undefined,
-    isError: false,
-    isFetching: false,
-    refetch: vi.fn(),
-  }),
+  useMyPaymentYears: () => paymentYearsState,
 }));
 vi.mock('@/features/payments/useMyEntryBalanceSummary', () => ({
   useMyEntryBalanceSummary: () => balanceState,
@@ -68,6 +74,10 @@ describe('ExhibitorPaymentsPage on a 390px phone', () => {
     state.data = [payment];
     state.isLoading = false;
     state.isError = false;
+    paymentYearsState.data = undefined;
+    paymentYearsState.isError = false;
+    paymentYearsState.isFetching = false;
+    paymentYearsState.refetch = vi.fn();
     balanceState.data = {
       currentFeesCents: 0,
       amountDueCents: 0,

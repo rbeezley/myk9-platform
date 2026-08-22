@@ -54,15 +54,52 @@ runtime and failed the check, which is why the PDF surface is declared
 structurally rather than imported. Relocation can wait for the
 edge function in Phase 3, where a real deploy verifies it.
 
-## Phase 3 — `generate-trial-packet` edge function
+## Phase 3 — `generate-trial-packet` edge function ✅
 
-Query → model → PDF → upload to `trial-packets` → hand off to the existing
-`deliver-trial-packet`, which needs no changes.
+Query → model → PDF → upload to `trial-packets` → deliver.
 
-**Testing:** edge-function unit tests; one scratch deploy to confirm the
-Supabase edge runtime behaves like the Deno CLI the spike used (this is the
-residual risk the spike could not close without Docker). Verify deployment by
-grepping the live bundle, never by the deploy timestamp.
+**One thing this plan had wrong.** It said `deliver-trial-packet` "needs no
+changes". It did: that handler required a user JWT and wrote `generated_by`
+from it, neither of which a cron run has. The delivery step moved to
+`_shared/trialPacket/deliverStoredPacket.ts` and both functions call it — the
+manual path proves the right to act with a show manager's JWT, the automated
+one with a bearer secret, and everything after that is one implementation.
+
+Shipped in three pieces:
+
+- **3a** (#1738) — `emergency_packet_input(show, day?)`, the SECURITY DEFINER
+  source of truth for the packet's input shape. Applied to the linked project.
+- **3b-1** (#1743) — the delivery extraction above.
+- **3b-2** — `generate-trial-packet` itself, plus the schema the automation
+  needs: `generated_by` nullable, and `trial_date` / `generated_source`
+  columns, because the trigger's idempotency key is (show, trial date) and
+  nothing recorded the day.
+
+The renderer moved to `_shared/trialPacket/renderer/` rather than being copied:
+the app imports the same files through a re-export shim. Phase 2 left this open
+("relocation can wait for the edge function in Phase 3") — it turned out the
+app's Vite build and `tsc` both follow a relative import out of `apps/myk9show`
+without any config change, so there is exactly one renderer.
+
+**Verified.** `deno check` clean on the function's whole import graph, and the
+renderer producing real per-day PDFs under Deno with `npm:jspdf@4.2.1` — 12
+pages each, correct snapshot markers, per-day scoping, and the MYK9-198 time
+limits.
+
+**Deployed 2026-08-22**, and the residual risk the spike could not close
+without Docker is now closed with it: the Supabase edge runtime loads the whole
+graph, `npm:jspdf` included. Proof is a live call returning
+`503 {"error":"Trigger is not configured"}` — that body exists only in
+`requireFunctionSecret`, and reaching it means every top-level import resolved,
+since `Deno.serve` is registered after them. A boot failure answers with
+`BOOT_ERROR` instead. Migration `20260821230000` applied the same day; columns,
+both CHECKs, and the index verified against the database rather than the file.
+
+What is still NOT demonstrated: a full generate run **inside** that runtime.
+jsPDF imports there; whether it renders there is very likely but untested,
+because proving it needs `PACKET_CRON_SECRET` set and a real invocation, and a
+real invocation emails show officials. Phase 4 sets the secret and is the
+natural place to take that last step — against a scratch show, not a live one.
 
 ## Phase 4 — cron triggers
 

@@ -114,19 +114,22 @@ describe('OperatorAlertsSection', () => {
     expect(screen.getByText(/no unresolved alerts/i)).toBeInTheDocument();
   });
 
-  it('caps the visible list at five alerts behind a Show all toggle', async () => {
+  // The cap now counts distinct TYPES: grouping already folds one incident's
+  // repeats into a single row, so what this guards is many unrelated things
+  // being wrong at once.
+  it('caps the visible list at five alert types behind a Show all toggle', async () => {
     const alerts = Array.from({ length: 7 }, (_, i) =>
-      alert({ id: `alert-${i}`, title: `Alert number ${i}` })
+      alert({ id: `alert-${i}`, title: `Alert type ${i}` })
     );
     mockedUseOperatorAlerts.mockReturnValue(queryState({ data: alerts }));
 
     const { user } = render(<OperatorAlertsSection />);
 
-    expect(screen.getAllByRole('button', { name: /resolve/i })).toHaveLength(5);
+    expect(screen.getAllByRole('button', { name: /^resolve$/i })).toHaveLength(5);
 
-    await user.click(screen.getByRole('button', { name: /show all 7 alerts/i }));
+    await user.click(screen.getByRole('button', { name: /show all 7 alert types/i }));
 
-    expect(screen.getAllByRole('button', { name: /resolve/i })).toHaveLength(7);
+    expect(screen.getAllByRole('button', { name: /^resolve$/i })).toHaveLength(7);
     expect(screen.getByRole('button', { name: /show fewer/i })).toBeInTheDocument();
   });
 
@@ -144,5 +147,79 @@ describe('OperatorAlertsSection', () => {
     render(<OperatorAlertsSection />);
 
     expect(screen.getByText(/couldn.t load/i)).toBeInTheDocument();
+  });
+  // Money-path writers emit repeating pairs, so one incident arrives as a wall
+  // of near-identical rows. Each occurrence is a DISTINCT refund, so the rows
+  // collapse for reading but every Resolve stays per-alert.
+  describe('grouping repeated alert types', () => {
+    function repeats(n: number, over: Partial<OperatorAlert> = {}) {
+      return Array.from({ length: n }, (_, i) =>
+        alert({
+          id: `alert-${over.title ?? 'x'}-${i}`,
+          createdAt: new Date(Date.now() - (i + 1) * 60 * 60 * 1000).toISOString(),
+          ...over,
+        })
+      );
+    }
+
+    it('collapses four occurrences into one row with a count', () => {
+      mockedUseOperatorAlerts.mockReturnValue(
+        queryState({ data: repeats(4, { title: 'Cart overflow charge auto-refunded' }) })
+      );
+
+      render(<OperatorAlertsSection />);
+
+      expect(screen.getAllByText('Cart overflow charge auto-refunded')).toHaveLength(1);
+      expect(screen.getByText('4')).toBeInTheDocument();
+      // Collapsed: no per-alert Resolve is reachable until the group is opened.
+      expect(screen.queryByRole('button', { name: /^resolve$/i })).not.toBeInTheDocument();
+    });
+
+    it('reveals one Resolve per occurrence when the group is opened', async () => {
+      mockedUseOperatorAlerts.mockReturnValue(
+        queryState({ data: repeats(4, { title: 'Cart overflow charge auto-refunded' }) })
+      );
+
+      const { user } = render(<OperatorAlertsSection />);
+      await user.click(screen.getByRole('button', { name: /show 4 occurrences/i }));
+
+      expect(screen.getAllByRole('button', { name: /^resolve$/i })).toHaveLength(4);
+    });
+
+    it('offers no bulk resolve - each occurrence is a separate refund', () => {
+      mockedUseOperatorAlerts.mockReturnValue(
+        queryState({ data: repeats(4, { title: 'Cart overflow charge auto-refunded' }) })
+      );
+
+      render(<OperatorAlertsSection />);
+
+      expect(screen.queryByRole('button', { name: /resolve all/i })).not.toBeInTheDocument();
+    });
+
+    it('leaves a lone alert as a plain row, with no count or expander', () => {
+      mockedUseOperatorAlerts.mockReturnValue(queryState({ data: [alert()] }));
+
+      render(<OperatorAlertsSection />);
+
+      expect(screen.getByRole('button', { name: /^resolve$/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /occurrences/i })).not.toBeInTheDocument();
+    });
+
+    it('keeps distinct titles in separate groups', () => {
+      mockedUseOperatorAlerts.mockReturnValue(
+        queryState({
+          data: [
+            ...repeats(2, { title: 'Cart overflow charge auto-refunded' }),
+            ...repeats(2, { title: 'Paid cart had overflow lines' }),
+          ],
+        })
+      );
+
+      render(<OperatorAlertsSection />);
+
+      expect(screen.getByText('Cart overflow charge auto-refunded')).toBeInTheDocument();
+      expect(screen.getByText('Paid cart had overflow lines')).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: /show 2 occurrences/i })).toHaveLength(2);
+    });
   });
 });

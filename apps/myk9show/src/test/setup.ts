@@ -164,35 +164,44 @@ const localStorageMock = {
   }),
 };
 
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-  writable: true,
-});
+// The suite's default environment is jsdom, but a file may opt out with
+// `@vitest-environment node` — edge-function tests do, because they cover code
+// that runs under Deno and jsdom's own `ArrayBuffer` makes WebCrypto reject
+// buffers built in test code. This setup file runs for those too, so the
+// browser-shaped stubs below have to be skipped rather than throw on `window`.
+const hasDom = typeof window !== 'undefined';
 
-// Mock navigator.clipboard (not available in jsdom by default)
-Object.defineProperty(navigator, 'clipboard', {
-  value: {
-    writeText: vi.fn().mockResolvedValue(undefined),
-    readText: vi.fn().mockResolvedValue(''),
-  },
-  configurable: true,
-  writable: true,
-});
+if (hasDom) {
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+    writable: true,
+  });
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
+  // Mock navigator.clipboard (not available in jsdom by default)
+  Object.defineProperty(navigator, 'clipboard', {
+    value: {
+      writeText: vi.fn().mockResolvedValue(undefined),
+      readText: vi.fn().mockResolvedValue(''),
+    },
+    configurable: true,
+    writable: true,
+  });
+
+  // Mock window.matchMedia
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(), // deprecated
+      removeListener: vi.fn(), // deprecated
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
 
 // Mock IntersectionObserver — use a regular function (not arrow) so framer-motion can call it with `new`
 global.IntersectionObserver = vi.fn().mockImplementation(function () {

@@ -1,4 +1,3 @@
-export const DAILY_HEALTH_MONITOR_SLUG = 'daily-health-check';
 const SENTRY_FLUSH_TIMEOUT_MS = 2_000;
 
 export type CronCheckIn =

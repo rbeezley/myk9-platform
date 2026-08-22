@@ -36,7 +36,11 @@ describe('cron-health-check Sentry Cron source contract', () => {
     expect(source).toContain("from 'npm:@sentry/deno@10.62.0'");
     expect(source).toContain("from '../_shared/sentryCronCheckIn.ts'");
     expect(source).toContain('runWithBestEffortCronCheckIn(');
-    expect(source).toContain('DAILY_HEALTH_MONITOR_SLUG');
+    // The slug is no longer a literal here: resolveHealthCheckRun picks the
+    // monitor so that continuous and nightly runs cannot share one.
+    expect(source).toContain("from '../_shared/healthCheckRun.ts'");
+    expect(source).toContain('resolveHealthCheckRun(req.headers)');
+    expect(source).toContain('monitorSlug');
   });
 
   it('keeps the Edge DSN optional and never reads the browser DSN', () => {

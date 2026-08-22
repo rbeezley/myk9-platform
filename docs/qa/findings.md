@@ -606,17 +606,32 @@ Copy this block for each new finding.
 ### QA-SENTRY-CRON-MONITOR-SCOPE-2026-08-22
 
 - **Status:** fixed
-- **Classification:** monitoring defect / alert scope mismatch
+- **Classification:** monitoring defect / alert routing
 - **Severity:** medium
 - **Role:** operator (site admin)
-- **Surface:** `apps/myk9show/supabase/functions/cron-health-check/index.ts`; `apps/myk9show/src/features/admin-system-health/healthCheckCadence.ts`; Sentry Cron monitor `daily-health-check` (project `javascript-react`, environment `staging`).
+- **Surface:** `apps/myk9show/supabase/functions/cron-health-check/index.ts`; `apps/myk9show/supabase/functions/_shared/healthCheckRun.ts`; Sentry Cron monitors `daily-health-check` and `continuous-health-check` (project `javascript-react`, environment `staging`).
 - **Detected by:** Sentry "Regressed issue" email, incident `35976516`, 2026-08-22 08:45:02 UTC.
-- **Evidence:** One `POST | 500` on `cron-health-check` at `2026-08-22T08:45:02.151Z`; every other invocation in the surrounding 24h returned 200 (`function_edge_logs`). The function log for that run reads `cron-health-check error: snapshot insert failed: TypeError: error sending request ... /rest/v1/system_health_snapshots (104.18.38.10:443): client error (SendRequest): connection error: stream closed because of a broken pipe`. The next run at 08:50:03 wrote a normal snapshot; `system_health_snapshots` was continuous through 15:10 UTC.
-- **Root cause (the alert, not the blip):** `Deno.serve` wrapped *every* invocation in `runWithBestEffortCronCheckIn(..., DAILY_HEALTH_MONITOR_SLUG, ...)`. The `continuous-health-check` pg_cron fires the same function every 5 minutes, so a monitor configured `0 7 * * *` was receiving ~288 check-ins a day. Two failure modes, both live: (1) a single transient network blip in any 5-minute run flips the daily monitor to failing and pages, as it did here; (2) an `ok` from any continuous run satisfies the 07:00 window, so a genuinely missed nightly full run would never have alerted — the exact thing the monitor exists to catch.
-- **User impact:** False operator page on a self-healing blip, plus a silent hole in nightly-run coverage. No exhibitor- or secretary-facing impact; the 08:45 snapshot was skipped and the board self-corrected five minutes later.
-- **Resolution:** Added `isDailyMonitorRun(mode, runToken)` to `healthCheckCadence.ts`; `cron-health-check` now reports to the Sentry monitor only from the 07:00 UTC scheduled `full` dispatch, and short-circuits the check-in for continuous runs and for token-carrying manual `run_system_health_check_now()` runs.
-- **Proof:** `pnpm vitest run src/features/admin-system-health/ src/test/database/continuousHealthCheckContract.test.ts supabase/functions/_shared/sentryCronCheckIn.test.ts --sequence.shuffle` — 98 passed, 7/7 shuffled runs green. Gate assertion verified non-vacuous by deleting the gate line (test fails). `pnpm typecheck` and `pnpm lint` exit 0.
-- **Notes:** The transient broken pipe itself is not fixed and needs no fix — one PostgREST connection reset in 288 runs, self-healing on the next tick. If it becomes recurrent, add a bounded retry around `insertSnapshot`.
+- **Evidence:** One `POST | 500` on `cron-health-check` at `2026-08-22T08:45:02.151Z`; every other invocation in the surrounding 24h returned 200. The function log reads `snapshot insert failed: TypeError: error sending request ... /rest/v1/system_health_snapshots: client error (SendRequest): connection error: stream closed because of a broken pipe`. The 08:50 run wrote a normal snapshot.
+- **Root cause:** `Deno.serve` checked in to `DAILY_HEALTH_MONITOR_SLUG` on *every* invocation. `continuous-health-check` calls the same function every 5 minutes, so a monitor scheduled `0 7 * * *` with failure tolerance 1 was taking ~288 check-ins a day. One transient blip therefore paged, and an `ok` from any continuous run satisfied the 07:00 window.
+- **Resolution:** `resolveHealthCheckRun(headers)` in a new `_shared/healthCheckRun.ts` resolves each request to the monitor it reports to. Continuous runs go to a new `continuous-health-check` monitor; the 07:00 nightly and the manual `Run now` full run go to `daily-health-check`. There is no branch to skip a check-in, so no run can end up unmonitored.
+- **Rejected first attempt (recorded because the failure mode is instructive):** the original fix simply *suppressed* the check-in for continuous runs. Adversarial review caught that `cron-health-check` has no `captureException`, `pg_net` discards the response body, pg_cron records the job `succeeded` regardless, and `operator_alerts` is only ever read by a React Query hook — so the check-in is the sole path from this function to a human. Suppressing it would have hidden a total continuous-run outage for ~24h. It also silently broke `Run now` as a monitor-recovery affordance.
+- **Proof:** `resolveHealthCheckRun` is executed by `healthCheckRun.test.ts` (not source-grepped). Three mutations that the first attempt's tests passed green are now killed: renaming the mode header in TS only (EXIT=1), collapsing both slugs to one (EXIT=1), and adding a run token to the nightly pg_cron block (EXIT=1); baseline EXIT=0. Header-name literals are cross-checked between the `.ts` constants and the migration SQL from both sides.
+- **Required manual step:** create the `continuous-health-check` Sentry monitor at `*/5 * * * *` UTC with **failure tolerance above 1**. `cronHealthCheck.source.test.ts` forbids `monitorConfig` in code, so this is console-only.
+- **Notes:** The transient broken pipe itself needs no fix — one connection reset in 288 runs, self-healing on the next tick. If it recurs, add a bounded retry around `insertSnapshot`.
+
+### QA-HEALTH-WATCHDOG-INERT-2026-08-22
+
+- **Status:** open
+- **Classification:** monitoring defect / predicate collision
+- **Severity:** high
+- **Role:** operator (site admin)
+- **Surface:** `supabase/migrations/20260711200000_daily_health_snapshot_watchdog.sql`
+- **Detected by:** adversarial review during PR #1750; confirmed by direct query.
+- **Evidence:** The watchdog inserts an `operator_alerts` row only when `expected_window_snapshot` is NULL — no snapshot with `source = 'cron-health-check'` between 07:00 and 08:00 UTC. Since MYK9-157 (2026-08-04) the five-minute `continuous-health-check` run writes snapshots with that exact same source. Measured 2026-08-22 over the prior 7 days: **13 snapshots in the 07:00-08:00 window every single day** (12 continuous + 1 nightly). The predicate can therefore never be satisfied.
+- **User impact:** The "independent SQL path" that the go-live runbook credits as the second of two independent missed-nightly detectors has been inert since 2026-08-04. A nightly full run could stop firing entirely and this watchdog would stay silent.
+- **Confidence:** High — arithmetic, confirmed against live data.
+- **Proof required:** A discriminator persisted on the snapshot row (run mode, or a distinct `source` for the nightly full run), the watchdog predicate narrowed to it, and a replay showing the alert fires when the nightly run is absent but continuous runs are present.
+- **Notes:** Deliberately out of scope for PR #1750, which fixes routing only. Needs its own migration.
 
 ### NQA-2026-07-29-01
 

@@ -44,6 +44,11 @@ interface EntryReceiptData {
   handler?: string;
   classes: EntryClass[];
   totalFee: number;
+  /** Exact Stripe amount; absent for the legacy direct-from-card receipt. */
+  amountCharged?: number;
+  /** Currency and total come from stripe_orders for order-scoped receipts. */
+  currency?: string;
+  paymentReference?: string | null;
   submittedAt: Date;
   paymentStatus: string;
 }
@@ -261,7 +266,7 @@ export function EntryReceipt({
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: entry.currency?.toUpperCase() || 'USD',
     }).format(amount);
   };
 
@@ -403,9 +408,14 @@ export function EntryReceipt({
             {/* Total */}
             <div className="total-section mt-4 pt-4 border-t-2 flex justify-end">
               <div className="text-right">
-                <div className="total-label text-sm text-muted-foreground">Total</div>
+                <div className="total-label text-sm text-muted-foreground">
+                  {entry.amountCharged === undefined ? 'Total' : 'Amount charged'}
+                </div>
                 <div className="total-amount text-2xl font-bold font-mono">
-                  {formatCurrency(activeClasses.reduce((sum, c) => sum + c.fee, 0))}
+                  {formatCurrency(
+                    entry.amountCharged ??
+                      activeClasses.reduce((sum, classEntry) => sum + classEntry.fee, 0)
+                  )}
                 </div>
               </div>
             </div>
@@ -425,6 +435,14 @@ export function EntryReceipt({
             >
               {entry.paymentStatus}
             </span>
+            {entry.paymentReference && (
+              <div className="info-item mt-3">
+                <div className="info-label text-xs text-muted-foreground">Payment reference</div>
+                <div className="info-value break-all font-mono text-sm">
+                  {entry.paymentReference}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}

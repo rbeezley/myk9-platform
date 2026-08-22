@@ -16,7 +16,18 @@ import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvi
 import { PaymentStatus } from '@/types/show-registration-types';
 import { AddDogPanel } from '@/components/panels/edit';
 import { ResultRevealDialog, type ResultCardModel } from '@/features/result-card';
+import { useEntryReceiptOrder } from '@/features/payments/entryReceiptOrder';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import type { CheckInDialogState, EditDialogState, ReceiptDialogState } from './my-entries-types';
+import { buildOrderScopedReceipt } from './orderScopedReceipt';
 
 interface CheckInDialogProps {
   dialog: CheckInDialogState;
@@ -104,18 +115,80 @@ export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClos
 
 interface ReceiptEntryDialogProps {
   dialog: ReceiptDialogState;
+  receiptOrderId: string | null;
   user: { email?: string; user_metadata?: Record<string, string> } | null;
   onClose: () => void;
 }
 
 export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   dialog,
+  receiptOrderId,
   user,
   onClose,
 }) => {
+  const receiptOrder = useEntryReceiptOrder(dialog.open ? receiptOrderId : null);
   if (!dialog.entry) return null;
 
-  const entry = dialog.entry;
+  if (receiptOrderId && receiptOrder.isPending) {
+    return (
+      <Dialog open={dialog.open} onOpenChange={open => !open && onClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Preparing receipt</DialogTitle>
+            <DialogDescription>
+              Loading the exact payment details for this receipt.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex min-h-24 items-center justify-center" role="status">
+            <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+            <span className="sr-only">Loading receipt</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (receiptOrderId && (receiptOrder.isError || !receiptOrder.data)) {
+    return (
+      <Dialog open={dialog.open} onOpenChange={open => !open && onClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Receipt unavailable</DialogTitle>
+            <DialogDescription>
+              We couldn't load the payment details. Try again so the receipt shows the exact amount
+              charged.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+            <Button onClick={() => void receiptOrder.refetch()}>Try again</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const entry = buildOrderScopedReceipt(dialog.entry, receiptOrder.data ?? null);
+  if (receiptOrderId && entry.classes.length === 0) {
+    return (
+      <Dialog open={dialog.open} onOpenChange={open => !open && onClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Receipt entries still loading</DialogTitle>
+            <DialogDescription>
+              This payment is available, but its class details have not finished loading. Close this
+              receipt and try again shortly.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button onClick={onClose}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
   const isPaid =
     entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
     entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
@@ -124,16 +197,6 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   const exhibitorName = user?.user_metadata?.full_name || user?.email?.split('@')[0];
   const exhibitorEmail = user?.email;
 
-  // KNOWN LIMITATION (pre-dates the receipt deep-link): this receipt is
-  // CARD-scoped, not order-scoped. A card is one grouped registration, and a
-  // registration can be paid by more than one Stripe order — a capacity split
-  // sends the overflow to the wait list, and its later promotion pays
-  // separately. In that case every class row and `entry.totalFee` below cover
-  // BOTH orders, so a receipt reached from either payment overstates it. My
-  // Payments' Receipt link reports `partial` rather than claiming an exact
-  // match for exactly this reason (see entryScopeFilter), but the fix is an
-  // order-aware receipt, which this dialog cannot express today.
-  //
   // Map classes to match EntryReceipt's expected type
   const mappedClasses = entry.classes.map(c => ({
     id: c.id,
@@ -158,6 +221,9 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         dogName: entry.dogName,
         classes: mappedClasses,
         totalFee: entry.totalFee,
+        ...(receiptOrder.data ? { amountCharged: entry.totalFee } : {}),
+        currency: entry.currency,
+        paymentReference: entry.paymentReference,
         submittedAt: entry.submittedAt,
         paymentStatus: isPaid ? 'Paid' : 'Pending',
       }}
@@ -176,6 +242,7 @@ interface MyEntriesDialogGroupProps {
   onCloseEdit: () => void;
   onEntryUpdated: () => void;
   receiptDialog: ReceiptDialogState;
+  receiptOrderId: string | null;
   onCloseReceipt: () => void;
   resultRevealModel: ResultCardModel | null;
   onCloseResultReveal: () => void;
@@ -210,6 +277,7 @@ export const MyEntriesDialogGroup: React.FC<MyEntriesDialogGroupProps> = ({
   onCloseEdit,
   onEntryUpdated,
   receiptDialog,
+  receiptOrderId,
   onCloseReceipt,
   resultRevealModel,
   onCloseResultReveal,
@@ -228,7 +296,12 @@ export const MyEntriesDialogGroup: React.FC<MyEntriesDialogGroupProps> = ({
 
     <EditEntryDialog dialog={editDialog} onClose={onCloseEdit} onUpdate={onEntryUpdated} />
 
-    <ReceiptEntryDialog dialog={receiptDialog} user={user} onClose={onCloseReceipt} />
+    <ReceiptEntryDialog
+      dialog={receiptDialog}
+      receiptOrderId={receiptOrderId}
+      user={user}
+      onClose={onCloseReceipt}
+    />
 
     <ResultRevealDialog
       open={resultRevealModel != null}

@@ -102,7 +102,10 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(screen.queryByText('pi_abc123')).not.toBeInTheDocument();
     const receipt = screen.getByRole('link', { name: /receipt for spring trial/i });
-    expect(receipt).toHaveAttribute('href', '/exhibitor/entries?showId=show-1&entryIds=e1');
+    expect(receipt).toHaveAttribute(
+      'href',
+      '/exhibitor/entries?orderId=o1&showId=show-1&entryIds=e1'
+    );
     // Settled orders offer no retry affordance.
     expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
   });
@@ -389,7 +392,10 @@ describe('ExhibitorPaymentsPage', () => {
       const link = screen.getByRole('link', { name: /receipt for spring trial/i });
       // Mirrors buildFinishPaymentHref's shape: My Shows reads both params and
       // narrows to this order instead of listing every entry ever made.
-      expect(link).toHaveAttribute('href', '/exhibitor/entries?showId=show-1&entryIds=e1%2Ce2');
+      expect(link).toHaveAttribute(
+        'href',
+        '/exhibitor/entries?orderId=o1&showId=show-1&entryIds=e1%2Ce2'
+      );
       // The label can be a bare "Receipt" again now that it is honest.
       expect(link).toHaveTextContent('Receipt');
       expect(link).not.toHaveTextContent('Receipt in My Shows');
@@ -404,7 +410,7 @@ describe('ExhibitorPaymentsPage', () => {
 
       expect(screen.getByRole('link', { name: /receipt for this payment/i })).toHaveAttribute(
         'href',
-        '/exhibitor/entries?entryIds=e1'
+        '/exhibitor/entries?orderId=o1&entryIds=e1'
       );
     });
 
@@ -421,5 +427,4 @@ describe('ExhibitorPaymentsPage', () => {
     render(<ExhibitorPaymentsPage />);
     expect(screen.getByRole('heading', { name: 'Payment history' })).toBeInTheDocument();
   });
-
 });

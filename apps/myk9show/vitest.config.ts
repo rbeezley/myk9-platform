@@ -44,6 +44,7 @@ export default defineConfig({
       '../../supabase/functions/calendar-feed/*.test.ts',
       '../../supabase/functions/_shared/sms/*.test.ts',
       '../../supabase/functions/sms-opt-in/*.test.ts',
+      '../../supabase/functions/sms-stop-webhook/*.test.ts',
       '../../supabase/functions/_shared/http/__tests__/handler.test.ts',
       '../../supabase/functions/_shared/http/__tests__/cors.test.ts',
       '../../supabase/functions/_shared/standardWebhookSignature.test.ts',

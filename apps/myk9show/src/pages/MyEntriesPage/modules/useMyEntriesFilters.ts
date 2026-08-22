@@ -13,7 +13,13 @@ import {
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
 import { computeMyEntriesShowProgressStats, isCompletedEntry } from './myEntriesStats.helpers';
-import { isEntryStatusFilter, isEntryTabFilter, legacyTabAsStatusFilter } from './entryTabDefs';
+import {
+  ENTRY_TAB_DEFS,
+  TAB_PREDICATES,
+  isEntryStatusFilter,
+  isEntryTabFilter,
+  legacyTabAsStatusFilter,
+} from './entryTabDefs';
 import {
   applyEntryScope,
   clearEntryScopeParams,
@@ -189,30 +195,17 @@ export function useMyEntriesFilters({
     // Status first, then time. Order does not change the result — the two are
     // independent — but applying both is the point: before Phase A the strip
     // could express only one at a time.
-    let filtered = filterEntriesByStatus(scopedEntries, selectedStatus);
-
-    switch (selectedTab) {
-      case 'upcoming': {
-        const now = new Date();
-        // Strict complement of Completed: everything still ahead of the
-        // exhibitor, including entries that need payment or review.
-        filtered = filtered.filter(entry => !isCompletedEntry(entry, now));
-        break;
-      }
-      case 'completed': {
-        const now = new Date();
-        filtered = filtered.filter(entry => isCompletedEntry(entry, now));
-        break;
-      }
-      default:
-        // 'all' - no additional filtering
-        break;
-    }
+    // One `now` for the whole derivation. Reading the clock separately per
+    // memo let a long-lived session judge "completed" at different instants,
+    // so an entry could sit in the list and outside the count that describes it.
+    const now = new Date();
+    const filtered = filterEntriesByStatus(scopedEntries, selectedStatus).filter(entry =>
+      TAB_PREDICATES[selectedTab](entry, now)
+    );
 
     // Sort by show date — still-ahead entries first (nearest date at top). Uses
     // the same rule as the tabs so ordering and tab membership never disagree:
     // a show running today sorts as upcoming, a scored entry sorts as done.
-    const now = new Date();
     filtered.sort((a, b) => {
       const aUpcoming = !isCompletedEntry(a, now);
       const bUpcoming = !isCompletedEntry(b, now);
@@ -296,12 +289,14 @@ export function useMyEntriesFilters({
   const tabCounts = useMemo<Record<EntryTabFilter, number>>(() => {
     const now = new Date();
     const statusFiltered = filterEntriesByStatus(scopedEntries, selectedStatus);
-    const completed = statusFiltered.filter(entry => isCompletedEntry(entry, now)).length;
-    return {
-      all: statusFiltered.length,
-      upcoming: statusFiltered.length - completed,
-      completed,
-    };
+    // Every badge counts with the exact predicate its tab filters by, so a
+    // count can no longer describe a list the panel would refuse to produce.
+    return Object.fromEntries(
+      ENTRY_TAB_DEFS.map(tab => [
+        tab.id,
+        statusFiltered.filter(entry => TAB_PREDICATES[tab.id](entry, now)).length,
+      ])
+    ) as Record<EntryTabFilter, number>;
   }, [scopedEntries, selectedStatus]);
 
   // ...and status counts describe the list within the ACTIVE tab, so a chip
@@ -309,11 +304,7 @@ export function useMyEntriesFilters({
   // other's axis on purpose: each answers "how many will I see if I click this".
   const statusCounts = useMemo<Record<EntryStatusFilter, number>>(() => {
     const now = new Date();
-    const inTab = scopedEntries.filter(entry => {
-      if (selectedTab === 'upcoming') return !isCompletedEntry(entry, now);
-      if (selectedTab === 'completed') return isCompletedEntry(entry, now);
-      return true;
-    });
+    const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
     return {
       any: inTab.length,
       pending: inTab.filter(isPendingEntry).length,

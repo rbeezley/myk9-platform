@@ -44,6 +44,31 @@ interface EntryReceiptData {
   handler?: string;
   classes: EntryClass[];
   totalFee: number;
+  /**
+   * Money breakdown from stripe_orders, present only for an order-scoped
+   * receipt. Absent for a card-derived one (cash, check, or a Stripe order we
+   * could not read), which prints the entry-fee total and claims nothing about
+   * a charge.
+   *
+   * When present these MUST balance: entrySubtotal + platformFee +
+   * overflowCharged = amountCharged, and amountCharged - refunded = netPaid.
+   * The platform fee is billed as its own Stripe line on top of the entry
+   * fees, and a capacity split charges for wait-listed lines before refunding
+   * them, so a receipt printing the gross without both rows states a total its
+   * own line items cannot reach.
+   */
+  charge?: {
+    entrySubtotal: number;
+    platformFee: number;
+    /** Wait-listed lines charged and refunded on the spot by a capacity split. */
+    overflowCharged: number;
+    amountCharged: number;
+    refunded: number;
+    netPaid: number;
+  };
+  currency?: string;
+  paymentReference?: string | null;
+  orderId?: string;
   submittedAt: Date;
   paymentStatus: string;
 }
@@ -54,12 +79,22 @@ interface EntryReceiptProps {
   entry: EntryReceiptData;
   exhibitorName?: string;
   exhibitorEmail?: string;
+  /**
+   * Why this receipt shows entry fees instead of the exact amount charged.
+   * Shown on screen and deliberately NOT printed — the printed document should
+   * carry the figures, not a transient sync message.
+   */
+  notice?: string;
+  /** Offered beside a notice so the reader can try for the exact figures. */
+  onRetry?: () => void;
 }
 
 export function EntryReceipt({
   open,
   onOpenChange,
   entry,
+  notice,
+  onRetry,
   exhibitorName,
   exhibitorEmail,
 }: EntryReceiptProps) {
@@ -259,10 +294,18 @@ export function EntryReceipt({
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+    // Intl throws RangeError on a malformed code, and a bad `currency` column
+    // would then blank the whole receipt rather than one label. A receipt in
+    // the wrong currency symbol is a defect; a receipt that will not render is
+    // a worse one.
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: entry.currency?.toUpperCase() || 'USD',
+      }).format(amount);
+    } catch {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    }
   };
 
   const formatLocation = () => {
@@ -283,6 +326,20 @@ export function EntryReceipt({
           </DialogTitle>
           <DialogDescription>Print or save this receipt for your records</DialogDescription>
         </DialogHeader>
+
+        {notice && (
+          <div
+            className="no-print flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm"
+            role="status"
+          >
+            <span>{notice}</span>
+            {onRetry && (
+              <Button variant="outline" size="sm" className="min-h-11" onClick={onRetry}>
+                Try again
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Printable Content */}
         <div ref={printRef} className="bg-card p-6 rounded-lg">
@@ -400,14 +457,66 @@ export function EntryReceipt({
               </tbody>
             </table>
 
-            {/* Total */}
+            {/* Totals. Every figure a reader can add up for themselves. */}
             <div className="total-section mt-4 pt-4 border-t-2 flex justify-end">
-              <div className="text-right">
-                <div className="total-label text-sm text-muted-foreground">Total</div>
-                <div className="total-amount text-2xl font-bold font-mono">
-                  {formatCurrency(activeClasses.reduce((sum, c) => sum + c.fee, 0))}
+              {entry.charge === undefined ? (
+                <div className="text-right">
+                  {/* Card-derived: the entry fees, making no claim about a charge. */}
+                  <div className="total-label text-sm text-muted-foreground">Total</div>
+                  <div className="total-amount text-2xl font-bold font-mono">
+                    {formatCurrency(
+                      activeClasses.reduce((sum, classEntry) => sum + classEntry.fee, 0)
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <dl className="w-full max-w-xs space-y-1 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted-foreground">Entry fees</dt>
+                    <dd className="font-mono">{formatCurrency(entry.charge.entrySubtotal)}</dd>
+                  </div>
+                  {entry.charge.platformFee !== 0 && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted-foreground">Platform fee</dt>
+                      <dd className="font-mono">{formatCurrency(entry.charge.platformFee)}</dd>
+                    </div>
+                  )}
+                  {entry.charge.overflowCharged !== 0 && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted-foreground">Classes that were full</dt>
+                      <dd className="font-mono">{formatCurrency(entry.charge.overflowCharged)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-4 border-t pt-1">
+                    <dt className={entry.charge.refunded === 0 ? 'font-semibold' : ''}>
+                      Amount charged
+                    </dt>
+                    <dd
+                      className={
+                        entry.charge.refunded === 0
+                          ? 'total-amount font-mono text-lg font-bold'
+                          : 'font-mono'
+                      }
+                    >
+                      {formatCurrency(entry.charge.amountCharged)}
+                    </dd>
+                  </div>
+                  {entry.charge.refunded !== 0 && (
+                    <>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-muted-foreground">Refunded</dt>
+                        <dd className="font-mono">-{formatCurrency(entry.charge.refunded)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-4 border-t pt-1">
+                        <dt className="font-semibold">Net paid</dt>
+                        <dd className="total-amount font-mono text-lg font-bold">
+                          {formatCurrency(entry.charge.netPaid)}
+                        </dd>
+                      </div>
+                    </>
+                  )}
+                </dl>
+              )}
             </div>
           </div>
 
@@ -425,6 +534,20 @@ export function EntryReceipt({
             >
               {entry.paymentStatus}
             </span>
+            {entry.paymentReference && (
+              <div className="info-item mt-3">
+                <div className="info-label text-xs text-muted-foreground">Payment reference</div>
+                <div className="info-value break-all font-mono text-sm">
+                  {entry.paymentReference}
+                </div>
+              </div>
+            )}
+            {entry.orderId && (
+              <div className="info-item mt-3">
+                <div className="info-label text-xs text-muted-foreground">Order ID</div>
+                <div className="info-value break-all font-mono text-sm">{entry.orderId}</div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}

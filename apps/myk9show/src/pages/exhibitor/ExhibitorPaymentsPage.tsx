@@ -4,7 +4,8 @@
  * Mostly read-only list of stripe_orders (RLS-scoped to the caller): date, show,
  * amount, status, and a per-row action, deep-linked by the order's show + entry
  * ids. For settled orders that action points at My Shows, where the printable
- * per-entry receipt lives (receipts are entry-scoped, not stored on the order).
+ * receipt uses an exact keyed order read for the charged amount and filters
+ * the registration card to that order's entry rows.
  * For failed/cancelled orders it points at the cart-recovery / "Finish Payment"
  * flow (`/cart`) with the same scoping, so the exhibitor can retry without
  * hunting through My Shows. Complements MyEntriesPage's per-entry Receipt /
@@ -128,16 +129,15 @@ function PaymentActionContent({ row }: { row: PaymentDisplayRow }) {
   }
 
   if (row.entryIds.length > 0 && !isRefundedPaymentStatus(row.status)) {
-    // Settled orders: the per-entry printable receipt lives on My Shows, so
-    // this links there SCOPED to the entries this order covered — the same
-    // `showId` + `entryIds` shape the retry branch above uses for the cart.
+    // Settled orders: My Shows receives the source order id plus its entry
+    // rows, then fetches that order independently of this list's year bounds.
     // The label is a bare "Receipt" again because it is finally honest: the
     // link no longer dumps the exhibitor into every entry they have ever made
     // to hunt for the right one. The accessible name still names the show, so
     // the column's links stay distinguishable when tabbing through them.
     return (
       <Link
-        to={buildEntryReceiptHref(row.showId, row.entryIds)}
+        to={buildEntryReceiptHref(row.showId, row.entryIds, row.orderId)}
         aria-label={`Receipt for ${row.showName ?? 'this payment'} in My Shows`}
         className="inline-flex min-h-11 items-center gap-1.5 text-sm text-primary hover:underline focus-visible:underline"
       >

@@ -136,6 +136,17 @@ begin
 end;
 $$;
 
+-- Restate the EXECUTE decision. `create or replace` preserves the existing ACL,
+-- so this is a no-op against the applied database — but the grant-decision
+-- contract requires every migration that (re)creates a public function to say
+-- explicitly who may execute it, rather than leaving a reader to go find the
+-- earlier migration. That is the same reasoning as the column REVOKEs above:
+-- an ACL that is only correct by inheritance is one drift away from wrong.
+revoke all on function public.set_my_notification_preferences(boolean, smallint, boolean, boolean)
+  from public, anon;
+grant execute on function public.set_my_notification_preferences(boolean, smallint, boolean, boolean)
+  to authenticated, service_role;
+
 -- Both the settings query and the webhook's findByPhone name the new column in
 -- a select= right away. The DDL event trigger normally reloads on its own, but
 -- if it does not both 400 until it does — and the webhook failing means STOPs

@@ -18,6 +18,7 @@ const AT = NOW.toISOString();
 function consentRow(overrides: Partial<SmsConsentStateRow> = {}): SmsConsentStateRow {
   return {
     id: 'row-1',
+    sms_phone_e164: '+12105550142',
     upcoming_runs: true,
     sms_opt_out_at: null,
     sms_opt_in_at: '2026-08-01T00:00:00.000Z',
@@ -79,6 +80,7 @@ describe('hasIntactConsent', () => {
   it('requires every consent field, because a partial record is not consent', () => {
     expect(hasIntactConsent(consentRow())).toBe(true);
     for (const missing of [
+      'sms_phone_e164',
       'sms_opt_in_at',
       'sms_consent_text_version',
       'sms_opt_in_source',

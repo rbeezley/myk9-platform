@@ -170,6 +170,28 @@ export function RingAlertsSettings() {
     setIsSmsSaving(false);
   }
 
+  /**
+   * "You can opt out but we will never forget your number" is the wrong shape
+   * for a consent feature. The opt-in form — whose phone-field blur is the only
+   * other route to clearSmsConsent — is hidden once a STOP is on record, so
+   * without this there is no in-app way to erase the stored number, opt-in
+   * timestamp, source and write token.
+   */
+  async function handleForgetNumber() {
+    if (!smsPreference) return;
+    setIsSmsSaving(true);
+    setError(null);
+    const cleared = await clearSmsConsent(user?.id, smsPreference);
+    if (cleared) {
+      setSmsPreference(clearedSmsPreference(smsPreference));
+      setPhone('');
+      setConsentChecked(false);
+    } else {
+      setError('We could not remove the mobile number. Please try again.');
+    }
+    setIsSmsSaving(false);
+  }
+
   async function handleSmsOptIn() {
     const normalizedPhone = normalizeSmsPhone(phone);
     if (!normalizedPhone) {
@@ -289,9 +311,13 @@ export function RingAlertsSettings() {
             <div className="flex items-start gap-2">
               <MessageSquareText className="h-4 w-4 text-muted-foreground mt-0.5" />
               <div>
-                <label htmlFor="sms-enabled" className="text-sm font-medium">
-                  Text message
-                </label>
+                {optedOutAt === null ? (
+                  <label htmlFor="sms-enabled" className="text-sm font-medium">
+                    Text message
+                  </label>
+                ) : (
+                  <p className="text-sm font-medium">Text message</p>
+                )}
                 <p className="text-xs text-muted-foreground">
                   One text when your dog is close to the ring.
                 </p>
@@ -309,21 +335,24 @@ export function RingAlertsSettings() {
                 id="sms-enabled"
                 checked={smsPreference?.sms_enabled === true}
                 disabled={
-                  !ringAlertsEnabled || isLoading || isSmsSaving || smsLoadFailed || !hasValidConsent
+                  !ringAlertsEnabled ||
+                  isLoading ||
+                  isSmsSaving ||
+                  smsLoadFailed ||
+                  !hasValidConsent
                 }
                 onCheckedChange={handleSmsToggle}
               />
             )}
           </div>
 
-          {optedOutAt !== null ? (
+          {isLoading ? null : optedOutAt !== null ? (
             <div
               className="ml-6 space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-sm"
               role="status"
             >
               <p>
-                You replied STOP to ring alerts on{' '}
-                <strong>{formatStopDate(optedOutAt)}</strong>.
+                You replied STOP to ring alerts on <strong>{formatStopDate(optedOutAt)}</strong>.
               </p>
               {/*
                 The way back is recipient-initiated, and six months on the
@@ -341,60 +370,71 @@ export function RingAlertsSettings() {
                   contact support@myk9show.com.
                 </p>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-11"
+                disabled={isSmsSaving}
+                onClick={handleForgetNumber}
+              >
+                Remove my number
+              </Button>
               {stopMutedPush && (
                 <p className="text-muted-foreground">
-                  That also turned off push notifications for ring alerts. You can switch those
-                  back on above whenever you like — they are not affected by the text opt-out.
+                  That also turned off the <strong>Ring alerts</strong> switch at the top of this
+                  card, which stops push notifications too. Turn it back on whenever you like — push
+                  is not affected by the text opt-out.
                 </p>
               )}
             </div>
           ) : (
-          <div className="pl-6 space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="sms-phone">Mobile number</Label>
-              <Input
-                id="sms-phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="(210) 555-0142"
-                value={phone}
-                disabled={isLoading || isSmsSaving || smsLoadFailed}
-                onChange={event => {
-                  setPhone(event.target.value);
-                  setConsentChecked(false);
-                  setError(null);
-                }}
-                onBlur={handlePhoneBlur}
-              />
-            </div>
-
-            {!hasValidConsent && !isLoading && !smsLoadFailed && (
-              <div className="space-y-3 rounded-lg border border-border p-3">
-                <label
-                  htmlFor="sms-consent"
-                  className="flex min-h-11 cursor-pointer items-start gap-3 text-sm"
-                >
-                  <Checkbox
-                    id="sms-consent"
-                    checked={consentChecked}
-                    onCheckedChange={setConsentChecked}
-                    className="mt-0.5"
-                  />
-                  <span>{SMS_CONSENT_TEXT}</span>
-                </label>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="min-h-11"
-                  disabled={isSmsSaving}
-                  onClick={handleSmsOptIn}
-                >
-                  Turn on text alerts
-                </Button>
+            <div className="pl-6 space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="sms-phone">Mobile number</Label>
+                <Input
+                  id="sms-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="(210) 555-0142"
+                  value={phone}
+                  disabled={isLoading || isSmsSaving || smsLoadFailed}
+                  onChange={event => {
+                    setPhone(event.target.value);
+                    setConsentChecked(false);
+                    setError(null);
+                  }}
+                  onBlur={handlePhoneBlur}
+                />
               </div>
-            )}
-          </div>
+
+              {!hasValidConsent && !isLoading && !smsLoadFailed && (
+                <div className="space-y-3 rounded-lg border border-border p-3">
+                  <label
+                    htmlFor="sms-consent"
+                    className="flex min-h-11 cursor-pointer items-start gap-3 text-sm"
+                  >
+                    <Checkbox
+                      id="sms-consent"
+                      checked={consentChecked}
+                      onCheckedChange={setConsentChecked}
+                      className="mt-0.5"
+                    />
+                    <span>{SMS_CONSENT_TEXT}</span>
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={isSmsSaving}
+                    onClick={handleSmsOptIn}
+                  >
+                    Turn on text alerts
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

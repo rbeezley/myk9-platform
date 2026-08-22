@@ -474,12 +474,38 @@ describe('RingAlertsSettings after an inbound STOP', () => {
     expect(document.getElementById('sms-enabled')).toBeNull();
   });
 
-  it('says the STOP muted push too, and that push can come back', async () => {
+  it('names the control STOP actually turned off, not the one it did not', async () => {
+    // STOP writes upcoming_runs = false, which drives the master "Ring alerts"
+    // switch — NOT the switch labelled "Push notifications", which is backed by
+    // pushEnabled and was never touched. Pointing at the latter sends the
+    // exhibitor to a control that still reads as on, and they conclude the app
+    // is lying to them.
     render(<NotificationSettings />);
 
+    expect(await screen.findByText(/Ring alerts/)).toBeInTheDocument();
     expect(
-      await screen.findByText(/also turned off push notifications for ring alerts/i)
+      screen.getByText(/switch at the top of this card, which stops push notifications too/i)
     ).toBeInTheDocument();
+  });
+
+  it('lets the exhibitor remove the stored number without texting START', async () => {
+    // The opt-in form, whose phone-field blur is the only other route to
+    // clearSmsConsent, is hidden in this state. Without this button there is no
+    // in-app way to erase the number — "you may opt out but we will never
+    // forget you" is the wrong shape for a consent feature.
+    render(<NotificationSettings />);
+
+    const remove = await screen.findByRole('button', { name: /remove my number/i });
+    fireEvent.click(remove);
+    await waitFor(() => expect(mockClearSmsConsent).toHaveBeenCalledOnce());
+  });
+
+  it('does not flash the opt-in form while the preference is still loading', () => {
+    mockLoadSmsNotificationPreference.mockReturnValue(new Promise(() => {}));
+    render(<NotificationSettings />);
+
+    expect(screen.queryByLabelText('Mobile number')).not.toBeInTheDocument();
+    expect(screen.queryByText(/you replied STOP/i)).not.toBeInTheDocument();
   });
 
   it('does not claim STOP muted push when the exhibitor had already muted it', async () => {
@@ -491,7 +517,7 @@ describe('RingAlertsSettings after an inbound STOP', () => {
 
     await screen.findByText(/you replied STOP/i);
     expect(
-      screen.queryByText(/also turned off push notifications/i)
+      screen.queryByText(/switch at the top of this card/i)
     ).not.toBeInTheDocument();
   });
 

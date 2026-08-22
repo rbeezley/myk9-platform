@@ -460,6 +460,15 @@ issue, PR, or log):
 | `TWILIO_WEBHOOK_URL` | Edge Function secret, optional | The exact URL configured in the Twilio console. Set it if a proxy rewrites scheme or host, which otherwise breaks every signature and presents as "Twilio is sending garbage". |
 | `VITE_SMS_SENDING_NUMBER` | Vercel env | The sending number, shown in settings to an exhibitor who replied STOP. Without it the app points at support instead — it never invents a number, because the exhibitor would text it and conclude the opt-out is permanent. |
 
+**Enable inbound webhook retry, or set a Fallback URL.** Twilio does *not*
+retry an inbound messaging webhook by default — on a 5xx it raises error 11200
+and calls the Fallback URL if one is configured. With neither, a transient
+database blip means that STOP is permanently absent from our row: the carrier
+still blocks delivery so the exhibitor notices nothing, but the sendable index
+keeps counting the number and the send path keeps trying forever. That is
+exactly the failure this function exists to prevent, so treat it as part of the
+deploy rather than a tuning option.
+
 After deploying, point the Messaging Service's inbound webhook at the function
 URL and confirm Advanced Opt-Out is on, with the HELP reply matching §5 of
 [`sms-10dlc-registration.md`](sms-10dlc-registration.md) verbatim including

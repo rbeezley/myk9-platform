@@ -37,6 +37,7 @@ export function classifyKeyword(body: string | undefined): InboundKeyword {
 
 export interface SmsConsentStateRow {
   id: string;
+  sms_phone_e164: string | null;
   upcoming_runs: boolean | null;
   sms_opt_out_at: string | null;
   sms_opt_in_at: string | null;
@@ -53,6 +54,11 @@ export interface SmsConsentStateRow {
  */
 export function hasIntactConsent(row: SmsConsentStateRow): boolean {
   return (
+    // Phone included because the sendable-complete constraint requires it
+    // non-null whenever sms_enabled is true. findByPhone guarantees it today,
+    // but this is exported and unit-tested standalone — a caller that does not
+    // pre-filter would otherwise produce a 23514 on START.
+    row.sms_phone_e164 !== null &&
     row.sms_opt_in_at !== null &&
     row.sms_consent_text_version !== null &&
     row.sms_opt_in_source !== null &&
@@ -169,10 +175,7 @@ export async function handleInboundSms(
   const revivable = rows.filter(hasIntactConsent);
   if (revivable.length === 0) return { keyword, updated: 0 };
 
-  const [restoresPush, smsOnly] = partition(
-    revivable,
-    row => row.sms_stop_muted_push_at !== null
-  );
+  const [restoresPush, smsOnly] = partition(revivable, row => row.sms_stop_muted_push_at !== null);
   if (restoresPush.length > 0) {
     await ports.applyUpdate(
       restoresPush.map(row => row.id),

@@ -47,14 +47,19 @@ export function parseFormBody(body: string): Record<string, string[]> {
 }
 
 function buildSignatureBase(url: string, params: Record<string, string[]>): string {
-  // Sort by key; a repeated key contributes each of its values, themselves
-  // sorted, so the base string does not depend on body ordering.
+  // Sort by parameter NAME, then append each name immediately followed by its
+  // value, no delimiters — Twilio's documented algorithm, verified against the
+  // published test vector in the unit test.
+  //
+  // Repeated names are explicitly undefined in that documentation, and every
+  // official helper takes a single-valued map, so there is no canonical answer
+  // to match. Values are emitted in ARRIVAL order rather than sorted: sorting
+  // would be our own invention, and if Twilio ever does send a duplicate name
+  // the failure is a 403 on a legitimate request, which silently stops opt-out
+  // learning. Standard inbound SMS sends none (MMS uses MediaUrl0, MediaUrl1).
   return Object.keys(params)
     .sort()
-    .reduce((base, key) => {
-      const values = [...params[key]].sort();
-      return values.reduce((acc, value) => acc + key + value, base);
-    }, url);
+    .reduce((base, key) => params[key].reduce((acc, value) => acc + key + value, base), url);
 }
 
 /** Length-independent comparison; avoids leaking the signature via timing. */

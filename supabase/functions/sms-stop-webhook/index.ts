@@ -23,7 +23,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const CONSENT_STATE_COLUMNS =
-  'id, upcoming_runs, sms_opt_out_at, sms_opt_in_at, sms_consent_text_version, ' +
+  'id, sms_phone_e164, upcoming_runs, sms_opt_out_at, sms_opt_in_at, sms_consent_text_version, ' +
   'sms_opt_in_source, sms_consent_write_token, sms_stop_muted_push_at';
 
 /**
@@ -91,8 +91,14 @@ Deno.serve(async (req: Request) => {
     console.log(`sms-stop-webhook: keyword=${result.keyword} rows_updated=${result.updated}`);
     return twiml();
   } catch (error) {
-    // A 500 makes Twilio retry, which is what we want for a transient database
-    // failure: the alternative is a STOP our send path never learns about.
+    // A 500 is only useful if the Messaging Service is configured to act on it.
+    // Twilio does NOT retry an inbound messaging webhook by default — it raises
+    // error 11200 and calls the Fallback URL if one is set. Without either, a
+    // transient database blip means this STOP is permanently absent from our
+    // row: the carrier still blocks delivery, but the sendable index keeps
+    // counting the number and we keep attempting sends. Enabling retry or a
+    // fallback URL is a deploy step, not something this code can guarantee —
+    // see launch-integrations-deploy.md §6.7.
     console.error('sms-stop-webhook failed', error);
     return new Response('Internal error', { status: 500 });
   }

@@ -34,6 +34,27 @@ function form(params: Record<string, string>): Record<string, string[]> {
 describe('verifyTwilioSignature', () => {
   const params = { From: '+12105550142', Body: 'STOP', MessageSid: 'SM123' };
 
+  it("matches Twilio's own published test vector", async () => {
+    // The canonical example from Twilio's request-validation documentation.
+    // Our own re-derivation of the algorithm only proves we agree with
+    // ourselves; this pins the implementation to a signature Twilio published,
+    // and it is what proves the query string is included and that name and
+    // value are concatenated with no delimiter.
+    const result = await verifyTwilioSignature({
+      url: 'https://mycompany.com/myapp.php?foo=1&bar=2',
+      params: form({
+        CallSid: 'CA1234567890ABCDE',
+        Caller: '+14158675309',
+        Digits: '1234',
+        From: '+14158675309',
+        To: '+18005551212',
+      }),
+      signature: 'RSOYDt4T1cUTdK1PDd93/VVr8B8=',
+      authToken: '12345',
+    });
+    expect(result).toEqual({ ok: true });
+  });
+
   it('accepts a signature produced by the documented Twilio algorithm', async () => {
     const result = await verifyTwilioSignature({
       url: URL_UNDER_TEST,

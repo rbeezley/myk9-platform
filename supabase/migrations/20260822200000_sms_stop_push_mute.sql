@@ -136,4 +136,10 @@ begin
 end;
 $$;
 
+-- Both the settings query and the webhook's findByPhone name the new column in
+-- a select= right away. The DDL event trigger normally reloads on its own, but
+-- if it does not both 400 until it does — and the webhook failing means STOPs
+-- are lost, which is the one thing this migration exists to prevent.
+notify pgrst, 'reload schema';
+
 commit;

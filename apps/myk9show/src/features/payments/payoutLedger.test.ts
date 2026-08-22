@@ -7,6 +7,7 @@ import {
   buildLedgerRows,
   summarizeLedger,
   pickCanonicalPayout,
+  resolveUnsettledState,
   type LedgerEntryRow,
   type LedgerShow,
   type LedgerPayout,
@@ -26,6 +27,7 @@ function payout(p: Partial<LedgerPayout>): LedgerPayout {
 
 function entry(p: Partial<LedgerEntryRow>): LedgerEntryRow {
   return {
+    id: 'e1',
     show_id: 's1',
     entry_status: 'confirmed',
     entry_fee: 25,
@@ -249,6 +251,7 @@ describe('summarizeLedger', () => {
  */
 describe('buildLedgerRows — shows that could not be read', () => {
   const paidEntry = (showId: string, fee: number): LedgerEntryRow => ({
+    id: `e-${showId}`,
     show_id: showId,
     entry_status: 'confirmed',
     entry_fee: fee,
@@ -357,5 +360,118 @@ describe('pickCanonicalPayout', () => {
       payout({ status: 'failed', amount_cents: 2, created_at: '2026-06-09T00:00:00Z' }),
     ]);
     expect(chosen?.amount_cents).toBe(2);
+  });
+});
+describe('sumRefundedCents filters like sumOnlineCollectedCents', () => {
+  const online = (status: string | null, fee: number, refund: number): LedgerEntryRow => ({
+    id: 'e-online',
+    show_id: 's1',
+    entry_status: 'confirmed',
+    entry_fee: fee,
+    payment_method: 'online',
+    payment_status: status,
+    refund_amount: refund,
+    refund_decision: null,
+  });
+
+  it('ignores a refund on an entry that was never collected', () => {
+    // The table presents Collected / Refunds / Net owed as a subtraction. A
+    // refund on a pending entry contributed to Refunds but not to Collected, so
+    // the row read as "$0.00 / -$25.00 / $0.00".
+    const entries = [online('pending', 25, 25)];
+    expect(sumOnlineCollectedCents(entries)).toBe(0);
+    expect(sumRefundedCents(entries)).toBe(0);
+  });
+
+  it('still counts a refund on a collected entry', () => {
+    const entries = [online('refunded', 30, 10)];
+    expect(sumOnlineCollectedCents(entries)).toBe(3000);
+    expect(sumRefundedCents(entries)).toBe(1000);
+  });
+
+  it('keeps the three columns consistent for ordinary rows', () => {
+    const entries = [online('paid', 40, 0), online('refunded', 30, 30)];
+    const collected = sumOnlineCollectedCents(entries);
+    const refunded = sumRefundedCents(entries);
+    expect(collected - refunded).toBe(calculateShowPayoutCents(entries));
+  });
+});
+
+describe('resolveUnsettledState', () => {
+  const OWED = 5000;
+
+  // "Not settled" collapsed three situations, hiding the only one that needs
+  // the operator: a settle date that has passed with no transfer created.
+  it('a settle date in the past with money owed is overdue', () => {
+    expect(resolveUnsettledState('2026-06-01', '2026-08-21', OWED)).toBe('overdue');
+  });
+
+  it('a future settle date is merely scheduled', () => {
+    expect(resolveUnsettledState('2026-12-01', '2026-08-21', OWED)).toBe('scheduled');
+  });
+
+  it('today is not yet overdue', () => {
+    expect(resolveUnsettledState('2026-08-21', '2026-08-21', OWED)).toBe('scheduled');
+  });
+
+  it('no settle date is unscheduled, which is a show-data gap, not a payout one', () => {
+    expect(resolveUnsettledState(null, '2026-08-21', OWED)).toBe('unscheduled');
+  });
+
+  it('a fully refunded show is NOT past due, however old', () => {
+    // The cron skips amountCents <= 0, so no payout row is the CORRECT outcome
+    // here. Calling it "Past due" would report correct behaviour as a failure.
+    expect(resolveUnsettledState('2020-01-01', '2026-08-21', 0)).toBe('nothing-owed');
+  });
+
+  it('nothing owed wins over a missing settle date too', () => {
+    expect(resolveUnsettledState(null, '2026-08-21', 0)).toBe('nothing-owed');
+  });
+});
+
+describe('netOwedSource marks where the figure came from', () => {
+  const paidEntry = (fee: number): LedgerEntryRow => ({
+    id: 'e-paid',
+    show_id: 's1',
+    entry_status: 'confirmed',
+    entry_fee: fee,
+    payment_method: 'online',
+    payment_status: 'paid',
+    refund_amount: null,
+    refund_decision: null,
+  });
+  const shows: LedgerShow[] = [
+    {
+      id: 's1',
+      name: 'A',
+      club_id: 'c1',
+      clubName: 'C1',
+      endDate: '2026-06-01',
+    },
+  ];
+
+  it('is "computed" with no payout row, so the columns do subtract', () => {
+    const rows = buildLedgerRows(shows, new Map([['s1', [paidEntry(30)]]]), new Map());
+    expect(rows[0].netOwedSource).toBe('computed');
+    expect(rows[0].onlineCollectedCents - rows[0].refundedCents).toBe(rows[0].netOwedCents);
+  });
+
+  it('is "transfer" when a live payout row supplies the amount', () => {
+    const payoutsByShow = new Map<string, LedgerPayout[]>([
+      ['s1', [payout({ show_id: 's1', amount_cents: 2500, status: 'completed' })]],
+    ]);
+    const rows = buildLedgerRows(shows, new Map([['s1', [paidEntry(30)]]]), payoutsByShow);
+    expect(rows[0].netOwedSource).toBe('transfer');
+    // The point of the marker: this row does NOT subtract, by design.
+    expect(rows[0].onlineCollectedCents - rows[0].refundedCents).not.toBe(rows[0].netOwedCents);
+  });
+
+  it('is "computed" for a failed payout, whose stored amount is stale', () => {
+    const payoutsByShow = new Map<string, LedgerPayout[]>([
+      ['s1', [payout({ show_id: 's1', amount_cents: 9999, status: 'failed' })]],
+    ]);
+    const rows = buildLedgerRows(shows, new Map([['s1', [paidEntry(30)]]]), payoutsByShow);
+    expect(rows[0].netOwedSource).toBe('computed');
+    expect(rows[0].netOwedCents).toBe(3000);
   });
 });

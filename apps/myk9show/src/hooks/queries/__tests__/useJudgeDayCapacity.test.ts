@@ -98,6 +98,72 @@ describe('useJudgeDayCapacity', () => {
     expect(day.mailInReserved).toBe(0);
   });
 
+  it('derives judge-day capacity from assigned classes when the summary view is hidden by RLS', async () => {
+    mockSelect.mockReturnValueOnce({
+      eq: vi.fn().mockResolvedValueOnce({ data: [], error: null }),
+    });
+    mockSelect.mockReturnValueOnce({
+      eq: vi.fn().mockReturnValueOnce({
+        single: vi.fn().mockResolvedValueOnce({
+          data: {
+            default_judge_day_capacity: 2,
+            mail_in_strategy: 'none',
+            mail_in_value: null,
+          },
+          error: null,
+        }),
+      }),
+    });
+    mockJudgeAssignments([
+      {
+        class_id: 'c1',
+        person_id: 'judge-1',
+        day_capacity_override: null,
+        trials: { date: '2026-05-01' },
+      },
+      {
+        class_id: 'c2',
+        person_id: 'judge-1',
+        day_capacity_override: null,
+        trials: { date: '2026-05-01' },
+      },
+    ]);
+    mockSelect.mockReturnValueOnce({
+      eq: vi.fn().mockResolvedValueOnce({
+        data: [
+          { id: 'c1', name: 'Novice A', max_entries: null },
+          { id: 'c2', name: 'Advanced', max_entries: null },
+        ],
+        error: null,
+      }),
+    });
+    mockSelect.mockReturnValueOnce({
+      in: vi.fn().mockReturnValueOnce({
+        in: vi.fn().mockReturnValueOnce({
+          is: vi.fn().mockResolvedValueOnce({
+            data: [{ class_id: 'c1' }, { class_id: 'c2' }],
+            error: null,
+          }),
+        }),
+      }),
+    });
+
+    const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.judgeDays).toEqual([
+      expect.objectContaining({
+        judgeId: 'judge-1',
+        showDate: '2026-05-01',
+        confirmedCount: 2,
+        availableSpots: 0,
+        classIds: ['c1', 'c2'],
+      }),
+    ]);
+  });
+
   it('calculates mail-in reserved spots for fixed strategy', async () => {
     const mockSummaryData = [
       {

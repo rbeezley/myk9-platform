@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0 and 1 complete (all seven issues Done). Batch 2 is partially executed and **currently unattended**: Lane 2B step 1 (MYK9-191) merged, Lane 2C's code investigation is finished pending one operator proof, and Lane 2A stalled mid-flight on an unopened branch. See **"Resume here — Batch 2 pickup state (2026-08-22)"** below before dispatching anything.
+> **Status:** Active — Batches 0 and 1 complete. Batch 2 is most of the way through: MYK9-191, 215, 216, 192 and 232 are Done and merged. Remaining are MYK9-217, MYK9-193, and Lane 2D's MYK9-230 → MYK9-231; MYK9-204 is operator-blocked. See **"Resume here — Batch 2 progress (2026-08-22, evening)"** below.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -204,29 +204,41 @@ Batch 2A is unblocked: 1E and 1F are merged, and its work is active in a separat
 
 ---
 
-## Resume here — Batch 2 pickup state (2026-08-22)
+## Resume here — Batch 2 progress (2026-08-22, evening)
 
-Batch 2 execution stopped mid-lane on 2026-08-21 when the Codex budget ran out. Nothing below is in flight; every lane is either finished, parked on an operator, or waiting to be picked up. Verified against `origin/main` at `6ba13e2a2`, `gh pr list`, and Linear on 2026-08-22.
+Four issues merged this session. Verified against `origin/main` at `ba60cd701`, `gh pr list`, and Linear.
 
-| Lane | Issue | Linear state | Where the work actually is | Next action |
-| -- | -- | -- | -- | -- |
-| 2A step 1 | MYK9-215 | **Backlog** (never moved to In Progress) | Branch `codex/myk9-215-order-receipts` pushed at `3a322c306` — two commits, 18 files, +843/-51, worktree clean. **No PR was ever opened** and no closure comment exists on the issue | Highest-value pickup. Rebase on `origin/main` (base is `7052c7ad3`, now ~13 commits behind), confirm the three money-accuracy blockers below are actually resolved, run the focused suites, then open the PR |
-| 2A step 2 | MYK9-216 | Backlog | Not started | Serialized behind 215 |
-| 2A step 3 | MYK9-217 | Backlog | Not started | Serialized behind 216 |
-| 2B step 1 | MYK9-191 | **Done** | [PR #1739](https://github.com/rbeezley/myk9-platform/pull/1739) merged as `d7d30f507` on 2026-08-22 | Complete. Its Twilio client and `NotificationSettings.tsx` shape are now real inputs on `main` |
-| 2B step 2 | MYK9-192 | Backlog | Not started — **now unblocked** by 191's merge | Ready to dispatch. Branch from fresh `origin/main`; code+tests only, no deploy or secret write |
-| 2B step 3 | MYK9-193 | Backlog | Not started | Serialized behind 192; its deploy stays gated on MYK9-190 |
-| 2C | MYK9-204 | In Progress | Code investigation complete; the no-code recommendation is recorded on the issue (2026-08-22). The MYK9-11 runbook step is already on `main` | **Operator-blocked, not agent-blocked.** The only remaining gate is Richard running a fresh desktop checkout that shows card plus eligible Apple/Google Pay and no Link/Klarna/bank |
-| 2D | MYK9-232 → MYK9-230 → MYK9-231 | all Backlog | Not started — unblocked since MYK9-54 closed on 2026-08-21 | Ready to dispatch as one serialized lane |
+| Lane | Issue | State | Where it landed / what is left |
+| -- | -- | -- | -- |
+| 2A step 1 | MYK9-215 | **Done** | [#1753](https://github.com/rbeezley/myk9-platform/pull/1753) → `237b8b7aa`. The stalled branch was reworked, not just finished — see below |
+| 2A step 2 | MYK9-216 | **Done** | [#1756](https://github.com/rbeezley/myk9-platform/pull/1756) → `ba60cd701`. `TAB_PREDICATES` beside `ENTRY_TAB_DEFS`; all three sites derive from it; `now` resolved once |
+| 2A step 3 | MYK9-217 | Backlog | **Next.** Unblocked now 216 has merged. Get `index.tsx` under 500 lines; preserve both `INTENT:` constraints |
+| 2B step 1 | MYK9-191 | Done | [#1739](https://github.com/rbeezley/myk9-platform/pull/1739) |
+| 2B step 2 | MYK9-192 | **Done** | [#1754](https://github.com/rbeezley/myk9-platform/pull/1754) → `919c3599b`. Migration `20260822200000` **applied and verified** against the live DB. The function is NOT deployed and no Twilio secret is set — both gated on MYK9-190 |
+| 2B step 3 | MYK9-193 | Backlog | Unblocked by 192. Send path + sent-marker migration; deploy stays gated on MYK9-190 |
+| 2C | MYK9-204 | In Progress | **Operator-blocked, not agent-blocked.** Only the fresh desktop checkout proof remains |
+| 2D step 1 | MYK9-232 | **Done** | [#1755](https://github.com/rbeezley/myk9-platform/pull/1755) → `34934c62e`. Refuted: a snapshot `0` is always a real zero |
+| 2D steps 2–3 | MYK9-230 → MYK9-231 | Backlog | Ready. 232 handed MYK9-230 a finding: a fully make-whole-refunded order stores `0/0` and earns the confident charge-verification label over a charge of nothing |
 
-**The three MYK9-215 review blockers, carried forward verbatim** — an independent review of the first commit found that the card-wide My Shows receipt remained reachable for split registrations, that partially replicated orders could print a full charged amount against incomplete lines, and that receipt payment status came from the grouped registration rather than the exact order. The second commit (`3a322c306`, "resolve direct receipts by order") appears to address them, but that was never re-reviewed and never recorded anywhere. **Treat the blockers as open until re-review confirms otherwise** — do not read the commit message as the verdict.
+### What MYK9-215 turned out to be
 
-**Recommended pickup order, three worker slots:** MYK9-215 (finish and land the stalled lane first — it is money-accuracy work already 90% written and it is the only branch at risk of going stale), MYK9-192 (newly unblocked, disjoint files), MYK9-232 (opens Lane 2D, which is investigation-first and may not need code). MYK9-204 needs no worker at all.
+The stalled branch scoped the receipt rows correctly but **targeted the wrong quantity for the total**, on every online order. `amount_cents` is the gross and the platform fee is a separate Stripe line charged on top, so class rows summing to the subtotal sat under a total that exceeded them by the fee.
 
-**Bookkeeping debt found during this status check** — neither is blocking, both are cheap:
+A second, deeper case survived the first fix: the documented tie-out in `_shared/orderSnapshot.ts` is `amount_cents == entry_subtotal_cents + platform_fee_cents + make_whole_refunded_cents`, and the snapshot columns cover only the **accepted** lines. A capacity split therefore left the wait-listed lines' charge unexplained — in exactly the scenario the issue exists for. Verified against the live database: 5/5 non-legacy orders satisfy the three-term identity, 1/5 the two-term one that was assumed.
 
-- Two OpenSpec changes are complete but unarchived: `openspec/changes/myk9-225-support-query-recovery` and `openspec/changes/myk9-226-cart-capacity-reproduction`. Both issues are Done.
-- Three issues opened on 2026-08-21/22 are not in this plan's primary registry: [MYK9-233](https://linear.app/myk9-platform/issue/MYK9-233) (SECURITY DEFINER drops the soft-delete filter — High), [MYK9-234](https://linear.app/myk9-platform/issue/MYK9-234) (Payout Ledger renders every row twice — Low), and [MYK9-235](https://linear.app/myk9-platform/issue/MYK9-235) (a refund against money never collected is invisible on every reconciliation surface — Medium). MYK9-235 belongs with the Lane 2D financial-semantics cluster; MYK9-233 is a security finding that should be triaged on its own rather than absorbed into a batch. Assign them primary dispositions before the next batch-wide inventory check, which currently expects 54 rows.
+Also fixed there: refunds now read the refund **columns** rather than `status` (a partially refunded order keeps `status = 'succeeded'`); cash, check and payment-link registrations no longer dead-end on an unreachable Retry; and the receipt is printable offline again.
+
+**Two tests written during this work were vacuous and only caught by re-running the mutation.** The URL-seam assertion passed with the production line hardcoded to `null`, because a single mocked order makes the discovery path produce an identical screen. Assert the query argument, not the rendered result, when the two paths converge.
+
+### Standing gate for the rest of the batch
+
+Every PR here went through adversarial subagent review because Codex was unavailable, and every round found something real — including one blocker in a fix written to address the previous round. Do not skip it for 217, 193, 230 or 231.
+
+### Bookkeeping debt (unchanged, still open)
+
+- Two OpenSpec changes complete but unarchived: `myk9-225-support-query-recovery`, `myk9-226-cart-capacity-reproduction`.
+- [MYK9-233](https://linear.app/myk9-platform/issue/MYK9-233), [MYK9-234](https://linear.app/myk9-platform/issue/MYK9-234), [MYK9-235](https://linear.app/myk9-platform/issue/MYK9-235) are not in the primary registry, which still expects 54 rows. MYK9-235 belongs with Lane 2D; MYK9-233 is a security finding to triage on its own.
+- **A local-only cleanup is outstanding**: pushing 192's migration needed four `2026082219xxxx` files borrowed from the open packet PRs, and `rm`/`git clean` are denied by permission rules here. They remain untracked in the primary checkout and will fail the migration-parsing tests locally until removed.
 
 ---
 

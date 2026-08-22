@@ -24,6 +24,8 @@ export type PaymentDisplayRowKind = 'charge' | 'refund';
 
 export interface PaymentDisplayRow {
   id: string;
+  /** Source stripe_orders.id; display row ids add charge/refund suffixes. */
+  orderId: string;
   kind: PaymentDisplayRowKind;
   date: string | null;
   showId: string | null;
@@ -135,6 +137,7 @@ export function buildPaymentDisplayRows(
       return [
         {
           id: `${payment.id}:charge`,
+          orderId: payment.id,
           kind: 'charge',
           date: payment.date,
           showId: payment.showId,
@@ -148,6 +151,7 @@ export function buildPaymentDisplayRows(
         },
         {
           id: `${payment.id}:refund`,
+          orderId: payment.id,
           kind: 'refund',
           // The refund's OWN date, not the charge's. This branch covers a fully
           // refunded order with no entry-level refund rows (the legacy /
@@ -169,6 +173,7 @@ export function buildPaymentDisplayRows(
 
     const chargeRow: PaymentDisplayRow = {
       id: `${payment.id}:charge`,
+      orderId: payment.id,
       kind: 'charge',
       date: payment.date,
       showId: payment.showId,
@@ -187,6 +192,7 @@ export function buildPaymentDisplayRows(
     const refundRows =
       payment.refunds?.map(refund => ({
         id: `${payment.id}:refund:${refund.entryId}`,
+        orderId: payment.id,
         kind: 'refund' as const,
         date: refund.date ?? payment.date,
         showId: payment.showId,

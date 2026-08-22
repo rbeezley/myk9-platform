@@ -2,8 +2,8 @@ import { buildEntryReceiptHref } from './entryReceiptHref';
 
 describe('buildEntryReceiptHref', () => {
   it('builds a My Shows link scoped to the order show + comma-joined entry ids', () => {
-    expect(buildEntryReceiptHref('show-1', ['e1', 'e2'])).toBe(
-      '/exhibitor/entries?showId=show-1&entryIds=e1%2Ce2'
+    expect(buildEntryReceiptHref('show-1', ['e1', 'e2'], 'order-1')).toBe(
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=e1%2Ce2'
     );
   });
 

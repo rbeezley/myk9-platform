@@ -1140,10 +1140,12 @@ the Edge runner. Do not treat either as live until its approval-gated steps belo
 > page this change fixes. `cronHealthCheck.source.test.ts` forbids `monitorConfig` in the function,
 > so monitor configuration is console-managed by design and cannot be asserted by CI.
 >
-> **Known gap, not fixed here:** the "Independent SQL path" bullet above is currently inert. The
-> watchdog looks for `source = 'cron-health-check'` between 07:00 and 08:00 UTC, and continuous runs
-> write that same source — 13 snapshots land in that window every day, so the watchdog has been
-> unable to fire since 2026-08-04. Closing it needs a discriminator persisted on the snapshot row.
+> **The "Independent SQL path" bullet above was inert from 2026-08-04 to 2026-08-22.** The watchdog
+> looked for `source = 'cron-health-check'` between 07:00 and 08:00 UTC, and continuous runs write
+> that same source — 13 snapshots landed in that window every day, so the predicate could not be
+> satisfied. Migration `20260822180000_health_snapshot_run_mode.sql` adds a `run_mode` discriminator
+> and rescopes the watchdog to `run_mode IS DISTINCT FROM 'continuous'`. Treat the pre-2026-08-22
+> evidence for that bullet as proving the alert path, not the detection predicate.
 
 Rollback: redeploy the last-good `cron-health-check`, remove/restore the Sentry secrets as
 appropriate, disable the Sentry monitor, and unschedule `daily-health-snapshot-watchdog` in a new

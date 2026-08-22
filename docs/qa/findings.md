@@ -621,7 +621,7 @@ Copy this block for each new finding.
 
 ### QA-HEALTH-WATCHDOG-INERT-2026-08-22
 
-- **Status:** open
+- **Status:** in-progress
 - **Classification:** monitoring defect / predicate collision
 - **Severity:** high
 - **Role:** operator (site admin)
@@ -631,7 +631,10 @@ Copy this block for each new finding.
 - **User impact:** The "independent SQL path" that the go-live runbook credits as the second of two independent missed-nightly detectors has been inert since 2026-08-04. A nightly full run could stop firing entirely and this watchdog would stay silent.
 - **Confidence:** High — arithmetic, confirmed against live data.
 - **Proof required:** A discriminator persisted on the snapshot row (run mode, or a distinct `source` for the nightly full run), the watchdog predicate narrowed to it, and a replay showing the alert fires when the nightly run is absent but continuous runs are present.
-- **Notes:** Deliberately out of scope for PR #1750, which fixes routing only. Needs its own migration.
+- **Fix (in review):** Migration `20260822180000_health_snapshot_run_mode.sql` adds a nullable, CHECK-constrained `run_mode` column to `system_health_snapshots` and rescopes BOTH watchdog snapshot CTEs with `run_mode IS DISTINCT FROM 'continuous'`. `cron-health-check` persists the run mode on every insert, including the probe-failure path.
+- **Why `IS DISTINCT FROM` and not `= 'full'`:** rows written before the matching function deploy carry a NULL `run_mode`. Under `= 'full'` this migration landing ahead of the deploy would make the predicate match nothing and fire a false "snapshot missing" alert at the next 08:00. `IS DISTINCT FROM` makes the two halves order-independent, and the predicate becomes exact once the function is deployed. No `DEFAULT` on the column for the mirror-image reason: a default would relabel continuous rows as nightly if the function ever stopped sending the value.
+- **Proof so far:** four mutations killed (`= 'full'` EXIT=1; rescoping only the window CTE and leaving `latest_snapshot` counting continuous EXIT=1; dropping `run_mode` from the insert EXIT=1; adding a column DEFAULT EXIT=1), baseline EXIT=0. `src/test/database/` 88 files / 651 tests pass, 6/6 shuffled. `pnpm typecheck` and `pnpm lint` at 0.
+- **Notes:** Split out of PR #1750, which fixed Sentry routing only.
 
 ### NQA-2026-07-29-01
 

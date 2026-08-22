@@ -51,9 +51,9 @@ const PermissionManagementPage: React.FC = () => {
     >
       <TabsContent value="overview">
         <div className="min-h-screen bg-background">
-          <div className="container mx-auto max-w-6xl px-6 pb-10 pt-8">
+          <div className="manager-content-container container mx-auto max-w-6xl px-6 pb-10 pt-8">
             <div className="space-y-6">
-              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+              <div className="manager-page-header manager-page-header--compact">
                 <div className="min-w-0">
                   <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
                     <Shield className="h-6 w-6 text-primary" />
@@ -63,7 +63,7 @@ const PermissionManagementPage: React.FC = () => {
                     Every role in the system — open one to change what it can do.
                   </p>
                 </div>
-                <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                <div className="manager-page-actions">
                   <Button asChild variant="outline" className="h-11 w-full sm:w-auto">
                     <Link to="/admin/users">
                       <Users className="mr-2 h-4 w-4" />

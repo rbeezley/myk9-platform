@@ -1,4 +1,4 @@
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { vi } from 'vitest';
 
 vi.mock('@/services/rbac/RBACService', () => ({
@@ -46,6 +46,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
           permissions: null,
           created_at: null,
         },
+        club: { id: 'club-1', name: 'Blue Ridge Kennel Club' },
         assigned_by_email: 'admin@example.com',
       },
       {
@@ -79,6 +80,29 @@ vi.mock('@/services/rbac/RBACService', () => ({
           permissions: null,
           created_at: null,
         },
+        assigned_by_email: 'admin@example.com',
+      },
+      {
+        id: 'ur-5',
+        user_id: 'user-444',
+        role_id: 'role-2',
+        club_id: 'club-missing',
+        show_id: null,
+        granted_by: 'admin-1',
+        granted_at: '2026-05-01T10:00:00Z',
+        expires_at: null,
+        is_active: true,
+        user_email: 'dave@example.com',
+        role: {
+          id: 'role-2',
+          name: 'judge',
+          display_name: null,
+          description: 'Trial judge',
+          is_system: true,
+          permissions: null,
+          created_at: null,
+        },
+        club: null,
         assigned_by_email: 'admin@example.com',
       },
     ]),
@@ -161,11 +185,11 @@ describe('RoleAssignmentsPanel', () => {
   it('summarizes the ledger without rendering a second role-card representation', async () => {
     render(<RoleAssignmentsPanel />);
     await screen.findByRole('table');
-    expect(screen.getByText('3 active assignments')).toBeInTheDocument();
-    expect(screen.getByText('4 people')).toBeInTheDocument();
+    expect(screen.getByText('4 active assignments')).toBeInTheDocument();
+    expect(screen.getByText('5 people')).toBeInTheDocument();
     expect(screen.getByText('2 role types')).toBeInTheDocument();
     expect(screen.queryByText('Total Assignments:')).not.toBeInTheDocument();
-    expect(screen.getByText('Judge')).toBeInTheDocument();
+    expect(screen.getAllByText('Judge').length).toBeGreaterThan(0);
   });
 
   it('offers no way to assign a role, and points at User Management instead', async () => {
@@ -184,20 +208,59 @@ describe('RoleAssignmentsPanel', () => {
     ).toBeInTheDocument();
   });
 
-  it('derives the Scope column from show_id/club_id, not the unpopulated scope_type/scope_id fields', async () => {
+  it('names exact club scope in visible and accessible text while preserving show and global distinctions', async () => {
     render(<RoleAssignmentsPanel />);
     await screen.findByRole('table');
     // ur-2: club-scoped (club_id: 'club-1')
-    expect(screen.getByRole('link', { name: 'Club profile' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Club: Blue Ridge Kennel Club' })).toHaveAttribute(
       'href',
       '/clubs/club-1'
     );
     // ur-4: show-scoped (show_id: 'show-9')
-    expect(screen.getByRole('link', { name: 'Show details' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Show' })).toHaveAttribute(
       'href',
       '/shows/show-9'
     );
     // ur-1 and ur-3: unscoped
     expect(screen.getAllByText('Global').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('makes exact club scope searchable through the Scope column', async () => {
+    const { user } = render(<RoleAssignmentsPanel />);
+    await screen.findByRole('table');
+
+    await user.type(screen.getByPlaceholderText('Search by user, role, or scope...'), 'Blue Ridge');
+
+    await waitFor(() => {
+      expect(screen.getByText('bob@example.com')).toBeInTheDocument();
+      expect(screen.queryByText('alice@example.com')).not.toBeInTheDocument();
+    });
+  });
+
+  it('repeats user, role, and exact club scope in the revoke confirmation', async () => {
+    const { user } = render(<RoleAssignmentsPanel />);
+    await screen.findByRole('table');
+
+    await user.click(screen.getByRole('button', { name: 'Actions for bob@example.com' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Revoke Role' }));
+
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Are you sure you want to revoke the "Judge" role from bob@example.com for Club: Blue Ridge Kennel Club?'
+    );
+  });
+
+  it('keeps an unresolved club scope explicit in the row and revoke confirmation', async () => {
+    const { user } = render(<RoleAssignmentsPanel />);
+    await screen.findByRole('table');
+
+    expect(screen.getByText('Club: unresolved (club-missing)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Club: unresolved (club-missing)' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Actions for dave@example.com' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Revoke Role' }));
+
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Are you sure you want to revoke the "Judge" role from dave@example.com for Club: unresolved (club-missing)?'
+    );
   });
 });

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { PlatformIncomeSummary, PayoutSettlementTotals } from '@/features/financial';
+import type { PlatformIncomeSummary } from '@/features/financial';
 import type { PlatformAttentionSummary } from './platformAttention';
 import { usePlatformFinancialOverview } from './usePlatformFinancialOverview';
 
@@ -25,14 +25,12 @@ interface FigureProps {
 
 function Figure({ label, value, formula }: FigureProps) {
   return (
-    <div
-      className="min-w-0 border-b border-border p-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0"
-    >
+    <div className="min-w-0 border-b border-border p-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</dd>
       <dd>
         <details className="group mt-3 text-xs text-muted-foreground">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 font-medium text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 font-medium text-[color-mix(in_srgb,var(--foreground)_80%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             How this is calculated
             <ChevronDown
               aria-hidden
@@ -109,26 +107,6 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
   );
 }
 
-function OutstandingLiability({ payoutSettlement }: { payoutSettlement: PayoutSettlementTotals }) {
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-5 sm:flex-row sm:items-start sm:justify-between">
-      <div className="max-w-3xl">
-        <p className="text-sm font-medium text-foreground">Outstanding transfer liability</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Source: pending + processing Stripe transfers not yet completed
-          {payoutSettlement.failedCents > 0
-            ? `, plus ${formatCents(payoutSettlement.failedCents)} in ${payoutSettlement.failedCount} failed transfer(s) still owed (retried failures excluded)`
-            : ''}
-          .
-        </p>
-      </div>
-      <p className="shrink-0 text-xl font-semibold tabular-nums text-primary">
-        {formatCents(payoutSettlement.outstandingCents)}
-      </p>
-    </div>
-  );
-}
-
 function TruncationNote() {
   return (
     <p className="text-xs text-muted-foreground">
@@ -202,7 +180,9 @@ function PlatformIncomeError({ onRetry }: { onRetry: () => void }) {
         <p className="mt-1 text-sm text-muted-foreground">
           Figures are unavailable right now, not zero. The payout ledger below loads separately.
         </p>
-        <Button className="mt-4 min-h-11" variant="outline" onClick={onRetry}>
+        {/* Not variant="outline" — bg-secondary === --card in dark, so the
+            control measures 1.00:1 against this card. See PayoutLedgerPage. */}
+        <Button className="mt-4 min-h-11" onClick={onRetry}>
           Try again
         </Button>
       </CardContent>
@@ -229,7 +209,6 @@ export function PlatformIncomeCard() {
   return (
     <div className="space-y-4">
       <PlatformFigures income={data.summary.platformIncome} />
-      <OutstandingLiability payoutSettlement={data.summary.payoutSettlement} />
       <AttentionSection attention={data.attention} detailTruncated={data.detailTruncated} />
     </div>
   );

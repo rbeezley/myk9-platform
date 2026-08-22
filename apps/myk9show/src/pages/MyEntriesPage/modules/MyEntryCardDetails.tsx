@@ -36,6 +36,7 @@ import type { MyEntry, EntryClass } from './my-entries-types';
 import { formatTrialLabel } from './myEntriesUtils';
 import { formatMonthDay, formatShortDate } from '@/lib/format/dates';
 import { toDogEntryView } from './myEntryDogView';
+import { isClassCheckInEligible } from './entryNextAction';
 
 interface MyEntryCardDetailsProps {
   entry: MyEntry;
@@ -313,8 +314,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
               gets the same non-interactive treatment: its `classId` is
               missing because the class isn't known yet, not because the
               toggle is open. */}
-          {!cls.isScored &&
-            cls.entryStatusKind !== 'completed' &&
+          {(cls.unresolved || isClassCheckInEligible(dogView, cls)) &&
             (!cls.unresolved &&
             (cls.classId ? (selfCheckinByClassId[cls.classId] ?? true) : true) ? (
               <button

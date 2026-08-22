@@ -191,6 +191,21 @@ describe('validateGenerateRequest', () => {
       trialDate: '2026-09-19',
     });
   });
+
+  it('rejects a day that does not exist', () => {
+    // A shape-only regex admits these. Postgres then refuses to bind the RPC's
+    // `date` argument, so a client mistake arrives as a 500 — which a
+    // scheduler will retry, forever, on a date that will never be valid.
+    for (const impossible of ['2026-02-30', '2026-13-01', '2026-00-10', '2026-09-31']) {
+      expect(() => validateGenerateRequest({ showId: SHOW_ID, trialDate: impossible })).toThrow(
+        HttpError
+      );
+    }
+    // A real leap day must still pass.
+    expect(
+      validateGenerateRequest({ showId: SHOW_ID, trialDate: '2028-02-29' }).trialDate
+    ).toBe('2028-02-29');
+  });
 });
 
 describe('generateTrialPackets', () => {
@@ -264,6 +279,24 @@ describe('generateTrialPackets', () => {
     expect(new Set(inserts.map(row => row.generated_at))).toEqual(
       new Set(['2026-09-18T02:00:00.000Z'])
     );
+  });
+
+  it('says so when the day it was asked for produced nothing', async () => {
+    // Empty `generated` AND empty `skipped` is indistinguishable from success.
+    // The caller is a scheduler; it has no other way to notice a mistyped date
+    // or a day whose trials were all cancelled.
+    const input = packetInput();
+    const { supabase, uploads } = makeStub({ rpcData: { ...input, trials: [], classes: [], entries: [] } });
+
+    const summary = await generateTrialPackets(
+      supabase,
+      { showId: SHOW_ID, trialDate: '2026-09-21' },
+      makeDeps()
+    );
+
+    expect(summary.generated).toEqual([]);
+    expect(summary.skipped).toEqual([{ trialDate: '2026-09-21', reason: 'nothing-to-print' }]);
+    expect(uploads).toEqual([]);
   });
 
   it('fails loudly when the source returns something that is not a packet input', async () => {

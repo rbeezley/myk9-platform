@@ -1,6 +1,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { HttpError } from '../_shared/http/responses.ts';
+import { isValidTrialDate } from '../_shared/trialPacket/delivery.ts';
 import {
   deliverStoredPacket,
   loadPacketShow,
@@ -26,7 +27,6 @@ import type { EmergencyPacketInput } from '../_shared/trialPacket/renderer/types
  */
 
 const BUCKET = 'trial-packets';
-const TRIAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface GeneratePacketRequest {
   showId: string;
@@ -67,9 +67,13 @@ export function validateGenerateRequest(body: unknown): GeneratePacketRequest {
   if (typeof candidate.showId !== 'string' || !UUID_PATTERN.test(candidate.showId)) {
     throw new HttpError(400, 'A valid showId is required.');
   }
+  // Shared with the manual path so both reject the same set. A shape-only
+  // regex admits 2026-02-30, which Postgres refuses when it binds the RPC's
+  // `date` argument — a client mistake arriving as a 500 that a scheduler will
+  // happily retry.
   if (candidate.trialDate !== undefined) {
-    if (typeof candidate.trialDate !== 'string' || !TRIAL_DATE_PATTERN.test(candidate.trialDate)) {
-      throw new HttpError(400, 'trialDate must be YYYY-MM-DD.');
+    if (typeof candidate.trialDate !== 'string' || !isValidTrialDate(candidate.trialDate)) {
+      throw new HttpError(400, 'trialDate must be a real calendar day in YYYY-MM-DD form.');
     }
   }
   return {
@@ -132,7 +136,18 @@ export async function generateTrialPackets(
     skipped: [],
   };
 
-  for (const day of splitPacketInputByTrialDay({ ...input, generatedAt })) {
+  const days = splitPacketInputByTrialDay({ ...input, generatedAt });
+
+  // A named day that produced nothing must SAY so. Otherwise a mistyped date,
+  // or a day whose trials were all cancelled, returns 200 with both lists
+  // empty — indistinguishable from a successful run, which is precisely the
+  // wrong thing to hand a scheduler.
+  if (request.trialDate && days.length === 0) {
+    summary.skipped.push({ trialDate: request.trialDate, reason: 'nothing-to-print' });
+    return summary;
+  }
+
+  for (const day of days) {
     // A day whose classes all got cancelled still has a trial row. Printing a
     // packet of empty score sheets is worse than printing nothing: it looks
     // like the real thing in the trial box.

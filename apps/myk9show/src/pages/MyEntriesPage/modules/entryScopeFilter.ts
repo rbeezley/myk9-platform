@@ -27,6 +27,7 @@
 
 import {
   ENTRY_SCOPE_ENTRIES_PARAM,
+  ENTRY_SCOPE_ORDER_PARAM,
   ENTRY_SCOPE_SHOW_PARAM,
 } from '@/features/payments/entryScopeParams';
 import type { MyEntry } from './my-entries-types';
@@ -77,6 +78,7 @@ export function clearEntryScopeParams(params: URLSearchParams): URLSearchParams 
   const next = new URLSearchParams(params);
   next.delete(ENTRY_SCOPE_SHOW_PARAM);
   next.delete(ENTRY_SCOPE_ENTRIES_PARAM);
+  next.delete(ENTRY_SCOPE_ORDER_PARAM);
   return next;
 }
 

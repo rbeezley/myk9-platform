@@ -142,9 +142,9 @@ describe('applyEntryScope', () => {
 });
 
 describe('clearEntryScopeParams', () => {
-  it('drops both scope params and keeps everything else', () => {
+  it('drops the list and receipt scope params while keeping everything else', () => {
     const next = clearEntryScopeParams(
-      new URLSearchParams('showId=show-1&entryIds=e1&tab=completed')
+      new URLSearchParams('orderId=order-1&showId=show-1&entryIds=e1&tab=completed')
     );
     expect(next.toString()).toBe('tab=completed');
   });

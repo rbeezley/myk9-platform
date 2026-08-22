@@ -621,7 +621,7 @@ Copy this block for each new finding.
 
 ### QA-HEALTH-WATCHDOG-INERT-2026-08-22
 
-- **Status:** in-progress
+- **Status:** fixed
 - **Classification:** monitoring defect / predicate collision
 - **Severity:** high
 - **Role:** operator (site admin)
@@ -634,7 +634,19 @@ Copy this block for each new finding.
 - **Fix (in review):** Migration `20260822180000_health_snapshot_run_mode.sql` adds a nullable, CHECK-constrained `run_mode` column to `system_health_snapshots` and rescopes BOTH watchdog snapshot CTEs with `run_mode IS DISTINCT FROM 'continuous'`. `cron-health-check` persists the run mode on every insert, including the probe-failure path.
 - **Why `IS DISTINCT FROM` and not `= 'full'`:** rows written before the matching function deploy carry a NULL `run_mode`. Under `= 'full'` this migration landing ahead of the deploy would make the predicate match nothing and fire a false "snapshot missing" alert at the next 08:00. `IS DISTINCT FROM` makes the two halves order-independent, and the predicate becomes exact once the function is deployed. No `DEFAULT` on the column for the mirror-image reason: a default would relabel continuous rows as nightly if the function ever stopped sending the value.
 - **Proof so far:** four mutations killed (`= 'full'` EXIT=1; rescoping only the window CTE and leaving `latest_snapshot` counting continuous EXIT=1; dropping `run_mode` from the insert EXIT=1; adding a column DEFAULT EXIT=1), baseline EXIT=0. `src/test/database/` 88 files / 651 tests pass, 6/6 shuffled. `pnpm typecheck` and `pnpm lint` at 0.
-- **Notes:** Split out of PR #1750, which fixed Sentry routing only.
+- **Closure proof (replay, 2026-08-22):** Ran the **deployed** watchdog body -- pulled from `cron.job.command`, with only the two table names rewritten to temp tables -- against controlled datasets in a psql transaction that rolled back. Script: `scripts/qa/watchdog-inert-replay.sql`.
+
+  | # | Scenario | Predicate | Alerts |
+  | --- | --- | --- | --- |
+  | 1 | Nightly ran, +12 continuous | new (deployed) | 0 |
+  | 2 | **Nightly MISSING, +12 continuous** | new (deployed) | **1** (`daily-health-check:2026-08-22`) |
+  | 3 | *Same data as 2*, pre-fix predicate | old (08-04..08-22) | **0** |
+  | 4 | Scenario 2, watchdog run twice | new (deployed) | 1 (ON CONFLICT dedupe holds) |
+  | 5 | Legacy NULL `run_mode` only | new (deployed) | 0 (deploy-order safety) |
+
+  Row 2 vs row 3 is the finding: identical data, and only the fixed predicate raises the alert. The script asserts up front that the deployed body carries 2 `run_mode IS DISTINCT FROM` predicates and that the stripped variant carries 0, so row 3 is genuinely the old predicate rather than a mislabelled copy of the new one. Post-replay: 0 leftover `replay_*` objects, 0 spurious `operator_alerts` rows.
+- **Live confirmation:** first post-deploy continuous run (2026-08-22 18:50:02 UTC) wrote `run_mode = 'continuous'`. 5,156 pre-deploy rows carry NULL and are still counted as nightly, as intended.
+- **Notes:** Split out of PR #1750, which fixed Sentry routing only. The first nightly run under the new predicate is 2026-08-23 07:00 UTC; the watchdog evaluates it at 08:00 UTC.
 
 ### NQA-2026-07-29-01
 

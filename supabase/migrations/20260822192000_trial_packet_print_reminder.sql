@@ -195,7 +195,7 @@ begin
     raise warning '%',
       'packet_cron_secret is not in Vault, so the print-reminder crons were NOT scheduled. '
       'Create it and the matching PACKET_CRON_SECRET function secret, then re-run the '
-      'cron.schedule calls in 20260822130000_trial_packet_print_reminder.sql.';
+      'cron.schedule calls in 20260822192000_trial_packet_print_reminder.sql.';
     return;
   end if;
 

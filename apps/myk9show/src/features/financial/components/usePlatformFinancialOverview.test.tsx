@@ -39,8 +39,8 @@ function summary(overrides: Partial<FinancialSummary> = {}): FinancialSummary {
       },
     },
     chargeVerification: {
-      stripeRecordCount: 0,
-      noStripeRecordCount: 0,
+      feeBreakdownCount: 0,
+      noFeeBreakdownCount: 0,
       pendingNetCount: 0,
       snapshotMissingCount: 0,
     },
@@ -87,8 +87,8 @@ describe('usePlatformFinancialOverview', () => {
     getFinancialSummary.mockResolvedValue(
       summary({
         chargeVerification: {
-          stripeRecordCount: 0,
-          noStripeRecordCount: 0,
+          feeBreakdownCount: 0,
+          noFeeBreakdownCount: 0,
           pendingNetCount: 0,
           snapshotMissingCount: 2,
         },

@@ -68,7 +68,7 @@ describe('clubNetContributionCents', () => {
 });
 
 describe('buildClubShowReconciliationRows', () => {
-  it('a fully verified show with a completed payout: available net, StripeRecord, settled', () => {
+  it('a fully verified show with a completed payout: available net, full Stripe coverage, settled', () => {
     const rows = buildClubShowReconciliationRows(
       [order({})],
       [payout({})],
@@ -80,7 +80,7 @@ describe('buildClubShowReconciliationRows', () => {
       showId: 'show-1',
       showName: 'Cedar Valley Classic',
       net: { status: 'available', netCents: 10000 },
-      chargeVerification: 'StripeRecord',
+      chargeVerification: 'AllFeeBreakdowns',
     });
     expect(rows[0].settlement?.badgeLabel).toBe('Paid');
     expect(rows[0].settlement?.state).toBe('settled');
@@ -103,8 +103,8 @@ describe('buildClubShowReconciliationRows', () => {
       'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'pending' });
-    // No snapshot on record → NoStripeRecord, never a claim of Stripe verification.
-    expect(rows[0].chargeVerification).toBe('NoStripeRecord');
+    // No snapshot on record → NoFeeBreakdown, never a claim of Stripe verification.
+    expect(rows[0].chargeVerification).toBe('SomeFeeBreakdownsMissing');
   });
 
   it('a partially refunded show nets the refunded portion out, matching the transfer', () => {
@@ -143,7 +143,7 @@ describe('buildClubShowReconciliationRows', () => {
     // Net and the transfer beside it must read as the SAME number.
     expect(rows[0].settlement?.amountCents).toBe(5000);
     // ...and a legitimate overflow order is not a mismatch.
-    expect(rows[0].chargeVerification).toBe('StripeRecord');
+    expect(rows[0].chargeVerification).toBe('AllFeeBreakdowns');
   });
 
   it('separates a make-whole refund from a post-hoc one on the same order', () => {
@@ -204,31 +204,31 @@ describe('buildClubShowReconciliationRows', () => {
     expect(rows[0].net).toEqual({ status: 'pending' });
   });
 
-  it('does NOT judge amounts: an odd gross on a snapshotted order stays StripeRecord', () => {
+  it('does NOT judge amounts: an odd gross on a snapshotted order keeps full coverage', () => {
     // The amount tie-out inference is gone (see chargeVerification.ts). A gross
     // that does not equal subtotal + fee can mean rounding residue, a desk-side
     // refund, or a legacy write — none of which the row can tell apart, so the
     // treasurer is not shown a red state built on a guess.
     const rows = buildClubShowReconciliationRows([order({ amountCents: 99999 })], [], 'enabled');
-    expect(rows[0].chargeVerification).toBe('StripeRecord');
+    expect(rows[0].chargeVerification).toBe('AllFeeBreakdowns');
   });
 
-  it('one order with no snapshot degrades the WHOLE show to NoStripeRecord', () => {
+  it('one order with no snapshot degrades the WHOLE show to partial coverage', () => {
     // INTENT: never imply a Stripe verification the record cannot back up.
     const rows = buildClubShowReconciliationRows(
       [order({}), order({ entrySubtotalCents: null, platformFeeCents: null })],
       [],
       'enabled'
     );
-    expect(rows[0].chargeVerification).toBe('NoStripeRecord');
+    expect(rows[0].chargeVerification).toBe('SomeFeeBreakdownsMissing');
   });
 
-  it('a show with a payout but no orders yet: charge state Unknown, not NoStripeRecord', () => {
-    // NoStripeRecord is a positive claim -- "recorded, we just hold no Stripe
+  it('a show with a payout but no orders yet: NoStripeCharges, not partial coverage', () => {
+    // NoStripeCharges is a positive claim -- "recorded, we just hold no Stripe
     // snapshot". With zero order rows there is no charge to attest to, and the
     // net arm already said `pending` for the same input.
     const rows = buildClubShowReconciliationRows([], [payout({})], 'enabled');
-    expect(rows[0].chargeVerification).toBe('Unknown');
+    expect(rows[0].chargeVerification).toBe('NoStripeCharges');
     expect(rows[0].net).toEqual({ status: 'pending' });
     expect(rows[0].settlement?.stripeTransferId).toBe('tr_123');
   });

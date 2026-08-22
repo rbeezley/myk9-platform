@@ -43,7 +43,10 @@ export function ClubFinancialReconciliationCard({
   clubId,
   accountState,
 }: ClubFinancialReconciliationCardProps) {
-  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(clubId, accountState);
+  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(
+    clubId,
+    accountState
+  );
 
   return (
     <Card>
@@ -55,7 +58,7 @@ export function ClubFinancialReconciliationCard({
           </CardTitle>
         </div>
         <CardDescription>
-          Per-show net, which charges have a Stripe record, and transfer status for your
+          Per-show net, how much of it Stripe can account for, and transfer status for your
           club&apos;s shows.
         </CardDescription>
       </CardHeader>
@@ -88,12 +91,19 @@ export function ClubFinancialReconciliationCard({
                   TypeError that threw synchronously in the browser — no request was
                   ever issued — and this sentence sent the investigation to Postgres,
                   edge and RPC-grant logs, none of which can see a client-side throw.
-                  The payout reassurance stays: a failed READ must never read as a
-                  failed payout. */}
+
+                  Three further constraints, each one a rewrite that was tried and
+                  rejected in review. It must DENY AN INFERENCE ("this doesn't mean
+                  anything is wrong") rather than ASSERT A FACT ("your payouts are
+                  fine") — a failed read cannot establish that payouts are fine. It
+                  must not name the failed thing more widely than it is: "your show
+                  records" reads as the club's show data being at risk, when one
+                  reconciliation read threw. And it must not say "money": on a money
+                  screen, naming money in a failure sentence plants the alarm the
+                  sentence exists to prevent. */}
               <p>
-                We can&apos;t load your show records right now. This doesn&apos;t mean anything is
-                wrong with your payouts — it&apos;s the lookup that&apos;s unavailable, not your
-                money.
+                We can&apos;t load this reconciliation right now. That&apos;s a problem displaying
+                the figures, not a sign that anything happened to your payouts.
               </p>
               {/* A real control rather than a link inside the sentence: `variant="link"`
                   is `text-primary`, which measures 4.40:1 under heather+dark and

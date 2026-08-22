@@ -25,7 +25,9 @@ function announcedText(): string {
   return (badge.textContent ?? '').replace(/\s+/g, ' ').trim();
 }
 
-function renderBadge(state: 'StripeRecord' | 'NoStripeRecord' | 'Unknown') {
+const STATES = ['AllFeeBreakdowns', 'SomeFeeBreakdownsMissing', 'NoStripeCharges'] as const;
+
+function renderBadge(state: (typeof STATES)[number]) {
   return render(
     <div data-testid="badge-under-test">
       <ChargeVerificationBadge state={state} />
@@ -35,9 +37,9 @@ function renderBadge(state: 'StripeRecord' | 'NoStripeRecord' | 'Unknown') {
 
 describe('ChargeVerificationBadge accessible name', () => {
   it.each([
-    ['StripeRecord', 'Stripe record on file'],
-    ['NoStripeRecord', 'No Stripe record on file'],
-    ['Unknown', 'No charge record'],
+    ['AllFeeBreakdowns', 'Stripe fee breakdown for every charge'],
+    ['SomeFeeBreakdownsMissing', 'Some charges have no Stripe fee breakdown'],
+    ['NoStripeCharges', 'No Stripe charges'],
   ] as const)('announces %s as exactly its visible text', (state, expected) => {
     renderBadge(state);
 
@@ -53,7 +55,7 @@ describe('ChargeVerificationBadge accessible name', () => {
     // Stripe, does not compare amounts, and cannot know whether the club was
     // paid. "Verified against Stripe" — which this badge used to announce —
     // asserted all three.
-    for (const state of ['StripeRecord', 'NoStripeRecord', 'Unknown'] as const) {
+    for (const state of STATES) {
       const view = renderBadge(state);
       expect(announcedText()).not.toMatch(/verif/i);
       expect(announcedText()).not.toMatch(/against Stripe/i);
@@ -61,25 +63,61 @@ describe('ChargeVerificationBadge accessible name', () => {
     }
   });
 
-  it('keeps "no Stripe record" neutral, never destructive', () => {
-    // A desk payment or a legacy order is the NORMAL shape of this state, not a
-    // problem. A treasurer scanning the list must not read an absence of a
-    // Stripe row as a warning about their money.
-    renderBadge('NoStripeRecord');
-    const badge = screen.getByText('No Stripe record on file');
+  it('renders EVERY state neutral — coverage is not pass/fail', () => {
+    // A treasurer reads colour before text. Neutral words in a green chip still
+    // say "this one passed" and leave the grey rows reading as the ones that
+    // did not, which is the same claim the words were changed to stop making.
+    // Asserting only that the negative chip is not destructive cannot see this;
+    // the assertion has to be that NO state is coloured.
+    for (const state of STATES) {
+      const view = renderBadge(state);
+      const chip = screen.getByTestId('badge-under-test').firstElementChild as HTMLElement;
 
-    expect(badge.className).not.toMatch(/destructive/);
-    expect(badge.className).not.toMatch(/bg-success/);
+      expect(chip.className, state).not.toMatch(/bg-success/);
+      expect(chip.className, state).not.toMatch(/destructive/);
+      view.unmount();
+    }
   });
 
-  it('distinguishes "no charge at all" from "a charge with no Stripe row"', () => {
-    // Two different facts. Collapsing them would claim we hold a charge record
-    // for a show that has none.
-    const view = renderBadge('Unknown');
-    expect(announcedText()).toBe('No charge record');
+  it('never claims a charge is absent when only its fee breakdown is', () => {
+    // Both snapshot columns land NULL for a REAL Stripe charge whenever an
+    // accepted entry has no fee, and a show with no stripe_orders rows may
+    // still hold money taken by check at the desk. Neither is "no charge".
+    for (const state of STATES) {
+      const view = renderBadge(state);
+      expect(announcedText(), state).not.toMatch(/no charge record/i);
+      view.unmount();
+    }
+  });
+
+  it('does not put a checkmark icon in front of a label about something missing', () => {
+    // lucide stamps `lucide-file-check` / `lucide-file-text` on the rendered
+    // svg. The icon is aria-hidden, so this is purely a sighted-user claim —
+    // and a document-with-a-tick beside "Some charges have no..." contradicts
+    // the words next to it. It was correct under the old "Attested" label and
+    // the rename made it wrong, which is exactly the kind of leftover a
+    // vocabulary change drops.
+    const view = renderBadge('SomeFeeBreakdownsMissing');
+    const icon = screen.getByTestId('badge-under-test').querySelector('svg');
+
+    expect(icon?.getAttribute('class')).toMatch(/lucide-file-text/);
+    expect(icon?.getAttribute('class')).not.toMatch(/lucide-file-check/);
     view.unmount();
 
-    renderBadge('NoStripeRecord');
-    expect(announcedText()).toBe('No Stripe record on file');
+    // The complete state keeps the checkmark, where it is accurate.
+    renderBadge('AllFeeBreakdowns');
+    const completeIcon = screen.getByTestId('badge-under-test').querySelector('svg');
+    expect(completeIcon?.getAttribute('class')).toMatch(/lucide-file-check/);
+  });
+
+  it('stays true when one order in a show of many lacks its snapshot', () => {
+    // The aggregate degrades the WHOLE show on a single missing snapshot, so
+    // the label has to be a coverage statement. A flat negative would be a
+    // definite false claim about a show with fifty snapshotted orders.
+    renderBadge('SomeFeeBreakdownsMissing');
+    const text = announcedText();
+
+    expect(text).toMatch(/^Some charges/);
+    expect(text).not.toMatch(/^No /);
   });
 });

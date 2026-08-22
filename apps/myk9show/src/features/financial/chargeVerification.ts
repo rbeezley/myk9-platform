@@ -4,8 +4,8 @@
 // club get paid?" and never "do the amounts look wrong?".
 //
 // TWO states, both grounded in a recorded fact:
-//   - StripeRecord    we hold a Stripe order snapshot for this charge
-//   - NoStripeRecord  we hold no Stripe snapshot — a desk payment (check, cash,
+//   - FeeBreakdown    we hold a Stripe order snapshot for this charge
+//   - NoFeeBreakdown  we hold no Stripe snapshot — a desk payment (check, cash,
 //                     waived, secretary/group), or a legacy order that pre-dates
 //                     the snapshot contract. Recorded and counted in every
 //                     total; we simply hold no Stripe row behind it.
@@ -33,13 +33,13 @@
 //
 // Pure TypeScript only. Money is integer cents.
 
-export type ChargeVerificationState = 'StripeRecord' | 'NoStripeRecord';
+export type ChargeVerificationState = 'FeeBreakdown' | 'NoFeeBreakdown';
 
 /**
  * Payment labels (from getFinancialPaymentLabel) that represent a Stripe-backed
  * online charge. Everything else — Check, Cash, Waived/Comped, Secretary Paid,
  * Group Payment, Pending — is a desk/manual record with no Stripe trace, and so
- * resolves to NoStripeRecord.
+ * resolves to NoFeeBreakdown.
  */
 const STRIPE_BACKED_LABELS = new Set(['Online', 'Refunded', 'Partial Refund']);
 
@@ -58,11 +58,11 @@ export interface OrderChargeFacts {
 }
 
 /**
- * Do we hold a Stripe order snapshot for this order? That is the WHOLE question
- * this answers — not whether the amounts agree, and not whether the club was
- * paid. That is the WHOLE question
- * this answers — not whether the amounts agree, and not whether the club was
- * paid.
+ * Do we hold the Stripe fee snapshot for this order? That is the WHOLE question
+ * this answers — not whether the amounts agree, not whether the club was paid,
+ * and NOT whether a Stripe charge exists. Both columns land NULL for a real
+ * Stripe charge whenever an accepted entry has no fee, so a caller rendering
+ * this must never say "no charge".
  *
  * A snapshot is present when BOTH snapshot columns were captured at charge time
  * (migration 20260717122000). A null column means the order pre-dates the
@@ -73,8 +73,8 @@ export interface OrderChargeFacts {
  * legacy rows, partial refunds and desk refunds alike.
  */
 export function resolveOrderChargeVerification(order: OrderChargeFacts): ChargeVerificationState {
-  if (order.entrySubtotalCents == null || order.platformFeeCents == null) return 'NoStripeRecord';
-  return 'StripeRecord';
+  if (order.entrySubtotalCents == null || order.platformFeeCents == null) return 'NoFeeBreakdown';
+  return 'FeeBreakdown';
 }
 
 export interface EntryChargeVerificationInput {
@@ -88,15 +88,15 @@ export interface EntryChargeVerificationInput {
  * Resolve the charge-verification state for one accounting line.
  *
  * - Desk/manual payments hold no Stripe trace at all.
- * - A Stripe-backed line with a matched snapshot is StripeRecord.
- * - A Stripe-backed line with no matched snapshot is NoStripeRecord: the
+ * - A Stripe-backed line with a matched snapshot is FeeBreakdown.
+ * - A Stripe-backed line with no matched snapshot is NoFeeBreakdown: the
  *   payment is recorded, we simply hold no Stripe snapshot to point at.
  */
 export function resolveEntryChargeVerification(
   input: EntryChargeVerificationInput
 ): ChargeVerificationState {
-  if (isDeskPaymentLabel(input.paymentLabel)) return 'NoStripeRecord';
-  if (!input.matchedOrder) return 'NoStripeRecord';
+  if (isDeskPaymentLabel(input.paymentLabel)) return 'NoFeeBreakdown';
+  if (!input.matchedOrder) return 'NoFeeBreakdown';
   return resolveOrderChargeVerification(input.matchedOrder);
 }
 
@@ -104,8 +104,8 @@ export function resolveEntryChargeVerification(
  *  state names deliberately — a `verifiedCount` counting "we hold a snapshot"
  *  is the same overclaim one indirection further from the screen. */
 export interface ChargeVerificationSummary {
-  stripeRecordCount: number;
-  noStripeRecordCount: number;
+  feeBreakdownCount: number;
+  noFeeBreakdownCount: number;
   /**
    * Orders whose Stripe processing fee is not yet captured, so their NET income is
    * pending (never treated as zero). Surfaced as pending, never as a problem.
@@ -117,8 +117,8 @@ export interface ChargeVerificationSummary {
 
 export function emptyChargeVerificationSummary(): ChargeVerificationSummary {
   return {
-    stripeRecordCount: 0,
-    noStripeRecordCount: 0,
+    feeBreakdownCount: 0,
+    noFeeBreakdownCount: 0,
     pendingNetCount: 0,
     snapshotMissingCount: 0,
   };

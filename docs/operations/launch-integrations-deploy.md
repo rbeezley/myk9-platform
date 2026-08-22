@@ -5,14 +5,14 @@
 
 > **Progress as of 2026-08-16.** Phases 4, 5 and 6 have had their **database and edge-function halves applied** to `sojmvhhwsjxmfistvzbe`. Do not re-run their pre-flight expecting the migrations to be pending — `db push` is now up to date at `20260816140000`.
 >
-> | Phase | Applied | Still outstanding |
-> | ----- | ------- | ----------------- |
-> | 1 — L2 wallets | — | Stripe dashboard toggle (operator) |
-> | 2 — L1 Apple sign-in | — | Apple portal + Supabase provider (operator) |
-> | 3 — L3 map keys | — | Both Google keys, Vercel env, `send-confirmation-email` redeploy |
-> | 4 — L4 run-proximity push | Migration `20260816120000`; `push-trigger-run-proximity` deployed | §4.3 **functional** checks — device push with the app closed, pill-match, Vault failure mode |
-> | 5 — L5 calendar feed | Migration `20260816130000`; `calendar-feed` deployed; `CALENDAR_FEED_ORIGIN=myk9show.com` | §5.3 **functional** checks — iOS webcal subscribe, `.ics` import, feed-body field audit, revoke → 404. Optional `VITE_CALENDAR_FEED_URL` |
-> | 6 — L6 SMS consent | Migration `20260816140000` | Nothing — phase complete (see §6.5 for what it does _not_ unblock) |
+> | Phase                     | Applied                                                                                   | Still outstanding                                                                                                                        |
+> | ------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+> | 1 — L2 wallets            | —                                                                                         | Stripe dashboard toggle (operator)                                                                                                       |
+> | 2 — L1 Apple sign-in      | —                                                                                         | Apple portal + Supabase provider (operator)                                                                                              |
+> | 3 — L3 map keys           | —                                                                                         | Both Google keys, Vercel env, `send-confirmation-email` redeploy                                                                         |
+> | 4 — L4 run-proximity push | Migration `20260816120000`; `push-trigger-run-proximity` deployed                         | §4.3 **functional** checks — device push with the app closed, pill-match, Vault failure mode                                             |
+> | 5 — L5 calendar feed      | Migration `20260816130000`; `calendar-feed` deployed; `CALENDAR_FEED_ORIGIN=myk9show.com` | §5.3 **functional** checks — iOS webcal subscribe, `.ics` import, feed-body field audit, revoke → 404. Optional `VITE_CALENDAR_FEED_URL` |
+> | 6 — L6 SMS consent        | Migration `20260816140000`                                                                | Nothing — phase complete (see §6.5 for what it does _not_ unblock)                                                                       |
 >
 > Schema, table/column ACL and RLS verification passed for all three migrations, including the §5.3 and §6.3 queries. The constraint-bites test in §6.3 was run in a rolled-back transaction and failed as required. Everything left in the table above needs an operator, a device, or a Vercel deploy.
 
@@ -381,15 +381,12 @@ Expect `sms_phone_e164`, `sms_opt_in_at`, `sms_consent_text_version`,
 `notification_preferences_sms_consent_complete`; and **no `anon` entry at all**.
 
 On that last point — this migration adds a **phone number** to an existing
-table, so the question worth asking is whether it widens exposure. Traced
-statically, it does not: `20260730220000_codify_pre_rule_table_grants.sql`
-includes `notification_preferences` in a blanket `REVOKE ALL ON TABLE … FROM
-anon`, and the `notification_preferences_user_access` policy from
-`023_tighten_rls_and_add_test_helpers.sql` is `FOR ALL TO authenticated USING
-(auth_user_id = auth.uid() OR user_id = get_my_person_id() OR
-is_platform_admin())`. New columns inherit table-level grants, so
-`sms_phone_e164` sits behind the same own-row gate as everything else. The
-queries above confirm that held in the applied database.
+table. The original own-row policy protects reads, but its `FOR ALL ... USING`
+shape and the table-wide authenticated CRUD grant do not prevent a client from
+planting another account row or fabricating SMS consent columns. Do not deploy
+an SMS client against that grant shape. Migration
+`20260822120000_harden_notification_preferences_sms.sql` closes the mutation
+gap before the opt-in function is deployable; see §6.6.
 
 Then prove the constraint bites, which is the only behaviour this migration has:
 
@@ -422,6 +419,58 @@ campaign additionally needs `/sms` publicly reachable at
 deploying the frontend, since a reviewer cannot load a Vercel preview URL. The
 full sequence is in
 [`operations/sms-10dlc-registration.md`](sms-10dlc-registration.md).
+
+### 6.6 Future SMS function deploy gate
+
+Source for the opt-in confirmation can merge before carrier approval, but do
+not deploy any SMS function or send to a US mobile number until all of these are
+recorded:
+
+- migration `20260822120000_harden_notification_preferences_sms.sql` is applied
+  and its owner-read-only table grants plus caller-derived RPCs are verified;
+- MYK9-190 A2P 10DLC campaign approval;
+- operator confirmation that Edge Function secrets `TWILIO_ACCOUNT_SID`,
+  `TWILIO_AUTH_TOKEN`, and `TWILIO_MESSAGING_SERVICE_SID` exist (never copy
+  their values into a command, issue, PR, or log); and
+- the inbound STOP/HELP path and once-per-entry sent marker are reviewed and
+  ready, so an enabled sender cannot ship without opt-out or idempotency.
+
+The hardening migration is coupled to the settings code: it revokes direct
+authenticated INSERT/UPDATE/DELETE on `notification_preferences`, adds the
+`set_my_notification_preferences` and exact-version `clear_my_sms_consent`
+RPCs, and reserves opt-in throttling for `service_role`. Apply it only with the
+frontend/edge revision that uses those RPCs. After applying, verify the applied
+database rather than trusting source text:
+
+```sql
+select unnest(relacl)::text
+from pg_class
+where oid = 'public.notification_preferences'::regclass;
+
+select polname, polcmd, pg_get_expr(polqual, polrelid), pg_get_expr(polwithcheck, polrelid)
+from pg_policy
+where polrelid = 'public.notification_preferences'::regclass;
+
+select routine_name, routine_type
+from information_schema.routines
+where routine_schema = 'public'
+  and routine_name in (
+    'set_my_notification_preferences',
+    'clear_my_sms_consent',
+    'claim_sms_opt_in_attempt'
+  );
+```
+
+Expect authenticated to have table SELECT only, anon to have nothing, one
+owner-only SELECT policy, and all three functions present with the grants
+documented in the migration. Run
+`supabase/tests/notification_preferences_sms_rls_test.sql` against the migrated
+test database before deployment.
+
+The future functions use `--no-verify-jwt` only because they authenticate
+internally: browser opt-in validates the bearer JWT, and the inbound webhook
+validates Twilio's signature. Missing provider configuration must return an
+error before a consent write or send; it is never a successful no-op.
 
 ---
 

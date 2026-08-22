@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildSmsOptInConfirmation,
   buildProximitySms,
   estimateSegments,
   gsm7Length,
@@ -8,6 +9,17 @@ import {
   toE164,
   toGsm7Safe,
 } from './smsMessage';
+
+describe('buildSmsOptInConfirmation', () => {
+  it('matches campaign sample 3 exactly and stays in one GSM-7 segment', () => {
+    const message = buildSmsOptInConfirmation();
+
+    expect(message).toBe(
+      "myK9Show: You're signed up for ring alerts. Msg & data rates may apply. Msg frequency varies. Reply HELP for help, STOP to cancel."
+    );
+    expect(estimateSegments(message)).toMatchObject({ encoding: 'GSM-7', segments: 1 });
+  });
+});
 
 describe('GSM-7 detection — the cost lever', () => {
   it('accepts plain ASCII', () => {
@@ -31,7 +43,9 @@ describe('GSM-7 detection — the cost lever', () => {
 
 describe('estimateSegments', () => {
   it('keeps a normal alert to one GSM-7 segment', () => {
-    const estimate = estimateSegments('Cooper (#314) is 3 dogs out in Excellent Interiors - myK9Show');
+    const estimate = estimateSegments(
+      'Cooper (#314) is 3 dogs out in Excellent Interiors - myK9Show'
+    );
     expect(estimate.encoding).toBe('GSM-7');
     expect(estimate.segments).toBe(1);
   });

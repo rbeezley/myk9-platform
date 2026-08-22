@@ -57,7 +57,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   nationals_advancement: 'SELECT,INSERT,UPDATE,DELETE',
   nationals_rankings: 'SELECT,INSERT,UPDATE,DELETE',
   nationals_scores: 'SELECT,INSERT,UPDATE,DELETE',
-  notification_preferences: 'SELECT,INSERT,UPDATE,DELETE',
+  // MYK9-191: authenticated mutations are caller-derived RPCs; consent writes are service-only.
+  notification_preferences: 'SELECT',
   notification_queue: 'SELECT,INSERT,UPDATE,DELETE',
   notifications: 'SELECT,INSERT,UPDATE',
   ofa_screenings: 'SELECT,INSERT,UPDATE,DELETE',
@@ -108,6 +109,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_templates: 'SELECT,INSERT,UPDATE,DELETE',
   show_visibility_settings: 'SELECT,INSERT,UPDATE',
   shows: 'SELECT,INSERT,UPDATE,DELETE',
+  sms_opt_in_attempts: '',
   sport_class_rules: 'SELECT,INSERT,UPDATE,DELETE',
   sport_templates: 'SELECT,INSERT,UPDATE,DELETE',
   sport_titles: 'SELECT,INSERT,UPDATE,DELETE',

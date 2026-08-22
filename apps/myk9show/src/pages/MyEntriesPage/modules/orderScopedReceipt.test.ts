@@ -30,6 +30,7 @@ describe('buildOrderScopedReceipt', () => {
       amountCents: 6500,
       currency: 'usd',
       reference: 'pi_order_1',
+      status: 'succeeded',
       entryIds: ['entry-a'],
     });
     const second = buildOrderScopedReceipt(registration, {
@@ -37,18 +38,21 @@ describe('buildOrderScopedReceipt', () => {
       amountCents: 7500,
       currency: 'usd',
       reference: 'pi_order_2',
+      status: 'succeeded',
       entryIds: ['entry-b'],
     });
 
     expect(first).toMatchObject({
-      id: 'order-1',
+      id: 'entry-a',
+      orderId: 'order-1',
       totalFee: 65,
       currency: 'usd',
       paymentReference: 'pi_order_1',
       classes: [{ id: 'entry-a', name: 'Novice' }],
     });
     expect(second).toMatchObject({
-      id: 'order-2',
+      id: 'entry-a',
+      orderId: 'order-2',
       totalFee: 75,
       currency: 'usd',
       paymentReference: 'pi_order_2',
@@ -56,13 +60,20 @@ describe('buildOrderScopedReceipt', () => {
     });
   });
 
-  it('preserves the common card-scoped receipt when no order was requested', () => {
-    expect(buildOrderScopedReceipt(registration, null)).toMatchObject({
-      id: 'entry-a',
-      totalFee: 130,
-      currency: 'usd',
-      paymentReference: null,
-      classes: [{ id: 'entry-a' }, { id: 'entry-b' }],
-    });
+  it('refuses the full order amount until every order entry id is replicated', () => {
+    expect(
+      buildOrderScopedReceipt(registration, {
+        id: 'order-partial',
+        amountCents: 14000,
+        currency: 'usd',
+        reference: 'pi_partial',
+        status: 'succeeded',
+        entryIds: ['entry-a', 'entry-not-replicated'],
+      })
+    ).toBeNull();
+  });
+
+  it('refuses to print a card-wide receipt when no exact order was resolved', () => {
+    expect(buildOrderScopedReceipt(registration, null)).toBeNull();
   });
 });

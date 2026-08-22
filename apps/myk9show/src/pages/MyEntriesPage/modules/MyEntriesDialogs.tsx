@@ -13,10 +13,10 @@ import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
-import { PaymentStatus } from '@/types/show-registration-types';
 import { AddDogPanel } from '@/components/panels/edit';
 import { ResultRevealDialog, type ResultCardModel } from '@/features/result-card';
-import { useEntryReceiptOrder } from '@/features/payments/entryReceiptOrder';
+import { useEntryReceiptOrders } from '@/features/payments/entryReceiptOrder';
+import { paymentStatusLabel } from '@/features/payments/moneyPresentation';
 import {
   Dialog,
   DialogContent,
@@ -126,12 +126,21 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   user,
   onClose,
 }) => {
-  const receiptOrder = useEntryReceiptOrder(dialog.open ? receiptOrderId : null);
+  const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
+  const receiptOrders = useEntryReceiptOrders({
+    requestedOrderId: receiptOrderId,
+    entryIds: dialog.entry?.classes.map(classEntry => classEntry.id) ?? [],
+    enabled: dialog.open && Boolean(dialog.entry),
+  });
+  const closeReceipt = () => {
+    setSelectedOrderId(null);
+    onClose();
+  };
   if (!dialog.entry) return null;
 
-  if (receiptOrderId && receiptOrder.isPending) {
+  if (receiptOrders.isPending) {
     return (
-      <Dialog open={dialog.open} onOpenChange={open => !open && onClose()}>
+      <Dialog open={dialog.open} onOpenChange={open => !open && closeReceipt()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Preparing receipt</DialogTitle>
@@ -148,9 +157,10 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
     );
   }
 
-  if (receiptOrderId && (receiptOrder.isError || !receiptOrder.data)) {
+  const orders = receiptOrders.data ?? [];
+  if (receiptOrders.isError || orders.length === 0) {
     return (
-      <Dialog open={dialog.open} onOpenChange={open => !open && onClose()}>
+      <Dialog open={dialog.open} onOpenChange={open => !open && closeReceipt()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Receipt unavailable</DialogTitle>
@@ -160,20 +170,62 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={closeReceipt}>
               Close
             </Button>
-            <Button onClick={() => void receiptOrder.refetch()}>Try again</Button>
+            <Button onClick={() => void receiptOrders.refetch()}>Try again</Button>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  const entry = buildOrderScopedReceipt(dialog.entry, receiptOrder.data ?? null);
-  if (receiptOrderId && entry.classes.length === 0) {
+  if (!receiptOrderId && orders.length > 1 && !selectedOrderId) {
     return (
-      <Dialog open={dialog.open} onOpenChange={open => !open && onClose()}>
+      <Dialog open={dialog.open} onOpenChange={open => !open && closeReceipt()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Choose a receipt</DialogTitle>
+            <DialogDescription>
+              This registration was paid in more than one order. Choose the payment receipt you
+              need.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {orders.map(order => (
+              <Button
+                key={order.id}
+                variant="outline"
+                className="min-h-11 w-full justify-between gap-3"
+                aria-label={`Receipt for order ${order.id}`}
+                onClick={() => setSelectedOrderId(order.id)}
+              >
+                <span className="truncate font-mono text-sm">{order.id}</span>
+                {order.reference && (
+                  <span className="shrink-0 truncate text-xs text-muted-foreground">
+                    {order.reference}
+                  </span>
+                )}
+              </Button>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={closeReceipt}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const selectedOrder =
+    orders.find(order => order.id === (receiptOrderId ?? selectedOrderId)) ??
+    (!receiptOrderId && !selectedOrderId && orders.length === 1 ? orders[0] : null);
+  const entry = buildOrderScopedReceipt(dialog.entry, selectedOrder);
+  if (!entry || !selectedOrder) {
+    return (
+      <Dialog open={dialog.open} onOpenChange={open => !open && closeReceipt()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Receipt entries still loading</DialogTitle>
@@ -182,17 +234,16 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
               receipt and try again shortly.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end">
-            <Button onClick={onClose}>Close</Button>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={closeReceipt}>
+              Close
+            </Button>
+            <Button onClick={() => void receiptOrders.refetch()}>Try again</Button>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
-  const isPaid =
-    entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
-    entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-    entry.paymentStatus === PaymentStatus.PAID_BY_CASH;
 
   const exhibitorName = user?.user_metadata?.full_name || user?.email?.split('@')[0];
   const exhibitorEmail = user?.email;
@@ -211,7 +262,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   return (
     <EntryReceipt
       open={dialog.open}
-      onOpenChange={open => !open && onClose()}
+      onOpenChange={open => !open && closeReceipt()}
       entry={{
         id: entry.id,
         confirmationNumber: entry.confirmationNumber ?? entry.id.slice(0, 8).toUpperCase(),
@@ -221,11 +272,12 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         dogName: entry.dogName,
         classes: mappedClasses,
         totalFee: entry.totalFee,
-        ...(receiptOrder.data ? { amountCharged: entry.totalFee } : {}),
+        amountCharged: entry.totalFee,
         currency: entry.currency,
         paymentReference: entry.paymentReference,
+        orderId: entry.orderId,
         submittedAt: entry.submittedAt,
-        paymentStatus: isPaid ? 'Paid' : 'Pending',
+        paymentStatus: paymentStatusLabel(selectedOrder.status),
       }}
       {...(exhibitorName && { exhibitorName })}
       {...(exhibitorEmail && { exhibitorEmail })}

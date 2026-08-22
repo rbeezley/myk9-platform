@@ -40,6 +40,7 @@ describe('EntryReceipt', () => {
           amountCharged: 65,
           currency: 'usd',
           paymentReference: 'pi_split_order_1',
+          orderId: 'order-split-1',
         }}
       />
     );
@@ -47,6 +48,9 @@ describe('EntryReceipt', () => {
     expect(screen.getByText('$65.00')).toBeInTheDocument();
     expect(screen.getByText('Amount charged')).toBeInTheDocument();
     expect(screen.getByText('pi_split_order_1')).toBeInTheDocument();
+    expect(screen.getByText('Order ID')).toBeInTheDocument();
+    expect(screen.getByText('order-split-1')).toBeInTheDocument();
+    expect(screen.getByText('Entry ID: entry-1')).toBeInTheDocument();
   });
 
   it('preserves the common card receipt total when no Stripe amount was supplied', () => {

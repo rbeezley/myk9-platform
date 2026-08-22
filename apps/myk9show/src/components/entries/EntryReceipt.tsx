@@ -49,6 +49,7 @@ interface EntryReceiptData {
   /** Currency and total come from stripe_orders for order-scoped receipts. */
   currency?: string;
   paymentReference?: string | null;
+  orderId?: string;
   submittedAt: Date;
   paymentStatus: string;
 }
@@ -441,6 +442,12 @@ export function EntryReceipt({
                 <div className="info-value break-all font-mono text-sm">
                   {entry.paymentReference}
                 </div>
+              </div>
+            )}
+            {entry.orderId && (
+              <div className="info-item mt-3">
+                <div className="info-label text-xs text-muted-foreground">Order ID</div>
+                <div className="info-value break-all font-mono text-sm">{entry.orderId}</div>
               </div>
             )}
           </div>

@@ -28,7 +28,10 @@ import {
   extractConflictCounter,
   type SnapshotCheck,
 } from '../_shared/systemHealthChecks.ts';
-import type { HealthCheckRunMode } from '../../../src/features/admin-system-health/healthCheckCadence.ts';
+import {
+  isDailyMonitorRun,
+  type HealthCheckRunMode,
+} from '../../../src/features/admin-system-health/healthCheckCadence.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -215,6 +218,9 @@ Deno.serve(async req => {
     const mode: HealthCheckRunMode =
       req.headers.get('x-health-check-mode') === 'continuous' ? 'continuous' : 'full';
     const runToken = req.headers.get('x-health-run-token');
+    // Only the 07:00 UTC scheduled full run reports to the Sentry Cron monitor
+    // — see isDailyMonitorRun.
+    if (!isDailyMonitorRun(mode, runToken)) return await runHealthSnapshot(mode, runToken);
     return await runWithBestEffortCronCheckIn(sentryCronClient, DAILY_HEALTH_MONITOR_SLUG, () =>
       runHealthSnapshot(mode, runToken)
     );

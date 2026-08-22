@@ -603,6 +603,21 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### QA-SENTRY-CRON-MONITOR-SCOPE-2026-08-22
+
+- **Status:** fixed
+- **Classification:** monitoring defect / alert scope mismatch
+- **Severity:** medium
+- **Role:** operator (site admin)
+- **Surface:** `apps/myk9show/supabase/functions/cron-health-check/index.ts`; `apps/myk9show/src/features/admin-system-health/healthCheckCadence.ts`; Sentry Cron monitor `daily-health-check` (project `javascript-react`, environment `staging`).
+- **Detected by:** Sentry "Regressed issue" email, incident `35976516`, 2026-08-22 08:45:02 UTC.
+- **Evidence:** One `POST | 500` on `cron-health-check` at `2026-08-22T08:45:02.151Z`; every other invocation in the surrounding 24h returned 200 (`function_edge_logs`). The function log for that run reads `cron-health-check error: snapshot insert failed: TypeError: error sending request ... /rest/v1/system_health_snapshots (104.18.38.10:443): client error (SendRequest): connection error: stream closed because of a broken pipe`. The next run at 08:50:03 wrote a normal snapshot; `system_health_snapshots` was continuous through 15:10 UTC.
+- **Root cause (the alert, not the blip):** `Deno.serve` wrapped *every* invocation in `runWithBestEffortCronCheckIn(..., DAILY_HEALTH_MONITOR_SLUG, ...)`. The `continuous-health-check` pg_cron fires the same function every 5 minutes, so a monitor configured `0 7 * * *` was receiving ~288 check-ins a day. Two failure modes, both live: (1) a single transient network blip in any 5-minute run flips the daily monitor to failing and pages, as it did here; (2) an `ok` from any continuous run satisfies the 07:00 window, so a genuinely missed nightly full run would never have alerted — the exact thing the monitor exists to catch.
+- **User impact:** False operator page on a self-healing blip, plus a silent hole in nightly-run coverage. No exhibitor- or secretary-facing impact; the 08:45 snapshot was skipped and the board self-corrected five minutes later.
+- **Resolution:** Added `isDailyMonitorRun(mode, runToken)` to `healthCheckCadence.ts`; `cron-health-check` now reports to the Sentry monitor only from the 07:00 UTC scheduled `full` dispatch, and short-circuits the check-in for continuous runs and for token-carrying manual `run_system_health_check_now()` runs.
+- **Proof:** `pnpm vitest run src/features/admin-system-health/ src/test/database/continuousHealthCheckContract.test.ts supabase/functions/_shared/sentryCronCheckIn.test.ts --sequence.shuffle` — 98 passed, 7/7 shuffled runs green. Gate assertion verified non-vacuous by deleting the gate line (test fails). `pnpm typecheck` and `pnpm lint` exit 0.
+- **Notes:** The transient broken pipe itself is not fixed and needs no fix — one PostgREST connection reset in 288 runs, self-healing on the next tick. If it becomes recurrent, add a bounded retry around `insertSnapshot`.
+
 ### NQA-2026-07-29-01
 
 - **Status:** fixed

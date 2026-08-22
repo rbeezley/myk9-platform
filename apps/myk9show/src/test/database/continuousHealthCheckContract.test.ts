@@ -30,6 +30,19 @@ describe('MYK9-157 continuous health migration contract', () => {
     expect(source).toContain("'run_token', run_token");
   });
 
+  it('reports to the Sentry Cron monitor only from the nightly full run', () => {
+    const index = readFileSync(
+      resolve(process.cwd(), 'supabase/functions/cron-health-check/index.ts'),
+      'utf8'
+    );
+    // The gate must short-circuit BEFORE runWithBestEffortCronCheckIn, or the
+    // 5-minute job keeps filing check-ins against a `0 7 * * *` monitor.
+    const gate = index.indexOf('if (!isDailyMonitorRun(mode, runToken))');
+    const checkIn = index.indexOf('runWithBestEffortCronCheckIn(sentryCronClient');
+    expect(gate).toBeGreaterThan(-1);
+    expect(checkIn).toBeGreaterThan(gate);
+  });
+
   it('schedules both five-minute continuous and nightly full dispatches', () => {
     expect(source).toContain("'continuous-health-check'");
     expect(source).toContain("'*/5 * * * *'");

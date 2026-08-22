@@ -62,3 +62,21 @@ export function healthCheckSourceStaleAfterMs(key: string): number {
 export function shouldRunHealthCheck(key: string, mode: HealthCheckRunMode): boolean {
   return mode === 'full' || CONTINUOUS_HEALTH_CHECK_KEYS.includes(key as HealthCheckKey);
 }
+
+/**
+ * Whether this run is the one the Sentry Cron monitor `daily-health-check`
+ * models — the 07:00 UTC `0 7 * * *` pg_cron dispatch, and nothing else.
+ *
+ * INTENT: the monitor exists to catch a MISSED nightly run. Checking in from
+ * every run breaks that in both directions: the 5-minute continuous job files
+ * ~288 check-ins a day, so one transient blip errors a monitor whose schedule
+ * says daily (2026-08-22, a broken-pipe PostgREST insert paged on a run that
+ * recovered five minutes later), and an `ok` from any of them satisfies the
+ * 07:00 window even when the nightly full run never fired. A manual
+ * `run_system_health_check_now()` run is `full` too but carries a run token;
+ * it is operator-initiated and would mask the same missing window, so it is
+ * excluded as well.
+ */
+export function isDailyMonitorRun(mode: HealthCheckRunMode, runToken: string | null): boolean {
+  return mode === 'full' && !runToken;
+}

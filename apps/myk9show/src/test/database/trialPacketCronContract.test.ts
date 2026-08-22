@@ -63,6 +63,12 @@ describe('trial packet cron', () => {
     expect(statements).not.toMatch(/current_date \+ 1\b(?![^\n]*between)/);
   });
 
+  it('survives one row that raises, not just one with a bad timezone', () => {
+    // The POST is the statement most likely to raise; the original handler
+    // covered only the timezone cast, so one bad row lost the whole run.
+    expect(statements).toMatch(/raise warning 'trial packet POST failed/);
+  });
+
   it('survives one row with an unusable timezone', () => {
     // `timezone(bad, now())` raises. Without the handler a single malformed
     // row kills the run for every other show that evening.

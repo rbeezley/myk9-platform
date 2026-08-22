@@ -368,11 +368,21 @@ export async function generateTrialPackets(
 
     // Only now is the day genuinely done. `deliverStoredPacket` throws on a
     // failed send, so reaching here means the email was accepted.
-    const { error: completeError } = await supabase
-      .from(CLAIMS)
-      .update({ completed_at: now().toISOString() })
-      .match(claimKey)
-      .eq('claimed_at', claimToken);
+    // Retry once. The duplicate-email case needs BOTH this write and the audit
+    // insert to fail, and the code used to treat them as independent — they
+    // are not: same client, same PostgREST, milliseconds apart, so a brief
+    // outage takes both. When that happens the claim keeps a null
+    // `completed_at`, the next run reclaims past the lease, finds no `sent`
+    // snapshot (the statement that writes it is the one that failed) and sends
+    // a second identical email. One retry is far cheaper than that.
+    const stampComplete = async () =>
+      await supabase
+        .from(CLAIMS)
+        .update({ completed_at: now().toISOString() })
+        .match(claimKey)
+        .eq('claimed_at', claimToken);
+    let { error: completeError } = await stampComplete();
+    if (completeError) ({ error: completeError } = await stampComplete());
     // Do not throw: the packet IS stored and emailed. Failing the whole run
     // here would report a delivered packet as an error, and the worst case of
     // a missed completion is one duplicate on a later run — which the sent

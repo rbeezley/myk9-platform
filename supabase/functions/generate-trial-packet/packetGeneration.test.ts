@@ -80,6 +80,8 @@ interface StubOptions {
   existingClaims?: Record<string, Record<string, unknown>>;
   /** The `sent` audit insert fails while the email itself succeeds. */
   auditInsertFails?: boolean;
+  /** How many times stamping the claim complete fails before succeeding. */
+  completeFailures?: number;
   /** Days where a packet lands between our claim and our send. */
   lateArrivalDates?: string[];
 }
@@ -93,6 +95,7 @@ function makeStub(options: StubOptions = {}) {
     auditInsertFails = false,
     lateArrivalDates = [],
   } = options;
+  let completeFailures = options.completeFailures ?? 0;
   const sameDayLookups: Record<string, number> = {};
   const uploads: string[] = [];
   const removed: string[] = [];
@@ -204,6 +207,11 @@ function makeStub(options: StubOptions = {}) {
       const chain: Record<string, unknown> = {};
       const settle = () => {
         if (!holds()) return { data: [], error: null };
+        if (patch.completed_at && completeFailures > 0) {
+          completeFailures -= 1;
+          claimOps.push(`complete-failed:${key()}`);
+          return { data: null, error: { message: 'blip' } };
+        }
         Object.assign(claims[key()], patch);
         claimOps.push(
           patch.completed_at
@@ -691,3 +699,39 @@ describe('sha256Hex', () => {
     expect(digest).toBe('039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81');
   });
 });
+
+describe('the correlated failure that used to duplicate an email', () => {
+  const SAT = '2026-09-19';
+
+  it('retries the claim completion rather than letting the next run re-send', async () => {
+    // The audit insert and this write go through the same client and the same
+    // PostgREST milliseconds apart, so a brief outage takes BOTH — they were
+    // being treated as independent. With neither landing, the next run
+    // reclaims past the lease, finds no `sent` snapshot (the statement that
+    // writes it is the one that failed) and emails everybody a second time.
+    const { supabase, claims, claimOps } = makeStub({
+      auditInsertFails: true,
+      completeFailures: 1,
+    });
+
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    expect(claimOps).toContain(`complete-failed:${SAT}`);
+    expect(claims[SAT]?.completed_at).toBe('2026-09-18T02:00:00.000Z');
+    expect(summary.generated.map(p => p.trialDate)).toEqual([SAT, '2026-09-20']);
+  });
+
+  it('never reports a delivered packet as a failure', async () => {
+    // The email is gone. Throwing here would release the claim and guarantee
+    // the duplicate this retry exists to avoid.
+    const { supabase, claims } = makeStub({ auditInsertFails: true, completeFailures: 9 });
+
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    expect(summary.failed).toEqual([]);
+    expect(summary.generated).toHaveLength(2);
+    expect(summary.unrecordedCompletions).toBeGreaterThan(0);
+    expect(claims[SAT]?.completed_at).toBeNull();
+  });
+});
+

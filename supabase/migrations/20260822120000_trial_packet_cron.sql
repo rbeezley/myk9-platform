@@ -155,8 +155,14 @@ begin
     continue when rec.date <> (local_now::date + 1);
     continue when extract(hour from local_now) not between 18 and 21;
 
+    -- The POST is the statement most likely to raise (queue pressure, a bad
+    -- URL), and the handler above covered only the timezone cast — so one bad
+    -- row still lost every remaining show in the run. Recovered 30 minutes
+    -- later, but the stated intent was that one bad row cannot do that.
+    --
     -- The function authenticates on PACKET_CRON_SECRET and builds its own
     -- service-role client from its environment, so no key travels here.
+    begin
     perform net.http_post(
       url := p_base_url || '/generate-trial-packet',
       headers := jsonb_build_object(
@@ -175,6 +181,10 @@ begin
       -- background worker.
       timeout_milliseconds := 120000
     );
+    exception when others then
+      raise warning 'trial packet POST failed for show % on %: %',
+        rec.show_id, rec.date, sqlerrm;
+    end;
   end loop;
 end;
 $$;

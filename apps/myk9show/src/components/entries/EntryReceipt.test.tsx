@@ -44,6 +44,7 @@ describe('EntryReceipt', () => {
           charge: {
             entrySubtotal: 60,
             platformFee: 5,
+            overflowCharged: 0,
             amountCharged: 65,
             refunded: 0,
             netPaid: 65,
@@ -87,6 +88,7 @@ describe('EntryReceipt', () => {
           charge: {
             entrySubtotal: 60,
             platformFee: 5,
+            overflowCharged: 0,
             amountCharged: 65,
             refunded: 20,
             netPaid: 45,
@@ -116,6 +118,7 @@ describe('EntryReceipt', () => {
           charge: {
             entrySubtotal: 60,
             platformFee: 5,
+            overflowCharged: 0,
             amountCharged: 65,
             refunded: 0,
             netPaid: 65,

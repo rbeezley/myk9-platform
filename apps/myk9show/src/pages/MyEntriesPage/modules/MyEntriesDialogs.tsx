@@ -231,7 +231,9 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   };
   if (!dialog.entry) return null;
 
-  if (receiptOrders.isPending) {
+  // `isPending` alone is true forever for a DISABLED query, which would park
+  // the dialog on a spinner with nothing loading. Require an in-flight fetch.
+  if (receiptOrders.isPending && receiptOrders.fetchStatus !== 'idle') {
     return (
       <Dialog open={dialog.open} onOpenChange={open => !open && closeReceipt()}>
         <DialogContent>
@@ -388,6 +390,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         charge: {
           entrySubtotal: entry.entrySubtotal,
           platformFee: entry.platformFee,
+          overflowCharged: entry.overflowCharged,
           amountCharged: entry.amountCharged,
           refunded: entry.refunded,
           netPaid: entry.netPaid,

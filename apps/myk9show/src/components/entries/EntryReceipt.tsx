@@ -50,14 +50,18 @@ interface EntryReceiptData {
    * could not read), which prints the entry-fee total and claims nothing about
    * a charge.
    *
-   * When present these MUST balance: entrySubtotal + platformFee =
-   * amountCharged, and amountCharged - refunded = netPaid. The platform fee is
-   * billed as its own Stripe line on top of the entry fees, so a receipt that
-   * prints the gross without the fee row overstates its own line items.
+   * When present these MUST balance: entrySubtotal + platformFee +
+   * overflowCharged = amountCharged, and amountCharged - refunded = netPaid.
+   * The platform fee is billed as its own Stripe line on top of the entry
+   * fees, and a capacity split charges for wait-listed lines before refunding
+   * them, so a receipt printing the gross without both rows states a total its
+   * own line items cannot reach.
    */
   charge?: {
     entrySubtotal: number;
     platformFee: number;
+    /** Wait-listed lines charged and refunded on the spot by a capacity split. */
+    overflowCharged: number;
     amountCharged: number;
     refunded: number;
     netPaid: number;
@@ -475,6 +479,12 @@ export function EntryReceipt({
                     <div className="flex justify-between gap-4">
                       <dt className="text-muted-foreground">Platform fee</dt>
                       <dd className="font-mono">{formatCurrency(entry.charge.platformFee)}</dd>
+                    </div>
+                  )}
+                  {entry.charge.overflowCharged !== 0 && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-muted-foreground">Classes that were full</dt>
+                      <dd className="font-mono">{formatCurrency(entry.charge.overflowCharged)}</dd>
                     </div>
                   )}
                   <div className="flex justify-between gap-4 border-t pt-1">

@@ -319,6 +319,12 @@ describe('ReceiptEntryDialog order resolution', () => {
     expect(screen.getByText('Entry Receipt')).toBeInTheDocument();
     expect(screen.getByText('$130.00')).toBeInTheDocument();
     expect(screen.queryByText('order-other')).not.toBeInTheDocument();
+    // Without the intersection filter this ALSO lands on the card receipt —
+    // buildOrderScopedReceipt refuses the mismatched order anyway — but it does
+    // so via the "still syncing" path, blaming replication for what is really a
+    // stale URL. Asserting the notice is absent is what distinguishes the two.
+    expect(screen.queryByText(/still syncing/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
   });
 
   it('shows the refund and the net rather than reporting a refunded order as Paid', () => {

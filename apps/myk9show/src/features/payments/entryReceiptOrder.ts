@@ -120,11 +120,16 @@ export function useEntryReceiptOrders({
   return useQuery({
     queryKey: ['exhibitor', 'entry-receipt-orders', requestedOrderId, stableEntryIds],
     queryFn: async () => {
-      if (requestedOrderId) {
-        const order = await fetchEntryReceiptOrder(requestedOrderId);
-        return order ? [order] : [];
-      }
-      return fetchEntryReceiptOrdersForEntries(stableEntryIds);
+      if (!requestedOrderId) return fetchEntryReceiptOrdersForEntries(stableEntryIds);
+
+      const requested = await fetchEntryReceiptOrder(requestedOrderId);
+      // A deep-linked orderId outlives the dialog that used it. If it does not
+      // cover any of this card's rows, it belongs to a different card and
+      // asking only for it would strand this one on a receipt with no charge
+      // detail and nothing saying why. Fall through to discovery instead.
+      const coversThisCard = requested?.entryIds.some(id => stableEntryIds.includes(id));
+      if (requested && coversThisCard) return [requested];
+      return stableEntryIds.length > 0 ? fetchEntryReceiptOrdersForEntries(stableEntryIds) : [];
     },
     enabled: enabled && (Boolean(requestedOrderId) || stableEntryIds.length > 0),
     ...cacheStrategies.moderate,

@@ -81,30 +81,43 @@ describe('buildOrderScopedReceipt', () => {
     expect(receipt?.entrySubtotal).toBe(60);
     expect(receipt?.platformFee).toBeCloseTo(4.2, 2);
     expect(receipt?.amountCharged).toBeCloseTo(64.2, 2);
-    expect(receipt!.entrySubtotal + receipt!.platformFee).toBeCloseTo(receipt!.amountCharged, 2);
+    expect(receipt?.overflowCharged).toBe(0);
+    expect(
+      receipt!.entrySubtotal + receipt!.platformFee + receipt!.overflowCharged
+    ).toBeCloseTo(receipt!.amountCharged, 2);
     // The class rows sum to the entry subtotal, not to the amount charged.
     const rowSum = receipt!.classes.reduce((sum, c) => sum + c.fee, 0);
     expect(rowSum).toBeCloseTo(receipt!.entrySubtotal, 2);
   });
 
-  it('nets the cart-overflow auto-refund out of what the exhibitor paid', () => {
-    // A capacity split refunds the overflow immediately, and amount_cents is
-    // deliberately NOT netted by it. Ignoring make_whole_refunded_cents
-    // overstates the receipt by exactly the money handed straight back — in the
-    // very scenario this issue is about.
+  it('balances and nets a cart-overflow order — the tie-out the schema documents', () => {
+    // orderSnapshot.ts: amount_cents == entry_subtotal_cents + platform_fee_cents
+    //                                 + make_whole_refunded_cents.
+    // The snapshot columns cover only the ACCEPTED lines, so the wait-listed
+    // lines that were charged and refunded on the spot need a row of their own
+    // or the receipt states a gross its line items cannot reach. This fixture
+    // satisfies the real invariant; an earlier one did not, which is exactly
+    // why the imbalance went unnoticed.
     const receipt = buildOrderScopedReceipt(
       registration,
       order({
-        amountCents: 21400,
+        amountCents: 31400,
         entrySubtotalCents: 20000,
         platformFeeCents: 1400,
         makeWholeRefundedCents: 10000,
       })
     );
 
-    expect(receipt?.amountCharged).toBe(214);
+    expect(receipt?.entrySubtotal).toBe(200);
+    expect(receipt?.platformFee).toBe(14);
+    expect(receipt?.overflowCharged).toBe(100);
+    expect(receipt?.amountCharged).toBe(314);
+    expect(
+      receipt!.entrySubtotal + receipt!.platformFee + receipt!.overflowCharged
+    ).toBeCloseTo(receipt!.amountCharged, 2);
     expect(receipt?.refunded).toBe(100);
-    expect(receipt?.netPaid).toBe(114);
+    expect(receipt?.netPaid).toBe(214);
+    expect(receipt!.amountCharged - receipt!.refunded).toBeCloseTo(receipt!.netPaid, 2);
   });
 
   it('nets a post-hoc partial refund', () => {
@@ -167,6 +180,18 @@ describe('buildOrderScopedReceipt', () => {
     expect(receipt?.entrySubtotal).toBe(60);
     expect(receipt?.platformFee).toBe(0);
     expect(receipt?.amountCharged).toBe(60);
+  });
+
+  it('never prints a negative platform fee when a class fee was edited upward', () => {
+    // Legacy orders derive the fee by subtraction, and class fees are the live
+    // replicated values. A fee raised after payment makes the rows sum past
+    // what was charged; omitting the line beats printing "Platform fee -$5.00".
+    const receipt = buildOrderScopedReceipt(
+      registration,
+      order({ entrySubtotalCents: null, platformFeeCents: null, amountCents: 5000 })
+    );
+
+    expect(receipt?.platformFee).toBe(0);
   });
 });
 

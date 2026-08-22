@@ -9,7 +9,13 @@ export interface OrderScopedReceiptEntry extends MyEntry {
   entrySubtotal: number;
   /** Platform fee billed on top of the entry fees, in dollars. */
   platformFee: number;
-  /** Gross charged, in dollars: entrySubtotal + platformFee. */
+  /**
+   * Charged for lines the capacity split sent to the wait list and refunded
+   * immediately, in dollars. Without its own row the receipt states a gross
+   * its line items cannot reach.
+   */
+  overflowCharged: number;
+  /** Gross charged: entrySubtotal + platformFee + overflowCharged. */
   amountCharged: number;
   /** Everything handed back against this order, in dollars. */
   refunded: number;
@@ -58,13 +64,27 @@ export function buildOrderScopedReceipt(
     }))
     .filter(dog => dog.classes.length > 0);
 
-  // Prefer the order's own snapshot columns; fall back to summing the rows we
-  // just proved complete, so an order written before those columns existed
-  // still balances instead of printing a fee row it cannot justify.
+  // The documented tie-out (_shared/orderSnapshot.ts):
+  //
+  //   amount_cents == entry_subtotal_cents + platform_fee_cents
+  //                 + make_whole_refunded_cents
+  //
+  // The snapshot columns describe only the lines that were ACCEPTED, while
+  // amount_cents is the whole session including lines the capacity split sent
+  // to the wait list and refunded on the spot. So the overflow needs a row of
+  // its own; without it the receipt states a gross its line items cannot
+  // reach, by exactly the amount that was handed straight back.
   const entrySubtotalCents =
     order.entrySubtotalCents ??
     Math.round(classes.reduce((sum, classEntry) => sum + classEntry.fee, 0) * 100);
-  const platformFeeCents = order.platformFeeCents ?? order.amountCents - entrySubtotalCents;
+  const overflowChargedCents = order.makeWholeRefundedCents;
+  // A legacy order predating the snapshot columns has to derive the fee. Clamp
+  // at zero: if a class fee was edited upward after payment the rows can now
+  // sum past what was charged, and a negative "Platform fee" is a worse lie
+  // than omitting the line.
+  const platformFeeCents =
+    order.platformFeeCents ??
+    Math.max(0, order.amountCents - entrySubtotalCents - overflowChargedCents);
   const refundedCents = order.refundedCents + order.makeWholeRefundedCents;
 
   return {
@@ -77,6 +97,7 @@ export function buildOrderScopedReceipt(
     paymentReference: order.reference,
     entrySubtotal: entrySubtotalCents / 100,
     platformFee: platformFeeCents / 100,
+    overflowCharged: overflowChargedCents / 100,
     amountCharged: order.amountCents / 100,
     refunded: refundedCents / 100,
     netPaid: (order.amountCents - refundedCents) / 100,

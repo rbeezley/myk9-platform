@@ -76,6 +76,7 @@ describe('SMS notification preferences', () => {
       sms_opt_in_source: 'account-settings',
       sms_opt_out_at: null,
       sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
+  sms_stop_muted_push_at: null,
     };
     await expect(clearSmsConsent('user-1', preference)).resolves.toBe(true);
     expect(rpc).toHaveBeenCalledWith('clear_my_sms_consent', {
@@ -107,6 +108,7 @@ describe('SMS notification preferences', () => {
       sms_opt_in_source: 'account-settings',
       sms_opt_out_at: null,
       sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
+  sms_stop_muted_push_at: null,
     } as const;
     expect(isValidSmsConsent(valid, '(210) 555-0142')).toBe(true);
   });
@@ -122,6 +124,7 @@ describe('SMS notification preferences', () => {
       sms_opt_in_source: 'account-settings',
       sms_opt_out_at: null,
       sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
+  sms_stop_muted_push_at: null,
     } as const;
     expect(
       isValidSmsConsent({ ...valid, sms_opt_out_at: '2026-08-21T21:00:00Z' }, valid.sms_phone_e164)

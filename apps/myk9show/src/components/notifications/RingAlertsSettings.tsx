@@ -16,6 +16,7 @@ import {
   SMS_CONSENT_TEXT_VERSION,
   type SmsNotificationPreference,
 } from '@/features/notifications/smsPreferenceService';
+import { getSmsSendingNumber } from '@/features/notifications/smsSendingNumber';
 import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,14 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+
+/** "Feb 14, 2026" — app-standard en-US, unambiguous about the day sending stopped. */
+function formatStopDate(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? 'an earlier date'
+    : date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 const clearedSmsPreference = (
   preference: SmsNotificationPreference
@@ -37,6 +46,7 @@ const clearedSmsPreference = (
   sms_opt_in_source: null,
   sms_opt_out_at: null,
   sms_consent_write_token: null,
+  sms_stop_muted_push_at: null,
 });
 
 export function RingAlertsSettings() {
@@ -86,6 +96,9 @@ export function RingAlertsSettings() {
   }, [user?.id, updatePreferences]);
 
   const hasValidConsent = isValidSmsConsent(smsPreference, phone);
+  const optedOutAt = smsPreference?.sms_opt_out_at ?? null;
+  const stopMutedPush = smsPreference?.sms_stop_muted_push_at != null;
+  const sendingNumber = getSmsSendingNumber();
 
   async function handleRingAlertsToggle(checked: boolean) {
     const previous = ringAlertsEnabled;
@@ -183,6 +196,7 @@ export function RingAlertsSettings() {
         sms_opt_in_source: 'account-settings',
         sms_opt_out_at: null,
         sms_consent_write_token: result.writeToken,
+        sms_stop_muted_push_at: null,
       });
       setConsentChecked(false);
     } catch (requestError) {
@@ -283,16 +297,58 @@ export function RingAlertsSettings() {
                 </p>
               </div>
             </div>
-            <Switch
-              id="sms-enabled"
-              checked={smsPreference?.sms_enabled === true}
-              disabled={
-                !ringAlertsEnabled || isLoading || isSmsSaving || smsLoadFailed || !hasValidConsent
-              }
-              onCheckedChange={handleSmsToggle}
-            />
+            {/*
+              No toggle once a STOP is on record. Flipping SMS back on here
+              would light up a control that changes nothing: STOP is enforced by
+              Twilio at the carrier, and clearing our column does not touch
+              their block list. An app that says "on" while no text ever
+              arrives is a worse support conversation than "you replied STOP".
+            */}
+            {optedOutAt === null && (
+              <Switch
+                id="sms-enabled"
+                checked={smsPreference?.sms_enabled === true}
+                disabled={
+                  !ringAlertsEnabled || isLoading || isSmsSaving || smsLoadFailed || !hasValidConsent
+                }
+                onCheckedChange={handleSmsToggle}
+              />
+            )}
           </div>
 
+          {optedOutAt !== null ? (
+            <div
+              className="ml-6 space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-sm"
+              role="status"
+            >
+              <p>
+                You replied STOP to ring alerts on{' '}
+                <strong>{formatStopDate(optedOutAt)}</strong>.
+              </p>
+              {/*
+                The way back is recipient-initiated, and six months on the
+                exhibitor has deleted the thread — so the number has to be here
+                or "reply START" is unusable advice.
+              */}
+              {sendingNumber ? (
+                <p>
+                  To turn them back on, text <strong>START</strong> to{' '}
+                  <strong>{sendingNumber}</strong>.
+                </p>
+              ) : (
+                <p>
+                  To turn them back on, reply <strong>START</strong> to any ring alert text, or
+                  contact support@myk9show.com.
+                </p>
+              )}
+              {stopMutedPush && (
+                <p className="text-muted-foreground">
+                  That also turned off push notifications for ring alerts. You can switch those
+                  back on above whenever you like — they are not affected by the text opt-out.
+                </p>
+              )}
+            </div>
+          ) : (
           <div className="pl-6 space-y-3">
             <div className="space-y-1">
               <Label htmlFor="sms-phone">Mobile number</Label>
@@ -339,6 +395,7 @@ export function RingAlertsSettings() {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {error && (

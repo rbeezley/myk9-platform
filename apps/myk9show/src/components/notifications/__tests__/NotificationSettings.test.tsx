@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { NotificationSettings } from '../NotificationSettings';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -411,5 +411,109 @@ describe('NotificationSettings', () => {
     render(<NotificationSettings />);
     fireEvent.click(screen.getByText(/test notification/i));
     expect(testSound).toHaveBeenCalled();
+  });
+});
+
+describe('RingAlertsSettings after an inbound STOP', () => {
+  const optedOut = {
+    auth_user_id: 'test-user-id',
+    upcoming_runs: false,
+    sms_enabled: false,
+    sms_phone_e164: '+12105550142',
+    sms_opt_in_at: '2026-02-01T12:00:00.000Z',
+    sms_consent_text_version: 'sms-consent-v1',
+    sms_opt_in_source: 'account-settings',
+    sms_opt_out_at: '2026-02-14T18:30:00.000Z',
+    sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
+    sms_stop_muted_push_at: '2026-02-14T18:30:00.000Z',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv('VITE_SMS_SENDING_NUMBER', '+12105550142');
+    mockLoadSmsNotificationPreference.mockResolvedValue(optedOut);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('states when the exhibitor replied STOP', async () => {
+    render(<NotificationSettings />);
+
+    expect(await screen.findByText(/you replied STOP to ring alerts on/i)).toBeInTheDocument();
+    expect(screen.getByText('Feb 14, 2026')).toBeInTheDocument();
+  });
+
+  it('shows the sending number, not just an instruction to reply', async () => {
+    // Six months on the message thread is deleted, so "reply START" without a
+    // number is unusable advice.
+    render(<NotificationSettings />);
+
+    await screen.findByText(/you replied STOP/i);
+    expect(screen.getByText('(210) 555-0142')).toBeInTheDocument();
+    expect(screen.getByText('START')).toBeInTheDocument();
+  });
+
+  it('offers no SMS toggle, because flipping it on would change nothing', async () => {
+    // STOP is enforced by Twilio at the carrier; clearing our column does not
+    // touch their block list. A lit-up toggle with no texts arriving is worse
+    // than an honest explanation.
+    render(<NotificationSettings />);
+
+    await screen.findByText(/you replied STOP/i);
+    expect(screen.queryByLabelText('Text message')).not.toBeInTheDocument();
+    expect(document.getElementById('sms-enabled')).toBeNull();
+  });
+
+  it('never presents the row as SMS on', async () => {
+    mockLoadSmsNotificationPreference.mockResolvedValue({ ...optedOut, sms_enabled: true });
+    render(<NotificationSettings />);
+
+    await screen.findByText(/you replied STOP/i);
+    expect(document.getElementById('sms-enabled')).toBeNull();
+  });
+
+  it('says the STOP muted push too, and that push can come back', async () => {
+    render(<NotificationSettings />);
+
+    expect(
+      await screen.findByText(/also turned off push notifications for ring alerts/i)
+    ).toBeInTheDocument();
+  });
+
+  it('does not claim STOP muted push when the exhibitor had already muted it', async () => {
+    mockLoadSmsNotificationPreference.mockResolvedValue({
+      ...optedOut,
+      sms_stop_muted_push_at: null,
+    });
+    render(<NotificationSettings />);
+
+    await screen.findByText(/you replied STOP/i);
+    expect(
+      screen.queryByText(/also turned off push notifications/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('points at support rather than inventing a number when none is configured', async () => {
+    vi.stubEnv('VITE_SMS_SENDING_NUMBER', '');
+    render(<NotificationSettings />);
+
+    await screen.findByText(/you replied STOP/i);
+    expect(screen.getByText(/support@myk9show\.com/i)).toBeInTheDocument();
+  });
+
+  it('shows the opt-in form again once the opt-out is cleared', async () => {
+    mockLoadSmsNotificationPreference.mockResolvedValue({
+      ...optedOut,
+      sms_opt_out_at: null,
+      sms_stop_muted_push_at: null,
+      sms_enabled: true,
+      upcoming_runs: true,
+    });
+    render(<NotificationSettings />);
+
+    await waitFor(() => expect(document.getElementById('sms-enabled')).not.toBeNull());
+    expect(screen.queryByText(/you replied STOP/i)).not.toBeInTheDocument();
   });
 });

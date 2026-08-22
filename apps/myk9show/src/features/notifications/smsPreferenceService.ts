@@ -17,6 +17,12 @@ export interface SmsNotificationPreference {
   sms_opt_in_source: string | null;
   sms_opt_out_at: string | null;
   sms_consent_write_token: string | null;
+  /**
+   * Set when an inbound STOP was what turned `upcoming_runs` off, so settings
+   * can explain that the text reply muted push too rather than leaving the
+   * exhibitor to discover it.
+   */
+  sms_stop_muted_push_at: string | null;
 }
 
 export interface SmsOptInResult {
@@ -68,6 +74,7 @@ const SMS_COLUMNS = [
   'sms_opt_in_source',
   'sms_opt_out_at',
   'sms_consent_write_token',
+  'sms_stop_muted_push_at',
 ].join(', ');
 
 export async function loadSmsNotificationPreference(

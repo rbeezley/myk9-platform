@@ -435,6 +435,42 @@ recorded:
 - the inbound STOP/HELP path and once-per-entry sent marker are reviewed and
   ready, so an enabled sender cannot ship without opt-out or idempotency.
 
+### 6.7 `sms-stop-webhook` — inbound STOP/START/HELP (MYK9-192)
+
+Deploy this **before** any outbound SMS function. Twilio enforces STOP at the
+carrier whether or not this runs, but without it our own row never learns: the
+`notification_preferences_sms_sendable_idx` partial index keeps counting an
+opted-out number as sendable and every later alert is a message Twilio silently
+drops.
+
+```bash
+supabase functions deploy sms-stop-webhook --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+```
+
+`--no-verify-jwt` is required: Twilio sends no `Authorization` header, so the
+`X-Twilio-Signature` **is** the authentication. Confirm the CLI prints
+"Deployed Functions on project sojmvhhwsjxmfistvzbe".
+
+Secrets and configuration, all operator-set (never paste a value into a command,
+issue, PR, or log):
+
+| Name | Where | Purpose |
+| -- | -- | -- |
+| `TWILIO_AUTH_TOKEN` | Edge Function secret | Verifies the inbound signature. **Absent means the webhook refuses every request** — it fails closed rather than accepting unsigned writes. |
+| `TWILIO_WEBHOOK_URL` | Edge Function secret, optional | The exact URL configured in the Twilio console. Set it if a proxy rewrites scheme or host, which otherwise breaks every signature and presents as "Twilio is sending garbage". |
+| `VITE_SMS_SENDING_NUMBER` | Vercel env | The sending number, shown in settings to an exhibitor who replied STOP. Without it the app points at support instead — it never invents a number, because the exhibitor would text it and conclude the opt-out is permanent. |
+
+After deploying, point the Messaging Service's inbound webhook at the function
+URL and confirm Advanced Opt-Out is on, with the HELP reply matching §5 of
+[`sms-10dlc-registration.md`](sms-10dlc-registration.md) verbatim including
+`support@myk9show.com`. The function deliberately returns an empty `<Response/>`
+so Twilio's own STOP and HELP auto-replies are the ones that reach the handset.
+
+Migration `20260822200000_sms_stop_push_mute.sql` must be applied first: STOP
+writes `sms_enabled = false` alongside `sms_opt_out_at` (the sendable-complete
+constraint forbids the pair), and records `sms_stop_muted_push_at` when it is
+the actor that muted push, so a later START restores only what STOP took.
+
 The hardening migration is coupled to the settings code: it revokes direct
 authenticated INSERT/UPDATE/DELETE on `notification_preferences`, adds the
 `set_my_notification_preferences` and exact-version `clear_my_sms_consent`

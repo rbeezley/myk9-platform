@@ -74,6 +74,102 @@ describe('deriveEntryNextAction', () => {
     });
   });
 
+  it.each(['absent', 'excused'] as const)(
+    'returns view-show when the only lifecycle-active class is settled %s',
+    resultStatus => {
+      const entry = makeEntry({
+        paymentStatus: PaymentStatus.PAID_ONLINE,
+        classes: [
+          makeClass({
+            id: 'entry-1',
+            classId: 'class-1',
+            entryStatus: EntryStatus.ACCEPTED,
+            checkInStatus: 'no-status',
+            isScored: false,
+            resultStatus,
+          }),
+        ],
+      });
+
+      expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+    }
+  );
+
+  it('returns view-show when every lifecycle-active class is settled absent or excused', () => {
+    const entry = makeEntry({
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [
+        makeClass({
+          id: 'absent-entry',
+          classId: 'absent-class',
+          entryStatus: EntryStatus.ACCEPTED,
+          checkInStatus: 'no-status',
+          isScored: false,
+          resultStatus: 'absent',
+        }),
+        makeClass({
+          id: 'excused-entry',
+          classId: 'excused-class',
+          entryStatus: EntryStatus.ACCEPTED,
+          checkInStatus: 'no-status',
+          isScored: false,
+          resultStatus: 'excused',
+        }),
+      ],
+    });
+
+    expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+  });
+
+  it.each([
+    ['scratched', { entryStatus: EntryStatus.SCRATCHED, checkInStatus: 'no-status' }],
+    ['withdrawn', { entryStatus: EntryStatus.CANCELLED, checkInStatus: 'no-status' }],
+    ['pulled', { entryStatus: EntryStatus.ACCEPTED, checkInStatus: 'pulled' }],
+  ] as const)('returns view-show when the only class is %s', (_state, lifecycle) => {
+    const entry = makeEntry({
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [
+        makeClass({
+          id: 'entry-1',
+          classId: 'class-1',
+          status: 'entered',
+          isScored: false,
+          ...lifecycle,
+        }),
+      ],
+    });
+
+    expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+  });
+
+  it('skips a settled class and offers check-in for the next live class', () => {
+    const entry = makeEntry({
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      classes: [
+        makeClass({
+          id: 'absent-entry',
+          classId: 'absent-class',
+          entryStatus: EntryStatus.ACCEPTED,
+          checkInStatus: 'no-status',
+          isScored: false,
+          resultStatus: 'absent',
+        }),
+        makeClass({
+          id: 'live-entry',
+          classId: 'live-class',
+          entryStatus: EntryStatus.ACCEPTED,
+          checkInStatus: 'no-status',
+          isScored: false,
+        }),
+      ],
+    });
+
+    expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({
+      kind: 'check-in',
+      classId: 'live-entry',
+    });
+  });
+
   it('returns view-show for a paid entry with no check-in-eligible class (all scored)', () => {
     const entry = makeEntry({
       paymentStatus: PaymentStatus.PAID_ONLINE,

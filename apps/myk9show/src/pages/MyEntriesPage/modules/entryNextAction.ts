@@ -5,18 +5,19 @@
  * Precedence: finish payment > check-in (first check-in-eligible class) >
  * view show. Reuses the exact predicates `MyEntryCard` already uses to decide
  * payment-button visibility (`getEntryPaymentPrompt` via the same
- * `canPayStatus` gate) and check-in control rendering (`!cls.isScored` gated
- * by the self-check-in cascade) so the summary-band action never disagrees
- * with the expanded details.
+ * `canPayStatus` gate) and check-in control rendering (the canonical entry-
+ * accounting rules gated by the self-check-in cascade) so the summary-band
+ * action never disagrees with the expanded details.
  *
  * @module MyEntriesPage/modules/entryNextAction
  */
 
+import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { EntryStatus } from '@/types/show-registration-types';
 import { getOrderOnlinePrompt } from './myEntryOrderBalance';
 import { isPastShowEntry } from './myEntriesStats.helpers';
 import { findOwningDog } from './myEntryDogView';
-import type { MyEntry } from './my-entries-types';
+import type { EntryClass, MyEntry } from './my-entries-types';
 
 export type EntryNextAction =
   { kind: 'finish-payment' } | { kind: 'check-in'; classId: string } | { kind: 'view-show' };
@@ -63,6 +64,28 @@ export function hasPaymentEligibleClass(entry: MyEntry): boolean {
 }
 
 /**
+ * Whether a concrete class row can offer exhibitor check-in. This is the
+ * canonical row-level rule shared by the summary action and expanded class
+ * details; the self-check-in feature toggle remains a separate presentation
+ * concern because details render its disabled state with an explanation.
+ */
+export function isClassCheckInEligible(entry: MyEntry, cls: EntryClass): boolean {
+  if (
+    cls.unresolved ||
+    !isExpectedEntry(cls) ||
+    isAccountedFor(cls) ||
+    cls.entryStatusKind === 'completed' ||
+    cls.status !== 'entered'
+  ) {
+    return false;
+  }
+
+  const owningDog = findOwningDog(entry, cls.id);
+  const classEntryStatus = cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus;
+  return classEntryStatus === EntryStatus.ACCEPTED;
+}
+
+/**
  * Derive the single primary action for an entry's summary band.
  */
 export function deriveEntryNextAction(
@@ -88,18 +111,7 @@ export function deriveEntryNextAction(
   // fixtures or partially replicated rows.
   if (!isPastShowEntry(entry, now)) {
     const eligibleClass = entry.classes.find(cls => {
-      if (
-        cls.unresolved ||
-        cls.isScored ||
-        cls.entryStatusKind === 'completed' ||
-        cls.status !== 'entered'
-      ) {
-        return false;
-      }
-
-      const owningDog = findOwningDog(entry, cls.id);
-      const classEntryStatus = cls.entryStatus ?? owningDog?.entryStatus ?? entry.entryStatus;
-      if (classEntryStatus !== EntryStatus.ACCEPTED) return false;
+      if (!isClassCheckInEligible(entry, cls)) return false;
 
       // Same cascade MyEntryCard reads: class-scoped toggle, defaulting open
       // when the class id or map entry is missing.

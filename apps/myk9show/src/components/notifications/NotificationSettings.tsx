@@ -1,9 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNotificationStore } from '@/store/notificationStore';
-import { usePushSubscription } from '@/hooks/usePushSubscription';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { syncNotificationPreferences } from '@/features/notifications/notificationPreferenceSync';
-import { notifications } from '@/lib/notifications';
 import { testSound, isSpeechSupported, speakWithConfig } from '@myk9/notifications';
 import type { VoiceCategories } from '@myk9/notifications';
 import { groupVoices, detectPlatform, getEnhancedVoiceInstructions } from '@/lib/voice-utils';
@@ -15,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Bell, Volume2, Smartphone, Vibrate, Send, Mic, RefreshCw } from 'lucide-react';
+import { Volume2, Smartphone, Vibrate, Mic, RefreshCw } from 'lucide-react';
+import { RingAlertsSettings } from './RingAlertsSettings';
 
 const ALWAYS_ENABLED = () => true;
 
@@ -37,26 +34,7 @@ const VOICE_CATEGORIES: Array<{
 
 export function NotificationSettings() {
   const preferences = useNotificationStore(s => s.preferences);
-  const permissionStatus = useNotificationStore(s => s.permissionStatus);
   const updatePreferences = useNotificationStore(s => s.updatePreferences);
-  const { user } = useAuthContext();
-
-  // Mirror the two fields the server-side proximity push reads. Fire-and-forget:
-  // the store update is the source of truth for the UI either way.
-  const updateAndSyncPreferences = useCallback(
-    (patch: Partial<typeof preferences>) => {
-      updatePreferences(patch);
-      if (patch.leadDogs !== undefined || patch.pushEnabled !== undefined) {
-        void syncNotificationPreferences(user?.id, {
-          leadDogs: patch.leadDogs ?? preferences.leadDogs,
-          pushEnabled: patch.pushEnabled ?? preferences.pushEnabled,
-        });
-      }
-    },
-    [updatePreferences, user, preferences.leadDogs, preferences.pushEnabled]
-  );
-  const { subscribe, unsubscribe, isSupported: isPushSupported } = usePushSubscription();
-  const [isPushLoading, setIsPushLoading] = useState(false);
   const hapticFeedback = useSettingsStore(s => s.settings.hapticFeedback);
   const updateSettings = useSettingsStore(s => s.updateSettings);
   const haptic = useHapticFeedback(ALWAYS_ENABLED);
@@ -72,6 +50,7 @@ export function NotificationSettings() {
 
   // Keep local display value in sync when preferences change from outside
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- external Zustand updates must refresh the local debounced display value
     setVoiceRateDisplay(preferences.voiceRate);
   }, [preferences.voiceRate]);
 
@@ -86,6 +65,7 @@ export function NotificationSettings() {
 
   useEffect(() => {
     if (!speechSupported) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser voices are an external system and require an initial snapshot
     loadVoices();
     speechSynthesis.addEventListener('voiceschanged', loadVoices);
     return () => speechSynthesis.removeEventListener('voiceschanged', loadVoices);
@@ -98,37 +78,6 @@ export function NotificationSettings() {
     const platform = detectPlatform(navigator.userAgent);
     return getEnhancedVoiceInstructions(platform);
   }, []);
-
-  async function handlePushToggle(checked: boolean) {
-    setIsPushLoading(true);
-    try {
-      if (checked) {
-        const result = await subscribe();
-        if (!result.ok) {
-          if (result.reason === 'permission-denied') {
-            notifications.warning('Push notifications blocked. Check browser settings.');
-          } else {
-            notifications.error('Failed to enable push notifications.');
-          }
-        }
-      } else {
-        const result = await unsubscribe();
-        if (!result.ok) {
-          notifications.error('Failed to disable push notifications.');
-        }
-      }
-    } finally {
-      setIsPushLoading(false);
-      // subscribe()/unsubscribe() own the store flag, so mirror whatever they
-      // settled on — the server-side proximity push skips users who turned
-      // push off, and it can only see that here.
-      const settled = useNotificationStore.getState().preferences;
-      void syncNotificationPreferences(user?.id, {
-        leadDogs: settled.leadDogs,
-        pushEnabled: settled.pushEnabled,
-      });
-    }
-  }
 
   function handleTestVoice() {
     if (!speechSupported) return;
@@ -147,51 +96,12 @@ export function NotificationSettings() {
 
   return (
     <div className="space-y-4">
-      {/* Enable notifications */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <CardTitle className="text-base">
-                  <label htmlFor="notif-enabled">Enable notifications</label>
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Receive ring-call and scheduling alerts
-                </CardDescription>
-              </div>
-            </div>
-            <Switch
-              id="notif-enabled"
-              checked={preferences.enabled}
-              onCheckedChange={checked => updatePreferences({ enabled: checked })}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <label htmlFor="lead-dogs" className="block text-sm font-medium mb-2">
-            Alert when this many dogs ahead: {preferences.leadDogs}
-          </label>
-          <Slider
-            id="lead-dogs"
-            min={1}
-            max={5}
-            step={1}
-            value={[preferences.leadDogs]}
-            onValueChange={([v]) => updateAndSyncPreferences({ leadDogs: v })}
-          />
-          <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>1</span>
-            <span>5</span>
-          </div>
-        </CardContent>
-      </Card>
+      <RingAlertsSettings />
 
       {/* Channels */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Channels</CardTitle>
+          <CardTitle className="text-base">On-device alerts</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {CHANNEL_TOGGLES.map(({ key, label, desc, icon: Icon }) => (
@@ -231,38 +141,6 @@ export function NotificationSettings() {
               aria-label="Haptic Feedback"
               checked={hapticFeedback}
               onCheckedChange={handleHapticToggle}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Push — now inline as a channel */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-2 flex-1 mr-3">
-              <Send className="h-4 w-4 text-muted-foreground mt-0.5" />
-              <div>
-                <label htmlFor="push-enabled" className="text-sm font-medium">
-                  Push notifications
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Receive alerts even when the app isn't open. Notifications appear on your lock
-                  screen and in your notification center, just like texts or email.
-                </p>
-                {permissionStatus === 'denied' && (
-                  <p className="text-xs text-destructive mt-1">Blocked in browser settings</p>
-                )}
-                {!isPushSupported && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Not supported on this browser
-                  </p>
-                )}
-              </div>
-            </div>
-            <Switch
-              id="push-enabled"
-              checked={preferences.pushEnabled}
-              disabled={!isPushSupported || isPushLoading}
-              onCheckedChange={handlePushToggle}
             />
           </div>
         </CardContent>

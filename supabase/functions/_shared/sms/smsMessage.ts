@@ -34,6 +34,9 @@ const GSM7_EXTENDED = new Set(['^', '{', '}', '\\', '[', ']', '~', '|', '€']);
 export const GSM7_SEGMENT_LIMIT = 160;
 export const UCS2_SEGMENT_LIMIT = 70;
 
+const SMS_OPT_IN_CONFIRMATION =
+  "myK9Show: You're signed up for ring alerts. Msg & data rates may apply. Msg frequency varies. Reply HELP for help, STOP to cancel.";
+
 export function isGsm7(text: string): boolean {
   for (const char of text) {
     if (!GSM7_CHARS.has(char) && !GSM7_EXTENDED.has(char)) return false;
@@ -85,25 +88,32 @@ export function estimateSegments(text: string): SegmentEstimate {
   };
 }
 
+/** Exact A2P 10DLC campaign sample 3. Keep copy pinned by the adjacent test. */
+export function buildSmsOptInConfirmation(): string {
+  return SMS_OPT_IN_CONFIRMATION;
+}
+
 /**
  * Replace the typography that word processors and copy-paste introduce with
  * GSM-7 equivalents. A club name pasted from a Word document is the realistic
  * way a curly quote reaches a message and doubles its cost.
  */
 export function toGsm7Safe(text: string): string {
-  return text
-    .replace(/[‘’‛′]/g, "'")
-    .replace(/[“”‟″]/g, '"')
-    .replace(/[–—−]/g, '-')
-    .replace(/…/g, '...')
-    .replace(/ /g, ' ')
-    // Anything still outside the alphabet (emoji, accents we don't map) is
-    // dropped rather than allowed to flip the whole message to UCS-2.
-    .split('')
-    .filter(char => GSM7_CHARS.has(char) || GSM7_EXTENDED.has(char))
-    .join('')
-    .replace(/ {2,}/g, ' ')
-    .trim();
+  return (
+    text
+      .replace(/[‘’‛′]/g, "'")
+      .replace(/[“”‟″]/g, '"')
+      .replace(/[–—−]/g, '-')
+      .replace(/…/g, '...')
+      .replace(/ /g, ' ')
+      // Anything still outside the alphabet (emoji, accents we don't map) is
+      // dropped rather than allowed to flip the whole message to UCS-2.
+      .split('')
+      .filter(char => GSM7_CHARS.has(char) || GSM7_EXTENDED.has(char))
+      .join('')
+      .replace(/ {2,}/g, ' ')
+      .trim()
+  );
 }
 
 export interface ProximitySmsInput {

@@ -22,22 +22,19 @@ export interface SyncableNotificationPreferences {
 }
 
 /**
- * `notification_preferences.lead_dogs` is newer than the checked-in generated
- * `Database` types (migration 20260816120000), so the client is narrowed
- * structurally here — the same escape hatch `dogFavoritesSync` uses for
- * `dog_favorites`. One cast, in one place; drop it once types regenerate.
+ * The caller-derived RPC is newer than the checked-in generated `Database`
+ * types, so the client is narrowed structurally in one place. Drop the cast
+ * once types regenerate after the hardening migration is applied.
  */
-interface NotificationPreferencesTable {
-  upsert: (
-    values: Record<string, unknown>,
-    options: { onConflict: string }
-  ) => Promise<{ error: { message: string } | null }>;
+interface NotificationPreferencesRpc {
+  rpc: (
+    functionName: string,
+    args: Record<string, unknown>
+  ) => Promise<{ data: boolean | null; error: { message: string } | null }>;
 }
 
-function notificationPreferencesTable(): NotificationPreferencesTable {
-  return (
-    supabase as unknown as { from: (table: string) => NotificationPreferencesTable }
-  ).from('notification_preferences');
+function notificationPreferencesRpc(): NotificationPreferencesRpc {
+  return supabase as unknown as NotificationPreferencesRpc;
 }
 
 export async function syncNotificationPreferences(
@@ -52,16 +49,15 @@ export async function syncNotificationPreferences(
   const leadDogs = Math.min(5, Math.max(1, Math.round(preferences.leadDogs)));
 
   try {
-    const { error } = await notificationPreferencesTable().upsert(
+    const { data, error } = await notificationPreferencesRpc().rpc(
+      'set_my_notification_preferences',
       {
-        auth_user_id: authUserId,
-        lead_dogs: leadDogs,
-        push_enabled: preferences.pushEnabled,
-      },
-      { onConflict: 'auth_user_id' }
+        p_lead_dogs: leadDogs,
+        p_push_enabled: preferences.pushEnabled,
+      }
     );
-    if (error) {
-      console.warn('notification preference sync failed', error.message);
+    if (error || data !== true) {
+      console.warn('notification preference sync failed', error?.message ?? 'unexpected response');
       return false;
     }
     return true;

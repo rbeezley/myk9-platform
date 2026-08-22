@@ -56,87 +56,146 @@ create policy trial_packet_generation_claims_deny_all
   using (false)
   with check (false);
 
--- Repeatedly through the 21:00-23:59 UTC evening — late afternoon to evening
--- across US time zones, i.e. the night before the trial. The whole window sits
--- inside one UTC day so `current_date + 1` names the same trial date on every
--- run. Repeats are cheap (a completed day is skipped after one indexed read)
--- and they are what makes the lease meaningful: a run that dies mid-render at
--- 21:00 is retried at 21:30 rather than leaving the trial with no paper.
+-- The packet is cut in each trial's OWN evening, not in a fixed UTC window.
 --
--- The chain still has to end somewhere. A crash during the 23:30 run misses
--- that trial's packet, because once the clock passes midnight UTC no run
--- targets this date again — which is precisely what phase 5's print reminder
--- is for, since it keys on paperwork_prints rather than on our own success.
+-- The first draft ran 21:00-23:59 UTC and let the earliest run win, so the
+-- shipped packet was always cut at 21:00 UTC = 16:00 CDT — the AFTERNOON
+-- before, missing exactly the late scratches and movements the evening trigger
+-- exists to capture. That is the same objection this migration uses to reject
+-- an entry-close trigger, so leaving it would have been the argument applied
+-- to everyone but ourselves. `public.trials.timezone` is populated on every
+-- row, so this was a gap by omission rather than for lack of data.
 --
--- Timezone precision is a known, deliberate gap, matching show-eve's: for a
--- show far east of UTC, 21:00 UTC "tomorrow" is already that morning. A packet
--- that lands hours early still does its job; one that lands on the wrong DATE
--- would not, and the single-UTC-day window is what prevents that.
+-- The job wakes twice an hour and does nothing unless some trial is in its own
+-- 18:00-21:59 local window on the eve of its date. Eight attempts per trial,
+-- 30 minutes apart — comfortably above the 10-minute claim lease, so each run
+-- can rescue what its predecessor abandoned. A completed day exits after one
+-- indexed read, so the empty runs cost almost nothing.
+--
+-- The chain still ends: a crash during the last local attempt misses that
+-- trial's packet, which is what phase 5's print reminder is for, since it keys
+-- on paperwork_prints rather than on our own success.
+-- Takes its credentials as ARGUMENTS rather than reading Vault itself, so the
+-- cron command carries the `vault.decrypted_secrets where name = '...'` text
+-- that `list_cron_vault_secret_refs()` greps for. Reading them inside this
+-- body would hide the dependency from `audit_cron_vault_secrets()` — the guard
+-- that exists precisely to catch a cron job whose secret is missing or was
+-- rotated away. The values are computed at call time, so no secret ever
+-- appears in the stored command text.
+create or replace function public.request_trial_packet_generation(
+  p_base_url text,
+  p_secret text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  rec record;
+  local_now timestamp;
+begin
+  -- Fail loudly rather than posting unauthenticated requests all evening.
+  if nullif(p_base_url, '') is null or nullif(p_secret, '') is null then
+    raise exception 'Missing Vault secret: edge_function_base_url or packet_cron_secret';
+  end if;
+
+  -- One request per (show, day), not per trial: a Sunday running three trials
+  -- is ONE packet holding three trial sections. The date bound is +/- 2 days
+  -- so it covers every timezone offset while still using the index.
+  for rec in
+    select distinct
+      t.show_id,
+      t.date,
+      coalesce(nullif(btrim(t.timezone), ''), 'UTC') as tz
+    from public.trials t
+    join public.shows s on s.id = t.show_id
+    where t.date between current_date - 1 and current_date + 2
+      and t.deleted_at is null
+      and s.deleted_at is null
+      and coalesce(t.status, '') <> 'cancelled'
+      -- 'draft' as well as 'cancelled': shows_status_check permits
+      -- ('draft','published','upcoming','in_progress','completed','cancelled'),
+      -- and a DRAFT show is not a real event. Generating for one emails its
+      -- officials a packet for a show that was never published. A denylist
+      -- rather than an allowlist on purpose — a status added later should
+      -- default to getting paper, because a missing packet is caught by the
+      -- print reminder while a wrongly-sent one cannot be unsent.
+      and coalesce(s.status, '') not in ('draft', 'cancelled')
+  loop
+    -- A malformed timezone raises, and one bad row must not kill the run for
+    -- every other show. Falling back to UTC reproduces the old behaviour for
+    -- that row rather than skipping it, because a packet in the wrong hour
+    -- still beats no packet.
+    begin
+      local_now := timezone(rec.tz, now());
+    exception when others then
+      local_now := timezone('UTC', now());
+    end;
+
+    continue when rec.date <> (local_now::date + 1);
+    continue when extract(hour from local_now) not between 18 and 21;
+
+    -- The function authenticates on PACKET_CRON_SECRET and builds its own
+    -- service-role client from its environment, so no key travels here.
+    perform net.http_post(
+      url := p_base_url || '/generate-trial-packet',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || p_secret
+      ),
+      body := jsonb_build_object(
+        'showId', rec.show_id,
+        'trialDate', to_char(rec.date, 'YYYY-MM-DD')
+      ),
+      -- pg_net defaults to 5s, and rendering a three-trial Sunday (~110
+      -- pages) plus upload plus email is comfortably longer. The worker
+      -- abandoning the connection mid-render risks the edge runtime tearing
+      -- down the isolate, leaving a claim held with no packet behind it. This
+      -- does NOT block the cron transaction: pg_net dispatches through a
+      -- background worker.
+      timeout_milliseconds := 120000
+    );
+  end loop;
+end;
+$$;
+
+comment on function public.request_trial_packet_generation(text, text) is
+  'MYK9-228: cron entry point. Asks generate-trial-packet for any trial day whose own evening it currently is.';
+
+-- Reads Vault, so no client role may call it.
+revoke all on function public.request_trial_packet_generation(text, text) from public, anon, authenticated;
+
 select cron.unschedule(jobid) from cron.job where jobname = 'trial-packet-show-eve';
 
-select cron.schedule(
-  'trial-packet-show-eve',
-  '0,30 21,22,23 * * *',
-  $trial_packet_cron$
-  do $packet$
-  declare
-    edge_function_base_url text;
-    packet_secret text;
-    target_date date := current_date + 1;
-    rec record;
-  begin
-    select decrypted_secret into edge_function_base_url
-    from vault.decrypted_secrets where name = 'edge_function_base_url';
-    select decrypted_secret into packet_secret
-    from vault.decrypted_secrets where name = 'packet_cron_secret';
-
-    -- Fail loudly rather than posting unauthenticated requests all evening.
-    if nullif(edge_function_base_url, '') is null
-       or nullif(packet_secret, '') is null then
-      raise exception 'Missing Vault secret: edge_function_base_url or packet_cron_secret';
-    end if;
-
-    -- One request per (show, day), not per trial: a Sunday running three
-    -- trials is ONE packet holding three trial sections.
-    for rec in
-      select distinct t.show_id, t.date
-      from public.trials t
-      join public.shows s on s.id = t.show_id
-      where t.date = target_date
-        and t.deleted_at is null
-        and s.deleted_at is null
-        and coalesce(t.status, '') <> 'cancelled'
-        -- 'draft' as well as 'cancelled': shows_status_check permits
-        -- ('draft','published','upcoming','in_progress','completed','cancelled'),
-        -- and a DRAFT show is not a real event. Generating for one emails its
-        -- officials a packet for a show that was never published. A denylist
-        -- rather than an allowlist on purpose — a status added later should
-        -- default to getting paper, because a missing packet is caught by the
-        -- print reminder while a wrongly-sent one cannot be unsent.
-        and coalesce(s.status, '') not in ('draft', 'cancelled')
-    loop
-      -- The function authenticates on PACKET_CRON_SECRET and builds its own
-      -- service-role client from its environment, so no key travels here.
-      perform net.http_post(
-        url := edge_function_base_url || '/generate-trial-packet',
-        headers := jsonb_build_object(
-          'Content-Type', 'application/json',
-          'Authorization', 'Bearer ' || packet_secret
-        ),
-        body := jsonb_build_object(
-          'showId', rec.show_id,
-          'trialDate', to_char(rec.date, 'YYYY-MM-DD')
-        ),
-        -- pg_net defaults to 5s, and rendering a three-trial Sunday (~110
-        -- pages) plus upload plus email is comfortably longer than that. The
-        -- worker abandoning the connection mid-render risks the edge runtime
-        -- tearing down the isolate part-way through, which would leave a claim
-        -- held with no packet behind it. This does NOT block the cron
-        -- transaction: pg_net dispatches through a background worker.
-        timeout_milliseconds := 120000
+-- Scheduled ONLY once the secret it depends on exists.
+--
+-- `list_cron_vault_secret_refs()` regexes `cron.job.command` for
+-- `vault.decrypted_secrets where name = '...'`, and
+-- `cron-vault-secrets.integration.test.ts` asserts nothing references a
+-- missing secret. Scheduling before `packet_cron_secret` is created would turn
+-- that green contract test red AND leave the job raising into a void twice an
+-- hour. So the vault read stays INLINE in the command — hiding it inside a
+-- function body would evade the very guard that catches this — and the
+-- schedule waits for the secret.
+do $schedule$
+begin
+  if exists (select 1 from vault.decrypted_secrets where name = 'packet_cron_secret') then
+    perform cron.schedule(
+      'trial-packet-show-eve',
+      '10,40 * * * *',
+      $job$
+      select public.request_trial_packet_generation(
+        (select decrypted_secret from vault.decrypted_secrets where name = 'edge_function_base_url'),
+        (select decrypted_secret from vault.decrypted_secrets where name = 'packet_cron_secret')
       );
-    end loop;
-  end
-  $packet$;
-  $trial_packet_cron$
-);
+      $job$
+    );
+  else
+    raise warning '%',
+      'packet_cron_secret is not in Vault, so trial-packet-show-eve was NOT scheduled. '
+      'Create it and the matching PACKET_CRON_SECRET function secret, then re-run the '
+      'cron.schedule call in 20260822120000_trial_packet_cron.sql.';
+  end if;
+end
+$schedule$;

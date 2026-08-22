@@ -16,6 +16,7 @@ import {
 } from './packetGeneration.ts';
 import type { EmergencyPacketInput } from '../_shared/trialPacket/renderer/types.ts';
 import { PACKET_CLAIM_LEASE_MS, shouldReclaimStalePacketClaim } from './packetClaim.ts';
+import { TrialPacketProviderError } from '../_shared/trialPacket/email.ts';
 
 const SHOW_ID = 'a0000000-0000-4000-8000-000000000001';
 const CLUB_ID = 'c0000000-0000-4000-8000-000000000001';
@@ -77,13 +78,20 @@ interface StubOptions {
   uploadError?: unknown;
   /** Claims already in the ledger, as if another run had written them. */
   existingClaims?: Record<string, { claimed_at: string; completed_at: string | null }>;
-  renderThrows?: boolean;
+  /** The `sent` audit insert fails while the email itself succeeds. */
+  auditInsertFails?: boolean;
 }
 
 function makeStub(options: StubOptions = {}) {
-  const { rpcData = packetInput(), rpcError = null, deliveredDates = [], uploadError = null } =
-    options;
+  const {
+    rpcData = packetInput(),
+    rpcError = null,
+    deliveredDates = [],
+    uploadError = null,
+    auditInsertFails = false,
+  } = options;
   const uploads: string[] = [];
+  const removed: string[] = [];
   const inserts: Record<string, unknown>[] = [];
   const claims: Record<string, { claimed_at: string; completed_at: string | null }> = {
     ...(options.existingClaims ?? {}),
@@ -109,6 +117,12 @@ function makeStub(options: StubOptions = {}) {
     query.then = (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
       Promise.resolve(resolveResult(result)).then(resolve, reject);
     query.insert = (row: Record<string, unknown>) => {
+      // The audit row's CHECK constraints (byte_size <= 20MiB, page_count > 0)
+      // can reject AFTER the email is already gone. That is the case that used
+      // to throw and cause duplicate sends.
+      if (auditInsertFails && row.delivery_status === 'sent') {
+        return Promise.resolve({ error: { code: '23514', message: 'byte_size check' } });
+      }
       inserts.push(row);
       return Promise.resolve({ error: null });
     };
@@ -252,8 +266,13 @@ function makeStub(options: StubOptions = {}) {
       from() {
         return {
           upload: (path: string) => {
+            if (uploadError) return Promise.resolve({ error: uploadError });
             uploads.push(path);
-            return Promise.resolve({ error: uploadError });
+            return Promise.resolve({ error: null });
+          },
+          remove: (paths: string[]) => {
+            removed.push(...paths);
+            return Promise.resolve({ error: null });
           },
           list: (_prefix: string, opts: { search: string }) =>
             Promise.resolve({ data: [{ name: opts.search }], error: null }),
@@ -264,7 +283,7 @@ function makeStub(options: StubOptions = {}) {
     },
   } as unknown as Parameters<typeof generateTrialPackets>[0];
 
-  return { supabase, uploads, inserts, claims, claimOps };
+  return { supabase, uploads, removed, inserts, claims, claimOps };
 }
 
 let snapshotCounter = 0;
@@ -416,12 +435,30 @@ describe('generateTrialPackets', () => {
     ).rejects.toBeInstanceOf(HttpError);
   });
 
-  it('does not deliver a packet it could not store', async () => {
+  it('does not deliver a packet it could not store, and keeps going', async () => {
     const { supabase, inserts } = makeStub({ uploadError: new Error('bucket full') });
-    await expect(
-      generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps())
-    ).rejects.toBeInstanceOf(HttpError);
+
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
     expect(inserts).toEqual([]);
+    // Both days failed, and BOTH are reported. Throwing on the first lost
+    // every later day of a whole-show request and returned a 500 that said
+    // nothing about which days had succeeded.
+    expect(summary.failed.map(f => f.trialDate)).toEqual(['2026-09-19', '2026-09-20']);
+    expect(summary.generated).toEqual([]);
+  });
+
+  it('accepts the ids this project actually issues', async () => {
+    // seed-demo.sql mints `dededede-…`, whose RFC-4122 version and variant
+    // nibbles are 0. The old validator rejected it, so the cron could not have
+    // produced a packet for the only show on staging — and answered 400 into a
+    // fire-and-forget pg_net call, where nobody would ever have seen it.
+    expect(
+      validateGenerateRequest({ showId: 'dededede-0000-0000-0000-000000000010' }).showId
+    ).toBe('dededede-0000-0000-0000-000000000010');
+    expect(() => validateGenerateRequest({ showId: 'dededede-0000-0000-0000-00000000001' })).toThrow(
+      HttpError
+    );
   });
 });
 
@@ -493,14 +530,51 @@ describe('the trial-day claim (MYK9-228 phase 4)', () => {
   it('releases the claim when generation fails, so the next run retries', async () => {
     // Holding it would let one bad render suppress the day for a whole lease,
     // and a claim abandoned past the last run of the evening means no paper.
-    const { supabase, claims, claimOps } = makeStub({ uploadError: new Error('bucket full') });
+    const { supabase, claims, claimOps, removed } = makeStub({
+      uploadError: new Error('bucket full'),
+    });
 
-    await expect(
-      generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps())
-    ).rejects.toBeInstanceOf(HttpError);
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
 
+    expect(summary.failed).toHaveLength(2);
     expect(claimOps).toContain(`release:${SAT}`);
     expect(claims[SAT]).toBeUndefined();
+    // Nothing was uploaded, so nothing to clean up.
+    expect(removed).toEqual([]);
+  });
+
+  it('completes the claim when the email went out but the audit row did not', async () => {
+    // The killer case. Delivery used to THROW here, the claim was released,
+    // and the next run found no claim AND no `sent` snapshot — because the
+    // statement that writes that snapshot is exactly the one that failed. Six
+    // identical emails a night, deterministic for any packet over 20MiB.
+    const { supabase, claims, claimOps } = makeStub({ auditInsertFails: true });
+
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    expect(summary.generated.map(p => p.trialDate)).toEqual([SAT, SUN]);
+    expect(summary.failed).toEqual([]);
+    expect(claimOps).not.toContain(`release:${SAT}`);
+    expect(claims[SAT]?.completed_at).toBe('2026-09-18T02:00:00.000Z');
+    // Surfaced rather than swallowed.
+    expect(summary.unrecordedCompletions).toBe(2);
+  });
+
+  it('deletes the object it uploaded when delivery then fails', async () => {
+    // Nothing ever deletes from the trial-packets bucket, so six failed
+    // evening runs would leave six orphan PDFs per show-day.
+    const sendEmail = vi.fn().mockRejectedValue(new TrialPacketProviderError(500));
+    const { supabase, removed } = makeStub();
+
+    const summary = await generateTrialPackets(
+      supabase,
+      { showId: SHOW_ID },
+      makeDeps({ sendEmail })
+    );
+
+    expect(summary.failed).toHaveLength(2);
+    expect(removed).toHaveLength(2);
+    expect(removed[0]).toMatch(/^a0000000-0000-4000-8000-000000000001\/snapshot-1\.pdf$/);
   });
 
   it('completes the claim without re-sending when a manual packet already covers the day', async () => {

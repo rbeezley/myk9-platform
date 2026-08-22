@@ -4,27 +4,34 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * MYK9-228 phase 4 — the cron that makes the packet exist without anyone
- * remembering. These pin the properties that cannot be observed from the
- * application: the claim ledger's shape and ACL, and the scheduling window.
+ * remembering.
+ *
+ * These are source assertions, which per this repo's own LESSON can only prove
+ * someone typed a thing. They are kept narrow to the properties that have no
+ * other home: the claim ledger's ACL, and the scheduling contract. The
+ * behaviour they guard — claim, lease, take-over, release — is covered
+ * behaviourally and mutation-checked in
+ * `supabase/functions/generate-trial-packet/packetGeneration.test.ts`.
  */
 const sql = readFileSync(
   resolve(__dirname, '../../../../../supabase/migrations/20260822120000_trial_packet_cron.sql'),
   'utf8'
 );
 
+/** Statements only — table names appear in prose that explains the design. */
+const statements = sql
+  .split('\n')
+  .filter(line => !line.trimStart().startsWith('--'))
+  .join('\n');
+
 describe('trial packet claim ledger', () => {
   it('keys the claim on the packet unit — one show, one trial day', () => {
     expect(sql).toMatch(
       /constraint trial_packet_generation_claims_unique_day unique \(show_id, trial_date\)/
     );
-    // The unique constraint IS the concurrency control: without it two
-    // overlapping cron runs both render and the secretary gets two emails.
-    expect(sql).toMatch(/create table if not exists public\.trial_packet_generation_claims/);
   });
 
   it('distinguishes a finished run from an abandoned claim', () => {
-    // A claim alone proves only that a run started. Reading the unique
-    // conflict as "already done" would leave a dead run's trial with no paper.
     expect(sql).toMatch(/completed_at timestamptz/);
     expect(sql).not.toMatch(/completed_at timestamptz not null/);
   });
@@ -37,76 +44,96 @@ describe('trial packet claim ledger', () => {
     expect(sql).toMatch(
       /grant select, insert, update, delete on public\.trial_packet_generation_claims to service_role/
     );
-    expect(sql).toMatch(/alter table public\.trial_packet_generation_claims enable row level security/);
-    // FORCE so the migrations-only rebuild owner is subject to the policy too.
     expect(sql).toMatch(/alter table public\.trial_packet_generation_claims force row level security/);
     expect(sql).toMatch(/create policy trial_packet_generation_claims_deny_all/);
-    expect(sql).toMatch(/using \(false\)/);
   });
 });
 
 describe('trial packet cron', () => {
-  it('replaces any previous schedule instead of stacking a second one', () => {
-    const unschedule = sql.indexOf("cron.unschedule(jobid) from cron.job where jobname = 'trial-packet-show-eve'");
-    const schedule = sql.indexOf("cron.schedule(\n  'trial-packet-show-eve'");
-    expect(unschedule).toBeGreaterThan(-1);
-    expect(schedule).toBeGreaterThan(unschedule);
+  it('cuts the packet in each trial own evening, not in a fixed UTC hour', () => {
+    // The first draft ran 21:00-23:59 UTC and let the earliest run win, so the
+    // shipped packet was cut at 16:00 CDT — the AFTERNOON before, missing the
+    // late scratches the evening trigger exists to capture. That is the same
+    // objection this migration uses against an entry-close trigger.
+    expect(statements).toMatch(/local_now := timezone\(rec\.tz, now\(\)\)/);
+    expect(statements).toMatch(/continue when rec\.date <> \(local_now::date \+ 1\)/);
+    expect(statements).toMatch(/extract\(hour from local_now\) not between 18 and 21/);
+    expect(statements).toMatch(/'10,40 \* \* \* \*'/);
+    // The old fixed-UTC target is gone, not merely supplemented.
+    expect(statements).not.toMatch(/current_date \+ 1\b(?![^\n]*between)/);
   });
 
-  it('runs entirely inside one UTC day so the target date cannot shift mid-window', () => {
-    // The job resolves `current_date + 1`. A window spanning midnight UTC
-    // would target two different dates in one evening — generating tomorrow's
-    // packet twice under two different keys.
-    const schedule = sql.match(/'0,30 21,22,23 \* \* \*'/);
-    expect(schedule).not.toBeNull();
-    expect(sql).toMatch(/target_date date := current_date \+ 1/);
+  it('survives one row with an unusable timezone', () => {
+    // `timezone(bad, now())` raises. Without the handler a single malformed
+    // row kills the run for every other show that evening.
+    expect(statements).toMatch(/exception when others then/);
+    expect(statements).toMatch(/local_now := timezone\('UTC', now\(\)\)/);
+    expect(statements).toMatch(/coalesce\(nullif\(btrim\(t\.timezone\), ''\), 'UTC'\)/);
   });
 
   it('asks for one packet per show-day, not per trial', () => {
-    // A Sunday running three trials is ONE packet holding three trial
-    // sections — `select distinct` on (show_id, date) is what enforces it.
-    expect(sql).toMatch(/select distinct t\.show_id, t\.date/);
-    expect(sql).toMatch(/'showId', rec\.show_id/);
-    expect(sql).toMatch(/'trialDate', to_char\(rec\.date, 'YYYY-MM-DD'\)/);
+    expect(statements).toMatch(/select distinct\s*\n\s*t\.show_id,/);
+    expect(statements).toMatch(/'showId', rec\.show_id/);
+    expect(statements).toMatch(/'trialDate', to_char\(rec\.date, 'YYYY-MM-DD'\)/);
   });
 
-  it('does not generate paperwork for a deleted or cancelled trial', () => {
-    expect(sql).toMatch(/t\.deleted_at is null/);
-    expect(sql).toMatch(/s\.deleted_at is null/);
-    expect(sql).toMatch(/coalesce\(t\.status, ''\) <> 'cancelled'/);
+  it('does not generate paperwork for a deleted, cancelled, or draft show', () => {
+    expect(statements).toMatch(/t\.deleted_at is null/);
+    expect(statements).toMatch(/s\.deleted_at is null/);
+    expect(statements).toMatch(/coalesce\(t\.status, ''\) <> 'cancelled'/);
+    // A draft show is not a real event, and a packet emailed for one cannot
+    // be unsent.
+    expect(statements).toMatch(/coalesce\(s\.status, ''\) not in \('draft', 'cancelled'\)/);
   });
 
-  it('does not email officials about a show that was never published', () => {
-    // shows_status_check permits 'draft'. A draft show is not a real event,
-    // and a packet emailed for one cannot be unsent.
-    expect(sql).toMatch(/coalesce\(s\.status, ''\) not in \('draft', 'cancelled'\)/);
+  it('keeps the Vault dependency visible to audit_cron_vault_secrets', () => {
+    // `list_cron_vault_secret_refs()` greps `cron.job.command` for exactly
+    // this text. Reading the secret inside the function body instead would
+    // hide the dependency from the guard built to catch a missing or rotated
+    // secret — so the function takes them as ARGUMENTS.
+    expect(statements).toMatch(
+      /select decrypted_secret from vault\.decrypted_secrets where name = 'packet_cron_secret'/
+    );
+    expect(statements).toMatch(/request_trial_packet_generation\(\s*\n\s*\(select decrypted_secret/);
+    expect(statements).toMatch(/p_base_url text,\s*\n\s*p_secret text/);
+    // No secret value is ever inlined into the stored command.
+    expect(statements).not.toMatch(/service_role_key|SUPABASE_SERVICE_ROLE_KEY/);
   });
 
-  it('gives the render longer than the pg_net five-second default', () => {
-    // A three-trial Sunday is ~110 pages plus upload plus email. If the worker
-    // abandons the connection mid-render the edge runtime may tear down the
-    // isolate, leaving a claim held with no packet behind it — recoverable
-    // only after the lease, and not at all past the last run of the evening.
-    expect(sql).toMatch(/timeout_milliseconds := 120000/);
+  it('does not schedule before the secret it needs exists', () => {
+    // Scheduling first would turn `cron-vault-secrets.integration.test.ts`
+    // red — it asserts no cron job references a missing secret — and leave
+    // the job raising into a void twice an hour.
+    expect(statements).toMatch(
+      /if exists \(select 1 from vault\.decrypted_secrets where name = 'packet_cron_secret'\)/
+    );
+    expect(statements).toMatch(/raise warning/);
+    const guard = statements.indexOf("if exists (select 1 from vault.decrypted_secrets");
+    const schedule = statements.indexOf('cron.schedule(');
+    expect(guard).toBeGreaterThan(-1);
+    expect(schedule).toBeGreaterThan(guard);
   });
 
-  it('fails loudly rather than posting unauthenticated requests all evening', () => {
-    // A missing Vault secret would otherwise send `Bearer ` six times a night
-    // to a function that answers 401, with nothing anywhere saying why.
-    expect(sql).toMatch(/raise exception 'Missing Vault secret/);
-    expect(sql).toMatch(/name = 'packet_cron_secret'/);
-    // The secret travels in the header; no service-role key is ever inlined.
-    expect(sql).toMatch(/'Authorization', 'Bearer ' \|\| packet_secret/);
-    expect(sql).not.toMatch(/service_role_key|SUPABASE_SERVICE_ROLE_KEY/);
+  it('fails loudly rather than posting unauthenticated requests', () => {
+    expect(statements).toMatch(/raise exception 'Missing Vault secret/);
   });
 
   it('schedules the evening trigger only', () => {
     // Deliberate: the issue's design section names entry close too, but its
-    // acceptance criterion forbids a second packet for the same trial day, and
-    // an entry-close packet would make the evening run a no-op — shipping the
-    // OLDER paper to the trial box.
-    const jobs = sql.match(/cron\.schedule\(/g) ?? [];
-    expect(jobs).toHaveLength(1);
-    expect(sql).not.toMatch(/entry_close_date/);
+    // acceptance criterion forbids a second packet for the same trial day.
+    expect((statements.match(/cron\.schedule\(/g) ?? [])).toHaveLength(1);
+    expect(statements).not.toMatch(/entry_close_date/);
+  });
+
+  it('does not let a client role call the definer that posts with a secret', () => {
+    expect(statements).toMatch(/security definer/);
+    expect(statements).toMatch(/set search_path = ''/);
+    expect(statements).toMatch(
+      /revoke all on function public\.request_trial_packet_generation\(text, text\) from public, anon, authenticated/
+    );
+  });
+
+  it('gives the render longer than the pg_net five-second default', () => {
+    expect(statements).toMatch(/timeout_milliseconds := 120000/);
   });
 });

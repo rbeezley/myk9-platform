@@ -34,7 +34,22 @@ const OPERATIONAL_ROLES = new Set(['secretary', 'trial_secretary', 'club_admin']
 const MIN_LINK_SECONDS = 7 * 24 * 60 * 60;
 const MAX_LINK_SECONDS = 60 * 24 * 60 * 60;
 const POST_SHOW_LINK_DAYS = 30;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/**
+ * Shape only — deliberately NOT the RFC-4122 version/variant nibbles.
+ *
+ * The stricter form (`[1-5]` version, `[89ab]` variant) rejected every id this
+ * project actually issues: `seed-demo.sql` mints `dededede-…` and `dec1a55e-…`,
+ * so the one show on staging is `dededede-0000-0000-0000-000000000010` — version
+ * nibble 0, variant 0. That made `deliver-trial-packet` answer 400 for the only
+ * show anyone could test with, which is why `trial_packet_snapshots` has never
+ * held a row. Postgres accepts any hex-shaped uuid; validating harder than the
+ * column does buys nothing and cost the feature its entire test surface.
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuidShaped(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
 
 export function payloadContainsRecipientFields(body: unknown): boolean {
   if (!body || typeof body !== 'object') return false;

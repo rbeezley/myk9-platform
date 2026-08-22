@@ -140,23 +140,48 @@ dead run's claim and release-on-failure, all mutation-checked: removing the
 lease check, the release, or the completion each turns tests red. 9 contract
 tests over the migration.
 
-Two things my own review caught that no test would have, since Codex was
-unavailable (usage limit) when this was written:
+### What adversarial review found (Codex was at its usage limit)
 
-- `shows_status_check` permits **`draft`**, and the first filter only excluded
-  `cancelled` — so a draft show with a trial tomorrow would have emailed its
-  officials a packet for an event that was never published. Denylist, not
-  allowlist, deliberately: a status added later should default to getting
-  paper, because a missing packet is caught by the print reminder while a
-  wrongly-sent one cannot be unsent.
-- `net.http_post` defaults to a **5-second** timeout. A three-trial Sunday is
-  ~110 pages plus upload plus email. The worker abandoning the connection
-  mid-render risks the edge runtime tearing down the isolate, leaving a claim
-  held with no packet behind it — recoverable only after the lease, and not at
-  all past the last run of the evening. Now 120s, which does not block the cron
-  transaction because pg_net dispatches through a background worker.
+Two subagent reviewers went at both PRs. Neither PR survived intact, and one
+finding was load-bearing enough that it would have made the deploy pointless.
 
-**Still open:** deploy, plus the Vault secret `packet_cron_secret` and the
+- **`UUID_PATTERN` rejected every id this project issues.** It required the
+  RFC-4122 version `[1-5]` and variant `[89ab]` nibbles; `seed-demo.sql` mints
+  `dededede-…`, so the one show on staging has version 0 and variant 0. The
+  cron would have answered 400 into a fire-and-forget `net.http_post`, cron
+  would have reported success, and nothing would ever have been generated.
+  Chasing it found the same pattern in the **storage upload RLS policy** from
+  `20260820220000`, which is why `trial_packet_snapshots` has never held a row:
+  the manual "Prepare and email packet" button has never worked on seeded data
+  either. Fixed in all three places.
+- **A failure AFTER the email was sent released the claim.**
+  `deliverStoredPacket` mailed, then inserted the audit row, and threw if that
+  insert failed — so the caller released its claim, and the next run found no
+  claim and no `sent` snapshot, because the statement that writes that snapshot
+  is exactly the one that failed. Up to six identical emails a night,
+  deterministic for any packet over the 20MiB `byte_size` CHECK. Delivery no
+  longer throws post-send; it reports `recorded: false`, and oversized packets
+  are refused *before* sending.
+- **The earliest run always won**, so with a fixed 21:00–23:59 UTC window the
+  packet was cut at 16:00 CDT — the afternoon before, missing the late
+  scratches the evening trigger exists to capture. That is the same objection
+  this plan uses against an entry-close trigger, and `trials.timezone` is
+  populated on every row, so it was a gap by omission. The job now wakes twice
+  an hour and fires only in each trial's own 18:00–21:59 local window.
+- **Scheduling before the secret exists breaks a green contract test.**
+  `list_cron_vault_secret_refs()` greps `cron.job.command` for
+  `vault.decrypted_secrets where name = '...'`, and an integration test asserts
+  nothing references a missing one. Worth recording *why* the two migrations
+  disagreed: phase 4 read Vault inline and was correctly caught, while phase 5
+  read it inside a function body and was **invisible to the guard**. The tidier
+  shape was the one evading the safety net. Both now pass credentials as
+  arguments so the reference stays visible, and neither schedules until the
+  secret is there.
+- Also fixed: a TOCTOU window where the manual button could double-send during
+  a render, one failed day aborting every later day of a whole-show request,
+  and orphan PDFs left in a bucket nothing deletes from.
+
+**Still open:** deploy, plus the Vault secret**Still open:** deploy, plus the Vault secret `packet_cron_secret` and the
 matching `PACKET_CRON_SECRET` function secret. Until both exist the function
 answers 503 and the cron raises rather than posting unauthenticated requests.
 

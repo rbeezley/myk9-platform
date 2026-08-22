@@ -1,7 +1,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { HttpError } from '../_shared/http/responses.ts';
-import { isValidTrialDate } from '../_shared/trialPacket/delivery.ts';
+import { isUuidShaped, isValidTrialDate } from '../_shared/trialPacket/delivery.ts';
 import {
   deliverStoredPacket,
   loadPacketShow,
@@ -44,6 +44,11 @@ export interface GeneratedPacket {
   recipientCount: number;
 }
 
+export interface FailedPacket {
+  trialDate: string;
+  message: string;
+}
+
 export interface SkippedPacket {
   trialDate: string;
   /**
@@ -59,6 +64,8 @@ export interface GeneratePacketSummary {
   generatedAt: string;
   generated: GeneratedPacket[];
   skipped: SkippedPacket[];
+  /** Days whose generation threw. Recorded so a partial run is legible. */
+  failed: FailedPacket[];
   /**
    * Packets that were delivered but whose claim could not be stamped complete.
    * Self-healing — the sent-snapshot check catches the day on a later run —
@@ -73,11 +80,9 @@ export interface PacketGenerationDeps extends DeliverStoredPacketDeps {
   digest?: (bytes: Uint8Array) => Promise<string>;
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export function validateGenerateRequest(body: unknown): GeneratePacketRequest {
   const candidate = (body ?? {}) as Partial<GeneratePacketRequest>;
-  if (typeof candidate.showId !== 'string' || !UUID_PATTERN.test(candidate.showId)) {
+  if (typeof candidate.showId !== 'string' || !isUuidShaped(candidate.showId)) {
     throw new HttpError(400, 'A valid showId is required.');
   }
   // Shared with the manual path so both reject the same set. A shape-only
@@ -153,6 +158,7 @@ export async function generateTrialPackets(
     generatedAt,
     generated: [],
     skipped: [],
+    failed: [],
     unrecordedCompletions: 0,
   };
 
@@ -261,6 +267,7 @@ export async function generateTrialPackets(
     let result: PacketDeliveryResult;
     let snapshotId: string;
     let byteSize: number;
+    let uploadedPath: string | null = null;
     try {
       const bytes = deps.renderPdf(model);
       snapshotId = newSnapshotId();
@@ -274,6 +281,7 @@ export async function generateTrialPackets(
         upsert: false,
       });
       if (uploadError) throw new HttpError(500, 'Failed to store the generated packet.');
+      uploadedPath = storagePath;
 
       result = await deliverStoredPacket(
         supabase,
@@ -297,13 +305,31 @@ export async function generateTrialPackets(
       // expires, and a claim left behind after the window closes means no
       // paper at all. Conditional on still holding THIS claim: if the run
       // outlived its lease and another took over, that run owns the outcome.
+      //
+      // Safe to release ONLY because delivery no longer throws after a
+      // successful send — `deliverStoredPacket` reports that as
+      // `recorded: false`. If it ever throws post-send again, this line turns
+      // into a duplicate-email generator.
       await supabase
         .from(CLAIMS)
         .delete()
         .match(claimKey)
         .eq('claimed_at', claimToken)
         .is('completed_at', null);
-      throw error;
+      // Drop the object this attempt uploaded. Nothing else deletes from the
+      // bucket, so six failed evening runs would leave six orphan PDFs.
+      if (uploadedPath) {
+        await supabase.storage.from(BUCKET).remove([uploadedPath]);
+      }
+      // One bad day must not cost the rest of a whole-show request. The cron
+      // sends one day per call, but the manual all-days path would otherwise
+      // lose every later day to a single failed render — and return a 500 that
+      // says nothing about which days did succeed.
+      summary.failed.push({
+        trialDate: day.trialDate,
+        message: error instanceof Error ? error.message : 'Unknown failure',
+      });
+      continue;
     }
 
     // Only now is the day genuinely done. `deliverStoredPacket` throws on a
@@ -318,6 +344,8 @@ export async function generateTrialPackets(
     // a missed completion is one duplicate on a later run — which the sent
     // snapshot check above then catches anyway.
     if (completeError) summary.unrecordedCompletions += 1;
+    // The email went out even if its audit row did not. Counted, never retried.
+    if (!result.recorded) summary.unrecordedCompletions += 1;
 
     summary.generated.push({
       trialDate: day.trialDate,

@@ -111,14 +111,50 @@ workers cannot double-send. Idempotency key is (show, trial date).
 assert a failed generation surfaces in `delivery_status` / `error_message`
 rather than failing silently.
 
-## Phase 5 — the reminder means "print it"
+## Phase 5 — the reminder means "print it" ✅ (pending deploy)
 
-Automation can generate and email; it cannot put paper in a box. The reminder
-stops asking for a packet and starts asking for a print, firing only when
+Email to the show officials, evening before and morning of, firing only while
 `paperwork_prints` holds no confirmation covering that trial day.
 
-**Testing:** fires with no confirmation, stops once one exists, and does not
-fire for a day with no trials.
+**5a — the day had to become addressable first.** Building the reminder
+surfaced that its exit condition was not answerable, and that the same gap was
+already mislabelling the UI. The packet is one artifact per trial DAY, but
+`ReportScope` has no 'day' kind and cannot get one (a day may hold three
+trials; a trial scope carries one id), so every confirmation writes
+`scope_kind='show'` with a null `trial_id`. Two consequences:
+
+- `scopeCovers` made Saturday's confirmation a candidate for Sunday's
+  descriptor. Keyed by snapshot id the fingerprints differed, so Sunday read
+  **stale** — "you printed an older version" — when nobody had printed Sunday
+  at all. That is the difference between *reprint* and *print*, shown to
+  someone deciding whether to walk to the printer.
+- A snapshot UUID is unjoinable from SQL, so no server-side reminder could ask
+  the question.
+
+Fixed by making the day first-class: subject key `packet-day:<date>`, and
+`coverage.trialDate` participating in candidate selection. `snapshotId` stays in
+the facts, so regenerating the SAME day still reads stale — the distinction the
+old key was conflating. Narrow: only descriptors declaring a `trialDate` are
+affected, and every other report keeps its behaviour.
+
+**5b — the reminder.** Email rather than push: it reuses the recipient
+resolution phase 3 extracted, reaching the same officials who got the packet,
+and the database holds exactly **one** push subscription, so push would reach
+nobody. Two slots at 01:00 and 12:00 UTC, both targeting `current_date`, kept
+as separate rows so a sent evening reminder cannot suppress the morning one —
+which is the last moment paper can reach the box. A failed send releases the
+claim rather than burning the slot.
+
+It stays quiet when there is no packet. A reminder to print something that does
+not exist is noise, and noise is how a channel stops being read; a generation
+failure is a different problem with its own visibility.
+
+**Testing.** 12 pure tests over the decision and the wording, 8 over the run
+(both mutation-checked — removing the packet check, the printed check, the
+claim, or the release each turns tests red), 9 over the migration, and 5 over
+the cross-day confirmation behaviour in `paperworkPrintState`.
+
+**Still open:** deploy, and the shared `packet_cron_secret`.
 
 ## The trap this plan exists to avoid
 

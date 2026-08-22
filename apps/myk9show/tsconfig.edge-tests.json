@@ -40,6 +40,7 @@
     "../../supabase/functions/deliver-trial-packet/*.test.ts",
     "../../supabase/functions/_shared/trialPacket/*.test.ts",
     "../../supabase/functions/generate-trial-packet/*.test.ts",
+    "../../supabase/functions/remind-print-trial-packet/*.test.ts",
     "../../supabase/functions/send-auth-email/delivery.test.ts",
     "../../supabase/functions/resend-webhook/handler.test.ts",
     "../../supabase/functions/send-confirmation-email/*.test.ts",

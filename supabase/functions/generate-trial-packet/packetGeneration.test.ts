@@ -1,3 +1,11 @@
+// @vitest-environment node
+//
+// These cover code that runs under Deno, never in a browser. The suite's
+// global jsdom environment is not just unnecessary here, it is ACTIVELY
+// MISLEADING: jsdom swaps in its own `ArrayBuffer`, so a buffer built in test
+// code is a different realm's object from the one `crypto.subtle` accepts, and
+// `digest` rejects it with "2nd argument is not instance of ArrayBuffer" — on
+// CI's Node and not on every developer's.
 import { describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../_shared/http/responses.ts';
 import {

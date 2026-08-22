@@ -83,9 +83,15 @@ export function validateGenerateRequest(body: unknown): GeneratePacketRequest {
 }
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const buffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(buffer).set(bytes);
-  const digest = await crypto.subtle.digest('SHA-256', buffer);
+  // Pass the view itself. Copying into a fresh ArrayBuffer first looks safer
+  // and is not: WebCrypto accepts any BufferSource and respects the view's
+  // offset and length, while the copy is one more object that has to belong to
+  // the same realm as `crypto` — which under jsdom it does not always.
+  // The assertion is for TypeScript, not the runtime. Deno's lib types
+  // `Uint8Array` as `Uint8Array<ArrayBufferLike>`, which admits a
+  // SharedArrayBuffer backing that `BufferSource` excludes — a distinction
+  // that cannot arise here, since the bytes come from the PDF renderer.
+  const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 

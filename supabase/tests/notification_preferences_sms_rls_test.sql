@@ -94,7 +94,7 @@ $$;
 
 do $$
 begin
-  if not public.set_my_notification_preferences(false, 4, false, false) then
+  if not public.set_my_notification_preferences(false, 4::smallint, false, false) then
     raise exception 'FAIL legitimate preference RPC returned false';
   end if;
   if exists (

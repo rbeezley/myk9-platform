@@ -17,10 +17,10 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import * as Sentry from 'npm:@sentry/deno@10.62.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
-  DAILY_HEALTH_MONITOR_SLUG,
   runWithBestEffortCronCheckIn,
   type CronCheckInClient,
 } from '../_shared/sentryCronCheckIn.ts';
+import { resolveHealthCheckRun } from '../_shared/healthCheckRun.ts';
 import {
   buildSnapshot,
   buildProbeFailureSnapshot,
@@ -212,10 +212,11 @@ Deno.serve(async req => {
   }
 
   try {
-    const mode: HealthCheckRunMode =
-      req.headers.get('x-health-check-mode') === 'continuous' ? 'continuous' : 'full';
-    const runToken = req.headers.get('x-health-run-token');
-    return await runWithBestEffortCronCheckIn(sentryCronClient, DAILY_HEALTH_MONITOR_SLUG, () =>
+    // Which monitor this run reports to is resolved, not branched on — see
+    // resolveHealthCheckRun. Continuous runs keep their own monitor so a total
+    // continuous outage still pages within minutes.
+    const { mode, runToken, monitorSlug } = resolveHealthCheckRun(req.headers);
+    return await runWithBestEffortCronCheckIn(sentryCronClient, monitorSlug, () =>
       runHealthSnapshot(mode, runToken)
     );
   } catch (err) {

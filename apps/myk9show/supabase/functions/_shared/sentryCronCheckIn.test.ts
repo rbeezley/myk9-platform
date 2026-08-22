@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  DAILY_HEALTH_MONITOR_SLUG,
   runWithBestEffortCronCheckIn,
   type CronCheckIn,
   type CronCheckInClient,
 } from './sentryCronCheckIn';
+
+const MONITOR_SLUG = 'test-monitor';
 
 function createClient(overrides: Partial<CronCheckInClient> = {}) {
   const checkIns: CronCheckIn[] = [];
@@ -39,7 +40,7 @@ describe('runWithBestEffortCronCheckIn', () => {
 
     const result = await runWithBestEffortCronCheckIn(
       client,
-      DAILY_HEALTH_MONITOR_SLUG,
+      MONITOR_SLUG,
       async () => {
         events.push('snapshot-inserted');
         return 'persisted';
@@ -50,10 +51,10 @@ describe('runWithBestEffortCronCheckIn', () => {
     expect(result).toBe('persisted');
     expect(events).toEqual(['in_progress', 'snapshot-inserted', 'ok', 'flush:2000']);
     expect(checkIns).toEqual([
-      { monitorSlug: DAILY_HEALTH_MONITOR_SLUG, status: 'in_progress' },
+      { monitorSlug: MONITOR_SLUG, status: 'in_progress' },
       {
         checkInId: 'check-in-123',
-        monitorSlug: DAILY_HEALTH_MONITOR_SLUG,
+        monitorSlug: MONITOR_SLUG,
         status: 'ok',
         duration: 1.5,
       },
@@ -66,7 +67,7 @@ describe('runWithBestEffortCronCheckIn', () => {
     const { client, checkIns, flush } = createClient();
 
     await expect(
-      runWithBestEffortCronCheckIn(client, DAILY_HEALTH_MONITOR_SLUG, async () => {
+      runWithBestEffortCronCheckIn(client, MONITOR_SLUG, async () => {
         throw snapshotError;
       })
     ).rejects.toBe(snapshotError);
@@ -86,7 +87,7 @@ describe('runWithBestEffortCronCheckIn', () => {
     });
 
     await expect(
-      runWithBestEffortCronCheckIn(client, DAILY_HEALTH_MONITOR_SLUG, persistSnapshot, { logger })
+      runWithBestEffortCronCheckIn(client, MONITOR_SLUG, persistSnapshot, { logger })
     ).resolves.toBe('persisted');
 
     expect(persistSnapshot).toHaveBeenCalledOnce();
@@ -111,7 +112,7 @@ describe('runWithBestEffortCronCheckIn', () => {
     };
 
     await expect(
-      runWithBestEffortCronCheckIn(client, DAILY_HEALTH_MONITOR_SLUG, async () => 'persisted', {
+      runWithBestEffortCronCheckIn(client, MONITOR_SLUG, async () => 'persisted', {
         logger,
       })
     ).resolves.toBe('persisted');
@@ -131,7 +132,7 @@ describe('runWithBestEffortCronCheckIn', () => {
     const { client } = createClient({ flush: flushImpl });
 
     await expect(
-      runWithBestEffortCronCheckIn(client, DAILY_HEALTH_MONITOR_SLUG, async () => 'persisted', {
+      runWithBestEffortCronCheckIn(client, MONITOR_SLUG, async () => 'persisted', {
         logger,
       })
     ).resolves.toBe('persisted');
@@ -143,7 +144,7 @@ describe('runWithBestEffortCronCheckIn', () => {
     const persistSnapshot = vi.fn(async () => 'persisted');
 
     await expect(
-      runWithBestEffortCronCheckIn(null, DAILY_HEALTH_MONITOR_SLUG, persistSnapshot)
+      runWithBestEffortCronCheckIn(null, MONITOR_SLUG, persistSnapshot)
     ).resolves.toBe('persisted');
     expect(persistSnapshot).toHaveBeenCalledOnce();
   });

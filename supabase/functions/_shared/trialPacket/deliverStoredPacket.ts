@@ -26,6 +26,8 @@ import { sendTrialPacketEmail, TrialPacketProviderError } from './email.ts';
  */
 
 const BUCKET = 'trial-packets';
+/** Mirrors `trial_packet_snapshots_byte_size_check`. */
+const MAX_PACKET_BYTES = 20 * 1024 * 1024;
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 export const PACKET_ROLE_SELECT =
   'user_id, auth_user_id, club_id, show_id, is_active, expires_at, roles!inner(name), people:people!user_id(email)';
@@ -68,6 +70,25 @@ export interface PacketDeliveryResult {
   recipientCount: number;
   linkExpiresAt: string;
   pageCount: number;
+  /**
+   * True when this call sent nothing because the day was already delivered.
+   *
+   * The caller has usually just uploaded a PDF by this point, and that object
+   * is now referenced by no snapshot row — so it has to know to clean up and
+   * record the day as SKIPPED rather than generated.
+   */
+  alreadyDelivered: boolean;
+  /**
+   * False when the mail went out but the audit row did not land.
+   *
+   * This used to THROW, and that was the worst possible answer: the email is
+   * already in the officials' inboxes, so reporting failure made the caller
+   * release its claim and send again — and again, because the only thing that
+   * writes the `sent` snapshot the retry checks for is the statement that just
+   * failed. Up to six identical emails a night. A delivered email is a fact
+   * the caller has to be told about even when we could not write it down.
+   */
+  recorded: boolean;
 }
 
 export interface DeliverStoredPacketDeps {
@@ -185,6 +206,14 @@ export async function deliverStoredPacket(
   const now = deps.now ?? (() => new Date());
   const sendEmail = deps.sendEmail ?? sendTrialPacketEmail;
 
+  // Refuse BEFORE sending anything. The audit row's CHECK caps byte_size at
+  // 20MiB, so an oversized packet used to mail fine and then fail its insert
+  // every single time — and the caller read that as "not delivered" and tried
+  // again on the next run. Six emails a night, deterministically.
+  if (packet.byteSize > MAX_PACKET_BYTES) {
+    throw new HttpError(413, 'The generated packet is too large to record or deliver.');
+  }
+
   const recipients = await resolveRecipients(
     supabase,
     show,
@@ -218,8 +247,12 @@ export async function deliverStoredPacket(
     throw new HttpError(500, 'Failed to create the private packet link.');
   }
 
-  // Send-once: the snapshot is immutable, so a second call is a retry of a
-  // delivery that may already have landed in a secretary's inbox.
+  // Send-once, on TWO keys. The snapshot id catches a retry of this exact
+  // artifact. The (show, day) pair catches the case the snapshot id never
+  // can: the secretary pressed the manual button while this run was rendering,
+  // so their packet has a different snapshot id and is already in the
+  // officials' inboxes. Checked here rather than only at the caller's entry
+  // because render-plus-upload is a minutes-wide window.
   const { data: sentAttempt } = await supabase
     .from('trial_packet_snapshots')
     .select('recipient_count, page_count')
@@ -228,13 +261,36 @@ export async function deliverStoredPacket(
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (sentAttempt) {
+  let priorAttempt = sentAttempt;
+  // AUTOMATED callers only. This guard exists so two cron runs cannot both
+  // mail a day, and applying it to the manual button inverts the feature:
+  // the secretary re-prepares Saturday's packet precisely BECAUSE three dogs
+  // scratched since the 18:00 copy, and this would find that copy, send
+  // nothing, and report "stored and emailed" with the old page count. The
+  // manual button is the documented escape hatch for late changes; a human
+  // pressing it has already decided a second email is warranted.
+  if (!priorAttempt && packet.trialDate && packet.generatedSource === 'automated') {
+    const { data: sameDay } = await supabase
+      .from('trial_packet_snapshots')
+      .select('recipient_count, page_count')
+      .eq('show_id', show.id)
+      .eq('trial_date', packet.trialDate)
+      .eq('delivery_status', 'sent')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    priorAttempt = sameDay;
+  }
+  const sentAttemptResolved = priorAttempt;
+  if (sentAttemptResolved) {
     return {
       snapshotId: packet.snapshotId,
       generatedAt: packet.generatedAt,
-      recipientCount: sentAttempt.recipient_count,
+      recipientCount: sentAttemptResolved.recipient_count,
       linkExpiresAt: expiresAt,
-      pageCount: sentAttempt.page_count,
+      pageCount: sentAttemptResolved.page_count,
+      alreadyDelivered: true,
+      recorded: true,
     };
   }
 
@@ -294,7 +350,11 @@ export async function deliverStoredPacket(
     provider_message_id: providerMessageId,
     delivered_at: now().toISOString(),
   });
-  if (auditError) throw new HttpError(500, 'Email sent, but delivery could not be recorded.');
+  // Deliberately NOT a throw. See `recorded` above: the mail is gone, and
+  // saying otherwise causes duplicates rather than preventing them.
+  if (auditError) {
+    console.error('deliverStoredPacket: email sent but audit insert failed', auditError);
+  }
 
   return {
     snapshotId: packet.snapshotId,
@@ -302,5 +362,7 @@ export async function deliverStoredPacket(
     recipientCount: recipients.length,
     linkExpiresAt: expiresAt,
     pageCount: packet.pageCount,
+    alreadyDelivered: false,
+    recorded: !auditError,
   };
 }

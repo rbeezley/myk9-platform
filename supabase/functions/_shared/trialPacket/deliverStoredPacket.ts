@@ -71,6 +71,14 @@ export interface PacketDeliveryResult {
   linkExpiresAt: string;
   pageCount: number;
   /**
+   * True when this call sent nothing because the day was already delivered.
+   *
+   * The caller has usually just uploaded a PDF by this point, and that object
+   * is now referenced by no snapshot row — so it has to know to clean up and
+   * record the day as SKIPPED rather than generated.
+   */
+  alreadyDelivered: boolean;
+  /**
    * False when the mail went out but the audit row did not land.
    *
    * This used to THROW, and that was the worst possible answer: the email is
@@ -254,7 +262,14 @@ export async function deliverStoredPacket(
     .limit(1)
     .maybeSingle();
   let priorAttempt = sentAttempt;
-  if (!priorAttempt && packet.trialDate) {
+  // AUTOMATED callers only. This guard exists so two cron runs cannot both
+  // mail a day, and applying it to the manual button inverts the feature:
+  // the secretary re-prepares Saturday's packet precisely BECAUSE three dogs
+  // scratched since the 18:00 copy, and this would find that copy, send
+  // nothing, and report "stored and emailed" with the old page count. The
+  // manual button is the documented escape hatch for late changes; a human
+  // pressing it has already decided a second email is warranted.
+  if (!priorAttempt && packet.trialDate && packet.generatedSource === 'automated') {
     const { data: sameDay } = await supabase
       .from('trial_packet_snapshots')
       .select('recipient_count, page_count')
@@ -274,6 +289,7 @@ export async function deliverStoredPacket(
       recipientCount: sentAttemptResolved.recipient_count,
       linkExpiresAt: expiresAt,
       pageCount: sentAttemptResolved.page_count,
+      alreadyDelivered: true,
       recorded: true,
     };
   }
@@ -346,6 +362,7 @@ export async function deliverStoredPacket(
     recipientCount: recipients.length,
     linkExpiresAt: expiresAt,
     pageCount: packet.pageCount,
+    alreadyDelivered: false,
     recorded: !auditError,
   };
 }

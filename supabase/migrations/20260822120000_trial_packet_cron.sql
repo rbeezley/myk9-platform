@@ -26,13 +26,32 @@ create table if not exists public.trial_packet_generation_claims (
   -- same window reclaims it after the lease rather than reading the unique
   -- conflict as "already done" and leaving the trial with no paper at all.
   completed_at timestamptz,
+  -- A failed attempt RELEASES the day for retry, but deleting the row took the
+  -- only evidence with it: the claim went, the uploaded object went, and for a
+  -- render failure or an oversized packet no `trial_packet_snapshots` row is
+  -- ever written either. A show could re-render and fail eight times in an
+  -- evening and leave nothing behind but the body of a fire-and-forget
+  -- `net.http_post`, which nobody reads. Phase 4's own acceptance criterion is
+  -- that a failed generation be visible rather than silent, so instead of
+  -- deleting we expire the lease in place and keep why.
+  last_error text,
+  failed_at timestamptz,
+  attempts integer not null default 0,
   constraint trial_packet_generation_claims_unique_day unique (show_id, trial_date)
 );
 
 comment on table public.trial_packet_generation_claims is
   'MYK9-228: idempotency ledger for automated emergency packet generation. One row per (show, trial day); completed_at distinguishes a finished run from an abandoned claim.';
 comment on column public.trial_packet_generation_claims.completed_at is
-  'Null means in-flight or abandoned. Only a non-null value proves a packet was stored and emailed.';
+  'Null means in-flight, abandoned, or failed. Only a non-null value proves a packet was stored and emailed.';
+comment on column public.trial_packet_generation_claims.last_error is
+  'Why the most recent attempt failed. Retained deliberately: a released claim used to erase the only record that anything went wrong.';
+
+-- "Which upcoming trial days have failed and never recovered?" — the question
+-- an operator actually asks, and it should not be a full scan.
+create index if not exists trial_packet_generation_claims_unresolved_idx
+  on public.trial_packet_generation_claims (trial_date)
+  where completed_at is null and failed_at is not null;
 
 -- The cron looks claims up by exactly this pair, and the unique constraint
 -- above already indexes it — no second index needed.

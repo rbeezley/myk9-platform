@@ -47,7 +47,13 @@ supabase functions deploy generate-trial-packet --no-verify-jwt --project-ref so
 
 ## The schedule
 
-`pg_cron` job `trial-packet-show-eve`, `0,30 21,22,23 * * *` — six attempts across the evening before each trial day. It enumerates tomorrow's (show, day) pairs and posts one request each; a completed day exits after one indexed read, so repeats are cheap. The whole window sits inside one UTC day so `current_date + 1` names the same trial date on every run.
+`pg_cron` job `trial-packet-show-eve`, `5,35 * * * *` — it wakes twice an hour and does nothing unless some trial is inside its **own** 18:00–21:59 local window on the eve of its date. Eight attempts per trial, 30 minutes apart, comfortably above the 10-minute claim lease so each run can rescue what its predecessor abandoned.
+
+A fixed UTC window cannot be "evening" everywhere: the first draft ran 21:00–23:59 UTC and let the earliest run win, so the packet was cut at 16:00 CDT — the afternoon before, missing the late scratches the trigger exists to capture.
+
+Each repeat run pays the full `emergency_packet_input` RPC before the claim is consulted, so the empty runs are cheap but not free.
+
+The job is scheduled **only if `packet_cron_secret` already exists in Vault**; otherwise the migration warns and skips it. A successful `db push` is therefore not proof the schedule exists — check `cron.job` by name.
 
 Entry close is deliberately **not** a trigger — see `docs/plan-trial-packet-automation.md` phase 4 for why.
 

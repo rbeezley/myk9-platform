@@ -29,6 +29,11 @@ import { shouldReclaimStalePacketClaim } from './packetClaim.ts';
 
 const BUCKET = 'trial-packets';
 const CLAIMS = 'trial_packet_generation_claims';
+/**
+ * Far enough in the past that any lease is expired, so the next run reclaims
+ * immediately rather than waiting out a lease nobody is holding.
+ */
+const RELEASED_CLAIM_AT = '1970-01-01T00:00:00.000Z';
 
 export interface GeneratePacketRequest {
   showId: string;
@@ -189,6 +194,7 @@ export async function generateTrialPackets(
     // near-identical stacks. The claim also has to precede the upload, or a
     // repeat leaves orphan objects in a bucket nothing deletes from.
     let claimToken = now().toISOString();
+    let existingAttempts = 0;
     const claimKey = { show_id: request.showId, trial_date: day.trialDate };
 
     const { error: claimError } = await supabase
@@ -206,10 +212,11 @@ export async function generateTrialPackets(
 
       const { data: existing, error: existingError } = await supabase
         .from(CLAIMS)
-        .select('claimed_at, completed_at')
+        .select('claimed_at, completed_at, attempts')
         .match(claimKey)
         .maybeSingle();
       if (existingError) throw new HttpError(500, 'Failed to read the existing claim.');
+      existingAttempts = (existing?.attempts as number | undefined) ?? 0;
 
       if (existing?.completed_at) {
         summary.skipped.push({ trialDate: day.trialDate, reason: 'already-delivered' });
@@ -306,13 +313,24 @@ export async function generateTrialPackets(
       // paper at all. Conditional on still holding THIS claim: if the run
       // outlived its lease and another took over, that run owns the outcome.
       //
-      // Safe to release ONLY because delivery no longer throws after a
-      // successful send — `deliverStoredPacket` reports that as
-      // `recorded: false`. If it ever throws post-send again, this line turns
-      // into a duplicate-email generator.
+      // Release by EXPIRING the lease, not by deleting. A delete freed the day
+      // for retry and erased the only evidence anything went wrong — for a
+      // render failure or an oversized packet there is no snapshot row either,
+      // so eight failures in an evening left nothing behind. Backdating
+      // `claimed_at` past the lease makes the next run reclaim it exactly as a
+      // crashed run would, while `last_error` survives.
+      //
+      // Safe ONLY because delivery no longer throws after a successful send —
+      // that is reported as `recorded: false`. If it ever throws post-send
+      // again, this turns into a duplicate-email generator.
       await supabase
         .from(CLAIMS)
-        .delete()
+        .update({
+          claimed_at: RELEASED_CLAIM_AT,
+          last_error: (error instanceof Error ? error.message : 'Unknown failure').slice(0, 500),
+          failed_at: now().toISOString(),
+          attempts: (existingAttempts ?? 0) + 1,
+        })
         .match(claimKey)
         .eq('claimed_at', claimToken)
         .is('completed_at', null);
@@ -329,6 +347,22 @@ export async function generateTrialPackets(
         trialDate: day.trialDate,
         message: error instanceof Error ? error.message : 'Unknown failure',
       });
+      continue;
+    }
+
+    // Another sender won the race between our claim and our send — the
+    // manual button, most likely. Our upload is now referenced by no snapshot
+    // row, so drop it: nothing else deletes from this bucket. And the day is
+    // SKIPPED, not generated; reporting it as generated would put a snapshot
+    // id with no database row into the summary.
+    if (result.alreadyDelivered) {
+      if (uploadedPath) await supabase.storage.from(BUCKET).remove([uploadedPath]);
+      await supabase
+        .from(CLAIMS)
+        .update({ completed_at: now().toISOString() })
+        .match(claimKey)
+        .eq('claimed_at', claimToken);
+      summary.skipped.push({ trialDate: day.trialDate, reason: 'already-delivered' });
       continue;
     }
 

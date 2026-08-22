@@ -181,15 +181,19 @@ finding was load-bearing enough that it would have made the deploy pointless.
   a render, one failed day aborting every later day of a whole-show request,
   and orphan PDFs left in a bucket nothing deletes from.
 
-**Still open:** deploy, plus the Vault secret**Still open:** deploy, plus the Vault secret `packet_cron_secret` and the
+**Still open:** deploy, plus the Vault secret `packet_cron_secret` and the
 matching `PACKET_CRON_SECRET` function secret. Until both exist the function
-answers 503 and the cron raises rather than posting unauthenticated requests.
+answers 503 and **the cron is not scheduled at all** — the migration warns and
+skips rather than creating a job that raises into a void. Note that means a
+successful `db push` is NOT proof the schedule exists, and
+`audit_cron_vault_secrets()` only inspects jobs that do, so "never scheduled"
+looks identical to healthy. Check `cron.job` by name after creating the secret.
 
-**Known gap, matching show-eve's.** Timezone precision. The window is
-21:00–23:59 UTC so `current_date + 1` names one date all evening, but for a
-show far east of UTC that "evening" is already the trial morning. A packet that
-lands early still does its job; one on the wrong DATE would not, which is what
-the single-UTC-day window prevents.
+**Timezone precision is no longer a gap.** The first draft used a fixed
+21:00-23:59 UTC window and let the earliest run win, which cut the packet at
+16:00 CDT. `trials.timezone` is populated on every row, so the job now wakes
+twice an hour and fires only inside each trial's own 18:00-21:59 local window.
+Verified across every zone in `pg_timezone_names`.
 
 ## Phase 5 — the reminder means "print it"
 

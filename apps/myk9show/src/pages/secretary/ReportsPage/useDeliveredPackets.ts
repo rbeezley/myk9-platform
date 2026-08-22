@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase as defaultSupabase } from '@/lib/supabase';
-import { EMERGENCY_PACKET_REPORT_ID } from '@/features/show-map/cockpit/paperworkPrintState';
+import { useShowPaperworkPrints } from '@/features/show-map/cockpit/useShowPaperworkPrints';
 import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
 import {
   buildDeliveredPacketRows,
@@ -30,56 +30,56 @@ interface PacketReadClient {
  * The packets that already exist for this show, and whether the paper in the
  * box matches them.
  *
- * A plain server read rather than a replicated table: this is an
- * online-only preparation surface (Reports requires connectivity to email a
- * packet at all), and the print reminder it feeds is a server decision.
+ * Snapshots come from a plain server read — Reports needs connectivity to
+ * email a packet at all, and there is no replicated copy of that table.
+ * Confirmations come from `useShowPaperworkPrints`, which reads the REPLICATED
+ * table and already subscribes to local writes and realtime. Reading them
+ * separately meant confirming a print left this list unchanged: the row still
+ * said "not printed", the button invited another press, and each press wrote
+ * another `paperwork_prints` row.
  */
 export function useDeliveredPackets(
   showId: string | undefined,
   packetData: Omit<EmergencyPacketInput, 'generatedAt'> | null,
   client: PacketReadClient = defaultSupabase as unknown as PacketReadClient
-): DeliveredPacketRow[] {
-  const { data } = useQuery({
+): { rows: DeliveredPacketRow[]; isError: boolean } {
+  const prints = useShowPaperworkPrints(showId ?? '');
+  const { data, isError } = useQuery({
     queryKey: ['emergency-packet-delivered', showId],
     enabled: !!showId,
     queryFn: async () => {
-      const [snapshots, confirmations] = await Promise.all([
-        client
-          .from('trial_packet_snapshots')
-          .select('snapshot_id, trial_date, generated_at, page_count')
-          .eq('show_id', showId as string)
-          .eq('delivery_status', 'sent')
-          .order('generated_at', { ascending: false }),
-        client
-          .from('paperwork_prints')
-          .select('report_id, coverage, voided_at')
-          .eq('show_id', showId as string)
-          .eq('report_id', EMERGENCY_PACKET_REPORT_ID)
-          .is('voided_at', null),
-      ]);
+      const snapshots = await client
+        .from('trial_packet_snapshots')
+        .select('snapshot_id, trial_date, generated_at, page_count, created_at')
+        .eq('show_id', showId as string)
+        .eq('delivery_status', 'sent')
+        .order('created_at', { ascending: false });
       if (snapshots.error) throw snapshots.error;
-      if (confirmations.error) throw confirmations.error;
-      return {
-        snapshots: (snapshots.data ?? []).map(row => ({
-          snapshotId: row.snapshot_id as string,
-          trialDate: (row.trial_date as string | null) ?? null,
-          generatedAt: row.generated_at as string,
-          pageCount: (row.page_count as number) ?? 0,
-        })),
-        confirmations: (confirmations.data ?? []).map(
-          (row): PacketPrintConfirmation => ({
-            reportId: row.report_id as string,
-            coverage: (row.coverage ?? null) as PacketPrintConfirmation['coverage'],
-            voidedAt: (row.voided_at as string | null) ?? null,
-          })
-        ),
-      };
+      return (snapshots.data ?? []).map(row => ({
+        snapshotId: row.snapshot_id as string,
+        trialDate: (row.trial_date as string | null) ?? null,
+        generatedAt: row.generated_at as string,
+        createdAt: (row.created_at as string) ?? (row.generated_at as string),
+        pageCount: (row.page_count as number) ?? 0,
+      }));
     },
   });
 
-  return buildDeliveredPacketRows({
-    snapshots: data?.snapshots ?? [],
-    confirmations: data?.confirmations ?? [],
-    packetData,
-  });
+  return {
+    rows: buildDeliveredPacketRows({
+      snapshots: data ?? [],
+      confirmations: (prints.data ?? []).map(
+        (record): PacketPrintConfirmation => ({
+          reportId: record.reportId,
+          coverage: record.coverage as PacketPrintConfirmation['coverage'],
+          voidedAt: record.voidedAt ?? null,
+        })
+      ),
+      packetData,
+    }),
+    // Surfaced rather than swallowed: a failed read used to render nothing at
+    // all, which looks exactly like "no packets exist" — the original defect,
+    // reached by a different route.
+    isError: isError || prints.isError,
+  };
 }

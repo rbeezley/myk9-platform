@@ -18,12 +18,12 @@ const packetData: Omit<EmergencyPacketInput, 'generatedAt'> = {
   ],
 };
 
-const snapshot = (trialDate: string | null, snapshotId: string, generatedAt: string) => ({
-  snapshotId,
-  trialDate,
-  generatedAt,
-  pageCount: 12,
-});
+const snapshot = (
+  trialDate: string | null,
+  snapshotId: string,
+  generatedAt: string,
+  createdAt = generatedAt
+) => ({ snapshotId, trialDate, generatedAt, createdAt, pageCount: 12 });
 
 describe('buildDeliveredPacketRows', () => {
   it('offers a print action for a packet this session did not generate', () => {
@@ -40,6 +40,22 @@ describe('buildDeliveredPacketRows', () => {
     expect(rows[0].descriptor?.reportId).toBe('emergency-trial-packet');
     expect(rows[0].descriptor?.coverage.snapshotId).toBe('snap-sun');
     expect(rows[0].descriptor?.coverage.trialDate).toBe('2026-10-04');
+  });
+
+  it('decides "newest" on the server clock, not the browser one', () => {
+    // `generated_at` is minted by the browser on the manual path. A laptop a
+    // few minutes slow makes the LATER packet look older; the server orders by
+    // created_at, and if the two disagree the confirmation names one snapshot
+    // while the reminder checks another, so the chase never stops.
+    const rows = buildDeliveredPacketRows({
+      snapshots: [
+        snapshot('2026-10-04', 'cron', '2026-10-03T22:00:00Z', '2026-10-03T22:00:00Z'),
+        snapshot('2026-10-04', 'manual-slow-clock', '2026-10-03T21:50:00Z', '2026-10-03T22:05:00Z'),
+      ],
+      confirmations: [],
+      packetData,
+    });
+    expect(rows.map(r => r.snapshotId)).toEqual(['manual-slow-clock']);
   });
 
   it('keeps only the newest packet per day', () => {

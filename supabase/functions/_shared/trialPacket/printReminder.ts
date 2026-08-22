@@ -16,6 +16,41 @@
 
 export const EMERGENCY_PACKET_REPORT_ID = 'emergency-trial-packet';
 
+/**
+ * How long a reminder claim may sit unsent before another run may take it over.
+ *
+ * Below the 30-minute gap between runs, so every run can rescue what its
+ * predecessor abandoned, and comfortably above a healthy send (resolving
+ * recipients plus one provider call).
+ *
+ * `generate-trial-packet` carries its own copy of this shape for the
+ * generation claim. Deliberately not shared yet: the two live on independent
+ * branches, and a cross-PR import would make whichever merges second the only
+ * one that compiles. Worth folding into one helper once both land.
+ */
+export const REMINDER_CLAIM_LEASE_MS = 10 * 60 * 1000;
+
+export interface ReminderClaimRow {
+  claimed_at: string;
+  sent_at: string | null;
+}
+
+/**
+ * A claim row proves a reminder was SENT only when `sent_at` is set.
+ * Otherwise the run may have died between the INSERT and the send — resolving
+ * recipients is two or three round trips — and treating that as "already
+ * reminded" suppresses the slot permanently, which is how a trial day ends up
+ * with no paper and no chase.
+ */
+export function shouldReclaimStaleReminder(row: ReminderClaimRow, now: number): boolean {
+  if (row.sent_at) return false;
+  const claimedAt = Date.parse(row.claimed_at);
+  // An unreadable timestamp must not silence a chase forever. Retrying risks
+  // at worst one duplicate email; skipping risks a trial with no paper.
+  if (Number.isNaN(claimedAt)) return true;
+  return now - claimedAt > REMINDER_CLAIM_LEASE_MS;
+}
+
 export type PrintReminderKind = 'evening-before' | 'morning-of';
 
 export function isPrintReminderKind(value: unknown): value is PrintReminderKind {

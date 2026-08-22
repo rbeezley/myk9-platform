@@ -61,6 +61,11 @@ export interface EmergencyTrialPacketPanelProps {
    * the only thing that stops the twice-daily print reminder.
    */
   deliveredPackets?: readonly DeliveredPacketRow[];
+  /**
+   * Rendering nothing on a failed read looks exactly like "no packets exist",
+   * which is the very state the reminder is chasing. Say so instead.
+   */
+  deliveredPacketsError?: boolean;
   unavailableReason?: string | undefined;
   prepare?: (
     input: EmergencyPacketInput,
@@ -72,6 +77,7 @@ export interface EmergencyTrialPacketPanelProps {
 export function EmergencyTrialPacketPanel({
   data,
   deliveredPackets = [],
+  deliveredPacketsError = false,
   unavailableReason,
   prepare = preparePacket,
   onMarkPrinted,
@@ -202,6 +208,12 @@ export function EmergencyTrialPacketPanel({
             </div>
           </div>
         )}
+        {deliveredPacketsError && (
+          <p className="mb-4 text-sm font-medium text-destructive" role="alert">
+            We could not check which packets already exist for this show. Reload before preparing a
+            new one, or you may email a duplicate.
+          </p>
+        )}
         {outstandingPackets.length > 0 && (
           <div className="mb-4 space-y-2" data-testid="delivered-packets">
             <p className="text-sm font-medium">Packets already prepared for this show</p>
@@ -224,7 +236,11 @@ export function EmergencyTrialPacketPanel({
                     </p>
                   )}
                 </div>
-                {row.printState === 'printed' ? (
+                {!row.descriptor ? (
+                  <span className="text-muted-foreground">
+                    Choose All Trials and All Classes to confirm this packet.
+                  </span>
+                ) : row.printState === 'printed' ? (
                   <span className="inline-flex items-center gap-1 text-success">
                     <CheckCircle2 className="size-4" />
                     Printed

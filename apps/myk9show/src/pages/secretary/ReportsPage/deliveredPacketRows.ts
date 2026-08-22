@@ -23,6 +23,14 @@ export interface DeliveredPacketSnapshot {
   snapshotId: string;
   trialDate: string | null;
   generatedAt: string;
+  /**
+   * Server insert time. "Newest" MUST be decided on this and not on
+   * `generatedAt`, which the browser mints on the manual path: a slow laptop
+   * clock makes a later packet look older, and the server orders by
+   * `created_at`. Disagree and the confirmation names one snapshot while the
+   * reminder checks another, so the chase never stops.
+   */
+  createdAt: string;
   pageCount: number;
 }
 
@@ -62,7 +70,7 @@ export function buildDeliveredPacketRows(input: {
     // day; there is nothing a reminder or a confirmation could key on.
     if (!snapshot.trialDate) continue;
     const existing = latestByDay.get(snapshot.trialDate);
-    if (!existing || snapshot.generatedAt > existing.generatedAt) {
+    if (!existing || snapshot.createdAt > existing.createdAt) {
       latestByDay.set(snapshot.trialDate, snapshot);
     }
   }

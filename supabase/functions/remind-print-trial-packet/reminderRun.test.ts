@@ -13,7 +13,8 @@ const DAY = '2026-10-04';
 interface StubOptions {
   hasPacket?: boolean;
   confirmations?: unknown[];
-  existingReminders?: string[];
+  /** kind -> the row already in the ledger. */
+  existingReminders?: Record<string, { claimed_at: string; sent_at: string | null }>;
   recipients?: { email: string | null; show_id: string | null; club_id: string | null }[];
 }
 
@@ -21,10 +22,12 @@ function makeStub(options: StubOptions = {}) {
   const {
     hasPacket = true,
     confirmations = [],
-    existingReminders = [],
+    existingReminders = {},
     recipients = [{ email: 'secretary@example.com', show_id: SHOW_ID, club_id: null }],
   } = options;
-  const reminders = new Set(existingReminders);
+  const reminders: Record<string, { claimed_at: string; sent_at: string | null }> = {
+    ...existingReminders,
+  };
   const ops: string[] = [];
 
   function thenable(result: unknown) {
@@ -48,15 +51,18 @@ function makeStub(options: StubOptions = {}) {
     };
     q.insert = (row: Record<string, unknown>) => {
       const k = String(row.reminder_kind);
-      if (reminders.has(k)) {
+      if (reminders[k]) {
+        kind = k;
         ops.push(`reminder-conflict:${k}`);
         return Promise.resolve({ error: { code: '23505' } });
       }
-      reminders.add(k);
+      reminders[k] = { claimed_at: String(row.claimed_at), sent_at: null };
+      kind = k;
       ops.push(`reminder-claim:${k}`);
       return Promise.resolve({ error: null });
     };
-    const chainOn = (label: string) => {
+    q.maybeSingle = () => Promise.resolve({ data: reminders[kind] ?? null, error: null });
+    const chainOn = (label: string, patch: Record<string, unknown> = {}) => {
       const chain: Record<string, unknown> = {};
       for (const m of ['match', 'eq', 'is', 'select']) {
         chain[m] = (...args: unknown[]) => {
@@ -66,16 +72,25 @@ function makeStub(options: StubOptions = {}) {
       }
       chain.then = (res: (v: unknown) => unknown, rej?: (r: unknown) => unknown) => {
         if (label === 'release') {
-          reminders.delete(kind);
+          delete reminders[kind];
           ops.push(`reminder-release:${kind}`);
-        } else {
-          ops.push(`reminder-sent:${kind}`);
+          return Promise.resolve({ data: [], error: null }).then(res, rej);
         }
+        const row = reminders[kind];
+        if (label === 'reclaim') {
+          if (!row || row.sent_at) return Promise.resolve({ data: [], error: null }).then(res, rej);
+          row.claimed_at = String(patch.claimed_at);
+          ops.push(`reminder-reclaim:${kind}`);
+          return Promise.resolve({ data: [{ id: 'r1' }], error: null }).then(res, rej);
+        }
+        if (row) row.sent_at = String(patch.sent_at ?? 'now');
+        ops.push(`reminder-sent:${kind}`);
         return Promise.resolve({ data: [], error: null }).then(res, rej);
       };
       return chain;
     };
-    q.update = () => chainOn('sent');
+    q.update = (patch: Record<string, unknown> = {}) =>
+      chainOn(patch.sent_at ? 'sent' : 'reclaim', patch);
     q.delete = () => chainOn('release');
     q.then = (res: (v: unknown) => unknown, rej?: (r: unknown) => unknown) =>
       Promise.resolve({ data: null, error: null }).then(res, rej);
@@ -218,7 +233,11 @@ describe('runPrintReminder', () => {
     // The morning send is the last moment this can be acted on, so the evening
     // send must not suppress it — and a re-run of either must not email twice.
     const sendEmail = vi.fn().mockResolvedValue('msg-1');
-    const { supabase } = makeStub({ existingReminders: ['evening-before'] });
+    const { supabase } = makeStub({
+      existingReminders: {
+        'evening-before': { claimed_at: '2026-10-04T00:59:00.000Z', sent_at: '2026-10-04T00:59:30.000Z' },
+      },
+    });
 
     expect(await runPrintReminder(supabase, request, makeDeps(sendEmail))).toEqual({
       sent: false,
@@ -241,7 +260,7 @@ describe('runPrintReminder', () => {
     );
 
     expect(ops).toContain('reminder-release:evening-before');
-    expect(reminders.has('evening-before')).toBe(false);
+    expect(reminders['evening-before']).toBeUndefined();
   });
 
   it('releases the claim when there is nobody to email', async () => {
@@ -252,7 +271,7 @@ describe('runPrintReminder', () => {
     const outcome = await runPrintReminder(supabase, request, makeDeps(sendEmail));
 
     expect(outcome).toEqual({ sent: false, reason: 'no-recipients' });
-    expect(reminders.has('evening-before')).toBe(false);
+    expect(reminders['evening-before']).toBeUndefined();
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
@@ -271,3 +290,56 @@ describe('runPrintReminder', () => {
     expect(ops).toEqual(['reminder-claim:evening-before', 'reminder-sent:evening-before']);
   });
 });
+
+describe('the reminder lease', () => {
+  it('takes over a claim whose run died before it sent', async () => {
+    // The migration always described a lease; the first version never
+    // implemented one and returned `already-reminded` on any conflict. An
+    // isolate dying between the INSERT and the send — recipient resolution is
+    // two or three round trips — suppressed the slot permanently, which is a
+    // trial day with no paper and no chase.
+    const sendEmail = vi.fn().mockResolvedValue('msg-1');
+    const { supabase, ops } = makeStub({
+      existingReminders: {
+        'evening-before': { claimed_at: '2026-10-03T23:00:00.000Z', sent_at: null },
+      },
+    });
+
+    const outcome = await runPrintReminder(supabase, request, makeDeps(sendEmail));
+
+    expect(outcome).toEqual({ sent: true, recipientCount: 1 });
+    expect(ops).toContain('reminder-reclaim:evening-before');
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves a fresh claim alone while another run is still working', async () => {
+    const sendEmail = vi.fn();
+    const { supabase } = makeStub({
+      existingReminders: {
+        'evening-before': { claimed_at: '2026-10-04T00:59:30.000Z', sent_at: null },
+      },
+    });
+
+    expect(await runPrintReminder(supabase, request, makeDeps(sendEmail))).toEqual({
+      sent: false,
+      reason: 'already-reminded',
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('never re-sends a slot that already went out', async () => {
+    const sendEmail = vi.fn();
+    const { supabase } = makeStub({
+      existingReminders: {
+        'evening-before': { claimed_at: '1970-01-01T00:00:00.000Z', sent_at: '1970-01-01T00:01:00.000Z' },
+      },
+    });
+
+    expect(await runPrintReminder(supabase, request, makeDeps(sendEmail))).toEqual({
+      sent: false,
+      reason: 'already-reminded',
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+

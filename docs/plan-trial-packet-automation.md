@@ -171,6 +171,35 @@ subagents reviewed instead, and phase 5 did not survive intact:
 claim, or the release each turns tests red), 9 over the migration, and 5 over
 the cross-day confirmation behaviour in `paperworkPrintState`.
 
+**Second review round.** The repairs were reviewed again, and several were
+wrong or incomplete:
+
+- **`paperwork_prints` was unreachable for a show-scoped secretary.** It gated
+  on `can_manage_show`, which resolves to `is_trial_secretary` and requires
+  `ur.show_id IS NULL` — club-scoped roles only. `trial_packet_snapshots`
+  already allowed `is_show_secretary(show_id)`, so such a secretary saw every
+  packet and got zero confirmations back, with no error. Every day read "not
+  printed", and the local-first write reported success while the server
+  rejected it. Migration `20260822150000` aligns the gates. Latent today (all
+  current role rows are club-scoped) but it fails silently, in the direction
+  that leaves a reminder chasing a day that was already printed.
+- **The lease existed only in a comment.** Any `23505` returned
+  `already-reminded`, so an isolate dying between the claim and the send
+  suppressed that slot permanently. Now a real stale-claim CAS takeover.
+- **Client and server disagreed on which snapshot is current** — server by
+  `created_at`, client by `generated_at`, which the BROWSER mints on the manual
+  path. A slow laptop clock made the confirmation name one snapshot while the
+  reminder checked another, so the chase never stopped. Both order by
+  `created_at`.
+- **The new hook swallowed errors and never invalidated.** A failed read
+  rendered nothing, which looks exactly like "no packets exist" — the original
+  defect by another route. Confirmations now come from
+  `useShowPaperworkPrints`, which reads the replicated table and already
+  subscribes to local and realtime changes, so confirming updates the list;
+  read failures are surfaced.
+- A packet whose day is outside the loaded scope rendered a row with no button
+  and no explanation. It now says what to do.
+
 **Still open:** deploy, and the shared `packet_cron_secret`.
 
 ## The trap this plan exists to avoid

@@ -296,7 +296,8 @@ export default function ReportsPage() {
   // Packets that already exist, including any cron generated overnight — the
   // only way to confirm printing one without re-preparing it, which would mint
   // a new snapshot and email every official a second copy (MYK9-228 phase 5).
-  const deliveredPackets = useDeliveredPackets(showId, emergencyPacketData);
+  const { rows: deliveredPackets, isError: deliveredPacketsError } =
+    useDeliveredPackets(showId, emergencyPacketData);
 
   return (
     <div className="container mx-auto py-6 flex flex-col">
@@ -313,6 +314,7 @@ export default function ReportsPage() {
       <EmergencyTrialPacketPanel
         data={emergencyPacketData}
         deliveredPackets={deliveredPackets}
+        deliveredPacketsError={deliveredPacketsError}
         unavailableReason={
           effectiveScope.kind !== 'show'
             ? 'Choose All Trials and All Classes to prepare the whole-show emergency packet.'

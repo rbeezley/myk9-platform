@@ -9,6 +9,7 @@ import {
   decidePrintReminder,
   EMERGENCY_PACKET_REPORT_ID,
   isPrintReminderKind,
+  shouldReclaimStaleReminder,
   type PrintConfirmationRow,
   type PrintReminderKind,
 } from '../_shared/trialPacket/printReminder.ts';
@@ -67,8 +68,11 @@ export async function runPrintReminder(
     .eq('show_id', request.showId)
     .eq('trial_date', request.trialDate)
     .eq('delivery_status', 'sent')
-    // Newest first: the reminder must judge against the packet that is
-    // CURRENT, not the first one ever delivered for the day.
+    // Newest first, by the SERVER's clock. `generated_at` is minted by the
+    // browser on the manual path, so a slow laptop can make a later packet
+    // look older. If client and server then disagree about which snapshot is
+    // current, the confirmation names one and the reminder checks the other,
+    // and the chase never stops.
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -95,18 +99,57 @@ export async function runPrintReminder(
   // Claim the (show, day, kind) triple. Two sends of the SAME reminder is the
   // failure mode here — the evening and morning sends are deliberately
   // separate rows, because each is a distinct decision to chase.
-  const claimedAt = now().toISOString();
-  const { error: claimError } = await supabase.from(REMINDER_LOG).insert({
+  let claimedAt = now().toISOString();
+  const claimKey = {
     show_id: request.showId,
     trial_date: request.trialDate,
     reminder_kind: request.kind,
-    claimed_at: claimedAt,
-  });
+  };
+  const { error: claimError } = await supabase
+    .from(REMINDER_LOG)
+    .insert({ ...claimKey, claimed_at: claimedAt });
   if (claimError) {
     if (claimError.code !== '23505') {
       throw new HttpError(500, 'Failed to claim the reminder.');
     }
-    return { sent: false, reason: 'already-reminded' };
+
+    // A row exists, but that only proves a reminder was SENT if `sent_at` is
+    // set. The migration always described a lease and the first version never
+    // implemented one: resolving recipients is two or three round trips, so an
+    // isolate dying between the INSERT and the send left a row with a null
+    // `sent_at` that suppressed the slot permanently. Treating every conflict
+    // as "already reminded" is how a trial day ends up with no paper and no
+    // chase.
+    const { data: existing, error: existingError } = await supabase
+      .from(REMINDER_LOG)
+      .select('claimed_at, sent_at')
+      .match(claimKey)
+      .maybeSingle();
+    if (existingError) throw new HttpError(500, 'Failed to read the existing reminder claim.');
+    const stale =
+      existing &&
+      shouldReclaimStaleReminder(
+        {
+          claimed_at: existing.claimed_at as string,
+          sent_at: (existing.sent_at as string | null) ?? null,
+        },
+        now().getTime()
+      );
+    if (!stale) return { sent: false, reason: 'already-reminded' };
+
+    // Compare-and-swap: runs overlap on this schedule and two could read the
+    // same stale claim. Only the one whose update matches proceeds.
+    const reclaimToken = new Date(now().getTime() + 1).toISOString();
+    const { data: reclaimed, error: reclaimError } = await supabase
+      .from(REMINDER_LOG)
+      .update({ claimed_at: reclaimToken })
+      .match(claimKey)
+      .eq('claimed_at', existing.claimed_at)
+      .is('sent_at', null)
+      .select('id');
+    if (reclaimError) throw new HttpError(500, 'Failed to reclaim the stale reminder.');
+    if (!reclaimed?.length) return { sent: false, reason: 'already-reminded' };
+    claimedAt = reclaimToken;
   }
 
   let recipients: string[];

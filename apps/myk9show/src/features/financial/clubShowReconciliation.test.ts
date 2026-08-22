@@ -34,6 +34,7 @@ function payout(overrides: Partial<FinancialReconciliationPayout>): FinancialRec
   return {
     payoutId: 'payout-1',
     showId: 'show-1',
+    showName: null,
     status: 'completed',
     amountCents: 10000,
     stripeTransferId: 'tr_123',
@@ -71,7 +72,7 @@ describe('buildClubShowReconciliationRows', () => {
     const rows = buildClubShowReconciliationRows(
       [order({})],
       [payout({})],
-      true,
+      'enabled',
       new Map([['show-1', 'Cedar Valley Classic']])
     );
     expect(rows).toHaveLength(1);
@@ -90,7 +91,7 @@ describe('buildClubShowReconciliationRows', () => {
     const rows = buildClubShowReconciliationRows(
       [order({ stripeProcessingFeeCents: null })],
       [],
-      true
+      'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'pending' });
   });
@@ -99,7 +100,7 @@ describe('buildClubShowReconciliationRows', () => {
     const rows = buildClubShowReconciliationRows(
       [order({ entrySubtotalCents: null, platformFeeCents: null })],
       [],
-      true
+      'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'pending' });
     // No snapshot on record → Attested, never a claim of Stripe verification.
@@ -112,7 +113,7 @@ describe('buildClubShowReconciliationRows', () => {
     const rows = buildClubShowReconciliationRows(
       [order({ refundedCents: 2500, refundedAt: '2026-07-02T00:00:00Z' })],
       [payout({ amountCents: 7500 })],
-      true
+      'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'available', netCents: 7500 });
     expect(rows[0].settlement?.amountCents).toBe(7500);
@@ -136,7 +137,7 @@ describe('buildClubShowReconciliationRows', () => {
         }),
       ],
       [payout({ amountCents: 5000 })],
-      true
+      'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'available', netCents: 5000 });
     // Net and the transfer beside it must read as the SAME number.
@@ -160,7 +161,7 @@ describe('buildClubShowReconciliationRows', () => {
         }),
       ],
       [payout({ amountCents: 2500 })],
-      true
+      'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'available', netCents: 2500 });
     expect(rows[0].settlement?.amountCents).toBe(2500);
@@ -176,7 +177,7 @@ describe('buildClubShowReconciliationRows', () => {
         }),
       ],
       [payout({ amountCents: 0 })],
-      true
+      'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'available', netCents: 0 });
   });
@@ -189,7 +190,7 @@ describe('buildClubShowReconciliationRows', () => {
         order({ orderId: 'o3', refundedCents: 10700 }), // floors at 0
       ],
       [],
-      true
+      'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'available', netCents: 17500 });
   });
@@ -198,7 +199,7 @@ describe('buildClubShowReconciliationRows', () => {
     const rows = buildClubShowReconciliationRows(
       [order({ refundedCents: 2500, stripeProcessingFeeCents: null })],
       [],
-      true
+      'enabled'
     );
     expect(rows[0].net).toEqual({ status: 'pending' });
   });
@@ -208,7 +209,7 @@ describe('buildClubShowReconciliationRows', () => {
     // that does not equal subtotal + fee can mean rounding residue, a desk-side
     // refund, or a legacy write — none of which the row can tell apart, so the
     // treasurer is not shown a red state built on a guess.
-    const rows = buildClubShowReconciliationRows([order({ amountCents: 99999 })], [], true);
+    const rows = buildClubShowReconciliationRows([order({ amountCents: 99999 })], [], 'enabled');
     expect(rows[0].chargeVerification).toBe('Verified');
   });
 
@@ -217,30 +218,33 @@ describe('buildClubShowReconciliationRows', () => {
     const rows = buildClubShowReconciliationRows(
       [order({}), order({ entrySubtotalCents: null, platformFeeCents: null })],
       [],
-      true
+      'enabled'
     );
     expect(rows[0].chargeVerification).toBe('Attested');
   });
 
-  it('a show with a payout but no orders yet: Attested, net pending, settlement present', () => {
-    const rows = buildClubShowReconciliationRows([], [payout({})], true);
-    expect(rows[0].chargeVerification).toBe('Attested');
+  it('a show with a payout but no orders yet: charge state Unknown, not Attested', () => {
+    // Attested is a positive claim -- "recorded, we just hold no Stripe
+    // snapshot". With zero order rows there is no charge to attest to, and the
+    // net arm already said `pending` for the same input.
+    const rows = buildClubShowReconciliationRows([], [payout({})], 'enabled');
+    expect(rows[0].chargeVerification).toBe('Unknown');
     expect(rows[0].net).toEqual({ status: 'pending' });
     expect(rows[0].settlement?.stripeTransferId).toBe('tr_123');
   });
 
   it('a show with orders but no payout row yet: settlement is null, not a fabricated state', () => {
-    const rows = buildClubShowReconciliationRows([order({})], [], true);
+    const rows = buildClubShowReconciliationRows([order({})], [], 'enabled');
     expect(rows[0].settlement).toBeNull();
   });
 
   it('falls back to a generic show label when no name is known', () => {
-    const rows = buildClubShowReconciliationRows([order({})], [], true);
+    const rows = buildClubShowReconciliationRows([order({})], [], 'enabled');
     expect(rows[0].showName).toBe('Show');
   });
 
   it('orders without a showId are excluded from the grouping', () => {
-    const rows = buildClubShowReconciliationRows([order({ showId: null })], [], true);
+    const rows = buildClubShowReconciliationRows([order({ showId: null })], [], 'enabled');
     expect(rows).toHaveLength(0);
   });
 
@@ -248,7 +252,7 @@ describe('buildClubShowReconciliationRows', () => {
     const rows = buildClubShowReconciliationRows(
       [order({ orderId: 'o1', showId: 'show-1' }), order({ orderId: 'o2', showId: 'show-2' })],
       [payout({ payoutId: 'p1', showId: 'show-1' })],
-      true
+      'enabled'
     );
     expect(rows.map(r => r.showId).sort()).toEqual(['show-1', 'show-2']);
   });
@@ -257,7 +261,7 @@ describe('buildClubShowReconciliationRows', () => {
     const rows = buildClubShowReconciliationRows(
       [order({})],
       [payout({ status: 'failed', failureReason: 'account closed', completedAt: null })],
-      true
+      'enabled'
     );
     expect(rows[0].settlement?.state).toBe('attention');
     expect(rows[0].settlement?.badgeLabel).toBe('Needs attention');

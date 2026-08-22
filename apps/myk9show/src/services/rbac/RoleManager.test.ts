@@ -92,13 +92,51 @@ describe('RoleManager.ensureUserHasRole', () => {
       return createChainableQuery();
     });
 
-    const { manager, clearUserCache } = buildManager();
+    const { manager, auditLogger, clearUserCache } = buildManager();
     const result = await manager.ensureUserHasRole('user-1', 'secretary');
     expect(result).toBe(true);
     expect(clearUserCache).toHaveBeenCalledWith('user-1');
     // The reactivation must set is_active:true and target the existing row id.
     expect(userRolesQuery.update).toHaveBeenCalledWith({ is_active: true });
     expect(userRolesQuery.eq).toHaveBeenCalledWith('id', 'ur-1');
+    expect(userRolesQuery.eq).toHaveBeenCalledWith('is_active', false);
+    expect(auditLogger.logAuditEvent).toHaveBeenCalledWith(ActionType.ROLE_ASSIGNED, {
+      targetId: 'user-1',
+      targetType: 'user',
+      newValue: {
+        role_id: 'role-1',
+        role_name: 'secretary',
+        club_id: null,
+        show_id: null,
+      },
+    });
+  });
+
+  it('concurrent reactivation returns false and logs nothing when no inactive row is changed', async () => {
+    let userRolesCall = 0;
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'roles') {
+        return createChainableQuery({ data: { id: 'role-1' }, error: null });
+      }
+      if (table === 'user_roles') {
+        userRolesCall += 1;
+        if (userRolesCall === 1) {
+          return createChainableQuery({
+            data: [{ id: 'ur-1', is_active: false }],
+            error: null,
+          });
+        }
+        return createChainableQuery({ data: null, error: null });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager, auditLogger, clearUserCache } = buildManager();
+    const result = await manager.ensureUserHasRole('user-1', 'secretary');
+
+    expect(result).toBe(false);
+    expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
+    expect(clearUserCache).not.toHaveBeenCalled();
   });
 
   it('no existing assignment -> grants a new role, returns true', async () => {
@@ -321,5 +359,68 @@ describe('RoleManager.getAllRoles — Members column counts distinct people', ()
     const roles = await manager.getAllRoles();
 
     expect(roles.find(r => r.id === 'role-2')?.user_count).toBe(0);
+  });
+});
+
+describe('RoleManager.getAllUserRoles — scope identity', () => {
+  it('requests and maps the exact club identity for a club-scoped assignment', async () => {
+    const assignmentsQuery = createChainableQuery({
+      data: [
+        {
+          id: 'assignment-1',
+          user_id: 'person-1',
+          role_id: 'role-1',
+          club_id: 'club-1',
+          show_id: null,
+          granted_by: 'admin-1',
+          granted_at: '2026-08-21T12:00:00Z',
+          expires_at: null,
+          is_active: true,
+          role: {
+            id: 'role-1',
+            name: 'secretary',
+            description: null,
+            is_system: true,
+            permissions: null,
+            created_at: null,
+          },
+          club: { id: 'club-1', name: 'Blue Ridge Kennel Club' },
+        },
+      ],
+      error: null,
+    });
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'user_roles') return assignmentsQuery;
+      if (table === 'people') {
+        return createChainableQuery({
+          data: [
+            {
+              id: 'person-1',
+              first_name: 'Alice',
+              last_name: 'Admin',
+              email: 'alice@example.com',
+            },
+            {
+              id: 'admin-1',
+              first_name: 'Site',
+              last_name: 'Admin',
+              email: 'admin@example.com',
+            },
+          ],
+          error: null,
+        });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager } = buildManager();
+    const assignments = await manager.getAllUserRoles();
+
+    expect(assignmentsQuery.select).toHaveBeenCalledWith(expect.stringContaining('club:clubs'));
+    expect(assignments[0]?.club).toEqual({
+      id: 'club-1',
+      name: 'Blue Ridge Kennel Club',
+    });
   });
 });

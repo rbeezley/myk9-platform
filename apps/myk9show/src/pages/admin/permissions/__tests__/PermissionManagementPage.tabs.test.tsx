@@ -49,6 +49,22 @@ vi.mock('../PermissionAuditPage', () => ({ default: () => <div>Audit Content</di
 const { default: PermissionManagementPage } = await import('../PermissionManagementPage');
 
 describe('PermissionManagementPage tab consolidation', () => {
+  it('sizes its single header and actions from the available admin content width', () => {
+    const { container } = render(<PermissionManagementPage />, {
+      initialRoute: '/admin/permissions',
+    });
+
+    const heading = screen.getByRole('heading', { name: 'Roles & Permissions' });
+    const header = heading.closest('.manager-page-header');
+    expect(header).toHaveClass('manager-page-header--compact');
+    expect(header?.closest('.manager-content-container')).not.toBeNull();
+
+    const assignLink = screen.getByRole('link', { name: 'Assign roles in User Management' });
+    expect(assignLink.parentElement).toHaveClass('manager-page-actions');
+    expect(container.querySelectorAll('h1')).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: 'New role' })).toHaveLength(1);
+  });
+
   it('shows Overview, Permissions, and Permission Audit tabs', () => {
     render(<PermissionManagementPage />, { initialRoute: '/admin/permissions' });
     expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();

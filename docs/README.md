@@ -58,6 +58,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-ai-support-triage.md](plan-ai-support-triage.md)                                                           | Active    | AI Support Triage — external scheduled agent (design spec)                   |
 | [plan-ai-support-triage-implementation.md](plan-ai-support-triage-implementation.md)                             | Active    | AI Support Triage — implementation plan (9 tasks)                            |
 | [plan-stripe-golive-enforcement.md](plan-stripe-golive-enforcement.md)                                           | Active    | Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8             |
+| [plan-trial-packet-automation.md](plan-trial-packet-automation.md)                                               | Active    | Trial Packet Automation — per-day unit, Deno renderer, cron (MYK9-228)       |
 | [navigation-ia.md](navigation-ia.md)                                                                             | Reference | Navigation & IA Sketch — Fall 2026                                           |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)                                   | Active    | Active-Docs Triage — 2026-06-14                                              |
 | [plan-anon-grant-rls-tightening.md](plan-anon-grant-rls-tightening.md)                                           | Active    | MYK9-93 — Anon grant & RLS tightening (launch gate)                          |
@@ -77,6 +78,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-label-print-calibration.md](plan-label-print-calibration.md)                                               | Active    | Label print calibration — offsets, shared panel, alignment test sheet        |
 | [plan-landing-hero-lcp-prerender.md](plan-landing-hero-lcp-prerender.md)                                         | Active    | Landing-page mobile LCP — prerender + hydrate the hero                       |
 | [plan-launch-execution-lanes.md](plan-launch-execution-lanes.md)                                                 | Active    | Plan: Fall Launch — Execution Lanes (canonical to-do)                        |
+| [plan-linear-backlog-batches.md](plan-linear-backlog-batches.md)                                                 | Active    | Linear Backlog Batch Plan — Todo + Backlog triage into parallel lanes        |
 | [plan-myk9-64-secretary-show-desk-simplification.md](plan-myk9-64-secretary-show-desk-simplification.md)         | Active    | MYK9-64 — Secretary Show Desk simplification (dedupe routes, affordances)    |
 | [plan-myk9-80-podium-completion-celebration.md](plan-myk9-80-podium-completion-celebration.md)                   | Active    | MYK9-80 — At-show podium + class completion celebration                      |
 | [plan-myk9-84-authz-dead-letter.md](plan-myk9-84-authz-dead-letter.md)                                           | Active    | MYK9-84 — Permanent Authorization Dead-Letter Messaging                      |

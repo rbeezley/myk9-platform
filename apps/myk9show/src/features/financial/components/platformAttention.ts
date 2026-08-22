@@ -101,10 +101,12 @@ export function derivePlatformAttention({
     return latestFailedIdByShow.get(p.showId)?.payoutId === p.payoutId;
   });
 
-  // payoutsEnabled only changes the DISPLAY LABEL for a 'pending' status
-  // (Scheduled vs Waiting for account) — it never changes which bucket a row
-  // lands in, so a fixed value is safe for attention counting across clubs.
-  const settlement = summarizePayoutSettlement(outstandingPayouts, true);
+  // The account state only changes the DISPLAY LABEL for a 'pending' status
+  // (Scheduled / Waiting for account / Not sent yet) — it never changes which
+  // bucket a row lands in, and only `attentionCount` is read here. 'unknown' is
+  // also the truthful value: this aggregates across every club, so there is no
+  // single account state to speak for.
+  const settlement = summarizePayoutSettlement(outstandingPayouts, 'unknown');
   const failedTransferCount = settlement.attentionCount;
   const missingPlatformFeeSnapshotCount = snapshotMissingCount;
 

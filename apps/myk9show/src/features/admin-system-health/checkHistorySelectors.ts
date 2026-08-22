@@ -8,6 +8,12 @@
  * badge that can disagree with the list it labels is the bug, so the row status,
  * the strip, the tab counts and the verdict chips must all come from here.
  *
+ * The verdict additionally reads an AlertSummary. That is not a second source
+ * for the same fact — unresolved operator alerts are a DIFFERENT fact, and the
+ * counts on this page still come from the one snapshot array. What the fold
+ * removes is the board answering "is anything wrong?" out of one system while
+ * the other showed unresolved errors two columns away.
+ *
  * Side-effect free and `now`-injected, like systemHealthSelectors.
  */
 import type {
@@ -16,6 +22,7 @@ import type {
   SystemHealthSnapshot,
   CheckVerification,
 } from './systemHealthTypes';
+import type { AlertSummary } from './operatorAlertsSelectors';
 import { healthCheckStaleAfterMs } from './healthCheckCadence';
 import { isStale } from './systemHealthSelectors';
 
@@ -152,7 +159,12 @@ function count(n: number): string {
  * The verdict band's headline. Leads with the answer in plain language, because
  * the page's whole job is to save the admin from working it out from a list.
  */
-export function verdictHeadline(summary: CheckSummary, isStale: boolean, isEmpty: boolean): string {
+export function verdictHeadline(
+  summary: CheckSummary,
+  isStale: boolean,
+  isEmpty: boolean,
+  alerts?: AlertSummary | null
+): string {
   if (isEmpty) return 'No health run has ever been recorded';
   if (isStale) return 'These results are too old to answer “is it broken now?”';
   // A fresh run that recorded ZERO checks is not health, it is silence. The
@@ -162,12 +174,48 @@ export function verdictHeadline(summary: CheckSummary, isStale: boolean, isEmpty
   if (summary.total === 0) return 'The last run recorded no checks at all';
   if (summary.failing === 1) return 'One check is failing';
   if (summary.failing > 1) return `${count(summary.failing)} checks are failing`;
+  // An unresolved error-severity alert is a problem the platform already saw.
+  // It outranks the unproven case because it is a concrete event rather than a
+  // coverage gap, and it must not sit under an all-clear — that false green is
+  // the exact failure this board exists to prevent.
+  const needingReview = alerts?.needingReview ?? 0;
+  if (needingReview > 0) {
+    return `Nothing is failing, but ${needingReview} alert${needingReview === 1 ? ' needs' : 's need'} review`;
+  }
   if (summary.unverified > 0) return 'Nothing is failing, but not everything is proven';
+  // `null` means the alerts query has not answered — deliberately distinct from
+  // `undefined`, which means this caller does not weigh alerts at all. Unknown
+  // must not collapse into an all-clear. The costly case is a refetch failing
+  // AFTER error alerts were on screen: the board would drop from "2 alerts need
+  // review" back to "Everything's running", which an admin reads as the alerts
+  // having been resolved. A network blip must not look like good news.
+  if (alerts === null) return 'Nothing is failing, but the alerts list is unavailable';
   return "Everything's running";
 }
 
 /** The sentence under the headline — states the connection, not just the count. */
-export function verdictExplanation(summary: CheckSummary, isStale: boolean, isEmpty: boolean) {
+/**
+ * The alerts half of the explanation. Empty when the count is zero, and when it
+ * is `null` — an unanswered alerts query (loading or failed) must produce no
+ * claim at all rather than a number the board cannot back.
+ */
+function alertClause(alerts?: AlertSummary | null): string {
+  const n = alerts?.unresolved ?? 0;
+  if (n === 0) return '';
+  return ` ${n} operator alert${n === 1 ? ' is' : 's are'} unresolved — see Unresolved alerts.`;
+}
+
+export function verdictExplanation(
+  summary: CheckSummary,
+  isStale: boolean,
+  isEmpty: boolean,
+  alerts?: AlertSummary | null
+) {
+  return `${checksExplanation(summary, isStale, isEmpty)}${alertClause(alerts)}`;
+}
+
+/** The checks half — unchanged by the alerts fold. */
+function checksExplanation(summary: CheckSummary, isStale: boolean, isEmpty: boolean) {
   if (isEmpty) {
     return 'The nightly runner has never written a snapshot. Until it does, this page cannot tell you anything about the platform.';
   }

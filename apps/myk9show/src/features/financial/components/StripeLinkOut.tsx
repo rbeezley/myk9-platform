@@ -14,7 +14,7 @@ interface StripeLinkOutProps {
 
 export function StripeLinkOut({ transferId }: StripeLinkOutProps) {
   return (
-    <Button variant="ghost" size="sm" className="h-auto gap-1.5 px-2 py-1 text-xs" asChild>
+    <Button variant="ghost" size="sm" className="min-h-11 gap-1.5 px-2 py-1 text-xs" asChild>
       <a
         href={stripeTransferDashboardUrl(transferId)}
         target="_blank"

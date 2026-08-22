@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatAlertDetail,
+  groupOperatorAlerts,
   parseOperatorAlert,
   severityToBadgeVariant,
 } from './operatorAlertsSelectors';
-import type { OperatorAlertRow } from './operatorAlertsTypes';
+import type { OperatorAlert, OperatorAlertRow } from './operatorAlertsTypes';
 
 function row(overrides: Partial<OperatorAlertRow> = {}): OperatorAlertRow {
   return {
@@ -107,5 +108,79 @@ describe('formatAlertDetail', () => {
 
   it('leaves comparison prose alone; only tag-shaped text is stripped', () => {
     expect(formatAlertDetail({ message: 'cpu < 80 and mem > 90' })).toBe('cpu < 80 and mem > 90');
+  });
+});
+
+describe('groupOperatorAlerts', () => {
+  const at = (iso: string, over: Partial<OperatorAlert> = {}): OperatorAlert => ({
+    id: `id-${iso}`,
+    createdAt: iso,
+    source: 'stripe-webhook',
+    severity: 'error',
+    title: 'Cart overflow charge auto-refunded',
+    detail: null,
+    dedupeKey: null,
+    resolvedAt: null,
+    resolvedBy: null,
+    ...over,
+  });
+
+  it('collapses repeats of the same source, severity and title', () => {
+    const groups = groupOperatorAlerts([
+      at('2026-08-19T03:00:00Z'),
+      at('2026-08-19T02:00:00Z'),
+      at('2026-08-19T01:00:00Z', { title: 'Paid cart had overflow lines' }),
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].alerts).toHaveLength(2);
+    expect(groups[0].title).toBe('Cart overflow charge auto-refunded');
+    expect(groups[1].alerts).toHaveLength(1);
+  });
+
+  // dedupe_key embeds the refund/session id, so it identifies ONE event and can
+  // never be the grouping key — grouping on it yields N groups of 1.
+  it('groups across differing dedupe keys', () => {
+    const groups = groupOperatorAlerts([
+      at('2026-08-19T03:00:00Z', { dedupeKey: 'cart-overflow-refund-issued-re_A' }),
+      at('2026-08-19T02:00:00Z', { dedupeKey: 'cart-overflow-refund-issued-re_B' }),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].alerts).toHaveLength(2);
+  });
+
+  it('keeps a different severity or source in its own group', () => {
+    const groups = groupOperatorAlerts([
+      at('2026-08-19T03:00:00Z'),
+      at('2026-08-19T02:00:00Z', { severity: 'warn' }),
+      at('2026-08-19T01:00:00Z', { source: 'payout-cron' }),
+    ]);
+
+    expect(groups).toHaveLength(3);
+  });
+
+  it('carries the newest and oldest timestamps of its members', () => {
+    const groups = groupOperatorAlerts([
+      at('2026-08-19T03:00:00Z'),
+      at('2026-08-19T01:00:00Z'),
+      at('2026-08-19T02:00:00Z'),
+    ]);
+
+    expect(groups[0].newestAt).toBe('2026-08-19T03:00:00Z');
+    expect(groups[0].oldestAt).toBe('2026-08-19T01:00:00Z');
+  });
+
+  it('preserves the newest-first order the query returned', () => {
+    const groups = groupOperatorAlerts([
+      at('2026-08-19T01:00:00Z', { title: 'Older type' }),
+      at('2026-08-19T05:00:00Z', { title: 'Newer type' }),
+    ]);
+
+    expect(groups.map(g => g.title)).toEqual(['Older type', 'Newer type']);
+  });
+
+  it('returns an empty list for no alerts', () => {
+    expect(groupOperatorAlerts([])).toEqual([]);
   });
 });

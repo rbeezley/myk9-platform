@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { RBACService } from '@/services/rbac/RBACService';
-import { mockSupabase } from '@/test/mocks/supabase';
+import { createChainableQuery, mockSupabase } from '@/test/mocks/supabase';
 // import { ActionType } from '@/types/rbac-types'; // Not used in current tests
 
 describe('RBACService', () => {
@@ -263,13 +263,7 @@ describe('RBACService', () => {
           };
         }
         if (table === 'user_roles') {
-          return {
-            update: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockResolvedValue({ data: null, error: null }),
-              }),
-            }),
-          };
+          return createChainableQuery({ data: [{ club_id: null, show_id: null }], error: null });
         }
         if (table === 'permission_audit_log') {
           return { insert: vi.fn().mockResolvedValue({ data: null, error: null }) };

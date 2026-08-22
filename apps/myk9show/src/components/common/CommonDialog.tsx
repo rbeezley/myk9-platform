@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 
 interface CommonDialogProps {
   open: boolean;
@@ -22,6 +23,7 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
   maxWidth = 'max-w-lg',
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
 
   // Auto-focus management for accessibility
   useEffect(() => {
@@ -81,7 +83,11 @@ export const CommonDialog: React.FC<CommonDialogProps> = ({
           {children}
         </div>
         {/* Footer (optional) */}
-        {footer && <div className="px-10 py-4 border-t border-border/50 shrink-0">{footer}</div>}
+        {footer && (
+          <div ref={actionBarRef} className="px-10 py-4 border-t border-border/50 shrink-0">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

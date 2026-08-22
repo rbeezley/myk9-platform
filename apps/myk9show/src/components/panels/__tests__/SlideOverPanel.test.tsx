@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { SlideOverPanel } from '../SlideOverPanel';
+import { selectReservedBottom, useActionBarStore } from '@/store/actionBarStore';
+
+const reservedBottom = () => selectReservedBottom(useActionBarStore.getState());
 
 describe('SlideOverPanel responsive sizing', () => {
   it.each([
@@ -23,6 +26,39 @@ describe('SlideOverPanel responsive sizing', () => {
     );
 
     expect(responsiveMaxWidths.sort()).toEqual(['sm:max-w-none', expected].sort());
+  });
+});
+
+describe('SlideOverPanel action-bar registration', () => {
+  it('reserves the footer height while the panel is open and releases it on close', () => {
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      bottom: 64,
+      height: 64,
+      left: 0,
+      right: 320,
+      top: 0,
+      width: 320,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const { rerender } = render(
+      <SlideOverPanel open onClose={vi.fn()} title="Panel" footer={<button>Save</button>}>
+        Content
+      </SlideOverPanel>
+    );
+
+    expect(reservedBottom()).toBe(64);
+
+    rerender(
+      <SlideOverPanel open={false} onClose={vi.fn()} title="Panel" footer={<button>Save</button>}>
+        Content
+      </SlideOverPanel>
+    );
+
+    expect(reservedBottom()).toBe(0);
+    rectSpy.mockRestore();
   });
 });
 

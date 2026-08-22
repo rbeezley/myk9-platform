@@ -39,7 +39,7 @@ export const ClubSwitcher: React.FC<ClubSwitcherProps> = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="touch" className="gap-2">
           <Building2 className="h-4 w-4" aria-hidden="true" />
           <span className="max-w-[16rem] truncate">{current?.name ?? 'Choose a club'}</span>
           <ChevronDown className="h-4 w-4 opacity-60" aria-hidden="true" />

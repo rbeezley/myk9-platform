@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mapDatabaseToClass, type DbClassWithRelations } from '../classMappers';
+import {
+  mapDatabaseToClass,
+  mapReplicatedClassToDbRow,
+  type DbClassWithRelations,
+} from '../classMappers';
 
 function createDbClass(status: string | null): DbClassWithRelations {
   return {
@@ -54,5 +58,32 @@ describe('mapDatabaseToClass', () => {
       } as DbClassWithRelations);
       expect(mapped.section).toBe('');
     });
+  });
+});
+
+/**
+ * MYK9-198. The emergency trial packet and the Reports page read classes back
+ * through this mapper on the replication-backed route — the normal
+ * authenticated/offline path. It dropped every trial-day timing field, so a
+ * fix that worked against a PostgREST row was a silent no-op in production.
+ * Pin the fields here rather than trusting the packet's own tests, which never
+ * exercise this route.
+ */
+describe('mapReplicatedClassToDbRow — trial-day timing', () => {
+  it('carries the class time limits and area count back out', () => {
+    const row = mapReplicatedClassToDbRow({
+      id: 'c1',
+      trialId: 't1',
+      name: 'Interior Advanced',
+      timeLimitSeconds: 180,
+      timeLimitArea2Seconds: 120,
+      timeLimitArea3Seconds: 90,
+      areaCount: 3,
+    } as Parameters<typeof mapReplicatedClassToDbRow>[0]);
+
+    expect(row.time_limit_seconds).toBe(180);
+    expect(row.time_limit_area2_seconds).toBe(120);
+    expect(row.time_limit_area3_seconds).toBe(90);
+    expect(row.num_areas).toBe(3);
   });
 });

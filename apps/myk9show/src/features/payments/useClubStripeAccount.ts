@@ -32,6 +32,15 @@ export function useClubStripeAccount(clubId: string | undefined) {
   });
 }
 
+/**
+ * One `public.show_payouts` row.
+ *
+ * Nothing fetches this shape directly any more: the per-show payout list that
+ * did was merged into the reconciliation card, whose data comes from the
+ * SECURITY DEFINER RPC instead. The type survives because the `status` union is
+ * the domain vocabulary `resolvePayoutBadge` and `resolvePayoutSettlement`
+ * still resolve against.
+ */
 export interface ShowPayoutRow {
   id: string;
   amount_cents: number;
@@ -43,27 +52,9 @@ export interface ShowPayoutRow {
   failure_reason: string | null;
   completed_at: string | null;
   created_at: string;
+  /** Needed to group a show's attempts; a show can hold several payout rows. */
+  show_id: string;
   show: { name: string; club_id: string } | null;
-}
-
-export function useClubPayoutHistory(clubId: string | undefined) {
-  return useQuery({
-    queryKey: ['club-payout-history', clubId],
-    queryFn: async (): Promise<ShowPayoutRow[]> => {
-      // RLS scopes rows to the club; the explicit filter keeps intent visible.
-      // Cast narrows show_payouts.status (typed `string`) to the union and the
-      // embedded show shape to ShowPayoutRow['show'].
-      const { data, error } = await supabase
-        .from('show_payouts')
-        .select('id, amount_cents, status, failure_reason, completed_at, created_at, show:show_id!inner(name, club_id)')
-        .eq('show.club_id', clubId!)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as ShowPayoutRow[];
-    },
-    enabled: !!clubId,
-    ...cacheStrategies.moderate,
-  });
 }
 
 /**

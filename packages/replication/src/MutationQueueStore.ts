@@ -117,6 +117,7 @@ export class MutationQueueStore {
     operation: PendingMutation['operation'],
     rowId: string,
     data: Record<string, unknown>,
+    authUserId: string,
     dependsOn?: string[],
     serverVersion?: number,
     rpc?: PendingMutation['rpc']
@@ -126,6 +127,7 @@ export class MutationQueueStore {
     const id = crypto.randomUUID();
     const mutation: PendingMutation = {
       id,
+      authUserId,
       tableName,
       operation,
       rowId,
@@ -157,12 +159,21 @@ export class MutationQueueStore {
     return db.count(REPLICATION_STORES.PENDING_MUTATIONS);
   }
 
-  async getPendingMutationsForRow(tableName: string, rowId: string): Promise<PendingMutation[]> {
+  async getPendingMutationsForRow(
+    tableName: string,
+    rowId: string,
+    authUserId: string
+  ): Promise<PendingMutation[]> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
 
     return all
-      .filter(mutation => mutation.tableName === tableName && mutation.rowId === rowId)
+      .filter(
+        mutation =>
+          mutation.tableName === tableName &&
+          mutation.rowId === rowId &&
+          mutation.authUserId === authUserId
+      )
       .sort((a, b) => {
         const sequenceA = a.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
         const sequenceB = b.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
@@ -172,16 +183,21 @@ export class MutationQueueStore {
       });
   }
 
-  async getFailedMutations(): Promise<PendingMutation[]> {
+  async getFailedMutations(authUserId: string): Promise<PendingMutation[]> {
     const db = await databaseManager.getDatabase('MutationManager');
-    return (await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)) as PendingMutation[];
+    const failed = (await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)) as PendingMutation[];
+    return failed.filter(mutation => mutation.authUserId === authUserId);
   }
 
-  async retryFailedMutation(mutationId: string): Promise<PendingMutation | undefined> {
+  async retryFailedMutation(
+    mutationId: string,
+    authUserId: string,
+    confirmOwner: () => Promise<void>
+  ): Promise<PendingMutation | undefined> {
     const db = await databaseManager.getDatabase('MutationManager');
     const failed = (await db.get(REPLICATION_STORES.FAILED_MUTATIONS, mutationId)) as
       PendingMutation | undefined;
-    if (!failed) return undefined;
+    if (!failed || failed.authUserId !== authUserId) return undefined;
 
     const requeued: PendingMutation = {
       ...failed,
@@ -197,26 +213,51 @@ export class MutationQueueStore {
     delete requeued.nextRetryAt;
     delete requeued.failedAt;
 
-    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, requeued);
-    await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
+    await confirmOwner();
+    const tx = db.transaction(
+      [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.FAILED_MUTATIONS],
+      'readwrite'
+    );
+    await Promise.all([
+      tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).put(requeued),
+      tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).delete(mutationId),
+      tx.done,
+    ]);
     this.logger.log(
       `[MutationManager] Re-queued failed mutation ${mutationId} (${failed.tableName}/${failed.rowId})`
     );
     return failed;
   }
 
-  async discardFailedMutation(mutationId: string): Promise<void> {
+  async discardFailedMutation(
+    mutationId: string,
+    authUserId: string,
+    confirmOwner: () => Promise<void>
+  ): Promise<boolean> {
     const db = await databaseManager.getDatabase('MutationManager');
+    const failed = (await db.get(REPLICATION_STORES.FAILED_MUTATIONS, mutationId)) as
+      PendingMutation | undefined;
+    if (!failed || failed.authUserId !== authUserId) return false;
+    await confirmOwner();
     await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
+    return true;
   }
 
-  async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<number> {
+  async discardPendingMutationsForRow(
+    tableName: string,
+    rowId: string,
+    authUserId: string,
+    confirmOwner: () => Promise<void>
+  ): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-    const toDelete = all.filter(m => m.tableName === tableName && m.rowId === rowId).map(m => m.id);
+    const toDelete = all
+      .filter(m => m.tableName === tableName && m.rowId === rowId && m.authUserId === authUserId)
+      .map(m => m.id);
 
     if (toDelete.length === 0) return 0;
 
+    await confirmOwner();
     const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
     for (const id of toDelete) {
       await tx.store.delete(id);
@@ -231,14 +272,19 @@ export class MutationQueueStore {
   async updateMutationServerVersions(
     tableName: string,
     rowId: string,
-    newServerVersion: number
+    newServerVersion: number,
+    authUserId: string,
+    confirmOwner?: () => Promise<void>
   ): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-    const toUpdate = all.filter(m => m.tableName === tableName && m.rowId === rowId);
+    const toUpdate = all.filter(
+      m => m.tableName === tableName && m.rowId === rowId && m.authUserId === authUserId
+    );
 
     if (toUpdate.length === 0) return 0;
 
+    await confirmOwner?.();
     const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
     for (const mutation of toUpdate) {
       await tx.store.put({ ...mutation, serverVersion: newServerVersion });
@@ -254,16 +300,23 @@ export class MutationQueueStore {
     tableName: string,
     rowId: string,
     newServerVersion: number,
+    authUserId: string,
     rebuiltData?: Record<string, unknown>,
-    legacyOmittedKeysServerWins: readonly string[] = []
+    legacyOmittedKeysServerWins: readonly string[] = [],
+    confirmOwner?: () => Promise<void>
   ): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     const all = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
     const candidates = all.filter(
-      m => m.tableName === tableName && m.rowId === rowId && m.operation === 'UPDATE'
+      m =>
+        m.tableName === tableName &&
+        m.rowId === rowId &&
+        m.operation === 'UPDATE' &&
+        m.authUserId === authUserId
     );
     if (candidates.length === 0) return 0;
 
+    await confirmOwner?.();
     const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
     let changed = 0;
     for (const mutation of candidates) {
@@ -314,18 +367,30 @@ export class MutationQueueStore {
     return changed;
   }
 
-  async clearAllMutations(): Promise<void> {
+  async clearMutationsForOwner(
+    authUserId: string,
+    confirmOwner: () => Promise<void>
+  ): Promise<void> {
     const db = await databaseManager.getDatabase('MutationManager');
-
-    // Clear all pending mutations from IndexedDB
-    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
-    await tx.store.clear();
-    await tx.done;
-
-    // Failed mutations belong to the same session/show context — stale ones
-    // from a previous login must not resurface for the next user.
-    const failedTx = db.transaction(REPLICATION_STORES.FAILED_MUTATIONS, 'readwrite');
-    await failedTx.store.clear();
-    await failedTx.done;
+    const pending = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)).filter(
+      mutation => mutation.authUserId === authUserId
+    );
+    const failed = (await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)).filter(
+      mutation => mutation.authUserId === authUserId
+    );
+    await confirmOwner();
+    const tx = db.transaction(
+      [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.FAILED_MUTATIONS],
+      'readwrite'
+    );
+    await Promise.all([
+      ...pending.map(mutation =>
+        tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).delete(mutation.id)
+      ),
+      ...failed.map(mutation =>
+        tx.objectStore(REPLICATION_STORES.FAILED_MUTATIONS).delete(mutation.id)
+      ),
+      tx.done,
+    ]);
   }
 }

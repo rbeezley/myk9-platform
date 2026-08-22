@@ -10,6 +10,47 @@ import { supabase } from '@/lib/supabase';
 import type { Json } from '@myk9/supabase';
 import { ActionType, AuditLogEntry, AuditLogFilter } from '@/types/rbac-types';
 import { logger } from '@/services/LoggingService';
+import { formatPersonLabel, type PersonLabelRow } from './personLabels';
+
+async function enrichAuditPeople(entries: AuditLogEntry[]): Promise<AuditLogEntry[]> {
+  const personIds = Array.from(
+    new Set(
+      entries
+        .flatMap(entry => [entry.user_id, entry.target_type === 'user' ? entry.target_id : null])
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  if (personIds.length === 0) return entries;
+
+  const { data, error } = await supabase
+    .from('people')
+    .select('id, first_name, last_name, email')
+    .in('id', personIds);
+
+  if (error) {
+    logger.warn('Failed to enrich RBAC audit people', 'rbac', { personIds }, error);
+    return entries;
+  }
+
+  const people = new Map(
+    ((data ?? []) as PersonLabelRow[]).map(person => [person.id, person] as const)
+  );
+
+  return entries.map(entry => {
+    const actor = entry.user_id ? people.get(entry.user_id) : undefined;
+    const target =
+      entry.target_type === 'user' && entry.target_id
+        ? people.get(entry.target_id)
+        : undefined;
+    const targetDisplay = formatPersonLabel(target);
+    return {
+      ...entry,
+      ...(actor?.email ? { actor_email: actor.email } : {}),
+      ...(targetDisplay ? { target_display: targetDisplay } : {}),
+    };
+  });
+}
 
 export class AuditLogger {
   /**
@@ -102,7 +143,7 @@ export class AuditLogger {
       throw new Error(`Failed to get audit logs: ${error.message}`);
     }
 
-    return (data || []) as AuditLogEntry[];
+    return enrichAuditPeople((data || []) as AuditLogEntry[]);
   }
 
   /**

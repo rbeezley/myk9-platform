@@ -35,6 +35,11 @@ function Panel({ open }: { open: boolean }) {
   return <div ref={setBar}>action bar</div>;
 }
 
+function FloatingBar() {
+  const setBar = useRegisterActionBar<HTMLDivElement>({ bottomOffsetPx: 24 });
+  return <div ref={setBar}>floating action bar</div>;
+}
+
 function Harness() {
   const [open, setOpen] = useState(false);
   return (
@@ -96,5 +101,10 @@ describe('useRegisterActionBar', () => {
     // the two, not double.
     expect(reserved()).toBe(72);
     expect(Object.keys(useActionBarStore.getState().heights)).toHaveLength(2);
+  });
+
+  it('includes a floating bar bottom offset in the reserved extent', () => {
+    render(<FloatingBar />);
+    expect(reserved()).toBe(96);
   });
 });

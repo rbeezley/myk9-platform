@@ -7,6 +7,7 @@ to act. The dashboard and support inbox should guide investigation without
 duplicating the underlying admin workflows.
 
 ## Requirements
+
 ### Requirement: Dashboard platform health summary routes to owner surfaces
 
 The system SHALL render a compact platform-health summary on `/admin/dashboard` for site admins. The summary SHALL surface the latest health state/run age, open support-ticket risk, show-day-priority ticket risk when available, sync risk when available, and deleted-item recovery access. Each summary item SHALL link to the existing owner surface instead of duplicating that surface's workflow.
@@ -101,3 +102,24 @@ The system SHALL label `/admin/rbac-test` as debug-only wherever it is linked fr
 
 - **WHEN** a site admin sees a link to `/admin/rbac-test`
 - **THEN** the link text or nearby label identifies it as debug-only
+
+### Requirement: Assignment scope labels are exact before revoke
+
+The canonical role-assignments ledger SHALL name the exact club for every club-scoped assignment in visible and accessible text. Before revoking an assignment, the confirmation SHALL repeat the target user, role, and scope. Global, Show, and Club grants SHALL remain distinguishable, and unresolved scope relationships SHALL be labeled honestly with enough raw scope context for escalation.
+
+#### Scenario: Club-scoped assignment names the exact club
+
+- **WHEN** the assignments ledger renders a club-scoped role grant whose club relationship resolves
+- **THEN** the Scope cell names that exact club in the link’s visible and accessible text
+- **AND** Club, Show, and Global grants remain distinguishable
+
+#### Scenario: Revoke confirmation repeats exact scope
+
+- **WHEN** a site admin chooses Revoke for a club-scoped assignment
+- **THEN** the confirmation repeats the target user, role, and exact club name before enabling the destructive action
+
+#### Scenario: Missing club relationship is honest
+
+- **WHEN** a club-scoped assignment references a club that cannot be resolved
+- **THEN** the Scope cell identifies it as an unresolved club scope rather than presenting it as Global or inventing a club name
+- **AND** the revoke confirmation repeats that unresolved club scope and its identifier

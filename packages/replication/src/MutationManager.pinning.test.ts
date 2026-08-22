@@ -9,6 +9,7 @@ import type { PendingMutation } from './types';
 
 const TEST_DB_NAME = 'test-mutation-manager-pinning-db';
 const BACKUP_KEY = 'replication_mutation_backup';
+const TEST_AUTH_USER_ID = 'test-user';
 
 function createLogger(): Logger {
   return {
@@ -45,6 +46,7 @@ function createSupabaseClient(): SupabaseClient {
 function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
     id: 'mutation-1',
+    authUserId: TEST_AUTH_USER_ID,
     tableName: 'entries',
     operation: 'UPDATE',
     rowId: 'entry-1',
@@ -96,6 +98,11 @@ describe('MutationManager contract pins', () => {
       maxRetries: 3,
       retryBackoffBase: 10,
       logger: createLogger(),
+      getCurrentUserId: async () => TEST_AUTH_USER_ID,
+      getCurrentUploadContext: async () => ({
+        authUserId: TEST_AUTH_USER_ID,
+        supabaseClient: supabase,
+      }),
     });
   });
 
@@ -158,7 +165,14 @@ describe('MutationManager contract pins', () => {
       db.get(REPLICATION_STORES.SYNC_METADATA, '__mutation_sequence__')
     ).resolves.toBeUndefined();
     manager.destroy();
-    manager = new MutationManager(supabase, { logger: createLogger() });
+    manager = new MutationManager(supabase, {
+      logger: createLogger(),
+      getCurrentUserId: async () => TEST_AUTH_USER_ID,
+      getCurrentUploadContext: async () => ({
+        authUserId: TEST_AUTH_USER_ID,
+        supabaseClient: supabase,
+      }),
+    });
 
     const secondId = await manager.queueMutation(
       'entries',

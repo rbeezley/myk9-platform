@@ -603,6 +603,51 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### QA-SENTRY-CRON-MONITOR-SCOPE-2026-08-22
+
+- **Status:** fixed
+- **Classification:** monitoring defect / alert routing
+- **Severity:** medium
+- **Role:** operator (site admin)
+- **Surface:** `apps/myk9show/supabase/functions/cron-health-check/index.ts`; `apps/myk9show/supabase/functions/_shared/healthCheckRun.ts`; Sentry Cron monitors `daily-health-check` and `continuous-health-check` (project `javascript-react`, environment `staging`).
+- **Detected by:** Sentry "Regressed issue" email, incident `35976516`, 2026-08-22 08:45:02 UTC.
+- **Evidence:** One `POST | 500` on `cron-health-check` at `2026-08-22T08:45:02.151Z`; every other invocation in the surrounding 24h returned 200. The function log reads `snapshot insert failed: TypeError: error sending request ... /rest/v1/system_health_snapshots: client error (SendRequest): connection error: stream closed because of a broken pipe`. The 08:50 run wrote a normal snapshot.
+- **Root cause:** `Deno.serve` checked in to `DAILY_HEALTH_MONITOR_SLUG` on *every* invocation. `continuous-health-check` calls the same function every 5 minutes, so a monitor scheduled `0 7 * * *` with failure tolerance 1 was taking ~288 check-ins a day. One transient blip therefore paged, and an `ok` from any continuous run satisfied the 07:00 window.
+- **Resolution:** `resolveHealthCheckRun(headers)` in a new `_shared/healthCheckRun.ts` resolves each request to the monitor it reports to. Continuous runs go to a new `continuous-health-check` monitor; the 07:00 nightly and the manual `Run now` full run go to `daily-health-check`. There is no branch to skip a check-in, so no run can end up unmonitored.
+- **Rejected first attempt (recorded because the failure mode is instructive):** the original fix simply *suppressed* the check-in for continuous runs. Adversarial review caught that `cron-health-check` has no `captureException`, `pg_net` discards the response body, pg_cron records the job `succeeded` regardless, and `operator_alerts` is only ever read by a React Query hook — so the check-in is the sole path from this function to a human. Suppressing it would have hidden a total continuous-run outage for ~24h. It also silently broke `Run now` as a monitor-recovery affordance.
+- **Proof:** `resolveHealthCheckRun` is executed by `healthCheckRun.test.ts` (not source-grepped). Three mutations that the first attempt's tests passed green are now killed: renaming the mode header in TS only (EXIT=1), collapsing both slugs to one (EXIT=1), and adding a run token to the nightly pg_cron block (EXIT=1); baseline EXIT=0. Header-name literals are cross-checked between the `.ts` constants and the migration SQL from both sides.
+- **Required manual step:** create the `continuous-health-check` Sentry monitor at `*/5 * * * *` UTC with **failure tolerance above 1**. `cronHealthCheck.source.test.ts` forbids `monitorConfig` in code, so this is console-only.
+- **Notes:** The transient broken pipe itself needs no fix — one connection reset in 288 runs, self-healing on the next tick. If it recurs, add a bounded retry around `insertSnapshot`.
+
+### QA-HEALTH-WATCHDOG-INERT-2026-08-22
+
+- **Status:** fixed
+- **Classification:** monitoring defect / predicate collision
+- **Severity:** high
+- **Role:** operator (site admin)
+- **Surface:** `supabase/migrations/20260711200000_daily_health_snapshot_watchdog.sql`
+- **Detected by:** adversarial review during PR #1750; confirmed by direct query.
+- **Evidence:** The watchdog inserts an `operator_alerts` row only when `expected_window_snapshot` is NULL — no snapshot with `source = 'cron-health-check'` between 07:00 and 08:00 UTC. Since MYK9-157 (2026-08-04) the five-minute `continuous-health-check` run writes snapshots with that exact same source. Measured 2026-08-22 over the prior 7 days: **13 snapshots in the 07:00-08:00 window every single day** (12 continuous + 1 nightly). The predicate can therefore never be satisfied.
+- **User impact:** The "independent SQL path" that the go-live runbook credits as the second of two independent missed-nightly detectors has been inert since 2026-08-04. A nightly full run could stop firing entirely and this watchdog would stay silent.
+- **Confidence:** High — arithmetic, confirmed against live data.
+- **Proof required:** A discriminator persisted on the snapshot row (run mode, or a distinct `source` for the nightly full run), the watchdog predicate narrowed to it, and a replay showing the alert fires when the nightly run is absent but continuous runs are present.
+- **Fix (in review):** Migration `20260822180000_health_snapshot_run_mode.sql` adds a nullable, CHECK-constrained `run_mode` column to `system_health_snapshots` and rescopes BOTH watchdog snapshot CTEs with `run_mode IS DISTINCT FROM 'continuous'`. `cron-health-check` persists the run mode on every insert, including the probe-failure path.
+- **Why `IS DISTINCT FROM` and not `= 'full'`:** rows written before the matching function deploy carry a NULL `run_mode`. Under `= 'full'` this migration landing ahead of the deploy would make the predicate match nothing and fire a false "snapshot missing" alert at the next 08:00. `IS DISTINCT FROM` makes the two halves order-independent, and the predicate becomes exact once the function is deployed. No `DEFAULT` on the column for the mirror-image reason: a default would relabel continuous rows as nightly if the function ever stopped sending the value.
+- **Proof so far:** four mutations killed (`= 'full'` EXIT=1; rescoping only the window CTE and leaving `latest_snapshot` counting continuous EXIT=1; dropping `run_mode` from the insert EXIT=1; adding a column DEFAULT EXIT=1), baseline EXIT=0. `src/test/database/` 88 files / 651 tests pass, 6/6 shuffled. `pnpm typecheck` and `pnpm lint` at 0.
+- **Closure proof (replay, 2026-08-22):** Ran the **deployed** watchdog body -- pulled from `cron.job.command`, with only the two table names rewritten to temp tables -- against controlled datasets in a psql transaction that rolled back. Script: `scripts/qa/watchdog-inert-replay.sql`.
+
+  | # | Scenario | Predicate | Alerts |
+  | --- | --- | --- | --- |
+  | 1 | Nightly ran, +12 continuous | new (deployed) | 0 |
+  | 2 | **Nightly MISSING, +12 continuous** | new (deployed) | **1** (`daily-health-check:2026-08-22`) |
+  | 3 | *Same data as 2*, pre-fix predicate | old (08-04..08-22) | **0** |
+  | 4 | Scenario 2, watchdog run twice | new (deployed) | 1 (ON CONFLICT dedupe holds) |
+  | 5 | Legacy NULL `run_mode` only | new (deployed) | 0 (deploy-order safety) |
+
+  Row 2 vs row 3 is the finding: identical data, and only the fixed predicate raises the alert. The script asserts up front that the deployed body carries 2 `run_mode IS DISTINCT FROM` predicates and that the stripped variant carries 0, so row 3 is genuinely the old predicate rather than a mislabelled copy of the new one. Post-replay: 0 leftover `replay_*` objects, 0 spurious `operator_alerts` rows.
+- **Live confirmation:** first post-deploy continuous run (2026-08-22 18:50:02 UTC) wrote `run_mode = 'continuous'`. 5,156 pre-deploy rows carry NULL and are still counted as nightly, as intended.
+- **Notes:** Split out of PR #1750, which fixed Sentry routing only. The first nightly run under the new predicate is 2026-08-23 07:00 UTC; the watchdog evaluates it at 08:00 UTC.
+
 ### NQA-2026-07-29-01
 
 - **Status:** fixed

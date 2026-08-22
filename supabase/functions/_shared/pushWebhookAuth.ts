@@ -1,17 +1,9 @@
-import { HttpError } from './http/responses.ts';
-import { timingSafeEqual } from './timingSafeEqual.ts';
+import { requireFunctionSecret } from './functionSecret.ts';
 
+/** Push triggers keep their own wording; the mechanism is shared. */
 export function requirePushWebhookSecret(
   req: Request,
   getEnv: (name: string) => string | undefined = name => Deno.env.get(name)
 ): void {
-  const webhookSecret = getEnv('PUSH_WEBHOOK_SECRET');
-  if (!webhookSecret) {
-    throw new HttpError(503, 'Push trigger is not configured');
-  }
-
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader || !timingSafeEqual(authHeader, `Bearer ${webhookSecret}`)) {
-    throw new HttpError(401, 'Unauthorized');
-  }
+  requireFunctionSecret(req, 'PUSH_WEBHOOK_SECRET', getEnv, 'Push trigger is not configured');
 }

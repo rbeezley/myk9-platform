@@ -29,6 +29,7 @@ const PACKET: StoredPacket = {
   byteSize: 240_000,
   trialDate: '2026-09-19',
   generatedBy: 'd0000000-0000-4000-8000-000000000003',
+  generatedSource: 'manual',
 };
 
 interface StubOptions {
@@ -158,6 +159,10 @@ describe('deliverStoredPacket', () => {
       show_id: SHOW.id,
       snapshot_id: PACKET.snapshotId,
       provider_message_id: 'provider-msg-1',
+      // The day is recorded, not just embedded in the email: it is the
+      // automated trigger's idempotency key (MYK9-228 phase 4).
+      trial_date: PACKET.trialDate,
+      generated_source: 'manual',
     });
   });
 

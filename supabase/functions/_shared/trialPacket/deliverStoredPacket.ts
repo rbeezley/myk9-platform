@@ -53,8 +53,13 @@ export interface StoredPacket {
   pageCount: number;
   byteSize: number;
   trialDate?: string | undefined;
-  /** The auth user who asked for this packet. */
-  generatedBy: string;
+  /**
+   * The auth user who asked for this packet, or null when a schedule did.
+   * `trial_packet_generated_source_check` keeps the two consistent: only an
+   * `automated` row may omit the author.
+   */
+  generatedBy: string | null;
+  generatedSource: 'manual' | 'automated';
 }
 
 export interface PacketDeliveryResult {
@@ -242,6 +247,8 @@ export async function deliverStoredPacket(
     storage_path: packet.storagePath,
     generated_at: packet.generatedAt,
     generated_by: packet.generatedBy,
+    generated_source: packet.generatedSource,
+    trial_date: packet.trialDate ?? null,
     sha256: packet.sha256,
     page_count: packet.pageCount,
     byte_size: packet.byteSize,

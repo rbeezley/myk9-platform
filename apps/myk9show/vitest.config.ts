@@ -74,6 +74,7 @@ export default defineConfig({
       // Trial-packet delivery moved out of the function directory so the
       // automated generator shares it; the glob above no longer reaches it.
       '../../supabase/functions/_shared/trialPacket/*.test.ts',
+      '../../supabase/functions/generate-trial-packet/*.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
     ],
     exclude: [

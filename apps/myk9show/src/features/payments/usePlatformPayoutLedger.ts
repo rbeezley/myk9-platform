@@ -23,10 +23,13 @@ export interface LedgerEntryPage {
   rows: LedgerEntryRow[];
   /**
    * False when the `refund_decision` column could not be read and the query fell
-   * back to the base select. Every row is then backfilled with null, so the
-   * unresolved-pull count collapses and the advisory disappears — an ABSENT
-   * warning that reads as "nothing to resolve". The page must be able to say the
-   * check did not run instead.
+   * back to the base select.
+   *
+   * Every row is then backfilled with null, and `isUnresolvedPullRefundDecision`
+   * requires `refund_decision === null` — so the count INFLATES, not collapses:
+   * entries already marked 'denied' are indistinguishable from undecided ones
+   * and all of them read as unresolved. Either way the number is fiction, and
+   * the page must say the check did not run rather than render it.
    */
   refundDecisionChecked: boolean;
 }
@@ -133,7 +136,9 @@ export async function loadPayoutsByShowIds(showIds: string[]): Promise<PayoutRow
     // chunk of shows can hold more than PAGE payout rows.
     for (let pageIndex = 0; ; pageIndex += 1) {
       if (pageIndex >= MAX_PAGES) {
-        throw new Error('Payout ledger: payout scan did not terminate; refusing to report a partial total.');
+        throw new Error(
+          'Payout ledger: payout scan did not terminate; refusing to report a partial total.'
+        );
       }
       const from = pageIndex * PAGE;
       const { data, error } = await supabase
@@ -191,7 +196,9 @@ export function usePlatformPayoutLedger() {
       let previousFirstEntryId: string | null = null;
       for (let page = 0; ; page += 1) {
         if (page >= MAX_PAGES) {
-          throw new Error('Payout ledger: entry scan did not terminate; refusing to report a partial total.');
+          throw new Error(
+            'Payout ledger: entry scan did not terminate; refusing to report a partial total.'
+          );
         }
         const from = page * PAGE;
         const entryPage = await loadPlatformPayoutLedgerEntryPage(from, from + PAGE - 1);

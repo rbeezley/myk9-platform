@@ -210,15 +210,17 @@ describe('PlatformIncomeCard', () => {
     expect(screen.queryByText('One-time payments (net)')).not.toBeInTheDocument();
   });
 
-  it('shows outstanding transfer liability as its own figure, separate from income', () => {
+  it('carries no liability figure of its own', () => {
+    // This card used to show a second "owed" number — pending + processing +
+    // failed transfers, i.e. only shows that already HAVE a payout record. It
+    // sat ~200px from the ledger's all-shows figure, legitimately disagreed
+    // with it, and nothing said why. Deleted in favour of the complete one on
+    // the page; the failed transfers it broke out are still counted in
+    // Reconciliation attention below.
     overviewState.data = overview();
     render(<PlatformIncomeCard />);
-    // Named for what these amounts actually share — a payout RECORD, not a
-    // transfer. The cron writes a pending row even when a club has not finished
-    // Stripe onboarding, and failed rows count here too, so "in flight to
-    // Stripe" would claim a transfer that may never have been attempted.
-    expect(screen.getByText('Owed where a payout record exists')).toBeInTheDocument();
-    expect(screen.getByText('$300.00')).toBeInTheDocument();
+    expect(screen.queryByText(/owed/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/No reconciliation attention items/i)).toBeInTheDocument();
   });
 
   it('shows a calm "no attention" state when there is no genuine drift', () => {

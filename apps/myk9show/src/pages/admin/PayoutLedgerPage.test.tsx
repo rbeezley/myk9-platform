@@ -128,7 +128,7 @@ describe('PayoutLedgerPage', () => {
     expect(within(table).getByText('Spring Trial')).toBeInTheDocument();
     expect(within(table).getByText('tr_1')).toBeInTheDocument();
     expect(within(table).getByText('Paid')).toBeInTheDocument();
-    expect(screen.getByText('Owed to clubs (all shows)')).toBeInTheDocument();
+    expect(screen.getByText('Owed to clubs')).toBeInTheDocument();
     // Completed payout → counts toward "paid out", not outstanding.
     expect(screen.getByText('Paid out to date')).toBeInTheDocument();
   });
@@ -285,22 +285,42 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     expect(screen.getByText(/loading the current rate/i)).toBeInTheDocument();
   });
 
-  it("makes no rate claim once the read fails, and locks the field", () => {
+  it('makes no rate claim once the read fails, and locks the field', () => {
     // A successful read followed by a failed/paused refetch. The field keeps
     // what the admin was editing — clearing it would destroy an in-progress
     // edit on a transient blip — but the CLAIM about the live rate has to go,
     // and nothing may be submitted against a rate we cannot read.
     const { rerender } = render(<PayoutLedgerPage />);
-    expect(screen.getByRole("spinbutton", { name: /fee percent/i })).toHaveValue(7);
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
 
     feeState.percent = null;
-    feeState.state = "unavailable";
+    feeState.state = 'unavailable';
     rerender(<PayoutLedgerPage />);
 
     expect(screen.queryByText(/current rate:/i)).not.toBeInTheDocument();
     expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
-    expect(screen.getByRole("spinbutton", { name: /fee percent/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /update fee/i })).toBeDisabled();
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /update fee/i })).toBeDisabled();
+    // The VALUE goes too. A bare number in a field labelled "Fee percent" is a
+    // claim, even disabled. An earlier revision of this test dropped this
+    // assertion and the regression became invisible.
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(null);
+  });
+
+  it('keeps a TYPED value when the read fails, rather than destroying the edit', () => {
+    // The other half of the same rule: clearing is safe only for a value the
+    // page put there itself.
+    const { rerender } = render(<PayoutLedgerPage />);
+    fireEvent.change(screen.getByRole('spinbutton', { name: /fee percent/i }), {
+      target: { value: '9' },
+    });
+
+    feeState.percent = null;
+    feeState.state = 'unavailable';
+    rerender(<PayoutLedgerPage />);
+
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(9);
+    expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
   });
 
   it('offers no dead-end link for pulled entries on an unreadable show', () => {
@@ -392,7 +412,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
  * The majors: things the page showed accurately but described in a way that led
  * the operator to the wrong conclusion.
  */
-describe("PayoutLedgerPage — says which situation a row is actually in", () => {
+describe('PayoutLedgerPage — says which situation a row is actually in', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
@@ -400,38 +420,38 @@ describe("PayoutLedgerPage — says which situation a row is actually in", () =>
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.percent = 7;
-    feeState.state = "ready";
+    feeState.state = 'ready';
   });
 
-  it("distinguishes a payout past its settle date from one merely scheduled", () => {
+  it('distinguishes a payout past its settle date from one merely scheduled', () => {
     // Both used to render "Not settled". One is money stuck behind a cron that
     // did not run; the other is a show settling next month.
     ledgerState.data = [
       {
         ...row,
-        showId: "past",
-        showName: "Overdue Show",
+        showId: 'past',
+        showName: 'Overdue Show',
         payoutStatus: null,
-        settleDate: "2020-01-01",
+        settleDate: '2020-01-01',
       },
       {
         ...row,
-        showId: "future",
-        showName: "Future Show",
+        showId: 'future',
+        showName: 'Future Show',
         payoutStatus: null,
-        settleDate: "2099-01-01",
+        settleDate: '2099-01-01',
       },
     ];
 
     render(<PayoutLedgerPage />);
-    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
 
-    expect(within(table).getByText("Past due")).toBeInTheDocument();
-    expect(within(table).getByText("Scheduled")).toBeInTheDocument();
-    expect(within(table).queryByText("Not settled")).not.toBeInTheDocument();
+    expect(within(table).getByText('Past due')).toBeInTheDocument();
+    expect(within(table).getByText('Scheduled')).toBeInTheDocument();
+    expect(within(table).queryByText('Not settled')).not.toBeInTheDocument();
   });
 
-  it("marks a Net owed figure that came from the transfer, not from the columns", () => {
+  it('marks a Net owed figure that came from the transfer, not from the columns', () => {
     // Collected / Refunds / Net owed read as a subtraction. For a row whose
     // amount was frozen onto the payout record, it is not one.
     ledgerState.data = [
@@ -440,85 +460,86 @@ describe("PayoutLedgerPage — says which situation a row is actually in", () =>
         onlineCollectedCents: 5000,
         refundedCents: 1000,
         netOwedCents: 5000,
-        netOwedSource: "transfer",
+        netOwedSource: 'transfer',
       },
     ];
 
     render(<PayoutLedgerPage />);
-    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
 
-    expect(within(table).getByText("as transferred")).toBeInTheDocument();
+    expect(within(table).getByText('as transferred')).toBeInTheDocument();
   });
 
-  it("does not mark a row whose columns do subtract", () => {
+  it('does not mark a row whose columns do subtract', () => {
     ledgerState.data = [
       {
         ...row,
         onlineCollectedCents: 5000,
         refundedCents: 1000,
         netOwedCents: 4000,
-        netOwedSource: "computed",
+        netOwedSource: 'computed',
       },
     ];
 
     render(<PayoutLedgerPage />);
-    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
 
-    expect(within(table).queryByText("as transferred")).not.toBeInTheDocument();
+    expect(within(table).queryByText('as transferred')).not.toBeInTheDocument();
   });
 
-  it("says the pull-refund check did not run, instead of rendering nothing", () => {
-    // The schema fallback backfills refund_decision null for every row, so the
-    // unresolved count collapses to 0 and the advisory disappears. An absent
-    // warning reads as "all resolved".
+  it('says the pull-refund check did not run, instead of rendering its count', () => {
+    // The schema fallback backfills refund_decision null for every row, and
+    // isUnresolvedPullRefundDecision REQUIRES null — so the count INFLATES:
+    // already-denied entries read as unresolved too. The fixture therefore
+    // carries a non-zero count, which is what the fallback actually produces.
+    // Asserting against 0 would model a state the fallback cannot reach.
     ledgerState.refundDecisionChecked = false;
-    ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 0 }];
+    ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 3 }];
 
     render(<PayoutLedgerPage />);
 
     expect(screen.getByText(/could not be checked/i)).toBeInTheDocument();
+    // ...and the fictional count is not rendered anywhere.
+    expect(screen.queryByText(/3 pulled entries/i)).not.toBeInTheDocument();
   });
 
-  it("shows the ordinary advisory when the check did run", () => {
+  it('shows the ordinary advisory when the check did run', () => {
     ledgerState.refundDecisionChecked = true;
     ledgerState.data = [{ ...row, unresolvedRefundDecisionCount: 2 }];
 
     render(<PayoutLedgerPage />);
 
     expect(
-      screen.getByText(/2 pulled entries with unresolved refund decisions/i),
+      screen.getByText(/2 pulled entries with unresolved refund decisions/i)
     ).toBeInTheDocument();
     expect(screen.queryByText(/could not be checked/i)).not.toBeInTheDocument();
   });
 
-  it("keeps the scrolling ledger reachable from the keyboard", () => {
+  it('keeps the scrolling ledger reachable from the keyboard', () => {
     render(<PayoutLedgerPage />);
 
-    const region = screen.getByRole("region", { name: /payout ledger/i });
-    expect(region).toHaveAttribute("tabindex", "0");
+    const region = screen.getByRole('region', { name: /payout ledger/i });
+    expect(region).toHaveAttribute('tabindex', '0');
   });
 
-  it("does not overwrite an in-progress fee edit when the rate refetches", () => {
+  it('does not overwrite an in-progress fee edit when the rate refetches', () => {
     // refetchOnWindowFocus is on. Typing 9, tabbing away and returning used to
     // replace the edit with whatever came back — on the field that sets the
     // live checkout rate.
     const { rerender } = render(<PayoutLedgerPage />);
-    const input = screen.getByRole("spinbutton", { name: /fee percent/i });
-    fireEvent.change(input, { target: { value: "9" } });
+    const input = screen.getByRole('spinbutton', { name: /fee percent/i });
+    fireEvent.change(input, { target: { value: '9' } });
 
     feeState.percent = 8;
     rerender(<PayoutLedgerPage />);
 
-    expect(
-      screen.getByRole("spinbutton", { name: /fee percent/i }),
-    ).toHaveValue(9);
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(9);
   });
-
 });
 /**
  * Codex round 7. All three were consequences of the majors fixes themselves.
  */
-describe("PayoutLedgerPage — the majors fixes do not misfire", () => {
+describe('PayoutLedgerPage — the majors fixes do not misfire', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
@@ -526,50 +547,49 @@ describe("PayoutLedgerPage — the majors fixes do not misfire", () => {
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.percent = 7;
-    feeState.state = "ready";
+    feeState.state = 'ready';
   });
 
-  it("does not call a fully refunded show past due", () => {
+  it('does not call a fully refunded show past due', () => {
     // The cron SKIPS amountCents <= 0, so no payout row is the correct outcome.
     // "Past due" would report correct behaviour as a cron failure.
     ledgerState.data = [
       {
         ...row,
         payoutStatus: null,
-        settleDate: "2020-01-01",
+        settleDate: '2020-01-01',
         onlineCollectedCents: 5000,
         refundedCents: 5000,
         netOwedCents: 0,
-        netOwedSource: "computed",
+        netOwedSource: 'computed',
       },
     ];
 
     render(<PayoutLedgerPage />);
-    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
 
-    expect(within(table).getByText("Nothing owed")).toBeInTheDocument();
-    expect(within(table).queryByText("Past due")).not.toBeInTheDocument();
+    expect(within(table).getByText('Nothing owed')).toBeInTheDocument();
+    expect(within(table).queryByText('Past due')).not.toBeInTheDocument();
   });
 
-  it("still flags an overdue show that IS owed money", () => {
+  it('still flags an overdue show that IS owed money', () => {
     ledgerState.data = [
       {
         ...row,
         payoutStatus: null,
-        settleDate: "2020-01-01",
+        settleDate: '2020-01-01',
         netOwedCents: 5000,
-        netOwedSource: "computed",
+        netOwedSource: 'computed',
       },
     ];
 
     render(<PayoutLedgerPage />);
-    const table = screen.getByRole("table", { name: /payout ledger by show/i });
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
 
-    expect(within(table).getByText("Past due")).toBeInTheDocument();
+    expect(within(table).getByText('Past due')).toBeInTheDocument();
   });
-
 });
-describe("PayoutLedgerPage — the fee field never contradicts the save", () => {
+describe('PayoutLedgerPage — the fee field never contradicts the save', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ledgerState.data = [row];
@@ -577,44 +597,98 @@ describe("PayoutLedgerPage — the fee field never contradicts the save", () => 
     ledgerState.isLoading = false;
     ledgerState.isError = false;
     feeState.percent = 7;
-    feeState.state = "ready";
+    feeState.state = 'ready';
   });
 
-  it("does not flash the pre-save rate while the refetch is in flight", () => {
+  it('does not flash the pre-save rate while the refetch is in flight', () => {
     // On success the cache still holds the OLD rate for a moment. Adopting it
     // would show 7% in the field while the confirmation says it was set to 9%.
     mutate.mockImplementationOnce((_percent, options) => options.onSuccess(9));
     const { rerender } = render(<PayoutLedgerPage />);
 
-    fireEvent.change(screen.getByRole("spinbutton", { name: /fee percent/i }), {
-      target: { value: "9" },
+    fireEvent.change(screen.getByRole('spinbutton', { name: /fee percent/i }), {
+      target: { value: '9' },
     });
-    fireEvent.click(screen.getByRole("button", { name: /update fee/i }));
+    fireEvent.click(screen.getByRole('button', { name: /update fee/i }));
 
     // The refetch has not landed: the hook still reports the pre-save 7.
     rerender(<PayoutLedgerPage />);
 
-    expect(
-      screen.getByRole("spinbutton", { name: /fee percent/i }),
-    ).toHaveValue(9);
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Platform fee updated to 9%",
-    );
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(9);
+    expect(screen.getByRole('status')).toHaveTextContent('Platform fee updated to 9%');
   });
 
-  it("shows an outside rate change without silently rewriting the field", () => {
+  it('shows an outside rate change without silently rewriting the field', () => {
     // Seed-once means the input is the admin's editing context, not a mirror of
     // the query. When someone else moves the rate, that shows up in the live
     // line and in what the Save button says it would write — visible, rather
     // than resolved behind the admin's back.
     const { rerender } = render(<PayoutLedgerPage />);
-    expect(screen.getByRole("spinbutton", { name: /fee percent/i })).toHaveValue(7);
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
 
     feeState.percent = 12;
     rerender(<PayoutLedgerPage />);
 
-    expect(screen.getByRole("spinbutton", { name: /fee percent/i })).toHaveValue(7);
-    expect(screen.getByText("12%")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /update fee to 7%/i })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
+    expect(screen.getByText('12%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /update fee to 7%/i })).toBeInTheDocument();
+  });
+});
+describe('PayoutLedgerPage — an unreadable show makes no claims about itself', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ledgerState.data = [row];
+    ledgerState.refundDecisionChecked = true;
+    ledgerState.isLoading = false;
+    ledgerState.isError = false;
+    feeState.percent = 7;
+    feeState.state = 'ready';
+  });
+
+  const orphan: LedgerRow = {
+    ...row,
+    showId: 'deadbeef-0000-4000-8000-000000000000',
+    showName: null,
+    clubId: null,
+    clubName: null,
+    showUnavailable: true,
+    payoutStatus: null,
+    settleDate: null,
+    netOwedCents: 12_500,
+    netOwedSource: 'computed',
+  };
+
+  it('does not tell a screen reader the show has no end date', () => {
+    // settleDate is null because the shows row was UNREADABLE, not because the
+    // show lacks an end date. "the show has no end date" is a claim about a
+    // record we could not read — the exact overclaim this page exists to stop,
+    // delivered to the audience least able to cross-check it.
+    ledgerState.data = [orphan];
+
+    render(<PayoutLedgerPage />);
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
+
+    expect(within(table).getByText('Settle date unknown')).toBeInTheDocument();
+    expect(within(table).queryByText(/the show has no end date/i)).not.toBeInTheDocument();
+    expect(within(table).queryByText('Not scheduled')).not.toBeInTheDocument();
+  });
+
+  it('keeps the settle-date cell agreeing with the badge', () => {
+    ledgerState.data = [orphan];
+
+    render(<PayoutLedgerPage />);
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
+
+    expect(within(table).getByText('Unknown')).toBeInTheDocument();
+  });
+
+  it('still says "Not scheduled" for a readable show that genuinely has no end date', () => {
+    ledgerState.data = [{ ...row, payoutStatus: null, settleDate: null, netOwedCents: 5000 }];
+
+    render(<PayoutLedgerPage />);
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
+
+    expect(within(table).getAllByText('Not scheduled').length).toBeGreaterThan(0);
+    expect(within(table).queryByText('Settle date unknown')).not.toBeInTheDocument();
   });
 });

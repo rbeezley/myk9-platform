@@ -12,8 +12,13 @@ import { isUnresolvedPullRefundDecision } from './pullReconciliation';
 
 /** entries row shape needed to compute a club's online liability for a show. */
 export interface LedgerEntryRow {
-  /** entries.id — selected only so the scan can detect a repeated page. */
-  id?: string;
+  /**
+   * entries.id — selected so the paginated scan can detect a repeated page.
+   * REQUIRED, not optional: an absent id makes `firstId` null, which silently
+   * stands the runaway-loop guard down on a money total. Keeping it required
+   * makes dropping it from LEDGER_ENTRY_BASE_SELECT a type error.
+   */
+  id: string;
   show_id: string;
   entry_status: string | null;
   /** entries.entry_fee — DECIMAL dollars (no cents column). */
@@ -70,8 +75,10 @@ export function sumOnlineCollectedCents(entries: LedgerEntryRow[]): number {
  * `refund_amount` but a payment_status of pending/failed/null contributed to
  * Refunds while contributing nothing to Collected — and the table presents those
  * two columns as a subtraction, so the row read as `$0.00 / -$25.00 / $0.00`.
- * A refund of money that was never collected is a data error worth seeing, but
- * not in a column that claims to net against a figure it is not part of.
+ * A refund against money that was never collected is a data anomaly, and this
+ * filter makes it invisible on this page rather than relocating it — the cron's
+ * calculateShowPayoutCents filters identically, so no total diverges, but
+ * nothing counts it either. Tracked in MYK9-235; not left implied here.
  */
 export function sumRefundedCents(entries: LedgerEntryRow[]): number {
   return entries
@@ -95,13 +102,20 @@ export type NetOwedSource = 'computed' | 'transfer';
  * ever created. The second is money stuck behind a cron that did not run, and
  * it looked identical to the first.
  */
-export type UnsettledState = 'nothing-owed' | 'unscheduled' | 'scheduled' | 'overdue';
+export type UnsettledState = 'nothing-owed' | 'unknown' | 'unscheduled' | 'scheduled' | 'overdue';
 
 export function resolveUnsettledState(
   settleDate: string | null,
   today: string,
-  netOwedCents: number
+  netOwedCents: number,
+  showUnavailable = false
 ): UnsettledState {
+  // An unreadable show has no KNOWN end date, which is not the same as having
+  // none. Saying "the show has no end date" about a record we could not read is
+  // the exact overclaim this module exists to remove — and it would be spoken
+  // to a screen reader on a row whose visible label already says the show is
+  // unavailable.
+  if (showUnavailable) return 'unknown';
   // A show with nothing owed has no missing transfer. The payout cron SKIPS
   // amountCents <= 0 (payoutCalc), so a fully refunded show correctly never gets
   // a payout row — calling that "Past due" would report the cron's correct

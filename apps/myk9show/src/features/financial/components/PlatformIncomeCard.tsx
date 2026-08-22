@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { PlatformIncomeSummary, PayoutSettlementTotals } from '@/features/financial';
+import type { PlatformIncomeSummary } from '@/features/financial';
 import type { PlatformAttentionSummary } from './platformAttention';
 import { usePlatformFinancialOverview } from './usePlatformFinancialOverview';
 
@@ -25,9 +25,7 @@ interface FigureProps {
 
 function Figure({ label, value, formula }: FigureProps) {
   return (
-    <div
-      className="min-w-0 border-b border-border p-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0"
-    >
+    <div className="min-w-0 border-b border-border p-5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-xl font-semibold tabular-nums text-foreground">{value}</dd>
       <dd>
@@ -106,30 +104,6 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
         )}
       </dl>
     </Card>
-  );
-}
-
-function OutstandingLiability({ payoutSettlement }: { payoutSettlement: PayoutSettlementTotals }) {
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[color-mix(in_srgb,var(--primary)_30%,transparent)] bg-[color-mix(in_srgb,var(--primary)_5%,transparent)] p-5 sm:flex-row sm:items-start sm:justify-between">
-      <div className="max-w-3xl">
-        {/* NOT "in flight to Stripe": the cron writes a pending row even when a
-            club has not finished Stripe onboarding, and failed rows are counted
-            here too — so a Stripe transfer may never have been attempted. What
-            these amounts have in common is a payout RECORD, not a transfer. */}
-        <p className="text-sm font-medium text-foreground">Owed where a payout record exists</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Source: pending + processing Stripe transfers not yet completed
-          {payoutSettlement.failedCents > 0
-            ? `, plus ${formatCents(payoutSettlement.failedCents)} in ${payoutSettlement.failedCount} failed transfer(s) still owed (retried failures excluded)`
-            : ''}
-          .
-        </p>
-      </div>
-      <p className="shrink-0 text-xl font-semibold tabular-nums text-primary">
-        {formatCents(payoutSettlement.outstandingCents)}
-      </p>
-    </div>
   );
 }
 
@@ -235,7 +209,6 @@ export function PlatformIncomeCard() {
   return (
     <div className="space-y-4">
       <PlatformFigures income={data.summary.platformIncome} />
-      <OutstandingLiability payoutSettlement={data.summary.payoutSettlement} />
       <AttentionSection attention={data.attention} detailTruncated={data.detailTruncated} />
     </div>
   );

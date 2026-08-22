@@ -70,7 +70,27 @@ function showLabel(row: LedgerRow): string {
   return row.showName ?? `Show unavailable (${row.showId.slice(0, 8)})`;
 }
 
-/** Today as an ISO date, for comparing against a settle date. */
+/**
+ * What the settle-date cell should read.
+ *
+ * Kept next to `statusBadge` because the two describe the same fact and used to
+ * disagree: for an unreadable show the cell said "Not scheduled" (a claim about
+ * the show's data) while the badge said the record could not be read.
+ */
+function settleDateLabel(row: LedgerRow): string {
+  if (row.settleDate) return row.settleDate;
+  return row.showUnavailable ? 'Unknown' : 'Not scheduled';
+}
+
+/**
+ * Today as an ISO date.
+ *
+ * UTC, matching `computeSettleDate`'s UTC arithmetic and therefore the payout
+ * cron — comparing like with like. The cost is that a US operator sees the
+ * "Past due" badge from roughly 19:00 local the evening before, so it can fire
+ * a few hours early. It cannot fire LATE, which is the direction that would
+ * matter for a badge meaning "a cron did not run".
+ */
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -86,7 +106,14 @@ function statusBadge(row: LedgerRow, today: string) {
     const presentation = getPayoutStatusPresentation(row.payoutStatus);
     return <Badge className={presentation.className}>{presentation.label}</Badge>;
   }
-  switch (resolveUnsettledState(row.settleDate, today, row.netOwedCents)) {
+  switch (resolveUnsettledState(row.settleDate, today, row.netOwedCents, row.showUnavailable)) {
+    case 'unknown':
+      return (
+        <Badge variant="outline">
+          Settle date unknown
+          <span className="sr-only">, this show&apos;s record could not be read</span>
+        </Badge>
+      );
     case 'nothing-owed':
       return <Badge variant="outline">Nothing owed</Badge>;
     case 'overdue':
@@ -143,9 +170,24 @@ function PlatformFeeCard() {
   // `seeded` only ever goes false → true, so this render-phase adjustment
   // cannot oscillate.
   const [seeded, setSeeded] = useState(false);
+  // Set the moment the admin types. Distinguishes "the field holds what we
+  // seeded" from "the field holds what a human is composing" — the only reason
+  // clearing is ever unsafe.
+  const [dirty, setDirty] = useState(false);
+
   if (!seeded && currentPercent !== null) {
     setSeeded(true);
     setValue(String(currentPercent));
+  }
+
+  // The rate stopped being readable. A bare number left in a field LABELLED
+  // "Fee percent", beside a line saying the rate could not be loaded, is still
+  // a claim — so it goes, unless a human typed it. An earlier revision cleared
+  // unconditionally (destroying in-progress edits) and the revision after that
+  // stopped clearing at all (restoring the stale claim); `dirty` is what makes
+  // both properties available at once.
+  if (currentPercent === null && seeded && !dirty && value !== '') {
+    setValue('');
   }
 
   // No usable rate means no safe edit: an admin must never overwrite a value the
@@ -163,9 +205,11 @@ function PlatformFeeCard() {
   const handleSave = () => {
     updateFee.mutate(parsed, {
       onSuccess: p => {
-        // Show exactly what was written. Nothing else touches the field, so the
-        // confirmation and the input can no longer disagree.
+        // Show exactly what was written, and stop treating it as an unsaved
+        // edit — it is now the persisted value, not something a human is still
+        // composing.
         setValue(String(p));
+        setDirty(false);
         const message = `Platform fee updated to ${p}%`;
         setFeedback({ tone: 'success', message });
         toast.success(message);
@@ -204,6 +248,7 @@ function PlatformFeeCard() {
                 value={value}
                 onChange={e => {
                   setValue(e.target.value);
+                  setDirty(true);
                   setFeedback(null);
                 }}
                 aria-invalid={invalid}
@@ -271,13 +316,25 @@ function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
   return (
     <dl className="grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-2">
       <div className="border-b border-border p-5 sm:border-b-0 sm:border-r">
-        <dt className="text-sm text-muted-foreground">Owed to clubs (all shows)</dt>
+        {/* The page's one liability figure. A second, narrower one used to sit
+            in the income card above — pending + processing + failed transfers,
+            i.e. only shows that already HAVE a payout record. Two "owed"
+            numbers that legitimately disagreed, ~200px apart, with nothing
+            saying why. The subset was deleted rather than relabelled: this
+            figure answers the page's actual question and recomputes a failed
+            payout's stale amount instead of trusting it. One thing did go: the
+            deleted panel showed a failed-transfer DOLLAR total, where
+            Reconciliation attention only shows a count. The money is still in
+            the figure below and on each failed show's own row, so nothing is
+            hidden — but "counted" is not "broken out", and this comment should
+            not pretend otherwise. */}
+        <dt className="text-sm text-muted-foreground">Owed to clubs</dt>
         <dd className="mt-1 text-xl font-semibold tabular-nums text-primary">
           {formatCents(outstandingCents)}
         </dd>
         <dd className="mt-2 text-sm text-muted-foreground">
           Online fees collected but not yet paid out, across every show — including shows with no
-          payout record at all, which the figure above does not count.
+          payout record yet.
         </dd>
       </div>
       <div className="p-5">
@@ -353,7 +410,7 @@ function LedgerMobileList({ rows, today }: { rows: LedgerRow[]; today: string })
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Settle date</dt>
-                  <dd className="mt-1 tabular-nums">{row.settleDate ?? 'Not scheduled'}</dd>
+                  <dd className="mt-1 tabular-nums">{settleDateLabel(row)}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Online collected</dt>
@@ -433,7 +490,9 @@ function LedgerTable({ rows, today }: { rows: LedgerRow[]; today: string }) {
                     )}
                   </TableCell>
                   <TableCell className="tabular-nums">
-                    {row.settleDate ?? <span className="text-muted-foreground">Not scheduled</span>}
+                    {row.settleDate ?? (
+                      <span className="text-muted-foreground">{settleDateLabel(row)}</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -466,9 +525,11 @@ function RefundDecisionAdvisory({
   refundDecisionChecked: boolean;
 }) {
   // A degraded read must not look like a clean one. When the pull-refund column
-  // could not be read, every row was backfilled with null, so the unresolved
-  // count is 0 for reasons that have nothing to do with the data. Rendering
-  // nothing here would be an absent warning that reads as "all resolved".
+  // could not be read, every row was backfilled with null — and
+  // isUnresolvedPullRefundDecision requires refund_decision === null, so the
+  // count INFLATES: entries already marked 'denied' read as unresolved too.
+  // Rendering that number would send the operator to entries that need nothing,
+  // via links they cannot act on. The count is fiction either way; say so.
   if (!refundDecisionChecked) {
     return (
       <Alert className="border-warning/30 bg-warning/10">

@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 const sql = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260822150000_paperwork_prints_show_scoped_secretary.sql'
+    '../../../../../supabase/migrations/20260822193000_paperwork_prints_show_scoped_secretary.sql'
   ),
   'utf8'
 );

@@ -77,9 +77,11 @@ export function useDeliveredPackets(
       ),
       packetData,
     }),
-    // Surfaced rather than swallowed: a failed read used to render nothing at
-    // all, which looks exactly like "no packets exist" — the original defect,
-    // reached by a different route.
-    isError: isError || prints.isError,
+    // `prints.isError` alone is not enough: that query reads IndexedDB and
+    // succeeds even when the SERVER read failed, so a confirmations sync
+    // failure — including the RLS denial this feature's own migration fixes —
+    // rendered every day as "not printed" with no warning. `syncFailed` is the
+    // signal that actually reflects the server.
+    isError: isError || prints.isError || prints.syncFailed,
   };
 }

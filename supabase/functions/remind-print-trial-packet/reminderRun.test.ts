@@ -13,6 +13,13 @@ const DAY = '2026-10-04';
 interface StubOptions {
   hasPacket?: boolean;
   confirmations?: unknown[];
+  /**
+   * Runs once, immediately after the stale-claim READ — the only window in
+   * which a competing run can win. Mutating before the read instead just
+   * changes what we read, and the CAS then matches, which is why the first
+   * attempt at this test proved nothing.
+   */
+  raceAfterRead?: (rows: Record<string, { claimed_at: string; sent_at: string | null }>) => void;
   /** How many times stamping `sent_at` fails before succeeding. */
   stampFailures?: number;
   /** kind -> the row already in the ledger. */
@@ -46,6 +53,8 @@ function makeStub(options: StubOptions = {}) {
   function reminderQuery() {
     const q: Record<string, unknown> = {};
     let kind = '';
+    let casOn: string | null = null;
+    let requiresUnsent = false;
     for (const m of ['select', 'eq', 'is', 'limit']) q[m] = () => q;
     q.match = (criteria: Record<string, unknown>) => {
       kind = String(criteria.reminder_kind ?? '');
@@ -63,11 +72,24 @@ function makeStub(options: StubOptions = {}) {
       ops.push(`reminder-claim:${k}`);
       return Promise.resolve({ error: null });
     };
-    q.maybeSingle = () => Promise.resolve({ data: reminders[kind] ?? null, error: null });
+    q.maybeSingle = () => {
+      const snapshot = reminders[kind] ? { ...reminders[kind] } : null;
+      if (raceOnce) {
+        raceOnce(reminders);
+        raceOnce = undefined;
+      }
+      return Promise.resolve({ data: snapshot, error: null });
+    };
     const chainOn = (label: string, patch: Record<string, unknown> = {}) => {
       const chain: Record<string, unknown> = {};
+      // Capture the filters production actually passes. The first version of
+      // this stub re-implemented the guard itself and ignored them, so the CAS
+      // — the whole point of the reclaim — could be deleted with a green
+      // suite: exactly the "test certifies the stub" trap in LESSONS.
       for (const m of ['match', 'eq', 'is', 'select']) {
         chain[m] = (...args: unknown[]) => {
+          if (m === 'eq' && args[0] === 'claimed_at') casOn = args[1] as string;
+          if (m === 'is' && args[0] === 'sent_at' && args[1] === null) requiresUnsent = true;
           (q[m] as (...a: unknown[]) => unknown)(...args);
           return chain;
         };
@@ -85,7 +107,12 @@ function makeStub(options: StubOptions = {}) {
         }
         const row = reminders[kind];
         if (label === 'reclaim') {
-          if (!row || row.sent_at) return Promise.resolve({ data: [], error: null }).then(res, rej);
+          // Honour the caller's filters rather than second-guessing them.
+          const casMatches = casOn === null || (row ? row.claimed_at === casOn : false);
+          const unsentOk = !requiresUnsent || (row ? row.sent_at === null : false);
+          if (!row || !casMatches || !unsentOk) {
+            return Promise.resolve({ data: [], error: null }).then(res, rej);
+          }
           row.claimed_at = String(patch.claimed_at);
           ops.push(`reminder-reclaim:${kind}`);
           return Promise.resolve({ data: [{ id: 'r1' }], error: null }).then(res, rej);
@@ -105,6 +132,7 @@ function makeStub(options: StubOptions = {}) {
   }
 
   let stampFailures = options.stampFailures ?? 0;
+  let raceOnce = options.raceAfterRead;
   const supabase = {
     from(table: string) {
       if (table === 'shows') {
@@ -377,6 +405,53 @@ describe('stamping the send', () => {
       sent: true,
       recipientCount: 1,
     });
+  });
+});
+
+describe('the reclaim is a compare-and-swap, not a blind overwrite', () => {
+  const stale = {
+    'evening-before': { claimed_at: '2026-10-03T23:00:00.000Z', sent_at: null },
+  };
+
+  it('loses to a competing run that reclaimed between our read and our update', async () => {
+    // Both runs see the same stale claim; only the one whose UPDATE still
+    // matches the token it READ may proceed. Without `.eq('claimed_at', …)`
+    // both overwrite and both send.
+    const sendEmail = vi.fn();
+    const { supabase } = makeStub({
+      existingReminders: stale,
+      raceAfterRead: rows => {
+        rows['evening-before'] = {
+          claimed_at: '2026-10-04T00:59:59.000Z',
+          sent_at: null,
+        };
+      },
+    });
+
+    const outcome = await runPrintReminder(supabase, request, makeDeps(sendEmail));
+
+    expect(outcome).toEqual({ sent: false, reason: 'already-reminded' });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('loses to a competing run that SENT between our read and our update', async () => {
+    // Without `.is('sent_at', null)` we would reclaim a slot that has already
+    // gone out and email every official a second time.
+    const sendEmail = vi.fn();
+    const { supabase } = makeStub({
+      existingReminders: stale,
+      raceAfterRead: rows => {
+        rows['evening-before'] = {
+          claimed_at: '2026-10-03T23:00:00.000Z',
+          sent_at: '2026-10-04T00:59:59.000Z',
+        };
+      },
+    });
+
+    const outcome = await runPrintReminder(supabase, request, makeDeps(sendEmail));
+
+    expect(outcome).toEqual({ sent: false, reason: 'already-reminded' });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });
 

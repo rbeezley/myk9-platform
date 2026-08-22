@@ -236,14 +236,24 @@ export function EmergencyTrialPacketPanel({
                     </p>
                   )}
                 </div>
-                {!row.descriptor ? (
-                  <span className="text-muted-foreground">
-                    Choose All Trials and All Classes to confirm this packet.
-                  </span>
-                ) : row.printState === 'printed' ? (
+                {/*
+                  * Printed FIRST. Ordering these the other way told a
+                  * secretary who had already confirmed Saturday to "choose All
+                  * Trials and All Classes" the moment they narrowed the report
+                  * to one trial — because `descriptor` is null whenever the
+                  * scope is not show-wide, or while data is loading. It reads
+                  * as "not confirmed", and the obvious response is to widen
+                  * the scope and press the button again, appending a second
+                  * row for a snapshot already confirmed.
+                  */}
+                {row.printState === 'printed' ? (
                   <span className="inline-flex items-center gap-1 text-success">
                     <CheckCircle2 className="size-4" />
                     Printed
+                  </span>
+                ) : !row.descriptor ? (
+                  <span className="text-muted-foreground">
+                    Choose All Trials and All Classes to confirm this packet.
                   </span>
                 ) : (
                   onMarkPrinted &&

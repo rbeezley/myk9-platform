@@ -80,6 +80,8 @@ declare
   local_now timestamp;
   window_start int;
   window_end int;
+  considered int := 0;
+  dispatch_failures int := 0;
 begin
   if nullif(p_base_url, '') is null or nullif(p_secret, '') is null then
     raise exception 'Missing Vault secret: edge_function_base_url or packet_cron_secret';
@@ -130,6 +132,7 @@ begin
     -- URL), and the handler above covered only the timezone cast — so one bad
     -- row still lost every remaining show in the run. Recovered 30 minutes
     -- later, but the stated intent was that one bad row cannot do that.
+    considered := considered + 1;
     begin
     perform net.http_post(
       url := p_base_url || '/remind-print-trial-packet',
@@ -145,10 +148,21 @@ begin
       timeout_milliseconds := 60000
     );
     exception when others then
+      dispatch_failures := dispatch_failures + 1;
       raise warning 'print reminder POST failed for show % on %: %',
         rec.show_id, rec.date, sqlerrm;
     end;
   end loop;
+
+  -- Per-row isolation must not turn a SYSTEMIC failure green. Swallowing
+  -- everything makes pg_cron record `succeeded`, and `backgroundJobsCheck`
+  -- escalates a job's `lastStatus='failed'` to a failing /admin/health — so a
+  -- rotated `edge_function_base_url` would silence every chase behind a green
+  -- board. A `raise warning` reaches only the Postgres log, which nothing here
+  -- reads. One bad row stays isolated; every row failing is an outage.
+  if considered > 0 and dispatch_failures = considered then
+    raise exception 'print reminder dispatch failed for all % show-day(s) this run', considered;
+  end if;
 end;
 $$;
 

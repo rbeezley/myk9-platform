@@ -40,7 +40,7 @@ Not MYK9-198's original "48h out, daily": the evening-before regeneration supers
 
 ## Configuration
 
-Requires `20260822130000_trial_packet_print_reminder.sql`, plus `PACKET_CRON_SECRET` and `RESEND_API_KEY`.
+Requires `20260822192000_trial_packet_print_reminder.sql`, plus `PACKET_CRON_SECRET` and `RESEND_API_KEY`.
 
 ```bash
 supabase functions deploy remind-print-trial-packet --no-verify-jwt --project-ref sojmvhhwsjxmfistvzbe

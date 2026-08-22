@@ -317,3 +317,41 @@ describe('packets prepared outside this session', () => {
   });
 });
 
+describe('a confirmed packet stays confirmed regardless of report scope', () => {
+  const printedRow = {
+    trialDate: '2026-10-03',
+    snapshotId: 'snap-cron',
+    generatedAt: '2026-10-02T22:00:00.000Z',
+    pageCount: 12,
+    printState: 'printed' as const,
+    // Null whenever the report is narrowed to a trial or class, and while
+    // data is loading — none of which unprints a packet.
+    descriptor: null,
+  };
+
+  it('still says Printed when the report is narrowed and no descriptor exists', () => {
+    render(
+      <EmergencyTrialPacketPanel data={null} deliveredPackets={[printedRow]} onMarkPrinted={vi.fn()} />
+    );
+
+    expect(screen.getByText(/^Printed$/)).toBeInTheDocument();
+    // The scope hint is for days that are NOT confirmed. Showing it here reads
+    // as "not confirmed", and the obvious response is to widen the scope and
+    // confirm again — a second row for a snapshot already confirmed.
+    expect(screen.queryByText(/Choose All Trials and All Classes/i)).toBeNull();
+  });
+
+  it('does explain itself for an unconfirmed day with no descriptor', () => {
+    render(
+      <EmergencyTrialPacketPanel
+        data={null}
+        deliveredPackets={[{ ...printedRow, printState: 'unconfirmed' }]}
+        onMarkPrinted={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Choose All Trials and All Classes/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /mark .* printed/i })).toBeNull();
+  });
+});
+

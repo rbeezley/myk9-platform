@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
+  REMINDER_CLAIM_LEASE_MS,
+  shouldReclaimStaleReminder,
   buildPrintReminderEmailHtml,
   buildPrintReminderSubject,
   decidePrintReminder,
@@ -134,3 +136,32 @@ describe('reminder wording', () => {
     expect(html).toMatch(/&lt;script&gt;/);
   });
 });
+
+describe('shouldReclaimStaleReminder', () => {
+  const base = Date.parse('2026-10-04T01:00:00.000Z');
+
+  it('never reclaims a slot that already went out', () => {
+    expect(
+      shouldReclaimStaleReminder(
+        { claimed_at: '1970-01-01T00:00:00.000Z', sent_at: '2020-01-01T00:00:00.000Z' },
+        base
+      )
+    ).toBe(false);
+  });
+
+  it('waits out the lease before taking over an unsent claim', () => {
+    const inside = new Date(base - (REMINDER_CLAIM_LEASE_MS - 1000)).toISOString();
+    const outside = new Date(base - (REMINDER_CLAIM_LEASE_MS + 1000)).toISOString();
+    expect(shouldReclaimStaleReminder({ claimed_at: inside, sent_at: null }, base)).toBe(false);
+    expect(shouldReclaimStaleReminder({ claimed_at: outside, sent_at: null }, base)).toBe(true);
+  });
+
+  it('reclaims rather than blocks when the timestamp is unreadable', () => {
+    // Deliberate asymmetry, worth pinning: a duplicate email is recoverable,
+    // a trial day with no paper and no chase is the failure this exists to
+    // prevent. So an unparseable claim retries rather than silencing forever.
+    expect(shouldReclaimStaleReminder({ claimed_at: 'not a date', sent_at: null }, base)).toBe(true);
+    expect(shouldReclaimStaleReminder({ claimed_at: '', sent_at: null }, base)).toBe(true);
+  });
+});
+

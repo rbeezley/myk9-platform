@@ -241,7 +241,7 @@ begin
     raise warning '%',
       'packet_cron_secret is not in Vault, so trial-packet-show-eve was NOT scheduled. '
       'Create it and the matching PACKET_CRON_SECRET function secret, then re-run the '
-      'cron.schedule call in 20260822120000_trial_packet_cron.sql.';
+      'cron.schedule call in 20260822190000_trial_packet_cron.sql.';
   end if;
 end
 $schedule$;

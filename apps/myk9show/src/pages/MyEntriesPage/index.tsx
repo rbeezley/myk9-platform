@@ -22,7 +22,6 @@ import {
   summarizeEntryBalances,
 } from '@/features/payments/entryBalanceSummary';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
-import { ENTRY_SCOPE_ORDER_PARAM } from '@/features/payments/entryScopeParams';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
@@ -117,7 +116,6 @@ const MyEntriesPage: React.FC = () => {
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const receiptOrderId = searchParams.get(ENTRY_SCOPE_ORDER_PARAM)?.trim() || null;
 
   // Resolve the exhibitor's person id from the same source entry loading and the
   // AddDogPanel use (legacy lookup first, then the auth record). Deriving dog
@@ -562,7 +560,6 @@ const MyEntriesPage: React.FC = () => {
           setEditDialog({ open: false, entry: null });
         }}
         receiptDialog={receiptDialog}
-        receiptOrderId={receiptOrderId}
         onCloseReceipt={() => setReceiptDialog({ open: false, entry: null })}
         resultRevealModel={resultRevealModel}
         onCloseResultReveal={() => setResultRevealModel(null)}

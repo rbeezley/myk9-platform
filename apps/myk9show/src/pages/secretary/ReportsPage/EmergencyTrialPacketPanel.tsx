@@ -101,6 +101,7 @@ export function EmergencyTrialPacketPanel({
             delivery,
             printDescriptor: buildEmergencyPacketPaperworkDescriptor({
               showId: day.input.show.id,
+              trialDate: day.trialDate,
               snapshotId: delivery.snapshotId,
               generatedAt: delivery.generatedAt,
               entryIds: day.input.entries.map(entry => entry.id),

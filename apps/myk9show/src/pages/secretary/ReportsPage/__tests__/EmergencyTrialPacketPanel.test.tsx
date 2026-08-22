@@ -102,6 +102,7 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(onMarkPrinted).toHaveBeenCalledWith(
       buildEmergencyPacketPaperworkDescriptor({
         showId: 'show-1',
+        trialDate: '2026-10-03',
         snapshotId: 'snapshot-1',
         generatedAt: '2026-08-20T22:00:00.000Z',
         entryIds: ['e1'],
@@ -109,6 +110,15 @@ describe('EmergencyTrialPacketPanel', () => {
         trialIds: ['t1'],
       })
     );
+
+    // Comparing against the builder alone would pass whatever the builder
+    // did. The subject key is the contract the print reminder reads back from
+    // the server, so assert its literal shape (MYK9-228 phase 5).
+    const descriptor = onMarkPrinted.mock.calls[0][0];
+    expect(Object.keys(descriptor.coverage.subjectFingerprints)).toEqual([
+      'packet-day:2026-10-03',
+    ]);
+    expect(descriptor.reportId).toBe('emergency-trial-packet');
   });
 
   /**

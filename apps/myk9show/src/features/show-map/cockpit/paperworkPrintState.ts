@@ -12,6 +12,15 @@ export interface PaperworkCoverage extends Record<string, unknown> {
   scope: ReportScope;
   subjectFingerprints: Record<string, string>;
   subjectScopes: Record<string, { classIds: readonly string[]; trialIds: readonly string[] }>;
+  /**
+   * Set only by artifacts whose identity is a trial DAY — today just the
+   * emergency packet. `ReportScope` has no 'day' kind and cannot get one (a
+   * day may hold three trials, a trial scope holds one id), so two days of one
+   * show both write show-scoped rows and `scopeCovers` cannot tell them apart.
+   * When present on both sides it must match, or Saturday's confirmation is
+   * read as evidence about Sunday (MYK9-228 phase 5).
+   */
+  trialDate?: string;
 }
 
 export interface PaperworkDescriptor {
@@ -98,7 +107,8 @@ function compactFingerprint(value: unknown): string {
 function buildDescriptor(
   reportId: string,
   scope: ReportScope,
-  subjects: readonly PaperworkSubject[]
+  subjects: readonly PaperworkSubject[],
+  trialDate?: string
 ): PaperworkDescriptor {
   const subjectFingerprints = Object.fromEntries(
     [...subjects]
@@ -117,7 +127,13 @@ function buildDescriptor(
   return {
     reportId,
     scope,
-    coverage: { scopeKind: scope.kind, scope, subjectFingerprints, subjectScopes },
+    coverage: {
+      scopeKind: scope.kind,
+      scope,
+      subjectFingerprints,
+      subjectScopes,
+      ...(trialDate ? { trialDate } : {}),
+    },
     fingerprint: compactFingerprint(subjectFingerprints),
   };
 }
@@ -197,8 +213,32 @@ export function buildArmbandPaperworkDescriptor(
   );
 }
 
+/**
+ * The packet is one artifact per trial DAY, but `ReportScope` has no 'day'
+ * kind and cannot get one: a day may hold three trials while a trial scope
+ * carries a single `trialId`. So the scope stays show-level and the DAY lives
+ * in the subject key.
+ *
+ * That key is load-bearing in two places, which is why it is the date and not
+ * the snapshot id it used to be (MYK9-228 phase 5):
+ *
+ *  1. Two days of one show both write show-scoped rows, so `scopeCovers` makes
+ *     Saturday's confirmation a candidate for Sunday's descriptor. Keyed by
+ *     snapshot, the fingerprints differed and Sunday resolved to STALE —
+ *     "you printed an older version" — when the truth is nobody printed Sunday
+ *     at all. Keyed by day, Saturday's subject is simply absent from Sunday's
+ *     set and Sunday reads `unconfirmed`.
+ *  2. The print reminder has to answer "is day D printed?" from the server,
+ *     where the only evidence is this row. A snapshot UUID is unjoinable; a
+ *     date is the answer.
+ *
+ * `snapshotId` and `generatedAt` stay in the FACTS, so reprinting after a
+ * regeneration still reads as stale — which is correct, and is the distinction
+ * the old key was conflating with "different day".
+ */
 export function buildEmergencyPacketPaperworkDescriptor(input: {
   showId: string;
+  trialDate: string;
   snapshotId: string;
   generatedAt: string;
   entryIds: readonly string[];
@@ -210,8 +250,9 @@ export function buildEmergencyPacketPaperworkDescriptor(input: {
     { kind: 'show', showId: input.showId },
     [
       {
-        key: `snapshot:${input.snapshotId}`,
+        key: emergencyPacketSubjectKey(input.trialDate),
         facts: {
+          trialDate: input.trialDate,
           snapshotId: input.snapshotId,
           generatedAt: input.generatedAt,
           entryIds: [...input.entryIds].sort(),
@@ -219,8 +260,16 @@ export function buildEmergencyPacketPaperworkDescriptor(input: {
         classIds: input.classIds,
         trialIds: input.trialIds,
       },
-    ]
+    ],
+    input.trialDate
   );
+}
+
+export const EMERGENCY_PACKET_REPORT_ID = 'emergency-trial-packet';
+
+/** The one spelling of the key, shared by the writer and every reader. */
+export function emergencyPacketSubjectKey(trialDate: string): string {
+  return `packet-day:${trialDate}`;
 }
 
 function readCoverage(record: PaperworkPrintEvidence): PaperworkCoverage | null {
@@ -243,6 +292,9 @@ function readCoverage(record: PaperworkPrintEvidence): PaperworkCoverage | null 
   return {
     scopeKind,
     scope: parsedScope,
+    ...(typeof record.coverage.trialDate === 'string'
+      ? { trialDate: record.coverage.trialDate }
+      : {}),
     subjectFingerprints: subjectFingerprints as Record<string, string>,
     subjectScopes:
       subjectScopes && typeof subjectScopes === 'object' && !Array.isArray(subjectScopes)
@@ -286,6 +338,15 @@ export function derivePaperworkPrintState(
       (candidate): candidate is { record: PaperworkPrintEvidence; coverage: PaperworkCoverage } => {
         const coverage = candidate.coverage;
         if (coverage === null) return false;
+        // A day-identified artifact is only described by a confirmation for
+        // the SAME day. Without this, both days of a show write show-scoped
+        // rows and Saturday's print reports Sunday as `stale` — "you printed
+        // an older version" — when nobody printed Sunday at all. A record with
+        // no day at all is not evidence about a dated one either; the worst
+        // case of that strictness is one extra reminder.
+        if (current.coverage.trialDate && coverage.trialDate !== current.coverage.trialDate) {
+          return false;
+        }
         if ('showId' in coverage.scope) return scopeCovers(coverage, current.scope);
         // Backward compatibility for confirmations written before scoped
         // coverage metadata existed. New records use the exact scope path above.

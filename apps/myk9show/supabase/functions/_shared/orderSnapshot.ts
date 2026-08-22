@@ -18,6 +18,36 @@ import { calculatePlatformFeeCents } from './platformFee.ts';
 // income cannot be finalized until Stripe's actual balance-transaction fee is
 // captured.
 //
+// ── ZERO IS ALWAYS A REAL ZERO (MYK9-232, traced 2026-08-22) ───────────────
+// `entry_subtotal_cents` and `platform_fee_cents` distinguish "captured" from
+// "not captured" by NULL, and two readers depend on it —
+// `aggregateShowOrders` (net-to-club goes `pending` on NULL) and
+// `resolveOrderChargeVerification` (NULL → `Attested`). Both would read a
+// stored 0 as a captured value, so the question is whether an UNCAPTURED
+// value can ever land as 0. It cannot. Every write path was traced:
+//
+//   * `resolveAcceptedEntrySnapshot` is the only producer, reached from
+//     exactly two call sites (the stripe-webhook cart path and the
+//     payment-link path). When any accepted entry is missing a fee it returns
+//     status 'unverifiable' with BOTH columns null — ignorance stays NULL.
+//   * Its zero case is the deliberate one below: nothing accepted, so no
+//     service was rendered and no fee earned. A known zero, not a gap.
+//   * The subtotal is a sum of `Math.max(0, round(fee))` terms, so it cannot
+//     be negative; `calculatePlatformFeeCents` returns 0 for a non-positive
+//     subtotal or rate and a positive round otherwise. Neither can go below 0.
+//   * `toCentsOrNull` therefore never sees a negative for THESE two columns —
+//     its `rounded < 0 ? 0` clamp is unreachable from here. Leave the clamp:
+//     it guards the other cent fields, and a guard that is dead over today's
+//     inputs is exactly the kind that wakes up when the set is partitioned.
+//
+// So a 0 in either column means a genuine zero-dollar order, and no read site
+// needs a special case. What IS reachable is a legitimately-zero order
+// reaching `resolveOrderChargeVerification` and earning the confident label:
+// a fully make-whole-refunded order stores 0/0 (four exist on staging). The
+// arithmetic is right — the club is owed nothing — but the badge claims a
+// Stripe check over a charge of nothing. That is MYK9-230's subject, not a
+// defect in these columns.
+//
 // ── THE COLLECTION / ATTRIBUTION INVARIANT (do not break) ──────────────────
 //   stripe_orders.amount_cents = the GROSS amount the customer was actually
 //                                charged for this order (Stripe's

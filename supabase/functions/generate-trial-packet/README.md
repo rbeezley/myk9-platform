@@ -28,7 +28,7 @@ Authorization: Bearer $PACKET_CRON_SECRET
 
 ## Idempotency
 
-`trial_packet_generation_claims` holds one row per (show, trial day), unique. A run claims the day before rendering, and stamps `completed_at` only once the email is accepted. A claim with a null `completed_at` may belong to a run that died mid-render, so after a 10-minute lease another run takes it over by compare-and-swap. A failure releases the claim so a later run in the same evening retries.
+`trial_packet_generation_claims` holds one row per (show, trial day), unique. A run claims the day before rendering, and stamps `completed_at` only once the email is accepted. A claim with a null `completed_at` may belong to a run that died mid-render, so after a 10-minute lease another run takes it over by compare-and-swap. A failure releases the day for retry by EXPIRING the lease in place rather than deleting the row, so `last_error`, `failed_at` and `attempts` survive — a deleted claim took the only evidence with it.
 
 The lease sits above the worst-case render and below the 30-minute cron gap — every run can rescue what its predecessor abandoned, and no healthy in-flight run is robbed of a day it is still working.
 
@@ -47,7 +47,7 @@ supabase functions deploy generate-trial-packet --no-verify-jwt --project-ref so
 
 ## The schedule
 
-`pg_cron` job `trial-packet-show-eve`, `5,35 * * * *` — it wakes twice an hour and does nothing unless some trial is inside its **own** 18:00–21:59 local window on the eve of its date. Eight attempts per trial, 30 minutes apart, comfortably above the 10-minute claim lease so each run can rescue what its predecessor abandoned.
+`pg_cron` job `trial-packet-show-eve`, `10,40 * * * *` — it wakes twice an hour and does nothing unless some trial is inside its **own** 18:00–21:59 local window on the eve of its date. Eight attempts per trial, 30 minutes apart, comfortably above the 10-minute claim lease so each run can rescue what its predecessor abandoned.
 
 A fixed UTC window cannot be "evening" everywhere: the first draft ran 21:00–23:59 UTC and let the earliest run win, so the packet was cut at 16:00 CDT — the afternoon before, missing the late scratches the trigger exists to capture.
 

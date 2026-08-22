@@ -327,6 +327,7 @@ function makeDeps(overrides: Partial<PacketGenerationDeps> = {}): PacketGenerati
     newSnapshotId: () => `snapshot-${(snapshotCounter += 1)}`,
     getEnv: () => 'resend-key',
     now: () => new Date('2026-09-18T02:00:00.000Z'),
+    sleep: () => Promise.resolve(),
     sendEmail: vi.fn().mockResolvedValue('provider-1'),
     ...overrides,
   };
@@ -596,6 +597,7 @@ describe('the trial-day claim (MYK9-228 phase 4)', () => {
     expect(claimOps).not.toContain(`release:${SAT}`);
     expect(claims[SAT]?.completed_at).toBe('2026-09-18T02:00:00.000Z');
     // Surfaced rather than swallowed.
+    // One per DAY, not one per failed write: two days, one packet each.
     expect(summary.unrecordedCompletions).toBe(2);
   });
 
@@ -730,8 +732,31 @@ describe('the correlated failure that used to duplicate an email', () => {
 
     expect(summary.failed).toEqual([]);
     expect(summary.generated).toHaveLength(2);
-    expect(summary.unrecordedCompletions).toBeGreaterThan(0);
+    // Both writes failed for both days, but that is still 2 DAYS, not 4.
+    expect(summary.unrecordedCompletions).toBe(2);
     expect(claims[SAT]?.completed_at).toBeNull();
+  });
+});
+
+describe('failure evidence accumulates across attempts', () => {
+  it('counts a second failure on a day that already failed once', async () => {
+    // `attempts` exists for exactly this: a day failing repeatedly through an
+    // evening. Nothing covered it, so a constant `attempts: 1` passed.
+    const { supabase, claims } = makeStub({
+      uploadError: new Error('bucket full'),
+      existingClaims: {
+        '2026-09-19': {
+          claimed_at: '1970-01-01T00:00:00.000Z',
+          completed_at: null,
+          attempts: 3,
+        },
+      },
+    });
+
+    await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    expect(claims['2026-09-19']?.attempts).toBe(4);
+    expect(claims['2026-09-19']?.last_error).toMatch(/store the generated packet/i);
   });
 });
 

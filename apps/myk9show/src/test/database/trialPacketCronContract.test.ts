@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
  * `supabase/functions/generate-trial-packet/packetGeneration.test.ts`.
  */
 const sql = readFileSync(
-  resolve(__dirname, '../../../../../supabase/migrations/20260822120000_trial_packet_cron.sql'),
+  resolve(__dirname, '../../../../../supabase/migrations/20260822190000_trial_packet_cron.sql'),
   'utf8'
 );
 
@@ -66,7 +66,31 @@ describe('trial packet cron', () => {
   it('survives one row that raises, not just one with a bad timezone', () => {
     // The POST is the statement most likely to raise; the original handler
     // covered only the timezone cast, so one bad row lost the whole run.
-    expect(statements).toMatch(/raise warning 'trial packet POST failed/);
+    //
+    // Asserting the handler TEXT exists is not enough — a review demonstrated
+    // that moving `net.http_post` outside the guard leaves the text intact and
+    // every test green. So pin the POSITIONS: the guard must open before the
+    // POST and close after it.
+    const guardOpen = statements.indexOf('considered := considered + 1;');
+    const post = statements.indexOf('perform net.http_post(');
+    const handler = statements.indexOf("exception when others then\n      dispatch_failures");
+    expect(guardOpen).toBeGreaterThan(-1);
+    expect(post).toBeGreaterThan(guardOpen);
+    expect(handler).toBeGreaterThan(post);
+    // Ordering alone is not enough: a review hollowed the guard out around a
+    // `perform 1;` and left `net.http_post` unprotected AFTER it, with every
+    // assertion above still true. Nothing between opening the guard and the
+    // POST may close a block.
+    expect(statements.slice(guardOpen, post)).not.toMatch(/\bend\s*;/);
+  });
+
+  it('still fails the cron when EVERY dispatch fails', () => {
+    // Per-row isolation must not turn a systemic outage green.
+    // `backgroundJobsCheck` escalates a job's `lastStatus='failed'`, and a
+    // `raise warning` reaches only the Postgres log, which nothing here reads.
+    expect(statements).toMatch(
+      /if considered > 0 and dispatch_failures = considered then\s*\n\s*raise exception/
+    );
   });
 
   it('survives one row with an unusable timezone', () => {

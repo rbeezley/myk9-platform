@@ -113,6 +113,8 @@ as $$
 declare
   rec record;
   local_now timestamp;
+  considered int := 0;
+  dispatch_failures int := 0;
 begin
   -- Fail loudly rather than posting unauthenticated requests all evening.
   if nullif(p_base_url, '') is null or nullif(p_secret, '') is null then
@@ -162,6 +164,7 @@ begin
     --
     -- The function authenticates on PACKET_CRON_SECRET and builds its own
     -- service-role client from its environment, so no key travels here.
+    considered := considered + 1;
     begin
     perform net.http_post(
       url := p_base_url || '/generate-trial-packet',
@@ -182,10 +185,24 @@ begin
       timeout_milliseconds := 120000
     );
     exception when others then
+      dispatch_failures := dispatch_failures + 1;
       raise warning 'trial packet POST failed for show % on %: %',
         rec.show_id, rec.date, sqlerrm;
     end;
   end loop;
+
+  -- Per-row isolation must not turn a SYSTEMIC failure green.
+  --
+  -- Swallowing every raise means pg_cron records `status='succeeded'`, and
+  -- `backgroundJobsCheck` escalates a job's `lastStatus='failed'` to a failing
+  -- `/admin/health` — so a rotated `edge_function_base_url`, or EXECUTE on
+  -- `net` revoked from this owner, would produce zero packets all evening
+  -- behind a green board, and nobody would find out until a secretary had no
+  -- paper. A `raise warning` only reaches the Postgres log, which nothing here
+  -- reads. One bad row stays isolated; every row failing is an outage.
+  if considered > 0 and dispatch_failures = considered then
+    raise exception 'trial packet dispatch failed for all % show-day(s) this run', considered;
+  end if;
 end;
 $$;
 

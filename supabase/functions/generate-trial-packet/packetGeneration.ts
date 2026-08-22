@@ -34,6 +34,12 @@ const CLAIMS = 'trial_packet_generation_claims';
  * immediately rather than waiting out a lease nobody is holding.
  */
 const RELEASED_CLAIM_AT = '1970-01-01T00:00:00.000Z';
+/** Long enough to outlast a PostgREST restart, short enough for a cron run. */
+const RETRY_DELAY_MS = 2_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export interface GeneratePacketRequest {
   showId: string;
@@ -81,6 +87,8 @@ export interface GeneratePacketSummary {
 
 export interface PacketGenerationDeps extends DeliverStoredPacketDeps {
   renderPdf: (model: ReturnType<typeof buildEmergencyPacketModel>) => Uint8Array;
+  /** Injected so tests do not pay the retry delay. */
+  sleep?: (ms: number) => Promise<void>;
   newSnapshotId?: () => string;
   digest?: (bytes: Uint8Array) => Promise<string>;
 }
@@ -382,14 +390,22 @@ export async function generateTrialPackets(
         .match(claimKey)
         .eq('claimed_at', claimToken);
     let { error: completeError } = await stampComplete();
-    if (completeError) ({ error: completeError } = await stampComplete());
+    if (completeError) {
+      // A pause, not an immediate second attempt. The whole premise is that
+      // these two writes fail TOGETHER — same client, same PostgREST — so a
+      // retry issued microseconds later lands inside the same outage and only
+      // helps the uncorrelated case, which was already benign. A short wait is
+      // what actually changes the odds; a restart is seconds, not microseconds.
+      await deps.sleep?.(RETRY_DELAY_MS) ?? (await sleep(RETRY_DELAY_MS));
+      ({ error: completeError } = await stampComplete());
+    }
     // Do not throw: the packet IS stored and emailed. Failing the whole run
     // here would report a delivered packet as an error, and the worst case of
     // a missed completion is one duplicate on a later run — which the sent
     // snapshot check above then catches anyway.
-    if (completeError) summary.unrecordedCompletions += 1;
-    // The email went out even if its audit row did not. Counted, never retried.
-    if (!result.recorded) summary.unrecordedCompletions += 1;
+    // One increment per DAY, which is what the field documents. Counting each
+    // failed write separately reported 2 for a single packet.
+    if (completeError || !result.recorded) summary.unrecordedCompletions += 1;
 
     summary.generated.push({
       trialDate: day.trialDate,

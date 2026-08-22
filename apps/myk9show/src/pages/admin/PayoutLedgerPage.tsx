@@ -122,51 +122,30 @@ function PlatformFeeCard() {
     null
   );
 
-  // Resync the field when the fetched rate changes (initial load / refetch),
-  // following the adjust-state-during-render pattern (no setState in effect).
+  // The field is SEEDED ONCE and never re-adopts a later value.
   //
-  // The null branch is not symmetry for its own sake: without it, a successful
-  // load followed by a failed or paused refetch leaves the OLD rate sitting in
-  // the (now disabled) field. The hook would have correctly stopped returning
-  // that number, and the card would still be showing it — which is the same
-  // stale-rate claim, relocated from a paragraph into an input.
-  const [syncedFrom, setSyncedFrom] = useState<number | null>(null);
-  // The rate this admin just saved, held until the query reports it back.
-  const [awaitingSave, setAwaitingSave] = useState<{ saved: number; before: number | null } | null>(
-    null
-  );
-
-  // Whether an incoming rate may overwrite the field. Written as one explicit
-  // decision rather than a chain of guards, because each of the three reasons
-  // below was added in response to a separate bug and reading them as a
-  // sequence is how the last one got introduced.
+  // The previous design kept the input in sync with every refetch, and that one
+  // idea produced four consecutive bugs: it clobbered in-progress edits, then
+  // stranded the editor after a save, then flashed the pre-save rate over the
+  // confirmation, then wedged permanently if another admin's value arrived
+  // first. Each fix was a new guard on the same auto-adoption.
   //
-  //   awaitingSave  a save succeeded and the query has not caught up. The cache
-  //                 still holds the PRE-save rate, so adopting it would flip the
-  //                 field back to 7 while the toast says 9.
-  //   dirty field   the admin is mid-edit. refetchOnWindowFocus is on, so
-  //                 tabbing to Stripe and back would otherwise discard the edit.
-  //                 (This is also where Codex's "disable the editor while
-  //                 fetching" suggestion was heading — that clears the field on
-  //                 every refocus, which is this same bug via another route.)
-  //   unchanged     nothing to do.
-  const fieldIsClean = value === (syncedFrom === null ? '' : String(syncedFrom));
-  if (awaitingSave !== null) {
-    // The wait ends as soon as the query stops reporting the PRE-save value —
-    // whatever it reports next. Waiting for exact equality with our own saved
-    // number would wedge permanently if another admin's change arrived instead,
-    // and every later update would then be ignored.
-    if (currentPercent !== awaitingSave.before) {
-      setAwaitingSave(null);
-      if (currentPercent !== awaitingSave.saved) {
-        // Someone else's value won the race. Adopt it rather than sit on ours.
-        setSyncedFrom(currentPercent);
-        setValue(currentPercent === null ? '' : String(currentPercent));
-      }
-    }
-  } else if (syncedFrom !== currentPercent && fieldIsClean) {
-    setSyncedFrom(currentPercent);
-    setValue(currentPercent === null ? '' : String(currentPercent));
+  // All of that machinery defended against two admins editing the platform fee
+  // at once — on a single-site-admin, pre-launch platform. Deleting the
+  // adoption deletes the whole bug class, and costs a behaviour nobody is
+  // positioned to observe.
+  //
+  // Divergence stays VISIBLE rather than silently resolved: the guidance line
+  // below always shows the live rate straight from the query, so a rate changed
+  // elsewhere appears there while the field keeps what was typed, and the Save
+  // button names the value it would actually write.
+  //
+  // `seeded` only ever goes false → true, so this render-phase adjustment
+  // cannot oscillate.
+  const [seeded, setSeeded] = useState(false);
+  if (!seeded && currentPercent !== null) {
+    setSeeded(true);
+    setValue(String(currentPercent));
   }
 
   // No usable rate means no safe edit: an admin must never overwrite a value the
@@ -184,12 +163,8 @@ function PlatformFeeCard() {
   const handleSave = () => {
     updateFee.mutate(parsed, {
       onSuccess: p => {
-        // Move the baseline to what was just saved, so the field stops reading
-        // as dirty and future refetches are adopted again. `awaitingSave` holds
-        // off that adoption until the query actually reports p back — the cache
-        // still contains the pre-save rate at this moment.
-        setAwaitingSave({ saved: p, before: currentPercent });
-        setSyncedFrom(p);
+        // Show exactly what was written. Nothing else touches the field, so the
+        // confirmation and the input can no longer disagree.
         setValue(String(p));
         const message = `Platform fee updated to ${p}%`;
         setFeedback({ tone: 'success', message });

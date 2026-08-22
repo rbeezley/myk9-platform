@@ -285,18 +285,22 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     expect(screen.getByText(/loading the current rate/i)).toBeInTheDocument();
   });
 
-  it('clears the field when a loaded rate later becomes unavailable', () => {
-    // A successful read followed by a failed/paused refetch. The hook stops
-    // returning the number; the field must stop showing it too, or the stale
-    // claim just moves from the paragraph into the input.
+  it("makes no rate claim once the read fails, and locks the field", () => {
+    // A successful read followed by a failed/paused refetch. The field keeps
+    // what the admin was editing — clearing it would destroy an in-progress
+    // edit on a transient blip — but the CLAIM about the live rate has to go,
+    // and nothing may be submitted against a rate we cannot read.
     const { rerender } = render(<PayoutLedgerPage />);
-    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
+    expect(screen.getByRole("spinbutton", { name: /fee percent/i })).toHaveValue(7);
 
     feeState.percent = null;
-    feeState.state = 'unavailable';
+    feeState.state = "unavailable";
     rerender(<PayoutLedgerPage />);
 
-    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(null);
+    expect(screen.queryByText(/current rate:/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: /fee percent/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /update fee/i })).toBeDisabled();
   });
 
   it('offers no dead-end link for pulled entries on an unreadable show', () => {
@@ -510,19 +514,6 @@ describe("PayoutLedgerPage — says which situation a row is actually in", () =>
     ).toHaveValue(9);
   });
 
-  it("still adopts a new rate when the field is untouched", () => {
-    const { rerender } = render(<PayoutLedgerPage />);
-    expect(
-      screen.getByRole("spinbutton", { name: /fee percent/i }),
-    ).toHaveValue(7);
-
-    feeState.percent = 8;
-    rerender(<PayoutLedgerPage />);
-
-    expect(
-      screen.getByRole("spinbutton", { name: /fee percent/i }),
-    ).toHaveValue(8);
-  });
 });
 /**
  * Codex round 7. All three were consequences of the majors fixes themselves.
@@ -611,27 +602,19 @@ describe("PayoutLedgerPage — the fee field never contradicts the save", () => 
     );
   });
 
-  it("resumes adopting outside changes once the save lands", () => {
-    mutate.mockImplementationOnce((_percent, options) => options.onSuccess(9));
+  it("shows an outside rate change without silently rewriting the field", () => {
+    // Seed-once means the input is the admin's editing context, not a mirror of
+    // the query. When someone else moves the rate, that shows up in the live
+    // line and in what the Save button says it would write — visible, rather
+    // than resolved behind the admin's back.
     const { rerender } = render(<PayoutLedgerPage />);
+    expect(screen.getByRole("spinbutton", { name: /fee percent/i })).toHaveValue(7);
 
-    fireEvent.change(screen.getByRole("spinbutton", { name: /fee percent/i }), {
-      target: { value: "9" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /update fee/i }));
-
-    // The query catches up to the saved value...
-    feeState.percent = 9;
-    rerender(<PayoutLedgerPage />);
-    expect(
-      screen.getByRole("spinbutton", { name: /fee percent/i }),
-    ).toHaveValue(9);
-
-    // ...and a later change by someone else is adopted again.
     feeState.percent = 12;
     rerender(<PayoutLedgerPage />);
-    expect(
-      screen.getByRole("spinbutton", { name: /fee percent/i }),
-    ).toHaveValue(12);
+
+    expect(screen.getByRole("spinbutton", { name: /fee percent/i })).toHaveValue(7);
+    expect(screen.getByText("12%")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /update fee to 7%/i })).toBeInTheDocument();
   });
 });

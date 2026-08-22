@@ -58,6 +58,7 @@ export interface UserRole {
   scope_id?: string | null;
   user_email?: string;
   role?: Role;
+  club?: { id: string; name: string } | null;
   assigned_by_email?: string;
 }
 

@@ -361,3 +361,66 @@ describe('RoleManager.getAllRoles — Members column counts distinct people', ()
     expect(roles.find(r => r.id === 'role-2')?.user_count).toBe(0);
   });
 });
+
+describe('RoleManager.getAllUserRoles — scope identity', () => {
+  it('requests and maps the exact club identity for a club-scoped assignment', async () => {
+    const assignmentsQuery = createChainableQuery({
+      data: [
+        {
+          id: 'assignment-1',
+          user_id: 'person-1',
+          role_id: 'role-1',
+          club_id: 'club-1',
+          show_id: null,
+          granted_by: 'admin-1',
+          granted_at: '2026-08-21T12:00:00Z',
+          expires_at: null,
+          is_active: true,
+          role: {
+            id: 'role-1',
+            name: 'secretary',
+            description: null,
+            is_system: true,
+            permissions: null,
+            created_at: null,
+          },
+          club: { id: 'club-1', name: 'Blue Ridge Kennel Club' },
+        },
+      ],
+      error: null,
+    });
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'user_roles') return assignmentsQuery;
+      if (table === 'people') {
+        return createChainableQuery({
+          data: [
+            {
+              id: 'person-1',
+              first_name: 'Alice',
+              last_name: 'Admin',
+              email: 'alice@example.com',
+            },
+            {
+              id: 'admin-1',
+              first_name: 'Site',
+              last_name: 'Admin',
+              email: 'admin@example.com',
+            },
+          ],
+          error: null,
+        });
+      }
+      return createChainableQuery();
+    });
+
+    const { manager } = buildManager();
+    const assignments = await manager.getAllUserRoles();
+
+    expect(assignmentsQuery.select).toHaveBeenCalledWith(expect.stringContaining('club:clubs'));
+    expect(assignments[0]?.club).toEqual({
+      id: 'club-1',
+      name: 'Blue Ridge Kennel Club',
+    });
+  });
+});

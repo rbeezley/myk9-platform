@@ -57,6 +57,19 @@ This is the canonical 8-step loop: implement → simplify → commit → PR → 
 
 Run Codex review **before** merging, not after — it's a gate, not a follow-up.
 
+**If Codex is genuinely unavailable** (usage limit, outage, auth failure — not merely
+slow or inconvenient), the sanctioned fallback is **adversarial subagents, plural**,
+one per PR or per lens, run in parallel and prompted to *find bugs, not approve*
+("assume the author was overconfident"; "report only defects with a concrete failure
+scenario"). A skill's built-in `code-reviewer` step is **not** the fallback — that
+substitution is a recorded lapse and stays banned.
+
+The fallback is second-best and must be labelled as such: say in the PR body that the
+gate did not run and what ran instead, keep the PR a draft when nothing is
+time-pressured, and re-run Codex once it is available — against the merge commit, with
+a follow-up issue, if the PR already landed. On #1536 two clean subagent rounds still
+missed a P1 that Codex caught.
+
 ## 5. Database change
 
 1. `supabase migration list` — check remote migration state before writing a new one (never assume local is authoritative).

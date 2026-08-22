@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -353,19 +353,40 @@ describe('MyEntriesPage UI Improvements', () => {
   });
 
   describe('Tab Structure', () => {
-    it('should render tabs without redundant counts', async () => {
+    it('keeps the tab strip on the time axis alone', async () => {
       seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
       await screen.findByRole('tablist');
 
-      // Tabs should have simple labels without counts
+      // One axis, and a real partition: every entry is in exactly one of
+      // Upcoming or Completed, and they sum to All. Status used to sit here as
+      // three more sibling tabs, which double-counted every entry and made
+      // "accepted AND still ahead of me" unexpressable — see Phase A of
+      // docs/plan-ia-exhibitor-surface.md.
       expect(screen.getByRole('tab', { name: /All/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Pending/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Accepted/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Waitlist/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /Upcoming/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /Completed/i })).toBeInTheDocument();
+      expect(screen.getAllByRole('tab')).toHaveLength(3);
+    });
+
+    it('offers entry status as a composable second axis, not more tabs', async () => {
+      seedLoadedEntry();
+      renderWithProviders(<MyEntriesPage />);
+
+      await screen.findByRole('tablist');
+
+      // radiogroup, not tablist: these chips NARROW whichever tab is active.
+      // Tab semantics would tell assistive tech the selection is replaced.
+      const statusAxis = screen.getByRole('radiogroup', { name: /filter by entry status/i });
+      for (const label of [/Any status/i, /Pending/i, /Accepted/i, /Waitlist/i]) {
+        expect(within(statusAxis).getByRole('radio', { name: label })).toBeInTheDocument();
+      }
+
+      // The retired ids must not come back as tabs on the other axis.
+      expect(screen.queryByRole('tab', { name: /Pending/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /Accepted/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /Waitlist/i })).not.toBeInTheDocument();
     });
 
     it('should have scrollable tab container for mobile', async () => {

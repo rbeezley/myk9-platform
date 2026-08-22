@@ -114,9 +114,15 @@ test.describe('My Shows Page - Tab Structure', () => {
     const tabList = page.locator('[role="tablist"]');
     await expect(tabList).toBeVisible();
 
-    for (const label of ['All', 'Pending', 'Accepted', 'Waitlist', 'Upcoming', 'Completed']) {
+    // One axis only (time). Status moved to the chip row below — as six flat
+    // tabs the two axes overwrote each other and the counts summed to double
+    // the entry total. See docs/plan-ia-exhibitor-surface.md, Phase A.
+    for (const label of ['All', 'Upcoming', 'Completed']) {
       const tab = page.getByRole('tab', { name: new RegExp(`^${label}\\s*\\d+$`) });
       await expect(tab).toBeVisible();
+    }
+    for (const retired of ['Pending', 'Waitlist']) {
+      await expect(page.getByRole('tab', { name: new RegExp(`^${retired}`) })).toHaveCount(0);
     }
   });
 
@@ -126,16 +132,54 @@ test.describe('My Shows Page - Tab Structure', () => {
   });
 
   test('tabs should switch content when clicked', async ({ page }) => {
-    const pendingTab = page.getByRole('tab', { name: /^Pending\s*\d+$/ });
-    await pendingTab.click();
+    const completedTab = page.getByRole('tab', { name: /^Completed\s*\d+$/ });
+    await completedTab.click();
+    await expect(completedTab).toHaveAttribute('aria-selected', 'true');
 
-    // Tab should be selected
-    await expect(pendingTab).toHaveAttribute('aria-selected', 'true');
+    const upcomingTab = page.getByRole('tab', { name: /^Upcoming\s*\d+$/ });
+    await upcomingTab.click();
+    await expect(upcomingTab).toHaveAttribute('aria-selected', 'true');
+  });
 
-    const acceptedTab = page.getByRole('tab', { name: /^Accepted\s*\d+$/ });
-    await acceptedTab.click();
+  // The combination the old six-tab strip could not express: picking a status
+  // then a time replaced the filter instead of refining it.
+  test('status filter composes with the time tab instead of replacing it', async ({ page }) => {
+    const statusGroup = page.getByRole('radiogroup', { name: /filter by entry status/i });
+    await expect(statusGroup).toBeVisible();
 
-    await expect(acceptedTab).toHaveAttribute('aria-selected', 'true');
+    await statusGroup.getByRole('radio', { name: /^Accepted/ }).click();
+    await page.getByRole('tab', { name: /^Upcoming\s*\d+$/ }).click();
+
+    // Both constraints still applied.
+    await expect(page.getByRole('tab', { name: /^Upcoming\s*\d+$/ })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(statusGroup.getByRole('radio', { name: /^Accepted/ })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+    await expect(page).toHaveURL(/status=accepted/);
+    await expect(page).toHaveURL(/tab=upcoming/);
+  });
+
+  // Upcoming + Completed must account for every entry exactly once. Two axes
+  // rendered as siblings is what made the counts sum to 136 for 68 entries.
+  test('Upcoming and Completed partition All', async ({ page }) => {
+    const countOf = async (label: string) => {
+      const name = await page
+        .getByRole('tab', { name: new RegExp(`^${label}\\s*\\d+$`) })
+        .textContent();
+      return Number((name ?? '').replace(/\D+/g, ''));
+    };
+
+    const [all, upcoming, completed] = await Promise.all([
+      countOf('All'),
+      countOf('Upcoming'),
+      countOf('Completed'),
+    ]);
+
+    expect(upcoming + completed).toBe(all);
   });
 });
 
@@ -152,7 +196,7 @@ test.describe('My Shows Page - Mobile Tab Usability', () => {
     await expect(tabList).toBeVisible();
 
     // All tabs should be present even if scrolled
-    const tabs = ['All', 'Pending', 'Accepted', 'Waitlist', 'Upcoming', 'Completed'];
+    const tabs = ['All', 'Upcoming', 'Completed'];
     for (const tabName of tabs) {
       const tab = page.getByRole('tab', { name: new RegExp(`^${tabName}\\s*\\d+$`) });
       // Scroll into view if needed

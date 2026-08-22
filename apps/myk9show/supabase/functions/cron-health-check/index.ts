@@ -116,12 +116,17 @@ async function fetchPreviousConflictBaseline(): Promise<{
   }
 }
 
-async function insertSnapshot(row: ReturnType<typeof buildSnapshot>) {
+/** `runMode` is what makes daily-health-snapshot-watchdog able to fire at all:
+ * it counts snapshots in the 07:00-08:00 UTC window that are NOT continuous, and
+ * before this column every five-minute run looked exactly like the nightly one.
+ * See migration 20260822180000 and QA-HEALTH-WATCHDOG-INERT-2026-08-22. */
+async function insertSnapshot(row: ReturnType<typeof buildSnapshot>, runMode: HealthCheckRunMode) {
   const { error } = await supabase.from('system_health_snapshots').insert({
     source: row.source,
     overall_status: row.overall_status,
     checks: row.checks,
     run_duration_ms: row.run_duration_ms,
+    run_mode: runMode,
   });
   if (error) throw new Error(`snapshot insert failed: ${error.message}`);
 }
@@ -160,7 +165,7 @@ async function runHealthSnapshot(
         check => check.key !== 'probe' && check.key !== 'public_schema_create_acl'
       )
     );
-    await insertSnapshot(snapshot);
+    await insertSnapshot(snapshot, mode);
     console.error('Health probe failed:', probeError?.message ?? 'no facts returned');
     return Response.json(
       { source: snapshot.source, overall_status: snapshot.overall_status, probe_error: true },
@@ -185,7 +190,7 @@ async function runHealthSnapshot(
       mode,
     }
   );
-  await insertSnapshot(snapshot);
+  await insertSnapshot(snapshot, mode);
 
   console.log(
     'Health check run:',

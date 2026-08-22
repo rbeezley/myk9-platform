@@ -12,7 +12,8 @@ const source = readFileSync(
 describe('cron-health-check Sentry Cron source contract', () => {
   it('keeps one snapshot construction in the probe-failure branch', () => {
     const branchStart = source.indexOf('if (probeError || facts == null)');
-    const insertStart = source.indexOf('await insertSnapshot(snapshot);', branchStart);
+    const insertStart = source.indexOf('await insertSnapshot(snapshot, mode);', branchStart);
+    expect(insertStart, 'probe-failure branch insert call').toBeGreaterThan(branchStart);
     const failureBranch = source.slice(branchStart, insertStart);
 
     expect(failureBranch.match(/\bconst snapshot\b/g)).toHaveLength(1);

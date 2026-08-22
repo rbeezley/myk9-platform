@@ -33,9 +33,20 @@ import type {
   FinancialReconciliationPayout,
 } from './financialReconciliation';
 import { resolvePayoutSettlement, type PayoutSettlementRow } from './payoutSettlement';
+import { selectAuthoritativePayout } from './payoutSupersession';
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 
-export type ClubShowChargeVerification = 'Verified' | 'Attested';
+/**
+ * 'Unknown' is not a weaker 'Attested'. Attested is a positive statement -- the
+ * charge is recorded, we simply hold no Stripe snapshot for it, which is the
+ * normal shape of a desk payment or a legacy order. A show with NO order rows
+ * at all supports neither statement, and the card's INTENT header is explicit
+ * that a missing fact must read as missing.
+ *
+ * `ClubShowNet` already had a `pending` arm for exactly this case, so the same
+ * input used to produce an honest "net pending" beside a confident "Attested".
+ */
+export type ClubShowChargeVerification = 'Verified' | 'Attested' | 'Unknown';
 
 /** Never a bare number: a pending processing fee must read as pending, not $0. */
 export type ClubShowNet = { status: 'available'; netCents: number } | { status: 'pending' };
@@ -98,9 +109,10 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
   chargeVerification: ClubShowChargeVerification;
 } {
   if (orders.length === 0) {
-    // No Stripe trace at all for this show — Attested, and net is unknown
-    // rather than a misleading $0.
-    return { net: { status: 'pending' }, chargeVerification: 'Attested' };
+    // No Stripe trace at all for this show. Net is unknown rather than a
+    // misleading $0, and the charge state is Unknown rather than Attested:
+    // there is no charge here to attest to.
+    return { net: { status: 'pending' }, chargeVerification: 'Unknown' };
   }
 
   let netCents = 0;
@@ -129,6 +141,11 @@ function aggregateShowOrders(orders: FinancialReconciliationOrder[]): {
   return { net, chargeVerification };
 }
 
+/** Ordering facts for a reconciliation payout row. */
+function readPayoutOrdering(payout: FinancialReconciliationPayout) {
+  return { status: payout.status, createdAt: payout.createdAt, id: payout.payoutId };
+}
+
 /**
  * Build one reconciliation row per show the club has EITHER a Stripe order OR
  * a payout row for, sorted by most recent activity first.
@@ -147,14 +164,22 @@ export function buildClubShowReconciliationRows(
     ordersByShow.set(order.showId, list);
   }
 
-  const payoutByShow = new Map<string, FinancialReconciliationPayout>();
+  // A show can carry SEVERAL payout rows: the cron leaves a failed row in place
+  // and inserts a new one on retry. Selection follows the same rule the
+  // reconciliation RPC uses, not a local max(createdAt) -- see
+  // payoutSupersession.ts for why those two differ and where it hurt.
+  const payoutRowsByShow = new Map<string, FinancialReconciliationPayout[]>();
   for (const payout of payouts) {
     if (!payout.showId) continue;
-    // A club has at most one payout per show; keep the most recently created.
-    const existing = payoutByShow.get(payout.showId);
-    if (!existing || payout.createdAt > existing.createdAt) {
-      payoutByShow.set(payout.showId, payout);
-    }
+    const list = payoutRowsByShow.get(payout.showId) ?? [];
+    list.push(payout);
+    payoutRowsByShow.set(payout.showId, list);
+  }
+
+  const payoutByShow = new Map<string, FinancialReconciliationPayout>();
+  for (const [showId, rows] of payoutRowsByShow) {
+    const authoritative = selectAuthoritativePayout(rows, readPayoutOrdering);
+    if (authoritative) payoutByShow.set(showId, authoritative);
   }
 
   const showIds = new Set<string>([...ordersByShow.keys(), ...payoutByShow.keys()]);

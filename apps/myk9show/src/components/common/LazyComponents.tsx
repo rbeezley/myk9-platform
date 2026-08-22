@@ -50,10 +50,6 @@ export const UserActivityMonitor = lazy(() =>
 );
 
 // PDF/Report Components (react-to-print dependency)
-export const PrintManager = lazy(() =>
-  import('@/components/reports/PrintManager').then(m => ({ default: m.PrintManager }))
-);
-
 export const PrintableReport = lazy(() =>
   import('@/components/reports/PrintableReport').then(m => ({ default: m.PrintableReport }))
 );
@@ -102,7 +98,6 @@ export function preloadHeavyComponents(): void {
       () => EnhancedAnalyticsDashboard,
       () => ShowCalendar,
       () => TrendChart,
-      () => PrintManager,
     ];
 
     components.forEach((component, index) => {
@@ -128,7 +123,7 @@ export function preloadByRole(userRole?: string): void {
 
   const roleComponents = {
     admin: [EnhancedAnalyticsDashboard, SyncMonitoringDashboard],
-    secretary: [ShowCalendar, PrintManager],
+    secretary: [ShowCalendar],
     judge: [ClassEntriesTable, ClassResultsTable],
     exhibitor: [ShowCalendar],
   };

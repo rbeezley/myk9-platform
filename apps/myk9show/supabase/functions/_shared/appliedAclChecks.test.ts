@@ -11,7 +11,7 @@ describe('appliedAclCheck — authenticated and sequence ACL drift', () => {
     const check = appliedAclCheck(appliedAclFacts(), PROBED_AT);
 
     expect(check.status).toBe('ok');
-    expect(check.detail).toContain('125 authenticated table grants');
+    expect(check.detail).toContain('126 authenticated table grants');
     expect(check.detail).toContain('4 public sequences');
   });
 

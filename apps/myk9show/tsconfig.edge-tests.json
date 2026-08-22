@@ -37,6 +37,7 @@
     "../../supabase/functions/push-trigger-run-proximity/runProximity.test.ts",
     "../../supabase/functions/_shared/showEveNudge.test.ts",
     "../../supabase/functions/calendar-feed/*.test.ts",
+    "../../supabase/functions/deliver-trial-packet/*.test.ts",
     "../../supabase/functions/send-auth-email/delivery.test.ts",
     "../../supabase/functions/resend-webhook/handler.test.ts",
     "../../supabase/functions/send-confirmation-email/*.test.ts",

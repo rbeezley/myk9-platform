@@ -21,6 +21,10 @@ const REGRESSION_SPECS = [
   // and fail unconditionally. Real payment journeys are tracked in MYK9-42.
   '**/show/atShowJudgeScoring.spec.ts',
   '**/show/atShowOfflineScoring.spec.ts',
+  // Offline cold boot (MYK9-200 AC 1 / MYK9-203 AC 2). Secretary-authed, so it
+  // is credential-eligible for PR smoke, but it depends on the Heartland seed
+  // fixture exactly as atShowOfflineScoring does — same reason, same home.
+  '**/offline-cold-boot.spec.ts',
   // scoring/scoringWorkflow and show/showManagement are obsolete candidate
   // suites; current coverage lives in focused scoring and management specs
   // tracked in docs/qa/e2e-suite-map.md.

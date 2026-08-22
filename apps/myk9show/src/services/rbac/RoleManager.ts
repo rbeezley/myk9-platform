@@ -27,6 +27,7 @@ import {
   ActionType,
 } from '@/types/rbac-types';
 import type { AuditLogger } from './AuditLogger';
+import { formatPersonLabel, type PersonLabelRow } from './personLabels';
 
 // DB row types derived from Supabase schema
 type RolesRow = Database['public']['Tables']['roles']['Row'];
@@ -45,13 +46,23 @@ interface RolePermissionJoinRow {
 
 interface UserRoleWithJoinedRole extends UserRolesRow {
   role: RolesRow | null;
+  club: Pick<Database['public']['Tables']['clubs']['Row'], 'id' | 'name'> | null;
 }
 
-interface PeopleLabelRow {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
+interface UserRoleAuditRow {
+  user_id: string;
+  role_id: string;
+  club_id: string | null;
+  show_id: string | null;
+  is_active: boolean;
+  role: { name: string } | null;
+}
+
+interface RoleAuditValue extends Record<string, unknown> {
+  role_id: string;
+  role_name: string | null;
+  club_id: string | null;
+  show_id: string | null;
 }
 
 interface RolePermissionCountRow {
@@ -97,11 +108,18 @@ function toPermission(row: PermissionsRow): Permission {
   };
 }
 
-function formatPersonLabel(person: PeopleLabelRow | undefined): string | undefined {
-  if (!person) return undefined;
-  const name = [person.first_name, person.last_name].filter(Boolean).join(' ').trim();
-  if (name && person.email) return `${name} (${person.email})`;
-  return name || person.email || undefined;
+function buildRoleAuditValue(
+  roleId: string,
+  roleName: string | null,
+  clubId: string | null,
+  showId: string | null
+): RoleAuditValue {
+  return {
+    role_id: roleId,
+    role_name: roleName,
+    club_id: clubId,
+    show_id: showId,
+  };
 }
 
 function countByRoleId(rows: RolePermissionCountRow[]): Map<string, number> {
@@ -159,7 +177,7 @@ async function loadRoleCountRows(
   return data ?? [];
 }
 
-async function loadPeopleLabels(ids: string[]): Promise<Map<string, PeopleLabelRow>> {
+async function loadPeopleLabels(ids: string[]): Promise<Map<string, PersonLabelRow>> {
   if (ids.length === 0) return new Map();
 
   const { data, error } = await supabase
@@ -172,7 +190,7 @@ async function loadPeopleLabels(ids: string[]): Promise<Map<string, PeopleLabelR
     return new Map();
   }
 
-  const rows = (data ?? []) as PeopleLabelRow[];
+  const rows = (data ?? []) as PersonLabelRow[];
   return new Map(rows.map(person => [person.id, person]));
 }
 
@@ -261,6 +279,12 @@ export class RoleManager {
         throw new RoleError(`Failed to assign role: ${error.message}`, roleName, request.userId);
       }
 
+      await this.auditLogger.logAuditEvent(ActionType.ROLE_ASSIGNED, {
+        targetId: request.userId,
+        targetType: 'user',
+        newValue: buildRoleAuditValue(roleId, roleName, clubId, showId),
+      });
+
       this.clearUserCache(request.userId);
       return data.id;
     } catch (error) {
@@ -322,13 +346,31 @@ export class RoleManager {
     if (existing && existing.length > 0) {
       if (!existing[0].is_active) {
         // Reactivate the deactivated role
-        const { error: reactivateError } = await supabase
+        const { data: reactivated, error: reactivateError } = await supabase
           .from('user_roles')
           .update({ is_active: true })
-          .eq('id', existing[0].id);
+          .eq('id', existing[0].id)
+          .eq('is_active', false)
+          .select('id')
+          .maybeSingle();
         if (reactivateError) {
           throw new Error(`Failed to reactivate role: ${reactivateError.message}`);
         }
+        if (!reactivated) {
+          return false;
+        }
+
+        await this.auditLogger.logAuditEvent(ActionType.ROLE_ASSIGNED, {
+          targetId: userId,
+          targetType: 'user',
+          newValue: buildRoleAuditValue(
+            role.id,
+            roleName,
+            clubId ?? null,
+            showId ?? null
+          ),
+        });
+
         this.clearUserCache(userId);
         logger.info('Reactivated role', 'rbac', { userId, roleName, clubId, showId });
         return true;
@@ -391,7 +433,8 @@ export class RoleManager {
         .from('user_roles')
         .update({ is_active: false })
         .eq('user_id', request.userId)
-        .eq('role_id', role.id);
+        .eq('role_id', role.id)
+        .eq('is_active', true);
 
       // Apply scope filter using actual DB columns
       if (request.scopeType === 'club' && request.scopeId) {
@@ -400,7 +443,7 @@ export class RoleManager {
         query = query.eq('show_id', request.scopeId);
       }
 
-      const { error } = await query;
+      const { data: revokedAssignments, error } = await query.select('club_id, show_id');
 
       if (error) {
         throw new RoleError(
@@ -409,6 +452,25 @@ export class RoleManager {
           request.userId
         );
       }
+
+      if (!revokedAssignments || revokedAssignments.length === 0) {
+        return false;
+      }
+
+      await Promise.all(
+        revokedAssignments.map(assignment =>
+          this.auditLogger.logAuditEvent(ActionType.ROLE_REVOKED, {
+            targetId: request.userId,
+            targetType: 'user',
+            oldValue: buildRoleAuditValue(
+              role.id,
+              request.roleName,
+              assignment.club_id,
+              assignment.show_id
+            ),
+          })
+        )
+      );
 
       this.clearUserCache(request.userId);
       return true;
@@ -758,7 +820,8 @@ export class RoleManager {
       .select(
         `
         *,
-        role:roles(*)
+        role:roles(*),
+        club:clubs(id, name)
       `
       )
       .order('granted_at', { ascending: false });
@@ -792,6 +855,7 @@ export class RoleManager {
         expires_at: item.expires_at,
         is_active: item.is_active,
         ...(role ? { role } : {}),
+        club: item.club,
         ...(userEmail ? { user_email: userEmail } : {}),
         assigned_by_email: formatPersonLabel(peopleById.get(item.granted_by ?? '')) ?? 'System',
       };
@@ -803,26 +867,54 @@ export class RoleManager {
    */
   async revokeUserRole(userRoleId: string): Promise<void> {
     try {
-      // Get user_id before deletion for cache clearing
-      const { data: userRole } = await supabase
+      // Capture the assignment before deactivation so its audit entry retains
+      // the target person, role, and scope after the write succeeds.
+      const { data, error: userRoleError } = await supabase
         .from('user_roles')
-        .select('user_id')
+        .select('user_id, role_id, club_id, show_id, is_active, role:roles(name)')
         .eq('id', userRoleId)
         .single();
 
+      if (userRoleError || !data) {
+        throw new Error(
+          `Failed to load user role: ${userRoleError?.message ?? 'assignment not found'}`
+        );
+      }
+
+      const userRole = data as unknown as UserRoleAuditRow;
+
+      if (!userRole.is_active) {
+        return;
+      }
+
       // Soft-deactivate the role assignment
-      const { error } = await supabase
+      const { data: revoked, error } = await supabase
         .from('user_roles')
         .update({ is_active: false })
-        .eq('id', userRoleId);
+        .eq('id', userRoleId)
+        .eq('is_active', true)
+        .select('id');
 
       if (error) {
         throw new Error(`Failed to revoke user role: ${error.message}`);
       }
 
-      if (userRole) {
-        this.clearUserCache(userRole.user_id);
+      if (!revoked || revoked.length === 0) {
+        return;
       }
+
+      await this.auditLogger.logAuditEvent(ActionType.ROLE_REVOKED, {
+        targetId: userRole.user_id,
+        targetType: 'user',
+        oldValue: buildRoleAuditValue(
+          userRole.role_id,
+          userRole.role?.name ?? null,
+          userRole.club_id,
+          userRole.show_id
+        ),
+      });
+
+      this.clearUserCache(userRole.user_id);
     } catch (error) {
       logger.error('Failed to revoke user role', 'rbac', { userRoleId }, error as Error);
       throw error;

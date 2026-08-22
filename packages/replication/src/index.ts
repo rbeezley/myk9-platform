@@ -170,7 +170,7 @@ export {
 
 // MutationManager
 export { MutationManager } from './MutationManager';
-export type { MutationManagerOptions } from './MutationManager';
+export type { MutationManagerOptions, MutationUploadAuthContext } from './MutationManager';
 
 // Perf instrumentation
 export { markPerf, measurePerf } from './perf';

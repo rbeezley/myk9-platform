@@ -963,6 +963,97 @@ describe('MyEntryCard self-check-in gating', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Self check-in not available')).not.toBeInTheDocument();
   });
+
+  it('does not render per-class check-in for settled production-shaped rows', () => {
+    renderWithMap(
+      makeEntry({
+        classes: [
+          makeClass({
+            id: 'absent-entry',
+            classId: 'absent-class',
+            name: 'Absent Search',
+            entryStatus: EntryStatus.ACCEPTED,
+            checkInStatus: 'no-status',
+            isScored: false,
+            resultStatus: 'absent',
+          }),
+          makeClass({
+            id: 'excused-entry',
+            classId: 'excused-class',
+            name: 'Excused Search',
+            entryStatus: EntryStatus.ACCEPTED,
+            checkInStatus: 'no-status',
+            isScored: false,
+            resultStatus: 'excused',
+          }),
+          makeClass({
+            id: 'scratched-entry',
+            classId: 'scratched-class',
+            name: 'Scratched Search',
+            entryStatus: EntryStatus.SCRATCHED,
+            status: 'scratched',
+            checkInStatus: 'no-status',
+            isScored: false,
+          }),
+          makeClass({
+            id: 'withdrawn-entry',
+            classId: 'withdrawn-class',
+            name: 'Withdrawn Search',
+            entryStatus: EntryStatus.CANCELLED,
+            checkInStatus: 'no-status',
+            isScored: false,
+          }),
+          makeClass({
+            id: 'pulled-entry',
+            classId: 'pulled-class',
+            name: 'Pulled Search',
+            entryStatus: EntryStatus.ACCEPTED,
+            checkInStatus: 'pulled',
+            isScored: false,
+          }),
+        ],
+      }),
+      {}
+    );
+    openDetails();
+
+    expect(screen.queryByRole('button', { name: /update check-in/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps per-class check-in for the live row in a mixed settled order', () => {
+    renderWithMap(
+      makeEntry({
+        classes: [
+          makeClass({
+            id: 'absent-entry',
+            classId: 'absent-class',
+            name: 'Absent Search',
+            entryStatus: EntryStatus.ACCEPTED,
+            checkInStatus: 'no-status',
+            isScored: false,
+            resultStatus: 'absent',
+          }),
+          makeClass({
+            id: 'live-entry',
+            classId: 'live-class',
+            name: 'Live Search',
+            entryStatus: EntryStatus.ACCEPTED,
+            checkInStatus: 'no-status',
+            isScored: false,
+          }),
+        ],
+      }),
+      {}
+    );
+    openDetails();
+
+    expect(
+      screen.queryByRole('button', { name: /update check-in for rex in absent search/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /update check-in for rex in live search/i })
+    ).toBeInTheDocument();
+  });
 });
 
 describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-remediation 3.1-3.5)', () => {

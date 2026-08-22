@@ -6,24 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Landmark, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-import {
-  useClubStripeAccount,
-  useClubPayoutHistory,
-  startConnectOnboarding,
-} from './useClubStripeAccount';
-import { resolvePayoutBadge, type PayoutsAccountState } from './payoutBadge';
+import { useClubStripeAccount, startConnectOnboarding } from './useClubStripeAccount';
+import type { PayoutsAccountState } from './payoutBadge';
+import { NEUTRAL_STATUS_CHIP } from '@/components/ui/statusChip';
 import { useConnectReturn, useClearConnectParam } from './useConnectReturn';
 import { ClubFinancialReconciliationCard } from '@/features/financial/components/ClubFinancialReconciliationCard';
-
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-});
-
-/** Cents -> a fully formatted USD string with thousands separators ($1,240.00). */
-function formatPayoutAmount(amountCents: number): string {
-  return currencyFormatter.format(amountCents / 100);
-}
 
 const RETURN_PATH = '/club-admin/payments';
 
@@ -56,10 +43,6 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
       ? 'enabled'
       : 'not-enabled';
   const enabled = accountState === 'enabled';
-  // Only load payout history once payouts are actually enabled. Otherwise a
-  // failed history fetch would surface a "Couldn't load your payout history"
-  // error beside the connect/setup flow for a club that isn't connected yet.
-  const payoutHistory = useClubPayoutHistory(enabled ? clubId : undefined);
   const [showChecklist, setShowChecklist] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [isStartingOnboarding, setIsStartingOnboarding] = useState(false);
@@ -120,7 +103,9 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Landmark className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-              <CardTitle>Bank account</CardTitle>
+              <CardTitle role="heading" aria-level={2}>
+                Bank account
+              </CardTitle>
             </div>
             {enabled && (
               <Badge className="shrink-0 bg-success text-success-foreground hover:bg-success">
@@ -129,7 +114,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
               </Badge>
             )}
             {inReview && (
-              <Badge variant="secondary" className="shrink-0">
+              <Badge variant="secondary" className={`shrink-0 ${NEUTRAL_STATUS_CHIP}`}>
                 <Clock className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                 Under review by Stripe
               </Badge>
@@ -152,13 +137,9 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           {accountQuery.isError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
-              <AlertDescription>
-                Couldn&apos;t load your payment account status.{' '}
-                <Button
-                  variant="link"
-                  className="inline-flex min-h-[44px] items-center p-0"
-                  onClick={() => accountQuery.refetch()}
-                >
+              <AlertDescription className="space-y-3">
+                <p>Couldn&apos;t load your payment account status.</p>
+                <Button variant="outline" size="touch" onClick={() => void accountQuery.refetch()}>
                   Try again
                 </Button>
               </AlertDescription>
@@ -168,14 +149,15 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           {connectError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
-              <AlertDescription>
-                {connectError}{' '}
+              <AlertDescription className="space-y-3">
+                <p>{connectError}</p>
                 <Button
-                  variant="link"
-                  className="inline-flex min-h-[44px] items-center p-0"
+                  variant="outline"
+                  size="touch"
                   onClick={handleContinueToStripe}
+                  disabled={isStartingOnboarding}
                 >
-                  Try again
+                  {isStartingOnboarding ? 'Opening Stripe' : 'Try again'}
                 </Button>
               </AlertDescription>
             </Alert>
@@ -183,73 +165,6 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
 
           {accountQuery.isSuccess && (
             <>
-              {enabled &&
-                !payoutHistory.isLoading &&
-                !payoutHistory.isError &&
-                (payoutHistory.data?.length ?? 0) === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    You&apos;re all set. Payouts appear here after your first show closes.
-                  </p>
-                )}
-
-              {enabled && payoutHistory.isError && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                  <AlertDescription>
-                    Couldn&apos;t load your payout history.{' '}
-                    <Button
-                      variant="link"
-                      className="inline-flex min-h-[44px] items-center p-0"
-                      onClick={() => payoutHistory.refetch()}
-                    >
-                      Try again
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {enabled && (payoutHistory.data?.length ?? 0) > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Show payouts</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Amounts shown are deposited to your club&apos;s bank account.
-                  </p>
-                  <ul className="divide-y rounded-lg border">
-                    {payoutHistory.data!.map(payout => {
-                      const badge = resolvePayoutBadge(payout, accountState);
-                      const isPaid = !!payout.completed_at;
-                      const dateLabel = isPaid ? 'Paid' : 'Started';
-                      const dateValue = new Date(
-                        payout.completed_at ?? payout.created_at
-                      ).toLocaleDateString();
-                      return (
-                        <li
-                          key={payout.id}
-                          className="flex items-center justify-between gap-2 px-3 py-2"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">
-                              {payout.show?.name ?? 'Show'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {dateLabel} {dateValue}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <span className="text-sm font-semibold tabular-nums">
-                              {formatPayoutAmount(payout.amount_cents)}
-                            </span>
-                            <Badge variant={badge.variant} className={badge.className}>
-                              {badge.label}
-                            </Badge>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-
               {inReview && !awaitingStripeConfirmation && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
@@ -329,7 +244,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
               {notConnected && !awaitingStripeConfirmation && !showLinkExpired && showChecklist && (
                 <div className="space-y-4 rounded-lg border p-4">
                   <div>
-                    <h4 className="font-medium">Before you start, have these four things ready:</h4>
+                    <h3 className="font-medium">Before you start, have these four things ready:</h3>
                     <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
                       {CHECKLIST_ITEMS.map(item => (
                         <li key={item}>{item}</li>
@@ -366,11 +281,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
           renders at all. It is deliberately a tri-state: this card sits outside
           the guard above, so it renders while the account query is still in
           flight, and a boolean would assert "not onboarded" the whole time. */}
-      <ClubFinancialReconciliationCard
-        clubId={clubId}
-        accountState={accountState}
-        payoutHistory={payoutHistory.data}
-      />
+      <ClubFinancialReconciliationCard clubId={clubId} accountState={accountState} />
     </div>
   );
 }

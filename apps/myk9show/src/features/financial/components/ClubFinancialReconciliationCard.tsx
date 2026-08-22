@@ -12,11 +12,11 @@
 import { AlertCircle, ScrollText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { NEUTRAL_STATUS_CHIP } from '@/components/ui/statusChip';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClubFinancialReconciliation } from '../useClubFinancialReconciliation';
-import type { ShowPayoutRow } from '@/features/payments/useClubStripeAccount';
 import type { PayoutsAccountState } from '@/features/payments/payoutBadge';
 import { ChargeVerificationBadge } from './ChargeVerificationBadge';
 import { CopyableTransferId } from './CopyableTransferId';
@@ -37,26 +37,22 @@ interface ClubFinancialReconciliationCardProps {
    * every pending payout "Waiting for account" against data never read.
    */
   accountState: PayoutsAccountState;
-  payoutHistory: ShowPayoutRow[] | undefined;
 }
 
 export function ClubFinancialReconciliationCard({
   clubId,
   accountState,
-  payoutHistory,
 }: ClubFinancialReconciliationCardProps) {
-  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(
-    clubId,
-    accountState,
-    payoutHistory
-  );
+  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(clubId, accountState);
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
           <ScrollText className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          <CardTitle>Show reconciliation</CardTitle>
+          <CardTitle role="heading" aria-level={2}>
+            Show reconciliation
+          </CardTitle>
         </div>
         <CardDescription>
           Per-show net, Stripe verification, and transfer status for your club&apos;s shows.
@@ -71,17 +67,27 @@ export function ClubFinancialReconciliationCard({
         )}
 
         {!isLoading && isError && (
-          <Alert data-testid="reconciliation-unavailable">
+          /* The default Alert is `bg-background text-foreground`, which measures
+             1.07:1 light / 1.08:1 dark against the Card it sits on: the one state
+             this card's INTENT header insists must read as explicitly unavailable
+             rendered as ordinary body text. Amber separates it without the alarm
+             of `destructive`, which would misdescribe a verification gap as a
+             payout failure. */
+          <Alert
+            data-testid="reconciliation-unavailable"
+            className="border-[color-mix(in_srgb,var(--chip-amber-fg)_40%,transparent)] bg-[color:var(--chip-amber-bg)] text-[color:var(--chip-amber-fg)]"
+          >
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
-            <AlertDescription>
-              Stripe verification is unavailable right now. This doesn&apos;t mean anything is wrong
-              with your payouts — we just can&apos;t confirm the details against Stripe at the
-              moment.{' '}
-              <Button
-                variant="link"
-                className="inline-flex min-h-[44px] items-center p-0"
-                onClick={() => refetch()}
-              >
+            <AlertDescription className="space-y-3">
+              <p>
+                Stripe verification is unavailable right now. This doesn&apos;t mean anything is
+                wrong with your payouts. We just can&apos;t confirm the details against Stripe at
+                the moment.
+              </p>
+              {/* A real control rather than a link inside the sentence: `variant="link"`
+                  is `text-primary`, which measures 4.40:1 under heather+dark and
+                  fails AA on the recovery affordance inside a money-load error. */}
+              <Button variant="outline" size="touch" onClick={() => void refetch()}>
                 Try again
               </Button>
             </AlertDescription>
@@ -105,11 +111,9 @@ export function ClubFinancialReconciliationCard({
                     {row.net.status === 'available' ? (
                       formatCents(row.net.netCents)
                     ) : (
-                      <Badge
-                        variant="secondary"
-                        aria-label="Net amount pending Stripe processing fee capture"
-                      >
+                      <Badge variant="secondary" className={NEUTRAL_STATUS_CHIP}>
                         Net pending
+                        <span className="sr-only"> — awaiting Stripe processing fee capture</span>
                       </Badge>
                     )}
                   </span>
@@ -119,7 +123,9 @@ export function ClubFinancialReconciliationCard({
                   {row.settlement && (
                     <Badge
                       variant={row.settlement.state === 'attention' ? 'destructive' : 'secondary'}
-                      aria-label={`Payout settlement: ${row.settlement.badgeLabel}`}
+                      className={
+                        row.settlement.state === 'attention' ? undefined : NEUTRAL_STATUS_CHIP
+                      }
                     >
                       {row.settlement.badgeLabel}
                     </Badge>
@@ -137,16 +143,30 @@ export function ClubFinancialReconciliationCard({
                   // ('Paid') may be labelled "Transferred" (Codex round-6 finding).
                   <p className="text-xs text-muted-foreground">
                     {row.settlement.state === 'settled' ? 'Transferred: ' : 'To transfer: '}
-                    <span
-                      className="font-medium tabular-nums text-foreground"
-                      aria-label={
-                        row.settlement.state === 'settled'
-                          ? `Settled transfer amount ${formatCents(row.settlement.amountCents)}`
-                          : `Amount awaiting transfer ${formatCents(row.settlement.amountCents)}, not yet sent`
-                      }
-                    >
+                    <span className="font-medium tabular-nums text-foreground">
                       {formatCents(row.settlement.amountCents)}
+                      {/* This qualifier was an aria-label on a bare <span>, i.e.
+                          role="generic", so it was dropped -- and it is the only
+                          honest qualifier on a money figure here. */}
+                      {row.settlement.state !== 'settled' && (
+                        <span className="sr-only"> awaiting transfer, not yet sent</span>
+                      )}
                     </span>
+                  </p>
+                )}
+                {row.settlement && (
+                  /* Carried over from the "Show payouts" list this card
+                     replaced. A treasurer reconciles against a bank statement,
+                     and a row without a date cannot be tied to a line on it.
+                     <time> so the value is machine-readable, which the old list
+                     never was. */
+                  <p className="text-xs text-muted-foreground">
+                    {row.settlement.completedAt ? 'Paid on ' : 'Started on '}
+                    <time dateTime={row.settlement.completedAt ?? row.settlement.createdAt}>
+                      {new Date(
+                        row.settlement.completedAt ?? row.settlement.createdAt
+                      ).toLocaleDateString()}
+                    </time>
                   </p>
                 )}
                 {row.settlement?.stripeTransferId && (

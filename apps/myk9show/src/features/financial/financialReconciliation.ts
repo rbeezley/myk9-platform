@@ -17,11 +17,26 @@ import { supabase } from '@/lib/supabase';
 // until then; a returned `error` is a real failure (the RPC RAISEs for an
 // unauthorized caller) and is thrown, never swallowed as an empty result.
 async function callFinancialRpc<T>(fn: string, args: Record<string, unknown>): Promise<T[]> {
-  const rpc = supabase.rpc as unknown as (
-    name: string,
-    params: Record<string, unknown>
-  ) => Promise<{ data: unknown; error: unknown }>;
-  const { data, error } = await rpc(fn, args);
+  // The cast goes on the CLIENT, never on the method. `const rpc = supabase.rpc`
+  // detaches the function from its receiver, and supabase-js's `rpc()` body is
+  // `return this.rest.rpc(fn, args, options)` (SupabaseClient.ts:514) -- so a
+  // detached call throws `TypeError: Cannot read properties of undefined
+  // (reading 'rest')` BEFORE any request is made.
+  //
+  // That is not hypothetical: it shipped, and it took every financial
+  // reconciliation surface down. React Query caught the throw into `isError`,
+  // so there was no console error, no failed request, and nothing in the
+  // Postgres or edge logs to find -- only a calm card saying it could not
+  // reach Stripe. Every other rpc call site in this app uses the inline
+  // `(supabase.rpc as T)(...)` form, where the parentheses preserve the
+  // reference, which is why only this module broke.
+  const client = supabase as unknown as {
+    rpc: (name: string, params: Record<string, unknown>) => Promise<{
+      data: unknown;
+      error: unknown;
+    }>;
+  };
+  const { data, error } = await client.rpc(fn, args);
   if (error) throw error;
   return (data as T[] | null) ?? [];
 }
@@ -127,6 +142,13 @@ export interface FinancialReconciliationOrder {
 export interface FinancialReconciliationPayout {
   payoutId: string;
   showId: string | null;
+  /**
+   * Comes from the RPC, which is SECURITY DEFINER and so is not filtered by the
+   * shows_select soft-delete predicate. That matters: the client's payout-history
+   * read IS filtered, so it cannot name a soft-deleted show, and the row used to
+   * fall back to the literal label "Show".
+   */
+  showName: string | null;
   status: string;
   amountCents: number;
   stripeTransferId: string | null;
@@ -213,6 +235,7 @@ interface OrderRow {
 interface PayoutRow {
   payout_id: string;
   show_id: string | null;
+  show_name: string | null;
   status: string;
   amount_cents: number | string;
   stripe_transfer_id: string | null;
@@ -272,6 +295,7 @@ export function mapPayoutRow(row: PayoutRow): FinancialReconciliationPayout {
   return {
     payoutId: row.payout_id,
     showId: row.show_id,
+    showName: row.show_name ?? null,
     status: row.status,
     amountCents: toNum(row.amount_cents),
     stripeTransferId: row.stripe_transfer_id,

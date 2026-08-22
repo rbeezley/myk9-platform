@@ -70,6 +70,26 @@
   }
 }
 
+/* Site-admin headers carry fewer controls than the secretary management
+   headers below, so they can safely restore their horizontal composition at
+   the measured 736px landscape content width. Portrait tablet provides only
+   480px and stays stacked. */
+@container (min-width: 700px) {
+  .manager-page-header.manager-page-header--compact {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .manager-page-header.manager-page-header--compact .manager-page-actions {
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+}
+
 @container (min-width: 850px) {
   .manager-page-header {
     flex-direction: row;

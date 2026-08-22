@@ -62,6 +62,7 @@ function payoutRow(
   return {
     payoutId: 'payout-1',
     showId: 'show-1',
+    showName: null,
     status: 'completed',
     amountCents: 4000,
     stripeTransferId: 'tr_1',

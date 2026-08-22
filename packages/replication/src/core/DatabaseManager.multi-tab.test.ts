@@ -100,17 +100,20 @@ function createTrackingSupabaseClient() {
   return mockClient as unknown as SupabaseClient & { _seen: string[] };
 }
 
-function makeOptions(): MutationManagerOptions {
+function makeOptions(supabaseClient: SupabaseClient): MutationManagerOptions {
   return {
     maxRetries: 3,
     retryBackoffBase: 10,
     logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+    getCurrentUserId: async () => 'test-user',
+    getCurrentUploadContext: async () => ({ authUserId: 'test-user', supabaseClient }),
   };
 }
 
 function makeMutation(id: string, overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
     id,
+    authUserId: 'test-user',
     tableName: 'entries',
     operation: 'UPDATE',
     rowId: id,
@@ -190,8 +193,8 @@ describe('MutationManager multi-tab concurrent-write safety', () => {
 
   it('does not drop a mutation written in tab A when tab B flushes concurrently', async () => {
     const supabase = createTrackingSupabaseClient();
-    const mgrA = new MutationManager(supabase, makeOptions());
-    const mgrB = new MutationManager(supabase, makeOptions());
+    const mgrA = new MutationManager(supabase, makeOptions(supabase));
+    const mgrB = new MutationManager(supabase, makeOptions(supabase));
 
     const m1 = makeMutation('mut-tab-a-1');
     const m2 = makeMutation('mut-tab-b-1');
@@ -221,8 +224,8 @@ describe('MutationManager multi-tab concurrent-write safety', () => {
 
   it('does not double-apply the same mutation if both tabs see it in the queue', async () => {
     const supabase = createTrackingSupabaseClient();
-    const mgrA = new MutationManager(supabase, makeOptions());
-    const mgrB = new MutationManager(supabase, makeOptions());
+    const mgrA = new MutationManager(supabase, makeOptions(supabase));
+    const mgrB = new MutationManager(supabase, makeOptions(supabase));
 
     // Prime shared IDB with a single mutation via mgrA
     const m1 = makeMutation('mut-shared-1');

@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import type { AuditLogEntry } from '@/types/rbac-types';
+import { ActionType, type AuditLogEntry } from '@/types/rbac-types';
 import { RecentAccessChanges } from '../RecentAccessChanges';
 
 function makeEntry(overrides: Partial<AuditLogEntry> = {}): AuditLogEntry {
   return {
     id: 'a1',
-    action: 'assign_role',
+    action: ActionType.ROLE_ASSIGNED,
     user_id: 'u1',
     target_id: 'r1',
     target_type: 'role',
@@ -22,9 +22,12 @@ function makeEntry(overrides: Partial<AuditLogEntry> = {}): AuditLogEntry {
 describe('RecentAccessChanges', () => {
   it('renders each change with a readable action label', () => {
     render(
-      <RecentAccessChanges entries={[makeEntry({ action: 'revoke_role' })]} isLoading={false} />
+      <RecentAccessChanges
+        entries={[makeEntry({ action: ActionType.ROLE_REVOKED })]}
+        isLoading={false}
+      />
     );
-    expect(screen.getByText('Revoke Role')).toBeInTheDocument();
+    expect(screen.getByText('Role Revoked')).toBeInTheDocument();
   });
 
   it('shows at most five entries', () => {
@@ -84,7 +87,7 @@ describe('RecentAccessChanges', () => {
       />
     );
     // Should render without throwing, and omit the timestamp
-    expect(screen.getByText('Assign Role')).toBeInTheDocument();
+    expect(screen.getByText('Role Assigned')).toBeInTheDocument();
     expect(screen.getByText('role')).toBeInTheDocument(); // target_type should still show
   });
 });

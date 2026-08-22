@@ -5,11 +5,13 @@ import SupportInboxPage from '../SupportInboxPage';
 import type { SupportTicket } from '@/features/support/supportTickets';
 
 const mockMutate = vi.fn();
+const mockRefetch = vi.fn();
 
 const hookState = vi.hoisted(() => ({
   tickets: [] as SupportTicket[],
   isLoading: false,
-  error: null as Error | null,
+  isFetching: false,
+  error: null as unknown,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -20,7 +22,9 @@ vi.mock('@/features/support/useSupportTickets', () => ({
   useSupportTickets: () => ({
     data: hookState.tickets,
     isLoading: hookState.isLoading,
+    isFetching: hookState.isFetching,
     error: hookState.error,
+    refetch: mockRefetch,
   }),
   useUpdateSupportTicketStatus: () => ({
     mutate: mockMutate,
@@ -73,6 +77,7 @@ describe('SupportInboxPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hookState.isLoading = false;
+    hookState.isFetching = false;
     hookState.error = null;
     hookState.tickets = [
       makeTicket(),
@@ -171,5 +176,101 @@ describe('SupportInboxPage', () => {
       'href',
       '/admin/support?ticketId=ticket-1'
     );
+  });
+
+  it('renders a populated ticket-query failure as unavailable without success claims', () => {
+    hookState.error = new Error('Support service timed out.');
+
+    render(<SupportInboxPage />, { initialRoute: '/admin/support?status=all&ticketId=ticket-1' });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Support service timed out.');
+    expect(screen.getByRole('button', { name: 'Open (—)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Waiting (—)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resolved (—)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All (—)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+    expect(screen.queryByText('Ring gate is blocked')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No all tickets/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('No ticket selected')).not.toBeInTheDocument();
+    expect(screen.queryByText('Diagnostics')).not.toBeInTheDocument();
+  });
+
+  it.each([new Error(''), new Error('   '), 'request failed'])(
+    'uses meaningful fallback copy for a failure without a usable message: %p',
+    error => {
+      hookState.error = error;
+
+      render(<SupportInboxPage />, { initialRoute: '/admin/support' });
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        "We couldn't load support tickets. Ticket availability is unknown."
+      );
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+      expect(screen.queryByText(/No open tickets/i)).not.toBeInTheDocument();
+    }
+  );
+
+  it('keeps counts unavailable and success states hidden during initial loading', () => {
+    hookState.tickets = [];
+    hookState.isLoading = true;
+    hookState.isFetching = true;
+
+    render(<SupportInboxPage />, { initialRoute: '/admin/support' });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading support tickets');
+    expect(screen.getByRole('button', { name: 'Open (—)' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No open tickets/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('No ticket selected')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ring gate is blocked')).not.toBeInTheDocument();
+  });
+
+  it('reissues the query from the keyboard and recovers to current ticket data', async () => {
+    hookState.tickets = [];
+    hookState.error = new Error('Temporary failure');
+    const { user, rerender } = render(<SupportInboxPage />, {
+      initialRoute: '/admin/support?status=all',
+    });
+
+    screen.getByRole('button', { name: 'Retry' }).focus();
+    await user.keyboard('{Enter}');
+
+    expect(mockRefetch).toHaveBeenCalledTimes(1);
+
+    hookState.error = null;
+    hookState.tickets = [makeTicket()];
+    rerender(<SupportInboxPage />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ring gate is blocked' })).toBeInTheDocument();
+    expect(screen.getByTestId('support-thread')).toHaveTextContent('ticket-1:true');
+  });
+
+  it('recovers from a query failure to a genuine empty result', async () => {
+    hookState.tickets = [];
+    hookState.error = new Error('Temporary failure');
+    const { user, rerender } = render(<SupportInboxPage />, {
+      initialRoute: '/admin/support',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    hookState.error = null;
+    rerender(<SupportInboxPage />);
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open (0)' })).toBeInTheDocument();
+    expect(screen.getByText('No open tickets')).toBeInTheDocument();
+    expect(screen.getByText('No ticket selected')).toBeInTheDocument();
+  });
+
+  it('prevents stacked retries while the ticket query is fetching', () => {
+    hookState.tickets = [];
+    hookState.error = new Error('Temporary failure');
+    hookState.isFetching = true;
+
+    render(<SupportInboxPage />, { initialRoute: '/admin/support' });
+
+    expect(screen.getByRole('button', { name: 'Retrying…' })).toBeDisabled();
   });
 });

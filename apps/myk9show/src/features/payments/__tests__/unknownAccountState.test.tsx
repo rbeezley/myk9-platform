@@ -28,7 +28,6 @@ vi.mock('../useClubStripeAccount', async importOriginal => {
   return {
     ...original,
     useClubStripeAccount: vi.fn(),
-    useClubPayoutHistory: vi.fn(),
     startConnectOnboarding: vi.fn(),
   };
 });
@@ -43,7 +42,6 @@ vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
 }));
 
 const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
-const mockedUsePayoutHistory = vi.mocked(accountModule.useClubPayoutHistory);
 const mockedReconciliation = vi.mocked(useClubFinancialReconciliation);
 
 function mockAccount(state: Record<string, unknown>) {
@@ -55,12 +53,6 @@ function mockAccount(state: Record<string, unknown>) {
     refetch: vi.fn(),
     ...state,
   } as unknown as ReturnType<typeof accountModule.useClubStripeAccount>);
-  mockedUsePayoutHistory.mockReturnValue({
-    data: [],
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
 }
 
 /** The account state the card handed the reconciliation card on this render. */
@@ -131,6 +123,8 @@ describe('the badge an unknown account state produces', () => {
         amountCents: 12_500,
         stripeTransferId: null,
         failureReason: null,
+        completedAt: null,
+        createdAt: '2026-07-04T00:00:00Z',
       },
       'unknown'
     );

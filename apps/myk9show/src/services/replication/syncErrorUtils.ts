@@ -1,4 +1,4 @@
-const SAFE_SYNC_REFRESH_ERROR =
+export const SAFE_SYNC_REFRESH_ERROR =
   "We couldn't refresh saved show data. You can keep using the saved copy while we try again.";
 const SAFE_SYNC_CANCELLED_ERROR = 'Sync was cancelled.';
 

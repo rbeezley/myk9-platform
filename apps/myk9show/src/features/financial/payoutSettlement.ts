@@ -30,11 +30,25 @@ export interface PayoutSettlementRow {
   amountCents: number;
   /** Copyable Stripe transfer id for reconciling a completed transfer. */
   stripeTransferId: string | null;
+  /**
+   * When this payout settled, or when it started if it has not. Carried across
+   * from the payout list this row replaced: a treasurer reconciling against a
+   * bank statement needs the date, and it was the ONE field the merged row did
+   * not already hold.
+   */
+  completedAt: string | null;
+  createdAt: string;
 }
 
 type PayoutFacts = Pick<
   FinancialReconciliationPayout,
-  'payoutId' | 'status' | 'amountCents' | 'stripeTransferId' | 'failureReason'
+  | 'payoutId'
+  | 'status'
+  | 'amountCents'
+  | 'stripeTransferId'
+  | 'failureReason'
+  | 'completedAt'
+  | 'createdAt'
 >;
 
 /**
@@ -62,6 +76,8 @@ export function resolvePayoutSettlement(
     state: settlementStateForBadge(badge.label),
     amountCents: payout.amountCents,
     stripeTransferId: payout.stripeTransferId,
+    completedAt: payout.completedAt,
+    createdAt: payout.createdAt,
   };
 }
 

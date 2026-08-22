@@ -22,11 +22,38 @@ import { signInAsSecretary } from './helpers/testUsers';
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010'; // Heartland Scent Work Classic
 const AT_SHOW_URL = `/at-show/${SHOW_ID}`;
-const SUPABASE_GLOB = '**/*.supabase.co/**';
 
-/** Cut the backend off in a way that outlives a reload. */
-async function goOffline(context: BrowserContext) {
-  await context.route(SUPABASE_GLOB, route => route.abort('internetdisconnected'));
+/**
+ * Derived from the CONFIGURED Supabase URL, not hard-coded to `*.supabase.co`.
+ * The isolated/local E2E target runs Supabase at `http://127.0.0.1:54321`, which
+ * a cloud-only glob matches zero times — `goOffline` would then be a silent
+ * no-op and the "offline" assertions would run against a live backend.
+ */
+function supabaseRouteGlob(): string {
+  const configured = process.env.VITE_SUPABASE_URL;
+  if (!configured) return '**/*.supabase.co/**';
+  try {
+    return `${new URL(configured).origin}/**`;
+  } catch {
+    return '**/*.supabase.co/**';
+  }
+}
+
+/**
+ * Cut the backend off in a way that outlives a reload.
+ *
+ * Returns a count of intercepted requests. The caller asserts it is non-zero:
+ * without that, a glob matching nothing would leave the app happily online and
+ * every assertion below would still pass, turning this into a test that proves
+ * the opposite of what it claims.
+ */
+async function goOffline(context: BrowserContext): Promise<() => number> {
+  let intercepted = 0;
+  await context.route(supabaseRouteGlob(), route => {
+    intercepted += 1;
+    return route.abort('internetdisconnected');
+  });
+  return () => intercepted;
 }
 
 /** True when the page is showing the "no permission" fallback. */
@@ -64,7 +91,7 @@ test.describe('offline cold boot', () => {
     await expect(readyBadge).toBeVisible();
 
     // 2. Backend disappears, then a genuine cold boot.
-    await goOffline(context);
+    const interceptedCount = await goOffline(context);
     await page.reload({ waitUntil: 'domcontentloaded' });
 
     // 3. The assertions this whole arc exists for.
@@ -74,29 +101,27 @@ test.describe('offline cold boot', () => {
     // Permissions came from cache, and the UI says so (MYK9-200 AC 4).
     await expect(page.getByText(/working offline/i).first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/saved permissions as of/i).first()).toBeVisible();
+
+    // Prove the backend really was unreachable. If the route matched nothing,
+    // everything above passed while ONLINE and means nothing.
+    expect(interceptedCount()).toBeGreaterThan(0);
   });
 
-  // KNOWN FAILING — documents MYK9-205, confirmed by this walk on 2026-08-20.
+  // The negative half of MYK9-203 AC 2, and the regression guard for MYK9-205.
   //
-  // This is the negative half of MYK9-203 AC 2, and the product does not yet
-  // satisfy it. With the replicated show data gone and the backend
-  // unreachable, the at-show page hits its error boundary BEFORE the readiness
-  // badge renders, so the observed page is:
+  // Until MYK9-205 this test could not pass. With the replicated show data
+  // gone and Supabase unreachable, the boundary hit its generic error card
+  // BEFORE the readiness badge rendered, so the page read:
   //
   //   "Oops! Something went wrong / We couldn't load this show.
   //    Check your connection and try again. [Try Again]"
   //
-  // The good news is the badge does not lie green. The bad news is it never
-  // appears at all, so the "tap to prime" recovery MYK9-203 shipped is
-  // unreachable in exactly the state it was built for, and the only offered
-  // action — Try Again — cannot succeed while offline. (The MYK9-200 cache is
-  // fine here: the "working offline, permissions as of ..." notice renders
-  // correctly above the error.)
-  //
-  // Left as `fixme` rather than rewritten to assert the broken behaviour, so
-  // the intended contract stays written down. When MYK9-205 is fixed this test
-  // should be un-fixme'd and should pass as written.
-  test.fixme('the readiness badge tells the truth when the device is NOT primed', async ({
+  // The badge never appeared at all, which made the "tap to prime" recovery
+  // MYK9-203 shipped unreachable in exactly the state it was built for, and
+  // the only offered action could not succeed. Note this route-abort setup
+  // leaves `navigator.onLine` TRUE — the venue-Wi-Fi shape — which is why the
+  // boundary attempted a sync and threw rather than taking the offline path.
+  test('the readiness badge tells the truth when the device is NOT primed', async ({
     page,
     context,
   }) => {

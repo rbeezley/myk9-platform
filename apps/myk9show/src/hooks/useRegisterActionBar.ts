@@ -21,7 +21,14 @@
 import { useCallback, useEffect, useId, useRef } from 'react';
 import { useActionBarStore } from '@/store/actionBarStore';
 
-export function useRegisterActionBar<T extends HTMLElement = HTMLDivElement>() {
+interface RegisterActionBarOptions {
+  /** Fixed clearance between the viewport bottom and the bar itself. */
+  bottomOffsetPx?: number;
+}
+
+export function useRegisterActionBar<T extends HTMLElement = HTMLDivElement>(
+  { bottomOffsetPx = 0 }: RegisterActionBarOptions = {}
+) {
   // useId keeps two instances of the same panel from clobbering each other's
   // entry — an id derived from the component name would not.
   const id = useId();
@@ -39,7 +46,7 @@ export function useRegisterActionBar<T extends HTMLElement = HTMLDivElement>() {
         return;
       }
 
-      setHeight(id, node.getBoundingClientRect().height);
+      setHeight(id, node.getBoundingClientRect().height + bottomOffsetPx);
 
       // jsdom and older Safari have no ResizeObserver. The height published
       // above still stands, so a bar that never resizes is handled correctly
@@ -48,12 +55,12 @@ export function useRegisterActionBar<T extends HTMLElement = HTMLDivElement>() {
 
       const observer = new ResizeObserver(entries => {
         const entry = entries[0];
-        if (entry) setHeight(id, entry.contentRect.height);
+        if (entry) setHeight(id, entry.contentRect.height + bottomOffsetPx);
       });
       observer.observe(node);
       observerRef.current = observer;
     },
-    [id]
+    [bottomOffsetPx, id]
   );
 
   // Unmounting the component that owns the bar does not always detach the node

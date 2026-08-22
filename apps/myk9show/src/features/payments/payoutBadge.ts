@@ -1,10 +1,14 @@
 import type { ShowPayoutRow } from './useClubStripeAccount';
+import { NEUTRAL_STATUS_CHIP, WAITING_STATUS_CHIP } from '@/components/ui/statusChip';
 
 export interface PayoutBadge {
   label: string;
   /** shadcn Badge variant — 'destructive' is the only one a treasurer must act on. */
   variant: 'default' | 'secondary' | 'destructive';
-  /** Extra classes; non-empty only for the green "Paid" success badge. */
+  /**
+   * Extra classes. Always non-empty: every neutral state carries a `--chip-*`
+   * pair because `variant="secondary"` collapses to 1.00:1 on a dark card.
+   */
   className: string;
 }
 
@@ -63,7 +67,14 @@ function isSelfHealingFailure(failureReason: string | null | undefined): boolean
  *   reason won't self-heal and needs treasurer action → red "Needs attention".
  */
 export function resolvePayoutBadge(
-  payout: Pick<ShowPayoutRow, 'status' | 'failure_reason'>,
+  payout: Pick<ShowPayoutRow, 'status' | 'failure_reason'> & {
+    /**
+     * A later attempt for the same show succeeded, is in flight, or failed
+     * after this one. Such a row is history, and calling it "Needs attention"
+     * sends a treasurer chasing money that already moved.
+     */
+    superseded?: boolean;
+  },
   accountState: PayoutsAccountState
 ): PayoutBadge {
   switch (payout.status) {
@@ -74,23 +85,28 @@ export function resolvePayoutBadge(
         className: 'bg-success text-success-foreground hover:bg-success',
       };
     case 'processing':
-      return { label: 'Sending', variant: 'secondary', className: '' };
+      return { label: 'Sending', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
     case 'pending':
       if (accountState === 'enabled') {
-        return { label: 'Scheduled', variant: 'secondary', className: '' };
+        return { label: 'Scheduled', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
       }
       if (accountState === 'not-enabled') {
-        return { label: 'Waiting for account', variant: 'secondary', className: '' };
+        // Amber, not stone: this one is waiting on the treasurer to connect an
+        // account, which is the only neutral state here that implies an action.
+        return { label: 'Waiting for account', variant: 'secondary', className: WAITING_STATUS_CHIP };
       }
-      return { label: 'Not sent yet', variant: 'secondary', className: '' };
+      return { label: 'Not sent yet', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
     case 'failed':
+      if (payout.superseded) {
+        return { label: 'Earlier attempt', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
+      }
       return isSelfHealingFailure(payout.failure_reason)
-        ? { label: 'Retrying', variant: 'secondary', className: '' }
+        ? { label: 'Retrying', variant: 'secondary', className: NEUTRAL_STATUS_CHIP }
         : { label: 'Needs attention', variant: 'destructive', className: '' };
     default:
       // INTENT: never render a raw database enum to a treasurer. An unrecognised
       // status is a status we cannot explain, so say exactly that rather than
       // leaking `show_payouts.status` verbatim into the UI.
-      return { label: 'Status unavailable', variant: 'secondary', className: '' };
+      return { label: 'Status unavailable', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
   }
 }

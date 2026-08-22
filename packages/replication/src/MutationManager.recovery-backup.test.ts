@@ -20,6 +20,7 @@ import { createMutationManagerTestDb } from './test-utils/createMutationManagerT
 
 const TEST_DB_NAME = 'test-mutation-manager-recovery-backup-db';
 const BACKUP_KEY = 'replication_mutation_backup';
+const TEST_AUTH_USER_ID = 'test-user';
 
 function createMockSupabaseClient() {
   return {
@@ -40,6 +41,7 @@ function createMockLogger(): Logger {
 function makeMutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
     id: `mut-${overrides.id ?? 'x'}`,
+    authUserId: TEST_AUTH_USER_ID,
     tableName: 'entries',
     operation: 'UPDATE',
     rowId: 'entry-1',
@@ -98,6 +100,7 @@ describe('MutationManager recovery backup (pending + failed durability)', () => 
       maxRetries: 3,
       retryBackoffBase: 10,
       logger: createMockLogger(),
+      getCurrentUserId: async () => TEST_AUTH_USER_ID,
     };
     manager = new MutationManager(createMockSupabaseClient(), options);
   });
@@ -153,6 +156,52 @@ describe('MutationManager recovery backup (pending + failed durability)', () => 
 
     const restoredFailed = await mockDb.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
     expect(restoredFailed).toHaveLength(1);
+  });
+
+  it('restores pending, failed, and legacy ownership without exposing foreign work', async () => {
+    const ownedPending = makeMutation({ id: 'owned-pending', rowId: 'shared-row' });
+    const foreignPending = makeMutation({
+      id: 'foreign-pending',
+      rowId: 'shared-row',
+      authUserId: 'user-a',
+    });
+    const legacyPending = makeMutation({ id: 'legacy-pending', rowId: 'shared-row' });
+    delete legacyPending.authUserId;
+    const ownedFailed = makeMutation({
+      id: 'owned-failed',
+      status: 'failed',
+      failedAt: 1,
+    });
+    const foreignFailed = makeMutation({
+      id: 'foreign-failed',
+      authUserId: 'user-b',
+      status: 'failed',
+      failedAt: 1,
+    });
+    localStorageMock[BACKUP_KEY] = JSON.stringify([
+      ownedPending,
+      foreignPending,
+      legacyPending,
+      ownedFailed,
+      foreignFailed,
+    ]);
+
+    await manager.restoreMutationsFromLocalStorage();
+
+    const pending = (await mockDb.getAll(
+      REPLICATION_STORES.PENDING_MUTATIONS
+    )) as PendingMutation[];
+    expect(pending.map(item => [item.id, item.authUserId])).toEqual(
+      expect.arrayContaining([
+        ['owned-pending', TEST_AUTH_USER_ID],
+        ['foreign-pending', 'user-a'],
+        ['legacy-pending', undefined],
+      ])
+    );
+    expect(
+      (await manager.getPendingMutationsForRow('entries', 'shared-row')).map(item => item.id)
+    ).toEqual(['owned-pending']);
+    expect((await manager.getFailedMutations()).map(item => item.id)).toEqual(['owned-failed']);
   });
 
   it('removes a discarded failed mutation from the localStorage backup', async () => {

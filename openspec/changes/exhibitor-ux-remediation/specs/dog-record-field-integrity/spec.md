@@ -66,15 +66,15 @@ A registered name SHALL be stored and edited as part of a registration with a sp
 - **THEN** the dog can still be created, viewed, and edited by its call name
 - **AND** no fabricated registered name is stored or displayed for it
 
-### Requirement: The app never asserts a breed the owner did not supply
+### Requirement: The app never treats a substitute breed as owner-supplied data
 
-Breed is a property of a registration with an organization. The system SHALL NOT store, display, or transmit a substitute breed value — including "Mixed Breed" or any other concrete breed — for a dog whose breed has not been supplied through a registration. Disclosing such a substitute does not satisfy this requirement: stating a breed the owner did not give is a claim about their dog, and the stored value can reach entry paperwork and organization submissions.
+Breed is a property of a registration with an organization. The system SHALL NOT display or transmit a substitute breed value — including "Mixed Breed" or any other concrete breed — for a dog whose breed has not been supplied through a registration. Until the separate migration removes the legacy `dogs.breed NOT NULL` constraint, any constraint-satisfying placeholder SHALL be filtered from owner-facing and paperwork read paths rather than treated as domain data.
 
 #### Scenario: Dog added without a registration
 
 - **WHEN** an owner creates a dog and adds no registration
-- **THEN** no breed value is stored for that dog
-- **AND** no surface displays a concrete breed for it
+- **THEN** no surface displays a concrete breed for it
+- **AND** any legacy constraint placeholder is not treated as owner-supplied data
 
 #### Scenario: Breed arrives with the registration
 

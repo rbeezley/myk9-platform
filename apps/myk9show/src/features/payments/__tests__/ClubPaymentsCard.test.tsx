@@ -11,7 +11,6 @@ vi.mock('../useClubStripeAccount', async importOriginal => {
   return {
     ...original,
     useClubStripeAccount: vi.fn(),
-    useClubPayoutHistory: vi.fn(),
     startConnectOnboarding: vi.fn(),
   };
 });
@@ -31,13 +30,11 @@ vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
 }));
 
 const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
-const mockedUsePayoutHistory = vi.mocked(accountModule.useClubPayoutHistory);
 const mockedStartOnboarding = vi.mocked(accountModule.startConnectOnboarding);
 
 function mockAccountState(
   data: ClubStripeAccount | null,
-  overrides: Record<string, unknown> = {},
-  historyOverrides: Record<string, unknown> = {}
+  overrides: Record<string, unknown> = {}
 ) {
   const base = { data, isLoading: false, isError: false, refetch: vi.fn(), ...overrides };
   mockedUseAccount.mockReturnValue({
@@ -48,13 +45,6 @@ function mockAccountState(
     isSuccess: !base.isLoading && !base.isError,
     ...base,
   } as unknown as ReturnType<typeof accountModule.useClubStripeAccount>);
-  mockedUsePayoutHistory.mockReturnValue({
-    data: [],
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-    ...historyOverrides,
-  } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
 }
 
 const connectedAccount = (flags: Partial<ClubStripeAccount>): ClubStripeAccount => ({
@@ -203,197 +193,6 @@ describe('ClubPaymentsCard', () => {
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.getByText(/couldn't load your payment account status/i)).toBeInTheDocument();
-  });
-
-  it('renders payout history with show, amount, and status', () => {
-    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
-    mockedUsePayoutHistory.mockReturnValue({
-      data: [
-        {
-          id: 'p1',
-          amount_cents: 12450,
-          status: 'completed',
-          failure_reason: null,
-          completed_at: '2026-06-09T10:00:00Z',
-          created_at: '2026-06-09T09:00:00Z',
-          show: { name: 'Cedar Valley Classic' },
-        },
-        {
-          id: 'p2',
-          amount_cents: 8000,
-          status: 'pending',
-          failure_reason: null,
-          completed_at: null,
-          created_at: '2026-06-08T09:00:00Z',
-          show: { name: 'Spring Trial' },
-        },
-      ],
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    expect(screen.getByText('Cedar Valley Classic')).toBeInTheDocument();
-    expect(screen.getByText('$124.50')).toBeInTheDocument();
-    expect(screen.getByText('Paid')).toBeInTheDocument();
-    expect(screen.getByText('Spring Trial')).toBeInTheDocument();
-    expect(screen.getByText('$80.00')).toBeInTheDocument();
-    // Account is payouts_enabled, so a pending row is queued for the next run,
-    // not blocked on a bank account → "Scheduled", not "Waiting for account".
-    expect(screen.getByText('Scheduled')).toBeInTheDocument();
-    expect(screen.queryByText('Waiting for account')).not.toBeInTheDocument();
-  });
-
-  it('does not render payout history rows before payouts are enabled', () => {
-    mockAccountState(null); // no Stripe account -> payouts not enabled
-    mockedUsePayoutHistory.mockReturnValue({
-      data: [
-        {
-          id: 'p3',
-          amount_cents: 5000,
-          status: 'pending',
-          failure_reason: null,
-          completed_at: null,
-          created_at: '2026-06-08T09:00:00Z',
-          show: { name: 'Autumn Trial' },
-        },
-      ],
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    expect(mockedUsePayoutHistory).toHaveBeenCalledWith(undefined);
-    expect(screen.queryByText('Autumn Trial')).not.toBeInTheDocument();
-    expect(screen.queryByText('Waiting for account')).not.toBeInTheDocument();
-    expect(screen.queryByText('Scheduled')).not.toBeInTheDocument();
-  });
-
-  it('a benign failure self-heals → "Retrying"; a hard failure → "Needs attention"', () => {
-    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
-    mockedUsePayoutHistory.mockReturnValue({
-      data: [
-        {
-          id: 'p4',
-          amount_cents: 3000,
-          status: 'failed',
-          failure_reason: 'insufficient_balance: balance too low',
-          completed_at: null,
-          created_at: '2026-06-08T09:00:00Z',
-          show: { name: 'Benign Show' },
-        },
-        {
-          id: 'p5',
-          amount_cents: 4000,
-          status: 'failed',
-          failure_reason: 'No such external account; the bank account is closed',
-          completed_at: null,
-          created_at: '2026-06-07T09:00:00Z',
-          show: { name: 'Hard Fail Show' },
-        },
-      ],
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    expect(screen.getByText('Retrying')).toBeInTheDocument();
-    expect(screen.getByText('Needs attention')).toBeInTheDocument();
-  });
-
-  it('labels amounts as deposited and distinguishes paid vs started dates', () => {
-    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
-    mockedUsePayoutHistory.mockReturnValue({
-      data: [
-        {
-          id: 'p1',
-          amount_cents: 124500,
-          status: 'completed',
-          completed_at: '2026-06-09T10:00:00Z',
-          created_at: '2026-06-09T09:00:00Z',
-          show: { name: 'Cedar Valley Classic' },
-        },
-        {
-          id: 'p2',
-          amount_cents: 8000,
-          status: 'pending',
-          completed_at: null,
-          created_at: '2026-06-08T09:00:00Z',
-          show: { name: 'Spring Trial' },
-        },
-      ],
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    // Thousands separator (Intl.NumberFormat), not bare toFixed.
-    expect(screen.getByText('$1,245.00')).toBeInTheDocument();
-    expect(screen.getByText(/amounts shown are deposited/i)).toBeInTheDocument();
-    // Completed row reads "Paid <date>"; not-yet-paid row reads "Started <date>".
-    expect(screen.getByText(/^Paid\s+\d/)).toBeInTheDocument();
-    expect(screen.getByText(/^Started\s+\d/)).toBeInTheDocument();
-  });
-
-  it('payout history fetch error: shows a distinct error with retry, not a silent gap', async () => {
-    const refetch = vi.fn();
-    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
-    mockedUsePayoutHistory.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      refetch,
-    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
-    const user = userEvent.setup();
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    expect(screen.getByText(/couldn't load your payout history/i)).toBeInTheDocument();
-    // The enabled "all set" empty copy must not also render during an error.
-    expect(
-      screen.queryByText(/payouts appear here after your first show closes/i)
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /try again/i }));
-    expect(refetch).toHaveBeenCalled();
-  });
-
-  it('does not show a payout-history error before payouts are enabled', () => {
-    // Not connected at all: no Stripe account row.
-    mockAccountState(null);
-    // Even if the payout-history query errored, a not-connected club must not
-    // see the payout-history alert next to the connect/setup flow.
-    mockedUsePayoutHistory.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      refetch: vi.fn(),
-    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    expect(screen.queryByText(/couldn't load your payout history/i)).not.toBeInTheDocument();
-  });
-
-  it('Paid badge uses the semantic success token, not raw green palette', () => {
-    mockAccountState(connectedAccount({ onboarding_complete: true, payouts_enabled: true }));
-    mockedUsePayoutHistory.mockReturnValue({
-      data: [
-        {
-          id: 'p1',
-          amount_cents: 12450,
-          status: 'completed',
-          completed_at: '2026-06-09T10:00:00Z',
-          created_at: '2026-06-09T09:00:00Z',
-          show: { name: 'Cedar Valley Classic' },
-        },
-      ],
-      isLoading: false,
-      isError: false,
-    } as unknown as ReturnType<typeof accountModule.useClubPayoutHistory>);
-    render(<ClubPaymentsCard clubId="club-1" />);
-
-    const paidBadge = screen.getByText('Paid');
-    expect(paidBadge).toHaveClass('bg-success');
-    expect(paidBadge.className).not.toMatch(/bg-green-/);
   });
 
   it('does not add a second checkout/payment action alongside the Stripe onboarding flow (no-duplicate-checkout regression)', () => {

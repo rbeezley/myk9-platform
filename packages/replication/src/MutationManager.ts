@@ -16,41 +16,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
-import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { getMutationQueueCapacity } from './mutation-queue-capacity';
-import {
-  MUTATION_BACKUP_STORAGE_KEY,
-  parseMutationBackup,
-  writeMutationBackup,
-} from './mutation-backup';
+import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
 import { MutationUploadRunner } from './MutationUploadRunner';
 import { type PendingMutation, type SyncResult } from './types';
+import type {
+  MutationManagerOptions,
+  MutationUploadAuthContext,
+} from './mutation-manager-options';
+export type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 
 // ============================================
 // TYPES
 // ============================================
-
-/**
- * Configuration options for MutationManager
- */
-export interface MutationManagerOptions {
-  /** Maximum retry attempts for failed mutations (default: 3) */
-  maxRetries?: number;
-  /** Exponential backoff base delay in ms (default: 1000) */
-  retryBackoffBase?: number;
-  /**
-   * Lifetime cap on OCC-conflict upload attempts for one mutation (default:
-   * 50). occRetries persists on the queued mutation, so the cap holds across
-   * page reloads. On reaching it the mutation is PARKED into the
-   * failed-mutations store (visible, user-recoverable via retry/discard —
-   * never silently dropped) instead of retrying the same conflicting write
-   * forever — the 2026-07-11 ringside conflict storm.
-   */
-  maxOccAttempts?: number;
-  /** Logger instance for diagnostics */
-  logger?: Logger;
-}
 
 // ============================================
 // MUTATION MANAGER
@@ -65,23 +44,57 @@ export interface MutationManagerOptions {
 export class MutationManager {
   private logger: Logger;
   private queueStore: MutationQueueStore;
+  private backupStore: MutationBackupStore;
   private uploadRunner: MutationUploadRunner;
   /** Prevent startup/reconnect restore from racing an active queue flush. */
   private restoreInFlight: Promise<void> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
+  private readonly getCurrentUserId: () => Promise<string | null>;
+  private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
+    if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
     this.logger = options.logger ?? noopLogger;
+    this.getCurrentUserId = options.getCurrentUserId ?? (async () => null);
+    this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
     this.queueStore = new MutationQueueStore(this.logger);
+    this.backupStore = new MutationBackupStore(this.logger);
     this.uploadRunner = new MutationUploadRunner(
-      supabaseClient,
       this.logger,
       options.maxRetries ?? 3,
       options.retryBackoffBase ?? 1000,
       options.maxOccAttempts ?? 50,
       this.queueStore,
-      () => this.writeCurrentMutationsBackup()
+      () => this.backupStore.writeCurrent(),
+      () => this.requireCurrentUploadContext()
     );
+  }
+
+  private async requireCurrentUserId(): Promise<string> {
+    const authUserId = await this.getCurrentUserId();
+    if (typeof authUserId !== 'string' || authUserId.trim().length === 0) {
+      throw new Error('[MutationManager] Cannot operate without an authenticated user identity');
+    }
+    return authUserId;
+  }
+
+  private async requireSameCurrentUserId(expectedAuthUserId: string): Promise<void> {
+    if ((await this.requireCurrentUserId()) !== expectedAuthUserId) {
+      throw new Error('[MutationManager] Authenticated user changed during queue operation');
+    }
+  }
+
+  private async requireCurrentUploadContext(): Promise<MutationUploadAuthContext> {
+    const context = await this.getCurrentUploadContext();
+    if (
+      !context ||
+      typeof context.authUserId !== 'string' ||
+      context.authUserId.trim().length === 0 ||
+      !context.supabaseClient
+    ) {
+      throw new Error('[MutationManager] Cannot upload without a bound authenticated session');
+    }
+    return context;
   }
 
   // ========================================
@@ -116,6 +129,7 @@ export class MutationManager {
     rpc?: PendingMutation['rpc'],
     scheduleUploadNow = true
   ): Promise<string> {
+    const authUserId = await this.requireCurrentUserId();
     // Queue overflow protection
     const pendingCount = await this.getPendingCount();
     const capacity = getMutationQueueCapacity(pendingCount);
@@ -139,6 +153,7 @@ export class MutationManager {
       operation,
       rowId,
       data,
+      authUserId,
       dependsOn,
       serverVersion,
       rpc
@@ -153,7 +168,7 @@ export class MutationManager {
     // queue) must NOT fail a successfully-queued score, so swallow it here
     // instead of rejecting queueMutation (audit M2).
     try {
-      await this.writeCurrentMutationsBackup();
+      await this.backupStore.writeCurrent();
     } catch (backupErr) {
       this.logger.warn(
         '[MutationManager] localStorage backup failed (score is durably queued in IndexedDB):',
@@ -201,7 +216,10 @@ export class MutationManager {
    * mutation without reaching into the queue store directly.
    */
   async getPendingMutationsForRow(tableName: string, rowId: string): Promise<PendingMutation[]> {
-    return this.queueStore.getPendingMutationsForRow(tableName, rowId);
+    const authUserId = await this.requireCurrentUserId();
+    const pending = await this.queueStore.getPendingMutationsForRow(tableName, rowId, authUserId);
+    await this.requireSameCurrentUserId(authUserId);
+    return pending;
   }
 
   // ========================================
@@ -216,7 +234,10 @@ export class MutationManager {
    * never deleted automatically — the user must retry or discard them.
    */
   async getFailedMutations(): Promise<PendingMutation[]> {
-    return this.queueStore.getFailedMutations();
+    const authUserId = await this.requireCurrentUserId();
+    const failed = await this.queueStore.getFailedMutations(authUserId);
+    await this.requireSameCurrentUserId(authUserId);
+    return failed;
   }
 
   /**
@@ -225,9 +246,12 @@ export class MutationManager {
    * counter so the mutation gets a full set of attempts.
    */
   async retryFailedMutation(mutationId: string): Promise<void> {
-    const failed = await this.queueStore.retryFailedMutation(mutationId);
+    const authUserId = await this.requireCurrentUserId();
+    const failed = await this.queueStore.retryFailedMutation(mutationId, authUserId, () =>
+      this.requireSameCurrentUserId(authUserId)
+    );
     if (!failed) return;
-    await this.writeCurrentMutationsBackup();
+    await this.backupStore.writeCurrent();
     this.scheduleUpload();
   }
 
@@ -235,12 +259,16 @@ export class MutationManager {
    * Permanently discard a failed mutation after user review.
    */
   async discardFailedMutation(mutationId: string): Promise<void> {
-    await this.queueStore.discardFailedMutation(mutationId);
+    const authUserId = await this.requireCurrentUserId();
+    const discarded = await this.queueStore.discardFailedMutation(mutationId, authUserId, () =>
+      this.requireSameCurrentUserId(authUserId)
+    );
+    if (!discarded) return;
     // Refresh the localStorage backup: failed mutations are included in it, so
     // without this a discarded mutation is restored (and re-surfaced) after a
     // circuit-breaker recovery or startup restore — the discard wouldn't be
     // durable.
-    await this.writeCurrentMutationsBackup();
+    await this.backupStore.writeCurrent();
     this.logger.log(`[MutationManager] Discarded failed mutation ${mutationId}`);
   }
 
@@ -252,9 +280,15 @@ export class MutationManager {
    * overwrites the remote version the user just accepted.
    */
   async discardPendingMutationsForRow(tableName: string, rowId: string): Promise<void> {
-    const discarded = await this.queueStore.discardPendingMutationsForRow(tableName, rowId);
+    const authUserId = await this.requireCurrentUserId();
+    const discarded = await this.queueStore.discardPendingMutationsForRow(
+      tableName,
+      rowId,
+      authUserId,
+      () => this.requireSameCurrentUserId(authUserId)
+    );
     if (discarded === 0) return;
-    await this.writeCurrentMutationsBackup();
+    await this.backupStore.writeCurrent();
   }
 
   /**
@@ -270,13 +304,16 @@ export class MutationManager {
     rowId: string,
     newServerVersion: number
   ): Promise<void> {
+    const authUserId = await this.requireCurrentUserId();
     const updated = await this.queueStore.updateMutationServerVersions(
       tableName,
       rowId,
-      newServerVersion
+      newServerVersion,
+      authUserId,
+      () => this.requireSameCurrentUserId(authUserId)
     );
     if (updated === 0) return;
-    await this.writeCurrentMutationsBackup();
+    await this.backupStore.writeCurrent();
   }
 
   /**
@@ -313,15 +350,18 @@ export class MutationManager {
     rebuiltData?: Record<string, unknown>,
     legacyOmittedKeysServerWins?: readonly string[]
   ): Promise<void> {
+    const authUserId = await this.requireCurrentUserId();
     const changed = await this.queueStore.reconcilePendingMutationsForRow(
       tableName,
       rowId,
       newServerVersion,
+      authUserId,
       rebuiltData,
-      legacyOmittedKeysServerWins
+      legacyOmittedKeysServerWins,
+      () => this.requireSameCurrentUserId(authUserId)
     );
     if (changed > 0) {
-      await this.writeCurrentMutationsBackup();
+      await this.backupStore.writeCurrent();
     }
   }
 
@@ -386,36 +426,7 @@ export class MutationManager {
    * newest queued mutations (offline scores) if IndexedDB is later evicted.
    */
   async backupMutationsToLocalStorage(): Promise<void> {
-    if (typeof window === 'undefined') return;
-
-    try {
-      await this.writeCurrentMutationsBackup();
-    } catch (error) {
-      this.logger.warn('[MutationManager] Failed to backup mutations to localStorage:', error);
-    }
-  }
-
-  /**
-   * Write the current IndexedDB mutation queue to localStorage immediately.
-   * Used after uploads, where stale backups are more dangerous than write
-   * coalescing.
-   */
-  private async writeCurrentMutationsBackup(): Promise<void> {
-    if (typeof window === 'undefined') return;
-
-    const db = await databaseManager.getDatabase('MutationManager');
-    const pending = (await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS)) as PendingMutation[];
-    // Include dead-lettered mutations (status: 'failed') so a circuit-breaker DB
-    // wipe can't destroy them — they carry the 'failed' status, so restore
-    // routes them back to the failed store, not the active queue.
-    const failed = (await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS)) as PendingMutation[];
-
-    writeMutationBackup(localStorage, [...pending, ...failed]);
-    if (pending.length > 0 || failed.length > 0) {
-      this.logger.log(
-        `[MutationManager] Backed up ${pending.length} pending + ${failed.length} failed mutation(s) to localStorage`
-      );
-    }
+    await this.backupStore.backupSafely();
   }
 
   /**
@@ -434,7 +445,7 @@ export class MutationManager {
     // durable queue and retry on its own.
     if (this.uploadInFlight) await this.uploadInFlight.catch(() => undefined);
 
-    const restore = this.restoreMutationsFromLocalStorageInternal();
+    const restore = this.backupStore.restore();
     this.restoreInFlight = restore;
     try {
       await restore;
@@ -443,97 +454,23 @@ export class MutationManager {
     }
   }
 
-  private async restoreMutationsFromLocalStorageInternal(): Promise<void> {
-    if (typeof window === 'undefined') return;
-
-    try {
-      const backup = localStorage.getItem(MUTATION_BACKUP_STORAGE_KEY);
-
-      const parsed = parseMutationBackup(backup);
-      if (parsed.error) {
-        this.logger.error(
-          '[MutationManager] Failed to restore mutations from localStorage:',
-          parsed.error
-        );
-        return;
-      }
-
-      if (
-        !backup ||
-        (parsed.mutations.length === 0 &&
-          parsed.failedMutations.length === 0 &&
-          parsed.malformedCount === 0)
-      ) {
-        return; // No backup to restore
-      }
-
-      if (parsed.malformedCount > 0) {
-        this.logger.warn(
-          `[MutationManager] Discarded ${parsed.malformedCount} malformed mutation(s) from localStorage backup`
-        );
-      }
-
-      if (parsed.mutations.length === 0 && parsed.failedMutations.length === 0) {
-        return;
-      }
-
-      const db = await databaseManager.getDatabase('MutationManager');
-
-      // Restore pending mutations into the active queue (dedup by id).
-      const existing = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-      const existingIds = new Set(existing.map((m: PendingMutation) => m.id));
-
-      let restoredCount = 0;
-      for (const mutation of parsed.mutations) {
-        if (!existingIds.has(mutation.id)) {
-          await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
-          restoredCount++;
-        }
-      }
-
-      // Restore dead-lettered mutations into the FAILED store (dedup by id) so
-      // they don't auto-retry but remain reviewable after a DB wipe.
-      const existingFailed = await db.getAll(REPLICATION_STORES.FAILED_MUTATIONS);
-      const existingFailedIds = new Set(existingFailed.map((m: PendingMutation) => m.id));
-
-      let restoredFailedCount = 0;
-      for (const mutation of parsed.failedMutations) {
-        if (!existingFailedIds.has(mutation.id)) {
-          await db.put(REPLICATION_STORES.FAILED_MUTATIONS, mutation);
-          restoredFailedCount++;
-        }
-      }
-
-      if (restoredCount > 0 || restoredFailedCount > 0) {
-        this.logger.log(
-          `[MutationManager] Restored ${restoredCount} pending + ${restoredFailedCount} failed mutation(s) from localStorage backup`
-        );
-      }
-    } catch (error) {
-      this.logger.error('[MutationManager] Failed to restore mutations from localStorage:', error);
-    }
-  }
-
   // ========================================
   // CLEANUP
   // ========================================
 
   /**
-   * Clear all pending mutations
-   *
-   * Call on logout or show switch to prevent stale mutations
-   * from previous sessions being uploaded.
+   * Clear pending and failed mutations owned by the current user.
+   * Foreign and legacy-unowned work remains held for its owner or migration.
    */
   async clearAllMutations(): Promise<void> {
     try {
-      await this.queueStore.clearAllMutations();
+      const authUserId = await this.requireCurrentUserId();
+      await this.queueStore.clearMutationsForOwner(authUserId, () =>
+        this.requireSameCurrentUserId(authUserId)
+      );
+      await this.backupStore.writeCurrent();
 
-      // Also clear the localStorage backup
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(MUTATION_BACKUP_STORAGE_KEY);
-      }
-
-      this.logger.log('[MutationManager] Cleared all pending mutations and localStorage backup');
+      this.logger.log('[MutationManager] Cleared mutations owned by the active user');
     } catch (error) {
       this.logger.error('[MutationManager] Failed to clear mutations:', error);
     }

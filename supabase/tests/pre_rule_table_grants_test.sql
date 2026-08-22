@@ -146,6 +146,7 @@ BEGIN
     ('training_milestones','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('trial_checklist_state','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
     ('trial_judge_supplies','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE'),
+    ('trial_packet_snapshots','SELECT','','SELECT,INSERT,UPDATE,DELETE'),
     ('trial_visibility_overrides','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
     ('trials','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE'),
     ('user_guide','SELECT','SELECT','SELECT,INSERT,UPDATE,DELETE'),
@@ -191,7 +192,7 @@ BEGIN
   IF v_count > 0 THEN
     RAISE EXCEPTION 'FAIL % table grant(s) drifted from the codified intent:%', v_count, v_mismatches;
   END IF;
-  RAISE NOTICE 'PASS all 123 tables grant exactly the codified CRUD to anon, authenticated and service_role';
+  RAISE NOTICE 'PASS all 124 tables grant exactly the codified CRUD to anon, authenticated and service_role';
 END;
 $$;
 
@@ -232,7 +233,7 @@ BEGIN
       'subscription_entitlement_grants','support_ticket_messages','support_tickets',
       'sync_conflicts','system_health_snapshots','training_goals','training_journal_entries',
       'training_milestones','trial_checklist_state','trial_judge_supplies',
-      'trial_visibility_overrides','trials','user_guide','user_milestones','user_preferences',
+      'trial_packet_snapshots','trial_visibility_overrides','trials','user_guide','user_milestones','user_preferences',
       'user_roles','vaccinations','vet_visits','volunteer_class_assignments',
       'volunteer_general_assignments','volunteer_roles','volunteers','waitlist_entries',
       'waitlist_notification_events'

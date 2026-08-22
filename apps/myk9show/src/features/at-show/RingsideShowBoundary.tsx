@@ -16,13 +16,22 @@
 import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, SearchX } from 'lucide-react';
+import { ArrowLeft, RefreshCw, SearchX } from 'lucide-react';
 import { replicatedShowsTable } from '@/services/replication';
 import { EmptyState, ErrorEmptyState, LoadingEmptyState } from '@/components/common/EmptyState';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 import { hasRingsideStaffRole } from './ringsideAccountAccess';
+import {
+  ShowUnreachableError,
+  classifyRefreshFailure,
+  isShowUnreachableError,
+  missingShowCopy,
+  resolveMissingShowReason,
+  shouldOfferPriming,
+  type MissingShowReason,
+} from './missingShowState';
 
 /** Full-screen wrapper — `/at-show` renders outside the sidebar layout. */
 function FullScreen({ children }: { children: ReactNode }) {
@@ -42,9 +51,13 @@ async function loadShow(showId: string, isOnline: boolean, canVerifyOnline: bool
     // watermark could still skip the missing show in a scoped sync.
     scopes: {},
   });
+  // A failed refresh after a confirmed local miss is NOT a generic error: we
+  // already know this device holds no copy, so the recoverable "not saved on
+  // this device" state applies. Typing the throw is what lets the boundary
+  // tell that apart from an IndexedDB read that blew up.
   const syncResult = await replicatedShowsTable.sync('');
   if (!syncResult.success) {
-    throw syncResult.error ?? new Error("We couldn't refresh shows");
+    throw new ShowUnreachableError(syncResult.error);
   }
 
   return {
@@ -55,30 +68,46 @@ async function loadShow(showId: string, isOnline: boolean, canVerifyOnline: bool
 
 function MissingShowState({
   showId,
-  verifiedOnline,
+  reason,
+  onRetry,
 }: {
   showId: string | undefined;
-  verifiedOnline: boolean;
+  reason: MissingShowReason;
+  onRetry?: () => void;
 }) {
   const { user, hasRole } = useAuthContext();
   const navigate = useNavigate();
-  const isOnline = useOnlineStatus();
   const canPrime = Boolean(user && !user.is_anonymous && hasRingsideStaffRole(hasRole));
-  const showIsUncached = !verifiedOnline && !isOnline;
+  const offerPriming = shouldOfferPriming({
+    reason,
+    isStaff: canPrime,
+    hasShowId: Boolean(showId),
+  });
+  const copy = missingShowCopy(reason);
+  const backToDashboard = {
+    label: 'Back to dashboard',
+    onClick: () => navigate('/'),
+    icon: ArrowLeft,
+  };
 
   return (
     <div className="flex flex-col items-center">
       <EmptyState
         icon={SearchX}
-        title={showIsUncached ? "This show isn't saved on this device" : 'Show not found'}
-        description={
-          showIsUncached
-            ? 'This device has no saved copy of this show. Connect to the internet and prepare it for offline use before continuing.'
-            : "We couldn't find this show. It may have been removed, or the link may be out of date. Head back to your dashboard to find it."
+        title={copy.title}
+        description={copy.description}
+        // When the server is merely unreachable, retrying IS the likeliest fix
+        // once signal returns, so it leads and the dashboard becomes the exit.
+        action={
+          onRetry ? { label: 'Try again', onClick: onRetry, icon: RefreshCw } : backToDashboard
         }
-        action={{ label: 'Back to dashboard', onClick: () => navigate('/'), icon: ArrowLeft }}
+        secondaryAction={
+          onRetry
+            ? { label: 'Back to dashboard', onClick: () => navigate('/'), icon: ArrowLeft }
+            : undefined
+        }
       />
-      {showIsUncached && canPrime && showId && (
+      {offerPriming && showId && (
         <div className="-mt-6 mb-16">
           <OfflineReadyBadge showId={showId} />
         </div>
@@ -105,8 +134,7 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
     // when connectivity returns. Keep the last verified show during that key
     // transition: replacing children with the loading state unmounts an open
     // nested scoresheet and restarts its scoped hydration while offline.
-    placeholderData: previousData =>
-      previousData?.show?.id === showId ? previousData : undefined,
+    placeholderData: previousData => (previousData?.show?.id === showId ? previousData : undefined),
   });
 
   if (showQuery.isLoading) {
@@ -120,6 +148,27 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
   // Distinguish a transient fetch failure from a genuinely missing show — an
   // error gets a retry, a missing show gets the "not found" notice below.
   if (showQuery.isError) {
+    // An unreachable backend after a confirmed local miss is a recoverable
+    // state, not a crash. Routing it through the generic error card is what
+    // stranded a judge on a cold device: the only button offered ("Try Again")
+    // cannot succeed while the backend is down, and the priming affordance
+    // that DOES fix the device never rendered at all (MYK9-205).
+    if (isShowUnreachableError(showQuery.error)) {
+      return (
+        <FullScreen>
+          <MissingShowState
+            showId={showId}
+            // A dead uplink and a full disk both arrive here; only one of them
+            // gets to blame the network.
+            reason={classifyRefreshFailure(
+              (showQuery.error as ShowUnreachableError | null)?.reason
+            )}
+            onRetry={() => void showQuery.refetch()}
+          />
+        </FullScreen>
+      );
+    }
+
     return (
       <FullScreen>
         <ErrorEmptyState
@@ -135,7 +184,10 @@ export function RingsideShowBoundary({ children }: { children: ReactNode }) {
       <FullScreen>
         <MissingShowState
           showId={showId}
-          verifiedOnline={showQuery.data?.verifiedOnline ?? false}
+          reason={resolveMissingShowReason({
+            verifiedOnline: showQuery.data?.verifiedOnline ?? false,
+            isOnline,
+          })}
         />
       </FullScreen>
     );

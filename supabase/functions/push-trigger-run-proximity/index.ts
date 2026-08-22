@@ -16,15 +16,24 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { requirePushWebhookSecret } from '../_shared/pushWebhookAuth.ts';
+import type { SmsProvider } from '../_shared/sms/smsProvider.ts';
+import { createTwilioSmsProvider, readTwilioConfig } from '../_shared/sms/twilioSmsProvider.ts';
 import {
   buildProximityPayload,
   pendingByRunOrder,
   resolveRecipients,
+  shouldAlertOnTransition,
   type ProximityEntryRow,
   type WatcherRow,
 } from './runProximity.ts';
-
-const DEFAULT_LEAD_DOGS = 3;
+import {
+  decideChannels,
+  dispatchProximityAlerts,
+  DEFAULT_LEAD_DOGS,
+  PROXIMITY_PREFERENCE_COLUMNS,
+  type ChannelDecision,
+  type ProximityPreferenceRow,
+} from './proximitySms.ts';
 
 interface WebhookPayload {
   type: 'UPDATE';
@@ -45,8 +54,9 @@ handle<WebhookPayload>(
   { auth: 'none', beforeBody: requirePushWebhookSecret },
   async ({ body, supabase }) => {
     // Only on the transition INTO the ring — a re-save of an already-in-ring
-    // entry must not re-alert the same queue.
-    if (body.record.check_in_status !== 'in-ring' || body.old_record.check_in_status === 'in-ring') {
+    // entry must not re-alert the same queue. With SMS attached this is a spend
+    // guard, not just a noise guard.
+    if (!shouldAlertOnTransition(body.record, body.old_record)) {
       return { status: 'no_action' };
     }
 
@@ -142,11 +152,11 @@ handle<WebhookPayload>(
       return { status: 'no_users_to_notify' };
     }
 
-    // Per-user opt-in and threshold. A row is optional — the table's defaults
-    // (push on, upcoming runs on) are the intent for accounts without one.
+    // Per-user opt-in and threshold. A row is optional, and what its absence
+    // MEANS differs per channel — see decideChannels.
     const { data: prefRows, error: prefsError } = await supabase
       .from('notification_preferences')
-      .select('auth_user_id, push_enabled, upcoming_runs, lead_dogs')
+      .select(PROXIMITY_PREFERENCE_COLUMNS)
       .in('auth_user_id', [...candidateUserIds]);
 
     if (prefsError) {
@@ -154,30 +164,28 @@ handle<WebhookPayload>(
       throw new HttpError(500, 'Preference resolution failed');
     }
 
-    const prefsByAuthUser = new Map<
-      string,
-      { push_enabled: boolean | null; upcoming_runs: boolean | null; lead_dogs: number | null }
-    >();
+    const prefsByAuthUser = new Map<string, ProximityPreferenceRow>();
     for (const raw of prefRows ?? []) {
-      const pref = raw as {
-        auth_user_id: string;
-        push_enabled: boolean | null;
-        upcoming_runs: boolean | null;
-        lead_dogs: number | null;
-      };
+      const pref = raw as unknown as ProximityPreferenceRow;
       prefsByAuthUser.set(pref.auth_user_id, pref);
     }
 
+    // Channel selection is a PER-RECIPIENT decision made after resolution, not
+    // a filter applied before it. An exhibitor with push off and SMS on — the
+    // likeliest SMS user there is, since bad venue data is why they turned push
+    // off — must still reach a send.
+    const channelsByAuthUser = new Map<string, ChannelDecision>();
     const watchers: WatcherRow[] = [];
     for (const authUserId of candidateUserIds) {
-      const pref = prefsByAuthUser.get(authUserId);
-      if (pref && (pref.push_enabled === false || pref.upcoming_runs === false)) continue;
+      const channels = decideChannels(prefsByAuthUser.get(authUserId));
+      if (!channels.push && !channels.sms) continue;
 
+      channelsByAuthUser.set(authUserId, channels);
       watchers.push({
         authUserId,
         dogIds: dogIdsByAuthUser.get(authUserId) ?? new Set<string>(),
         favoriteArmbands: favoriteArmbandsByAuthUser.get(authUserId) ?? new Set<number>(),
-        leadDogs: pref?.lead_dogs ?? DEFAULT_LEAD_DOGS,
+        leadDogs: channels.leadDogs,
       });
     }
 
@@ -193,24 +201,73 @@ handle<WebhookPayload>(
       .single();
     const className = (classRow as { name?: string } | null)?.name ?? 'your class';
 
-    await Promise.allSettled(
-      recipients.map(recipient => {
-        const entry = entryById.get(recipient.entryId);
-        const payload = buildProximityPayload({
+    // The SMS provider is optional infrastructure. If it is unconfigured — or
+    // A2P registration has not landed yet — push must still go out, so this
+    // resolves to "SMS unavailable" rather than throwing.
+    let smsProvider: SmsProvider | null = null;
+    try {
+      smsProvider = createTwilioSmsProvider(readTwilioConfig(name => Deno.env.get(name)));
+    } catch {
+      console.warn('push-trigger-run-proximity: SMS provider unconfigured; sending push only');
+    }
+
+    const dispatch = await dispatchProximityAlerts(recipients, {
+      smsAvailable: smsProvider !== null,
+      channelFor: authUserId =>
+        channelsByAuthUser.get(authUserId) ?? {
+          push: true,
+          sms: false,
+          smsPhone: null,
+          leadDogs: DEFAULT_LEAD_DOGS,
+        },
+      contextFor: entryId => {
+        const entry = entryById.get(entryId);
+        return {
           dogName: (entry && dogNameByDogId.get(entry.dogId)) || 'Your dog',
           className,
-          dogsAhead: recipient.dogsAhead,
           armband: entry?.armband ?? null,
-        });
-        return supabase.functions.invoke('send-push-notification', {
-          body: {
-            user_id: recipient.authUserId,
-            payload: { ...payload, actionUrl: `/classes/${classId}` },
-          },
-        });
-      })
-    );
+        };
+      },
+      ports: {
+        sendPush: async (recipient, context) => {
+          const payload = buildProximityPayload({
+            dogName: context.dogName,
+            className: context.className,
+            dogsAhead: recipient.dogsAhead,
+            armband: context.armband,
+          });
+          // supabase-js RESOLVES with an `error` rather than rejecting, so
+          // without this the push counter would report every failure as a send.
+          const { error } = await supabase.functions.invoke('send-push-notification', {
+            body: {
+              user_id: recipient.authUserId,
+              payload: { ...payload, actionUrl: `/classes/${classId}` },
+            },
+          });
+          if (error) throw new Error(error.message);
+        },
+        claimSms: async (authUserId, entryId) => {
+          const { data, error } = await supabase.rpc('claim_sms_proximity_send', {
+            p_auth_user_id: authUserId,
+            p_entry_id: entryId,
+          });
+          // A failed claim must not be read as "go ahead" — an unknown marker
+          // state is treated as already-sent so a database blip cannot become a
+          // duplicate-send storm against the campaign cap.
+          if (error) throw new Error(error.message);
+          return data === true;
+        },
+        sendSms: input => smsProvider!.send(input),
+        releaseSms: async (authUserId, entryId) => {
+          const { error } = await supabase.rpc('release_sms_proximity_send', {
+            p_auth_user_id: authUserId,
+            p_entry_id: entryId,
+          });
+          if (error) throw new Error(error.message);
+        },
+      },
+    });
 
-    return { status: 'push_sent', recipients: recipients.length };
+    return { status: 'push_sent', recipients: recipients.length, ...dispatch };
   }
 );

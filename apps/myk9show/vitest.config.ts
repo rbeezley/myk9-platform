@@ -40,7 +40,10 @@ export default defineConfig({
       '../../supabase/functions/_shared/roleValidity.test.ts',
       '../../supabase/functions/_shared/roleValidityCoverage.test.ts',
       '../../supabase/functions/push-trigger-waitlist/waitlistNotification.test.ts',
-      '../../supabase/functions/push-trigger-run-proximity/runProximity.test.ts',
+      // Whole directory rather than a named file: this allowlist is
+      // hand-maintained, and a new colocated test that nobody remembers to
+      // register runs green locally and never runs in CI.
+      '../../supabase/functions/push-trigger-run-proximity/*.test.ts',
       '../../supabase/functions/calendar-feed/*.test.ts',
       '../../supabase/functions/_shared/sms/*.test.ts',
       '../../supabase/functions/sms-opt-in/*.test.ts',

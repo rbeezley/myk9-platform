@@ -31,6 +31,22 @@ export interface PendingEntry {
   dogsAhead: number;
 }
 
+/**
+ * The volume guard: alert only on the transition INTO the ring.
+ *
+ * A re-save of an already-in-ring entry must not re-alert the whole queue.
+ * That was merely noisy while push was the only channel; with SMS attached a
+ * re-alert regression can exhaust a Low Volume Mixed campaign's ~2,000
+ * messages/day brand-wide cap (MYK9-190) and cost real money, so the guard is
+ * extracted here to keep it covered by tests.
+ */
+export function shouldAlertOnTransition(
+  record: { check_in_status: string | null },
+  oldRecord: { check_in_status: string | null }
+): boolean {
+  return record.check_in_status === 'in-ring' && oldRecord.check_in_status !== 'in-ring';
+}
+
 export function isInRing(entry: ProximityEntryRow): boolean {
   return entry.check_in_status === 'in-ring';
 }

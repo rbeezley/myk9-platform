@@ -74,7 +74,20 @@ describe('trial packet cron', () => {
     expect(sql).toMatch(/t\.deleted_at is null/);
     expect(sql).toMatch(/s\.deleted_at is null/);
     expect(sql).toMatch(/coalesce\(t\.status, ''\) <> 'cancelled'/);
-    expect(sql).toMatch(/coalesce\(s\.status, ''\) <> 'cancelled'/);
+  });
+
+  it('does not email officials about a show that was never published', () => {
+    // shows_status_check permits 'draft'. A draft show is not a real event,
+    // and a packet emailed for one cannot be unsent.
+    expect(sql).toMatch(/coalesce\(s\.status, ''\) not in \('draft', 'cancelled'\)/);
+  });
+
+  it('gives the render longer than the pg_net five-second default', () => {
+    // A three-trial Sunday is ~110 pages plus upload plus email. If the worker
+    // abandons the connection mid-render the edge runtime may tear down the
+    // isolate, leaving a claim held with no packet behind it — recoverable
+    // only after the lease, and not at all past the last run of the evening.
+    expect(sql).toMatch(/timeout_milliseconds := 120000/);
   });
 
   it('fails loudly rather than posting unauthenticated requests all evening', () => {

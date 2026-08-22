@@ -140,6 +140,22 @@ dead run's claim and release-on-failure, all mutation-checked: removing the
 lease check, the release, or the completion each turns tests red. 9 contract
 tests over the migration.
 
+Two things my own review caught that no test would have, since Codex was
+unavailable (usage limit) when this was written:
+
+- `shows_status_check` permits **`draft`**, and the first filter only excluded
+  `cancelled` — so a draft show with a trial tomorrow would have emailed its
+  officials a packet for an event that was never published. Denylist, not
+  allowlist, deliberately: a status added later should default to getting
+  paper, because a missing packet is caught by the print reminder while a
+  wrongly-sent one cannot be unsent.
+- `net.http_post` defaults to a **5-second** timeout. A three-trial Sunday is
+  ~110 pages plus upload plus email. The worker abandoning the connection
+  mid-render risks the edge runtime tearing down the isolate, leaving a claim
+  held with no packet behind it — recoverable only after the lease, and not at
+  all past the last run of the evening. Now 120s, which does not block the cron
+  transaction because pg_net dispatches through a background worker.
+
 **Still open:** deploy, plus the Vault secret `packet_cron_secret` and the
 matching `PACKET_CRON_SECRET` function secret. Until both exist the function
 answers 503 and the cron raises rather than posting unauthenticated requests.

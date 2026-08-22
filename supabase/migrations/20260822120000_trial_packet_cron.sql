@@ -106,7 +106,14 @@ select cron.schedule(
         and t.deleted_at is null
         and s.deleted_at is null
         and coalesce(t.status, '') <> 'cancelled'
-        and coalesce(s.status, '') <> 'cancelled'
+        -- 'draft' as well as 'cancelled': shows_status_check permits
+        -- ('draft','published','upcoming','in_progress','completed','cancelled'),
+        -- and a DRAFT show is not a real event. Generating for one emails its
+        -- officials a packet for a show that was never published. A denylist
+        -- rather than an allowlist on purpose — a status added later should
+        -- default to getting paper, because a missing packet is caught by the
+        -- print reminder while a wrongly-sent one cannot be unsent.
+        and coalesce(s.status, '') not in ('draft', 'cancelled')
     loop
       -- The function authenticates on PACKET_CRON_SECRET and builds its own
       -- service-role client from its environment, so no key travels here.
@@ -119,7 +126,14 @@ select cron.schedule(
         body := jsonb_build_object(
           'showId', rec.show_id,
           'trialDate', to_char(rec.date, 'YYYY-MM-DD')
-        )
+        ),
+        -- pg_net defaults to 5s, and rendering a three-trial Sunday (~110
+        -- pages) plus upload plus email is comfortably longer than that. The
+        -- worker abandoning the connection mid-render risks the edge runtime
+        -- tearing down the isolate part-way through, which would leave a claim
+        -- held with no packet behind it. This does NOT block the cron
+        -- transaction: pg_net dispatches through a background worker.
+        timeout_milliseconds := 120000
       );
     end loop;
   end

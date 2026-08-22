@@ -15,6 +15,7 @@ import {
   type PacketGenerationDeps,
 } from './packetGeneration.ts';
 import type { EmergencyPacketInput } from '../_shared/trialPacket/renderer/types.ts';
+import { PACKET_CLAIM_LEASE_MS, shouldReclaimStalePacketClaim } from './packetClaim.ts';
 
 const SHOW_ID = 'a0000000-0000-4000-8000-000000000001';
 const CLUB_ID = 'c0000000-0000-4000-8000-000000000001';
@@ -74,6 +75,9 @@ interface StubOptions {
   rpcError?: unknown;
   deliveredDates?: string[];
   uploadError?: unknown;
+  /** Claims already in the ledger, as if another run had written them. */
+  existingClaims?: Record<string, { claimed_at: string; completed_at: string | null }>;
+  renderThrows?: boolean;
 }
 
 function makeStub(options: StubOptions = {}) {
@@ -81,7 +85,12 @@ function makeStub(options: StubOptions = {}) {
     options;
   const uploads: string[] = [];
   const inserts: Record<string, unknown>[] = [];
+  const claims: Record<string, { claimed_at: string; completed_at: string | null }> = {
+    ...(options.existingClaims ?? {}),
+  };
+  const claimOps: string[] = [];
   let deliveredLookupDate: string | null = null;
+  let claimLookupDate: string | null = null;
 
   function thenable(result: unknown) {
     const query: Record<string, unknown> = {};
@@ -90,6 +99,10 @@ function makeStub(options: StubOptions = {}) {
     }
     query.eq = (column: string, value: unknown) => {
       if (column === 'trial_date') deliveredLookupDate = value as string;
+      return query;
+    };
+    query.match = (criteria: Record<string, unknown>) => {
+      if (criteria.trial_date) claimLookupDate = criteria.trial_date as string;
       return query;
     };
     query.maybeSingle = () => Promise.resolve(resolveResult(result));
@@ -111,6 +124,94 @@ function makeStub(options: StubOptions = {}) {
           : null,
       error: null,
     };
+  }
+
+  // The claim ledger, modelled closely enough that the unique constraint, the
+  // stale-lease read, the CAS reclaim and the release are all exercised.
+  function claimQuery() {
+    const q: Record<string, unknown> = {};
+    let matched: Record<string, unknown> = {};
+    let casClaimedAt: string | null = null;
+    let requireIncomplete = false;
+    for (const method of ['select', 'is', 'or', 'in', 'order', 'limit']) {
+      q[method] = (...args: unknown[]) => {
+        if (method === 'is' && args[0] === 'completed_at' && args[1] === null) {
+          requireIncomplete = true;
+        }
+        return q;
+      };
+    }
+    q.match = (criteria: Record<string, unknown>) => {
+      matched = criteria;
+      return q;
+    };
+    q.eq = (column: string, value: unknown) => {
+      if (column === 'claimed_at') casClaimedAt = value as string;
+      return q;
+    };
+    const key = () => String(matched.trial_date ?? '');
+    const holds = () => {
+      const row = claims[key()];
+      if (!row) return false;
+      if (casClaimedAt !== null && row.claimed_at !== casClaimedAt) return false;
+      if (requireIncomplete && row.completed_at) return false;
+      return true;
+    };
+    q.insert = (row: Record<string, unknown>) => {
+      const date = String(row.trial_date);
+      if (claims[date]) {
+        claimOps.push(`conflict:${date}`);
+        return Promise.resolve({ error: { code: '23505', message: 'duplicate' } });
+      }
+      claims[date] = { claimed_at: String(row.claimed_at), completed_at: null };
+      claimOps.push(`claim:${date}`);
+      return Promise.resolve({ error: null });
+    };
+    q.update = (patch: Record<string, unknown>) => {
+      const chain: Record<string, unknown> = {};
+      const settle = () => {
+        if (!holds()) return { data: [], error: null };
+        Object.assign(claims[key()], patch);
+        claimOps.push(patch.completed_at ? `complete:${key()}` : `reclaim:${key()}`);
+        return { data: [{ id: 'claim-1' }], error: null };
+      };
+      for (const m of ['match', 'eq', 'is', 'select']) {
+        chain[m] = (...args: unknown[]) => {
+          (q[m] as (...a: unknown[]) => unknown)(...args);
+          return chain;
+        };
+      }
+      chain.then = (res: (v: unknown) => unknown, rej?: (r: unknown) => unknown) =>
+        Promise.resolve(settle()).then(res, rej);
+      return chain;
+    };
+    q.delete = () => {
+      const chain: Record<string, unknown> = {};
+      const settle = () => {
+        if (holds()) {
+          delete claims[key()];
+          claimOps.push(`release:${key()}`);
+        }
+        return { data: [], error: null };
+      };
+      for (const m of ['match', 'eq', 'is']) {
+        chain[m] = (...args: unknown[]) => {
+          (q[m] as (...a: unknown[]) => unknown)(...args);
+          return chain;
+        };
+      }
+      chain.then = (res: (v: unknown) => unknown, rej?: (r: unknown) => unknown) =>
+        Promise.resolve(settle()).then(res, rej);
+      return chain;
+    };
+    q.maybeSingle = () => {
+      const row = claims[key()];
+      claimOps.push(`read:${key()}`);
+      return Promise.resolve({ data: row ?? null, error: null });
+    };
+    q.then = (res: (v: unknown) => unknown, rej?: (r: unknown) => unknown) =>
+      Promise.resolve({ data: null, error: null }).then(res, rej);
+    return q;
   }
 
   const supabase = {
@@ -143,6 +244,7 @@ function makeStub(options: StubOptions = {}) {
         });
       }
       if (table === 'club_members') return thenable({ data: [], error: null });
+      if (table === 'trial_packet_generation_claims') return claimQuery();
       if (table === 'trial_packet_snapshots') return thenable('delivered-lookup');
       throw new Error(`unexpected table ${table}`);
     },
@@ -162,7 +264,7 @@ function makeStub(options: StubOptions = {}) {
     },
   } as unknown as Parameters<typeof generateTrialPackets>[0];
 
-  return { supabase, uploads, inserts };
+  return { supabase, uploads, inserts, claims, claimOps };
 }
 
 let snapshotCounter = 0;
@@ -320,6 +422,139 @@ describe('generateTrialPackets', () => {
       generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps())
     ).rejects.toBeInstanceOf(HttpError);
     expect(inserts).toEqual([]);
+  });
+});
+
+describe('the trial-day claim (MYK9-228 phase 4)', () => {
+  const SAT = '2026-09-19';
+  const SUN = '2026-09-20';
+
+  it('claims a day before rendering anything', async () => {
+    const { supabase, claimOps, claims } = makeStub();
+    await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    // Claim first, complete last. If generation could start before the claim
+    // landed, two overlapping cron runs would both render and the secretary
+    // would get two emails and two near-identical stacks.
+    expect(claimOps.indexOf(`claim:${SAT}`)).toBeLessThan(claimOps.indexOf(`complete:${SAT}`));
+    expect(claims[SAT]?.completed_at).toBe('2026-09-18T02:00:00.000Z');
+    expect(claims[SUN]?.completed_at).toBe('2026-09-18T02:00:00.000Z');
+  });
+
+  it('skips a day another run already finished', async () => {
+    const { supabase, uploads } = makeStub({
+      existingClaims: {
+        [SAT]: { claimed_at: '2026-09-18T01:00:00.000Z', completed_at: '2026-09-18T01:05:00.000Z' },
+      },
+    });
+
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    expect(summary.skipped).toEqual([{ trialDate: SAT, reason: 'already-delivered' }]);
+    expect(summary.generated.map(p => p.trialDate)).toEqual([SUN]);
+    expect(uploads).toHaveLength(1);
+  });
+
+  it('leaves a day alone while another run still holds a fresh claim', async () => {
+    // One minute old, lease is ten. That run is probably mid-render; stealing
+    // the day from it is how you get two packets.
+    const { supabase, uploads } = makeStub({
+      existingClaims: {
+        [SAT]: { claimed_at: '2026-09-18T01:59:00.000Z', completed_at: null },
+      },
+    });
+
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    // NOT 'already-delivered' — nothing has been delivered. Collapsing the two
+    // would make a permanently stuck run look like a success.
+    expect(summary.skipped).toEqual([{ trialDate: SAT, reason: 'in-flight' }]);
+    expect(uploads).toHaveLength(1);
+  });
+
+  it('takes over a claim whose run died mid-render', async () => {
+    // An hour old with nothing completed: that run is gone. Reading the unique
+    // conflict as "already done" would leave the trial with no paper at all.
+    const { supabase, uploads, claimOps, claims } = makeStub({
+      existingClaims: {
+        [SAT]: { claimed_at: '2026-09-18T01:00:00.000Z', completed_at: null },
+      },
+    });
+
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    expect(summary.skipped).toEqual([]);
+    expect(summary.generated.map(p => p.trialDate)).toEqual([SAT, SUN]);
+    expect(claimOps).toContain(`reclaim:${SAT}`);
+    expect(claims[SAT]?.completed_at).toBe('2026-09-18T02:00:00.000Z');
+    expect(uploads).toHaveLength(2);
+  });
+
+  it('releases the claim when generation fails, so the next run retries', async () => {
+    // Holding it would let one bad render suppress the day for a whole lease,
+    // and a claim abandoned past the last run of the evening means no paper.
+    const { supabase, claims, claimOps } = makeStub({ uploadError: new Error('bucket full') });
+
+    await expect(
+      generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps())
+    ).rejects.toBeInstanceOf(HttpError);
+
+    expect(claimOps).toContain(`release:${SAT}`);
+    expect(claims[SAT]).toBeUndefined();
+  });
+
+  it('completes the claim without re-sending when a manual packet already covers the day', async () => {
+    // The manual path writes no claim, so the sent-snapshot check is the only
+    // thing that sees it. Completing rather than releasing stops every later
+    // run in the window from re-asking.
+    const { supabase, uploads, claims } = makeStub({ deliveredDates: [SAT] });
+
+    const summary = await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    expect(summary.skipped).toEqual([{ trialDate: SAT, reason: 'already-delivered' }]);
+    expect(claims[SAT]?.completed_at).toBe('2026-09-18T02:00:00.000Z');
+    expect(uploads).toHaveLength(1);
+  });
+
+  it('does not claim a day it has nothing to print for', async () => {
+    const input = packetInput();
+    const { supabase, claims } = makeStub({ rpcData: { ...input, entries: [] } });
+
+    await generateTrialPackets(supabase, { showId: SHOW_ID }, makeDeps());
+
+    expect(Object.keys(claims)).toEqual([]);
+  });
+});
+
+describe('shouldReclaimStalePacketClaim', () => {
+  const base = Date.parse('2026-09-18T02:00:00.000Z');
+
+  it('never reclaims a completed run', () => {
+    expect(
+      shouldReclaimStalePacketClaim(
+        { claimed_at: '1970-01-01T00:00:00.000Z', completed_at: '2020-01-01T00:00:00.000Z' },
+        base
+      )
+    ).toBe(false);
+  });
+
+  it('waits out the lease before taking over an incomplete one', () => {
+    const justInside = new Date(base - (PACKET_CLAIM_LEASE_MS - 1000)).toISOString();
+    const justOutside = new Date(base - (PACKET_CLAIM_LEASE_MS + 1000)).toISOString();
+    expect(shouldReclaimStalePacketClaim({ claimed_at: justInside, completed_at: null }, base)).toBe(
+      false
+    );
+    expect(
+      shouldReclaimStalePacketClaim({ claimed_at: justOutside, completed_at: null }, base)
+    ).toBe(true);
+  });
+
+  it('reclaims rather than blocks when the timestamp is unreadable', () => {
+    // A duplicate email is recoverable; a trial day with no paper is the
+    // failure this whole feature exists to prevent.
+    expect(shouldReclaimStalePacketClaim({ claimed_at: 'not a date', completed_at: null }, base)).toBe(
+      true
+    );
   });
 });
 

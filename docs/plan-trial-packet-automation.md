@@ -101,15 +101,54 @@ because proving it needs `PACKET_CRON_SECRET` set and a real invocation, and a
 real invocation emails show officials. Phase 4 sets the secret and is the
 natural place to take that last step — against a scratch show, not a live one.
 
-## Phase 4 — cron triggers
+## Phase 4 — cron trigger ✅ (pending deploy)
 
-Entry close and the evening before each trial day. Reuse
-`push-trigger-show-eve`'s claim/lease/CAS so re-runs are idempotent and two
-workers cannot double-send. Idempotency key is (show, trial date).
+The evening before each trial day, `pg_cron` enumerates tomorrow's (show, day)
+pairs and asks `generate-trial-packet` for one packet each.
 
-**Testing:** replay a trigger and assert no second packet and no second email;
-assert a failed generation surfaces in `delivery_status` / `error_message`
-rather than failing silently.
+**Singular, not the two triggers this plan and the issue both named.** Entry
+close was dropped deliberately. The acceptance criterion is that re-running a
+trigger produces no second packet or second email for the same trial day, and
+the key is (show, trial date) — so an entry-close packet would make the
+evening run a **no-op**, and the paper reaching the trial box would be the
+OLDER of the two, missing exactly the movements and pulls the evening run
+exists to capture. The alternative, keying per trigger, means two packets and
+two emails per day: the "two near-identical stacks" confusion the packet's own
+Paper Results Recovery page warns about. One evening, one print, one artifact.
+
+Worth recording because it nearly went the other way: the case against an
+entry-close packet was going to be "it has no armbands yet", and that is
+**false**. `assign_armband` runs at registration, not in a batch after close —
+on Heartland all 69 dogs hold armbands and 512 of 514 entries have a run order.
+An entry-close packet would have been perfectly usable. The reason to drop it
+is duplication, not incompleteness.
+
+- `trial_packet_generation_claims` — one row per (show, trial day), unique.
+  `completed_at` separates a finished run from one that died mid-render, so a
+  crash costs one cycle instead of suppressing the day permanently. Lease is
+  10 minutes: above the worst-case render, below the 30-minute cron gap.
+- Claim → generate → complete, with a CAS reclaim on the stale path. A failure
+  releases the claim so a later run in the same evening retries.
+- A packet the secretary made by hand still counts. The manual path writes no
+  claim, so the sent-snapshot check is the only thing that sees it, and it
+  completes the claim rather than releasing it.
+- `in-flight` is reported separately from `already-delivered` — collapsing them
+  would make a permanently stuck run look like a success.
+
+**Testing.** 23 unit tests over the generation path, including take-over of a
+dead run's claim and release-on-failure, all mutation-checked: removing the
+lease check, the release, or the completion each turns tests red. 9 contract
+tests over the migration.
+
+**Still open:** deploy, plus the Vault secret `packet_cron_secret` and the
+matching `PACKET_CRON_SECRET` function secret. Until both exist the function
+answers 503 and the cron raises rather than posting unauthenticated requests.
+
+**Known gap, matching show-eve's.** Timezone precision. The window is
+21:00–23:59 UTC so `current_date + 1` names one date all evening, but for a
+show far east of UTC that "evening" is already the trial morning. A packet that
+lands early still does its job; one on the wrong DATE would not, which is what
+the single-UTC-day window prevents.
 
 ## Phase 5 — the reminder means "print it"
 

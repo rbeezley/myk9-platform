@@ -232,7 +232,22 @@ export interface ReceiptDialogState {
 /**
  * Tab filter options
  */
-export type EntryTabFilter = 'all' | 'pending' | 'accepted' | 'waitlist' | 'upcoming' | 'completed';
+/**
+ * The My Shows tab strip runs on ONE axis: time. `upcoming` and `completed`
+ * partition `all` — every entry sits in exactly one of them, and the counts sum
+ * to the total.
+ *
+ * Entry status is a separate, composable question (see `EntryStatusFilter`).
+ * The two used to share this strip as six sibling tabs, which meant each axis
+ * independently accounted for every entry: the counts summed to double the
+ * total, and picking a status then a time replaced the filter rather than
+ * refining it, so "accepted AND still ahead of me" could not be expressed.
+ * See docs/plan-ia-exhibitor-surface.md, Phase A.
+ */
+export type EntryTabFilter = 'all' | 'upcoming' | 'completed';
+
+/** Entry-status filter, composed WITH the time tab rather than replacing it. */
+export type EntryStatusFilter = 'any' | 'pending' | 'accepted' | 'waitlist';
 
 /**
  * Entry update event from real-time subscription

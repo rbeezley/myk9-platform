@@ -13,14 +13,19 @@ import {
   type EntryBalanceSummary,
 } from '@/features/payments/entryBalanceSummary';
 import { computeMyEntriesShowProgressStats, isCompletedEntry } from './myEntriesStats.helpers';
-import { isEntryTabFilter } from './entryTabDefs';
+import { isEntryStatusFilter, isEntryTabFilter, legacyTabAsStatusFilter } from './entryTabDefs';
 import {
   applyEntryScope,
   clearEntryScopeParams,
   parseEntryScope,
   type EntryScopeMatch,
 } from './entryScopeFilter';
-import type { MyEntry, MyEntryStats, EntryTabFilter } from './my-entries-types';
+import type {
+  MyEntry,
+  MyEntryStats,
+  EntryStatusFilter,
+  EntryTabFilter,
+} from './my-entries-types';
 
 /**
  * Exhibitor-facing "your dog is in" predicate: a confirmed entry, including one
@@ -35,6 +40,24 @@ function isExhibitorInEntry(e: { entryStatus: EntryStatus }): boolean {
     e.entryStatus === EntryStatus.COMPLETED ||
     e.entryStatus === EntryStatus.MOVE_UP_REQUESTED
   );
+}
+
+/**
+ * Apply the entry-status axis. Kept as one function so the filtered list and
+ * the tab counts can never drift apart — they are the same question asked
+ * about different sets.
+ */
+function filterEntriesByStatus(entries: MyEntry[], status: EntryStatusFilter): MyEntry[] {
+  switch (status) {
+    case 'pending':
+      return entries.filter(isPendingEntry);
+    case 'accepted':
+      return entries.filter(isExhibitorInEntry);
+    case 'waitlist':
+      return entries.filter(isWaitlistEntry);
+    default:
+      return [...entries];
+  }
 }
 
 interface UseMyEntriesFiltersProps {
@@ -54,8 +77,13 @@ interface UseMyEntriesFiltersReturn {
   filteredEntries: MyEntry[];
   selectedTab: EntryTabFilter;
   setSelectedTab: (tab: EntryTabFilter) => void;
+  /** Entry-status filter, composed with the tab rather than replacing it. */
+  selectedStatus: EntryStatusFilter;
+  setSelectedStatus: (status: EntryStatusFilter) => void;
   entryStats: MyEntryStats;
   tabCounts: Record<EntryTabFilter, number>;
+  /** Per-status counts WITHIN the active tab — a chip promises what it shows. */
+  statusCounts: Record<EntryStatusFilter, number>;
   /**
    * How the inbound `?showId=/?entryIds=` scope resolved. `kind: 'none'` is the
    * ordinary unscoped visit; anything else means the list below is narrower
@@ -87,7 +115,16 @@ export function useMyEntriesFilters({
   // two-way effect sync (the `set-state-in-effect` trap).
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const selectedTab: EntryTabFilter = isEntryTabFilter(tabParam) ? tabParam : 'all';
+  // `?tab=pending|accepted|waitlist` addressed real tabs before Phase A. Those
+  // links are still in the wild, so they migrate to the status filter instead
+  // of falling back to 'all' and silently dropping what the link asked for.
+  const legacyStatusTab = legacyTabAsStatusFilter(tabParam);
+  const selectedTab: EntryTabFilter =
+    !legacyStatusTab && isEntryTabFilter(tabParam) ? tabParam : 'all';
+
+  const statusParam = searchParams.get('status');
+  const selectedStatus: EntryStatusFilter =
+    legacyStatusTab ?? (isEntryStatusFilter(statusParam) ? statusParam : 'any');
 
   // Inbound scope from My Payments' per-row Receipt link (`?showId=&entryIds=`).
   // Applied BEFORE the tab filter and the tab counts so the tab strip describes
@@ -108,36 +145,53 @@ export function useMyEntriesFilters({
     setSearchParams(previous => clearEntryScopeParams(previous), { replace: true });
   }, [setSearchParams]);
 
+  // Each setter writes only its OWN param, so the axes compose: changing the
+  // tab keeps the status filter and vice versa. Defaults ('all' / 'any') are
+  // deleted rather than written, keeping the canonical URL clean.
   const setSelectedTab = useCallback(
     (tab: EntryTabFilter) => {
       setSearchParams(
         previous => {
           const next = new URLSearchParams(previous);
-          // 'all' is the default; keep it out of the URL so the canonical
-          // address of the page stays clean.
           if (tab === 'all') next.delete('tab');
           else next.set('tab', tab);
+          // A legacy `?tab=accepted` link arrives meaning a STATUS. Once the
+          // user touches the tab strip, persist that status explicitly or it
+          // would vanish with the param it rode in on.
+          if (legacyStatusTab) next.set('status', legacyStatusTab);
           return next;
         },
         { replace: true }
       );
     },
-    [setSearchParams]
+    [setSearchParams, legacyStatusTab]
+  );
+
+  const setSelectedStatus = useCallback(
+    (status: EntryStatusFilter) => {
+      setSearchParams(
+        previous => {
+          const next = new URLSearchParams(previous);
+          if (status === 'any') next.delete('status');
+          else next.set('status', status);
+          // Same migration concern in reverse: drop the legacy status-as-tab so
+          // it cannot override the status the user just picked.
+          if (legacyStatusTab) next.delete('tab');
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams, legacyStatusTab]
   );
   // Derive filtered and sorted entries from current tab and entries
   const filteredEntries = useMemo(() => {
-    let filtered = [...scopedEntries];
+    // Status first, then time. Order does not change the result — the two are
+    // independent — but applying both is the point: before Phase A the strip
+    // could express only one at a time.
+    let filtered = filterEntriesByStatus(scopedEntries, selectedStatus);
 
     switch (selectedTab) {
-      case 'pending':
-        filtered = filtered.filter(isPendingEntry);
-        break;
-      case 'accepted':
-        filtered = filtered.filter(isExhibitorInEntry);
-        break;
-      case 'waitlist':
-        filtered = filtered.filter(isWaitlistEntry);
-        break;
       case 'upcoming': {
         const now = new Date();
         // Strict complement of Completed: everything still ahead of the
@@ -171,7 +225,7 @@ export function useMyEntriesFilters({
     });
 
     return filtered;
-  }, [scopedEntries, selectedTab]);
+  }, [scopedEntries, selectedTab, selectedStatus]);
 
   const entryStats = useMemo<MyEntryStats>(() => {
     const now = new Date();
@@ -236,25 +290,47 @@ export function useMyEntriesFilters({
   // Counts for the tab strip. Derived from the SCOPED set, unlike entryStats
   // above: a tab label is a promise about what clicking it will show, and the
   // tabs filter the scoped list.
+  // Tab counts describe the list AFTER the status filter, so the strip always
+  // adds up to what the page is currently showing. `upcoming + completed` is
+  // exactly `all` — the partition invariant Phase A exists to create.
   const tabCounts = useMemo<Record<EntryTabFilter, number>>(() => {
     const now = new Date();
-    const completed = scopedEntries.filter(entry => isCompletedEntry(entry, now));
+    const statusFiltered = filterEntriesByStatus(scopedEntries, selectedStatus);
+    const completed = statusFiltered.filter(entry => isCompletedEntry(entry, now)).length;
     return {
-      all: scopedEntries.length,
-      pending: scopedEntries.filter(isPendingEntry).length,
-      accepted: scopedEntries.filter(isExhibitorInEntry).length,
-      waitlist: scopedEntries.filter(isWaitlistEntry).length,
-      upcoming: scopedEntries.length - completed.length,
-      completed: completed.length,
+      all: statusFiltered.length,
+      upcoming: statusFiltered.length - completed,
+      completed,
     };
-  }, [scopedEntries]);
+  }, [scopedEntries, selectedStatus]);
+
+  // ...and status counts describe the list within the ACTIVE tab, so a chip
+  // never promises rows the current tab would hide. The two counts read each
+  // other's axis on purpose: each answers "how many will I see if I click this".
+  const statusCounts = useMemo<Record<EntryStatusFilter, number>>(() => {
+    const now = new Date();
+    const inTab = scopedEntries.filter(entry => {
+      if (selectedTab === 'upcoming') return !isCompletedEntry(entry, now);
+      if (selectedTab === 'completed') return isCompletedEntry(entry, now);
+      return true;
+    });
+    return {
+      any: inTab.length,
+      pending: inTab.filter(isPendingEntry).length,
+      accepted: inTab.filter(isExhibitorInEntry).length,
+      waitlist: inTab.filter(isWaitlistEntry).length,
+    };
+  }, [scopedEntries, selectedTab]);
 
   return {
     filteredEntries,
     selectedTab,
     setSelectedTab,
+    selectedStatus,
+    setSelectedStatus,
     entryStats,
     tabCounts,
+    statusCounts,
     scopeMatch,
     clearScope,
   };

@@ -19,7 +19,14 @@ export {
 } from './myEntriesUtils';
 
 // Constants & copy
-export { ENTRY_TAB_DEFS, isEntryTabFilter } from './entryTabDefs';
+export { EntryStatusFilterChips } from './EntryStatusFilterChips';
+export {
+  ENTRY_STATUS_FILTER_DEFS,
+  ENTRY_TAB_DEFS,
+  isEntryStatusFilter,
+  isEntryTabFilter,
+  legacyTabAsStatusFilter,
+} from './entryTabDefs';
 export { ALL_ENTRIES_LABEL, ALL_ENTRIES_SCOPE_NOTE } from './myShowsCopy';
 
 // Components

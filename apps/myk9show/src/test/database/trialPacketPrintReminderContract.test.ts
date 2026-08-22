@@ -80,8 +80,12 @@ describe('print reminder cron', () => {
     expect(statements).not.toMatch(/'0 12 \* \* \*'/);
   });
 
-  it('survives one row with an unusable timezone', () => {
+  it('survives one row that raises, not just one with a bad timezone', () => {
+    // The POST is the statement most likely to raise, and the original handler
+    // covered only the timezone cast — so one bad row still lost every
+    // remaining show in that run.
     expect(statements).toMatch(/exception when others then/);
+    expect(statements).toMatch(/raise warning 'print reminder POST failed/);
     expect(statements).toMatch(/coalesce\(nullif\(btrim\(t\.timezone\), ''\), 'UTC'\)/);
   });
 

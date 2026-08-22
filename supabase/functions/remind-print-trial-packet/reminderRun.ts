@@ -207,17 +207,21 @@ export async function runPrintReminder(
     throw new HttpError(502, `Reminder email failed (${status}).`);
   }
 
-  const { error: sentError } = await supabase
-    .from(REMINDER_LOG)
-    .update({ sent_at: now().toISOString(), recipient_count: recipients.length })
-    .match({
-      show_id: request.showId,
-      trial_date: request.trialDate,
-      reminder_kind: request.kind,
-    })
-    .eq('claimed_at', claimedAt);
-  // The mail is already gone; failing here would report a delivered reminder
-  // as an error. The claim row still exists, so nobody is emailed twice.
+  // The mail is already gone. If this stamp does not land, the row keeps a
+  // null `sent_at`, the lease expires, and a later run in the same window
+  // reclaims it and sends a SECOND identical reminder. So retry once rather
+  // than accepting the first failure — a transient blip is the likely cause,
+  // and the retry is far cheaper than the duplicate.
+  const stampSent = async () =>
+    await supabase
+      .from(REMINDER_LOG)
+      .update({ sent_at: now().toISOString(), recipient_count: recipients.length })
+      .match(claimKey)
+      .eq('claimed_at', claimedAt);
+  let { error: sentError } = await stampSent();
+  if (sentError) ({ error: sentError } = await stampSent());
+  // Still failing: do NOT throw. The reminder was delivered, and reporting it
+  // as an error would invite a manual retry that emails everyone again.
   if (sentError) console.error('remind-print-trial-packet: could not stamp sent_at', sentError);
 
   return { sent: true, recipientCount: recipients.length };

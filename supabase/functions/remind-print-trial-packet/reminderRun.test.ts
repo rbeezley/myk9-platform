@@ -13,6 +13,8 @@ const DAY = '2026-10-04';
 interface StubOptions {
   hasPacket?: boolean;
   confirmations?: unknown[];
+  /** How many times stamping `sent_at` fails before succeeding. */
+  stampFailures?: number;
   /** kind -> the row already in the ledger. */
   existingReminders?: Record<string, { claimed_at: string; sent_at: string | null }>;
   recipients?: { email: string | null; show_id: string | null; club_id: string | null }[];
@@ -76,6 +78,11 @@ function makeStub(options: StubOptions = {}) {
           ops.push(`reminder-release:${kind}`);
           return Promise.resolve({ data: [], error: null }).then(res, rej);
         }
+        if (label === 'sent' && stampFailures > 0) {
+          stampFailures -= 1;
+          ops.push(`reminder-stamp-failed:${kind}`);
+          return Promise.resolve({ data: null, error: { message: 'blip' } }).then(res, rej);
+        }
         const row = reminders[kind];
         if (label === 'reclaim') {
           if (!row || row.sent_at) return Promise.resolve({ data: [], error: null }).then(res, rej);
@@ -97,6 +104,7 @@ function makeStub(options: StubOptions = {}) {
     return q;
   }
 
+  let stampFailures = options.stampFailures ?? 0;
   const supabase = {
     from(table: string) {
       if (table === 'shows') {
@@ -340,6 +348,35 @@ describe('the reminder lease', () => {
       reason: 'already-reminded',
     });
     expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('stamping the send', () => {
+  it('retries once rather than leaving a sent reminder unrecorded', async () => {
+    // A null `sent_at` lets the lease expire and a later run in the same
+    // window send a SECOND identical reminder. A transient blip is the likely
+    // cause, and one retry is far cheaper than the duplicate.
+    const sendEmail = vi.fn().mockResolvedValue('msg-1');
+    const { supabase, ops, reminders } = makeStub({ stampFailures: 1 });
+
+    const outcome = await runPrintReminder(supabase, request, makeDeps(sendEmail));
+
+    expect(outcome).toEqual({ sent: true, recipientCount: 1 });
+    expect(ops).toContain('reminder-stamp-failed:evening-before');
+    expect(ops).toContain('reminder-sent:evening-before');
+    expect(reminders['evening-before']?.sent_at).toBeTruthy();
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('never reports a delivered reminder as an error', async () => {
+    // Throwing here would invite a manual retry that emails everyone again.
+    const sendEmail = vi.fn().mockResolvedValue('msg-1');
+    const { supabase } = makeStub({ stampFailures: 5 });
+
+    await expect(runPrintReminder(supabase, request, makeDeps(sendEmail))).resolves.toEqual({
+      sent: true,
+      recipientCount: 1,
+    });
   });
 });
 

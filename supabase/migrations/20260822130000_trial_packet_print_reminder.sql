@@ -126,6 +126,11 @@ begin
     );
     continue when extract(hour from local_now) not between window_start and window_end;
 
+    -- The POST is the statement most likely to raise (queue pressure, a bad
+    -- URL), and the handler above covered only the timezone cast — so one bad
+    -- row still lost every remaining show in the run. Recovered 30 minutes
+    -- later, but the stated intent was that one bad row cannot do that.
+    begin
     perform net.http_post(
       url := p_base_url || '/remind-print-trial-packet',
       headers := jsonb_build_object(
@@ -139,6 +144,10 @@ begin
       ),
       timeout_milliseconds := 60000
     );
+    exception when others then
+      raise warning 'print reminder POST failed for show % on %: %',
+        rec.show_id, rec.date, sqlerrm;
+    end;
   end loop;
 end;
 $$;

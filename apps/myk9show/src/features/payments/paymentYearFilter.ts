@@ -27,6 +27,29 @@ export interface PaymentYearFilterRow {
   date: string | null;
 }
 
+export interface PaymentYearQueryRange {
+  start: string;
+  end: string;
+}
+
+/**
+ * Convert a URL calendar year into the UTC instants that enclose that year in
+ * the browser's local timezone. The server stores timestamptz values, while
+ * the ledger renders with local dates; constructing local midnights before
+ * serializing them keeps the query and `paymentRowYear` on the same boundary.
+ */
+export function paymentYearQueryRange(
+  year: string | null | undefined
+): PaymentYearQueryRange | null {
+  if (!year || !/^\d{4}$/.test(year)) return null;
+  const value = Number(year);
+  if (value < 1000 || value >= 9999) return null;
+  return {
+    start: new Date(value, 0, 1).toISOString(),
+    end: new Date(value + 1, 0, 1).toISOString(),
+  };
+}
+
 /**
  * The calendar year a row is displayed under, or null when it has no usable
  * date.

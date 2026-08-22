@@ -1,3 +1,11 @@
+// @vitest-environment node
+//
+// These cover code that runs under Deno, never in a browser. The suite's
+// global jsdom environment is not just unnecessary here, it is ACTIVELY
+// MISLEADING: jsdom swaps in its own `ArrayBuffer`, so a buffer built in test
+// code is a different realm's object from the one `crypto.subtle` accepts, and
+// `digest` rejects it with "2nd argument is not instance of ArrayBuffer" — on
+// CI's Node and not on every developer's.
 import { describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../http/responses.ts';
 import { deliverStoredPacket, type PacketShow, type StoredPacket } from './deliverStoredPacket.ts';
@@ -29,6 +37,7 @@ const PACKET: StoredPacket = {
   byteSize: 240_000,
   trialDate: '2026-09-19',
   generatedBy: 'd0000000-0000-4000-8000-000000000003',
+  generatedSource: 'manual',
 };
 
 interface StubOptions {
@@ -158,6 +167,10 @@ describe('deliverStoredPacket', () => {
       show_id: SHOW.id,
       snapshot_id: PACKET.snapshotId,
       provider_message_id: 'provider-msg-1',
+      // The day is recorded, not just embedded in the email: it is the
+      // automated trigger's idempotency key (MYK9-228 phase 4).
+      trial_date: PACKET.trialDate,
+      generated_source: 'manual',
     });
   });
 

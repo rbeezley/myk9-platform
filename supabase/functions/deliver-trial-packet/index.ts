@@ -69,6 +69,7 @@ handle<TrialPacketPayload>(
       byteSize: body.byteSize,
       trialDate: body.trialDate,
       generatedBy: user.id,
+      generatedSource: 'manual',
     });
   },
 );

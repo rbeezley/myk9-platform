@@ -102,6 +102,7 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(onMarkPrinted).toHaveBeenCalledWith(
       buildEmergencyPacketPaperworkDescriptor({
         showId: 'show-1',
+        trialDate: '2026-10-03',
         snapshotId: 'snapshot-1',
         generatedAt: '2026-08-20T22:00:00.000Z',
         entryIds: ['e1'],
@@ -109,6 +110,15 @@ describe('EmergencyTrialPacketPanel', () => {
         trialIds: ['t1'],
       })
     );
+
+    // Comparing against the builder alone would pass whatever the builder
+    // did. The subject key is the contract the print reminder reads back from
+    // the server, so assert its literal shape (MYK9-228 phase 5).
+    const descriptor = onMarkPrinted.mock.calls[0][0];
+    expect(Object.keys(descriptor.coverage.subjectFingerprints)).toEqual([
+      'packet-day:2026-10-03',
+    ]);
+    expect(descriptor.reportId).toBe('emergency-trial-packet');
   });
 
   /**
@@ -207,3 +217,141 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(retriedDates).toEqual(['2026-10-03', '2026-10-04', '2026-10-04']);
   });
 });
+
+/**
+ * MYK9-228 phase 5. Once cron generates the packet overnight, the session-only
+ * list is empty and the secretary needs a way to confirm the print WITHOUT
+ * pressing Prepare — which would mint a new snapshot and email every official
+ * a second copy. Without this the print reminder has no reachable off switch.
+ */
+describe('packets prepared outside this session', () => {
+  const delivered = (overrides: Record<string, unknown> = {}) => ({
+    trialDate: '2026-10-03',
+    snapshotId: 'snap-cron',
+    generatedAt: '2026-10-02T22:00:00.000Z',
+    pageCount: 12,
+    printState: 'unconfirmed' as const,
+    descriptor: buildEmergencyPacketPaperworkDescriptor({
+      showId: 'show-1',
+      trialDate: '2026-10-03',
+      snapshotId: 'snap-cron',
+      generatedAt: '2026-10-02T22:00:00.000Z',
+      entryIds: ['e1'],
+      classIds: ['c1'],
+      trialIds: ['t1'],
+    }),
+    ...overrides,
+  });
+
+  it('offers a print confirmation for a packet cron generated overnight', async () => {
+    const user = userEvent.setup();
+    const onMarkPrinted = vi.fn();
+    render(
+      <EmergencyTrialPacketPanel
+        data={data}
+        deliveredPackets={[delivered()]}
+        onMarkPrinted={onMarkPrinted}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /mark 2026-10-03 packet printed/i }));
+
+    expect(onMarkPrinted).toHaveBeenCalledTimes(1);
+    expect(onMarkPrinted.mock.calls[0][0].coverage.snapshotId).toBe('snap-cron');
+  });
+
+  it('shows a confirmed day as printed, with no button to press again', () => {
+    render(
+      <EmergencyTrialPacketPanel
+        data={data}
+        deliveredPackets={[delivered({ printState: 'printed' })]}
+        onMarkPrinted={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/^Printed$/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /mark 2026-10-03 packet printed/i })).toBeNull();
+  });
+
+  it('says a printed packet was replaced rather than calling it unprinted', () => {
+    // Telling someone who printed Thursday's copy that it is simply
+    // unconfirmed invites a second identical stack.
+    render(
+      <EmergencyTrialPacketPanel
+        data={data}
+        deliveredPackets={[delivered({ printState: 'superseded' })]}
+        onMarkPrinted={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/newer packet replaced the one that was printed/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /mark 2026-10-03 packet printed/i })
+    ).toBeInTheDocument();
+  });
+
+  it('does not offer two buttons for a day prepared in this session', async () => {
+    const user = userEvent.setup();
+    const prepare = vi.fn().mockResolvedValue({
+      snapshotId: 'snapshot-1',
+      generatedAt: '2026-08-20T22:00:00.000Z',
+      recipientCount: 2,
+      linkExpiresAt: '2026-10-19T22:00:00.000Z',
+      pageCount: 8,
+    });
+    render(
+      <EmergencyTrialPacketPanel
+        data={data}
+        deliveredPackets={[delivered()]}
+        prepare={prepare}
+        onMarkPrinted={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /prepare and email packet/i }));
+    await screen.findByRole('button', { name: /mark .* packet printed/i });
+
+    expect(screen.getAllByRole('button', { name: /mark 2026-10-03 packet printed/i })).toHaveLength(
+      1
+    );
+  });
+});
+
+describe('a confirmed packet stays confirmed regardless of report scope', () => {
+  const printedRow = {
+    trialDate: '2026-10-03',
+    snapshotId: 'snap-cron',
+    generatedAt: '2026-10-02T22:00:00.000Z',
+    pageCount: 12,
+    printState: 'printed' as const,
+    // Null whenever the report is narrowed to a trial or class, and while
+    // data is loading — none of which unprints a packet.
+    descriptor: null,
+  };
+
+  it('still says Printed when the report is narrowed and no descriptor exists', () => {
+    render(
+      <EmergencyTrialPacketPanel data={null} deliveredPackets={[printedRow]} onMarkPrinted={vi.fn()} />
+    );
+
+    expect(screen.getByText(/^Printed$/)).toBeInTheDocument();
+    // The scope hint is for days that are NOT confirmed. Showing it here reads
+    // as "not confirmed", and the obvious response is to widen the scope and
+    // confirm again — a second row for a snapshot already confirmed.
+    expect(screen.queryByText(/Choose All Trials and All Classes/i)).toBeNull();
+  });
+
+  it('does explain itself for an unconfirmed day with no descriptor', () => {
+    render(
+      <EmergencyTrialPacketPanel
+        data={null}
+        deliveredPackets={[{ ...printedRow, printState: 'unconfirmed' }]}
+        onMarkPrinted={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Choose All Trials and All Classes/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /mark .* printed/i })).toBeNull();
+  });
+});
+

@@ -156,7 +156,7 @@ export async function loadPacketRoleRows(
  * a lapsed member keeps the role row and would otherwise keep receiving the
  * show's paperwork.
  */
-async function resolveRecipients(
+export async function resolveRecipients(
   supabase: SupabaseClient,
   show: PacketShow,
   roleRows: PacketRoleRow[],

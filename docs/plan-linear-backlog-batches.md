@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0, 1 and 2 complete except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 is next and opens with eight decisions (D1–D8) that need Richard's call before any of its lanes can start. See **"Resume here — Batch 2 closed (2026-08-22, late)"** below.
+> **Status:** Active — Batches 0, 1 and 2 complete except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. **Batch 3 is executing:** D1–D8 were all answered on 2026-08-22 as recommended, D7 is recorded on MYK9-195, and Lanes 3A and 3B are in flight. See **"[RESOLVED 2026-08-22] All eight decisions answered"** under Batch 3.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -318,6 +318,29 @@ Decisions to make (recommendations from the issue analyses):
 | D8  | [MYK9-229](https://linear.app/myk9-platform/issue/MYK9-229) publish the approximate Stripe/myK9Show fee split?                    | Yes, after D1 settles the fee formula: computed per cart, explicitly approximate, public/shareable, and clear that clubs receive 100% of entry fees. Never split the Stripe receipt into estimated line items |
 
 **[ADDED] The decisions unblock independently — do not treat Batch 3 as one gate.** Lanes 3B/3C/3D depend only on their named decisions. D7 gates no code at all — it records MYK9-195's parked trigger while leaving the unmet work open. Lane 3A is the exception: D1 settles the fee formula first, then D8 decides how to disclose that settled formula. If a decision doesn't come back, only its dependent work waits; nothing here is a whole-batch blocker.
+
+### [RESOLVED 2026-08-22] All eight decisions answered — Batch 3 is executing
+
+Richard answered D1–D8 in one pass. **Every decision came back as the plan's recommendation, unchanged.** The gate is closed; no lane is waiting on a decision any more.
+
+| #   | Answer                                                                                                                                        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | **Flat 30¢ + $1.00 floor**, folded into the existing single "Platform Fee" line, no grandfathering. New `platform_settings` columns default to **0** |
+| D2  | **Yes** — shared `useUrlFilters`, debounced `{replace:true}`, all four browse pages, `?add=true` preserved                                     |
+| D3  | **Option 1 + 2** — sticky Name column *and* drop Breed/Sex below `md`                                                                          |
+| D4  | **Paginate cards at 25**, matching the table — one contract per dataset                                                                        |
+| D5  | **Role-aware card** — exhibitor sees breed/age/armband, secretary keeps owner                                                                  |
+| D6  | **Global 1.25 scale** (14/16/20/25/31), 16px body floor, single token change, before/after screenshots at 375/768/1280 before merge            |
+| D7  | **Defer both** MYK9-195 steps; parked in Backlog with the trigger recorded on the issue                                                        |
+| D8  | **Yes, after D1** — computed per cart, explicitly approximate, public and shareable, clubs receive 100% of entry fees                          |
+
+**Shared-system approvals granted for this session** (these do not carry to the next one): Linear status + comments; GitHub PR creation; PR merge after green CI and clean adversarial review; `supabase db push` for the 3A `platform_settings` migration only. **Not** approved and not to be assumed: any edge-function deploy — `push-trigger-run-proximity` stays dormant per the Batch 2 carry-out, still gated on MYK9-190.
+
+**D7 is closed as bookkeeping.** MYK9-195 moved Todo → Backlog with a comment recording both revisit triggers (manual clawbacks stop being rare; real payout-timing data exists) and restating that steps 3–4 are unmet work, not completed work. The issue is parked, not Done.
+
+**Execution order in flight:** 3A (MYK9-197) and 3B (MYK9-221) dispatched in parallel — disjoint file sets. 3C rebases onto 3B because both touch `BrowseDogsPage.tsx`. 3D (MYK9-220) runs alone last so the global reflow does not invalidate the other lanes' visual verification. MYK9-229 follows MYK9-197's merge inside Lane 3A, since it discloses whatever fee formula actually ships.
+
+**The Batch 2 standing gate carries forward:** adversarial subagent review on every PR, and run the mutation on every test. Both earned their cost four times over in Batch 2 — a test that cannot fail will certify a no-op as a fix.
 
 Then dispatch:
 

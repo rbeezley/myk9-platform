@@ -291,6 +291,11 @@ const BrowseDogsPage: React.FC = () => {
           <DogsTableView
             dogs={filteredDogs}
             selection={canBulkManageDogs ? dogSelection : undefined}
+            // Same predicate as the card view. This is the branch a judge,
+            // steward or chairman actually lands on — `isExhibitorOnly` is
+            // false for them, so `useViewPreference` defaults them to the
+            // table — and without this the MYK9-219 fix never reaches them.
+            showOwner={!ownDogsOnly}
           />
         );
       case 'cards':

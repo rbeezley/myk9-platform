@@ -1,4 +1,7 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import defaultTheme from 'tailwindcss/defaultTheme';
 import {
@@ -62,16 +65,30 @@ describe('getColumnLayoutClasses', () => {
 });
 
 describe('breakpoint premise', () => {
-  // `responsiveHide: 'md'` only means "hidden on a phone, present from tablet
-  // up" while `md` is Tailwind's stock 768px. Nothing else in the app would
-  // fail if a dependency bump moved it, so read the installed package rather
-  // than trusting the documented default.
-  //
-  // The other half of the premise — that `apps/myk9show/tailwind.config.js`
-  // does not override `theme.screens` — is checked by hand: the config is
-  // plain JS with no type declaration, so importing it here fails
-  // `typecheck:tests`. It carries no `screens` key as of this change.
-  it('md is Tailwind stock 768px in the installed package', () => {
+  // `responsiveHide` only means anything in device widths while the app is on
+  // Tailwind's stock scale. Two assertions, because `defaultTheme` is a COPY of
+  // that scale, not the app's resolved config: reading it alone would agree
+  // with the app by coincidence, and a `screens` override would move the real
+  // breakpoint while this file stayed green.
+  const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..');
+
+  it('is Tailwind stock: md 768px, lg 1024px', () => {
     expect(defaultTheme.screens.md).toBe('768px');
+    // `lg` is the one MYK9-222 rests on — Breed and Sex must clear every tablet
+    // (Surface is the widest at 912) and return by the narrowest desktop.
+    expect(defaultTheme.screens.lg).toBe('1024px');
+  });
+
+  it('and this app does not override the screens scale', () => {
+    const config = readFileSync(resolve(APP_ROOT, 'tailwind.config.js'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|\s)\/\/.*$/gm, '$1');
+
+    // Not cosmetic: setting `lg: '640px'` here would put Breed and Sex back on
+    // an iPad and reinstate the MYK9-222 defect, and every breakpoint test in
+    // this repo would still pass — they all read `defaultTheme`. If this fails,
+    // the override is not necessarily wrong; the device-width assertions in
+    // `DogsTableView.test.tsx` need to be re-derived from the real config.
+    expect(config).not.toMatch(/\bscreens\s*:/);
   });
 });

@@ -24,6 +24,41 @@ function makeSelection(overrides: Partial<DogsTableSelection> = {}): DogsTableSe
   };
 }
 
+type UserEvent = ReturnType<typeof render>['user'];
+
+/**
+ * Click "Export CSV" and return what the download would have contained.
+ * jsdom's Blob implements neither `text()` nor `arrayBuffer()`, hence FileReader.
+ */
+async function exportCsv(user: UserEvent): Promise<string> {
+  let exported: Blob | undefined;
+  const createObjectURL = vi
+    .spyOn(URL, 'createObjectURL')
+    .mockImplementation((blob: Blob | MediaSource) => {
+      exported = blob as Blob;
+      return 'blob:dogs-table-test';
+    });
+  const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+  try {
+    await user.click(screen.getByRole('button', { name: /export csv/i }));
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+  } finally {
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+    anchorClick.mockRestore();
+  }
+
+  expect(exported).toBeInstanceOf(Blob);
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(exported as Blob);
+  });
+}
+
 describe('DogsTableView', () => {
   beforeEach(() => localStorage.clear());
 
@@ -84,13 +119,13 @@ describe('DogsTableView', () => {
   // class strings the component happens to emit.
   //
   // jsdom evaluates a stylesheet's plain rules through the real cascade but
-  // discards `@media` blocks outright (measured: a rule for `md:table-cell`
-  // guarded by `@media (min-width: 768px)` does not apply even at
+  // discards `@media` blocks outright (measured: a rule for `lg:table-cell`
+  // guarded by `@media (min-width: 1024px)` does not apply even at
   // `innerWidth: 1024`). Dropping the guarded half therefore reproduces
   // exactly the narrow-viewport case — everything a browser applies BELOW the
-  // `md` breakpoint, and nothing it applies above. The class definitions below
-  // are Tailwind's own; that `md` is 768px is pinned separately in
-  // `data-table/__tests__/columnLayoutClasses.test.ts`.
+  // `lg` breakpoint, and nothing it applies above. These say WHETHER a column
+  // is dropped; WHICH width it is dropped at is asserted separately below,
+  // because jsdom cannot see a media query at all.
   describe('column layout at narrow widths', () => {
     const NARROW_VIEWPORT_UTILITIES = `
       .hidden { display: none; }
@@ -142,7 +177,7 @@ describe('DogsTableView', () => {
       }
     });
 
-    it('drops Breed and Sex below the md breakpoint', () => {
+    it('drops Breed and Sex below the lg breakpoint', () => {
       const column = renderCells();
       for (const label of ['Breed', 'Sex']) {
         expect(getComputedStyle(column(label).header).display).toBe('none');
@@ -255,6 +290,39 @@ describe('DogsTableView', () => {
     });
   });
 
+  // MYK9-219, table half. The card view drops the owner line on a roster the
+  // viewer owns; the table has to follow the same rule, because the roles that
+  // roster covers land here by default.
+  describe('owner column', () => {
+    it('renders the Owner column by default', () => {
+      render(<DogsTableView dogs={dogs} />);
+      expect(screen.getByRole('columnheader', { name: /owner/i })).toBeInTheDocument();
+    });
+
+    it('drops the Owner column when the roster is the viewer’s own dogs', () => {
+      render(<DogsTableView dogs={dogs} showOwner={false} />);
+      expect(screen.queryByRole('columnheader', { name: /owner/i })).not.toBeInTheDocument();
+      // Everything else stays.
+      for (const label of ['Name', 'Breed', 'Sex', 'Status']) {
+        expect(screen.getByRole('columnheader', { name: new RegExp(label, 'i') })).toBeInTheDocument();
+      }
+    });
+
+    it('drops it from the Columns menu too, not just from the grid', async () => {
+      const { user } = render(<DogsTableView dogs={dogs} showOwner={false} />);
+      await user.click(screen.getByRole('button', { name: /toggle columns/i }));
+      await screen.findByRole('menu');
+      expect(await screen.findByRole('menuitemcheckbox', { name: /breed/i })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitemcheckbox', { name: /owner/i })).not.toBeInTheDocument();
+    });
+
+    it('leaves Owner out of the CSV as well, since it carries nothing here', async () => {
+      const { user } = render(<DogsTableView dogs={dogs} showOwner={false} />);
+      const csv = await exportCsv(user);
+      expect(csv.split('\n')[0]).toBe('Name,Breed,Sex,Status');
+    });
+  });
+
   // Trap: adding a ceiling or a hide to an existing view re-arms every
   // downstream assumption written while the set was whole. `responsiveHide` is
   // CSS-only, so the CSV must still carry every column — a viewport-dependent
@@ -262,35 +330,7 @@ describe('DogsTableView', () => {
   it('still exports Breed and Sex even though they are hidden at narrow widths', async () => {
     const { user } = render(<DogsTableView dogs={dogs} />);
 
-    let exported: Blob | undefined;
-    const createObjectURL = vi
-      .spyOn(URL, 'createObjectURL')
-      .mockImplementation((blob: Blob | MediaSource) => {
-        exported = blob as Blob;
-        return 'blob:dogs-table-test';
-      });
-    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
-    const anchorClick = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => {});
-
-    try {
-      await user.click(screen.getByRole('button', { name: /export csv/i }));
-      expect(anchorClick).toHaveBeenCalledTimes(1);
-    } finally {
-      createObjectURL.mockRestore();
-      revokeObjectURL.mockRestore();
-      anchorClick.mockRestore();
-    }
-
-    expect(exported).toBeInstanceOf(Blob);
-    // jsdom's Blob implements neither text() nor arrayBuffer().
-    const csv = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsText(exported as Blob);
-    });
+    const csv = await exportCsv(user);
     expect(csv.split('\n')[0]).toBe('Name,Breed,Sex,Owner,Status');
     expect(csv).toContain('Labrador');
     expect(csv).toContain('female');

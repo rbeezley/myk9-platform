@@ -22,6 +22,14 @@ interface DogsTableViewProps {
   dogs: Dog[];
   /** When provided, renders a leading checkbox select column wired to this selection. */
   selection?: DogsTableSelection | undefined;
+  /**
+   * Whether the Owner column earns its width on this surface. False when the
+   * roster is scoped to dogs the viewer owns, where the column is their own
+   * name on every row — the same rule the card view applies (MYK9-219), and it
+   * has to be applied here too because the roles that roster covers (judge,
+   * steward, chairman) land on the TABLE by default, not on cards.
+   */
+  showOwner?: boolean;
 }
 
 function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog, unknown> {
@@ -86,6 +94,8 @@ function getSexBadge(sex: string | undefined) {
     </Badge>
   );
 }
+
+const OWNER_COLUMN_ID = 'owner';
 
 const columns: ColumnDef<Dog>[] = [
   {
@@ -158,7 +168,7 @@ const columns: ColumnDef<Dog>[] = [
     cell: ({ row }) => getSexBadge(row.original.sex),
   },
   {
-    id: 'owner',
+    id: OWNER_COLUMN_ID,
     accessorFn: dog => dog.ownerName || '',
     header: 'Owner',
     meta: { exportHeader: 'Owner', exportValue: (dog: unknown) => (dog as Dog).ownerName || '' },
@@ -177,13 +187,21 @@ const columns: ColumnDef<Dog>[] = [
   },
 ];
 
-export const DogsTableView: React.FC<DogsTableViewProps> = ({ dogs, selection }) => {
+export const DogsTableView: React.FC<DogsTableViewProps> = ({
+  dogs,
+  selection,
+  showOwner = true,
+}) => {
   const navigate = useNavigate();
 
-  const allColumns = useMemo(
-    () => (selection ? [buildSelectColumn(selection), ...columns] : columns),
-    [selection]
-  );
+  const allColumns = useMemo(() => {
+    // Dropped from the column model, not hidden with CSS: unlike the
+    // responsive hide, this is not about width. The column carries nothing on
+    // this roster, so it should not be in the Columns menu and should not be
+    // in the CSV either.
+    const visible = showOwner ? columns : columns.filter(col => col.id !== OWNER_COLUMN_ID);
+    return selection ? [buildSelectColumn(selection), ...visible] : visible;
+  }, [selection, showOwner]);
 
   return (
     <DataTable

@@ -504,6 +504,43 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       expect(screen.getByText('Jane Doe')).toBeInTheDocument();
     });
 
+    // NOTHING here sets `view-pref-dogs`. That matters: every other test in
+    // this block pre-selects cards, and a judge/steward/chairman has
+    // `isExhibitorOnly === false`, so `useViewPreference` lands them on the
+    // TABLE. Pre-setting the view is exactly what hid this from the suite —
+    // the predicate was extended to these roles but the fix only reached the
+    // card view they never see.
+    describe('on the view the user actually lands on', () => {
+      it.each([
+        ['judge', UserRole.JUDGE],
+        ['steward', UserRole.STEWARD],
+        ['chairman', UserRole.CHAIRMAN],
+      ])('does not show a %s their own name on the default view', (_label, role) => {
+        mockGetUserRoles.mockReturnValue([role]);
+
+        renderPage();
+
+        expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: 'Owner' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+      });
+
+      it('keeps the Owner column for a secretary on the default view', () => {
+        renderPage();
+
+        expect(screen.getByRole('columnheader', { name: 'Owner' })).toBeInTheDocument();
+        expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+      });
+
+      it('keeps the Owner column for a site admin on the default view', () => {
+        mockGetUserRoles.mockReturnValue([UserRole.SITE_ADMIN]);
+
+        renderPage();
+
+        expect(screen.getByRole('columnheader', { name: 'Owner' })).toBeInTheDocument();
+      });
+    });
+
     it('keeps the owner for a club admin, whose primary role is not elevated', () => {
       // getPrimaryRole([JUDGE, CLUB_ADMIN]) is JUDGE, but CLUB_ADMIN sees every
       // dog — the case where a primary-role test and a hasRole test disagree.

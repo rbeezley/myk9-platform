@@ -319,15 +319,27 @@ Deno.serve(async req => {
     // Authoritative fee rates: platform_settings row, else env, else default.
     // Percent + flat per-checkout component + floor (MYK9-197); flat/min default
     // to 0, so a link prices identically to a self-pay cart either way.
-    const { data: feeRow } = await supabase
+    const { data: feeRow, error: feeRowError } = await supabase
       .from('platform_settings')
       .select('platform_fee_percent, platform_fee_flat_cents, platform_fee_min_cents')
       .eq('id', true)
       .maybeSingle();
+    if (feeRowError) {
+      // NEVER silently swallowed. PostgREST answers an unknown column with 400 /
+      // 42703, so if this function is deployed BEFORE migration 20260823140000
+      // adds platform_fee_flat_cents and platform_fee_min_cents, every read here
+      // fails and the rates fall through to env and then the _shared default.
+      // That is invisible without this log, and it charges the DEFAULT percent
+      // rather than the configured one for the whole window.
+      // DEPLOY ORDER: migration first, then this function.
+      console.error(
+        `platform_settings read failed (${feeRowError.code ?? 'no code'}): ${feeRowError.message}. ` +
+          `Falling back to env/default fee rates — if this is 42703, migration ` +
+          `20260823140000 has not been applied and this function must not be live yet.`
+      );
+    }
     const platformFeeRates = resolvePlatformFeeRates(feeRow, {
       percent: Deno.env.get('PLATFORM_FEE_PERCENT'),
-      flatCents: Deno.env.get('PLATFORM_FEE_FLAT_CENTS'),
-      minCents: Deno.env.get('PLATFORM_FEE_MIN_CENTS'),
     });
 
     // Recompute each fee from the authority chain — never trust a client value.

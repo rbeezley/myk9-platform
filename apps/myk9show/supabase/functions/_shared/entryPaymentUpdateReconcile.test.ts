@@ -20,6 +20,8 @@ describe('reconcileEntryPaymentUpdateOutcome', () => {
       initialSameIntentPaidEntryIds: [],
       paymentIntentId: 'pi_123',
       sessionAmountTotalCents: 8500,
+      // 7/0/0 — the rates these legacy fixtures were priced with.
+      platformFeeRates: { percent: 7, flatCents: 0, minCents: 0 },
       entryFeesById: new Map([
         ['fresh', 4000],
         ['raced-paid', 4000],
@@ -47,6 +49,8 @@ describe('reconcileEntryPaymentUpdateOutcome', () => {
       initialSameIntentPaidEntryIds: [],
       paymentIntentId: 'pi_deleted',
       sessionAmountTotalCents: 4250,
+      // 7/0/0 — the rates these legacy fixtures were priced with.
+      platformFeeRates: { percent: 7, flatCents: 0, minCents: 0 },
       entryFeesById: new Map([['deleted', 4000]]),
     });
 
@@ -73,6 +77,8 @@ describe('reconcileEntryPaymentUpdateOutcome', () => {
       initialSameIntentPaidEntryIds: [],
       paymentIntentId: 'pi_withdrawn',
       sessionAmountTotalCents: 4250,
+      // 7/0/0 — the rates these legacy fixtures were priced with.
+      platformFeeRates: { percent: 7, flatCents: 0, minCents: 0 },
       entryFeesById: new Map([['withdrawn', 4000]]),
     });
 
@@ -103,6 +109,8 @@ describe('reconcileEntryPaymentUpdateOutcome', () => {
       initialSameIntentPaidEntryIds: [],
       paymentIntentId: 'pi_123',
       sessionAmountTotalCents: 4250,
+      // 7/0/0 — the rates these legacy fixtures were priced with.
+      platformFeeRates: { percent: 7, flatCents: 0, minCents: 0 },
       entryFeesById: new Map([['same-intent', 4000]]),
     });
 

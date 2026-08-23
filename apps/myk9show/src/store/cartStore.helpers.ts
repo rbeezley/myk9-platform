@@ -9,14 +9,22 @@ import type { CartItemWithDetails } from './cartStore.types';
 // ── PLATFORM FEE: THE CLIENT HALF OF A DUPLICATED EXPRESSION ──────────────
 // This is the SECOND implementation of the fee math. The authoritative one is
 // `supabase/functions/_shared/platformFee.ts`, which prices the actual charge.
-// The two must produce the same integer cent result for every input:
-// stripe-checkout heals a cart whose preview disagrees with the authoritative
-// price and asks the user to re-review, so a 1¢ divergence is a checkout loop,
-// not a rounding error. `platformFeeAgreement.test.ts` asserts they agree.
+// The two must produce the same integer cent result for every input.
+//
+// What a divergence costs (corrected by the MYK9-197 adversarial review, S3):
+// NOT a checkout loop. stripe-checkout's drift healer only compares per-item
+// entry fees against authoritative pricing, and the server overwrites the
+// cart's `platform_fee_cents` / `total_cents` outright rather than reading the
+// client's value back. A 1¢ divergence is therefore a silent mismatch between
+// the total shown in the cart and the total on the Stripe page — nothing in the
+// system notices, which is its own kind of bad.
 //
 // Two rules that keep them in agreement:
-//   * Integer percent, NOT a 0.07 float — 350¢ at 7% is 25¢ via
-//     `Math.round(350 * 7 / 100)` and 24¢ via `Math.round(350 * 0.07)`.
+//   * Integer percent, NOT a float rate. The often-repeated `350¢ at 7%` example
+//     was wrong (both forms give 25¢), but the hazard is real: at 14.5% a 100¢
+//     subtotal is 15¢ integer and 14¢ via a `0.145` float rate. Of the 41
+//     percents the admin input can save, 14.5 and 17.5 are the only two that
+//     diverge — both are in the agreement test's matrix.
 //   * Normalize before the arithmetic, so an out-of-range stored value lands on
 //     the same clamped number on both sides instead of diverging.
 //

@@ -214,11 +214,28 @@ export function resolveAcceptedEntrySnapshot(
     (sum, id) => sum + Math.max(0, Math.round(entryFeesById.get(id) ?? 0)),
     0
   );
-  // The flat component rides along with the percent here BY DESIGN. It was
-  // charged once for this checkout, and the make-whole tie-out
-  // (amount == subtotal + fee + make_whole) only balances if the flat appears on
-  // the same side of the equation it was charged on — it cancels out of the
-  // make-whole difference exactly as the percentage share does.
+  // The WHOLE fee on the accepted subtotal — flat per-checkout component and
+  // floor included — is booked here, because the platform earned both the moment
+  // the charge happened and neither belongs to any particular line.
+  //
+  // THIS IS ONLY CONSISTENT BECAUSE THE MAKE-WHOLE WRITERS AGREE. The tie-out
+  //   amount_cents == entry_subtotal_cents + platform_fee_cents + make_whole_refunded_cents
+  // balances only if the refund leaves the flat and the floor on this side.
+  // An earlier revision of this comment claimed the flat "cancels out of the
+  // make-whole difference exactly as the percentage share does" — it does not,
+  // and it did not: both writers then split the charge PROPORTIONALLY over the
+  // full session total, spreading the flat and the floor across the invalid
+  // lines. Executed at flat = 30¢ on a 2-entry $25 link with one entry invalid,
+  // that refunded 15¢ of the platform's own flat fee and booked 205¢ here
+  // against 190¢ actually retained; at minCents = 2000 on two $1 entries the
+  // gap was $10. Both writers now go through `makeWholeRefundCents`
+  // (MYK9-197 adversarial review, B1), which derives the refund from the entry
+  // fee data as invalidSubtotal + (fee(full) − fee(accepted)).
+  //
+  // So: do not change `makeWholeRefundCents` back to a proportional split, and
+  // do not book a partial fee here, without breaking the other. The tie-out
+  // cases in orderSnapshot.test.ts run at non-zero flat AND non-zero floor
+  // precisely so the pair cannot drift apart again.
   const rates = normalizePlatformFeeRates(
     feeRates ?? { percent: 0, flatCents: 0, minCents: 0 }
   );

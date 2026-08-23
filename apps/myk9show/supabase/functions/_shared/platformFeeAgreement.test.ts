@@ -8,11 +8,14 @@
 // that duplication safe. Both modules are imported HERE, into one process, and
 // asserted to return the identical integer for the same input.
 //
-// Why a 1¢ divergence is not a rounding error: stripe-checkout heals a cart
-// whose preview disagrees with the authoritative price by rewriting the cart
-// and asking the exhibitor to re-review. A preview that is permanently 1¢ off
-// therefore heals, re-renders, and heals again — a checkout loop, not a
-// cosmetic defect.
+// What a 1¢ divergence actually costs (corrected by the MYK9-197 adversarial
+// review, S3): NOT a checkout loop. stripe-checkout's drift healer compares
+// `entry_cart_items.entry_fee_cents` against `authoritativeEntryFeeCents` and
+// nothing else — the platform fee is never in that comparison, and the server
+// OVERWRITES the cart's `platform_fee_cents` / `total_cents` rather than reading
+// the client's value back. So a divergence is a silent mismatch between the
+// total the exhibitor reviewed and the total Stripe then charges. Nothing in
+// the system notices it, which is why this test has to.
 //
 // `// @vitest-environment node` because this file sits with edge-function code:
 // the app suite is jsdom-global, which is a lie for anything that runs on Deno.
@@ -46,9 +49,13 @@ const rates = (percent: number, flatCents = 0, minCents = 0): PlatformFeeRates =
 
 /**
  * Half-cent boundaries: subtotals where `subtotal × percent / 100` lands on
- * exactly x.5 and the two implementations could round apart if either one used
- * float-percent math. 350¢ at 7% is the documented one (25¢ integer vs 24¢ via
- * `Math.round(350 * 0.07)`); the rest are the same construction at other rates.
+ * exactly x.5, so the two implementations round apart if either one drifts to
+ * float-percent math.
+ *
+ * NOTE — the long-repeated `350¢ at 7%` example was FALSE and is not why these
+ * matter. `Math.round(350 * 0.07)` is 25, not 24: 350 * 0.07 evaluates to
+ * 24.500000000000004. The real float hazard lives at other admin-reachable
+ * rates and is covered by FLOAT_DIVERGENCE_CASES below.
  */
 const HALF_CENT_CASES: Array<{ subtotal: number; percent: number; expected: number }> = [
   { subtotal: 350, percent: 7, expected: 25 }, // 24.5 → 25
@@ -68,9 +75,33 @@ const HALF_CENT_CASES: Array<{ subtotal: number; percent: number; expected: numb
 // 30/0 is the adopted one; 0/100 and 30/100 exercise the floor.
 const ENTRY_FEES_CENTS = [0, 1, 99, 350, 500, 1000, 1429, 1500, 2500, 4999, 7550, 25000];
 const CART_SIZES = [1, 2, 3, 4, 5, 9];
-const PERCENTS = [0, 1.5, 2.5, 3, 7, 7.5, 12.25, 20];
+// 14.5 and 17.5 are load-bearing, not decoration: swept exhaustively, they are
+// the ONLY two of the 41 admin-reachable percents (0–20 step 0.5) at which a
+// float rate diverges from the integer expression — 1479 subtotals under
+// 200000¢ between them, because 0.145 is stored as 0.14499999999999999. A
+// matrix without them let a `Math.round(s * (p / 100))` mutant survive this
+// suite; that gap was itself a review finding.
+const PERCENTS = [0, 1.5, 2.5, 3, 7, 7.5, 12.25, 14.5, 17.5, 20];
 const FLATS = [0, 30, 99, 500];
 const FLOORS = [0, 100, 175, 2000];
+
+/**
+ * The subtotal/percent pairs where a FLOAT rate genuinely disagrees with the
+ * integer expression, at percents the admin input can actually produce
+ * (`step={0.5}`, range 0–20). These are what make the integer form load-bearing;
+ * the famous 350¢/7% example never was.
+ *
+ * Verified by exhaustive sweep: 14.5% and 17.5% are the only two such percents,
+ * with 1479 divergent subtotals under 200000¢ between them.
+ */
+const FLOAT_DIVERGENCE_CASES: Array<{ subtotal: number; percent: number; expected: number }> = [
+  { subtotal: 100, percent: 14.5, expected: 15 },
+  { subtotal: 1500, percent: 14.5, expected: 218 },
+  { subtotal: 2900, percent: 14.5, expected: 421 },
+  { subtotal: 180, percent: 17.5, expected: 32 },
+  { subtotal: 700, percent: 17.5, expected: 123 },
+  { subtotal: 1300, percent: 17.5, expected: 228 },
+];
 
 describe('client and server platform fee implementations agree', () => {
   it('agrees on the documented half-cent boundaries, at the shipped 0/0 config', () => {
@@ -90,6 +121,30 @@ describe('client and server platform fee implementations agree', () => {
           expect(serverFee(subtotal, r)).toBe(expectedFee);
           expect(clientFee(subtotal, r)).toBe(serverFee(subtotal, r));
         }
+      }
+    }
+  });
+
+  it('agrees where a FLOAT rate would diverge from the integer expression', () => {
+    // The real reason both sides must keep integer math.
+    for (const { subtotal, percent, expected } of FLOAT_DIVERGENCE_CASES) {
+      const r = rates(percent);
+      expect(serverFee(subtotal, r)).toBe(expected);
+      expect(clientFee(subtotal, r)).toBe(expected);
+      // Prove each case actually discriminates, so a future edit cannot quietly
+      // turn this into a list of values every implementation agrees on.
+      expect(Math.round(subtotal * (percent / 100))).toBe(expected - 1);
+    }
+  });
+
+  it('agrees at EVERY admin-reachable percent, not just the sampled ones', () => {
+    // The percent input is step=0.5 over 0–20, so these are all 41 values an
+    // operator can save. Sampling a handful is what let a float-rate mutant
+    // survive this suite once already.
+    for (let percent = 0; percent <= 20; percent += 0.5) {
+      const r = rates(percent, 30, 100);
+      for (const subtotal of [1, 100, 149, 300, 350, 500, 1000, 2500, 7550, 25000]) {
+        expect(clientFee(subtotal, r)).toBe(serverFee(subtotal, r));
       }
     }
   });
@@ -228,11 +283,22 @@ describe('rate resolution and the Stripe metadata round trip', () => {
     // A row that predates the flat/floor columns still yields a live percent.
     expect(resolvePlatformFeeRates({ platform_fee_percent: '5.50' })).toEqual(rates(5.5, 0, 0));
 
-    // No row at all: env, then the defaults.
-    expect(resolvePlatformFeeRates(null, { percent: '4', flatCents: '25' })).toEqual(
-      rates(4, 25, 0)
-    );
+    // No row at all: env for the percent, then the defaults.
+    expect(resolvePlatformFeeRates(null, { percent: '4' })).toEqual(rates(4, 0, 0));
     expect(resolvePlatformFeeRates(null)).toEqual(SERVER_DEFAULTS);
+  });
+
+  it('has NO env fallback for the flat component or the floor', () => {
+    // The client preview cannot read Deno secrets, so an env flat would be
+    // charged by the server and shown by nobody (MYK9-197 review, S5). An
+    // unreadable row must land on the same 0/0 the preview falls back to.
+    const unreadable = resolvePlatformFeeRates(null, { percent: '7' });
+    expect(unreadable.flatCents).toBe(0);
+    expect(unreadable.minCents).toBe(0);
+    expect({ flatCents: unreadable.flatCents, minCents: unreadable.minCents }).toEqual({
+      flatCents: CLIENT_DEFAULTS.flatCents,
+      minCents: CLIENT_DEFAULTS.minCents,
+    });
   });
 
   it('round-trips the charged rates through Stripe metadata', () => {

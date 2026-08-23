@@ -51,9 +51,17 @@ function platformFeeRatesQueryOptions() {
         // Absent row or a percent outside the allowed range: we did not read
         // usable rates. null, not the default — each caller decides what to do
         // about it. The percent is the gate because it is the only column that
-        // has ever been required; flat/min normalize to 0 when unusable, which
-        // is also their default, and the SERVER normalizes identically so the
-        // preview and the charge cannot diverge on a nonsense stored value.
+        // has ever been required.
+        //
+        // Precisely what this does and does not guarantee: for a row whose
+        // percent is IN range, flat/min go through the same
+        // `normalizePlatformFeeRates` the server uses, so a nonsense stored
+        // flat/min lands on the same clamped number on both sides. It is NOT a
+        // guarantee for an out-of-range PERCENT — that discards the whole read
+        // here while the server clamps and keeps charging, so the two would
+        // differ. The CHECK constraint on platform_fee_percent (0–20) makes
+        // that state unreachable through the database, which is why it is
+        // acceptable rather than handled.
         return null;
       }
       return normalizePlatformFeeRates({

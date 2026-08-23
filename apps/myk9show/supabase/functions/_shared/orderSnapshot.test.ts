@@ -12,6 +12,163 @@ import type { PlatformFeeRates } from './platformFee';
 
 const RATES_7: PlatformFeeRates = { percent: 7, flatCents: 0, minCents: 0 };
 import { decideEntryPaymentAutoRefund } from './entryPaymentAutoRefund';
+import { calculatePlatformFeeCents } from './platformFee';
+
+/**
+ * THE TIE-OUT UNDER NON-ZERO FLAT AND FLOOR (MYK9-197 adversarial review, B1).
+ *
+ * The tie-out `amount == subtotal + fee + make_whole` was only ever exercised at
+ * 7/0/0, and it silently broke the moment either new component was switched on:
+ * the make-whole writers split the charge PROPORTIONALLY over the session total,
+ * spreading the flat and the floor across the invalid lines, while the snapshot
+ * (correctly) booked both against the accepted side. At flat = 30¢ the delta was
+ * −15¢ and the platform refunded its own fee; at minCents = 2000 on two $1
+ * entries it was −1000¢.
+ *
+ * This harness drives the REAL writer and the REAL snapshot from one set of
+ * inputs and asserts two things at once:
+ *   1. the tie-out balances, and
+ *   2. the fee actually retained equals the fee booked in `platform_fee_cents`.
+ * (2) is the one that matters for income reporting and it is NOT implied by (1)
+ * — a writer could balance the identity while still refunding fee income.
+ */
+function tieOutAt(
+  rates: PlatformFeeRates,
+  entryFees: Record<string, number>,
+  acceptedIds: string[],
+  invalidIds: string[]
+): { delta: number | null; bookedFeeCents: number | null; retainedCents: number } {
+  const fees = new Map(Object.entries(entryFees));
+  const fullSubtotal = [...acceptedIds, ...invalidIds].reduce(
+    (sum, id) => sum + (fees.get(id) ?? 0),
+    0
+  );
+  const amountCents = fullSubtotal + calculatePlatformFeeCents(fullSubtotal, rates);
+  const snapshot = resolveAcceptedEntrySnapshot(acceptedIds, fees, rates);
+  const decision = decideEntryPaymentAutoRefund({
+    paymentIntentId: 'pi_tieout',
+    sessionAmountTotalCents: amountCents,
+    validPaidEntryIds: acceptedIds,
+    invalidEntryIds: invalidIds,
+    entryFeesById: fees,
+    platformFeeRates: rates,
+  });
+  const makeWhole = decision.action === 'refund' ? decision.amountCents : 0;
+  return {
+    delta: orderTieOutDeltaCents({
+      amount_cents: amountCents,
+      entry_subtotal_cents: snapshot.entrySubtotalCents,
+      platform_fee_cents: snapshot.platformFeeCents,
+      make_whole_refunded_cents: makeWhole,
+    }),
+    bookedFeeCents: snapshot.platformFeeCents,
+    retainedCents: amountCents - makeWhole - (snapshot.entrySubtotalCents ?? 0),
+  };
+}
+
+describe('the make-whole tie-out holds with a flat component and a floor', () => {
+  const two = { e1: 2500, e2: 2500 };
+  const four = { e1: 2500, e2: 2500, e3: 2500, e4: 2500 };
+
+  it('balances at a 30¢ flat component — the case that used to lose 15¢', () => {
+    const r = tieOutAt({ percent: 7, flatCents: 30, minCents: 0 }, two, ['e1'], ['e2']);
+    expect(r.delta).toBe(0);
+    // The whole 30¢ stays with the accepted side; the platform keeps what it booked.
+    expect(r.bookedFeeCents).toBe(205);
+    expect(r.retainedCents).toBe(205);
+  });
+
+  it('balances at a binding floor — the unbounded case (used to lose $10)', () => {
+    // Two $1 entries with a $20 floor: the floor is almost the entire charge, so
+    // a proportional split gave away half of it.
+    const r = tieOutAt({ percent: 7, flatCents: 0, minCents: 2000 }, { e1: 100, e2: 100 }, ['e1'], [
+      'e2',
+    ]);
+    expect(r.delta).toBe(0);
+    expect(r.bookedFeeCents).toBe(2000);
+    expect(r.retainedCents).toBe(2000);
+  });
+
+  it('balances at a non-binding floor', () => {
+    const r = tieOutAt({ percent: 7, flatCents: 0, minCents: 200 }, two, ['e1'], ['e2']);
+    expect(r.delta).toBe(0);
+    expect(r.retainedCents).toBe(r.bookedFeeCents);
+  });
+
+  it('balances with 1 of 4 accepted, where the invalid share is largest', () => {
+    const r = tieOutAt({ percent: 7, flatCents: 30, minCents: 0 }, four, ['e1'], [
+      'e2',
+      'e3',
+      'e4',
+    ]);
+    expect(r.delta).toBe(0);
+    expect(r.retainedCents).toBe(r.bookedFeeCents);
+  });
+
+  it('balances with 3 of 4 accepted', () => {
+    const r = tieOutAt({ percent: 7, flatCents: 30, minCents: 0 }, four, ['e1', 'e2', 'e3'], [
+      'e4',
+    ]);
+    expect(r.delta).toBe(0);
+    expect(r.retainedCents).toBe(r.bookedFeeCents);
+  });
+
+  it('balances across the whole rate × split matrix, not just the sampled cases', () => {
+    let checked = 0;
+    for (const percent of [0, 3, 7, 7.5, 14.5, 20]) {
+      for (const flatCents of [0, 30, 99, 500]) {
+        for (const minCents of [0, 100, 2000]) {
+          for (const entryFee of [100, 350, 2500, 7550]) {
+            for (let n = 2; n <= 4; n++) {
+              for (let accepted = 1; accepted < n; accepted++) {
+                const ids = Array.from({ length: n }, (_, i) => `e${i}`);
+                const fees = Object.fromEntries(ids.map(id => [id, entryFee]));
+                const r = tieOutAt(
+                  { percent, flatCents, minCents },
+                  fees,
+                  ids.slice(0, accepted),
+                  ids.slice(accepted)
+                );
+                expect(Math.abs(r.delta ?? Number.NaN)).toBeLessThanOrEqual(
+                  ORDER_TIE_OUT_TOLERANCE_CENTS
+                );
+                expect(r.retainedCents).toBe(r.bookedFeeCents);
+                checked += 1;
+              }
+            }
+          }
+        }
+      }
+    }
+    // Guards the loop: a matrix that checked nothing would pass silently.
+    // 6 percents × 4 flats × 3 floors × 4 entry fees × 6 accepted/invalid splits
+    // (n = 2..4 contributes 1 + 2 + 3 splits).
+    expect(checked).toBe(6 * 4 * 3 * 4 * 6);
+  });
+
+  it('still scales the refund down when Stripe collected LESS than the lines are worth', () => {
+    // A coupon or stale price. The platform cannot hand back more than it took,
+    // and this case legitimately fails the tie-out — the charge genuinely does
+    // not match the pricing, which is exactly what the tie-out exists to catch.
+    const fees = new Map([
+      ['e1', 5000],
+      ['e2', 6000],
+    ]);
+    const decision = decideEntryPaymentAutoRefund({
+      paymentIntentId: 'pi_under',
+      sessionAmountTotalCents: 10_000, // expected 11_770
+      validPaidEntryIds: ['e1'],
+      invalidEntryIds: ['e2'],
+      entryFeesById: fees,
+      platformFeeRates: RATES_7,
+    });
+    expect(decision).toEqual({
+      action: 'refund',
+      amountCents: 5_455,
+      reason: 'partial_invalid_entries',
+    });
+  });
+});
 
 describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () => {
   // Session: 3 entries at 1000¢ + 7% platform fee 210¢ = 3210¢ charged.
@@ -43,6 +200,7 @@ describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () 
       validPaidEntryIds: ['e1', 'e2'],
       invalidEntryIds: ['e3'],
       entryFeesById,
+      platformFeeRates: RATES_7,
     });
     expect(decision).toMatchObject({ action: 'refund', reason: 'partial_invalid_entries' });
     const makeWhole = decision.action === 'refund' ? decision.amountCents : 0;

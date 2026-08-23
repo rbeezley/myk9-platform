@@ -1311,6 +1311,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     paidLineIds,
     noServiceLineIds,
     lineAmountsById,
+    // The STAMPED rates, so the flat per-checkout component and the floor stay
+    // with the served lines instead of being refunded away (MYK9-197 B1).
+    platformFeeRates: stampedFeeRates,
   });
   const paidOrderAmountCents =
     overflowRefundDecision.paidAmountCents ??
@@ -1695,6 +1698,15 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // from, not just the refund amount. Deriving the snapshot from the session
   // total instead overstated the platform fee on every partial-invalid order.
   const entryFeesById = await loadEntryPaymentLineItemFees(session.id);
+  // Declared here rather than beside the snapshot below because the make-whole
+  // refund needs them too: the flat per-checkout component and the floor are
+  // earned once per CHARGE, so splitting them across the invalid entries
+  // refunded fee income the platform had genuinely retained (MYK9-197 B1).
+  // Absent stamps read as 0 — see decodeStampedPlatformFeeRates.
+  const linkFeeRates = decodeStampedPlatformFeeRates(
+    freshSession.metadata,
+    Deno.env.get('PLATFORM_FEE_PERCENT')
+  );
   const updateOutcome = reconcileEntryPaymentUpdateOutcome({
     plannedPatchIds,
     updatedEntryIds,
@@ -1706,6 +1718,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     paymentIntentId,
     sessionAmountTotalCents: freshAmountTotalCents,
     entryFeesById,
+    platformFeeRates: linkFeeRates,
   });
 
   // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
@@ -1752,10 +1765,6 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // order AND forced `amount == subtotal + fee` to hold by construction, which
   // made the tie-out `amount == subtotal + fee + make_whole` fail by exactly the
   // refund. Capture Stripe's actual processing fee (NULL = pending, never zero).
-  const linkFeeRates = decodeStampedPlatformFeeRates(
-    freshSession.metadata,
-    Deno.env.get('PLATFORM_FEE_PERCENT')
-  );
   const linkFeeSplit = resolveAcceptedEntrySnapshot(paidIds, entryFeesById, linkFeeRates);
   if (linkFeeSplit.status === 'unverifiable') {
     // Columns stay NULL (rate-unverifiable), never a guessed number that would

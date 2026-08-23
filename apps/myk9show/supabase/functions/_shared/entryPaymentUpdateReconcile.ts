@@ -2,6 +2,7 @@ import {
   decideEntryPaymentAutoRefund,
   type EntryPaymentAutoRefundDecision,
 } from './entryPaymentAutoRefund.ts';
+import type { PlatformFeeRates } from './platformFee.ts';
 import { INACTIVE_ENTRY_STATUSES } from './entryPaymentReconcile.ts';
 
 export interface EntryPaymentNoOpRow {
@@ -22,6 +23,8 @@ export interface ReconcileEntryPaymentUpdateOutcomeInput {
   paymentIntentId: string | null;
   sessionAmountTotalCents: number | null;
   entryFeesById: Map<string, number>;
+  /** The rates the session was priced with; see decideEntryPaymentAutoRefund. */
+  platformFeeRates: PlatformFeeRates;
 }
 
 export interface ReconcileEntryPaymentUpdateOutcomeResult {
@@ -101,6 +104,7 @@ export function reconcileEntryPaymentUpdateOutcome(
       validPaidEntryIds: paidEntryIds,
       invalidEntryIds,
       entryFeesById: input.entryFeesById,
+      platformFeeRates: input.platformFeeRates,
     }),
   };
 }

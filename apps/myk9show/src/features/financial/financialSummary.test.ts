@@ -319,14 +319,14 @@ describe('getFinancialSummary', () => {
     expect(result.entryAccounting.totals.collectedCents).toBe(10000);
     // Platform income is a separate figure.
     expect(result.platformIncome.grossPlatformFeeCents).toBe(250);
-    // Charge verification: check = Attested, online (matched) = Verified.
-    expect(result.chargeVerification.attestedCount).toBe(1);
-    expect(result.chargeVerification.verifiedCount).toBe(1);
+    // Charge verification: check = NoFeeBreakdown, online (matched) = FeeBreakdown.
+    expect(result.chargeVerification.noFeeBreakdownCount).toBe(1);
+    expect(result.chargeVerification.feeBreakdownCount).toBe(1);
     // Payout settlement is independent of charge facts.
     expect(result.payoutSettlement.completedCents).toBe(5000);
   });
 
-  it('counts an online entry with no matched order snapshot as Attested, never red', async () => {
+  it('counts an online entry with no matched order snapshot as NoFeeBreakdown, never red', async () => {
     const result = await getFinancialSummary(
       {
         scope: 'show',
@@ -342,8 +342,8 @@ describe('getFinancialSummary', () => {
       },
       { fetchSummary: vi.fn().mockResolvedValue(summaryRow({})) }
     );
-    expect(result.chargeVerification.attestedCount).toBe(1);
-    expect(result.chargeVerification.verifiedCount).toBe(0);
+    expect(result.chargeVerification.noFeeBreakdownCount).toBe(1);
+    expect(result.chargeVerification.feeBreakdownCount).toBe(0);
   });
 
   it('surfaces pending-net count from the reconciliation summary', async () => {

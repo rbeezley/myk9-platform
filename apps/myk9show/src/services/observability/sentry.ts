@@ -240,6 +240,37 @@ export function captureAuthEmailRequestFailure(
   });
 }
 
+/**
+ * Report a query whose failure would otherwise be invisible (MYK9-231).
+ *
+ * React Query catches a throwing `queryFn` into `isError`. That is the whole
+ * story: no console error, no failed request, nothing in any server log. The
+ * #1727 reconciliation outage was a detached-method `TypeError` that threw
+ * synchronously in the browser, so Postgres, edge and RPC-grant logs were all
+ * clean AND structurally incapable of seeing it — the only way to find it was
+ * to read the live React Query cache in a browser session.
+ *
+ * Opt in per query with `meta: { reportToSentry: true }` rather than reporting
+ * every query: most failures here are ordinary offline blips on an
+ * offline-first app, and reporting those would bury the ones that matter.
+ * Reserve it for surfaces where a silent failure is expensive — money views
+ * first.
+ *
+ * Called from the global `QueryCache.onError`, which fires once a query
+ * settles into the error state, so retries do not multiply the report.
+ */
+export function captureMonitoredQueryFailure(error: unknown, queryKey: readonly unknown[]): void {
+  const reportableError = error instanceof Error ? error : new Error('Query failed');
+
+  Sentry.withScope(scope => {
+    // The key is the only identifying context, and it is scrubbed by
+    // scrubSentryEvent like every other payload — ids pass, PII does not.
+    scope.setTag('query_root', typeof queryKey[0] === 'string' ? queryKey[0] : 'unknown');
+    scope.setContext('query', { queryKey });
+    Sentry.captureException(reportableError);
+  });
+}
+
 export function isAuthEmailOperationalFailure(error: unknown): boolean {
   if (!isRecord(error)) return false;
 

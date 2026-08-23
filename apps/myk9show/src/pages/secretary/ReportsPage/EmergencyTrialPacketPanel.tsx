@@ -16,6 +16,7 @@ import {
   buildEmergencyPacketPaperworkDescriptor,
   type PaperworkDescriptor,
 } from '@/features/show-map/cockpit/paperworkPrintState';
+import type { DeliveredPacketRow } from './deliveredPacketRows';
 
 type PacketData = Omit<EmergencyPacketInput, 'generatedAt'>;
 
@@ -50,6 +51,21 @@ async function preparePacket(
 
 export interface EmergencyTrialPacketPanelProps {
   data: PacketData | null;
+  /**
+   * Packets that already exist for this show, whoever made them.
+   *
+   * Once generation moved to cron (MYK9-228 phase 4) the session-only list
+   * below stopped being the whole story: the secretary arrives to a packet
+   * made overnight and needs to confirm printing it WITHOUT pressing Prepare,
+   * which would mint a new snapshot and email everyone a second copy. That is
+   * the only thing that stops the twice-daily print reminder.
+   */
+  deliveredPackets?: readonly DeliveredPacketRow[];
+  /**
+   * Rendering nothing on a failed read looks exactly like "no packets exist",
+   * which is the very state the reminder is chasing. Say so instead.
+   */
+  deliveredPacketsError?: boolean;
   unavailableReason?: string | undefined;
   prepare?: (
     input: EmergencyPacketInput,
@@ -60,6 +76,8 @@ export interface EmergencyTrialPacketPanelProps {
 
 export function EmergencyTrialPacketPanel({
   data,
+  deliveredPackets = [],
+  deliveredPacketsError = false,
   unavailableReason,
   prepare = preparePacket,
   onMarkPrinted,
@@ -67,6 +85,12 @@ export function EmergencyTrialPacketPanel({
   const [isPreparing, setIsPreparing] = useState(false);
   const [preparedPackets, setPreparedPackets] = useState<PreparedPacket[] | null>(null);
   const [error, setError] = useState(false);
+  // A day prepared in THIS session already has its own row above, so showing
+  // the stored copy again would offer two buttons for one packet.
+  const outstandingPackets = useMemo(() => {
+    const preparedDays = new Set((preparedPackets ?? []).map(packet => packet.trialDate));
+    return deliveredPackets.filter(row => !preparedDays.has(row.trialDate));
+  }, [deliveredPackets, preparedPackets]);
   const availability = useMemo(
     () =>
       data
@@ -101,6 +125,7 @@ export function EmergencyTrialPacketPanel({
             delivery,
             printDescriptor: buildEmergencyPacketPaperworkDescriptor({
               showId: day.input.show.id,
+              trialDate: day.trialDate,
               snapshotId: delivery.snapshotId,
               generatedAt: delivery.generatedAt,
               entryIds: day.input.entries.map(entry => entry.id),
@@ -181,6 +206,70 @@ export function EmergencyTrialPacketPanel({
                   : ''}
               </p>
             </div>
+          </div>
+        )}
+        {deliveredPacketsError && (
+          <p className="mb-4 text-sm font-medium text-destructive" role="alert">
+            We could not check which packets already exist for this show. Reload before preparing a
+            new one, or you may email a duplicate.
+          </p>
+        )}
+        {outstandingPackets.length > 0 && (
+          <div className="mb-4 space-y-2" data-testid="delivered-packets">
+            <p className="text-sm font-medium">Packets already prepared for this show</p>
+            {outstandingPackets.map(row => (
+              <div
+                key={row.snapshotId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"
+              >
+                <div>
+                  <span className="font-medium">{row.trialDate}</span>
+                  <span className="text-muted-foreground">
+                    {' · '}
+                    {row.pageCount} pages · generated{' '}
+                    {new Date(row.generatedAt).toLocaleString()}
+                  </span>
+                  {row.printState === 'superseded' && (
+                    <p className="text-warning">
+                      A newer packet replaced the one that was printed. Print this one and confirm
+                      again.
+                    </p>
+                  )}
+                </div>
+                {/*
+                  * Printed FIRST. Ordering these the other way told a
+                  * secretary who had already confirmed Saturday to "choose All
+                  * Trials and All Classes" the moment they narrowed the report
+                  * to one trial — because `descriptor` is null whenever the
+                  * scope is not show-wide, or while data is loading. It reads
+                  * as "not confirmed", and the obvious response is to widen
+                  * the scope and press the button again, appending a second
+                  * row for a snapshot already confirmed.
+                  */}
+                {row.printState === 'printed' ? (
+                  <span className="inline-flex items-center gap-1 text-success">
+                    <CheckCircle2 className="size-4" />
+                    Printed
+                  </span>
+                ) : !row.descriptor ? (
+                  <span className="text-muted-foreground">
+                    Choose All Trials and All Classes to confirm this packet.
+                  </span>
+                ) : (
+                  onMarkPrinted &&
+                  row.descriptor && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onMarkPrinted(row.descriptor as PaperworkDescriptor)}
+                    >
+                      <Printer className="size-4" />
+                      Mark {row.trialDate} packet printed
+                    </Button>
+                  )
+                )}
+              </div>
+            ))}
           </div>
         )}
         {(!preparedPackets || error) && (

@@ -9,6 +9,13 @@ export * from './my-entries-types';
 // Hooks
 export { useMyEntriesData } from './useMyEntriesData';
 export { useMyEntriesFilters } from './useMyEntriesFilters';
+export { useMyEntriesDialogs } from './useMyEntriesDialogs';
+export {
+  useResultReveal,
+  collectSeenResultReleaseKeys,
+  findResultRevealModel,
+  RESULT_ENTRY_ID_PARAM,
+} from './useResultReveal';
 
 // Utils
 export {

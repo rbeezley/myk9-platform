@@ -45,8 +45,8 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
         },
       },
       chargeVerification: {
-        verifiedCount: 0,
-        attestedCount: 0,
+        feeBreakdownCount: 0,
+        noFeeBreakdownCount: 0,
         pendingNetCount: 0,
         snapshotMissingCount: 0,
       },

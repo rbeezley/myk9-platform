@@ -4,10 +4,22 @@
 // club get paid?" and never "do the amounts look wrong?".
 //
 // TWO states, both grounded in a recorded fact:
-//   - Verified  we hold a Stripe order snapshot for this charge
-//   - Attested  we hold no Stripe snapshot — a desk payment (check, cash, waived,
-//               secretary/group), or a legacy order that pre-dates the snapshot
-//               contract. Recorded, counted in every total, but not Stripe-verified.
+//   - FeeBreakdown    we hold a Stripe order snapshot for this charge
+//   - NoFeeBreakdown  we hold no Stripe snapshot — a desk payment (check, cash,
+//                     waived, secretary/group), or a legacy order that pre-dates
+//                     the snapshot contract. Recorded and counted in every
+//                     total; we simply hold no Stripe row behind it.
+//
+// WHY THESE NAMES AND NOT 'Verified' / 'Attested' (MYK9-230). Those came from
+// the platform-side dashboard and were carried to the club surface without
+// re-checking the audience. 'Verified' reached past its evidence: this module
+// tests two columns for non-null and nothing else, while the badge said
+// "Verified against Stripe" out loud to a screen reader. On a treasurer-facing
+// surface that is expensive — the first real discrepancy found on a row marked
+// Verified retires the badge's meaning on every other row too. The names now
+// describe the recorded fact, so the resolver and the label make the same
+// claim. Renaming was the fix BECAUSE the logic is right: do not "restore" the
+// stronger word, and do not reintroduce amount comparison to earn it (below).
 //
 // WHY THERE IS NO 'Mismatch' STATE ANY MORE. It used to classify an order whose
 // amounts did not tie to `entry_subtotal + platform_fee + make_whole` as drift.
@@ -21,18 +33,18 @@
 //
 // Pure TypeScript only. Money is integer cents.
 
-export type ChargeVerificationState = 'Verified' | 'Attested';
+export type ChargeVerificationState = 'FeeBreakdown' | 'NoFeeBreakdown';
 
 /**
  * Payment labels (from getFinancialPaymentLabel) that represent a Stripe-backed
  * online charge. Everything else — Check, Cash, Waived/Comped, Secretary Paid,
- * Group Payment, Pending — is a desk/manual record with no Stripe trace and is
- * therefore Attested.
+ * Group Payment, Pending — is a desk/manual record with no Stripe trace, and so
+ * resolves to NoFeeBreakdown.
  */
 const STRIPE_BACKED_LABELS = new Set(['Online', 'Refunded', 'Partial Refund']);
 
 /** True when a payment label represents a desk/manual (non-Stripe) payment. */
-export function isDeskAttestedLabel(paymentLabel: string): boolean {
+export function isDeskPaymentLabel(paymentLabel: string): boolean {
   return !STRIPE_BACKED_LABELS.has(paymentLabel);
 }
 
@@ -46,19 +58,23 @@ export interface OrderChargeFacts {
 }
 
 /**
- * Do we hold a Stripe order snapshot for this order?
+ * Do we hold the Stripe fee snapshot for this order? That is the WHOLE question
+ * this answers — not whether the amounts agree, not whether the club was paid,
+ * and NOT whether a Stripe charge exists. Both columns land NULL for a real
+ * Stripe charge whenever an accepted entry has no fee, so a caller rendering
+ * this must never say "no charge".
  *
  * A snapshot is present when BOTH snapshot columns were captured at charge time
  * (migration 20260717122000). A null column means the order pre-dates the
- * snapshot contract or was recorded outside Stripe — Attested, not suspect.
+ * snapshot contract or was recorded outside Stripe — absent, not suspect.
  *
  * This deliberately does NOT compare amounts. See the module header: the tie-out
  * comparison was an inference that produced false reds on rounding residue,
  * legacy rows, partial refunds and desk refunds alike.
  */
 export function resolveOrderChargeVerification(order: OrderChargeFacts): ChargeVerificationState {
-  if (order.entrySubtotalCents == null || order.platformFeeCents == null) return 'Attested';
-  return 'Verified';
+  if (order.entrySubtotalCents == null || order.platformFeeCents == null) return 'NoFeeBreakdown';
+  return 'FeeBreakdown';
 }
 
 export interface EntryChargeVerificationInput {
@@ -71,23 +87,25 @@ export interface EntryChargeVerificationInput {
 /**
  * Resolve the charge-verification state for one accounting line.
  *
- * - Desk/manual payments are Attested (no Stripe trace to verify against).
- * - A Stripe-backed line with a matched snapshot is Verified.
- * - A Stripe-backed line with no matched snapshot is Attested: the payment is
- *   recorded, we simply hold no Stripe snapshot to back a "Verified" claim.
+ * - Desk/manual payments hold no Stripe trace at all.
+ * - A Stripe-backed line with a matched snapshot is FeeBreakdown.
+ * - A Stripe-backed line with no matched snapshot is NoFeeBreakdown: the
+ *   payment is recorded, we simply hold no Stripe snapshot to point at.
  */
 export function resolveEntryChargeVerification(
   input: EntryChargeVerificationInput
 ): ChargeVerificationState {
-  if (isDeskAttestedLabel(input.paymentLabel)) return 'Attested';
-  if (!input.matchedOrder) return 'Attested';
+  if (isDeskPaymentLabel(input.paymentLabel)) return 'NoFeeBreakdown';
+  if (!input.matchedOrder) return 'NoFeeBreakdown';
   return resolveOrderChargeVerification(input.matchedOrder);
 }
 
-/** Aggregate charge-verification counts across a scope. */
+/** Aggregate charge-verification counts across a scope. Field names track the
+ *  state names deliberately — a `verifiedCount` counting "we hold a snapshot"
+ *  is the same overclaim one indirection further from the screen. */
 export interface ChargeVerificationSummary {
-  verifiedCount: number;
-  attestedCount: number;
+  feeBreakdownCount: number;
+  noFeeBreakdownCount: number;
   /**
    * Orders whose Stripe processing fee is not yet captured, so their NET income is
    * pending (never treated as zero). Surfaced as pending, never as a problem.
@@ -99,8 +117,8 @@ export interface ChargeVerificationSummary {
 
 export function emptyChargeVerificationSummary(): ChargeVerificationSummary {
   return {
-    verifiedCount: 0,
-    attestedCount: 0,
+    feeBreakdownCount: 0,
+    noFeeBreakdownCount: 0,
     pendingNetCount: 0,
     snapshotMissingCount: 0,
   };

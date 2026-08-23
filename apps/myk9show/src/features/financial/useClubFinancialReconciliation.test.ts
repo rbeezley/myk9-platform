@@ -102,7 +102,7 @@ describe('useClubFinancialReconciliation', () => {
     expect(result.current.rows[0]).toMatchObject({
       showId: 'show-1',
       showName: 'Cedar Valley Classic',
-      chargeVerification: 'Verified',
+      chargeVerification: 'AllFeeBreakdowns',
     });
     expect(mockedOrders).toHaveBeenCalledWith(
       expect.objectContaining({ scope: 'club', clubId: 'club-1' })

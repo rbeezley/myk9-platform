@@ -41,6 +41,8 @@ const PACKET: StoredPacket = {
 };
 
 interface StubOptions {
+  /** A `sent` row for the same (show, day) under a DIFFERENT snapshot id. */
+  sameDaySentAttempt?: { recipient_count: number; page_count: number } | null;
   roleRows?: unknown[];
   clubMembers?: unknown[];
   objects?: { name: string }[] | null;
@@ -67,8 +69,11 @@ function makeStub(options: StubOptions = {}) {
     clubMembers = [],
     objects = [{ name: `${PACKET.snapshotId}.pdf` }],
     sentAttempt = null,
+    sameDaySentAttempt = null,
     signedUrl = 'https://storage.example/signed?token=x',
   } = options;
+  // The snapshot-id lookup comes first, the same-day lookup second.
+  let snapshotLookups = 0;
 
   function thenable(result: unknown) {
     const query: Record<string, unknown> = {};
@@ -87,7 +92,11 @@ function makeStub(options: StubOptions = {}) {
       if (table === 'user_roles') return thenable({ data: roleRows, error: null });
       if (table === 'club_members') return thenable({ data: clubMembers, error: null });
       if (table === 'trial_packet_snapshots') {
-        const query = thenable({ data: sentAttempt, error: null }) as Record<string, unknown>;
+        snapshotLookups += 1;
+        const query = thenable({
+          data: snapshotLookups === 1 ? sentAttempt : sameDaySentAttempt,
+          error: null,
+        }) as Record<string, unknown>;
         query.insert = (row: Record<string, unknown>) => {
           calls.push('insert:trial_packet_snapshots');
           inserts.push(row);
@@ -253,3 +262,62 @@ describe('deliverStoredPacket', () => {
     expect(inserts).toHaveLength(0);
   });
 });
+
+describe('the manual escape hatch', () => {
+  /**
+   * The secretary re-prepares Saturday's packet BECAUSE three dogs scratched
+   * since the 18:00 copy. Capturing late changes is the packet's whole point,
+   * and the issue names the manual button as the escape hatch for exactly it.
+   * A same-day send-once guard that also applies here finds the 18:00 row,
+   * sends nothing, and reports "stored and emailed" with the stale page count.
+   */
+  it('always sends a manual packet, even when the day already has one', async () => {
+    const { supabase, inserts } = makeStub({
+      sameDaySentAttempt: { recipient_count: 4, page_count: 40 },
+    });
+    const sendEmail = vi.fn().mockResolvedValue('provider-msg-2');
+
+    const result = await deliverStoredPacket(supabase, SHOW, PACKET, makeDeps(sendEmail));
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(result.alreadyDelivered).toBe(false);
+    expect(result.pageCount).toBe(PACKET.pageCount);
+    expect(inserts).toHaveLength(1);
+  });
+
+  it('still refuses a second AUTOMATED send for a day already delivered', async () => {
+    const { supabase, inserts } = makeStub({
+      sameDaySentAttempt: { recipient_count: 4, page_count: 40 },
+    });
+    const sendEmail = vi.fn();
+
+    const result = await deliverStoredPacket(
+      supabase,
+      SHOW,
+      { ...PACKET, generatedBy: null, generatedSource: 'automated' },
+      makeDeps(sendEmail)
+    );
+
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(result.alreadyDelivered).toBe(true);
+    expect(inserts).toEqual([]);
+  });
+
+  it('refuses to send a packet too large to record', async () => {
+    // The audit row's CHECK caps byte_size at 20MiB, so an oversized packet
+    // used to mail fine and then fail its insert every time.
+    const { supabase } = makeStub();
+    const sendEmail = vi.fn();
+    await expectHttpError(
+      deliverStoredPacket(
+        supabase,
+        SHOW,
+        { ...PACKET, byteSize: 20 * 1024 * 1024 + 1 },
+        makeDeps(sendEmail)
+      ),
+      413
+    );
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+

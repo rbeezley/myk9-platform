@@ -2,6 +2,17 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+/**
+ * NOTE (MYK9-228): `can_manage_show` is no longer the whole rule.
+ * `20260822193000_paperwork_prints_show_scoped_secretary.sql` widened these
+ * policies to `can_manage_show(show_id) OR is_show_secretary(show_id)`, because
+ * a secretary scoped to one show could read the packet but never confirm
+ * printing it. The assertions below still describe the ORIGINAL migration,
+ * which is correct as history; the effective policy is asserted in
+ * `paperworkPrintsShowScopedSecretary.test.ts`, and per this repo's rule the
+ * applied ACL must be verified against the database after `db push`.
+ */
+
 const appRoot = resolve(__dirname, '../../..');
 const migration = readFileSync(
   resolve(appRoot, '../../supabase/migrations/20260720100000_create_paperwork_prints.sql'),

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildArmbandPaperworkDescriptor,
+  buildEmergencyPacketPaperworkDescriptor,
   buildCheckInPaperworkDescriptor,
   buildResultPaperworkDescriptor,
   buildScoreSheetPaperworkDescriptor,
@@ -287,5 +288,96 @@ describe('paperwork coverage and fingerprints', () => {
       record: null,
       staleSubjectKeys: [],
     });
+  });
+});
+
+describe('emergency packet confirmations across trial days (MYK9-228 phase 5)', () => {
+  const showId = 'show-1';
+  const packet = (trialDate: string, snapshotId: string, trialIds: string[]) =>
+    buildEmergencyPacketPaperworkDescriptor({
+      showId,
+      trialDate,
+      snapshotId,
+      generatedAt: '2026-10-01T22:00:00.000Z',
+      entryIds: ['e1'],
+      classIds: ['c1'],
+      trialIds,
+    });
+
+  const evidence = (descriptor: ReturnType<typeof packet>, printedAt: string) => ({
+    id: `print-${printedAt}`,
+    reportId: descriptor.reportId,
+    coverage: descriptor.coverage as unknown as Record<string, unknown>,
+    fingerprint: descriptor.fingerprint,
+    printedAt,
+    printedByName: 'Secretary',
+  });
+
+  it('addresses the confirmation by day, so the server can answer "is Sunday printed?"', () => {
+    // A day may hold three trials, so ReportScope cannot carry it and every
+    // packet row is show-scoped with a null trial_id. The subject key is the
+    // only place the day survives.
+    expect(Object.keys(packet('2026-10-04', 's2', ['t2']).coverage.subjectFingerprints)).toEqual([
+      'packet-day:2026-10-04',
+    ]);
+  });
+
+  it('does not let Saturday’s printed packet describe Sunday as merely stale', () => {
+    // Both rows are show-scoped, so scopeCovers makes Saturday a candidate for
+    // Sunday. Keyed by snapshot id the fingerprints differed and Sunday read
+    // STALE — "you printed an older version" — when nobody had printed Sunday
+    // at all. That is the difference between "reprint" and "print".
+    const saturday = packet('2026-10-03', 'snap-sat', ['t1']);
+    const sunday = packet('2026-10-04', 'snap-sun', ['t2']);
+
+    const state = derivePaperworkPrintState([evidence(saturday, '2026-10-02T18:00:00.000Z')], sunday);
+
+    expect(state.state).toBe('unconfirmed');
+    expect(state.record).toBeNull();
+  });
+
+  it('still calls a reprint stale when the same day is regenerated', () => {
+    // The snapshot id and generatedAt stay in the FACTS, so a regeneration of
+    // the SAME day changes the fingerprint and the old confirmation goes
+    // stale. That distinction is the one the day key was conflating.
+    const first = packet('2026-10-03', 'snap-a', ['t1']);
+    const regenerated = buildEmergencyPacketPaperworkDescriptor({
+      showId,
+      trialDate: '2026-10-03',
+      snapshotId: 'snap-b',
+      generatedAt: '2026-10-02T23:00:00.000Z',
+      entryIds: ['e1'],
+      classIds: ['c1'],
+      trialIds: ['t1'],
+    });
+
+    const state = derivePaperworkPrintState(
+      [evidence(first, '2026-10-02T18:00:00.000Z')],
+      regenerated
+    );
+
+    expect(state.state).toBe('stale');
+    expect(state.staleSubjectKeys).toEqual(['packet-day:2026-10-03']);
+  });
+
+  it('reads a day as printed once its own confirmation exists', () => {
+    const sunday = packet('2026-10-04', 'snap-sun', ['t2']);
+    const state = derivePaperworkPrintState(
+      [
+        evidence(packet('2026-10-03', 'snap-sat', ['t1']), '2026-10-02T18:00:00.000Z'),
+        evidence(sunday, '2026-10-03T18:00:00.000Z'),
+      ],
+      sunday
+    );
+    expect(state.state).toBe('current');
+  });
+
+  it('ignores a voided confirmation', () => {
+    const sunday = packet('2026-10-04', 'snap-sun', ['t2']);
+    const state = derivePaperworkPrintState(
+      [{ ...evidence(sunday, '2026-10-03T18:00:00.000Z'), voidedAt: '2026-10-03T19:00:00.000Z' }],
+      sunday
+    );
+    expect(state.state).toBe('unconfirmed');
   });
 });

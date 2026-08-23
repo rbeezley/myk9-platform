@@ -31,7 +31,10 @@ async function callFinancialRpc<T>(fn: string, args: Record<string, unknown>): P
   // `(supabase.rpc as T)(...)` form, where the parentheses preserve the
   // reference, which is why only this module broke.
   const client = supabase as unknown as {
-    rpc: (name: string, params: Record<string, unknown>) => Promise<{
+    rpc: (
+      name: string,
+      params: Record<string, unknown>
+    ) => Promise<{
       data: unknown;
       error: unknown;
     }>;

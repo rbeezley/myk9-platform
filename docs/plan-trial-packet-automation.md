@@ -195,14 +195,96 @@ looks identical to healthy. Check `cron.job` by name after creating the secret.
 twice an hour and fires only inside each trial's own 18:00-21:59 local window.
 Verified across every zone in `pg_timezone_names`.
 
-## Phase 5 — the reminder means "print it"
+## Phase 5 — the reminder means "print it" ✅ (pending deploy)
 
-Automation can generate and email; it cannot put paper in a box. The reminder
-stops asking for a packet and starts asking for a print, firing only when
+Email to the show officials, evening before and morning of, firing only while
 `paperwork_prints` holds no confirmation covering that trial day.
 
-**Testing:** fires with no confirmation, stops once one exists, and does not
-fire for a day with no trials.
+**5a — the day had to become addressable first.** The packet is one artifact
+per trial DAY, but `ReportScope` has no 'day' kind and cannot get one (a day
+may hold three trials; a trial scope carries one id), so every confirmation
+writes `scope_kind='show'` with a null `trial_id`. Keyed by snapshot UUID, the
+day was unjoinable from SQL and no server-side reminder could ask "is day D
+printed?". Fixed by making the day first-class: subject key
+`packet-day:<date>`, plus `coverage.trialDate` and `coverage.snapshotId`.
+
+**A correction, since this plan asserted otherwise.** The original write-up
+claimed 5a also fixed a live UI bug — Saturday's confirmation making Sunday
+read `stale`. It does not, because that state is unreachable:
+`derivePaperworkPrintState` has exactly one production caller,
+`buildClassPaperworkMap`, iterating a `REPORTS` list the packet is not in. The
+packet descriptor never reaches it. The candidate-selection guard is still
+correct and worth keeping for when it does, but the load-bearing half of 5a is
+the persisted key, and the UI story was written without checking the call
+sites.
+
+**5b — the reminder.** Email rather than push: it reuses the recipient
+resolution phase 3 extracted, and the database holds exactly **one** push
+subscription. Two slots — the evening before and the morning of — in each
+trial's own local window, kept as separate rows so a sent evening reminder
+cannot suppress the morning one, which is the last moment paper can reach the
+box. It stays quiet when there is no packet.
+
+**What adversarial review changed here.** Codex was at its usage limit, so
+subagents reviewed instead, and phase 5 did not survive intact:
+
+- **The Resend idempotency key had no show in it.** Two clubs trialling the
+  same date collided: Resend replayed the first response for the second, so
+  those officials got nothing while the function recorded `sent`. Silent, and
+  same-weekend multi-club trials are normal.
+- **The exit condition was unreachable.** "Mark printed" rendered only from
+  in-session state, so for a packet cron generated overnight there was no
+  button — and the only way to get one was to press Prepare, minting a new
+  snapshot and emailing everyone a second copy. A twice-daily chase whose only
+  escape was the duplicate-stack problem the per-day split exists to prevent.
+  The panel now lists packets that already exist, with `printed`, `superseded`
+  and `unconfirmed` distinguished.
+- **A superseded print silenced the chase.** Matching on the day alone meant a
+  Thursday print stayed "done" after Friday's regeneration added late entries —
+  the server called it printed while the UI model called the same state stale.
+  `coverage.snapshotId` now has to match the current packet.
+- **The claim had no lease and one run per slot**, so "a failed send releases
+  the claim rather than burning the slot" was false: nothing retried, and a
+  crash between claiming and sending stranded the slot forever.
+- **The cron read Vault inside a function body**, hiding the dependency from
+  `audit_cron_vault_secrets()`. The generation cron read it inline and was
+  correctly caught — the tidier shape was the one evading the guard.
+
+**Testing.** 12 pure tests over the decision and the wording, 8 over the run
+(both mutation-checked — removing the packet check, the printed check, the
+claim, or the release each turns tests red), 9 over the migration, and 5 over
+the cross-day confirmation behaviour in `paperworkPrintState`.
+
+**Second review round.** The repairs were reviewed again, and several were
+wrong or incomplete:
+
+- **`paperwork_prints` was unreachable for a show-scoped secretary.** It gated
+  on `can_manage_show`, which resolves to `is_trial_secretary` and requires
+  `ur.show_id IS NULL` — club-scoped roles only. `trial_packet_snapshots`
+  already allowed `is_show_secretary(show_id)`, so such a secretary saw every
+  packet and got zero confirmations back, with no error. Every day read "not
+  printed", and the local-first write reported success while the server
+  rejected it. Migration `20260822150000` aligns the gates. Latent today (all
+  current role rows are club-scoped) but it fails silently, in the direction
+  that leaves a reminder chasing a day that was already printed.
+- **The lease existed only in a comment.** Any `23505` returned
+  `already-reminded`, so an isolate dying between the claim and the send
+  suppressed that slot permanently. Now a real stale-claim CAS takeover.
+- **Client and server disagreed on which snapshot is current** — server by
+  `created_at`, client by `generated_at`, which the BROWSER mints on the manual
+  path. A slow laptop clock made the confirmation name one snapshot while the
+  reminder checked another, so the chase never stopped. Both order by
+  `created_at`.
+- **The new hook swallowed errors and never invalidated.** A failed read
+  rendered nothing, which looks exactly like "no packets exist" — the original
+  defect by another route. Confirmations now come from
+  `useShowPaperworkPrints`, which reads the replicated table and already
+  subscribes to local and realtime changes, so confirming updates the list;
+  read failures are surfaced.
+- A packet whose day is outside the loaded scope rendered a row with no button
+  and no explanation. It now says what to do.
+
+**Still open:** deploy, and the shared `packet_cron_secret`.
 
 ## The trap this plan exists to avoid
 

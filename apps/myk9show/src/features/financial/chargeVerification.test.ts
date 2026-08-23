@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  isDeskAttestedLabel,
+  isDeskPaymentLabel,
   resolveEntryChargeVerification,
   resolveOrderChargeVerification,
 } from './chargeVerification';
@@ -28,8 +28,8 @@ function order(overrides: Partial<FinancialReconciliationOrder>): FinancialRecon
   };
 }
 
-describe('isDeskAttestedLabel', () => {
-  it('treats desk/manual labels as attested and Stripe-backed labels as not', () => {
+describe('isDeskPaymentLabel', () => {
+  it('treats desk/manual labels as having no Stripe fee breakdown and Stripe-backed labels as not', () => {
     for (const label of [
       'Check',
       'Cash',
@@ -38,32 +38,36 @@ describe('isDeskAttestedLabel', () => {
       'Group Payment',
       'Pending',
     ]) {
-      expect(isDeskAttestedLabel(label)).toBe(true);
+      expect(isDeskPaymentLabel(label)).toBe(true);
     }
     for (const label of ['Online', 'Refunded', 'Partial Refund']) {
-      expect(isDeskAttestedLabel(label)).toBe(false);
+      expect(isDeskPaymentLabel(label)).toBe(false);
     }
   });
 });
 
 describe('resolveOrderChargeVerification', () => {
-  it('is Verified when a Stripe snapshot was captured for the order', () => {
-    expect(resolveOrderChargeVerification(order({}))).toBe('Verified');
+  it('is FeeBreakdown when a Stripe snapshot was captured for the order', () => {
+    expect(resolveOrderChargeVerification(order({}))).toBe('FeeBreakdown');
   });
 
-  it('is Attested when the snapshot is missing (legacy / desk-recorded order)', () => {
+  it('is NoFeeBreakdown when the snapshot is missing (legacy / desk-recorded order)', () => {
     expect(
       resolveOrderChargeVerification(order({ entrySubtotalCents: null, platformFeeCents: null }))
-    ).toBe('Attested');
-    expect(resolveOrderChargeVerification(order({ platformFeeCents: null }))).toBe('Attested');
-    expect(resolveOrderChargeVerification(order({ entrySubtotalCents: null }))).toBe('Attested');
+    ).toBe('NoFeeBreakdown');
+    expect(resolveOrderChargeVerification(order({ platformFeeCents: null }))).toBe(
+      'NoFeeBreakdown'
+    );
+    expect(resolveOrderChargeVerification(order({ entrySubtotalCents: null }))).toBe(
+      'NoFeeBreakdown'
+    );
   });
 
   // ── THE DELETED INFERENCE. Verification is now a FACT ("do we hold a
   // snapshot?"), never a derived judgement about whether the amounts look right.
   // The old tie-out fired on rounding residue, legacy rows, partial refunds and
   // desk refunds alike; these cases pin that it no longer renders a red state.
-  it('does NOT judge amounts: a legitimate cart-overflow order stays Verified', () => {
+  it('does NOT judge amounts: a legitimate cart-overflow order stays FeeBreakdown', () => {
     expect(
       resolveOrderChargeVerification(
         order({
@@ -73,57 +77,59 @@ describe('resolveOrderChargeVerification', () => {
           makeWholeRefundedCents: 4000,
         })
       )
-    ).toBe('Verified');
+    ).toBe('FeeBreakdown');
   });
 
-  it('does NOT judge amounts: rounding residue on a split stays Verified', () => {
-    expect(resolveOrderChargeVerification(order({ amountCents: 5251 }))).toBe('Verified');
-    expect(resolveOrderChargeVerification(order({ amountCents: 6000 }))).toBe('Verified');
+  it('does NOT judge amounts: rounding residue on a split stays FeeBreakdown', () => {
+    expect(resolveOrderChargeVerification(order({ amountCents: 5251 }))).toBe('FeeBreakdown');
+    expect(resolveOrderChargeVerification(order({ amountCents: 6000 }))).toBe('FeeBreakdown');
   });
 
-  it('does NOT judge amounts: a post-hoc refund leaves the order Verified', () => {
+  it('does NOT judge amounts: a post-hoc refund leaves the order FeeBreakdown', () => {
     expect(
       resolveOrderChargeVerification(
         order({ amountCents: 5250, refundedCents: 2000, makeWholeRefundedCents: 0 })
       )
-    ).toBe('Verified');
+    ).toBe('FeeBreakdown');
   });
 });
 
 describe('resolveEntryChargeVerification', () => {
-  it('Attested for check, cash, or waived (no Stripe trace, stays in totals)', () => {
-    expect(resolveEntryChargeVerification({ paymentLabel: 'Check' })).toBe('Attested');
-    expect(resolveEntryChargeVerification({ paymentLabel: 'Cash' })).toBe('Attested');
-    expect(resolveEntryChargeVerification({ paymentLabel: 'Waived/Comped' })).toBe('Attested');
-  });
-
-  it('Verified when an online line has a matched order snapshot', () => {
-    expect(
-      resolveEntryChargeVerification({ paymentLabel: 'Online', matchedOrder: order({}) })
-    ).toBe('Verified');
-  });
-
-  it('Attested — never red — when an online line has no matched order snapshot', () => {
-    expect(resolveEntryChargeVerification({ paymentLabel: 'Online', matchedOrder: null })).toBe(
-      'Attested'
+  it('NoFeeBreakdown for check, cash, or waived (no Stripe trace, stays in totals)', () => {
+    expect(resolveEntryChargeVerification({ paymentLabel: 'Check' })).toBe('NoFeeBreakdown');
+    expect(resolveEntryChargeVerification({ paymentLabel: 'Cash' })).toBe('NoFeeBreakdown');
+    expect(resolveEntryChargeVerification({ paymentLabel: 'Waived/Comped' })).toBe(
+      'NoFeeBreakdown'
     );
   });
 
-  it('Attested when the matched order carries no snapshot columns', () => {
+  it('FeeBreakdown when an online line has a matched order snapshot', () => {
+    expect(
+      resolveEntryChargeVerification({ paymentLabel: 'Online', matchedOrder: order({}) })
+    ).toBe('FeeBreakdown');
+  });
+
+  it('NoFeeBreakdown — never red — when an online line has no matched order snapshot', () => {
+    expect(resolveEntryChargeVerification({ paymentLabel: 'Online', matchedOrder: null })).toBe(
+      'NoFeeBreakdown'
+    );
+  });
+
+  it('NoFeeBreakdown when the matched order carries no snapshot columns', () => {
     expect(
       resolveEntryChargeVerification({
         paymentLabel: 'Online',
         matchedOrder: order({ entrySubtotalCents: null, platformFeeCents: null }),
       })
-    ).toBe('Attested');
+    ).toBe('NoFeeBreakdown');
   });
 
-  it('does NOT judge amounts: an odd-looking online line is still Verified', () => {
+  it('does NOT judge amounts: an odd-looking online line is still FeeBreakdown', () => {
     expect(
       resolveEntryChargeVerification({
         paymentLabel: 'Online',
         matchedOrder: order({ amountCents: 9999 }),
       })
-    ).toBe('Verified');
+    ).toBe('FeeBreakdown');
   });
 });

@@ -80,5 +80,9 @@ export function usePlatformFinancialOverview() {
         }),
       };
     },
+    // Same blind spot as the club card, same fix (MYK9-231 AC3). #1727 took out
+    // every financial reconciliation surface, club AND site-admin, and left no
+    // trace anywhere an operator could see it.
+    meta: { reportToSentry: true },
   });
 }

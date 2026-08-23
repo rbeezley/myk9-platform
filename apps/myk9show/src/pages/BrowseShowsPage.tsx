@@ -254,15 +254,13 @@ const BrowseShowsPage: React.FC = () => {
     [updateViewModeParam, viewMode]
   );
 
-  // Sync view mode and club filter from URL on mount and param changes
+  // Sync view mode from URL on mount and param changes. `?club=` (and every
+  // other filter param) is owned by `useUrlFilters` inside useBrowseShowsFilters
+  // — re-syncing it here too would give the same value two writers (MYK9-221).
   useEffect(() => {
     const viewFromUrl = parseViewMode(searchParams.get('view')) ?? defaultViewMode;
     if (viewFromUrl !== viewMode) {
       queueMicrotask(() => setViewMode(viewFromUrl));
-    }
-    const clubFromUrl = searchParams.get('club');
-    if (clubFromUrl && clubFromUrl !== (filters.club === 'all' ? null : filters.club)) {
-      queueMicrotask(() => setFilters(prev => ({ ...prev, club: clubFromUrl })));
     }
   }, [defaultViewMode, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 

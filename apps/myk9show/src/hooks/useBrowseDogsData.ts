@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useRoleBasedDogs } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
@@ -14,6 +15,14 @@ const INITIAL_FILTERS: DogFilters = {
   breed: 'all',
   sex: 'all',
 };
+
+// WARNING: a value missing from this list is ERASED, not ignored — the param is
+// stripped and the filter falls back to its default. Adding a chip option
+// without adding it here does not degrade the deep link, it DESTROYS it.
+// `breed` is derived from the roster, so it has no static list to check against.
+const ALLOWED_FILTER_VALUES = {
+  sex: ['male', 'female'],
+} as const;
 
 export interface BrowseDogsData {
   dogs: Dog[];
@@ -37,7 +46,11 @@ export function useBrowseDogsData(): BrowseDogsData {
     refetch();
   }, [refetch]);
 
-  const [filters, setFilters] = useState<DogFilters>(INITIAL_FILTERS);
+  // URL-backed so a refresh, back-navigation, or shared link keeps the same
+  // result set (MYK9-221). Same [values, setValues] contract as useState.
+  const [filters, setFilters] = useUrlFilters<DogFilters>(INITIAL_FILTERS, {
+    allowedValues: ALLOWED_FILTER_VALUES,
+  });
 
   // Derive unique breeds from actual data
   const availableBreeds = useMemo(() => {
@@ -96,7 +109,7 @@ export function useBrowseDogsData(): BrowseDogsData {
 
   const clearAllFilters = useCallback(() => {
     setFilters(INITIAL_FILTERS);
-  }, []);
+  }, [setFilters]);
 
   return {
     dogs,

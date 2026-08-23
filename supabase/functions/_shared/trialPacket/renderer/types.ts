@@ -76,6 +76,10 @@ export interface EmergencyPacketClass {
   timeLimitArea3Seconds: number | null;
   /** Authoritative count of areas searched — not "how many limits are filled in". */
   numAreas: number | null;
+  /** Hide count for the class header. Null means "not configured", not zero. */
+  numHides: number | null;
+  /** Distraction count for the class header. Null means "not configured". */
+  distractionCount: number | null;
 }
 
 export interface EmergencyPacketInput {
@@ -87,12 +91,7 @@ export interface EmergencyPacketInput {
 }
 
 export type EmergencyPacketPageKind =
-  | 'cover'
-  | 'catalog'
-  | 'check-in'
-  | 'score-recording'
-  | 'certification'
-  | 'transcription';
+  'cover' | 'catalog' | 'check-in' | 'score-recording' | 'certification' | 'transcription';
 
 export interface EmergencyPacketPageContext {
   showName: string;
@@ -138,8 +137,7 @@ export interface EmergencyPacketModel {
 }
 
 export type EmergencyPacketAvailability =
-  | { available: true }
-  | { available: false; reason: string };
+  { available: true } | { available: false; reason: string };
 
 export interface EmergencyPacketDeliveryResult {
   snapshotId: string;

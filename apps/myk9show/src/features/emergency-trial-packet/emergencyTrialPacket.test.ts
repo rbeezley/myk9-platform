@@ -74,6 +74,8 @@ const input: EmergencyPacketInput = {
       timeLimitArea2Seconds: null,
       timeLimitArea3Seconds: null,
       numAreas: null,
+      numHides: null,
+      distractionCount: null,
     },
     {
       id: 'class-novice',
@@ -91,6 +93,8 @@ const input: EmergencyPacketInput = {
       timeLimitArea2Seconds: null,
       timeLimitArea3Seconds: null,
       numAreas: null,
+      numHides: null,
+      distractionCount: null,
     },
   ],
   entries: [

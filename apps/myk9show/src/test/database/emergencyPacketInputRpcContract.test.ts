@@ -18,6 +18,14 @@ const sql = readFileSync(
   'utf8'
 );
 
+const hidesSql = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260823150000_emergency_packet_input_hides.sql'
+  ),
+  'utf8'
+);
+
 describe('emergency_packet_input contract', () => {
   it('runs as definer with a pinned search_path', () => {
     expect(sql).toMatch(/SECURITY DEFINER/);
@@ -67,7 +75,9 @@ describe('emergency_packet_input contract', () => {
     // column prints an empty judge for normally configured classes.
     expect(sql).toMatch(/FROM public\.judge_assignments a/);
     expect(sql).toMatch(/a\.status = 'confirmed'/);
-    expect(sql).toMatch(/NULLIF\(btrim\(ja\.judge_full_name\), ''\),\s*\n\s*NULLIF\(btrim\(cl\.judge_name\), ''\)/);
+    expect(sql).toMatch(
+      /NULLIF\(btrim\(ja\.judge_full_name\), ''\),\s*\n\s*NULLIF\(btrim\(cl\.judge_name\), ''\)/
+    );
   });
 
   it('normalises the section sentinel the way the app does', () => {
@@ -173,5 +183,23 @@ describe('emergency_packet_input contract', () => {
 
   it('scopes to one trial day when asked, and the whole show when not', () => {
     expect(sql).toMatch(/p_trial_date IS NULL OR t\.date = p_trial_date/);
+  });
+
+  it('exposes hides and distraction counts on each class', () => {
+    // The scoresheet header prints both. Without them the packet's header is
+    // thinner than the Reports one and the two documents are not the same sheet.
+    expect(hidesSql).toMatch(/'numHides',\s*cl\.num_hides/);
+    expect(hidesSql).toMatch(/'distractionCount',\s*cl\.distraction_count/);
+  });
+
+  it('keeps the definer function locked down after the rebuild', () => {
+    // CREATE OR REPLACE preserves the ACL, but this migration re-declares the
+    // function, so the grants are restated and must still be restated correctly.
+    expect(hidesSql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.emergency_packet_input\(uuid, date\) FROM PUBLIC, anon, authenticated;/
+    );
+    expect(hidesSql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.emergency_packet_input\(uuid, date\) TO service_role;/
+    );
   });
 });

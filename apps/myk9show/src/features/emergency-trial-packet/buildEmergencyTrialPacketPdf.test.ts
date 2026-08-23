@@ -1,10 +1,7 @@
 import { PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import type { ReportEntry } from '@/lib/reports/types';
-import {
-  buildEmergencyPacketModel,
-  splitPacketInputByTrialDay,
-} from './emergencyTrialPacket';
+import { buildEmergencyPacketModel, splitPacketInputByTrialDay } from './emergencyTrialPacket';
 import jsPDF from 'jspdf';
 import {
   layoutDetailLines,
@@ -68,6 +65,8 @@ const fixture: EmergencyPacketInput = {
       timeLimitArea2Seconds: null,
       timeLimitArea3Seconds: null,
       numAreas: null,
+      numHides: null,
+      distractionCount: null,
     },
     {
       id: 'c2',
@@ -85,6 +84,8 @@ const fixture: EmergencyPacketInput = {
       timeLimitArea2Seconds: 120,
       timeLimitArea3Seconds: 90,
       numAreas: null,
+      numHides: null,
+      distractionCount: null,
     },
   ],
   entries: [
@@ -141,10 +142,7 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
     }
   }
   // jsPDF emits show-text operators as `(literal) Tj`.
-  return chunks
-    .join('\n')
-    .replace(/\\\(/g, '(')
-    .replace(/\\\)/g, ')');
+  return chunks.join('\n').replace(/\\\(/g, '(').replace(/\\\)/g, ')');
 }
 
 describe('buildEmergencyTrialPacketPdf', () => {
@@ -185,7 +183,9 @@ describe('buildEmergencyTrialPacketPdf', () => {
     long.classes[1].element = 'Interior and Exterior Combined Championship';
     long.classes[1].level = 'Advanced Qualifying Round';
     long.classes[1].judgeName = 'Alexandra Featherstonehaugh-Willoughby';
-    const text = await extractPdfText(buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(long)));
+    const text = await extractPdfText(
+      buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(long))
+    );
 
     expect(text).toContain('Area 3 1:30');
     expect(text).not.toContain('...');
@@ -260,7 +260,9 @@ describe('buildEmergencyTrialPacketPdf', () => {
   it('says nothing about a ring when the sport does not use one', async () => {
     const ringless = structuredClone(fixture) as EmergencyPacketInput;
     for (const cls of ringless.classes) cls.ringLabel = null;
-    const text = await extractPdfText(buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(ringless)));
+    const text = await extractPdfText(
+      buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(ringless))
+    );
 
     expect(text).not.toContain('Ring unassigned');
     expect(text).not.toContain('Ring');
@@ -269,7 +271,9 @@ describe('buildEmergencyTrialPacketPdf', () => {
   });
 
   it('still prints the ring for a sport that has one', async () => {
-    const text = await extractPdfText(buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture)));
+    const text = await extractPdfText(
+      buildEmergencyTrialPacketPdf(buildEmergencyPacketModel(fixture))
+    );
     expect(text).toContain('Ring 1');
     expect(text).toContain('Ring 2');
   });

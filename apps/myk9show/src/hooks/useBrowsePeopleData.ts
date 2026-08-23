@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { extractPersonName } from '@/components/users/UserDetails/userDetailsTypes';
 import type { User } from '@/types/user-types';
@@ -28,7 +29,9 @@ export interface BrowsePeopleData {
 export function useBrowsePeopleData(): BrowsePeopleData {
   const { people, isLoading, error } = useRoleBasedPeople();
 
-  const [filters, setFilters] = useState<PeopleFilters>(INITIAL_FILTERS);
+  // URL-backed so a refresh, back-navigation, or shared link keeps the same
+  // result set (MYK9-221). Same [values, setValues] contract as useState.
+  const [filters, setFilters] = useUrlFilters<PeopleFilters>(INITIAL_FILTERS);
 
   // Derive unique roles from actual data
   const availableRoles = useMemo(() => {
@@ -75,7 +78,7 @@ export function useBrowsePeopleData(): BrowsePeopleData {
 
   const clearAllFilters = useCallback(() => {
     setFilters(INITIAL_FILTERS);
-  }, []);
+  }, [setFilters]);
 
   return {
     people,

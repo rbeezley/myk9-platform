@@ -2,6 +2,12 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Club } from '@/types/club-types';
 import { useBrowseClubsData } from '../useBrowseClubsData';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
+
+// The browse filter hooks read their state from the query string
+// (MYK9-221, `useUrlFilters`), so they need a router in scope.
+const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter>{children}</MemoryRouter>;
 
 const state = vi.hoisted(() => ({
   clubs: [] as Club[],
@@ -47,7 +53,7 @@ describe('useBrowseClubsData readiness states', () => {
   });
 
   it('shows initial loading only when the cache is empty', () => {
-    const { result } = renderHook(() => useBrowseClubsData());
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
 
     expect(result.current.isLoading).toBe(true);
     expect(result.current.hasError).toBe(false);
@@ -57,7 +63,7 @@ describe('useBrowseClubsData readiness states', () => {
   it('renders cached clubs while a background refresh is still loading', () => {
     state.clubs = [club];
 
-    const { result } = renderHook(() => useBrowseClubsData());
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.hasError).toBe(false);
@@ -66,12 +72,12 @@ describe('useBrowseClubsData readiness states', () => {
 
   it('distinguishes an empty successful directory from an unavailable directory', () => {
     state.clubReadiness = 'fresh';
-    const emptyResult = renderHook(() => useBrowseClubsData()).result;
+    const emptyResult = renderHook(() => useBrowseClubsData(), { wrapper }).result;
     expect(emptyResult.current.isLoading).toBe(false);
     expect(emptyResult.current.hasError).toBe(false);
 
     state.clubReadiness = 'unavailable';
-    const unavailableResult = renderHook(() => useBrowseClubsData()).result;
+    const unavailableResult = renderHook(() => useBrowseClubsData(), { wrapper }).result;
     expect(unavailableResult.current.isLoading).toBe(false);
     expect(unavailableResult.current.hasError).toBe(true);
   });
@@ -79,18 +85,18 @@ describe('useBrowseClubsData readiness states', () => {
   it('keeps cached clubs visible when refresh becomes unavailable or offline', () => {
     state.clubs = [club];
     state.clubReadiness = 'unavailable';
-    const unavailable = renderHook(() => useBrowseClubsData()).result;
+    const unavailable = renderHook(() => useBrowseClubsData(), { wrapper }).result;
     expect(unavailable.current.clubs).toEqual([club]);
     expect(unavailable.current.hasError).toBe(false);
 
     state.clubReadiness = 'offline';
-    const offline = renderHook(() => useBrowseClubsData()).result;
+    const offline = renderHook(() => useBrowseClubsData(), { wrapper }).result;
     expect(offline.current.clubs).toEqual([club]);
     expect(offline.current.hasError).toBe(false);
   });
 
   it('uses explicit retry to request a fresh club readiness check', async () => {
-    const { result } = renderHook(() => useBrowseClubsData());
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
 
     act(() => result.current.handleRetry());
 

@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ReportPreview } from '../ReportPreview';
+import { getReportById } from '@/lib/reports/reportRegistry';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import { fromAny } from '@total-typescript/shoehorn';
@@ -81,7 +82,12 @@ const entries = [
 ] as unknown as DbEntry[];
 
 describe('ReportPreview', () => {
-  it('renders assignment-backed class judges in check-in sheet previews', async () => {
+  // check-in-sheet renders from the shared PDF renderer as of Task 6 (see
+  // `toScoresheetModel.test.ts` for its judge-name coverage via
+  // `buildEmergencyPacketData`), so this markup-path regression test moved to
+  // results-sheet — another class-scoped report using the same
+  // `TrialInfoBox`/`resolveClassJudgeName` path this test exercises.
+  it('renders assignment-backed class judges in results sheet previews', async () => {
     const assignmentClasses = [
       {
         ...classes[0],
@@ -97,7 +103,7 @@ describe('ReportPreview', () => {
 
     render(
       <ReportPreview
-        reportType="check-in-sheet"
+        reportType="results-sheet"
         show={show}
         trials={trials}
         classes={assignmentClasses}
@@ -228,6 +234,68 @@ describe('ReportPreview', () => {
     const retry = screen.getByRole('button', { name: 'Try again' });
     await userEvent.click(retry);
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  describe('PDF-backed reports (check-in sheet, scoresheet)', () => {
+    const originalCheckInBuildPdf = getReportById('check-in-sheet')!.buildPdf;
+
+    afterEach(() => {
+      getReportById('check-in-sheet')!.buildPdf = originalCheckInBuildPdf;
+    });
+
+    it('renders the check-in sheet PDF into the iframe via an object URL', async () => {
+      render(
+        <ReportPreview
+          reportType="check-in-sheet"
+          show={show}
+          trials={trials}
+          classes={classes}
+          entries={[entries[0]!]}
+          trialId="trial-1"
+          classId="class-1"
+          dogId="all"
+          sortOrder="run-order"
+          isLoading={false}
+          isError={false}
+        />
+      );
+
+      const iframe = screen.getByTitle('Report Preview') as HTMLIFrameElement;
+      await waitFor(() => {
+        expect(iframe.src).toMatch(/^blob:/);
+      });
+    });
+
+    it('shows an inline error with a retry when the PDF renderer throws', async () => {
+      const buildPdf = vi.fn(() => {
+        throw new Error('Emergency packet is too large to upload.');
+      });
+      getReportById('check-in-sheet')!.buildPdf = buildPdf;
+
+      render(
+        <ReportPreview
+          reportType="check-in-sheet"
+          show={show}
+          trials={trials}
+          classes={classes}
+          entries={[entries[0]!]}
+          trialId="trial-1"
+          classId="class-1"
+          dogId="all"
+          sortOrder="run-order"
+          isLoading={false}
+          isError={false}
+        />
+      );
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('Emergency packet is too large to upload.');
+      expect(buildPdf).toHaveBeenCalledTimes(1);
+
+      const retry = screen.getByRole('button', { name: 'Try again' });
+      await userEvent.click(retry);
+      expect(buildPdf).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('omits the retry button when no onRetry handler is provided', () => {

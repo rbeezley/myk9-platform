@@ -8,7 +8,14 @@ import type React from 'react';
  */
 export function printIframe(iframeRef: React.RefObject<HTMLIFrameElement | null>): boolean {
   const iframe = iframeRef.current;
-  if (!iframe?.contentDocument?.body?.innerHTML) return false;
+  if (!iframe) return false;
+  // The PDF-backed reports (check-in sheet, scoresheet) point the iframe at a
+  // `blob:` object URL instead of writing markup into `contentDocument` — the
+  // browser's native PDF viewer owns that document, so `body.innerHTML` is
+  // not a meaningful "has content" signal for it.
+  const hasPdfContent = iframe.src?.startsWith('blob:') ?? false;
+  const hasMarkupContent = Boolean(iframe.contentDocument?.body?.innerHTML);
+  if (!hasPdfContent && !hasMarkupContent) return false;
   iframe.contentWindow?.print();
   return true;
 }

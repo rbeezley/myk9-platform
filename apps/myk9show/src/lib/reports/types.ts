@@ -1,6 +1,7 @@
 import type React from 'react';
-import type { DbShow, DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
+import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { PaymentStatus } from '@/types/show-registration-types';
+import type { Show } from '@/types/show-types';
 
 export const REPORT_ENTRY_SOURCE = {
   MYK9: 'myk9',
@@ -120,15 +121,26 @@ export interface ReportDefinition {
   component: React.ComponentType<ReportProps>;
   enabled: boolean;
   supportsDogFilter?: boolean;
+  /**
+   * Present on the two reports that must also render server-side (check-in
+   * sheet, scoresheet). When set, ReportsPage renders this PDF instead of
+   * `component`, so the paper is byte-identical to the trial packet's.
+   */
+  buildPdf?: (dataset: ReportDataSet, sortOrder: string) => Uint8Array;
 }
 
 export interface ReportDataSet {
-  show: DbShow;
+  show: Show;
   pages: ReportPageData[];
 }
 
 export interface ReportPageData {
   trial: DbTrial;
-  classData: DbClass;
+  /**
+   * Optional: a class-scoped report can be opened before class data resolves
+   * (still loading, or the selected id no longer matches). Consumers must
+   * skip such a page rather than dereference it.
+   */
+  classData?: DbClass;
   entries: DbEntry[];
 }

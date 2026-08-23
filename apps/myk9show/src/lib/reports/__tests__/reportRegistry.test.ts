@@ -128,6 +128,11 @@ describe('reportRegistry', () => {
       const placeholderReportIds = [
         'armband-labels',
         'result-labels',
+        // check-in-sheet and scoresheet render via `buildPdf` (the shared
+        // trial-packet PDF renderer), not through `component` — see
+        // ReportPreview.tsx's PDF branch.
+        'check-in-sheet',
+        'scoresheet',
         'ukc-nosework-entry-form',
         'ukc-nosework-change-entry-form',
         'ukc-nosework-judges-book-element',

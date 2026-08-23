@@ -46,6 +46,10 @@ const DISCIPLINE_MAP: Record<string, string> = {
  * `!== 'all'` test in applyFilters but matches none of the branches, silently
  * skipping the date filter and leaking past shows onto the default view.
  * `club` and `organization` are data-derived and deliberately absent.
+ *
+ * WARNING: a value missing from a list here is ERASED, not ignored — the param
+ * is stripped and the filter falls back to its default. Adding a chip option
+ * without adding it here does not degrade the deep link, it DESTROYS it.
  */
 const ALLOWED_FILTER_VALUES = {
   discipline: Object.keys(DISCIPLINE_MAP),

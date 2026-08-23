@@ -135,6 +135,50 @@ describe('a pending write never follows the user to another route', () => {
   });
 });
 
+describe('a pending write never survives a same-route Back', () => {
+  it('CONTROL: Back with nothing pending restores the previous query string', () => {
+    const router = boot('/dogs?search=rex');
+    act(() => void router.navigate('/dogs'));
+    expect(probe.search).toBe('');
+
+    act(() => void router.navigate(-1));
+    act(() => void vi.advanceTimersByTime(600));
+
+    expect(probe.search).toBe('?search=rex');
+  });
+
+  it('drops the write when the user presses Back on the same route', () => {
+    // History is [/dogs?search=rex, /dogs]. The pathname never changes, so a
+    // pathname-only guard lets the write through — and because it is a
+    // `replace`, it would overwrite the entry Back just restored, taking
+    // `?search=rex` with it so Forward cannot recover it either.
+    const router = boot('/dogs?search=rex');
+    act(() => void router.navigate('/dogs'));
+
+    act(() => setter.set!(p => ({ ...p, search: 'max' })));
+    act(() => void vi.advanceTimersByTime(50));
+    act(() => void router.navigate(-1));
+    act(() => void vi.advanceTimersByTime(600));
+
+    expect(probe.search).toBe('?search=rex');
+  });
+
+  it('drops the write when Back lands before React commits it', () => {
+    const router = boot('/dogs?search=rex');
+    act(() => void router.navigate('/dogs'));
+
+    act(() => setter.set!(p => ({ ...p, search: 'max' })));
+    act(() => void vi.advanceTimersByTime(50));
+    act(() => {
+      void router.navigate(-1);
+      vi.advanceTimersByTime(300);
+    });
+    act(() => void vi.advanceTimersByTime(600));
+
+    expect(probe.search).toBe('?search=rex');
+  });
+});
+
 describe('a pending write never clobbers a filter changed underneath it', () => {
   it('keeps a ?club= set by a deep link while a search write was in flight', () => {
     const router = boot();
@@ -148,6 +192,26 @@ describe('a pending write never clobbers a filter changed underneath it', () => 
     const params = new URLSearchParams(probe.search);
     expect(params.get('search')).toBe('retriev');
     expect(params.get('club')).toBe('club-1');
+  });
+
+  it('does not revert an external navigation with the previous write\'s params', () => {
+    // write -> external navigation -> write. The second write must fold onto the
+    // navigation's query string, not onto the optimistic base left by the first;
+    // otherwise the navigation is silently reverted by the next chip click.
+    const router = boot();
+
+    act(() => setter.set!(p => ({ ...p, club: 'club-1' })));
+    expect(new URLSearchParams(probe.search).get('club')).toBe('club-1');
+
+    act(() => void router.navigate('/dogs?club=club-2'));
+    expect(new URLSearchParams(probe.search).get('club')).toBe('club-2');
+
+    act(() => setter.set!(p => ({ ...p, search: 'rex' })));
+    act(() => void vi.advanceTimersByTime(300));
+
+    const params = new URLSearchParams(probe.search);
+    expect(params.get('club')).toBe('club-2');
+    expect(params.get('search')).toBe('rex');
   });
 
   it('keeps a ?club= set by a deep link when an immediate write flushes the draft', () => {

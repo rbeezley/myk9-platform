@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useSearchParams, type SetURLSearchParams } from 'react-router-dom';
+import { useSearchParams, type SetURLSearchParams } from 'react-router-dom';
 import {
   applyUrlFilters,
   changedFilterKeys,
@@ -9,7 +9,7 @@ import {
   type StringValued,
   type UrlFilterAllowedValues,
 } from './urlFilters';
-import { useLivePathname } from './useLivePathname';
+import { useLiveNavigation, type LiveNavigation } from './useLiveNavigation';
 
 export interface UseUrlFiltersOptions<T extends StringValued<T>> {
   /**
@@ -52,8 +52,8 @@ const DEFAULT_DEBOUNCE_MS = 300;
  *   bury the back button under six history entries.
  * - **Unrelated params are preserved.** Only keys present in `defaults` are
  *   written or deleted, so `?add=true`, `?tab=`, and `?view=` survive.
- * - **A pending write never follows the user off the page** — see the pathname
- *   guard in the timer callback.
+ * - **A pending write never survives navigation** — not onto another route,
+ *   and not across a same-route Back. See the guard in the timer callback.
  *
  * `defaults` and `options` are pinned on first render — pass a module-level
  * constant, exactly as the `INITIAL_FILTERS` these hooks already use.
@@ -63,9 +63,8 @@ export function useUrlFilters<T extends StringValued<T>>(
   options: UseUrlFiltersOptions<T> = {}
 ): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { pathname } = useLocation();
-  // Live, not commit-lagged — see useLivePathname for why that distinction matters.
-  const getLivePathname = useLivePathname(pathname);
+  // Live, not commit-lagged — see useLiveNavigation for why that distinction matters.
+  const getLiveNavigation = useLiveNavigation();
 
   // Pinned via the lazy `useState` initializer rather than a ref, so nothing is
   // read from a ref during render: a caller that rebuilds its options object on
@@ -98,8 +97,8 @@ export function useUrlFilters<T extends StringValued<T>>(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Keys touched since the last committed write. */
   const dirtyRef = useRef<Set<string>>(new Set());
-  /** The route a pending write was scheduled on. */
-  const scheduledPathRef = useRef<string>(pathname);
+  /** Where the router was when a pending write was scheduled. */
+  const scheduledNavRef = useRef<LiveNavigation | null>(null);
   /**
    * The query string we last wrote, held until React hands it back.
    *
@@ -122,17 +121,19 @@ export function useUrlFilters<T extends StringValued<T>>(
   // Synced in a LAYOUT effect: it runs during commit rather than after paint,
   // which is the freshest the router location can be made without reaching into
   // react-router internals.
-  const routerRef = useRef<{
-    params: URLSearchParams;
-    setParams: SetURLSearchParams;
-    pathname: string;
-  }>({ params: searchParams, setParams: setSearchParams, pathname });
+  const routerRef = useRef<{ params: URLSearchParams; setParams: SetURLSearchParams }>({
+    params: searchParams,
+    setParams: setSearchParams,
+  });
 
   useLayoutEffect(() => {
-    routerRef.current = { params: searchParams, setParams: setSearchParams, pathname };
-    // React has caught up, so the optimistic base is no longer needed.
+    routerRef.current = { params: searchParams, setParams: setSearchParams };
+    // React has caught up, so the optimistic base is no longer needed. Dropping
+    // it is what stops the NEXT write from folding onto a query string the user
+    // has already navigated away from: without this, chip -> external
+    // navigation -> chip silently reverts the navigation's filter values.
     lastWrittenRef.current = null;
-  }, [searchParams, setSearchParams, pathname]);
+  }, [searchParams, setSearchParams]);
 
   const clearPendingWrite = useCallback(() => {
     if (timerRef.current !== null) {
@@ -183,17 +184,38 @@ export function useUrlFilters<T extends StringValued<T>>(
 
       if (!isReset && changed.every(key => config.debouncedKeys.includes(key))) {
         setPending(overlay);
-        scheduledPathRef.current = getLivePathname();
+        scheduledNavRef.current = getLiveNavigation();
         timerRef.current = setTimeout(() => {
           timerRef.current = null;
-          // A pending write must never follow the user onto another route. Every
-          // browse page is lazy-loaded and react-router commits navigation inside
-          // `startTransition`, so this callback can fire while the outgoing page
-          // is still mounted but the location has already moved. Without this
-          // guard, typing `max` on /dogs and clicking Shows within the window
-          // lands you on `/shows?search=max` — filtered to nothing, unexplained.
-          if (getLivePathname() !== scheduledPathRef.current) {
+          // A pending write must never survive the user navigating. react-router
+          // commits navigation inside `startTransition`, so this callback can
+          // fire while the outgoing page is still mounted but the location has
+          // already moved.
+          //
+          // Two distinct hazards, and they need different tests:
+          //  1. Another route. Typing `max` on /dogs and clicking Shows within
+          //     the window would land you on `/shows?search=max` — a real
+          //     ShowFilters key, so Shows opens filtered to nothing.
+          //  2. A same-route Back. History `[/dogs?search=rex, /dogs]`, type
+          //     `max`, press Back: the pathname is unchanged so a pathname-only
+          //     guard passes, and the `{ replace: true }` write lands on
+          //     `/dogs?search=max` — Back looks broken AND the `?search=rex`
+          //     entry it restored is destroyed, so Forward cannot recover it.
+          //
+          // Only POP is dropped, never PUSH/REPLACE: following the sidebar's
+          // `/shows?club=<id>` deep link must still keep in-flight search text
+          // (see urlFiltersNavigationRace.test.tsx).
+          const scheduled = scheduledNavRef.current;
+          const now = getLiveNavigation();
+          const leftTheRoute = scheduled !== null && now.pathname !== scheduled.pathname;
+          const wentBack =
+            scheduled !== null && now.key !== scheduled.key && now.action === 'POP';
+          if (leftTheRoute || wentBack) {
             setPending(null);
+            // Belt-and-braces: on the route-change path the component is
+            // unmounting anyway, and on the POP path the layout effect clears
+            // this too. Kept so the drop path never leaves stale keys behind for
+            // a future caller to flush.
             dirtyRef.current.clear();
             return;
           }
@@ -212,7 +234,7 @@ export function useUrlFilters<T extends StringValued<T>>(
       commitWrite(overlay);
       dirtyRef.current.clear();
     },
-    [clearPendingWrite, commitWrite, config, getLivePathname]
+    [clearPendingWrite, commitWrite, config, getLiveNavigation]
   );
 
   useEffect(() => clearPendingWrite, [clearPendingWrite]);

@@ -16,6 +16,9 @@ const INITIAL_FILTERS: ClubFilters = {
   clubType: 'all',
 };
 
+// WARNING: a value missing from this list is ERASED, not ignored — the param is
+// stripped and the filter falls back to its default. Adding a chip option
+// without adding it here does not degrade the deep link, it DESTROYS it.
 const ALLOWED_FILTER_VALUES = {
   clubType: CLUB_TYPES.map(type => type.value),
 } as const;

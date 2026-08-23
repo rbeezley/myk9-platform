@@ -16,6 +16,9 @@ const INITIAL_FILTERS: DogFilters = {
   sex: 'all',
 };
 
+// WARNING: a value missing from this list is ERASED, not ignored — the param is
+// stripped and the filter falls back to its default. Adding a chip option
+// without adding it here does not degrade the deep link, it DESTROYS it.
 // `breed` is derived from the roster, so it has no static list to check against.
 const ALLOWED_FILTER_VALUES = {
   sex: ['male', 'female'],

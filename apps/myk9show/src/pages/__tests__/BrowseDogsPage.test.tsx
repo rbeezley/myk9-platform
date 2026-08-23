@@ -59,7 +59,10 @@ vi.mock('@/hooks/useBrowseDogsData', () => ({
 }));
 
 const mockGetUserRoles = vi.fn().mockReturnValue(['secretary']);
-const mockHasRole = vi.fn().mockReturnValue(false);
+// Derived from the same role set rather than a standalone stub: the page now
+// asks `hasRole` (via `useRosterIsOwnDogsOnly`) as well as `getUserRoles`, and
+// an auth mock whose two accessors disagree would let a role-scoping bug pass.
+const mockHasRole = vi.fn((role: UserRole) => (mockGetUserRoles() as string[]).includes(role));
 // `useRoleBasedDogs` scopes the roster off `userWithRoles`, so the page treats a
 // null value as "identity not resolved yet" rather than "this user owns no dogs".
 let mockUserWithRoles: unknown = { id: 'user-1', databaseUserId: 'person-1', roles: [] };
@@ -76,9 +79,16 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   };
 });
 
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: () => 'person-1',
-}));
+// `useRosterIsOwnDogsOnly` is deliberately NOT stubbed — it is the predicate
+// under test, and it reads the mocked auth context above. Stubbing it would
+// make every role assertion below a test of the stub.
+vi.mock('@/hooks/useRoleBasedData', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useCurrentUserPersonId: () => 'person-1',
+  };
+});
 
 const mockRefreshRbac = vi.fn();
 
@@ -440,6 +450,222 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       renderPage();
 
       expect(screen.getByText('No dogs yet')).toBeInTheDocument();
+    });
+  });
+
+  // MYK9-219. The page is what knows which roster the viewer is looking at, so
+  // it is the only place the role-aware card can be wired wrong.
+  describe('role-aware dog card', () => {
+    it('does not show exhibitors their own name on their own dogs', () => {
+      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+
+      renderPage();
+
+      expect(screen.getByRole('link', { name: /max/i })).toBeInTheDocument();
+      expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+      expect(screen.getByText('Golden Retriever')).toBeInTheDocument();
+    });
+
+    it('keeps the owner on the card for a secretary, who sees every dog', () => {
+      localStorage.setItem('view-pref-dogs', 'cards');
+
+      renderPage();
+
+      expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    });
+
+    // `USER_ROLE_HIERARCHY` ranks JUDGE, CLUB_ADMIN, CHAIRMAN and STEWARD ABOVE
+    // EXHIBITOR, so `getPrimaryRole(...) === EXHIBITOR` is false for all of
+    // them — while `useRoleBasedDogs` still scopes their roster to dogs they
+    // own. Deriving the card from the role instead of from the scope gave every
+    // one of these users their own name on every card.
+    it.each([
+      ['judge', UserRole.JUDGE],
+      ['steward', UserRole.STEWARD],
+      ['chairman', UserRole.CHAIRMAN],
+    ])('does not show a %s their own name on their own dogs', (_label, role) => {
+      localStorage.setItem('view-pref-dogs', 'cards');
+      mockGetUserRoles.mockReturnValue([role, UserRole.EXHIBITOR]);
+
+      renderPage();
+
+      expect(screen.getByRole('link', { name: /max/i })).toBeInTheDocument();
+      expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+    });
+
+    // The complement: holding an elevated role alongside a lower-ranked one
+    // must still show the owner, because that roster is the whole platform.
+    it('keeps the owner for a judge who is also a secretary', () => {
+      localStorage.setItem('view-pref-dogs', 'cards');
+      mockGetUserRoles.mockReturnValue([UserRole.JUDGE, UserRole.SECRETARY]);
+
+      renderPage();
+
+      expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    });
+
+    // NOTHING here sets `view-pref-dogs`. That matters: every other test in
+    // this block pre-selects cards, and a judge/steward/chairman has
+    // `isExhibitorOnly === false`, so `useViewPreference` lands them on the
+    // TABLE. Pre-setting the view is exactly what hid this from the suite —
+    // the predicate was extended to these roles but the fix only reached the
+    // card view they never see.
+    describe('on the view the user actually lands on', () => {
+      it.each([
+        ['judge', UserRole.JUDGE],
+        ['steward', UserRole.STEWARD],
+        ['chairman', UserRole.CHAIRMAN],
+      ])('does not show a %s their own name on the default view', (_label, role) => {
+        mockGetUserRoles.mockReturnValue([role]);
+
+        renderPage();
+
+        expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: 'Owner' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+      });
+
+      it('keeps the Owner column for a secretary on the default view', () => {
+        renderPage();
+
+        expect(screen.getByRole('columnheader', { name: 'Owner' })).toBeInTheDocument();
+        expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+      });
+
+      it('keeps the Owner column for a site admin on the default view', () => {
+        mockGetUserRoles.mockReturnValue([UserRole.SITE_ADMIN]);
+
+        renderPage();
+
+        expect(screen.getByRole('columnheader', { name: 'Owner' })).toBeInTheDocument();
+      });
+    });
+
+    it('keeps the owner for a club admin, whose primary role is not elevated', () => {
+      // getPrimaryRole([JUDGE, CLUB_ADMIN]) is JUDGE, but CLUB_ADMIN sees every
+      // dog — the case where a primary-role test and a hasRole test disagree.
+      localStorage.setItem('view-pref-dogs', 'cards');
+      mockGetUserRoles.mockReturnValue([UserRole.JUDGE, UserRole.CLUB_ADMIN]);
+
+      renderPage();
+
+      expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    });
+  });
+
+  // MYK9-218. The table has always paginated at 25; the card view rendered the
+  // whole roster, so one dataset behaved two different ways on one route.
+  describe('card view pagination', () => {
+    const roster = (count: number) =>
+      Array.from({ length: count }, (_, i) =>
+        makeDog({ id: `dog-${i + 1}`, name: `Dog ${i + 1}`, callName: `Dog ${i + 1}` })
+      );
+
+    const cardLinks = () => screen.getAllByRole('link', { name: /^Dog \d+$/ });
+
+    function renderCards(count: number, extra: Record<string, unknown> = {}) {
+      const dogs = roster(count);
+      mockBrowseDogsReturn = { ...mockBrowseDogsReturn, dogs, filteredDogs: dogs, ...extra };
+      localStorage.setItem('view-pref-dogs', 'cards');
+      return renderPage();
+    }
+
+    it('renders at most 25 cards from a 60-dog roster', () => {
+      renderCards(60);
+
+      const links = cardLinks();
+      expect(links).toHaveLength(25);
+      expect(links[0]).toHaveAccessibleName('Dog 1');
+      expect(links[24]).toHaveAccessibleName('Dog 25');
+      expect(screen.queryByRole('link', { name: 'Dog 26' })).not.toBeInTheDocument();
+    });
+
+    it('walks to the next page of cards', async () => {
+      const user = userEvent.setup();
+      renderCards(60);
+
+      await user.click(screen.getByRole('button', { name: 'Go to next page' }));
+
+      const links = cardLinks();
+      expect(links).toHaveLength(25);
+      expect(links[0]).toHaveAccessibleName('Dog 26');
+      expect(links[24]).toHaveAccessibleName('Dog 50');
+      expect(screen.queryByRole('link', { name: 'Dog 25' })).not.toBeInTheDocument();
+    });
+
+    it('renders the short last page rather than padding it', async () => {
+      const user = userEvent.setup();
+      renderCards(60);
+
+      await user.click(screen.getByRole('button', { name: 'Go to last page' }));
+
+      expect(cardLinks()).toHaveLength(10);
+      expect(screen.getByRole('link', { name: 'Dog 60' })).toBeInTheDocument();
+    });
+
+    // The guard that matters: putting a ceiling on a previously unbounded list
+    // re-arms every count downstream of it. The results summary describes how
+    // many dogs MATCH, so it must keep reading the whole filtered set — a page
+    // count there would tell a secretary their roster shrank.
+    it('reports the whole filtered roster in the results summary, not the page', () => {
+      renderCards(60);
+
+      expect(screen.getByText('60 dogs')).toBeInTheDocument();
+      expect(screen.queryByText('25 dogs')).not.toBeInTheDocument();
+
+      const nav = screen.getByRole('navigation', { name: 'Dog list pagination' });
+      expect(nav.textContent?.replace(/\s+/g, ' ')).toContain('Showing 1 to 25 of 60');
+    });
+
+    it('hides the pagination control when the roster fits on one page', () => {
+      renderCards(25);
+
+      expect(cardLinks()).toHaveLength(25);
+      expect(screen.queryByRole('navigation', { name: 'Dog list pagination' })).not.toBeInTheDocument();
+    });
+
+    it('paginates the exhibitor card view too', () => {
+      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+      renderCards(60);
+
+      expect(cardLinks()).toHaveLength(25);
+      expect(screen.getByRole('navigation', { name: 'Dog list pagination' })).toBeInTheDocument();
+    });
+
+    it('returns to the first page when the search changes', async () => {
+      const user = userEvent.setup();
+      renderCards(60);
+
+      await user.click(screen.getByRole('button', { name: 'Go to next page' }));
+      expect(cardLinks()[0]).toHaveAccessibleName('Dog 26');
+
+      await user.type(screen.getByPlaceholderText('Search dogs by name, breed, or owner...'), 'a');
+
+      expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();
+      expect(cardLinks()[0]).toHaveAccessibleName('Dog 1');
+    });
+
+    it('clamps to the last available page when the roster shrinks underneath it', async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderCards(60);
+
+      await user.click(screen.getByRole('button', { name: 'Go to last page' }));
+      expect(cardLinks()[0]).toHaveAccessibleName('Dog 51');
+
+      const smaller = roster(26);
+      mockBrowseDogsReturn = { ...mockBrowseDogsReturn, dogs: smaller, filteredDogs: smaller };
+      rerender(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <MemoryRouter initialEntries={['/dogs']}>
+            <BrowseDogsPage />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      // Page 3 no longer exists; the grid must show page 2's single card, not
+      // an empty grid over a non-empty result set.
+      expect(cardLinks()).toHaveLength(1);
+      expect(cardLinks()[0]).toHaveAccessibleName('Dog 26');
     });
   });
 });

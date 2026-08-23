@@ -22,6 +22,14 @@ interface DogsTableViewProps {
   dogs: Dog[];
   /** When provided, renders a leading checkbox select column wired to this selection. */
   selection?: DogsTableSelection | undefined;
+  /**
+   * Whether the Owner column earns its width on this surface. False when the
+   * roster is scoped to dogs the viewer owns, where the column is their own
+   * name on every row — the same rule the card view applies (MYK9-219), and it
+   * has to be applied here too because the roles that roster covers (judge,
+   * steward, chairman) land on the TABLE by default, not on cards.
+   */
+  showOwner?: boolean;
 }
 
 function buildSelectColumn(selection: DogsTableSelection): DisplayColumnDef<Dog, unknown> {
@@ -87,12 +95,22 @@ function getSexBadge(sex: string | undefined) {
   );
 }
 
+const OWNER_COLUMN_ID = 'owner';
+
 const columns: ColumnDef<Dog>[] = [
   {
     id: 'name',
     accessorFn: dog => getDogDisplayName(dog),
     header: 'Name',
-    meta: { exportHeader: 'Name', exportValue: (dog: unknown) => getDogDisplayName(dog as Dog) },
+    // Pinned left (MYK9-222). At tablet width the six columns overflow their
+    // wrapper, so reaching Status means scrolling right — and an unpinned Name
+    // column takes the row's identity with it, leaving the reader looking at a
+    // status badge with no idea whose it is.
+    meta: {
+      stickyLeft: true,
+      exportHeader: 'Name',
+      exportValue: (dog: unknown) => getDogDisplayName(dog as Dog),
+    } satisfies DataTableColumnMeta,
     cell: ({ row }) => {
       const dog = row.original;
       return (
@@ -121,7 +139,20 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'breed',
     header: 'Breed',
-    meta: { exportHeader: 'Breed', exportValue: (dog: unknown) => (dog as Dog).breed || '' },
+    // Breed and Sex both appear on the card view, so dropping them costs the
+    // reader nothing and buys back the width that was pushing Owner and Status
+    // off-screen (MYK9-222).
+    //
+    // `lg` (1024px), NOT `md`. `md` is `min-width: 768px`, so it fires on no
+    // tablet at all — iPad portrait is exactly 768, iPad Air 820, iPad Pro 11"
+    // 834, Surface 912 — and the measurement in MYK9-222 was taken at 768. `md`
+    // would only have dropped these on phones, where an exhibitor gets cards
+    // anyway. A test pins the breakpoint against those device widths.
+    meta: {
+      responsiveHide: 'lg',
+      exportHeader: 'Breed',
+      exportValue: (dog: unknown) => (dog as Dog).breed || '',
+    } satisfies DataTableColumnMeta,
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{getDogBreedLabel(row.original)}</span>
     ),
@@ -129,11 +160,15 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'sex',
     header: 'Sex',
-    meta: { exportHeader: 'Sex', exportValue: (dog: unknown) => (dog as Dog).sex || '' },
+    meta: {
+      responsiveHide: 'lg',
+      exportHeader: 'Sex',
+      exportValue: (dog: unknown) => (dog as Dog).sex || '',
+    } satisfies DataTableColumnMeta,
     cell: ({ row }) => getSexBadge(row.original.sex),
   },
   {
-    id: 'owner',
+    id: OWNER_COLUMN_ID,
     accessorFn: dog => dog.ownerName || '',
     header: 'Owner',
     meta: { exportHeader: 'Owner', exportValue: (dog: unknown) => (dog as Dog).ownerName || '' },
@@ -152,17 +187,29 @@ const columns: ColumnDef<Dog>[] = [
   },
 ];
 
-export const DogsTableView: React.FC<DogsTableViewProps> = ({ dogs, selection }) => {
+export const DogsTableView: React.FC<DogsTableViewProps> = ({
+  dogs,
+  selection,
+  showOwner = true,
+}) => {
   const navigate = useNavigate();
 
-  const allColumns = useMemo(
-    () => (selection ? [buildSelectColumn(selection), ...columns] : columns),
-    [selection]
-  );
+  const allColumns = useMemo(() => {
+    // Dropped from the column model, not hidden with CSS: unlike the
+    // responsive hide, this is not about width. The column carries nothing on
+    // this roster, so it should not be in the Columns menu and should not be
+    // in the CSV either.
+    const visible = showOwner ? columns : columns.filter(col => col.id !== OWNER_COLUMN_ID);
+    return selection ? [buildSelectColumn(selection), ...visible] : visible;
+  }, [selection, showOwner]);
 
   return (
     <DataTable
       tableId="dogsBrowse"
+      // The remaining columns can still overflow on a narrow viewport, so the
+      // scroll region needs a name and a tab stop to be reachable at all
+      // without a pointer.
+      scrollAreaLabel="Dogs table"
       columns={allColumns}
       data={dogs}
       // Page-level ListControls owns search; table keeps only its Columns control.

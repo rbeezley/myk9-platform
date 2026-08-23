@@ -3,7 +3,12 @@ import { renderHook } from '@testing-library/react';
 import { UserRole } from '@/types/auth-types';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
-import { useCanDeleteDog, useCurrentUserPersonId, useRoleBasedDogs } from './useRoleBasedData';
+import {
+  rosterIsOwnDogsOnly,
+  useCanDeleteDog,
+  useCurrentUserPersonId,
+  useRoleBasedDogs,
+} from './useRoleBasedData';
 import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -85,6 +90,97 @@ describe('useRoleBasedData owner scope', () => {
     const { result } = renderHook(() => useCurrentUserPersonId());
 
     expect(result.current).toBe('person-1');
+  });
+});
+
+// The elevated branch of `useRoleBasedDogs` had no coverage here at all: the
+// only tests were exhibitor-scoped, so deleting SITE_ADMIN from
+// `ROLES_WITH_FULL_DOG_ROSTER` passed the ENTIRE suite (17,470 tests). The
+// consequence of that mutation is silent and severe — a site admin opens
+// /dogs, sees only dogs they personally own, and is told "No dogs yet".
+describe('useRoleBasedDogs roster scope by role', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setMocks();
+  });
+
+  const withRoles = (...roles: UserRole[]) => {
+    vi.mocked(useAuthContext).mockReturnValue(
+      fromPartial({
+        userWithRoles: {
+          id: 'auth-user',
+          databaseUserId: 'person-1',
+          roles,
+          permissions: [],
+          scopes: [],
+        },
+        hasRole: (role: UserRole) => roles.includes(role),
+      })
+    );
+  };
+
+  const EVERY_DOG = ['legacy-dog', 'current-dog-1', 'current-dog-2'];
+  const OWN_DOGS = ['current-dog-1', 'current-dog-2'];
+
+  it.each([
+    ['site admin', UserRole.SITE_ADMIN],
+    ['club admin', UserRole.CLUB_ADMIN],
+    ['secretary', UserRole.SECRETARY],
+  ])('gives a %s the whole roster, including dogs they do not own', (_label, role) => {
+    withRoles(role);
+    const { result } = renderHook(() => useRoleBasedDogs());
+    expect(result.current.map(dog => dog.id)).toEqual(EVERY_DOG);
+  });
+
+  // The control. Without it, "returns every dog" would pass for a predicate
+  // that simply never filters.
+  it.each([
+    ['judge', UserRole.JUDGE],
+    ['steward', UserRole.STEWARD],
+    ['chairman', UserRole.CHAIRMAN],
+    ['exhibitor', UserRole.EXHIBITOR],
+  ])('scopes a %s to dogs they own', (_label, role) => {
+    withRoles(role);
+    const { result } = renderHook(() => useRoleBasedDogs());
+    expect(result.current.map(dog => dog.id)).toEqual(OWN_DOGS);
+  });
+
+  it('elevates on ANY held role, not on the highest-ranked one', () => {
+    // `USER_ROLE_HIERARCHY` ranks JUDGE above CLUB_ADMIN, so a primary-role
+    // test would call this user non-elevated and hand them their own dogs.
+    withRoles(UserRole.JUDGE, UserRole.CLUB_ADMIN);
+    const { result } = renderHook(() => useRoleBasedDogs());
+    expect(result.current.map(dog => dog.id)).toEqual(EVERY_DOG);
+  });
+});
+
+// The exported predicate itself — the page reads this to decide whether an
+// owner column carries information, so it is tested apart from the hook.
+describe('rosterIsOwnDogsOnly', () => {
+  const has =
+    (...roles: UserRole[]) =>
+    (role: UserRole) =>
+      roles.includes(role);
+
+  it.each([
+    ['site admin', UserRole.SITE_ADMIN],
+    ['club admin', UserRole.CLUB_ADMIN],
+    ['secretary', UserRole.SECRETARY],
+  ])('is false for a %s', (_label, role) => {
+    expect(rosterIsOwnDogsOnly(has(role))).toBe(false);
+  });
+
+  it.each([
+    ['judge', UserRole.JUDGE],
+    ['steward', UserRole.STEWARD],
+    ['chairman', UserRole.CHAIRMAN],
+    ['exhibitor', UserRole.EXHIBITOR],
+  ])('is true for a %s', (_label, role) => {
+    expect(rosterIsOwnDogsOnly(has(role))).toBe(true);
+  });
+
+  it('is true when the user holds no roles at all', () => {
+    expect(rosterIsOwnDogsOnly(has())).toBe(true);
   });
 });
 

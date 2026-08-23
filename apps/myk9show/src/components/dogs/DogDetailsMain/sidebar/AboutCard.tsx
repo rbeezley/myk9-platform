@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { formatDisplayDate } from '../utils';
-import type { Dog } from '@/types/dog-types';
+import { formatDogAge, type Dog } from '@/types/dog-types';
 
 interface AboutCardProps {
   dog: Dog;
@@ -52,13 +52,9 @@ const AboutCard: React.FC<AboutCardProps> = ({ dog }) => {
 
   const sex = dog.gender ? dog.gender.charAt(0).toUpperCase() + dog.gender.slice(1) : null;
 
-  const age = useMemo(() => {
-    if (!dog.dateOfBirth) return null;
-    const years = Math.floor(
-      (now - new Date(dog.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-    );
-    return years === 1 ? '1 yr old' : `${years} yrs old`;
-  }, [dog.dateOfBirth, now]);
+  // Shared with the My Dogs card so one date of birth cannot read two ways.
+  // The local version divided by 365.25 and rendered a puppy as "0 yrs old".
+  const age = useMemo(() => formatDogAge(dog, new Date(now)), [dog, now]);
 
   return (
     <Card>

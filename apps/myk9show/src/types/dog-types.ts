@@ -343,6 +343,41 @@ export function getDogBreedLabel(dog: {
   return isMeaningfulBreed(breed) ? breed : BREED_NOT_SET;
 }
 
+/**
+ * Format a dog's age for display, or `null` when its date of birth is not
+ * recorded (or is not a usable date). `null` means "we do not know" — render
+ * nothing rather than a zero, which would read as a fact.
+ *
+ * Counts whole calendar months rather than dividing by 365.25: a puppy is the
+ * case where the difference shows, and "0 yrs old" is the wrong answer for one.
+ * `now` is injectable so callers and tests can pin the reference instant.
+ */
+export function formatDogAge(
+  dog: { dateOfBirth?: string | null | undefined; birthDate?: string | null | undefined },
+  now: Date = new Date()
+): string | null {
+  const raw = dog.dateOfBirth || dog.birthDate;
+  if (!raw) return null;
+
+  // Parsed field-by-field: `new Date('2020-01-01')` is UTC midnight, which can
+  // land on the previous local day and shift a birthday by one.
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw.trim());
+  const born = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(raw);
+  if (Number.isNaN(born.getTime())) return null;
+
+  let months = (now.getFullYear() - born.getFullYear()) * 12 + (now.getMonth() - born.getMonth());
+  if (now.getDate() < born.getDate()) months -= 1;
+  // A date of birth in the future is data entry, not a newborn.
+  if (months < 0) return null;
+
+  const years = Math.floor(months / 12);
+  if (years >= 1) return years === 1 ? '1 yr old' : `${years} yrs old`;
+  if (months >= 1) return months === 1 ? '1 mo old' : `${months} mos old`;
+  return 'Under 1 mo old';
+}
+
 export interface PersonInput {
   firstName: string;
   lastName: string;

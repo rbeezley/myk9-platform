@@ -80,10 +80,14 @@ function formatGeneratedAt(value: string): string {
 }
 
 function addPageFrame(doc: jsPDF, page: EmergencyPacketPage, totalPages: number): void {
-  doc.setTextColor(153, 27, 27);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(page.marker, LEFT, 11);
+  // Empty when the model was built with `snapshotMarker: false` (the Reports
+  // path) — draw nothing at all rather than an empty red banner.
+  if (page.marker) {
+    doc.setTextColor(153, 27, 27);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(page.marker, LEFT, 11);
+  }
 
   doc.setTextColor(25, 25, 25);
   doc.setFont('helvetica', 'normal');
@@ -113,7 +117,10 @@ export const DETAIL_LINE_HEIGHT = 5;
  *                  would end at 272mm and overlap the 271.4mm footer, so this
  *                  kind gets exactly one line. It carries no time limit, so
  *                  nothing safety-critical is at stake in the truncation.
- *   check-in       20 rows + header row = 189mm, ending at 231mm. Ample.
+ *   check-in       `renderCheckIn` uses a 10mm row height (not the 9mm
+ *                  `renderTable` default): 20 rows + header row = 210mm;
+ *                  worst-case header (4 lines, y=57) ends at 267mm, only
+ *                  4.4mm clear of the 271.4mm footer — thin, not ample.
  *   score          5 blocks x 36mm = 180mm; worst-case header (4 lines, y=57)
  *                  ends at 237mm, 34.4mm clear of the 271.4mm footer. A 6th
  *                  block would end at 273mm — 1.6mm PAST the footer — which
@@ -319,6 +326,19 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   }
 }
 
+/**
+ * Both deleted React components (`CheckInSheet`, `ScoresheetReport`) printed
+ * an unassigned armband as an em dash via the app's `formatArmbandDisplay`,
+ * never a bare `0`. This module cannot import that helper (no app aliases —
+ * see the file banner), and `PacketReportEntry.armband` is already a
+ * `number`, so only the numeric half of that helper's behaviour applies here.
+ */
+const UNASSIGNED_ARMBAND_DISPLAY = '—';
+
+function formatPacketArmband(armband: number): string {
+  return armband === 0 || Number.isNaN(armband) ? UNASSIGNED_ARMBAND_DISPLAY : String(armband);
+}
+
 function fitTextToWidth(doc: jsPDF, value: string, width: number): string {
   if (doc.getTextWidth(value) <= width) return value;
   let fitted = value;
@@ -456,7 +476,7 @@ function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): s
     case 'order':
       return entry.runOrderDisplay;
     case 'armband':
-      return String(entry.armband);
+      return formatPacketArmband(entry.armband);
     case 'callName':
       return entry.callName;
     case 'breed':
@@ -577,24 +597,39 @@ function drawCheckboxLabel(
   doc.text(fitTextToWidth(doc, label, maxLabelWidth), x + CHECKBOX_SIZE_MM + 1.3, baselineY);
 }
 
+/**
+ * Four separate lines, matching the deleted React component
+ * (`ScoresheetReport.tsx`) — not the one 51mm line this replaced.
+ *
+ * Measured: `Labrador Retriever · SR12345601 · Jennifer Martinez` at 7pt is
+ * 57.7mm, past the identity region's ~51mm width (`region.width - 4`), so
+ * every one of breed/reg#/handler sharing one `fitTextToWidth`-truncated
+ * line silently ate the tail — usually the handler, the person accountable
+ * for the dog, on a document retained for a year. Splitting onto their own
+ * lines still truncates each field independently (never overprints), and
+ * uses only ~23mm of this block's ~36mm height — well inside the ~34.1mm
+ * `renderReasonsRegion` already needs, which is the block's real ceiling
+ * (see `MIN_BLOCK_MARGIN_MM`).
+ */
 function renderIdentityRegion(doc: jsPDF, entry: EmergencyPacketEntry, y0: number): void {
   const region = SCORE_REGIONS.identity;
   const textX = region.x + 2;
   const maxWidth = region.width - 4;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text(fitTextToWidth(doc, `#${entry.armband}  ${entry.callName}`, maxWidth), textX, y0 + 7);
+  doc.text(
+    fitTextToWidth(doc, `#${formatPacketArmband(entry.armband)}  ${entry.callName}`, maxWidth),
+    textX,
+    y0 + 7
+  );
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text(
-    fitTextToWidth(
-      doc,
-      [entry.breed, entry.registrationNumber, entry.handler].filter(Boolean).join(' · '),
-      maxWidth
-    ),
-    textX,
-    y0 + 13
+  const lines = [entry.breed, entry.registrationNumber, entry.handler].filter(
+    (value): value is string => Boolean(value)
   );
+  lines.forEach((line, index) => {
+    doc.text(fitTextToWidth(doc, line, maxWidth), textX, y0 + 13 + index * 5);
+  });
 }
 
 function renderResultRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: number): void {
@@ -659,6 +694,21 @@ function renderReasonsRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: n
 }
 
 /**
+ * The most rows `renderTimeRegion` can draw and stay inside
+ * `SCORE_BLOCK_HEIGHT_MM` (36mm): row N's box bottom sits at
+ * `6 + (N-1) * TIME_ROW_HEIGHT_MM + 0.5` below `y0` — row 5 ends at 30.5mm,
+ * comfortably inside; row 6 ends at 36.5mm, 0.5mm PAST the block. `MAX_AREAS`
+ * (`emergencyTrialPacket.ts`) is 10 and deliberately NOT lowered to match:
+ * `formatClassTimeLimits`'s header intentionally names every area up to 10,
+ * even past the three limit columns (see
+ * `emergencyTrialPacket.test.ts`'s "enumerates every declared area" and
+ * "refuses to let a nonsense area count run off the page" — that is a text
+ * label that wraps, not a fixed-height box). The per-dog time STACK is the
+ * one with a hard geometry ceiling, so it clamps independently here instead.
+ */
+const TIME_REGION_MAX_ROWS = 5;
+
+/**
  * `MM/SS/TT` boxes for a single-area class; per-area rows plus a `Total` row
  * otherwise. `areaCount` is the SAME clamp `formatClassTimeLimits` uses
  * (`resolveAreaCount`), reused via `page.context.areaCount` rather than
@@ -671,6 +721,18 @@ function renderReasonsRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: n
  * without re-reading the top block, still has to be able to tell an `A2` box
  * from a `Total` box on ANY row — a header printed once and never again is
  * the wrong trade for a document retained for a year.
+ *
+ * `resolveAreaCount` clamps to `MAX_AREAS` (10), which alone would ask for up
+ * to 11 rows here — 6.5mm past the block for a 6-area class, compounding into
+ * every block below it on the page (whole-branch review finding #6). Areas
+ * beyond what `TIME_REGION_MAX_ROWS` can hold collapse into one visible
+ * "+N" marker row instead of silently running off the block ("+N more"
+ * does not fit the ~5.7mm label column at this font size and
+ * `fitTextToWidth` would only truncate it back down to "+N" anyway); the
+ * judge still gets every area's box up to the limit, plus a `Total` row, and
+ * is told in ink that more areas exist than this sheet has room to print
+ * (a class configuration this large should also prompt a registry-config
+ * review, not just a bigger form).
  */
 function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number): void {
   const region = SCORE_REGIONS.time;
@@ -678,10 +740,17 @@ function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number): void {
   const boxX = region.x + 7.5;
   const boxWidth = region.width - 8.5;
   const maxLabelWidth = boxX - labelX - 0.8;
-  const rows =
+  const desiredRows =
     areaCount <= 1
       ? ['MM', 'SS', 'TT']
       : [...Array.from({ length: areaCount }, (_, index) => `A${index + 1}`), 'Total'];
+  let rows = desiredRows;
+  if (desiredRows.length > TIME_REGION_MAX_ROWS) {
+    const areaLabels = desiredRows.slice(0, -1);
+    const shownAreas = areaLabels.slice(0, TIME_REGION_MAX_ROWS - 2);
+    const hiddenCount = areaLabels.length - shownAreas.length;
+    rows = [...shownAreas, `+${hiddenCount}`, 'Total'];
+  }
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   rows.forEach((label, index) => {
@@ -795,12 +864,24 @@ export function buildEmergencyTrialPacketPdf(
   JsPdf: JsPdfConstructor
 ): Uint8Array {
   const doc = new JsPdf({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
-  doc.setProperties({
-    title: `${model.show.name} — Emergency Trial Packet`,
-    subject: 'Paper fallback snapshot for degraded show-day operation',
-    author: 'myK9Show',
-    creator: 'myK9Show',
-  });
+  // The emergency titling and subject are only true of the actual emergency
+  // packet — a Reports-page check-in sheet or scoresheet printed on an
+  // ordinary working day is not a degraded-mode snapshot (whole-branch
+  // review finding #7).
+  doc.setProperties(
+    model.snapshotMarker
+      ? {
+          title: `${model.show.name} — Emergency Trial Packet`,
+          subject: 'Paper fallback snapshot for degraded show-day operation',
+          author: 'myK9Show',
+          creator: 'myK9Show',
+        }
+      : {
+          title: model.show.name,
+          author: 'myK9Show',
+          creator: 'myK9Show',
+        }
+  );
 
   model.pages.forEach((page, index) => {
     if (index > 0) doc.addPage('letter', 'portrait');

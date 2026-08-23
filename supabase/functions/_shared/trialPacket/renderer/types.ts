@@ -136,7 +136,14 @@ export interface EmergencyPacketPage {
   kind: EmergencyPacketPageKind;
   title: string;
   pageNumber: number;
-  marker: typeof EMERGENCY_PACKET_MARKER;
+  /**
+   * Empty string, not the marker, when this page was built with
+   * `snapshotMarker: false` (see `EmergencyPacketModel.snapshotMarker`) — a
+   * check-in sheet or scoresheet printed from Reports on an ordinary working
+   * day is not a degraded-mode snapshot, and stamping it "SNAPSHOT — NOT
+   * LIVE" tells a gate steward the paper may be stale when it is not.
+   */
+  marker: typeof EMERGENCY_PACKET_MARKER | '';
   generatedAt: string;
   context: EmergencyPacketPageContext;
   entries: EmergencyPacketEntry[];
@@ -157,6 +164,15 @@ export interface EmergencyPacketModel {
   show: EmergencyPacketShow;
   trials: EmergencyPacketTrialSection[];
   pages: EmergencyPacketPage[];
+  /**
+   * Whether every page in this model carries the emergency-packet snapshot
+   * marker and the PDF is titled as an emergency packet. `true` for the
+   * actual emergency trial packet (`EmergencyTrialPacketPanel`, the
+   * `generate-trial-packet` cron); `false` for the Reports page's check-in
+   * sheet and scoresheet, which reuse this same builder but are printed on
+   * an ordinary working day, not during degraded-mode operation.
+   */
+  snapshotMarker: boolean;
 }
 
 export type EmergencyPacketAvailability =

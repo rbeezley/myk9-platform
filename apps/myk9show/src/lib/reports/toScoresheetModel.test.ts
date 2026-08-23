@@ -123,6 +123,39 @@ describe('toScoresheetModel', () => {
     expect(page.entries.map(entry => entry.armband)).toEqual([7, 2, 5]);
   });
 
+  it('suppresses the emergency-packet snapshot marker (whole-branch review finding #7)', () => {
+    // A check-in sheet or scoresheet printed from Reports on a normal
+    // working day is not a degraded-mode snapshot; telling a gate steward
+    // it might be stale is actively misleading.
+    const model = toScoresheetModel(datasetWithPages(1), 'run-order');
+    expect(model.snapshotMarker).toBe(false);
+    expect(model.pages.every(page => page.marker === '')).toBe(true);
+  });
+
+  it('resolves the class judge from an assignment over a stale denormalised name, and prints it', () => {
+    // `resolveClassJudgeName(classItem, show.assignedJudges)` must actually
+    // reach the printed sheet — this was previously asserted only by a
+    // comment claiming coverage lived here, with no assertion backing it.
+    const trial = trialFixture('trial-1');
+    const classData = classFixture('class-1', trial.id, {
+      judge_name: 'Stale Denormalised Judge',
+      judge_assignments: [
+        { person_id: 'judge-1', people: { first_name: 'Assigned', last_name: 'Judge' } },
+      ],
+    } as Partial<DbClass>);
+    const dataset: ReportDataSet = {
+      show,
+      pages: [{ trial, classData, entries: [entryFixture('entry-1', classData.id, 5, 1)] }],
+    };
+
+    const model = toScoresheetModel(dataset, 'run-order');
+    expect(model.trials[0].classes[0].judgeName).toBe('Assigned Judge');
+
+    const scorePage = model.pages.find(page => page.kind === 'score-recording');
+    expect(scorePage?.context.judgeName).toBe('Assigned Judge');
+    expect(scorePage?.context.judgeName).not.toBe('Stale Denormalised Judge');
+  });
+
   it('skips a page with no resolved class data rather than throwing', () => {
     const trial = trialFixture('trial-1');
     const dataset: ReportDataSet = {
@@ -184,7 +217,9 @@ describe('reorderPagesByArmband (multi-page classes)', () => {
     expect(armbandCheckIn.pages[0]!.entries.map(entry => entry.armband)).toEqual(
       Array.from({ length: 20 }, (_, index) => index + 1)
     );
-    expect(armbandCheckIn.pages[1]!.entries.map(entry => entry.armband)).toEqual([21, 22, 23, 24, 25]);
+    expect(armbandCheckIn.pages[1]!.entries.map(entry => entry.armband)).toEqual([
+      21, 22, 23, 24, 25,
+    ]);
     // The behavior the coordinator flagged as untested: armband 1, run-order
     // 25, was on page 2 above and must now be on page 1.
     expect(armbandCheckIn.pages[0]!.entries.some(entry => entry.armband === 1)).toBe(true);

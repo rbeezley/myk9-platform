@@ -46,7 +46,15 @@ export function toScoresheetModel(dataset: ReportDataSet, sortOrder: string): Em
     entries,
   });
 
-  const model = buildEmergencyPacketModel({ ...input, generatedAt: new Date().toISOString() });
+  // Not a degraded-mode snapshot: this is a check-in sheet or scoresheet
+  // printed from Reports on an ordinary working day. `snapshotMarker: false`
+  // suppresses the "SNAPSHOT — NOT LIVE" banner and the emergency-packet
+  // titling that would otherwise mislead a gate steward into thinking the
+  // sheet may be stale (whole-branch review finding #7).
+  const model = buildEmergencyPacketModel(
+    { ...input, generatedAt: new Date().toISOString() },
+    { snapshotMarker: false }
+  );
 
   return sortOrder === 'armband' ? reorderPagesByArmband(model) : model;
 }
@@ -73,17 +81,17 @@ const REORDERABLE_KINDS = new Set<EmergencyPacketPageKind>(['check-in', 'score-r
  * `buildEmergencyPacketModel` always chunks and sorts entries by run order —
  * correct for the emergency packet, which has no user-facing sort control.
  * The Reports page does (run order vs. armband), so when the secretary picks
- * "armband" this re-sorts entries WITHIN each class's already-chunked run of
- * pages of one kind, preserving the page count and sizes the builder chose.
+ * "armband" this re-sorts entries within a class's already-chunked run of
+ * pages of one kind.
  *
- * This does not re-partition entries ACROSS page boundaries: on a class large
- * enough to span multiple check-in (20/page) or score-recording (5/page)
- * pages, a low-armband dog assigned to a later page by run order stays on
- * that later page, just reordered within it. Getting a fully global armband
- * sort would mean duplicating the builder's private chunking constants and
- * class/title logic here — a second implementation of exactly what Task 6
- * exists to stop having. Flagged as a known limitation, not silently shipped
- * as equivalent to the old React component's full-list sort.
+ * It DOES re-partition entries across page boundaries within that run: every
+ * entry across the whole run of same-kind pages for a class is flattened,
+ * sorted by armband, and refilled into the original page sizes — so a
+ * low-armband dog that run order assigned to a later page moves onto page 1,
+ * preserving only the PAGE COUNT and SIZES the builder chose, not which dog
+ * lands on which page. See `toScoresheetModel.test.ts`'s
+ * `reorderPagesByArmband (multi-page classes)` suite, which asserts exactly
+ * this movement.
  */
 function reorderPagesByArmband(model: EmergencyPacketModel): EmergencyPacketModel {
   const pages = [...model.pages];

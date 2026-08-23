@@ -375,6 +375,40 @@ describe('buildEmergencyTrialPacketPdf', () => {
     expect(bytes.byteLength).toBeLessThanOrEqual(MAX_EMERGENCY_PACKET_BYTES);
   });
 
+  /**
+   * Whole-branch review finding #7. The emergency packet keeps the red
+   * "SNAPSHOT — NOT LIVE" banner and the emergency-packet PDF title; a
+   * Reports-originated model (`snapshotMarker: false`) must show neither —
+   * a check-in sheet printed on a normal working day is not a stale
+   * degraded-mode snapshot, and telling a gate steward it might be is worse
+   * than printing nothing at all.
+   */
+  describe('snapshotMarker suppression', () => {
+    it('keeps the snapshot banner and emergency titling for the actual packet', async () => {
+      const model = buildEmergencyPacketModel(fixture);
+      const bytes = buildEmergencyTrialPacketPdf(model);
+      const pdf = await PDFDocument.load(bytes);
+      const text = await extractPdfText(bytes);
+
+      expect(pdf.getTitle()).toBe('Prairie Fall Trial — Emergency Trial Packet');
+      expect(text).toContain('SNAPSHOT — NOT LIVE');
+    });
+
+    it('suppresses the snapshot banner and emergency titling for a Reports-originated model', async () => {
+      const model = buildEmergencyPacketModel(fixture, { snapshotMarker: false });
+      const bytes = buildEmergencyTrialPacketPdf(model);
+      const pdf = await PDFDocument.load(bytes);
+      const text = await extractPdfText(bytes);
+
+      expect(pdf.getTitle()).toBe('Prairie Fall Trial');
+      expect(pdf.getTitle()).not.toContain('Emergency Trial Packet');
+      expect(text).not.toContain('SNAPSHOT — NOT LIVE');
+      // Everything else about the page (identity, dates) still prints —
+      // only the marker and titling are suppressed.
+      expect(text).toContain('Container Novice A');
+    });
+  });
+
   it('prints the class maximum on the pages a judge writes on', async () => {
     const model = buildEmergencyPacketModel(fixture);
     const text = await extractPdfText(buildEmergencyTrialPacketPdf(model));
@@ -592,6 +626,30 @@ describe('scoresheet per-dog block', () => {
     }
   });
 
+  /**
+   * Whole-branch review finding #6: `resolveAreaCount` clamps to `MAX_AREAS`
+   * (10), and the time stack drew `areaCount + 1` rows unconditionally — at
+   * 6 areas the `Total` box lands 6.5mm INTO the next dog's block. Drive
+   * `numAreas` past the point where all rows would fit and prove the block
+   * stays bounded regardless.
+   */
+  it('keeps a large area count from overflowing the block, via a visible overflow marker', () => {
+    for (const numAreas of [5, 6, 10]) {
+      expect(blockExtent({ numAreas }), `numAreas=${numAreas}`).toBeLessThanOrEqual(
+        SCORE_BLOCK_HEIGHT_MM
+      );
+    }
+    const { texts } = renderPageOfKind('score-recording', {}, { numAreas: 6 });
+    // Every area up to the row budget still gets its own box...
+    for (const label of ['A1', 'A2', 'A3']) {
+      expect(texts.filter(text => text === label)).toHaveLength(2);
+    }
+    // ...and the ones that don't fit are named, not silently dropped.
+    expect(texts.filter(text => text === '+3')).toHaveLength(2);
+    expect(texts.filter(text => text === 'Total')).toHaveLength(2);
+    expect(texts).not.toContain('A4');
+  });
+
   it('keeps the multi-area time stack inside the block height', () => {
     // The four time rows must fit the height the reason lists already set, or
     // pagination silently overflows for 3-area classes only.
@@ -649,6 +707,42 @@ describe('scoresheet per-dog block', () => {
     );
     expect(texts.some(text => text.includes('Hides:'))).toBe(false);
     expect(texts.some(text => text.includes('Distractions:'))).toBe(false);
+  });
+
+  /**
+   * Whole-branch review finding #1: breed, reg # and handler used to share
+   * ONE 51mm line at 7pt. `Labrador Retriever · SR12345601 · Jennifer
+   * Martinez` measures 57.7mm — past the region's ~51mm budget — so
+   * `fitTextToWidth` silently ate the tail, usually the handler. Drive a
+   * long breed AND a long handler through the same block and assert BOTH
+   * still print identifiably (not merely "something truncated survived").
+   */
+  it('prints a long breed and a long handler both identifiably, not truncated into each other', () => {
+    const longBreed = 'Nederlandse Kooikerhondje Extremely Long Registered Breed Name';
+    const longHandler = 'Anastasia Konstantinopoulos-Wetherbottom Featherstonehaugh';
+    const { texts } = renderPageOfKind('score-recording', {
+      breed: longBreed,
+      handler: longHandler,
+      registrationNumber: 'SR-99999999-XX',
+    });
+
+    // Every one of the two fields must have its OWN printed line whose
+    // non-empty prefix genuinely matches that field's own value — a bare
+    // `startsWith` against the whole `texts` array is vacuous if a single
+    // merged (and truncated) line happened to start with the breed.
+    const breedLine = texts.find(text => text.length > 0 && longBreed.startsWith(text.slice(0, 8)));
+    const handlerLine = texts.find(
+      text => text.length > 0 && longHandler.startsWith(text.slice(0, 8))
+    );
+    expect(breedLine, 'breed was not printed at all').toBeDefined();
+    expect(handlerLine, 'handler was not printed at all').toBeDefined();
+    // They must be genuinely separate strings jsPDF drew — proof the fix put
+    // them on their own lines rather than one truncating over the other.
+    expect(breedLine).not.toBe(handlerLine);
+    // Still truncated (never overprinted) since these values also overflow
+    // their own single line at this width.
+    expect(breedLine!.length).toBeLessThan(longBreed.length);
+    expect(handlerLine!.length).toBeLessThan(longHandler.length);
   });
 
   it('prints the armband range for the entries on this page', () => {

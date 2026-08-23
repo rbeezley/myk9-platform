@@ -163,12 +163,13 @@ function page(
   kind: EmergencyPacketPageKind,
   title: string,
   context: EmergencyPacketPageContext,
-  entries: PacketReportEntry[] = []
+  entries: PacketReportEntry[] = [],
+  snapshotMarker = true
 ): Omit<EmergencyPacketPage, 'pageNumber'> {
   return {
     kind,
     title,
-    marker: EMERGENCY_PACKET_MARKER,
+    marker: snapshotMarker ? EMERGENCY_PACKET_MARKER : '',
     generatedAt: input.generatedAt,
     context,
     entries: entries.map(packetEntry),
@@ -323,7 +324,23 @@ export function splitPacketInputByTrialDay(input: EmergencyPacketInput): Emergen
     });
 }
 
-export function buildEmergencyPacketModel(input: EmergencyPacketInput): EmergencyPacketModel {
+export interface BuildEmergencyPacketModelOptions {
+  /**
+   * Defaults to `true` — the actual emergency trial packet always carries
+   * the "SNAPSHOT — NOT LIVE" marker and its emergency titling. Pass `false`
+   * for a model built for the Reports page's check-in sheet or scoresheet:
+   * those reuse this same builder for byte-identical layout, but are printed
+   * on an ordinary working day, not during degraded-mode operation, so the
+   * marker and titling would be actively misleading.
+   */
+  snapshotMarker?: boolean;
+}
+
+export function buildEmergencyPacketModel(
+  input: EmergencyPacketInput,
+  options: BuildEmergencyPacketModelOptions = {}
+): EmergencyPacketModel {
+  const snapshotMarker = options.snapshotMarker ?? true;
   const sortedTrials = [...input.trials].sort(compareTrials);
   const sortedClasses = [...input.classes].sort(compareClasses);
   const sortedEntries = [...input.entries].sort(compareEntries);
@@ -332,7 +349,7 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
     classes: sortedClasses.filter(classItem => classItem.trialId === trial.id),
   }));
   const pendingPages: Array<Omit<EmergencyPacketPage, 'pageNumber'>> = [
-    page(input, 'cover', 'Emergency Trial Packet', baseContext(input)),
+    page(input, 'cover', 'Emergency Trial Packet', baseContext(input), [], snapshotMarker),
   ];
 
   for (const trial of trialSections) {
@@ -349,7 +366,9 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
 
     chunks(trialEntries, CATALOG_ROWS_PER_PAGE).forEach((entries, index, pages) => {
       const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
-      pendingPages.push(page(input, 'catalog', `Entry Catalog${suffix}`, context, entries));
+      pendingPages.push(
+        page(input, 'catalog', `Entry Catalog${suffix}`, context, entries, snapshotMarker)
+      );
     });
 
     for (const classItem of trial.classes) {
@@ -369,7 +388,14 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
       chunks(classEntries, CHECK_IN_ROWS_PER_PAGE).forEach((entries, index, pages) => {
         const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
         pendingPages.push(
-          page(input, 'check-in', `Check-in & Running Order${suffix}`, classContext, entries)
+          page(
+            input,
+            'check-in',
+            `Check-in & Running Order${suffix}`,
+            classContext,
+            entries,
+            snapshotMarker
+          )
         );
       });
       // Title carries the registry's own vocabulary (`orgTitle`) rather than a
@@ -382,21 +408,33 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
         (entries, index, pages) => {
           const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
           pendingPages.push(
-            page(input, 'score-recording', `${scoresheetTitle}${suffix}`, classContext, entries)
+            page(
+              input,
+              'score-recording',
+              `${scoresheetTitle}${suffix}`,
+              classContext,
+              entries,
+              snapshotMarker
+            )
           );
         }
       );
     }
 
-    pendingPages.push(page(input, 'certification', 'Judge & Secretary Certification', context));
+    pendingPages.push(
+      page(input, 'certification', 'Judge & Secretary Certification', context, [], snapshotMarker)
+    );
   }
 
-  pendingPages.push(page(input, 'transcription', 'Paper Results Recovery', baseContext(input)));
+  pendingPages.push(
+    page(input, 'transcription', 'Paper Results Recovery', baseContext(input), [], snapshotMarker)
+  );
 
   return {
     generatedAt: input.generatedAt,
     show: input.show,
     trials: trialSections,
+    snapshotMarker,
     pages: pendingPages.map((item, index) => ({ ...item, pageNumber: index + 1 })),
   };
 }

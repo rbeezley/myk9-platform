@@ -213,6 +213,7 @@ describe('emergency trial packet model', () => {
   it('gives every page a visible snapshot and reconstruction label', () => {
     const model = buildEmergencyPacketModel(input);
 
+    expect(model.snapshotMarker).toBe(true);
     expect(model.pages.every(page => page.marker === 'SNAPSHOT — NOT LIVE')).toBe(true);
     expect(model.pages.every(page => page.generatedAt === input.generatedAt)).toBe(true);
     expect(
@@ -224,6 +225,21 @@ describe('emergency trial packet model', () => {
           )
         )
     ).toBe(true);
+  });
+
+  /**
+   * Whole-branch review finding #7: a check-in sheet or scoresheet printed
+   * from Reports on an ordinary working day is not a degraded-mode snapshot.
+   * `snapshotMarker: false` must suppress the marker on every page, not just
+   * the pages Reports actually selects — a caller filtering pages later
+   * should never be able to observe a leftover marker.
+   */
+  it('suppresses the snapshot marker on every page when snapshotMarker is false', () => {
+    const model = buildEmergencyPacketModel(input, { snapshotMarker: false });
+
+    expect(model.snapshotMarker).toBe(false);
+    expect(model.pages.every(page => page.marker === '')).toBe(true);
+    expect(model.pages.some(page => page.marker === 'SNAPSHOT — NOT LIVE')).toBe(false);
   });
 
   it('requires real trial, class, and entry data', () => {

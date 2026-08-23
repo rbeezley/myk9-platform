@@ -82,11 +82,12 @@ const entries = [
 ] as unknown as DbEntry[];
 
 describe('ReportPreview', () => {
-  // check-in-sheet renders from the shared PDF renderer as of Task 6 (see
-  // `toScoresheetModel.test.ts` for its judge-name coverage via
-  // `buildEmergencyPacketData`), so this markup-path regression test moved to
-  // results-sheet — another class-scoped report using the same
-  // `TrialInfoBox`/`resolveClassJudgeName` path this test exercises.
+  // check-in-sheet renders from the shared PDF renderer as of Task 6, so this
+  // markup-path regression test moved to results-sheet — another
+  // class-scoped report using the same `TrialInfoBox`/`resolveClassJudgeName`
+  // path this test exercises. The PDF path's own judge-name coverage is
+  // `toScoresheetModel.test.ts`'s "resolves the class judge from an
+  // assignment over a stale denormalised name, and prints it".
   it('renders assignment-backed class judges in results sheet previews', async () => {
     const assignmentClasses = [
       {

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
+import { listRegistries } from '@/features/registries';
 import {
   GENERIC_SCORESHEET_CONFIG,
   SCORESHEET_CONFIGS,
@@ -11,6 +12,30 @@ describe('resolveScoresheetConfig', () => {
     const config = resolveScoresheetConfig('akc');
     expect(config.orgTitle).toBe('AKC Scent Work');
     expect(config.resultStates).toEqual(['Q', 'NQ', 'EX', 'ABS']);
+  });
+
+  it('resolves an UPPERCASE registry id, the shape every app trial actually has', () => {
+    // App registry ids are uppercase ('AKC' | 'UKC' | 'ASCA' — see
+    // `readTrialRegistryId`); `SCORESHEET_CONFIGS`'s keys are lowercase. This
+    // is the production path for every trial: dropping the `.toLowerCase()`
+    // in `resolveScoresheetConfig` would silently fall every real sheet back
+    // to the generic config, and nothing before this test would notice.
+    const config = resolveScoresheetConfig('AKC');
+    expect(config).toBe(SCORESHEET_CONFIGS.akc);
+    expect(config.orgTitle).toBe('AKC Scent Work');
+  });
+
+  it('covers every registry id the app actually has, case-insensitively', () => {
+    // The spec requires this coverage check; it had never been written. A
+    // registry added to `@/features/registries` without a matching
+    // `SCORESHEET_CONFIGS` entry falls back to the generic sheet for every
+    // trial under that registry, silently.
+    for (const registryId of listRegistries()) {
+      expect(
+        SCORESHEET_CONFIGS[registryId.toLowerCase()],
+        `no scoresheet config for registry "${registryId}"`
+      ).toBeDefined();
+    }
   });
 
   it('falls back to the generic config rather than throwing on an unknown id', () => {

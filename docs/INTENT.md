@@ -101,7 +101,32 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
 - **Large touch targets** — minimum 44x44px, prefer 48x48px on tablet views
 - **High contrast text** — WCAG AA minimum, prefer AAA for primary content
 - **Readable font sizes** — 16px body minimum, never below 14px for anything
-  - In myK9Show, the `text-xs` Tailwind token is intentionally raised to 14px.
+  - In myK9Show, the `text-xs` Tailwind token is intentionally raised to 14px. It is the
+    caption step and the absolute floor — secondary text only, never body copy.
+  - Body copy is `text-sm`, which the app raises to 16px. From there the text range is
+    geometric at 1.25 — 16 / 20 / 25 / 31 — so adjacent steps stay far enough apart to
+    read as a hierarchy. (The 14px caption step sits below that ladder rather than on it:
+    14→16 is only 1.14, which is why the ratio rule starts at `text-sm`.) Above `text-xl`
+    the display range is deliberately **capped**
+    (36 / 42 / 48 / 56 / 66) rather than continuing the ratio: `text-5xl` and `text-6xl` are
+    the running clock on the live scoresheets, inside `overflow-hidden` cards, and a
+    geometric top end clips a judge's scored time at phone width. The whole scale lives in
+    one `fontSize` block in `apps/myk9show/tailwind.config.js`; change it there, never per
+    component.
+  - **The 16px floor is a rule about the body token, not a guarantee about any given page.**
+    Raising `text-sm` does not move the ~1700 `text-xs` uses, so a real page still renders a
+    mix of 14px and 16px. When you write new UI, `text-xs` is for captions, badges and
+    metadata; anything a user reads as content belongs at `text-sm` or above. Existing
+    `text-xs` that is really content (class fees, a dog's registered name) is worth moving
+    up, one surface at a time.
+  - `apps/myk9show/src/test/design/typeScale.test.ts` enforces this by compiling the real
+    config and asserting computed styles rather than grepping the config text (MYK9-220).
+    It covers the 13 `text-*` utilities — the ten the config declares plus `7xl`–`9xl`,
+    which stay at Tailwind's defaults and are checked so a raised `6xl` cannot quietly
+    overtake them. It cannot see **arbitrary values**: `text-[10px]` and friends are
+    invisible to it, and 103 uses below the 14px floor exist today. Do not add more.
+  - `text-5xl` and `text-6xl` additionally carry a hard px ceiling in that test, derived
+    from the 287px scoresheet timer card. Re-measure that card before raising either.
   - Exception: print/export templates may use smaller fixed sizes when fitting official forms.
 - **No hover-only interactions** — everything must work on touch devices
 - **No gesture-only actions** — swipe is a shortcut, never the only way

@@ -163,12 +163,48 @@ export default {
         display: ['Fraunces', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', '"SF Mono"', 'Consolas', 'monospace'],
       },
-      // INTENT: myK9Show's working UI has a 14px floor. Tailwind's default
-      // text-xs is 12px, which is too small for show-day tablet use and retired
-      // exhibitors. Print/export templates may still use smaller inline sizes
-      // when fitting official fixed-format forms.
+      // INTENT: the whole type scale, as one token. docs/INTENT.md requires a
+      // 16px body minimum and never below 14px for anything; before this the
+      // app rendered ~99% of its text at 14px because `text-sm` (Tailwind's
+      // 14px) had become the default body size, leaving a 16÷14 = 1.14 step
+      // ratio and effectively no hierarchy (MYK9-220).
+      //
+      // TEXT RANGE (xs..xl) is the decision: 14 / 16 / 20 / 25 / 31, geometric
+      // at 1.25 anchored on a 16px body, with 14px kept below it as the caption
+      // step and the absolute floor. Tailwind's default text-xs is 12px, which
+      // is too small for show-day tablet use and retired exhibitors.
+      //
+      // DISPLAY RANGE (2xl..6xl) is deliberately CAPPED rather than continuing
+      // the 1.25 ratio. Continuing it would reach 39 / 49 / 61 / 76 / 95, and
+      // the largest tokens are not decorative here — they are the running clock
+      // on the live scoresheets, inside cards that are `overflow-hidden`. At
+      // 76px a `font-mono` M:SS.HH time overruns its card at phone width and a
+      // judge silently loses a digit off a scored run. These values keep the
+      // ladder monotonic and hierarchical while leaving the timers room at
+      // 375px.
+      //
+      // Every step is declared here on purpose: the scale must stay monotonic,
+      // so raising `sm` to 16px forces `base` and everything above it up too.
+      // Keeping it as one token block is the rollback story — reverting this
+      // object restores the previous typography app-wide in a single diff.
+      // Do NOT compensate for the new scale in individual components; if a
+      // surface breaks, that is evidence about the scale, not a component bug.
+      // Print/export templates may still use smaller inline sizes when fitting
+      // official fixed-format forms.
+      //
+      // 7xl–9xl are intentionally left at Tailwind's defaults (72 / 96 / 128px);
+      // 6xl stays below 72px so the ladder does not invert at that boundary.
       fontSize: {
-        xs: ['0.875rem', { lineHeight: '1.25rem' }],
+        xs: ['0.875rem', { lineHeight: '1.25rem' }], // 14px — caption / floor
+        sm: ['1rem', { lineHeight: '1.5rem' }], // 16px — body
+        base: ['1.25rem', { lineHeight: '1.75rem' }], // 20px
+        lg: ['1.5625rem', { lineHeight: '2rem' }], // 25px
+        xl: ['1.9375rem', { lineHeight: '2.375rem' }], // 31px
+        '2xl': ['2.25rem', { lineHeight: '2.75rem' }], // 36px
+        '3xl': ['2.625rem', { lineHeight: '3rem' }], // 42px
+        '4xl': ['3rem', { lineHeight: '1.1' }], // 48px
+        '5xl': ['3.5rem', { lineHeight: '1.1' }], // 56px
+        '6xl': ['4.125rem', { lineHeight: '1.1' }], // 66px
       },
       transitionTimingFunction: {
         apple: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',

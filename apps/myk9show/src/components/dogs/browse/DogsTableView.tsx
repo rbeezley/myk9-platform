@@ -92,7 +92,15 @@ const columns: ColumnDef<Dog>[] = [
     id: 'name',
     accessorFn: dog => getDogDisplayName(dog),
     header: 'Name',
-    meta: { exportHeader: 'Name', exportValue: (dog: unknown) => getDogDisplayName(dog as Dog) },
+    // Pinned left (MYK9-222). At tablet width the six columns overflow their
+    // wrapper, so reaching Status means scrolling right — and an unpinned Name
+    // column takes the row's identity with it, leaving the reader looking at a
+    // status badge with no idea whose it is.
+    meta: {
+      stickyLeft: true,
+      exportHeader: 'Name',
+      exportValue: (dog: unknown) => getDogDisplayName(dog as Dog),
+    } satisfies DataTableColumnMeta,
     cell: ({ row }) => {
       const dog = row.original;
       return (
@@ -121,7 +129,14 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'breed',
     header: 'Breed',
-    meta: { exportHeader: 'Breed', exportValue: (dog: unknown) => (dog as Dog).breed || '' },
+    // Breed and Sex both appear on the card view, so dropping them on narrow
+    // viewports costs the reader nothing and buys back the width that was
+    // pushing Owner and Status off-screen (MYK9-222).
+    meta: {
+      responsiveHide: 'md',
+      exportHeader: 'Breed',
+      exportValue: (dog: unknown) => (dog as Dog).breed || '',
+    } satisfies DataTableColumnMeta,
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{getDogBreedLabel(row.original)}</span>
     ),
@@ -129,7 +144,11 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'sex',
     header: 'Sex',
-    meta: { exportHeader: 'Sex', exportValue: (dog: unknown) => (dog as Dog).sex || '' },
+    meta: {
+      responsiveHide: 'md',
+      exportHeader: 'Sex',
+      exportValue: (dog: unknown) => (dog as Dog).sex || '',
+    } satisfies DataTableColumnMeta,
     cell: ({ row }) => getSexBadge(row.original.sex),
   },
   {
@@ -163,6 +182,10 @@ export const DogsTableView: React.FC<DogsTableViewProps> = ({ dogs, selection })
   return (
     <DataTable
       tableId="dogsBrowse"
+      // The remaining columns can still overflow on a narrow viewport, so the
+      // scroll region needs a name and a tab stop to be reachable at all
+      // without a pointer.
+      scrollAreaLabel="Dogs table"
       columns={allColumns}
       data={dogs}
       // Page-level ListControls owns search; table keeps only its Columns control.

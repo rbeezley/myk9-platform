@@ -28,7 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { DataTableColumnHeader } from './data-table-column-header';
 import { DataTablePagination } from './data-table-pagination';
-import { type DataTableColumnMeta, RESPONSIVE_CLASSES } from './types';
+import { type DataTableColumnMeta, getColumnLayoutClasses } from './types';
 import { DataTableToolbar } from './data-table-toolbar';
 import { DataTableSearch } from './data-table-search';
 import { DataTableColumnToggle } from './data-table-column-toggle';
@@ -354,15 +354,11 @@ export function DataTable<TData>({
     globalFilterFn: 'includesString',
   });
 
-  const getResponsiveClass = (columnId: string) => {
+  const getLayoutClass = (columnId: string, cell: 'header' | 'body') => {
     const colDef = allColumns.find(
       c => ('accessorKey' in c && c.accessorKey === columnId) || c.id === columnId
     );
-    const meta = colDef?.meta as DataTableColumnMeta | undefined;
-    if (meta?.responsiveHide) {
-      return RESPONSIVE_CLASSES[meta.responsiveHide];
-    }
-    return '';
+    return getColumnLayoutClasses(colDef?.meta as DataTableColumnMeta | undefined, cell);
   };
 
   const resetTableView = () => {
@@ -437,7 +433,7 @@ export function DataTable<TData>({
                   className={cn(
                     'text-left font-medium text-muted-foreground',
                     headerCellClassName,
-                    getResponsiveClass(header.column.id)
+                    getLayoutClass(header.column.id, 'header')
                   )}
                   aria-sort={
                     header.column.getIsSorted() === 'asc'
@@ -524,7 +520,9 @@ export function DataTable<TData>({
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
                   className={cn(
-                    'border-b border-border/30 hover:bg-muted/20 transition-colors',
+                    // `group/row` is what lets a left-pinned cell mirror this
+                    // row's hover and selected tints (see STICKY_LEFT_BODY_CLASSES).
+                    'group/row border-b border-border/30 hover:bg-muted/20 transition-colors',
                     onRowClick && 'cursor-pointer',
                     getRowClassName?.(row.original)
                   )}
@@ -537,7 +535,7 @@ export function DataTable<TData>({
                   {row.getVisibleCells().map(cell => (
                     <TableCell
                       key={cell.id}
-                      className={cn(bodyCellClassName, getResponsiveClass(cell.column.id))}
+                      className={cn(bodyCellClassName, getLayoutClass(cell.column.id, 'body'))}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>

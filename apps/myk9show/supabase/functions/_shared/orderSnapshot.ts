@@ -22,7 +22,7 @@ import { calculatePlatformFeeCents } from './platformFee.ts';
 // `entry_subtotal_cents` and `platform_fee_cents` distinguish "captured" from
 // "not captured" by NULL, and two readers depend on it —
 // `aggregateShowOrders` (net-to-club goes `pending` on NULL) and
-// `resolveOrderChargeVerification` (NULL → `Attested`). Both would read a
+// `resolveOrderChargeVerification` (NULL → `NoFeeBreakdown`). Both would read a
 // stored 0 as a captured value, so the question is whether an UNCAPTURED
 // value can ever land as 0. It cannot. Every write path was traced:
 //

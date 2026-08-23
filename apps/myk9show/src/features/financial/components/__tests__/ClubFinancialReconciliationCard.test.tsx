@@ -16,7 +16,7 @@ function row(overrides: Partial<ClubShowReconciliationRow> = {}): ClubShowReconc
     showId: 'show-1',
     showName: 'Cedar Valley Classic',
     net: { status: 'available', netCents: 10000 }, // $100.00 entry-fee take
-    chargeVerification: 'Verified',
+    chargeVerification: 'AllFeeBreakdowns',
     settlement: {
       payoutId: 'payout-1',
       badgeLabel: 'Paid',
@@ -49,8 +49,18 @@ describe('ClubFinancialReconciliationCard', () => {
     render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
     expect(screen.getByTestId('reconciliation-unavailable')).toBeInTheDocument();
-    expect(screen.getByText(/unavailable right now/i)).toBeInTheDocument();
-    expect(screen.queryByText('Verified')).not.toBeInTheDocument();
+    expect(screen.getByText(/can't load this reconciliation right now/i)).toBeInTheDocument();
+    // The reassurance is the half that must survive: a failed READ must never
+    // read as a failed payout.
+    expect(
+      screen.getByText(/not a sign that anything happened to your payouts/i)
+    ).toBeInTheDocument();
+    // MYK9-231: and the half that must not. `isError` is React Query's verdict
+    // that the query function threw; it cannot know which hop failed, so the
+    // copy may not name one. #1727 threw synchronously in the browser with no
+    // request issued, while this card blamed Stripe.
+    expect(screen.queryByText(/against Stripe/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/fee breakdown/i)).not.toBeInTheDocument();
     expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
   });
@@ -62,7 +72,7 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(screen.getByText(/no shows to reconcile yet/i)).toBeInTheDocument();
   });
 
-  it('Verified + settled row: shows net, Verified badge, Paid badge, copyable id, and Stripe link', () => {
+  it('FeeBreakdown + settled row: shows net, Stripe-record badge, Paid badge, copyable id, and Stripe link', () => {
     mockedHook.mockReturnValue({
       rows: [row()],
       isLoading: false,
@@ -73,7 +83,7 @@ describe('ClubFinancialReconciliationCard', () => {
 
     expect(screen.getByText('Cedar Valley Classic')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
-    expect(screen.getByText('Verified')).toBeInTheDocument();
+    expect(screen.getByText('Stripe fee breakdown for every charge')).toBeInTheDocument();
     expect(screen.getByText('Paid')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /copy stripe transfer id tr_123/i })
@@ -162,25 +172,29 @@ describe('ClubFinancialReconciliationCard', () => {
     expect(screen.queryByText(/Paid on/)).not.toBeInTheDocument();
   });
 
-  it('Attested row: shows the Attested badge, not Verified', () => {
+  it('NoFeeBreakdown row: shows the no-Stripe-record badge, not the Stripe-record one', () => {
     mockedHook.mockReturnValue({
-      rows: [row({ chargeVerification: 'Attested', settlement: null })],
+      rows: [row({ chargeVerification: 'SomeFeeBreakdownsMissing', settlement: null })],
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
     });
     render(<ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />);
 
-    expect(screen.getByText('Attested')).toBeInTheDocument();
-    expect(screen.queryByText('Verified')).not.toBeInTheDocument();
+    expect(screen.getByText('Some charges have no Stripe fee breakdown')).toBeInTheDocument();
+    expect(screen.queryByText('Stripe fee breakdown for every charge')).not.toBeInTheDocument();
     expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
   });
 
   // The destructive "Mismatch" badge is GONE: it was driven by an amount tie-out
   // inference that false-reds on rounding residue, legacy rows, partial refunds
-  // and desk refunds. The card now only ever says Verified or Attested.
+  // and desk refunds. The card now only ever says which record is on file.
   it('never renders a Mismatch badge for either remaining state', () => {
-    for (const state of ['Verified', 'Attested'] as const) {
+    const LABELS = {
+      AllFeeBreakdowns: 'Stripe fee breakdown for every charge',
+      SomeFeeBreakdownsMissing: 'Some charges have no Stripe fee breakdown',
+    } as const;
+    for (const state of ['AllFeeBreakdowns', 'SomeFeeBreakdownsMissing'] as const) {
       mockedHook.mockReturnValue({
         rows: [row({ chargeVerification: state })],
         isLoading: false,
@@ -190,7 +204,7 @@ describe('ClubFinancialReconciliationCard', () => {
       const view = render(
         <ClubFinancialReconciliationCard clubId="club-1" accountState="enabled" />
       );
-      expect(screen.getByText(state)).toBeInTheDocument();
+      expect(screen.getByText(LABELS[state])).toBeInTheDocument();
       expect(screen.queryByText('Mismatch')).not.toBeInTheDocument();
       view.unmount();
     }

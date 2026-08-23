@@ -6,7 +6,7 @@
 // INTENT: a treasurer trusts this as an authoritative record they can
 // explain (docs/INTENT.md, Site Admin oversight intent: "I can drill down").
 // When the reconciliation RPC is unavailable, this card MUST show an
-// explicit unavailable state and MUST NOT render any Verified/Attested/
+// explicit unavailable state and MUST NOT render any charge-state or
 // settlement badge — a missing fact reads as missing, never as a calm green
 // checkmark it cannot back up.
 import { AlertCircle, ScrollText } from 'lucide-react';
@@ -43,7 +43,10 @@ export function ClubFinancialReconciliationCard({
   clubId,
   accountState,
 }: ClubFinancialReconciliationCardProps) {
-  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(clubId, accountState);
+  const { rows, isLoading, isError, refetch } = useClubFinancialReconciliation(
+    clubId,
+    accountState
+  );
 
   return (
     <Card>
@@ -55,7 +58,8 @@ export function ClubFinancialReconciliationCard({
           </CardTitle>
         </div>
         <CardDescription>
-          Per-show net, Stripe verification, and transfer status for your club&apos;s shows.
+          Per-show net, how much of it Stripe can account for, and transfer status for your
+          club&apos;s shows.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -79,10 +83,27 @@ export function ClubFinancialReconciliationCard({
           >
             <AlertCircle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription className="space-y-3">
+              {/* NAMES NO CAUSE (MYK9-231). This branch is React Query's verdict
+                  that the query function threw; it carries no information about
+                  WHERE it threw. The previous copy said we could not confirm the
+                  details "against Stripe", which asserts the request reached
+                  Stripe's side of the world. The #1727 outage was a detached-method
+                  TypeError that threw synchronously in the browser — no request was
+                  ever issued — and this sentence sent the investigation to Postgres,
+                  edge and RPC-grant logs, none of which can see a client-side throw.
+
+                  Three further constraints, each one a rewrite that was tried and
+                  rejected in review. It must DENY AN INFERENCE ("this doesn't mean
+                  anything is wrong") rather than ASSERT A FACT ("your payouts are
+                  fine") — a failed read cannot establish that payouts are fine. It
+                  must not name the failed thing more widely than it is: "your show
+                  records" reads as the club's show data being at risk, when one
+                  reconciliation read threw. And it must not say "money": on a money
+                  screen, naming money in a failure sentence plants the alarm the
+                  sentence exists to prevent. */}
               <p>
-                Stripe verification is unavailable right now. This doesn&apos;t mean anything is
-                wrong with your payouts. We just can&apos;t confirm the details against Stripe at
-                the moment.
+                We can&apos;t load this reconciliation right now. That&apos;s a problem displaying
+                the figures, not a sign that anything happened to your payouts.
               </p>
               {/* A real control rather than a link inside the sentence: `variant="link"`
                   is `text-primary`, which measures 4.40:1 under heather+dark and

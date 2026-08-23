@@ -123,6 +123,9 @@ export function useClubFinancialReconciliation(
         })
       ),
     enabled: !!clubId,
+    // A silent failure here is expensive: the card degrades to its unavailable
+    // state and nothing else records that anything went wrong (MYK9-231).
+    meta: { reportToSentry: true },
     ...cacheStrategies.moderate,
   });
 
@@ -138,6 +141,9 @@ export function useClubFinancialReconciliation(
         })
       ),
     enabled: !!clubId,
+    // A silent failure here is expensive: the card degrades to its unavailable
+    // state and nothing else records that anything went wrong (MYK9-231).
+    meta: { reportToSentry: true },
     ...cacheStrategies.moderate,
   });
 

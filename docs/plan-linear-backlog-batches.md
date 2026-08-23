@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0, 1, 2 and **3 are complete** except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 closed on 2026-08-23: eight issues Done, MYK9-195 and MYK9-190 parked with triggers recorded, three follow-ups filed (MYK9-237/238/239). SMS is deferred until after launch by product-owner decision. **Next up: Batch 4 (closure proofs), then Batch 5.** See **"[CLOSED 2026-08-23] Batch 3 is complete"** under Batch 3.
+> **Status:** Active — Batches 0, 1, 2 and **3 are complete** except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 closed on 2026-08-23: eight issues Done, MYK9-195 and MYK9-190 parked with triggers recorded, three follow-ups filed (MYK9-237/238/239). SMS is deferred until after launch by product-owner decision. **Next up: Batch 3.5** — ten issues filed after the 2026-08-21 snapshot plus three never-inventoried In Progress issues; see "[ADDED 2026-08-23] The backlog moved while Batch 3 ran". Then Batch 4 (closure proofs) and Batch 5. See **"[CLOSED 2026-08-23] Batch 3 is complete"** under Batch 3.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -47,9 +47,6 @@ PRIMARY:MYK9-187=parked-sms-deferred-post-launch
 PRIMARY:MYK9-190=parked-sms-deferred-post-launch
 PRIMARY:MYK9-185=operator-track-4
 PRIMARY:MYK9-193=batch-2-lane-2b-step-3
-PRIMARY:MYK9-237=batch-3-followup-filed
-PRIMARY:MYK9-238=batch-3-followup-filed
-PRIMARY:MYK9-239=batch-3-followup-filed
 PRIMARY:MYK9-186=operator-track-4
 PRIMARY:MYK9-189=completed-operator-track-1
 PRIMARY:MYK9-44=deferred
@@ -66,20 +63,33 @@ PRIMARY:MYK9-94=parked
 PRIMARY:MYK9-13=operator-track-5
 PRIMARY:MYK9-27=deferred-after-batch-3
 PRIMARY:MYK9-28=deferred-post-live-shows
+PRIMARY:MYK9-233=batch-3.5-lane-a
+PRIMARY:MYK9-236=batch-3.5-lane-a
+PRIMARY:MYK9-235=batch-3.5-lane-b
+PRIMARY:MYK9-234=batch-3.5-lane-b
+PRIMARY:MYK9-237=batch-3.5-lane-c
+PRIMARY:MYK9-238=batch-3.5-lane-c
+PRIMARY:MYK9-239=batch-3.5-lane-c
+PRIMARY:MYK9-240=batch-3.5-lane-d
+PRIMARY:MYK9-241=batch-3.5-lane-d
+PRIMARY:MYK9-242=batch-3.5-lane-d
+PRIMARY:MYK9-88=openspec-umbrella-exhibitor-ux-remediation
+PRIMARY:MYK9-109=operator-gated-load-harness-dispatch
+PRIMARY:MYK9-198=narrowed-two-items-open
 -->
 
-**Inventory check:** verify both the 54-ID source inventory and the primary registry mechanically after any edit:
+**Inventory check:** verify both the 67-ID source inventory and the primary registry mechanically after any edit:
 
 ```bash
 plan=docs/plan-linear-backlog-batches.md
-for id in 211 163 57 54 225 226 227 228 229 230 231 232 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28; do
+for id in 211 163 57 54 225 226 227 228 229 230 231 232 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28 233 236 235 234 237 238 239 240 241 242 88 109 198; do
   count=$(grep -c "^PRIMARY:MYK9-${id}=" "$plan")
   test "$count" -eq 1 || echo "PRIMARY COUNT ${count}: MYK9-${id}"
 done
-test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 54 || echo "PRIMARY REGISTRY IS NOT 54 ROWS"
+test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 67 || echo "PRIMARY REGISTRY IS NOT 67 ROWS"
 ```
 
-**Sources reviewed:** full `get_issue` descriptions and reopen comments for every code-actionable issue (per the LESSONS rule that `list_issues` truncates acceptance criteria). Snapshot refreshed 2026-08-21 after MYK9-226–232 were added; the 2026-08-20 overnight audits reopened six previously-Done issues, which reshapes the priority order below.
+**Sources reviewed:** full `get_issue` descriptions and reopen comments for every code-actionable issue (per the LESSONS rule that `list_issues` truncates acceptance criteria). Snapshot refreshed 2026-08-21 after MYK9-226–232 were added; the 2026-08-20 overnight audits reopened six previously-Done issues, which reshapes the priority order below. **Refreshed again 2026-08-23** — see "[ADDED 2026-08-23] The backlog moved while Batch 3 ran"; thirteen IDs joined the registry (MYK9-233–242 plus the three long-running In Progress issues MYK9-88 / 109 / 198, which were never inventoried and were silently outside every batch).
 
 **Execution model:** each active lane = one sub-agent in its own git worktree, one PR per issue, Codex review on every PR (gate), merge from the main repo checkout. This Codex environment has four total concurrency slots, including the coordinator, so at most **three worker lanes** run at once; larger batches run in explicit waves. Within a multi-issue lane, finish and merge one issue, clean/reset the worktree, then create the next issue branch from fresh `origin/main`—do not stack unrelated issue commits or reuse a merged branch. A batch is complete when its PRs are merged **and** each issue's closure proof (many now explicitly require a browser replay, not just tests) is recorded on the issue and the issue is moved to Done. Deferred/operator-gated issues exit the batch only when their owner, blocker, and resume trigger are recorded—not by moving them to Done.
 
@@ -399,6 +409,49 @@ Then dispatch:
 - **Lane 3D (runs alone, after 3A–3C merge)** — MYK9-220 typography token change + breakpoint before/after review. Global reflow; landing it last avoids invalidating every other lane's visual verification. **[EXPANDED] This is the one change here with no natural blast-radius limit**, so it needs its own safety story rather than inheriting the batch's. Land the scale as a **single token change** (per the issue's own suggested shape) precisely so revert is one commit, not a sweep through components. Before merging, capture before/after screenshots at 375 / 768 / 1280 on the surfaces most likely to break — the dense secretary tables (`/dogs` table view, entry management), the `/at-show` ringside layouts, and any fixed-height card grid — because a 14→16px body raises row heights everywhere and tables are where that first turns into clipping or a new horizontal scroll. Note the interaction with MYK9-222's sticky-column work and the `text-xs` override at `tailwind.config.js:171`. If the reflow damage is broader than expected, revert the token and re-scope to a role-limited rollout (exhibitor and judge surfaces first, per the issue's step 2) rather than patching per-component under a shipped global change.
 
 Lanes 3B and 3C both touch `BrowseDogsPage.tsx` — land 3B first, rebase 3C.
+
+---
+
+## [ADDED 2026-08-23] The backlog moved while Batch 3 ran — Batch 3.5
+
+Ten issues were filed after this plan's 2026-08-21 snapshot, and three long-running issues were never inventoried at all. None of them were in any batch. That is the update.
+
+### A backlog source this plan did not account for
+
+The `/impeccable-page` sweep is now a **standing generator of filed work**, and it defers by design: a sweep fixes blockers and majors in one PR, then files the structural half rather than growing the PR. Two sweeps have run so far.
+
+| Sweep | Date | Shipped | Deferred into the backlog |
+| --- | --- | --- | --- |
+| `/admin/payouts` | 2026-08-21 | the page fixes | [MYK9-233](https://linear.app/myk9-platform/issue/MYK9-233), [MYK9-234](https://linear.app/myk9-platform/issue/MYK9-234), [MYK9-235](https://linear.app/myk9-platform/issue/MYK9-235), [MYK9-236](https://linear.app/myk9-platform/issue/MYK9-236) |
+| Reports | 2026-08-23 | [#1771](https://github.com/rbeezley/myk9-platform/pull/1771) — blockers + majors | [MYK9-240](https://linear.app/myk9-platform/issue/MYK9-240), [MYK9-241](https://linear.app/myk9-platform/issue/MYK9-241), [MYK9-242](https://linear.app/myk9-platform/issue/MYK9-242) |
+
+Expect roughly three or four filed issues per sweep. **Plan capacity for that** — a batch that consumes the backlog without accounting for what the sweeps add will not converge. The deferrals are correct behaviour, not debt from sloppiness: they are the "one concern, one PR" rule working.
+
+### Batch 3.5 lanes
+
+Ordered by severity, not by filing date. Lanes A–D touch disjoint file sets and can run in parallel within the three-worker cap.
+
+- **Lane 3.5A — data exposure and ACL contract (do this first).** [MYK9-233](https://linear.app/myk9-platform/issue/MYK9-233) is the highest-severity open item on the board: `manageable_show_ids()` is `SECURITY DEFINER` and never restates the `deleted_at IS NULL` filter that `shows_select` applies **outside** its whole OR group. A site admin therefore sees the entries of a soft-deleted show while the show row itself is invisible, and `buildLedgerRows` maps over `shows` rather than entries — so every dropped show's collected, refunded and net cents vanish from the admin ledger **and** from both summary totals, with nothing on screen. **Verified against staging: 0 soft-deleted shows, so it is reachable but not currently firing.** That is exactly why it should land now rather than after launch. Step 1 is a product decision, not code — *should* a site admin see soft-deleted shows? The two answers have different blast radii. Then [MYK9-236](https://linear.app/myk9-platform/issue/MYK9-236) (the grant contract's `service_role` column is unenforced against live; 129 of 130 tables hold more than it declares). Both are ACL-contract work and share the verify-against-the-applied-database discipline.
+- **Lane 3.5B — payout ledger surface.** [MYK9-235](https://linear.app/myk9-platform/issue/MYK9-235) (a refund against money never collected is invisible on every reconciliation surface), then [MYK9-234](https://linear.app/myk9-platform/issue/MYK9-234) (the ledger renders every row twice — the responsive two-copy antipattern; one node that reflows, not two CSS-hidden copies). 3.5B is the **symptom** side of 3.5A's ledger defect and does not substitute for it: making dropped rows visible on one page leaves the policy asymmetry intact for every other surface built on `manageable_show_ids()`.
+- **Lane 3.5C — Batch 3 follow-ups.** [MYK9-237](https://linear.app/myk9-platform/issue/MYK9-237), [MYK9-238](https://linear.app/myk9-platform/issue/MYK9-238), [MYK9-239](https://linear.app/myk9-platform/issue/MYK9-239). MYK9-238's deliverable is a **guard, not an audit** — an inventory of inert utilities decays the moment someone writes the next one.
+- **Lane 3.5D — Reports information architecture.** [MYK9-240](https://linear.app/myk9-platform/issue/MYK9-240), [MYK9-241](https://linear.app/myk9-platform/issue/MYK9-241), [MYK9-242](https://linear.app/myk9-platform/issue/MYK9-242). **Read MYK9-241 against MYK9-198 before starting**: three surfaces write print state to `replicatedPaperworkPrintsTable` with three vocabularies, and Reports is the one that shows nothing — so a secretary re-confirms a print she already recorded from the Show Desk an hour earlier, and the twice-daily print reminder reads that record. This is the consolidate-don't-duplicate rule with a live example; the fix deletes the inline writer in `ReportsPage/index.tsx` rather than adding a fourth UI.
+
+### Three In Progress issues that no batch covered
+
+All three were outside the 54-ID inventory, so nothing in this plan tracked them. They are not stalled for the same reason and should not be treated as one pile:
+
+- **[MYK9-198](https://linear.app/myk9-platform/issue/MYK9-198) — [NARROWED 2026-08-23].** Its own audit comment listed four open items. Item 1 (ring) was resolved and parked as MYK9-227. **Item 3 — "nothing guarantees a packet exists; no cron, no nag" — was the largest remaining gap and is now closed by MYK9-228, which reached Done on 2026-08-23.** Two items remain: scent-work class parameters (`num_hides`, `has_blank`) never reach the paper, and the human mock-trial-day drill, which only Richard can run. Update the issue to say so — it currently reads as though the cron gap is still open, which overstates the remaining work on an Urgent issue.
+- **[MYK9-109](https://linear.app/myk9-platform/issue/MYK9-109)** — the load harness is repaired and green; it is waiting on Richard's `workflow_dispatch` in an approved load window. Same gate as [MYK9-126](https://linear.app/myk9-platform/issue/MYK9-126) in Batch 5; they should fire together, and neither is agent-startable.
+- **[MYK9-88](https://linear.app/myk9-platform/issue/MYK9-88)** — umbrella for the OpenSpec change `exhibitor-ux-remediation`. In Progress is honest for an umbrella; it closes when its OpenSpec tasks do. MYK9-219 already reconciled against tasks 2.1/2.2 in Batch 3.
+
+### Recommended order from here
+
+1. **Richard, 5 minutes:** [MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) — prune the dev sandbox payment methods to Cards + Apple Pay + Google Pay and reload checkout on Android. It has been In Progress since 08-22, it blocks Lane 2C, and it blocks [MYK9-11](https://linear.app/myk9-platform/issue/MYK9-11) at cutover.
+2. **Lane 3.5A** — MYK9-233. Highest severity on the board and fully agent-able once the semantics question is answered.
+3. **Batch 4** — MYK9-211, which needs Richard's explicit approval and a named disposable fixture before anything is written, because its `permission_audit_log` residue is permanent and must not be cleaned up.
+4. Lanes 3.5B–D in parallel as capacity allows.
+
+**Codex returns 2026-08-24.** Batch 3 shipped with zero Codex reviews; from Batch 3.5 the normal gate applies again, with adversarial subagent review kept **in addition** rather than as a substitute — it found something real in all eleven rounds of Batch 3.
 
 ---
 

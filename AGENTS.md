@@ -177,6 +177,10 @@ Update tracking after completing each task or sprint item: move the correspondin
 
 Use the linked Linear issue as the execution contract. Keep Linear for active, PR-sized work; retain OpenSpec and repository plans as the detailed source of truth.
 
+### Reading the board
+
+The workspace is on Linear's free tier (250 **non-archived** issues) and is kept under that cap by auto-archive, so Done issues leave the active set once the archive window elapses. A default `list_issues` call sends `includeArchived: false` and therefore cannot see them. Pass `includeArchived: true` on any query that asks "has this already been filed, fixed, or rejected?" — deduplicating a finding, reconciling an audit ledger, checking closure, or resolving a `MYK9-<n>` cited in code. Without the flag an empty result means "not open", never "never existed", and re-files work that already shipped. `get_issue` by id resolves archived issues with no flag; prefer it whenever the id is known. Full rules: `docs/agents/issue-tracker.md` § Querying.
+
 ### Before editing
 
 - Read the Linear issue, linked spec/plan, and relevant existing files; identify acceptance criteria and non-goals.

@@ -22,7 +22,9 @@ including safe show and entry CRUD.”
 ## Preflight
 
 1. Read `AGENTS.md`, `docs/INTENT.md`, the role's route inventory, relevant tests, prior role
-   reports/memory, current findings/Linear issues, and current main.
+   reports/memory, current findings/Linear issues, and current main. Query Linear with
+   `includeArchived: true` — Done issues auto-archive off the free tier's active set, and this
+   audit's whole premise is that closed findings recur (`docs/agents/issue-tracker.md` § Querying).
    If `audit-pages` lacks the role (including steward) or an `/at-show` surface, derive coverage
    from the current router and role E2E specs; list the resulting routes and any uncertainty.
 2. Start the documented dev server only if needed; record whether the run used current main.

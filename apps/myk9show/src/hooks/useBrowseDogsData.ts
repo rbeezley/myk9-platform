@@ -16,6 +16,11 @@ const INITIAL_FILTERS: DogFilters = {
   sex: 'all',
 };
 
+// `breed` is derived from the roster, so it has no static list to check against.
+const ALLOWED_FILTER_VALUES = {
+  sex: ['male', 'female'],
+} as const;
+
 export interface BrowseDogsData {
   dogs: Dog[];
   filteredDogs: Dog[];
@@ -40,7 +45,9 @@ export function useBrowseDogsData(): BrowseDogsData {
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
-  const [filters, setFilters] = useUrlFilters<DogFilters>(INITIAL_FILTERS);
+  const [filters, setFilters] = useUrlFilters<DogFilters>(INITIAL_FILTERS, {
+    allowedValues: ALLOWED_FILTER_VALUES,
+  });
 
   // Derive unique breeds from actual data
   const availableBreeds = useMemo(() => {

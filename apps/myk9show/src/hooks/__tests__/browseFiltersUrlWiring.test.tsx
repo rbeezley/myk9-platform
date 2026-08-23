@@ -207,11 +207,19 @@ describe('useBrowsePeopleData URL filters', () => {
 
 describe('useBrowseClubsData URL filters', () => {
   it('seeds search and clubType from the query string', () => {
-    const { wrapper } = setupWrapper('/clubs?search=retriever&clubType=all_breed');
+    const { wrapper } = setupWrapper('/clubs?search=retriever&clubType=all-breed');
     const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
 
-    expect(result.current.filters).toEqual({ search: 'retriever', clubType: 'all_breed' });
+    expect(result.current.filters).toEqual({ search: 'retriever', clubType: 'all-breed' });
     expect(result.current.hasActiveFilters).toBe(true);
+  });
+
+  it('falls back to the default for a clubType outside CLUB_TYPES', () => {
+    const { wrapper } = setupWrapper('/clubs?clubType=notathing');
+    const { result } = renderHook(() => useBrowseClubsData(), { wrapper });
+
+    expect(result.current.filters.clubType).toBe('all');
+    expect(result.current.hasActiveFilters).toBe(false);
   });
 
   it('writes the clubType filter to the URL', () => {
@@ -257,6 +265,34 @@ describe('useBrowseShowsFilters URL filters', () => {
     expect(params.get('entryStatus')).toBe('open');
     expect(params.get('tab')).toBe('managing');
     expect(params.get('view')).toBe('cards');
+  });
+
+  it('falls back to the default for a dateRange the app cannot act on', () => {
+    // The dangerous one: `garbage` passes the `!== 'all'` test in applyFilters
+    // but matches none of the date branches, so the date filter would be
+    // skipped entirely and past shows would appear on the default view.
+    const { wrapper } = setupWrapper('/shows?dateRange=garbage');
+    const { result } = renderHook(() => useBrowseShowsFilters({ ...props }), { wrapper });
+
+    expect(result.current.filters.dateRange).toBe('upcoming');
+    expect(result.current.hasActiveFilters).toBe(false);
+  });
+
+  it('falls back to the default for a discipline outside the known set', () => {
+    // Otherwise FilterChips renders an active-toned chip with a clear-X and no
+    // label, counted in activeFilterCount, filtering nothing.
+    const { wrapper } = setupWrapper('/shows?discipline=notathing');
+    const { result } = renderHook(() => useBrowseShowsFilters({ ...props }), { wrapper });
+
+    expect(result.current.filters.discipline).toBe('all');
+    expect(result.current.activeFilterCount).toBe(0);
+  });
+
+  it('still accepts a club id, which has no static list to validate against', () => {
+    const { wrapper } = setupWrapper('/shows?club=any-uuid-here');
+    const { result } = renderHook(() => useBrowseShowsFilters({ ...props }), { wrapper });
+
+    expect(result.current.filters.club).toBe('any-uuid-here');
   });
 
   it('keeps dateRange out of the URL at its non-empty default of "upcoming"', () => {

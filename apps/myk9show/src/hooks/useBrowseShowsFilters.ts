@@ -41,6 +41,19 @@ const DISCIPLINE_MAP: Record<string, string> = {
 };
 
 /**
+ * Closed vocabularies, so a hand-edited URL cannot put a filter into a state no
+ * chip can represent. `?dateRange=garbage` is the dangerous one: it passes the
+ * `!== 'all'` test in applyFilters but matches none of the branches, silently
+ * skipping the date filter and leaking past shows onto the default view.
+ * `club` and `organization` are data-derived and deliberately absent.
+ */
+const ALLOWED_FILTER_VALUES = {
+  discipline: Object.keys(DISCIPLINE_MAP),
+  entryStatus: ['open', 'closing_soon', 'closed', 'waitlist'],
+  dateRange: ['all', 'upcoming', 'this_month', 'next_month'],
+} as const;
+
+/**
  * Normalize a trial-type / discipline string for comparison: lowercase and
  * strip everything but letters, so 'Scent Work', 'Scentwork', 'scent_work',
  * and 'AKC Scent Work' all reduce to comparable tokens.
@@ -115,7 +128,9 @@ export function useBrowseShowsFilters({
 }: UseBrowseShowsFiltersProps): UseBrowseShowsFiltersReturn {
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
-  const [filters, setFilters] = useUrlFilters<ShowFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useUrlFilters<ShowFilters>(DEFAULT_FILTERS, {
+    allowedValues: ALLOWED_FILTER_VALUES,
+  });
   const [filteredShows, setFilteredShows] = useState<Show[]>([]);
 
   // Check if filters are active (different from defaults)

@@ -3,7 +3,7 @@ import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
-import type { Club } from '@/types/club-types';
+import { CLUB_TYPES, type Club } from '@/types/club-types';
 import { filterVisibleBrowseClubs } from './browseClubsVisibility';
 
 export interface ClubFilters {
@@ -15,6 +15,10 @@ const INITIAL_FILTERS: ClubFilters = {
   search: '',
   clubType: 'all',
 };
+
+const ALLOWED_FILTER_VALUES = {
+  clubType: CLUB_TYPES.map(type => type.value),
+} as const;
 
 export interface BrowseClubsData {
   clubs: Club[];
@@ -49,7 +53,9 @@ export function useBrowseClubsData(): BrowseClubsData {
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
-  const [filters, setFilters] = useUrlFilters<ClubFilters>(INITIAL_FILTERS);
+  const [filters, setFilters] = useUrlFilters<ClubFilters>(INITIAL_FILTERS, {
+    allowedValues: ALLOWED_FILTER_VALUES,
+  });
 
   // Public browse uses a narrow club-only readiness path. It works for guests
   // without enabling the full anonymous replication provider.

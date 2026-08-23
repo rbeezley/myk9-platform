@@ -135,6 +135,45 @@ describe('useUrlFilters', () => {
     expect(params.get('search')).toBe('max');
   });
 
+  it('releases the local draft on commit, so later URL changes are still adopted', () => {
+    // The URL is identical whether or not the draft is released, so asserting
+    // on `probe.search` alone cannot tell the two apart. A draft left dangling
+    // pins the rendered value forever and the hook stops following the URL.
+    const { result, probe } = renderFilters(['/dogs']);
+
+    act(() => {
+      result.current[1](prev => ({ ...prev, search: 'max' }));
+    });
+    act(() => {
+      result.current[1](prev => ({ ...prev, breed: 'Poodle' }));
+    });
+    expect(result.current[0].search).toBe('max');
+
+    act(() => {
+      probe.navigate('/dogs?breed=Beagle');
+    });
+
+    expect(result.current[0]).toEqual({ search: '', breed: 'Beagle', sex: 'all' });
+  });
+
+  it('releases the local draft after a debounced write, too', () => {
+    const { result, probe } = renderFilters(['/dogs']);
+
+    act(() => {
+      result.current[1](prev => ({ ...prev, search: 'max' }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(probe.search).toBe('?search=max');
+
+    act(() => {
+      probe.navigate('/dogs?breed=Beagle');
+    });
+
+    expect(result.current[0]).toEqual({ search: '', breed: 'Beagle', sex: 'all' });
+  });
+
   it('omits values that equal their default and removes a cleared filter', () => {
     const { result, probe } = renderFilters(['/dogs?breed=Poodle']);
 
@@ -249,7 +288,26 @@ describe('useUrlFilters', () => {
     expect(params.get('sex')).toBe('female');
   });
 
-  it('ignores a set that changes nothing', () => {
+  it('feeds each same-tick updater the result of the previous one', () => {
+    // Two calls in one tick both read the mirror; if it is not advanced between
+    // them the second updater sees pre-first-call state and the first edit is
+    // silently dropped.
+    const { result, probe } = renderFilters(['/dogs']);
+
+    act(() => {
+      result.current[1](prev => ({ ...prev, search: 'a' }));
+      result.current[1](prev => ({ ...prev, search: `${prev.search}b` }));
+    });
+
+    expect(result.current[0].search).toBe('ab');
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(new URLSearchParams(probe.search).get('search')).toBe('ab');
+  });
+
+  it('ignores a set that changes nothing, and schedules no write for it', () => {
     const { result, probe } = renderFilters(['/dogs']);
 
     act(() => {
@@ -258,6 +316,37 @@ describe('useUrlFilters', () => {
 
     expect(probe.search).toBe('');
     expect(result.current[0]).toEqual(DOG_DEFAULTS);
+
+    // Without the no-op guard, `changed.every(...)` over an empty array is
+    // vacuously true, so the set takes the debounce path and arms a timer.
+    // Asserting before advancing would never see it.
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(probe.search).toBe('');
+  });
+
+  it('a no-op set does not restart an in-flight debounce', () => {
+    // Bailing out early is what keeps the pending write on its original
+    // schedule. Without it the no-op clears the timer and arms a fresh one, so
+    // the user's keystroke lands a full window late — and a component that
+    // re-sets its filters on every render would postpone the write forever.
+    const { result, probe } = renderFilters(['/dogs']);
+
+    act(() => {
+      result.current[1](prev => ({ ...prev, search: 'max' }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    act(() => {
+      result.current[1](prev => ({ ...prev }));
+    });
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+
+    expect(probe.search).toBe('?search=max');
   });
 
   it('does not revert a pending keystroke when an unrelated param changes', () => {
@@ -323,5 +412,88 @@ describe('useUrlFilters', () => {
     });
 
     expect(probe.search).toBe('');
+  });
+});
+
+describe('useUrlFilters — committed actions, validation, and normalization', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('commits a full reset immediately even when search is the only difference', () => {
+    // "Clear Filters" is one click, so it must be one committed state — it must
+    // not sit behind the typing debounce just because `search` happened to be
+    // the only key that differed.
+    const { probe, wrapper } = setupRouter(['/dogs?search=max']);
+    const { result } = renderHook(() => useUrlFilters(DOG_DEFAULTS, { debounceMs: 300 }), {
+      wrapper,
+    });
+
+    act(() => {
+      result.current[1](DOG_DEFAULTS);
+    });
+
+    expect(probe.search).toBe('');
+  });
+
+  it('rejects a URL value outside its allow-list and falls back to the default', () => {
+    const { wrapper } = setupRouter(['/dogs?sex=notathing']);
+    const { result } = renderHook(
+      () => useUrlFilters(DOG_DEFAULTS, { allowedValues: { sex: ['male', 'female'] } }),
+      { wrapper }
+    );
+
+    expect(result.current[0].sex).toBe('all');
+  });
+
+  it('accepts a URL value that is on its allow-list', () => {
+    const { wrapper } = setupRouter(['/dogs?sex=female']);
+    const { result } = renderHook(
+      () => useUrlFilters(DOG_DEFAULTS, { allowedValues: { sex: ['male', 'female'] } }),
+      { wrapper }
+    );
+
+    expect(result.current[0].sex).toBe('female');
+  });
+
+  it('leaves keys without an allow-list unconstrained', () => {
+    // `breed` comes from the roster; there is no static list to check it against.
+    const { wrapper } = setupRouter(['/dogs?breed=Anatolian%20Shepherd']);
+    const { result } = renderHook(
+      () => useUrlFilters(DOG_DEFAULTS, { allowedValues: { sex: ['male', 'female'] } }),
+      { wrapper }
+    );
+
+    expect(result.current[0].breed).toBe('Anatolian Shepherd');
+  });
+
+  it('strips a param that already holds its own default', () => {
+    const { probe, wrapper } = setupRouter(['/dogs?add=true&breed=all&sex=female']);
+    renderHook(() => useUrlFilters(DOG_DEFAULTS), { wrapper });
+
+    const params = new URLSearchParams(probe.search);
+    expect(params.has('breed')).toBe(false);
+    expect(params.get('sex')).toBe('female');
+    expect(params.get('add')).toBe('true');
+  });
+
+  it('strips an empty param and one rejected by its allow-list', () => {
+    const { probe, wrapper } = setupRouter(['/dogs?search=&sex=notathing']);
+    renderHook(() => useUrlFilters(DOG_DEFAULTS, { allowedValues: { sex: ['male', 'female'] } }), {
+      wrapper,
+    });
+
+    expect(probe.search).toBe('');
+  });
+
+  it('leaves a clean URL untouched', () => {
+    const { probe, wrapper } = setupRouter(['/dogs?sex=female']);
+    renderHook(() => useUrlFilters(DOG_DEFAULTS), { wrapper });
+
+    expect(probe.search).toBe('?sex=female');
   });
 });

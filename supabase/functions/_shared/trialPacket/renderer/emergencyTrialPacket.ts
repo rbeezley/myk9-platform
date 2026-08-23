@@ -24,6 +24,7 @@ import {
   type EmergencyPacketTrial,
   type PacketReportEntry,
 } from './types.ts';
+import { resolveScoresheetConfig } from './scoresheetConfig.ts';
 
 const CATALOG_ROWS_PER_PAGE = 24;
 const CHECK_IN_ROWS_PER_PAGE = 20;
@@ -314,6 +315,8 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
         timeLimitLabel: formatClassTimeLimits(classItem),
         areaCount: resolveAreaCount(classItem),
         registryId: classItem.registryId ?? trial.registryId,
+        numHides: classItem.numHides,
+        distractionCount: classItem.distractionCount,
       };
 
       chunks(classEntries, CHECK_IN_ROWS_PER_PAGE).forEach((entries, index, pages) => {
@@ -322,10 +325,16 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
           page(input, 'check-in', `Check-in & Running Order${suffix}`, classContext, entries)
         );
       });
+      // Title carries the registry's own vocabulary (`orgTitle`) rather than a
+      // hard-coded "Score Recording" — the whole point of a per-registry
+      // scoresheet config is that it has visible, testable surface, not just a
+      // reason-list lookup nothing ever reads. Keep the `(n/m)` suffix intact:
+      // pagination identifies a continuation page by matching it.
+      const scoresheetTitle = `${resolveScoresheetConfig(classContext.registryId).orgTitle} Scoresheet`;
       chunks(classEntries, SCORE_ROWS_PER_PAGE).forEach((entries, index, pages) => {
         const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
         pendingPages.push(
-          page(input, 'score-recording', `Score Recording${suffix}`, classContext, entries)
+          page(input, 'score-recording', `${scoresheetTitle}${suffix}`, classContext, entries)
         );
       });
     }

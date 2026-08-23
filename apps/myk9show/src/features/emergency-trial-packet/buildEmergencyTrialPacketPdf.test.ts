@@ -9,13 +9,14 @@ import {
   layoutDetailLines,
   maxDetailLinesForKind,
   MAX_EMERGENCY_PACKET_BYTES,
+  MIN_BLOCK_MARGIN_MM,
   SCORE_BLOCK_HEIGHT_MM,
   type JsPdfConstructor,
 } from './buildEmergencyTrialPacketPdf';
 // Exercise the APP binding, so these tests cover the same path the product
 // uses rather than a hand-passed constructor.
 import { renderEmergencyTrialPacketPdf as buildEmergencyTrialPacketPdf } from './renderPacketPdf';
-import { resolveScoresheetConfig } from './scoresheetConfig';
+import { resolveScoresheetConfig, SCORESHEET_CONFIGS } from './scoresheetConfig';
 import type { EmergencyPacketClass, EmergencyPacketInput, EmergencyPacketPageKind } from './types';
 
 function reportEntry(id: string, classId: string, trialId: string, armband: number): ReportEntry {
@@ -548,16 +549,22 @@ describe('scoresheet per-dog block', () => {
     }
   });
 
-  it('prints MM/SS/TT for a single-area class', () => {
+  it('prints MM/SS/TT on every dog block for a single-area class', () => {
+    // renderPageOfKind always renders 2 dogs on the page. Every block relabels
+    // its own time rows — a judge working down the column, or a page
+    // separated from the rest of the packet, must not have to look back to a
+    // "header" block to know which box is which (round 1 finding #2).
     const { texts } = renderPageOfKind('score-recording', {}, { numAreas: 1 });
-    expect(texts.filter(text => text === 'MM')).toHaveLength(1);
+    expect(texts.filter(text => text === 'MM')).toHaveLength(2);
+    expect(texts.filter(text => text === 'SS')).toHaveLength(2);
+    expect(texts.filter(text => text === 'TT')).toHaveLength(2);
     expect(texts).not.toContain('A2');
   });
 
-  it('prints per-area rows plus a total for a multi-area class', () => {
+  it('prints per-area rows plus a total on every dog block for a multi-area class', () => {
     const { texts } = renderPageOfKind('score-recording', {}, { numAreas: 3 });
     for (const label of ['A1', 'A2', 'A3', 'Total']) {
-      expect(texts).toContain(label);
+      expect(texts.filter(text => text === label)).toHaveLength(2);
     }
   });
 
@@ -568,5 +575,55 @@ describe('scoresheet per-dog block', () => {
     const multi = blockExtent({ numAreas: 3 });
     expect(multi).toBeLessThanOrEqual(SCORE_BLOCK_HEIGHT_MM);
     expect(single).toBeLessThanOrEqual(SCORE_BLOCK_HEIGHT_MM);
+  });
+
+  it(`keeps at least ${MIN_BLOCK_MARGIN_MM}mm of margin below SCORE_BLOCK_HEIGHT_MM today`, () => {
+    // The real risk isn't today's content — it's a registry config gaining a
+    // 6th reason, or a font-metric shift, silently overflowing into the next
+    // block (round 1 finding #4). This asserts today's margin is safe; the
+    // next test proves the assertion is actually sensitive to that risk.
+    const margin = SCORE_BLOCK_HEIGHT_MM - blockExtent();
+    expect(margin).toBeGreaterThanOrEqual(MIN_BLOCK_MARGIN_MM);
+  });
+
+  it('would violate the margin guard if a registry gained a 6th NQ reason', () => {
+    // Mutates the LIVE, shared SCORESHEET_CONFIGS object (not a mock/spy) for
+    // the duration of this one test, restored in `finally` so no other test —
+    // including a shuffled run — can observe the mutated list.
+    const akcConfig = SCORESHEET_CONFIGS.akc as unknown as { nqReasons: string[] };
+    const originalNqReasons = akcConfig.nqReasons;
+    akcConfig.nqReasons = [...originalNqReasons, 'Extra Overflow Reason'];
+    try {
+      const margin = SCORE_BLOCK_HEIGHT_MM - blockExtent({ registryId: 'akc' });
+      expect(margin).toBeLessThan(MIN_BLOCK_MARGIN_MM);
+    } finally {
+      akcConfig.nqReasons = originalNqReasons;
+    }
+  });
+
+  it('renders the registry-specific scoresheet title, not a hard-coded one', () => {
+    // `orgTitle` was previously computed and never drawn anywhere — dead
+    // config surface (round 1 finding #3). Rendering it as the page title
+    // also gives the registry-reasons test above real per-registry surface:
+    // a renderer that silently fell back to the generic config would now
+    // fail THIS assertion even on today's identical reason lists.
+    const { texts } = renderPageOfKind('score-recording', {}, { registryId: 'akc' });
+    expect(texts).toContain(`${resolveScoresheetConfig('akc').orgTitle} Scoresheet`);
+  });
+
+  it('prints hides and distractions on the class header when configured', () => {
+    const { texts } = renderPageOfKind('score-recording', {}, { numHides: 3, distractionCount: 2 });
+    expect(texts.some(text => text.includes('Hides: 3'))).toBe(true);
+    expect(texts.some(text => text.includes('Distractions: 2'))).toBe(true);
+  });
+
+  it('prints neither hides nor distractions when not configured', () => {
+    const { texts } = renderPageOfKind(
+      'score-recording',
+      {},
+      { numHides: null, distractionCount: null }
+    );
+    expect(texts.some(text => text.includes('Hides:'))).toBe(false);
+    expect(texts.some(text => text.includes('Distractions:'))).toBe(false);
   });
 });

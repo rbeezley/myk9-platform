@@ -117,6 +117,13 @@ export interface EmergencyPacketPageContext {
   areaCount?: number;
   /** See `EmergencyPacketClass.registryId`. Falls back to the trial's when unset. */
   registryId?: string | null;
+  /**
+   * Raw hide/distraction counts for the score-recording class header (see
+   * `EmergencyPacketClass.numHides`/`distractionCount`). Only score-recording
+   * pages render these; `undefined`/`null` prints nothing, never `0`.
+   */
+  numHides?: number | null;
+  distractionCount?: number | null;
 }
 
 export interface EmergencyPacketEntry extends PacketReportEntry {

@@ -155,11 +155,23 @@ function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
   doc.text(page.title, LEFT, 27);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
+  // Hides and distractions belong to the SCOREsheet specifically (the spec's
+  // "Scoresheet" section names them alongside element/level/section/judge),
+  // not every page kind that shares this class header — check-in and catalog
+  // don't gain them. Null means "not configured" and prints nothing at all,
+  // never a confident "Hides: 0".
+  const isScoreRecording = page.kind === 'score-recording';
   const details = [
     page.context.trialLabel,
     page.context.trialDate,
     page.context.ringLabel,
     page.context.classLabel,
+    isScoreRecording && page.context.numHides != null
+      ? `Hides: ${page.context.numHides}`
+      : undefined,
+    isScoreRecording && page.context.distractionCount != null
+      ? `Distractions: ${page.context.distractionCount}`
+      : undefined,
     page.context.judgeName ? `Judge: ${page.context.judgeName}` : undefined,
   ];
   const detailLines = layoutDetailLines(
@@ -479,6 +491,17 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
  */
 export const SCORE_BLOCK_HEIGHT_MM = 36;
 
+/**
+ * Minimum headroom a per-dog block must keep below `SCORE_BLOCK_HEIGHT_MM`.
+ * Measured content is currently ~34.1mm regardless of area count (the
+ * reasons region, not the time stack, sets the real ceiling), a 1.9mm margin.
+ * A registry config gaining a sixth NQ or EX reason, or a font-metric shift,
+ * is the realistic way this gets eaten — see the "trips the guard" test in
+ * `buildEmergencyTrialPacketPdf.test.ts`, which mutates a live config to
+ * prove this actually catches that.
+ */
+export const MIN_BLOCK_MARGIN_MM = 1.5;
+
 // INTENT: this sheet is a SUPERSET of what either surface needs. `Place`
 // and the free-text note are dead weight when the app is up and the only
 // record when it is down. Do not split this into "normal" and "emergency"
@@ -605,19 +628,20 @@ function renderReasonsRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: n
  * (`resolveAreaCount`), reused via `page.context.areaCount` rather than
  * recomputed here — two divergent area counts is the drift this sheet exists
  * to remove.
+ *
+ * Every dog's block relabels its own rows, same as every other region on the
+ * sheet (identity, result, faults, reasons all repeat per dog). A page
+ * separated from the rest of the packet, or a judge working down the column
+ * without re-reading the top block, still has to be able to tell an `A2` box
+ * from a `Total` box on ANY row — a header printed once and never again is
+ * the wrong trade for a document retained for a year.
  */
-/**
- * `showLabels` is true only for the page's first dog: the row labels (`MM`,
- * `A1`, `Total`, ...) are a column HEADER, identical for every dog on the
- * page (they all belong to the same class), so repeating them on every block
- * would be noise rather than information. Every dog still gets its own
- * writable box per row — only the label text is shared.
- */
-function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number, showLabels: boolean): void {
+function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number): void {
   const region = SCORE_REGIONS.time;
   const labelX = region.x + 1;
   const boxX = region.x + 7.5;
   const boxWidth = region.width - 8.5;
+  const maxLabelWidth = boxX - labelX - 0.8;
   const rows =
     areaCount <= 1
       ? ['MM', 'SS', 'TT']
@@ -626,7 +650,7 @@ function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number, showLabels:
   doc.setFontSize(7);
   rows.forEach((label, index) => {
     const y = y0 + 6 + index * TIME_ROW_HEIGHT_MM;
-    if (showLabels) doc.text(label, labelX, y);
+    doc.text(fitTextToWidth(doc, label, maxLabelWidth), labelX, y);
     doc.setDrawColor(90, 90, 90);
     doc.rect(boxX, y - 4, boxWidth, 4.5);
   });
@@ -640,16 +664,16 @@ function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
   // `resolveAreaCount` in `buildEmergencyPacketModel`.
   const areaCount = page.context.areaCount ?? 1;
   let y = y0Title;
-  page.entries.forEach((entry, index) => {
+  for (const entry of page.entries) {
     doc.setDrawColor(90, 90, 90);
     doc.rect(LEFT, y, RIGHT - LEFT, SCORE_BLOCK_HEIGHT_MM);
     renderIdentityRegion(doc, entry, y);
     renderResultRegion(doc, config, y);
     renderFaultsRegion(doc, config, y);
     renderReasonsRegion(doc, config, y);
-    renderTimeRegion(doc, areaCount, y, index === 0);
+    renderTimeRegion(doc, areaCount, y);
     y += SCORE_BLOCK_HEIGHT_MM;
-  });
+  }
 }
 
 function renderCertification(doc: jsPDF, page: EmergencyPacketPage): void {

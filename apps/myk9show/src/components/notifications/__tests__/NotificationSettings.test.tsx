@@ -111,6 +111,17 @@ vi.mock('@/features/notifications/smsPreferenceService', () => ({
   requestSmsOptIn: (phone: string, source: string) => mockRequestSmsOptIn(phone, source),
 }));
 
+// The text-message delivery option ships behind a kill switch that is OFF while
+// SMS sending is deferred (see features.smsRingAlerts / smsRingAlertsFlag.ts).
+// Force it ON for the suites below so the existing SMS coverage keeps exercising
+// the real behaviour the flag will restore; the gate itself is covered by
+// "SMS delivery kill switch", which flips this both ways. Reset in beforeEach so
+// a flipped case cannot leak into a shuffled neighbour.
+const smsFlagState = vi.hoisted(() => ({ enabled: true }));
+vi.mock('@/features/notifications/smsRingAlertsFlag', () => ({
+  smsRingAlertsEnabled: () => smsFlagState.enabled,
+}));
+
 vi.mock('@/lib/notifications', () => ({
   notifications: {
     warning: vi.fn(),
@@ -159,6 +170,7 @@ const mockedUsePushSubscription = vi.mocked(usePushSubscription);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  smsFlagState.enabled = true;
   mockedUsePushSubscription.mockImplementation(() => ({
     subscribe: mockSubscribe,
     unsubscribe: mockUnsubscribe,
@@ -516,9 +528,7 @@ describe('RingAlertsSettings after an inbound STOP', () => {
     render(<NotificationSettings />);
 
     await screen.findByText(/you replied STOP/i);
-    expect(
-      screen.queryByText(/switch at the top of this card/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/switch at the top of this card/i)).not.toBeInTheDocument();
   });
 
   it('points at support rather than inventing a number when none is configured', async () => {
@@ -541,5 +551,126 @@ describe('RingAlertsSettings after an inbound STOP', () => {
 
     await waitFor(() => expect(document.getElementById('sms-enabled')).not.toBeNull());
     expect(screen.queryByText(/you replied STOP/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('SMS delivery kill switch', () => {
+  const optedIn = {
+    auth_user_id: 'test-user-id',
+    upcoming_runs: true,
+    sms_enabled: true,
+    sms_phone_e164: '+12105550142',
+    sms_opt_in_at: '2026-02-01T12:00:00.000Z',
+    sms_consent_text_version: 'sms-consent-v1',
+    sms_opt_in_source: 'account-settings',
+    sms_opt_out_at: null,
+    sms_consent_write_token: '00000000-0000-4000-8000-000000000191',
+    sms_stop_muted_push_at: null,
+  };
+  const optedOut = {
+    ...optedIn,
+    sms_enabled: false,
+    upcoming_runs: false,
+    sms_opt_out_at: '2026-02-14T18:30:00.000Z',
+    sms_stop_muted_push_at: '2026-02-14T18:30:00.000Z',
+  };
+
+  it('renders the text-message option when the switch is on', async () => {
+    // The ON direction matters as much as the OFF one: an absence-only test
+    // would still pass if the row had been deleted outright rather than gated.
+    smsFlagState.enabled = true;
+    mockLoadSmsNotificationPreference.mockResolvedValue(null);
+    render(<NotificationSettings />);
+
+    expect(await screen.findByRole('switch', { name: 'Text message' })).toBeInTheDocument();
+    expect(screen.getByText(/one text when your dog is close to the ring/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/mobile number/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /turn on text alerts/i })).toBeInTheDocument();
+  });
+
+  it('hides the whole text-message option when the switch is off', async () => {
+    // No text can be sent while the proximity function is undeployed, so there
+    // must be nothing here to consent to — not a disabled control, nothing.
+    smsFlagState.enabled = false;
+    mockLoadSmsNotificationPreference.mockResolvedValue(null);
+    render(<NotificationSettings />);
+
+    // Settle the load first, so this is not merely "it has not rendered yet".
+    expect(await screen.findByRole('switch', { name: /^ring alerts$/i })).toBeInTheDocument();
+    expect(screen.queryByText(/text message/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/one text when your dog is close to the ring/i)
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/mobile number/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /turn on text alerts/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/msg & data rates may apply/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps push notifications reachable when the switch is off', async () => {
+    // The gate must remove one delivery option, not the card.
+    smsFlagState.enabled = false;
+    mockLoadSmsNotificationPreference.mockResolvedValue(null);
+    render(<NotificationSettings />);
+
+    expect(
+      await screen.findByRole('switch', { name: /^push notifications$/i })
+    ).toBeInTheDocument();
+  });
+
+  it('stops promising text messages in the master-toggle description when off', async () => {
+    smsFlagState.enabled = false;
+    mockLoadSmsNotificationPreference.mockResolvedValue(null);
+    render(<NotificationSettings />);
+
+    await screen.findByRole('switch', { name: /^ring alerts$/i });
+    expect(
+      screen.queryByText(/turn this off to stop both push notifications and text messages/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/turn this off to stop push notifications about your upcoming runs/i)
+    ).toBeInTheDocument();
+  });
+
+  it('leaks no SMS mention from the STOP branch when off', async () => {
+    // The opted-out path renders a non-interactive "Text message" line plus a
+    // START / Remove-my-number panel — the branch most likely to survive a naive
+    // gate placed on the toggle alone.
+    smsFlagState.enabled = false;
+    mockLoadSmsNotificationPreference.mockResolvedValue(optedOut);
+    render(<NotificationSettings />);
+
+    await screen.findByRole('switch', { name: /^ring alerts$/i });
+    expect(screen.queryByText(/you replied STOP/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/text message/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /remove my number/i })).not.toBeInTheDocument();
+  });
+
+  it('still shows the STOP branch when on', async () => {
+    smsFlagState.enabled = true;
+    mockLoadSmsNotificationPreference.mockResolvedValue(optedOut);
+    render(<NotificationSettings />);
+
+    expect(await screen.findByText(/you replied STOP to ring alerts on/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /remove my number/i })).toBeInTheDocument();
+  });
+
+  it('hides an existing opt-in rather than showing a toggle that sends nothing', async () => {
+    smsFlagState.enabled = false;
+    mockLoadSmsNotificationPreference.mockResolvedValue(optedIn);
+    render(<NotificationSettings />);
+
+    await screen.findByRole('switch', { name: /^ring alerts$/i });
+    expect(document.getElementById('sms-enabled')).toBeNull();
+    expect(screen.queryByText(/text message/i)).not.toBeInTheDocument();
+  });
+
+  it('names no text alerts in the load-failure message when off', async () => {
+    smsFlagState.enabled = false;
+    mockLoadSmsNotificationPreference.mockRejectedValue(new Error('offline'));
+    render(<NotificationSettings />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/could not load your ring alert settings/i);
+    expect(alert).not.toHaveTextContent(/text/i);
   });
 });

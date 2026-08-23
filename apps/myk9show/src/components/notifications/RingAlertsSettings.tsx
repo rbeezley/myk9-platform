@@ -17,6 +17,7 @@ import {
   type SmsNotificationPreference,
 } from '@/features/notifications/smsPreferenceService';
 import { getSmsSendingNumber } from '@/features/notifications/smsSendingNumber';
+import { smsRingAlertsEnabled } from '@/features/notifications/smsRingAlertsFlag';
 import { notifications } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,6 +66,11 @@ export function RingAlertsSettings() {
   const [smsLoadFailed, setSmsLoadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Read once per render, at call time, so the gate is a single source of truth
+  // for every SMS-conditional branch below (row, opt-in form, STOP notice and
+  // the copy that names text messages as a delivery option).
+  const smsEnabled = smsRingAlertsEnabled();
+
   useEffect(() => {
     let active = true;
     setIsLoading(true);
@@ -83,7 +89,10 @@ export function RingAlertsSettings() {
       .catch(() => {
         if (active) {
           setSmsLoadFailed(true);
-          setError('We could not load text alert settings. Refresh this page to try again.');
+          // Deliberately names no delivery channel: this row also carries
+          // `upcoming_runs`, and the message must not mention text alerts while
+          // the SMS option is gated off.
+          setError('We could not load your ring alert settings. Refresh this page to try again.');
         }
       })
       .finally(() => {
@@ -243,7 +252,9 @@ export function RingAlertsSettings() {
                 <label htmlFor="ring-alerts-enabled">Ring alerts</label>
               </CardTitle>
               <CardDescription className="text-xs">
-                Turn this off to stop both push notifications and text messages.
+                {smsEnabled
+                  ? 'Turn this off to stop both push notifications and text messages.'
+                  : 'Turn this off to stop push notifications about your upcoming runs.'}
               </CardDescription>
             </div>
           </div>
@@ -306,137 +317,146 @@ export function RingAlertsSettings() {
           />
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2">
-              <MessageSquareText className="h-4 w-4 text-muted-foreground mt-0.5" />
-              <div>
-                {optedOutAt === null ? (
-                  <label htmlFor="sms-enabled" className="text-sm font-medium">
-                    Text message
-                  </label>
-                ) : (
-                  <p className="text-sm font-medium">Text message</p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  One text when your dog is close to the ring.
-                </p>
+        {/*
+          Everything text-message related hangs off one gate. While
+          smsRingAlertsEnabled() is false there is no row, no toggle, no opt-in
+          form and no STOP notice — nothing that names SMS at all, because we
+          cannot send one. This is visibility only: the consent service and the
+          STOP webhook are untouched, so a recorded opt-out is still honoured.
+        */}
+        {smsEnabled && (
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <MessageSquareText className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  {optedOutAt === null ? (
+                    <label htmlFor="sms-enabled" className="text-sm font-medium">
+                      Text message
+                    </label>
+                  ) : (
+                    <p className="text-sm font-medium">Text message</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    One text when your dog is close to the ring.
+                  </p>
+                </div>
               </div>
+              {/*
+                No toggle once a STOP is on record. Flipping SMS back on here
+                would light up a control that changes nothing: STOP is enforced by
+                Twilio at the carrier, and clearing our column does not touch
+                their block list. An app that says "on" while no text ever
+                arrives is a worse support conversation than "you replied STOP".
+              */}
+              {optedOutAt === null && (
+                <Switch
+                  id="sms-enabled"
+                  checked={smsPreference?.sms_enabled === true}
+                  disabled={
+                    !ringAlertsEnabled ||
+                    isLoading ||
+                    isSmsSaving ||
+                    smsLoadFailed ||
+                    !hasValidConsent
+                  }
+                  onCheckedChange={handleSmsToggle}
+                />
+              )}
             </div>
-            {/*
-              No toggle once a STOP is on record. Flipping SMS back on here
-              would light up a control that changes nothing: STOP is enforced by
-              Twilio at the carrier, and clearing our column does not touch
-              their block list. An app that says "on" while no text ever
-              arrives is a worse support conversation than "you replied STOP".
-            */}
-            {optedOutAt === null && (
-              <Switch
-                id="sms-enabled"
-                checked={smsPreference?.sms_enabled === true}
-                disabled={
-                  !ringAlertsEnabled ||
-                  isLoading ||
-                  isSmsSaving ||
-                  smsLoadFailed ||
-                  !hasValidConsent
-                }
-                onCheckedChange={handleSmsToggle}
-              />
+
+            {isLoading ? null : optedOutAt !== null ? (
+              <div
+                className="ml-6 space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-sm"
+                role="status"
+              >
+                <p>
+                  You replied STOP to ring alerts on <strong>{formatStopDate(optedOutAt)}</strong>.
+                </p>
+                {/*
+                  The way back is recipient-initiated, and six months on the
+                  exhibitor has deleted the thread — so the number has to be here
+                  or "reply START" is unusable advice.
+                */}
+                {sendingNumber ? (
+                  <p>
+                    To turn them back on, text <strong>START</strong> to{' '}
+                    <strong>{sendingNumber}</strong>.
+                  </p>
+                ) : (
+                  <p>
+                    To turn them back on, reply <strong>START</strong> to any ring alert text, or
+                    contact support@myk9show.com.
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11"
+                  disabled={isSmsSaving}
+                  onClick={handleForgetNumber}
+                >
+                  Remove my number
+                </Button>
+                {stopMutedPush && (
+                  <p className="text-muted-foreground">
+                    That also turned off the <strong>Ring alerts</strong> switch at the top of this
+                    card, which stops push notifications too. Turn it back on whenever you like —
+                    push is not affected by the text opt-out.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="pl-6 space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="sms-phone">Mobile number</Label>
+                  <Input
+                    id="sms-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    placeholder="(210) 555-0142"
+                    value={phone}
+                    disabled={isLoading || isSmsSaving || smsLoadFailed}
+                    onChange={event => {
+                      setPhone(event.target.value);
+                      setConsentChecked(false);
+                      setError(null);
+                    }}
+                    onBlur={handlePhoneBlur}
+                  />
+                </div>
+
+                {!hasValidConsent && !isLoading && !smsLoadFailed && (
+                  <div className="space-y-3 rounded-lg border border-border p-3">
+                    <label
+                      htmlFor="sms-consent"
+                      className="flex min-h-11 cursor-pointer items-start gap-3 text-sm"
+                    >
+                      <Checkbox
+                        id="sms-consent"
+                        checked={consentChecked}
+                        onCheckedChange={setConsentChecked}
+                        className="mt-0.5"
+                      />
+                      <span>{SMS_CONSENT_TEXT}</span>
+                    </label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="min-h-11"
+                      disabled={isSmsSaving}
+                      onClick={handleSmsOptIn}
+                    >
+                      Turn on text alerts
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
-
-          {isLoading ? null : optedOutAt !== null ? (
-            <div
-              className="ml-6 space-y-2 rounded-lg border border-border bg-muted/40 p-3 text-sm"
-              role="status"
-            >
-              <p>
-                You replied STOP to ring alerts on <strong>{formatStopDate(optedOutAt)}</strong>.
-              </p>
-              {/*
-                The way back is recipient-initiated, and six months on the
-                exhibitor has deleted the thread — so the number has to be here
-                or "reply START" is unusable advice.
-              */}
-              {sendingNumber ? (
-                <p>
-                  To turn them back on, text <strong>START</strong> to{' '}
-                  <strong>{sendingNumber}</strong>.
-                </p>
-              ) : (
-                <p>
-                  To turn them back on, reply <strong>START</strong> to any ring alert text, or
-                  contact support@myk9show.com.
-                </p>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-11"
-                disabled={isSmsSaving}
-                onClick={handleForgetNumber}
-              >
-                Remove my number
-              </Button>
-              {stopMutedPush && (
-                <p className="text-muted-foreground">
-                  That also turned off the <strong>Ring alerts</strong> switch at the top of this
-                  card, which stops push notifications too. Turn it back on whenever you like — push
-                  is not affected by the text opt-out.
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="pl-6 space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="sms-phone">Mobile number</Label>
-                <Input
-                  id="sms-phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="(210) 555-0142"
-                  value={phone}
-                  disabled={isLoading || isSmsSaving || smsLoadFailed}
-                  onChange={event => {
-                    setPhone(event.target.value);
-                    setConsentChecked(false);
-                    setError(null);
-                  }}
-                  onBlur={handlePhoneBlur}
-                />
-              </div>
-
-              {!hasValidConsent && !isLoading && !smsLoadFailed && (
-                <div className="space-y-3 rounded-lg border border-border p-3">
-                  <label
-                    htmlFor="sms-consent"
-                    className="flex min-h-11 cursor-pointer items-start gap-3 text-sm"
-                  >
-                    <Checkbox
-                      id="sms-consent"
-                      checked={consentChecked}
-                      onCheckedChange={setConsentChecked}
-                      className="mt-0.5"
-                    />
-                    <span>{SMS_CONSENT_TEXT}</span>
-                  </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="min-h-11"
-                    disabled={isSmsSaving}
-                    onClick={handleSmsOptIn}
-                  >
-                    Turn on text alerts
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        )}
 
         {error && (
           <p className="text-sm text-destructive" role="alert">

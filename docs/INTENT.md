@@ -103,9 +103,11 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
 - **Readable font sizes** — 16px body minimum, never below 14px for anything
   - In myK9Show, the `text-xs` Tailwind token is intentionally raised to 14px. It is the
     caption step and the absolute floor — secondary text only, never body copy.
-  - Body copy is `text-sm`, which the app raises to 16px. The text range is geometric at
-    1.25 from there — 14 / 16 / 20 / 25 / 31 — so adjacent steps stay far enough apart to
-    read as a hierarchy. Above `text-xl` the display range is deliberately **capped**
+  - Body copy is `text-sm`, which the app raises to 16px. From there the text range is
+    geometric at 1.25 — 16 / 20 / 25 / 31 — so adjacent steps stay far enough apart to
+    read as a hierarchy. (The 14px caption step sits below that ladder rather than on it:
+    14→16 is only 1.14, which is why the ratio rule starts at `text-sm`.) Above `text-xl`
+    the display range is deliberately **capped**
     (36 / 42 / 48 / 56 / 66) rather than continuing the ratio: `text-5xl` and `text-6xl` are
     the running clock on the live scoresheets, inside `overflow-hidden` cards, and a
     geometric top end clips a judge's scored time at phone width. The whole scale lives in
@@ -119,8 +121,12 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
     up, one surface at a time.
   - `apps/myk9show/src/test/design/typeScale.test.ts` enforces this by compiling the real
     config and asserting computed styles rather than grepping the config text (MYK9-220).
-    It covers **only the ten named tokens** — arbitrary values like `text-[10px]` are
-    invisible to it, and roughly 100 of them exist in the codebase today. Do not add more.
+    It covers the 13 `text-*` utilities — the ten the config declares plus `7xl`–`9xl`,
+    which stay at Tailwind's defaults and are checked so a raised `6xl` cannot quietly
+    overtake them. It cannot see **arbitrary values**: `text-[10px]` and friends are
+    invisible to it, and 103 uses below the 14px floor exist today. Do not add more.
+  - `text-5xl` and `text-6xl` additionally carry a hard px ceiling in that test, derived
+    from the 287px scoresheet timer card. Re-measure that card before raising either.
   - Exception: print/export templates may use smaller fixed sizes when fitting official forms.
 - **No hover-only interactions** — everything must work on touch devices
 - **No gesture-only actions** — swipe is a shortcut, never the only way

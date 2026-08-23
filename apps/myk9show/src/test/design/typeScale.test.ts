@@ -58,12 +58,43 @@ const SCALE_UTILITIES = [
 const BODY_UTILITY = 'text-sm';
 
 /**
- * The last step of the *text* range. Above this the scale is display type,
- * which is capped rather than geometric — see the config comment. Timers on the
- * live scoresheets render at `text-5xl`/`text-6xl` inside `overflow-hidden`
- * cards, so the display range answers to layout, not to a ratio.
+ * The last step of the *text* range.
+ *
+ * This exists only to NARROW the step-ratio assertion to `sm`…`xl`. Above
+ * `text-xl` the scale is display type, capped rather than geometric, so a ratio
+ * is the wrong contract for it — the ceiling below is the right one. This
+ * constant guards nothing on its own; do not read it as protecting the display
+ * range.
  */
 const LARGEST_TEXT_UTILITY = 'text-xl';
+
+/**
+ * Hard ceilings for the display range, in px.
+ *
+ * These are layout constraints, not taste. The live scoresheets render the
+ * running clock at `text-5xl` (six of them) and at `text-5xl md:text-6xl`
+ * (`DualTimerDisplay`, reached from `JudgeClassInterface`), inside a card whose
+ * content box measures **293px at a 375px viewport** — 287px for
+ * `DualTimerDisplay`, which sits in an extra bordered wrapper. Those cards are
+ * `overflow-hidden`, so a time that does not fit is CLIPPED, not scrolled, and
+ * a judge silently loses a digit off a scored run. There is no page-level
+ * horizontal scrollbar to reveal it.
+ *
+ * `useStopwatch.formatTime` emits `M:SS.HH`, which becomes 8 characters past
+ * ten minutes, and five of the six scoresheets set `font-mono` (wider than
+ * `tabular-nums`). Measured in headless Chromium with the real compiled CSS,
+ * an 8-character `font-mono` time occupies ~4.8em, so the widest case fits the
+ * 287px box only while the font size stays at or below ~59px. 56px leaves
+ * ~18px of headroom; MYK9-220 originally shipped 76px here, which overran by
+ * 78px.
+ *
+ * Raising either number without re-measuring that card re-creates the blocker.
+ */
+const SCORESHEET_TIMER_CARD_PX = 287;
+const DISPLAY_CEILING_PX: Record<string, number> = {
+  'text-5xl': 56,
+  'text-6xl': 66,
+};
 
 /** INTENT.md: "16px body minimum, never below 14px for anything". */
 const BODY_MINIMUM_PX = 16;
@@ -196,6 +227,21 @@ describe('type scale', () => {
     // its leading is as load-bearing as its size. A size-only contract would let
     // a rewrite of this block drop the line height without any test noticing.
     expect(computedLineHeightPx('text-xs')).toBe(CAPTION_LINE_HEIGHT_PX);
+  });
+
+  it('holds the display range under the scoresheet timer card ceiling', () => {
+    // The reason the cap commit exists. Monotonicity does NOT cover this: the
+    // ladder only has to stay under Tailwind's default `text-7xl` of 72px,
+    // which is well above the ~59px the timer card can actually hold. Without
+    // this assertion a `text-5xl` of 70px passes every other test here and
+    // clips an 8-character time by ~29px on a judge's phone.
+    for (const [utility, ceiling] of Object.entries(DISPLAY_CEILING_PX)) {
+      expect(
+        computedSizePx(utility),
+        `.${utility} exceeds the ceiling set by the ${SCORESHEET_TIMER_CARD_PX}px ` +
+          `scoresheet timer card — re-measure that card before raising it`
+      ).toBeLessThanOrEqual(ceiling);
+    }
   });
 
   it('keeps every step’s line height at least as tall as its font size', () => {

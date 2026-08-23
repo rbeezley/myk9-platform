@@ -169,10 +169,19 @@ export default {
       // 14px) had become the default body size, leaving a 16÷14 = 1.14 step
       // ratio and effectively no hierarchy (MYK9-220).
       //
-      // The scale is geometric at 1.25 anchored on a 16px body — 16 / 20 / 25 /
-      // 31 / 39 / 49 / 61 / 76 / 95 — with 14px kept below it as the caption
+      // TEXT RANGE (xs..xl) is the decision: 14 / 16 / 20 / 25 / 31, geometric
+      // at 1.25 anchored on a 16px body, with 14px kept below it as the caption
       // step and the absolute floor. Tailwind's default text-xs is 12px, which
       // is too small for show-day tablet use and retired exhibitors.
+      //
+      // DISPLAY RANGE (2xl..6xl) is deliberately CAPPED rather than continuing
+      // the 1.25 ratio. Continuing it would reach 39 / 49 / 61 / 76 / 95, and
+      // the largest tokens are not decorative here — they are the running clock
+      // on the live scoresheets, inside cards that are `overflow-hidden`. At
+      // 76px a `font-mono` M:SS.HH time overruns its card at phone width and a
+      // judge silently loses a digit off a scored run. These values keep the
+      // ladder monotonic and hierarchical while leaving the timers room at
+      // 375px.
       //
       // Every step is declared here on purpose: the scale must stay monotonic,
       // so raising `sm` to 16px forces `base` and everything above it up too.
@@ -182,17 +191,20 @@ export default {
       // surface breaks, that is evidence about the scale, not a component bug.
       // Print/export templates may still use smaller inline sizes when fitting
       // official fixed-format forms.
+      //
+      // 7xl–9xl are intentionally left at Tailwind's defaults (72 / 96 / 128px);
+      // 6xl stays below 72px so the ladder does not invert at that boundary.
       fontSize: {
         xs: ['0.875rem', { lineHeight: '1.25rem' }], // 14px — caption / floor
         sm: ['1rem', { lineHeight: '1.5rem' }], // 16px — body
         base: ['1.25rem', { lineHeight: '1.75rem' }], // 20px
         lg: ['1.5625rem', { lineHeight: '2rem' }], // 25px
         xl: ['1.9375rem', { lineHeight: '2.375rem' }], // 31px
-        '2xl': ['2.4375rem', { lineHeight: '2.875rem' }], // 39px
-        '3xl': ['3.0625rem', { lineHeight: '3.5rem' }], // 49px
-        '4xl': ['3.8125rem', { lineHeight: '1.1' }], // 61px
-        '5xl': ['4.75rem', { lineHeight: '1.1' }], // 76px
-        '6xl': ['5.9375rem', { lineHeight: '1.1' }], // 95px
+        '2xl': ['2.25rem', { lineHeight: '2.75rem' }], // 36px
+        '3xl': ['2.625rem', { lineHeight: '3rem' }], // 42px
+        '4xl': ['3rem', { lineHeight: '1.1' }], // 48px
+        '5xl': ['3.5rem', { lineHeight: '1.1' }], // 56px
+        '6xl': ['4.125rem', { lineHeight: '1.1' }], // 66px
       },
       transitionTimingFunction: {
         apple: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',

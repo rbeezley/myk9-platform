@@ -29,7 +29,15 @@ import tailwindcss from 'tailwindcss';
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
-/** Every font-size utility the app uses, smallest name to largest. */
+/**
+ * Every font-size utility Tailwind exposes, smallest name to largest.
+ *
+ * This runs past the tokens the config declares on purpose. `theme.extend`
+ * overrides only the keys it names, so `7xl`–`9xl` keep Tailwind's defaults —
+ * and a declared `6xl` that creeps past the default `7xl` would silently make
+ * `text-7xl` render *smaller* than `text-6xl`. Stopping this list at the last
+ * declared token would put that inversion outside the contract.
+ */
 const SCALE_UTILITIES = [
   'text-xs',
   'text-sm',
@@ -41,14 +49,28 @@ const SCALE_UTILITIES = [
   'text-4xl',
   'text-5xl',
   'text-6xl',
+  'text-7xl',
+  'text-8xl',
+  'text-9xl',
 ] as const;
 
 /** The utility the app uses for body copy, and the one INTENT.md's floor is about. */
 const BODY_UTILITY = 'text-sm';
 
+/**
+ * The last step of the *text* range. Above this the scale is display type,
+ * which is capped rather than geometric — see the config comment. Timers on the
+ * live scoresheets render at `text-5xl`/`text-6xl` inside `overflow-hidden`
+ * cards, so the display range answers to layout, not to a ratio.
+ */
+const LARGEST_TEXT_UTILITY = 'text-xl';
+
 /** INTENT.md: "16px body minimum, never below 14px for anything". */
 const BODY_MINIMUM_PX = 16;
 const ABSOLUTE_FLOOR_PX = 14;
+
+/** The caption step's line height, pinned since before MYK9-220. */
+const CAPTION_LINE_HEIGHT_PX = 20;
 
 /**
  * The step ratio below which the issue says a scale stops reading as a
@@ -60,6 +82,7 @@ const MIN_STEP_RATIO = 1.2;
 const ROOT_FONT_SIZE_PX = 16;
 
 let computedSizePx: (utility: string) => number;
+let computedLineHeightPx: (utility: string) => number;
 
 beforeAll(async () => {
   // Compile the real config. `content` is given inline so the JIT engine emits
@@ -79,20 +102,36 @@ beforeAll(async () => {
   style.textContent = css;
   document.head.appendChild(style);
 
-  computedSizePx = (utility: string) => {
+  const read = (utility: string, property: 'fontSize' | 'lineHeight') => {
     const el = document.createElement('p');
     el.className = utility;
     el.textContent = 'The quick brown fox';
     document.body.appendChild(el);
-    const raw = getComputedStyle(el).fontSize;
+    const raw = getComputedStyle(el)[property];
+    const fontSizeRaw = getComputedStyle(el).fontSize;
     el.remove();
 
     // jsdom reports whatever unit the declaration used rather than resolving it.
-    const match = /^([\d.]+)(px|rem|em)$/.exec(raw.trim());
-    if (!match) throw new Error(`Could not read a font-size for .${utility} (got "${raw}")`);
-    const value = Number(match[1]);
-    return match[2] === 'px' ? value : value * ROOT_FONT_SIZE_PX;
+    const toPx = (value: string, emBasisPx: number) => {
+      const match = /^([\d.]+)(px|rem|em)?$/.exec(value.trim());
+      if (!match) return NaN;
+      const n = Number(match[1]);
+      if (match[2] === 'px') return n;
+      if (match[2] === 'rem') return n * ROOT_FONT_SIZE_PX;
+      if (match[2] === 'em') return n * emBasisPx;
+      return n * emBasisPx; // unitless line-height is a multiplier of font-size
+    };
+
+    const fontSizePx = toPx(fontSizeRaw, ROOT_FONT_SIZE_PX);
+    const result = property === 'fontSize' ? fontSizePx : toPx(raw, fontSizePx);
+    if (!Number.isFinite(result)) {
+      throw new Error(`Could not read a ${property} for .${utility} (got "${raw}")`);
+    }
+    return result;
   };
+
+  computedSizePx = (utility: string) => read(utility, 'fontSize');
+  computedLineHeightPx = (utility: string) => read(utility, 'lineHeight');
 });
 
 describe('type scale', () => {
@@ -124,14 +163,21 @@ describe('type scale', () => {
     }
   });
 
-  it('steps up by a readable ratio from body size upward', () => {
-    const fromBody = SCALE_UTILITIES.slice(SCALE_UTILITIES.indexOf(BODY_UTILITY));
-    const sizes = fromBody.map(computedSizePx);
+  it('steps up by a readable ratio across the text range', () => {
+    // Scoped to the text range on purpose. The display range above `text-xl` is
+    // capped rather than geometric, because its largest tokens are the live
+    // scoresheet timers inside `overflow-hidden` cards — those sizes answer to
+    // layout, not to a ratio. Monotonicity above `text-xl` is covered above.
+    const textRange = SCALE_UTILITIES.slice(
+      SCALE_UTILITIES.indexOf(BODY_UTILITY),
+      SCALE_UTILITIES.indexOf(LARGEST_TEXT_UTILITY) + 1
+    );
+    const sizes = textRange.map(computedSizePx);
     for (let i = 1; i < sizes.length; i += 1) {
       const ratio = sizes[i] / sizes[i - 1];
       expect(
         ratio,
-        `.${fromBody[i - 1]} → .${fromBody[i]} steps by ${ratio.toFixed(3)}, a flat hierarchy`
+        `.${textRange[i - 1]} → .${textRange[i]} steps by ${ratio.toFixed(3)}, a flat hierarchy`
       ).toBeGreaterThanOrEqual(MIN_STEP_RATIO);
     }
   });
@@ -143,5 +189,22 @@ describe('type scale', () => {
     const body = computedSizePx(BODY_UTILITY);
     expect(caption).toBeLessThan(body);
     expect(caption).toBe(ABSOLUTE_FLOOR_PX);
+  });
+
+  it('keeps the caption step’s line height at 20px', () => {
+    // Pinned since before MYK9-220: `text-xs` is the densest text in the app, so
+    // its leading is as load-bearing as its size. A size-only contract would let
+    // a rewrite of this block drop the line height without any test noticing.
+    expect(computedLineHeightPx('text-xs')).toBe(CAPTION_LINE_HEIGHT_PX);
+  });
+
+  it('keeps every step’s line height at least as tall as its font size', () => {
+    for (const utility of SCALE_UTILITIES) {
+      const size = computedSizePx(utility);
+      expect(
+        computedLineHeightPx(utility),
+        `.${utility} sets a line height below its own font size`
+      ).toBeGreaterThanOrEqual(size);
+    }
   });
 });

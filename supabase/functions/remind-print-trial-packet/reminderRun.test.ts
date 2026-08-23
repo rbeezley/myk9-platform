@@ -185,6 +185,31 @@ describe('validateReminderRequest', () => {
     expect(() => validateReminderRequest({ showId: SHOW_ID, trialDate: DAY, kind: 'whenever' })).toThrow(HttpError);
     expect(validateReminderRequest(request)).toEqual(request);
   });
+
+  it('accepts a seeded show id that is not RFC-4122', () => {
+    // The regression this file missed for a whole release. SHOW_ID above is
+    // hand-built as v4 ('4000', '8000'), so it satisfied the strict pattern
+    // this function used to carry and the test could not fail. Every id
+    // seed-demo.sql mints looks like this instead -- version nibble 0,
+    // variant 0 -- so the evening cron POSTed on schedule and collected a
+    // 400 every time, while the suite stayed green.
+    const seeded = 'dededede-0000-0000-0000-000000000010';
+    expect(seeded).not.toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    expect(validateReminderRequest({ showId: seeded, trialDate: DAY, kind: 'morning-of' })).toEqual({
+      showId: seeded,
+      trialDate: DAY,
+      kind: 'morning-of',
+    });
+  });
+
+  it('rejects a date that looks well-formed but never existed', () => {
+    // Date.parse normalises 2026-02-30 to March 2 rather than returning NaN,
+    // so a shape-only /^\d{4}-\d{2}-\d{2}$/ lets it through. Same hole review
+    // caught in delivery.ts; this copy kept it.
+    expect(() =>
+      validateReminderRequest({ showId: SHOW_ID, trialDate: '2026-02-30', kind: 'morning-of' })
+    ).toThrow(HttpError);
+  });
 });
 
 describe('runPrintReminder', () => {

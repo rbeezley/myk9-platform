@@ -1,7 +1,14 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect } from 'vitest';
 import { useBrowseShowsFilters, disciplineMatchesEvent } from '@/hooks/useBrowseShowsFilters';
 import type { Show } from '@/types/show-types';
+
+// The browse filter hooks read their state from the query string
+// (MYK9-221, `useUrlFilters`), so they need a router in scope.
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(MemoryRouter, null, children);
 
 // ISO date-only string built from local calendar components — mirrors how DB values arrive
 // and avoids the UTC-midnight-vs-local-midnight ambiguity that caused the original bug.
@@ -73,13 +80,15 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
       endDate: '2099-02-31',
     });
 
-    const { result } = renderHook(() =>
-      useBrowseShowsFilters({
-        shows: [ANCHOR, malformedShow, impossibleDateShow],
-        entries: [],
-        userContext: null,
-        selectedTab: 'all',
-      })
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: [ANCHOR, malformedShow, impossibleDateShow],
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+        }),
+      { wrapper }
     );
 
     await waitFor(() => {
@@ -94,13 +103,15 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
       endDate: localISODate(0),
     });
 
-    const { result } = renderHook(() =>
-      useBrowseShowsFilters({
-        shows: [ANCHOR, todayShow],
-        entries: [],
-        userContext: null,
-        selectedTab: 'all',
-      })
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: [ANCHOR, todayShow],
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+        }),
+      { wrapper }
     );
 
     await waitFor(() => {
@@ -116,13 +127,15 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
       endDate: localISODate(-1),
     });
 
-    const { result } = renderHook(() =>
-      useBrowseShowsFilters({
-        shows: [ANCHOR, pastShow],
-        entries: [],
-        userContext: null,
-        selectedTab: 'all',
-      })
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: [ANCHOR, pastShow],
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+        }),
+      { wrapper }
     );
 
     await waitFor(() => {
@@ -138,13 +151,15 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
       endDate: localISODate(5),
     });
 
-    const { result } = renderHook(() =>
-      useBrowseShowsFilters({
-        shows: [ANCHOR, inProgressShow],
-        entries: [],
-        userContext: null,
-        selectedTab: 'all',
-      })
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: [ANCHOR, inProgressShow],
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+        }),
+      { wrapper }
     );
 
     await waitFor(() => {
@@ -180,8 +195,9 @@ describe('useBrowseShowsFilters — date range filter', () => {
       impossibleNextMonthShow,
     ];
 
-    const { result } = renderHook(() =>
-      useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' })
+    const { result } = renderHook(
+      () => useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' }),
+      { wrapper }
     );
 
     await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));
@@ -207,8 +223,9 @@ describe('useBrowseShowsFilters — date range filter', () => {
       makeShow({ id: 'first-of-after', startDate: isoDate(firstOfMonthAfter) }),
     ];
 
-    const { result } = renderHook(() =>
-      useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' })
+    const { result } = renderHook(
+      () => useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' }),
+      { wrapper }
     );
 
     await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));
@@ -245,8 +262,9 @@ describe('useBrowseShowsFilters — discipline filter', () => {
       makeShow({ id: 'ag-1', events: ['Agility'], organization: 'AKC' }),
     ];
 
-    const { result } = renderHook(() =>
-      useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' })
+    const { result } = renderHook(
+      () => useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' }),
+      { wrapper }
     );
 
     await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));
@@ -264,8 +282,9 @@ describe('useBrowseShowsFilters — discipline filter', () => {
     // organization is "AKC" — should never match "Scent Work"
     const shows = [makeShow({ id: 'sw-1', events: ['Scent Work'], organization: 'AKC' })];
 
-    const { result } = renderHook(() =>
-      useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' })
+    const { result } = renderHook(
+      () => useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' }),
+      { wrapper }
     );
 
     await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));

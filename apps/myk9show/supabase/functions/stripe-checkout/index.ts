@@ -1,7 +1,11 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import {
+  calculatePlatformFeeCents,
+  resolvePlatformFeeRates,
+  stampPlatformFeeRates,
+} from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
@@ -412,18 +416,32 @@ async function handleEntryCheckout(
   }
 
   // Authoritative platform fee: the platform_settings singleton, which a site
-  // admin can change with no deploy. Falls back to the PLATFORM_FEE_PERCENT env
-  // var (then the _shared default) if the row is missing. The DB value flows
-  // through resolvePlatformFeePercent so the 0–20 bounds validation is shared.
-  const { data: feeRow } = await supabase
+  // admin can change with no deploy. Each column falls back to its env var (then
+  // the _shared default) if the row is missing. The DB values flow through
+  // resolvePlatformFeeRates so the bounds validation is shared with the client
+  // preview. flat/min default to 0, i.e. percentage-only (MYK9-197).
+  const { data: feeRow, error: feeRowError } = await supabase
     .from('platform_settings')
-    .select('platform_fee_percent')
+    .select('platform_fee_percent, platform_fee_flat_cents, platform_fee_min_cents')
     .eq('id', true)
     .maybeSingle();
-  const platformFeePercent =
-    feeRow && feeRow.platform_fee_percent != null
-      ? resolvePlatformFeePercent(String(feeRow.platform_fee_percent))
-      : resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
+  if (feeRowError) {
+    // NEVER silently swallowed. PostgREST answers an unknown column with 400 /
+    // 42703, so if this function is deployed BEFORE migration 20260823140000
+    // adds platform_fee_flat_cents and platform_fee_min_cents, every read here
+    // fails and the rates fall through to env and then the _shared default.
+    // That is invisible without this log, and it charges the DEFAULT percent
+    // rather than the configured one for the whole window.
+    // DEPLOY ORDER: migration first, then this function.
+    console.error(
+      `platform_settings read failed (${feeRowError.code ?? 'no code'}): ${feeRowError.message}. ` +
+        `Falling back to env/default fee rates — if this is 42703, migration ` +
+        `20260823140000 has not been applied and this function must not be live yet.`
+    );
+  }
+  const platformFeeRates = resolvePlatformFeeRates(feeRow, {
+    percent: Deno.env.get('PLATFORM_FEE_PERCENT'),
+  });
 
   // NEVER trust entry_cart_items.entry_fee_cents (round-14 P1): the
   // owner-update RLS policy covers every column, so a direct PostgREST write
@@ -556,7 +574,7 @@ async function handleEntryCheckout(
         .eq('id', item.id);
     }
     const healedSubtotal = itemsWithAuthoritativeFee.reduce((s, x) => s + x.authoritativeCents, 0);
-    const healedFeeCents = calculatePlatformFeeCents(healedSubtotal, platformFeePercent);
+    const healedFeeCents = calculatePlatformFeeCents(healedSubtotal, platformFeeRates);
     await supabase
       .from('entry_carts')
       .update({
@@ -614,7 +632,7 @@ async function handleEntryCheckout(
     (sum: number, item: { entry_fee_cents: number }) => sum + item.entry_fee_cents,
     0
   );
-  const platformFeeCents = calculatePlatformFeeCents(subtotal, platformFeePercent);
+  const platformFeeCents = calculatePlatformFeeCents(subtotal, platformFeeRates);
 
   // Add platform fee as line item if > 0
   if (platformFeeCents > 0) {
@@ -661,7 +679,7 @@ async function handleEntryCheckout(
         metadata: {
           cart_id: cart_id,
           type: 'entry',
-          platform_fee_percent: String(platformFeePercent),
+          ...stampPlatformFeeRates(platformFeeRates),
         },
         payment_intent_data: {
           statement_descriptor_suffix: formatStatementDescriptorSuffix(showFees.name),

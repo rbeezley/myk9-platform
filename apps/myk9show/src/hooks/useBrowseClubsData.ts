@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClubStore } from '@/store/clubStore';
 import { useShowStore } from '@/store/showStore';
-import type { Club } from '@/types/club-types';
+import { CLUB_TYPES, type Club } from '@/types/club-types';
 import { filterVisibleBrowseClubs } from './browseClubsVisibility';
 
 export interface ClubFilters {
@@ -14,6 +15,13 @@ const INITIAL_FILTERS: ClubFilters = {
   search: '',
   clubType: 'all',
 };
+
+// WARNING: a value missing from this list is ERASED, not ignored — the param is
+// stripped and the filter falls back to its default. Adding a chip option
+// without adding it here does not degrade the deep link, it DESTROYS it.
+const ALLOWED_FILTER_VALUES = {
+  clubType: CLUB_TYPES.map(type => type.value),
+} as const;
 
 export interface BrowseClubsData {
   clubs: Club[];
@@ -46,7 +54,11 @@ export function useBrowseClubsData(): BrowseClubsData {
     void ensureClubsReady({ force: true });
   }, [ensureClubsReady]);
 
-  const [filters, setFilters] = useState<ClubFilters>(INITIAL_FILTERS);
+  // URL-backed so a refresh, back-navigation, or shared link keeps the same
+  // result set (MYK9-221). Same [values, setValues] contract as useState.
+  const [filters, setFilters] = useUrlFilters<ClubFilters>(INITIAL_FILTERS, {
+    allowedValues: ALLOWED_FILTER_VALUES,
+  });
 
   // Public browse uses a narrow club-only readiness path. It works for guests
   // without enabling the full anonymous replication provider.
@@ -94,7 +106,7 @@ export function useBrowseClubsData(): BrowseClubsData {
 
   const clearAllFilters = useCallback(() => {
     setFilters(INITIAL_FILTERS);
-  }, []);
+  }, [setFilters]);
 
   return {
     clubs: visibleClubs,

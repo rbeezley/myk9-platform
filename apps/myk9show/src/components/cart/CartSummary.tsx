@@ -27,7 +27,7 @@ import {
   formatCartCurrency,
   formatPlatformFeeLabel,
 } from '@/store/cartStore.helpers';
-import { usePlatformFeePercent } from '@/hooks/queries/usePlatformFeePercent';
+import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { CartFulfillmentView } from '@/features/payments/cartFulfillmentView';
@@ -72,7 +72,7 @@ export function CartSummary({
   const cart = useCartStore(state => state.cart);
   const getTotalEntryFees = useCartStore(state => state.getTotalEntryFees);
   const getItemCount = useCartStore(state => state.getItemCount);
-  const feePercent = usePlatformFeePercent();
+  const feeRates = usePlatformFeeRates();
 
   // INTENT: Entry carts are a calm flow, not a time-pressured checkout. We do
   // NOT surface a constant ticking countdown, and expiry must NOT strand the
@@ -138,9 +138,9 @@ export function CartSummary({
   const waitlistCount = fulfillment?.waitlistItems.length ?? 0;
   const blockedCount = fulfillment?.blockedItems.length ?? 0;
   const subtotal = fulfillment ? fulfillment.payableSubtotalCents : getTotalEntryFees();
-  // Recompute fee + total from the live rate (the store bakes the fallback
-  // default; the server charges the platform_settings rate this hook reads).
-  const platformFee = calculatePlatformFeeCents(subtotal, feePercent);
+  // Recompute fee + total from the live rates (the store bakes the fallback
+  // defaults; the server charges the platform_settings rates this hook reads).
+  const platformFee = calculatePlatformFeeCents(subtotal, feeRates);
   const total = subtotal + platformFee;
   // Availability has not resolved yet, so the payable total is not final.
   const capacityUnknown = fulfillment ? !fulfillment.capacityKnown : false;
@@ -266,7 +266,7 @@ export function CartSummary({
           )}
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">
-              Platform Fee ({formatPlatformFeeLabel(feePercent)})
+              Platform Fee ({formatPlatformFeeLabel(feeRates)})
             </span>
             <span>{formatCartCurrency(platformFee)}</span>
           </div>

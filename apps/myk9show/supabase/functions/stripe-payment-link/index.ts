@@ -1,7 +1,10 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import {
+  calculatePlatformFeeCents,
+  resolvePlatformFeeRates,
+} from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
@@ -313,16 +316,31 @@ Deno.serve(async req => {
       );
     }
 
-    // Authoritative fee percent: platform_settings row, else env, else default.
-    const { data: feeRow } = await supabase
+    // Authoritative fee rates: platform_settings row, else env, else default.
+    // Percent + flat per-checkout component + floor (MYK9-197); flat/min default
+    // to 0, so a link prices identically to a self-pay cart either way.
+    const { data: feeRow, error: feeRowError } = await supabase
       .from('platform_settings')
-      .select('platform_fee_percent')
+      .select('platform_fee_percent, platform_fee_flat_cents, platform_fee_min_cents')
       .eq('id', true)
       .maybeSingle();
-    const platformFeePercent =
-      feeRow && feeRow.platform_fee_percent != null
-        ? resolvePlatformFeePercent(String(feeRow.platform_fee_percent))
-        : resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
+    if (feeRowError) {
+      // NEVER silently swallowed. PostgREST answers an unknown column with 400 /
+      // 42703, so if this function is deployed BEFORE migration 20260823140000
+      // adds platform_fee_flat_cents and platform_fee_min_cents, every read here
+      // fails and the rates fall through to env and then the _shared default.
+      // That is invisible without this log, and it charges the DEFAULT percent
+      // rather than the configured one for the whole window.
+      // DEPLOY ORDER: migration first, then this function.
+      console.error(
+        `platform_settings read failed (${feeRowError.code ?? 'no code'}): ${feeRowError.message}. ` +
+          `Falling back to env/default fee rates — if this is 42703, migration ` +
+          `20260823140000 has not been applied and this function must not be live yet.`
+      );
+    }
+    const platformFeeRates = resolvePlatformFeeRates(feeRow, {
+      percent: Deno.env.get('PLATFORM_FEE_PERCENT'),
+    });
 
     // Recompute each fee from the authority chain — never trust a client value.
     const nowIso = new Date().toISOString();
@@ -479,7 +497,7 @@ Deno.serve(async req => {
 
     const sessionParams = buildEntryPaymentLinkSession({
       entries: linkEntries,
-      platformFeePercent,
+      platformFeeRates,
       successUrl: success_url,
       cancelUrl: cancel_url,
       expiresAtEpoch: Math.floor(Date.now() / 1000) + LINK_LIFETIME_SECONDS,
@@ -523,7 +541,7 @@ Deno.serve(async req => {
     );
     // Return the exact breakdown so the dialog can disclose entry fee + platform
     // fee = total (fee-on-top) without re-deriving fee math on the client.
-    const platformFeeCents = calculatePlatformFeeCents(amountCents, platformFeePercent);
+    const platformFeeCents = calculatePlatformFeeCents(amountCents, platformFeeRates);
     return corsResponse(corsHeaders, {
       url: session.url,
       session_id: session.id,

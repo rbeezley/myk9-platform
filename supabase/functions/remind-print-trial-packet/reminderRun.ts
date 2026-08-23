@@ -2,6 +2,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { HttpError } from '../_shared/http/responses.ts';
 import { loadPacketShow, resolveRecipients, loadPacketRoleRows } from '../_shared/trialPacket/deliverStoredPacket.ts';
+import { isUuidShaped, isValidTrialDate } from '../_shared/trialPacket/delivery.ts';
 import { recordEmailLog, type EmailAttempt } from '../_shared/trialPacket/emailLog.ts';
 import { sendTrialPacketEmail, TrialPacketProviderError } from '../_shared/trialPacket/email.ts';
 import {
@@ -17,8 +18,6 @@ import {
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 const REMINDER_LOG = 'trial_packet_print_reminders';
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const TRIAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface ReminderRequest {
   showId: string;
@@ -32,10 +31,22 @@ export type ReminderOutcome =
 
 export function validateReminderRequest(body: unknown): ReminderRequest {
   const candidate = (body ?? {}) as Partial<ReminderRequest>;
-  if (typeof candidate.showId !== 'string' || !UUID_PATTERN.test(candidate.showId)) {
+  // Shape only, via the shared helper -- NOT a fourth private copy of an
+  // RFC-4122 regex. The strict form (version [1-5], variant [89ab]) rejects
+  // every id seed-demo.sql mints: the one staging show is
+  // dededede-0000-0000-0000-000000000010, version nibble 0. delivery.ts was
+  // loosened for exactly this reason and this file kept its own strict copy,
+  // so the cron POSTed on schedule and got 400 back every time. Postgres
+  // accepts any hex-shaped uuid; validating harder than the column does buys
+  // nothing and cost this feature its whole staging test surface.
+  if (typeof candidate.showId !== 'string' || !isUuidShaped(candidate.showId)) {
     throw new HttpError(400, 'A valid showId is required.');
   }
-  if (typeof candidate.trialDate !== 'string' || !TRIAL_DATE_PATTERN.test(candidate.trialDate)) {
+  // isValidTrialDate round-trips the components, so an impossible day like
+  // 2026-02-30 is rejected rather than normalised to March 2 by Date.parse.
+  // The old local pattern here was shape-only and let it through -- the same
+  // hole review caught in delivery.ts, in the copy nobody looked at.
+  if (typeof candidate.trialDate !== 'string' || !isValidTrialDate(candidate.trialDate)) {
     throw new HttpError(400, 'trialDate must be YYYY-MM-DD.');
   }
   if (!isPrintReminderKind(candidate.kind)) {

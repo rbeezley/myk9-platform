@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArchiveRestore, CheckCircle2, Loader2, Printer, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   buildEmergencyPacketModel,
@@ -35,9 +36,8 @@ async function preparePacket(
   trialDate?: string
 ): Promise<EmergencyPacketDeliveryResult> {
   const model = buildEmergencyPacketModel(input);
-  const { renderEmergencyTrialPacketPdf } = await import(
-    '@/features/emergency-trial-packet/renderPacketPdf'
-  );
+  const { renderEmergencyTrialPacketPdf } =
+    await import('@/features/emergency-trial-packet/renderPacketPdf');
   const bytes = renderEmergencyTrialPacketPdf(model);
   return deliverEmergencyTrialPacket({
     showId: input.show.id,
@@ -95,7 +95,10 @@ export function EmergencyTrialPacketPanel({
     () =>
       data
         ? emergencyPacketAvailability(data)
-        : { available: false as const, reason: unavailableReason ?? 'Report data is still loading.' },
+        : {
+            available: false as const,
+            reason: unavailableReason ?? 'Report data is still loading.',
+          },
     [data, unavailableReason]
   );
 
@@ -158,11 +161,22 @@ export function EmergencyTrialPacketPanel({
         <div className="flex items-start gap-3">
           <ShieldAlert className="mt-0.5 size-6 shrink-0 text-warning" />
           <div>
-            <CardTitle>Emergency Trial Packet</CardTitle>
-            <CardDescription className="mt-1 max-w-3xl">
-              A paper fallback for running this show if the laptop, app, or local data is unavailable.
-              It includes the catalog, check-in and running orders, writable score records,
-              certifications, and recovery instructions.
+            {/* CardTitle renders a plain div, so without this the page had
+                exactly one heading (the h1) and a screen-reader user
+                navigating by heading could not reach this card at all.
+                Applied here rather than in the shared Card, which would
+                renumber headings on every page that uses it. */}
+            <CardTitle role="heading" aria-level={2}>
+              Emergency Trial Packet
+            </CardTitle>
+            {/* text-foreground, not the inherited muted-foreground: on this
+                card's warning tint --muted-foreground measures 4.03:1 in dark
+                mode, under the 4.5:1 floor. Hierarchy is carried by size and
+                weight instead. */}
+            <CardDescription className="mt-1 max-w-3xl text-foreground">
+              A paper fallback for running this show if the laptop, app, or local data is
+              unavailable. It includes the catalog, check-in and running orders, writable score
+              records, certifications, and recovery instructions.
             </CardDescription>
           </div>
         </div>
@@ -176,7 +190,7 @@ export function EmergencyTrialPacketPanel({
                   <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
                   <div>
                     <p className="font-semibold">
-                      {packet.trialDate} packet stored and emailed to{' '}
+                      {formatWeekdayMonthDay(packet.trialDate)} packet stored and emailed to{' '}
                       {packet.delivery.recipientCount} show officials.
                     </p>
                     <p className="mt-1 text-sm">
@@ -189,22 +203,30 @@ export function EmergencyTrialPacketPanel({
                 {onMarkPrinted && (
                   <Button type="button" variant="outline" onClick={() => markPrinted(packet)}>
                     <Printer className="size-4" />
-                    Mark {packet.trialDate} packet printed
+                    Mark {formatWeekdayMonthDay(packet.trialDate)} packet printed
                   </Button>
                 )}
               </div>
             ))}
-            <div className="rounded-md border-2 border-destructive/50 bg-destructive/10 p-4 text-destructive">
-              <p className="text-lg font-bold uppercase">
-                Print {preparedPackets.length > 1 ? 'each packet' : 'it'} and put{' '}
-                {preparedPackets.length > 1 ? 'them' : 'it'} in the trial box.
-              </p>
-              <p className="mt-1 text-sm">
-                Email delivery is not proof that the physical packet exists.
-                {preparedPackets.length > 1
-                  ? ' One packet per day — keep them separate.'
-                  : ''}
-              </p>
+            {/* Was a third severity colour -- a destructive tint nested inside
+                a success tint inside a warning card -- set in uppercase bold.
+                The 14px line measured 4.46:1 against that stacked tint, under
+                the 4.5:1 floor, and shouting is the wrong register for a page
+                a secretary reaches the night before a trial. The instruction
+                reads just as clearly in one weight, with the icon carrying the
+                signal. */}
+            <div className="flex gap-3 rounded-md border border-border bg-background p-4">
+              <Printer className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+              <div>
+                <p className="font-semibold">
+                  Print {preparedPackets.length > 1 ? 'each packet' : 'it'} and put{' '}
+                  {preparedPackets.length > 1 ? 'them' : 'it'} in the trial box.
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Email delivery is not proof that the physical packet exists.
+                  {preparedPackets.length > 1 ? ' One packet per day; keep them separate.' : ''}
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -223,11 +245,10 @@ export function EmergencyTrialPacketPanel({
                 className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm"
               >
                 <div>
-                  <span className="font-medium">{row.trialDate}</span>
+                  <span className="font-medium">{formatWeekdayMonthDay(row.trialDate)}</span>
                   <span className="text-muted-foreground">
                     {' · '}
-                    {row.pageCount} pages · generated{' '}
-                    {new Date(row.generatedAt).toLocaleString()}
+                    {row.pageCount} pages · generated {new Date(row.generatedAt).toLocaleString()}
                   </span>
                   {row.printState === 'superseded' && (
                     <p className="text-warning">
@@ -237,15 +258,15 @@ export function EmergencyTrialPacketPanel({
                   )}
                 </div>
                 {/*
-                  * Printed FIRST. Ordering these the other way told a
-                  * secretary who had already confirmed Saturday to "choose All
-                  * Trials and All Classes" the moment they narrowed the report
-                  * to one trial — because `descriptor` is null whenever the
-                  * scope is not show-wide, or while data is loading. It reads
-                  * as "not confirmed", and the obvious response is to widen
-                  * the scope and press the button again, appending a second
-                  * row for a snapshot already confirmed.
-                  */}
+                 * Printed FIRST. Ordering these the other way told a
+                 * secretary who had already confirmed Saturday to "choose All
+                 * Trials and All Classes" the moment they narrowed the report
+                 * to one trial — because `descriptor` is null whenever the
+                 * scope is not show-wide, or while data is loading. It reads
+                 * as "not confirmed", and the obvious response is to widen
+                 * the scope and press the button again, appending a second
+                 * row for a snapshot already confirmed.
+                 */}
                 {row.printState === 'printed' ? (
                   <span className="inline-flex items-center gap-1 text-success">
                     <CheckCircle2 className="size-4" />
@@ -264,7 +285,7 @@ export function EmergencyTrialPacketPanel({
                       onClick={() => onMarkPrinted(row.descriptor as PaperworkDescriptor)}
                     >
                       <Printer className="size-4" />
-                      Mark {row.trialDate} packet printed
+                      Mark {formatWeekdayMonthDay(row.trialDate)} packet printed
                     </Button>
                   )
                 )}
@@ -276,7 +297,7 @@ export function EmergencyTrialPacketPanel({
           <div className="space-y-3">
             {!availability.available && (
               <p className="text-sm text-muted-foreground">{availability.reason}</p>
-        )}
+            )}
             {error && (
               <p className="text-sm font-medium text-destructive" role="alert">
                 We could not email the packet. The stored copy may still exist; try delivery again.
@@ -295,7 +316,8 @@ export function EmergencyTrialPacketPanel({
               {error ? 'Try again' : isPreparing ? 'Preparing packet…' : 'Prepare and email packet'}
             </Button>
             <p className="text-xs text-muted-foreground">
-              This is an online preparation step. Complete it before show day, then keep the printed packet with the trial supplies.
+              This is an online preparation step. Complete it before show day, then keep the printed
+              packet with the trial supplies.
             </p>
           </div>
         )}

@@ -54,7 +54,7 @@ describe('ReportControlsBar', () => {
   it('uses phone-width controls with desktop fixed widths restored at sm', () => {
     render(<ReportControlsBar {...defaultProps} />);
 
-    const reportTrigger = screen.getByRole('combobox', { name: /select report/i });
+    const reportTrigger = screen.getByRole('combobox', { name: /^report$/i });
     expect(reportTrigger.className).toContain('w-full');
     expect(reportTrigger.className).toContain('sm:w-[200px]');
     expect(screen.getByRole('button', { name: /print/i }).className).toContain('w-full');
@@ -159,12 +159,12 @@ describe('ReportControlsBar', () => {
     render(<ReportControlsBar {...defaultProps} />);
     // The "Class" label is visible, confirming the class dropdown is rendered
     expect(screen.getByText('Class')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /select class/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /^class$/i })).toBeInTheDocument();
   });
 
   it('class dropdown is disabled when trialId is "all"', () => {
     render(<ReportControlsBar {...defaultProps} trialId="all" />);
-    expect(screen.getByRole('combobox', { name: /select class/i })).toBeDisabled();
+    expect(screen.getByRole('combobox', { name: /^class$/i })).toBeDisabled();
   });
 
   it('shows class scope for result catalog deep links', () => {
@@ -178,7 +178,7 @@ describe('ReportControlsBar', () => {
     );
 
     expect(screen.getByText('Class')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /select class/i })).not.toBeDisabled();
+    expect(screen.getByRole('combobox', { name: /^class$/i })).not.toBeDisabled();
   });
 
   // Regression: TO-DOS 2026-06-09. The Trial/Class option labels were built from
@@ -219,7 +219,7 @@ describe('ReportControlsBar', () => {
         />
       );
 
-      await user.click(screen.getByRole('combobox', { name: /select trial/i }));
+      await user.click(screen.getByRole('combobox', { name: /^trial$/i }));
 
       const option = await screen.findByText(/Friday Trial 1/);
       expect(option).toBeInTheDocument();
@@ -238,7 +238,7 @@ describe('ReportControlsBar', () => {
         />
       );
 
-      await user.click(screen.getByRole('combobox', { name: /select class/i }));
+      await user.click(screen.getByRole('combobox', { name: /^class$/i }));
 
       const option = await screen.findByText(/Container Novice A/);
       expect(option).toBeInTheDocument();
@@ -265,7 +265,7 @@ describe('ReportControlsBar', () => {
         />
       );
 
-      await user.click(screen.getByRole('combobox', { name: /select class/i }));
+      await user.click(screen.getByRole('combobox', { name: /^class$/i }));
 
       const option = await screen.findByText(/Detective Class/);
       expect(option).toBeInTheDocument();
@@ -292,7 +292,7 @@ describe('ReportControlsBar', () => {
         />
       );
 
-      await user.click(screen.getByRole('combobox', { name: /select class/i }));
+      await user.click(screen.getByRole('combobox', { name: /^class$/i }));
 
       // Query by option role (not text) so we don't collide with the "Class" <label>.
       const option = await screen.findByRole('option', { name: 'Class' });
@@ -334,7 +334,7 @@ describe('ReportControlsBar', () => {
           trialId={trialUuid}
         />
       );
-      const trigger = screen.getByRole('combobox', { name: /select trial/i });
+      const trigger = screen.getByRole('combobox', { name: /^trial$/i });
       expect(trigger.textContent ?? '').toMatch(/Friday Trial 1/);
       expect(trigger.textContent ?? '').not.toMatch(UUID_RE);
     });
@@ -350,7 +350,7 @@ describe('ReportControlsBar', () => {
           classId={classUuid}
         />
       );
-      const trigger = screen.getByRole('combobox', { name: /select class/i });
+      const trigger = screen.getByRole('combobox', { name: /^class$/i });
       expect(trigger.textContent ?? '').toMatch(/Container Novice A/);
       expect(trigger.textContent ?? '').not.toMatch(UUID_RE);
     });
@@ -372,7 +372,7 @@ describe('ReportControlsBar', () => {
           classId={classUuid}
         />
       );
-      const trigger = screen.getByRole('combobox', { name: /select class/i });
+      const trigger = screen.getByRole('combobox', { name: /^class$/i });
       expect(trigger.textContent ?? '').not.toMatch(UUID_RE);
       expect(trigger.textContent ?? '').toMatch(/Container Novice A/);
     });
@@ -387,7 +387,7 @@ describe('ReportControlsBar', () => {
   describe('Report-type and sort triggers show human labels, not raw ids (F5)', () => {
     it('shows the report name in the report-type trigger, not its id', () => {
       render(<ReportControlsBar {...defaultProps} reportType="check-in-sheet" />);
-      const trigger = screen.getByRole('combobox', { name: /select report/i });
+      const trigger = screen.getByRole('combobox', { name: /^report$/i });
       expect(trigger.textContent ?? '').toMatch(/Check-in Sheet/);
       expect(trigger.textContent ?? '').not.toMatch(/check-in-sheet/);
     });
@@ -398,7 +398,7 @@ describe('ReportControlsBar', () => {
       render(
         <ReportControlsBar {...defaultProps} reportType="check-in-sheet" sortOrder="run-order" />
       );
-      const trigger = screen.getByRole('combobox', { name: /select sort/i });
+      const trigger = screen.getByRole('combobox', { name: /^sort$/i });
       expect(trigger.textContent ?? '').toMatch(/Run Order/);
       expect(trigger.textContent ?? '').not.toMatch(/run-order/);
     });

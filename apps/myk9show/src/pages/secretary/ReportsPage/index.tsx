@@ -1,10 +1,8 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
-import { useReportData } from '@/hooks/queries/useReportData';
+import { useReportData, type ReportDataState } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
 import { ReportPreview } from './ReportPreview';
@@ -29,8 +27,23 @@ import { replicatedPaperworkPrintsTable } from '@/services/replication/Replicate
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { EmergencyTrialPacketPanel } from './EmergencyTrialPacketPanel';
 import { useDeliveredPackets } from './useDeliveredPackets';
+import { useReportDogOptions } from './useReportDogOptions';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
+
+/**
+ * What to say when Print is pressed on data that is not current. Each names the
+ * situation and what will clear it, because "the report is still loading" was
+ * wrong in three of these four cases.
+ */
+const PRINT_BLOCKED_MESSAGE: Record<ReportDataState, string> = {
+  loading: 'Still loading this show. Print once the preview finishes.',
+  unavailable:
+    'No connection, so the entries could not be checked. Reconnect before printing, or the report may be missing dogs.',
+  stale: 'Still loading the trial you just picked. Print once the preview catches up.',
+  error: 'The entries could not be loaded. Use Try again below, then print.',
+  ready: '',
+};
 
 export interface InitialReportScope {
   trialId: string;
@@ -78,7 +91,6 @@ export default function ReportsPage() {
   const { user } = useAuthContext();
   const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PaperworkDescriptor | null>(null);
-  const [isConfirmingPrint, setIsConfirmingPrint] = useState(false);
   const effectiveScope = useMemo<ReportScope>(
     () => resolveReportScope({ showId: showId ?? '', trialId, classId }),
     [showId, trialId, classId]
@@ -87,11 +99,12 @@ export default function ReportsPage() {
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { show, trials, classes, entries, isLoading, isError, refetch } = useReportData({
-    show: currentShow,
-    trialId,
-    classId,
-  });
+  const { show, trials, classes, entries, dataState, isReady, isLoading, isError, refetch } =
+    useReportData({
+      show: currentShow,
+      trialId,
+      classId,
+    });
 
   const trialOptions = useMemo(
     () =>
@@ -117,46 +130,10 @@ export default function ReportsPage() {
     [classes]
   );
 
-  const { data: dogOptionsRaw } = useQuery({
-    queryKey: ['entry-form-dog-options', showId],
-    queryFn: async () => {
-      if (!showId) return [];
-      const { data: entryDogs } = await supabase
-        .from('entries')
-        .select('dog_id, armband, dog:dogs!inner(id, call_name)')
-        .eq('show_id', showId)
-        .is('deleted_at', null);
-
-      if (!entryDogs?.length) return [];
-
-      const dogIds = [...new Set(entryDogs.map(e => e.dog_id).filter(Boolean))] as string[];
-      const { data: regs } = await supabase
-        .from('dog_registrations')
-        .select('dog_id, registered_name')
-        .in('dog_id', dogIds);
-
-      const regMap = new Map((regs ?? []).map(r => [r.dog_id, r.registered_name]));
-      const seen = new Set<string>();
-
-      return entryDogs
-        .filter(e => {
-          if (!e.dog_id || seen.has(e.dog_id)) return false;
-          seen.add(e.dog_id);
-          return true;
-        })
-        .map(e => ({
-          id: e.dog_id!,
-          callName: ((e.dog as Record<string, unknown>)?.call_name as string) ?? '',
-          registeredName: regMap.get(e.dog_id!) ?? null,
-          armband: e.armband != null ? Number(e.armband) : null,
-        }))
-        .sort((a, b) => (a.armband ?? 0) - (b.armband ?? 0));
-    },
-    enabled: !!showId && (report?.supportsDogFilter ?? false),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const dogOptions = dogOptionsRaw ?? [];
+  const { dogs: dogOptions, unavailable: dogOptionsUnavailable } = useReportDogOptions(
+    showId,
+    report?.supportsDogFilter ?? false
+  );
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
     const newReport = getReportById(value);
@@ -198,44 +175,74 @@ export default function ReportsPage() {
   }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
 
   const handlePrint = () => {
-    if (!printIframe(iframeRef)) {
-      toast.error('The report is still loading. Wait for the preview, then print.');
+    // Check the DATA before the iframe. A paused query renders an empty report
+    // whose iframe body is non-empty, so printIframe() happily returns true and
+    // the secretary gets a roster with no dogs on it.
+    //
+    // Armband labels are exempt: ArmbandLabelsReport reads its own
+    // `['armband-label-entries', showId]` query and never touches
+    // trials/classes/entries, so gating it here would refuse to print a sheet
+    // that is on screen and correct, citing data it does not use. Result labels
+    // are NOT exempt -- they are handed trials/classes/entries as props.
+    if (reportType !== 'armband-labels' && !isReady) {
+      toast(PRINT_BLOCKED_MESSAGE[dataState]);
       return;
     }
-    if (paperworkDescriptor) setPendingConfirmation(paperworkDescriptor);
+    if (!printIframe(iframeRef)) {
+      toast('Still building the preview. It will be ready in a moment.');
+      return;
+    }
+    // Offered, not demanded. window.print() reports nothing back -- not whether
+    // a printer was chosen, not whether the secretary pressed Escape -- so a
+    // modal raised here asks "Did the Check-in Sheet print correctly?" about
+    // paper that may not exist, which is the confirmation-dialog-for-a-routine-
+    // action that docs/INTENT.md names as a secretary anti-pattern. A toast
+    // makes the same record available and costs nothing to ignore.
+    //
+    // The packet panel's "Mark printed" button still opens the dialog, and
+    // should: there the secretary asked for it.
+    if (paperworkDescriptor) {
+      const descriptor = paperworkDescriptor;
+      // "Print dialog opened", not "Sent to your printer" -- the comment above
+      // says window.print() reports nothing back, so claiming it printed would
+      // assert the very thing that is unknowable.
+      toast('Print dialog opened.', {
+        action: {
+          label: 'Mark printed',
+          onClick: () => void confirmPrinted(descriptor),
+        },
+      });
+    }
   };
 
-  const confirmPrinted = async () => {
-    if (!pendingConfirmation || !user) return;
+  const confirmPrinted = async (descriptor: PaperworkDescriptor) => {
+    if (!user) return;
     const metadata = user.user_metadata ?? {};
     const fullName =
       (metadata.full_name as string | undefined)?.trim() ||
       [metadata.first_name, metadata.last_name].filter(Boolean).join(' ').trim() ||
       user.email ||
       'Secretary';
-    setIsConfirmingPrint(true);
     try {
       const record = await replicatedPaperworkPrintsTable.confirmPrinted({
-        scope: pendingConfirmation.scope,
-        reportId: pendingConfirmation.reportId,
-        coverage: pendingConfirmation.coverage as unknown as Record<string, unknown>,
-        fingerprint: pendingConfirmation.fingerprint,
+        scope: descriptor.scope,
+        reportId: descriptor.reportId,
+        coverage: descriptor.coverage as unknown as Record<string, unknown>,
+        fingerprint: descriptor.fingerprint,
         printedBy: user.id,
         printedByName: fullName,
       });
       setPendingConfirmation(null);
       showUndoToast({
-        message: 'Print confirmation saved for the secretary team.',
+        message: 'Marked as printed.',
         onUndo: () => {
           void replicatedPaperworkPrintsTable
             .voidPrint({ id: record.id, voidedBy: user.id, reason: 'Undid print confirmation' })
-            .catch(() => toast.error('Print confirmation could not be undone.'));
+            .catch(() => toast.error('Could not undo that. The packet is still marked printed.'));
         },
       });
     } catch {
-      toast.error('Could not save the print confirmation. Try again.');
-    } finally {
-      setIsConfirmingPrint(false);
+      toast.error('Could not save that. Nothing was recorded, so try marking it printed again.');
     }
   };
 
@@ -273,8 +280,7 @@ export default function ReportsPage() {
     showId,
     showName: show?.name,
     currentShowName: currentShow?.name,
-    isLoading,
-    isError,
+    isDataReady: isReady,
     hasShow: Boolean(show),
     trialId,
     classId,
@@ -284,23 +290,32 @@ export default function ReportsPage() {
   });
 
   const emergencyPacketData = useMemo(() => {
-    if (!show || isLoading || isError || effectiveScope.kind !== 'show') return null;
+    // `isReady`, not `!isLoading` — buildEmergencyPacketData collapses undefined
+    // to [] on all three inputs, so a paused query used to produce a non-null
+    // packet model and the panel reported "Add a trial before preparing the
+    // emergency packet" on a show that has trials.
+    if (!show || !isReady || effectiveScope.kind !== 'show') return null;
     return buildEmergencyPacketData({
       show,
       trials: trials as Parameters<typeof buildEmergencyPacketData>[0]['trials'],
       classes: classes as Parameters<typeof buildEmergencyPacketData>[0]['classes'],
       entries: entries as Parameters<typeof buildEmergencyPacketData>[0]['entries'],
     });
-  }, [show, trials, classes, entries, isLoading, isError, effectiveScope.kind]);
+  }, [show, trials, classes, entries, isReady, effectiveScope.kind]);
 
   // Packets that already exist, including any cron generated overnight — the
   // only way to confirm printing one without re-preparing it, which would mint
   // a new snapshot and email every official a second copy (MYK9-228 phase 5).
-  const { rows: deliveredPackets, isError: deliveredPacketsError } =
-    useDeliveredPackets(showId, emergencyPacketData);
+  const { rows: deliveredPackets, isError: deliveredPacketsError } = useDeliveredPackets(
+    showId,
+    emergencyPacketData
+  );
 
   return (
-    <div className="container mx-auto py-6 flex flex-col">
+    // px-4: this project's `.container` compiles to width + max-widths only,
+    // with no horizontal padding, and nothing up the tree supplies any -- so at
+    // 375px the heading and the packet card sat flush against both edges.
+    <div className="container mx-auto flex flex-col px-4 py-6">
       <ShowDeskReturnLink showId={showId} className="mb-2 self-start" />
       {/* Page header */}
       <div className="mb-6">
@@ -318,9 +333,11 @@ export default function ReportsPage() {
         unavailableReason={
           effectiveScope.kind !== 'show'
             ? 'Choose All Trials and All Classes to prepare the whole-show emergency packet.'
-            : isError
-              ? 'Report data could not be loaded. Retry before preparing the packet.'
-              : undefined
+            : dataState === 'unavailable'
+              ? 'No connection, so this show’s trials and entries could not be checked. Reconnect before preparing the packet.'
+              : dataState === 'error'
+                ? 'The show’s trials and entries could not be loaded. Use Try again in the preview below, then prepare the packet.'
+                : undefined
         }
         onMarkPrinted={setPendingConfirmation}
       />
@@ -335,6 +352,7 @@ export default function ReportsPage() {
         trials={trialOptions}
         classes={classOptions}
         dogs={dogOptions}
+        dogsUnavailable={dogOptionsUnavailable}
         onReportTypeChange={handleReportTypeChange}
         onTrialChange={handleTrialChange}
         onClassChange={setClassId}
@@ -353,7 +371,7 @@ export default function ReportsPage() {
         {reportType === 'armband-labels' ? (
           <div className="w-full">
             <LabelModeHeader
-              title="Print Labels — Armband"
+              title="Armband Labels"
               subtitle="Choose a label size, pick which armbands to print, then Print."
             />
             <ArmbandLabelsReport
@@ -367,7 +385,7 @@ export default function ReportsPage() {
         ) : reportType === 'result-labels' ? (
           <div className="w-full">
             <LabelModeHeader
-              title="Print Labels — Results"
+              title="Result Labels"
               subtitle="Pick a trial and class, set the sort, then Print the result labels."
             />
             <ResultLabelsReport
@@ -396,6 +414,11 @@ export default function ReportsPage() {
               sortOrder={sortOrder}
               isLoading={isLoading}
               isError={isError}
+              dataState={dataState}
+              hasDownloadAction={Boolean(officialPdfAction)}
+              downloadBlockedReason={
+                officialPdfAction?.disabled ? officialPdfAction.disabledReason : undefined
+              }
               onRetry={refetch}
               iframeRef={iframeRef}
             />
@@ -409,10 +432,18 @@ export default function ReportsPage() {
             ? 'Emergency Trial Packet'
             : (report?.name ?? 'report')
         }
-        isSaving={isConfirmingPrint}
-        onConfirm={() => void confirmPrinted()}
+        // Always false, and there is no state behind it. The dialog's action
+        // button is a Base UI Close, so one click both fires onConfirm and
+        // starts the dismissal -- "Saving…" can never render, and a piece of
+        // state tracking it would be write-only. Closing immediately is the
+        // honest behaviour: the save continues and reports through its own
+        // toast either way.
+        isSaving={false}
+        onConfirm={() => {
+          if (pendingConfirmation) void confirmPrinted(pendingConfirmation);
+        }}
         onOpenChange={open => {
-          if (!open && !isConfirmingPrint) setPendingConfirmation(null);
+          if (!open) setPendingConfirmation(null);
         }}
       />
     </div>

@@ -215,16 +215,18 @@ Every Batch 2 issue is Done except MYK9-204. Verified against `origin/main`, `gh
 | 2A step 3 | MYK9-217 | **Done** | [#1758](https://github.com/rbeezley/myk9-platform/pull/1758) → `b9b7e73f4`. `index.tsx` 575 → 459 lines; both `INTENT:` constraints hold |
 | 2B step 1 | MYK9-191 | Done | [#1739](https://github.com/rbeezley/myk9-platform/pull/1739) |
 | 2B step 2 | MYK9-192 | **Done** | [#1754](https://github.com/rbeezley/myk9-platform/pull/1754) → `919c3599b`. Migration `20260822200000` applied and verified against the live DB |
-| 2B step 3 | MYK9-193 | **Merged pending** | [#1760](https://github.com/rbeezley/myk9-platform/pull/1760). **Two follow-ups below — read them before touching SMS again** |
+| 2B step 3 | MYK9-193 | **Done** | [#1760](https://github.com/rbeezley/myk9-platform/pull/1760) → `f970d930f`. Migration `20260822210000` applied and verified against the live DB. **AC 8 (deploy) is NOT met** — see below |
 | 2C | MYK9-204 | In Progress | **Operator-blocked.** Only the fresh desktop checkout proof remains |
 | 2D step 1 | MYK9-232 | **Done** | [#1755](https://github.com/rbeezley/myk9-platform/pull/1755) → `34934c62e` |
 | 2D steps 2–3 | MYK9-230, MYK9-231 | **Done** | [#1759](https://github.com/rbeezley/myk9-platform/pull/1759) → `304d4ed42`. Both closed by one PR — one card, one editorial decision |
 
 ### Open operator actions carried out of Batch 2
 
-1. **`supabase/migrations/20260822210000_sms_proximity_sent_marker.sql` is NOT applied.** It ships with #1760 and needs a `db push` after merge. Richard's approval covered the 192 migration only; ask again.
-2. **Do NOT deploy `push-trigger-run-proximity`.** The SMS send path is merged but dormant, gated on MYK9-190 (Twilio A2P 10DLC brand/campaign). No Twilio secret is set.
-3. **Four borrowed untracked `2026082219*.sql` files sit in the primary checkout** (`git clean -f supabase/migrations/`). They were borrowed from open PRs to unblock a `db push` when the remote was ahead of `main`; `rm` and `git clean` are both permission-denied for the agent. They fail migration-parsing tests locally until removed.
+1. **Do NOT deploy `push-trigger-run-proximity`.** The SMS send path is merged and `sms_proximity_sends` is live, but the function is dormant — provider construction degrades to push-only when unconfigured, and no Twilio secret is set. Gated on MYK9-190 (A2P 10DLC brand/campaign).
+2. **MYK9-193 is Done with AC 8 unmet.** The auto-complete-on-merge rule closed it; the deploy criterion is outstanding. Decide: re-open until deploy, or move AC 8 onto MYK9-190 so the gate sits with the work that clears it. Recommended: the latter.
+3. **[MYK9-236](https://linear.app/myk9-platform/issue/MYK9-236)** was filed from the post-push ACL verification — the grant contract's `service_role` column is unenforced against live on 129 of 130 tables. Not exploitable (`service_role` is trusted and bypasses RLS); it means the file an auditor reads instead of querying production is wrong in its third column.
+
+Resolved since: the four borrowed untracked `2026082219*.sql` files are gone — their own PRs merged, so `main` now carries the real versions and the primary checkout is clean.
 
 ### Two things Batch 2 proved about how to work here
 

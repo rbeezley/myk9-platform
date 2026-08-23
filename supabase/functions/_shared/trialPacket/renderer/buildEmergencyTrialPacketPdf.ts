@@ -345,21 +345,29 @@ type CheckInColumnKey =
 /**
  * Widths here are sized to the widest HEADER, not the widest expected data —
  * the non-obvious constraint the next editor needs to know before "fixing"
- * one that looks generous for its column's content. `'Pull / Move / Note'`
- * is the long pole (~21.9mm at the 7.5pt bold every table's header uses);
- * `gate` and `order` are the only two columns with slack (a checkbox and a
- * usually-≤3-digit number), so they are trimmed to their own header's
- * minimum plus a small margin and the savings are handed to `note`. Data
- * that overflows any column — including these two — is still truncated by
+ * one that looks generous for its column's content. All measured at the
+ * shared 7.5pt bold header font (`doc.getTextWidth`), budget = width - 3:
+ *
+ *   gate     'Gate'                5.85mm text, 6.90mm budget -> 1.05mm margin
+ *   order    'Order'               7.20mm text, 8.50mm budget -> 1.30mm margin
+ *   note     'Pull / Move / Note' 21.85mm text, 22.90mm budget -> 1.05mm margin
+ *
+ * `gate` and `order` hold no real per-entry text (a checkbox and a usually
+ * ≤3-digit number) and `note` is always blank too, so their margins only
+ * have to clear their OWN header, not any data. `breed` and `handler` hold
+ * real per-entry data that `fitTextToWidth` already truncates gracefully, so
+ * they were trimmed slightly (32->30.6, 30 unchanged) to fund `gate`/`order`
+ * rather than the other way around; both still carry >17mm of slack over
+ * their own header. Data that overflows any column is still truncated by
  * `fitTextToWidth`, never overprinted.
  */
 const CHECK_IN_COLUMN_DEFS: ReadonlyArray<{ key: CheckInColumnKey; label: string; width: number }> =
   [
-    { key: 'gate', label: 'Gate', width: 9.5 },
-    { key: 'order', label: 'Order', width: 10.5 },
+    { key: 'gate', label: 'Gate', width: 9.9 },
+    { key: 'order', label: 'Order', width: 11.5 },
     { key: 'armband', label: 'Armband', width: 20 },
     { key: 'callName', label: 'Call Name', width: 34 },
-    { key: 'breed', label: 'Breed', width: 32 },
+    { key: 'breed', label: 'Breed', width: 30.6 },
     { key: 'registrationNumber', label: 'Reg #', width: 26 },
     { key: 'handler', label: 'Handler', width: 30 },
     { key: 'note', label: 'Pull / Move / Note', width: 25.9 },

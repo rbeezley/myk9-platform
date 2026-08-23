@@ -136,6 +136,62 @@ describe('toScoresheetModel', () => {
   });
 });
 
+function datasetWithManyEntries(count: number): {
+  dataset: ReportDataSet;
+  armbandAtRunOrder: (runOrder: number) => number;
+} {
+  const trial = trialFixture('trial-1');
+  const classData = classFixture('class-1', trial.id);
+  // Reverse armband vs. run order: run order 1 gets the HIGHEST armband and
+  // run order `count` (the last dog, chunked onto a later run-order page by
+  // the builder) gets armband 1 — the lowest. A correct global armband sort
+  // must therefore move that last dog onto page 1.
+  const armbandAtRunOrder = (runOrder: number) => count + 1 - runOrder;
+  const entries = Array.from({ length: count }, (_, index) => {
+    const runOrder = index + 1;
+    return entryFixture(`entry-${runOrder}`, classData.id, armbandAtRunOrder(runOrder), runOrder);
+  });
+  return {
+    dataset: { show, pages: [{ trial, classData, entries }] },
+    armbandAtRunOrder,
+  };
+}
+
+describe('reorderPagesByArmband (multi-page classes)', () => {
+  it('moves a low-armband dog from a later run-order check-in page onto page 1', () => {
+    // 25 entries: CHECK_IN_ROWS_PER_PAGE is 20, so run order 1-20 build under
+    // the run-order sort onto check-in page 1, and run order 21-25 (armbands
+    // 5,4,3,2,1 respectively) onto page 2. Armband 1 belongs to run order 25
+    // — the last dog, on page 2 before an armband sort touches anything.
+    const { dataset } = datasetWithManyEntries(25);
+
+    const runOrderModel = toScoresheetModel(dataset, 'run-order');
+    const runOrderCheckIn = selectPacketPages(runOrderModel, 'check-in');
+    expect(runOrderCheckIn.pages).toHaveLength(2);
+    expect(runOrderCheckIn.pages[0]!.entries).toHaveLength(20);
+    expect(runOrderCheckIn.pages[1]!.entries).toHaveLength(5);
+    // Confirm the premise: under run order alone, armband 1 is NOT on page 1.
+    expect(runOrderCheckIn.pages[0]!.entries.some(entry => entry.armband === 1)).toBe(false);
+    expect(runOrderCheckIn.pages[1]!.entries.some(entry => entry.armband === 1)).toBe(true);
+
+    const armbandModel = toScoresheetModel(dataset, 'armband');
+    const armbandCheckIn = selectPacketPages(armbandModel, 'check-in');
+    expect(armbandCheckIn.pages).toHaveLength(2);
+    // Page sizes are preserved (20 then 5) — only the assignment changes.
+    expect(armbandCheckIn.pages[0]!.entries).toHaveLength(20);
+    expect(armbandCheckIn.pages[1]!.entries).toHaveLength(5);
+
+    expect(armbandCheckIn.pages[0]!.entries.map(entry => entry.armband)).toEqual(
+      Array.from({ length: 20 }, (_, index) => index + 1)
+    );
+    expect(armbandCheckIn.pages[1]!.entries.map(entry => entry.armband)).toEqual([21, 22, 23, 24, 25]);
+    // The behavior the coordinator flagged as untested: armband 1, run-order
+    // 25, was on page 2 above and must now be on page 1.
+    expect(armbandCheckIn.pages[0]!.entries.some(entry => entry.armband === 1)).toBe(true);
+    expect(armbandCheckIn.pages[1]!.entries.some(entry => entry.armband === 1)).toBe(false);
+  });
+});
+
 describe('selectPacketPages', () => {
   it('filters to a single page kind and renumbers pages sequentially', () => {
     const model = toScoresheetModel(datasetWithPages(2), 'run-order');

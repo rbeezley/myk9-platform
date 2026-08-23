@@ -124,7 +124,7 @@ describe('reportRegistry', () => {
       expect(report?.category).toBe('financial');
     });
 
-    it('official-PDF-only reports are enabled but render directly from ReportsPage', () => {
+    it('reports that render directly from ReportsPage (official PDFs and buildPdf-backed reports) are enabled with placeholder components', () => {
       const placeholderReportIds = [
         'armband-labels',
         'result-labels',

@@ -342,16 +342,27 @@ function renderCatalog(doc: jsPDF, page: EmergencyPacketPage): void {
 type CheckInColumnKey =
   'gate' | 'order' | 'armband' | 'callName' | 'breed' | 'registrationNumber' | 'handler' | 'note';
 
+/**
+ * Widths here are sized to the widest HEADER, not the widest expected data —
+ * the non-obvious constraint the next editor needs to know before "fixing"
+ * one that looks generous for its column's content. `'Pull / Move / Note'`
+ * is the long pole (~21.9mm at the 7.5pt bold every table's header uses);
+ * `gate` and `order` are the only two columns with slack (a checkbox and a
+ * usually-≤3-digit number), so they are trimmed to their own header's
+ * minimum plus a small margin and the savings are handed to `note`. Data
+ * that overflows any column — including these two — is still truncated by
+ * `fitTextToWidth`, never overprinted.
+ */
 const CHECK_IN_COLUMN_DEFS: ReadonlyArray<{ key: CheckInColumnKey; label: string; width: number }> =
   [
-    { key: 'gate', label: 'Gate', width: 12 },
-    { key: 'order', label: 'Order', width: 14 },
+    { key: 'gate', label: 'Gate', width: 9.5 },
+    { key: 'order', label: 'Order', width: 10.5 },
     { key: 'armband', label: 'Armband', width: 20 },
     { key: 'callName', label: 'Call Name', width: 34 },
     { key: 'breed', label: 'Breed', width: 32 },
     { key: 'registrationNumber', label: 'Reg #', width: 26 },
     { key: 'handler', label: 'Handler', width: 30 },
-    { key: 'note', label: 'Pull / Move / Note', width: 19.9 },
+    { key: 'note', label: 'Pull / Move / Note', width: 25.9 },
   ];
 
 /**
@@ -403,16 +414,13 @@ function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): s
 }
 
 /**
- * Custom layout rather than `renderTable`: that helper's fixed 7.5pt bold
- * header does not fit 'Pull / Move / Note' inside its 19.9mm column (that
- * string alone measures ~21.9mm at 7.5pt bold), and there is no other header
- * this cramped in the other tables. Shrinking the header font here — and
- * nowhere else — is the fix; `fitTextToWidth` still backstops every header
- * and every cell so a real overflow is truncated, never overprinted.
+ * Custom layout rather than `renderTable`: this table needs the SAME 7.5pt
+ * bold header the other tables use — this is a sheet read at arm's length by
+ * a secretary or judge, not fine print — so the column widths above (not the
+ * font) are what make `'Pull / Move / Note'` fit. `fitTextToWidth` still
+ * backstops every header and every cell so a real overflow is truncated,
+ * never overprinted.
  */
-const CHECK_IN_HEADER_FONT_SIZE = 5.5;
-const CHECK_IN_CELL_FONT_SIZE = 7.5;
-
 function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   const startY = addTitle(doc, page);
   const rowHeight = 10;
@@ -423,14 +431,18 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   doc.rect(LEFT, y, totalWidth, rowHeight, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(CHECK_IN_HEADER_FONT_SIZE);
+  doc.setFontSize(7.5);
   for (const column of CHECK_IN_COLUMNS) {
+    // 3mm padding (vs. the 2mm `renderTable` cells use elsewhere) is
+    // deliberate, not a typo against the plan: it truncates a hair earlier,
+    // never later, so it cannot cause the overprinting the margin exists to
+    // prevent.
     doc.text(fitTextToWidth(doc, column.label, column.width - 3), column.x + 1.5, y + 6);
   }
   y += rowHeight;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(CHECK_IN_CELL_FONT_SIZE);
+  doc.setFontSize(7.5);
   doc.setTextColor(20, 20, 20);
   page.entries.forEach((entry, rowIndex) => {
     if (rowIndex % 2 === 1) {

@@ -1,4 +1,5 @@
 import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
+import { resolveScoresheetConfig, type ScoresheetRegistryConfig } from './scoresheetConfig.ts';
 import type { EmergencyPacketEntry, EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
 
 /**
@@ -470,42 +471,185 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   });
 }
 
-function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
-  let y = addTitle(doc, page);
-  doc.setFontSize(8);
+/**
+ * Set by the reason lists: five items at ~4mm plus a label is ~24mm, and the
+ * identity and fault regions fit inside that. The multi-area time stack (four
+ * rows of ~6mm) also fits, which is why a 3-area class does not need a taller
+ * block. Exported so pagination and its tests share ONE number.
+ */
+export const SCORE_BLOCK_HEIGHT_MM = 36;
+
+// INTENT: this sheet is a SUPERSET of what either surface needs. `Place`
+// and the free-text note are dead weight when the app is up and the only
+// record when it is down. Do not split this into "normal" and "emergency"
+// variants, and do not delete the unused-looking fields as a simplification.
+// One document, printed the same way every time, is the point.
+
+/**
+ * Fixed left edges and widths, in mm, tiling the printable 187.9mm width
+ * (14mm margins on a 215.9mm-wide letter page) left to right: identity,
+ * result, faults, reasons, time. A judge reads this sheet left to right per
+ * dog, so the column order follows the order decisions get made in — who,
+ * then result, then why, then how long it took.
+ */
+const SCORE_REGIONS = {
+  identity: { x: 14, width: 55 },
+  result: { x: 69, width: 30 },
+  faults: { x: 99, width: 35 },
+  reasons: { x: 134, width: 45 },
+  time: { x: 179, width: 22.9 },
+} as const;
+
+const CHECKBOX_SIZE_MM = 2.6;
+const TALLY_BOX_SIZE_MM = 4.5;
+const REASON_ROW_HEIGHT_MM = 2.7;
+const TIME_ROW_HEIGHT_MM = 6;
+
+/** A ruled checkbox (never prose) followed by its label, `fitTextToWidth`-safe. */
+function drawCheckboxLabel(
+  doc: jsPDF,
+  x: number,
+  baselineY: number,
+  label: string,
+  maxLabelWidth: number
+): void {
+  doc.setDrawColor(90, 90, 90);
+  doc.rect(x, baselineY - CHECKBOX_SIZE_MM + 0.6, CHECKBOX_SIZE_MM, CHECKBOX_SIZE_MM);
+  doc.text(fitTextToWidth(doc, label, maxLabelWidth), x + CHECKBOX_SIZE_MM + 1.3, baselineY);
+}
+
+function renderIdentityRegion(doc: jsPDF, entry: EmergencyPacketEntry, y0: number): void {
+  const region = SCORE_REGIONS.identity;
+  const textX = region.x + 2;
+  const maxWidth = region.width - 4;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(fitTextToWidth(doc, `#${entry.armband}  ${entry.callName}`, maxWidth), textX, y0 + 7);
   doc.setFont('helvetica', 'normal');
-  for (const entry of page.entries) {
+  doc.setFontSize(7);
+  doc.text(
+    fitTextToWidth(
+      doc,
+      [entry.breed, entry.registrationNumber, entry.handler].filter(Boolean).join(' · '),
+      maxWidth
+    ),
+    textX,
+    y0 + 13
+  );
+}
+
+function renderResultRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: number): void {
+  const region = SCORE_REGIONS.result;
+  const colWidth = region.width / 2 - 4;
+  const col1 = region.x + 2;
+  const col2 = region.x + region.width / 2 + 2;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  config.resultStates.forEach((state, index) => {
+    const x = index % 2 === 0 ? col1 : col2;
+    const row = Math.floor(index / 2);
+    drawCheckboxLabel(doc, x, y0 + 6 + row * 7, state, colWidth);
+  });
+  const rows = Math.ceil(config.resultStates.length / 2);
+  doc.text(fitTextToWidth(doc, 'Place: ______', region.width - 4), col1, y0 + 6 + rows * 7 + 4);
+}
+
+function renderFaultsRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: number): void {
+  const region = SCORE_REGIONS.faults;
+  const boxX = region.x + 2;
+  const labelX = boxX + TALLY_BOX_SIZE_MM + 2;
+  const maxLabelWidth = region.width - TALLY_BOX_SIZE_MM - 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  config.faultCounters.forEach((label, index) => {
+    const y = y0 + 6 + index * 8;
     doc.setDrawColor(90, 90, 90);
-    doc.rect(LEFT, y, RIGHT - LEFT, 27);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(
-      fitTextToWidth(doc, `#${entry.armband}  ${entry.callName}`, RIGHT - LEFT - 6),
-      LEFT + 3,
-      y + 6
-    );
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text(
-      fitTextToWidth(
-        doc,
-        [entry.breed, entry.registrationNumber, entry.handler].filter(Boolean).join(' · '),
-        RIGHT - LEFT - 6
-      ),
-      LEFT + 3,
-      y + 12
-    );
-    doc.text('Result:  [ ] Q   [ ] NQ   [ ] EX   [ ] ABS', LEFT + 3, y + 19);
-    doc.text('Time: __________', 87, y + 19);
-    doc.text('Faults: ______', 125, y + 19);
-    doc.text('Place: ______', 159, y + 19);
-    doc.text(
-      'Notes / reason: __________________________________________________________',
-      LEFT + 3,
-      y + 25
-    );
-    y += 29;
+    doc.rect(boxX, y - TALLY_BOX_SIZE_MM + 1, TALLY_BOX_SIZE_MM, TALLY_BOX_SIZE_MM);
+    doc.text(fitTextToWidth(doc, label, maxLabelWidth), labelX, y);
+  });
+}
+
+/** One vertical list of checkbox reasons under a bold section label. Returns the y reached. */
+function renderReasonList(
+  doc: jsPDF,
+  x: number,
+  startY: number,
+  label: string,
+  reasons: readonly string[],
+  maxLabelWidth: number
+): number {
+  let y = startY;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text(label, x, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  for (const reason of reasons) {
+    y += REASON_ROW_HEIGHT_MM;
+    drawCheckboxLabel(doc, x, y, reason, maxLabelWidth);
   }
+  return y;
+}
+
+function renderReasonsRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: number): void {
+  const region = SCORE_REGIONS.reasons;
+  const x = region.x + 2;
+  const maxLabelWidth = region.width - CHECKBOX_SIZE_MM - 5;
+  const afterNq = renderReasonList(doc, x, y0 + 3.5, 'NQ', config.nqReasons, maxLabelWidth);
+  renderReasonList(doc, x, afterNq + 3, 'EX', config.exReasons, maxLabelWidth);
+}
+
+/**
+ * `MM/SS/TT` boxes for a single-area class; per-area rows plus a `Total` row
+ * otherwise. `areaCount` is the SAME clamp `formatClassTimeLimits` uses
+ * (`resolveAreaCount`), reused via `page.context.areaCount` rather than
+ * recomputed here — two divergent area counts is the drift this sheet exists
+ * to remove.
+ */
+/**
+ * `showLabels` is true only for the page's first dog: the row labels (`MM`,
+ * `A1`, `Total`, ...) are a column HEADER, identical for every dog on the
+ * page (they all belong to the same class), so repeating them on every block
+ * would be noise rather than information. Every dog still gets its own
+ * writable box per row — only the label text is shared.
+ */
+function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number, showLabels: boolean): void {
+  const region = SCORE_REGIONS.time;
+  const labelX = region.x + 1;
+  const boxX = region.x + 7.5;
+  const boxWidth = region.width - 8.5;
+  const rows =
+    areaCount <= 1
+      ? ['MM', 'SS', 'TT']
+      : [...Array.from({ length: areaCount }, (_, index) => `A${index + 1}`), 'Total'];
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  rows.forEach((label, index) => {
+    const y = y0 + 6 + index * TIME_ROW_HEIGHT_MM;
+    if (showLabels) doc.text(label, labelX, y);
+    doc.setDrawColor(90, 90, 90);
+    doc.rect(boxX, y - 4, boxWidth, 4.5);
+  });
+}
+
+function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
+  const y0Title = addTitle(doc, page);
+  const config = resolveScoresheetConfig(page.context.registryId);
+  // Falls back to 1 only for a page built outside the normal model pipeline
+  // (a hand-constructed test fixture); every real class page sets this via
+  // `resolveAreaCount` in `buildEmergencyPacketModel`.
+  const areaCount = page.context.areaCount ?? 1;
+  let y = y0Title;
+  page.entries.forEach((entry, index) => {
+    doc.setDrawColor(90, 90, 90);
+    doc.rect(LEFT, y, RIGHT - LEFT, SCORE_BLOCK_HEIGHT_MM);
+    renderIdentityRegion(doc, entry, y);
+    renderResultRegion(doc, config, y);
+    renderFaultsRegion(doc, config, y);
+    renderReasonsRegion(doc, config, y);
+    renderTimeRegion(doc, areaCount, y, index === 0);
+    y += SCORE_BLOCK_HEIGHT_MM;
+  });
 }
 
 function renderCertification(doc: jsPDF, page: EmergencyPacketPage): void {

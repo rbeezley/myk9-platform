@@ -9,11 +9,13 @@ import {
   layoutDetailLines,
   maxDetailLinesForKind,
   MAX_EMERGENCY_PACKET_BYTES,
+  SCORE_BLOCK_HEIGHT_MM,
   type JsPdfConstructor,
 } from './buildEmergencyTrialPacketPdf';
 // Exercise the APP binding, so these tests cover the same path the product
 // uses rather than a hand-passed constructor.
 import { renderEmergencyTrialPacketPdf as buildEmergencyTrialPacketPdf } from './renderPacketPdf';
+import { resolveScoresheetConfig } from './scoresheetConfig';
 import type { EmergencyPacketClass, EmergencyPacketInput, EmergencyPacketPageKind } from './types';
 
 function reportEntry(id: string, classId: string, trialId: string, armband: number): ReportEntry {
@@ -200,6 +202,83 @@ function renderPageOfKind(
     RecordingJsPdf
   );
   return { doc, texts };
+}
+
+/**
+ * Render exactly one score-recording block (one entry, so there is no second
+ * block to confuse the measurement with) and return the greatest y any
+ * element reached, minus the block's own start y.
+ *
+ * The block's own outer frame (`doc.rect(LEFT, y, RIGHT-LEFT, SCORE_BLOCK_HEIGHT_MM)`)
+ * is excluded from the "greatest y reached" measurement — its own bottom edge
+ * is BY DEFINITION `SCORE_BLOCK_HEIGHT_MM` below the start, so including it
+ * would make this function return that constant no matter what the block's
+ * actual content does, which is exactly the vacuous-test shape the mutation
+ * check below exists to catch. The frame IS still used to find the block's
+ * start y (it is the first wide rect drawn at the left margin).
+ */
+function blockExtent(classOverrides: Partial<EmergencyPacketClass> = {}): number {
+  const input: EmergencyPacketInput = structuredClone(fixture) as EmergencyPacketInput;
+  input.trials = [input.trials[0]];
+  input.classes = [{ ...input.classes[0], ...classOverrides }];
+  input.entries = [reportEntry('e1', 'c1', 't1', 101)];
+
+  const model = buildEmergencyPacketModel(input);
+  const targetPage = model.pages.find(candidate => candidate.kind === 'score-recording');
+  if (!targetPage) throw new Error('blockExtent: no score-recording page was produced');
+
+  let blockStartY: number | null = null;
+  let maxY = 0;
+  // The page header/footer (`addPageFrame`) draws BEFORE the block, including
+  // a footer fixed at `PAGE_HEIGHT - 8` — a y far larger than anything the
+  // block itself draws. Only track calls that happen once the block's own
+  // frame has been seen, so the footer (and title, drawn before the block
+  // too) cannot inflate the measurement.
+  const track = (y: number) => {
+    if (blockStartY !== null && y > maxY) maxY = y;
+  };
+  const isBlockFrame = (x: number, w: number) => x === 14 && w > 100;
+
+  const RecordingJsPdf = function (options: ConstructorParameters<typeof jsPDF>[0]) {
+    const real = new jsPDF(options);
+
+    const originalRect = real.rect.bind(real);
+    (real as unknown as { rect: typeof real.rect }).rect = ((
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      style?: string
+    ) => {
+      if (isBlockFrame(x, w)) {
+        if (blockStartY === null) blockStartY = y;
+      } else {
+        track(y + h);
+      }
+      return originalRect(x, y, w, h, style);
+    }) as typeof real.rect;
+
+    const originalText = real.text.bind(real);
+    (real as unknown as { text: typeof real.text }).text = ((
+      text: Parameters<typeof real.text>[0],
+      x: Parameters<typeof real.text>[1],
+      y: Parameters<typeof real.text>[2],
+      opts?: Parameters<typeof real.text>[3]
+    ) => {
+      track(y);
+      return originalText(text, x, y, opts);
+    }) as typeof real.text;
+
+    return real;
+  } as unknown as JsPdfConstructor;
+
+  buildEmergencyTrialPacketPdfWithCtor(
+    { ...model, pages: [{ ...targetPage, pageNumber: 1 }] },
+    RecordingJsPdf
+  );
+
+  if (blockStartY === null) throw new Error('blockExtent: block start (outer frame) not found');
+  return maxY - blockStartY;
 }
 
 function checkInColumnGeometry() {
@@ -437,5 +516,57 @@ describe('buildEmergencyTrialPacketPdf', () => {
       expect(text).toContain('+4 more');
       expect(text).toContain('see the trial sections inside');
     });
+  });
+});
+
+describe('scoresheet per-dog block', () => {
+  it('prints all four result states', () => {
+    const { texts } = renderPageOfKind('score-recording');
+    for (const state of ['Q', 'NQ', 'EX', 'ABS']) {
+      expect(texts).toContain(state);
+    }
+  });
+
+  it('prints a place field, which only matters when the app is down', () => {
+    // INTENT: extra information the judge ignores when the app is up. Do not
+    // remove as a simplification — see the spec's "one sheet, superset" note.
+    const { texts } = renderPageOfKind('score-recording');
+    expect(texts.some(text => text.startsWith('Place'))).toBe(true);
+  });
+
+  it('prints the registry reason lists, not a hard-coded set', () => {
+    const { texts } = renderPageOfKind('score-recording', {}, { registryId: 'akc' });
+    for (const reason of resolveScoresheetConfig('akc').nqReasons) {
+      expect(texts).toContain(reason);
+    }
+  });
+
+  it('prints the three fault counters as tallies', () => {
+    const { texts } = renderPageOfKind('score-recording');
+    for (const fault of ['Handler Error', 'Safety Concern', 'Mild Disruption']) {
+      expect(texts).toContain(fault);
+    }
+  });
+
+  it('prints MM/SS/TT for a single-area class', () => {
+    const { texts } = renderPageOfKind('score-recording', {}, { numAreas: 1 });
+    expect(texts.filter(text => text === 'MM')).toHaveLength(1);
+    expect(texts).not.toContain('A2');
+  });
+
+  it('prints per-area rows plus a total for a multi-area class', () => {
+    const { texts } = renderPageOfKind('score-recording', {}, { numAreas: 3 });
+    for (const label of ['A1', 'A2', 'A3', 'Total']) {
+      expect(texts).toContain(label);
+    }
+  });
+
+  it('keeps the multi-area time stack inside the block height', () => {
+    // The four time rows must fit the height the reason lists already set, or
+    // pagination silently overflows for 3-area classes only.
+    const single = blockExtent({ numAreas: 1 });
+    const multi = blockExtent({ numAreas: 3 });
+    expect(multi).toBeLessThanOrEqual(SCORE_BLOCK_HEIGHT_MM);
+    expect(single).toBeLessThanOrEqual(SCORE_BLOCK_HEIGHT_MM);
   });
 });

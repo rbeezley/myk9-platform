@@ -34,7 +34,11 @@ function compareText(a: string | null | undefined, b: string | null | undefined)
 }
 
 function compareTrials(a: EmergencyPacketTrial, b: EmergencyPacketTrial): number {
-  return compareText(a.date, b.date) || compareText(a.trialNumber, b.trialNumber) || compareText(a.id, b.id);
+  return (
+    compareText(a.date, b.date) ||
+    compareText(a.trialNumber, b.trialNumber) ||
+    compareText(a.id, b.id)
+  );
 }
 
 function compareClasses(a: EmergencyPacketClass, b: EmergencyPacketClass): number {
@@ -66,8 +70,12 @@ function chunks<T>(items: T[], size: number): T[][] {
 }
 
 function classLabel(classItem: EmergencyPacketClass): string {
-  const identity = [classItem.element, classItem.level, classItem.section].filter(Boolean).join(' ');
-  return classItem.classNumber ? `${classItem.classNumber} · ${identity}` : identity || classItem.name;
+  const identity = [classItem.element, classItem.level, classItem.section]
+    .filter(Boolean)
+    .join(' ');
+  return classItem.classNumber
+    ? `${classItem.classNumber} · ${identity}`
+    : identity || classItem.name;
 }
 
 function trialLabel(trial: EmergencyPacketTrial): string {
@@ -151,6 +159,43 @@ export function emergencyPacketAvailability(
  * Returns undefined when nothing is configured at all: on a page the ring runs
  * on, silence beats a confident "Max time 0:00".
  */
+/**
+ * `classes` stores only THREE per-area limits, and sport_class_rules tops out
+ * at three areas, but nothing in the schema constrains num_areas. Clamping to
+ * three silently dropped the rest; naming them with no limit is the truth,
+ * since the system has nowhere to record one. MAX_AREAS is a defensive bound
+ * so a data-entry typo cannot run the header (or the scoresheet's time stack)
+ * off the page.
+ */
+const MAX_AREAS = 10;
+
+/**
+ * The authoritative area count for a class: `num_areas` when set, but never
+ * lower than the highest per-area time limit actually configured (a class
+ * with two areas and only an area-1 limit still searches area 2).
+ *
+ * Exported so the scoresheet's per-dog time stack (`buildEmergencyTrialPacketPdf.ts`)
+ * and this file's own `formatClassTimeLimits` share ONE area count rather than
+ * two computations that can drift.
+ */
+export function resolveAreaCount(classItem: {
+  timeLimitSeconds: number | null;
+  timeLimitArea2Seconds?: number | null;
+  timeLimitArea3Seconds?: number | null;
+  numAreas?: number | null;
+}): number {
+  const configured = [
+    classItem.timeLimitSeconds,
+    classItem.timeLimitArea2Seconds,
+    classItem.timeLimitArea3Seconds,
+  ].map(seconds => formatPacketSeconds(seconds));
+  const highestConfigured = configured.reduce(
+    (highest, label, index) => (label === '' ? highest : index + 1),
+    1
+  );
+  return Math.min(MAX_AREAS, Math.max(classItem.numAreas ?? 1, highestConfigured));
+}
+
 export function formatClassTimeLimits(classItem: {
   timeLimitSeconds: number | null;
   timeLimitArea2Seconds?: number | null;
@@ -167,18 +212,7 @@ export function formatClassTimeLimits(classItem: {
 
   // Report every area the class searches, and never hide a limit configured
   // beyond that count — a stale value is still information the ring can use.
-  //
-  // `classes` stores only THREE per-area limits, and sport_class_rules tops out
-  // at three areas, but nothing in the schema constrains num_areas. Clamping to
-  // three silently dropped the rest; naming them with no limit is the truth,
-  // since the system has nowhere to record one. MAX_AREAS is a defensive bound
-  // so a data-entry typo cannot run the header off the page.
-  const MAX_AREAS = 10;
-  const highestConfigured = configured.reduce(
-    (highest, label, index) => (label === '' ? highest : index + 1),
-    1
-  );
-  const areaCount = Math.min(MAX_AREAS, Math.max(classItem.numAreas ?? 1, highestConfigured));
+  const areaCount = resolveAreaCount(classItem);
 
   if (areaCount === 1) {
     return configured[0] === '' ? undefined : `Max time ${configured[0]}`;
@@ -256,7 +290,8 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
   for (const trial of trialSections) {
     const trialClassIds = new Set(trial.classes.map(classItem => classItem.id));
     const trialEntries = sortedEntries.filter(
-      entry => entry.trialId === trial.id || (entry.classId ? trialClassIds.has(entry.classId) : false)
+      entry =>
+        entry.trialId === trial.id || (entry.classId ? trialClassIds.has(entry.classId) : false)
     );
     const context: EmergencyPacketPageContext = {
       showName: input.show.name,
@@ -277,6 +312,8 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
         classLabel: classLabel(classItem),
         judgeName: classItem.judgeName || 'Judge unassigned',
         timeLimitLabel: formatClassTimeLimits(classItem),
+        areaCount: resolveAreaCount(classItem),
+        registryId: classItem.registryId ?? trial.registryId,
       };
 
       chunks(classEntries, CHECK_IN_ROWS_PER_PAGE).forEach((entries, index, pages) => {
@@ -334,6 +371,7 @@ export function buildEmergencyPacketFilename(showName: string, generatedAt: stri
 
 export function buildEmergencyPacketStoragePath(showId: string, snapshotId: string): string {
   if (!showId.trim() || !snapshotId.trim()) throw new Error('Show and snapshot IDs are required');
-  if (showId.includes('/') || snapshotId.includes('/')) throw new Error('Packet IDs cannot contain slashes');
+  if (showId.includes('/') || snapshotId.includes('/'))
+    throw new Error('Packet IDs cannot contain slashes');
   return `${showId}/${snapshotId}.pdf`;
 }

@@ -80,6 +80,13 @@ export interface EmergencyPacketClass {
   numHides: number | null;
   /** Distraction count for the class header. Null means "not configured". */
   distractionCount: number | null;
+  /**
+   * Overrides the trial's registryId for THIS class's scoresheet vocabulary,
+   * when a class is sanctioned differently from its trial. Optional because
+   * most fixtures and every caller before Task 4 have no reason to set it —
+   * `buildEmergencyPacketModel` falls back to the trial's registryId.
+   */
+  registryId?: string | null;
 }
 
 export interface EmergencyPacketInput {
@@ -101,6 +108,15 @@ export interface EmergencyPacketPageContext {
   classLabel?: string;
   judgeName?: string;
   timeLimitLabel?: string | undefined;
+  /**
+   * Authoritative area count for the class (see `resolveAreaCount`), carried
+   * through so the scoresheet's per-dog time stack never recomputes it from
+   * `timeLimitLabel` text. Undefined off the class-level pages (cover,
+   * catalog); score-recording always sets it.
+   */
+  areaCount?: number;
+  /** See `EmergencyPacketClass.registryId`. Falls back to the trial's when unset. */
+  registryId?: string | null;
 }
 
 export interface EmergencyPacketEntry extends PacketReportEntry {

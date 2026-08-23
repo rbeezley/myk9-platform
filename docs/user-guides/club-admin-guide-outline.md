@@ -42,7 +42,7 @@ Include this boundary clearly near the front of the guide. Clubs get confused wh
 | Calculates the amount owed to the club | Holds the money during the show period |
 | Initiates the transfer to the club after closeout | Deposits the money into the club's bank account |
 | Shows payout history and status | Sends identity verification requests directly to the treasurer |
-| Charges a platform fee per entry (deducted before payout) | Deducts their own fees (Stripe's standard rate) |
+| Charges exhibitors a service fee on top of the entry fee (never deducted from the payout) | Deducts their own fees (Stripe's standard rate) |
 
 **Why Stripe contacts the treasurer directly:** Stripe is legally required to verify the identity of account holders before releasing money (U.S. financial regulations). They send emails directly to the treasurer. This is not a myK9Show request.
 
@@ -140,7 +140,7 @@ Include this boundary clearly near the front of the guide. Clubs get confused wh
 2. The Payments page shows:
    - Current account status (Connected / Under Review / Not Connected)
    - Payout schedule (typically 2–7 business days after show closes)
-   - Per-show payout history: gross amount, platform fee, net payout, transfer status
+   - Per-show payout history: entry fees collected, refunds, payout amount, transfer status
 
 **Screenshots:** Payments page with payout history table.
 

@@ -65,11 +65,29 @@ describe('PlatformFeeSplitLines', () => {
     );
   });
 
-  it('says so when processing costs more than the whole fee, instead of printing $0.00', () => {
+  it('says so when processing covers the whole fee, instead of printing a bare $0.00', () => {
     render(<PlatformFeeSplitLines subtotalCents={100} rates={LIVE} />);
 
-    expect(screen.getByText(/costs more than the whole service fee/i)).toBeInTheDocument();
+    expect(screen.getByText(/entire service fee/i)).toBeInTheDocument();
     expect(screen.getByText('about $0.00')).toBeInTheDocument();
+  });
+
+  // The clamp binds at EVERY size below ~3%, so the note must not blame the
+  // order size. A $500 cart at 2% is the case the old "on an order this small"
+  // copy got flatly wrong.
+  it('explains a $0.00 share on a LARGE cart without calling it small', () => {
+    render(
+      <PlatformFeeSplitLines
+        subtotalCents={50000}
+        rates={{ percent: 2, flatCents: 0, minCents: 0 }}
+      />
+    );
+
+    expect(screen.getByText('$10.00')).toBeInTheDocument();
+    expect(screen.getByText('about $0.00')).toBeInTheDocument();
+    const note = screen.getByText(/entire service fee/i);
+    expect(note).toBeInTheDocument();
+    expect(note.textContent).not.toMatch(/small/i);
   });
 
   it('renders no split at all when no fee is charged', () => {

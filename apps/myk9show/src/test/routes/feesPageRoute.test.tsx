@@ -38,6 +38,10 @@ vi.mock('@/context/AuthContext', () => ({
 
 vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
   usePlatformFeeRates: () => ({ percent: 7, flatCents: 0, minCents: 0 }),
+  usePlatformFeeRatesQuery: () => ({
+    rates: { percent: 7, flatCents: 0, minCents: 0 },
+    state: 'ready',
+  }),
 }));
 
 function renderAt(path: string) {

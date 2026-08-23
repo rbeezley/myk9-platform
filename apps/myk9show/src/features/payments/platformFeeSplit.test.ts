@@ -10,6 +10,8 @@ import {
   type PlatformFeeRates,
 } from '@/store/cartStore.helpers';
 import {
+  CARD_PROCESSING_COVERS_FEE_FOOTNOTE,
+  CARD_PROCESSING_COVERS_FEE_NOTE,
   estimateCardProcessingCents,
   formatCardRateLabel,
   splitPlatformFee,
@@ -57,7 +59,7 @@ describe('splitPlatformFee — the parts always reconstruct the charged fee', ()
       feeCents: 0,
       cardProcessingCents: 0,
       platformShareCents: 0,
-      cardProcessingExceedsFee: false,
+      cardProcessingCoversWholeFee: false,
     });
   });
 });
@@ -81,7 +83,7 @@ describe('splitPlatformFee — card processing is not a constant share', () => {
       feeCents: 175,
       cardProcessingCents: 108,
       platformShareCents: 67,
-      cardProcessingExceedsFee: false,
+      cardProcessingCoversWholeFee: false,
     });
     // 2.9% of (50000 + 3500) + 30¢ = 1582¢, leaving 1918¢.
     expect(splitPlatformFee(50000, LIVE)).toMatchObject({
@@ -105,6 +107,48 @@ describe('splitPlatformFee — card processing is not a constant share', () => {
 });
 
 describe('splitPlatformFee — the clamp reports itself', () => {
+  // The clamp is about ARITHMETIC, not order size. The estimate is ~2.9% of the
+  // cart while the fee is `percent`% of it, so below ~3% it binds at EVERY
+  // size — the case a $1.00-cart-at-7% test can never reach, and the reason the
+  // cart copy must not say "on an order this small".
+  it('binds at EVERY order size once the percent drops below the card rate', () => {
+    const cheapRates: PlatformFeeRates = { percent: 2, flatCents: 0, minCents: 0 };
+    [2500, 50000, 200000].forEach(subtotalCents => {
+      const split = splitPlatformFee(subtotalCents, cheapRates);
+      expect(split.feeCents).toBe(calculatePlatformFeeCents(subtotalCents, cheapRates));
+      expect(split.cardProcessingCoversWholeFee).toBe(true);
+      expect(split.platformShareCents).toBe(0);
+      expect(split.cardProcessingCents).toBe(split.feeCents);
+    });
+    // A $500 cart is not "small" by any reading — the flag is not a size claim.
+    expect(splitPlatformFee(50000, cheapRates).feeCents).toBe(1000);
+  });
+
+  it('binds at every size on a flat-only fee too', () => {
+    const flatOnly: PlatformFeeRates = { percent: 0, flatCents: 30, minCents: 0 };
+    [2500, 50000].forEach(subtotalCents => {
+      expect(splitPlatformFee(subtotalCents, flatOnly).cardProcessingCoversWholeFee).toBe(true);
+    });
+  });
+
+  it('fires on EQUALITY, which is why the copy says "at least", not "more than"', () => {
+    // At 7/0/0 a $7.50 subtotal gives a 53¢ fee against a 53¢ estimate.
+    const split = splitPlatformFee(750, LIVE);
+    expect(split.feeCents).toBe(53);
+    expect(estimateCardProcessingCents(750 + 53)).toBe(53);
+    expect(split.cardProcessingCoversWholeFee).toBe(true);
+    expect(split.platformShareCents).toBe(0);
+  });
+
+  it('states the arithmetic and never the order size', () => {
+    // A size claim would be false at 2% on a $500 cart, which is the same
+    // string. Pin the wording, since three surfaces render it.
+    expect(CARD_PROCESSING_COVERS_FEE_NOTE).not.toMatch(/small/i);
+    expect(CARD_PROCESSING_COVERS_FEE_NOTE).not.toMatch(/more than/i);
+    expect(CARD_PROCESSING_COVERS_FEE_NOTE).toMatch(/entire service fee/i);
+    expect(CARD_PROCESSING_COVERS_FEE_FOOTNOTE).not.toMatch(/small/i);
+  });
+
   it('flags an order where processing costs at least the whole fee', () => {
     // $1.00 of entries at 7%: a 7¢ fee against ~33¢ of card processing.
     const split = splitPlatformFee(100, LIVE);
@@ -112,11 +156,11 @@ describe('splitPlatformFee — the clamp reports itself', () => {
     expect(estimateCardProcessingCents(107)).toBeGreaterThan(7);
     expect(split.cardProcessingCents).toBe(7);
     expect(split.platformShareCents).toBe(0);
-    expect(split.cardProcessingExceedsFee).toBe(true);
+    expect(split.cardProcessingCoversWholeFee).toBe(true);
   });
 
   it('does not flag an ordinary order', () => {
-    expect(splitPlatformFee(2500, LIVE).cardProcessingExceedsFee).toBe(false);
+    expect(splitPlatformFee(2500, LIVE).cardProcessingCoversWholeFee).toBe(false);
   });
 
   it('never reports a negative share', () => {

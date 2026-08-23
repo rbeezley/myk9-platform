@@ -27,7 +27,7 @@ Your club receives entry fees through a payment processor called Stripe. Here is
 | Calculates the amount owed to your club | Holds the money during the show period |
 | Initiates the deposit to your club after the show | Deposits the money into your bank account |
 | Shows payout history and status | Sends identity verification requests directly to the treasurer |
-| Deducts a platform fee per entry before the payout | Deducts their own processing fee (standard card rate) |
+| Charges exhibitors a service fee on top of the entry fee — never deducted from your payout | Deducts its card processing fee from the platform, not from your payout |
 
 **Why Stripe contacts the treasurer directly:** Stripe is legally required to verify the identity of the account holder before releasing funds. This is a U.S. regulatory requirement, not a myK9Show request. When you receive an email from Stripe asking for information, respond directly to them.
 
@@ -132,11 +132,11 @@ Three days after the show's end date, myK9Show sends the transfer. Your bank typ
 
 **What is the deposit amount?**
 
-> Total online entries collected − platform fee − any refunds issued by your secretary
+> Total online entries collected − any refunds issued by your secretary
 
-The platform fee covers myK9Show's operating costs and Stripe's card processing. What arrives in your account is the net after that fee.
+**Your club receives 100% of entry fees.** The service fee is never deducted from your payout: exhibitors pay it on top of the entry fee at checkout, and it covers Stripe's card processing plus running the platform. See [How our fees work](https://myk9show.com/fees) for the split.
 
-**Example:** 40 entries at $32 each = $1,280 collected. After a 3% platform fee and a $32 refund for one withdrawn entry, your club receives approximately $1,209.
+**Example:** 40 entries at $32 each = $1,280 collected. After a $32 refund for one withdrawn entry, your club receives $1,248.
 
 **Viewing past payouts:**
 
@@ -173,8 +173,8 @@ Log in to your Stripe Express dashboard at **express.stripe.com** using the emai
 **"What if we need to refund an entry after the show?"**
 Your secretary handles refunds from Entry Management. If a refund is issued after the payout has already been sent, Stripe will deduct it from the next payout. Contact us if a refund exceeds the next payout amount.
 
-**"What does the platform fee cover?"**
-myK9Show's operating costs and Stripe's standard card processing rate. The exact rate is shown on the Payments page once your account is connected.
+**"What does the service fee cover?"**
+Two things: Stripe's card processing, which myK9Show neither sets nor receives, and myK9Show's own share, which funds the platform your show runs on. It is charged to the exhibitor on top of the entry fee and is never taken out of your payout. The current rate and an approximate split are on the Payments page and at [How our fees work](https://myk9show.com/fees).
 
 ---
 

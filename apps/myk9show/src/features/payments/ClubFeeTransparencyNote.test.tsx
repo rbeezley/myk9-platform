@@ -55,6 +55,25 @@ describe('ClubFeeTransparencyNote', () => {
     expect(body).not.toContain('$3.50');
   });
 
+  it('explains a $0.00 myK9Show share rather than quoting it bare', () => {
+    // At 2% the $50 example is a $1.00 fee against ~$1.33 of card processing:
+    // without this the note reads "of which roughly $1.00 is card processing"
+    // with no explanation at all.
+    rates.current = { percent: 2, flatCents: 0, minCents: 0 };
+    render(<ClubFeeTransparencyNote />);
+
+    const note = screen.getByText(/entire service fee/i);
+    expect(note).toBeInTheDocument();
+    expect(note.textContent).not.toMatch(/small/i);
+  });
+
+  it('shows no such note on ordinary rates', () => {
+    rates.current = { percent: 7, flatCents: 0, minCents: 0 };
+    render(<ClubFeeTransparencyNote />);
+
+    expect(screen.queryByText(/entire service fee/i)).not.toBeInTheDocument();
+  });
+
   it('links to the shareable explanation instead of repeating it', () => {
     rates.current = { percent: 7, flatCents: 0, minCents: 0 };
     render(<ClubFeeTransparencyNote />);

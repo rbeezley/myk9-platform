@@ -178,6 +178,18 @@ export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> 
   ],
   dogs: ['id', 'name', 'call_name', 'breed', 'image_url'],
   people: ['id', 'first_name', 'last_name', 'email'],
+  // MYK9-229 — the public /fees page states the live service fee to a
+  // SIGNED-OUT visitor, so anon reads the three fee columns and nothing else
+  // (migration 20260823160000). `updated_by` is a person UUID and `updated_at`
+  // is operational metadata: their absence here is the invariant, and a
+  // table-level grant appearing on platform_settings is a failure, not an
+  // upgrade — which is why the table is deliberately NOT in
+  // ANON_TABLE_ALLOWLIST above.
+  platform_settings: [
+    'platform_fee_percent',
+    'platform_fee_flat_cents',
+    'platform_fee_min_cents',
+  ],
 };
 
 /** Tables where anon legitimately holds COLUMN-level (never table-level) grants. */

@@ -53,6 +53,9 @@ export function LandingFooter() {
               <li>
                 <Link to="/sms">SMS Alerts</Link>
               </li>
+              <li>
+                <Link to="/fees">How Our Fees Work</Link>
+              </li>
             </ul>
           </div>
         </div>

@@ -17,7 +17,11 @@ import {
   formatPlatformFeeLabel,
   type PlatformFeeRates,
 } from '@/store/cartStore.helpers';
-import { formatCardRateLabel, splitPlatformFee } from './platformFeeSplit';
+import {
+  CARD_PROCESSING_COVERS_FEE_NOTE,
+  formatCardRateLabel,
+  splitPlatformFee,
+} from './platformFeeSplit';
 
 interface PlatformFeeSplitLinesProps {
   /** Subtotal the fee is charged on, in cents. */
@@ -53,11 +57,10 @@ export function PlatformFeeSplitLines({ subtotalCents, rates }: PlatformFeeSplit
 
       {split.feeCents > 0 && (
         <div className="space-y-1">
-          {split.cardProcessingExceedsFee && (
-            <p className="text-xs text-muted-foreground">
-              Card processing costs more than the whole service fee on an order this small, so
-              myK9Show keeps nothing from it.
-            </p>
+          {/* Never says "on an order this small": the flag measures the
+              arithmetic, not the size, and below ~3% it binds at every size. */}
+          {split.cardProcessingCoversWholeFee && (
+            <p className="text-xs text-muted-foreground">{CARD_PROCESSING_COVERS_FEE_NOTE}</p>
           )}
           <p className="text-xs text-muted-foreground">
             These two amounts are approximate — Stripe&rsquo;s exact fee depends on the card and

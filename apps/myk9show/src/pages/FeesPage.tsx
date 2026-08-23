@@ -22,61 +22,86 @@ import {
   formatPlatformFeeLabel,
   type PlatformFeeRates,
 } from '@/store/cartStore.helpers';
-import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
-import { formatCardRateLabel, splitPlatformFee } from '@/features/payments/platformFeeSplit';
+import { usePlatformFeeRatesQuery } from '@/hooks/queries/usePlatformFeeRates';
+import {
+  CARD_PROCESSING_COVERS_FEE_FOOTNOTE,
+  formatCardRateLabel,
+  splitPlatformFee,
+} from '@/features/payments/platformFeeSplit';
 
 /** Realistic entry subtotals, small to large, so the ratio's swing is visible. */
 const EXAMPLE_SUBTOTALS_CENTS = [2500, 5000, 10000, 20000, 50000];
 
 function ExampleTable({ rates }: { rates: PlatformFeeRates }) {
+  const rows = EXAMPLE_SUBTOTALS_CENTS.map(subtotalCents => ({
+    subtotalCents,
+    split: splitPlatformFee(subtotalCents, rates),
+  }));
+  // A $0.00 myK9Show share is a CLAMP, not an arithmetic result, and at any
+  // percent below ~3 every row clamps. Publishing five bare zeros as fact is
+  // exactly what the flag exists to prevent, so the table marks them.
+  const anyClamped = rows.some(row => row.split.cardProcessingCoversWholeFee);
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[32rem] border-collapse text-sm">
-        <caption className="sr-only">
-          Approximate split of the service fee at several entry-fee subtotals
-        </caption>
-        <thead>
-          <tr className="border-b text-left">
-            <th scope="col" className="py-2 pr-4 font-medium">
-              Entry fees
-            </th>
-            <th scope="col" className="py-2 pr-4 font-medium">
-              Service fee
-            </th>
-            <th scope="col" className="py-2 pr-4 font-medium">
-              Card processing (approx.)
-            </th>
-            <th scope="col" className="py-2 font-medium">
-              myK9Show (approx.)
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {EXAMPLE_SUBTOTALS_CENTS.map(subtotalCents => {
-            const split = splitPlatformFee(subtotalCents, rates);
-            return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[32rem] border-collapse text-sm">
+          <caption className="sr-only">
+            Approximate split of the service fee at several entry-fee subtotals
+          </caption>
+          <thead>
+            <tr className="border-b text-left">
+              <th scope="col" className="py-2 pr-4 font-medium">
+                Entry fees
+              </th>
+              <th scope="col" className="py-2 pr-4 font-medium">
+                Service fee
+              </th>
+              <th scope="col" className="py-2 pr-4 font-medium">
+                Card processing (approx.)
+              </th>
+              <th scope="col" className="py-2 font-medium">
+                myK9Show (approx.)
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ subtotalCents, split }) => (
               <tr key={subtotalCents} className="border-b last:border-0">
                 <th scope="row" className="py-2 pr-4 text-left font-normal">
                   {formatCartCurrency(subtotalCents)}
                 </th>
                 <td className="py-2 pr-4">{formatCartCurrency(split.feeCents)}</td>
-                <td className="py-2 pr-4">
-                  {formatCartCurrency(split.cardProcessingCents)}
+                <td className="py-2 pr-4">{formatCartCurrency(split.cardProcessingCents)}</td>
+                <td className="py-2">
+                  {formatCartCurrency(split.platformShareCents)}
+                  {split.cardProcessingCoversWholeFee ? ' *' : ''}
                 </td>
-                <td className="py-2">{formatCartCurrency(split.platformShareCents)}</td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {anyClamped && (
+        <p className="text-sm text-muted-foreground">* {CARD_PROCESSING_COVERS_FEE_FOOTNOTE}</p>
+      )}
     </div>
   );
 }
 
 export function FeesPage() {
-  const rates = usePlatformFeeRates();
-  const feeLabel = formatPlatformFeeLabel(rates);
-  const example = splitPlatformFee(2500, rates);
+  // The QUERY hook, not the display one, and deliberately so. The display hook
+  // collapses loading / failure / absent into the compiled-in fallback rates —
+  // correct for the cart, where a plausible number beats a blank and the server
+  // is authoritative anyway. It is wrong HERE. This page's entire job is to
+  // state the fee publicly, so publishing a fallback we did not read would be
+  // stating a number as fact that nothing verified — and the fallback equals
+  // the live values today, so it would look right until the day it silently
+  // didn't. A page that admits it doesn't know beats a page that is confidently
+  // stale (MYK9-229).
+  const { rates, state } = usePlatformFeeRatesQuery();
+  const feeLabel = rates ? formatPlatformFeeLabel(rates) : null;
+  const example = rates ? splitPlatformFee(2500, rates) : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -101,9 +126,11 @@ export function FeesPage() {
         <section className="space-y-2 rounded-lg border bg-muted/30 p-5">
           <h2 className="font-semibold">Your club receives 100% of entry fees</h2>
           <p className="text-sm text-muted-foreground">
-            The service fee is never deducted from a club&rsquo;s payout. Exhibitors pay{' '}
-            {feeLabel} on top of the entry fees at checkout, and the club is paid the entry
-            fees in full.
+            The service fee is never deducted from a club&rsquo;s payout.{' '}
+            {feeLabel
+              ? `Exhibitors pay ${feeLabel} on top of the entry fees at checkout, and `
+              : 'Exhibitors pay it on top of the entry fees at checkout, and '}
+            the club is paid the entry fees in full.
           </p>
         </section>
 
@@ -111,41 +138,48 @@ export function FeesPage() {
           <h2 className="text-xl font-semibold">Card processing</h2>
           <p className="text-muted-foreground">
             Card processing goes to Stripe at {formatCardRateLabel()} per transaction. myK9Show
-            doesn&rsquo;t set it and doesn&rsquo;t receive it. Because of the fixed
-            per-transaction amount, it is a bigger share of smaller orders — on{' '}
-            {formatCartCurrency(2500)} of entries it is about{' '}
-            {formatCartCurrency(example.cardProcessingCents)} of the{' '}
-            {formatCartCurrency(example.feeCents)} fee.
+            doesn&rsquo;t set it and doesn&rsquo;t receive it. Because of the fixed per-transaction
+            amount, it is a bigger share of smaller orders
+            {example
+              ? ` — on ${formatCartCurrency(2500)} of entries it is about ${formatCartCurrency(example.cardProcessingCents)} of the ${formatCartCurrency(example.feeCents)} fee.`
+              : '.'}
           </p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">myK9Show&rsquo;s share</h2>
           <p className="text-muted-foreground">
-            The rest funds the platform your show runs on: secure payments, online entries,
-            ringside scoring, live results, and the support and development that keep it working
-            season after season — year-round, not just on show weekends.
+            The rest funds the platform your show runs on: secure payments, online entries, ringside
+            scoring, live results, and the support and development that keep it working season after
+            season — year-round, not just on show weekends.
           </p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">What that looks like</h2>
-          <ExampleTable rates={rates} />
+          {rates ? (
+            <ExampleTable rates={rates} />
+          ) : (
+            <p className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
+              {state === 'loading'
+                ? 'Loading the current service fee\u2026'
+                : 'We could not load the current service fee just now, so the figures are not shown rather than guessed. The fee shown in your cart before you pay is always the fee you are charged.'}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             The card-processing and myK9Show figures are approximate. Stripe&rsquo;s exact fee
-            depends on the card used and is only known once the payment settles, so we can
-            estimate it at checkout but not state it exactly. The service fee itself is exact,
-            and the fee shown in your cart before you pay is always the fee you are charged.
+            depends on the card used and is only known once the payment settles, so we can estimate
+            it at checkout but not state it exactly. The service fee itself is exact, and the fee
+            shown in your cart before you pay is always the fee you are charged.
           </p>
         </section>
 
+        {/* No link to /exhibitor/payments here: it is a ProtectedRoute, and
+            this page is deliberately reachable signed out — a link that lands a
+            signed-out reader on an auth wall is worse than a sentence. */}
         <footer className="border-t pt-6 text-sm text-muted-foreground">
-          Questions about a specific charge? Your receipt and every entry payment are listed
-          under{' '}
-          <Link to="/exhibitor/payments" className="underline hover:text-foreground">
-            My Payments
-          </Link>
-          .
+          Questions about a specific charge? Once you are signed in, every entry payment and receipt
+          is listed under My Payments.
         </footer>
       </div>
     </div>

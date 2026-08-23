@@ -50,6 +50,15 @@ export default function Footer() {
                   SMS Ring Alerts
                 </Link>
               </li>
+              {/* MYK9-229: /fees is only shareable if it is reachable. */}
+              <li>
+                <Link
+                  to="/fees"
+                  className="hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
+                >
+                  How Our Fees Work
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

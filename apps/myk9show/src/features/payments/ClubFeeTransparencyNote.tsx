@@ -17,7 +17,7 @@ import {
   formatPlatformFeeLabel,
 } from '@/store/cartStore.helpers';
 import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
-import { splitPlatformFee } from './platformFeeSplit';
+import { CARD_PROCESSING_COVERS_FEE_NOTE, splitPlatformFee } from './platformFeeSplit';
 
 /** The entry subtotal the one-line example is quoted at. */
 const EXAMPLE_SUBTOTAL_CENTS = 5000;
@@ -42,6 +42,12 @@ export function ClubFeeTransparencyNote({ className }: { className?: string }) {
           figure, because Stripe&rsquo;s exact fee depends on the card and is only known after
           the payment settles.
         </p>
+        {/* Without this the example can read "the fee is $10.00, of which
+            roughly $10.00 is card processing" with no explanation — which is
+            what happens at any percent below ~3, at every order size. */}
+        {split.cardProcessingCoversWholeFee && (
+          <p className="text-sm text-muted-foreground">{CARD_PROCESSING_COVERS_FEE_NOTE}</p>
+        )}
         <Link to="/fees" className="inline-block text-sm underline hover:text-foreground">
           How our fees work
         </Link>

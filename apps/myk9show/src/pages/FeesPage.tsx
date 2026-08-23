@@ -1,0 +1,155 @@
+/**
+ * How our fees work — the ONE canonical, public, shareable fee explanation
+ * (MYK9-229, decision D8).
+ *
+ * INTENT: a club admin must be able to forward this URL verbatim rather than
+ * paraphrase it. Paraphrasing turns "about half is card processing" into
+ * "myK9Show says most of it is Stripe", which is false on large orders — the
+ * fixed per-transaction component makes processing a much bigger share of a
+ * small order than a large one. That is why this page computes examples instead
+ * of quoting one ratio, and why it must stay reachable WITHOUT signing in.
+ *
+ * It is a React page rather than markdown under public/legal/ for one reason:
+ * every number on it is derived from `calculatePlatformFeeCents`, the same
+ * expression that prices the actual charge, so a site admin changing the rate
+ * on /admin/payouts cannot leave this page quoting a fee nobody is charged.
+ * Static copy could not make that promise.
+ */
+
+import { Link } from 'react-router-dom';
+import {
+  formatCartCurrency,
+  formatPlatformFeeLabel,
+  type PlatformFeeRates,
+} from '@/store/cartStore.helpers';
+import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
+import { formatCardRateLabel, splitPlatformFee } from '@/features/payments/platformFeeSplit';
+
+/** Realistic entry subtotals, small to large, so the ratio's swing is visible. */
+const EXAMPLE_SUBTOTALS_CENTS = [2500, 5000, 10000, 20000, 50000];
+
+function ExampleTable({ rates }: { rates: PlatformFeeRates }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[32rem] border-collapse text-sm">
+        <caption className="sr-only">
+          Approximate split of the service fee at several entry-fee subtotals
+        </caption>
+        <thead>
+          <tr className="border-b text-left">
+            <th scope="col" className="py-2 pr-4 font-medium">
+              Entry fees
+            </th>
+            <th scope="col" className="py-2 pr-4 font-medium">
+              Service fee
+            </th>
+            <th scope="col" className="py-2 pr-4 font-medium">
+              Card processing (approx.)
+            </th>
+            <th scope="col" className="py-2 font-medium">
+              myK9Show (approx.)
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {EXAMPLE_SUBTOTALS_CENTS.map(subtotalCents => {
+            const split = splitPlatformFee(subtotalCents, rates);
+            return (
+              <tr key={subtotalCents} className="border-b last:border-0">
+                <th scope="row" className="py-2 pr-4 text-left font-normal">
+                  {formatCartCurrency(subtotalCents)}
+                </th>
+                <td className="py-2 pr-4">{formatCartCurrency(split.feeCents)}</td>
+                <td className="py-2 pr-4">
+                  {formatCartCurrency(split.cardProcessingCents)}
+                </td>
+                <td className="py-2">{formatCartCurrency(split.platformShareCents)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function FeesPage() {
+  const rates = usePlatformFeeRates();
+  const feeLabel = formatPlatformFeeLabel(rates);
+  const example = splitPlatformFee(2500, rates);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-3xl space-y-8 px-4 py-12 sm:px-6 lg:px-8">
+        <div>
+          <Link
+            to="/"
+            className="text-sm text-muted-foreground transition-colors hover:text-primary"
+          >
+            &larr; Back to myK9Show
+          </Link>
+        </div>
+
+        <header className="space-y-3">
+          <h1 className="text-3xl font-semibold">How our fees work</h1>
+          <p className="text-muted-foreground">
+            Entry fees go to the club in full. The service fee is added on top at checkout and
+            covers two things.
+          </p>
+        </header>
+
+        <section className="space-y-2 rounded-lg border bg-muted/30 p-5">
+          <h2 className="font-semibold">Your club receives 100% of entry fees</h2>
+          <p className="text-sm text-muted-foreground">
+            The service fee is never deducted from a club&rsquo;s payout. Exhibitors pay{' '}
+            {feeLabel} on top of the entry fees at checkout, and the club is paid the entry
+            fees in full.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">Card processing</h2>
+          <p className="text-muted-foreground">
+            Card processing goes to Stripe at {formatCardRateLabel()} per transaction. myK9Show
+            doesn&rsquo;t set it and doesn&rsquo;t receive it. Because of the fixed
+            per-transaction amount, it is a bigger share of smaller orders — on{' '}
+            {formatCartCurrency(2500)} of entries it is about{' '}
+            {formatCartCurrency(example.cardProcessingCents)} of the{' '}
+            {formatCartCurrency(example.feeCents)} fee.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">myK9Show&rsquo;s share</h2>
+          <p className="text-muted-foreground">
+            The rest funds the platform your show runs on: secure payments, online entries,
+            ringside scoring, live results, and the support and development that keep it working
+            season after season — year-round, not just on show weekends.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">What that looks like</h2>
+          <ExampleTable rates={rates} />
+          <p className="text-sm text-muted-foreground">
+            The card-processing and myK9Show figures are approximate. Stripe&rsquo;s exact fee
+            depends on the card used and is only known once the payment settles, so we can
+            estimate it at checkout but not state it exactly. The service fee itself is exact,
+            and the fee shown in your cart before you pay is always the fee you are charged.
+          </p>
+        </section>
+
+        <footer className="border-t pt-6 text-sm text-muted-foreground">
+          Questions about a specific charge? Your receipt and every entry payment are listed
+          under{' '}
+          <Link to="/exhibitor/payments" className="underline hover:text-foreground">
+            My Payments
+          </Link>
+          .
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+export default FeesPage;

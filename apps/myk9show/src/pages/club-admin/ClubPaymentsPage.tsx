@@ -14,6 +14,7 @@ import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext'
 import { ClubContextGate } from '@/components/club-admin/ClubContextGate';
 import { ClubSwitcher } from '@/components/club-admin/ClubSwitcher';
 import { ClubPaymentsCard } from '@/features/payments/ClubPaymentsCard';
+import { ClubFeeTransparencyNote } from '@/features/payments/ClubFeeTransparencyNote';
 
 const ClubPaymentsPage: React.FC = () => {
   const clubContext = useCurrentValidatedClubContext();
@@ -44,6 +45,9 @@ const ClubPaymentsPage: React.FC = () => {
             onSelectClub={handleSelectClub}
           />
           <ClubPaymentsCard clubId={clubContext.clubId} />
+          {/* MYK9-229: the club admin's answer to "why is there a service
+              fee?", with the club-keeps-100% fact first. */}
+          <ClubFeeTransparencyNote />
         </>
       ) : (
         <ClubContextGate

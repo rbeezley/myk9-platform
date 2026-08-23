@@ -103,9 +103,12 @@ export function checkScorecardYellowGates(rootDir: string): Phase4Check {
 }
 
 export function checkReportTestCoverage(rootDir: string): Phase4Check {
+  // The React CheckInSheet/ScoresheetReport components (and their tests) were
+  // deleted once the jsPDF renderer became the single implementation for the
+  // check-in sheet and scoresheet reports (see reportRegistry.ts's
+  // `buildPdf` wiring). Coverage now lives in the jsPDF renderer's own tests.
   const reportTestPaths = [
-    'apps/myk9show/src/components/reports/__tests__/CheckInSheet.test.tsx',
-    'apps/myk9show/src/components/reports/__tests__/ScoresheetReport.test.tsx',
+    'apps/myk9show/src/features/emergency-trial-packet/buildEmergencyTrialPacketPdf.test.ts',
     'apps/myk9show/src/lib/reports/__tests__/reportRenderer.test.ts',
   ];
   const missing = reportTestPaths.filter(file => !existsSync(path.join(rootDir, file)));

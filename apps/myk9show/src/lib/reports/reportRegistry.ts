@@ -47,10 +47,8 @@ export const reportRegistry: ReportDefinition[] = [
     // Rendered by `buildPdf` below (the shared trial-packet PDF renderer),
     // not this component — see ReportPreview.tsx's PDF branch. Kept as a
     // placeholder rather than deleted so `ReportDefinition.component` stays
-    // non-optional. `CheckInSheet` is no longer imported anywhere in
-    // production code (verified: `git grep -n "components/reports/CheckInSheet"`
-    // returns only its own test file) — it is dead code, safe for Task 7 to
-    // delete outright rather than needing to trace another caller first.
+    // non-optional. The old `CheckInSheet` React component and its test were
+    // deleted in Task 7 (was dead code — unreferenced outside its own test).
     component: PlaceholderReport,
     enabled: true,
     buildPdf: (dataset, sortOrder) =>
@@ -66,7 +64,8 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: RUN_ORDER_SORT_OPTIONS,
     defaultSort: 'run-order',
     // Rendered by `buildPdf` below — see the check-in-sheet comment above.
-    // `ScoresheetReport` is likewise unreferenced outside its own test file.
+    // The old `ScoresheetReport` React component and its test were likewise
+    // deleted in Task 7.
     component: PlaceholderReport,
     enabled: true,
     buildPdf: (dataset, sortOrder) =>

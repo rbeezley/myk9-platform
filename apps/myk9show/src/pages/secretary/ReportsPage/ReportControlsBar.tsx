@@ -53,6 +53,8 @@ export interface OfficialPdfAction {
   disabled: boolean;
   isLoading: boolean;
   label: string;
+  /** Why the button is disabled, said in a sentence rather than on the button. */
+  disabledReason?: string | undefined;
   missingFieldLabels?: readonly string[] | undefined;
   onClick: () => void;
 }
@@ -78,6 +80,8 @@ interface ReportControlsBarProps {
     registeredName: string | null;
     armband: number | null;
   }>;
+  /** The dog list failed to load, so an empty `dogs` means unknown, not none. */
+  dogsUnavailable?: boolean;
   onReportTypeChange: (value: string) => void;
   onTrialChange: (value: string) => void;
   onClassChange: (value: string) => void;
@@ -114,6 +118,7 @@ export function ReportControlsBar({
   trials,
   classes,
   dogs,
+  dogsUnavailable = false,
   onReportTypeChange,
   onTrialChange,
   onClassChange,
@@ -179,10 +184,7 @@ export function ReportControlsBar({
           Report
         </label>
         <Select value={reportType} onValueChange={onReportTypeChange}>
-          <SelectTrigger
-            id="report-type-select"
-            className="h-10 w-full sm:w-[200px]"
-          >
+          <SelectTrigger id="report-type-select" className="h-10 w-full sm:w-[200px]">
             <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -208,10 +210,7 @@ export function ReportControlsBar({
             Trial
           </label>
           <Select value={trialId} onValueChange={onTrialChange}>
-            <SelectTrigger
-              id="trial-select"
-              className="h-10 w-full sm:w-[160px]"
-            >
+            <SelectTrigger id="trial-select" className="h-10 w-full sm:w-[160px]">
               <SelectValue placeholder="All Trials">{selectedTrialLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -233,10 +232,7 @@ export function ReportControlsBar({
             Class
           </label>
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
-            <SelectTrigger
-              id="class-select"
-              className="h-10 w-full sm:w-[200px]"
-            >
+            <SelectTrigger id="class-select" className="h-10 w-full sm:w-[200px]">
               <SelectValue placeholder="All Classes">{selectedClassLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -270,6 +266,11 @@ export function ReportControlsBar({
               ))}
             </SelectContent>
           </Select>
+          {dogsUnavailable && (
+            <p className="text-xs text-destructive" role="alert">
+              The dog list could not be loaded, so this filter is empty. Reload to try again.
+            </p>
+          )}
         </div>
       )}
 
@@ -280,10 +281,7 @@ export function ReportControlsBar({
             Sort
           </label>
           <Select value={sortOrder} onValueChange={onSortChange}>
-            <SelectTrigger
-              id="sort-select"
-              className="h-10 w-full sm:w-[160px]"
-            >
+            <SelectTrigger id="sort-select" className="h-10 w-full sm:w-[160px]">
               <SelectValue placeholder="Sort by">{selectedSortLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -320,8 +318,13 @@ export function ReportControlsBar({
             className="w-full sm:w-auto"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
-            {officialPdfAction.isLoading ? 'Preparing PDF' : officialPdfAction.label}
+            {officialPdfAction.isLoading ? 'Preparing PDF…' : officialPdfAction.label}
           </Button>
+        )}
+        {officialPdfAction?.disabledReason && (
+          <p className="text-xs text-muted-foreground sm:self-center">
+            {officialPdfAction.disabledReason}
+          </p>
         )}
       </div>
       {officialPdfAction?.missingFieldLabels?.length ? (

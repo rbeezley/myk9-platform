@@ -315,7 +315,10 @@ export function ReportPreview({
         aria-live="polite"
         className="flex items-center justify-center p-8 text-muted-foreground"
       >
-        Select a show to generate reports
+        {/* Not "Select a show" — the route already carries the show id and
+            there is no show picker here, so that instruction named an action
+            the secretary had no way to take. */}
+        This show could not be loaded, so there is nothing to build a report from.
       </div>
     );
   }

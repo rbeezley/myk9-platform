@@ -132,7 +132,7 @@ export default function ReportsPage() {
     [classes]
   );
 
-  const { data: dogOptionsRaw } = useQuery({
+  const { data: dogOptionsRaw, isError: dogOptionsError } = useQuery({
     queryKey: ['entry-form-dog-options', showId],
     queryFn: async () => {
       if (!showId) return [];
@@ -171,7 +171,11 @@ export default function ReportsPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // `?? []` on its own would collapse a failed read into "this show has no
+  // dogs", so the Dog dropdown would silently offer only "All Dogs" and the
+  // secretary would have no way to tell a working filter from a broken one.
   const dogOptions = dogOptionsRaw ?? [];
+  const dogOptionsUnavailable = dogOptionsError;
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
     const newReport = getReportById(value);
@@ -224,11 +228,28 @@ export default function ReportsPage() {
       toast('Still building the preview. It will be ready in a moment.');
       return;
     }
-    if (paperworkDescriptor) setPendingConfirmation(paperworkDescriptor);
+    // Offered, not demanded. window.print() reports nothing back -- not whether
+    // a printer was chosen, not whether the secretary pressed Escape -- so a
+    // modal raised here asks "Did the Check-in Sheet print correctly?" about
+    // paper that may not exist, which is the confirmation-dialog-for-a-routine-
+    // action that docs/INTENT.md names as a secretary anti-pattern. A toast
+    // makes the same record available and costs nothing to ignore.
+    //
+    // The packet panel's "Mark printed" button still opens the dialog, and
+    // should: there the secretary asked for it.
+    if (paperworkDescriptor) {
+      const descriptor = paperworkDescriptor;
+      toast('Sent to your printer.', {
+        action: {
+          label: 'Mark printed',
+          onClick: () => void confirmPrinted(descriptor),
+        },
+      });
+    }
   };
 
-  const confirmPrinted = async () => {
-    if (!pendingConfirmation || !user) return;
+  const confirmPrinted = async (descriptor: PaperworkDescriptor) => {
+    if (!user) return;
     const metadata = user.user_metadata ?? {};
     const fullName =
       (metadata.full_name as string | undefined)?.trim() ||
@@ -238,24 +259,24 @@ export default function ReportsPage() {
     setIsConfirmingPrint(true);
     try {
       const record = await replicatedPaperworkPrintsTable.confirmPrinted({
-        scope: pendingConfirmation.scope,
-        reportId: pendingConfirmation.reportId,
-        coverage: pendingConfirmation.coverage as unknown as Record<string, unknown>,
-        fingerprint: pendingConfirmation.fingerprint,
+        scope: descriptor.scope,
+        reportId: descriptor.reportId,
+        coverage: descriptor.coverage as unknown as Record<string, unknown>,
+        fingerprint: descriptor.fingerprint,
         printedBy: user.id,
         printedByName: fullName,
       });
       setPendingConfirmation(null);
       showUndoToast({
-        message: 'Print confirmation saved for the secretary team.',
+        message: 'Marked as printed.',
         onUndo: () => {
           void replicatedPaperworkPrintsTable
             .voidPrint({ id: record.id, voidedBy: user.id, reason: 'Undid print confirmation' })
-            .catch(() => toast.error('Print confirmation could not be undone.'));
+            .catch(() => toast.error('Could not undo that. The packet is still marked printed.'));
         },
       });
     } catch {
-      toast.error('Could not save the print confirmation. Try again.');
+      toast.error('Could not save that. Nothing was recorded, so try marking it printed again.');
     } finally {
       setIsConfirmingPrint(false);
     }
@@ -367,6 +388,7 @@ export default function ReportsPage() {
         trials={trialOptions}
         classes={classOptions}
         dogs={dogOptions}
+        dogsUnavailable={dogOptionsUnavailable}
         onReportTypeChange={handleReportTypeChange}
         onTrialChange={handleTrialChange}
         onClassChange={setClassId}
@@ -385,7 +407,7 @@ export default function ReportsPage() {
         {reportType === 'armband-labels' ? (
           <div className="w-full">
             <LabelModeHeader
-              title="Print Labels — Armband"
+              title="Armband Labels"
               subtitle="Choose a label size, pick which armbands to print, then Print."
             />
             <ArmbandLabelsReport
@@ -399,7 +421,7 @@ export default function ReportsPage() {
         ) : reportType === 'result-labels' ? (
           <div className="w-full">
             <LabelModeHeader
-              title="Print Labels — Results"
+              title="Result Labels"
               subtitle="Pick a trial and class, set the sort, then Print the result labels."
             />
             <ResultLabelsReport
@@ -444,9 +466,18 @@ export default function ReportsPage() {
             : (report?.name ?? 'report')
         }
         isSaving={isConfirmingPrint}
-        onConfirm={() => void confirmPrinted()}
+        onConfirm={() => {
+          if (pendingConfirmation) void confirmPrinted(pendingConfirmation);
+        }}
+        // isConfirmingPrint is read from the render closure, not live, so it is
+        // always false here: the dialog's action button is a Base UI Close, so
+        // the same click both fires onConfirm and starts the dismissal. The
+        // dialog therefore always closes and the "Saving…" state never renders.
+        // Closing immediately is the honest behaviour to keep -- the save
+        // continues and reports through its own toast either way -- so this
+        // just stops pretending otherwise.
         onOpenChange={open => {
-          if (!open && !isConfirmingPrint) setPendingConfirmation(null);
+          if (!open) setPendingConfirmation(null);
         }}
       />
     </div>

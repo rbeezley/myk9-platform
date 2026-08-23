@@ -161,7 +161,14 @@ export function EmergencyTrialPacketPanel({
         <div className="flex items-start gap-3">
           <ShieldAlert className="mt-0.5 size-6 shrink-0 text-warning" />
           <div>
-            <CardTitle>Emergency Trial Packet</CardTitle>
+            {/* CardTitle renders a plain div, so without this the page had
+                exactly one heading (the h1) and a screen-reader user
+                navigating by heading could not reach this card at all.
+                Applied here rather than in the shared Card, which would
+                renumber headings on every page that uses it. */}
+            <CardTitle role="heading" aria-level={2}>
+              Emergency Trial Packet
+            </CardTitle>
             {/* text-foreground, not the inherited muted-foreground: on this
                 card's warning tint --muted-foreground measures 4.03:1 in dark
                 mode, under the 4.5:1 floor. Hierarchy is carried by size and

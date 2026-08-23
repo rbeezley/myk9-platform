@@ -148,7 +148,7 @@ export function LabelCalibrationPanel({
           )}
 
           <p className="text-xs text-muted-foreground">
-            In your browser&apos;s print dialog, set Scale to 100% — never &quot;Fit to page&quot;
+            In your browser&apos;s print dialog, set Scale to 100%, never &quot;Fit to page&quot;
             or &quot;Shrink to fit.&quot;
           </p>
           <p className="text-xs text-muted-foreground">Saved per browser.</p>

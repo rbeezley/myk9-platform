@@ -14,6 +14,11 @@ Read `AGENTS.md`, the fall-2026 goal and scorecard, the go-live runbook, `docs/q
 current Linear issues, current main history, and every detection automation's current memory.
 Record missing, partial, failed, and stale inputs.
 
+Read Linear with `includeArchived: true`. Closure proof and duplicate-merge both depend on seeing
+issues that are already Done, and on the free tier those are archived and absent from a default
+`list_issues` result — an unflagged query silently narrows the evidence base to open work only
+(`docs/agents/issue-tracker.md` § Querying).
+
 ## Daily mode
 
 1. Reconcile each new serious signal with existing findings and issues.

@@ -26,6 +26,12 @@ Search by workflow, route, object, files, symptom, reproduction, and evidence—
 Reuse an existing QA, audit, or Linear ID. One underlying defect across roles or viewports is one
 finding with a coverage matrix. Create a task-specific stable ID only after deduplication.
 
+Every Linear search in this step must pass `includeArchived: true`. This workspace is on the free
+tier, so Done issues auto-archive and a default `list_issues` call cannot see them — it returns
+empty for work that shipped weeks ago, and the finding is then filed as `new`. An empty
+reconciliation result is only trustworthy when the flag was set; if it was not, the correct status
+is `blocked`, not `new`. See `docs/agents/issue-tracker.md` § Querying.
+
 Use statuses `new`, `unchanged`, `resolved`, `duplicate`, `rejected`, or `blocked`. Keep product
 defects, UX/accessibility findings, security findings, test/harness failures, environment/access
 failures, enhancements, and inconclusive signals separate.

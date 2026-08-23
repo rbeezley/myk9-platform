@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
-import { useReportData } from '@/hooks/queries/useReportData';
+import { useReportData, type ReportDataState } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
 import { ReportPreview } from './ReportPreview';
@@ -31,6 +31,20 @@ import { EmergencyTrialPacketPanel } from './EmergencyTrialPacketPanel';
 import { useDeliveredPackets } from './useDeliveredPackets';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
+
+/**
+ * What to say when Print is pressed on data that is not current. Each names the
+ * situation and what will clear it, because "the report is still loading" was
+ * wrong in three of these four cases.
+ */
+const PRINT_BLOCKED_MESSAGE: Record<ReportDataState, string> = {
+  loading: 'Still loading this show. Print once the preview finishes.',
+  unavailable:
+    'No connection, so the entries could not be checked. Reconnect before printing, or the report may be missing dogs.',
+  stale: 'Still loading the trial you just picked. Print once the preview catches up.',
+  error: 'The entries could not be loaded. Use Try again below, then print.',
+  ready: '',
+};
 
 export interface InitialReportScope {
   trialId: string;
@@ -87,11 +101,12 @@ export default function ReportsPage() {
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { show, trials, classes, entries, isLoading, isError, refetch } = useReportData({
-    show: currentShow,
-    trialId,
-    classId,
-  });
+  const { show, trials, classes, entries, dataState, isReady, isLoading, isError, refetch } =
+    useReportData({
+      show: currentShow,
+      trialId,
+      classId,
+    });
 
   const trialOptions = useMemo(
     () =>
@@ -198,8 +213,15 @@ export default function ReportsPage() {
   }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
 
   const handlePrint = () => {
+    // Check the DATA before the iframe. A paused query renders an empty report
+    // whose iframe body is non-empty, so printIframe() happily returns true and
+    // the secretary gets a roster with no dogs on it.
+    if (!isReady) {
+      toast(PRINT_BLOCKED_MESSAGE[dataState]);
+      return;
+    }
     if (!printIframe(iframeRef)) {
-      toast.error('The report is still loading. Wait for the preview, then print.');
+      toast('Still building the preview. It will be ready in a moment.');
       return;
     }
     if (paperworkDescriptor) setPendingConfirmation(paperworkDescriptor);
@@ -273,8 +295,7 @@ export default function ReportsPage() {
     showId,
     showName: show?.name,
     currentShowName: currentShow?.name,
-    isLoading,
-    isError,
+    isDataReady: isReady,
     hasShow: Boolean(show),
     trialId,
     classId,
@@ -284,20 +305,26 @@ export default function ReportsPage() {
   });
 
   const emergencyPacketData = useMemo(() => {
-    if (!show || isLoading || isError || effectiveScope.kind !== 'show') return null;
+    // `isReady`, not `!isLoading` — buildEmergencyPacketData collapses undefined
+    // to [] on all three inputs, so a paused query used to produce a non-null
+    // packet model and the panel reported "Add a trial before preparing the
+    // emergency packet" on a show that has trials.
+    if (!show || !isReady || effectiveScope.kind !== 'show') return null;
     return buildEmergencyPacketData({
       show,
       trials: trials as Parameters<typeof buildEmergencyPacketData>[0]['trials'],
       classes: classes as Parameters<typeof buildEmergencyPacketData>[0]['classes'],
       entries: entries as Parameters<typeof buildEmergencyPacketData>[0]['entries'],
     });
-  }, [show, trials, classes, entries, isLoading, isError, effectiveScope.kind]);
+  }, [show, trials, classes, entries, isReady, effectiveScope.kind]);
 
   // Packets that already exist, including any cron generated overnight — the
   // only way to confirm printing one without re-preparing it, which would mint
   // a new snapshot and email every official a second copy (MYK9-228 phase 5).
-  const { rows: deliveredPackets, isError: deliveredPacketsError } =
-    useDeliveredPackets(showId, emergencyPacketData);
+  const { rows: deliveredPackets, isError: deliveredPacketsError } = useDeliveredPackets(
+    showId,
+    emergencyPacketData
+  );
 
   return (
     <div className="container mx-auto py-6 flex flex-col">
@@ -318,9 +345,11 @@ export default function ReportsPage() {
         unavailableReason={
           effectiveScope.kind !== 'show'
             ? 'Choose All Trials and All Classes to prepare the whole-show emergency packet.'
-            : isError
-              ? 'Report data could not be loaded. Retry before preparing the packet.'
-              : undefined
+            : dataState === 'unavailable'
+              ? 'No connection, so this show’s trials and entries could not be checked. Reconnect before preparing the packet.'
+              : dataState === 'error'
+                ? 'The show’s trials and entries could not be loaded. Use Try again in the preview below, then prepare the packet.'
+                : undefined
         }
         onMarkPrinted={setPendingConfirmation}
       />
@@ -396,6 +425,8 @@ export default function ReportsPage() {
               sortOrder={sortOrder}
               isLoading={isLoading}
               isError={isError}
+              dataState={dataState}
+              hasDownloadAction={Boolean(officialPdfAction && !officialPdfAction.disabled)}
               onRetry={refetch}
               iframeRef={iframeRef}
             />

@@ -108,6 +108,7 @@ describe('ReportPreview', () => {
         sortOrder="run-order"
         isLoading={false}
         isError={false}
+        dataState="ready"
       />
     );
 
@@ -135,6 +136,7 @@ describe('ReportPreview', () => {
         sortOrder="placement"
         isLoading={false}
         isError={false}
+        dataState="ready"
       />
     );
 
@@ -167,6 +169,7 @@ describe('ReportPreview', () => {
         sortOrder="armband"
         isLoading={false}
         isError={false}
+        dataState="ready"
       />
     );
 
@@ -195,6 +198,7 @@ describe('ReportPreview', () => {
         sortOrder="armband"
         isLoading={true}
         isError={false}
+        dataState="loading"
       />
     );
 
@@ -218,6 +222,7 @@ describe('ReportPreview', () => {
         sortOrder="armband"
         isLoading={false}
         isError={true}
+        dataState="error"
         onRetry={onRetry}
       />
     );
@@ -244,6 +249,7 @@ describe('ReportPreview', () => {
         sortOrder="armband"
         isLoading={false}
         isError={true}
+        dataState="error"
       />
     );
 

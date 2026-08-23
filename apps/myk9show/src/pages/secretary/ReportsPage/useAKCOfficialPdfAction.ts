@@ -52,8 +52,15 @@ interface UseAKCOfficialPdfActionInput {
   showId: string | undefined;
   showName: string | null | undefined;
   currentShowName: string | null | undefined;
-  isLoading: boolean;
-  isError: boolean;
+  /**
+   * True only when the trials/classes/entries backing this PDF are all present
+   * and current. Replaces the old `isLoading || isError` pair, which left two
+   * states uncovered -- a PAUSED query (offline: not loading, not erroring, no
+   * data) and PLACEHOLDER data from the previously selected trial. Both used to
+   * produce a downloadable registry PDF built from the wrong roster, announced
+   * with a success toast.
+   */
+  isDataReady: boolean;
   hasShow: boolean;
   trialId: string;
   classId: string;
@@ -75,8 +82,7 @@ export function useAKCOfficialPdfAction({
   showId,
   showName,
   currentShowName,
-  isLoading,
-  isError,
+  isDataReady,
   hasShow,
   trialId,
   classId,
@@ -547,7 +553,7 @@ export function useAKCOfficialPdfAction({
 
   if (officialPdfConfig && selectedTrialAllowsOfficialPdfConfig) {
     return {
-      disabled: isLoading || isError || !hasShow || trialId === 'all',
+      disabled: !isDataReady || !hasShow || trialId === 'all',
       isLoading: isDownloadingOfficialPdf,
       label: trialId === 'all' ? 'Select trial for official PDF' : officialPdfConfig.actionLabel,
       missingFieldLabels: officialPdfMissingFieldLabels,
@@ -558,8 +564,7 @@ export function useAKCOfficialPdfAction({
   if (canShowUKCEntryFormAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
         (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialUKCEntryPdfValues),
@@ -573,8 +578,7 @@ export function useAKCOfficialPdfAction({
   if (canShowUKCChangeEntryFormAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
         trialId === 'all' ||
@@ -594,8 +598,7 @@ export function useAKCOfficialPdfAction({
   if (isAKCEntryFormReport && selectedTrialAllowsAKCAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
         (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialEntryPdfValues),
@@ -609,8 +612,7 @@ export function useAKCOfficialPdfAction({
   if (canShowScoreSheetAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         !hasShow ||
         trialId === 'all' ||
         classId === 'all' ||
@@ -628,8 +630,7 @@ export function useAKCOfficialPdfAction({
   if (canShowTransferFormAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
         trialId === 'all' ||
@@ -648,7 +649,7 @@ export function useAKCOfficialPdfAction({
 
   if (isAKCCertificationPageReport && selectedTrialAllowsAKCAction) {
     return {
-      disabled: isLoading || isError || !hasShow || trialId === 'all' || !officialPdfProps,
+      disabled: !isDataReady || !hasShow || trialId === 'all' || !officialPdfProps,
       isLoading: isDownloadingOfficialPdf,
       label:
         trialId === 'all' ? 'Select trial for official PDF' : 'Download AKC Certification Page PDF',

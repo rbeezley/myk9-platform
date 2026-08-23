@@ -167,6 +167,7 @@ export function ReportControlsBar({
   // report registry so the trigger always shows a name, falling back to the
   // placeholder text rather than the raw id.
   const selectedReportLabel = selectedReport?.name ?? 'Select report';
+  const isPdfOnlyReport = selectedReport?.pdfOnly ?? false;
   const selectedSortLabel =
     selectedReport?.sortOptions.find(opt => opt.value === sortOrder)?.label ?? 'Sort by';
 
@@ -305,9 +306,15 @@ export function ReportControlsBar({
           (filters) visually distinct from "print it" (actions). On desktop the
           group sits inline at the end of the wrapped row. */}
       <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-end sm:border-t-0 sm:pt-0 sm:ml-auto">
-        <Button onClick={onPrint} className="w-full sm:w-auto">
-          Print
-        </Button>
+        {/* Hidden, not disabled, for download-only registry forms: there is no
+            HTML page to send to a printer, so the button could only ever print
+            a blank sheet. A disabled Print sitting beside an enabled Download
+            would still read as "printing is the main action, and it is broken". */}
+        {!isPdfOnlyReport && (
+          <Button onClick={onPrint} className="w-full sm:w-auto">
+            Print
+          </Button>
+        )}
         {officialPdfAction && (
           <Button
             type="button"

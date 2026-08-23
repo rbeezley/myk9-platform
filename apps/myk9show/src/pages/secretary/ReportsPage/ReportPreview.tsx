@@ -9,6 +9,7 @@ import type { Show } from '@/types/show-types';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { buildTrialReportProps, mapReportEntries, mapReportTrialFields } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
+import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
 
 export interface ReportPreviewProps {
@@ -23,6 +24,21 @@ export interface ReportPreviewProps {
   sortOrder: string;
   isLoading: boolean;
   isError: boolean;
+  /**
+   * Why this is needed alongside isLoading/isError: `unavailable` is the state
+   * where the app never got to ask. Without it the empty-entry branch below
+   * reports "No entries found for this selection" — a claim about the class —
+   * when the truth is a claim about the network.
+   */
+  dataState: ReportDataState;
+  /**
+   * Whether a download action is actually offered for the current selection.
+   * Only consulted for `pdfOnly` reports, where it is the difference between
+   * "the artifact is the button above" and "this form does not apply to the
+   * trial you picked" — pointing at a button that is not there is worse than
+   * the blank page this replaced.
+   */
+  hasDownloadAction?: boolean;
   onRetry?: () => void;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
@@ -84,6 +100,8 @@ export function ReportPreview({
   sortOrder,
   isLoading,
   isError,
+  dataState,
+  hasDownloadAction = false,
   onRetry,
   iframeRef: externalIframeRef,
 }: ReportPreviewProps) {
@@ -240,6 +258,27 @@ export function ReportPreview({
     iframeRef,
   ]);
 
+  if (dataState === 'unavailable') {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex flex-col items-center justify-center gap-3 p-8 text-center"
+      >
+        <p className="font-medium">This show's entries could not be checked.</p>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          There is no connection right now, so the app has not been able to ask how many dogs are
+          entered. That is different from the class being empty. Reconnect and this will fill in.
+        </p>
+        {onRetry && (
+          <Button type="button" variant="outline" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div
@@ -247,7 +286,7 @@ export function ReportPreview({
         aria-live="polite"
         className="flex items-center justify-center p-8 text-muted-foreground"
       >
-        Loading report data...
+        Loading report data…
       </div>
     );
   }
@@ -282,6 +321,27 @@ export function ReportPreview({
   }
 
   const report = getReportById(reportType);
+
+  // Registry forms with no HTML rendering. Say so, rather than leaving a blank
+  // page that reads as "still loading" and a Print button that produces blank
+  // paper. The Download button in the controls bar above is the real action.
+  if (report?.pdfOnly) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex flex-col items-center justify-center gap-2 p-8 text-center"
+      >
+        <p className="font-medium">{report.name} is a downloadable form.</p>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          {hasDownloadAction
+            ? 'There is no on-screen preview for this one. Use the download button above to get the registry’s own form with your trial’s details already filled in, then print it from your PDF reader.'
+            : 'This form does not match the registry of the trial you have selected, so there is nothing to download. Pick the trial it belongs to, or choose a different form.'}
+        </p>
+      </div>
+    );
+  }
+
   const renderingMode = report ? getReportRenderingMode(report) : 'class';
 
   // class-mode pages only — show-mode and trial-mode don't use buildPages

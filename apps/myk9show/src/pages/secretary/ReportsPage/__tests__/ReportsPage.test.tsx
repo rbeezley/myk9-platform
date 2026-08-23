@@ -80,6 +80,8 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             },
           },
         ],
+    dataState: mockReportState.isLoading ? 'loading' : 'ready',
+    isReady: !mockReportState.isLoading,
     isLoading: mockReportState.isLoading,
     isError: false,
     refetch: vi.fn(),
@@ -336,7 +338,9 @@ describe('ReportsPage', () => {
         initialRoute: `/shows/show-1/reports?report=${staticReport.reportId}&trialId=trial-1`,
       });
 
-      await screen.findByRole('button', { name: /print/i });
+      // Print is hidden for download-only registry forms, so it cannot be
+      // the settle point here. The preview always mounts.
+      await screen.findByTestId('report-preview');
       expect(screen.queryByRole('button', { name: staticReport.label })).toBeNull();
       unmount();
     }
@@ -388,7 +392,9 @@ describe('ReportsPage', () => {
         initialRoute: `/shows/show-1/reports?report=${ascaReport.reportId}&trialId=trial-1`,
       });
 
-      await screen.findByRole('button', { name: /print/i });
+      // Print is hidden for download-only registry forms, so it cannot be
+      // the settle point here. The preview always mounts.
+      await screen.findByTestId('report-preview');
       expect(screen.queryByRole('button', { name: ascaReport.label })).toBeNull();
       unmount();
     }

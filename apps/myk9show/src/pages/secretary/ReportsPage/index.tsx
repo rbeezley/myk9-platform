@@ -1,8 +1,6 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData, type ReportDataState } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
@@ -29,6 +27,7 @@ import { replicatedPaperworkPrintsTable } from '@/services/replication/Replicate
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { EmergencyTrialPacketPanel } from './EmergencyTrialPacketPanel';
 import { useDeliveredPackets } from './useDeliveredPackets';
+import { useReportDogOptions } from './useReportDogOptions';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -131,60 +130,10 @@ export default function ReportsPage() {
     [classes]
   );
 
-  const {
-    data: dogOptionsRaw,
-    isError: dogOptionsError,
-    fetchStatus: dogOptionsFetchStatus,
-  } = useQuery({
-    queryKey: ['entry-form-dog-options', showId],
-    queryFn: async () => {
-      if (!showId) return [];
-      const { data: entryDogs } = await supabase
-        .from('entries')
-        .select('dog_id, armband, dog:dogs!inner(id, call_name)')
-        .eq('show_id', showId)
-        .is('deleted_at', null);
-
-      if (!entryDogs?.length) return [];
-
-      const dogIds = [...new Set(entryDogs.map(e => e.dog_id).filter(Boolean))] as string[];
-      const { data: regs } = await supabase
-        .from('dog_registrations')
-        .select('dog_id, registered_name')
-        .in('dog_id', dogIds);
-
-      const regMap = new Map((regs ?? []).map(r => [r.dog_id, r.registered_name]));
-      const seen = new Set<string>();
-
-      return entryDogs
-        .filter(e => {
-          if (!e.dog_id || seen.has(e.dog_id)) return false;
-          seen.add(e.dog_id);
-          return true;
-        })
-        .map(e => ({
-          id: e.dog_id!,
-          callName: ((e.dog as Record<string, unknown>)?.call_name as string) ?? '',
-          registeredName: regMap.get(e.dog_id!) ?? null,
-          armband: e.armband != null ? Number(e.armband) : null,
-        }))
-        .sort((a, b) => (a.armband ?? 0) - (b.armband ?? 0));
-    },
-    enabled: !!showId && (report?.supportsDogFilter ?? false),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // `?? []` on its own would collapse an unanswered read into "this show has no
-  // dogs", so the Dog dropdown would silently offer only "All Dogs" and the
-  // secretary would have no way to tell a working filter from a broken one.
-  //
-  // `isError` alone is not enough, and getting that wrong here would have
-  // reintroduced this page's whole defect class two hundred lines below the fix
-  // for it: this query inherits networkMode:'online', so offline it PAUSES --
-  // isError false, data undefined, and the list silently empty.
-  const dogOptions = dogOptionsRaw ?? [];
-  const dogOptionsUnavailable =
-    dogOptionsError || (dogOptionsFetchStatus === 'paused' && dogOptionsRaw === undefined);
+  const { dogs: dogOptions, unavailable: dogOptionsUnavailable } = useReportDogOptions(
+    showId,
+    report?.supportsDogFilter ?? false
+  );
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
     const newReport = getReportById(value);

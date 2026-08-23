@@ -7,7 +7,11 @@ const maybeSingle = vi.fn();
 // `select` captures its argument. A mock that swallowed it would let the query
 // stop asking for the flat/floor columns and still pass every fixture-driven
 // test — the preview would then quietly read 0/0 while the server charges the
-// flat component, which is a 1¢-class disagreement, i.e. a checkout loop.
+// flat component. That is a SILENT preview-vs-Stripe mismatch, not a checkout
+// loop: stripe-checkout's drift healer only compares per-item entry fees, and
+// the server overwrites the cart's fee columns rather than reading them back
+// (MYK9-197 review, S3). Nothing in the system notices, which is why the mock
+// has to.
 const select = vi.fn((_columns: string) => ({ eq: () => ({ maybeSingle }) }));
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -188,8 +192,10 @@ describe('usePlatformFeeRatesQuery', () => {
  * The flat per-checkout component and the floor (MYK9-197). Both default to 0,
  * so the interesting cases are: a row that carries them, a row that predates
  * them, and a nonsense stored value — which must land on the SAME number the
- * server lands on rather than on a different one, since the preview and the
- * charge disagreeing by a cent is a checkout loop.
+ * server lands on rather than on a different one. A preview that disagrees with
+ * the charge by a cent is a silent mismatch between the total the exhibitor
+ * reviewed and the total Stripe asks for — nothing detects it (MYK9-197
+ * review, S3).
  */
 describe('usePlatformFeeRates flat component and floor', () => {
   beforeEach(() => {

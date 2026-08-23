@@ -58,6 +58,28 @@ const MAX_PLATFORM_FEE_PERCENT = 20;
 const MAX_PLATFORM_FEE_FLAT_CENTS = 500;
 const MAX_PLATFORM_FEE_MIN_CENTS = 2000;
 
+/**
+ * The percent field advertises `step={0.5}` — but `step` on `<input
+ * type="number">` is only a spinner hint and a native-validation rule the app
+ * never reads, and `platform_fee_percent` is `numeric(5,2)` with a range-only
+ * CHECK. So an operator could type and save 14.25 or 3.33 (MYK9-197 review
+ * round 2, S-4).
+ *
+ * That matters beyond tidiness: the client and server fee expressions are
+ * duplicated, and the comments in both justify keeping integer math by claiming
+ * only 14.5% and 17.5% can diverge from a float rate. That claim is TRUE on the
+ * 0.5 grid and FALSE on the 0.01 grid, where 432 of 2001 reachable percents
+ * diverge. Enforcing the step here is what makes the claim true rather than
+ * aspirational — and it narrows the input to exactly what the UI implies.
+ *
+ * Multiples of 0.5 are exactly representable in binary, so `× 2` is exact and
+ * this cannot reject a legitimate value through float error.
+ */
+const PLATFORM_FEE_PERCENT_STEP = 0.5;
+function isPercentOnStep(percent: number): boolean {
+  return Number.isInteger(percent / PLATFORM_FEE_PERCENT_STEP);
+}
+
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -227,6 +249,7 @@ function PlatformFeeCard() {
   const percentInvalid =
     percentValue.trim() === '' ||
     !Number.isFinite(parsedPercent) ||
+    !isPercentOnStep(parsedPercent) ||
     parsedPercent < MIN_PLATFORM_FEE_PERCENT ||
     parsedPercent > MAX_PLATFORM_FEE_PERCENT;
   // Cents, not dollars: the columns are integer cents and the fee arithmetic is
@@ -384,7 +407,8 @@ function PlatformFeeCard() {
           ) : rateState === 'loading' ? (
             'Loading the current fee…'
           ) : percentInvalid ? (
-            `Enter a percent between ${MIN_PLATFORM_FEE_PERCENT} and ${MAX_PLATFORM_FEE_PERCENT}.`
+            `Enter a percent between ${MIN_PLATFORM_FEE_PERCENT} and ${MAX_PLATFORM_FEE_PERCENT}, ` +
+            `in steps of ${PLATFORM_FEE_PERCENT_STEP}.`
           ) : flatInvalid ? (
             `Enter a flat amount in whole cents between 0 and ${MAX_PLATFORM_FEE_FLAT_CENTS}.`
           ) : minInvalid ? (

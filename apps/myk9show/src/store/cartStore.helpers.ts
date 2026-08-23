@@ -23,8 +23,11 @@ import type { CartItemWithDetails } from './cartStore.types';
 //   * Integer percent, NOT a float rate. The often-repeated `350¢ at 7%` example
 //     was wrong (both forms give 25¢), but the hazard is real: at 14.5% a 100¢
 //     subtotal is 15¢ integer and 14¢ via a `0.145` float rate. Of the 41
-//     percents the admin input can save, 14.5 and 17.5 are the only two that
-//     diverge — both are in the agreement test's matrix.
+//     percents on the enforced 0.5 grid, 14.5 and 17.5 are the only two that
+//     diverge — both are in the agreement test's matrix. That count depends on
+//     the grid: the column is numeric(5,2), and at 0.01 steps 432 of 2001
+//     percents diverge, so the step check in PayoutLedgerPage /
+//     useUpdatePlatformFee is load-bearing for this claim.
 //   * Normalize before the arithmetic, so an out-of-range stored value lands on
 //     the same clamped number on both sides instead of diverging.
 //

@@ -20,8 +20,19 @@
 //              carts; that is the flat component's job.
 //
 // `flatCents` and `minCents` DEFAULT TO 0 in `platform_settings`, so until a
-// site admin deliberately sets them the expression collapses to exactly the
-// percentage-only math that shipped before. The setting is the kill switch.
+// site admin deliberately sets them THIS expression collapses to exactly the
+// percentage-only math that shipped before — the amount CHARGED is unchanged,
+// and the setting is the kill switch.
+//
+// Be precise about the scope of that claim (MYK9-197 review round 2): the
+// change is not a no-op at 0/0 platform-wide. `makeWholeRefundCents` replaced
+// a proportional split of the session total, and on a PARTIAL make-whole
+// refund with odd-cent entry fees the two differ by up to 1¢ even at 0/0.
+// Every such divergence moves the order from a non-zero tie-out residual to
+// exactly 0, i.e. toward correctness — measured at 7/0/0 over odd-cent fees,
+// 9 of 50 splits differ, and the old expression left 9 non-zero residuals
+// where the new one leaves none. "Inert" means the fee charged, not every
+// cent the system can move.
 //
 // ── THE CLIENT/SERVER AGREEMENT (do not break) ────────────────────────────
 // This expression is duplicated in the client cart preview
@@ -43,10 +54,16 @@
 // example never demonstrated anything. The hazard is real at other rates
 // though: at 14.5% a 100¢ subtotal is 15¢ via `Math.round((100 * 14.5) / 100)`
 // and 14¢ via a float rate (`0.145` is stored as 0.14499999999999999).
-// Sweeping all 41 admin-reachable percents (0–20 step 0.5) against every
-// subtotal to 200000¢: 14.5% and 17.5% are the ONLY two that diverge, over
-// 1479 subtotals. Keep the integer form; the agreement test's percent matrix
-// carries both values for exactly this reason.
+// Sweeping all 41 percents on the 0.5 grid (0–20) against every subtotal to
+// 200000¢: 14.5% and 17.5% are the ONLY two that diverge, over 1479
+// subtotals. That "only two" is contingent on the GRID, not on the column:
+// platform_fee_percent is numeric(5,2) with a range-only CHECK, and on the
+// 0.01 grid 432 of 2001 percents diverge. The 0.5 step is what makes the
+// claim true, and it is enforced in PayoutLedgerPage's percentInvalid and in
+// useUpdatePlatformFee — not merely advertised by the input's `step`
+// attribute, which the app never reads (MYK9-197 review round 2, S-4).
+// Keep the integer form; the agreement test's percent matrix carries both
+// diverging values for exactly this reason.
 //
 // `platformFeeAgreement.test.ts` asserts the two implementations agree.
 

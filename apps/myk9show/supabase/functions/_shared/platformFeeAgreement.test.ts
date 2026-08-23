@@ -76,23 +76,28 @@ const HALF_CENT_CASES: Array<{ subtotal: number; percent: number; expected: numb
 const ENTRY_FEES_CENTS = [0, 1, 99, 350, 500, 1000, 1429, 1500, 2500, 4999, 7550, 25000];
 const CART_SIZES = [1, 2, 3, 4, 5, 9];
 // 14.5 and 17.5 are load-bearing, not decoration: swept exhaustively, they are
-// the ONLY two of the 41 admin-reachable percents (0–20 step 0.5) at which a
+// the ONLY two of the 41 percents on the enforced 0.5 grid (0–20) at which a
 // float rate diverges from the integer expression — 1479 subtotals under
 // 200000¢ between them, because 0.145 is stored as 0.14499999999999999. A
 // matrix without them let a `Math.round(s * (p / 100))` mutant survive this
 // suite; that gap was itself a review finding.
+//
+// "Only two" holds because the step is ENFORCED (PayoutLedgerPage
+// percentInvalid + useUpdatePlatformFee). The column is numeric(5,2) with a
+// range-only CHECK, so on a 0.01 grid 432 of 2001 percents diverge — if that
+// step check is ever removed, this matrix stops being representative.
 const PERCENTS = [0, 1.5, 2.5, 3, 7, 7.5, 12.25, 14.5, 17.5, 20];
 const FLATS = [0, 30, 99, 500];
 const FLOORS = [0, 100, 175, 2000];
 
 /**
  * The subtotal/percent pairs where a FLOAT rate genuinely disagrees with the
- * integer expression, at percents the admin input can actually produce
- * (`step={0.5}`, range 0–20). These are what make the integer form load-bearing;
- * the famous 350¢/7% example never was.
+ * integer expression, at percents an operator can actually save (0–20 on the
+ * enforced 0.5 grid). These are what make the integer form load-bearing; the
+ * famous 350¢/7% example never was.
  *
- * Verified by exhaustive sweep: 14.5% and 17.5% are the only two such percents,
- * with 1479 divergent subtotals under 200000¢ between them.
+ * Verified by exhaustive sweep: on that grid 14.5% and 17.5% are the only two
+ * such percents, with 1479 divergent subtotals under 200000¢ between them.
  */
 const FLOAT_DIVERGENCE_CASES: Array<{ subtotal: number; percent: number; expected: number }> = [
   { subtotal: 100, percent: 14.5, expected: 15 },
@@ -138,9 +143,9 @@ describe('client and server platform fee implementations agree', () => {
   });
 
   it('agrees at EVERY admin-reachable percent, not just the sampled ones', () => {
-    // The percent input is step=0.5 over 0–20, so these are all 41 values an
-    // operator can save. Sampling a handful is what let a float-rate mutant
-    // survive this suite once already.
+    // The percent field enforces a 0.5 step over 0–20, so these are all 41
+    // values an operator can save. Sampling a handful is what let a float-rate
+    // mutant survive this suite once already.
     for (let percent = 0; percent <= 20; percent += 0.5) {
       const r = rates(percent, 30, 100);
       for (const subtotal of [1, 100, 149, 300, 350, 500, 1000, 2500, 7550, 25000]) {

@@ -20,11 +20,17 @@
 --                            nothing at a typical $25 entry — it guards fun
 --                            matches and single cheap classes.
 --
--- BOTH DEFAULT TO 0, deliberately. At 0/0 the expression collapses to exactly
--- the percentage-only math that shipped before, so this migration is inert on
--- arrival and the setting itself is the kill switch: nobody is charged a cent
--- more until a site admin sets a value on /admin/payouts. Do NOT seed non-zero
--- values here.
+-- BOTH DEFAULT TO 0, deliberately. At 0/0 the fee expression collapses to
+-- exactly the percentage-only math that shipped before, so nobody is charged a
+-- cent more until a site admin sets a value on /admin/payouts: the setting
+-- itself is the kill switch. Do NOT seed non-zero values here.
+--
+-- One honest caveat on "inert" (MYK9-197 review round 2): the same PR replaced
+-- the make-whole refund split, and on a PARTIAL make-whole refund with
+-- odd-cent entry fees the new amount can differ from the old by up to 1¢ even
+-- at 0/0. Every such difference moves the order's tie-out residual to exactly
+-- 0. So: the fee CHARGED is unchanged by this migration; one refund path is
+-- 1¢-different and more correct.
 --
 -- Grants: platform_settings holds TABLE-level `GRANT SELECT, UPDATE ... TO
 -- authenticated` (20260615180000, recodified 20260730220000) and no

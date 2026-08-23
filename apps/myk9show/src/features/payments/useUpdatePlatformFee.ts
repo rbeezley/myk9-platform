@@ -7,6 +7,15 @@ import type { PlatformFeeRates } from '@/store/cartStore.helpers';
  *  the CHECK constraints on platform_settings (migration 20260823140000). */
 export const PLATFORM_FEE_BOUNDS = {
   maxPercent: 20,
+  /**
+   * The percent moves in half-point steps. `numeric(5,2)` and the range-only
+   * CHECK would accept 14.25, and the duplicated client/server fee expressions
+   * justify their integer math on the premise that only 14.5% and 17.5% can
+   * diverge from a float rate — true on this grid, false on a 0.01 one
+   * (432 of 2001). Enforced here as well as in the admin field so the premise
+   * holds for any caller (MYK9-197 review round 2, S-4).
+   */
+  percentStep: 0.5,
   maxFlatCents: 500,
   maxMinCents: 2000,
 } as const;
@@ -31,6 +40,11 @@ export function useUpdatePlatformFee() {
       if (!Number.isFinite(rates.percent) || rates.percent < 0 || rates.percent > PLATFORM_FEE_BOUNDS.maxPercent) {
         throw new Error(
           `Platform fee must be between 0 and ${PLATFORM_FEE_BOUNDS.maxPercent} percent.`
+        );
+      }
+      if (!Number.isInteger(rates.percent / PLATFORM_FEE_BOUNDS.percentStep)) {
+        throw new Error(
+          `Platform fee percent must be a multiple of ${PLATFORM_FEE_BOUNDS.percentStep}.`
         );
       }
       if (

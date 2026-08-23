@@ -756,6 +756,38 @@ describe('PayoutLedgerPage — the flat component and the floor are editable', (
     expect(screen.getByRole('button', { name: 'Update fee to 7% + $0.30' })).toBeInTheDocument();
   });
 
+  it('refuses an off-step percent, so the float-divergence premise stays true', () => {
+    // `step={0.5}` on <input type="number"> is a spinner hint the app never
+    // reads, and platform_fee_percent is numeric(5,2) with a range-only CHECK —
+    // so 14.25 was saveable. The duplicated client/server fee expressions
+    // justify their integer math on "only 14.5% and 17.5% can diverge", which
+    // is true on the 0.5 grid and false on a 0.01 one (432 of 2001 percents).
+    // This check is what makes that premise hold (MYK9-197 review round 2, S-4).
+    render(<PayoutLedgerPage />);
+
+    const percent = screen.getByRole('spinbutton', { name: /fee percent/i });
+    fireEvent.change(percent, { target: { value: '14.25' } });
+
+    expect(percent).toHaveAttribute('aria-invalid', 'true');
+    expect(percent).toHaveAccessibleDescription(/steps of 0\.5/i);
+    expect(screen.getByRole('button', { name: 'Update fee' })).toBeDisabled();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('still accepts an on-step percent', () => {
+    render(<PayoutLedgerPage />);
+
+    const percent = screen.getByRole('spinbutton', { name: /fee percent/i });
+    fireEvent.change(percent, { target: { value: '14.5' } });
+
+    expect(percent).toHaveAttribute('aria-invalid', 'false');
+    fireEvent.click(screen.getByRole('button', { name: /update fee/i }));
+    expect(mutate).toHaveBeenCalledWith(
+      { percent: 14.5, flatCents: 0, minCents: 0 },
+      expect.anything()
+    );
+  });
+
   it('refuses a fractional cent, which the integer column could not hold anyway', () => {
     render(<PayoutLedgerPage />);
 

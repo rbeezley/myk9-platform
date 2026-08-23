@@ -196,7 +196,7 @@ describe('runPrintReminder', () => {
 
     expect(outcome).toEqual({ sent: true, recipientCount: 1 });
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendEmail.mock.calls[0][0].recipients).toEqual(['secretary@example.com']);
+    expect(sendEmail.mock.calls[0][0].recipient).toBe('secretary@example.com');
     expect(sendEmail.mock.calls[0][0].subject).toMatch(/Tonight: print/);
   });
 
@@ -250,8 +250,34 @@ describe('runPrintReminder', () => {
 
     await runPrintReminder(supabase, request, makeDeps(sendEmail));
 
-    expect(sendEmail.mock.calls[0][0].snapshotId).toBe(
-      `print-reminder-${SHOW_ID}-${DAY}-evening-before`
+    expect(sendEmail.mock.calls[0][0].idempotencyKey).toBe(
+      `print-reminder-${SHOW_ID}-${DAY}-evening-before-secretary@example.com`
+    );
+  });
+
+  it('gives each official its own idempotency key', async () => {
+    // Resend replays the original response for a repeated key. Sharing one key
+    // across the loop would mail the first official and hand back their id for
+    // everyone else -- recording a full send that never happened. The show and
+    // day alone are NOT enough once the send is per recipient.
+    const sendEmail = vi
+      .fn()
+      .mockResolvedValueOnce('msg-1')
+      .mockResolvedValueOnce('msg-2');
+    const { supabase } = makeStub({
+      recipients: [
+        { email: 'secretary@example.com', show_id: SHOW_ID, club_id: null },
+        { email: 'chair@example.com', show_id: SHOW_ID, club_id: null },
+      ],
+    });
+
+    const outcome = await runPrintReminder(supabase, request, makeDeps(sendEmail));
+
+    expect(outcome).toEqual({ sent: true, recipientCount: 2 });
+    const keys = sendEmail.mock.calls.map(call => call[0].idempotencyKey);
+    expect(new Set(keys).size).toBe(2);
+    expect(keys.every(key => key.startsWith(`print-reminder-${SHOW_ID}-${DAY}-evening-before-`))).toBe(
+      true
     );
   });
 

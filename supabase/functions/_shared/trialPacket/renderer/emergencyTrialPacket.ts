@@ -28,7 +28,30 @@ import { resolveScoresheetConfig } from './scoresheetConfig.ts';
 
 const CATALOG_ROWS_PER_PAGE = 24;
 const CHECK_IN_ROWS_PER_PAGE = 20;
-const SCORE_ROWS_PER_PAGE = 7;
+
+/**
+ * Measured, not guessed. A per-dog block is `SCORE_BLOCK_HEIGHT_MM` (36mm,
+ * `buildEmergencyTrialPacketPdf.ts`) and the class header above it is 1-4
+ * lines (`maxDetailLinesForKind('score-recording')` caps it at 4), so the
+ * table's top edge lands between y=42 (one line) and y=57 (four lines,
+ * `TITLE_BASE_Y + (lines-1) * DETAIL_LINE_HEIGHT`). Against the footer at
+ * y=271.4mm that is 6 blocks of headroom for a typical class (measured:
+ * trial/date/ring/class/hides/distractions/judge routinely wraps to 3 lines)
+ * but only 5 for a class whose identity is long enough to hit the 4-line
+ * ceiling (long trial name, long class name, and a long judge name, measured
+ * directly) — at 6 blocks that worst case ends at 273mm, 1.6mm past the
+ * footer.
+ *
+ * The renderer draws an IDENTICAL header on every score-recording page of a
+ * class — there is no compact continuation header — so a class that hits the
+ * 4-line ceiling on page 1 hits it on every later page too. A first-page/
+ * continuation split therefore cannot safely use a bigger number on
+ * continuations: whichever page overflows, it overflows on paper a judge
+ * keeps for a year. Both constants are kept (Task 6 imports both by name)
+ * but hold the same worst-case-safe value.
+ */
+const SCORE_ROWS_FIRST_PAGE = 5;
+const SCORE_ROWS_CONTINUATION = 5;
 
 function compareText(a: string | null | undefined, b: string | null | undefined): number {
   return (a ?? '').localeCompare(b ?? '', undefined, { numeric: true, sensitivity: 'base' });
@@ -68,6 +91,25 @@ function chunks<T>(items: T[], size: number): T[][] {
     result.push(items.slice(index, index + size));
   }
   return result;
+}
+
+/**
+ * Like `chunks`, but the first page can hold a different count than every
+ * page after it. Whole blocks only: never split a dog's block across two
+ * pages, so a ragged bottom (fewer rows on the last page) is accepted
+ * instead of shrinking a row to make it fit.
+ *
+ * Unlike `chunks`, an empty list produces zero pages, not one blank page —
+ * a cancelled class with no entries must not print an empty score sheet in
+ * the middle of the packet.
+ */
+function chunksWithFirst<T>(items: T[], first: number, rest: number): T[][] {
+  if (items.length === 0) return [];
+  const pages = [items.slice(0, first)];
+  for (let index = first; index < items.length; index += rest) {
+    pages.push(items.slice(index, index + rest));
+  }
+  return pages;
 }
 
 function classLabel(classItem: EmergencyPacketClass): string {
@@ -331,12 +373,14 @@ export function buildEmergencyPacketModel(input: EmergencyPacketInput): Emergenc
       // reason-list lookup nothing ever reads. Keep the `(n/m)` suffix intact:
       // pagination identifies a continuation page by matching it.
       const scoresheetTitle = `${resolveScoresheetConfig(classContext.registryId).orgTitle} Scoresheet`;
-      chunks(classEntries, SCORE_ROWS_PER_PAGE).forEach((entries, index, pages) => {
-        const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
-        pendingPages.push(
-          page(input, 'score-recording', `${scoresheetTitle}${suffix}`, classContext, entries)
-        );
-      });
+      chunksWithFirst(classEntries, SCORE_ROWS_FIRST_PAGE, SCORE_ROWS_CONTINUATION).forEach(
+        (entries, index, pages) => {
+          const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
+          pendingPages.push(
+            page(input, 'score-recording', `${scoresheetTitle}${suffix}`, classContext, entries)
+          );
+        }
+      );
     }
 
     pendingPages.push(page(input, 'certification', 'Judge & Secretary Certification', context));

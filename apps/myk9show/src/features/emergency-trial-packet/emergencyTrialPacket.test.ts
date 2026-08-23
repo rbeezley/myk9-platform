@@ -31,6 +31,66 @@ function entry(overrides: Partial<ReportEntry> & Pick<ReportEntry, 'id'>): Repor
   };
 }
 
+/**
+ * A model for one trial, one class, and `count` sequential entries — built
+ * from the same fixture shapes as `input` above, just parameterized on
+ * entry count so pagination tests can ask for 0 or 12 without hand-writing
+ * every entry.
+ */
+function buildModelWithEntries(count: number) {
+  const packetInput: EmergencyPacketInput = {
+    generatedAt: '2026-08-20T20:15:00.000Z',
+    show: {
+      id: 'show-pagination',
+      name: 'Pagination Trial',
+      clubName: 'Prairie Dog Club',
+      organization: 'AKC',
+      startDate: '2026-10-03',
+      endDate: '2026-10-03',
+    },
+    trials: [
+      {
+        id: 'trial-1',
+        date: '2026-10-03',
+        name: 'Saturday Trial',
+        trialNumber: '1',
+        registryId: 'AKC',
+      },
+    ],
+    classes: [
+      {
+        id: 'class-1',
+        trialId: 'trial-1',
+        name: 'Container Novice A',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        classNumber: '101',
+        displayOrder: 1,
+        judgeName: 'Judge One',
+        ringLabel: 'Ring 1',
+        startTime: '08:00',
+        timeLimitSeconds: 120,
+        timeLimitArea2Seconds: null,
+        timeLimitArea3Seconds: null,
+        numAreas: null,
+        numHides: null,
+        distractionCount: null,
+      },
+    ],
+    entries: Array.from({ length: count }, (_, index) =>
+      entry({
+        id: `entry-${index + 1}`,
+        armband: 100 + index,
+        classId: 'class-1',
+        trialId: 'trial-1',
+        runOrder: index + 1,
+      })
+    ),
+  };
+  return buildEmergencyPacketModel(packetInput);
+}
+
 const input: EmergencyPacketInput = {
   generatedAt: '2026-08-20T20:15:00.000Z',
   show: {
@@ -187,6 +247,49 @@ describe('emergency trial packet model', () => {
 });
 
 /**
+ * Whole-block pagination for the score-recording pages. `SCORE_BLOCK_HEIGHT_MM`
+ * grew to 36mm in Task 4 (class header, reason checklists, time boxes), which
+ * left the old 7-rows-per-page constant printing blocks that ran off the
+ * bottom of the page. Measuring the actual header height (see task-5-report.md)
+ * showed 5 blocks fit on every score-recording page, first or continuation —
+ * the renderer draws an identical header on both, so there is no "compact
+ * continuation header" to buy back a 6th row.
+ */
+describe('score-recording pagination', () => {
+  it('fits 5 dogs per class score page, first page and continuations alike', () => {
+    const model = buildModelWithEntries(12);
+    const scorePages = model.pages.filter(page => page.kind === 'score-recording');
+    expect(scorePages.map(page => page.entries.length)).toEqual([5, 5, 2]);
+  });
+
+  it('never splits a dog across two pages', () => {
+    const model = buildModelWithEntries(12);
+    const scored = model.pages
+      .filter(page => page.kind === 'score-recording')
+      .flatMap(page => page.entries.map(entry => entry.id));
+    expect(new Set(scored).size).toBe(scored.length);
+    expect(scored).toHaveLength(12);
+  });
+
+  it('emits no score pages for a class with no entries', () => {
+    // chunksWithFirst returns [] for an empty list. A cancelled class that
+    // still has a row must not produce a blank sheet in the middle of the
+    // packet.
+    const model = buildModelWithEntries(0);
+    expect(model.pages.filter(page => page.kind === 'score-recording')).toHaveLength(0);
+  });
+
+  it('identifies a continuation page by armband range and class', () => {
+    // A page separated from its stack must still be identifiable — this
+    // document is retained for a year.
+    const model = buildModelWithEntries(12);
+    const [, continuation] = model.pages.filter(page => page.kind === 'score-recording');
+    expect(continuation.title).toMatch(/\(2\/3\)/);
+    expect(continuation.context.classLabel).toBeTruthy();
+  });
+});
+
+/**
  * MYK9-198 mock-trial-day audit. `timeLimitSeconds` was read from the DB,
  * mapped by the adapter and carried in the type — then rendered nowhere, so
  * the paper scoresheet offered "Time: ______" while never stating the class
@@ -257,7 +360,12 @@ describe('formatClassTimeLimits', () => {
 
   it('still reports a stale limit configured beyond the declared area count', () => {
     expect(
-      formatClassTimeLimits({ ...base, timeLimitSeconds: 180, timeLimitArea2Seconds: 120, numAreas: 1 })
+      formatClassTimeLimits({
+        ...base,
+        timeLimitSeconds: 180,
+        timeLimitArea2Seconds: 120,
+        numAreas: 1,
+      })
     ).toBe('Max time — Area 1 3:00 · Area 2 2:00');
   });
 

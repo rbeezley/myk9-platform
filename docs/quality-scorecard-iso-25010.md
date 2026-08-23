@@ -45,7 +45,7 @@ marked **Unmeasured** rather than given a guessed score. An unmeasured cell is a
 | 3   | Compatibility          | **Weak**   | High       | Five browser/device projects defined, **only chromium ever executed** in CI or nightly         |
 | 4   | Interaction capability | Adequate   | Medium     | axe gate on serious/critical, but `color-contrast` excluded and scope is landing pages only    |
 | 5   | Reliability            | Adequate   | Low        | Offline-first replication is a real strength; no backup/DR gate anywhere; telemetry is thin    |
-| 6   | Security               | **Strong** | High       | Deepest-instrumented area by far — with one named hole (RBAC coverage floor at 3%)             |
+| 6   | Security               | **Strong** | High       | Deepest-instrumented area by far; two holes — RBAC coverage floor at 3%, dependency gate red   |
 | 7   | Maintainability        | **Weak**   | High       | 170 files break the project's own 500-line rule; complexity ceiling set at 30                  |
 | 8   | Flexibility            | Adequate   | Low        | Clean package boundaries; scalability entirely unproven                                        |
 | 9   | Safety                 | Unmeasured | —          | Real operational-constraint controls exist but have never been framed or reviewed as safety    |
@@ -196,7 +196,7 @@ machinery in `@myk9/replication` is deliberate engineering rather than incidenta
 | Confidentiality               | RLS on every table; column-level ACL allowlists; anon grant contract tests that **replay all 499 migrations** to fold effective grants; PostgREST embed-grant discipline. |
 | Integrity                     | `pnpm qa:rls-smoke` (recursion); `qa:db-drift:enum`; `qa:db-drift:functions` (deployed vs repo reconciliation); Supabase advisors sweep.                                  |
 | Accountability / authenticity | Edge functions handle auth internally with fail-closed secret couplings; Vault-backed cron secrets.                                                                       |
-| Resistance                    | `pnpm audit --audit-level=high` monthly via `dependency-audit.yml`; go-live phase scripts 1–4.                                                                            |
+| Resistance                    | `pnpm audit --audit-level=high` monthly via `dependency-audit.yml`; go-live phase scripts 1–4. **Currently failing** — see below.                                         |
 
 **This is the best-instrumented characteristic in the project by a wide margin**, and unusually so — the
 migration-replay grant contracts and applied-ACL audits are a level of rigour most teams never reach.
@@ -214,6 +214,15 @@ The `CLAUDE.md` LESSONS file is effectively a hard-won threat model for this spe
 - No CISQ/CWE static scanner runs over the TypeScript. Everything above is database-layer; application-layer
   injection, unsafe deserialisation, and secret-handling weaknesses are caught by review, not tooling.
 - No penetration test or external review.
+- **The dependency gate is red right now.** `pnpm audit --audit-level=high` exits **1** with 6 high and 1
+  moderate advisory (measured 2026-08-23): five `brace-expansion` ReDoS advisories plus `fast-uri`, all
+  transitive through `@vercel/node`, `eslint`, and `vite-plugin-pwa`. Real exploitability is low — these are
+  build-time paths, not request-handling code — but the gate is failing, and `dependency-audit.yml` runs on
+  `cron: '0 9 1 * *'` and is **not a PR check**, so up to a month can pass before anyone sees it. GitHub
+  Dependabot reports the same 6 on the default branch.
+
+  Note for anyone re-measuring: `pnpm audit | tail` reports **0**, because the pipe returns `tail`'s status.
+  Redirect and read `$?` — this is the trap already recorded in `CLAUDE.md` LESSONS.
 
 ---
 
@@ -306,18 +315,19 @@ safety. Two of the three are addressable cheaply.
 
 Ordered by value per unit of effort:
 
-| #   | Action                                                                            | Addresses        | Effort        |
-| --- | --------------------------------------------------------------------------------- | ---------------- | ------------- |
-| 1   | Add `webkit` + `mobile-chrome` to one nightly Playwright job                      | §3 Compatibility | Config change |
-| 2   | Raise the RBAC coverage floors and write tests to meet them                       | §6 Security      | Days          |
-| 3   | Perform one documented restore from backup; add it as a launch gate               | §5 Reliability   | Hours         |
-| 4   | Execute the load rehearsal (`workflow_dispatch`, owner-gated)                     | §2, §8           | One run       |
-| 5   | Land the theme-token fix and re-enable `color-contrast` in the axe gate           | §4               | Days          |
-| 6   | Extend the axe gate past landing pages to the workbench and ringside              | §4               | Days          |
-| 7   | Lower ESLint `complexity` toward 15 and `max-depth` toward 4; ratchet the fallout | §7               | Weeks         |
-| 8   | Fix MYK9-200 (permissions must survive a cold offline boot)                       | §5               | Days          |
-| 9   | Write the one-page safety applicability statement                                 | §9               | Hours         |
-| 10  | Add a CISQ-aligned static scan (SonarCloud — free for public repos)               | §6, §7           | Half a day    |
+| #   | Action                                                                                     | Addresses        | Effort        |
+| --- | ------------------------------------------------------------------------------------------ | ---------------- | ------------- |
+| 1   | Add `webkit` + `mobile-chrome` to one nightly Playwright job                               | §3 Compatibility | Config change |
+| 2   | Raise the RBAC coverage floors and write tests to meet them                                | §6 Security      | Days          |
+| 3   | Perform one documented restore from backup; add it as a launch gate                        | §5 Reliability   | Hours         |
+| 4   | Execute the load rehearsal (`workflow_dispatch`, owner-gated)                              | §2, §8           | One run       |
+| 5   | Land the theme-token fix and re-enable `color-contrast` in the axe gate                    | §4               | Days          |
+| 6   | Extend the axe gate past landing pages to the workbench and ringside                       | §4               | Days          |
+| 7   | Lower ESLint `complexity` toward 15 and `max-depth` toward 4; ratchet the fallout          | §7               | Weeks         |
+| 8   | Fix MYK9-200 (permissions must survive a cold offline boot)                                | §5               | Days          |
+| 9   | Write the one-page safety applicability statement                                          | §9               | Hours         |
+| 10  | Add a CISQ-aligned static scan (SonarCloud — free for public repos)                        | §6, §7           | Half a day    |
+| 11  | Clear the 7 open `pnpm audit` advisories and make the audit a PR check, not a monthly cron | §6 Security      | Hours         |
 
 **On item 10:** a CISQ scan reads TypeScript and will not meaningfully read the 499 migrations, the RLS
 policies, or the column ACLs — which is where this project's expensive defects have historically originated.

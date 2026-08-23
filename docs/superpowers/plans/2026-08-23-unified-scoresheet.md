@@ -1,5 +1,7 @@
 # Unified Check-In Sheet and Scoresheet Implementation Plan
 
+> **Status:** Active
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make one jsPDF renderer produce the check-in sheet and scoresheet for both the Reports page and the emergency trial packet, so the paper a judge retains for a year is the same document either way.
@@ -282,7 +284,21 @@ In `supabase/functions/_shared/trialPacket/renderer/types.ts`, add to `Emergency
 Run: `cd apps/myk9show && pnpm vitest run src/test/database/emergencyPacketInputRpcContract.test.ts && pnpm typecheck`
 Expected: PASS. Typecheck will surface every fixture that constructs an `EmergencyPacketClass`; add `numHides: null, distractionCount: null` to each.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Record the rollback path [ADDED]**
+
+`CREATE OR REPLACE FUNCTION` is forward-only — there is no automatic revert. Add this comment
+at the top of the new migration so a future incident does not have to reconstruct it:
+
+```sql
+-- ROLLBACK: re-apply the function body from
+-- supabase/migrations/20260821220000_emergency_packet_input_rpc.sql as a new
+-- CREATE OR REPLACE migration. The two added JSON keys are additive; a renderer
+-- built before this migration ignores them, so an older app against a newer DB
+-- is safe. The reverse (newer renderer, older RPC) yields null hides and
+-- distractions, which the header already treats as "not configured".
+```
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add supabase/migrations apps/myk9show/src/test/database/emergencyPacketInputRpcContract.test.ts \
@@ -328,15 +344,18 @@ The existing test file already builds a jsPDF document and inspects it. Follow i
     expect(columnStarts[last] + columnWidths[last]).toBeLessThanOrEqual(215.9 - 14);
   });
 
-  it('truncates an overlong breed rather than overprinting the next column', () => {
-    const { texts } = renderPageOfKind('check-in', {
-      breed: 'Nederlandse Kooikerhondje Extremely Long Registered Breed Name',
-    });
-    const printed = texts.find(text => text.startsWith('Nederlandse'));
-    expect(printed).toBeDefined();
-    expect(printed!.length).toBeLessThan(
-      'Nederlandse Kooikerhondje Extremely Long Registered Breed Name'.length
-    );
+  // [EXPANDED] Every text column, not just breed. Guarding one field and
+  // leaving the other six is the same bug with better odds.
+  it.each([
+    ['breed', 'Nederlandse Kooikerhondje Extremely Long Registered Breed Name'],
+    ['callName', 'Bartholomew Fitzgerald Wellington The Third Of Somewhere'],
+    ['handler', 'Anastasia Konstantinopoulos-Wetherbottom'],
+    ['registrationNumber', 'SR-99999999-XX-ALTERNATE-REGISTRY-LONGFORM'],
+  ])('truncates an overlong %s rather than overprinting the next column', (field, value) => {
+    const { texts } = renderPageOfKind('check-in', { [field]: value });
+    const printed = texts.find(text => value.startsWith(text.slice(0, 8)));
+    expect(printed, `${field} was not printed at all`).toBeDefined();
+    expect(printed!.length).toBeLessThan(value.length);
   });
 ```
 
@@ -492,6 +511,12 @@ Replace `renderScoreRecording`. Export the height and lay out five regions at th
  */
 export const SCORE_BLOCK_HEIGHT_MM = 36;
 
+// [ADDED] INTENT: this sheet is a SUPERSET of what either surface needs. `Place`
+// and the free-text note are dead weight when the app is up and the only record
+// when it is down. Do not split this into "normal" and "emergency" variants, and
+// do not delete the unused-looking fields as a simplification. One document,
+// printed the same way every time, is the point.
+
 const SCORE_REGIONS = {
   identity: { x: 14, width: 55 },
   result: { x: 69, width: 30 },
@@ -548,6 +573,13 @@ git commit -m "feat(scoresheet): full per-dog block with registry reason lists"
       .flatMap(page => page.entries.map(entry => entry.id));
     expect(new Set(scored).size).toBe(scored.length);
     expect(scored).toHaveLength(12);
+  });
+
+  it('emits no score pages for a class with no entries [ADDED]', () => {
+    // chunksWithFirst returns [] for an empty list. A cancelled class that still
+    // has a row must not produce a blank sheet in the middle of the packet.
+    const model = buildModelWithEntries(0);
+    expect(model.pages.filter(page => page.kind === 'score-recording')).toHaveLength(0);
   });
 
   it('identifies a continuation page by armband range and class', () => {
@@ -623,7 +655,9 @@ git commit -m "feat(scoresheet): paginate whole blocks, 5 first page and 6 after
 - Create: `apps/myk9show/src/lib/reports/toScoresheetModel.test.ts`
 - Modify: `apps/myk9show/src/lib/reports/types.ts:113-123` (`ReportDefinition`)
 - Modify: `apps/myk9show/src/lib/reports/reportRegistry.ts` (the `check-in-sheet` and `scoresheet` entries)
-- Modify: `apps/myk9show/src/pages/secretary/ReportsPage/index.tsx:200`
+- Modify: `apps/myk9show/src/pages/secretary/ReportsPage/ReportPreview.tsx:159,176,184` **[EXPANDED]**
+- Modify: `apps/myk9show/src/pages/secretary/ReportsPage/index.tsx:200` (print handler only)
+- Modify: `apps/myk9show/src/lib/reports/__tests__/reportRegistry.test.ts` **[ADDED]**
 
 **Interfaces:**
 - Consumes: `renderEmergencyTrialPacketPdf` from `@/features/emergency-trial-packet/renderPacketPdf`.
@@ -678,14 +712,72 @@ Add to `ReportDefinition` in `types.ts`:
 
 Set it on the `check-in-sheet` and `scoresheet` entries in `reportRegistry.ts`.
 
-- [ ] **Step 4: Branch ReportsPage onto the PDF path**
+- [ ] **Step 4: Branch the PDF path in ReportPreview, not index [EXPANDED]**
 
-At `index.tsx:200`, when the selected definition has `buildPdf`, build the bytes, wrap in a `Blob` with `type: 'application/pdf'`, create an object URL, render it in an `<iframe>`, and point the Print button at `iframe.contentWindow?.print()`. Revoke the URL in a `useEffect` cleanup and whenever the dataset changes — otherwise every re-render leaks a blob.
+The rendering happens in `ReportPreview.tsx`, which calls
+`ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />)` in **three** places
+(lines 159, 176, 184 — single, multi-page, and class-scoped). `index.tsx:200` is only the
+print handler. All three call sites need the same guard:
+
+```tsx
+if (report.buildPdf) {
+  return null; // rendered by the PDF branch below, never as markup
+}
+```
+
+Then add one PDF branch that builds the bytes once, wraps them in a
+`Blob` with `type: 'application/pdf'`, creates an object URL, and renders an `<iframe>`.
+Point `index.tsx:200`'s print handler at `iframe.contentWindow?.print()`.
+
+Revoke the URL in a `useEffect` cleanup and whenever the dataset changes — otherwise every
+re-render leaks a blob.
+
+**Guard the missing-class case.** `ReportProps.classData` is optional, and a class-scoped
+report can be opened before class data resolves. `toScoresheetModel` must return a model with
+no score pages rather than dereferencing `undefined`:
+
+```ts
+if (!page.classData) continue; // no class context, no scoresheet page
+```
+
+**Guard a renderer throw.** jsPDF failing must not blank the page:
+
+```tsx
+const [pdfError, setPdfError] = useState<string | null>(null);
+// ...
+try {
+  bytes = report.buildPdf(dataset, sortOrder);
+} catch (error) {
+  setPdfError(error instanceof Error ? error.message : 'Could not build the PDF.');
+}
+```
+
+Render `pdfError` as an inline message with a retry, not a thrown boundary — a secretary
+printing at 6am needs to know the report failed, not see an empty pane.
+
+- [ ] **Step 4b: Update the registry test [ADDED]**
+
+`reportRegistry.test.ts:14` renders **every** entry's component through
+`renderToStaticMarkup`, and line 115 asserts phase-2 entries render non-empty. There is
+already a precedent for reports that bypass the component path — the
+`placeholderReportIds` list under *"official-PDF-only reports are enabled but render
+directly from ReportsPage"*, which holds `armband-labels` and `result-labels`.
+
+Add `'check-in-sheet'` and `'scoresheet'` to that list, and rename the test to say
+*"render directly from ReportsPage"* covers PDF-backed reports too. Neither id is in
+`PHASE_2_EXTENDED_IDS`, so line 115 is unaffected — verified, not assumed.
 
 - [ ] **Step 5: Run the tests**
 
 Run: `cd apps/myk9show && pnpm vitest run src/lib/reports src/pages/secretary/ReportsPage && pnpm typecheck`
-Expected: PASS.
+Expected: PASS, including the 35-entry registry test.
+
+- [ ] **Step 5b: Keep the render off the UI thread [ADDED]**
+
+A 60-page jsPDF render is synchronous and will jank the Reports page. Build the PDF inside a
+`useMemo` keyed on `(reportId, dataset, sortOrder)` so it runs once per selection rather than
+per render, and show the existing loading state while it runs. If measurement shows the
+render exceeding ~400ms, note it in the spec — do not silently ship a frozen tab.
 
 - [ ] **Step 6: Commit**
 
@@ -753,6 +845,65 @@ Expected: six clean runs. One pass proves nothing.
 git add -A
 git commit -m "refactor(reports): delete the superseded React check-in and scoresheet components"
 ```
+
+---
+
+### Task 8: Deploy [ADDED]
+
+Merging changes nothing on staging. The migration is not applied and the packet keeps
+rendering from the previously deployed bundle. **Confirm with the user before each shared-system
+write** — these are not covered by approval of the code change.
+
+**Files:** none.
+
+**Interfaces:**
+- Consumes: everything above, merged to `main`.
+- Produces: a deployed system whose behaviour matches the repo.
+
+- [ ] **Step 1: Apply the migration**
+
+```bash
+cd "/Users/richardbeezley/AI Projects/myk9-platform"
+source supabase/.env && supabase db push --password "$SUPABASE_DB_PASSWORD"
+```
+
+- [ ] **Step 2: Verify the RPC against the applied database, not the migration text**
+
+A correct migration file does not prove a correct result.
+
+```sql
+select jsonb_agg(distinct k)
+from public.emergency_packet_input(
+  'dededede-0000-0000-0000-000000000010'::uuid, '2026-08-23'::date
+) input,
+lateral jsonb_array_elements(input -> 'classes') cls,
+lateral jsonb_object_keys(cls) k;
+```
+
+Expected: the key set contains `numHides` and `distractionCount`.
+
+- [ ] **Step 3: Redeploy the packet function**
+
+The shared renderer is bundled into the function; the code change does nothing until it ships.
+
+```bash
+supabase functions deploy generate-trial-packet --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+```
+
+Confirm the output names `sojmvhhwsjxmfistvzbe`.
+
+- [ ] **Step 4: Prove the deploy by grepping the live bundle, never by the timestamp**
+
+Use the `get_edge_function` tool for `generate-trial-packet` and grep the returned source for
+`SCORE_BLOCK_HEIGHT_MM` and one registry reason string. A deploy timestamp one minute after a
+merge could have gone either way.
+
+- [ ] **Step 5: Generate one real packet and read it**
+
+Clear the day's claim and snapshot, POST to the function with the Vault secret, then open the
+PDF and check on paper terms: the class header carries hides and distractions, a 3-area class
+shows `A1/A2/A3/Total`, no per-dog block straddles a page break, and the page count is within
+the range Task 5 step 5 measured. Record the real page count in the spec.
 
 ---
 

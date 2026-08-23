@@ -1,7 +1,7 @@
 /**
  * Reset the e2e test-account passwords in Supabase Auth — no email involved.
  *
- * The e2e-*@test.myk9.com accounts use fake addresses, so the dashboard's
+ * The the myk9t.com accounts use fake addresses, so the dashboard's
  * "send recovery email" flow can never reach them. This script instead uses
  * the Admin API (`auth.admin.updateUserById`) with the service-role key to set
  * each account's password to the canonical value from E2E_* env vars, which

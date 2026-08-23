@@ -15,7 +15,7 @@ import { TEST_USERS, signInAsSecretary } from '../helpers/testUsers';
  *     enrollment filed under the dog's owner (not the secretary).
  *   - DB verification that the entry carries a non-zero entry_fee (PR #75).
  *
- * Auth: TEST_USERS.SECRETARY (`e2e-secretary@test.myk9.com`, password in env).
+ * Auth: TEST_USERS.SECRETARY (`secretary@myk9t.com`, password in env).
  *
  * Out of scope (require multi-user / role-swap fixtures):
  *   - currentWorkflowMode reset on role change

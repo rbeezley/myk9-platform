@@ -15,7 +15,7 @@
  * expected shape of a paid order.
  *
  * Fixture is verbatim from staging (`Heartland Scent Work Classic`, owner
- * e2e-exhibitor@test.myk9.com) — 15 per-class rows across 5 dogs, spanning
+ * exhibitor@myk9t.com) — 15 per-class rows across 5 dogs, spanning
  * paid / pending / refunded / waived payment statuses and confirmed /
  * submitted / paid / promotion-expired / not_accepted / withdrawn entry
  * statuses, with both `online` and unset payment methods.

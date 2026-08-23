@@ -28,15 +28,19 @@ Before starting, read:
 
 **Credentials — canonical accounts only:**
 
-Use these `e2e-*@test.myk9.com` accounts. The old `*@myk9t.com` accounts have **no `auth.users` row and cannot sign in** — do not use them (confirmed in `apps/myk9show/src/test/e2e/helpers/testUsers.ts`).
+Use these `@myk9t.com` accounts. They replaced the old `e2e-*@test.myk9.com` set on
+2026-08-23: `test.myk9.com` has no MX record, so mail to it hard-bounced off a third
+party's server. Every account below has a real, deliverable mailbox. Confirmed in
+`apps/myk9show/src/test/e2e/helpers/testUsers.ts` (role wrappers use the env-backed
+canonical accounts).
 
-| Role       | Email                         | `TEST_USERS` key |
-| ---------- | ----------------------------- | ---------------- |
-| Exhibitor  | `e2e-exhibitor@test.myk9.com` | `DEMO_EXHIBITOR` (protected demo account, seeded dogs) |
-| Secretary  | `e2e-secretary@test.myk9.com` | `SECRETARY`      |
-| Judge      | `e2e-judge@test.myk9.com`     | `JUDGE`          |
-| Club admin | `e2e-clubadmin@test.myk9.com` | `CLUB_ADMIN`     |
-| Admin      | `e2e-admin@test.myk9.com`     | `SITE_ADMIN`     |
+| Role       | Email                    | `TEST_USERS` key  |
+| ---------- | ------------------------ | ----------------- |
+| Exhibitor  | `exhibitor@myk9t.com`    | `DEMO_EXHIBITOR` (protected demo account, seeded dogs) |
+| Secretary  | `secretary@myk9t.com`    | `SECRETARY`       |
+| Judge      | `judge@myk9t.com`        | `JUDGE`           |
+| Club admin | `clubadmin@myk9t.com`    | `CLUB_ADMIN`      |
+| Admin      | `testadmin@myk9t.com`    | `SITE_ADMIN`      |
 
 Passwords live in `.env.local` (all e2e accounts share one secret) / CI secrets.
 

@@ -13,7 +13,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
  *     used to be parsed as local time in west-of-UTC zones and shifted the
  *     visible day forward (Apr 26, 2026).
  *
- * Auth: TEST_USERS.SECRETARY (`e2e-secretary@test.myk9.com`, password in env).
+ * Auth: TEST_USERS.SECRETARY (`secretary@myk9t.com`, password in env).
  */
 
 test.describe.configure({ mode: 'serial' });

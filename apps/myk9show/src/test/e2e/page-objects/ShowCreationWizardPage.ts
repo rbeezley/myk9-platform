@@ -440,7 +440,7 @@ export class ShowCreationWizardPage {
     if (await emailInput.isVisible().catch(() => false)) {
       const existingValue = await emailInput.inputValue();
       if (!existingValue) {
-        await emailInput.fill(`testclub${Date.now()}@test.myk9.com`);
+        await emailInput.fill(`testclub${Date.now()}@myk9t.com`);
       }
     }
 

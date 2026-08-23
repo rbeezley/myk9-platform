@@ -10,7 +10,7 @@ Dev/staging run on the idempotent `seed-demo.sql` demo dataset (clean-wiped 2026
 
 ## Canonical accounts
 
-Sign-in-capable accounts are **only** `e2e-*@test.myk9.com` (exhibitor, secretary, judge, clubadmin, admin — see the table in the `audit-pages` skill). The named `*@myk9t.com` accounts are fixture rows with **no `auth.users` entry** and can never sign in. All e2e accounts share one password kept in `.env.local`.
+Sign-in-capable accounts are the `@myk9t.com` set (exhibitor, secretary, judge, clubadmin, chairman, steward, testadmin — see the table in the `audit-pages` skill). They replaced `e2e-*@test.myk9.com` on 2026-08-23, when that undeliverable domain was retired. `exhibitor1/3/4/5@myk9t.com` remain demo fixture rows holding no roles. All e2e accounts share one password kept in `.env.local`.
 
 ## Known failure modes after a reseed
 
@@ -30,6 +30,6 @@ Sign-in-capable accounts are **only** `e2e-*@test.myk9.com` (exhibitor, secretar
 
 ## Guardrails
 
-- The demo exhibitor (`e2e-exhibitor@test.myk9.com`) is a protected account with seeded dogs — don't delete or repurpose it.
+- The demo exhibitor (`exhibitor@myk9t.com`) is a protected account with seeded dogs — don't delete or repurpose it.
 - Person-delete is trigger-blocked when the person owns live dogs; surface the edge-fn error CODE rather than fighting it.
 - After schema changes, re-check that seed SQL still satisfies CHECK constraints and enum values before pushing (memory: db-constraint-review).

@@ -8,12 +8,12 @@ secrets.
 
 | Role | Email |
 |---|---|
-| Site admin | `e2e-admin@test.myk9.com` |
-| Secretary | `e2e-secretary@test.myk9.com` |
-| Club admin | `e2e-clubadmin@test.myk9.com` |
-| Judge | `e2e-judge@test.myk9.com` |
-| Steward | `e2e-steward@test.myk9.com` |
-| Exhibitor | `e2e-exhibitor@test.myk9.com` |
+| Site admin | `testadmin@myk9t.com` |
+| Secretary | `secretary@myk9t.com` |
+| Club admin | `clubadmin@myk9t.com` |
+| Judge | `judge@myk9t.com` |
+| Steward | `steward@myk9t.com` |
+| Exhibitor | `exhibitor@myk9t.com` |
 | Unauthenticated | (no sign-in) |
 
 > **Notes**

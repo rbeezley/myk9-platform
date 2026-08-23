@@ -18,14 +18,14 @@ export const TEST_PASSWORD = process.env.E2E_SECRETARY_PASSWORD ?? '';
 // Test user definitions by role
 export const TEST_USERS = {
   exhibitor: {
-    email: 'e2e-exhibitor@test.myk9.com',
+    email: 'exhibitor@myk9t.com',
     password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     firstName: 'Test',
     lastName: 'Exhibitor',
     roles: ['exhibitor'],
   },
   secretary: {
-    email: 'e2e-secretary@test.myk9.com',
+    email: 'secretary@myk9t.com',
     password: process.env.E2E_SECRETARY_PASSWORD ?? '',
     firstName: 'Test',
     lastName: 'Secretary',
@@ -40,18 +40,10 @@ export const TEST_USERS = {
   // through the broader role, so an isolation test written with it is vacuous —
   // the same trap `clubAdmin` below documents for site_admin.
   judge: {
-    email: 'e2e-judge@test.myk9.com',
+    email: 'judge@myk9t.com',
     password: process.env.E2E_JUDGE_PASSWORD ?? '',
     firstName: 'Test',
     lastName: 'Judge',
-    roles: ['judge'],
-  },
-  // Same exclusivity, but seeded with no judge_assignments rows at all.
-  judgeWithoutAssignments: {
-    email: 'e2e-judge-empty@test.myk9.com',
-    password: process.env.E2E_JUDGE_EMPTY_PASSWORD ?? '',
-    firstName: 'Test',
-    lastName: 'Judge No Assignments',
     roles: ['judge'],
   },
   // MUST stay a different account from `siteAdmin`, holding NO site-wide role.
@@ -62,21 +54,21 @@ export const TEST_USERS = {
   // Provisioned by scripts/setup-e2e-test-users.ts when E2E_CLUB_ADMIN_PASSWORD
   // is set; club_admin on Heartland only (supabase/seed-demo.sql section 10e).
   clubAdmin: {
-    email: 'e2e-club-admin@test.myk9.com',
+    email: 'clubadmin@myk9t.com',
     password: process.env.E2E_CLUB_ADMIN_PASSWORD ?? '',
     firstName: 'Test',
     lastName: 'Club Admin',
     roles: ['club_admin'],
   },
   siteAdmin: {
-    email: 'e2e-admin@test.myk9.com',
+    email: 'testadmin@myk9t.com',
     password: process.env.E2E_ADMIN_PASSWORD ?? '',
     firstName: 'Test',
     lastName: 'Admin',
     roles: ['site_admin', 'secretary', 'club_admin', 'chairman', 'exhibitor'],
   },
   steward: {
-    email: 'e2e-secretary@test.myk9.com',
+    email: 'secretary@myk9t.com',
     password: process.env.E2E_SECRETARY_PASSWORD ?? '',
     firstName: 'Test',
     lastName: 'Secretary',

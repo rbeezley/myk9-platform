@@ -58,7 +58,6 @@ jobs:
           # the run. Safe to land before the secrets exist; without these lines
           # the accounts are skipped even once they do (MYK9-141, MYK9-137).
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMPTY_PASSWORD: ${{ secrets.E2E_JUDGE_EMPTY_PASSWORD }}
 
       # The regression suite spans secretary, admin, judge, and demo-exhibitor
       # journeys, so preflight every role before starting the browser suite.
@@ -102,7 +101,6 @@ jobs:
           # No *_EMAIL companions on purpose — both addresses are hard-coded in the
           # seeds, so an override could only point at an ungranted account.
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMPTY_PASSWORD: ${{ secrets.E2E_JUDGE_EMPTY_PASSWORD }}
 
       - name: Preserve first regression report
         if: always()
@@ -125,7 +123,6 @@ jobs:
           # needs the same optional secrets as `prepare` or the second regression
           # pass runs against a database missing these two accounts.
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMPTY_PASSWORD: ${{ secrets.E2E_JUDGE_EMPTY_PASSWORD }}
 
       - name: Run Playwright Regression Again
         if: success()
@@ -143,7 +140,6 @@ jobs:
           E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMPTY_PASSWORD: ${{ secrets.E2E_JUDGE_EMPTY_PASSWORD }}
 
       - name: Upload Playwright regression reports
         if: always()

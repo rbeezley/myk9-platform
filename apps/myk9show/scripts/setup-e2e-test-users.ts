@@ -65,51 +65,32 @@ type TestUserResult =
 
 const CANONICAL_TEST_USERS: TestUser[] = [
   {
-    email: 'e2e-exhibitor@test.myk9.com',
+    email: 'exhibitor@myk9t.com',
     passwordEnv: 'E2E_DEMO_EXHIBITOR_PASSWORD',
     firstName: 'Test',
     lastName: 'Exhibitor',
     roles: ['exhibitor'],
   },
   {
-    email: 'e2e-secretary@test.myk9.com',
+    email: 'secretary@myk9t.com',
     passwordEnv: 'E2E_SECRETARY_PASSWORD',
     firstName: 'Test',
     lastName: 'Secretary',
     roles: ['secretary', 'steward', 'exhibitor'],
   },
   {
-    email: 'e2e-judge@test.myk9.com',
+    email: 'judge@myk9t.com',
     passwordEnv: 'E2E_JUDGE_PASSWORD',
     firstName: 'Test',
     lastName: 'Judge',
     roles: ['judge'],
   },
-  // Empty-assignment judge subject (MYK9-141). OPTIONAL for the same reason as
-  // e2e-club-admin below, and it was misfiled as required: E2E_JUDGE_EMPTY_PASSWORD
-  // is set in no workflow and in no .env.local, so `planAccountProvisioning` put it
-  // in missingRequired and this script exit(1)'d before provisioning ANY account.
-  // Since scripts/qa/isolated-e2e-lifecycle.ts runs it (line ~226), that took the
-  // whole isolated run down over an account nothing had a secret for.
-  //
-  // LOCAL-ONLY UNTIL WIRED, same as the club admin: creating the GitHub secret is
-  // not sufficient, because no workflow forwards E2E_JUDGE_EMPTY_PASSWORD to the
-  // isolated-lifecycle steps. Until .github/workflows also passes it, the account
-  // is skipped in CI and the empty-dashboard case runs only on a developer machine.
   {
-    email: 'e2e-judge-empty@test.myk9.com',
-    passwordEnv: 'E2E_JUDGE_EMPTY_PASSWORD',
-    firstName: 'Test',
-    lastName: 'Judge No Assignments',
-    roles: ['judge'],
-    optional: true,
-  },
-  {
-    email: 'e2e-admin@test.myk9.com',
+    email: 'testadmin@myk9t.com',
     passwordEnv: 'E2E_ADMIN_PASSWORD',
     firstName: 'Test',
     lastName: 'Admin',
-    roles: ['site_admin', 'secretary', 'club_admin', 'chairman', 'exhibitor'],
+    roles: ['site_admin', 'secretary', 'club_admin', 'exhibitor'],
   },
   // Club-scoped authority with NO site-wide role (MYK9-137). e2e-admin above is
   // both a site_admin and a club_admin, and every club gate is a disjunction
@@ -127,11 +108,34 @@ const CANONICAL_TEST_USERS: TestUser[] = [
   // Deliberately not done here — the seed and fixture halves are the parts that
   // can be reviewed without a secret in hand.
   {
-    email: 'e2e-club-admin@test.myk9.com',
+    email: 'clubadmin@myk9t.com',
     passwordEnv: 'E2E_CLUB_ADMIN_PASSWORD',
     firstName: 'Test',
     lastName: 'Club Admin',
     roles: ['club_admin'],
+    optional: true,
+  },
+  // Chairman-only actor, split off testadmin 2026-08-23 for the same reason the
+  // club admin was split off it: testadmin holds site_admin, so it clears a role
+  // gate through the wrong branch and can never demonstrate chairman scoping.
+  // Optional on the same terms — no workflow forwards E2E_CHAIRMAN_PASSWORD yet.
+  {
+    email: 'chairman@myk9t.com',
+    passwordEnv: 'E2E_CHAIRMAN_PASSWORD',
+    firstName: 'Test',
+    lastName: 'Chairman',
+    roles: ['chairman'],
+    optional: true,
+  },
+  // Second exhibitor. The auth user already exists (migration 152, id a1000002…)
+  // but held no roles; this gives it the exhibitor grant so two-exhibitor flows
+  // have a real second actor rather than a bare auth row.
+  {
+    email: 'exhibitor2@myk9t.com',
+    passwordEnv: 'E2E_EXHIBITOR2_PASSWORD',
+    firstName: 'Second',
+    lastName: 'Exhibitor',
+    roles: ['exhibitor'],
     optional: true,
   },
 ];

@@ -49,11 +49,11 @@ describe('seed-demo officials + RBAC completeness contract', () => {
   // Every role whose golden path the demo must support has an idempotent grant.
   // (secretary/club_admin existed before; judge/steward/chairman were the gap.)
   const grantedRoles: Array<{ role: string; emails: string[] }> = [
-    { role: 'secretary', emails: ['e2e-secretary@test.myk9.com'] },
-    { role: 'club_admin', emails: ['e2e-admin@test.myk9.com'] },
-    { role: 'judge', emails: ['e2e-judge@test.myk9.com'] },
-    { role: 'steward', emails: ['e2e-secretary@test.myk9.com'] },
-    { role: 'chairman', emails: ['e2e-admin@test.myk9.com'] },
+    { role: 'secretary', emails: ['secretary@myk9t.com'] },
+    { role: 'club_admin', emails: ['testadmin@myk9t.com'] },
+    { role: 'judge', emails: ['judge@myk9t.com'] },
+    { role: 'steward', emails: ['secretary@myk9t.com'] },
+    { role: 'chairman', emails: ['testadmin@myk9t.com'] },
   ];
 
   it.each(grantedRoles)(
@@ -80,9 +80,9 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     }
     // The new judge/steward accounts must be in the non-null auth_user_id guard.
     for (const email of [
-      'e2e-admin@test.myk9.com',
-      'e2e-judge@test.myk9.com',
-      'e2e-secretary@test.myk9.com',
+      'testadmin@myk9t.com',
+      'judge@myk9t.com',
+      'secretary@myk9t.com',
     ]) {
       expect(seed).toContain(email);
     }
@@ -95,7 +95,7 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     // A judge_number per demo judge.
     expect(seed).toContain("'AKC-SW-1002'");
     // The canonical judge account gets a qualification row.
-    expect(seed).toContain('e2e-judge@test.myk9.com');
+    expect(seed).toContain('judge@myk9t.com');
     // The two fixed qualification ids.
     expect(seed).toContain('dededede-0000-0000-0000-000000000092');
   });
@@ -133,23 +133,18 @@ describe('seed-demo officials + RBAC completeness contract', () => {
     }
 
     // The canonical judge gets class-level rows.
-    expect(insertCols).toContain('e2e-judge@test.myk9.com');
+    expect(insertCols).toContain('judge@myk9t.com');
     expect(seed).toContain('dededede-0000-0000-0000-0000000000b5');
   });
 
-  it('provides assigned, unassigned, and no-assignment judge subjects', () => {
-    expect(setupSource).toMatch(
-      /email: 'e2e-judge-empty@test\.myk9\.com',[\s\S]*?passwordEnv: 'E2E_JUDGE_EMPTY_PASSWORD',[\s\S]*?roles: \['judge'\]/
-    );
-
+  it('provides both assigned and unassigned judge subjects', () => {
     const assignmentBlock = seed.slice(
       seed.indexOf('INSERT INTO public.judge_assignments'),
       seed.indexOf('-- 12. GAP FIXTURE', seed.indexOf('INSERT INTO public.judge_assignments'))
     );
 
-    expect(assignmentBlock).toContain('e2e-judge@test.myk9.com');
+    expect(assignmentBlock).toContain('judge@myk9t.com');
     expect(assignmentBlock).toContain('dec1a55e-0000-0000-0000-000000000031');
-    expect(assignmentBlock).not.toContain('e2e-judge-empty@test.myk9.com');
     expect(seed).toContain('dec1a55e-0000-0000-0000-000000000036');
     expect(assignmentBlock).not.toContain('dec1a55e-0000-0000-0000-000000000036');
   });
@@ -163,20 +158,20 @@ describe('seed-demo officials + RBAC completeness contract', () => {
 // exhibitor clears an exhibitor gate through the exhibitor grant.
 //
 // These pin the section 10g exclusivity step. Verified non-vacuous by mutation:
-// deleting the 10f block, widening its email list to e2e-secretary, dropping the
-// `r.name <> 'judge'` term, and re-declaring the judge fixture as
-// `['judge', 'exhibitor']` each fail at least one assertion here.
+// widening its email list to secretary@myk9t.com, dropping the `r.name <> 'judge'`
+// term, and re-declaring the judge fixture as `['judge', 'exhibitor']` each fail
+// at least one assertion here.
 describe('judge fixture exclusivity contract (MYK9-141)', () => {
   const seed = readSeed();
-  const JUDGE_FIXTURE_EMAILS = ['e2e-judge@test.myk9.com', 'e2e-judge-empty@test.myk9.com'];
+  const JUDGE_FIXTURE_EMAILS = ['judge@myk9t.com'];
   // Accounts that are deliberately multi-role. e2e-secretary is
   // secretary+steward+exhibitor and e2e-admin is site_admin+4; a widened WHERE
-  // clause in 10f would silently destroy both.
+  // clause in 10g would silently destroy both.
   const MULTI_ROLE_FIXTURE_EMAILS = [
-    'e2e-secretary@test.myk9.com',
-    'e2e-admin@test.myk9.com',
-    'e2e-exhibitor@test.myk9.com',
-    'e2e-club-admin@test.myk9.com',
+    'secretary@myk9t.com',
+    'testadmin@myk9t.com',
+    'exhibitor@myk9t.com',
+    'clubadmin@myk9t.com',
   ];
 
   function readExclusivityBlock(): string {
@@ -187,37 +182,17 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
     return seed.slice(start, end);
   }
 
-  // An exclusivity sweep on an account that was never GRANTED anything leaves it
-  // with no roles at all, which is worse than the drift it fixes: the fixture
-  // authenticates and then 403s, so the empty-dashboard case is unreachable.
-  // e2e-judge-empty was declared in three TS files and granted in none (caught in
-  // Codex review of #1626), so both halves have to be pinned together.
-  it('grants the empty-assignment fixture the judge role it is swept down to', () => {
-    const start = seed.indexOf('-- 10f. judge -> e2e-judge-empty@test.myk9.com');
-    expect(start).toBeGreaterThan(-1);
-    const block = seed.slice(start, seed.indexOf('-- 10g. JUDGE FIXTURE EXCLUSIVITY', start));
-
-    // Same revoke-safe reactivate-then-insert shape as every grant above.
-    expect(block).toContain(
-      'SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL'
-    );
-    expect(block).toContain('INSERT INTO public.user_roles');
-    expect(block).toMatch(/r\.name = 'judge'/);
-    expect(block).toContain(HEARTLAND_CLUB_ID);
-
-    // Provisioning needs an Auth user (E2E_JUDGE_EMPTY_PASSWORD). Without the
-    // guard an unprovisioned account would insert a NULL auth_user_id row.
-    expect(block).toContain('p.auth_user_id IS NOT NULL');
-  });
-
-  // Both optional accounts (10e club admin, 10f empty judge) exist only where a
-  // secret provisioned their Auth user. Their INSERT halves have always required
-  // an auth id; their REACTIVATE halves did not, so a stale people row left by a
-  // wiped auth.users would be flipped to an active grant nobody can sign into
-  // (Codex review, #1626). Asserted over both blocks, not just the new one.
+  // The optional accounts exist only where a secret provisioned their Auth user.
+  // Their INSERT halves have always required an auth id; their REACTIVATE halves
+  // did not, so a stale people row left by a wiped auth.users would be flipped to
+  // an active grant nobody can sign into (Codex review, #1626).
+  //
+  // 10d joined this set on 2026-08-23 when chairman moved onto its own optional
+  // account; 10f (the empty-assignment judge) left it when that fixture was
+  // deleted, no spec having ever signed in as it.
   it.each([
-    { label: '10e club admin', marker: '-- 10e.', next: '-- 10f.' },
-    { label: '10f empty judge', marker: '-- 10f. judge -> e2e-judge-empty', next: '-- 10g.' },
+    { label: '10d chairman', marker: '-- 10d.', next: '-- 10e.' },
+    { label: '10e club admin', marker: '-- 10e.', next: '-- 10g.' },
   ])('guards the $label reactivate half against a null auth identity', ({ marker, next }) => {
     const start = seed.indexOf(marker);
     expect(start).toBeGreaterThan(-1);
@@ -233,7 +208,7 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
   // script — and scripts/qa/isolated-e2e-lifecycle.ts runs it, so one unprovisioned
   // account takes down provisioning for ALL of them. e2e-judge-empty was filed as
   // required with its secret defined nowhere (fourth Codex round on #1626).
-  it.each(['e2e-judge-empty@test.myk9.com', 'e2e-club-admin@test.myk9.com'])(
+  it.each(['clubadmin@myk9t.com', 'chairman@myk9t.com', 'exhibitor2@myk9t.com'])(
     'declares %s optional so a missing secret skips it instead of aborting',
     email => {
       const entry = setupSource.slice(
@@ -265,37 +240,10 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
     }
   });
 
-  it('provisions the empty-assignment fixture in the isolated account seed too', () => {
-    // seed-demo runs against the shared/demo database; the isolated Playwright
-    // lifecycle seeds its own disposable one from this second file. A fixture
-    // present in only one of them works in exactly one environment.
-    const isolated = readFileSync(
-      join(repoRoot, 'supabase/seed-isolated-e2e-accounts.sql'),
-      'utf8'
-    );
-
-    // people rows (reactivate + insert), the judge grant, and the onboarding
-    // bypass — without the last one the account lands on the first-run wizard
-    // instead of the judge dashboard.
-    expect(isolated).toMatch(
-      /\('e2e-judge-empty@test\.myk9\.com', 'Test', 'Judge No Assignments'\),/
-    );
-    expect(isolated).toMatch(/\('e2e-judge-empty@test\.myk9\.com', 'judge'\),/);
-    expect(isolated).toContain("  'e2e-judge-empty@test.myk9.com',\n");
-
-    // Absent from the hard count assertion on purpose: like the club admin, this
-    // account is optional, and a run without its secret must still seed.
-    const countGuard = isolated.slice(
-      isolated.indexOf('SELECT count(*)'),
-      isolated.indexOf('END\n$$;')
-    );
-    expect(countGuard).not.toContain('e2e-judge-empty@test.myk9.com');
-  });
-
-  it('deactivates every non-judge grant held by the judge fixture accounts', () => {
+  it('deactivates every non-judge grant held by the judge fixture account', () => {
     const block = readExclusivityBlock();
 
-    // Deactivate, not DELETE — 10b/10f reactivate their own rows, so ordering is
+    // Deactivate, not DELETE — 10b reactivates its own row, so ordering is
     // not load-bearing and the seed stays revoke-safe.
     expect(block).toContain('SET is_active = false');
     expect(block).not.toContain('DELETE FROM public.user_roles');
@@ -312,7 +260,7 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
     }
   });
 
-  it('never widens the deactivation past the two judge fixtures', () => {
+  it('never widens the deactivation past the judge fixture', () => {
     const block = readExclusivityBlock();
 
     for (const email of MULTI_ROLE_FIXTURE_EMAILS) {
@@ -323,24 +271,19 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
     expect(block).toMatch(/lower\(p\.email\)\s+IN\s*\(/);
   });
 
-  // The fixture files claim `roles: ['judge']`. 10f is what makes the claim true,
+  // The fixture files claim `roles: ['judge']`. 10b is what makes the claim true,
   // so if a fixture ever adds a second role the seed would silently revoke it at
   // the next reseed — the declarations and the seed must move together.
   const judgeFixtureSources: Array<{ label: string; path: string; pattern: RegExp }> = [
     {
       label: 'e2e fixture (test-users.ts)',
       path: 'apps/myk9show/src/test/e2e/fixtures/test-users.ts',
-      pattern: /email: 'e2e-judge@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
-    },
-    {
-      label: 'e2e fixture (test-users.ts, empty-assignment account)',
-      path: 'apps/myk9show/src/test/e2e/fixtures/test-users.ts',
-      pattern: /email: 'e2e-judge-empty@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
+      pattern: /email: 'judge@myk9t\.com',[\s\S]{0,240}?roles: \['judge'\],/,
     },
     {
       label: 'provisioning script (setup-e2e-test-users.ts)',
       path: 'apps/myk9show/scripts/setup-e2e-test-users.ts',
-      pattern: /email: 'e2e-judge@test\.myk9\.com',[\s\S]{0,240}?roles: \['judge'\],/,
+      pattern: /email: 'judge@myk9t\.com',[\s\S]{0,240}?roles: \['judge'\],/,
     },
   ];
 
@@ -360,5 +303,58 @@ describe('judge fixture exclusivity contract (MYK9-141)', () => {
     ]) {
       expect(readFileSync(join(repoRoot, path), 'utf8')).toContain('MYK9-141');
     }
+  });
+});
+
+// The chairman fixture was split off testadmin on 2026-08-23. testadmin holds
+// site_admin, so a chairman grant riding on it clears a chairman gate through the
+// wrong branch — the same vacuity 10e documents for club scoping, and the same
+// reason the club admin was split off it earlier.
+//
+// This block exists because a mutation proved the split was UNPINNED: moving the
+// 10d grant back onto testadmin passed all 37 assertions. The address rename was
+// covered; the role relocation, which is the part that changes behaviour, was not.
+describe('chairman fixture is its own account (not testadmin)', () => {
+  const seed = readSeed();
+
+  function readChairmanGrantBlock(): string {
+    const start = seed.indexOf('-- 10d.');
+    expect(start).toBeGreaterThan(-1);
+    const end = seed.indexOf('-- 10e.', start);
+    expect(end).toBeGreaterThan(start);
+    return seed.slice(start, end);
+  }
+
+  it('grants chairman to the chairman account and to no other', () => {
+    const block = readChairmanGrantBlock();
+
+    expect(block).toMatch(/r\.name = 'chairman'/);
+    // Asserted over the addresses the block NAMES rather than over an absence:
+    // `not.toContain('testadmin')` alone would also pass on a seed that stopped
+    // granting chairman to anybody, which is the failure this pins.
+    const granteeAddresses = new Set(
+      Array.from(block.matchAll(/lower\(p\.email\) = '([^']+)'/g), match => match[1])
+    );
+    expect([...granteeAddresses]).toEqual(['chairman@myk9t.com']);
+  });
+
+  it('does not hand chairman to the site admin anywhere in the seed', () => {
+    // Scoped to grant statements: the 10d prose explains the split and names
+    // testadmin, which is intentional and must not fail this.
+    const grantPairs = Array.from(
+      seed.matchAll(/r\.name = '([a-z_]+)'[\s\S]{0,200}?lower\(p\.email\) = '([^']+)'/g),
+      match => `${match[2]}:${match[1]}`
+    );
+    expect(grantPairs).not.toContain('testadmin@myk9t.com:chairman');
+  });
+
+  it('declares chairman as its own optional fixture in the provisioning script', () => {
+    expect(setupSource).toMatch(
+      /email: 'chairman@myk9t\.com',[\s\S]{0,240}?roles: \['chairman'\],/
+    );
+    // testadmin keeps site_admin, club_admin and exhibitor — only chairman moved.
+    expect(setupSource).toMatch(
+      /email: 'testadmin@myk9t\.com',[\s\S]{0,240}?roles: \['site_admin', 'secretary', 'club_admin', 'exhibitor'\],/
+    );
   });
 });

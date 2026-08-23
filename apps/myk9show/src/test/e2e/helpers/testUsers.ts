@@ -42,14 +42,14 @@ export const TEST_USERS: Record<string, TestUser> = {
     email: process.env.E2E_ADMIN_EMAIL ?? '',
     password: process.env.E2E_ADMIN_PASSWORD ?? '',
     role: 'site_admin',
-    description: 'Site administrator — e2e-admin@test.myk9.com, rotated 2026-06-18',
+    description: 'Site administrator — testadmin@myk9t.com, rotated 2026-06-18',
   },
 
   SECRETARY: {
     email: process.env.E2E_SECRETARY_EMAIL ?? '',
     password: process.env.E2E_SECRETARY_PASSWORD ?? '',
     role: 'secretary',
-    description: 'Show secretary — e2e-secretary@test.myk9.com, rotated 2026-06-18',
+    description: 'Show secretary — secretary@myk9t.com, rotated 2026-06-18',
   },
 
   // JUDGE-ONLY, and the "only" is load-bearing (MYK9-141). A judge that also
@@ -65,17 +65,7 @@ export const TEST_USERS: Record<string, TestUser> = {
     email: process.env.E2E_JUDGE_EMAIL ?? '',
     password: process.env.E2E_JUDGE_PASSWORD ?? '',
     role: 'judge',
-    description: 'Show judge — e2e-judge@test.myk9.com, rotated 2026-06-18',
-  },
-
-  // Same judge-only invariant, zero assignments — the empty-dashboard subject.
-  // No E2E_JUDGE_EMPTY_EMAIL override: the address is hard-coded in seed-demo.sql
-  // section 10f (its judge grant) and 10g (its exclusivity).
-  JUDGE_WITHOUT_ASSIGNMENTS: {
-    email: 'e2e-judge-empty@test.myk9.com',
-    password: process.env.E2E_JUDGE_EMPTY_PASSWORD ?? '',
-    role: 'judge',
-    description: 'Isolated judge-only account with no assignments',
+    description: 'Show judge — judge@myk9t.com, rotated 2026-06-18',
   },
 
   // Club-scoped authority ONLY — no site_admin. Kept distinct from SITE_ADMIN on
@@ -87,14 +77,14 @@ export const TEST_USERS: Record<string, TestUser> = {
   // is where the club_admin grant comes from. An override could only ever point at
   // an account that was never granted anything.
   CLUB_ADMIN: {
-    email: 'e2e-club-admin@test.myk9.com',
+    email: 'clubadmin@myk9t.com',
     password: process.env.E2E_CLUB_ADMIN_PASSWORD ?? '',
     role: 'club_admin',
     description: 'Club-admin-only account, scoped to Heartland — holds no site-wide role',
   },
 
   EXHIBITOR: {
-    email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com',
+    email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'exhibitor@myk9t.com',
     password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
     description: 'Compatibility alias for DEMO_EXHIBITOR',
@@ -103,7 +93,7 @@ export const TEST_USERS: Record<string, TestUser> = {
   // Canonical exhibitor login with seeded dogs (Willow, Ranger, Juniper).
   // Protected from DB wipes. Use this account for authenticated exhibitor tests.
   DEMO_EXHIBITOR: {
-    email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com',
+    email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'exhibitor@myk9t.com',
     password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
     description: 'Canonical exhibitor with seeded dogs — protected from wipes',

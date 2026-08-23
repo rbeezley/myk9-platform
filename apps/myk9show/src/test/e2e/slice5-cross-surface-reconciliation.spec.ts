@@ -37,7 +37,7 @@ import { signInAsTestUser } from './helpers/testUsers';
 const EVIDENCE_DIR = process.env.SLICE5_EVIDENCE_DIR ?? 'test-results/slice5-evidence';
 
 /**
- * Seeded ground truth for e2e-exhibitor@test.myk9.com, read from staging while
+ * Seeded ground truth for exhibitor@myk9t.com, read from staging while
  * writing this spec. Recorded so fixture drift fails the spec loudly rather
  * than letting it assert against whatever it happens to find.
  */

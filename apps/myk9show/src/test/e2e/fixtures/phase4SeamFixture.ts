@@ -204,14 +204,14 @@ function seedState(): Phase4SeamState {
   const secretary: FixtureUser = {
     id: PHASE4_IDS.secretary,
     personId: 'phase4-person-secretary',
-    email: 'e2e-secretary@test.myk9.com',
+    email: 'secretary@myk9t.com',
     name: 'Sam Secretary',
     role: 'secretary',
   };
   const exhibitorA: FixtureUser = {
     id: PHASE4_IDS.exhibitorA,
     personId: PHASE4_IDS.personA,
-    email: 'e2e-exhibitor@test.myk9.com',
+    email: 'exhibitor@myk9t.com',
     name: 'Alice Martin',
     role: 'exhibitor',
   };

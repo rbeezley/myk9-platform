@@ -27,7 +27,7 @@ const EVIDENCE_DIR = process.env.SLICE3B_EVIDENCE_DIR ?? 'test-results/slice3b-e
 /** The one project allowed to mutate the shared staging exhibitor. */
 const EVIDENCE_PROJECT = process.env.SLICE3B_EVIDENCE_PROJECT ?? 'chromium';
 
-const EXHIBITOR_EMAIL = process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'e2e-exhibitor@test.myk9.com';
+const EXHIBITOR_EMAIL = process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'exhibitor@myk9t.com';
 
 const GRANT_REASON = 'Slice 3B staging evidence run (task 5.8)';
 const REVOKE_REASON = 'Slice 3B staging evidence run complete';

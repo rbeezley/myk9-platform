@@ -5,7 +5,7 @@ import { signInAsAdmin } from '../helpers/testUsers';
  * Suite category: feature-audit.
  *
  * Club-admin journey beyond CRUD (MYK9-42): membership, officer staffing, and
- * payments. The canonical e2e admin account (e2e-admin@test.myk9.com) holds
+ * payments. The canonical e2e admin account (testadmin@myk9t.com) holds
  * the club_admin RBAC grant (supabase/seed-demo.sql section 10: "e2e-admin
  * holds the chairman grant" and the club_admin role is granted to the same
  * account), so signInAsAdmin reaches /club-admin/*.

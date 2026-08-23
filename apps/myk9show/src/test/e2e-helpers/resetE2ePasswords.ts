@@ -29,22 +29,22 @@ const CANONICAL_ROLES: Record<string, RoleEnvSpec> = {
   admin: {
     emailVar: 'E2E_ADMIN_EMAIL',
     passwordVar: 'E2E_ADMIN_PASSWORD',
-    defaultEmail: 'e2e-admin@test.myk9.com',
+    defaultEmail: 'testadmin@myk9t.com',
   },
   secretary: {
     emailVar: 'E2E_SECRETARY_EMAIL',
     passwordVar: 'E2E_SECRETARY_PASSWORD',
-    defaultEmail: 'e2e-secretary@test.myk9.com',
+    defaultEmail: 'secretary@myk9t.com',
   },
   judge: {
     emailVar: 'E2E_JUDGE_EMAIL',
     passwordVar: 'E2E_JUDGE_PASSWORD',
-    defaultEmail: 'e2e-judge@test.myk9.com',
+    defaultEmail: 'judge@myk9t.com',
   },
   exhibitor: {
     emailVar: 'E2E_DEMO_EXHIBITOR_EMAIL',
     passwordVar: 'E2E_DEMO_EXHIBITOR_PASSWORD',
-    defaultEmail: 'e2e-exhibitor@test.myk9.com',
+    defaultEmail: 'exhibitor@myk9t.com',
   },
 };
 

@@ -79,32 +79,36 @@ export const RESPONSIVE_CLASSES: Record<ResponsiveBreakpoint, string> = {
 };
 
 /**
- * Shared half of the left-pin. `bg-card` has to be opaque or the columns
- * scrolling underneath show straight through the pinned cell; the row's own
- * translucent tint is then re-applied by the `::before` overlay below, which
- * `-z-10` inside the cell's own stacking context paints ABOVE the cell
- * background and BELOW the cell content. `isolate` guarantees that stacking
- * context exists even if a caller overrides the z-index.
+ * Shared half of the left-pin. The pinned cell has to be opaque or the columns
+ * scrolling underneath show straight through it, and `bg-card` is the surface
+ * the table itself sits on, so it matches both the header row and an unselected
+ * body row exactly. The `::after` hairline is the only cue that the column is
+ * pinned rather than merely first, so it is part of the contract.
  *
- * The `::after` hairline is the only cue that the column is pinned rather than
- * simply first, so it is part of the contract, not decoration.
+ * Deliberately no `/opacity` modifier anywhere. `muted`, `border` and `card`
+ * are declared as bare `var(--…)` in `tailwind.config.js`, and Tailwind cannot
+ * apply an opacity modifier to those — it silently emits NOTHING for
+ * `bg-muted/30` or `border-border/50`. (`src/index.css` hand-writes
+ * `color-mix()` rules for a fixed list of `primary` opacities for exactly this
+ * reason, and that list covers no other token.) A tinted overlay here would
+ * therefore not render at all, while the surrounding row's own translucent
+ * classes — which are inert for the same reason — would keep looking the way
+ * they do today. Matching the surface is both simpler and honest.
  */
 const STICKY_LEFT_BASE =
-  "sticky left-0 isolate bg-card before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:content-[''] " +
-  "after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/50 after:content-['']";
+  'sticky left-0 bg-card ' +
+  "after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border after:content-['']";
 
-/** Left-pin classes for a header cell — mirrors the header row's own tint. */
-export const STICKY_LEFT_HEADER_CLASSES = `${STICKY_LEFT_BASE} z-20 before:bg-muted/30`;
+/** Left-pin classes for a header cell. */
+export const STICKY_LEFT_HEADER_CLASSES = `${STICKY_LEFT_BASE} z-20`;
 
 /**
- * Left-pin classes for a body cell. The row tint is a hover/selected state on
- * the `<tr>`, so the pinned cell has to mirror it through the row's named
- * group — otherwise the pinned column stays flat while the rest of the row
- * highlights.
+ * Left-pin classes for a body cell. A selected row paints `bg-muted` on the
+ * `<tr>`, which an opaque pinned cell would otherwise cover, so it mirrors that
+ * one state through the row's named group.
  */
 export const STICKY_LEFT_BODY_CLASSES =
-  `${STICKY_LEFT_BASE} z-10 group-hover/row:before:bg-muted/20 ` +
-  'group-data-[state=selected]/row:before:bg-muted';
+  `${STICKY_LEFT_BASE} z-10 group-data-[state=selected]/row:bg-muted`;
 
 /**
  * Resolve the layout utilities a DataTable cell gets from its column meta.

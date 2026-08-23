@@ -32,13 +32,26 @@ describe('getColumnLayoutClasses', () => {
       expect(classes).toContain('bg-card');
     }
 
-    // The row tint differs by cell kind: a header cell carries the header
-    // row's own tint, a body cell mirrors the row's hover/selected state.
     expect(header).toBe(STICKY_LEFT_HEADER_CLASSES);
     expect(body).toBe(STICKY_LEFT_BODY_CLASSES);
-    expect(header).toContain('before:bg-muted/30');
-    expect(body).toContain('group-hover/row:before:bg-muted/20');
-    expect(header).not.toContain('group-hover/row');
+    // Only a body cell can sit in a selected row, and an opaque pin would
+    // otherwise cover that row's own background.
+    expect(body).toContain('group-data-[state=selected]/row:bg-muted');
+    expect(header).not.toContain('group-data-');
+  });
+
+  // Verified against a real Tailwind build of this app: `muted`, `border` and
+  // `card` are bare `var(--…)` values, so Tailwind emits NOTHING at all for
+  // `bg-muted/30` or `border-border/50` — the utility silently does not exist.
+  // (`src/index.css` hand-writes `color-mix()` rules for a fixed list of
+  // `primary` opacities precisely because of this, and covers no other token.)
+  // A pin styled with one would look unstyled in the browser while every test
+  // that only inspected class strings stayed green.
+  it('uses no opacity modifier, which would compile to nothing for these tokens', () => {
+    for (const classes of [STICKY_LEFT_HEADER_CLASSES, STICKY_LEFT_BODY_CLASSES]) {
+      const withOpacity = classes.split(' ').filter(c => /\/\d/.test(c));
+      expect(withOpacity).toEqual([]);
+    }
   });
 
   it('combines both when a column is pinned and responsive', () => {

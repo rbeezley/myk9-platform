@@ -95,7 +95,7 @@ describe('resolveRecipients', () => {
     expect(result).toEqual([{ authUserId: 'u1', entryId: 'e2', dogsAhead: 1 }]);
   });
 
-  it('respects each watcher\'s OWN threshold', () => {
+  it("respects each watcher's OWN threshold", () => {
     const near = watcher({ authUserId: 'near', dogIds: new Set(['dog-3']), leadDogs: 1 });
     const far = watcher({ authUserId: 'far', dogIds: new Set(['dog-3']), leadDogs: 5 });
 

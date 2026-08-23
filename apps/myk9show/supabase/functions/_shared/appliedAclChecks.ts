@@ -110,6 +110,9 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_visibility_settings: 'SELECT,INSERT,UPDATE',
   shows: 'SELECT,INSERT,UPDATE,DELETE',
   sms_opt_in_attempts: '',
+  // Service-role only: the run-proximity trigger is the sole writer, and no
+  // client has any reason to read who has been texted (MYK9-193).
+  sms_proximity_sends: '',
   sport_class_rules: 'SELECT,INSERT,UPDATE,DELETE',
   sport_templates: 'SELECT,INSERT,UPDATE,DELETE',
   sport_titles: 'SELECT,INSERT,UPDATE,DELETE',

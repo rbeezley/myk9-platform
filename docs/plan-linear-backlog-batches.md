@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0, 1 and 2 complete except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. **Batch 3 is executing:** D1–D8 were all answered on 2026-08-22 as recommended, D7 is recorded on MYK9-195, and Lanes 3A and 3B are in flight. See **"[RESOLVED 2026-08-22] All eight decisions answered"** under Batch 3.
+> **Status:** Active — Batches 0, 1, 2 and **3 are complete** except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 closed on 2026-08-23: eight issues Done, MYK9-195 and MYK9-190 parked with triggers recorded, three follow-ups filed (MYK9-237/238/239). SMS is deferred until after launch by product-owner decision. **Next up: Batch 4 (closure proofs), then Batch 5.** See **"[CLOSED 2026-08-23] Batch 3 is complete"** under Batch 3.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -17,7 +17,7 @@ PRIMARY:MYK9-225=batch-1-lane-1b
 PRIMARY:MYK9-226=batch-1-lane-1g
 PRIMARY:MYK9-227=deferred-ring-sport-trigger
 PRIMARY:MYK9-228=batch-0.5-active
-PRIMARY:MYK9-229=decision-d8-batch-3-lane-3a-step-2
+PRIMARY:MYK9-229=completed-batch-3-lane-3a-step-2
 PRIMARY:MYK9-230=batch-2-lane-2d-step-2
 PRIMARY:MYK9-231=batch-2-lane-2d-step-3
 PRIMARY:MYK9-232=batch-2-lane-2d-step-1
@@ -25,14 +25,14 @@ PRIMARY:MYK9-224=batch-0-deploy
 PRIMARY:MYK9-161=batch-0-deploy
 PRIMARY:MYK9-26=batch-0-current-scope-plus-deferred-remainder
 PRIMARY:MYK9-199=batch-0-deploy
-PRIMARY:MYK9-195=decision-d7
+PRIMARY:MYK9-195=parked-per-decision-d7
 PRIMARY:MYK9-126=batch-5-final-resilience-g9
 PRIMARY:MYK9-110=batch-5-post-launch-pitr
-PRIMARY:MYK9-222=batch-3-lane-3c
-PRIMARY:MYK9-218=batch-3-lane-3c
-PRIMARY:MYK9-221=batch-3-lane-3b
-PRIMARY:MYK9-220=batch-3-lane-3d
-PRIMARY:MYK9-219=batch-3-lane-3c
+PRIMARY:MYK9-222=completed-batch-3-lane-3c
+PRIMARY:MYK9-218=completed-batch-3-lane-3c
+PRIMARY:MYK9-221=completed-batch-3-lane-3b
+PRIMARY:MYK9-220=completed-batch-3-lane-3d
+PRIMARY:MYK9-219=completed-batch-3-lane-3c
 PRIMARY:MYK9-212=batch-1-lane-1f
 PRIMARY:MYK9-217=batch-2-lane-2a-step-3
 PRIMARY:MYK9-216=batch-2-lane-2a-step-2
@@ -41,16 +41,19 @@ PRIMARY:MYK9-209=batch-1-lane-1e
 PRIMARY:MYK9-204=batch-2-lane-2c-plus-operator-track-2
 PRIMARY:MYK9-11=operator-track-6
 PRIMARY:MYK9-192=batch-2-lane-2b-step-2
-PRIMARY:MYK9-197=batch-3-lane-3a
+PRIMARY:MYK9-197=completed-batch-3-lane-3a
 PRIMARY:MYK9-191=batch-2-lane-2b-step-1
-PRIMARY:MYK9-187=operator-track-1
-PRIMARY:MYK9-190=operator-track-1
+PRIMARY:MYK9-187=parked-sms-deferred-post-launch
+PRIMARY:MYK9-190=parked-sms-deferred-post-launch
 PRIMARY:MYK9-185=operator-track-4
 PRIMARY:MYK9-193=batch-2-lane-2b-step-3
+PRIMARY:MYK9-237=batch-3-followup-filed
+PRIMARY:MYK9-238=batch-3-followup-filed
+PRIMARY:MYK9-239=batch-3-followup-filed
 PRIMARY:MYK9-186=operator-track-4
-PRIMARY:MYK9-189=operator-track-1
+PRIMARY:MYK9-189=completed-operator-track-1
 PRIMARY:MYK9-44=deferred
-PRIMARY:MYK9-188=operator-track-1
+PRIMARY:MYK9-188=parked-sms-deferred-post-launch
 PRIMARY:MYK9-184=operator-track-3
 PRIMARY:MYK9-183=operator-track-3
 PRIMARY:MYK9-31=deferred
@@ -342,6 +345,52 @@ Richard answered D1–D8 in one pass. **Every decision came back as the plan's r
 
 **The Batch 2 standing gate carries forward:** adversarial subagent review on every PR, and run the mutation on every test. Both earned their cost four times over in Batch 2 — a test that cannot fail will certify a no-op as a fix.
 
+### [CLOSED 2026-08-23] Batch 3 is complete
+
+Every lane landed, deployed and was verified against staging. **Eight issues reached Done**; two are parked with explicit triggers; three follow-ups were filed rather than absorbed.
+
+| Issue | Disposition | Evidence |
+| --- | --- | --- |
+| [MYK9-221](https://linear.app/myk9-platform/issue/MYK9-221) URL filters | Done | [#1761](https://github.com/rbeezley/myk9-platform/pull/1761) `732a4d6a0` |
+| [MYK9-197](https://linear.app/myk9-platform/issue/MYK9-197) platform fee flat + floor | Done — **migration pushed** | [#1762](https://github.com/rbeezley/myk9-platform/pull/1762) `3730dfeb6`; `20260823140000_platform_fee_flat_and_floor.sql` applied |
+| [MYK9-222](https://linear.app/myk9-platform/issue/MYK9-222) tablet table | Done | [#1763](https://github.com/rbeezley/myk9-platform/pull/1763) `be86abb1f` |
+| [MYK9-218](https://linear.app/myk9-platform/issue/MYK9-218) card pagination | Done | same PR |
+| [MYK9-219](https://linear.app/myk9-platform/issue/MYK9-219) role-aware dog card | Done | same PR |
+| [MYK9-220](https://linear.app/myk9-platform/issue/MYK9-220) type scale | Done | [#1769](https://github.com/rbeezley/myk9-platform/pull/1769) `4368b8218` |
+| [MYK9-229](https://linear.app/myk9-platform/issue/MYK9-229) fee transparency | Done — **migration pushed, `/fees` verified signed-out** | [#1768](https://github.com/rbeezley/myk9-platform/pull/1768) `98dc60305`; `20260823160000_platform_settings_anon_fee_read.sql` applied |
+| [MYK9-189](https://linear.app/myk9-platform/issue/MYK9-189) domain + legal pages | Done | operator-verified; `/sms` and `/privacy` reachable |
+| SMS deferral | shipped | [#1766](https://github.com/rbeezley/myk9-platform/pull/1766) `8b33c2179` |
+
+**Parked, not closed.** [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) steps 3–4 (D7) — revisit when manual clawbacks stop being rare or real payout-timing data exists. [MYK9-190](https://linear.app/myk9-platform/issue/MYK9-190) Twilio brand + campaign — revisit on real exhibitor demand, per the SMS deferral below.
+
+**[DECISION 2026-08-22] SMS is deferred until after launch.** Richard's call: judge demand first, focus launch on core features. Nothing was reverted — MYK9-193's delivery path is intact and inert behind `features.smsRingAlerts = false` (`apps/myk9show/src/config/features.ts`), matching the existing kill-switch pattern. The opt-in toggle is hidden entirely and the public `/sms` page says the feature is not yet available. `push-trigger-run-proximity` remains **undeployed**. This retires the Batch 2 carry-out that had MYK9-193's deploy gated on MYK9-190: the gate is now product demand, not carrier approval. Operator track item 1 (10DLC chain) is consequently **not launch-blocking** — MYK9-187/188/190 can wait; MYK9-189 was completed anyway because the domain and legal pages matter independently of SMS.
+
+**What is live in the database after this batch** (merge is not deploy — both of these were pushed explicitly):
+
+- `platform_settings.platform_fee_flat_cents` and `platform_fee_min_cents`, `integer not null default 0`. **The mechanism ships switched off.** Turning on the decided 30¢ + $1.00 floor is a settings write, not a deploy.
+- An anon column-scoped read on the three fee columns for the public `/fees` page. Verified live: the three fee columns return `has_column_privilege('anon', …) = true`; `id`, `updated_at`, `updated_by` return `false`.
+
+**Follow-ups filed rather than absorbed:**
+
+- [MYK9-237](https://linear.app/myk9-platform/issue/MYK9-237) — four disagreeing "is this an exhibitor" predicates; a `[judge, club_admin]` user gets a truncated dog roster rendered as complete, with bulk delete enabled.
+- [MYK9-238](https://linear.app/myk9-platform/issue/MYK9-238) — Tailwind opacity modifiers on bare `var(--…)` colors compile to nothing, silently. **The deliverable is a guard, not an audit** — an inventory decays the moment someone writes the next one.
+- [MYK9-239](https://linear.app/myk9-platform/issue/MYK9-239) — delete unreachable `RegistrationConfirmationNotifications.tsx` (~590 lines).
+
+### [CARRY-OUT] What Batch 3 proved about the review gate
+
+**Codex never ran on a single PR this batch** — usage limit through 2026-08-24. Adversarial subagent review substituted, and **found something real in all eleven rounds across five PRs**. Twice the defect was inside the fix written for the previous round's defect. Do not treat that as a batch-3 anomaly; it is now the third consecutive batch with the same result.
+
+The recurring shape was never a missing test — it was **a test that could not fail**:
+
+- a kill switch whose shipped `false` default nothing asserted (flipping it to `true` passed all 53 tests);
+- a display-size cap protected only by coincidence (`5xl`→70px passed green while clipping 29px);
+- a refund clamp tested at the one input where right and wrong agree — two mutants that discarded the fee rates entirely passed all 1192 tests;
+- a signed-out check that could not distinguish success from failure, because the hardcoded fallback equalled the live value. The fix was to assert the **absence of the failure copy**, not the presence of a rate.
+
+Two defects were unreachable from the test runner at all: the scoresheet timer clipping needed a real browser measuring a real card box (the failure is at **375px**, not the 768px the first review claimed), and the inert Tailwind opacity classes needed a production build and a look at the generated CSS. Budget for both in any lane that touches layout or design tokens.
+
+
+
 Then dispatch:
 
 - **Lane 3A — financial policy, strict order.** First MYK9-197: one atomic PR across all five fee sites (`platformFee.ts`, `cartStore.helpers.ts`, `stripe-payment-link`, `stripe-webhook` ×2, `platform_settings` migration defaulting to 0) + the shared client/server agreement test (integer math, half-cent boundaries) + `formatPlatformFeeLabel` copy + admin editability. Migration follows GRANT/REVOKE + timestamp-vs-origin/main rules. Then MYK9-229 after D8: derive the approximate split from the same final `calculatePlatformFeeCents`, update cart and Stripe line-item copy, add the public fees page, and link it from cart + Club Payments. **Duplication check:** no existing public fee-explanation route was found; the new page is the one canonical shareable explanation, while Cart Summary and Club Payments only link to it rather than reimplementing the long-form content. Do not claim SMS, itemize infrastructure, or represent an estimate as an exact Stripe receipt amount.
@@ -375,7 +424,7 @@ Ten issues now require a recorded browser replay for closure, and several name v
 
 Wall-clock-bound and human-only items; agents cannot do these. PITR and the G9 rehearsal have moved to the final resilience batch by product-owner decision; this track now starts with the uncompressible external-registration work:
 
-1. **10DLC chain (start early; carrier approval is uncompressible):** [MYK9-187](https://linear.app/myk9-platform/issue/MYK9-187) EIN + legal identity → [MYK9-188](https://linear.app/myk9-platform/issue/MYK9-188) support@myk9show.com forwarding + [MYK9-189](https://linear.app/myk9-platform/issue/MYK9-189) point myk9show.com at the app (/sms, /privacy reachable) → [MYK9-190](https://linear.app/myk9-platform/issue/MYK9-190) file the Twilio brand + campaign. Gates Batch 2B's deploy.
+1. **10DLC chain — [SUPERSEDED 2026-08-22, no longer launch-blocking].** SMS is deferred until after launch, so MYK9-187 (EIN + legal identity), MYK9-188 (support@ forwarding) and MYK9-190 (file the Twilio brand + campaign) are parked on demand rather than started early. [MYK9-189](https://linear.app/myk9-platform/issue/MYK9-189) (point myk9show.com at the app, `/sms` and `/privacy` reachable) **was completed anyway** — the domain and legal pages matter independently of SMS. This no longer gates any deploy: `push-trigger-run-proximity` is dormant behind a code kill switch, not behind carrier approval.
 2. **[MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) step 1** (5 min): prune the **myK9Show dev sandbox** payment-methods config to Cards + Apple Pay + Google Pay; reload checkout on Android to confirm. Unblocks Lane 2C.
 3. **Integration configs:** [MYK9-184](https://linear.app/myk9-platform/issue/MYK9-184) two Google Maps keys + redeploy `send-confirmation-email`; [MYK9-183](https://linear.app/myk9-platform/issue/MYK9-183) Sign in with Apple.
 4. **Device verifications:** [MYK9-185](https://linear.app/myk9-platform/issue/MYK9-185) run-proximity push on a real device; [MYK9-186](https://linear.app/myk9-platform/issue/MYK9-186) calendar feed on iOS/Google/Outlook.
@@ -395,7 +444,8 @@ This is deliberately the last batch. It does not block Batches 0.5–4. Keep bot
 - [MYK9-44](https://linear.app/myk9-platform/issue/MYK9-44) staging/prod separation, [MYK9-31](https://linear.app/myk9-platform/issue/MYK9-31) judge-directory data — Wait for Launch, operator-led.
 - [MYK9-28](https://linear.app/myk9-platform/issue/MYK9-28) kill-switch removal — explicitly **post first live shows**.
 - [MYK9-26](https://linear.app/myk9-platform/issue/MYK9-26) remaining evaluation scope (standalone read-only MCP / BYOK) — post-launch by its own framing; only the Batch 0 redeploy is current.
-- [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) steps 3–4 — pending D7 (recommend defer with trigger).
+- [MYK9-195](https://linear.app/myk9-platform/issue/MYK9-195) steps 3–4 — **deferred per D7 (2026-08-22)**, parked in Backlog with both revisit triggers recorded on the issue.
+- **SMS (MYK9-190, and MYK9-187/188 upstream of it)** — deferred until after launch by product-owner decision 2026-08-22; the delivery code ships inert behind `features.smsRingAlerts`. Revisit on real exhibitor demand.
 - [MYK9-227](https://linear.app/myk9-platform/issue/MYK9-227) ring assignment — deliberately parked until a ring-using sport is actually added. Then use nullable free-text `ring_label` per class plus a sport-template `uses_rings` capability; scent work must never be asked for or display a ring.
 - [MYK9-32](https://linear.app/myk9-platform/issue/MYK9-32), [MYK9-72](https://linear.app/myk9-platform/issue/MYK9-72), [MYK9-94](https://linear.app/myk9-platform/issue/MYK9-94) — Parked by design.
 

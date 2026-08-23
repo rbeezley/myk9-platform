@@ -1,16 +1,24 @@
 import { PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import type { ReportEntry } from '@/lib/reports/types';
-import { buildEmergencyPacketModel, splitPacketInputByTrialDay } from './emergencyTrialPacket';
+import {
+  buildEmergencyPacketModel,
+  SCORE_ROWS_CONTINUATION,
+  SCORE_ROWS_FIRST_PAGE,
+  splitPacketInputByTrialDay,
+} from './emergencyTrialPacket';
 import jsPDF from 'jspdf';
 import {
   buildEmergencyTrialPacketPdf as buildEmergencyTrialPacketPdfWithCtor,
   CHECK_IN_COLUMNS,
+  DETAIL_LINE_HEIGHT,
   layoutDetailLines,
   maxDetailLinesForKind,
   MAX_EMERGENCY_PACKET_BYTES,
   MIN_BLOCK_MARGIN_MM,
+  PAGE_FOOTER_Y_MM,
   SCORE_BLOCK_HEIGHT_MM,
+  TITLE_BASE_Y,
   type JsPdfConstructor,
 } from './buildEmergencyTrialPacketPdf';
 // Exercise the APP binding, so these tests cover the same path the product
@@ -148,6 +156,22 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
     }
   }
   // jsPDF emits show-text operators as `(literal) Tj`.
+  return chunks.join('\n').replace(/\\\(/g, '(').replace(/\\\)/g, ')');
+}
+
+/**
+ * Same decode as `extractPdfText`, scoped to ONE pdf-lib page index — needed
+ * to prove a per-page header (like the armband range) carries THAT page's
+ * own numbers rather than the whole class's, which `extractPdfText`'s
+ * all-pages concatenation cannot distinguish.
+ */
+async function extractPdfTextForPage(bytes: Uint8Array, pageIndex: number): Promise<string> {
+  const pdf = await PDFDocument.load(bytes);
+  const page = pdf.getPages()[pageIndex];
+  const contents = page.node.Contents();
+  if (!contents) return '';
+  const streams = contents instanceof PDFRawStream ? [contents] : [];
+  const chunks = streams.map(stream => decodeWinAnsi(decodePDFRawStream(stream).decode()));
   return chunks.join('\n').replace(/\\\(/g, '(').replace(/\\\)/g, ')');
 }
 
@@ -625,5 +649,114 @@ describe('scoresheet per-dog block', () => {
     );
     expect(texts.some(text => text.includes('Hides:'))).toBe(false);
     expect(texts.some(text => text.includes('Distractions:'))).toBe(false);
+  });
+
+  it('prints the armband range for the entries on this page', () => {
+    // renderPageOfKind always renders exactly 2 dogs, armbands 101 and 102.
+    // The header is one wrapped line at this length, not a separate array
+    // entry, so search substrings the same way the hides/distractions
+    // assertions above do.
+    const { texts } = renderPageOfKind('score-recording');
+    expect(texts.some(text => text.includes('Armbands 101\u2013102'))).toBe(true);
+  });
+
+  it('prints a single armband, not a range, for a one-dog page', () => {
+    const input: EmergencyPacketInput = structuredClone(fixture) as EmergencyPacketInput;
+    input.trials = [input.trials[0]];
+    input.classes = [input.classes[0]];
+    input.entries = [reportEntry('solo', 'c1', 't1', 150)];
+    const model = buildEmergencyPacketModel(input);
+    const scorePage = model.pages.find(page => page.kind === 'score-recording');
+    if (!scorePage) throw new Error('expected a score-recording page');
+
+    const capturedTexts: string[] = [];
+    const RecordingJsPdf = function (options: ConstructorParameters<typeof jsPDF>[0]) {
+      const real = new jsPDF(options);
+      const originalText = real.text.bind(real);
+      (real as unknown as { text: typeof real.text }).text = ((
+        text: Parameters<typeof real.text>[0],
+        x: Parameters<typeof real.text>[1],
+        y: Parameters<typeof real.text>[2],
+        opts?: Parameters<typeof real.text>[3]
+      ) => {
+        for (const value of Array.isArray(text) ? text : [text]) capturedTexts.push(value);
+        return originalText(text, x, y, opts);
+      }) as typeof real.text;
+      return real;
+    } as unknown as JsPdfConstructor;
+
+    buildEmergencyTrialPacketPdfWithCtor(
+      { ...model, pages: [{ ...scorePage, pageNumber: 1 }] },
+      RecordingJsPdf
+    );
+
+    expect(capturedTexts.some(text => text.includes('Armband 150'))).toBe(true);
+    expect(capturedTexts.some(text => text.includes('Armbands'))).toBe(false);
+  });
+
+  /**
+   * Round-1 finding #1 (task-5 review): the previous continuation-page test
+   * asserted the `(2/3)` title suffix and the class label, but never the
+   * armband range the spec actually requires for identifying a separated
+   * page. This proves each page prints ITS OWN entries' range — not the
+   * whole class's 101-112 — by decoding each PDF page independently.
+   */
+  it('prints the armband range for the entries actually on that page, not the whole class', async () => {
+    const twelveDogClass: EmergencyPacketInput = structuredClone(fixture) as EmergencyPacketInput;
+    twelveDogClass.trials = [twelveDogClass.trials[0]];
+    twelveDogClass.classes = [twelveDogClass.classes[0]];
+    twelveDogClass.entries = Array.from({ length: 12 }, (_, index) =>
+      reportEntry(`entry-${index}`, 'c1', 't1', 101 + index)
+    );
+
+    const model = buildEmergencyPacketModel(twelveDogClass);
+    const scorePageIndexes = model.pages
+      .map((page, index) => ({ page, index }))
+      .filter(({ page }) => page.kind === 'score-recording')
+      .map(({ index }) => index);
+    // SCORE_ROWS_FIRST_PAGE = SCORE_ROWS_CONTINUATION = 5: 12 dogs -> 5, 5, 2.
+    expect(scorePageIndexes).toHaveLength(3);
+
+    const bytes = buildEmergencyTrialPacketPdf(model);
+    const [firstText, continuationText, lastText] = await Promise.all(
+      scorePageIndexes.map(index => extractPdfTextForPage(bytes, index))
+    );
+
+    expect(firstText).toContain('Armbands 101\u2013105');
+    expect(continuationText).toContain('Armbands 106\u2013110');
+    expect(lastText).toContain('Armbands 111\u2013112');
+    // Each page's range is its OWN, not the whole class's 101-112.
+    expect(firstText).not.toContain('Armbands 106');
+    expect(continuationText).not.toContain('Armbands 101');
+  });
+
+  /**
+   * Round-1 finding #3 (task-5 review): `SCORE_ROWS_FIRST_PAGE`/
+   * `SCORE_ROWS_CONTINUATION` (emergencyTrialPacket.ts) and
+   * `SCORE_BLOCK_HEIGHT_MM` (this module) can't import each other —
+   * emergencyTrialPacket.ts builds the model that this module renders, so
+   * the reverse import would cycle. That makes their agreement structural,
+   * not enforced by the type system, so a future change to either constant
+   * (or to the header's line budget) can silently reopen the 1.6mm overflow
+   * this task fixed. This test imports both modules and re-derives the same
+   * worst case documented above `MAX_DETAIL_LINES`, so a future edit fails
+   * HERE instead of on a printed page.
+   */
+  it('keeps score rows, block height, and the worst-case header inside the footer', () => {
+    const worstCaseHeaderLines = maxDetailLinesForKind('score-recording');
+    const worstCaseTableTopY = TITLE_BASE_Y + (worstCaseHeaderLines - 1) * DETAIL_LINE_HEIGHT;
+
+    const firstPageBottomY = worstCaseTableTopY + SCORE_ROWS_FIRST_PAGE * SCORE_BLOCK_HEIGHT_MM;
+    const continuationBottomY =
+      worstCaseTableTopY + SCORE_ROWS_CONTINUATION * SCORE_BLOCK_HEIGHT_MM;
+
+    expect(firstPageBottomY).toBeLessThanOrEqual(PAGE_FOOTER_Y_MM);
+    expect(continuationBottomY).toBeLessThanOrEqual(PAGE_FOOTER_Y_MM);
+
+    // Prove the guard is actually sensitive to the risk it exists for: one
+    // more row than SCORE_ROWS_CONTINUATION, at the worst-case header, must
+    // overflow — this is the exact 1.6mm this task's measurement found.
+    const oneRowMore = worstCaseTableTopY + (SCORE_ROWS_CONTINUATION + 1) * SCORE_BLOCK_HEIGHT_MM;
+    expect(oneRowMore).toBeGreaterThan(PAGE_FOOTER_Y_MM);
   });
 });

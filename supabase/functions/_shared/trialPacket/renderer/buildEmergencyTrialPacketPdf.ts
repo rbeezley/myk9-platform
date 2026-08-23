@@ -63,6 +63,14 @@ const PAGE_WIDTH = 215.9;
 const PAGE_HEIGHT = 279.4;
 const LEFT = 14;
 const RIGHT = PAGE_WIDTH - 14;
+/**
+ * Every page's footer (page label, "Page N of M") is fixed here regardless
+ * of kind. Exported so pagination's row-count arithmetic — rows x
+ * `SCORE_BLOCK_HEIGHT_MM` plus the worst-case header — can be checked
+ * against the SAME number the footer is actually drawn at, instead of a
+ * copied literal that can silently drift from it.
+ */
+export const PAGE_FOOTER_Y_MM = PAGE_HEIGHT - 8;
 
 function formatGeneratedAt(value: string): string {
   const date = new Date(value);
@@ -85,12 +93,17 @@ function addPageFrame(doc: jsPDF, page: EmergencyPacketPage, totalPages: number)
   doc.line(LEFT, 15, RIGHT, 15);
 
   doc.setFontSize(8);
-  doc.text(fitTextToWidth(doc, formatEmergencyPacketPageLabel(page), 150), LEFT, PAGE_HEIGHT - 8);
-  doc.text(`Page ${page.pageNumber} of ${totalPages}`, RIGHT, PAGE_HEIGHT - 8, { align: 'right' });
+  doc.text(fitTextToWidth(doc, formatEmergencyPacketPageLabel(page), 150), LEFT, PAGE_FOOTER_Y_MM);
+  doc.text(`Page ${page.pageNumber} of ${totalPages}`, RIGHT, PAGE_FOOTER_Y_MM, { align: 'right' });
 }
 
-const TITLE_BASE_Y = 42;
-const DETAIL_LINE_HEIGHT = 5;
+/**
+ * Exported alongside `DETAIL_LINE_HEIGHT` so a test can derive the
+ * worst-case header's top-of-table y the same way `addTitle` does:
+ * `TITLE_BASE_Y + (maxDetailLinesForKind(kind) - 1) * DETAIL_LINE_HEIGHT`.
+ */
+export const TITLE_BASE_Y = 42;
+export const DETAIL_LINE_HEIGHT = 5;
 /**
  * Row batching is fixed in the MODEL, so it cannot react to a taller header —
  * every extra header line eats the table's space. The ceiling is therefore per
@@ -101,8 +114,13 @@ const DETAIL_LINE_HEIGHT = 5;
  *                  kind gets exactly one line. It carries no time limit, so
  *                  nothing safety-critical is at stake in the truncation.
  *   check-in       20 rows + header row = 189mm, ending at 231mm. Ample.
- *   score          7 blocks x 29mm = 203mm, ending at 245mm; four lines ends
- *                  near 260mm.
+ *   score          5 blocks x 36mm = 180mm; worst-case header (4 lines, y=57)
+ *                  ends at 237mm, 34.4mm clear of the 271.4mm footer. A 6th
+ *                  block would end at 273mm — 1.6mm PAST the footer — which
+ *                  is why `SCORE_ROWS_FIRST_PAGE`/`SCORE_ROWS_CONTINUATION`
+ *                  in `emergencyTrialPacket.ts` are both 5, not 5-then-6.
+ *                  See `scoreRowsFitFooter` in
+ *                  `buildEmergencyTrialPacketPdf.test.ts` for the guard.
  *
  * If a batch size changes, re-derive these.
  */
@@ -148,6 +166,23 @@ export function layoutDetailLines(
   return [...identityLines, ...limitLines];
 }
 
+/**
+ * The min/max armband on THIS page, not the whole class — the spec requires
+ * a continuation page to be identifiable by armband range and class once
+ * it's separated from the rest of the packet (a page is a physical sheet of
+ * paper; it does not carry the other pages' context with it). Folded into
+ * the same `details` array `layoutDetailLines` already wraps and truncates,
+ * rather than a dedicated line, so it stays inside the existing
+ * `MAX_DETAIL_LINES` ceiling the row-count arithmetic depends on.
+ */
+function formatArmbandRange(entries: readonly EmergencyPacketEntry[]): string | undefined {
+  if (entries.length === 0) return undefined;
+  const armbands = entries.map(entryItem => entryItem.armband);
+  const min = Math.min(...armbands);
+  const max = Math.max(...armbands);
+  return min === max ? `Armband ${min}` : `Armbands ${min}–${max}`;
+}
+
 function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
   doc.setTextColor(20, 20, 20);
   doc.setFont('helvetica', 'bold');
@@ -166,6 +201,7 @@ function addTitle(doc: jsPDF, page: EmergencyPacketPage): number {
     page.context.trialDate,
     page.context.ringLabel,
     page.context.classLabel,
+    isScoreRecording ? formatArmbandRange(page.entries) : undefined,
     isScoreRecording && page.context.numHides != null
       ? `Hides: ${page.context.numHides}`
       : undefined,

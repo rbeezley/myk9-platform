@@ -49,9 +49,14 @@ const CHECK_IN_ROWS_PER_PAGE = 20;
  * continuations: whichever page overflows, it overflows on paper a judge
  * keeps for a year. Both constants are kept (Task 6 imports both by name)
  * but hold the same worst-case-safe value.
+ *
+ * Exported (not just Task 6's import) so `buildEmergencyTrialPacketPdf.test.ts`
+ * can assert the geometry directly — `SCORE_ROWS_FIRST_PAGE * SCORE_BLOCK_HEIGHT_MM`
+ * plus the worst-case header must never exceed the footer position — rather
+ * than trusting this comment to stay in sync with either module by hand.
  */
-const SCORE_ROWS_FIRST_PAGE = 5;
-const SCORE_ROWS_CONTINUATION = 5;
+export const SCORE_ROWS_FIRST_PAGE = 5;
+export const SCORE_ROWS_CONTINUATION = 5;
 
 function compareText(a: string | null | undefined, b: string | null | undefined): number {
   return (a ?? '').localeCompare(b ?? '', undefined, { numeric: true, sensitivity: 'base' });

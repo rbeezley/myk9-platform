@@ -281,11 +281,20 @@ describe('score-recording pagination', () => {
 
   it('identifies a continuation page by armband range and class', () => {
     // A page separated from its stack must still be identifiable — this
-    // document is retained for a year.
+    // document is retained for a year. The rendered header's armband range
+    // (`buildEmergencyTrialPacketPdf.ts`'s `formatArmbandRange`) is computed
+    // from `page.entries`, so asserting the real min/max on THIS page (not
+    // the whole class's 100-111) is what actually proves the page carries
+    // the data the header needs — the rendered-text version of this is
+    // `buildEmergencyTrialPacketPdf.test.ts`'s
+    // 'prints the armband range for the entries actually on that page' test.
     const model = buildModelWithEntries(12);
     const [, continuation] = model.pages.filter(page => page.kind === 'score-recording');
     expect(continuation.title).toMatch(/\(2\/3\)/);
     expect(continuation.context.classLabel).toBeTruthy();
+    const armbands = continuation.entries.map(entry => entry.armband);
+    expect(Math.min(...armbands)).toBe(105);
+    expect(Math.max(...armbands)).toBe(109);
   });
 });
 

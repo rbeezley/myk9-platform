@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useRoleBasedDogs } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
@@ -37,7 +38,9 @@ export function useBrowseDogsData(): BrowseDogsData {
     refetch();
   }, [refetch]);
 
-  const [filters, setFilters] = useState<DogFilters>(INITIAL_FILTERS);
+  // URL-backed so a refresh, back-navigation, or shared link keeps the same
+  // result set (MYK9-221). Same [values, setValues] contract as useState.
+  const [filters, setFilters] = useUrlFilters<DogFilters>(INITIAL_FILTERS);
 
   // Derive unique breeds from actual data
   const availableBreeds = useMemo(() => {
@@ -96,7 +99,7 @@ export function useBrowseDogsData(): BrowseDogsData {
 
   const clearAllFilters = useCallback(() => {
     setFilters(INITIAL_FILTERS);
-  }, []);
+  }, [setFilters]);
 
   return {
     dogs,

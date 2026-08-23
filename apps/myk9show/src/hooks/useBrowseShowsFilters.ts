@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
 import type { Show } from '@/types/show-types';
 import type { SyncableShowEntry } from '@/store/entryStore';
 import { filterShowsForTab } from '@/utils/unified-shows-config';
@@ -112,7 +113,9 @@ export function useBrowseShowsFilters({
   userContext,
   selectedTab,
 }: UseBrowseShowsFiltersProps): UseBrowseShowsFiltersReturn {
-  const [filters, setFilters] = useState<ShowFilters>(DEFAULT_FILTERS);
+  // URL-backed so a refresh, back-navigation, or shared link keeps the same
+  // result set (MYK9-221). Same [values, setValues] contract as useState.
+  const [filters, setFilters] = useUrlFilters<ShowFilters>(DEFAULT_FILTERS);
   const [filteredShows, setFilteredShows] = useState<Show[]>([]);
 
   // Check if filters are active (different from defaults)
@@ -139,7 +142,7 @@ export function useBrowseShowsFilters({
   // Clear all filters to defaults
   const clearAllFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
-  }, []);
+  }, [setFilters]);
 
   // Apply filters to shows
   const applyFilters = useCallback(() => {

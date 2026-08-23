@@ -81,7 +81,6 @@ export default defineConfig({
       '../../supabase/functions/_shared/trialPacket/*.test.ts',
       '../../supabase/functions/generate-trial-packet/*.test.ts',
       '../../supabase/functions/remind-print-trial-packet/*.test.ts',
-      'src/features/emergency-trial-packet/scoresheetConfig.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
     ],
     exclude: [

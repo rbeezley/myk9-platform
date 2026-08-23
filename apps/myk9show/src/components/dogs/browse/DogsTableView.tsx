@@ -129,11 +129,17 @@ const columns: ColumnDef<Dog>[] = [
   {
     accessorKey: 'breed',
     header: 'Breed',
-    // Breed and Sex both appear on the card view, so dropping them on narrow
-    // viewports costs the reader nothing and buys back the width that was
-    // pushing Owner and Status off-screen (MYK9-222).
+    // Breed and Sex both appear on the card view, so dropping them costs the
+    // reader nothing and buys back the width that was pushing Owner and Status
+    // off-screen (MYK9-222).
+    //
+    // `lg` (1024px), NOT `md`. `md` is `min-width: 768px`, so it fires on no
+    // tablet at all — iPad portrait is exactly 768, iPad Air 820, iPad Pro 11"
+    // 834, Surface 912 — and the measurement in MYK9-222 was taken at 768. `md`
+    // would only have dropped these on phones, where an exhibitor gets cards
+    // anyway. A test pins the breakpoint against those device widths.
     meta: {
-      responsiveHide: 'md',
+      responsiveHide: 'lg',
       exportHeader: 'Breed',
       exportValue: (dog: unknown) => (dog as Dog).breed || '',
     } satisfies DataTableColumnMeta,
@@ -145,7 +151,7 @@ const columns: ColumnDef<Dog>[] = [
     accessorKey: 'sex',
     header: 'Sex',
     meta: {
-      responsiveHide: 'md',
+      responsiveHide: 'lg',
       exportHeader: 'Sex',
       exportValue: (dog: unknown) => (dog as Dog).sex || '',
     } satisfies DataTableColumnMeta,

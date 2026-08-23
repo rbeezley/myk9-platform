@@ -59,7 +59,10 @@ vi.mock('@/hooks/useBrowseDogsData', () => ({
 }));
 
 const mockGetUserRoles = vi.fn().mockReturnValue(['secretary']);
-const mockHasRole = vi.fn().mockReturnValue(false);
+// Derived from the same role set rather than a standalone stub: the page now
+// asks `hasRole` (via `useRosterIsOwnDogsOnly`) as well as `getUserRoles`, and
+// an auth mock whose two accessors disagree would let a role-scoping bug pass.
+const mockHasRole = vi.fn((role: UserRole) => (mockGetUserRoles() as string[]).includes(role));
 // `useRoleBasedDogs` scopes the roster off `userWithRoles`, so the page treats a
 // null value as "identity not resolved yet" rather than "this user owns no dogs".
 let mockUserWithRoles: unknown = { id: 'user-1', databaseUserId: 'person-1', roles: [] };
@@ -76,9 +79,16 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   };
 });
 
-vi.mock('@/hooks/useRoleBasedData', () => ({
-  useCurrentUserPersonId: () => 'person-1',
-}));
+// `useRosterIsOwnDogsOnly` is deliberately NOT stubbed — it is the predicate
+// under test, and it reads the mocked auth context above. Stubbing it would
+// make every role assertion below a test of the stub.
+vi.mock('@/hooks/useRoleBasedData', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    useCurrentUserPersonId: () => 'person-1',
+  };
+});
 
 const mockRefreshRbac = vi.fn();
 
@@ -458,6 +468,47 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     it('keeps the owner on the card for a secretary, who sees every dog', () => {
       localStorage.setItem('view-pref-dogs', 'cards');
+
+      renderPage();
+
+      expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    });
+
+    // `USER_ROLE_HIERARCHY` ranks JUDGE, CLUB_ADMIN, CHAIRMAN and STEWARD ABOVE
+    // EXHIBITOR, so `getPrimaryRole(...) === EXHIBITOR` is false for all of
+    // them — while `useRoleBasedDogs` still scopes their roster to dogs they
+    // own. Deriving the card from the role instead of from the scope gave every
+    // one of these users their own name on every card.
+    it.each([
+      ['judge', UserRole.JUDGE],
+      ['steward', UserRole.STEWARD],
+      ['chairman', UserRole.CHAIRMAN],
+    ])('does not show a %s their own name on their own dogs', (_label, role) => {
+      localStorage.setItem('view-pref-dogs', 'cards');
+      mockGetUserRoles.mockReturnValue([role, UserRole.EXHIBITOR]);
+
+      renderPage();
+
+      expect(screen.getByRole('link', { name: /max/i })).toBeInTheDocument();
+      expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+    });
+
+    // The complement: holding an elevated role alongside a lower-ranked one
+    // must still show the owner, because that roster is the whole platform.
+    it('keeps the owner for a judge who is also a secretary', () => {
+      localStorage.setItem('view-pref-dogs', 'cards');
+      mockGetUserRoles.mockReturnValue([UserRole.JUDGE, UserRole.SECRETARY]);
+
+      renderPage();
+
+      expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    });
+
+    it('keeps the owner for a club admin, whose primary role is not elevated', () => {
+      // getPrimaryRole([JUDGE, CLUB_ADMIN]) is JUDGE, but CLUB_ADMIN sees every
+      // dog — the case where a primary-role test and a hasRole test disagree.
+      localStorage.setItem('view-pref-dogs', 'cards');
+      mockGetUserRoles.mockReturnValue([UserRole.JUDGE, UserRole.CLUB_ADMIN]);
 
       renderPage();
 

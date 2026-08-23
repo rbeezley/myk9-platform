@@ -1,6 +1,11 @@
 import { vi } from 'vitest';
+import defaultTheme from 'tailwindcss/defaultTheme';
 import { render, screen } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
+import {
+  RESPONSIVE_CLASSES,
+  type ResponsiveBreakpoint,
+} from '@/components/ui/data-table/types';
 import { DogsTableView, type DogsTableSelection } from '../DogsTableView';
 
 const dogs: Dog[] = [
@@ -153,6 +158,21 @@ describe('DogsTableView', () => {
       }
     });
 
+    // `getColumnLayoutClasses` is well covered on its own; its two CALL SITES
+    // were not, so pointing the body cell at the header class set left the
+    // suite green. The two sets differ by stacking order, which is what makes
+    // the wiring observable.
+    it('gives the header cell and the body cell their own class set', () => {
+      const column = renderCells();
+      const header = column('Name').header.className.split(/\s+/);
+      const body = column('Name').cell.className.split(/\s+/);
+
+      expect(header).toContain('z-20');
+      expect(header).not.toContain('z-10');
+      expect(body).toContain('z-10');
+      expect(body).not.toContain('z-20');
+    });
+
     it('removes the dropped columns from the accessibility tree, not just from view', () => {
       render(<DogsTableView dogs={dogs} />);
       expect(screen.queryByRole('columnheader', { name: /breed/i })).not.toBeInTheDocument();
@@ -166,6 +186,72 @@ describe('DogsTableView', () => {
       render(<DogsTableView dogs={dogs} />);
       const region = screen.getByRole('region', { name: /dogs table/i });
       expect(region).toHaveAttribute('tabindex', '0');
+    });
+  });
+
+  // The jsdom stylesheet trick above proves a column is hidden, but it CANNOT
+  // prove at which width — jsdom discards `@media` wholesale, so `hidden
+  // 2xl:table-cell` satisfies "display is none" exactly as `hidden
+  // lg:table-cell` does, and the reviewer showed the whole suite stayed green
+  // when the breakpoint was changed to `2xl`. These assert the breakpoint
+  // itself, in device widths rather than in a class name.
+  describe('the width at which Breed and Sex drop', () => {
+    // The decision behind MYK9-222: a secretary on a tablet must not have to
+    // scroll to reach Status. MYK9-222 measured iPad portrait.
+    const TABLET_WIDTHS: ReadonlyArray<readonly [string, number]> = [
+      ['iPad portrait', 768],
+      ['iPad Air', 820],
+      ['iPad Pro 11"', 834],
+      ['Surface', 912],
+    ];
+    // Below this the column is hidden, at or above it the column renders, so
+    // the breakpoint must not push past the narrowest ordinary desktop.
+    const NARROWEST_DESKTOP = 1024;
+
+    function breakpointOf(label: string): ResponsiveBreakpoint {
+      render(<DogsTableView dogs={dogs} />);
+      const th = Array.from(document.querySelectorAll('thead th')).find(h =>
+        h.textContent?.trim().startsWith(label)
+      );
+      if (!th) throw new Error(`No "${label}" column header rendered`);
+      const classes = th.className.split(/\s+/);
+      const matched = (Object.keys(RESPONSIVE_CLASSES) as ResponsiveBreakpoint[]).filter(bp =>
+        RESPONSIVE_CLASSES[bp].split(' ').every(c => classes.includes(c))
+      );
+      expect(matched).toHaveLength(1);
+      return matched[0] as ResponsiveBreakpoint;
+    }
+
+    /** Minimum viewport width, in px, at which the column reappears. */
+    function widthWhereVisible(label: string): number {
+      const px = Number.parseInt(defaultTheme.screens[breakpointOf(label)], 10);
+      expect(Number.isFinite(px)).toBe(true);
+      return px;
+    }
+
+    it.each(['Breed', 'Sex'])('drops %s on every tablet width, not just on phones', label => {
+      const visibleFrom = widthWhereVisible(label);
+      for (const [device, width] of TABLET_WIDTHS) {
+        expect({ device, width, hidden: width < visibleFrom }).toEqual({
+          device,
+          width,
+          hidden: true,
+        });
+      }
+    });
+
+    it.each(['Breed', 'Sex'])('brings %s back on a desktop', label => {
+      expect(widthWhereVisible(label)).toBeLessThanOrEqual(NARROWEST_DESKTOP);
+    });
+
+    it('does not drop Owner or Status at any width', () => {
+      render(<DogsTableView dogs={dogs} />);
+      for (const label of ['Name', 'Owner', 'Status']) {
+        const th = Array.from(document.querySelectorAll('thead th')).find(h =>
+          h.textContent?.trim().startsWith(label)
+        );
+        expect(th?.className.split(/\s+/)).not.toContain('hidden');
+      }
     });
   });
 

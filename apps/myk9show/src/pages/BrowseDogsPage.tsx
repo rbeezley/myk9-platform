@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, PawPrint } from 'lucide-react';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
-import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { useCurrentUserPersonId, useRosterIsOwnDogsOnly } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowseDogsData, type DogFilters } from '@/hooks/useBrowseDogsData';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
@@ -39,7 +39,14 @@ const BrowseDogsPage: React.FC = () => {
 
   const { getUserRoles, userWithRoles } = useAuthContext();
   // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
+  // NOTE: this drives the page's chrome (title, card-only view, placeholder),
+  // and it is NOT the same question as "is this roster only my own dogs" —
+  // see `ownDogsOnly` below.
   const isExhibitorOnly = getPrimaryRole(getUserRoles()) === UserRole.EXHIBITOR;
+  // The predicate `useRoleBasedDogs` itself scopes the roster with, so anything
+  // that renders differently because "these are all mine" stays in step with
+  // the data instead of re-deriving it from a role (MYK9-219 review).
+  const ownDogsOnly = useRosterIsOwnDogsOnly();
   const [viewMode, setViewMode] = useViewPreference('dogs', isExhibitorOnly ? 'cards' : 'table');
   const [showCreateDogPanel, setShowCreateDogPanel] = useState(
     () => searchParams.get('add') === 'true'
@@ -201,11 +208,13 @@ const BrowseDogsPage: React.FC = () => {
 
   const renderCards = () => (
     <>
-      {/* The exhibitor-only roster is scoped to dogs this person owns, so the
-          owner line there can only repeat their own name back at them
-          (MYK9-219). Secretaries and admins see every dog, where owner is the
-          fact they scan for. */}
-      <DogsGridView dogs={pagedDogs} showOwner={!isExhibitorOnly} />
+      {/* Driven by the predicate that scopes the DATA, not by a role guess:
+          "am I looking at only my own dogs?" is exactly the question that
+          decides whether an owner column carries information. `isExhibitorOnly`
+          is the wrong test — a judge, steward or chairman also gets an
+          own-dogs-only roster, and would otherwise read their own name on every
+          card, which is the MYK9-219 bug verbatim. */}
+      <DogsGridView dogs={pagedDogs} showOwner={!ownDogsOnly} />
       {/* `totalItems` is the whole filtered set, never `pagedDogs.length` —
           the control has to describe the set being paged, not the page. */}
       <ListPagination

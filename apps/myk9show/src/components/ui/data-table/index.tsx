@@ -520,8 +520,10 @@ export function DataTable<TData>({
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
                   className={cn(
-                    // `group/row` is what lets a left-pinned cell mirror this
-                    // row's selected state (see STICKY_LEFT_BODY_CLASSES).
+                    // `group/row` exists so a left-pinned cell CAN mirror this
+                    // row's selected state; that mirror is dormant until some
+                    // table turns DataTable's own selection on (see
+                    // STICKY_LEFT_BODY_CLASSES).
                     'group/row border-b border-border/30 hover:bg-muted/20 transition-colors',
                     onRowClick && 'cursor-pointer',
                     getRowClassName?.(row.original)

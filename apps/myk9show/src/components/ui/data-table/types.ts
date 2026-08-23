@@ -103,9 +103,14 @@ const STICKY_LEFT_BASE =
 export const STICKY_LEFT_HEADER_CLASSES = `${STICKY_LEFT_BASE} z-20`;
 
 /**
- * Left-pin classes for a body cell. A selected row paints `bg-muted` on the
- * `<tr>`, which an opaque pinned cell would otherwise cover, so it mirrors that
- * one state through the row's named group.
+ * Left-pin classes for a body cell.
+ *
+ * The selected-row mirror is defensive, not load-bearing: `data-state=selected`
+ * comes from `row.getIsSelected()`, and nothing in the app passes `selectable`
+ * to `DataTable` today (the dogs table bridges selection to its own hook), so
+ * it never fires. It is here so that the first table to turn DataTable's own
+ * selection on does not discover that an opaque pinned cell covers the row
+ * highlight. Delete it with that feature, not before.
  */
 export const STICKY_LEFT_BODY_CLASSES =
   `${STICKY_LEFT_BASE} z-10 group-data-[state=selected]/row:bg-muted`;

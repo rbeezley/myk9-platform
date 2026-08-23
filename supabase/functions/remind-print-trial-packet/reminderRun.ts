@@ -3,6 +3,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { HttpError } from '../_shared/http/responses.ts';
 import { loadPacketShow, resolveRecipients, loadPacketRoleRows } from '../_shared/trialPacket/deliverStoredPacket.ts';
 import { isUuidShaped, isValidTrialDate } from '../_shared/trialPacket/delivery.ts';
+import { recordEmailLog, type EmailAttempt } from '../_shared/trialPacket/emailLog.ts';
 import { sendTrialPacketEmail, TrialPacketProviderError } from '../_shared/trialPacket/email.ts';
 import {
   buildPrintReminderEmailHtml,
@@ -186,36 +187,66 @@ export async function runPrintReminder(
     throw new HttpError(503, 'Email service not configured.');
   }
 
-  try {
-    await sendEmail({
-      apiKey: resendApiKey,
-      // The SHOW is part of the key, not just the day and slot.
-      //
-      // This becomes Resend's `Idempotency-Key`. Without the show id, two
-      // clubs trialling on the same date collide: the first send succeeds and
-      // the second is answered with a REPLAY of the first — 200, no email, and
-      // this function stamps `sent_at` for officials who were never contacted.
-      // Silent, and same-weekend multi-club trials are the normal case. The
-      // packet-delivery path is safe only because its key is a real snapshot
-      // UUID.
-      snapshotId: `print-reminder-${request.showId}-${request.trialDate}-${request.kind}`,
-      from: FROM_EMAIL,
-      recipients,
-      subject: buildPrintReminderSubject({
-        showName: show.name,
-        trialDate: request.trialDate,
-        kind: request.kind,
-      }),
-      html: buildPrintReminderEmailHtml({
-        showName: show.name,
-        trialDate: request.trialDate,
-        kind: request.kind,
-      }),
-    });
-  } catch (error) {
+  const subject = buildPrintReminderSubject({
+    showName: show.name,
+    trialDate: request.trialDate,
+    kind: request.kind,
+  });
+  const html = buildPrintReminderEmailHtml({
+    showName: show.name,
+    trialDate: request.trialDate,
+    kind: request.kind,
+  });
+
+  // One message per official, matching the packet path. See emailLog.ts: a
+  // single multi-recipient message yields one Resend id, and one id cannot
+  // carry a per-person delivery result.
+  const attempts: EmailAttempt[] = [];
+  for (const recipient of recipients) {
+    try {
+      const messageId = await sendEmail({
+        apiKey: resendApiKey,
+        // Show, day, slot AND recipient.
+        //
+        // The show id was already load-bearing: without it two clubs trialling
+        // on the same date collide, the second send is answered with a REPLAY
+        // of the first — 200, no email — and this function stamps `sent_at`
+        // for officials who were never contacted. The recipient is now
+        // load-bearing for exactly the same reason one step down: reuse one
+        // key across this loop and only the first address is mailed while
+        // every later one is handed the first's id back.
+        idempotencyKey:
+          `print-reminder-${request.showId}-${request.trialDate}-${request.kind}` +
+          `-${recipient.toLowerCase()}`,
+        from: FROM_EMAIL,
+        recipient,
+        subject,
+        html,
+      });
+      attempts.push({ recipient, messageId, error: null });
+    } catch (error) {
+      const status = error instanceof TrialPacketProviderError ? error.status : 'network_error';
+      attempts.push({
+        recipient,
+        messageId: null,
+        error: status === 'network_error' ? 'email_delivery_error' : `provider_http_${status}`,
+      });
+    }
+  }
+
+  const delivered = attempts.filter(attempt => attempt.messageId !== null);
+  await recordEmailLog(supabase, attempts, {
+    emailType: 'trial_packet_print_reminder',
+    showId: request.showId,
+    relatedId: request.showId,
+  });
+
+  // Only a total failure releases the claim. One unreachable official must not
+  // cancel the chase for the others -- and must not re-send to the ones who
+  // already got it, which releasing the claim would do.
+  if (delivered.length === 0) {
     await releaseClaim(supabase, request, claimedAt);
-    const status = error instanceof TrialPacketProviderError ? error.status : 'network_error';
-    throw new HttpError(502, `Reminder email failed (${status}).`);
+    throw new HttpError(502, `Reminder email failed (${attempts[0]?.error ?? 'unknown'}).`);
   }
 
   // The mail is already gone. If this stamp does not land, the row keeps a
@@ -226,7 +257,7 @@ export async function runPrintReminder(
   const stampSent = async () =>
     await supabase
       .from(REMINDER_LOG)
-      .update({ sent_at: now().toISOString(), recipient_count: recipients.length })
+      .update({ sent_at: now().toISOString(), recipient_count: delivered.length })
       .match(claimKey)
       .eq('claimed_at', claimedAt);
   let { error: sentError } = await stampSent();
@@ -235,7 +266,7 @@ export async function runPrintReminder(
   // as an error would invite a manual retry that emails everyone again.
   if (sentError) console.error('remind-print-trial-packet: could not stamp sent_at', sentError);
 
-  return { sent: true, recipientCount: recipients.length };
+  return { sent: true, recipientCount: delivered.length };
 }
 
 async function releaseClaim(

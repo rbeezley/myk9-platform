@@ -16,9 +16,24 @@ export class TrialPacketProviderError extends Error {
 export async function sendTrialPacketEmail(
   input: {
     apiKey: string;
-    snapshotId: string;
+    /**
+     * ONE recipient per call, deliberately.
+     *
+     * This used to take the whole list and send a single message. Resend then
+     * returns ONE message id for the lot, and `resend-webhook` keys delivery
+     * events on that id -- so a bounce for any one official flipped the record
+     * for all of them. There was no way to answer "did the secretary's copy
+     * land", which for an emergency packet is the only question that matters.
+     */
+    recipient: string;
+    /**
+     * MUST be unique per recipient. Resend returns the ORIGINAL response for a
+     * repeated Idempotency-Key, so reusing one key across a loop would silently
+     * deliver to the first address and hand back its id for every other --
+     * logging four successes for one email sent.
+     */
+    idempotencyKey: string;
     from: string;
-    recipients: string[];
     subject: string;
     html: string;
   },
@@ -31,11 +46,11 @@ export async function sendTrialPacketEmail(
       headers: {
         Authorization: `Bearer ${input.apiKey}`,
         'Content-Type': 'application/json',
-        'Idempotency-Key': `trial-packet-${input.snapshotId}`,
+        'Idempotency-Key': input.idempotencyKey,
       },
       body: JSON.stringify({
         from: input.from,
-        to: input.recipients,
+        to: [input.recipient],
         subject: input.subject,
         html: input.html,
       }),

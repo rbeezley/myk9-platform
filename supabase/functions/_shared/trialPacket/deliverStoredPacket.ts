@@ -10,6 +10,7 @@ import {
   resolveSignedLinkLifetimeSeconds,
   type PacketRecipientRole,
 } from './delivery.ts';
+import { recordEmailLog, type EmailAttempt } from './emailLog.ts';
 import { sendTrialPacketEmail, TrialPacketProviderError } from './email.ts';
 
 /**
@@ -312,40 +313,79 @@ export async function deliverStoredPacket(
     signed_link_expires_at: expiresAt,
   };
 
-  let providerMessageId: string | null;
-  try {
-    providerMessageId = await sendEmail({
-      apiKey: resendApiKey,
-      snapshotId: packet.snapshotId,
-      from: FROM_EMAIL,
-      recipients,
-      subject: packet.trialDate
-        ? `Print for the trial box — ${show.name} emergency packet (${packet.trialDate})`
-        : `Print for the trial box — ${show.name} emergency packet`,
-      html: buildTrialPacketEmailHtml({
-        showName: show.name,
-        generatedAt: packet.generatedAt,
-        signedUrl: signed.signedUrl,
-        expiresAt,
-        trialDate: packet.trialDate,
-      }),
-    });
-  } catch (error) {
-    const providerStatus =
-      error instanceof TrialPacketProviderError ? error.status : 'network_error';
+  const subject = packet.trialDate
+    ? `Print for the trial box — ${show.name} emergency packet (${packet.trialDate})`
+    : `Print for the trial box — ${show.name} emergency packet`;
+  const html = buildTrialPacketEmailHtml({
+    showName: show.name,
+    generatedAt: packet.generatedAt,
+    signedUrl: signed.signedUrl,
+    expiresAt,
+    trialDate: packet.trialDate,
+  });
+
+  // ONE message per official, not one message addressed to all of them.
+  //
+  // The single-message form returned a single Resend id for the whole list,
+  // and `resend-webhook` keys delivery events on that id -- so one bounce
+  // marked the record bounced for everyone. On 2026-08-22 the live packet
+  // showed `Bounced` in Resend's list view while the secretary's copy had in
+  // fact been Delivered; the bounce belonged to a co-recipient. For a packet
+  // whose entire purpose is that SOMEONE has the paper, "did this person get
+  // it" has to be answerable per person.
+  const attempts: EmailAttempt[] = [];
+  for (const recipient of recipients) {
+    try {
+      const messageId = await sendEmail({
+        apiKey: resendApiKey,
+        from: FROM_EMAIL,
+        recipient,
+        // Per RECIPIENT, not per snapshot. Resend replays the original
+        // response for a repeated Idempotency-Key, so one key across the loop
+        // would send to the first address and hand back its id for all the
+        // rest -- logging N successes for one email.
+        idempotencyKey: `trial-packet-${packet.snapshotId}-${recipient.toLowerCase()}`,
+        subject,
+        html,
+      });
+      attempts.push({ recipient, messageId, error: null });
+    } catch (error) {
+      const providerStatus =
+        error instanceof TrialPacketProviderError ? error.status : 'network_error';
+      attempts.push({
+        recipient,
+        messageId: null,
+        error:
+          providerStatus === 'network_error'
+            ? 'email_delivery_error'
+            : `provider_http_${providerStatus}`,
+      });
+    }
+  }
+
+  const delivered = attempts.filter(attempt => attempt.messageId !== null);
+  await recordEmailLog(supabase, attempts, {
+    emailType: 'trial_packet',
+    showId: show.id,
+    relatedId: packet.snapshotId,
+  });
+
+  // Only a TOTAL failure is a failure. Previously any provider error aborted
+  // the whole send, so one unreachable address meant nobody got the packet.
+  if (delivered.length === 0) {
     await supabase.from('trial_packet_snapshots').insert({
       ...auditRow,
+      recipient_count: 0,
       delivery_status: 'failed',
-      error_message:
-        providerStatus === 'network_error'
-          ? 'email_delivery_error'
-          : `provider_http_${providerStatus}`,
+      error_message: attempts[0]?.error ?? 'email_delivery_error',
     });
     throw new HttpError(502, 'The packet was stored, but email delivery failed.');
   }
+  const providerMessageId = delivered[0].messageId;
 
   const { error: auditError } = await supabase.from('trial_packet_snapshots').insert({
     ...auditRow,
+    recipient_count: delivered.length,
     delivery_status: 'sent',
     provider_message_id: providerMessageId,
     delivered_at: now().toISOString(),
@@ -359,7 +399,7 @@ export async function deliverStoredPacket(
   return {
     snapshotId: packet.snapshotId,
     generatedAt: packet.generatedAt,
-    recipientCount: recipients.length,
+    recipientCount: delivered.length,
     linkExpiresAt: expiresAt,
     pageCount: packet.pageCount,
     alreadyDelivered: false,

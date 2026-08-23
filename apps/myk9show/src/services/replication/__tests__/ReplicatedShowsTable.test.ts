@@ -20,10 +20,14 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: vi.fn(() => ({
       select: vi.fn(() => ({
-        gt: vi.fn(() => ({
-          order: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              // Chainable mock
+        // .is('deleted_at', null) — MYK9-233 made the replica's live-only
+        // invariant explicit instead of inheriting it from shows_select.
+        is: vi.fn(() => ({
+          gt: vi.fn(() => ({
+            order: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                // Chainable mock
+              })),
             })),
           })),
         })),
@@ -947,7 +951,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -992,7 +997,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1048,7 +1054,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1077,7 +1084,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1100,7 +1108,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1114,6 +1123,28 @@ describe('ReplicatedShowsTable', () => {
       expect(mockEq).toHaveBeenCalledWith('club_id', TEST_CLUB_ID);
     });
 
+    // MYK9-233. Soft-deleted shows stayed out of the replica only because
+    // shows_select hid them from everyone. That policy now lets a site admin
+    // read them, so without this filter an admin's device would sync deleted
+    // shows into IndexedDB and every offline surface would render them. The
+    // mock chain accepts .is() either way — this asserts it is actually asked
+    // for, and with the right column.
+    it('excludes soft-deleted shows from the replica', async () => {
+      const mockEq = vi.fn().mockResolvedValue({ data: [], error: null });
+      const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
+      const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
+
+      vi.mocked(supabaseMock.from).mockReturnValue({
+        select: mockSelect,
+      });
+
+      await table.sync(TEST_CLUB_ID);
+
+      expect(mockIs).toHaveBeenCalledWith('deleted_at', null);
+    });
+
     it('should update sync metadata after successful sync', async () => {
       const mockQueryChain = {
         data: [],
@@ -1123,7 +1154,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1156,7 +1188,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1185,7 +1218,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1235,7 +1269,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       vi.mocked(supabaseMock.from).mockReturnValue({
         select: mockSelect,
@@ -1358,7 +1393,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue(
@@ -1411,7 +1447,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue(
@@ -1832,7 +1869,8 @@ describe('ReplicatedShowsTable', () => {
       const mockEq = vi.fn().mockResolvedValue(mockQueryChain);
       const mockOrder = vi.fn().mockReturnValue({ eq: mockEq });
       const mockGt = vi.fn().mockReturnValue({ order: mockOrder });
-      const mockSelect = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockIs = vi.fn().mockReturnValue({ gt: mockGt });
+      const mockSelect = vi.fn().mockReturnValue({ is: mockIs });
 
       const { supabase } = await import('@/services/database/supabaseClient');
       vi.mocked(supabase.from).mockReturnValue(

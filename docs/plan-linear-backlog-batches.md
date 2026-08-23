@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0 and 1 complete. Batch 2 is most of the way through: MYK9-191, 215, 216, 192 and 232 are Done and merged. Remaining are MYK9-217, MYK9-193, and Lane 2D's MYK9-230 → MYK9-231; MYK9-204 is operator-blocked. See **"Resume here — Batch 2 progress (2026-08-22, evening)"** below.
+> **Status:** Active — Batches 0, 1 and 2 complete except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 is next and opens with eight decisions (D1–D8) that need Richard's call before any of its lanes can start. See **"Resume here — Batch 2 closed (2026-08-22, late)"** below.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -204,21 +204,37 @@ Batch 2A is unblocked: 1E and 1F are merged, and its work is active in a separat
 
 ---
 
-## Resume here — Batch 2 progress (2026-08-22, evening)
+## Resume here — Batch 2 closed (2026-08-22, late)
 
-Four issues merged this session. Verified against `origin/main` at `ba60cd701`, `gh pr list`, and Linear.
+Every Batch 2 issue is Done except MYK9-204. Verified against `origin/main`, `gh pr list` and Linear.
 
-| Lane | Issue | State | Where it landed / what is left |
+| Lane | Issue | State | Where it landed |
 | -- | -- | -- | -- |
 | 2A step 1 | MYK9-215 | **Done** | [#1753](https://github.com/rbeezley/myk9-platform/pull/1753) → `237b8b7aa`. The stalled branch was reworked, not just finished — see below |
-| 2A step 2 | MYK9-216 | **Done** | [#1756](https://github.com/rbeezley/myk9-platform/pull/1756) → `ba60cd701`. `TAB_PREDICATES` beside `ENTRY_TAB_DEFS`; all three sites derive from it; `now` resolved once |
-| 2A step 3 | MYK9-217 | Backlog | **Next.** Unblocked now 216 has merged. Get `index.tsx` under 500 lines; preserve both `INTENT:` constraints |
+| 2A step 2 | MYK9-216 | **Done** | [#1756](https://github.com/rbeezley/myk9-platform/pull/1756) → `ba60cd701` |
+| 2A step 3 | MYK9-217 | **Done** | [#1758](https://github.com/rbeezley/myk9-platform/pull/1758) → `b9b7e73f4`. `index.tsx` 575 → 459 lines; both `INTENT:` constraints hold |
 | 2B step 1 | MYK9-191 | Done | [#1739](https://github.com/rbeezley/myk9-platform/pull/1739) |
-| 2B step 2 | MYK9-192 | **Done** | [#1754](https://github.com/rbeezley/myk9-platform/pull/1754) → `919c3599b`. Migration `20260822200000` **applied and verified** against the live DB. The function is NOT deployed and no Twilio secret is set — both gated on MYK9-190 |
-| 2B step 3 | MYK9-193 | Backlog | Unblocked by 192. Send path + sent-marker migration; deploy stays gated on MYK9-190 |
-| 2C | MYK9-204 | In Progress | **Operator-blocked, not agent-blocked.** Only the fresh desktop checkout proof remains |
-| 2D step 1 | MYK9-232 | **Done** | [#1755](https://github.com/rbeezley/myk9-platform/pull/1755) → `34934c62e`. Refuted: a snapshot `0` is always a real zero |
-| 2D steps 2–3 | MYK9-230 → MYK9-231 | Backlog | Ready. 232 handed MYK9-230 a finding: a fully make-whole-refunded order stores `0/0` and earns the confident charge-verification label over a charge of nothing |
+| 2B step 2 | MYK9-192 | **Done** | [#1754](https://github.com/rbeezley/myk9-platform/pull/1754) → `919c3599b`. Migration `20260822200000` applied and verified against the live DB |
+| 2B step 3 | MYK9-193 | **Merged pending** | [#1760](https://github.com/rbeezley/myk9-platform/pull/1760). **Two follow-ups below — read them before touching SMS again** |
+| 2C | MYK9-204 | In Progress | **Operator-blocked.** Only the fresh desktop checkout proof remains |
+| 2D step 1 | MYK9-232 | **Done** | [#1755](https://github.com/rbeezley/myk9-platform/pull/1755) → `34934c62e` |
+| 2D steps 2–3 | MYK9-230, MYK9-231 | **Done** | [#1759](https://github.com/rbeezley/myk9-platform/pull/1759) → `304d4ed42`. Both closed by one PR — one card, one editorial decision |
+
+### Open operator actions carried out of Batch 2
+
+1. **`supabase/migrations/20260822210000_sms_proximity_sent_marker.sql` is NOT applied.** It ships with #1760 and needs a `db push` after merge. Richard's approval covered the 192 migration only; ask again.
+2. **Do NOT deploy `push-trigger-run-proximity`.** The SMS send path is merged but dormant, gated on MYK9-190 (Twilio A2P 10DLC brand/campaign). No Twilio secret is set.
+3. **Four borrowed untracked `2026082219*.sql` files sit in the primary checkout** (`git clean -f supabase/migrations/`). They were borrowed from open PRs to unblock a `db push` when the remote was ahead of `main`; `rm` and `git clean` are both permission-denied for the agent. They fail migration-parsing tests locally until removed.
+
+### Two things Batch 2 proved about how to work here
+
+**A test that cannot fail will certify a no-op as a fix, and it takes a mutation to notice.** This happened four separate times across the batch, in code written by three different authors including two of my own passes. The URL-seam assertion passed with its production line hardcoded to `null`; an "ordering" assertion compared a one-element array against itself; a decoy storage key was never seeded so the behaviour named in the test title went unverified; and a Sentry wiring test asserted by source-grep stayed green with `queryCache` deleted from the `QueryClient`, i.e. with the whole feature disconnected. **Run the mutation. Every time.**
+
+**Adversarial subagent review found something real in every single round.** Codex was unavailable for the whole batch, and the substitute earned its cost: it caught a duplicate-billing defect in MYK9-193 that would have fired for every recipient at once during a Twilio slow period, and it caught MYK9-230's first rewrite replacing one overclaim with a *false statement* — a flat "No Stripe record on file" on shows that had fifty of them. Twice the finding was in a fix written to address the previous round's finding. Do not skip this gate in Batch 3.
+
+### Batch 3 starts with decisions, not code
+
+D1–D8 below are Richard's to make. They unblock independently — only D1 → D8 are ordered (the fee formula settles before its disclosure). D7 gates no code at all.
 
 ### What MYK9-215 turned out to be
 

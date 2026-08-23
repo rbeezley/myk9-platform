@@ -355,7 +355,7 @@ function generateEntryConfirmationEmail(data: EntryConfirmationData): string {
             <span>${formatCurrency(data.subtotal)}</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: #6b7280;">Platform Fee (3%)</span>
+            <span style="color: #6b7280;">Service fee</span>
             <span>${formatCurrency(data.platformFee)}</span>
           </div>
           <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 18px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
@@ -459,7 +459,7 @@ function generatePaymentReceiptEmail(data: PaymentReceiptData): string {
           <tbody>
             ${itemsHtml}
             <tr>
-              <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Platform Fee (3%)</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Service fee</td>
               <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${formatCurrency(data.platformFee)}</td>
             </tr>
           </tbody>

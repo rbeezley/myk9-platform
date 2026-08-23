@@ -62,7 +62,9 @@ describe('buildEntryPaymentLinkSession', () => {
     const s = buildEntryPaymentLinkSession(base);
     expect(s.line_items).toHaveLength(3); // 2 entries + 1 platform fee
     const fee = s.line_items[s.line_items.length - 1];
-    expect(fee.price_data.product_data.name).toBe('Platform Fee');
+    expect(fee.price_data.product_data.name).toBe('Service fee');
+    // MYK9-229: the line must not describe the WHOLE fee as processing.
+    expect(fee.price_data.product_data.description).toBe('Card processing and myK9Show');
     expect(fee.price_data.unit_amount).toBe(420); // 7% of 6000
     expect(fee.price_data.product_data.metadata).toEqual({ type: 'platform_fee' });
     // stamp the rates so the webhook validates against the exact charged rates
@@ -79,7 +81,7 @@ describe('buildEntryPaymentLinkSession', () => {
     expect(s.line_items).toHaveLength(2);
   });
 
-  it('folds the flat component and the floor into the SINGLE Platform Fee line', () => {
+  it('folds the flat component and the floor into the SINGLE service-fee line', () => {
     // One line, not three: the exhibitor is shown a platform fee, not an
     // itemised breakdown of how the platform priced it (MYK9-197 decision).
     const s = buildEntryPaymentLinkSession({
@@ -88,7 +90,7 @@ describe('buildEntryPaymentLinkSession', () => {
     });
     expect(s.line_items).toHaveLength(3); // 2 entries + 1 platform fee
     const fee = s.line_items[s.line_items.length - 1];
-    expect(fee.price_data.product_data.name).toBe('Platform Fee');
+    expect(fee.price_data.product_data.name).toBe('Service fee');
     expect(fee.price_data.unit_amount).toBe(450); // 7% of 6000, plus 30¢ once
     expect(s.metadata.platform_fee_flat_cents).toBe('30');
   });

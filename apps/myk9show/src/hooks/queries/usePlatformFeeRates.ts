@@ -33,10 +33,27 @@ function platformFeeRatesQueryOptions() {
   return {
     queryKey: ['platform-settings', 'fee-rates'] as const,
     queryFn: async (): Promise<PlatformFeeRates | null> => {
+      // MYK9-229 — this query runs SIGNED OUT on /fees, where anon holds a
+      // COLUMN-level grant on exactly these three columns and no table-level
+      // SELECT (migration 20260823160000). PostgREST fails a request that
+      // touches any other column with 403 AND AN EMPTY BODY, and that includes
+      // columns referenced only in a filter — the old `.eq('id', true)` needed
+      // SELECT on `id` and would have 403'd every anon read. `platform_settings`
+      // is a singleton (id boolean PK with CHECK (id)), so `.limit(1)` is
+      // equivalent and touches nothing.
+      //
+      // Narrowed for BOTH roles rather than split into two paths: one query
+      // means the signed-out path is the one that is exercised everywhere, so
+      // it cannot rot. Signed-in callers lose nothing — they never read the
+      // other columns here either.
+      //
+      // React Query masks a 403 here as a retry, and on an unfocused tab
+      // `canContinue()` is false so it parks at fetchStatus:'paused' forever.
+      // It presents as an offline bug. It is not one.
       const { data, error } = await supabase
         .from('platform_settings')
         .select('platform_fee_percent, platform_fee_flat_cents, platform_fee_min_cents')
-        .eq('id', true)
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       // numeric(5,2) may arrive as a string from PostgREST; coerce + bounds-check.

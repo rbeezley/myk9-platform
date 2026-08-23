@@ -70,4 +70,30 @@ describe('ClubPaymentsPage — club scope-gating', () => {
 
     expect(screen.getByTestId('club-payments-card')).toHaveTextContent('club-1');
   });
+
+  // MYK9-229: the club admin is the one who fields "why is there a 7% fee?"
+  // and who decides whether the club keeps using myK9Show, so the page must
+  // answer it — starting with the club's own money being untouched.
+  it('a club admin is told the club receives 100% of entry fees, with a link to the details', () => {
+    h.roles = [UserRole.CLUB_ADMIN];
+    h.userWithRoles = {
+      scopes: [{ roleId: UserRole.CLUB_ADMIN, scopeType: ScopeType.CLUB, scopeId: 'club-1' }],
+    };
+    render(<ClubPaymentsPage />);
+
+    expect(screen.getByText(/Your club receives 100% of entry fees\./i)).toBeInTheDocument();
+    expect(screen.getByText(/never deducted from your payout/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /how our fees work/i })).toHaveAttribute(
+      'href',
+      '/fees'
+    );
+  });
+
+  it('a user without club access sees no fee note either', () => {
+    h.roles = [UserRole.EXHIBITOR];
+    h.userWithRoles = { scopes: [] };
+    render(<ClubPaymentsPage />);
+
+    expect(screen.queryByText(/Your club receives 100% of entry fees/i)).not.toBeInTheDocument();
+  });
 });

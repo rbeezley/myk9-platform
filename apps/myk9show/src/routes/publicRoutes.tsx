@@ -70,6 +70,7 @@ const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
 const CredentialsHelpPage = lazy(() => import('@/pages/CredentialsHelpPage'));
+const FeesPage = lazy(() => import('@/pages/FeesPage'));
 const SupportTicketPage = lazy(() => import('@/pages/SupportTicketPage'));
 
 // Account (merged profile + preferences + settings)
@@ -568,6 +569,24 @@ export const PublicRoutes = () => (
         <SuspenseWrapper>
           <PageTransition>
             <LegalPage title="SMS Ring Alerts" markdownPath="/legal/sms-alerts.md" />
+          </PageTransition>
+        </SuspenseWrapper>
+      }
+    />
+
+    {/*
+      INTENT: /fees must stay PUBLIC (MYK9-229). It exists so a club admin can
+      forward one URL that answers "why is there a service fee?" verbatim —
+      to a treasurer, a board, or an exhibitor who has not signed up. Behind
+      auth it stops being shareable and the club is back to paraphrasing, which
+      is how "about half is card processing" becomes a claim we never made.
+    */}
+    <Route
+      path="/fees"
+      element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <FeesPage />
           </PageTransition>
         </SuspenseWrapper>
       }

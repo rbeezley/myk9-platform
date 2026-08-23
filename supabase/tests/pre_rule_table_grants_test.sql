@@ -301,6 +301,9 @@ BEGIN
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),
       ('people','anon',4),
+      -- MYK9-229: the public /fees page reads exactly these three columns
+      -- signed out. Not 6 — updated_by and updated_at stay withheld.
+      ('platform_settings','anon',3),
       ('dog_registrations','authenticated',1),
       ('dog_registrations','service_role',1),
       ('paperwork_prints','authenticated',3)
@@ -334,7 +337,8 @@ END;
 $$;
 
 -- The withheld columns must stay withheld. classes hides the scent-work counts
--- (MYK9-116); entries hides scoring, money and refund columns from anon.
+-- (MYK9-116); entries hides scoring, money and refund columns from anon;
+-- platform_settings exposes only the three fee columns (MYK9-229).
 DO $$
 DECLARE v_leaked text;
 BEGIN
@@ -343,7 +347,9 @@ BEGIN
     ('classes','num_hides'), ('classes','has_blank'), ('classes','hides_known'),
     ('entries','payment_status'), ('entries','entry_fee'),
     ('entries','stripe_payment_intent_id'), ('entries','refund_amount'),
-    ('entries','handler_id')
+    ('entries','handler_id'),
+    ('platform_settings','updated_by'), ('platform_settings','updated_at'),
+    ('platform_settings','id')
   ) AS t(tbl, col)
   WHERE EXISTS (
       SELECT 1 FROM pg_attribute a

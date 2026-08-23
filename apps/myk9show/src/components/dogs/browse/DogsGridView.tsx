@@ -1,17 +1,30 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { PawPrint, User } from 'lucide-react';
+import { Cake, PawPrint, User } from 'lucide-react';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 import { BrowseCard, BrowseCardAvatar, BrowseCardDetail } from '@/components/common/BrowseCard';
+import { getDogCardFacts, type DogCardFactKind } from './dogCardFacts';
 
 interface DogsGridViewProps {
   dogs: Dog[];
+  /**
+   * Whether the owner line earns its space on this surface. False on the
+   * exhibitor-only roster, where every dog belongs to the viewer and the line
+   * can only ever repeat their own name back at them (MYK9-219).
+   */
+  showOwner?: boolean;
 }
 
 function formatSex(sex: string | undefined): string | null {
   if (!sex) return null;
   return sex.charAt(0).toUpperCase() + sex.slice(1);
 }
+
+const FACT_ICONS: Record<DogCardFactKind, React.ComponentType<{ className?: string }>> = {
+  breed: PawPrint,
+  age: Cake,
+  owner: User,
+};
 
 const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   active: {
@@ -31,7 +44,7 @@ const STATUS_BADGES: Record<string, { label: string; className: string }> = {
   },
 };
 
-export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
+export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs, showOwner = true }) => {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       {dogs.map(dog => {
@@ -39,6 +52,7 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
         const displayName = dog.callName || dog.name;
         const statusKey = dog.status || 'active';
         const statusBadge = STATUS_BADGES[statusKey];
+        const facts = getDogCardFacts(dog, { showOwner });
 
         return (
           <BrowseCard
@@ -70,18 +84,19 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
               </>
             }
           >
-            {(dog.breed || dog.ownerName) && (
+            {facts.length > 0 && (
               <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {dog.breed && (
-                  <BrowseCardDetail icon={<PawPrint className="h-3.5 w-3.5 shrink-0" />}>
-                    {dog.breed}
-                  </BrowseCardDetail>
-                )}
-                {dog.ownerName && (
-                  <BrowseCardDetail icon={<User className="h-3.5 w-3.5 shrink-0" />}>
-                    {dog.ownerName}
-                  </BrowseCardDetail>
-                )}
+                {facts.map(fact => {
+                  const Icon = FACT_ICONS[fact.kind];
+                  return (
+                    <BrowseCardDetail
+                      key={fact.kind}
+                      icon={<Icon className="h-3.5 w-3.5 shrink-0" />}
+                    >
+                      {fact.text}
+                    </BrowseCardDetail>
+                  );
+                })}
               </div>
             )}
             {dog.registrations && dog.registrations.length > 0 && (

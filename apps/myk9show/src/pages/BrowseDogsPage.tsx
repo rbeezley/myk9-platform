@@ -201,7 +201,11 @@ const BrowseDogsPage: React.FC = () => {
 
   const renderCards = () => (
     <>
-      <DogsGridView dogs={pagedDogs} />
+      {/* The exhibitor-only roster is scoped to dogs this person owns, so the
+          owner line there can only repeat their own name back at them
+          (MYK9-219). Secretaries and admins see every dog, where owner is the
+          fact they scan for. */}
+      <DogsGridView dogs={pagedDogs} showOwner={!isExhibitorOnly} />
       {/* `totalItems` is the whole filtered set, never `pagedDogs.length` —
           the control has to describe the set being paged, not the page. */}
       <ListPagination

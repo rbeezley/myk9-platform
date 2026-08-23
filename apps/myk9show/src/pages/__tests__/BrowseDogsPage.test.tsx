@@ -443,6 +443,28 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     });
   });
 
+  // MYK9-219. The page is what knows which roster the viewer is looking at, so
+  // it is the only place the role-aware card can be wired wrong.
+  describe('role-aware dog card', () => {
+    it('does not show exhibitors their own name on their own dogs', () => {
+      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+
+      renderPage();
+
+      expect(screen.getByRole('link', { name: /max/i })).toBeInTheDocument();
+      expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+      expect(screen.getByText('Golden Retriever')).toBeInTheDocument();
+    });
+
+    it('keeps the owner on the card for a secretary, who sees every dog', () => {
+      localStorage.setItem('view-pref-dogs', 'cards');
+
+      renderPage();
+
+      expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    });
+  });
+
   // MYK9-218. The table has always paginated at 25; the card view rendered the
   // whole roster, so one dataset behaved two different ways on one route.
   describe('card view pagination', () => {

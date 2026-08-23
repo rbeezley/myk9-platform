@@ -181,8 +181,7 @@ export function ReportControlsBar({
         <Select value={reportType} onValueChange={onReportTypeChange}>
           <SelectTrigger
             id="report-type-select"
-            className="w-full sm:w-[200px]"
-            aria-label="Select report"
+            className="h-10 w-full sm:w-[200px]"
           >
             <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
           </SelectTrigger>
@@ -211,8 +210,7 @@ export function ReportControlsBar({
           <Select value={trialId} onValueChange={onTrialChange}>
             <SelectTrigger
               id="trial-select"
-              className="w-full sm:w-[160px]"
-              aria-label="Select trial"
+              className="h-10 w-full sm:w-[160px]"
             >
               <SelectValue placeholder="All Trials">{selectedTrialLabel}</SelectValue>
             </SelectTrigger>
@@ -237,8 +235,7 @@ export function ReportControlsBar({
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
             <SelectTrigger
               id="class-select"
-              className="w-full sm:w-[200px]"
-              aria-label="Select class"
+              className="h-10 w-full sm:w-[200px]"
             >
               <SelectValue placeholder="All Classes">{selectedClassLabel}</SelectValue>
             </SelectTrigger>
@@ -261,7 +258,7 @@ export function ReportControlsBar({
             Dog
           </label>
           <Select value={dogId} onValueChange={onDogChange}>
-            <SelectTrigger id="dog-select" className="w-full sm:w-[240px]" aria-label="Select dog">
+            <SelectTrigger id="dog-select" className="h-10 w-full sm:w-[240px]">
               <SelectValue placeholder="All Dogs">{selectedDogLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -285,8 +282,7 @@ export function ReportControlsBar({
           <Select value={sortOrder} onValueChange={onSortChange}>
             <SelectTrigger
               id="sort-select"
-              className="w-full sm:w-[160px]"
-              aria-label="Select sort"
+              className="h-10 w-full sm:w-[160px]"
             >
               <SelectValue placeholder="Sort by">{selectedSortLabel}</SelectValue>
             </SelectTrigger>

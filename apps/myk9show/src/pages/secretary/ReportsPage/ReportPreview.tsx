@@ -300,7 +300,7 @@ export function ReportPreview({
       >
         <p>We could not load the report data.</p>
         {onRetry && (
-          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+          <Button type="button" variant="outline" onClick={onRetry}>
             Try again
           </Button>
         )}
@@ -390,7 +390,7 @@ export function ReportPreview({
 
   return (
     <div
-      className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted/20 p-2"
+      className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted p-2"
       aria-label="Report preview scroll area"
       role="region"
       tabIndex={0}

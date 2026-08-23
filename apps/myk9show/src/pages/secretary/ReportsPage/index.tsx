@@ -327,7 +327,10 @@ export default function ReportsPage() {
   );
 
   return (
-    <div className="container mx-auto py-6 flex flex-col">
+    // px-4: this project's `.container` compiles to width + max-widths only,
+    // with no horizontal padding, and nothing up the tree supplies any -- so at
+    // 375px the heading and the packet card sat flush against both edges.
+    <div className="container mx-auto flex flex-col px-4 py-6">
       <ShowDeskReturnLink showId={showId} className="mb-2 self-start" />
       {/* Page header */}
       <div className="mb-6">

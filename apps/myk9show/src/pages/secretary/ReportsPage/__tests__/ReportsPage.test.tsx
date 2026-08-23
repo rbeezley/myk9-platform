@@ -430,7 +430,7 @@ describe('ReportsPage', () => {
 
     expect(screen.getByTestId('report-preview')).toHaveAttribute('data-class-id', 'class-1');
 
-    const trialSelect = screen.getByRole('combobox', { name: /select trial/i });
+    const trialSelect = screen.getByRole('combobox', { name: /^trial$/i });
     await user.click(trialSelect);
     await user.click(await screen.findByRole('option', { name: /Trial 2/ }));
 

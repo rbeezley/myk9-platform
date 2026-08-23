@@ -75,7 +75,11 @@ export const features = {
   // Nothing SMS-side is deleted: the consent hooks, the STOP webhook and the
   // sms_proximity_sends table are untouched, so a STOP already on record is still
   // honoured. Flip this to true (and deploy the function + set the Twilio secret)
-  // to bring the option back. Env override: VITE_SMS_RING_ALERTS=true.
+  // to bring the option back — in the SAME commit that deletes the "not available
+  // yet" note from public/legal/sms-alerts.md, since that note only makes sense
+  // while the option is hidden. smsDisclosurePage.source.test.ts fails on either
+  // half alone; the checklist is docs/operations/sms-10dlc-registration.md § 7.
+  // Env override: VITE_SMS_RING_ALERTS=true.
   smsRingAlerts: false,
 } as const;
 

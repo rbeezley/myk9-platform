@@ -302,6 +302,16 @@ In rough order of frequency:
 - [ ] Inbound webhook recording `sms_opt_out_at` on STOP
 - [ ] End-to-end test to a real handset: opt in → alert → STOP → verify no
       further sends and that `sms_opt_out_at` is set
+- [ ] **Turn the exhibitor-facing option back on, in one commit:** set
+      `features.smsRingAlerts = true` (`apps/myk9show/src/config/features.ts`)
+      **and** delete the "Ring alerts are not available yet" blockquote at the top
+      of `apps/myk9show/public/legal/sms-alerts.md`. These are two halves of one
+      state — the flag hides the opt-in row, the note explains its absence — so
+      doing either alone is a bug. Flipping the flag without deleting the note
+      leaves `/sms` telling a carrier reviewer there is "no way to sign up" while
+      the opt-in form is live; deleting the note without flipping the flag points
+      visitors at a control that is not there. `smsDisclosurePage.source.test.ts`
+      fails CI on either half, naming the missing one
 
 ---
 

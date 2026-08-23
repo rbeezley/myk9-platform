@@ -18,6 +18,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
+import { features } from '@/config/features';
 
 const repoAppRoot = join(__dirname, '../../..');
 const routesSource = readFileSync(join(repoAppRoot, 'src/routes/publicRoutes.tsx'), 'utf8');
@@ -80,17 +81,38 @@ describe('SMS disclosure content', () => {
     expect(disclosure).toContain('support@myk9show.com');
   });
 
-  it('says up front that ring alerts have not launched yet', () => {
-    // The page stays public at the same URL while SMS is deferred (the opt-in
-    // row is gated off by features.smsRingAlerts), so the "sign in and go to
-    // Account -> Notification Settings" instruction below points at a control
-    // that is not there. One blockquote at the top says so; deleting that one
-    // line is the whole restore when SMS ships.
-    expect(disclosure).toMatch(/Ring alerts are not available yet/i);
-    // Above the program description, not buried at the bottom.
-    expect(disclosure.indexOf('Ring alerts are not available yet')).toBeLessThan(
-      disclosure.indexOf('## What the program is')
-    );
+  /**
+   * The page and the kill switch are two halves of ONE state, and this is the
+   * only thing tying them together.
+   *
+   * Read left-to-right it pins the shipped default: every SMS UI test mocks
+   * `smsRingAlertsFlag`, so `features.smsRingAlerts` is otherwise executed by
+   * nothing in the repo and a stray `true` — a merge-conflict resolution, a bulk
+   * flag flip, a "turn everything on for a preview" commit — restores the opt-in
+   * form to production with CI fully green.
+   *
+   * Read right-to-left it pins the page: flipping the flag on without deleting
+   * the note leaves `/sms` telling a carrier reviewer there is "no way to sign
+   * up" while the opt-in form is live in front of them, during the A2P 10DLC
+   * review that page exists to pass.
+   */
+  it('carries the not-launched note exactly while the SMS kill switch is off', () => {
+    const noteAt = disclosure.indexOf('Ring alerts are not available yet');
+    expect(
+      noteAt > -1,
+      features.smsRingAlerts
+        ? 'features.smsRingAlerts is ON, so DELETE the "Ring alerts are not available yet" ' +
+            'blockquote at the top of public/legal/sms-alerts.md — it is the §7 restore step ' +
+            'in docs/operations/sms-10dlc-registration.md.'
+        : 'features.smsRingAlerts is OFF, so public/legal/sms-alerts.md must keep the ' +
+            '"Ring alerts are not available yet" blockquote: the page tells visitors to opt in ' +
+            'through a control that is currently hidden.'
+    ).toBe(!features.smsRingAlerts);
+
+    // When present it belongs above the program description, not buried at the bottom.
+    if (noteAt > -1) {
+      expect(noteAt).toBeLessThan(disclosure.indexOf('## What the program is'));
+    }
   });
 
   it('keeps the full disclosure alongside that note rather than replacing it', () => {

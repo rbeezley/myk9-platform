@@ -13,7 +13,8 @@ grant carries over.
 ## Querying — archived issues are the closed backlog
 
 The workspace runs on Linear's **free tier (250 non-archived issues)**, and the way it stays under
-that cap is auto-archive (Team settings → Issue statuses & automations), which moves closed issues
+that cap is auto-archive (Team settings → **Workflows & automations** → "Auto-archive closed issues,
+cycles, and projects" — *not* Issue statuses, which is only the status list), which moves closed issues
 out of the active set once its window elapses. Archived issues still exist — searchable,
 restorable, and `get_issue`-able by id — but they are **invisible to a default `list_issues` call**,
 which sends `includeArchived: false`.
@@ -36,8 +37,12 @@ Done issues on 2026-08-20 — so a duplicate is not a harmless extra row; it re-
 you already know the id (and remember the LESSONS rule: never close from a `list_issues` result,
 because it truncates acceptance criteria).
 
-Archiving is automatic and cannot be triggered per-issue (Team settings → Issue statuses &
-automations sets the window). Do not "free up room" by deleting issues — deletion is permanent
+Archiving is automatic and cannot be triggered per-issue; Team settings → Workflows & automations
+sets the window. The *Auto-close stale issues* automation on that same page is a different thing and
+is currently on (6 months → Canceled): it closes **open** issues, so the deliberately parked Backlog
+items here — Stripe live-mode cutover, 10DLC registration, DR posture — are on a path to Canceled
+around 2027-01. Cycles are off and there are no projects, so none of Linear's auto-close exemptions
+protect them. Do not "free up room" by deleting issues — deletion is permanent
 after 30 days and orphans the ~197 distinct `MYK9-<n>` ids cited across ~737 files in this repo.
 
 ## Conventions

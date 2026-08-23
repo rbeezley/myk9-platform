@@ -1,5 +1,5 @@
 import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
-import type { EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
+import type { EmergencyPacketEntry, EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
 
 /**
  * The PDF surface this renderer uses, declared structurally.
@@ -21,7 +21,15 @@ export interface PacketPdfDocument {
   line(x1: number, y1: number, x2: number, y2: number): unknown;
   output(type: 'arraybuffer'): ArrayBuffer;
   rect(x: number, y: number, w: number, h: number, style?: string): unknown;
-  roundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string): unknown;
+  roundedRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rx: number,
+    ry: number,
+    style?: string
+  ): unknown;
   setDrawColor(r: number, g?: number, b?: number): unknown;
   setFillColor(r: number, g?: number, b?: number): unknown;
   setFont(font: string, style?: string): unknown;
@@ -35,12 +43,7 @@ export interface PacketPdfDocument {
   }): unknown;
   setTextColor(r: number, g?: number, b?: number): unknown;
   splitTextToSize(text: string, size: number): string[];
-  text(
-    text: string | string[],
-    x: number,
-    y: number,
-    options?: { align?: string }
-  ): unknown;
+  text(text: string | string[], x: number, y: number, options?: { align?: string }): unknown;
 }
 
 /** Options this renderer passes; jsPDF's constructor is overloaded, so pin it. */
@@ -62,7 +65,9 @@ const RIGHT = PAGE_WIDTH - 14;
 
 function formatGeneratedAt(value: string): string {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('en-US', { timeZoneName: 'short' });
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString('en-US', { timeZoneName: 'short' });
 }
 
 function addPageFrame(doc: jsPDF, page: EmergencyPacketPage, totalPages: number): void {
@@ -186,9 +191,14 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('Email or a file on the show laptop is not the emergency endpoint.', PAGE_WIDTH / 2, y + 20, {
-    align: 'center',
-  });
+  doc.text(
+    'Email or a file on the show laptop is not the emergency endpoint.',
+    PAGE_WIDTH / 2,
+    y + 20,
+    {
+      align: 'center',
+    }
+  );
   y += 38;
 
   doc.setTextColor(20, 20, 20);
@@ -329,24 +339,115 @@ function renderCatalog(doc: jsPDF, page: EmergencyPacketPage): void {
   );
 }
 
+type CheckInColumnKey =
+  'gate' | 'order' | 'armband' | 'callName' | 'breed' | 'registrationNumber' | 'handler' | 'note';
+
+const CHECK_IN_COLUMN_DEFS: ReadonlyArray<{ key: CheckInColumnKey; label: string; width: number }> =
+  [
+    { key: 'gate', label: 'Gate', width: 12 },
+    { key: 'order', label: 'Order', width: 14 },
+    { key: 'armband', label: 'Armband', width: 20 },
+    { key: 'callName', label: 'Call Name', width: 34 },
+    { key: 'breed', label: 'Breed', width: 32 },
+    { key: 'registrationNumber', label: 'Reg #', width: 26 },
+    { key: 'handler', label: 'Handler', width: 30 },
+    { key: 'note', label: 'Pull / Move / Note', width: 19.9 },
+  ];
+
+/**
+ * The union of the two check-in sheets this replaced: `Order` and
+ * `Pull / Move / Note` came from the packet, `Reg #` from the Reports sheet.
+ *
+ * `x` is derived by summing preceding widths (not a literal) so a width edit
+ * moves every column after it — the property the width test relies on: it
+ * only checks the FIRST and LAST column's bounds, so a column downstream of
+ * an edit must actually shift for a widened middle column to be caught.
+ * Widths sum to 187.9 (RIGHT - LEFT); the test asserts the resulting bounds,
+ * not this arithmetic, so a change here that breaks the sum fails the test
+ * rather than the comment.
+ */
+export const CHECK_IN_COLUMNS: ReadonlyArray<{
+  key: CheckInColumnKey;
+  label: string;
+  width: number;
+  x: number;
+}> = (() => {
+  let x = LEFT;
+  return CHECK_IN_COLUMN_DEFS.map(def => {
+    const column = { ...def, x };
+    x += def.width;
+    return column;
+  });
+})();
+
+function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): string {
+  switch (key) {
+    case 'gate':
+    case 'note':
+      return '';
+    case 'order':
+      return entry.runOrderDisplay;
+    case 'armband':
+      return String(entry.armband);
+    case 'callName':
+      return entry.callName;
+    case 'breed':
+      return entry.breed;
+    case 'registrationNumber':
+      return entry.registrationNumber ?? '';
+    case 'handler':
+      return entry.handler;
+    default:
+      return '';
+  }
+}
+
+/**
+ * Custom layout rather than `renderTable`: that helper's fixed 7.5pt bold
+ * header does not fit 'Pull / Move / Note' inside its 19.9mm column (that
+ * string alone measures ~21.9mm at 7.5pt bold), and there is no other header
+ * this cramped in the other tables. Shrinking the header font here — and
+ * nowhere else — is the fix; `fitTextToWidth` still backstops every header
+ * and every cell so a real overflow is truncated, never overprinted.
+ */
+const CHECK_IN_HEADER_FONT_SIZE = 5.5;
+const CHECK_IN_CELL_FONT_SIZE = 7.5;
+
 function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   const startY = addTitle(doc, page);
-  renderTable(
-    doc,
-    startY,
-    ['Gate', 'Order', 'Armband', 'Dog', 'Breed', 'Handler', 'Pull / Move / Note'],
-    [13, 14, 19, 28, 30, 35, 49],
-    page.entries.map(entry => [
-      entry.checkInMark,
-      entry.runOrderDisplay,
-      String(entry.armband),
-      entry.callName,
-      entry.breed,
-      entry.handler,
-      '',
-    ]),
-    10
-  );
+  const rowHeight = 10;
+  const totalWidth = RIGHT - LEFT;
+  let y = startY;
+
+  doc.setFillColor(55, 65, 81);
+  doc.rect(LEFT, y, totalWidth, rowHeight, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(CHECK_IN_HEADER_FONT_SIZE);
+  for (const column of CHECK_IN_COLUMNS) {
+    doc.text(fitTextToWidth(doc, column.label, column.width - 3), column.x + 1.5, y + 6);
+  }
+  y += rowHeight;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(CHECK_IN_CELL_FONT_SIZE);
+  doc.setTextColor(20, 20, 20);
+  page.entries.forEach((entry, rowIndex) => {
+    if (rowIndex % 2 === 1) {
+      doc.setFillColor(245, 247, 250);
+      doc.rect(LEFT, y, totalWidth, rowHeight, 'F');
+    }
+    doc.setDrawColor(150, 150, 150);
+    for (const column of CHECK_IN_COLUMNS) {
+      doc.rect(column.x, y, column.width, rowHeight);
+      doc.text(
+        fitTextToWidth(doc, checkInCellValue(entry, column.key), column.width - 3),
+        column.x + 1.5,
+        y + 6
+      );
+    }
+    y += rowHeight;
+  });
 }
 
 function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
@@ -358,19 +459,31 @@ function renderScoreRecording(doc: jsPDF, page: EmergencyPacketPage): void {
     doc.rect(LEFT, y, RIGHT - LEFT, 27);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text(fitTextToWidth(doc, `#${entry.armband}  ${entry.callName}`, RIGHT - LEFT - 6), LEFT + 3, y + 6);
+    doc.text(
+      fitTextToWidth(doc, `#${entry.armband}  ${entry.callName}`, RIGHT - LEFT - 6),
+      LEFT + 3,
+      y + 6
+    );
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text(fitTextToWidth(
-      doc,
-      [entry.breed, entry.registrationNumber, entry.handler].filter(Boolean).join(' · '),
-      RIGHT - LEFT - 6
-    ), LEFT + 3, y + 12);
+    doc.text(
+      fitTextToWidth(
+        doc,
+        [entry.breed, entry.registrationNumber, entry.handler].filter(Boolean).join(' · '),
+        RIGHT - LEFT - 6
+      ),
+      LEFT + 3,
+      y + 12
+    );
     doc.text('Result:  [ ] Q   [ ] NQ   [ ] EX   [ ] ABS', LEFT + 3, y + 19);
     doc.text('Time: __________', 87, y + 19);
     doc.text('Faults: ______', 125, y + 19);
     doc.text('Place: ______', 159, y + 19);
-    doc.text('Notes / reason: __________________________________________________________', LEFT + 3, y + 25);
+    doc.text(
+      'Notes / reason: __________________________________________________________',
+      LEFT + 3,
+      y + 25
+    );
     y += 29;
   }
 }
@@ -401,7 +514,11 @@ function renderCertification(doc: jsPDF, page: EmergencyPacketPage): void {
   y += 15;
   doc.text('Judge signature: ____________________________________   Date: ______________', LEFT, y);
   y += 25;
-  doc.text('Secretary signature: _________________________________   Date: ______________', LEFT, y);
+  doc.text(
+    'Secretary signature: _________________________________   Date: ______________',
+    LEFT,
+    y
+  );
   y += 25;
   doc.text('Corrections / incident notes:', LEFT, y);
   for (let line = 1; line <= 6; line += 1) {
@@ -431,9 +548,17 @@ function renderTranscription(doc: jsPDF, page: EmergencyPacketPage): void {
     y += lines.length * 6 + 6;
   });
   y += 10;
-  doc.text('Transcribed by: ______________________________________  Date/time: __________________', LEFT, y);
+  doc.text(
+    'Transcribed by: ______________________________________  Date/time: __________________',
+    LEFT,
+    y
+  );
   y += 18;
-  doc.text('Checked by: _________________________________________  Date/time: __________________', LEFT, y);
+  doc.text(
+    'Checked by: _________________________________________  Date/time: __________________',
+    LEFT,
+    y
+  );
   y += 22;
   doc.text('Discrepancies and resolutions:', LEFT, y);
   for (let line = 1; line <= 6; line += 1) {

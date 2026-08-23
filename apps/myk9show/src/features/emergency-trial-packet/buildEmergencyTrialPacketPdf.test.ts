@@ -4,14 +4,17 @@ import type { ReportEntry } from '@/lib/reports/types';
 import { buildEmergencyPacketModel, splitPacketInputByTrialDay } from './emergencyTrialPacket';
 import jsPDF from 'jspdf';
 import {
+  buildEmergencyTrialPacketPdf as buildEmergencyTrialPacketPdfWithCtor,
+  CHECK_IN_COLUMNS,
   layoutDetailLines,
   maxDetailLinesForKind,
   MAX_EMERGENCY_PACKET_BYTES,
+  type JsPdfConstructor,
 } from './buildEmergencyTrialPacketPdf';
 // Exercise the APP binding, so these tests cover the same path the product
 // uses rather than a hand-passed constructor.
 import { renderEmergencyTrialPacketPdf as buildEmergencyTrialPacketPdf } from './renderPacketPdf';
-import type { EmergencyPacketInput } from './types';
+import type { EmergencyPacketClass, EmergencyPacketInput, EmergencyPacketPageKind } from './types';
 
 function reportEntry(id: string, classId: string, trialId: string, armband: number): ReportEntry {
   return {
@@ -145,7 +148,115 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
   return chunks.join('\n').replace(/\\\(/g, '(').replace(/\\\)/g, ')');
 }
 
+/**
+ * Render exactly one page of the given kind and capture every string drawn
+ * into it, synchronously — no PDF byte decode round-trip.
+ *
+ * `entryOverrides` merges into EVERY entry fixture (there are two, so a
+ * long-value test cannot pass just because it happened to land on the row
+ * the assertion forgot to check). `classOverrides` merges into the class
+ * fixture; Task 3 does not need it, but Task 4's score-recording tests call
+ * this with a third argument, so the signature is final now.
+ */
+function renderPageOfKind(
+  kind: EmergencyPacketPageKind,
+  entryOverrides: Partial<ReportEntry> = {},
+  classOverrides: Partial<EmergencyPacketClass> = {}
+): { doc: Uint8Array; texts: string[] } {
+  const input: EmergencyPacketInput = structuredClone(fixture) as EmergencyPacketInput;
+  input.trials = [input.trials[0]];
+  input.classes = [{ ...input.classes[0], ...classOverrides }];
+  input.entries = [
+    { ...reportEntry('e1', 'c1', 't1', 101), ...entryOverrides },
+    { ...reportEntry('e2', 'c1', 't1', 102), ...entryOverrides },
+  ];
+
+  const model = buildEmergencyPacketModel(input);
+  const targetPage = model.pages.find(candidate => candidate.kind === kind);
+  if (!targetPage)
+    throw new Error(`renderPageOfKind: no '${kind}' page was produced by the fixture`);
+
+  const texts: string[] = [];
+  // A constructor function that returns an object from `new` hands that
+  // object back instead of `this` — this is what lets a real jsPDF instance
+  // satisfy `JsPdfConstructor` while every `.text()` call is intercepted.
+  const RecordingJsPdf = function (options: ConstructorParameters<typeof jsPDF>[0]) {
+    const real = new jsPDF(options);
+    const originalText = real.text.bind(real);
+    (real as unknown as { text: typeof real.text }).text = ((
+      text: Parameters<typeof real.text>[0],
+      x: Parameters<typeof real.text>[1],
+      y: Parameters<typeof real.text>[2],
+      opts?: Parameters<typeof real.text>[3]
+    ) => {
+      for (const value of Array.isArray(text) ? text : [text]) texts.push(value);
+      return originalText(text, x, y, opts);
+    }) as typeof real.text;
+    return real;
+  } as unknown as JsPdfConstructor;
+
+  const doc = buildEmergencyTrialPacketPdfWithCtor(
+    { ...model, pages: [{ ...targetPage, pageNumber: 1 }] },
+    RecordingJsPdf
+  );
+  return { doc, texts };
+}
+
+function checkInColumnGeometry() {
+  return {
+    columnStarts: CHECK_IN_COLUMNS.map(column => column.x),
+    columnWidths: CHECK_IN_COLUMNS.map(column => column.width),
+  };
+}
+
 describe('buildEmergencyTrialPacketPdf', () => {
+  it('prints all eight check-in columns', () => {
+    const { doc, texts } = renderPageOfKind('check-in');
+    for (const header of [
+      'Gate',
+      'Order',
+      'Armband',
+      'Call Name',
+      'Breed',
+      'Reg #',
+      'Handler',
+      'Pull / Move / Note',
+    ]) {
+      expect(texts, header).toContain(header);
+    }
+    expect(doc).toBeDefined();
+  });
+
+  it('keeps every check-in column inside the printable width', () => {
+    // jsPDF does not reflow. A column that starts past RIGHT is drawn off-page
+    // and simply never appears on paper.
+    const { columnStarts, columnWidths } = checkInColumnGeometry();
+    const last = columnStarts.length - 1;
+    expect(columnStarts[0]).toBeGreaterThanOrEqual(14);
+    expect(columnStarts[last] + columnWidths[last]).toBeLessThanOrEqual(215.9 - 14);
+  });
+
+  // Every text column, not just breed. Guarding one field and leaving the
+  // other six is the same bug with better odds.
+  it.each([
+    ['breed', 'Nederlandse Kooikerhondje Extremely Long Registered Breed Name'],
+    ['callName', 'Bartholomew Fitzgerald Wellington The Third Of Somewhere'],
+    ['handler', 'Anastasia Konstantinopoulos-Wetherbottom'],
+    ['registrationNumber', 'SR-99999999-XX-ALTERNATE-REGISTRY-LONGFORM'],
+  ])('truncates an overlong %s rather than overprinting the next column', (field, value) => {
+    const { texts } = renderPageOfKind('check-in', { [field]: value });
+    // A bare `value.startsWith(text.slice(0, 8))` is vacuously true for `text
+    // === ''` (`startsWith('')` is always true), and every check-in row has
+    // two empty ruled cells (gate, note) that sort ahead of every other
+    // field in `texts` — so the naive predicate matches the empty gate cell
+    // before ever reaching the field under test, and the assertion below
+    // passes whether or not truncation happened. Require a real, non-empty
+    // prefix match instead.
+    const printed = texts.find(text => text.length > 0 && value.startsWith(text.slice(0, 8)));
+    expect(printed, `${field} was not printed at all`).toBeDefined();
+    expect(printed!.length).toBeLessThan(value.length);
+  });
+
   it('creates one bounded vector PDF page for every modeled paper page', async () => {
     const model = buildEmergencyPacketModel(fixture);
     const bytes = buildEmergencyTrialPacketPdf(model);

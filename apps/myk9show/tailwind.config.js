@@ -163,12 +163,36 @@ export default {
         display: ['Fraunces', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', '"SF Mono"', 'Consolas', 'monospace'],
       },
-      // INTENT: myK9Show's working UI has a 14px floor. Tailwind's default
-      // text-xs is 12px, which is too small for show-day tablet use and retired
-      // exhibitors. Print/export templates may still use smaller inline sizes
-      // when fitting official fixed-format forms.
+      // INTENT: the whole type scale, as one token. docs/INTENT.md requires a
+      // 16px body minimum and never below 14px for anything; before this the
+      // app rendered ~99% of its text at 14px because `text-sm` (Tailwind's
+      // 14px) had become the default body size, leaving a 16÷14 = 1.14 step
+      // ratio and effectively no hierarchy (MYK9-220).
+      //
+      // The scale is geometric at 1.25 anchored on a 16px body — 16 / 20 / 25 /
+      // 31 / 39 / 49 / 61 / 76 / 95 — with 14px kept below it as the caption
+      // step and the absolute floor. Tailwind's default text-xs is 12px, which
+      // is too small for show-day tablet use and retired exhibitors.
+      //
+      // Every step is declared here on purpose: the scale must stay monotonic,
+      // so raising `sm` to 16px forces `base` and everything above it up too.
+      // Keeping it as one token block is the rollback story — reverting this
+      // object restores the previous typography app-wide in a single diff.
+      // Do NOT compensate for the new scale in individual components; if a
+      // surface breaks, that is evidence about the scale, not a component bug.
+      // Print/export templates may still use smaller inline sizes when fitting
+      // official fixed-format forms.
       fontSize: {
-        xs: ['0.875rem', { lineHeight: '1.25rem' }],
+        xs: ['0.875rem', { lineHeight: '1.25rem' }], // 14px — caption / floor
+        sm: ['1rem', { lineHeight: '1.5rem' }], // 16px — body
+        base: ['1.25rem', { lineHeight: '1.75rem' }], // 20px
+        lg: ['1.5625rem', { lineHeight: '2rem' }], // 25px
+        xl: ['1.9375rem', { lineHeight: '2.375rem' }], // 31px
+        '2xl': ['2.4375rem', { lineHeight: '2.875rem' }], // 39px
+        '3xl': ['3.0625rem', { lineHeight: '3.5rem' }], // 49px
+        '4xl': ['3.8125rem', { lineHeight: '1.1' }], // 61px
+        '5xl': ['4.75rem', { lineHeight: '1.1' }], // 76px
+        '6xl': ['5.9375rem', { lineHeight: '1.1' }], // 95px
       },
       transitionTimingFunction: {
         apple: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',

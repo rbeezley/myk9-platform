@@ -101,7 +101,14 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
 - **Large touch targets** — minimum 44x44px, prefer 48x48px on tablet views
 - **High contrast text** — WCAG AA minimum, prefer AAA for primary content
 - **Readable font sizes** — 16px body minimum, never below 14px for anything
-  - In myK9Show, the `text-xs` Tailwind token is intentionally raised to 14px.
+  - In myK9Show, the `text-xs` Tailwind token is intentionally raised to 14px. It is the
+    caption step and the absolute floor — secondary text only, never body copy.
+  - Body copy is `text-sm`, which the app raises to 16px. The rest of the scale is geometric
+    at 1.25 from there (16 / 20 / 25 / 31 / …), so adjacent steps stay far enough apart to
+    read as a hierarchy. The whole scale lives in one `fontSize` block in
+    `apps/myk9show/tailwind.config.js`; change it there, never per component.
+  - Enforced by `apps/myk9show/src/test/design/typeScale.test.ts`, which compiles the real
+    config and asserts computed styles rather than grepping the config text (MYK9-220).
   - Exception: print/export templates may use smaller fixed sizes when fitting official forms.
 - **No hover-only interactions** — everything must work on touch devices
 - **No gesture-only actions** — swipe is a shortcut, never the only way

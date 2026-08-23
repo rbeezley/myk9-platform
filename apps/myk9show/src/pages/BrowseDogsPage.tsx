@@ -5,7 +5,7 @@ import { Plus, Search, PawPrint } from 'lucide-react';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
-import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
+import { useBrowseDogsData, type DogFilters } from '@/hooks/useBrowseDogsData';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { DogsBulkActionsBar } from '@/components/dogs/browse/DogsBulkActionsBar';
@@ -22,6 +22,16 @@ import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
+import { ListPagination } from '@/components/common/ListPagination';
+
+/**
+ * One pagination contract per dataset, not one per view mode (MYK9-218). The
+ * table paginates at 25 through `DataTable`'s own default; the card view used
+ * to render the whole roster, so a secretary who preferred cards silently lost
+ * the ceiling the table gave them and an exhibitor on a phone mounted a card
+ * per dog to look at three.
+ */
+const CARD_PAGE_SIZE = 25;
 
 const BrowseDogsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,6 +44,7 @@ const BrowseDogsPage: React.FC = () => {
   const [showCreateDogPanel, setShowCreateDogPanel] = useState(
     () => searchParams.get('add') === 'true'
   );
+  const [cardPage, setCardPage] = useState(1);
 
   const currentUserPersonId = useCurrentUserPersonId();
   const { hasPermission, isLoading: rbacLoading, refresh: refreshRbac } = useRBAC();
@@ -111,11 +122,43 @@ const BrowseDogsPage: React.FC = () => {
     return values;
   }, [filters.breed, filters.sex]);
 
-  const handleChipFilterChange = useCallback(
-    (key: string, value: string | null) => {
-      setFilters(prev => ({ ...prev, [key]: value || 'all' }));
+  // Every filter change goes through here so the card view cannot be left
+  // stranded on a page number the narrowed result set no longer has. Resetting
+  // on the event rather than in an effect keeps the page a plain function of
+  // what the user did.
+  const applyFilters = useCallback(
+    (update: (prev: DogFilters) => DogFilters) => {
+      setCardPage(1);
+      setFilters(update);
     },
     [setFilters]
+  );
+
+  const handleChipFilterChange = useCallback(
+    (key: string, value: string | null) => {
+      applyFilters(prev => ({ ...prev, [key]: value || 'all' }));
+    },
+    [applyFilters]
+  );
+
+  const handleSearchChange = useCallback(
+    (value: string) => applyFilters(prev => ({ ...prev, search: value })),
+    [applyFilters]
+  );
+
+  const handleClearAllFilters = useCallback(() => {
+    setCardPage(1);
+    clearAllFilters();
+  }, [clearAllFilters]);
+
+  // Clamped rather than trusted: the roster can shrink underneath a page
+  // number from a background sync as well as from a filter, and an out-of-range
+  // page would render an empty grid over a non-empty result set.
+  const cardTotalPages = Math.max(1, Math.ceil(filteredDogs.length / CARD_PAGE_SIZE));
+  const safeCardPage = Math.min(Math.max(1, cardPage), cardTotalPages);
+  const pagedDogs = useMemo(
+    () => filteredDogs.slice((safeCardPage - 1) * CARD_PAGE_SIZE, safeCardPage * CARD_PAGE_SIZE),
+    [filteredDogs, safeCardPage]
   );
 
   const pageTitle = isExhibitorOnly ? 'My Dogs' : 'Dogs';
@@ -154,6 +197,22 @@ const BrowseDogsPage: React.FC = () => {
         </Button>
       ) : undefined,
     [canCreateDogs, isExhibitorOnly, openCreateDogPanel]
+  );
+
+  const renderCards = () => (
+    <>
+      <DogsGridView dogs={pagedDogs} />
+      {/* `totalItems` is the whole filtered set, never `pagedDogs.length` —
+          the control has to describe the set being paged, not the page. */}
+      <ListPagination
+        label="Dog list pagination"
+        currentPage={safeCardPage}
+        totalPages={cardTotalPages}
+        pageSize={CARD_PAGE_SIZE}
+        totalItems={filteredDogs.length}
+        onPageChange={setCardPage}
+      />
+    </>
   );
 
   const renderContent = () => {
@@ -201,7 +260,7 @@ const BrowseDogsPage: React.FC = () => {
           icon={Search}
           title="No dogs match your filters"
           description="Try a different search, or clear the filters to see every dog again."
-          action={{ label: 'Clear Filters', onClick: clearAllFilters }}
+          action={{ label: 'Clear Filters', onClick: handleClearAllFilters }}
           variant="filter"
         />
       );
@@ -210,7 +269,7 @@ const BrowseDogsPage: React.FC = () => {
     // My Dogs is card-only for exhibitors (design.md D3) — the table view and
     // its toggle are a secretary/admin affordance only.
     if (isExhibitorOnly) {
-      return <DogsGridView dogs={filteredDogs} />;
+      return renderCards();
     }
 
     switch (viewMode) {
@@ -223,7 +282,7 @@ const BrowseDogsPage: React.FC = () => {
         );
       case 'cards':
       default:
-        return <DogsGridView dogs={filteredDogs} />;
+        return renderCards();
     }
   };
 
@@ -248,7 +307,7 @@ const BrowseDogsPage: React.FC = () => {
 
           <ListControls
             search={filters.search}
-            onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+            onSearchChange={handleSearchChange}
             searchPlaceholder={
               isExhibitorOnly
                 ? 'Search your dogs by name or breed...'

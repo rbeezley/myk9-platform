@@ -19,7 +19,7 @@ import '@/styles/myk9-table.css';
 
 import { User } from '@/types/user-types';
 import type { UserTableProps } from './types';
-import { Pagination } from './Pagination';
+import { ListPagination } from '@/components/common/ListPagination';
 import { buildColumns } from './columns';
 import { getUserFullName } from './utils';
 
@@ -234,11 +234,13 @@ export const UserTable: React.FC<UserTableProps> = ({
       </div>
 
       {/* External pagination — controlled by parent */}
-      <Pagination
+      <ListPagination
+        label="User list pagination"
+        pageSizeInputId="users-per-page"
         currentPage={currentPage}
         totalPages={totalPages}
         pageSize={pageSize}
-        totalUsers={totalFilteredUsers}
+        totalItems={totalFilteredUsers}
         onPageChange={onPageChange}
         {...(onPageSizeChange ? { onPageSizeChange } : {})}
       />

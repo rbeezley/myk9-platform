@@ -1,8 +1,12 @@
 /**
- * Pagination controls for the admin user table.
+ * Pagination controls for any client-paginated list.
  *
  * Wraps at narrow widths and treats "no results" as page 1 of 1, so the Next
  * and Last buttons can never walk the caller to page 0.
+ *
+ * Fully controlled: the caller owns the page index and the slicing. Promoted
+ * out of the admin user table when the /dogs card view needed the same
+ * contract (MYK9-218) — one pagination control, not one per surface.
  */
 
 import React from 'react';
@@ -11,22 +15,32 @@ import { Button } from '@/components/ui/button';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-interface PaginationProps {
+interface ListPaginationProps {
   currentPage: number;
   totalPages: number;
   pageSize: number;
-  totalUsers: number;
+  /** Size of the WHOLE filtered set, not of the current page. */
+  totalItems: number;
   onPageChange: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
+  /** Accessible name for the nav landmark, e.g. "Dog list pagination". */
+  label: string;
+  /** Noun for the page-size control's label, e.g. "Rows" or "Cards". */
+  pageSizeLabel?: string;
+  /** Unique id for the page-size select, required only when it is rendered. */
+  pageSizeInputId?: string;
 }
 
-export const Pagination: React.FC<PaginationProps> = ({
+export const ListPagination: React.FC<ListPaginationProps> = ({
   currentPage,
   totalPages,
   pageSize,
-  totalUsers,
+  totalItems,
   onPageChange,
   onPageSizeChange,
+  label,
+  pageSizeLabel = 'Rows',
+  pageSizeInputId = 'list-page-size',
 }) => {
   // An empty result set still has one (empty) page. Without this floor,
   // `currentPage === totalPages` is `1 === 0`, which leaves Next/Last enabled
@@ -38,8 +52,8 @@ export const Pagination: React.FC<PaginationProps> = ({
 
   const navButtonClass = 'h-11 w-11 p-0 rounded-xl border border-border bg-background';
 
-  const firstShown = totalUsers === 0 ? 0 : Math.min((page - 1) * pageSize + 1, totalUsers);
-  const lastShown = Math.min(page * pageSize, totalUsers);
+  const firstShown = totalItems === 0 ? 0 : Math.min((page - 1) * pageSize + 1, totalItems);
+  const lastShown = Math.min(page * pageSize, totalItems);
 
   const pageNumbers = Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
     if (lastPage <= 5 || page <= 3) return i + 1;
@@ -49,16 +63,16 @@ export const Pagination: React.FC<PaginationProps> = ({
 
   return (
     <nav
-      aria-label="User list pagination"
+      aria-label={label}
       className="flex flex-wrap items-center justify-between gap-4 pt-6 pb-2"
     >
       {/* Results summary & page size */}
       <div className="flex flex-wrap items-center gap-3">
         {onPageSizeChange && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <label htmlFor="users-per-page">Rows</label>
+            <label htmlFor={pageSizeInputId}>{pageSizeLabel}</label>
             <select
-              id="users-per-page"
+              id={pageSizeInputId}
               value={pageSize}
               onChange={e => onPageSizeChange(Number(e.target.value))}
               className="h-11 px-3 rounded-lg border border-border bg-background text-foreground
@@ -75,7 +89,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         <p className="text-sm text-muted-foreground">
           Showing <span className="font-semibold text-foreground">{firstShown}</span> to{' '}
           <span className="font-semibold text-foreground">{lastShown}</span> of{' '}
-          <span className="font-semibold text-foreground">{totalUsers}</span>
+          <span className="font-semibold text-foreground">{totalItems}</span>
         </p>
       </div>
 

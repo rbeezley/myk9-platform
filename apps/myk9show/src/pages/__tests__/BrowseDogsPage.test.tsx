@@ -442,4 +442,120 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       expect(screen.getByText('No dogs yet')).toBeInTheDocument();
     });
   });
+
+  // MYK9-218. The table has always paginated at 25; the card view rendered the
+  // whole roster, so one dataset behaved two different ways on one route.
+  describe('card view pagination', () => {
+    const roster = (count: number) =>
+      Array.from({ length: count }, (_, i) =>
+        makeDog({ id: `dog-${i + 1}`, name: `Dog ${i + 1}`, callName: `Dog ${i + 1}` })
+      );
+
+    const cardLinks = () => screen.getAllByRole('link', { name: /^Dog \d+$/ });
+
+    function renderCards(count: number, extra: Record<string, unknown> = {}) {
+      const dogs = roster(count);
+      mockBrowseDogsReturn = { ...mockBrowseDogsReturn, dogs, filteredDogs: dogs, ...extra };
+      localStorage.setItem('view-pref-dogs', 'cards');
+      return renderPage();
+    }
+
+    it('renders at most 25 cards from a 60-dog roster', () => {
+      renderCards(60);
+
+      const links = cardLinks();
+      expect(links).toHaveLength(25);
+      expect(links[0]).toHaveAccessibleName('Dog 1');
+      expect(links[24]).toHaveAccessibleName('Dog 25');
+      expect(screen.queryByRole('link', { name: 'Dog 26' })).not.toBeInTheDocument();
+    });
+
+    it('walks to the next page of cards', async () => {
+      const user = userEvent.setup();
+      renderCards(60);
+
+      await user.click(screen.getByRole('button', { name: 'Go to next page' }));
+
+      const links = cardLinks();
+      expect(links).toHaveLength(25);
+      expect(links[0]).toHaveAccessibleName('Dog 26');
+      expect(links[24]).toHaveAccessibleName('Dog 50');
+      expect(screen.queryByRole('link', { name: 'Dog 25' })).not.toBeInTheDocument();
+    });
+
+    it('renders the short last page rather than padding it', async () => {
+      const user = userEvent.setup();
+      renderCards(60);
+
+      await user.click(screen.getByRole('button', { name: 'Go to last page' }));
+
+      expect(cardLinks()).toHaveLength(10);
+      expect(screen.getByRole('link', { name: 'Dog 60' })).toBeInTheDocument();
+    });
+
+    // The guard that matters: putting a ceiling on a previously unbounded list
+    // re-arms every count downstream of it. The results summary describes how
+    // many dogs MATCH, so it must keep reading the whole filtered set — a page
+    // count there would tell a secretary their roster shrank.
+    it('reports the whole filtered roster in the results summary, not the page', () => {
+      renderCards(60);
+
+      expect(screen.getByText('60 dogs')).toBeInTheDocument();
+      expect(screen.queryByText('25 dogs')).not.toBeInTheDocument();
+
+      const nav = screen.getByRole('navigation', { name: 'Dog list pagination' });
+      expect(nav.textContent?.replace(/\s+/g, ' ')).toContain('Showing 1 to 25 of 60');
+    });
+
+    it('hides the pagination control when the roster fits on one page', () => {
+      renderCards(25);
+
+      expect(cardLinks()).toHaveLength(25);
+      expect(screen.queryByRole('navigation', { name: 'Dog list pagination' })).not.toBeInTheDocument();
+    });
+
+    it('paginates the exhibitor card view too', () => {
+      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+      renderCards(60);
+
+      expect(cardLinks()).toHaveLength(25);
+      expect(screen.getByRole('navigation', { name: 'Dog list pagination' })).toBeInTheDocument();
+    });
+
+    it('returns to the first page when the search changes', async () => {
+      const user = userEvent.setup();
+      renderCards(60);
+
+      await user.click(screen.getByRole('button', { name: 'Go to next page' }));
+      expect(cardLinks()[0]).toHaveAccessibleName('Dog 26');
+
+      await user.type(screen.getByPlaceholderText('Search dogs by name, breed, or owner...'), 'a');
+
+      expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();
+      expect(cardLinks()[0]).toHaveAccessibleName('Dog 1');
+    });
+
+    it('clamps to the last available page when the roster shrinks underneath it', async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderCards(60);
+
+      await user.click(screen.getByRole('button', { name: 'Go to last page' }));
+      expect(cardLinks()[0]).toHaveAccessibleName('Dog 51');
+
+      const smaller = roster(26);
+      mockBrowseDogsReturn = { ...mockBrowseDogsReturn, dogs: smaller, filteredDogs: smaller };
+      rerender(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <MemoryRouter initialEntries={['/dogs']}>
+            <BrowseDogsPage />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+
+      // Page 3 no longer exists; the grid must show page 2's single card, not
+      // an empty grid over a non-empty result set.
+      expect(cardLinks()).toHaveLength(1);
+      expect(cardLinks()[0]).toHaveAccessibleName('Dog 26');
+    });
+  });
 });

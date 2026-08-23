@@ -80,6 +80,30 @@ describe('SMS disclosure content', () => {
     expect(disclosure).toContain('support@myk9show.com');
   });
 
+  it('says up front that ring alerts have not launched yet', () => {
+    // The page stays public at the same URL while SMS is deferred (the opt-in
+    // row is gated off by features.smsRingAlerts), so the "sign in and go to
+    // Account -> Notification Settings" instruction below points at a control
+    // that is not there. One blockquote at the top says so; deleting that one
+    // line is the whole restore when SMS ships.
+    expect(disclosure).toMatch(/Ring alerts are not available yet/i);
+    // Above the program description, not buried at the bottom.
+    expect(disclosure.indexOf('Ring alerts are not available yet')).toBeLessThan(
+      disclosure.indexOf('## What the program is')
+    );
+  });
+
+  it('keeps the full disclosure alongside that note rather than replacing it', () => {
+    // A note-only assertion would still pass on a gutted page. These are the
+    // sections a carrier reviewer reads; the note is additive to all of them.
+    expect(disclosure).toMatch(/## What the program is/);
+    expect(disclosure).toMatch(/## How you opt in/);
+    expect(disclosure).toMatch(/Message and data rates may apply/i);
+    expect(disclosure).toMatch(/\bSTOP\b/);
+    expect(disclosure).toMatch(/\bHELP\b/);
+    expect(disclosure).toContain('support@myk9show.com');
+  });
+
   it('links to the privacy policy absolutely, since the renderer drops relative links', () => {
     // LegalPage.inlineFormat only linkifies http(s) URLs — a relative
     // [Privacy Policy](/privacy) silently renders as plain text, leaving the

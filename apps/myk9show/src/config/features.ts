@@ -64,6 +64,19 @@ export const features = {
   // Rollback = flip to false; existing field-merge/LWW path is byte-for-byte unchanged.
   // Env override: VITE_SHOW_CONFLICT_SURFACING=true (for E2E / manual smoke).
   showConflictSurfacing: true,
+
+  // SMS ring alerts (MYK9-191/192/193). KILL SWITCH — OFF.
+  // The SMS code is merged but text sending is deliberately not live: the
+  // `push-trigger-run-proximity` function is not deployed and no Twilio secret is
+  // set, so no text can ever arrive. Text delivery is deferred until after launch
+  // to judge demand first. While this is false the whole "Text message" delivery
+  // option — row, opt-in form and the STOP notice — is hidden from notification
+  // settings, so nobody can consent to something we cannot send.
+  // Nothing SMS-side is deleted: the consent hooks, the STOP webhook and the
+  // sms_proximity_sends table are untouched, so a STOP already on record is still
+  // honoured. Flip this to true (and deploy the function + set the Twilio secret)
+  // to bring the option back. Env override: VITE_SMS_RING_ALERTS=true.
+  smsRingAlerts: false,
 } as const;
 
 export type Features = typeof features;

@@ -2,6 +2,8 @@
 
 **Last Updated: August 16, 2026**
 
+> **Ring alerts are not available yet.** Text alerts have not launched, there is currently no way to sign up for them, and no messages are being sent. This page describes the program as it will operate when they do.
+
 myK9Show can send you a text message when your dog is getting close to the ring, so you can be ready to run instead of watching the run order.
 
 This page describes that program in full. It exists so anyone — an exhibitor deciding whether to sign up, or a mobile carrier reviewing our messaging program — can see exactly what we send, how you agree to receive it, and how you stop it.

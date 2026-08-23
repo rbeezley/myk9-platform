@@ -12,7 +12,16 @@ const maybeSingle = vi.fn();
 // the server overwrites the cart's fee columns rather than reading them back
 // (MYK9-197 review, S3). Nothing in the system notices, which is why the mock
 // has to.
-const select = vi.fn((_columns: string) => ({ eq: () => ({ maybeSingle }) }));
+// `eq` and `limit` are both reachable so the test can PROVE which one the hook
+// used. This is the MYK9-229 anon guard: on /fees the query runs signed out,
+// where anon holds a column-level grant on the three fee columns and nothing
+// else. PostgREST rejects a request that touches any other column with 403 and
+// an EMPTY body — including a column named only in a filter — so `.eq('id', …)`
+// would 403 every anonymous read, and React Query would present it as an
+// offline hang rather than a permissions error.
+const limit = vi.fn(() => ({ maybeSingle }));
+const eq = vi.fn(() => ({ maybeSingle, limit }));
+const select = vi.fn((_columns: string) => ({ eq, limit }));
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: () => ({ select }),
@@ -35,6 +44,22 @@ function createWrapper() {
 describe('usePlatformFeeRates', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('asks for exactly the three columns anon is granted, and filters on none', async () => {
+    maybeSingle.mockResolvedValue({ data: { platform_fee_percent: 9.5 }, error: null });
+    const { result } = renderHook(() => usePlatformFeeRates(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.percent).toBe(9.5));
+
+    const requested = (select.mock.calls[0][0] as string).split(',').map(c => c.trim());
+    expect(requested.sort()).toEqual([
+      'platform_fee_flat_cents',
+      'platform_fee_min_cents',
+      'platform_fee_percent',
+    ]);
+    // A filter on `id` needs SELECT on `id`, which anon does not have.
+    expect(eq).not.toHaveBeenCalled();
+    expect(limit).toHaveBeenCalledWith(1);
   });
 
   it('returns the settings rate when present', async () => {

@@ -22,14 +22,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
-import {
-  calculatePlatformFeeCents,
-  formatCartCurrency,
-  formatPlatformFeeLabel,
-} from '@/store/cartStore.helpers';
+import { calculatePlatformFeeCents, formatCartCurrency } from '@/store/cartStore.helpers';
 import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
+import { PlatformFeeSplitLines } from '@/features/payments/PlatformFeeSplitLines';
 import type { CartFulfillmentView } from '@/features/payments/cartFulfillmentView';
 
 interface CartSummaryProps {
@@ -264,12 +261,11 @@ export function CartSummary({
               <span className="text-muted-foreground">Availability checked at submission</span>
             </div>
           )}
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">
-              Platform Fee ({formatPlatformFeeLabel(feeRates)})
-            </span>
-            <span>{formatCartCurrency(platformFee)}</span>
-          </div>
+          {/* MYK9-229: the fee, split into card processing and myK9Show's
+              share. Both parts are derived from the same
+              `calculatePlatformFeeCents` that prices the charge, so the
+              disclosure can never total a different number than the fee. */}
+          <PlatformFeeSplitLines subtotalCents={subtotal} rates={feeRates} />
           <Separator />
           {/* State the amount whenever it is known. A wait list line contributes
               $0 to what is payable now, so `total` is exact even with wait list

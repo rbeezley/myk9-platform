@@ -64,6 +64,21 @@ Two derived quantities worth keeping:
   `E > f / (p − s·(1+p))` = **$7.70** at s=0.029. Below that, single-entry carts
   lose money on every transaction.
 
+### What is published, and where
+
+The split between Stripe's cut and myK9Show's share is disclosed publicly at
+**`/fees`** (MYK9-229), and in short form in the entry cart and on
+`/club-admin/payments`. Every figure on those surfaces is computed from
+`calculatePlatformFeeCents` — the same expression that prices the charge — and
+from the `s` and `f` assumptions above, so a rate change on `/admin/payouts`
+moves the disclosure with it. Two constraints on that copy:
+
+- The Stripe **receipt** keeps a single fee line. The real processing cost is
+  only known once the balance transaction settles, so splitting the receipt
+  would state an estimate as though it were exact.
+- The public copy describes **services received**, never a list of costs
+  incurred. This document's cost model is internal; it is not the disclosure.
+
 ---
 
 ## 3. Net per entry at E = $25

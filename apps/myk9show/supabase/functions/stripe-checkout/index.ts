@@ -641,8 +641,15 @@ async function handleEntryCheckout(
         currency: 'usd',
         unit_amount: platformFeeCents,
         product_data: {
-          name: 'Platform Fee',
-          description: 'Online entry processing fee',
+          // MYK9-229: "processing fee" implied the WHOLE amount was payment
+          // processing. It is not — part is Stripe's card processing and part
+          // is myK9Show's. Deliberately still ONE line: Stripe's exact fee is
+          // unknown until the payment settles, so splitting it here would bake
+          // an ESTIMATE into a payment receipt as though it were exact. The
+          // computed split belongs in the cart and on /fees, both labelled
+          // approximate; the receipt states only what was actually charged.
+          name: 'Service fee',
+          description: 'Card processing and myK9Show',
         },
       },
       quantity: 1,

@@ -53,6 +53,8 @@ export interface OfficialPdfAction {
   disabled: boolean;
   isLoading: boolean;
   label: string;
+  /** Why the button is disabled, said in a sentence rather than on the button. */
+  disabledReason?: string | undefined;
   missingFieldLabels?: readonly string[] | undefined;
   onClick: () => void;
 }
@@ -78,6 +80,8 @@ interface ReportControlsBarProps {
     registeredName: string | null;
     armband: number | null;
   }>;
+  /** The dog list failed to load, so an empty `dogs` means unknown, not none. */
+  dogsUnavailable?: boolean;
   onReportTypeChange: (value: string) => void;
   onTrialChange: (value: string) => void;
   onClassChange: (value: string) => void;
@@ -114,6 +118,7 @@ export function ReportControlsBar({
   trials,
   classes,
   dogs,
+  dogsUnavailable = false,
   onReportTypeChange,
   onTrialChange,
   onClassChange,
@@ -167,6 +172,7 @@ export function ReportControlsBar({
   // report registry so the trigger always shows a name, falling back to the
   // placeholder text rather than the raw id.
   const selectedReportLabel = selectedReport?.name ?? 'Select report';
+  const isPdfOnlyReport = selectedReport?.pdfOnly ?? false;
   const selectedSortLabel =
     selectedReport?.sortOptions.find(opt => opt.value === sortOrder)?.label ?? 'Sort by';
 
@@ -178,11 +184,7 @@ export function ReportControlsBar({
           Report
         </label>
         <Select value={reportType} onValueChange={onReportTypeChange}>
-          <SelectTrigger
-            id="report-type-select"
-            className="w-full sm:w-[200px]"
-            aria-label="Select report"
-          >
+          <SelectTrigger id="report-type-select" className="h-10 w-full sm:w-[200px]">
             <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -208,11 +210,7 @@ export function ReportControlsBar({
             Trial
           </label>
           <Select value={trialId} onValueChange={onTrialChange}>
-            <SelectTrigger
-              id="trial-select"
-              className="w-full sm:w-[160px]"
-              aria-label="Select trial"
-            >
+            <SelectTrigger id="trial-select" className="h-10 w-full sm:w-[160px]">
               <SelectValue placeholder="All Trials">{selectedTrialLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -234,11 +232,7 @@ export function ReportControlsBar({
             Class
           </label>
           <Select value={classId} onValueChange={onClassChange} disabled={trialId === 'all'}>
-            <SelectTrigger
-              id="class-select"
-              className="w-full sm:w-[200px]"
-              aria-label="Select class"
-            >
+            <SelectTrigger id="class-select" className="h-10 w-full sm:w-[200px]">
               <SelectValue placeholder="All Classes">{selectedClassLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -260,7 +254,7 @@ export function ReportControlsBar({
             Dog
           </label>
           <Select value={dogId} onValueChange={onDogChange}>
-            <SelectTrigger id="dog-select" className="w-full sm:w-[240px]" aria-label="Select dog">
+            <SelectTrigger id="dog-select" className="h-10 w-full sm:w-[240px]">
               <SelectValue placeholder="All Dogs">{selectedDogLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -272,6 +266,12 @@ export function ReportControlsBar({
               ))}
             </SelectContent>
           </Select>
+          {dogsUnavailable && (
+            <p className="text-xs text-destructive" role="alert">
+              The dog list could not be loaded, so this filter is empty. It is not that this show
+              has no dogs.
+            </p>
+          )}
         </div>
       )}
 
@@ -282,11 +282,7 @@ export function ReportControlsBar({
             Sort
           </label>
           <Select value={sortOrder} onValueChange={onSortChange}>
-            <SelectTrigger
-              id="sort-select"
-              className="w-full sm:w-[160px]"
-              aria-label="Select sort"
-            >
+            <SelectTrigger id="sort-select" className="h-10 w-full sm:w-[160px]">
               <SelectValue placeholder="Sort by">{selectedSortLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -305,9 +301,15 @@ export function ReportControlsBar({
           (filters) visually distinct from "print it" (actions). On desktop the
           group sits inline at the end of the wrapped row. */}
       <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-end sm:border-t-0 sm:pt-0 sm:ml-auto">
-        <Button onClick={onPrint} className="w-full sm:w-auto">
-          Print
-        </Button>
+        {/* Hidden, not disabled, for download-only registry forms: there is no
+            HTML page to send to a printer, so the button could only ever print
+            a blank sheet. A disabled Print sitting beside an enabled Download
+            would still read as "printing is the main action, and it is broken". */}
+        {!isPdfOnlyReport && (
+          <Button onClick={onPrint} className="w-full sm:w-auto">
+            Print
+          </Button>
+        )}
         {officialPdfAction && (
           <Button
             type="button"
@@ -317,8 +319,13 @@ export function ReportControlsBar({
             className="w-full sm:w-auto"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
-            {officialPdfAction.isLoading ? 'Preparing PDF' : officialPdfAction.label}
+            {officialPdfAction.isLoading ? 'Preparing PDF…' : officialPdfAction.label}
           </Button>
+        )}
+        {officialPdfAction?.disabledReason && (
+          <p className="text-xs text-muted-foreground sm:self-center">
+            {officialPdfAction.disabledReason}
+          </p>
         )}
       </div>
       {officialPdfAction?.missingFieldLabels?.length ? (

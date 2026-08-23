@@ -9,6 +9,7 @@ import type { Show } from '@/types/show-types';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { buildTrialReportProps, mapReportEntries, mapReportTrialFields } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
+import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
 
 export interface ReportPreviewProps {
@@ -23,6 +24,28 @@ export interface ReportPreviewProps {
   sortOrder: string;
   isLoading: boolean;
   isError: boolean;
+  /**
+   * Why this is needed alongside isLoading/isError: `unavailable` is the state
+   * where the app never got to ask. Without it the empty-entry branch below
+   * reports "No entries found for this selection" — a claim about the class —
+   * when the truth is a claim about the network.
+   */
+  dataState: ReportDataState;
+  /**
+   * Whether a download button EXISTS for this report and trial, regardless of
+   * whether it is currently pressable.
+   *
+   * This must not be `!disabled`. `disabled` is true for several unrelated
+   * reasons -- no trial picked yet (the default), a dog list still loading,
+   * data not current -- and only ONE of them is a registry mismatch. Keying the
+   * "this form does not match the registry" copy off `disabled` printed that
+   * claim on first load for all eleven download-only reports, contradicting the
+   * "Pick a trial above" line in the controls bar three inches higher. A true
+   * registry mismatch is distinguishable: the hook returns no action at all.
+   */
+  hasDownloadAction?: boolean;
+  /** Why the download is not pressable yet, when one exists. */
+  downloadBlockedReason?: string | undefined;
   onRetry?: () => void;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
@@ -84,6 +107,9 @@ export function ReportPreview({
   sortOrder,
   isLoading,
   isError,
+  dataState,
+  hasDownloadAction = false,
+  downloadBlockedReason,
   onRetry,
   iframeRef: externalIframeRef,
 }: ReportPreviewProps) {
@@ -292,6 +318,46 @@ export function ReportPreview({
     iframeRef,
   ]);
 
+  // Checked FIRST. With no show there is no showId, so the trials query is
+  // `enabled: false` and reports isPending forever -- which reads as 'loading'
+  // and would leave the page spinning indefinitely with no error and no retry.
+  // No show is a settled answer, not a pending one.
+  if (!show) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-center text-muted-foreground"
+      >
+        {/* Not "Select a show": the route already carries the show id and this
+            page has no show picker, so that instruction named an action the
+            secretary had no way to take. */}
+        This show could not be loaded, so there is nothing to build a report from.
+      </div>
+    );
+  }
+
+  if (dataState === 'unavailable') {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex flex-col items-center justify-center gap-3 p-8 text-center"
+      >
+        <p className="font-medium">This show's entries could not be checked.</p>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          There is no connection right now, so the app has not been able to ask how many dogs are
+          entered. That is different from the class being empty. Reconnect and this will fill in.
+        </p>
+        {onRetry && (
+          <Button type="button" variant="outline" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div
@@ -299,7 +365,7 @@ export function ReportPreview({
         aria-live="polite"
         className="flex items-center justify-center p-8 text-muted-foreground"
       >
-        Loading report data...
+        Loading report data…
       </div>
     );
   }
@@ -313,7 +379,7 @@ export function ReportPreview({
       >
         <p>We could not load the report data.</p>
         {onRetry && (
-          <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+          <Button type="button" variant="outline" onClick={onRetry}>
             Try again
           </Button>
         )}
@@ -321,14 +387,26 @@ export function ReportPreview({
     );
   }
 
-  if (!show) {
+  const report = getReportById(reportType);
+
+  // Registry forms with no HTML rendering. Say so, rather than leaving a blank
+  // page that reads as "still loading" and a Print button that produces blank
+  // paper. The Download button in the controls bar above is the real action.
+  if (report?.pdfOnly) {
     return (
       <div
         role="status"
         aria-live="polite"
-        className="flex items-center justify-center p-8 text-muted-foreground"
+        className="flex flex-col items-center justify-center gap-2 p-8 text-center"
       >
-        Select a show to generate reports
+        <p className="font-medium">{report.name} is a downloadable form.</p>
+        <p className="max-w-prose text-sm text-muted-foreground">
+          {!hasDownloadAction
+            ? 'This form belongs to a different registry than the trial you have selected, so there is nothing to download. Pick the trial it belongs to, or choose a different form.'
+            : downloadBlockedReason
+              ? `There is no on-screen preview for this one; it downloads as a filled PDF. ${downloadBlockedReason}`
+              : 'There is no on-screen preview for this one. Use the download button above to get the registry’s own form with your trial’s details already filled in, then print it from your PDF reader.'}
+        </p>
       </div>
     );
   }
@@ -400,7 +478,7 @@ export function ReportPreview({
 
   return (
     <div
-      className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted/20 p-2"
+      className="max-w-full overflow-x-auto rounded-lg border border-border bg-muted p-2"
       aria-label="Report preview scroll area"
       role="region"
       tabIndex={0}

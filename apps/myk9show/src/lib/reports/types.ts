@@ -127,6 +127,20 @@ export interface ReportDefinition {
    * `component`, so the paper is byte-identical to the trial packet's.
    */
   buildPdf?: (dataset: ReportDataSet, sortOrder: string) => Uint8Array;
+  /**
+   * True for registry forms that are delivered ONLY as a filled PDF -- their
+   * `component` is the null-rendering placeholder on purpose, because the
+   * registry's own AcroForm is the artifact and we fill it rather than
+   * re-drawing it in HTML.
+   *
+   * This has to be declared rather than inferred. The placeholder component
+   * renders nothing, `renderReportToHtml` still wraps that in a `<body>`, and
+   * `printIframe` only tests whether the body has innerHTML -- so the preview
+   * looked identical to "still loading" and Print produced blank paper, while
+   * the real deliverable sat in a Download button the secretary had no reason
+   * to connect to the empty page in front of her.
+   */
+  pdfOnly?: boolean;
 }
 
 export interface ReportDataSet {

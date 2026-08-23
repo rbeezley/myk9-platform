@@ -133,6 +133,7 @@ export const reportRegistry: ReportDefinition[] = [
     ],
     defaultSort: 'armband',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
     supportsDogFilter: true,
   },
@@ -144,6 +145,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
     supportsDogFilter: true,
   },
@@ -155,6 +157,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -165,6 +168,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -175,6 +179,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -185,6 +190,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -195,6 +201,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -205,6 +212,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -215,6 +223,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -225,6 +234,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -235,6 +245,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
 

@@ -182,15 +182,15 @@ describe('EmergencyTrialPacketPanel', () => {
     await user.click(screen.getByRole('button', { name: /prepare and email packet/i }));
 
     expect(prepare).toHaveBeenCalledTimes(2);
-    expect(await screen.findByText(/2026-10-03 packet stored/i)).toBeInTheDocument();
-    expect(screen.getByText(/2026-10-04 packet stored/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Sat, Oct 3 packet stored/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sun, Oct 4 packet stored/i)).toBeInTheDocument();
     // Each day gets its own print acknowledgement — that is the signal the
     // reminder will key off, and it is per day.
     expect(
-      screen.getByRole('button', { name: /mark 2026-10-03 packet printed/i })
+      screen.getByRole('button', { name: /mark Sat, Oct 3 packet printed/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /mark 2026-10-04 packet printed/i })
+      screen.getByRole('button', { name: /mark Sun, Oct 4 packet printed/i })
     ).toBeInTheDocument();
 
     // And each packet must carry only its own day's work.
@@ -233,13 +233,13 @@ describe('EmergencyTrialPacketPanel', () => {
     await user.click(screen.getByRole('button', { name: /prepare and email packet/i }));
 
     // Saturday survives the failure, and the retry is still offered.
-    expect(await screen.findByText(/2026-10-03 packet stored/i)).toBeInTheDocument();
-    expect(screen.queryByText(/2026-10-04 packet stored/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Sat, Oct 3 packet stored/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Sun, Oct 4 packet stored/i)).not.toBeInTheDocument();
     const retry = screen.getByRole('button', { name: /try again/i });
 
     await user.click(retry);
 
-    expect(await screen.findByText(/2026-10-04 packet stored/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Sun, Oct 4 packet stored/i)).toBeInTheDocument();
     // Three calls, not four: Saturday was never re-sent.
     expect(prepare).toHaveBeenCalledTimes(3);
     const retriedDates = prepare.mock.calls.map(call => (call[1] as string | undefined) ?? '');
@@ -283,7 +283,7 @@ describe('packets prepared outside this session', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /mark 2026-10-03 packet printed/i }));
+    await user.click(screen.getByRole('button', { name: /mark Sat, Oct 3 packet printed/i }));
 
     expect(onMarkPrinted).toHaveBeenCalledTimes(1);
     expect(onMarkPrinted.mock.calls[0][0].coverage.snapshotId).toBe('snap-cron');
@@ -299,7 +299,7 @@ describe('packets prepared outside this session', () => {
     );
 
     expect(screen.getByText(/^Printed$/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /mark 2026-10-03 packet printed/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /mark Sat, Oct 3 packet printed/i })).toBeNull();
   });
 
   it('says a printed packet was replaced rather than calling it unprinted', () => {
@@ -315,7 +315,7 @@ describe('packets prepared outside this session', () => {
 
     expect(screen.getByText(/newer packet replaced the one that was printed/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /mark 2026-10-03 packet printed/i })
+      screen.getByRole('button', { name: /mark Sat, Oct 3 packet printed/i })
     ).toBeInTheDocument();
   });
 
@@ -340,7 +340,7 @@ describe('packets prepared outside this session', () => {
     await user.click(screen.getByRole('button', { name: /prepare and email packet/i }));
     await screen.findByRole('button', { name: /mark .* packet printed/i });
 
-    expect(screen.getAllByRole('button', { name: /mark 2026-10-03 packet printed/i })).toHaveLength(
+    expect(screen.getAllByRole('button', { name: /mark Sat, Oct 3 packet printed/i })).toHaveLength(
       1
     );
   });

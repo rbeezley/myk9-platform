@@ -137,6 +137,14 @@ export const anonGrants = (over: Record<string, unknown> = {}) => ({
       column,
       privs: 'r',
     })),
+    // Restated, not imported (see the note above): MYK9-229's three fee columns.
+    ...['platform_fee_percent', 'platform_fee_flat_cents', 'platform_fee_min_cents'].map(
+      column => ({
+        name: 'platform_settings',
+        column,
+        privs: 'r',
+      })
+    ),
   ],
   defaults: [{ grantor: 'supabase_admin', objtype: 'r', privs: 'arwdDxtm' }],
   ...over,

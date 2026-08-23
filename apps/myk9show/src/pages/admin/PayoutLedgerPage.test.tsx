@@ -1,7 +1,8 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { LedgerRow } from '@/features/payments/payoutLedger';
-import type { PlatformFeeRateState } from '@/hooks/queries/usePlatformFeePercent';
+import type { PlatformFeeRateState } from '@/hooks/queries/usePlatformFeeRates';
+import type { PlatformFeeRates } from '@/store/cartStore.helpers';
 
 const mutate = vi.fn();
 const refetchLedger = vi.fn();
@@ -9,12 +10,12 @@ const refetchLedger = vi.fn();
 // stub was a literal `() => 7`, which made "loading" and "read failed"
 // inexpressible — the exact reason the fee card could assert a rate it had never
 // read without failing a test.
-const feeState: { percent: number | null; state: PlatformFeeRateState } = {
-  percent: 7,
+const feeState: { rates: PlatformFeeRates | null; state: PlatformFeeRateState } = {
+  rates: { percent: 7, flatCents: 0, minCents: 0 },
   state: 'ready',
 };
-vi.mock('@/hooks/queries/usePlatformFeePercent', () => ({
-  usePlatformFeePercentQuery: () => feeState,
+vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
+  usePlatformFeeRatesQuery: () => feeState,
 }));
 vi.mock('@/features/payments/useUpdatePlatformFee', () => ({
   useUpdatePlatformFee: () => ({ mutate, isPending: false }),
@@ -78,7 +79,7 @@ describe('PayoutLedgerPage', () => {
     ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
-    feeState.percent = 7;
+    feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
   });
 
@@ -89,7 +90,9 @@ describe('PayoutLedgerPage', () => {
   });
 
   it('connects fee validation to the field and announces a successful update inline', () => {
-    mutate.mockImplementationOnce((_percent, options) => options.onSuccess(8));
+    mutate.mockImplementationOnce((_rates, options) =>
+      options.onSuccess({ percent: 8, flatCents: 0, minCents: 0 })
+    );
     render(<PayoutLedgerPage />);
 
     const input = screen.getByRole('spinbutton', { name: /fee percent/i });
@@ -214,7 +217,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
-    feeState.percent = 7;
+    feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
   });
 
@@ -264,25 +267,25 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
   });
 
   it('does not state a fee rate it has not read, and refuses the edit', () => {
-    feeState.percent = null;
+    feeState.rates = null;
     feeState.state = 'unavailable';
 
     render(<PayoutLedgerPage />);
 
     expect(screen.queryByText('7%')).not.toBeInTheDocument();
-    expect(screen.getByText(/current rate could not be loaded/i)).toBeInTheDocument();
+    expect(screen.getByText(/current fee could not be loaded/i)).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /update fee/i })).toBeDisabled();
   });
 
   it('does not state a fee rate while it is still loading', () => {
-    feeState.percent = null;
+    feeState.rates = null;
     feeState.state = 'loading';
 
     render(<PayoutLedgerPage />);
 
     expect(screen.queryByText('7%')).not.toBeInTheDocument();
-    expect(screen.getByText(/loading the current rate/i)).toBeInTheDocument();
+    expect(screen.getByText(/loading the current fee/i)).toBeInTheDocument();
   });
 
   it('makes no rate claim once the read fails, and locks the field', () => {
@@ -293,11 +296,11 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     const { rerender } = render(<PayoutLedgerPage />);
     expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
 
-    feeState.percent = null;
+    feeState.rates = null;
     feeState.state = 'unavailable';
     rerender(<PayoutLedgerPage />);
 
-    expect(screen.queryByText(/current rate:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/current fee:/i)).not.toBeInTheDocument();
     expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /update fee/i })).toBeDisabled();
@@ -315,7 +318,7 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
       target: { value: '9' },
     });
 
-    feeState.percent = null;
+    feeState.rates = null;
     feeState.state = 'unavailable';
     rerender(<PayoutLedgerPage />);
 
@@ -361,44 +364,44 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     // refetchOnWindowFocus is on. Showing that stale number as "current" would
     // let an admin overwrite the live checkout rate from a value we no longer
     // know to be true. The hook reports 'unavailable' with percent: null.
-    feeState.percent = null;
+    feeState.rates = null;
     feeState.state = 'unavailable';
 
     render(<PayoutLedgerPage />);
 
     expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /update fee/i })).toBeDisabled();
-    expect(screen.queryByText(/current rate:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/current fee:/i)).not.toBeInTheDocument();
   });
 
-  it('does not claim NO rate is set when the query never ran', () => {
+  it('does not claim NO fee is set when the query never ran', () => {
     // A paused (offline) fee query is not loading and not errored. Reporting it
-    // as "No platform fee rate is set. Contact support" would raise a false
+    // as "No platform fee is set. Contact support" would raise a false
     // alarm about a row that was never read — the same class of mistake this
     // whole change set exists to remove.
-    feeState.percent = null;
+    feeState.rates = null;
     feeState.state = 'unavailable';
 
     render(<PayoutLedgerPage />);
 
-    expect(screen.queryByText(/no platform fee rate is set/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no platform fee is set/i)).not.toBeInTheDocument();
     expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
   });
 
   it('does say so when the rate genuinely resolved to nothing', () => {
-    feeState.percent = null;
+    feeState.rates = null;
     feeState.state = 'absent';
 
     render(<PayoutLedgerPage />);
 
-    expect(screen.getByText(/no platform fee rate is set/i)).toBeInTheDocument();
+    expect(screen.getByText(/no platform fee is set/i)).toBeInTheDocument();
   });
 
   it('does not invert the Save gate when the rate is unknown', () => {
     // The sharpest edge of the old bug: with a live rate of 4.5 and a failed
     // read, the page compared against a fabricated 7 — so typing the TRUE rate
     // looked unchanged (Save disabled) and typing 7 looked like an edit.
-    feeState.percent = null;
+    feeState.rates = null;
     feeState.state = 'unavailable';
 
     render(<PayoutLedgerPage />);
@@ -419,7 +422,7 @@ describe('PayoutLedgerPage — says which situation a row is actually in', () =>
     ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
-    feeState.percent = 7;
+    feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
   });
 
@@ -530,7 +533,7 @@ describe('PayoutLedgerPage — says which situation a row is actually in', () =>
     const input = screen.getByRole('spinbutton', { name: /fee percent/i });
     fireEvent.change(input, { target: { value: '9' } });
 
-    feeState.percent = 8;
+    feeState.rates = { percent: 8, flatCents: 0, minCents: 0 };
     rerender(<PayoutLedgerPage />);
 
     expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(9);
@@ -546,7 +549,7 @@ describe('PayoutLedgerPage — the majors fixes do not misfire', () => {
     ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
-    feeState.percent = 7;
+    feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
   });
 
@@ -596,14 +599,16 @@ describe('PayoutLedgerPage — the fee field never contradicts the save', () => 
     ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
-    feeState.percent = 7;
+    feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
   });
 
   it('does not flash the pre-save rate while the refetch is in flight', () => {
     // On success the cache still holds the OLD rate for a moment. Adopting it
     // would show 7% in the field while the confirmation says it was set to 9%.
-    mutate.mockImplementationOnce((_percent, options) => options.onSuccess(9));
+    mutate.mockImplementationOnce((_rates, options) =>
+      options.onSuccess({ percent: 9, flatCents: 0, minCents: 0 })
+    );
     const { rerender } = render(<PayoutLedgerPage />);
 
     fireEvent.change(screen.getByRole('spinbutton', { name: /fee percent/i }), {
@@ -626,7 +631,7 @@ describe('PayoutLedgerPage — the fee field never contradicts the save', () => 
     const { rerender } = render(<PayoutLedgerPage />);
     expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
 
-    feeState.percent = 12;
+    feeState.rates = { percent: 12, flatCents: 0, minCents: 0 };
     rerender(<PayoutLedgerPage />);
 
     expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
@@ -641,7 +646,7 @@ describe('PayoutLedgerPage — an unreadable show makes no claims about itself',
     ledgerState.refundDecisionChecked = true;
     ledgerState.isLoading = false;
     ledgerState.isError = false;
-    feeState.percent = 7;
+    feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
   });
 
@@ -690,5 +695,154 @@ describe('PayoutLedgerPage — an unreadable show makes no claims about itself',
 
     expect(within(table).getAllByText('Not scheduled').length).toBeGreaterThan(0);
     expect(within(table).queryByText('Settle date unknown')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * MYK9-197 — the flat per-checkout component and the floor are editable here,
+ * beside the percent, because they are three parts of ONE fee expression and a
+ * surface that edits only one of them would leave the row describing a fee
+ * nobody chose.
+ */
+describe('PayoutLedgerPage — the flat component and the floor are editable', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ledgerState.data = [row];
+    ledgerState.refundDecisionChecked = true;
+    ledgerState.isLoading = false;
+    ledgerState.isError = false;
+    feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
+    feeState.state = 'ready';
+  });
+
+  it('seeds all three fields from the live settings', () => {
+    feeState.rates = { percent: 7, flatCents: 30, minCents: 100 };
+    render(<PayoutLedgerPage />);
+
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(7);
+    expect(screen.getByRole('spinbutton', { name: /flat amount per checkout/i })).toHaveValue(30);
+    expect(screen.getByRole('spinbutton', { name: /minimum fee/i })).toHaveValue(100);
+  });
+
+  it('describes the whole fee, not just the percent — "7%" is a lie once a flat component exists', () => {
+    feeState.rates = { percent: 7, flatCents: 30, minCents: 100 };
+    render(<PayoutLedgerPage />);
+
+    expect(screen.getByText('7% + $0.30, $1.00 minimum')).toBeInTheDocument();
+    expect(screen.queryByText('7%')).not.toBeInTheDocument();
+  });
+
+  it('writes all three components together', () => {
+    render(<PayoutLedgerPage />);
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: /flat amount per checkout/i }), {
+      target: { value: '30' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /update fee/i }));
+
+    expect(mutate).toHaveBeenCalledWith(
+      { percent: 7, flatCents: 30, minCents: 0 },
+      expect.anything()
+    );
+  });
+
+  it('names the fee it would actually write on the Save button', () => {
+    render(<PayoutLedgerPage />);
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: /flat amount per checkout/i }), {
+      target: { value: '30' },
+    });
+
+    expect(screen.getByRole('button', { name: 'Update fee to 7% + $0.30' })).toBeInTheDocument();
+  });
+
+  it('refuses an off-step percent, so the float-divergence premise stays true', () => {
+    // `step={0.5}` on <input type="number"> is a spinner hint the app never
+    // reads, and platform_fee_percent is numeric(5,2) with a range-only CHECK —
+    // so 14.25 was saveable. The duplicated client/server fee expressions
+    // justify their integer math on "only 14.5% and 17.5% can diverge", which
+    // is true on the 0.5 grid and false on a 0.01 one (432 of 2001 percents).
+    // This check is what makes that premise hold (MYK9-197 review round 2, S-4).
+    render(<PayoutLedgerPage />);
+
+    const percent = screen.getByRole('spinbutton', { name: /fee percent/i });
+    fireEvent.change(percent, { target: { value: '14.25' } });
+
+    expect(percent).toHaveAttribute('aria-invalid', 'true');
+    expect(percent).toHaveAccessibleDescription(/steps of 0\.5/i);
+    expect(screen.getByRole('button', { name: 'Update fee' })).toBeDisabled();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('still accepts an on-step percent', () => {
+    render(<PayoutLedgerPage />);
+
+    const percent = screen.getByRole('spinbutton', { name: /fee percent/i });
+    fireEvent.change(percent, { target: { value: '14.5' } });
+
+    expect(percent).toHaveAttribute('aria-invalid', 'false');
+    fireEvent.click(screen.getByRole('button', { name: /update fee/i }));
+    expect(mutate).toHaveBeenCalledWith(
+      { percent: 14.5, flatCents: 0, minCents: 0 },
+      expect.anything()
+    );
+  });
+
+  it('refuses a fractional cent, which the integer column could not hold anyway', () => {
+    render(<PayoutLedgerPage />);
+
+    const flat = screen.getByRole('spinbutton', { name: /flat amount per checkout/i });
+    fireEvent.change(flat, { target: { value: '30.5' } });
+
+    expect(flat).toHaveAttribute('aria-invalid', 'true');
+    expect(flat).toHaveAccessibleDescription(/whole cents between 0 and 500/i);
+    expect(screen.getByRole('button', { name: 'Update fee' })).toBeDisabled();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('refuses an out-of-range floor', () => {
+    render(<PayoutLedgerPage />);
+
+    const min = screen.getByRole('spinbutton', { name: /minimum fee/i });
+    fireEvent.change(min, { target: { value: '2001' } });
+
+    expect(min).toHaveAttribute('aria-invalid', 'true');
+    expect(min).toHaveAccessibleDescription(/whole cents between 0 and 2000/i);
+    expect(screen.getByRole('button', { name: 'Update fee' })).toBeDisabled();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('does not treat an empty flat/floor field as zero', () => {
+    render(<PayoutLedgerPage />);
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: /flat amount per checkout/i }), {
+      target: { value: '' },
+    });
+
+    expect(screen.getByRole('button', { name: 'Update fee' })).toBeDisabled();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('keeps Save disabled while nothing has changed, across all three fields', () => {
+    feeState.rates = { percent: 7, flatCents: 30, minCents: 100 };
+    render(<PayoutLedgerPage />);
+
+    expect(screen.getByRole('button', { name: 'Update fee' })).toBeDisabled();
+  });
+
+  it('clears every field, not just the percent, when the fee stops being readable', () => {
+    // A bare number in a field labelled "Flat amount per checkout", beside a line
+    // saying the fee could not be loaded, is still a claim.
+    feeState.rates = { percent: 7, flatCents: 30, minCents: 100 };
+    const { rerender } = render(<PayoutLedgerPage />);
+
+    feeState.rates = null;
+    feeState.state = 'unavailable';
+    rerender(<PayoutLedgerPage />);
+
+    expect(screen.getByRole('spinbutton', { name: /fee percent/i })).toHaveValue(null);
+    expect(screen.getByRole('spinbutton', { name: /flat amount per checkout/i })).toHaveValue(null);
+    expect(screen.getByRole('spinbutton', { name: /minimum fee/i })).toHaveValue(null);
+    expect(screen.getByRole('spinbutton', { name: /flat amount per checkout/i })).toBeDisabled();
   });
 });

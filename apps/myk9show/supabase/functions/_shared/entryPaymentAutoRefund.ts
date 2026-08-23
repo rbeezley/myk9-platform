@@ -1,6 +1,8 @@
 // Pure refund amount policy for secretary-initiated entry payment links.
 // Deno-free so webhook amount decisions are covered by colocated vitest tests.
 
+import { makeWholeRefundCents, type PlatformFeeRates } from './platformFee.ts';
+
 export interface EntryPaymentAutoRefundInput {
   paymentIntentId: string | null;
   sessionAmountTotalCents: number | null;
@@ -10,6 +12,13 @@ export interface EntryPaymentAutoRefundInput {
   invalidEntryIds: string[];
   /** Authoritative entry-fee line totals from the Checkout Session. */
   entryFeesById: Map<string, number>;
+  /**
+   * The rates this session was PRICED with (the stamped rates, never a live
+   * re-read). Required because the flat per-checkout component and the floor
+   * are earned once per CHARGE, so they must not be split across the invalid
+   * lines — see `makeWholeRefundCents` (MYK9-197 B1).
+   */
+  platformFeeRates: PlatformFeeRates;
 }
 
 export type EntryPaymentAutoRefundDecision =
@@ -47,9 +56,15 @@ export function decideEntryPaymentAutoRefund(
     return { action: 'needs_manual_amount', missingFeeEntryIds: input.invalidEntryIds };
   }
 
-  const invalidCollectedShareCents = Math.round(
-    (input.sessionAmountTotalCents * invalidSubtotalCents) / subtotalCents
-  );
+  // NOT a proportional split of the session total: that spread the flat
+  // per-checkout component and the floor across the invalid lines and refunded
+  // fee income the platform had genuinely earned (MYK9-197 B1).
+  const invalidCollectedShareCents = makeWholeRefundCents({
+    fullSubtotalCents: subtotalCents,
+    acceptedSubtotalCents: subtotalCents - invalidSubtotalCents,
+    amountTotalCents: input.sessionAmountTotalCents,
+    rates: input.platformFeeRates,
+  });
   return {
     action: 'refund',
     amountCents: invalidCollectedShareCents,

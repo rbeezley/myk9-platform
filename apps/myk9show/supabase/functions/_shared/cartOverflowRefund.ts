@@ -1,9 +1,18 @@
+import { makeWholeRefundCents, type PlatformFeeRates } from './platformFee.ts';
+
 export interface CartOverflowRefundInput {
   paymentIntentId: string | null;
   sessionAmountTotalCents: number | null;
   paidLineIds: string[];
   noServiceLineIds: string[];
   lineAmountsById: Map<string, number>;
+  /**
+   * The rates this cart was PRICED with (the stamped rates). The flat
+   * per-checkout component and the floor are earned once per CHARGE, so they
+   * stay with the served lines instead of being split across the overflow —
+   * see `makeWholeRefundCents` (MYK9-197 B1).
+   */
+  platformFeeRates: PlatformFeeRates;
 }
 
 export type CartOverflowRefundDecision =
@@ -56,7 +65,12 @@ export function decideCartOverflowRefund(
   const refundAmountCents =
     input.paidLineIds.length === 0
       ? input.sessionAmountTotalCents
-      : Math.round((input.sessionAmountTotalCents * noServiceSubtotalCents) / subtotalCents);
+      : makeWholeRefundCents({
+          fullSubtotalCents: subtotalCents,
+          acceptedSubtotalCents: paidSubtotalCents,
+          amountTotalCents: input.sessionAmountTotalCents,
+          rates: input.platformFeeRates,
+        });
   const paidAmountCents = Math.max(0, input.sessionAmountTotalCents - refundAmountCents);
 
   if (!input.paymentIntentId) {

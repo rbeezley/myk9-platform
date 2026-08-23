@@ -1,4 +1,8 @@
-import { calculatePlatformFeeCents } from './platformFee.ts';
+import {
+  calculatePlatformFeeCents,
+  normalizePlatformFeeRates,
+  type PlatformFeeRates,
+} from './platformFee.ts';
 
 // Pure helpers for the immutable Stripe order snapshot (financial-reconciliation,
 // MYK9-54). Keep this module free of Deno/npm imports so the colocated vitest
@@ -73,6 +77,16 @@ import { calculatePlatformFeeCents } from './platformFee.ts';
 //   ties out  = amount_cents == entry_subtotal_cents
 //                             + platform_fee_cents
 //                             + make_whole_refunded_cents
+//
+// WHAT THE TIE-OUT DOES AND DOES NOT CHECK (MYK9-197 review round 2). It checks
+// the CHARGE against the PRICING: substituting the make-whole expression gives
+// `delta = amount_cents − fullSubtotal − fee(fullSubtotal)`, so a mismatch means
+// the amount Stripe collected disagrees with what the lines are worth. It does
+// NOT independently verify the accepted/invalid ATTRIBUTION — the split between
+// `entry_subtotal_cents` and `make_whole_refunded_cents` cancels out of the
+// identity, so an order that mis-classified which entries were served still
+// ties out. That attribution is held by `resolveAcceptedEntrySnapshot`'s
+// unverifiable path and by the refund writers' own tests, not by this check.
 //
 // Each refund is subtracted EXACTLY ONCE. Pre-netting a refund out of
 // amount_cents *and* recording it in a refund column double-subtracts it and
@@ -185,7 +199,7 @@ export interface AcceptedEntrySnapshot {
 export function resolveAcceptedEntrySnapshot(
   acceptedEntryIds: string[],
   entryFeesById: Map<string, number>,
-  feePercent: number | null | undefined
+  feeRates: PlatformFeeRates | null | undefined
 ): AcceptedEntrySnapshot {
   const missingFeeEntryIds = acceptedEntryIds.filter(id => !entryFeesById.has(id));
   if (acceptedEntryIds.length === 0) {
@@ -210,11 +224,35 @@ export function resolveAcceptedEntrySnapshot(
     (sum, id) => sum + Math.max(0, Math.round(entryFeesById.get(id) ?? 0)),
     0
   );
-  const pct = typeof feePercent === 'number' && Number.isFinite(feePercent) ? feePercent : 0;
+  // The WHOLE fee on the accepted subtotal — flat per-checkout component and
+  // floor included — is booked here, because the platform earned both the moment
+  // the charge happened and neither belongs to any particular line.
+  //
+  // THIS IS ONLY CONSISTENT BECAUSE THE MAKE-WHOLE WRITERS AGREE. The tie-out
+  //   amount_cents == entry_subtotal_cents + platform_fee_cents + make_whole_refunded_cents
+  // balances only if the refund leaves the flat and the floor on this side.
+  // An earlier revision of this comment claimed the flat "cancels out of the
+  // make-whole difference exactly as the percentage share does" — it does not,
+  // and it did not: both writers then split the charge PROPORTIONALLY over the
+  // full session total, spreading the flat and the floor across the invalid
+  // lines. Executed at flat = 30¢ on a 2-entry $25 link with one entry invalid,
+  // that refunded 15¢ of the platform's own flat fee and booked 205¢ here
+  // against 190¢ actually retained; at minCents = 2000 on two $1 entries the
+  // gap was $10. Both writers now go through `makeWholeRefundCents`
+  // (MYK9-197 adversarial review, B1), which derives the refund from the entry
+  // fee data as invalidSubtotal + (fee(full) − fee(accepted)).
+  //
+  // So: do not change `makeWholeRefundCents` back to a proportional split, and
+  // do not book a partial fee here, without breaking the other. The tie-out
+  // cases in orderSnapshot.test.ts run at non-zero flat AND non-zero floor
+  // precisely so the pair cannot drift apart again.
+  const rates = normalizePlatformFeeRates(
+    feeRates ?? { percent: 0, flatCents: 0, minCents: 0 }
+  );
   return {
     status: 'derived',
     entrySubtotalCents,
-    platformFeeCents: calculatePlatformFeeCents(entrySubtotalCents, pct),
+    platformFeeCents: calculatePlatformFeeCents(entrySubtotalCents, rates),
     missingFeeEntryIds: [],
   };
 }
@@ -225,10 +263,29 @@ export function resolveAcceptedEntrySnapshot(
  * Returns null when the snapshot columns are NULL (legacy / unverifiable rows),
  * which are not checkable rather than failing.
  *
- * TOLERANCE: both refund writers split a charge PROPORTIONALLY
- * (round(total × invalidSubtotal / subtotal)), and the fee itself is rounded, so
- * a healthy partially-refunded order can land up to
- * `ORDER_TIE_OUT_TOLERANCE_CENTS` off. Anything beyond that is genuine drift.
+ * TOLERANCE: NONE — the residual is expected to be exactly 0, and
+ * `ORDER_TIE_OUT_TOLERANCE_CENTS` is 0 (MYK9-197 review round 2, S-2).
+ *
+ * The note that stood here described the PROPORTIONAL split
+ * (`round(total × invalidSubtotal / subtotal)`) as the source of up to 2¢ of
+ * legitimate rounding slack. That writer no longer exists — it was the B1
+ * defect — and with `makeWholeRefundCents` the residual collapses
+ * algebraically. Substituting makeWhole = (full − accepted) + (fee(full) −
+ * fee(accepted)):
+ *
+ *   delta = amount − accepted − fee(accepted) − makeWhole
+ *         = amount − full − fee(full)
+ *
+ * and both writers are reached only where `amount == full + fee(full)`, so
+ * delta ≡ 0. Every rounding term cancels; there is no residual to tolerate.
+ * Verified over a 1728-case matrix and against all 5 checkable rows on the
+ * linked project, every one of which is exactly 0.
+ *
+ * A non-zero residual is therefore REAL: either an under-collection (coupon,
+ * stale price — the one branch of `makeWholeRefundCents` that can produce one)
+ * or genuine drift between the charge and the pricing. Both are things a
+ * reconciliation surface should show, not absorb. A 2¢ tolerance with no
+ * remaining rounding source is not caution, it is 2¢ of silence per order.
  */
 export function orderTieOutDeltaCents(order: {
   amount_cents: number | null;
@@ -243,8 +300,14 @@ export function orderTieOutDeltaCents(order: {
   );
 }
 
-/** Rounding slack allowed on the tie-out; see `orderTieOutDeltaCents`. */
-export const ORDER_TIE_OUT_TOLERANCE_CENTS = 2;
+/**
+ * Slack allowed on the tie-out. ZERO: with `makeWholeRefundCents` every rounding
+ * term cancels, so a healthy order lands exactly on 0 (see the derivation on
+ * `orderTieOutDeltaCents`). Kept as a named constant rather than inlined so that
+ * a future writer with a genuine rounding source has one place to widen it —
+ * and so widening it is a visible, arguable change rather than a silent one.
+ */
+export const ORDER_TIE_OUT_TOLERANCE_CENTS = 0;
 
 /**
  * Extract Stripe's processing fee (cents) from a charge's balance transaction.

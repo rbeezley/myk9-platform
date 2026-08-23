@@ -20,7 +20,7 @@ const baseEntries = [
 
 const base = {
   entries: baseEntries,
-  platformFeePercent: 7,
+  platformFeeRates: { percent: 7, flatCents: 0, minCents: 0 },
   successUrl: 'https://myk9show.com/pay/success',
   cancelUrl: 'https://myk9show.com/pay/cancel',
   expiresAtEpoch: 1_900_000_000,
@@ -65,13 +65,41 @@ describe('buildEntryPaymentLinkSession', () => {
     expect(fee.price_data.product_data.name).toBe('Platform Fee');
     expect(fee.price_data.unit_amount).toBe(420); // 7% of 6000
     expect(fee.price_data.product_data.metadata).toEqual({ type: 'platform_fee' });
-    // stamp the rate so the webhook validates against the exact charged rate
+    // stamp the rates so the webhook validates against the exact charged rates
     expect(s.metadata.platform_fee_percent).toBe('7');
+    expect(s.metadata.platform_fee_flat_cents).toBe('0');
+    expect(s.metadata.platform_fee_min_cents).toBe('0');
   });
 
-  it('omits the platform-fee line item when the rate is 0', () => {
-    const s = buildEntryPaymentLinkSession({ ...base, platformFeePercent: 0 });
+  it('omits the platform-fee line item when every fee component is 0', () => {
+    const s = buildEntryPaymentLinkSession({
+      ...base,
+      platformFeeRates: { percent: 0, flatCents: 0, minCents: 0 },
+    });
     expect(s.line_items).toHaveLength(2);
+  });
+
+  it('folds the flat component and the floor into the SINGLE Platform Fee line', () => {
+    // One line, not three: the exhibitor is shown a platform fee, not an
+    // itemised breakdown of how the platform priced it (MYK9-197 decision).
+    const s = buildEntryPaymentLinkSession({
+      ...base,
+      platformFeeRates: { percent: 7, flatCents: 30, minCents: 0 },
+    });
+    expect(s.line_items).toHaveLength(3); // 2 entries + 1 platform fee
+    const fee = s.line_items[s.line_items.length - 1];
+    expect(fee.price_data.product_data.name).toBe('Platform Fee');
+    expect(fee.price_data.unit_amount).toBe(450); // 7% of 6000, plus 30¢ once
+    expect(s.metadata.platform_fee_flat_cents).toBe('30');
+  });
+
+  it('still charges the flat component when the percent is 0', () => {
+    const s = buildEntryPaymentLinkSession({
+      ...base,
+      platformFeeRates: { percent: 0, flatCents: 30, minCents: 0 },
+    });
+    expect(s.line_items).toHaveLength(3);
+    expect(s.line_items[2].price_data.unit_amount).toBe(30);
   });
 
   it('leaves payment-method selection to Stripe dynamic payment methods', () => {

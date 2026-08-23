@@ -6,7 +6,11 @@
 // club is paid later by cron-process-payouts; the platform fee is a retained
 // line item). So this session carries NO connected-account params by design.
 
-import { calculatePlatformFeeCents } from './platformFee.ts';
+import {
+  calculatePlatformFeeCents,
+  stampPlatformFeeRates,
+  type PlatformFeeRates,
+} from './platformFee.ts';
 import { formatStatementDescriptorSuffix } from './statementDescriptor.ts';
 
 export interface PaymentLinkEntry {
@@ -20,7 +24,8 @@ export interface PaymentLinkEntry {
 
 export interface BuildEntryPaymentLinkInput {
   entries: PaymentLinkEntry[];
-  platformFeePercent: number;
+  /** Percent + flat component + floor, exactly as stripe-checkout applies them. */
+  platformFeeRates: PlatformFeeRates;
   successUrl: string;
   cancelUrl: string;
   /** Unix epoch seconds; Stripe's minimum is now + 30 min. */
@@ -49,7 +54,13 @@ export interface EntryPaymentLinkSessionParams {
   expires_at: number;
   success_url: string;
   cancel_url: string;
-  metadata: { type: 'entry_payment_request'; entry_ids: string; platform_fee_percent: string };
+  metadata: {
+    type: 'entry_payment_request';
+    entry_ids: string;
+    platform_fee_percent: string;
+    platform_fee_flat_cents: string;
+    platform_fee_min_cents: string;
+  };
   payment_intent_data: {
     metadata: { type: 'entry_payment_request'; entry_ids: string };
     statement_descriptor_suffix: string;
@@ -87,7 +98,7 @@ export function buildEntryPaymentLinkSession(
   // Platform fee ON TOP (fee-on-top decision — the exhibitor pays it), summed
   // from the authoritative per-entry fees, mirroring stripe-checkout exactly.
   const subtotal = input.entries.reduce((sum, e) => sum + e.authoritativeFeeCents, 0);
-  const platformFeeCents = calculatePlatformFeeCents(subtotal, input.platformFeePercent);
+  const platformFeeCents = calculatePlatformFeeCents(subtotal, input.platformFeeRates);
   if (platformFeeCents > 0) {
     lineItems.push({
       price_data: {
@@ -118,9 +129,9 @@ export function buildEntryPaymentLinkSession(
     metadata: {
       type: 'entry_payment_request',
       entry_ids: entryIdsJson,
-      // Stamp the rate this link was computed with so the webhook validates
-      // against the exact charged rate, not a live re-read that could drift.
-      platform_fee_percent: String(input.platformFeePercent),
+      // Stamp the rates this link was computed with so the webhook validates
+      // against the exact charged rates, not a live re-read that could drift.
+      ...stampPlatformFeeRates(input.platformFeeRates),
     },
     payment_intent_data: {
       metadata: { type: 'entry_payment_request', entry_ids: entryIdsJson },

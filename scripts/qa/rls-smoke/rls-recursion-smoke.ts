@@ -126,7 +126,7 @@ function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
 }
 
 async function signIn(url: string, anonKey: string): Promise<string> {
-  const email = process.env.E2E_SECRETARY_EMAIL ?? 'e2e-secretary@test.myk9.com';
+  const email = process.env.E2E_SECRETARY_EMAIL ?? 'secretary@myk9t.com';
   // Live shared-staging secret — env only, never a literal default. Source from
   // apps/myk9show/.env.local (gitignored) or CI secrets.
   const password = process.env.E2E_SECRETARY_PASSWORD;

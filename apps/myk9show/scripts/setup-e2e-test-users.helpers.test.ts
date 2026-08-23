@@ -53,9 +53,9 @@ describe('resolveScopedClubId', () => {
 });
 
 describe('planAccountProvisioning', () => {
-  const required = { email: 'e2e-admin@test.myk9.com', passwordEnv: 'E2E_ADMIN_PASSWORD' };
+  const required = { email: 'testadmin@myk9t.com', passwordEnv: 'E2E_ADMIN_PASSWORD' };
   const optional = {
-    email: 'e2e-club-admin@test.myk9.com',
+    email: 'clubadmin@myk9t.com',
     passwordEnv: 'E2E_CLUB_ADMIN_PASSWORD',
     optional: true,
   };

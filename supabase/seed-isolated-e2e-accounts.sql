@@ -7,21 +7,20 @@ BEGIN;
 
 WITH accounts(email, first_name, last_name) AS (
   VALUES
-    ('e2e-exhibitor@test.myk9.com', 'Test', 'Exhibitor'),
-    ('e2e-secretary@test.myk9.com', 'Test', 'Secretary'),
-    ('e2e-judge@test.myk9.com', 'Test', 'Judge'),
-    -- Empty-assignment judge subject (MYK9-141). Optional in the same sense as
-    -- the club admin below: without E2E_JUDGE_EMPTY_PASSWORD the Auth user does
-    -- not exist and every statement here matches no rows. Also absent from the
-    -- count assertion, which guards only the accounts a run cannot start without.
-    ('e2e-judge-empty@test.myk9.com', 'Test', 'Judge No Assignments'),
-    ('e2e-admin@test.myk9.com', 'Test', 'Admin'),
+    ('exhibitor@myk9t.com', 'Test', 'Exhibitor'),
+    ('secretary@myk9t.com', 'Test', 'Secretary'),
+    ('judge@myk9t.com', 'Test', 'Judge'),
+    ('testadmin@myk9t.com', 'Test', 'Admin'),
     -- Optional club-admin-only account (MYK9-137). Every statement in this file
     -- joins auth.users or people, so where E2E_CLUB_ADMIN_PASSWORD is unset the
     -- Auth user does not exist and each one simply matches no rows. It is
     -- deliberately absent from the count assertion below, which guards the
     -- accounts a run cannot proceed without.
-    ('e2e-club-admin@test.myk9.com', 'Test', 'Club Admin')
+    ('clubadmin@myk9t.com', 'Test', 'Club Admin'),
+    -- Chairman-only and second-exhibitor fixtures. Optional in the same sense as
+    -- the club admin above: no Auth user, no matching rows, seed still completes.
+    ('chairman@myk9t.com', 'Test', 'Chairman'),
+    ('exhibitor2@myk9t.com', 'Second', 'Exhibitor')
 )
 UPDATE public.people AS person
 SET
@@ -36,21 +35,20 @@ WHERE lower(person.email) = account.email;
 
 WITH accounts(email, first_name, last_name) AS (
   VALUES
-    ('e2e-exhibitor@test.myk9.com', 'Test', 'Exhibitor'),
-    ('e2e-secretary@test.myk9.com', 'Test', 'Secretary'),
-    ('e2e-judge@test.myk9.com', 'Test', 'Judge'),
-    -- Empty-assignment judge subject (MYK9-141). Optional in the same sense as
-    -- the club admin below: without E2E_JUDGE_EMPTY_PASSWORD the Auth user does
-    -- not exist and every statement here matches no rows. Also absent from the
-    -- count assertion, which guards only the accounts a run cannot start without.
-    ('e2e-judge-empty@test.myk9.com', 'Test', 'Judge No Assignments'),
-    ('e2e-admin@test.myk9.com', 'Test', 'Admin'),
+    ('exhibitor@myk9t.com', 'Test', 'Exhibitor'),
+    ('secretary@myk9t.com', 'Test', 'Secretary'),
+    ('judge@myk9t.com', 'Test', 'Judge'),
+    ('testadmin@myk9t.com', 'Test', 'Admin'),
     -- Optional club-admin-only account (MYK9-137). Every statement in this file
     -- joins auth.users or people, so where E2E_CLUB_ADMIN_PASSWORD is unset the
     -- Auth user does not exist and each one simply matches no rows. It is
     -- deliberately absent from the count assertion below, which guards the
     -- accounts a run cannot proceed without.
-    ('e2e-club-admin@test.myk9.com', 'Test', 'Club Admin')
+    ('clubadmin@myk9t.com', 'Test', 'Club Admin'),
+    -- Chairman-only and second-exhibitor fixtures. Optional in the same sense as
+    -- the club admin above: no Auth user, no matching rows, seed still completes.
+    ('chairman@myk9t.com', 'Test', 'Chairman'),
+    ('exhibitor2@myk9t.com', 'Second', 'Exhibitor')
 )
 INSERT INTO public.people (auth_user_id, first_name, last_name, email)
 SELECT auth_user.id, account.first_name, account.last_name, account.email
@@ -71,10 +69,10 @@ BEGIN
   INTO account_count
   FROM public.people
   WHERE lower(email) IN (
-    'e2e-exhibitor@test.myk9.com',
-    'e2e-secretary@test.myk9.com',
-    'e2e-judge@test.myk9.com',
-    'e2e-admin@test.myk9.com'
+    'exhibitor@myk9t.com',
+    'secretary@myk9t.com',
+    'judge@myk9t.com',
+    'testadmin@myk9t.com'
   )
     AND auth_user_id IS NOT NULL
     AND deleted_at IS NULL;
@@ -101,14 +99,15 @@ SELECT
   '2026-07-27 00:00:00+00'
 FROM public.people AS person
 WHERE lower(person.email) IN (
-  'e2e-exhibitor@test.myk9.com',
-  'e2e-secretary@test.myk9.com',
-  'e2e-judge@test.myk9.com',
-  'e2e-judge-empty@test.myk9.com',
-  'e2e-admin@test.myk9.com',
+  'exhibitor@myk9t.com',
+  'secretary@myk9t.com',
+  'judge@myk9t.com',
+  'testadmin@myk9t.com',
   -- Without this the club admin lands on the first-run onboarding wizard instead
   -- of the club surface it was created to exercise.
-  'e2e-club-admin@test.myk9.com'
+  'clubadmin@myk9t.com',
+  'chairman@myk9t.com',
+  'exhibitor2@myk9t.com'
 )
   AND person.auth_user_id IS NOT NULL
 ON CONFLICT (auth_user_id)
@@ -119,16 +118,13 @@ DO UPDATE SET
 
 WITH desired(email, role_name) AS (
   VALUES
-    ('e2e-exhibitor@test.myk9.com', 'exhibitor'),
-    ('e2e-secretary@test.myk9.com', 'steward'),
-    ('e2e-secretary@test.myk9.com', 'exhibitor'),
-    ('e2e-judge@test.myk9.com', 'judge'),
-    -- judge and ONLY judge: the point of this fixture is that it can be refused
-    -- (MYK9-141). seed-demo.sql section 10g enforces the same exclusivity there.
-    ('e2e-judge-empty@test.myk9.com', 'judge'),
-    ('e2e-admin@test.myk9.com', 'site_admin'),
-    ('e2e-admin@test.myk9.com', 'chairman'),
-    ('e2e-admin@test.myk9.com', 'exhibitor')
+    ('exhibitor@myk9t.com', 'exhibitor'),
+    ('secretary@myk9t.com', 'steward'),
+    ('secretary@myk9t.com', 'exhibitor'),
+    ('judge@myk9t.com', 'judge'),
+    ('testadmin@myk9t.com', 'site_admin'),
+    ('testadmin@myk9t.com', 'exhibitor'),
+    ('exhibitor2@myk9t.com', 'exhibitor')
 )
 UPDATE public.user_roles AS user_role
 SET
@@ -149,16 +145,13 @@ WHERE user_role.user_id = person.id
 
 WITH desired(email, role_name) AS (
   VALUES
-    ('e2e-exhibitor@test.myk9.com', 'exhibitor'),
-    ('e2e-secretary@test.myk9.com', 'steward'),
-    ('e2e-secretary@test.myk9.com', 'exhibitor'),
-    ('e2e-judge@test.myk9.com', 'judge'),
-    -- judge and ONLY judge: the point of this fixture is that it can be refused
-    -- (MYK9-141). seed-demo.sql section 10g enforces the same exclusivity there.
-    ('e2e-judge-empty@test.myk9.com', 'judge'),
-    ('e2e-admin@test.myk9.com', 'site_admin'),
-    ('e2e-admin@test.myk9.com', 'chairman'),
-    ('e2e-admin@test.myk9.com', 'exhibitor')
+    ('exhibitor@myk9t.com', 'exhibitor'),
+    ('secretary@myk9t.com', 'steward'),
+    ('secretary@myk9t.com', 'exhibitor'),
+    ('judge@myk9t.com', 'judge'),
+    ('testadmin@myk9t.com', 'site_admin'),
+    ('testadmin@myk9t.com', 'exhibitor'),
+    ('exhibitor2@myk9t.com', 'exhibitor')
 )
 INSERT INTO public.user_roles (
   user_id,
@@ -196,14 +189,19 @@ WHERE person.auth_user_id IS NOT NULL
 
 WITH desired(email, role_name) AS (
   VALUES
-    ('e2e-secretary@test.myk9.com', 'secretary'),
-    ('e2e-admin@test.myk9.com', 'secretary'),
-    ('e2e-admin@test.myk9.com', 'club_admin'),
+    ('secretary@myk9t.com', 'secretary'),
+    ('testadmin@myk9t.com', 'secretary'),
+    ('testadmin@myk9t.com', 'club_admin'),
+    -- chairman lives on its own account rather than on testadmin, for the same
+    -- reason the club admin does: a fixture that also holds site_admin satisfies
+    -- a role gate through the wrong branch, so an assertion written with it is
+    -- vacuous whether or not the scoping it claims to test exists.
+    ('chairman@myk9t.com', 'chairman'),
     -- CLUB-SCOPED ONLY, and absent from the platform-wide (club_id IS NULL)
     -- block above on purpose: a site-wide grant here would satisfy every club
     -- gate through is_site_admin() and make this account as useless for scope
     -- testing as the one it was split from (MYK9-137).
-    ('e2e-club-admin@test.myk9.com', 'club_admin')
+    ('clubadmin@myk9t.com', 'club_admin')
 ),
 demo_club AS (
   SELECT id
@@ -227,14 +225,19 @@ WHERE user_role.user_id = person.id
 
 WITH desired(email, role_name) AS (
   VALUES
-    ('e2e-secretary@test.myk9.com', 'secretary'),
-    ('e2e-admin@test.myk9.com', 'secretary'),
-    ('e2e-admin@test.myk9.com', 'club_admin'),
+    ('secretary@myk9t.com', 'secretary'),
+    ('testadmin@myk9t.com', 'secretary'),
+    ('testadmin@myk9t.com', 'club_admin'),
+    -- chairman lives on its own account rather than on testadmin, for the same
+    -- reason the club admin does: a fixture that also holds site_admin satisfies
+    -- a role gate through the wrong branch, so an assertion written with it is
+    -- vacuous whether or not the scoping it claims to test exists.
+    ('chairman@myk9t.com', 'chairman'),
     -- CLUB-SCOPED ONLY, and absent from the platform-wide (club_id IS NULL)
     -- block above on purpose: a site-wide grant here would satisfy every club
     -- gate through is_site_admin() and make this account as useless for scope
     -- testing as the one it was split from (MYK9-137).
-    ('e2e-club-admin@test.myk9.com', 'club_admin')
+    ('clubadmin@myk9t.com', 'club_admin')
 ),
 demo_club AS (
   SELECT id

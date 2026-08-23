@@ -59,6 +59,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-ai-support-triage-implementation.md](plan-ai-support-triage-implementation.md)                             | Active    | AI Support Triage — implementation plan (9 tasks)                            |
 | [plan-stripe-golive-enforcement.md](plan-stripe-golive-enforcement.md)                                           | Active    | Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8             |
 | [plan-trial-packet-automation.md](plan-trial-packet-automation.md)                                               | Active    | Trial Packet Automation — per-day unit, Deno renderer, cron (MYK9-228)       |
+| [plan-test-account-migration.md](plan-test-account-migration.md)                                                 | Active    | Test Account Migration — test.myk9.com → myk9t.com, prune junk auth users    |
 | [navigation-ia.md](navigation-ia.md)                                                                             | Reference | Navigation & IA Sketch — Fall 2026                                           |
 | [plan-active-docs-triage-2026-06-14.md](plan-active-docs-triage-2026-06-14.md)                                   | Active    | Active-Docs Triage — 2026-06-14                                              |
 | [plan-anon-grant-rls-tightening.md](plan-anon-grant-rls-tightening.md)                                           | Active    | MYK9-93 — Anon grant & RLS tightening (launch gate)                          |

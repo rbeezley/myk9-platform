@@ -15,7 +15,7 @@ import { signInAsSecretary } from '../helpers/testUsers';
  *     (2026-04-26): financial + statistics categories were silently hidden
  *     by the dropdown's category filter.
  *
- * Auth: TEST_USERS.SECRETARY (`e2e-secretary@test.myk9.com`, password in env).
+ * Auth: TEST_USERS.SECRETARY (`secretary@myk9t.com`, password in env).
  */
 
 test.describe.configure({ mode: 'serial' });

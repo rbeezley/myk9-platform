@@ -7,4 +7,4 @@
 -- First, let's see what users already exist with e2e- prefix
 SELECT user_id, email, first_name, last_name, roles
 FROM "user"
-WHERE email LIKE 'e2e-%@test.myk9.com';
+WHERE email LIKE '%@myk9t.com';

@@ -6,12 +6,12 @@ import { ALL_ROLES, parseEnvFile, resolveAccounts } from './resetE2ePasswords';
 describe('parseEnvFile', () => {
   it('parses KEY=value lines and ignores comments and blanks', () => {
     const parsed = parseEnvFile(
-      ['# comment', '', 'E2E_ADMIN_EMAIL=admin@test.myk9.com', 'E2E_ADMIN_PASSWORD=hunter22'].join(
+      ['# comment', '', 'E2E_ADMIN_EMAIL=testadmin@myk9t.com', 'E2E_ADMIN_PASSWORD=hunter22'].join(
         '\n'
       )
     );
     expect(parsed).toEqual({
-      E2E_ADMIN_EMAIL: 'admin@test.myk9.com',
+      E2E_ADMIN_EMAIL: 'testadmin@myk9t.com',
       E2E_ADMIN_PASSWORD: 'hunter22',
     });
   });
@@ -38,17 +38,17 @@ describe('resolveAccounts', () => {
     const [secretary] = resolveAccounts(baseEnv, ['secretary']);
     expect(secretary).toEqual({
       role: 'secretary',
-      email: 'e2e-secretary@test.myk9.com',
+      email: 'secretary@myk9t.com',
       password: 'secretary-pw',
       passwordVar: 'E2E_SECRETARY_PASSWORD',
     });
   });
 
   it('prefers explicit email vars and lowercases them', () => {
-    const [admin] = resolveAccounts({ ...baseEnv, E2E_ADMIN_EMAIL: 'E2E-Admin@Test.myk9.com' }, [
+    const [admin] = resolveAccounts({ ...baseEnv, E2E_ADMIN_EMAIL: 'TestAdmin@MyK9t.Com' }, [
       'admin',
     ]);
-    expect(admin.email).toBe('e2e-admin@test.myk9.com');
+    expect(admin.email).toBe('testadmin@myk9t.com');
   });
 
   it('throws naming the missing env var when a password is absent', () => {

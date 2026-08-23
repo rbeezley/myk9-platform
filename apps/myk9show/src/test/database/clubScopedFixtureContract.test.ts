@@ -26,8 +26,8 @@ import { TEST_USERS } from '../e2e/fixtures/test-users';
 
 const repoRoot = resolve(__dirname, '../../../../..');
 
-const CLUB_ADMIN_EMAIL = 'e2e-club-admin@test.myk9.com';
-const SITE_ADMIN_EMAIL = 'e2e-admin@test.myk9.com';
+const CLUB_ADMIN_EMAIL = 'clubadmin@myk9t.com';
+const SITE_ADMIN_EMAIL = 'testadmin@myk9t.com';
 const HEARTLAND_CLUB_ID = 'dededede-0000-0000-0000-000000000001';
 const PRAIRIE_TRAIL_CLUB_ID = 'dededede-0000-0000-0000-000000000002';
 
@@ -93,7 +93,7 @@ describe('club-admin account provisioning', () => {
 
   it('declares the club-admin-only account with club_admin and nothing else', () => {
     expect(setupSource).toMatch(
-      /email: 'e2e-club-admin@test\.myk9\.com',[\s\S]*?passwordEnv: 'E2E_CLUB_ADMIN_PASSWORD',[\s\S]*?roles: \['club_admin'\]/
+      /email: 'clubadmin@myk9t\.com',[\s\S]*?passwordEnv: 'E2E_CLUB_ADMIN_PASSWORD',[\s\S]*?roles: \['club_admin'\]/
     );
   });
 
@@ -102,7 +102,7 @@ describe('club-admin account provisioning', () => {
     // account with no configured password exits(1) before provisioning anything,
     // which would take out every canonical account, not just this one.
     const accountBlock = setupSource.slice(
-      setupSource.indexOf("email: 'e2e-club-admin@test.myk9.com'"),
+      setupSource.indexOf("email: 'clubadmin@myk9t.com'"),
       setupSource.indexOf('const provisioningPlan')
     );
     expect(accountBlock).toContain('optional: true');
@@ -147,10 +147,14 @@ describe('seed-demo club scope fixtures', () => {
   // "the 10e block" — until 10f/10g were added (MYK9-141) and the window silently
   // grew to include another account's grants, failing the exactly-one-role
   // assertion below on a seed that was correct.
+  //
+  // Bounded by 10g rather than 10f since 2026-08-23: 10f was deleted with the
+  // empty-assignment judge fixture. Only a comment sits between 10e and 10g, and
+  // it names no role, so the exactly-one-role assertion is unaffected.
   function readClubAdminGrantBlock(): string {
     const start = seed.indexOf('-- 10e.');
     expect(start).toBeGreaterThan(-1);
-    const end = seed.indexOf('-- 10f.', start);
+    const end = seed.indexOf('-- 10g.', start);
     expect(end).toBeGreaterThan(start);
     return seed.slice(start, end);
   }
@@ -203,8 +207,8 @@ describe('seed-demo club scope fixtures', () => {
     // exact property that made the old fixture unable to test scoping.
     const isolated = read('supabase/seed-isolated-e2e-accounts.sql');
     const platformWideBlock = isolated.slice(
-      isolated.indexOf("('e2e-exhibitor@test.myk9.com', 'exhibitor')"),
-      isolated.indexOf("('e2e-secretary@test.myk9.com', 'secretary')")
+      isolated.indexOf("('exhibitor@myk9t.com', 'exhibitor')"),
+      isolated.indexOf("('secretary@myk9t.com', 'secretary')")
     );
 
     expect(platformWideBlock).not.toContain(CLUB_ADMIN_EMAIL);

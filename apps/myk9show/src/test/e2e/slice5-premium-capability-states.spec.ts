@@ -3,7 +3,7 @@
  *
  * NOT read-only. This creates, edits and deletes a health record on the seeded
  * test dog, then removes what it created. Writes are confined to
- * e2e-exhibitor@test.myk9.com's own dog and no other account's data is touched.
+ * exhibitor@myk9t.com's own dog and no other account's data is touched.
  *
  * SCOPED TO WHAT UNIT TESTS CANNOT PROVE. Slice 1 already pins the states a
  * mocked mutation can express, for all three record forms:

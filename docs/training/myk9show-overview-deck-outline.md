@@ -155,7 +155,7 @@
 - Exhibitor knows they're in before the secretary even reviews the entry
 
 🖼️ **Screenshots needed:** Shows list (shot E-01), Registration wizard Step 1 (shot E-06), Confirmation receipt (shot E-08).
-**Account:** `e2e-exhibitor@test.myk9.com` | **Viewport:** 1280 × 800
+**Account:** `exhibitor@myk9t.com` | **Viewport:** 1280 × 800
 
 *Reused in:* Exhibitor Onboarding Deck (slides 3–4)
 
@@ -172,7 +172,7 @@
 - Results appear as Q/NQ + placement as soon as the secretary releases them
 
 🖼️ **Screenshots needed:** My Entries show-card → Classes tab with run order (shot E-12), Check-in button (shot E-14).
-**Account:** `e2e-exhibitor@test.myk9.com` | **Viewport:** 390 × 844 (mobile — this is where exhibitors live on show day)
+**Account:** `exhibitor@myk9t.com` | **Viewport:** 390 × 844 (mobile — this is where exhibitors live on show day)
 
 *Reused in:* Exhibitor Onboarding Deck (slide 5)
 

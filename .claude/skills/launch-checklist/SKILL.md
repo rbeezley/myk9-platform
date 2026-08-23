@@ -19,7 +19,7 @@ Gate review for taking myK9Show from pre-launch to real users. Work through ever
 
 - [ ] Custom SMTP configured in Supabase Auth (until then GoTrue caps auth emails ~2/hr — hard launch blocker).
 - [ ] Confirmation-email flow (Resend) verified against a real mailbox; AKC recipient gate manually checked.
-- [ ] E2e/demo accounts (`e2e-*@test.myk9.com`) excluded from any production data or comms.
+- [ ] E2e/demo accounts (`@myk9t.com`) excluded from any production data or comms.
 
 ## 3. Security sweep
 

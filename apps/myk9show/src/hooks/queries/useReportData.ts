@@ -99,15 +99,29 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // Callers must not be able to reach a print or a PDF download without having
   // answered which of these they are in, so the state is one value they have to
   // read rather than a condition they can forget to add.
+  // Paused only matters when the rows are MISSING. A background refetch that
+  // pauses on a query already holding complete data leaves that data intact and
+  // correct for the current selection -- it is a warm cache, not an unanswered
+  // question, and treating it as unavailable would take the whole page away
+  // from a secretary standing in a hall whose wifi just dropped. That is the
+  // case this page most needs to survive, so it must stay printable.
+  //
+  // Placeholder is checked BEFORE that, because placeholder rows are complete
+  // but belong to the PREVIOUS selection -- present, and wrong.
+  const hasEveryRowSet =
+    trialsQuery.data !== undefined &&
+    classesQuery.data !== undefined &&
+    entriesQuery.data !== undefined;
+
   const dataState: ReportDataState = queries.some(q => q.isError)
     ? 'error'
-    : queries.some(q => q.fetchStatus === 'paused')
-      ? 'unavailable'
-      : queries.some(q => q.isPending)
-        ? 'loading'
-        : queries.some(q => q.isPlaceholderData)
-          ? 'stale'
-          : 'ready';
+    : queries.some(q => q.isPlaceholderData)
+      ? 'stale'
+      : hasEveryRowSet
+        ? 'ready'
+        : queries.some(q => q.fetchStatus === 'paused')
+          ? 'unavailable'
+          : 'loading';
 
   const refetch = () => {
     void trialsQuery.refetch();

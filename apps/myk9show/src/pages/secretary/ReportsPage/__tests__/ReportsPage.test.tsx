@@ -20,6 +20,10 @@ vi.mock('sonner', () => {
     message: vi.fn(),
     dismiss: vi.fn(),
     custom: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    loading: vi.fn(),
+    promise: vi.fn(),
   });
   return { toast, Toaster: () => null };
 });
@@ -96,11 +100,19 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             },
           },
         ],
-    dataState: mockReportState.dataState ?? (mockReportState.isLoading ? 'loading' : 'ready'),
-    isReady:
-      (mockReportState.dataState ?? (mockReportState.isLoading ? 'loading' : 'ready')) === 'ready',
-    isLoading: mockReportState.isLoading,
-    isError: false,
+    // Derived exactly as useReportData derives them, so the mock cannot
+    // express a combination the real hook never returns (e.g. dataState
+    // 'stale' with isLoading false).
+    ...(() => {
+      const dataState =
+        mockReportState.dataState ?? (mockReportState.isLoading ? 'loading' : 'ready');
+      return {
+        dataState,
+        isReady: dataState === 'ready',
+        isLoading: dataState === 'loading' || dataState === 'stale',
+        isError: dataState === 'error',
+      };
+    })(),
     refetch: vi.fn(),
   }),
 }));

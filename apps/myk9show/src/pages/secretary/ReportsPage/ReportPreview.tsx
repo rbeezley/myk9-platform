@@ -32,13 +32,20 @@ export interface ReportPreviewProps {
    */
   dataState: ReportDataState;
   /**
-   * Whether a download action is actually offered for the current selection.
-   * Only consulted for `pdfOnly` reports, where it is the difference between
-   * "the artifact is the button above" and "this form does not apply to the
-   * trial you picked" — pointing at a button that is not there is worse than
-   * the blank page this replaced.
+   * Whether a download button EXISTS for this report and trial, regardless of
+   * whether it is currently pressable.
+   *
+   * This must not be `!disabled`. `disabled` is true for several unrelated
+   * reasons -- no trial picked yet (the default), a dog list still loading,
+   * data not current -- and only ONE of them is a registry mismatch. Keying the
+   * "this form does not match the registry" copy off `disabled` printed that
+   * claim on first load for all eleven download-only reports, contradicting the
+   * "Pick a trial above" line in the controls bar three inches higher. A true
+   * registry mismatch is distinguishable: the hook returns no action at all.
    */
   hasDownloadAction?: boolean;
+  /** Why the download is not pressable yet, when one exists. */
+  downloadBlockedReason?: string | undefined;
   onRetry?: () => void;
   iframeRef?: React.RefObject<HTMLIFrameElement | null>;
 }
@@ -102,6 +109,7 @@ export function ReportPreview({
   isError,
   dataState,
   hasDownloadAction = false,
+  downloadBlockedReason,
   onRetry,
   iframeRef: externalIframeRef,
 }: ReportPreviewProps) {
@@ -258,6 +266,25 @@ export function ReportPreview({
     iframeRef,
   ]);
 
+  // Checked FIRST. With no show there is no showId, so the trials query is
+  // `enabled: false` and reports isPending forever -- which reads as 'loading'
+  // and would leave the page spinning indefinitely with no error and no retry.
+  // No show is a settled answer, not a pending one.
+  if (!show) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center p-8 text-center text-muted-foreground"
+      >
+        {/* Not "Select a show": the route already carries the show id and this
+            page has no show picker, so that instruction named an action the
+            secretary had no way to take. */}
+        This show could not be loaded, so there is nothing to build a report from.
+      </div>
+    );
+  }
+
   if (dataState === 'unavailable') {
     return (
       <div
@@ -308,21 +335,6 @@ export function ReportPreview({
     );
   }
 
-  if (!show) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex items-center justify-center p-8 text-muted-foreground"
-      >
-        {/* Not "Select a show" — the route already carries the show id and
-            there is no show picker here, so that instruction named an action
-            the secretary had no way to take. */}
-        This show could not be loaded, so there is nothing to build a report from.
-      </div>
-    );
-  }
-
   const report = getReportById(reportType);
 
   // Registry forms with no HTML rendering. Say so, rather than leaving a blank
@@ -337,9 +349,11 @@ export function ReportPreview({
       >
         <p className="font-medium">{report.name} is a downloadable form.</p>
         <p className="max-w-prose text-sm text-muted-foreground">
-          {hasDownloadAction
-            ? 'There is no on-screen preview for this one. Use the download button above to get the registry’s own form with your trial’s details already filled in, then print it from your PDF reader.'
-            : 'This form does not match the registry of the trial you have selected, so there is nothing to download. Pick the trial it belongs to, or choose a different form.'}
+          {!hasDownloadAction
+            ? 'This form belongs to a different registry than the trial you have selected, so there is nothing to download. Pick the trial it belongs to, or choose a different form.'
+            : downloadBlockedReason
+              ? `There is no on-screen preview for this one; it downloads as a filled PDF. ${downloadBlockedReason}`
+              : 'There is no on-screen preview for this one. Use the download button above to get the registry’s own form with your trial’s details already filled in, then print it from your PDF reader.'}
         </p>
       </div>
     );

@@ -92,7 +92,6 @@ export default function ReportsPage() {
   const { user } = useAuthContext();
   const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PaperworkDescriptor | null>(null);
-  const [isConfirmingPrint, setIsConfirmingPrint] = useState(false);
   const effectiveScope = useMemo<ReportScope>(
     () => resolveReportScope({ showId: showId ?? '', trialId, classId }),
     [showId, trialId, classId]
@@ -132,7 +131,11 @@ export default function ReportsPage() {
     [classes]
   );
 
-  const { data: dogOptionsRaw, isError: dogOptionsError } = useQuery({
+  const {
+    data: dogOptionsRaw,
+    isError: dogOptionsError,
+    fetchStatus: dogOptionsFetchStatus,
+  } = useQuery({
     queryKey: ['entry-form-dog-options', showId],
     queryFn: async () => {
       if (!showId) return [];
@@ -171,11 +174,17 @@ export default function ReportsPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // `?? []` on its own would collapse a failed read into "this show has no
+  // `?? []` on its own would collapse an unanswered read into "this show has no
   // dogs", so the Dog dropdown would silently offer only "All Dogs" and the
   // secretary would have no way to tell a working filter from a broken one.
+  //
+  // `isError` alone is not enough, and getting that wrong here would have
+  // reintroduced this page's whole defect class two hundred lines below the fix
+  // for it: this query inherits networkMode:'online', so offline it PAUSES --
+  // isError false, data undefined, and the list silently empty.
   const dogOptions = dogOptionsRaw ?? [];
-  const dogOptionsUnavailable = dogOptionsError;
+  const dogOptionsUnavailable =
+    dogOptionsError || (dogOptionsFetchStatus === 'paused' && dogOptionsRaw === undefined);
   const handleReportTypeChange = (value: string) => {
     setReportType(value);
     const newReport = getReportById(value);
@@ -220,7 +229,13 @@ export default function ReportsPage() {
     // Check the DATA before the iframe. A paused query renders an empty report
     // whose iframe body is non-empty, so printIframe() happily returns true and
     // the secretary gets a roster with no dogs on it.
-    if (!isReady) {
+    //
+    // Armband labels are exempt: ArmbandLabelsReport reads its own
+    // `['armband-label-entries', showId]` query and never touches
+    // trials/classes/entries, so gating it here would refuse to print a sheet
+    // that is on screen and correct, citing data it does not use. Result labels
+    // are NOT exempt -- they are handed trials/classes/entries as props.
+    if (reportType !== 'armband-labels' && !isReady) {
       toast(PRINT_BLOCKED_MESSAGE[dataState]);
       return;
     }
@@ -239,7 +254,10 @@ export default function ReportsPage() {
     // should: there the secretary asked for it.
     if (paperworkDescriptor) {
       const descriptor = paperworkDescriptor;
-      toast('Sent to your printer.', {
+      // "Print dialog opened", not "Sent to your printer" -- the comment above
+      // says window.print() reports nothing back, so claiming it printed would
+      // assert the very thing that is unknowable.
+      toast('Print dialog opened.', {
         action: {
           label: 'Mark printed',
           onClick: () => void confirmPrinted(descriptor),
@@ -256,7 +274,6 @@ export default function ReportsPage() {
       [metadata.first_name, metadata.last_name].filter(Boolean).join(' ').trim() ||
       user.email ||
       'Secretary';
-    setIsConfirmingPrint(true);
     try {
       const record = await replicatedPaperworkPrintsTable.confirmPrinted({
         scope: descriptor.scope,
@@ -277,8 +294,6 @@ export default function ReportsPage() {
       });
     } catch {
       toast.error('Could not save that. Nothing was recorded, so try marking it printed again.');
-    } finally {
-      setIsConfirmingPrint(false);
     }
   };
 
@@ -451,7 +466,10 @@ export default function ReportsPage() {
               isLoading={isLoading}
               isError={isError}
               dataState={dataState}
-              hasDownloadAction={Boolean(officialPdfAction && !officialPdfAction.disabled)}
+              hasDownloadAction={Boolean(officialPdfAction)}
+              downloadBlockedReason={
+                officialPdfAction?.disabled ? officialPdfAction.disabledReason : undefined
+              }
               onRetry={refetch}
               iframeRef={iframeRef}
             />
@@ -465,17 +483,16 @@ export default function ReportsPage() {
             ? 'Emergency Trial Packet'
             : (report?.name ?? 'report')
         }
-        isSaving={isConfirmingPrint}
+        // Always false, and there is no state behind it. The dialog's action
+        // button is a Base UI Close, so one click both fires onConfirm and
+        // starts the dismissal -- "Saving…" can never render, and a piece of
+        // state tracking it would be write-only. Closing immediately is the
+        // honest behaviour: the save continues and reports through its own
+        // toast either way.
+        isSaving={false}
         onConfirm={() => {
           if (pendingConfirmation) void confirmPrinted(pendingConfirmation);
         }}
-        // isConfirmingPrint is read from the render closure, not live, so it is
-        // always false here: the dialog's action button is a Base UI Close, so
-        // the same click both fires onConfirm and starts the dismissal. The
-        // dialog therefore always closes and the "Saving…" state never renders.
-        // Closing immediately is the honest behaviour to keep -- the save
-        // continues and reports through its own toast either way -- so this
-        // just stops pretending otherwise.
         onOpenChange={open => {
           if (!open) setPendingConfirmation(null);
         }}

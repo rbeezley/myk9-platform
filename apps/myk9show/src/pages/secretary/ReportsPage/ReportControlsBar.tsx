@@ -268,7 +268,8 @@ export function ReportControlsBar({
           </Select>
           {dogsUnavailable && (
             <p className="text-xs text-destructive" role="alert">
-              The dog list could not be loaded, so this filter is empty. Reload to try again.
+              The dog list could not be loaded, so this filter is empty. It is not that this show
+              has no dogs.
             </p>
           )}
         </div>

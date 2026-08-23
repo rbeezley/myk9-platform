@@ -1,7 +1,7 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { useReportData } from '../useReportData';
 
 vi.mock('@/services/database/trials', () => ({
@@ -51,7 +51,10 @@ const defaultOptions = {
 
 describe('useReportData', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // resetAllMocks, not clearAllMocks: clear wipes call history but LEAVES
+    // implementations, so a mockResolvedValue set by one test leaks into
+    // whichever test CI's --sequence.shuffle runs next.
+    vi.resetAllMocks();
   });
 
   it('returns null show when show is null', () => {
@@ -159,4 +162,95 @@ describe('useReportData', () => {
     await waitFor(() => expect(result.current.entries).toEqual(mockEntries));
     expect(mockGetEntriesByShow).toHaveBeenCalledWith('show-1');
   });
+
+  describe('dataState', () => {
+    // Restored in afterEach: onlineManager is a module-level singleton, so
+    // leaving it offline would fail unrelated suites under CI's shuffle.
+    afterEach(() => {
+      onlineManager.setOnline(true);
+    });
+
+    const onlineWrapper = () => {
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, networkMode: 'online', refetchOnWindowFocus: false },
+        },
+      });
+      return ({ children }: { children: React.ReactNode }) =>
+        React.createElement(QueryClientProvider, { client: queryClient }, children);
+    };
+
+    it('reports "unavailable", not "loading" and not an empty result, when offline', async () => {
+      // The defect this guards: with networkMode 'online' a query with no
+      // connectivity settles at isPending && !isFetching, so isLoading is
+      // FALSE and isError is FALSE while data stays undefined. Every caller
+      // that spelled `entries ?? []` then read that as "this class has no
+      // dogs" and printed it.
+      onlineManager.setOnline(false);
+      mockGetTrialsByShow.mockResolvedValue({ data: [], error: null } as never);
+
+      const { result } = renderHook(() => useReportData(defaultOptions), {
+        wrapper: onlineWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.dataState).toBe('unavailable'));
+      expect(result.current.isReady).toBe(false);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.isError).toBe(false);
+      expect(result.current.entries).toBeUndefined();
+    });
+
+    it('is ready only once all three reads have landed', async () => {
+      mockGetTrialsByShow.mockResolvedValue({ data: [{ id: 'trial-1' }], error: null } as never);
+      mockGetClassesByTrialId.mockResolvedValue({ data: [{ id: 'class-1' }], error: null } as never);
+      mockGetEntriesByShow.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
+
+      const { result } = renderHook(() => useReportData(defaultOptions), {
+        wrapper: onlineWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.dataState).toBe('ready'));
+      expect(result.current.isReady).toBe(true);
+    });
+
+
+    it('stays ready when connectivity drops but every row is already cached', async () => {
+      // The regression this guards, caught in review: the first version of this
+      // enum tested `fetchStatus === 'paused'` unconditionally, so a background
+      // refetch that paused on a query ALREADY HOLDING complete data reported
+      // 'unavailable'. That took the preview, Print, and every download away
+      // from a secretary whose venue wifi dropped mid-session -- the exact
+      // situation this page most needs to survive, made worse by the fix for it.
+      mockGetTrialsByShow.mockResolvedValue({ data: [{ id: 'trial-1' }], error: null } as never);
+      mockGetClassesByTrialId.mockResolvedValue({ data: [{ id: 'class-1' }], error: null } as never);
+      mockGetEntriesByShow.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
+
+      const { result } = renderHook(() => useReportData(defaultOptions), {
+        wrapper: onlineWrapper(),
+      });
+      await waitFor(() => expect(result.current.dataState).toBe('ready'));
+
+      onlineManager.setOnline(false);
+      act(() => {
+        result.current.refetch();
+      });
+
+      // The refetches park at fetchStatus 'paused' with data still in place.
+      await waitFor(() => expect(result.current.entries).toBeDefined());
+      expect(result.current.dataState).toBe('ready');
+      expect(result.current.isReady).toBe(true);
+    });
+
+    it('reports "error" rather than an empty report when a read fails', async () => {
+      mockGetTrialsByShow.mockResolvedValue({ data: null, error: new Error('nope') } as never);
+
+      const { result } = renderHook(() => useReportData(defaultOptions), {
+        wrapper: onlineWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.dataState).toBe('error'));
+      expect(result.current.isReady).toBe(false);
+    });
+  });
+
 });

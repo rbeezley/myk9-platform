@@ -1,4 +1,8 @@
-import { calculatePlatformFeeCents } from './platformFee.ts';
+import {
+  calculatePlatformFeeCents,
+  normalizePlatformFeeRates,
+  type PlatformFeeRates,
+} from './platformFee.ts';
 
 // Pure helpers for the immutable Stripe order snapshot (financial-reconciliation,
 // MYK9-54). Keep this module free of Deno/npm imports so the colocated vitest
@@ -185,7 +189,7 @@ export interface AcceptedEntrySnapshot {
 export function resolveAcceptedEntrySnapshot(
   acceptedEntryIds: string[],
   entryFeesById: Map<string, number>,
-  feePercent: number | null | undefined
+  feeRates: PlatformFeeRates | null | undefined
 ): AcceptedEntrySnapshot {
   const missingFeeEntryIds = acceptedEntryIds.filter(id => !entryFeesById.has(id));
   if (acceptedEntryIds.length === 0) {
@@ -210,11 +214,18 @@ export function resolveAcceptedEntrySnapshot(
     (sum, id) => sum + Math.max(0, Math.round(entryFeesById.get(id) ?? 0)),
     0
   );
-  const pct = typeof feePercent === 'number' && Number.isFinite(feePercent) ? feePercent : 0;
+  // The flat component rides along with the percent here BY DESIGN. It was
+  // charged once for this checkout, and the make-whole tie-out
+  // (amount == subtotal + fee + make_whole) only balances if the flat appears on
+  // the same side of the equation it was charged on — it cancels out of the
+  // make-whole difference exactly as the percentage share does.
+  const rates = normalizePlatformFeeRates(
+    feeRates ?? { percent: 0, flatCents: 0, minCents: 0 }
+  );
   return {
     status: 'derived',
     entrySubtotalCents,
-    platformFeeCents: calculatePlatformFeeCents(entrySubtotalCents, pct),
+    platformFeeCents: calculatePlatformFeeCents(entrySubtotalCents, rates),
     missingFeeEntryIds: [],
   };
 }

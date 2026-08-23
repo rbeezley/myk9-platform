@@ -8,6 +8,9 @@ import {
   platformNetIncomeCents,
   resolveAcceptedEntrySnapshot,
 } from './orderSnapshot';
+import type { PlatformFeeRates } from './platformFee';
+
+const RATES_7: PlatformFeeRates = { percent: 7, flatCents: 0, minCents: 0 };
 import { decideEntryPaymentAutoRefund } from './entryPaymentAutoRefund';
 
 describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () => {
@@ -21,7 +24,7 @@ describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () 
   const sessionTotal = 3210;
 
   it('excludes never-accepted lines from the subtotal and the platform fee', () => {
-    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2'], entryFeesById, 7);
+    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2'], entryFeesById, RATES_7);
     expect(snapshot).toEqual({
       status: 'derived',
       entrySubtotalCents: 2000,
@@ -33,7 +36,7 @@ describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () 
   });
 
   it('ties out against the actual make-whole refund when some lines are invalid', () => {
-    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2'], entryFeesById, 7);
+    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2'], entryFeesById, RATES_7);
     const decision = decideEntryPaymentAutoRefund({
       paymentIntentId: 'pi_1',
       sessionAmountTotalCents: sessionTotal,
@@ -65,7 +68,7 @@ describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () 
   });
 
   it('ties out exactly when nothing was refunded', () => {
-    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2', 'e3'], entryFeesById, 7);
+    const snapshot = resolveAcceptedEntrySnapshot(['e1', 'e2', 'e3'], entryFeesById, RATES_7);
     expect(snapshot.entrySubtotalCents).toBe(3000);
     expect(snapshot.platformFeeCents).toBe(210);
     expect(
@@ -79,7 +82,7 @@ describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () 
   });
 
   it('reports UNVERIFIABLE (NULL columns) rather than guessing a missing fee', () => {
-    expect(resolveAcceptedEntrySnapshot(['e1', 'e9'], entryFeesById, 7)).toEqual({
+    expect(resolveAcceptedEntrySnapshot(['e1', 'e9'], entryFeesById, RATES_7)).toEqual({
       status: 'unverifiable',
       entrySubtotalCents: null,
       platformFeeCents: null,
@@ -88,11 +91,31 @@ describe('payment-link snapshot: derived from ACCEPTED entries (finding 2)', () 
   });
 
   it('records a known ZERO when nothing was accepted (whole charge is make-whole)', () => {
-    expect(resolveAcceptedEntrySnapshot([], entryFeesById, 7)).toMatchObject({
+    expect(resolveAcceptedEntrySnapshot([], entryFeesById, RATES_7)).toMatchObject({
       status: 'derived',
       entrySubtotalCents: 0,
       platformFeeCents: 0,
     });
+  });
+
+  it('carries the flat per-checkout component into the snapshot fee (MYK9-197)', () => {
+    // The flat component was charged once for this checkout, so it belongs on
+    // the same side of the tie-out it was charged on. Dropping it would understate
+    // platform income by exactly the flat amount on every order.
+    const withFlat = resolveAcceptedEntrySnapshot(['e1', 'e2'], entryFeesById, {
+      percent: 7,
+      flatCents: 30,
+      minCents: 0,
+    });
+    expect(withFlat.platformFeeCents).toBe(140 + 30);
+  });
+
+  it('keeps a nothing-accepted order at 0/0 even with a floor configured', () => {
+    // No service rendered, so no minimum to take. A floor leaking in here would
+    // book fee income on a charge that is entirely make-whole refunded.
+    expect(
+      resolveAcceptedEntrySnapshot([], entryFeesById, { percent: 7, flatCents: 30, minCents: 500 })
+    ).toMatchObject({ entrySubtotalCents: 0, platformFeeCents: 0 });
   });
 
   it('returns null (not checkable) for legacy rows with NULL snapshot columns', () => {

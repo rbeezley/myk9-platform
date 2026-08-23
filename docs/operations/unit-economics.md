@@ -123,11 +123,20 @@ is already $1.75. It earns its place further down: at a $10 entry a one-entry ca
 nets $0.09 today and $0.38 with the floor. Adopt it as a guard for fun matches and
 single-class entries, not as the single-entry-cart fix.
 
-Neither is implemented. Both helpers are pure percentage and `platform_settings`
-has only `platform_fee_percent`. Tracked as **MYK9-197**, which also documents why
-this is an atomic five-site change rather than a one-liner — the fee expression is
-duplicated between the server and the client cart preview, and a 1¢ divergence
-triggers checkout drift-healing rather than a rounding error.
+Both are **built but switched off** (MYK9-197). The fee expression is now
+`max(round(subtotal × percent / 100) + platform_fee_flat_cents, platform_fee_min_cents)`
+at every site, and `platform_settings` carries `platform_fee_flat_cents` and
+`platform_fee_min_cents` alongside the percent. **Both default to 0**, which
+collapses the expression to exactly the percentage-only math above — so nothing
+in the tables on this page has changed yet, and adopting either is a site-admin
+edit on `/admin/payouts`, not a deploy.
+
+That change was atomic across five sites rather than a one-liner because the fee
+expression is duplicated between the server and the client cart preview, and a 1¢
+divergence triggers checkout drift-healing rather than a rounding error. The
+duplication is held together by
+[`platformFeeAgreement.test.ts`](../../apps/myk9show/supabase/functions/_shared/platformFeeAgreement.test.ts),
+which imports both implementations and asserts they return the same integer.
 
 ---
 
@@ -283,8 +292,9 @@ on a cart-size distribution nothing currently measures. Single-entry carts at
 is structurally exposed to them.
 
 The fix is the flat per-checkout component in section 3, **not** a minimum fee
-floor. Tracked as **MYK9-197**. Instrument cart size before building: if real carts
-are reliably 4+, this is worth little and can wait.
+floor. **MYK9-197 shipped the mechanism defaulted to 0**, so turning it on is now a
+setting rather than a build. Instrument cart size before turning it on: if real
+carts are reliably 4+, this is worth little and can wait.
 
 ### d. Post-payout clawback — narrow, and already guarded
 

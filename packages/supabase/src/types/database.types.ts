@@ -4491,18 +4491,24 @@ export type Database = {
       platform_settings: {
         Row: {
           id: boolean
+          platform_fee_flat_cents: number
+          platform_fee_min_cents: number
           platform_fee_percent: number
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           id?: boolean
+          platform_fee_flat_cents?: number
+          platform_fee_min_cents?: number
           platform_fee_percent?: number
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           id?: boolean
+          platform_fee_flat_cents?: number
+          platform_fee_min_cents?: number
           platform_fee_percent?: number
           updated_at?: string
           updated_by?: string | null

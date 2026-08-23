@@ -1,7 +1,10 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import {
+  calculatePlatformFeeCents,
+  resolvePlatformFeeRates,
+} from '../_shared/platformFee.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
 import { buildEntryPaymentLinkSession } from '../_shared/entryPaymentLink.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
@@ -313,16 +316,19 @@ Deno.serve(async req => {
       );
     }
 
-    // Authoritative fee percent: platform_settings row, else env, else default.
+    // Authoritative fee rates: platform_settings row, else env, else default.
+    // Percent + flat per-checkout component + floor (MYK9-197); flat/min default
+    // to 0, so a link prices identically to a self-pay cart either way.
     const { data: feeRow } = await supabase
       .from('platform_settings')
-      .select('platform_fee_percent')
+      .select('platform_fee_percent, platform_fee_flat_cents, platform_fee_min_cents')
       .eq('id', true)
       .maybeSingle();
-    const platformFeePercent =
-      feeRow && feeRow.platform_fee_percent != null
-        ? resolvePlatformFeePercent(String(feeRow.platform_fee_percent))
-        : resolvePlatformFeePercent(Deno.env.get('PLATFORM_FEE_PERCENT'));
+    const platformFeeRates = resolvePlatformFeeRates(feeRow, {
+      percent: Deno.env.get('PLATFORM_FEE_PERCENT'),
+      flatCents: Deno.env.get('PLATFORM_FEE_FLAT_CENTS'),
+      minCents: Deno.env.get('PLATFORM_FEE_MIN_CENTS'),
+    });
 
     // Recompute each fee from the authority chain — never trust a client value.
     const nowIso = new Date().toISOString();
@@ -479,7 +485,7 @@ Deno.serve(async req => {
 
     const sessionParams = buildEntryPaymentLinkSession({
       entries: linkEntries,
-      platformFeePercent,
+      platformFeeRates,
       successUrl: success_url,
       cancelUrl: cancel_url,
       expiresAtEpoch: Math.floor(Date.now() / 1000) + LINK_LIFETIME_SECONDS,
@@ -523,7 +529,7 @@ Deno.serve(async req => {
     );
     // Return the exact breakdown so the dialog can disclose entry fee + platform
     // fee = total (fee-on-top) without re-deriving fee math on the client.
-    const platformFeeCents = calculatePlatformFeeCents(amountCents, platformFeePercent);
+    const platformFeeCents = calculatePlatformFeeCents(amountCents, platformFeeRates);
     return corsResponse(corsHeaders, {
       url: session.url,
       session_id: session.id,

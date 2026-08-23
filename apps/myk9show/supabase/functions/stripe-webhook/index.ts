@@ -12,7 +12,10 @@ import {
 import { reconcileEntryPaymentUpdateOutcome } from '../_shared/entryPaymentUpdateReconcile.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { authoritativeEntryFeeCents } from '../_shared/authoritativeFee.ts';
-import { calculatePlatformFeeCents, resolvePlatformFeePercent } from '../_shared/platformFee.ts';
+import {
+  calculatePlatformFeeCents,
+  decodeStampedPlatformFeeRates,
+} from '../_shared/platformFee.ts';
 import {
   buildOrderSnapshotFields,
   extractProcessingFeeCents,
@@ -1087,11 +1090,17 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // and webhook must not make this reject a correctly-charged session (which
   // would leave the exhibitor paid with no entries). Fall back to the env var
   // for sessions created before the stamp existed.
-  const stampedFeePercent = resolvePlatformFeePercent(
-    freshSession.metadata?.platform_fee_percent ?? Deno.env.get('PLATFORM_FEE_PERCENT')
+  // The flat component and the floor read back as 0 when the stamp is ABSENT
+  // (decodeStampedPlatformFeeRates), never from env or the live row: a session
+  // created before those columns existed was charged percentage-only, and
+  // re-validating it against a live non-zero flat would reject a correctly
+  // charged payment — exhibitor paid, no entries.
+  const stampedFeeRates = decodeStampedPlatformFeeRates(
+    freshSession.metadata,
+    Deno.env.get('PLATFORM_FEE_PERCENT')
   );
   const authoritativeTotal =
-    authoritativeSubtotal + calculatePlatformFeeCents(authoritativeSubtotal, stampedFeePercent);
+    authoritativeSubtotal + calculatePlatformFeeCents(authoritativeSubtotal, stampedFeeRates);
   if (authoritativeTotal !== freshTotalCents) {
     const piId = extractPaymentIntentId(session.payment_intent);
     console.error(
@@ -1339,7 +1348,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const snapshotProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
   const snapshotPlatformFeeCents = calculatePlatformFeeCents(
     paidEntrySubtotalCents,
-    stampedFeePercent
+    stampedFeeRates
   );
 
   // Create stripe_orders record
@@ -1361,7 +1370,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     ...buildOrderSnapshotFields({
       entrySubtotalCents: paidEntrySubtotalCents,
       platformFeeCents: snapshotPlatformFeeCents,
-      platformFeeRate: stampedFeePercent,
+      platformFeeRate: stampedFeeRates.percent,
       stripeProcessingFeeCents: snapshotProcessingFeeCents,
     }),
     currency: session.currency || 'usd',
@@ -1743,10 +1752,11 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // order AND forced `amount == subtotal + fee` to hold by construction, which
   // made the tie-out `amount == subtotal + fee + make_whole` fail by exactly the
   // refund. Capture Stripe's actual processing fee (NULL = pending, never zero).
-  const linkFeePercent = resolvePlatformFeePercent(
-    freshSession.metadata?.platform_fee_percent ?? Deno.env.get('PLATFORM_FEE_PERCENT')
+  const linkFeeRates = decodeStampedPlatformFeeRates(
+    freshSession.metadata,
+    Deno.env.get('PLATFORM_FEE_PERCENT')
   );
-  const linkFeeSplit = resolveAcceptedEntrySnapshot(paidIds, entryFeesById, linkFeePercent);
+  const linkFeeSplit = resolveAcceptedEntrySnapshot(paidIds, entryFeesById, linkFeeRates);
   if (linkFeeSplit.status === 'unverifiable') {
     // Columns stay NULL (rate-unverifiable), never a guessed number that would
     // silently enter platform income reporting.
@@ -1777,7 +1787,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     ...buildOrderSnapshotFields({
       entrySubtotalCents: linkFeeSplit.entrySubtotalCents,
       platformFeeCents: linkFeeSplit.platformFeeCents,
-      platformFeeRate: linkFeePercent,
+      platformFeeRate: linkFeeRates.percent,
       stripeProcessingFeeCents: linkProcessingFeeCents,
     }),
     metadata: { entry_payment_link_id: link.id, entry_count: paidIds.length },

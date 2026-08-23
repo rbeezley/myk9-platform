@@ -2,8 +2,9 @@
  * PayoutLedgerPage — site-admin payout ledger + platform fee setting.
  *
  * Two financial responsibilities on one page (per the 2026-06-10 decision):
- *  - Platform fee: the one place to change platform_settings.platform_fee_percent
- *    with no deploy (read by stripe-checkout + the cart preview).
+ *  - Platform fee: the one place to change the platform_settings fee columns
+ *    (percent + flat per-checkout component + floor) with no deploy, read by
+ *    stripe-checkout / stripe-payment-link and mirrored by the cart preview.
  *  - Payout ledger: cross-club liabilities — "whose money is in the platform's
  *    Stripe balance right now?" The operator-only complement to ClubPaymentsCard.
  *
@@ -29,7 +30,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { usePlatformFeePercentQuery } from '@/hooks/queries/usePlatformFeePercent';
+import { usePlatformFeeRatesQuery } from '@/hooks/queries/usePlatformFeeRates';
+import {
+  formatPlatformFeeLabel,
+  type PlatformFeeRates,
+} from '@/store/cartStore.helpers';
 import { useUpdatePlatformFee } from '@/features/payments/useUpdatePlatformFee';
 import { usePlatformPayoutLedger } from '@/features/payments/usePlatformPayoutLedger';
 import {
@@ -48,6 +53,10 @@ const OVERDUE_STATUS_CLASS = 'border-warning/30 bg-warning/10 text-warning hover
 
 const MIN_PLATFORM_FEE_PERCENT = 0;
 const MAX_PLATFORM_FEE_PERCENT = 20;
+// Mirror PLATFORM_FEE_LIMITS in supabase/functions/_shared/platformFee.ts and
+// the CHECK constraints added by migration 20260823140000.
+const MAX_PLATFORM_FEE_FLAT_CENTS = 500;
+const MAX_PLATFORM_FEE_MIN_CENTS = 2000;
 
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -136,20 +145,22 @@ function statusBadge(row: LedgerRow, today: string) {
 }
 
 function PlatformFeeCard() {
-  // The query-state hook, NOT usePlatformFeePercent(): this card states the rate
-  // as fact and gates Save on "did it change?", and both are wrong when the rate
-  // was never read. The plain hook returns the constant 7 while loading and after
-  // a failed read, which would (a) print "Current rate: 7%" over an unread row
-  // and (b) INVERT the Save gate — typing the true rate would look unchanged and
-  // disable Save, while typing 7 would look like an edit.
-  const { percent: currentPercent, state: rateState } = usePlatformFeePercentQuery();
+  // The query-state hook, NOT usePlatformFeeRates(): this card states the rates
+  // as fact and gates Save on "did they change?", and both are wrong when they
+  // were never read. The plain hook returns the fallback defaults while loading
+  // and after a failed read, which would (a) print "Current fee: 7%" over an
+  // unread row and (b) INVERT the Save gate — typing the true rate would look
+  // unchanged and disable Save, while typing 7 would look like an edit.
+  const { rates: currentRates, state: rateState } = usePlatformFeeRatesQuery();
   const updateFee = useUpdatePlatformFee();
-  const [value, setValue] = useState<string>('');
+  const [percentValue, setPercentValue] = useState<string>('');
+  const [flatValue, setFlatValue] = useState<string>('');
+  const [minValue, setMinValue] = useState<string>('');
   const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(
     null
   );
 
-  // The field is SEEDED ONCE and never re-adopts a later value.
+  // The fields are SEEDED ONCE and never re-adopt a later value.
   //
   // The previous design kept the input in sync with every refetch, and that one
   // idea produced four consecutive bugs: it clobbered in-progress edits, then
@@ -163,54 +174,99 @@ function PlatformFeeCard() {
   // positioned to observe.
   //
   // Divergence stays VISIBLE rather than silently resolved: the guidance line
-  // below always shows the live rate straight from the query, so a rate changed
-  // elsewhere appears there while the field keeps what was typed, and the Save
-  // button names the value it would actually write.
+  // below always shows the live fee straight from the query, so a fee changed
+  // elsewhere appears there while the fields keep what was typed, and the Save
+  // button names the fee it would actually write.
   //
   // `seeded` only ever goes false → true, so this render-phase adjustment
   // cannot oscillate.
   const [seeded, setSeeded] = useState(false);
-  // Set the moment the admin types. Distinguishes "the field holds what we
-  // seeded" from "the field holds what a human is composing" — the only reason
-  // clearing is ever unsafe.
+  // Set the moment the admin types in ANY field. Distinguishes "the fields hold
+  // what we seeded" from "the fields hold what a human is composing" — the only
+  // reason clearing is ever unsafe.
   const [dirty, setDirty] = useState(false);
 
-  if (!seeded && currentPercent !== null) {
+  if (!seeded && currentRates !== null) {
     setSeeded(true);
-    setValue(String(currentPercent));
+    setPercentValue(String(currentRates.percent));
+    setFlatValue(String(currentRates.flatCents));
+    setMinValue(String(currentRates.minCents));
   }
 
-  // The rate stopped being readable. A bare number left in a field LABELLED
-  // "Fee percent", beside a line saying the rate could not be loaded, is still
+  // The rates stopped being readable. A bare number left in a field LABELLED
+  // "Fee percent", beside a line saying the fee could not be loaded, is still
   // a claim — so it goes, unless a human typed it. An earlier revision cleared
   // unconditionally (destroying in-progress edits) and the revision after that
   // stopped clearing at all (restoring the stale claim); `dirty` is what makes
   // both properties available at once.
-  if (currentPercent === null && seeded && !dirty && value !== '') {
-    setValue('');
+  if (
+    currentRates === null &&
+    seeded &&
+    !dirty &&
+    (percentValue !== '' || flatValue !== '' || minValue !== '')
+  ) {
+    setPercentValue('');
+    setFlatValue('');
+    setMinValue('');
   }
 
-  // No usable rate means no safe edit: an admin must never overwrite a value the
-  // page could not read. Every non-'ready' state disables the field, including
-  // the one where a stale rate is still cached from an earlier successful read.
+  const onEdit = (setter: (v: string) => void) => (v: string) => {
+    setter(v);
+    setDirty(true);
+    setFeedback(null);
+  };
+
+  // No usable rates means no safe edit: an admin must never overwrite values the
+  // page could not read. Every non-'ready' state disables the fields, including
+  // the one where stale rates are still cached from an earlier successful read.
   const rateEditable = rateState === 'ready';
-  const parsed = Number(value);
-  const invalid =
-    value.trim() === '' ||
-    !Number.isFinite(parsed) ||
-    parsed < MIN_PLATFORM_FEE_PERCENT ||
-    parsed > MAX_PLATFORM_FEE_PERCENT;
-  const unchanged = rateEditable && parsed === currentPercent;
+
+  const parsedPercent = Number(percentValue);
+  const parsedFlat = Number(flatValue);
+  const parsedMin = Number(minValue);
+  const percentInvalid =
+    percentValue.trim() === '' ||
+    !Number.isFinite(parsedPercent) ||
+    parsedPercent < MIN_PLATFORM_FEE_PERCENT ||
+    parsedPercent > MAX_PLATFORM_FEE_PERCENT;
+  // Cents, not dollars: the columns are integer cents and the fee arithmetic is
+  // integer cents, so asking for dollars here would insert a rounding step
+  // between what the operator types and what the exhibitor is charged.
+  const flatInvalid =
+    flatValue.trim() === '' ||
+    !Number.isInteger(parsedFlat) ||
+    parsedFlat < 0 ||
+    parsedFlat > MAX_PLATFORM_FEE_FLAT_CENTS;
+  const minInvalid =
+    minValue.trim() === '' ||
+    !Number.isInteger(parsedMin) ||
+    parsedMin < 0 ||
+    parsedMin > MAX_PLATFORM_FEE_MIN_CENTS;
+  const invalid = percentInvalid || flatInvalid || minInvalid;
+
+  const nextRates: PlatformFeeRates = {
+    percent: parsedPercent,
+    flatCents: parsedFlat,
+    minCents: parsedMin,
+  };
+  const unchanged =
+    rateEditable &&
+    currentRates !== null &&
+    parsedPercent === currentRates.percent &&
+    parsedFlat === currentRates.flatCents &&
+    parsedMin === currentRates.minCents;
 
   const handleSave = () => {
-    updateFee.mutate(parsed, {
-      onSuccess: p => {
+    updateFee.mutate(nextRates, {
+      onSuccess: saved => {
         // Show exactly what was written, and stop treating it as an unsaved
         // edit — it is now the persisted value, not something a human is still
         // composing.
-        setValue(String(p));
+        setPercentValue(String(saved.percent));
+        setFlatValue(String(saved.flatCents));
+        setMinValue(String(saved.minCents));
         setDirty(false);
-        const message = `Platform fee updated to ${p}%`;
+        const message = `Platform fee updated to ${formatPlatformFeeLabel(saved)}`;
         setFeedback({ tone: 'success', message });
         toast.success(message);
       },
@@ -230,8 +286,13 @@ function PlatformFeeCard() {
           Platform fee
         </h3>
         <CardDescription className="max-w-3xl leading-relaxed">
-          This percentage is added to every online entry checkout and shown in the cart. Updating it
-          takes effect immediately. No deployment is needed.
+          The platform fee is added to every online entry checkout and shown in the cart as one
+          line. It is the percent of the entry subtotal, plus a flat amount charged once per
+          checkout, never less than the minimum. The flat amount mirrors Stripe&rsquo;s
+          per-transaction cost, so the platform&rsquo;s take stops depending on how many entries an
+          exhibitor puts in one cart; the minimum guards cheap entries. Leave the flat amount and
+          the minimum at 0 to charge the percent alone. Updating takes effect immediately. No
+          deployment is needed.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -245,18 +306,52 @@ function PlatformFeeCard() {
                 min={MIN_PLATFORM_FEE_PERCENT}
                 max={MAX_PLATFORM_FEE_PERCENT}
                 step={0.5}
-                value={value}
-                onChange={e => {
-                  setValue(e.target.value);
-                  setDirty(true);
-                  setFeedback(null);
-                }}
-                aria-invalid={invalid}
+                value={percentValue}
+                onChange={e => onEdit(setPercentValue)(e.target.value)}
+                aria-invalid={percentInvalid}
                 aria-describedby="platform-fee-guidance"
                 disabled={!rateEditable}
                 className="h-11 w-28"
               />
               <span className="text-muted-foreground">%</span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="platform-fee-flat">Flat amount per checkout</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="platform-fee-flat"
+                type="number"
+                min={0}
+                max={MAX_PLATFORM_FEE_FLAT_CENTS}
+                step={1}
+                value={flatValue}
+                onChange={e => onEdit(setFlatValue)(e.target.value)}
+                aria-invalid={flatInvalid}
+                aria-describedby="platform-fee-guidance"
+                disabled={!rateEditable}
+                className="h-11 w-28"
+              />
+              <span className="text-muted-foreground">¢</span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="platform-fee-min">Minimum fee</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="platform-fee-min"
+                type="number"
+                min={0}
+                max={MAX_PLATFORM_FEE_MIN_CENTS}
+                step={1}
+                value={minValue}
+                onChange={e => onEdit(setMinValue)(e.target.value)}
+                aria-invalid={minInvalid}
+                aria-describedby="platform-fee-guidance"
+                disabled={!rateEditable}
+                className="h-11 w-28"
+              />
+              <span className="text-muted-foreground">¢</span>
             </div>
           </div>
           <Button
@@ -268,7 +363,7 @@ function PlatformFeeCard() {
               ? 'Updating fee…'
               : invalid || unchanged
                 ? 'Update fee'
-                : `Update fee to ${value}%`}
+                : `Update fee to ${formatPlatformFeeLabel(nextRates)}`}
           </Button>
         </div>
         <p
@@ -279,20 +374,27 @@ function PlatformFeeCard() {
               : 'text-sm text-muted-foreground'
           }
         >
-          {/* Order matters: an unread rate is reported BEFORE any judgement about
-              the typed value, because "is this valid?" and "has this changed?"
-              are both meaningless without a rate to compare against. */}
+          {/* Order matters: an unread fee is reported BEFORE any judgement about
+              the typed values, because "is this valid?" and "has this changed?"
+              are both meaningless without a fee to compare against. */}
           {rateState === 'unavailable' ? (
-            'The current rate could not be loaded, so it cannot be changed here. Reload to try again.'
+            'The current fee could not be loaded, so it cannot be changed here. Reload to try again.'
           ) : rateState === 'absent' ? (
-            'No platform fee rate is set. Contact support before charging entries.'
+            'No platform fee is set. Contact support before charging entries.'
           ) : rateState === 'loading' ? (
-            'Loading the current rate…'
-          ) : invalid ? (
+            'Loading the current fee…'
+          ) : percentInvalid ? (
             `Enter a percent between ${MIN_PLATFORM_FEE_PERCENT} and ${MAX_PLATFORM_FEE_PERCENT}.`
+          ) : flatInvalid ? (
+            `Enter a flat amount in whole cents between 0 and ${MAX_PLATFORM_FEE_FLAT_CENTS}.`
+          ) : minInvalid ? (
+            `Enter a minimum fee in whole cents between 0 and ${MAX_PLATFORM_FEE_MIN_CENTS}.`
           ) : (
             <>
-              Current rate: <span className="font-medium text-foreground">{currentPercent}%</span>
+              Current fee:{' '}
+              <span className="font-medium text-foreground">
+                {currentRates === null ? '' : formatPlatformFeeLabel(currentRates)}
+              </span>
             </>
           )}
         </p>

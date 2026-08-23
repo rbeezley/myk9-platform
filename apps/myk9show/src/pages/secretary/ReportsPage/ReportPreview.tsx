@@ -387,8 +387,6 @@ export function ReportPreview({
     );
   }
 
-  const report = getReportById(reportType);
-
   // Registry forms with no HTML rendering. Say so, rather than leaving a blank
   // page that reads as "still loading" and a Print button that produces blank
   // paper. The Download button in the controls bar above is the real action.

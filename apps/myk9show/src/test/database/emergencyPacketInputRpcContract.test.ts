@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
  *
  * MYK9-228.
  */
-// `emergency_packet_input` was rebuilt in full by `20260823150000` (a
+// `emergency_packet_input` was rebuilt in full by `20260823170000` (a
 // `CREATE OR REPLACE` of the same function, adding two JSON keys). Every
 // assertion about that function's body must read the LATEST definition —
 // asserting against the superseded `20260821220000` file would pass against
@@ -19,13 +19,13 @@ import { describe, expect, it } from 'vitest';
 const sql = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260823150000_emergency_packet_input_hides.sql'
+    '../../../../../supabase/migrations/20260823170000_emergency_packet_input_hides.sql'
   ),
   'utf8'
 );
 
 // `public.emergency_packet_section` is a SEPARATE helper function that
-// `20260823150000` calls but does not redefine — its own most recent
+// `20260823170000` calls but does not redefine — its own most recent
 // `CREATE OR REPLACE` still lives in `20260821220000`, so the one test that
 // asserts on ITS definition (not `emergency_packet_input`'s) reads this file.
 const sectionDefinitionSql = readFileSync(

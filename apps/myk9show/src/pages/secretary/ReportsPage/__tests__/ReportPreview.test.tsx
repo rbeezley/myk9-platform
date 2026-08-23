@@ -263,6 +263,7 @@ describe('ReportPreview', () => {
           sortOrder="run-order"
           isLoading={false}
           isError={false}
+          dataState="ready"
         />
       );
 
@@ -291,6 +292,7 @@ describe('ReportPreview', () => {
           sortOrder="run-order"
           isLoading={false}
           isError={false}
+          dataState="ready"
         />
       );
 

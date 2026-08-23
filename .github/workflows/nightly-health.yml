@@ -75,3 +75,80 @@ jobs:
           name: myk9show-nightly-health-report
           path: apps/myk9show/playwright-report/
           retention-days: 7
+
+  # Cross-browser route health — WebKit and iOS Safari.
+  #
+  # Until now every automated Playwright run in this repo installed chromium
+  # only, so four of the five projects in playwright.config.ts had never
+  # executed. That leaves the configuration most exhibitors are actually on at
+  # a show — an iPhone — completely unexercised, and WebKit is where IndexedDB,
+  # service workers and storage eviction diverge most from Chromium. The
+  # offline-first architecture depends on all three.
+  #
+  # ADVISORY, NOT BLOCKING (`continue-on-error: true`) for its first runs.
+  # A local dry run on 2026-08-23 was clean — all six role groups passed on
+  # both projects against staging — so the backlog these projects were expected
+  # to surface did not materialise for this spec. Advisory is still the right
+  # starting point: one clean local run is not evidence of stability on a
+  # hosted runner, and a brand-new browser in CI is where timing-dependent
+  # flake shows up. Promote it by deleting `continue-on-error` once a few
+  # scheduled runs have been green; the contract test pins the current shape,
+  # so promotion is a deliberate two-file edit rather than drift.
+  #
+  # Runs after the chromium job rather than beside it so the two sweeps do not
+  # sign in as the same E2E accounts concurrently. `if: always()` so a red
+  # baseline still yields cross-browser data.
+  cross-browser-health:
+    name: Cross-browser route health (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: nightly-health
+    if: always() && vars.MYK9SHOW_SMOKE_CI_ENABLED == 'true'
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm -r --filter='./packages/*' build
+
+      - name: Install Playwright browser
+        run: pnpm --filter @myk9/show exec playwright install --with-deps webkit
+
+      - name: Run cross-browser route health
+        run: pnpm qa:nightly:health
+        env:
+          CI: 'true'
+          # Both projects are WebKit-engine: desktop Safari and iPhone 13.
+          MYK9_NIGHTLY_HEALTH_PROJECTS: 'webkit,mobile-safari'
+          # The deterministic Vitest block is browser-independent — the
+          # chromium job above already ran it.
+          MYK9_NIGHTLY_HEALTH_SKIP_VITEST: 'true'
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      - name: Upload cross-browser route-health report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: myk9show-cross-browser-health-report
+          path: apps/myk9show/playwright-report/
+          retention-days: 7

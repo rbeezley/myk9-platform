@@ -70,6 +70,43 @@ create policy platform_settings_fee_read_anon
   to anon
   using (true);
 
+-- Barrier 3 — the ANONYMOUS SESSION, which is a different principal from the
+-- anon ROLE and is blocked by a different thing.
+--
+-- Supabase anonymous sign-in issues a JWT whose `role` claim is `authenticated`,
+-- so a passcode visitor at a show (pages/ringsideAnonSession.ts calls
+-- signInAnonymously()) never reaches the anon policy above. They are judged by
+-- `platform_settings_select`, which 20260712160000 deliberately gated on
+-- `(auth.jwt() ->> 'is_anonymous') IS NOT TRUE`. Result before this statement: a
+-- visitor who taps the /fees link in the footer gets an empty read and the page
+-- says it could not load the fee — honest, but a reachable population failing on
+-- the page whose entire purpose is being publicly readable.
+--
+-- Added as a SEPARATE permissive policy rather than by relaxing
+-- `platform_settings_select`: that policy also guards whatever operator config
+-- lands in this table next, and its 2026-07 rationale ("more operator-wide
+-- config may land here") is still sound. Keeping it intact means a future column
+-- inherits the RESTRICTIVE default, and only this statement — which exists
+-- solely for the published fee — would have to be revisited.
+--
+-- The honest cost, stated rather than buried: `authenticated` holds TABLE-level
+-- SELECT, so RLS is the only gate for this principal and admitting the row
+-- admits `updated_at` and `updated_by` along with the fee. Column privileges
+-- cannot narrow it the way they do for the anon role, because the grant belongs
+-- to `authenticated` as a whole. That is acceptable for the row as it exists
+-- today (a fee, a timestamp, and the site admin's person id) and NOT acceptable
+-- in general, so `platformSettingsAnonFeeReadContract` pins the table's exact
+-- column set: adding a column to platform_settings fails that test and forces
+-- this trade-off to be re-decided rather than silently inherited.
+drop policy if exists platform_settings_fee_read_anonymous_session on public.platform_settings;
+create policy platform_settings_fee_read_anonymous_session
+  on public.platform_settings
+  for select
+  to authenticated
+  using (
+    (select (auth.jwt() ->> 'is_anonymous')::boolean) is true
+  );
+
 commit;
 
 -- Verify against the APPLIED database, never the text above:

@@ -117,6 +117,112 @@ describe('barrier 1 — anon column privileges on platform_settings', () => {
   });
 });
 
+/**
+ * A Supabase anonymous session is a DIFFERENT principal from the anon role and
+ * is blocked by a DIFFERENT thing: signInAnonymously() issues a JWT whose role
+ * claim is `authenticated`, so it never reaches the anon policy at all. It is
+ * judged by `platform_settings_select`, which 20260712160000 gated on
+ * `is_anonymous IS NOT TRUE`. A passcode visitor at a show tapping the /fees
+ * footer link is exactly this principal.
+ *
+ * Asserted separately from barrier 2 on purpose — one test cannot cover both,
+ * and the anon-role policy passing says nothing about this path.
+ */
+describe('barrier 3 — the anonymous SESSION, judged as `authenticated`', () => {
+  const anonymousSessionPolicies = ALL_STATEMENTS.filter(
+    ({ statement }) =>
+      /^CREATE\s+POLICY\b/i.test(statement) &&
+      /\bON\s+(?:public\.)?platform_settings\b/i.test(statement) &&
+      /\bFOR\s+SELECT\b/i.test(statement) &&
+      /\bTO\s+[^;]*\bauthenticated\b/i.test(statement) &&
+      /is_anonymous/i.test(statement)
+  );
+
+  it('admits an anonymous session through a policy of its own', () => {
+    const admitting = anonymousSessionPolicies.filter(({ statement }) =>
+      /is_anonymous'\)::boolean\)?\s*\)?\s*is true/i.test(statement)
+    );
+    expect(
+      admitting.length,
+      'no policy admits an anonymous session — a passcode visitor reading /fees ' +
+        'gets an empty row and the page says it cannot load the fee'
+    ).toBeGreaterThan(0);
+  });
+
+  it('leaves the original is-not-anonymous policy in place rather than relaxing it', () => {
+    // That policy guards whatever operator config lands in this table next.
+    // Widening it would hand a future column to anonymous sessions silently;
+    // the separate policy above has to be revisited instead.
+    // Every definition of it, in replay order — NOT just the ones mentioning
+    // is_anonymous. Filtering on that made this vacuous: a later migration that
+    // relaxed the policy to USING (true) drops out of the filter, leaving the
+    // old guarded definition as the last match and the test green over exactly
+    // the regression it exists to catch.
+    const original = ALL_STATEMENTS.filter(({ statement }) =>
+      /^CREATE\s+POLICY\s+platform_settings_select\b/i.test(statement)
+    );
+    expect(original.length).toBeGreaterThan(0);
+    const effective = original[original.length - 1];
+    expect(
+      effective.statement,
+      `${effective.filename} redefines platform_settings_select without the ` +
+        'is_anonymous guard, which hands every future operator-config column ' +
+        'on this table to anonymous sessions'
+    ).toMatch(/is_anonymous/i);
+    expect(effective.statement).toMatch(/is not true/i);
+  });
+
+  it('admits anonymous sessions to SELECT only, never to a write', () => {
+    for (const { filename, statement } of anonymousSessionPolicies) {
+      expect(
+        /\bFOR\s+SELECT\b/i.test(statement),
+        `${filename} gives an anonymous session more than SELECT`
+      ).toBe(true);
+    }
+  });
+});
+
+/**
+ * The trade-off this pins: `authenticated` holds TABLE-level SELECT, so the
+ * anonymous-session policy admits the whole ROW — `updated_at` and `updated_by`
+ * included — where the anon role is held to three columns. That is acceptable
+ * for the row as it exists today and NOT acceptable in general, so a new column
+ * on this table must fail here and force the decision to be made again rather
+ * than inherited in silence.
+ */
+describe('the column set the anonymous-session trade-off was judged against', () => {
+  const CREATED_COLUMNS = ['id', 'platform_fee_percent', 'updated_at', 'updated_by'];
+  const ADDED_COLUMNS = ['platform_fee_flat_cents', 'platform_fee_min_cents'];
+
+  it('is exactly the six columns reviewed in MYK9-229', () => {
+    const added = ALL_STATEMENTS.flatMap(({ statement }) => {
+      if (!/^ALTER\s+TABLE\s+(?:public\.)?platform_settings\b/i.test(statement)) return [];
+      return [...statement.matchAll(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z_]+)"?/gi)].map(
+        m => m[1].toLowerCase()
+      );
+    });
+    expect([...new Set(added)].sort()).toEqual([...ADDED_COLUMNS].sort());
+
+    const dropped = ALL_STATEMENTS.flatMap(({ statement }) => {
+      if (!/^ALTER\s+TABLE\s+(?:public\.)?platform_settings\b/i.test(statement)) return [];
+      return [...statement.matchAll(/DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?"?([a-z_]+)"?/gi)].map(
+        m => m[1].toLowerCase()
+      );
+    });
+    const live = [...CREATED_COLUMNS, ...ADDED_COLUMNS].filter(c => !dropped.includes(c));
+    expect(live.sort()).toEqual(
+      [
+        'id',
+        'platform_fee_flat_cents',
+        'platform_fee_min_cents',
+        'platform_fee_percent',
+        'updated_at',
+        'updated_by',
+      ].sort()
+    );
+  });
+});
+
 describe('barrier 2 — an RLS SELECT policy admitting anon', () => {
   it('creates one, without which the grant alone still 403s', () => {
     const policies = ALL_STATEMENTS.filter(

@@ -25,6 +25,7 @@ import {
 import { usePlatformFeeRatesQuery } from '@/hooks/queries/usePlatformFeeRates';
 import {
   CARD_PROCESSING_COVERS_FEE_FOOTNOTE,
+  CARD_PROCESSING_COVERS_FEE_NOTE,
   formatCardRateLabel,
   splitPlatformFee,
 } from '@/features/payments/platformFeeSplit';
@@ -138,12 +139,26 @@ export function FeesPage() {
           <h2 className="text-xl font-semibold">Card processing</h2>
           <p className="text-muted-foreground">
             Card processing goes to Stripe at {formatCardRateLabel()} per transaction. myK9Show
-            doesn&rsquo;t set it and doesn&rsquo;t receive it. Because of the fixed per-transaction
-            amount, it is a bigger share of smaller orders
-            {example
-              ? ` — on ${formatCartCurrency(2500)} of entries it is about ${formatCartCurrency(example.cardProcessingCents)} of the ${formatCartCurrency(example.feeCents)} fee.`
-              : '.'}
+            doesn&rsquo;t set it and doesn&rsquo;t receive it.
           </p>
+          {/* Both sentences below are gated on the clamp flag, not just the
+              figures. When the estimate covers the whole fee the share is 100%
+              at EVERY order size, so "a bigger share of smaller orders" is
+              false — and the example would read "about $0.50 of the $0.50 fee"
+              as though that were computed rather than clamped. This paragraph
+              is a surface that renders the split, and the contract in
+              platformFeeSplit.ts applies to it too. */}
+          {example && !example.cardProcessingCoversWholeFee && (
+            <p className="text-muted-foreground">
+              Because of the fixed per-transaction amount, it is a bigger share of smaller orders —
+              on {formatCartCurrency(2500)} of entries it is about{' '}
+              {formatCartCurrency(example.cardProcessingCents)} of the{' '}
+              {formatCartCurrency(example.feeCents)} fee.
+            </p>
+          )}
+          {example && example.cardProcessingCoversWholeFee && (
+            <p className="text-muted-foreground">{CARD_PROCESSING_COVERS_FEE_NOTE}</p>
+          )}
         </section>
 
         <section className="space-y-3">
@@ -160,10 +175,23 @@ export function FeesPage() {
           {rates ? (
             <ExampleTable rates={rates} />
           ) : (
-            <p className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
+            /* A first paint is not an error, so only the two states that
+               actually failed get the warning treatment. And 'absent' (the row
+               resolved and holds no usable rate) is a different fact from
+               'unavailable' (we could not read it at all) — saying so costs
+               one branch. */
+            <p
+              className={
+                state === 'loading'
+                  ? 'rounded-lg border p-4 text-sm text-muted-foreground'
+                  : 'rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm'
+              }
+            >
               {state === 'loading'
                 ? 'Loading the current service fee\u2026'
-                : 'We could not load the current service fee just now, so the figures are not shown rather than guessed. The fee shown in your cart before you pay is always the fee you are charged.'}
+                : state === 'absent'
+                  ? 'No service fee is configured right now, so there are no figures to show. The fee shown in your cart before you pay is always the fee you are charged.'
+                  : 'We could not load the current service fee just now, so the figures are not shown rather than guessed. The fee shown in your cart before you pay is always the fee you are charged.'}
             </p>
           )}
           <p className="text-sm text-muted-foreground">

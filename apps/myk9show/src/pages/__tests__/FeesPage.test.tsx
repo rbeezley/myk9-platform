@@ -106,9 +106,58 @@ describe('FeesPage', () => {
       expect(cells[2].textContent).toContain('$0.00');
       expect(cells[2].textContent).toContain('*');
     });
-    const footnote = screen.getByText(/entire service fee/i);
+    // Scoped to the table's own section: the Card processing prose carries the
+    // same sentence now (see the S1 test below), so an unscoped query is
+    // ambiguous — and it is the FOOTNOTE that has to explain the marker.
+    const tableSection = screen
+      .getByRole('heading', { name: 'What that looks like' })
+      .closest('section') as HTMLElement;
+    const footnote = within(tableSection).getByText(/entire service fee/i);
     expect(footnote).toBeInTheDocument();
     expect(footnote.textContent).not.toMatch(/small/i);
+  });
+
+  // S1 — round-1 B2 surviving inside the fix for round-1 B2. The table and the
+  // club note consulted the flag; this PROSE paragraph rendered the same split
+  // unguarded, so at 2% it read "on $25.00 of entries it is about $0.50 of the
+  // $0.50 fee" — a clamped figure printed as a computed one, with the
+  // explanatory footnote two sections further down.
+  it('does not print a clamped figure as a computed one in the prose', () => {
+    readyAt({ percent: 2, flatCents: 0, minCents: 0 });
+    render(<FeesPage />);
+
+    const section = screen
+      .getByRole('heading', { name: 'Card processing' })
+      .closest('section') as HTMLElement;
+
+    // The example sentence is gone, not merely accompanied by a note.
+    expect(section.textContent).not.toMatch(/\$0\.50 of the \$0\.50 fee/);
+    // And so is the claim it carried: at 2% the share is 100% at EVERY size,
+    // so "a bigger share of smaller orders" is simply false.
+    expect(section.textContent).not.toMatch(/bigger share of smaller orders/i);
+    expect(section.textContent).toMatch(/entire service fee/i);
+  });
+
+  it('keeps the prose example and the size claim when the split is real', () => {
+    readyAt({ percent: 7, flatCents: 0, minCents: 0 });
+    render(<FeesPage />);
+
+    const section = screen
+      .getByRole('heading', { name: 'Card processing' })
+      .closest('section') as HTMLElement;
+
+    expect(section.textContent).toMatch(/bigger share of smaller orders/i);
+    expect(section.textContent).toMatch(/\$1\.08 of the \$1\.75 fee/);
+    expect(section.textContent).not.toMatch(/entire service fee/i);
+  });
+
+  it('distinguishes an absent rate from an unreadable one', () => {
+    rates.current = null;
+    rates.state = 'absent';
+    render(<FeesPage />);
+
+    expect(screen.getByText(/No service fee is configured/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not load/i)).not.toBeInTheDocument();
   });
 
   it('shows no footnote and no marker when the share is a real number', () => {
@@ -116,7 +165,7 @@ describe('FeesPage', () => {
     render(<FeesPage />);
 
     expect(screen.queryByText(/entire service fee/i)).not.toBeInTheDocument();
-    [2500, 50000].forEach(subtotalCents => {
+    [2500, 50000].forEach((subtotalCents: number) => {
       const cells = within(rowFor(subtotalCents)).getAllByRole('cell');
       expect(cells[2].textContent).not.toContain('*');
     });

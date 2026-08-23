@@ -2,8 +2,8 @@
 
 **Status:** `qa-draft`
 **Audience:** Club administrators and treasurers
-**Last verified:** 2026-06-19
-**Verified by:** walkthrough against outline (`docs/user-guides/club-admin-guide-outline.md`)
+**Last verified:** 2026-08-23
+**Verified by:** walkthrough against outline (`docs/user-guides/club-admin-guide-outline.md`); payout and fee claims re-checked against `_shared/payoutCalc.ts` and `_shared/platformFee.ts` (MYK9-229)
 
 > **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
 

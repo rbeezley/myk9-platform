@@ -256,6 +256,12 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
     // 375px overflow check — run before health assertion so mobile-viewport
     // errors are captured in health before we evaluate violations.
     if (route.check375) {
+      // Restore whatever viewport this project runs at, not a hard-coded
+      // desktop size: on `mobile-safari` a hard-coded 1280x720 would leak out
+      // of this block and silently test every later route at desktop
+      // dimensions, so the iPhone project would stop being an iPhone after its
+      // first check375 route.
+      const projectViewport = page.viewportSize() ?? { width: 1280, height: 720 };
       await page.setViewportSize({ width: 375, height: 667 });
       await page.waitForTimeout(300);
       const overflow = await measureHorizontalOverflow(page);
@@ -265,7 +271,7 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
           `${id}: horizontal overflow at 375px; url=${overflow.url}; sources=${JSON.stringify(overflow.sources)}`
         )
         .toBe(0);
-      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.setViewportSize(projectViewport);
     }
 
     // Health checks (console errors, replication errors, owned 4xx/5xx).

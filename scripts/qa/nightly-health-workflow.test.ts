@@ -57,6 +57,8 @@ function extractJobs(source: string): Map<string, string> {
 
 const jobs = extractJobs(workflow);
 
+const PREFLIGHT_STEP = 'scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor';
+
 describe('nightly health workflow', () => {
   it('defines both the blocking chromium job and the advisory cross-browser job', () => {
     expect([...jobs.keys()]).toEqual(['nightly-health', 'cross-browser-health']);
@@ -89,6 +91,19 @@ describe('nightly health workflow', () => {
     // for either configured project.
     expect(job).toContain('playwright install --with-deps webkit');
   });
+
+  it.each(['nightly-health', 'cross-browser-health'])(
+    'runs the credential preflight before route health in %s',
+    jobName => {
+      const job = jobs.get(jobName)!;
+      // Without this, a job whose E2E secrets are missing reports green having
+      // exercised only public routes — the route spec test.skip()s each role
+      // whose credentials are absent. `if: always()` means the cross-browser
+      // job cannot inherit the chromium job's preflight.
+      expect(job).toContain(PREFLIGHT_STEP);
+      expect(job.indexOf(PREFLIGHT_STEP)).toBeLessThan(job.indexOf(HEALTH_STEP));
+    }
+  );
 
   it('skips the browser-independent Vitest block in the cross-browser job only', () => {
     expect(jobs.get('cross-browser-health')!).toContain("MYK9_NIGHTLY_HEALTH_SKIP_VITEST: 'true'");

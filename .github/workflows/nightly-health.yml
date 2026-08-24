@@ -122,6 +122,26 @@ jobs:
       - name: Build shared packages
         run: pnpm -r --filter='./packages/*' build
 
+      # The chromium job's preflight does not cover this one: `if: always()`
+      # runs this job even when that job failed for a missing secret, and the
+      # route spec `test.skip()`s each role whose credentials are absent — so
+      # without its own preflight an advisory run could report green having
+      # exercised only public routes.
+      - name: Verify E2E auth credentials
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
+          E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
       - name: Install Playwright browser
         run: pnpm --filter @myk9/show exec playwright install --with-deps webkit
 

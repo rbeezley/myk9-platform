@@ -52,8 +52,15 @@ interface UseAKCOfficialPdfActionInput {
   showId: string | undefined;
   showName: string | null | undefined;
   currentShowName: string | null | undefined;
-  isLoading: boolean;
-  isError: boolean;
+  /**
+   * True only when the trials/classes/entries backing this PDF are all present
+   * and current. Replaces the old `isLoading || isError` pair, which left two
+   * states uncovered -- a PAUSED query (offline: not loading, not erroring, no
+   * data) and PLACEHOLDER data from the previously selected trial. Both used to
+   * produce a downloadable registry PDF built from the wrong roster, announced
+   * with a success toast.
+   */
+  isDataReady: boolean;
   hasShow: boolean;
   trialId: string;
   classId: string;
@@ -70,13 +77,23 @@ function isUKCRegistry(props: ReportProps | null | undefined): boolean {
   return props?.trial?.registryId?.trim().toUpperCase() === 'UKC';
 }
 
+/**
+ * Why a disabled control no longer speaks in imperatives. "Select trial for
+ * official PDF" is an instruction printed on a button that cannot be pressed,
+ * so it reads as a broken control rather than an unmet precondition. The button
+ * now always names the action it performs, and the requirement is said once,
+ * underneath, in a sentence.
+ */
+const NEEDS_TRIAL = 'Pick a trial above to enable this.';
+const NEEDS_CLASS = 'Pick a trial and a class above to enable this.';
+const NEEDS_DOG_AND_CLASS = 'Pick a trial, a class, and a dog above to enable this.';
+
 export function useAKCOfficialPdfAction({
   reportType,
   showId,
   showName,
   currentShowName,
-  isLoading,
-  isError,
+  isDataReady,
   hasShow,
   trialId,
   classId,
@@ -547,9 +564,10 @@ export function useAKCOfficialPdfAction({
 
   if (officialPdfConfig && selectedTrialAllowsOfficialPdfConfig) {
     return {
-      disabled: isLoading || isError || !hasShow || trialId === 'all',
+      disabled: !isDataReady || !hasShow || trialId === 'all',
       isLoading: isDownloadingOfficialPdf,
-      label: trialId === 'all' ? 'Select trial for official PDF' : officialPdfConfig.actionLabel,
+      label: officialPdfConfig.actionLabel,
+      disabledReason: trialId === 'all' ? NEEDS_TRIAL : undefined,
       missingFieldLabels: officialPdfMissingFieldLabels,
       onClick: handleOfficialPdfDownload,
     };
@@ -558,8 +576,7 @@ export function useAKCOfficialPdfAction({
   if (canShowUKCEntryFormAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
         (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialUKCEntryPdfValues),
@@ -573,8 +590,7 @@ export function useAKCOfficialPdfAction({
   if (canShowUKCChangeEntryFormAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
         trialId === 'all' ||
@@ -582,10 +598,9 @@ export function useAKCOfficialPdfAction({
         dogId === 'all' ||
         !officialUKCChangeEntryPdfValues,
       isLoading: isDownloadingOfficialPdf,
-      label:
-        trialId === 'all' || classId === 'all' || dogId === 'all'
-          ? 'Select dog and class for official PDF'
-          : 'Download UKC Change Entry PDF',
+      label: 'Download UKC Change Entry PDF',
+      disabledReason:
+        trialId === 'all' || classId === 'all' || dogId === 'all' ? NEEDS_DOG_AND_CLASS : undefined,
       missingFieldLabels: officialUKCChangeEntryPdfMissingFieldLabels,
       onClick: handleOfficialUKCChangeEntryPdfDownload,
     };
@@ -594,8 +609,7 @@ export function useAKCOfficialPdfAction({
   if (isAKCEntryFormReport && selectedTrialAllowsAKCAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
         (dogId === 'all' ? entryFormData.dogs.length === 0 : !officialEntryPdfValues),
@@ -609,17 +623,14 @@ export function useAKCOfficialPdfAction({
   if (canShowScoreSheetAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         !hasShow ||
         trialId === 'all' ||
         classId === 'all' ||
         !officialClassPdfProps,
       isLoading: isDownloadingOfficialPdf,
-      label:
-        trialId === 'all' || classId === 'all'
-          ? 'Select class for official PDF'
-          : 'Download AKC Score Sheet PDF',
+      label: 'Download AKC Score Sheet PDF',
+      disabledReason: trialId === 'all' || classId === 'all' ? NEEDS_CLASS : undefined,
       missingFieldLabels: [],
       onClick: handleOfficialScoreSheetPdfDownload,
     };
@@ -628,8 +639,7 @@ export function useAKCOfficialPdfAction({
   if (canShowTransferFormAction) {
     return {
       disabled:
-        isLoading ||
-        isError ||
+        !isDataReady ||
         entryFormData.isLoading ||
         entryFormData.isError ||
         trialId === 'all' ||
@@ -637,10 +647,9 @@ export function useAKCOfficialPdfAction({
         dogId === 'all' ||
         !officialTransferPdfValues,
       isLoading: isDownloadingOfficialPdf,
-      label:
-        trialId === 'all' || classId === 'all' || dogId === 'all'
-          ? 'Select dog and class for official PDF'
-          : 'Download AKC Transfer Form PDF',
+      label: 'Download AKC Transfer Form PDF',
+      disabledReason:
+        trialId === 'all' || classId === 'all' || dogId === 'all' ? NEEDS_DOG_AND_CLASS : undefined,
       missingFieldLabels: officialTransferPdfMissingFieldLabels,
       onClick: handleOfficialTransferPdfDownload,
     };
@@ -648,10 +657,10 @@ export function useAKCOfficialPdfAction({
 
   if (isAKCCertificationPageReport && selectedTrialAllowsAKCAction) {
     return {
-      disabled: isLoading || isError || !hasShow || trialId === 'all' || !officialPdfProps,
+      disabled: !isDataReady || !hasShow || trialId === 'all' || !officialPdfProps,
       isLoading: isDownloadingOfficialPdf,
-      label:
-        trialId === 'all' ? 'Select trial for official PDF' : 'Download AKC Certification Page PDF',
+      label: 'Download AKC Certification Page PDF',
+      disabledReason: trialId === 'all' ? NEEDS_TRIAL : undefined,
       missingFieldLabels: [],
       onClick: handleOfficialCertificationPdfDownload,
     };

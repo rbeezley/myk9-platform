@@ -211,7 +211,7 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
               <label key={t.id} htmlFor={`armband-tpl-${t.id}`} className={TAP_ROW}>
                 <RadioGroupItem value={t.id} id={`armband-tpl-${t.id}`} />
                 <span>
-                  {t.name} — {t.labelsPerSheet}/sheet
+                  {t.name} · {t.labelsPerSheet}/sheet
                 </span>
               </label>
             ))}

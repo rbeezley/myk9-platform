@@ -6,7 +6,27 @@ import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '
 const mockReportState = vi.hoisted(() => ({
   trialOneRegistryId: 'AKC',
   isLoading: false,
+  /** Overrides the derived state so the paused/stale paths are reachable. */
+  dataState: null as null | 'loading' | 'unavailable' | 'stale' | 'error' | 'ready',
 }));
+
+// The test renderer mounts no <Toaster/>, so a toast never reaches the DOM.
+// Assert on what the page asked for instead.
+const toastSpy = vi.hoisted(() => ({ called: vi.fn() }));
+vi.mock('sonner', () => {
+  const toast = Object.assign((...args: unknown[]) => toastSpy.called(...args), {
+    error: vi.fn(),
+    success: vi.fn(),
+    message: vi.fn(),
+    dismiss: vi.fn(),
+    custom: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    loading: vi.fn(),
+    promise: vi.fn(),
+  });
+  return { toast, Toaster: () => null };
+});
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
@@ -80,8 +100,19 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             },
           },
         ],
-    isLoading: mockReportState.isLoading,
-    isError: false,
+    // Derived exactly as useReportData derives them, so the mock cannot
+    // express a combination the real hook never returns (e.g. dataState
+    // 'stale' with isLoading false).
+    ...(() => {
+      const dataState =
+        mockReportState.dataState ?? (mockReportState.isLoading ? 'loading' : 'ready');
+      return {
+        dataState,
+        isReady: dataState === 'ready',
+        isLoading: dataState === 'loading' || dataState === 'stale',
+        isError: dataState === 'error',
+      };
+    })(),
     refetch: vi.fn(),
   }),
 }));
@@ -158,6 +189,8 @@ describe('ReportsPage', () => {
   beforeEach(() => {
     mockReportState.trialOneRegistryId = 'AKC';
     mockReportState.isLoading = false;
+    mockReportState.dataState = null;
+    toastSpy.called.mockClear();
   });
 
   it('renders "Reports" title', () => {
@@ -336,7 +369,9 @@ describe('ReportsPage', () => {
         initialRoute: `/shows/show-1/reports?report=${staticReport.reportId}&trialId=trial-1`,
       });
 
-      await screen.findByRole('button', { name: /print/i });
+      // Print is hidden for download-only registry forms, so it cannot be
+      // the settle point here. The preview always mounts.
+      await screen.findByTestId('report-preview');
       expect(screen.queryByRole('button', { name: staticReport.label })).toBeNull();
       unmount();
     }
@@ -388,7 +423,9 @@ describe('ReportsPage', () => {
         initialRoute: `/shows/show-1/reports?report=${ascaReport.reportId}&trialId=trial-1`,
       });
 
-      await screen.findByRole('button', { name: /print/i });
+      // Print is hidden for download-only registry forms, so it cannot be
+      // the settle point here. The preview always mounts.
+      await screen.findByTestId('report-preview');
       expect(screen.queryByRole('button', { name: ascaReport.label })).toBeNull();
       unmount();
     }
@@ -424,7 +461,7 @@ describe('ReportsPage', () => {
 
     expect(screen.getByTestId('report-preview')).toHaveAttribute('data-class-id', 'class-1');
 
-    const trialSelect = screen.getByRole('combobox', { name: /select trial/i });
+    const trialSelect = screen.getByRole('combobox', { name: /^trial$/i });
     await user.click(trialSelect);
     await user.click(await screen.findByRole('option', { name: /Trial 2/ }));
 
@@ -480,6 +517,87 @@ describe('resolveInitialReportScope', () => {
       trialId: 'trial-1',
       classId: 'class-1',
       dogId: 'dog-1',
+    });
+  });
+
+  describe('data that is not current', () => {
+    // Each of these fails against the pre-fix page, where the official-PDF gate
+    // was `isLoading || isError || ...` and Print only checked the iframe.
+    it('does not offer a registry PDF download when the entries could not be fetched', async () => {
+      mockReportState.dataState = 'unavailable';
+
+      render(<ReportsPage />, {
+        initialRoute: '/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1',
+      });
+
+      const download = await screen.findByRole('button', { name: /Download .*PDF/i });
+      expect(download).toBeDisabled();
+    });
+
+    it('does not offer a registry PDF download while the newly picked trial is still loading', async () => {
+      mockReportState.dataState = 'stale';
+
+      render(<ReportsPage />, {
+        initialRoute: '/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1',
+      });
+
+      const download = await screen.findByRole('button', { name: /Download .*PDF/i });
+      expect(download).toBeDisabled();
+    });
+
+    it('refuses to print, and says why, when there is no connection', async () => {
+      mockReportState.dataState = 'unavailable';
+      const user = userEvent.setup();
+
+      render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
+
+      await user.click(screen.getByRole('button', { name: /^print$/i }));
+
+      expect(toastSpy.called).toHaveBeenCalledWith(
+        expect.stringMatching(/No connection, so the entries could not be checked/i)
+      );
+    });
+
+    it('names the trial that is still loading rather than blaming the report', async () => {
+      mockReportState.dataState = 'stale';
+      const user = userEvent.setup();
+
+      render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
+
+      await user.click(screen.getByRole('button', { name: /^print$/i }));
+
+      expect(toastSpy.called).toHaveBeenCalledWith(
+        expect.stringMatching(/Still loading the trial you just picked/i)
+      );
+    });
+  });
+
+  describe('download-only registry forms', () => {
+    it('hides Print, because there is no HTML page to send to a printer', async () => {
+      render(<ReportsPage />, {
+        initialRoute:
+          '/shows/show-1/reports?report=asca-scent-detection-trial-roster&trialId=trial-1',
+      });
+
+      await screen.findByTestId('report-preview');
+
+      expect(screen.queryByRole('button', { name: /^print$/i })).toBeNull();
+    });
+  });
+
+  describe('a disabled download says why in a sentence', () => {
+    it('keeps the action on the button and puts the requirement beside it', async () => {
+      render(<ReportsPage />, {
+        initialRoute: '/shows/show-1/reports?report=trial-secretary-report',
+      });
+
+      // Pre-fix this button was LABELLED "Select trial for official PDF" -- an
+      // instruction printed on a control that cannot be pressed.
+      const download = await screen.findByRole('button', {
+        name: /Download AKC Trial Secretary PDF/i,
+      });
+      expect(download).toBeDisabled();
+      expect(screen.getByText(/Pick a trial above to enable this/i)).toBeInTheDocument();
     });
   });
 });

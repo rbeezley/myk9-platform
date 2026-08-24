@@ -134,7 +134,7 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
               <label key={t.id} htmlFor={`result-tpl-${t.id}`} className={TAP_ROW}>
                 <RadioGroupItem value={t.id} id={`result-tpl-${t.id}`} />
                 <span>
-                  {t.name} — {t.labelsPerSheet}/sheet
+                  {t.name} · {t.labelsPerSheet}/sheet
                 </span>
               </label>
             ))}

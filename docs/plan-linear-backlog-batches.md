@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0, 1, 2 and **3 are complete** except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 closed on 2026-08-23: eight issues Done, MYK9-195 and MYK9-190 parked with triggers recorded, three follow-ups filed (MYK9-237/238/239). SMS is deferred until after launch by product-owner decision. **Next up: Batch 3.5** — ten issues filed after the 2026-08-21 snapshot plus three never-inventoried In Progress issues; see "[ADDED 2026-08-23] The backlog moved while Batch 3 ran". Then Batch 4 (closure proofs) and Batch 5. See **"[CLOSED 2026-08-23] Batch 3 is complete"** under Batch 3.
+> **Status:** Active — Batches 0, 1, 2 and **3 are complete** except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 closed on 2026-08-23: eight issues Done, MYK9-195 and MYK9-190 parked with triggers recorded, three follow-ups filed (MYK9-237/238/239). SMS is deferred until after launch by product-owner decision. **Batch 3.5 is under way:** MYK9-233 is built and verified on a local branch, held un-pushed pending Codex review and Richard's go-ahead — see "[BUILT 2026-08-24] MYK9-233" under Lane 3.5A. Ten issues filed after the 2026-08-21 snapshot plus three never-inventoried In Progress issues; see "[ADDED 2026-08-23] The backlog moved while Batch 3 ran". Then Batch 4 (closure proofs) and Batch 5. See **"[CLOSED 2026-08-23] Batch 3 is complete"** under Batch 3.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -63,7 +63,7 @@ PRIMARY:MYK9-94=parked
 PRIMARY:MYK9-13=operator-track-5
 PRIMARY:MYK9-27=deferred-after-batch-3
 PRIMARY:MYK9-28=deferred-post-live-shows
-PRIMARY:MYK9-233=batch-3.5-lane-a
+PRIMARY:MYK9-233=built-awaiting-review-3.5-lane-a
 PRIMARY:MYK9-236=batch-3.5-lane-a
 PRIMARY:MYK9-235=batch-3.5-lane-b
 PRIMARY:MYK9-234=batch-3.5-lane-b
@@ -432,6 +432,21 @@ Expect roughly three or four filed issues per sweep. **Plan capacity for that** 
 Ordered by severity, not by filing date. Lanes A–D touch disjoint file sets and can run in parallel within the three-worker cap.
 
 - **Lane 3.5A — data exposure and ACL contract (do this first).** [MYK9-233](https://linear.app/myk9-platform/issue/MYK9-233) is the highest-severity open item on the board: `manageable_show_ids()` is `SECURITY DEFINER` and never restates the `deleted_at IS NULL` filter that `shows_select` applies **outside** its whole OR group. A site admin therefore sees the entries of a soft-deleted show while the show row itself is invisible, and `buildLedgerRows` maps over `shows` rather than entries — so every dropped show's collected, refunded and net cents vanish from the admin ledger **and** from both summary totals, with nothing on screen. **Verified against staging: 0 soft-deleted shows, so it is reachable but not currently firing.** That is exactly why it should land now rather than after launch. Step 1 is a product decision, not code — *should* a site admin see soft-deleted shows? The two answers have different blast radii. Then [MYK9-236](https://linear.app/myk9-platform/issue/MYK9-236) (the grant contract's `service_role` column is unenforced against live; 129 of 130 tables hold more than it declares). Both are ACL-contract work and share the verify-against-the-applied-database discipline.
+
+  **[BUILT 2026-08-24] MYK9-233 — implemented, verified, not pushed.** Branch `claude/myk9-233-soft-delete-admin-visibility`, commit `8ff7189c4`, cut from `origin/main` in worktree `prs-needing-merge-b22aa6`.
+
+  The product decision the lane was gated on: **a site admin sees soft-deleted shows and their entries; nobody else does.** Both rules now state that same sentence — `shows_select`'s admin arm moves outside the `deleted_at` gate, and `manageable_show_ids()` restates the filter its `SECURITY DEFINER` status had silently discarded.
+
+  **This is not only a widening.** Club admins, trial secretaries and show-scoped secretaries currently receive entries for soft-deleted shows through that function and no longer will. That tightening is the half that actually closes the asymmetry, and it is a real behaviour change for those roles beyond the admin-visibility question that was asked. `restore_show` is `SECURITY DEFINER` and does not depend on it.
+
+  Two things found while building that were not in the issue, both of which would have made the fix look done while leaving a hole:
+
+  - `showDraftVisibilityRlsContract` was reading `20260606204100_include_show_scoped_secretary_drafts.sql`, a migration this one supersedes. It would have stayed green forever against a policy the database no longer runs — the source-grep trap from LESSONS, in its file-pointer form. Repointed, plus two shape assertions that the admin arm sits *before* the gate in both the policy and the function.
+  - `ReplicatedShowsTable` had no `deleted_at` filter at all. It was excluding soft-deleted shows only because the policy hid them from everyone; opening the policy for admins would have started syncing deleted shows into IndexedDB, where every offline surface reading the replica would render them. Now filtered explicitly, with the invariant written down rather than inherited.
+
+  Verified: behavioural SQL contract registered in **both** allowlists (`run-behavioral-sql-tests.sh` and its `.test.ts`); three mutation checks each go red against the corresponding line reverted; full myK9Show suite 17,687 passed with the exit code read from the runner, not through a pipe; DB contract suite 718 passed; typecheck and lint clean; 6 shuffled runs of every touched file, zero failures.
+
+  **Blocked on two things, neither of them code.** Codex was rate-limited when the work finished and could not review it. And pushing the branch, opening the PR, and `supabase db push` are all shared-system writes without approval in that session. Nothing has been pushed and the migration has not been applied.
 - **Lane 3.5B — payout ledger surface.** [MYK9-235](https://linear.app/myk9-platform/issue/MYK9-235) (a refund against money never collected is invisible on every reconciliation surface), then [MYK9-234](https://linear.app/myk9-platform/issue/MYK9-234) (the ledger renders every row twice — the responsive two-copy antipattern; one node that reflows, not two CSS-hidden copies). 3.5B is the **symptom** side of 3.5A's ledger defect and does not substitute for it: making dropped rows visible on one page leaves the policy asymmetry intact for every other surface built on `manageable_show_ids()`.
 - **Lane 3.5C — Batch 3 follow-ups.** [MYK9-237](https://linear.app/myk9-platform/issue/MYK9-237), [MYK9-238](https://linear.app/myk9-platform/issue/MYK9-238), [MYK9-239](https://linear.app/myk9-platform/issue/MYK9-239). MYK9-238's deliverable is a **guard, not an audit** — an inventory of inert utilities decays the moment someone writes the next one.
 - **Lane 3.5D — Reports information architecture.** [MYK9-240](https://linear.app/myk9-platform/issue/MYK9-240), [MYK9-241](https://linear.app/myk9-platform/issue/MYK9-241), [MYK9-242](https://linear.app/myk9-platform/issue/MYK9-242). **Read MYK9-241 against MYK9-198 before starting**: three surfaces write print state to `replicatedPaperworkPrintsTable` with three vocabularies, and Reports is the one that shows nothing — so a secretary re-confirms a print she already recorded from the Show Desk an hour earlier, and the twice-daily print reminder reads that record. This is the consolidate-don't-duplicate rule with a live example; the fix deletes the inline writer in `ReportsPage/index.tsx` rather than adding a fourth UI.
@@ -447,11 +462,11 @@ All three were outside the 54-ID inventory, so nothing in this plan tracked them
 ### Recommended order from here
 
 1. **Richard, 5 minutes:** [MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) — prune the dev sandbox payment methods to Cards + Apple Pay + Google Pay and reload checkout on Android. It has been In Progress since 08-22, it blocks Lane 2C, and it blocks [MYK9-11](https://linear.app/myk9-platform/issue/MYK9-11) at cutover.
-2. **Lane 3.5A** — MYK9-233. Highest severity on the board and fully agent-able once the semantics question is answered.
+2. **Lane 3.5A** — MYK9-233 is **built and waiting**, not waiting to be started: run Codex against `claude/myk9-233-soft-delete-admin-visibility`, then push, PR and `supabase db push`. Then MYK9-236.
 3. **Batch 4** — MYK9-211, which needs Richard's explicit approval and a named disposable fixture before anything is written, because its `permission_audit_log` residue is permanent and must not be cleaned up.
 4. Lanes 3.5B–D in parallel as capacity allows.
 
-**Codex returns 2026-08-24.** Batch 3 shipped with zero Codex reviews; from Batch 3.5 the normal gate applies again, with adversarial subagent review kept **in addition** rather than as a substitute — it found something real in all eleven rounds of Batch 3.
+**Codex returns 2026-08-24 at 10:38 AM.** Batch 3 shipped with zero Codex reviews and MYK9-233 is a sixth unreviewed change waiting on it; from Batch 3.5 the normal gate applies again, with adversarial subagent review kept **in addition** rather than as a substitute — it found something real in all eleven rounds of Batch 3.
 
 ---
 

@@ -45,7 +45,7 @@ describe('buildSubmittedEntryProjection', () => {
     expect(projection.historyCount).toBe(4);
   });
 
-  it('never exposes unowned, deleted, or superseded move-up source rows', () => {
+  it('never exposes unowned or superseded move-up source rows, while retaining owned deleted history', () => {
     const projection = buildSubmittedEntryProjection({
       rows: [
         row('owned'),
@@ -64,8 +64,16 @@ describe('buildSubmittedEntryProjection', () => {
       state: 'ready',
     });
 
-    expect(projection.ownedHistory.map(entry => entry.id)).toEqual(['owned', 'destination']);
-    expect(projection.historyCount).toBe(2);
+    expect(projection.ownedHistory.map(entry => entry.id)).toEqual([
+      'owned',
+      'deleted',
+      'destination',
+    ]);
+    expect(projection.activeEntries.map(entry => entry.id)).toEqual([
+      'owned',
+      'destination',
+    ]);
+    expect(projection.historyCount).toBe(3);
   });
 
   it.each(['loading', 'error'] as const)(

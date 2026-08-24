@@ -41,6 +41,7 @@ export function formatTrialLabel(trialNumber: string): string {
 
 interface StatusBadgeOptions {
   isPastShow?: boolean;
+  isShowCancelled?: boolean | undefined;
   statusKind?: EntryStatusKind | undefined;
   /**
    * This order has results for some of its classes but not all. The caller
@@ -80,6 +81,7 @@ export function getEntryStatusBadge(
 ): React.ReactNode {
   const statusKind = options.statusKind ?? (status === EntryStatus.PENDING ? 'pending' : undefined);
   let contextualLabel: string | undefined;
+  if (options.isShowCancelled) contextualLabel = 'Cancelled';
   switch (statusKind === 'completed' ? EntryStatus.COMPLETED : status) {
     case EntryStatus.PENDING:
       if (statusKind === 'in_ring') contextualLabel = 'In Ring';
@@ -107,7 +109,7 @@ export function getEntryStatusBadge(
   // classes still to run, so "Accepted" would silently drop the results already
   // recorded — the contradiction that had a card reading "Scored" while runs
   // were outstanding, just inverted.
-  if (options.partiallyScored) contextualLabel = 'Partially scored';
+  if (options.partiallyScored && !options.isShowCancelled) contextualLabel = 'Partially scored';
   return (
     <StatusBadge
       family="entry"
@@ -189,6 +191,8 @@ export function getContextualStatusMessage(
     classes?: EntryClass[] | undefined;
     /** Final day the show runs, so past-show copy stays in the past tense. */
     showEndDate?: Date | undefined;
+    /** The show was soft-deleted and cascaded a cancellation tombstone. */
+    isShowCancelled?: boolean | undefined;
   },
   formatDistanceToNow: (date: Date, options?: { addSuffix?: boolean }) => string,
   format: (date: Date, formatStr: string) => string,
@@ -198,6 +202,19 @@ export function getContextualStatusMessage(
 ): { message: string; className?: string } {
   const showDate = new Date(entry.showDate);
   const daysUntilShow = differenceInDays(showDate, new Date());
+
+  if (entry.isShowCancelled) {
+    if (entry.paymentStatus === PaymentStatus.REFUNDED) {
+      return { message: 'Show cancelled - refunded', className: 'text-muted-foreground' };
+    }
+    if (entry.paymentStatus === PaymentStatus.PARTIAL_REFUND) {
+      return {
+        message: 'Show cancelled - partial refund issued',
+        className: 'text-muted-foreground',
+      };
+    }
+    return { message: 'Show cancelled', className: 'text-muted-foreground' };
+  }
 
   // Checked BEFORE the kind branches below: an order with one class scored and
   // others still to run reports `completed` at the top level, so those branches

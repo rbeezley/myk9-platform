@@ -35,4 +35,14 @@ describe('mapReplicatedEntryToDbRow', () => {
       comped_reason: null,
     });
   });
+
+  it('preserves the show-cascade tombstone for the exhibitor entry surface', () => {
+    const deletedAt = '2026-08-24T12:00:00.000Z';
+    const replicated = rowToEntry({
+      id: 'entry-cancelled-show',
+      deleted_at: deletedAt,
+    } as Parameters<typeof rowToEntry>[0]);
+
+    expect(mapReplicatedEntryToDbRow(replicated).deleted_at).toBe(deletedAt);
+  });
 });

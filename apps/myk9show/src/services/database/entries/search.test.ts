@@ -315,7 +315,10 @@ describe('getUserEntries replicated relation completeness', () => {
 
     expect(result).toEqual({ data: onlineRows, error: null });
     expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
-    expect(viewQuery.is).toHaveBeenCalledWith('deleted_at', null);
+    // The authenticated view now retains the caller's own tombstoned entry so
+    // My Entries can reconcile it with My Payments; the view itself enforces
+    // owner-only deleted-row visibility.
+    expect(viewQuery.is).not.toHaveBeenCalledWith('deleted_at', null);
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('entries');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('dogs');
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');

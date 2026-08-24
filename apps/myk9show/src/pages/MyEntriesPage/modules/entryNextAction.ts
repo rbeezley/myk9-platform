@@ -53,6 +53,7 @@ function isPaymentEligibleStatus(status: EntryStatus): boolean {
  * action and the card's payment prompts never disagree about eligibility.
  */
 export function hasPaymentEligibleClass(entry: MyEntry): boolean {
+  if (entry.isShowCancelled) return false;
   return entry.classes.length > 0
     ? entry.classes.some(cls => {
         const owningDog = findOwningDog(entry, cls.id);
@@ -71,6 +72,7 @@ export function hasPaymentEligibleClass(entry: MyEntry): boolean {
  */
 export function isClassCheckInEligible(entry: MyEntry, cls: EntryClass): boolean {
   if (
+    entry.isShowCancelled ||
     cls.unresolved ||
     !isExpectedEntry(cls) ||
     isAccountedFor(cls) ||

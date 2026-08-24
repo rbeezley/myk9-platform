@@ -83,6 +83,7 @@ interface OrderAccum {
   registrationId: string | null;
   showId: string;
   showName: string;
+  isShowCancelled: boolean;
   showDate: Date;
   showEndDate?: Date | undefined;
   location: MyEntry['location'];
@@ -124,6 +125,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
         registrationId: row.registrationId,
         showId: row.showId,
         showName: row.showName,
+        isShowCancelled: Boolean(row.isShowCancelled),
         showDate: row.showDate,
         showEndDate: row.showEndDate,
         location: row.location,
@@ -142,6 +144,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
       if (row.submittedAt < order.submittedAt) order.submittedAt = row.submittedAt;
       if (row.lastUpdated > order.lastUpdated) order.lastUpdated = row.lastUpdated;
       order.confirmationNumber = order.confirmationNumber ?? row.confirmationNumber;
+      order.isShowCancelled ||= Boolean(row.isShowCancelled);
     }
 
     let dog = order.dogsByDogId.get(row.dogId);
@@ -209,6 +212,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
       registrationId: order.registrationId,
       showId: order.showId,
       showName: order.showName,
+      isShowCancelled: order.isShowCancelled,
       showDate: order.showDate,
       showEndDate: order.showEndDate,
       location: order.location,

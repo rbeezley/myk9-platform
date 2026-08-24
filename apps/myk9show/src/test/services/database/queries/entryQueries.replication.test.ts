@@ -74,20 +74,22 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (table: string) => {
       if (table === 'view_authenticated_entry_results') {
+        const eq = (column: string, value: unknown) => ({
+          order: () =>
+            Promise.resolve({
+              data: mockViewRows.current.filter(row => row[column] === value),
+              error: null,
+            }),
+        });
         return {
           select: () => ({
-            is: () => ({
-              // Mirrors the server-side own-entry scope: getUserEntries filters
-              // the view with .eq('is_own_entry', true), so manageable-not-own
-              // rows are excluded at the source.
-              eq: (column: string, value: unknown) => ({
-                order: () =>
-                  Promise.resolve({
-                    data: mockViewRows.current.filter(row => row[column] === value),
-                    error: null,
-                  }),
-              }),
-            }),
+            // Mirrors the server-side own-entry scope: getUserEntries filters
+            // the view with .eq('is_own_entry', true), so manageable-not-own
+            // rows are excluded at the source. The optional .is() remains for
+            // callers that still apply a live-row filter, but My Entries does
+            // not use it because the view retains own tombstones.
+            is: () => ({ eq }),
+            eq,
           }),
         };
       }

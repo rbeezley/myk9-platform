@@ -10,6 +10,7 @@ import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { logger } from '@/services/LoggingService';
 import { getUserEntries } from '@/services/database/entries';
 import {
@@ -27,7 +28,10 @@ import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import type { MyEntry, EntryClass } from './my-entries-types';
-import { getEntryStatusKindForDisplay } from '@/services/entryDisplay/entryDisplaySelectors';
+import {
+  getEntryStatusKindForDisplay,
+  type EntryStatusKind,
+} from '@/services/entryDisplay/entryDisplaySelectors';
 
 interface UseMyEntriesDataReturn {
   entries: MyEntry[];
@@ -67,9 +71,43 @@ interface UseMyEntriesDataOptions {
 type OwnEntryResultRow = Record<string, unknown> & {
   class_results_released_at?: string | null;
   dog_image_url?: string | null;
+  deleted_at?: string | null;
+  refund_amount?: number | null;
+  refunded_at?: string | null;
   /** Present on BOTH read paths (USER_ENTRIES_SELECT and the replication mapper). */
   show_id?: string | null;
 };
+
+function getOwnEntryStatusKind(
+  rawStatus: string | null | undefined,
+  rawCheckInStatus: string | null | undefined,
+  isShowCancelled: boolean
+): EntryStatusKind {
+  return isShowCancelled ? 'withdrawn' : getEntryStatusKindForDisplay(rawStatus, rawCheckInStatus);
+}
+
+function getOwnEntryPaymentStatus(
+  entry: OwnEntryResultRow,
+  registrationPaymentStatus: string | null | undefined,
+  isShowCancelled: boolean
+) {
+  const status = mapPaymentStatus(
+    isShowCancelled
+      ? (entry.payment_status as string)
+      : (registrationPaymentStatus ?? (entry.payment_status as string))
+  );
+  const refundAmount = Number(entry.refund_amount ?? 0);
+  const entryFee = Number(entry.entry_fee ?? 0);
+  if (
+    isShowCancelled &&
+    refundAmount > 0 &&
+    status !== PaymentStatus.REFUNDED &&
+    status !== PaymentStatus.PARTIAL_REFUND
+  ) {
+    return refundAmount >= entryFee ? PaymentStatus.REFUNDED : PaymentStatus.PARTIAL_REFUND;
+  }
+  return status;
+}
 
 /**
  * Hook for managing user entries data
@@ -132,16 +170,20 @@ export function useMyEntriesData({
       confirmation_number?: string;
       payment_status?: string | null;
     } | null;
-    const rowPaymentStatus = mapPaymentStatus(
-      rowRegistration?.payment_status ?? (entry.payment_status as string)
-    );
     const rowPaymentMethod = (entry.payment_method as string | null) ?? null;
     const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
     const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
     const rawEntryStatus = entry.entry_status as string | null | undefined;
-    const entryStatusKind = getEntryStatusKindForDisplay(
+    const isShowCancelled = Boolean(entry.deleted_at);
+    const rowPaymentStatus = getOwnEntryPaymentStatus(
+      entry,
+      rowRegistration?.payment_status,
+      isShowCancelled
+    );
+    const entryStatusKind = getOwnEntryStatusKind(
       rawEntryStatus,
-      entry.check_in_status as string | null | undefined
+      entry.check_in_status as string | null | undefined,
+      isShowCancelled
     );
 
     // Build a single-element classes array from this entry row's own data.
@@ -186,7 +228,9 @@ export function useMyEntriesData({
       },
     ];
 
-    const entryStatus = mapEntryStatus(entry.entry_status as string);
+    const entryStatus = isShowCancelled
+      ? EntryStatus.CANCELLED
+      : mapEntryStatus(entry.entry_status as string);
     // Use real confirmation number from joined registration, fall back to UUID slice for legacy entries
     const confirmationNumber =
       rowRegistration?.confirmation_number ?? (entry.id as string).slice(0, 8).toUpperCase();
@@ -202,6 +246,7 @@ export function useMyEntriesData({
       // every show-scoped action (payment cart, show link) loses its target.
       showId: show?.id || entry.show_id || '',
       showName: show?.name || 'Unknown Show',
+      isShowCancelled,
       // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,
       // or a show ending today is misread as yesterday (see parseShowDate).
       showDate: parseShowDate(show?.start_date) ?? new Date(),
@@ -223,6 +268,8 @@ export function useMyEntriesData({
       entryStatusKind,
       paymentStatus: rowPaymentStatus,
       paymentMethod: rowPaymentMethod,
+      refundAmount: entry.refund_amount == null ? null : Number(entry.refund_amount),
+      refundedAt: entry.refunded_at ? new Date(entry.refunded_at) : undefined,
       confirmationNumber,
       entryCloseDate: show?.entry_close_date ? new Date(show.entry_close_date) : undefined,
       submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),

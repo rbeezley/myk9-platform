@@ -74,6 +74,23 @@ describe('deriveEntryNextAction', () => {
     });
   });
 
+  it('does not offer payment or check-in actions for a cancelled show', () => {
+    const entry = makeEntry({
+      isShowCancelled: true,
+      paymentStatus: PaymentStatus.PENDING,
+      paymentMethod: 'online',
+      classes: [
+        makeClass({
+          id: 'entry-1',
+          classId: 'class-1',
+          entryStatus: EntryStatus.ACCEPTED,
+        }),
+      ],
+    });
+
+    expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'view-show' });
+  });
+
   it.each(['absent', 'excused'] as const)(
     'returns view-show when the only lifecycle-active class is settled %s',
     resultStatus => {

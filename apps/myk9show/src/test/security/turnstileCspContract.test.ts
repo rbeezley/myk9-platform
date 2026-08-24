@@ -17,13 +17,13 @@ describe('Turnstile deployment contract', () => {
     expect(productionCsp).toContain("script-src 'self' https://challenges.cloudflare.com");
     expect(productionCsp).toContain('connect-src');
     expect(productionCsp).toContain("connect-src 'self' https://challenges.cloudflare.com");
-    expect(productionCsp).toContain("frame-src 'self' https://challenges.cloudflare.com");
+    expect(productionCsp).toContain("frame-src 'self' blob: https://challenges.cloudflare.com");
 
     const runtimeCsp = generateCSPPolicy('production');
     expect(runtimeCsp).toContain("script-src 'self' https://challenges.cloudflare.com");
     expect(runtimeCsp).toContain('connect-src');
     expect(runtimeCsp).toContain("connect-src 'self' https://challenges.cloudflare.com");
-    expect(runtimeCsp).toContain("frame-src 'self' https://challenges.cloudflare.com");
+    expect(runtimeCsp).toContain("frame-src 'self' blob: https://challenges.cloudflare.com");
   });
 
   it('documents the public Turnstile site key without a client-side secret', () => {

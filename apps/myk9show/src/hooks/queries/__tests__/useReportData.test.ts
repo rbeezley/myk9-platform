@@ -17,14 +17,20 @@ vi.mock('@/services/database/entries', () => ({
   getEntriesByShow: vi.fn(),
 }));
 
+vi.mock('@/services/database/dogs/reads', () => ({
+  loadDogRegistrations: vi.fn(),
+}));
+
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesByClass, getEntriesByShow } from '@/services/database/entries';
+import { loadDogRegistrations } from '@/services/database/dogs/reads';
 
 const mockGetTrialsByShow = vi.mocked(getTrialsByShow);
 const mockGetClassesByTrialId = vi.mocked(getClassesByTrialId);
 const mockGetEntriesByClass = vi.mocked(getEntriesByClass);
 const mockGetEntriesByShow = vi.mocked(getEntriesByShow);
+const mockLoadDogRegistrations = vi.mocked(loadDogRegistrations);
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -55,6 +61,11 @@ describe('useReportData', () => {
     // implementations, so a mockResolvedValue set by one test leaks into
     // whichever test CI's --sequence.shuffle runs next.
     vi.resetAllMocks();
+    mockLoadDogRegistrations.mockResolvedValue({
+      byDog: new Map(),
+      serverError: null,
+      registrationsReadComplete: true,
+    });
   });
 
   it('returns null show when show is null', () => {
@@ -163,6 +174,102 @@ describe('useReportData', () => {
     expect(mockGetEntriesByShow).toHaveBeenCalledWith('show-1');
   });
 
+  it('hydrates report dogs with their registration rows', async () => {
+    const mockTrials = [{ id: 'trial-1', show_id: 'show-1', date: '2026-04-12' }];
+    const mockEntries = [
+      {
+        id: 'entry-1',
+        dog_id: 'dog-1',
+        dog: { id: 'dog-1', call_name: 'Rocket' },
+      },
+    ];
+    const registration = {
+      id: 'registration-1',
+      dog_id: 'dog-1',
+      organization: 'AKC',
+      registration_number: 'DN12345678',
+    };
+    mockGetTrialsByShow.mockResolvedValue({ data: mockTrials, error: null } as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShow.mockResolvedValue({ data: mockEntries, error: null } as never);
+    mockLoadDogRegistrations.mockResolvedValue({
+      byDog: new Map([['dog-1', [registration]]]),
+      serverError: null,
+      registrationsReadComplete: true,
+    });
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(
+        (result.current.entries?.[0] as unknown as { dog: { registrations: unknown[] } }).dog
+          .registrations
+      ).toEqual([registration])
+    );
+    expect(mockLoadDogRegistrations).toHaveBeenCalledWith(['dog-1']);
+  });
+
+  it('attaches verified registrations when the entry dog relation is absent', async () => {
+    const registration = {
+      id: 'registration-1',
+      dog_id: 'dog-1',
+      organization: 'AKC',
+      registration_number: 'DN12345678',
+    };
+    mockGetTrialsByShow.mockResolvedValue({
+      data: [{ id: 'trial-1', show_id: 'show-1' }],
+      error: null,
+    } as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShow.mockResolvedValue({
+      data: [{ id: 'entry-1', dog_id: 'dog-1', dog: null }],
+      error: null,
+    } as never);
+    mockLoadDogRegistrations.mockResolvedValue({
+      byDog: new Map([['dog-1', [registration]]]),
+      serverError: null,
+      registrationsReadComplete: true,
+    });
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(result.current.entries?.[0]?.dog).toEqual({
+        id: 'dog-1',
+        registrations: [registration],
+      })
+    );
+  });
+
+  it('does not mark a report ready when registration hydration is incomplete', async () => {
+    mockGetTrialsByShow.mockResolvedValue({
+      data: [{ id: 'trial-1', show_id: 'show-1' }],
+      error: null,
+    } as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShow.mockResolvedValue({
+      data: [{ id: 'entry-1', dog_id: 'dog-1', dog: { id: 'dog-1' } }],
+      error: null,
+    } as never);
+    mockLoadDogRegistrations.mockResolvedValue({
+      byDog: new Map(),
+      serverError: new Error('offline'),
+      registrationsReadComplete: false,
+    });
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.dataState).toBe('error'));
+    expect(result.current.isReady).toBe(false);
+    expect(result.current.entries).toBeUndefined();
+  });
+
   describe('dataState', () => {
     // Restored in afterEach: onlineManager is a module-level singleton, so
     // leaving it offline would fail unrelated suites under CI's shuffle.
@@ -202,7 +309,10 @@ describe('useReportData', () => {
 
     it('is ready only once all three reads have landed', async () => {
       mockGetTrialsByShow.mockResolvedValue({ data: [{ id: 'trial-1' }], error: null } as never);
-      mockGetClassesByTrialId.mockResolvedValue({ data: [{ id: 'class-1' }], error: null } as never);
+      mockGetClassesByTrialId.mockResolvedValue({
+        data: [{ id: 'class-1' }],
+        error: null,
+      } as never);
       mockGetEntriesByShow.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
 
       const { result } = renderHook(() => useReportData(defaultOptions), {
@@ -213,7 +323,6 @@ describe('useReportData', () => {
       expect(result.current.isReady).toBe(true);
     });
 
-
     it('stays ready when connectivity drops but every row is already cached', async () => {
       // The regression this guards, caught in review: the first version of this
       // enum tested `fetchStatus === 'paused'` unconditionally, so a background
@@ -222,7 +331,10 @@ describe('useReportData', () => {
       // from a secretary whose venue wifi dropped mid-session -- the exact
       // situation this page most needs to survive, made worse by the fix for it.
       mockGetTrialsByShow.mockResolvedValue({ data: [{ id: 'trial-1' }], error: null } as never);
-      mockGetClassesByTrialId.mockResolvedValue({ data: [{ id: 'class-1' }], error: null } as never);
+      mockGetClassesByTrialId.mockResolvedValue({
+        data: [{ id: 'class-1' }],
+        error: null,
+      } as never);
       mockGetEntriesByShow.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
 
       const { result } = renderHook(() => useReportData(defaultOptions), {
@@ -252,5 +364,4 @@ describe('useReportData', () => {
       expect(result.current.isReady).toBe(false);
     });
   });
-
 });

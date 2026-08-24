@@ -2,15 +2,16 @@ import { mapDbEntryToReportEntry, resolveReportHandlerName } from '@/lib/reports
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
-import type { ReportEntry, ReportProps, ReportScope } from '@/lib/reports/types';
-import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
+import type { ReportDbEntry, ReportEntry, ReportProps, ReportScope } from '@/lib/reports/types';
+import type { DbTrial, DbClass } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 
 export function mapReportEntries(
-  dbEntries: DbEntry[],
+  dbEntries: ReportDbEntry[],
   trial?: DbTrial,
   classData?: DbClass,
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
@@ -34,7 +35,7 @@ export function mapReportEntries(
  * - both 'all': keep everything, enriching each with its own class/trial.
  */
 export function mapScopedReportEntries(
-  dbEntries: DbEntry[],
+  dbEntries: ReportDbEntry[],
   trials: DbTrial[],
   classes: DbClass[],
   scope: ReportScope,
@@ -43,7 +44,7 @@ export function mapScopedReportEntries(
   const classById = new Map(classes.map(c => [c.id, c] as const));
   const trialById = new Map(trials.map(t => [t.id, t] as const));
 
-  const enrichByEntryClass = (e: DbEntry): ReportEntry => {
+  const enrichByEntryClass = (e: ReportDbEntry): ReportEntry => {
     const cls = e.class_id != null ? classById.get(e.class_id) : undefined;
     const trial = cls?.trial_id != null ? trialById.get(cls.trial_id) : undefined;
     return mapReportEntry(e, trial, cls, assignedJudges);
@@ -68,16 +69,13 @@ export function mapScopedReportEntries(
 }
 
 function mapReportEntry(
-  e: DbEntry,
+  e: ReportDbEntry,
   trial?: DbTrial,
   classData?: DbClass,
   assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
 ): ReportEntry {
-  const dog = (e as Record<string, unknown>).dog as Record<string, unknown> | null;
-  const registration = (e as Record<string, unknown>).registration as Record<
-    string,
-    unknown
-  > | null;
+  const dog = e.dog;
+  const registration = e.registration;
   const handlerName = resolveReportHandlerName(e.handler);
   // Pass the armband through as TEXT. `Number('12A')` is NaN, which the packet
   // model then reads as "no armband" -- so a suffixed armband silently vanished
@@ -85,6 +83,12 @@ function mapReportEntry(
   // `mapDbEntryToReportEntry` normalises it to the one label representation.
   const armbandLabel = (e.armband ?? null) as string | number | null;
   const entrySource = readEntrySource(e.entry_source);
+  const registrationNumber = trial
+    ? resolveDogIdentityForOrganization(
+        dog?.registrations,
+        readTrialRegistryId(trial)
+      ).registrationNumber
+    : null;
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,
@@ -101,7 +105,7 @@ function mapReportEntry(
     (dog?.call_name as string) ?? `Dog ${e.armband ?? '?'}`,
     (dog?.breed as string) ?? '',
     handlerName,
-    null
+    registrationNumber
   );
   return {
     ...base,
@@ -171,7 +175,7 @@ export function buildTrialReportProps(input: {
   show: Show;
   trials: DbTrial[] | null | undefined;
   classes: DbClass[] | null | undefined;
-  entries: DbEntry[] | null | undefined;
+  entries: ReportDbEntry[] | null | undefined;
   scope: Extract<ReportScope, { kind: 'show' | 'trial' }>;
   sortOrder: string;
 }): ReportProps[] {
@@ -218,7 +222,7 @@ export function buildClassReportProps(input: {
   show: Show;
   trials: DbTrial[] | null | undefined;
   classes: DbClass[] | null | undefined;
-  entries: DbEntry[] | null | undefined;
+  entries: ReportDbEntry[] | null | undefined;
   scope: Extract<ReportScope, { kind: 'class' }>;
   sortOrder: string;
 }): ReportProps | null {
@@ -261,7 +265,7 @@ export function buildEmergencyPacketData(input: {
   show: Show;
   trials: DbTrial[] | null | undefined;
   classes: DbClass[] | null | undefined;
-  entries: DbEntry[] | null | undefined;
+  entries: ReportDbEntry[] | null | undefined;
 }): Omit<EmergencyPacketInput, 'generatedAt'> {
   const trials = input.trials ?? [];
   const classes = input.classes ?? [];

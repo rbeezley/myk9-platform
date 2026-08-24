@@ -4,6 +4,10 @@ import type React from 'react';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { PaymentStatus } from '@/types/show-registration-types';
 import type { Show } from '@/types/show-types';
+import type {
+  DogRegistrationLike,
+  MappedDogRegistrationLike,
+} from '@/features/dogs/identity';
 
 export const REPORT_ENTRY_SOURCE = {
   MYK9: 'myk9',
@@ -56,6 +60,22 @@ export interface ReportEntry {
   trialDate?: string;
   judgeName?: string;
 }
+
+/**
+ * Entry row after the Reports query hydrates the PostgREST/replication dog
+ * relation with the registration rows needed for registry-specific paperwork.
+ */
+export type ReportDbEntry = DbEntry & {
+  dog?: {
+    id?: string;
+    call_name?: string | null;
+    breed?: string | null;
+    registrations?: readonly (DogRegistrationLike | MappedDogRegistrationLike)[];
+  } | null;
+  registration?: {
+    payment_status?: string | null;
+  } | null;
+};
 
 export interface ReportSortOption {
   value: string;
@@ -165,5 +185,5 @@ export interface ReportPageData {
    * skip such a page rather than dereference it.
    */
   classData?: DbClass;
-  entries: DbEntry[];
+  entries: ReportDbEntry[];
 }

@@ -12,7 +12,7 @@
 
 - [x] 3.1 Run focused Vitest files at least six shuffled times, the relevant database contract registration checks, and mutation/source checks for the load-bearing service-role assertions. — 6 shuffled seeds passed (17 tests each); health/registry tests 66 passed; behavioural-SQL allowlist tests 8 passed; assertion-first run failed before implementation as expected.
 - [x] 3.2 Run `pnpm openspec validate --change myk9-236-service-role-grant-contract`, targeted app tests, `pnpm typecheck`, `pnpm lint`, and `git diff --check`; record any environment-limited behavioural SQL coverage honestly. — strict OpenSpec validation, typecheck, lint, diff check, and Supabase dry-run passed. Behavioural SQL cannot execute locally without a container runtime. The first full Vitest attempt produced no progress for 60 seconds and was stopped per the repository hang rule; a second run with the default reporter completed with 1,846 files and 17,734 tests passing (1 file and 9 tests skipped).
-- [ ] 3.3 Run the repository's migration/ACL second-opinion review and the required Codex review gate; fix all blocking findings and rerun affected checks.
+- [x] 3.3 Run the repository's migration/ACL second-opinion review and the required Codex review gate; fix all blocking findings and rerun affected checks. — Parallel standards/security/migration and MYK9-236/OpenSpec reviews completed against `origin/main...d6c21d4ce`; both returned no findings.
 
 ## 4. Ship and evidence
 

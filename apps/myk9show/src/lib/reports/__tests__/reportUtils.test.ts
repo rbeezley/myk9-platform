@@ -22,7 +22,7 @@ import type { ReportEntry } from '../types';
 function makeEntry(overrides: Partial<ReportEntry> = {}): ReportEntry {
   return {
     id: 'e1',
-    armband: 100,
+    armband: '100',
     runOrder: null,
     callName: 'Buddy',
     breed: 'Labrador Retriever',
@@ -132,9 +132,9 @@ describe('formatTimeLimit', () => {
 describe('sortByRunOrder', () => {
   it('sorts by runOrder ascending', () => {
     const entries = [
-      makeEntry({ id: 'a', armband: 200, runOrder: 3 }),
-      makeEntry({ id: 'b', armband: 100, runOrder: 1 }),
-      makeEntry({ id: 'c', armband: 150, runOrder: 2 }),
+      makeEntry({ id: 'a', armband: '200', runOrder: 3 }),
+      makeEntry({ id: 'b', armband: '100', runOrder: 1 }),
+      makeEntry({ id: 'c', armband: '150', runOrder: 2 }),
     ];
     const sorted = sortByRunOrder(entries);
     expect(sorted.map(e => e.id)).toEqual(['b', 'c', 'a']);
@@ -142,8 +142,8 @@ describe('sortByRunOrder', () => {
 
   it('falls back to armband when runOrder is null', () => {
     const entries = [
-      makeEntry({ id: 'a', armband: 300, runOrder: null }),
-      makeEntry({ id: 'b', armband: 100, runOrder: null }),
+      makeEntry({ id: 'a', armband: '300', runOrder: null }),
+      makeEntry({ id: 'b', armband: '100', runOrder: null }),
     ];
     const sorted = sortByRunOrder(entries);
     expect(sorted.map(e => e.id)).toEqual(['b', 'a']);
@@ -151,8 +151,8 @@ describe('sortByRunOrder', () => {
 
   it('does not mutate the input array', () => {
     const entries = [
-      makeEntry({ id: 'a', armband: 200, runOrder: 2 }),
-      makeEntry({ id: 'b', armband: 100, runOrder: 1 }),
+      makeEntry({ id: 'a', armband: '200', runOrder: 2 }),
+      makeEntry({ id: 'b', armband: '100', runOrder: 1 }),
     ];
     const original = [...entries];
     sortByRunOrder(entries);
@@ -167,16 +167,16 @@ describe('sortByRunOrder', () => {
 describe('sortByArmband', () => {
   it('sorts by armband ascending', () => {
     const entries = [
-      makeEntry({ id: 'a', armband: 300 }),
-      makeEntry({ id: 'b', armband: 100 }),
-      makeEntry({ id: 'c', armband: 200 }),
+      makeEntry({ id: 'a', armband: '300' }),
+      makeEntry({ id: 'b', armband: '100' }),
+      makeEntry({ id: 'c', armband: '200' }),
     ];
     const sorted = sortByArmband(entries);
     expect(sorted.map(e => e.id)).toEqual(['b', 'c', 'a']);
   });
 
   it('does not mutate the input array', () => {
-    const entries = [makeEntry({ id: 'a', armband: 300 }), makeEntry({ id: 'b', armband: 100 })];
+    const entries = [makeEntry({ id: 'a', armband: '300' }), makeEntry({ id: 'b', armband: '100' })];
     const original = [...entries];
     sortByArmband(entries);
     expect(entries.map(e => e.id)).toEqual(original.map(e => e.id));
@@ -209,9 +209,9 @@ describe('sortByPlacement', () => {
 
   it('sorts non-qualified: absent > excused > NQ', () => {
     const entries = [
-      makeEntry({ id: 'nq', resultText: 'nq', armband: 100 }),
-      makeEntry({ id: 'exc', resultText: 'excused', armband: 101 }),
-      makeEntry({ id: 'abs', resultText: 'absent', armband: 102 }),
+      makeEntry({ id: 'nq', resultText: 'nq', armband: '100' }),
+      makeEntry({ id: 'exc', resultText: 'excused', armband: '101' }),
+      makeEntry({ id: 'abs', resultText: 'absent', armband: '102' }),
     ];
     const sorted = sortByPlacement(entries);
     expect(sorted.map(e => e.id)).toEqual(['abs', 'exc', 'nq']);
@@ -219,8 +219,8 @@ describe('sortByPlacement', () => {
 
   it('sorts same-status entries by armband', () => {
     const entries = [
-      makeEntry({ id: 'nq2', resultText: 'nq', armband: 200 }),
-      makeEntry({ id: 'nq1', resultText: 'nq', armband: 100 }),
+      makeEntry({ id: 'nq2', resultText: 'nq', armband: '200' }),
+      makeEntry({ id: 'nq1', resultText: 'nq', armband: '100' }),
     ];
     const sorted = sortByPlacement(entries);
     expect(sorted.map(e => e.id)).toEqual(['nq1', 'nq2']);
@@ -403,7 +403,7 @@ describe('mapDbEntryToReportEntry', () => {
   it('maps all fields correctly', () => {
     const dbEntry = {
       id: 'entry-1',
-      armband: 42,
+      armband: '42',
       run_order: 3,
       check_in_status: 'checked_in',
       section: 'A',
@@ -422,7 +422,7 @@ describe('mapDbEntryToReportEntry', () => {
     );
     expect(result).toEqual({
       id: 'entry-1',
-      armband: 42,
+      armband: '42',
       runOrder: 3,
       callName: 'Rex',
       breed: 'German Shepherd',
@@ -438,7 +438,9 @@ describe('mapDbEntryToReportEntry', () => {
     });
   });
 
-  it('defaults null armband to 0', () => {
+  it('maps a null armband to null, NOT to the old 0 sentinel', () => {
+    // MYK9-243: 0 printed as `#0` on paper and sorted ahead of every real
+    // entry. "No armband" and "armband 0" must stay distinguishable.
     const dbEntry = {
       id: 'entry-2',
       armband: null,
@@ -452,7 +454,7 @@ describe('mapDbEntryToReportEntry', () => {
       final_placement: null,
     };
     const result = mapDbEntryToReportEntry(dbEntry, 'Spot', 'Dalmatian', 'Jane Doe', null);
-    expect(result.armband).toBe(0);
+    expect(result.armband).toBeNull();
     expect(result.isScored).toBe(false);
     expect(result.registrationNumber).toBeNull();
   });

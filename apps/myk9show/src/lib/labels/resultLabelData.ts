@@ -1,3 +1,4 @@
+import type { PacketArmband } from '@/features/emergency-trial-packet/armband';
 import type { ReportEntry } from '@/lib/reports/types';
 import { sortByPlacement, sortByArmband, formatReportTime } from '@/lib/reports/reportUtils';
 
@@ -7,7 +8,8 @@ const NQ_SENTINEL = 9000;
 
 export interface ResultLabelItem {
   id: string;
-  armband: number;
+  /** Armband LABEL as issued; see `armband.ts` (MYK9-243). */
+  armband: PacketArmband;
   callName: string;
   handler: string;
   clubName?: string;

@@ -14,7 +14,7 @@ import type { EmergencyPacketInput } from './types';
 
 function entry(overrides: Partial<ReportEntry> & Pick<ReportEntry, 'id'>): ReportEntry {
   return {
-    armband: 100,
+    armband: '100',
     breed: 'Border Collie',
     callName: 'Maple',
     checkInStatus: null,
@@ -81,7 +81,7 @@ function buildModelWithEntries(count: number) {
     entries: Array.from({ length: count }, (_, index) =>
       entry({
         id: `entry-${index + 1}`,
-        armband: 100 + index,
+        armband: String(100 + index),
         classId: 'class-1',
         trialId: 'trial-1',
         runOrder: index + 1,
@@ -160,14 +160,14 @@ const input: EmergencyPacketInput = {
   entries: [
     entry({
       id: 'entry-master',
-      armband: 202,
+      armband: '202',
       classId: 'class-master',
       trialId: 'trial-sunday',
       runOrder: 2,
     }),
     entry({
       id: 'entry-novice-no-order',
-      armband: 102,
+      armband: '102',
       callName: 'Paper',
       classId: 'class-novice',
       trialId: 'trial-saturday',
@@ -175,7 +175,7 @@ const input: EmergencyPacketInput = {
     }),
     entry({
       id: 'entry-novice-first',
-      armband: 101,
+      armband: '101',
       callName: 'Pencil',
       classId: 'class-novice',
       trialId: 'trial-saturday',
@@ -308,9 +308,10 @@ describe('score-recording pagination', () => {
     const [, continuation] = model.pages.filter(page => page.kind === 'score-recording');
     expect(continuation.title).toMatch(/\(2\/3\)/);
     expect(continuation.context.classLabel).toBeTruthy();
+    // Armbands are LABELS now, so assert the ordered labels rather than a
+    // numeric min/max -- which also pins the ORDER, not just the extremes.
     const armbands = continuation.entries.map(entry => entry.armband);
-    expect(Math.min(...armbands)).toBe(105);
-    expect(Math.max(...armbands)).toBe(109);
+    expect(armbands).toEqual(['105', '106', '107', '108', '109']);
   });
 });
 

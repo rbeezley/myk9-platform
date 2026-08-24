@@ -20,7 +20,7 @@ import type { ReportEntry } from '@/lib/reports/types';
 function entry(overrides: Partial<ReportEntry>): ReportEntry {
   return {
     id: overrides.id ?? 'entry-1',
-    armband: 101,
+    armband: '101',
     runOrder: 1,
     callName: 'Buddy',
     breed: 'Lab',

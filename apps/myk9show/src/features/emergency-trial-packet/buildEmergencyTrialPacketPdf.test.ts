@@ -25,12 +25,26 @@ import {
 // uses rather than a hand-passed constructor.
 import { renderEmergencyTrialPacketPdf as buildEmergencyTrialPacketPdf } from './renderPacketPdf';
 import { resolveScoresheetConfig, SCORESHEET_CONFIGS } from './scoresheetConfig';
+import { armbandSortKey, normalizePacketArmband } from './armband';
 import type { EmergencyPacketClass, EmergencyPacketInput, EmergencyPacketPageKind } from './types';
 
-function reportEntry(id: string, classId: string, trialId: string, armband: number): ReportEntry {
+function reportEntry(
+  id: string,
+  classId: string,
+  trialId: string,
+  armband: string | number,
+  // Pass null to make run order NOT the discriminator, so a test about
+  // armband ordering actually exercises the armband tiebreak instead of
+  // silently asserting the run order it derived from the same value.
+  runOrder?: number | null
+): ReportEntry {
+  // Accepts a number for the many numeric fixtures below and a string for the
+  // suffixed ones (MYK9-243); run order follows the armband's sort key so a
+  // "12A" fixture still lands beside 12.
+  const label = normalizePacketArmband(armband);
   return {
     id,
-    armband,
+    armband: label,
     breed: 'All-American Dog',
     callName: `Dog ${armband}`,
     checkInStatus: null,
@@ -40,7 +54,7 @@ function reportEntry(id: string, classId: string, trialId: string, armband: numb
     isScored: false,
     registrationNumber: `REG-${armband}`,
     resultText: null,
-    runOrder: armband,
+    runOrder: runOrder === undefined ? armbandSortKey(label) : runOrder,
     searchTimeSeconds: null,
     section: null,
     totalFaults: null,
@@ -840,6 +854,90 @@ describe('scoresheet per-dog block', () => {
     expect(texts.some(text => text.includes('Armbands 0'))).toBe(false);
     // ...while the ROW for that dog still shows it is unassigned.
     expect(texts.some(text => text.includes('#\u2014'))).toBe(true);
+  });
+
+  /**
+   * MYK9-243. A suffixed armband ("12A") is a real thing a show issues when a
+   * dog is added beside an existing number. The RPC used to cast to int and
+   * map it to 0, and the page then printed `#0` -- a number no dog on it
+   * wears -- and sorted that dog ahead of every genuine entry.
+   */
+  /**
+   * MYK9-243. The CATALOG page printed `String(entry.armband)` raw, bypassing
+   * the shared formatter that the score and check-in rows already used. It
+   * was the one surface where the sentinel still reached paper after #1773,
+   * and a mutation check found it unguarded -- restoring the raw print broke
+   * no test.
+   */
+  it('prints the armband through the shared formatter on the CATALOG page too', () => {
+    const { texts } = renderPageOfKind('catalog', { armband: null });
+
+    // An unassigned dog shows an em dash on the catalog, exactly as it does
+    // on the check-in and score pages.
+    expect(texts).toContain('\u2014');
+    expect(texts).not.toContain('0');
+    expect(texts).not.toContain('null');
+  });
+
+  it('prints a suffixed armband on the CATALOG page verbatim', () => {
+    const { texts } = renderPageOfKind('catalog', { armband: '12A' });
+
+    expect(texts).toContain('12A');
+  });
+
+  it('prints a suffixed armband verbatim, never as #0', () => {
+    const texts = capturedTextsForEntries([
+      reportEntry('plain', 'c1', 't1', '12'),
+      reportEntry('suffixed', 'c1', 't1', '12A'),
+    ]);
+
+    expect(texts.some(text => text.includes('#12A'))).toBe(true);
+    // The two failure modes it used to have: the sentinel, and the em dash
+    // my own earlier range fix would have given it (MYK9-243 review note).
+    expect(texts.some(text => text.includes('#0'))).toBe(false);
+    expect(texts.some(text => text.includes('#\u2014'))).toBe(false);
+  });
+
+  it('puts a suffixed armband in the page range, with its suffix', () => {
+    const texts = capturedTextsForEntries([
+      reportEntry('plain', 'c1', 't1', '12'),
+      reportEntry('suffixed', 'c1', 't1', '12A'),
+    ]);
+
+    // The header must agree with the rows beneath it: printing the sort key
+    // would render "Armbands 12-12" for a page that visibly contains a 12A.
+    expect(texts.some(text => text.includes('Armbands 12\u201312A'))).toBe(true);
+  });
+
+  it('orders a suffixed armband beside the number it extends', () => {
+    // Not at the front (the old 0 sentinel) and not at the end (a naive text
+    // sort would give 12, 12A, 9 -- and put 9 last).
+    const texts = capturedTextsForEntries([
+      reportEntry('thirteen', 'c1', 't1', '13', null),
+      reportEntry('suffixed', 'c1', 't1', '12A', null),
+      reportEntry('nine', 'c1', 't1', '9', null),
+      reportEntry('twelve', 'c1', 't1', '12', null),
+    ]);
+
+    const order = texts
+      .filter(text => /^#(\d|\u2014)/.test(text))
+      .map(text => text.slice(1).split(' ')[0]);
+    expect(order).toEqual(['9', '12', '12A', '13']);
+  });
+
+  it('sorts a dog with no armband LAST, not first', () => {
+    // The old numeric model gave it 0, which put the one dog nobody can
+    // identify at the head of the running order.
+    const texts = capturedTextsForEntries([
+      reportEntry('none', 'c1', 't1', 0, null),
+      reportEntry('two', 'c1', 't1', '2', null),
+      reportEntry('one', 'c1', 't1', '1', null),
+    ]);
+
+    const order = texts
+      .filter(text => /^#(\d|\u2014)/.test(text))
+      .map(text => text.slice(1).split(' ')[0]);
+    expect(order).toEqual(['1', '2', '\u2014']);
   });
 
   it('omits the range entirely when no armband on the page is assigned', () => {

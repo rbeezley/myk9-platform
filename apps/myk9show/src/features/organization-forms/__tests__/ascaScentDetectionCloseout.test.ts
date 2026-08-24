@@ -17,7 +17,7 @@ const reportProps = {
   clubName: 'Demo ASCA Club',
   entries: [
     {
-      armband: 101,
+      armband: '101',
       breed: 'Australian Shepherd',
       callName: 'Star',
       checkInStatus: 'present',
@@ -34,7 +34,7 @@ const reportProps = {
       registrationNumber: 'E12345',
     },
     {
-      armband: 102,
+      armband: '102',
       breed: 'Border Collie',
       callName: 'Dash',
       checkInStatus: 'present',
@@ -51,7 +51,7 @@ const reportProps = {
       registrationNumber: 'E67890',
     },
     {
-      armband: 103,
+      armband: '103',
       breed: 'Poodle',
       callName: 'Pip',
       checkInStatus: 'present',

@@ -10,7 +10,7 @@ const baseProps: ReportProps = {
   entries: [
     {
       id: 'e1',
-      armband: 101,
+      armband: '101',
       runOrder: 1,
       callName: 'Buddy',
       breed: 'Lab',
@@ -36,7 +36,7 @@ const baseProps: ReportProps = {
     },
     {
       id: 'e2',
-      armband: 102,
+      armband: '102',
       runOrder: 2,
       callName: 'Rex',
       breed: 'Beagle',
@@ -62,7 +62,7 @@ const baseProps: ReportProps = {
     },
     {
       id: 'e3',
-      armband: 103,
+      armband: '103',
       runOrder: 3,
       callName: 'Max',
       breed: 'GSD',
@@ -135,7 +135,7 @@ describe('WaitlistReport', () => {
           {
             ...baseProps.entries[0],
             id: 'e-unassigned',
-            armband: 0,
+            armband: '0',
             callName: 'NoArm',
           },
         ]}

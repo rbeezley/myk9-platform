@@ -1,3 +1,4 @@
+import { armbandSortKey, compareArmbands, formatPacketArmband } from './armband.ts';
 import { formatEmergencyPacketPageLabel } from './emergencyTrialPacket.ts';
 import { resolveScoresheetConfig, type ScoresheetRegistryConfig } from './scoresheetConfig.ts';
 import type { EmergencyPacketEntry, EmergencyPacketModel, EmergencyPacketPage } from './types.ts';
@@ -183,21 +184,21 @@ export function layoutDetailLines(
  * `MAX_DETAIL_LINES` ceiling the row-count arithmetic depends on.
  */
 function formatArmbandRange(entries: readonly EmergencyPacketEntry[]): string | undefined {
-  // Only ASSIGNED armbands can identify a page. Both producers collapse an
-  // unassigned or suffixed armband ("12A") to 0 -- the RPC's `ELSE 0` and the
-  // browser mapper's `?? 0` -- and the row for such a dog prints an em dash
-  // via `formatPacketArmband`. Feeding those sentinels to Math.min/Math.max
-  // would print "Armbands 0-112" (or NaN, which poisons both ends), labelling
-  // the sheet with a number no dog wears. Drop them: a page of nothing but
-  // unassigned dogs gets no range line at all, which is honest -- it cannot be
-  // identified by armband -- rather than a confident falsehood on paper a
-  // judge keeps for a year.
-  const armbands = entries
-    .map(entryItem => entryItem.armband)
-    .filter(armband => Number.isFinite(armband) && armband !== 0);
-  if (armbands.length === 0) return undefined;
-  const min = Math.min(...armbands);
-  const max = Math.max(...armbands);
+  // Only ASSIGNED armbands can identify a page, so drop the ones with no
+  // sortable number -- a page of nothing but unassigned dogs gets no range
+  // line at all, which is honest (it cannot be identified by armband) rather
+  // than a confident falsehood on paper a judge keeps for a year.
+  //
+  // The endpoints print their LABELS, not their sort keys, so a page running
+  // 12 through 12A reads "Armbands 12-12A" and matches the rows below it.
+  // Printing the key would silently drop the suffix and make the header
+  // disagree with its own page (MYK9-243).
+  const sortable = entries
+    .filter(entryItem => armbandSortKey(entryItem.armband) !== null)
+    .sort((a, b) => compareArmbands(a.armband, b.armband));
+  if (sortable.length === 0) return undefined;
+  const min = formatPacketArmband(sortable[0].armband);
+  const max = formatPacketArmband(sortable[sortable.length - 1].armband);
   return min === max ? `Armband ${min}` : `Armbands ${min}–${max}`;
 }
 
@@ -337,18 +338,6 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   }
 }
 
-/**
- * Both deleted React components (`CheckInSheet`, `ScoresheetReport`) printed
- * an unassigned armband as an em dash via the app's `formatArmbandDisplay`,
- * never a bare `0`. This module cannot import that helper (no app aliases —
- * see the file banner), and `PacketReportEntry.armband` is already a
- * `number`, so only the numeric half of that helper's behaviour applies here.
- */
-const UNASSIGNED_ARMBAND_DISPLAY = '—';
-
-function formatPacketArmband(armband: number): string {
-  return armband === 0 || Number.isNaN(armband) ? UNASSIGNED_ARMBAND_DISPLAY : String(armband);
-}
 
 function fitTextToWidth(doc: jsPDF, value: string, width: number): string {
   if (doc.getTextWidth(value) <= width) return value;
@@ -409,7 +398,7 @@ function renderCatalog(doc: jsPDF, page: EmergencyPacketPage): void {
     [14, 19, 25, 28, 30, 35, 37],
     page.entries.map(entry => [
       entry.runOrderDisplay,
-      String(entry.armband),
+      formatPacketArmband(entry.armband),
       entry.callName,
       entry.breed,
       [entry.classElement, entry.classLevel, entry.classSection].filter(Boolean).join(' '),

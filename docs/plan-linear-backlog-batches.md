@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0, 1, 2 and **3 are complete** except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 closed on 2026-08-23: eight issues Done, MYK9-195 and MYK9-190 parked with triggers recorded, three follow-ups filed (MYK9-237/238/239). SMS is deferred until after launch by product-owner decision. **Batch 3.5 is under way:** MYK9-233 is in review as [#1775](https://github.com/rbeezley/myk9-platform/pull/1775) — full CI green, Codex clean, merge state CLEAN, awaiting merge plus a `supabase db push`. See "[BUILT 2026-08-24] MYK9-233" under Lane 3.5A. Ten issues filed after the 2026-08-21 snapshot plus three never-inventoried In Progress issues; see "[ADDED 2026-08-23] The backlog moved while Batch 3 ran". Then Batch 4 (closure proofs) and Batch 5. See **"[CLOSED 2026-08-23] Batch 3 is complete"** under Batch 3.
+> **Status:** Active — Batches 0, 1, 2 and **3 are complete** except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 closed on 2026-08-23: eight issues Done, MYK9-195 and MYK9-190 parked with triggers recorded, three follow-ups filed (MYK9-237/238/239). SMS is deferred until after launch by product-owner decision. **Batch 3.5 is under way:** MYK9-233 is **Done and deployed** (merged `a62df8703`, migration applied to `sojmvhhwsjxmfistvzbe` and verified against the live policy). Next in Lane 3.5A: MYK9-236. See "[BUILT 2026-08-24] MYK9-233" under Lane 3.5A. Ten issues filed after the 2026-08-21 snapshot plus three never-inventoried In Progress issues; see "[ADDED 2026-08-23] The backlog moved while Batch 3 ran". Then Batch 4 (closure proofs) and Batch 5. See **"[CLOSED 2026-08-23] Batch 3 is complete"** under Batch 3.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -63,7 +63,7 @@ PRIMARY:MYK9-94=parked
 PRIMARY:MYK9-13=operator-track-5
 PRIMARY:MYK9-27=deferred-after-batch-3
 PRIMARY:MYK9-28=deferred-post-live-shows
-PRIMARY:MYK9-233=in-review-pr1775-3.5-lane-a
+PRIMARY:MYK9-233=completed-deployed-3.5-lane-a
 PRIMARY:MYK9-236=batch-3.5-lane-a
 PRIMARY:MYK9-235=batch-3.5-lane-b
 PRIMARY:MYK9-234=batch-3.5-lane-b
@@ -433,7 +433,7 @@ Ordered by severity, not by filing date. Lanes A–D touch disjoint file sets an
 
 - **Lane 3.5A — data exposure and ACL contract (do this first).** [MYK9-233](https://linear.app/myk9-platform/issue/MYK9-233) is the highest-severity open item on the board: `manageable_show_ids()` is `SECURITY DEFINER` and never restates the `deleted_at IS NULL` filter that `shows_select` applies **outside** its whole OR group. A site admin therefore sees the entries of a soft-deleted show while the show row itself is invisible, and `buildLedgerRows` maps over `shows` rather than entries — so every dropped show's collected, refunded and net cents vanish from the admin ledger **and** from both summary totals, with nothing on screen. **Verified against staging: 0 soft-deleted shows, so it is reachable but not currently firing.** That is exactly why it should land now rather than after launch. Step 1 is a product decision, not code — *should* a site admin see soft-deleted shows? The two answers have different blast radii. Then [MYK9-236](https://linear.app/myk9-platform/issue/MYK9-236) (the grant contract's `service_role` column is unenforced against live; 129 of 130 tables hold more than it declares). Both are ACL-contract work and share the verify-against-the-applied-database discipline.
 
-  **[IN REVIEW 2026-08-24] MYK9-233 — [#1775](https://github.com/rbeezley/myk9-platform/pull/1775), CI green, Codex clean.** Branch `claude/myk9-233-soft-delete-admin-visibility`, commit `8ff7189c4`, cut from `origin/main` in worktree `prs-needing-merge-b22aa6`.
+  **[DONE 2026-08-24] MYK9-233 — merged `a62df8703`, migration applied and verified live.** Branch `claude/myk9-233-soft-delete-admin-visibility`, commit `8ff7189c4`, cut from `origin/main` in worktree `prs-needing-merge-b22aa6`.
 
   The product decision the lane was gated on: **a site admin sees soft-deleted shows and their entries; nobody else does.** Both rules now state that same sentence — `shows_select`'s admin arm moves outside the `deleted_at` gate, and `manageable_show_ids()` restates the filter its `SECURITY DEFINER` status had silently discarded.
 
@@ -468,7 +468,7 @@ All three were outside the 54-ID inventory, so nothing in this plan tracked them
 ### Recommended order from here
 
 1. **Richard, 5 minutes:** [MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) — prune the dev sandbox payment methods to Cards + Apple Pay + Google Pay and reload checkout on Android. It has been In Progress since 08-22, it blocks Lane 2C, and it blocks [MYK9-11](https://linear.app/myk9-platform/issue/MYK9-11) at cutover.
-2. **Lane 3.5A** — MYK9-233 is **in review and green** ([#1775](https://github.com/rbeezley/myk9-platform/pull/1775)): merge it, then `supabase db push`. Then MYK9-236.
+2. **Lane 3.5A** — MYK9-233 is **done and deployed**. Remaining: MYK9-236 (the grant contract's `service_role` column is unenforced against live).
 3. **Batch 4** — MYK9-211, which needs Richard's explicit approval and a named disposable fixture before anything is written, because its `permission_audit_log` residue is permanent and must not be cleaned up.
 4. Lanes 3.5B–D in parallel as capacity allows.
 

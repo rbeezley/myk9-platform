@@ -132,6 +132,16 @@ VALUES
   );
 
 -- Paid online entries: this is the money that must not disappear.
+--
+-- entries_protect_payment_fields_insert() blocks a forged paid-online row for
+-- everyone except service_role, which is what the payment service runs as.
+-- Production creates these through its SECURITY DEFINER RPC; this rolled-back
+-- fixture takes the same role and only the direct INSERT it needs, matching
+-- pull_refund_decision_rls_test.sql.
+GRANT INSERT ON public.entries TO service_role;
+
+SET LOCAL ROLE service_role;
+
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, handler_id, entry_status, armband,
   is_in_ring, is_scored, entry_fee, payment_status, payment_method
@@ -167,6 +177,8 @@ VALUES
     'paid',
     'online'
   );
+
+RESET ROLE;
 
 UPDATE public.shows
 SET deleted_at = now()

@@ -1,3 +1,4 @@
+import { compareArmbands } from '@/features/emergency-trial-packet/armband';
 import type { DbClass, DbTrial } from '@/types/database-mappings';
 import { buildEmergencyPacketModel } from '@/features/emergency-trial-packet/emergencyTrialPacket';
 // `buildEmergencyPacketData` lives with the Reports page's other DB-row
@@ -108,7 +109,9 @@ function reorderPagesByArmband(model: EmergencyPacketModel): EmergencyPacketMode
       j += 1;
     }
     const run = pages.slice(i, j);
-    const combined = run.flatMap(page => page.entries).sort((a, b) => a.armband - b.armband);
+    const combined = run
+      .flatMap(page => page.entries)
+      .sort((a, b) => compareArmbands(a.armband, b.armband));
     let cursor = 0;
     for (let k = 0; k < run.length; k += 1) {
       const count = run[k].entries.length;

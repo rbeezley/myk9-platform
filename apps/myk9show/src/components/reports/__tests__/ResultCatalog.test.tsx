@@ -9,7 +9,7 @@ const baseProps: ReportProps = {
   entries: [
     {
       id: 'e1',
-      armband: 108,
+      armband: '108',
       runOrder: 2,
       callName: 'Max',
       breed: 'GSD',
@@ -29,7 +29,7 @@ const baseProps: ReportProps = {
     },
     {
       id: 'e2',
-      armband: 101,
+      armband: '101',
       runOrder: 1,
       callName: 'Buddy',
       breed: 'Golden Retriever',
@@ -117,7 +117,7 @@ describe('ResultCatalog', () => {
         ...baseProps.entries,
         {
           id: 'e3',
-          armband: 201,
+          armband: '201',
           runOrder: 1,
           callName: 'Rex',
           breed: 'Beagle',
@@ -166,7 +166,7 @@ describe('ResultCatalog', () => {
           {
             ...baseProps.entries[0],
             id: 'e-unassigned',
-            armband: 0,
+            armband: '0',
             callName: 'NoArm',
           },
         ]}

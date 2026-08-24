@@ -40,7 +40,9 @@ const classData = {
 
 const entry = {
   id: 'entry-1',
-  armband: 7,
+  // `entries.armband` is a TEXT column; the fixture matches the real shape so
+  // the mapper is exercised on what the database actually returns (MYK9-243).
+  armband: '7',
   class_id: 'class-1',
   run_order: 1,
   check_in_status: 'checked-in',
@@ -94,7 +96,7 @@ describe('buildTrialReportProps', () => {
       entries: [
         {
           id: 'entry-1',
-          armband: 7,
+          armband: '7',
           callName: 'Rocket',
           handler: 'Jamie Walker',
           entrySource: REPORT_ENTRY_SOURCE.UKC_ONLINE,
@@ -232,7 +234,7 @@ describe('buildClassReportProps', () => {
         timeLimitArea2Seconds: 90,
         areaCount: 2,
       },
-      entries: [{ id: 'entry-1', armband: 7, callName: 'Rocket' }],
+      entries: [{ id: 'entry-1', armband: '7', callName: 'Rocket' }],
       sortOrder: 'armband',
     });
   });
@@ -288,7 +290,7 @@ describe('mapScopedReportEntries', () => {
     level: 'Advanced',
     section: '',
   } as DbClass;
-  const mkEntry = (id: string, armband: number, classId: string) =>
+  const mkEntry = (id: string, armband: string, classId: string) =>
     ({
       id,
       armband,
@@ -303,8 +305,8 @@ describe('mapScopedReportEntries', () => {
       },
     }) as unknown as DbEntry;
 
-  const e1 = mkEntry('e1', 7, 'class-1'); // trial 1
-  const e2 = mkEntry('e2', 8, 'class-2'); // trial 2
+  const e1 = mkEntry('e1', '7', 'class-1'); // trial 1
+  const e2 = mkEntry('e2', '8', 'class-2'); // trial 2
   const trials = [trial1, trial2];
   const classes = [class1, class2];
 

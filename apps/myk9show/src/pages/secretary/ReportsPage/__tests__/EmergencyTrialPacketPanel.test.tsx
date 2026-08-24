@@ -39,7 +39,7 @@ const data: Omit<EmergencyPacketInput, 'generatedAt'> = {
   entries: [
     {
       id: 'e1',
-      armband: 101,
+      armband: '101',
       runOrder: 1,
       callName: 'Maple',
       breed: 'All-American Dog',

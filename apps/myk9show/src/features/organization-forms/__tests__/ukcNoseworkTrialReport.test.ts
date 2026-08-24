@@ -15,7 +15,7 @@ import { fillPdfForm } from '../pdfForm';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../..');
 
 const baseEntry = {
-  armband: 101,
+  armband: '101',
   breed: 'Beagle',
   callName: 'Rocket',
   checkInStatus: null,

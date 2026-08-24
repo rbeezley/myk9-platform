@@ -1,3 +1,4 @@
+import { formatPacketArmband } from '@/features/emergency-trial-packet/armband';
 import React from 'react';
 import type { ResultLabelItem } from '@/lib/labels/resultLabelData';
 
@@ -69,7 +70,7 @@ export const ResultLabelCell: React.FC<{ item: ResultLabelItem }> = ({ item }) =
   return (
     <div style={styles.label}>
       <div style={styles.head}>
-        <span style={styles.armband}>#{item.armband}</span>
+        <span style={styles.armband}>#{formatPacketArmband(item.armband)}</span>
         <span style={styles.name}>{item.callName}</span>
       </div>
       {item.handler && <div style={styles.handler}>{item.handler}</div>}

@@ -51,7 +51,7 @@ const packetData: Omit<EmergencyPacketInput, 'generatedAt'> = {
   entries: [
     {
       id: 'e1',
-      armband: 1,
+      armband: '1',
       runOrder: 1,
       callName: 'A',
       breed: 'BC',
@@ -63,7 +63,7 @@ const packetData: Omit<EmergencyPacketInput, 'generatedAt'> = {
     },
     {
       id: 'e2',
-      armband: 2,
+      armband: '2',
       runOrder: 1,
       callName: 'B',
       breed: 'BC',

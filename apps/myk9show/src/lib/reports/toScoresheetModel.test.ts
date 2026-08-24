@@ -112,7 +112,7 @@ describe('toScoresheetModel', () => {
   it('honours the armband sort order', () => {
     const model = toScoresheetModel(datasetWithArmbands([7, 2, 5]), 'armband');
     const page = model.pages.find(p => p.kind === 'score-recording')!;
-    expect(page.entries.map(entry => entry.armband)).toEqual([2, 5, 7]);
+    expect(page.entries.map(entry => entry.armband)).toEqual(['2', '5', '7']);
   });
 
   it('leaves entries in run order when sortOrder is not armband', () => {
@@ -120,7 +120,7 @@ describe('toScoresheetModel', () => {
     const page = model.pages.find(p => p.kind === 'score-recording')!;
     // Armbands were assigned in reverse of run order by the fixture, so a
     // no-op sort should keep them exactly as entered (run order 1,2,3).
-    expect(page.entries.map(entry => entry.armband)).toEqual([7, 2, 5]);
+    expect(page.entries.map(entry => entry.armband)).toEqual(['7', '2', '5']);
   });
 
   it('suppresses the emergency-packet snapshot marker (whole-branch review finding #7)', () => {
@@ -204,8 +204,8 @@ describe('reorderPagesByArmband (multi-page classes)', () => {
     expect(runOrderCheckIn.pages[0]!.entries).toHaveLength(20);
     expect(runOrderCheckIn.pages[1]!.entries).toHaveLength(5);
     // Confirm the premise: under run order alone, armband 1 is NOT on page 1.
-    expect(runOrderCheckIn.pages[0]!.entries.some(entry => entry.armband === 1)).toBe(false);
-    expect(runOrderCheckIn.pages[1]!.entries.some(entry => entry.armband === 1)).toBe(true);
+    expect(runOrderCheckIn.pages[0]!.entries.some(entry => entry.armband === '1')).toBe(false);
+    expect(runOrderCheckIn.pages[1]!.entries.some(entry => entry.armband === '1')).toBe(true);
 
     const armbandModel = toScoresheetModel(dataset, 'armband');
     const armbandCheckIn = selectPacketPages(armbandModel, 'check-in');
@@ -215,15 +215,19 @@ describe('reorderPagesByArmband (multi-page classes)', () => {
     expect(armbandCheckIn.pages[1]!.entries).toHaveLength(5);
 
     expect(armbandCheckIn.pages[0]!.entries.map(entry => entry.armband)).toEqual(
-      Array.from({ length: 20 }, (_, index) => index + 1)
+      Array.from({ length: 20 }, (_, index) => String(index + 1))
     );
     expect(armbandCheckIn.pages[1]!.entries.map(entry => entry.armband)).toEqual([
-      21, 22, 23, 24, 25,
+      '21',
+      '22',
+      '23',
+      '24',
+      '25',
     ]);
     // The behavior the coordinator flagged as untested: armband 1, run-order
     // 25, was on page 2 above and must now be on page 1.
-    expect(armbandCheckIn.pages[0]!.entries.some(entry => entry.armband === 1)).toBe(true);
-    expect(armbandCheckIn.pages[1]!.entries.some(entry => entry.armband === 1)).toBe(false);
+    expect(armbandCheckIn.pages[0]!.entries.some(entry => entry.armband === '1')).toBe(true);
+    expect(armbandCheckIn.pages[1]!.entries.some(entry => entry.armband === '1')).toBe(false);
   });
 });
 

@@ -4,6 +4,8 @@
  * `@myk9/core`'s `formatTimeLimitSeconds`, and a contract test asserts the two
  * agree so the copy cannot drift.
  */
+import { compareArmbands } from './armband.ts';
+
 function formatPacketSeconds(seconds?: number | null): string {
   if (!seconds || seconds === 0) return '';
   const mins = Math.floor(seconds / 60);
@@ -86,7 +88,13 @@ function compareClasses(a: EmergencyPacketClass, b: EmergencyPacketClass): numbe
 function compareEntries(a: PacketReportEntry, b: PacketReportEntry): number {
   const runOrderA = a.runOrder ?? Number.MAX_SAFE_INTEGER;
   const runOrderB = b.runOrder ?? Number.MAX_SAFE_INTEGER;
-  return runOrderA - runOrderB || a.armband - b.armband || compareText(a.id, b.id);
+  // Armband ordering is the shared contract's, not a numeric subtraction:
+  // a suffixed "12A" sorts beside 12, and an unassigned dog sorts LAST
+  // rather than leading the running order as the old `0` sentinel did
+  // (MYK9-243).
+  return (
+    runOrderA - runOrderB || compareArmbands(a.armband, b.armband) || compareText(a.id, b.id)
+  );
 }
 
 function chunks<T>(items: T[], size: number): T[][] {

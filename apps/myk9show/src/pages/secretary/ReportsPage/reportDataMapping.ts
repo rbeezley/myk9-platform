@@ -79,12 +79,16 @@ function mapReportEntry(
     unknown
   > | null;
   const handlerName = resolveReportHandlerName(e.handler);
-  const armbandNum = e.armband != null ? Number(e.armband) : null;
+  // Pass the armband through as TEXT. `Number('12A')` is NaN, which the packet
+  // model then reads as "no armband" -- so a suffixed armband silently vanished
+  // from the Reports page just as it printed `#0` on the packet (MYK9-243).
+  // `mapDbEntryToReportEntry` normalises it to the one label representation.
+  const armbandLabel = (e.armband ?? null) as string | number | null;
   const entrySource = readEntrySource(e.entry_source);
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,
-      armband: armbandNum,
+      armband: armbandLabel,
       run_order: e.run_order,
       check_in_status: e.check_in_status,
       section: null,

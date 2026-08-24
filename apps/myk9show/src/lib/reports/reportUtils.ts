@@ -1,3 +1,8 @@
+import {
+  armbandSortKey,
+  compareArmbands,
+  normalizePacketArmband,
+} from '@/features/emergency-trial-packet/armband';
 import type { ReportEntry } from './types';
 
 /**
@@ -33,15 +38,17 @@ export function formatTimeLimit(seconds: number | null | undefined): string {
 }
 
 export function sortByRunOrder(entries: ReportEntry[]): ReportEntry[] {
+  // An entry with no run order falls back to its armband's sort key, and one
+  // with neither sorts LAST rather than leading (MYK9-243).
   return [...entries].sort((a, b) => {
-    const aOrder = a.runOrder ?? a.armband;
-    const bOrder = b.runOrder ?? b.armband;
-    return aOrder - bOrder;
+    const aOrder = a.runOrder ?? armbandSortKey(a.armband) ?? Number.MAX_SAFE_INTEGER;
+    const bOrder = b.runOrder ?? armbandSortKey(b.armband) ?? Number.MAX_SAFE_INTEGER;
+    return aOrder - bOrder || compareArmbands(a.armband, b.armband);
   });
 }
 
 export function sortByArmband(entries: ReportEntry[]): ReportEntry[] {
-  return [...entries].sort((a, b) => a.armband - b.armband);
+  return [...entries].sort((a, b) => compareArmbands(a.armband, b.armband));
 }
 
 // Qualified first (by placement #), then absent > excused > NQ, tiebreak by armband
@@ -75,7 +82,7 @@ export function sortByPlacement(entries: ReportEntry[]): ReportEntry[] {
     if (!aIsExcused && bIsExcused) return 1;
 
     // Same status - sort by armband
-    return a.armband - b.armband;
+    return compareArmbands(a.armband, b.armband);
   });
 }
 
@@ -198,7 +205,7 @@ export function sortByBreed(entries: ReportEntry[]): ReportEntry[] {
 export function mapDbEntryToReportEntry(
   dbEntry: {
     id: string;
-    armband: number | null;
+    armband: string | number | null;
     run_order: number | null;
     check_in_status: string | null;
     section: string | null;
@@ -215,7 +222,7 @@ export function mapDbEntryToReportEntry(
 ): ReportEntry {
   return {
     id: dbEntry.id,
-    armband: dbEntry.armband ?? 0,
+    armband: normalizePacketArmband(dbEntry.armband),
     runOrder: dbEntry.run_order,
     callName: dogName,
     breed,

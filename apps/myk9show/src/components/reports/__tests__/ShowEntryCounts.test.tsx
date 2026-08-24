@@ -10,7 +10,7 @@ const baseProps: ReportProps = {
     // Container Novice — 3 entries, 2 people, 2 dogs
     {
       id: 'e1',
-      armband: 101,
+      armband: '101',
       runOrder: 1,
       callName: 'Buddy',
       breed: 'Lab',
@@ -29,7 +29,7 @@ const baseProps: ReportProps = {
     },
     {
       id: 'e2',
-      armband: 102,
+      armband: '102',
       runOrder: 2,
       callName: 'Max',
       breed: 'GSD',
@@ -48,7 +48,7 @@ const baseProps: ReportProps = {
     },
     {
       id: 'e3',
-      armband: 103,
+      armband: '103',
       runOrder: 3,
       callName: 'Buddy',
       breed: 'Lab',
@@ -68,7 +68,7 @@ const baseProps: ReportProps = {
     // Interior Novice — 2 entries
     {
       id: 'e4',
-      armband: 104,
+      armband: '104',
       runOrder: 4,
       callName: 'Rex',
       breed: 'Beagle',
@@ -86,7 +86,7 @@ const baseProps: ReportProps = {
     },
     {
       id: 'e5',
-      armband: 105,
+      armband: '105',
       runOrder: 5,
       callName: 'Daisy',
       breed: 'Poodle',

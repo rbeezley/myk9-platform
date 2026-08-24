@@ -4,7 +4,7 @@ import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 
 const makeEntry = (overrides: Partial<ReportEntry> = {}): ReportEntry => ({
   id: '1',
-  armband: 100,
+  armband: '100',
   runOrder: null,
   callName: 'Buddy',
   breed: 'Labrador',
@@ -29,15 +29,15 @@ const baseProps: ReportProps = {
 const threeEntries: ReportEntry[] = [
   makeEntry({
     id: '1',
-    armband: 142,
+    armband: '142',
     callName: 'Buddy',
     finalPlacement: 2,
     searchTimeSeconds: 55.3,
   }),
-  makeEntry({ id: '2', armband: 108, callName: 'Max', finalPlacement: 1, searchTimeSeconds: 45.2 }),
+  makeEntry({ id: '2', armband: '108', callName: 'Max', finalPlacement: 1, searchTimeSeconds: 45.2 }),
   makeEntry({
     id: '3',
-    armband: 215,
+    armband: '215',
     callName: 'Duke',
     resultText: 'nq',
     finalPlacement: 9996,
@@ -111,7 +111,7 @@ describe('ResultsSheet', () => {
   });
 
   it('renders unassigned armbands as an em dash', () => {
-    render(<ResultsSheet {...baseProps} entries={[makeEntry({ armband: 0 })]} />);
+    render(<ResultsSheet {...baseProps} entries={[makeEntry({ armband: '0' })]} />);
 
     const rows = screen.getAllByRole('row');
     expect(rows[1].querySelectorAll('td')[1]).toHaveTextContent('—');

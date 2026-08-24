@@ -261,6 +261,39 @@ describe('buildLedgerRows — shows that could not be read', () => {
     refund_decision: null,
   });
 
+  // MYK9-233 closes the cause rather than the symptom: a site admin can now read
+  // the soft-deleted show, so its id resolves instead of landing in the branch
+  // above. This pins the two paths to the SAME cents — resolving the identity
+  // must change what the operator sees, never what the platform owes.
+  it('reports identical money whether or not the show row resolves', () => {
+    const entriesByShow = new Map<string, LedgerEntryRow[]>([
+      ['deleted-show', [paidEntry('deleted-show', 125)]],
+    ]);
+
+    const unresolved = summarizeLedger(buildLedgerRows([], entriesByShow, new Map()));
+    const resolved = summarizeLedger(
+      buildLedgerRows(
+        [
+          {
+            id: 'deleted-show',
+            name: 'Deleted Trial',
+            club_id: 'c1',
+            clubName: 'C1',
+            endDate: '2026-06-01',
+          },
+        ],
+        entriesByShow,
+        new Map()
+      )
+    );
+
+    expect(resolved.outstandingCents).toBe(unresolved.outstandingCents);
+    expect(resolved.outstandingCents).toBe(12_500);
+    // Only the operator-facing identity differs.
+    expect(unresolved.unavailableShowCount).toBe(1);
+    expect(resolved.unavailableShowCount).toBe(0);
+  });
+
   it('keeps the money when the show row is missing', () => {
     const entriesByShow = new Map<string, LedgerEntryRow[]>([
       ['known', [paidEntry('known', 30)]],

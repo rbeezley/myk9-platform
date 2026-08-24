@@ -34,6 +34,7 @@ fi
 # file absent from BOTH still passes green — that gap left four tests dormant
 # until 2026-07-31 (MYK9-130). A directory-coverage assertion now closes it.
 TEST_FILES=(
+  "$TEST_DIR/admin_soft_deleted_show_visibility_test.sql"
   "$TEST_DIR/anonymous_session_read_scope_test.sql"
   "$TEST_DIR/askq_quota_reservation_test.sql"
   "$TEST_DIR/class_hide_count_gating_test.sql"

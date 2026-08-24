@@ -1,6 +1,6 @@
 # Plan: Test Account Migration — `test.myk9.com` → `myk9t.com`
 
-> **Status:** Active
+> **Status:** Active — Phases 1–3 completed 2026-08-24; Phase 4 remains
 
 Move every fixture account off `test.myk9.com`, which is undeliverable, onto `myk9t.com`, where
 real mailboxes exist. Prune the accumulated junk in `auth.users` at the same time.
@@ -27,7 +27,7 @@ Twelve accounts. Every one has a real mailbox. The eight below are the sign-in f
 | `exhibitor@myk9t.com` | rename `e2e-exhibitor@` | exhibitor |
 | `exhibitor2@myk9t.com` | **already exists** (`a1000002…`) — grant roles | exhibitor |
 | `judge@myk9t.com` | rename `e2e-judge@` | judge ONLY (see invariant below) |
-| `testadmin@myk9t.com` | rename `e2e-admin@` | site_admin, exhibitor |
+| `testadmin@myk9t.com` | rename `e2e-admin@` | site_admin, secretary, club_admin, exhibitor |
 | `steward@myk9t.com` | rename `e2e-steward@` | steward, exhibitor |
 | `clubadmin@myk9t.com` | **create** — no auth user ever existed | club_admin ONLY |
 | `chairman@myk9t.com` | **create** | chairman |
@@ -35,8 +35,10 @@ Twelve accounts. Every one has a real mailbox. The eight below are the sign-in f
 
 Two role changes fall out of this, both deliberate:
 
-- `e2e-admin@` currently holds `chairman` and `club_admin` on top of `site_admin`. Both move to
-  their own accounts, so `testadmin@` keeps `site_admin` + `exhibitor` only.
+- `e2e-admin@` currently holds `chairman` and `club_admin` on top of `site_admin`. Chairman moves
+  to its own account. `secretary` and `club_admin` deliberately remain on `testadmin@`: existing
+  administrator journeys depend on those scoped grants, while the separate secretary and
+  club-admin-only fixtures exercise the non-site-admin authorization branches.
 - `clubadmin@` must hold **no** site-wide role. Club gates read
   `is_site_admin() OR is_club_admin(id)`, so an actor that is also a site admin satisfies them
   through the site branch and never exercises club scoping (MYK9-137).
@@ -65,16 +67,24 @@ Removing: both fixture definitions, the setup-script entry, the two contract ass
 workflow secret forwards. If the empty-dashboard test is wanted later, the fixture is five lines
 and should be added together with the spec that uses it.
 
-### Junk auth users — 11 remaining
+### Phase 2 deletion scope — completed 2026-08-24
 
-All verified to have zero dogs, zero entries, and zero rows across the 88 FK columns pointing at
-`people` or `auth.users`:
+The original draft mixed a count of 11 with 13 named candidates. Live re-verification also found
+that `richard@myk9t.com` was not dependency-free: it had a linked person, completed exhibitor
+profile, and active exhibitor grant. The user replaced that ambiguous list with a hard rule: do
+not delete any `@myk9t.com` account, any `@cox.net` account, or Sherry Thompson's account.
 
-`e2e-clubadmin@test.myk9.com` (a typo variant of the hyphenated fixture that got provisioned once
-and kept active `club_admin` privileges nothing uses) · `codex-onboarding-…@myk9t.com` ·
-`codex.exhibitor.…@example.com` · `e2e-signup-…@myk9t.com` · `test-signup-…@myk9t.com` ·
-`onboarding-audit-…@test.myk9.com` · `rls-test-sec1/sec2@myk9test.invalid` · `mariana@mykt9.com`
-(typo domain) · `maria@` / `mariab@` / `mariana@myk9t.com` · `richard@myk9t.com`.
+Phase 2 therefore deleted exactly these six accounts after re-verifying their dependencies:
+
+- `e2e-clubadmin@test.myk9.com` (including its unused profile and role rows)
+- `codex.exhibitor.20260622184457@example.com`
+- `onboarding-audit-20260707001832@test.myk9.com`
+- `rls-test-sec1-mo1pbqa2@myk9test.invalid`
+- `rls-test-sec2-mo1pbqa2@myk9test.invalid`
+- `mariana@mykt9.com`
+
+All `@myk9t.com`, `@cox.net`, and Sherry Thompson accounts remain. Do not reopen deletion of those
+accounts without a new explicit user instruction overriding this protection rule.
 
 Already deleted (2026-08-23, separately authorised): `just1harry@gmail.com` and
 `noraust.dogs@gmail.com`, with their 1 `email_log` row, 1 `user_roles` grant, 1
@@ -129,15 +139,37 @@ that accepts mail would make those tests assert nothing.
 Historical documents — audit reports, dated walk logs, QA findings (~250 refs) — are **not**
 rewritten. They record what was true when written.
 
-### Phase 2 — database (one transaction)
+### Phase 2 — database (completed 2026-08-24)
 
-Rename 5, create 3, grant `exhibitor2`, delete 11. Run after Phase 1 merges, so a reseed at any
-point finds seeds and database agreeing.
+Completed in one committed transaction after two fully rolled-back preflight attempts exposed
+live-schema constraints. The final transaction:
 
-### Phase 3 — secrets (Richard)
+- renamed five auth users in place and synchronized `auth.users`, `auth.identities`, and `people`;
+- created `clubadmin@` and `chairman@` with random temporary passwords;
+- created/adopted the three missing people records for `clubadmin@`, `chairman@`, and
+  `exhibitor2@`, then reconciled their profiles and roles;
+- merged two unlinked target-email people rows into the preserved secretary/judge identities,
+  including reassignment of the judge qualification; and
+- deleted the six user-authorized non-protected junk accounts listed above.
 
-Ten GitHub secrets plus `.env.local`. Exact list delivered with the PR. `E2E_JUDGE_EMPTY_PASSWORD`
-can be deleted rather than updated.
+Post-commit readback: 23 auth users, 19 on `@myk9t.com`, zero on `@test.myk9.com`; all protected
+accounts remained present. Judge holds only `judge`, club admin only `club_admin`, chairman only
+`chairman`, and the five renamed auth IDs were preserved.
+
+### Phase 3 — secrets (completed 2026-08-24)
+
+The active Phase 3 worktree and the paused MYK9-211 worktree now use the four canonical email
+addresses in `.env.local`. Eleven GitHub Actions secrets were overwritten from that corrected
+local source: four email variables and seven password variables. `E2E_JUDGE_EMPTY_PASSWORD` was
+already absent.
+
+Distinct final passwords were generated for `clubadmin@`, `chairman@`, and `exhibitor2@`, applied
+through the Auth admin API, and stored only in local ignored configuration plus GitHub Actions
+secrets. The four existing canonical passwords were retained and re-applied. Real password sign-in
+succeeded for all seven configured fixtures: test admin, secretary/steward, judge, exhibitor,
+club admin, chairman, and exhibitor 2. The standalone `steward@` auth row remains preserved, but
+tracked E2E code deliberately runs steward journeys through the secretary account and defines no
+separate steward credential variable.
 
 ### Phase 4 — testing
 

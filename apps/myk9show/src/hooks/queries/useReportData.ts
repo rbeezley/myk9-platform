@@ -39,8 +39,7 @@ async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<Repo
 
   return entries.map(entry => {
     if (!entry.dog_id) return entry;
-    const dog = entry.dog;
-    if (!dog) return entry;
+    const dog = entry.dog ?? { id: entry.dog_id };
     return {
       ...entry,
       dog: {

@@ -58,7 +58,7 @@ AS $$
   trial_rows AS (
     SELECT
       t.id, t.date, t.name, t.trial_number, t.registry_id,
-      public.emergency_packet_registry_key(COALESCE(NULLIF(t.registry_id, ''), 'AKC'))
+      public.emergency_packet_registry_key(COALESCE(NULLIF(btrim(t.registry_id), ''), 'AKC'))
         AS registry_key
     FROM public.trials t
     WHERE t.show_id = p_show_id

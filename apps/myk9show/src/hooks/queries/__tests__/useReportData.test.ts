@@ -211,6 +211,40 @@ describe('useReportData', () => {
     expect(mockLoadDogRegistrations).toHaveBeenCalledWith(['dog-1']);
   });
 
+  it('attaches verified registrations when the entry dog relation is absent', async () => {
+    const registration = {
+      id: 'registration-1',
+      dog_id: 'dog-1',
+      organization: 'AKC',
+      registration_number: 'DN12345678',
+    };
+    mockGetTrialsByShow.mockResolvedValue({
+      data: [{ id: 'trial-1', show_id: 'show-1' }],
+      error: null,
+    } as never);
+    mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
+    mockGetEntriesByShow.mockResolvedValue({
+      data: [{ id: 'entry-1', dog_id: 'dog-1', dog: null }],
+      error: null,
+    } as never);
+    mockLoadDogRegistrations.mockResolvedValue({
+      byDog: new Map([['dog-1', [registration]]]),
+      serverError: null,
+      registrationsReadComplete: true,
+    });
+
+    const { result } = renderHook(() => useReportData(defaultOptions), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() =>
+      expect(result.current.entries?.[0]?.dog).toEqual({
+        id: 'dog-1',
+        registrations: [registration],
+      })
+    );
+  });
+
   it('does not mark a report ready when registration hydration is incomplete', async () => {
     mockGetTrialsByShow.mockResolvedValue({
       data: [{ id: 'trial-1', show_id: 'show-1' }],

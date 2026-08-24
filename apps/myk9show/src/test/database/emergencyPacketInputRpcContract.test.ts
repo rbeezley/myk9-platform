@@ -201,7 +201,7 @@ describe('emergency_packet_input contract', () => {
   it('emits the registration number belonging to each entry trial registry', () => {
     expect(sql).toMatch(/FROM public\.dog_registrations dr/);
     expect(sql).toMatch(
-      /public\.emergency_packet_registry_key\(COALESCE\(NULLIF\(t\.registry_id, ''\), 'AKC'\)\)/
+      /public\.emergency_packet_registry_key\(COALESCE\(NULLIF\(btrim\(t\.registry_id\), ''\), 'AKC'\)\)/
     );
     expect(sql).toMatch(/public\.emergency_packet_registry_key\(dr\.organization\) = t\.registry_key/);
     for (const [name, code] of [

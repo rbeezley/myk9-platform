@@ -3,7 +3,14 @@
 -- shows_select and manageable_show_ids() must state the SAME sentence about a
 -- soft-deleted show, in both directions:
 --   site admin  -> sees the deleted show AND its entries
---   non-admin   -> sees neither
+--   non-admin   -> sees neither, VIA THE SHOW-MANAGEMENT ROUTE
+--
+-- That qualifier is load-bearing and was missing from the first draft of this
+-- file. entries_select is manageable_show_ids() OR handler-is-me OR I-own-the-dog.
+-- This migration governs the FIRST arm only. An exhibitor who is the handler or
+-- the dog's owner still reads their own entry row for a soft-deleted show,
+-- because those two arms carry no show-liveness test and this change did not add
+-- one. Asserted explicitly at the bottom of this file rather than left implied.
 --
 -- Before the fix they disagreed and the disagreement lost money: an admin was
 -- handed the ENTRIES of a soft-deleted show (manageable_show_ids() is SECURITY
@@ -31,9 +38,19 @@ VALUES
   ),
   (
     '00000000-0000-0000-0000-000000233011',
-    'Unrelated',
+    'Entrant',
     'Exhibitor',
     '00000000-0000-0000-0000-000000233101'
+  ),
+  -- A THIRD person who owns no dog and handles no entry. The first draft of this
+  -- fixture named 233011 "Unrelated" and then made it the owner AND handler of
+  -- both entries, so the over-opening guard below was impersonating the one
+  -- identity that entries_select grants by another route entirely.
+  (
+    '00000000-0000-0000-0000-000000233012',
+    'Truly Unrelated',
+    'Bystander',
+    '00000000-0000-0000-0000-000000233102'
   );
 
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
@@ -221,7 +238,7 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT set_config(
   'request.jwt.claim.sub',
-  '00000000-0000-0000-0000-000000233101',
+  '00000000-0000-0000-0000-000000233102',
   true
 );
 
@@ -231,6 +248,7 @@ DECLARE
   live_show_id uuid := '00000000-0000-0000-0000-000000233003';
   visible_shows uuid[];
   manageable_deleted bigint;
+  visible_entries bigint;
 BEGIN
   SELECT coalesce(array_agg(s.id ORDER BY s.id), '{}')
     INTO visible_shows
@@ -257,6 +275,62 @@ BEGIN
   IF manageable_deleted <> 0 THEN
     RAISE EXCEPTION
       'FAIL manageable_show_ids() returns a soft-deleted show to a non-admin';
+  END IF;
+
+  -- The assertion the first draft never made. Without it the whole non-admin
+  -- half of this file proved only that shows_select works, and the entries
+  -- claim in the header went unchecked.
+  SELECT count(*)
+    INTO visible_entries
+    FROM public.entries e
+   WHERE e.show_id = deleted_show_id;
+
+  IF visible_entries <> 0 THEN
+    RAISE EXCEPTION
+      'FAIL an unrelated non-admin can read % entries of a soft-deleted show',
+      visible_entries;
+  END IF;
+END;
+$$;
+
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- The entrant: still reads their OWN entry for the soft-deleted show.
+--
+-- This is current behaviour, not desired behaviour, and it is pinned here so the
+-- gap is visible instead of silent. entries_select's handler and dog-owner arms
+-- carry no show-liveness test, so they bypass manageable_show_ids() entirely;
+-- MYK9-233 did not touch them and closing that arm is a separate product
+-- decision about whether an exhibitor keeps sight of their own paid entry after
+-- a club drops the show.
+--
+-- It is not a live exposure today: soft_delete_show() cascades deleted_at down
+-- to entries, and every exhibitor-facing read filters entries.deleted_at. That
+-- makes a CLIENT filter the only thing standing in front of a permission
+-- boundary, which is why this is written down rather than shrugged off.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+SELECT set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000233101',
+  true
+);
+
+DO $$
+DECLARE
+  deleted_show_id uuid := '00000000-0000-0000-0000-000000233002';
+  own_entries bigint;
+BEGIN
+  SELECT count(*)
+    INTO own_entries
+    FROM public.entries e
+   WHERE e.show_id = deleted_show_id;
+
+  IF own_entries <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL expected the entrant to still read their own 1 entry via the handler/owner arm, saw %. If this dropped to 0 the arm was gated - update the header contract and delete this block.',
+      own_entries;
   END IF;
 END;
 $$;

@@ -1,7 +1,19 @@
 -- MYK9-233 — make shows_select and manageable_show_ids() agree about soft-deleted shows.
 --
 -- INTENDED SEMANTICS (product decision, 2026-08-23):
---   A site admin CAN see soft-deleted shows and their entries. Everyone else cannot.
+--   A site admin CAN see soft-deleted shows and their entries. Everyone else cannot
+--   reach them THROUGH THE SHOW-MANAGEMENT ROUTE.
+--
+-- SCOPE, stated precisely because the looser wording was wrong: entries_select is
+--   manageable_show_ids() OR handler-is-me OR I-own-the-dog
+-- and this migration governs the first arm only. The handler and dog-owner arms carry
+-- no show-liveness test, so an exhibitor still reads their OWN entry row for a
+-- soft-deleted show. That is unchanged by this migration and is NOT a regression it
+-- introduces. It is also not currently exploitable: soft_delete_show() cascades
+-- deleted_at to entries and every exhibitor-facing read filters it -- but that leaves a
+-- client-side filter as the only guard on a permission boundary. Whether those arms
+-- should be gated is a separate product decision, tracked separately; the behaviour is
+-- pinned by an explicit assertion in the behavioural test rather than left implied.
 --
 -- Why: money is the forcing case. A soft-deleted show that took online entries still
 -- represents a real platform liability to the club. Before this migration the two rules

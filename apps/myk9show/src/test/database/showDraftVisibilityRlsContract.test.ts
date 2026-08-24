@@ -36,7 +36,7 @@ describe('show draft visibility RLS contract', () => {
     const selectPolicy = sliceBetween(
       migration,
       'create policy shows_select',
-      '-- 2. manageable_show_ids()'
+      '-- manageable_show_ids() is intentionally NOT touched'
     );
 
     expect(selectPolicy).toContain(
@@ -57,7 +57,7 @@ describe('show draft visibility RLS contract', () => {
     const selectPolicy = sliceBetween(
       migration,
       'create policy shows_select',
-      '-- 2. manageable_show_ids()'
+      '-- manageable_show_ids() is intentionally NOT touched'
     );
 
     const adminArm = selectPolicy.indexOf('(select public.is_site_admin())');
@@ -71,27 +71,16 @@ describe('show draft visibility RLS contract', () => {
     expect(adminArm).toBeLessThan(deletedGate);
   });
 
-  it('keeps manageable_show_ids() stating the same soft-delete rule as the policy', () => {
-    const fn = sliceBetween(
-      migration,
-      'create or replace function public.manageable_show_ids()',
-      '$function$;'
-    );
-
-    // SECURITY DEFINER means shows_select never runs against these rows, so the
-    // predicate has to be written out here or it does not exist at all.
-    expect(fn).toContain('security definer');
-    expect(fn).toContain('s.deleted_at IS NULL');
-
-    const adminArm = fn.indexOf('(SELECT public.is_site_admin())');
-    const deletedGate = fn.indexOf('s.deleted_at IS NULL');
-    expect(adminArm).toBeGreaterThanOrEqual(0);
-    expect(adminArm).toBeLessThan(deletedGate);
-
-    // The non-admin arms must sit INSIDE the gate, i.e. after it.
-    expect(fn.indexOf('public.is_club_admin(s.club_id)')).toBeGreaterThan(deletedGate);
-    expect(fn.indexOf('public.is_trial_secretary(s.club_id)')).toBeGreaterThan(deletedGate);
-    expect(fn.indexOf("r.name = 'secretary'")).toBeGreaterThan(deletedGate);
+  // MYK9-233, corrected. An earlier draft asserted the OPPOSITE of this: that the
+  // migration rewrote manageable_show_ids() to gate its non-admin arms on deleted_at.
+  // That was wrong on the merits -- MYK9-126 deliberately keeps entries of draft and
+  // soft-deleted shows visible to club-scoped managers, and pins it with a
+  // can_manage_show() parity test that the rewrite broke. The missing filter was a
+  // decision, not drift. This asserts the function is left alone.
+  it('does not touch manageable_show_ids()', () => {
+    expect(migration).not.toContain('create or replace function public.manageable_show_ids');
+    expect(migration).not.toContain('grant execute on function public.manageable_show_ids');
+    expect(migration).toContain('manageable_show_ids() is intentionally NOT touched');
   });
 
   it('keeps is_show_secretary compatible with club-scoped secretary grants', () => {

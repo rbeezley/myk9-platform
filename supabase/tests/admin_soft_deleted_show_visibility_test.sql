@@ -1,9 +1,9 @@
 -- MYK9-233 behavioral contract.
 --
--- shows_select and manageable_show_ids() must state the SAME sentence about a
--- soft-deleted show, in both directions:
+-- shows_select must let a SITE ADMIN see a soft-deleted show, so the entries that
+-- manageable_show_ids() already returns for them can be attributed to it:
 --   site admin  -> sees the deleted show AND its entries
---   non-admin   -> sees neither, VIA THE SHOW-MANAGEMENT ROUTE
+--   bystander   -> sees neither
 --
 -- That qualifier is load-bearing and was missing from the first draft of this
 -- file. entries_select is manageable_show_ids() OR handler-is-me OR I-own-the-dog.
@@ -12,11 +12,15 @@
 -- because those two arms carry no show-liveness test and this change did not add
 -- one. Asserted explicitly at the bottom of this file rather than left implied.
 --
--- Before the fix they disagreed and the disagreement lost money: an admin was
--- handed the ENTRIES of a soft-deleted show (manageable_show_ids() is SECURITY
--- DEFINER and never restated the filter) while the SHOW row itself was hidden
--- (shows_select ANDed deleted_at OUTSIDE the whole OR group). The payout ledger
--- maps over resolved shows, so that money left the table and both totals.
+-- Before the fix the admin was handed the ENTRIES of a soft-deleted show while the
+-- SHOW row itself was hidden (shows_select ANDed deleted_at OUTSIDE the whole OR
+-- group). The payout ledger maps over resolved shows, so that money left the table
+-- and both totals.
+--
+-- manageable_show_ids() returning those entries is CORRECT and deliberate -- MYK9-126
+-- keeps draft and soft-deleted shows visible to club-scoped managers on purpose. An
+-- earlier draft of this fix gated that function too and broke MYK9-126's parity
+-- contract. The show row was the only thing missing.
 --
 -- The live show in the same fixture is the guard against over-opening: this must
 -- not become "admins see everything, nobody else sees anything".
@@ -284,9 +288,12 @@ BEGIN
     FROM public.manageable_show_ids() AS m
    WHERE m = deleted_show_id;
 
+  -- This bystander holds no club, trial or show role, so manageable_show_ids()
+  -- returns nothing for them by every arm. It is NOT asserting that the function
+  -- filters deleted_at -- it deliberately does not; see the header.
   IF manageable_deleted <> 0 THEN
     RAISE EXCEPTION
-      'FAIL manageable_show_ids() returns a soft-deleted show to a non-admin';
+      'FAIL manageable_show_ids() returns a soft-deleted show to a roleless bystander';
   END IF;
 
   -- The assertion the first draft never made. Without it the whole non-admin

@@ -30,9 +30,22 @@
 -- maps over the shows it resolved, not over the entries it read, so every unresolvable show's
 -- collected/refunded/net cents silently left both the table and the summary totals.
 --
--- After this migration the two rules state the SAME sentence, in both directions:
+-- THE FIX IS ONE POLICY, NOT TWO RULES. An earlier draft also rewrote
+-- manageable_show_ids() to gate its non-admin arms on deleted_at, on the theory that a
+-- SECURITY DEFINER function must restate what its calling policy applies. That was wrong
+-- here, and entries_manager_policy_hashable_test.sql caught it: MYK9-126 deliberately
+-- made entries of DRAFT and SOFT-DELETED shows stay visible to club-scoped managers even
+-- though shows_select hides those show rows, and it pins that with a can_manage_show()
+-- parity assertion. The missing filter was a documented decision, not drift.
+--
+-- So manageable_show_ids() is left exactly as it was. The asymmetry that lost money was
+-- never that managers could read those ENTRIES -- it was that nobody could read the SHOW
+-- row to attribute them to. Making the show row visible to a site admin is the whole fix.
+--
+-- After this migration:
 --   * site admin  -> deleted and live shows, and their entries
---   * anyone else -> live shows only, and only their entries
+--   * anyone else -> live shows only (unchanged), with MYK9-126's definer-only entry
+--     edges for club-scoped managers left intact (unchanged)
 --
 -- Verified reachable-but-not-firing before the change: 0 soft-deleted shows on staging.
 
@@ -57,48 +70,9 @@ create policy shows_select
     )
   );
 
--- 2. manageable_show_ids(): restate the filter the calling policy applies.
---    SECURITY DEFINER means shows_select never runs against these rows, so the predicate
---    has to be written out here or it does not exist. Site admin bypasses; every other
---    arm is gated, which is what makes this function agree with the policy above.
-create or replace function public.manageable_show_ids()
- returns setof uuid
- language sql
- stable
- security definer
- set search_path to ''
-as $function$
-  SELECT s.id
-  FROM public.shows s
-  WHERE (SELECT public.is_site_admin())
-     OR (
-       s.deleted_at IS NULL
-       AND (
-            (SELECT public.is_club_admin(s.club_id))
-         OR (SELECT public.is_trial_secretary(s.club_id))
-         OR EXISTS (
-              SELECT 1
-              FROM public.user_roles ur
-              JOIN public.roles r ON r.id = ur.role_id
-              WHERE ur.auth_user_id = auth.uid()
-                AND r.name = 'secretary'
-                AND ur.show_id = s.id
-                AND ur.is_active = true
-                AND (ur.expires_at IS NULL OR ur.expires_at > now())
-            )
-       )
-     );
-$function$;
-
--- Restate the function's EXECUTE decision explicitly. CREATE OR REPLACE preserves
--- the existing ACL, so these change nothing at runtime -- they exist because a
--- silent inheritance is exactly how an unintended grant survives review, and the
--- migration grant-decision contract requires every public function to state one.
--- Matches the applied ACL verified before this migration:
---   anon = no EXECUTE, authenticated = EXECUTE, service_role = EXECUTE.
-revoke all on function public.manageable_show_ids() from public;
-revoke all on function public.manageable_show_ids() from anon;
-grant execute on function public.manageable_show_ids() to authenticated;
-grant execute on function public.manageable_show_ids() to service_role;
+-- manageable_show_ids() is intentionally NOT touched here. See the header: gating it
+-- would revert MYK9-126's definer-only edges and break its can_manage_show() parity
+-- contract. Its ACL is likewise unchanged, so this migration states no grant decision
+-- for it.
 
 commit;

@@ -16,11 +16,11 @@
 
 ## 4. Ship and evidence
 
-- [ ] 4.1 Update `docs/plan-linear-backlog-batches.md` with the completed lane evidence, then commit and push the single MYK9-236 branch.
-- [ ] 4.2 With shared-system approval, open one PR containing `Tracked in openspec change: myk9-236-service-role-grant-contract`, monitor required CI, and resolve actionable failures.
-- [ ] 4.3 With shared-system approval and green CI/review, merge from the primary checkout; sync main and record the PR/merge evidence.
-- [ ] 4.4 With shared-system approval, apply the migration, deploy the changed health runner if required, read back live `service_role` ACL facts, and record whether a site-admin full “Run now” remains an operator evidence gate.
-- [ ] 4.5 Update MYK9-236 with implementation, checks, PR/merge, live evidence, risks, and acceptance-criteria status; move it to Done only when its evidence gate passes.
+- [x] 4.1 Update `docs/plan-linear-backlog-batches.md` with the completed lane evidence, then commit and push the single MYK9-236 branch. — Completed on the implementation branch and finalized on `main` with the deployed evidence.
+- [x] 4.2 With shared-system approval, open one PR containing `Tracked in openspec change: myk9-236-service-role-grant-contract`, monitor required CI, and resolve actionable failures. — PR #1779 passed every required check, including behavioural SQL, and the Codex review gate returned no findings.
+- [x] 4.3 With shared-system approval and green CI/review, merge from the primary checkout; sync main and record the PR/merge evidence. — Squash-merged as `3bcc031bcdda92f96e522d1359d9944f9a8cdc5e`; primary `main` was synced and the evidence was recorded.
+- [x] 4.4 With shared-system approval, apply the migration, deploy the changed health runner if required, read back live `service_role` ACL facts, and record whether a site-admin full “Run now” remains an operator evidence gate. — Migration `20260824210000` was applied and `cron-health-check` v31 deployed. Live read-back returned 130 rows with zero drift, the expected full `sms_proximity_sends` grant, the `entry_status_history` no-`INSERT` exception, and service-role-only boolean probe execution; no additional operator gate remained.
+- [x] 4.5 Update MYK9-236 with implementation, checks, PR/merge, live evidence, risks, and acceptance-criteria status; move it to Done only when its evidence gate passes. — Linear MYK9-236 is Done with completion comment `859a1952-8773-42a7-8b80-f6e7c2f0690e` and the full acceptance evidence.
 - [ ] 4.6 Archive the OpenSpec change after merge and required evidence, then sync main, prune refs, delete the feature branch, and remove the worktree as the final cleanup command.
 
 ## Validation Profile

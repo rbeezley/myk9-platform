@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0, 1, 2 and **3 are complete** except MYK9-204, which is operator-blocked on Richard's desktop checkout proof. Batch 3 closed on 2026-08-23: eight issues Done, MYK9-195 and MYK9-190 parked with triggers recorded, three follow-ups filed (MYK9-237/238/239). SMS is deferred until after launch by product-owner decision. **Batch 3.5 is under way:** MYK9-233 is **Done and deployed** (merged `a62df8703`, migration applied to `sojmvhhwsjxmfistvzbe` and verified against the live policy). Next in Lane 3.5A: MYK9-236. See "[BUILT 2026-08-24] MYK9-233" under Lane 3.5A. Ten issues filed after the 2026-08-21 snapshot plus three never-inventoried In Progress issues; see "[ADDED 2026-08-23] The backlog moved while Batch 3 ran". Then Batch 4 (closure proofs) and Batch 5. See **"[CLOSED 2026-08-23] Batch 3 is complete"** under Batch 3.
+> **Status:** Active — Batches 0–3 complete except MYK9-204 (operator-blocked on Richard). **Batch 3.5 in progress:** MYK9-233 Done and deployed 2026-08-24; MYK9-236 is next. **Read "[HANDOFF 2026-08-24]" under Batch 3.5 before starting anything** — it records what is already claimed by another agent, three issues filed after the last registry refresh, and the verification traps this batch has already hit. Then Batch 4 (closure proofs) and Batch 5.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -64,6 +64,9 @@ PRIMARY:MYK9-13=operator-track-5
 PRIMARY:MYK9-27=deferred-after-batch-3
 PRIMARY:MYK9-28=deferred-post-live-shows
 PRIMARY:MYK9-233=completed-deployed-3.5-lane-a
+PRIMARY:MYK9-243=in-progress-other-agent-do-not-claim
+PRIMARY:MYK9-244=unbatched-filed-after-refresh
+PRIMARY:MYK9-245=unbatched-filed-after-refresh
 PRIMARY:MYK9-236=batch-3.5-lane-a
 PRIMARY:MYK9-235=batch-3.5-lane-b
 PRIMARY:MYK9-234=batch-3.5-lane-b
@@ -78,15 +81,15 @@ PRIMARY:MYK9-109=operator-gated-load-harness-dispatch
 PRIMARY:MYK9-198=narrowed-two-items-open
 -->
 
-**Inventory check:** verify both the 67-ID source inventory and the primary registry mechanically after any edit:
+**Inventory check:** verify both the 70-ID source inventory and the primary registry mechanically after any edit:
 
 ```bash
 plan=docs/plan-linear-backlog-batches.md
-for id in 211 163 57 54 225 226 227 228 229 230 231 232 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28 233 236 235 234 237 238 239 240 241 242 88 109 198; do
+for id in 211 163 57 54 225 226 227 228 229 230 231 232 224 161 26 199 195 126 110 222 218 221 220 219 212 217 216 215 209 204 11 192 197 191 187 190 185 193 186 189 44 188 184 183 31 6 30 96 32 72 94 13 27 28 233 236 235 234 237 238 239 240 241 242 88 109 198 243 244 245; do
   count=$(grep -c "^PRIMARY:MYK9-${id}=" "$plan")
   test "$count" -eq 1 || echo "PRIMARY COUNT ${count}: MYK9-${id}"
 done
-test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 67 || echo "PRIMARY REGISTRY IS NOT 67 ROWS"
+test "$(grep -c '^PRIMARY:MYK9-[0-9].*=' "$plan")" -eq 70 || echo "PRIMARY REGISTRY IS NOT 70 ROWS"
 ```
 
 **Sources reviewed:** full `get_issue` descriptions and reopen comments for every code-actionable issue (per the LESSONS rule that `list_issues` truncates acceptance criteria). Snapshot refreshed 2026-08-21 after MYK9-226–232 were added; the 2026-08-20 overnight audits reopened six previously-Done issues, which reshapes the priority order below. **Refreshed again 2026-08-23** — see "[ADDED 2026-08-23] The backlog moved while Batch 3 ran"; thirteen IDs joined the registry (MYK9-233–242 plus the three long-running In Progress issues MYK9-88 / 109 / 198, which were never inventoried and were silently outside every batch).
@@ -426,6 +429,27 @@ The `/impeccable-page` sweep is now a **standing generator of filed work**, and 
 | Reports | 2026-08-23 | [#1771](https://github.com/rbeezley/myk9-platform/pull/1771) — blockers + majors | [MYK9-240](https://linear.app/myk9-platform/issue/MYK9-240), [MYK9-241](https://linear.app/myk9-platform/issue/MYK9-241), [MYK9-242](https://linear.app/myk9-platform/issue/MYK9-242) |
 
 Expect roughly three or four filed issues per sweep. **Plan capacity for that** — a batch that consumes the backlog without accounting for what the sweeps add will not converge. The deferrals are correct behaviour, not debt from sloppiness: they are the "one concern, one PR" rule working.
+
+### [HANDOFF 2026-08-24] Start here
+
+Written for an agent picking this up cold. Four things that are not obvious from the lane list below.
+
+**1. Something else is already working MYK9-243. Do not claim it.**
+[MYK9-243](https://linear.app/myk9-platform/issue/MYK9-243) — *NCR-2026-08-24-01, emergency packet can print wrong armbands* — moved to In Progress at 14:55 UTC on 2026-08-24, mid-session, by another agent. It is High and it is a show-day paper-trust defect (`emergency_packet_input()` lets a stale `entries.armband` beat the canonical `armbands.armband_number`, and coerces suffixed values like `12A` to `#0`). Its own contract test asserts the faulty precedence, so that test is a false-negative guard and must be inverted as part of the fix. **Check its state before touching it** — two agents on one migration is the worst case here.
+
+**2. Three issues sit outside every lane below.** Filed after the last registry refresh: MYK9-243 (claimed, above), [MYK9-244](https://linear.app/myk9-platform/issue/MYK9-244) (WebKit intermittently aborts the clubs replication fetch on `/admin/dashboard`, Medium), [MYK9-245](https://linear.app/myk9-platform/issue/MYK9-245) (a dropped show hides the exhibitor's entry but keeps their Stripe charge, High). Registry is now 70 rows, not 67.
+
+MYK9-245 carries a **do-not-do** instruction that will look wrong to a fresh reader: it argues *against* gating `entries_select`'s handler/owner arms. Those arms are the only route by which an exhibitor could ever be shown their own dropped-show entry. Read it before "hardening" anything there.
+
+**3. Lane 3.5A is half done.** MYK9-233 shipped and deployed. Remaining: [MYK9-236](https://linear.app/myk9-platform/issue/MYK9-236). Lanes 3.5B, 3.5C and 3.5D are untouched.
+
+**4. Verification traps this batch has already hit.** All three cost a red CI run or a wrong claim:
+
+- **Behavioural SQL tests have never executed locally** — there is no container runtime on this machine, so CI is always their first real run. The allowlist-registration check proves a test is *on the list*, not that it passes. MYK9-233's test failed twice on its first actual execution after being reported as verified.
+- **A missing row-level filter in a `SECURITY DEFINER` function may be deliberate.** `manageable_show_ids()` omits `deleted_at` because MYK9-126 wants it that way, pinned by a `can_manage_show()` parity assertion. Restating the predicate silently reverted that decision and nothing local caught it — typecheck, lint, 17k tests, three mutation checks and a full Codex review all passed. Now recorded in CLAUDE.md LESSONS (#1777).
+- **Merging applies nothing.** MYK9-233 needed an explicit `supabase db push` after merge, then a live policy read-back to confirm it took.
+
+**Two open PRs are not from this batch** and no judgment has been made on either: [#1776](https://github.com/rbeezley/myk9-platform/pull/1776) (support inbox retry test) and [#1772](https://github.com/rbeezley/myk9-platform/pull/1772) (dependency bump, 16 updates).
 
 ### Batch 3.5 lanes
 

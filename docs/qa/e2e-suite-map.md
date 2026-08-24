@@ -90,6 +90,35 @@ pnpm test:e2e:clean \
 
 The spec covers public, exhibitor, secretary, judge, club-admin, and admin route groups with live seeded show `dededede-0000-0000-0000-000000000010` (`QA_SECRETARY_SHOW_ID` override supported). Per route it checks: render-not-blank, console errors (budget 0, minus documented noise), replication errors (QA-CONSOLE-ERROR-011 regression guard), owned 4xx/5xx, and 375px horizontal overflow on marked routes (`/` and `/admin/dashboard`). Log durable issues in `docs/qa/findings.md`.
 
+#### Cross-browser sweep (advisory)
+
+`.github/workflows/nightly-health.yml` runs the same spec a second time on WebKit after the chromium
+gate, via `MYK9_NIGHTLY_HEALTH_PROJECTS`:
+
+```bash
+cd apps/myk9show
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:5399 pnpm test:e2e:clean \
+  src/test/e2e/route-health-by-role.spec.ts \
+  --project=webkit --project=mobile-safari --workers=1 --timeout=120000 --retries=0
+```
+
+Every automated Playwright run in this repo installed chromium only until 2026-08-23, so four of the five
+projects in `playwright.config.ts` had never executed — including the configuration most exhibitors are
+on at a show. `mobile-safari` (`devices['iPhone 13']`) was added for that case; WebKit is where IndexedDB,
+service workers, and storage eviction diverge most from Chromium, and offline-first depends on all three.
+
+The job is **advisory** (`continue-on-error: true`) for its first scheduled runs. A local dry run against
+staging on 2026-08-23 was clean — all six role groups passed on both WebKit projects — so no backlog of
+pre-existing divergences is expected. Promote it to a real gate by dropping that key once a few scheduled
+runs are green; the contract test in `scripts/qa/nightly-health-workflow.test.ts` pins the current shape,
+so promotion is a deliberate edit in two places, not drift.
+
+Note when running this by hand: set `PLAYWRIGHT_BASE_URL`, not `PLAYWRIGHT_PORT`. `PLAYWRIGHT_PORT` moves
+the dev server but leaves `baseURL` on 5173, so every route fails with "Could not connect to the server."
+
+The dormant `src/test/e2e/cross-browser/*.spec.ts` family is a separate, older attempt at this and stays
+out of the active suite; it is not a prerequisite for the sweep above.
+
 ### Feature Audit
 
 ```bash

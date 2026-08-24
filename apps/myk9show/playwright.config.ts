@@ -62,6 +62,14 @@ export default defineConfig({
       name: 'mobile-chrome',
       use: { ...devices['Pixel 5'] },
     },
+    // iOS Safari — the configuration most myK9Show users are actually on at a
+    // show, and the one where IndexedDB, service workers and storage eviction
+    // diverge most from Chromium. Offline-first depends on all three, so a
+    // regression here is invisible to every chromium-only run.
+    {
+      name: 'mobile-safari',
+      use: { ...devices['iPhone 13'] },
+    },
     {
       name: 'tablet',
       use: {

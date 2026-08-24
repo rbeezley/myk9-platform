@@ -1,6 +1,7 @@
 # Plan: Test Account Migration — `test.myk9.com` → `myk9t.com`
 
-> **Status:** Active — Phases 1–3 completed 2026-08-24; Phase 4 remains
+> **Status:** Active — Phases 1–3 and automated Phase 4 verification completed 2026-08-24;
+> human confirmation that the delivered message opens in the real mailbox remains
 
 Move every fixture account off `test.myk9.com`, which is undeliverable, onto `myk9t.com`, where
 real mailboxes exist. Prune the accumulated junk in `auth.users` at the same time.
@@ -171,19 +172,32 @@ club admin, chairman, and exhibitor 2. The standalone `steward@` auth row remain
 tracked E2E code deliberately runs steward journeys through the secretary account and defines no
 separate steward credential variable.
 
-### Phase 4 — testing
+### Phase 4 — testing (automated verification completed 2026-08-24)
 
-- `pnpm test` full suite, and the two DB contract tests specifically
-- `pnpm typecheck`, `pnpm lint`
-- Verify grants against the applied database, not the migration text —
-  `select unnest(relacl)::text from pg_class …` and the per-account role query
-- Sign in as each of the eight accounts
-- Re-run the MYK9-228 packet send and confirm arrival in a real inbox — the acceptance criterion
-  that has never been provable
+- The two DB fixture contracts and their adjacent setup/reset tests passed: 4 files, 61 tests.
+  The full Vitest suite produced no test progress for 60 seconds (only a stylesheet parse warning)
+  and was stopped under the repository's documented hang policy.
+- `pnpm typecheck` passed all 26 Turbo tasks. `pnpm lint` passed all 14 configured tasks.
+- Applied-database ACLs were read from `pg_class.relacl` for `people`, `roles`, and `user_roles`.
+  Live role readback confirmed the eight expected role sets, including judge-only and
+  club-admin-only, and confirmed zero `@test.myk9.com` Auth users.
+- Real password authentication succeeded for all eight accounts. The seven tracked fixtures used
+  their canonical stored credentials. The standalone steward received a random one-time password
+  for the proof; it was neither printed nor stored, and its real mailbox remains its recovery path.
+- The existing 39-page MYK9-228 artifact was re-delivered as manual snapshot
+  `c57983f1-896e-4c1c-b4f7-456d1c2160b2` to the three current show officials. The immutable
+  snapshot audit recorded `sent`, and the per-recipient webhooks subsequently recorded
+  `delivered` for `secretary@myk9t.com`, `beezley@cox.net`, and
+  `richardbeezley1@gmail.com` with no errors.
+
+Provider delivery is now proven for the real `myk9t.com` address. The final human gate is to open
+the message in the `secretary@myk9t.com` mailbox and confirm the packet link is present; provider
+webhooks cannot prove what the inbox UI displays.
 
 ## Acceptance
 
 - Eight sign-in accounts, all on `myk9t.com`, all able to sign in
 - Zero `@test.myk9.com` addresses in `auth.users`
 - The judge-only and club-admin-only invariants still hold, asserted by the contract tests
-- A packet send lands in a mailbox that can be opened
+- A packet send is provider-confirmed delivered to a real mailbox; human inbox-open confirmation
+  remains

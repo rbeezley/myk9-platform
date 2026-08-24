@@ -186,6 +186,36 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### NCR-2026-08-24-01
+
+- **Status:** open
+- **Lifecycle status:** new
+- **Classification:** Confirmed show-day data-integrity defect
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source label:** High
+- **Source:** codex
+- **Role/workflow:** secretary and judge / emergency or offline trial packet generation and paper score recording
+- **Surface:** `supabase/migrations/20260821220000_emergency_packet_input_rpc.sql:109-134`; shared packet renderer
+- **Suite category:** security/show-day
+- **Pattern:** stale-derived-state
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-24
+- **Last seen:** 2026-08-24
+- **Consecutive-run count:** 1
+- **Baseline SHA:** `c01e08d7707dd6673d33a8d0e20b16ce5235482a`
+- **Evidence:** Commit `e557cfcea519e1199b33b0159ed6eea5cd7d122e` / PR #1738 introduced the RPC. Its comments say `armbands` is authoritative because `entries.armband` is a denormalized copy that may lag, but lines 123-126 use `COALESCE(NULLIF(btrim(e.armband), ''), ab.armband_number::text)`, so any stale non-empty entry value wins over the canonical table. The same denormalized-first expression is used for the fallback call name at lines 130-132. The `ELSE 0` branch converts acknowledged real suffixed values such as `12A` into numeric armband `0`. The renderer requires `armband: number` (`supabase/functions/_shared/trialPacket/renderer/types.ts:11`), sorts by armband when run order ties (`supabase/functions/_shared/trialPacket/renderer/emergencyTrialPacket.ts:53-56`), and prints it on packet rows (`buildEmergencyTrialPacketPdf.ts:321-361`). The contract test at `apps/myk9show/src/test/database/emergencyPacketInputRpcContract.test.ts:117-127` asserts the faulty precedence and is therefore a false-negative guard.
+- **Expected behavior:** Packet JSON and rendered paper use the current canonical armband for each show/dog, and suffixed/non-numeric values are preserved or handled by an explicit product-safe representation; no valid value silently becomes `#0`.
+- **Observed behavior:** A stale non-empty `entries.armband` overrides `armbands.armband_number`; a value such as `12A` falls through to integer `0`, then prints and sorts as `#0`.
+- **User impact:** Emergency paperwork can misidentify a dog or misorder the running sheet. The secretary or judge must manually correct the packet, and a score recorded against the wrong printed identity risks transcription error during the show-day fallback workflow.
+- **Intent check:** Harms the secretary/judge expectation that emergency paper is calm, trustworthy, and safe when the app or laptop path is unavailable.
+- **Confidence:** high for the `12A` → `0` path; high for stale-entry precedence given the schema and authoritative-read comments.
+- **Fix owner:** emergency packet input RPC and shared packet renderer/type contract.
+- **Existing references:** Linear search with `includeArchived: true` found no exact duplicate. Related work is MYK9-228 (packet cron generation) and MYK9-198 (out-of-band packet PDF); neither tracks armband identity correctness.
+- **Linear issue:** MYK9-243 — https://linear.app/myk9-platform/issue/MYK9-243/ncr-2026-08-24-01-emergency-packet-can-print-wrong-armbands
+- **Proof required:** Applied SQL fixture or deployed RPC replay covering stale non-empty entry values, missing values, numeric values, and suffixed values; inspect packet JSON and rendered PDF/text for identity and order; add regression tests proving corrected precedence and suffixed-value behavior; rerun the focused database and renderer suites. Do not close from source changes alone.
+- **Notes:** The current focused contract suite passes `3` files / `47` tests, but its armband assertion encodes the incorrect denormalized-first order. No later commit through `339d0e2701ded7ba7323c3f20ebf7f0067f3273d` fixes this finding.
+
 ### NCR-2026-08-17-01
 
 - **Status:** fixed (2026-08-18 — commit `11716dd3a` / PR #1647)

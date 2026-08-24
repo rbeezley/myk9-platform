@@ -183,8 +183,19 @@ export function layoutDetailLines(
  * `MAX_DETAIL_LINES` ceiling the row-count arithmetic depends on.
  */
 function formatArmbandRange(entries: readonly EmergencyPacketEntry[]): string | undefined {
-  if (entries.length === 0) return undefined;
-  const armbands = entries.map(entryItem => entryItem.armband);
+  // Only ASSIGNED armbands can identify a page. Both producers collapse an
+  // unassigned or suffixed armband ("12A") to 0 -- the RPC's `ELSE 0` and the
+  // browser mapper's `?? 0` -- and the row for such a dog prints an em dash
+  // via `formatPacketArmband`. Feeding those sentinels to Math.min/Math.max
+  // would print "Armbands 0-112" (or NaN, which poisons both ends), labelling
+  // the sheet with a number no dog wears. Drop them: a page of nothing but
+  // unassigned dogs gets no range line at all, which is honest -- it cannot be
+  // identified by armband -- rather than a confident falsehood on paper a
+  // judge keeps for a year.
+  const armbands = entries
+    .map(entryItem => entryItem.armband)
+    .filter(armband => Number.isFinite(armband) && armband !== 0);
+  if (armbands.length === 0) return undefined;
   const min = Math.min(...armbands);
   const max = Math.max(...armbands);
   return min === max ? `Armband ${min}` : `Armbands ${min}–${max}`;

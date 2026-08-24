@@ -789,6 +789,71 @@ describe('scoresheet per-dog block', () => {
   });
 
   /**
+   * Codex review of PR #1773: both producers collapse an unassigned or
+   * suffixed armband to the sentinel 0 -- the RPC's `ELSE 0` for anything
+   * failing `^[0-9]{1,9}$`, and `mapDbEntryToReportEntry`'s `?? 0`. The ROW
+   * for such a dog correctly prints an em dash, so a raw Math.min over the
+   * page put a number on the header that no dog on it wears.
+   */
+  function capturedTextsForEntries(entries: ReportEntry[]): string[] {
+    const input: EmergencyPacketInput = structuredClone(fixture) as EmergencyPacketInput;
+    input.trials = [input.trials[0]];
+    input.classes = [input.classes[0]];
+    input.entries = entries;
+    const model = buildEmergencyPacketModel(input);
+    const scorePage = model.pages.find(page => page.kind === 'score-recording');
+    if (!scorePage) throw new Error('expected a score-recording page');
+
+    const captured: string[] = [];
+    const RecordingJsPdf = function (options: ConstructorParameters<typeof jsPDF>[0]) {
+      const real = new jsPDF(options);
+      const originalText = real.text.bind(real);
+      (real as unknown as { text: typeof real.text }).text = ((
+        text: Parameters<typeof real.text>[0],
+        x: Parameters<typeof real.text>[1],
+        y: Parameters<typeof real.text>[2],
+        opts?: Parameters<typeof real.text>[3]
+      ) => {
+        for (const value of Array.isArray(text) ? text : [text]) captured.push(value);
+        return originalText(text, x, y, opts);
+      }) as typeof real.text;
+      return real;
+    } as unknown as JsPdfConstructor;
+
+    buildEmergencyTrialPacketPdfWithCtor(
+      { ...model, pages: [{ ...scorePage, pageNumber: 1 }] },
+      RecordingJsPdf
+    );
+    return captured;
+  }
+
+  it('excludes unassigned armbands from the page range', () => {
+    const texts = capturedTextsForEntries([
+      reportEntry('unassigned', 'c1', 't1', 0),
+      reportEntry('low', 'c1', 't1', 104),
+      reportEntry('high', 'c1', 't1', 112),
+    ]);
+
+    expect(texts.some(text => text.includes('Armbands 104\u2013112'))).toBe(true);
+    // The sentinel must never reach the header: "Armbands 0-112" labels the
+    // sheet with a number no dog on it wears.
+    expect(texts.some(text => text.includes('Armbands 0'))).toBe(false);
+    // ...while the ROW for that dog still shows it is unassigned.
+    expect(texts.some(text => text.includes('#\u2014'))).toBe(true);
+  });
+
+  it('omits the range entirely when no armband on the page is assigned', () => {
+    const texts = capturedTextsForEntries([
+      reportEntry('a', 'c1', 't1', 0),
+      reportEntry('b', 'c1', 't1', 0),
+    ]);
+
+    // Not identifiable by armband, so it claims nothing -- rather than
+    // printing "Armband 0" on paper a judge retains for a year.
+    expect(texts.some(text => text.includes('Armband'))).toBe(false);
+  });
+
+  /**
    * Round-1 finding #1 (task-5 review): the previous continuation-page test
    * asserted the `(2/3)` title suffix and the class label, but never the
    * armband range the spec actually requires for identifying a separated

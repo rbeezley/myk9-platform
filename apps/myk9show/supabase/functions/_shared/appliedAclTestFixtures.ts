@@ -1,7 +1,11 @@
-import { AUTHENTICATED_TABLE_GRANTS } from './appliedAclChecks';
+import { AUTHENTICATED_TABLE_GRANTS, SERVICE_ROLE_TABLE_GRANTS } from './appliedAclChecks';
 
 export const appliedAclFacts = (over: Record<string, unknown> = {}) => ({
   tables: Object.entries(AUTHENTICATED_TABLE_GRANTS).map(([name, privs]) => ({ name, privs })),
+  service_role_tables: Object.entries(SERVICE_ROLE_TABLE_GRANTS).map(([name, privs]) => ({
+    name,
+    privs,
+  })),
   // Annotated so a test can push a drift row in; a bare `[]` infers `never[]`.
   forbidden_tables: [] as Array<{ name: string; role: string; privs: string }>,
   sequences: [

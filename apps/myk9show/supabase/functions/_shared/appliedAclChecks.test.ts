@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { AUTHENTICATED_TABLE_GRANTS, appliedAclCheck } from './appliedAclChecks';
+import {
+  AUTHENTICATED_TABLE_GRANTS,
+  SERVICE_ROLE_TABLE_GRANTS,
+  appliedAclCheck,
+} from './appliedAclChecks';
 import { appliedAclFacts } from './appliedAclTestFixtures';
 
 const sql = readFileSync(
@@ -10,13 +14,19 @@ const sql = readFileSync(
 );
 
 /** Section A's `expected(tbl, authenticated, anon, service_role)` VALUES list. */
-const sqlGrants = Object.fromEntries(
-  [
-    ...sql
-      .split('WITH expected(tbl, authenticated, anon, service_role) AS (VALUES')[1]
-      .split('\n  )')[0]
-      .matchAll(/^\s*\('([a-z_]+)','([^']*)','([^']*)','([^']*)'\),?\s*$/gm),
-  ].map(m => [m[1], m[2]])
+const sqlGrantRows = [
+  ...sql
+    .split('WITH expected(tbl, authenticated, anon, service_role) AS (VALUES')[1]
+    .split('\n  )')[0]
+    .matchAll(/^\s*\('([a-z_]+)','([^']*)','([^']*)','([^']*)'\),?\s*$/gm),
+];
+
+const sqlAuthenticatedGrants = Object.fromEntries(
+  sqlGrantRows.map(m => [m[1], m[2]])
+);
+
+const sqlServiceRoleGrants = Object.fromEntries(
+  sqlGrantRows.map(m => [m[1], m[4]])
 );
 
 const PROBED_AT = '2026-08-04T12:00:00.000Z';
@@ -31,7 +41,8 @@ describe('appliedAclCheck — authenticated and sequence ACL drift', () => {
     // identical edit on both sides, which git merges CLEANLY and silently,
     // leaving main asserting 128 against a 129-entry map.
     expect(check.detail).toContain(
-      `${Object.keys(sqlGrants).length} authenticated table grants`
+      `${Object.keys(sqlAuthenticatedGrants).length} authenticated and ` +
+        `${Object.keys(sqlServiceRoleGrants).length} service_role table grants`
     );
     expect(check.detail).toContain('4 public sequences');
   });
@@ -67,6 +78,44 @@ describe('appliedAclCheck — authenticated and sequence ACL drift', () => {
 
     expect(check.status).toBe('fail');
     expect(check.detail).toContain('authenticated holds TRUNCATE on entries');
+  });
+
+  it('fails when sms_proximity_sends service_role privileges drift from the hosted contract', () => {
+    const facts = appliedAclFacts();
+    facts.service_role_tables = facts.service_role_tables.map(row =>
+      row.name === 'sms_proximity_sends' ? { ...row, privs: 'SELECT,INSERT,DELETE' } : row
+    );
+
+    const check = appliedAclCheck(facts, PROBED_AT);
+
+    expect(check.status).toBe('fail');
+    expect(check.detail).toContain(
+      "sms_proximity_sends has 'SELECT,INSERT,DELETE', expected 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'"
+    );
+  });
+
+  it('fails when a service_role table grant is missing, unexpected, duplicated, or malformed', () => {
+    const missing = appliedAclFacts();
+    missing.service_role_tables = missing.service_role_tables.filter(row => row.name !== 'shows');
+    expect(appliedAclCheck(missing, PROBED_AT).detail).toContain(
+      'missing service_role table grant shows'
+    );
+
+    const unexpected = appliedAclFacts();
+    unexpected.service_role_tables.push({ name: 'uncontracted_table', privs: 'SELECT' });
+    expect(appliedAclCheck(unexpected, PROBED_AT).detail).toContain(
+      'uncontracted_table (SELECT) is not in the service_role table contract'
+    );
+
+    const duplicate = appliedAclFacts();
+    duplicate.service_role_tables.push(duplicate.service_role_tables[0]);
+    expect(appliedAclCheck(duplicate, PROBED_AT).detail).toContain(
+      `duplicate service_role table grant ${duplicate.service_role_tables[0].name}`
+    );
+
+    expect(
+      appliedAclCheck({ ...appliedAclFacts(), service_role_tables: [null] }, PROBED_AT).detail
+    ).toContain('malformed service_role table grant fact');
   });
 
   it('fails when a sequence ACL drifts from the codified set', () => {
@@ -129,18 +178,45 @@ describe('AUTHENTICATED_TABLE_GRANTS agrees with the SQL contract', () => {
   it('parses the SQL contract at all (guards the split/regex against a reformat)', () => {
     // A silently-empty parse would make every assertion below vacuous — the
     // very failure mode this block exists to prevent.
-    expect(Object.keys(sqlGrants).length).toBeGreaterThan(100);
+    expect(Object.keys(sqlAuthenticatedGrants).length).toBeGreaterThan(100);
   });
 
   it('covers exactly the same tables', () => {
-    expect(Object.keys(AUTHENTICATED_TABLE_GRANTS).sort()).toEqual(Object.keys(sqlGrants).sort());
+    expect(Object.keys(AUTHENTICATED_TABLE_GRANTS).sort()).toEqual(
+      Object.keys(sqlAuthenticatedGrants).sort()
+    );
   });
 
   it('agrees on the authenticated privileges for every table', () => {
-    const disagreements = Object.entries(sqlGrants)
+    const disagreements = Object.entries(sqlAuthenticatedGrants)
       .filter(([table, privs]) => AUTHENTICATED_TABLE_GRANTS[table] !== privs)
       .map(([table, privs]) => `${table}: SQL='${privs}' TS='${AUTHENTICATED_TABLE_GRANTS[table]}'`);
 
     expect(disagreements).toEqual([]);
+  });
+});
+
+describe('SERVICE_ROLE_TABLE_GRANTS agrees with the deployed SQL contract', () => {
+  it('covers exactly the same tables and privileges', () => {
+    expect(Object.keys(SERVICE_ROLE_TABLE_GRANTS).sort()).toEqual(
+      Object.keys(sqlServiceRoleGrants).sort()
+    );
+    expect(
+      Object.entries(sqlServiceRoleGrants)
+        .filter(([table, privs]) => SERVICE_ROLE_TABLE_GRANTS[table] !== privs)
+        .map(
+          ([table, privs]) =>
+            `${table}: SQL='${privs}' TS='${SERVICE_ROLE_TABLE_GRANTS[table]}'`
+        )
+    ).toEqual([]);
+  });
+
+  it('records the hosted default on sms_proximity_sends and the deliberate entry-history exception', () => {
+    expect(SERVICE_ROLE_TABLE_GRANTS.sms_proximity_sends).toBe(
+      'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'
+    );
+    expect(SERVICE_ROLE_TABLE_GRANTS.entry_status_history).toBe(
+      'SELECT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'
+    );
   });
 });

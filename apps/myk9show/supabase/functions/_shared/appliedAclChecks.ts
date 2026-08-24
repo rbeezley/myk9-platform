@@ -149,6 +149,25 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   waitlist_notification_events: '',
 };
 
+const HOSTED_SERVICE_ROLE_TABLE_GRANTS =
+  'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN';
+
+/**
+ * MYK9-236 — the applied hosted-table contract for Supabase's trusted role.
+ *
+ * Hosted defaults grant service_role every table privilege. A narrower GRANT
+ * in a migration cannot narrow that existing ACL; only an explicit REVOKE can.
+ * Keep deliberate REVOKE exceptions here and in pre_rule_table_grants_test.sql.
+ */
+export const SERVICE_ROLE_TABLE_GRANTS: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.keys(AUTHENTICATED_TABLE_GRANTS).map(name => [
+    name,
+    name === 'entry_status_history'
+      ? 'SELECT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'
+      : HOSTED_SERVICE_ROLE_TABLE_GRANTS,
+  ])
+);
+
 const SEQUENCE_GRANTS: Readonly<Record<string, string>> = {
   'registration_confirmation_seq/anon': '',
   'registration_confirmation_seq/authenticated': 'SELECT,USAGE',
@@ -217,6 +236,9 @@ export function appliedAclCheck(rawFacts: unknown, probedAt: string): SnapshotCh
 
   const facts = rawFacts as Record<string, unknown>;
   const tableRows = Array.isArray(facts.tables) ? facts.tables.map(parseGrant) : [];
+  const serviceRoleTableRows = Array.isArray(facts.service_role_tables)
+    ? facts.service_role_tables.map(parseGrant)
+    : [];
   const forbiddenRows = Array.isArray(facts.forbidden_tables)
     ? facts.forbidden_tables.map(parseRoleGrant)
     : [];
@@ -238,6 +260,32 @@ export function appliedAclCheck(rawFacts: unknown, probedAt: string): SnapshotCh
   for (const [name, privs] of Object.entries(AUTHENTICATED_TABLE_GRANTS)) {
     if (!seenTables.has(name))
       problems.push(`missing authenticated table grant ${name} (${privs})`);
+  }
+
+  if (!Array.isArray(facts.service_role_tables)) {
+    problems.push('probe returned no service_role table facts');
+  }
+  const seenServiceRoleTables = new Set<string>();
+  for (const row of serviceRoleTableRows) {
+    if (row.name === '(unknown)' || row.privs === '') {
+      problems.push('malformed service_role table grant fact');
+      continue;
+    }
+    const expected = SERVICE_ROLE_TABLE_GRANTS[row.name];
+    if (expected === undefined) {
+      problems.push(`${row.name} (${row.privs}) is not in the service_role table contract`);
+    } else if (row.privs !== expected) {
+      problems.push(`${row.name} has '${row.privs}', expected '${expected}'`);
+    }
+    if (seenServiceRoleTables.has(row.name)) {
+      problems.push(`duplicate service_role table grant ${row.name}`);
+    }
+    seenServiceRoleTables.add(row.name);
+  }
+  for (const [name, privs] of Object.entries(SERVICE_ROLE_TABLE_GRANTS)) {
+    if (!seenServiceRoleTables.has(name)) {
+      problems.push(`missing service_role table grant ${name} (${privs})`);
+    }
   }
 
   for (const row of forbiddenRows) {
@@ -278,7 +326,8 @@ export function appliedAclCheck(rawFacts: unknown, probedAt: string): SnapshotCh
     ...base,
     status: 'ok',
     detail:
-      `${tableRows.length} authenticated table grants, ${sequenceRows.length / 3} public sequences; ` +
+      `${tableRows.length} authenticated and ${serviceRoleTableRows.length} service_role table grants, ` +
+      `${sequenceRows.length / 3} public sequences; ` +
       'no forbidden table privileges or sequence default drift',
   };
 }

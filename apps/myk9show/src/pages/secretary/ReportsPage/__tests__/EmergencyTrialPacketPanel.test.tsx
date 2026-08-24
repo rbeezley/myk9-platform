@@ -15,18 +15,47 @@ const data: Omit<EmergencyPacketInput, 'generatedAt'> = {
     endDate: '2026-10-04',
   },
   trials: [{ id: 't1', date: '2026-10-03', name: 'Trial 1', trialNumber: '1', registryId: 'AKC' }],
-  classes: [{
-    id: 'c1', trialId: 't1', name: 'Container Novice', element: 'Container', level: 'Novice',
-    section: null, classNumber: '101', displayOrder: 1, judgeName: 'Judge One', ringLabel: 'Ring 1',
-    startTime: '08:00', timeLimitSeconds: 120,
-    timeLimitArea2Seconds: null, timeLimitArea3Seconds: null, numAreas: null,
-  }],
-  entries: [{
-    id: 'e1', armband: 101, runOrder: 1, callName: 'Maple', breed: 'All-American Dog',
-    handler: 'Handler One', registrationNumber: null, checkInStatus: null, section: null,
-    isScored: false, resultText: null, searchTimeSeconds: null, totalFaults: null,
-    finalPlacement: null, classId: 'c1', trialId: 't1',
-  }],
+  classes: [
+    {
+      id: 'c1',
+      trialId: 't1',
+      name: 'Container Novice',
+      element: 'Container',
+      level: 'Novice',
+      section: null,
+      classNumber: '101',
+      displayOrder: 1,
+      judgeName: 'Judge One',
+      ringLabel: 'Ring 1',
+      startTime: '08:00',
+      timeLimitSeconds: 120,
+      timeLimitArea2Seconds: null,
+      timeLimitArea3Seconds: null,
+      numAreas: null,
+      numHides: null,
+      distractionCount: null,
+    },
+  ],
+  entries: [
+    {
+      id: 'e1',
+      armband: 101,
+      runOrder: 1,
+      callName: 'Maple',
+      breed: 'All-American Dog',
+      handler: 'Handler One',
+      registrationNumber: null,
+      checkInStatus: null,
+      section: null,
+      isScored: false,
+      resultText: null,
+      searchTimeSeconds: null,
+      totalFaults: null,
+      finalPlacement: null,
+      classId: 'c1',
+      trialId: 't1',
+    },
+  ],
 };
 
 describe('EmergencyTrialPacketPanel', () => {
@@ -56,7 +85,9 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(screen.getByText(/emailed to 2 show officials/i)).toBeInTheDocument();
     expect(screen.getByText(/generated .*8 pages.*link expires/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /mark .* packet printed/i }));
-    expect(onMarkPrinted).toHaveBeenCalledWith(expect.objectContaining({ reportId: 'emergency-trial-packet' }));
+    expect(onMarkPrinted).toHaveBeenCalledWith(
+      expect.objectContaining({ reportId: 'emergency-trial-packet' })
+    );
   });
 
   it('keeps delivery failure recoverable and does not claim physical readiness', async () => {
@@ -115,9 +146,7 @@ describe('EmergencyTrialPacketPanel', () => {
     // did. The subject key is the contract the print reminder reads back from
     // the server, so assert its literal shape (MYK9-228 phase 5).
     const descriptor = onMarkPrinted.mock.calls[0][0];
-    expect(Object.keys(descriptor.coverage.subjectFingerprints)).toEqual([
-      'packet-day:2026-10-03',
-    ]);
+    expect(Object.keys(descriptor.coverage.subjectFingerprints)).toEqual(['packet-day:2026-10-03']);
     expect(descriptor.reportId).toBe('emergency-trial-packet');
   });
 
@@ -149,9 +178,7 @@ describe('EmergencyTrialPacketPanel', () => {
       });
     });
 
-    render(
-      <EmergencyTrialPacketPanel data={twoDays} prepare={prepare} onMarkPrinted={vi.fn()} />
-    );
+    render(<EmergencyTrialPacketPanel data={twoDays} prepare={prepare} onMarkPrinted={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: /prepare and email packet/i }));
 
     expect(prepare).toHaveBeenCalledTimes(2);
@@ -159,8 +186,12 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(screen.getByText(/Sun, Oct 4 packet stored/i)).toBeInTheDocument();
     // Each day gets its own print acknowledgement — that is the signal the
     // reminder will key off, and it is per day.
-    expect(screen.getByRole('button', { name: /mark Sat, Oct 3 packet printed/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /mark Sun, Oct 4 packet printed/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /mark Sat, Oct 3 packet printed/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /mark Sun, Oct 4 packet printed/i })
+    ).toBeInTheDocument();
 
     // And each packet must carry only its own day's work.
     const firstCall = prepare.mock.calls[0][0] as EmergencyPacketInput;
@@ -211,9 +242,7 @@ describe('EmergencyTrialPacketPanel', () => {
     expect(await screen.findByText(/Sun, Oct 4 packet stored/i)).toBeInTheDocument();
     // Three calls, not four: Saturday was never re-sent.
     expect(prepare).toHaveBeenCalledTimes(3);
-    const retriedDates = prepare.mock.calls.map(
-      call => (call[1] as string | undefined) ?? ''
-    );
+    const retriedDates = prepare.mock.calls.map(call => (call[1] as string | undefined) ?? '');
     expect(retriedDates).toEqual(['2026-10-03', '2026-10-04', '2026-10-04']);
   });
 });
@@ -331,7 +360,11 @@ describe('a confirmed packet stays confirmed regardless of report scope', () => 
 
   it('still says Printed when the report is narrowed and no descriptor exists', () => {
     render(
-      <EmergencyTrialPacketPanel data={null} deliveredPackets={[printedRow]} onMarkPrinted={vi.fn()} />
+      <EmergencyTrialPacketPanel
+        data={null}
+        deliveredPackets={[printedRow]}
+        onMarkPrinted={vi.fn()}
+      />
     );
 
     expect(screen.getByText(/^Printed$/)).toBeInTheDocument();
@@ -354,4 +387,3 @@ describe('a confirmed packet stays confirmed regardless of report scope', () => 
     expect(screen.queryByRole('button', { name: /mark .* printed/i })).toBeNull();
   });
 });
-

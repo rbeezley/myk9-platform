@@ -10,7 +10,25 @@ import { describe, expect, it } from 'vitest';
  *
  * MYK9-228.
  */
+// `emergency_packet_input` was rebuilt in full by `20260823170000` (a
+// `CREATE OR REPLACE` of the same function, adding two JSON keys). Every
+// assertion about that function's body must read the LATEST definition —
+// asserting against the superseded `20260821220000` file would pass against
+// text that no longer describes the deployed function, even though today the
+// two bodies happen to be byte-identical apart from the new keys.
 const sql = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260823170000_emergency_packet_input_hides.sql'
+  ),
+  'utf8'
+);
+
+// `public.emergency_packet_section` is a SEPARATE helper function that
+// `20260823170000` calls but does not redefine — its own most recent
+// `CREATE OR REPLACE` still lives in `20260821220000`, so the one test that
+// asserts on ITS definition (not `emergency_packet_input`'s) reads this file.
+const sectionDefinitionSql = readFileSync(
   resolve(
     __dirname,
     '../../../../../supabase/migrations/20260821220000_emergency_packet_input_rpc.sql'
@@ -67,16 +85,27 @@ describe('emergency_packet_input contract', () => {
     // column prints an empty judge for normally configured classes.
     expect(sql).toMatch(/FROM public\.judge_assignments a/);
     expect(sql).toMatch(/a\.status = 'confirmed'/);
-    expect(sql).toMatch(/NULLIF\(btrim\(ja\.judge_full_name\), ''\),\s*\n\s*NULLIF\(btrim\(cl\.judge_name\), ''\)/);
+    expect(sql).toMatch(
+      /NULLIF\(btrim\(ja\.judge_full_name\), ''\),\s*\n\s*NULLIF\(btrim\(cl\.judge_name\), ''\)/
+    );
   });
 
   it('normalises the section sentinel the way the app does', () => {
     // `resolveClassSection` trims and treats '-' as absent; emitting it raw
     // builds labels like "Exterior Excellent -" on the page.
-    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.emergency_packet_section/);
-    expect(sql).toMatch(/btrim\(p_section\) IN \('', '-'\)/);
+    expect(sectionDefinitionSql).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.emergency_packet_section/
+    );
+    expect(sectionDefinitionSql).toMatch(/btrim\(p_section\) IN \('', '-'\)/);
     // Applied to BOTH the class row and the entry's copy of it.
-    expect(sql.match(/public\.emergency_packet_section\(/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(
+      sectionDefinitionSql.match(/public\.emergency_packet_section\(/g)?.length ?? 0
+    ).toBeGreaterThanOrEqual(3);
+    // `emergency_packet_input` itself still calls the helper twice in the
+    // LATEST definition, even though this migration does not redefine the
+    // helper — a future rewrite that drops the call would go unnoticed by
+    // the assertion above alone.
+    expect(sql.match(/public\.emergency_packet_section\(/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it('leaves entries that are not running off the paperwork', () => {
@@ -173,5 +202,23 @@ describe('emergency_packet_input contract', () => {
 
   it('scopes to one trial day when asked, and the whole show when not', () => {
     expect(sql).toMatch(/p_trial_date IS NULL OR t\.date = p_trial_date/);
+  });
+
+  it('exposes hides and distraction counts on each class', () => {
+    // The scoresheet header prints both. Without them the packet's header is
+    // thinner than the Reports one and the two documents are not the same sheet.
+    expect(sql).toMatch(/'numHides',\s*cl\.num_hides/);
+    expect(sql).toMatch(/'distractionCount',\s*cl\.distraction_count/);
+  });
+
+  it('keeps the definer function locked down after the rebuild', () => {
+    // CREATE OR REPLACE preserves the ACL, but this migration re-declares the
+    // function, so the grants are restated and must still be restated correctly.
+    expect(sql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.emergency_packet_input\(uuid, date\) FROM PUBLIC, anon, authenticated;/
+    );
+    expect(sql).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.emergency_packet_input\(uuid, date\) TO service_role;/
+    );
   });
 });

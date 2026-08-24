@@ -27,7 +27,11 @@
 - [x] 4.1 Update `docs/plan-linear-backlog-batches.md` with the exact mutation, cleanup, browser, and test evidence; do not embed credentials or private screenshots.
 - [x] 4.2 With explicit Linear-write approval, move MYK9-211 to In Progress and post the named-fixture execution note; after proof, post event IDs/timestamps, checksums, cleanup, risks, and acceptance status. — Linear contains the corrected baseline, applied proof, exposed-defect correction, PR link, merge/deployment identity, final screenshot checksum, cleanup read-back, and passing acceptance statement. MYK9-211 is Done.
 - [x] 4.3 Commit locally, then with explicit GitHub-write approval push the single verification branch and open one PR containing `Tracked in openspec change: myk9-211-applied-rbac-audit-proof`; pass CI and the Codex gate, and merge from the primary checkout only with explicit merge approval. — PR #1781 passed all CI/Vercel checks and both Codex gates, then squash-merged from the primary checkout as `f928a5983f4ab6e02b2566aebcfd28888c7d5102` after explicit approval.
-- [x] 4.4 After the PR is merged and Linear evidence is complete, move MYK9-211 to Done, archive the OpenSpec change, sync `main`, prune refs, delete the feature branch, and remove the worktree as the final cleanup command. — MYK9-211 is Done with final evidence; the change is archived at `openspec/changes/archive/2026-08-24-myk9-211-applied-rbac-audit-proof`. Remote refs were pruned. The primary checkout's unrelated local `docs(test-accounts)` commit prevented a fast-forward-only sync and was preserved untouched; cleanup proceeds from current `origin/main`, with branch/worktree deletion after the archive PR merges.
+- [x] 4.4 After the implementation PR is merged and Linear evidence is complete, move MYK9-211 to Done and prepare the completed OpenSpec change for the repository archive gate. — MYK9-211 is Done with final evidence; the change is archived at `openspec/changes/archive/2026-08-24-myk9-211-applied-rbac-audit-proof`; archive-only PR #1782 carries the final tracker and archive move.
+
+### Post-archive repository hygiene
+
+After PR #1782 merges, prune remote refs, delete the local MYK9-211 implementation and archive branches, and remove this worktree as the final command. The primary checkout's unrelated local `docs(test-accounts)` commit and research file must remain untouched.
 
 ## Validation Profile
 

@@ -35,7 +35,7 @@ const baseProps: ReportProps = fromPartial({
   entries: [
     {
       id: 'entry-1',
-      armband: 102,
+      armband: '102',
       runOrder: 2,
       callName: 'Star',
       breed: 'Golden Retriever',
@@ -43,7 +43,7 @@ const baseProps: ReportProps = fromPartial({
     },
     {
       id: 'entry-2',
-      armband: 101,
+      armband: '101',
       runOrder: 1,
       callName: 'Rocket',
       breed: 'Beagle',
@@ -51,7 +51,7 @@ const baseProps: ReportProps = fromPartial({
     },
     {
       id: 'entry-3',
-      armband: 103,
+      armband: '103',
       runOrder: 3,
       callName: 'Dash',
       breed: 'Border Collie',

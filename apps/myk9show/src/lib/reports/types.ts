@@ -1,3 +1,5 @@
+import type { PacketArmband } from '@/features/emergency-trial-packet/armband';
+
 import type React from 'react';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { PaymentStatus } from '@/types/show-registration-types';
@@ -13,7 +15,14 @@ export type ReportEntrySource = (typeof REPORT_ENTRY_SOURCE)[keyof typeof REPORT
 export interface ReportEntry {
   id: string;
   dogId?: string;
-  armband: number;
+  /**
+   * The armband LABEL as issued ("104", "12A"), or null when the dog has none.
+   * Both `entries.armband` and `armbands.armband_number` are `text`; a numeric
+   * model had no way to hold a suffixed armband and coerced it to 0, which
+   * printed as `#0` on paper. Order it with `compareArmbands`, never by
+   * subtraction (MYK9-243).
+   */
+  armband: PacketArmband;
   runOrder: number | null;
   callName: string;
   breed: string;

@@ -10,7 +10,7 @@ const baseProps: ReportProps = {
   trial: { date: '2026-04-12', trialNumber: '1', judgeName: 'Dr. Jane Smith' },
   entries: Array.from({ length: 12 }, (_, i) => ({
     id: `e${i}`,
-    armband: 100 + i,
+    armband: String(100 + i),
     runOrder: i + 1,
     callName: `Dog ${i}`,
     breed: 'Breed',

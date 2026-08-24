@@ -10,16 +10,16 @@ import { describe, expect, it } from 'vitest';
  *
  * MYK9-228.
  */
-// `emergency_packet_input` was rebuilt in full by `20260823170000` (a
-// `CREATE OR REPLACE` of the same function, adding two JSON keys). Every
-// assertion about that function's body must read the LATEST definition —
-// asserting against the superseded `20260821220000` file would pass against
-// text that no longer describes the deployed function, even though today the
-// two bodies happen to be byte-identical apart from the new keys.
+// `emergency_packet_input` is rebuilt in full by each successive
+// `CREATE OR REPLACE`; the latest is `20260824150000` (MYK9-243, the armband
+// label). Every assertion about that function's body must read the LATEST
+// definition — asserting against a superseded file passes against text that no
+// longer describes the deployed function. This path is the one thing here that
+// MUST be updated whenever the function is rebuilt again.
 const sql = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260823170000_emergency_packet_input_hides.sql'
+    '../../../../../supabase/migrations/20260824150000_emergency_packet_armband_label.sql'
   ),
   'utf8'
 );
@@ -143,26 +143,49 @@ describe('emergency_packet_input contract', () => {
     expect(sql).toMatch(/COALESCE\(cl\.status, ''\) <> 'cancelled'/);
   });
 
-  it('backfills the armband from the authoritative table', () => {
+  it('takes the armband from the AUTHORITATIVE table, not the denormalised copy', () => {
+    // MYK9-243. `armbands` is written atomically by assign_armband;
     // `entries.armband` is a denormalised copy that lags an unsynced
-    // replication UPDATE; `armbands` is written atomically by assign_armband
-    // and the Reports read path backfills from it by (show_id, dog_id).
-    // Without this, two seeded entries print as "#0" — two misidentified dogs
-    // on a scoresheet, and a wrong running order.
+    // replication UPDATE. The previous expression read the copy FIRST, so a
+    // stale value beat the canonical one and put a wrong armband on show-day
+    // paper — the opposite of what its own comment claimed.
     expect(sql).toMatch(/FROM public\.armbands a2/);
     expect(sql).toMatch(/a2\.show_id = p_show_id/);
     expect(sql).toMatch(/a2\.dog_id = e\.dog_id/);
-    // Denormalised value wins when present; the table fills the gap.
-    expect(sql).toMatch(/COALESCE\(NULLIF\(btrim\(e\.armband\), ''\), ab\.armband_number::text/);
+    // Authoritative first, entries only as the fallback for a dog with no
+    // `armbands` row at all.
+    expect(sql).toMatch(
+      /NULLIF\(btrim\(COALESCE\(NULLIF\(btrim\(ab\.armband_number\), ''\), e\.armband, ''\)\), ''\)\s*\n\s*AS armband,/
+    );
+    // The exact inverted order that shipped, named so it cannot come back.
+    expect(sql).not.toMatch(/COALESCE\(NULLIF\(btrim\(e\.armband\), ''\), ab\.armband_number/);
+    // Same precedence for the fallback call name, or a dog is named after a
+    // number its own row no longer shows.
+    expect(sql).toMatch(
+      /'Dog ' \|\| COALESCE\(NULLIF\(btrim\(ab\.armband_number\), ''\), NULLIF\(btrim\(e\.armband\), ''\), '\?'\)/
+    );
+  });
+
+  it('emits the armband as a text LABEL, never a numeric sentinel', () => {
+    // MYK9-243. Suffixed armbands ("12A") are real. The old body cast to int
+    // with `ELSE 0`, so one printed as `#0` — a number no dog wears — and
+    // sorted ahead of every genuine entry.
+    expect(sql).not.toMatch(/ELSE 0\s*\n\s*END AS armband,/);
+    // Ordering comes from a separate leading-digits key, so "12A" still sorts
+    // beside 12 rather than by text (where "9" would follow "10").
+    expect(sql).toMatch(/AS armband_sort/);
+    expect(sql).toMatch(/ORDER BY e\.run_order NULLS LAST, e\.armband_sort NULLS LAST/);
   });
 
   it('never casts a free-text armband straight to int', () => {
     // `entries.armband` is TEXT and unconstrained; a suffixed armband ("12A")
-    // through a bare ::int aborts the whole packet for one odd value.
-    // Bounded, not just numeric: a long digit string passes an unbounded
-    // regex and then `integer out of range` aborts the entire packet.
-    expect(sql).toMatch(/~ '\^\[0-9\]\{1,9\}\$'/);
-    expect(sql).not.toMatch(/~ '\^\[0-9\]\+\$'/);
+    // through a bare ::int aborts the whole packet for one odd value. The
+    // label itself is no longer cast at all (MYK9-243) — only the sort key is,
+    // and it takes a BOUNDED leading-digits substring: an unbounded run of
+    // digits overflows int and `integer out of range` aborts the whole packet,
+    // which is the crash this guard has always been about.
+    expect(sql).toMatch(/from '\^\[0-9\]\{1,9\}'/);
+    expect(sql).not.toMatch(/from '\^\[0-9\]\+'/);
     expect(sql).not.toMatch(/COALESCE\(e\.armband[^)]*\)::int/);
   });
 

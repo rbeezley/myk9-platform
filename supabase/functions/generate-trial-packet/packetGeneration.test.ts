@@ -49,7 +49,7 @@ function packetInput(): EmergencyPacketInput {
   }));
   const entries = classes.map((classItem, index) => ({
     id: `e${index + 1}`,
-    armband: index + 1,
+    armband: String(index + 1),
     runOrder: index + 1,
     callName: `Dog ${index + 1}`,
     breed: 'Border Collie',

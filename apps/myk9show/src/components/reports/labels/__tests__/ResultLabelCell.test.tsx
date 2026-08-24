@@ -6,7 +6,7 @@ import type { ResultLabelItem } from '@/lib/labels/resultLabelData';
 function item(over: Partial<ResultLabelItem> = {}): ResultLabelItem {
   return {
     id: 'e1',
-    armband: 42,
+    armband: '42',
     callName: 'Scout',
     handler: 'Jane Handler',
     clubName: 'Twin Cities Dog Club',

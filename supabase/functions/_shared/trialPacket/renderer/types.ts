@@ -1,3 +1,5 @@
+import type { PacketArmband } from './armband.ts';
+
 /**
  * The entry fields the packet actually renders.
  *
@@ -8,7 +10,13 @@
  */
 export interface PacketReportEntry {
   id: string;
-  armband: number;
+  /**
+   * The armband LABEL as issued, or null when the dog has none yet -- never a
+   * numeric sentinel. `entries.armband` and `armbands.armband_number` are both
+   * `text` and suffixed armbands ("12A") are real, so a `number` here had no
+   * way to hold one; see `armband.ts` (MYK9-243).
+   */
+  armband: PacketArmband;
   runOrder: number | null;
   callName: string;
   breed: string;

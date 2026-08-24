@@ -11,7 +11,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 function reportEntry(overrides: Partial<ReportEntry>): ReportEntry {
   return {
     id: overrides.id ?? 'report-entry',
-    armband: 101,
+    armband: '101',
     runOrder: 1,
     callName: 'Buddy',
     breed: 'Lab',

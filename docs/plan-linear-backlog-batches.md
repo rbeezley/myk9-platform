@@ -1,6 +1,6 @@
 # Linear Backlog Batch Plan — Todo + Backlog Triage (2026-08-21)
 
-> **Status:** Active — Batches 0–3 complete except MYK9-204 (operator-blocked on Richard). **Batch 3.5 in progress:** MYK9-233 Done and deployed 2026-08-24; MYK9-236 is next. **Read "[HANDOFF 2026-08-24]" under Batch 3.5 before starting anything** — it records what is already claimed by another agent, three issues filed after the last registry refresh, and the verification traps this batch has already hit. Then Batch 4 (closure proofs) and Batch 5.
+> **Status:** Active — Batches 0–3 complete except MYK9-204 (operator-blocked on Richard). **Batch 3.5 Lane A complete:** MYK9-233 and MYK9-236 are Done and deployed as of 2026-08-24. **Read "[HANDOFF 2026-08-24]" under Batch 3.5 before starting anything** — it records what is already claimed by another agent, three issues filed after the last registry refresh, and the verification traps this batch has already hit. Then Batch 4 (closure proofs) and Batch 5.
 
 **Goal:** Account for the tracked MYK9 backlog, close every issue whose current-cycle acceptance criteria and evidence gate can be completed, and leave every deferred/operator-gated issue in an explicit honest state with its trigger recorded. Minimize wall-clock time with capacity-bounded parallel lanes where files and contracts do not overlap and serialized lanes where they do. Linear is the live issue-count source; this plan records execution disposition rather than a point-in-time total.
 
@@ -67,7 +67,7 @@ PRIMARY:MYK9-233=completed-deployed-3.5-lane-a
 PRIMARY:MYK9-243=in-progress-other-agent-do-not-claim
 PRIMARY:MYK9-244=unbatched-filed-after-refresh
 PRIMARY:MYK9-245=unbatched-filed-after-refresh
-PRIMARY:MYK9-236=batch-3.5-lane-a
+PRIMARY:MYK9-236=completed-deployed-3.5-lane-a
 PRIMARY:MYK9-235=batch-3.5-lane-b
 PRIMARY:MYK9-234=batch-3.5-lane-b
 PRIMARY:MYK9-237=batch-3.5-lane-c
@@ -441,7 +441,7 @@ Written for an agent picking this up cold. Four things that are not obvious from
 
 MYK9-245 carries a **do-not-do** instruction that will look wrong to a fresh reader: it argues *against* gating `entries_select`'s handler/owner arms. Those arms are the only route by which an exhibitor could ever be shown their own dropped-show entry. Read it before "hardening" anything there.
 
-**3. Lane 3.5A is half done.** MYK9-233 shipped and deployed. Remaining: [MYK9-236](https://linear.app/myk9-platform/issue/MYK9-236). Lanes 3.5B, 3.5C and 3.5D are untouched.
+**3. Lane 3.5A is complete.** MYK9-233 and [MYK9-236](https://linear.app/myk9-platform/issue/MYK9-236) shipped and were deployed on 2026-08-24. Lanes 3.5B, 3.5C and 3.5D are untouched.
 
 **4. Verification traps this batch has already hit.** All three cost a red CI run or a wrong claim:
 
@@ -478,7 +478,7 @@ Ordered by severity, not by filing date. Lanes A–D touch disjoint file sets an
 
   **Still required after merge:** `supabase db push`. Merging applies nothing.
 
-  **[IMPLEMENTED 2026-08-24 — SHIP EVIDENCE PENDING] MYK9-236.** Decision: retain the hosted platform-wide `service_role` defaults (`SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN`) as the intended trusted-role contract, preserve the deliberate `entry_status_history` no-`INSERT` exception, make the SQL declaration honest, and enforce the declaration against the deployed database through the expensive `system_health_probe(true)` path. The cheap continuous probe remains unchanged. The evaluator covers all public ordinary tables, including `sms_proximity_sends`, and fails on missing, extra, duplicate, malformed, or privilege-drifted rows. Local evidence: assertion-first red; six shuffled focused runs (102 assertions); 66 related health/registry tests; 8 behavioural-SQL registration tests; 1,846 full-suite files / 17,734 tests; typecheck; lint; strict OpenSpec validation; `git diff --check`; and a linked Supabase migration dry-run. Behavioural SQL still requires CI because this machine has no container runtime. Parallel Codex standards/security/migration and MYK9-236/OpenSpec reviews returned no findings. PR/CI, merge, explicit database/function deployment, live read-back, and Linear closure remain gates and must be appended before this lane is marked Done.
+  **[DONE + DEPLOYED 2026-08-24] MYK9-236 — [#1779](https://github.com/rbeezley/myk9-platform/pull/1779), merge `3bcc031bc`.** Decision: retain the hosted platform-wide `service_role` defaults (`SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN`) as the intended trusted-role contract, preserve the deliberate `entry_status_history` no-`INSERT` exception, make the SQL declaration honest, and enforce the declaration against the deployed database through the expensive `system_health_probe(true)` path. The cheap continuous probe remains unchanged. The evaluator covers all public ordinary tables, including `sms_proximity_sends`, and fails on missing, extra, duplicate, malformed, or privilege-drifted rows. Local evidence: assertion-first red; six shuffled focused runs (102 assertions); 66 related health/registry tests; 8 behavioural-SQL registration tests; 1,846 full-suite files / 17,734 tests; typecheck; lint; strict OpenSpec validation; `git diff --check`; and a linked Supabase migration dry-run. Parallel Codex standards/security/migration and MYK9-236/OpenSpec reviews returned no findings. Every required CI check passed, including the first real behavioural SQL execution. Migration `20260824210000` was applied; `cron-health-check` advanced from hosted v30 to v31. Live read-back returned 130 rows, zero drift, the expected `sms_proximity_sends` full grant and `entry_status_history` no-`INSERT` exception, with boolean probe execution restricted to `service_role`. Linear is Done with the full completion evidence.
 - **Lane 3.5B — payout ledger surface.** [MYK9-235](https://linear.app/myk9-platform/issue/MYK9-235) (a refund against money never collected is invisible on every reconciliation surface), then [MYK9-234](https://linear.app/myk9-platform/issue/MYK9-234) (the ledger renders every row twice — the responsive two-copy antipattern; one node that reflows, not two CSS-hidden copies). 3.5B is the **symptom** side of 3.5A's ledger defect and does not substitute for it: making dropped rows visible on one page leaves the policy asymmetry intact for every other surface built on `manageable_show_ids()`.
 - **Lane 3.5C — Batch 3 follow-ups.** [MYK9-237](https://linear.app/myk9-platform/issue/MYK9-237), [MYK9-238](https://linear.app/myk9-platform/issue/MYK9-238), [MYK9-239](https://linear.app/myk9-platform/issue/MYK9-239). MYK9-238's deliverable is a **guard, not an audit** — an inventory of inert utilities decays the moment someone writes the next one.
 - **Lane 3.5D — Reports information architecture.** [MYK9-240](https://linear.app/myk9-platform/issue/MYK9-240), [MYK9-241](https://linear.app/myk9-platform/issue/MYK9-241), [MYK9-242](https://linear.app/myk9-platform/issue/MYK9-242). **Read MYK9-241 against MYK9-198 before starting**: three surfaces write print state to `replicatedPaperworkPrintsTable` with three vocabularies, and Reports is the one that shows nothing — so a secretary re-confirms a print she already recorded from the Show Desk an hour earlier, and the twice-daily print reminder reads that record. This is the consolidate-don't-duplicate rule with a live example; the fix deletes the inline writer in `ReportsPage/index.tsx` rather than adding a fourth UI.
@@ -494,7 +494,7 @@ All three were outside the 54-ID inventory, so nothing in this plan tracked them
 ### Recommended order from here
 
 1. **Richard, 5 minutes:** [MYK9-204](https://linear.app/myk9-platform/issue/MYK9-204) — prune the dev sandbox payment methods to Cards + Apple Pay + Google Pay and reload checkout on Android. It has been In Progress since 08-22, it blocks Lane 2C, and it blocks [MYK9-11](https://linear.app/myk9-platform/issue/MYK9-11) at cutover.
-2. **Lane 3.5A** — MYK9-233 is **done and deployed**. Remaining: MYK9-236 (the grant contract's `service_role` column is unenforced against live).
+2. **Lane 3.5A is done and deployed** — MYK9-233 and MYK9-236 both closed on 2026-08-24.
 3. **Batch 4** — MYK9-211, which needs Richard's explicit approval and a named disposable fixture before anything is written, because its `permission_audit_log` residue is permanent and must not be cleaned up.
 4. Lanes 3.5B–D in parallel as capacity allows.
 

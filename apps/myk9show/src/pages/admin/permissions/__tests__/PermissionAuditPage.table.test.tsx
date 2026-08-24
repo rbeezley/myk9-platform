@@ -18,11 +18,16 @@ vi.mock('@/services/rbac/RBACService', () => ({
       },
       {
         id: 'log-2',
-        action: 'revoke_role',
+        action: 'role_revoked',
         user_id: 'user-def-456',
-        target_type: 'permission',
-        target_id: 'perm-abc',
-        old_value: null,
+        target_type: 'user',
+        target_id: 'user-club',
+        old_value: {
+          club_id: 'club-heartland',
+          role_id: 'role-secretary',
+          show_id: null,
+          role_name: 'secretary',
+        },
         new_value: null,
         ip_address: null,
         user_agent: null,
@@ -99,6 +104,19 @@ describe('PermissionAuditPage DataTable migration', () => {
     const rows = screen.getAllByRole('row');
     // 1 header row + 3 data rows
     expect(rows.length).toBe(4);
+  });
+
+  it('renders revoked role details from the previous value', async () => {
+    render(<PermissionAuditPage />);
+    const table = await screen.findByRole('table');
+    const revokeAction = within(table).getByText('Role Revoked');
+    const revokeRow = revokeAction.closest('tr');
+
+    expect(revokeRow).not.toBeNull();
+    if (!revokeRow) throw new Error('Expected the revoked role audit row');
+    expect(within(revokeRow).getByText('role_name:')).toBeInTheDocument();
+    expect(within(revokeRow).getByText('secretary')).toBeInTheDocument();
+    expect(within(revokeRow).getByText('club-heartland')).toBeInTheDocument();
   });
 
   it('renders export button', async () => {

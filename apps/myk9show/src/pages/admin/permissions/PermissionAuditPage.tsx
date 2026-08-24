@@ -60,6 +60,10 @@ function getActionBadgeVariant(actionType: string) {
   return variants[actionType as keyof typeof variants] || 'outline';
 }
 
+function getAuditDetails(log: PermissionAuditLog): Record<string, unknown> | null {
+  return log.new_value ?? log.old_value;
+}
+
 const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
   {
     accessorKey: 'action',
@@ -110,18 +114,20 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
     id: 'details',
     header: 'Details',
     meta: { responsiveHide: 'lg' } satisfies DataTableColumnMeta,
-    accessorFn: row =>
-      row.new_value && typeof row.new_value === 'object'
-        ? Object.entries(row.new_value)
-            .map(([k, v]) => `${k}: ${String(v)}`)
+    accessorFn: row => {
+      const details = getAuditDetails(row);
+      return details
+        ? Object.entries(details)
+            .map(([key, value]) => `${key}: ${String(value)}`)
             .join(' ')
-        : '',
+        : '';
+    },
     cell: ({ row }) => {
-      const val = row.original.new_value;
-      if (!val || typeof val !== 'object') return null;
+      const details = getAuditDetails(row.original);
+      if (!details) return null;
       return (
         <div className="text-sm">
-          {Object.entries(val).map(([key, value]) => (
+          {Object.entries(details).map(([key, value]) => (
             <div key={key}>
               <span className="text-muted-foreground">{key}:</span> {String(value)}
             </div>
@@ -200,18 +206,19 @@ const PermissionAuditPage: React.FC = () => {
   const handleExport = () => {
     const csvRows = [
       ['Date', 'Action', 'Actor', 'Target Type', 'Target ID', 'Details'].join(','),
-      ...filteredLogs.map(log =>
-        [
+      ...filteredLogs.map(log => {
+        const details = getAuditDetails(log);
+        return [
           log.created_at ? new Date(log.created_at).toISOString() : '',
           log.action ?? '',
           log.user_id ?? 'System',
           log.target_type ?? '',
           log.target_id ?? '',
-          log.new_value ? JSON.stringify(log.new_value) : '',
+          details ? JSON.stringify(details) : '',
         ]
           .map(v => `"${String(v).replace(/"/g, '""')}"`)
-          .join(',')
-      ),
+          .join(',');
+      }),
     ];
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

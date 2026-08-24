@@ -115,6 +115,43 @@ describe('buildTrialReportProps', () => {
     });
   });
 
+  it('uses the registration number belonging to the trial registry', () => {
+    const entryWithRegistrations = {
+      ...entry,
+      dog: {
+        ...(entry as unknown as { dog: Record<string, unknown> }).dog,
+        registrations: [
+          {
+            id: 'akc-registration',
+            organization: 'AKC (American Kennel Club)',
+            registration_number: 'AKC-123',
+            is_primary: true,
+            created_at: '2026-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'ukc-registration',
+            organization: 'UKC (United Kennel Club)',
+            registration_number: 'UKC-456',
+            is_primary: false,
+            created_at: '2026-01-02T00:00:00.000Z',
+          },
+        ],
+      },
+    } as unknown as DbEntry;
+
+    const [props] = buildTrialReportProps({
+      show,
+      trials: [trial],
+      classes: [classData],
+      entries: [entryWithRegistrations],
+      scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },
+      sortOrder: '',
+    });
+
+    expect(props.entries[0]?.registrationNumber).toBe('UKC-456');
+    expect(props.entries[0]?.registrationNumber).not.toBe('AKC-123');
+  });
+
   it('uses assignment-shaped class judge data before legacy judge_name', () => {
     const assignmentBackedClass = {
       ...classData,

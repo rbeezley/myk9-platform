@@ -4,6 +4,8 @@ import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesByClass, getEntriesByShow } from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { Show } from '@/types/show-types';
+import { loadDogRegistrations } from '@/services/database/dogs/reads';
+import type { ReportDbEntry } from '@/lib/reports/types';
 
 /**
  * Why the report data cannot be described by `isLoading` / `isError` alone.
@@ -22,6 +24,31 @@ export interface UseReportDataOptions {
   show: Show | null;
   trialId: string | 'all';
   classId: string | 'all';
+}
+
+async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<ReportDbEntry[]> {
+  const dogIds = [
+    ...new Set(entries.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
+  ];
+  if (dogIds.length === 0) return entries;
+
+  const { byDog, registrationsReadComplete } = await loadDogRegistrations(dogIds);
+  if (!registrationsReadComplete) {
+    throw new Error('Dog registration data is unavailable for this report.');
+  }
+
+  return entries.map(entry => {
+    if (!entry.dog_id) return entry;
+    const dog = entry.dog;
+    if (!dog) return entry;
+    return {
+      ...entry,
+      dog: {
+        ...dog,
+        registrations: byDog.get(entry.dog_id) ?? [],
+      },
+    };
+  });
 }
 
 /**
@@ -66,11 +93,11 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
       if (classId !== 'all') {
         const { data, error } = await getEntriesByClass(classId);
         if (error) throw error;
-        return data ?? [];
+        return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
       }
       const { data, error } = await getEntriesByShow(showId);
       if (error) throw error;
-      return data ?? [];
+      return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
     },
     enabled: classesQuery.isSuccess,
     ...cacheStrategies.moderate,

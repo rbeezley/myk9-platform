@@ -11,15 +11,15 @@ import { describe, expect, it } from 'vitest';
  * MYK9-228.
  */
 // `emergency_packet_input` is rebuilt in full by each successive
-// `CREATE OR REPLACE`; the latest is `20260824150000` (MYK9-243, the armband
-// label). Every assertion about that function's body must read the LATEST
+// `CREATE OR REPLACE`; the latest is `20260824223000` (trial-registry
+// registration numbers). Every assertion about that function's body must read the LATEST
 // definition — asserting against a superseded file passes against text that no
 // longer describes the deployed function. This path is the one thing here that
 // MUST be updated whenever the function is rebuilt again.
 const sql = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260824150000_emergency_packet_armband_label.sql'
+    '../../../../../supabase/migrations/20260824223000_emergency_packet_registration_numbers.sql'
   ),
   'utf8'
 );
@@ -196,6 +196,35 @@ describe('emergency_packet_input contract', () => {
     // As a SQL literal — the comment above the line legitimately names the
     // placeholder it exists to avoid.
     expect(sql).not.toMatch(/'Ring unassigned'/);
+  });
+
+  it('emits the registration number belonging to each entry trial registry', () => {
+    expect(sql).toMatch(/FROM public\.dog_registrations dr/);
+    expect(sql).toMatch(
+      /public\.emergency_packet_registry_key\(COALESCE\(NULLIF\(t\.registry_id, ''\), 'AKC'\)\)/
+    );
+    expect(sql).toMatch(/public\.emergency_packet_registry_key\(dr\.organization\) = t\.registry_key/);
+    for (const [name, code] of [
+      ['AMERICAN KENNEL CLUB', 'AKC'],
+      ['UNITED KENNEL CLUB', 'UKC'],
+      ['AUSTRALIAN SHEPHERD CLUB OF AMERICA', 'ASCA'],
+      ['CANADIAN KENNEL CLUB', 'CKC'],
+      ['FEDERATION CYNOLOGIQUE INTERNATIONALE', 'FCI'],
+    ]) {
+      expect(sql).toContain(`WHEN '${name}' THEN '${code}'`);
+    }
+    expect(sql).toMatch(/'registrationNumber', e\.registration_number/);
+    expect(sql).not.toMatch(/'registrationNumber', NULL/);
+  });
+
+  it('normalises registry labels with the same exact rules as the app', () => {
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.emergency_packet_registry_key/);
+    expect(sql).toMatch(/regexp_replace\(COALESCE\(value, ''\), '\\\(\.\*\$', ''\)/);
+    expect(sql).toMatch(/ELSE registry_key/);
+    expect(sql).not.toMatch(/registry_key LIKE 'AKC%'/);
+    expect(sql).toMatch(
+      /REVOKE ALL ON FUNCTION public\.emergency_packet_registry_key\(text\)\s+FROM PUBLIC, anon, authenticated;/
+    );
   });
 
   it('returns the camelCase keys the renderer consumes', () => {

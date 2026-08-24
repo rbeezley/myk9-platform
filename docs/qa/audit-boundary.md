@@ -43,7 +43,7 @@ UTC.
 
 | Stream                | Last reviewed SHA | Window end | Run by | Run date |
 | --------------------- | ----------------- | ---------- | ------ | -------- |
-| `daily-commit-review` | `c01e08d7707dd6673d33a8d0e20b16ce5235482a` | 2026-08-21T04:09:05Z | codex-daily-commit-review | 2026-08-21 |
+| `daily-commit-review` | `339d0e2701ded7ba7323c3f20ebf7f0067f3273d` | 2026-08-24T13:13:07Z | codex-daily-commit-review | 2026-08-24 |
 
 Seeded `unset` deliberately. Nobody has verified which commits the Codex daily stream has actually
 covered, and writing a plausible-looking SHA here would claim coverage no one proved. The first run

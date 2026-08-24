@@ -44,6 +44,8 @@ function packetInput(): EmergencyPacketInput {
     timeLimitArea2Seconds: null,
     timeLimitArea3Seconds: null,
     numAreas: 1,
+    numHides: null,
+    distractionCount: null,
   }));
   const entries = classes.map((classItem, index) => ({
     id: `e${index + 1}`,
@@ -365,9 +367,9 @@ describe('validateGenerateRequest', () => {
       );
     }
     // A real leap day must still pass.
-    expect(
-      validateGenerateRequest({ showId: SHOW_ID, trialDate: '2028-02-29' }).trialDate
-    ).toBe('2028-02-29');
+    expect(validateGenerateRequest({ showId: SHOW_ID, trialDate: '2028-02-29' }).trialDate).toBe(
+      '2028-02-29'
+    );
   });
 });
 
@@ -379,10 +381,7 @@ describe('generateTrialPackets', () => {
 
     // Saturday holds two trials and Sunday one; a packet per TRIAL would be
     // three, and would split Saturday's two trials into separate stacks.
-    expect(summary.generated.map(packet => packet.trialDate)).toEqual([
-      '2026-09-19',
-      '2026-09-20',
-    ]);
+    expect(summary.generated.map(packet => packet.trialDate)).toEqual(['2026-09-19', '2026-09-20']);
     expect(uploads).toHaveLength(2);
     expect(inserts).toHaveLength(2);
     expect(inserts.every(row => row.generated_source === 'automated')).toBe(true);
@@ -449,7 +448,9 @@ describe('generateTrialPackets', () => {
     // The caller is a scheduler; it has no other way to notice a mistyped date
     // or a day whose trials were all cancelled.
     const input = packetInput();
-    const { supabase, uploads } = makeStub({ rpcData: { ...input, trials: [], classes: [], entries: [] } });
+    const { supabase, uploads } = makeStub({
+      rpcData: { ...input, trials: [], classes: [], entries: [] },
+    });
 
     const summary = await generateTrialPackets(
       supabase,
@@ -487,12 +488,12 @@ describe('generateTrialPackets', () => {
     // nibbles are 0. The old validator rejected it, so the cron could not have
     // produced a packet for the only show on staging — and answered 400 into a
     // fire-and-forget pg_net call, where nobody would ever have seen it.
-    expect(
-      validateGenerateRequest({ showId: 'dededede-0000-0000-0000-000000000010' }).showId
-    ).toBe('dededede-0000-0000-0000-000000000010');
-    expect(() => validateGenerateRequest({ showId: 'dededede-0000-0000-0000-00000000001' })).toThrow(
-      HttpError
+    expect(validateGenerateRequest({ showId: 'dededede-0000-0000-0000-000000000010' }).showId).toBe(
+      'dededede-0000-0000-0000-000000000010'
     );
+    expect(() =>
+      validateGenerateRequest({ showId: 'dededede-0000-0000-0000-00000000001' })
+    ).toThrow(HttpError);
   });
 });
 
@@ -675,9 +676,9 @@ describe('shouldReclaimStalePacketClaim', () => {
   it('waits out the lease before taking over an incomplete one', () => {
     const justInside = new Date(base - (PACKET_CLAIM_LEASE_MS - 1000)).toISOString();
     const justOutside = new Date(base - (PACKET_CLAIM_LEASE_MS + 1000)).toISOString();
-    expect(shouldReclaimStalePacketClaim({ claimed_at: justInside, completed_at: null }, base)).toBe(
-      false
-    );
+    expect(
+      shouldReclaimStalePacketClaim({ claimed_at: justInside, completed_at: null }, base)
+    ).toBe(false);
     expect(
       shouldReclaimStalePacketClaim({ claimed_at: justOutside, completed_at: null }, base)
     ).toBe(true);
@@ -686,9 +687,9 @@ describe('shouldReclaimStalePacketClaim', () => {
   it('reclaims rather than blocks when the timestamp is unreadable', () => {
     // A duplicate email is recoverable; a trial day with no paper is the
     // failure this whole feature exists to prevent.
-    expect(shouldReclaimStalePacketClaim({ claimed_at: 'not a date', completed_at: null }, base)).toBe(
-      true
-    );
+    expect(
+      shouldReclaimStalePacketClaim({ claimed_at: 'not a date', completed_at: null }, base)
+    ).toBe(true);
   });
 });
 
@@ -759,4 +760,3 @@ describe('failure evidence accumulates across attempts', () => {
     expect(claims['2026-09-19']?.last_error).toMatch(/store the generated packet/i);
   });
 });
-

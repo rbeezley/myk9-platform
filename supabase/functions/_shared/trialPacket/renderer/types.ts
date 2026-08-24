@@ -76,6 +76,17 @@ export interface EmergencyPacketClass {
   timeLimitArea3Seconds: number | null;
   /** Authoritative count of areas searched — not "how many limits are filled in". */
   numAreas: number | null;
+  /** Hide count for the class header. Null means "not configured", not zero. */
+  numHides: number | null;
+  /** Distraction count for the class header. Null means "not configured". */
+  distractionCount: number | null;
+  /**
+   * Overrides the trial's registryId for THIS class's scoresheet vocabulary,
+   * when a class is sanctioned differently from its trial. Optional because
+   * most fixtures and every caller before Task 4 have no reason to set it —
+   * `buildEmergencyPacketModel` falls back to the trial's registryId.
+   */
+  registryId?: string | null;
 }
 
 export interface EmergencyPacketInput {
@@ -87,12 +98,7 @@ export interface EmergencyPacketInput {
 }
 
 export type EmergencyPacketPageKind =
-  | 'cover'
-  | 'catalog'
-  | 'check-in'
-  | 'score-recording'
-  | 'certification'
-  | 'transcription';
+  'cover' | 'catalog' | 'check-in' | 'score-recording' | 'certification' | 'transcription';
 
 export interface EmergencyPacketPageContext {
   showName: string;
@@ -102,6 +108,22 @@ export interface EmergencyPacketPageContext {
   classLabel?: string;
   judgeName?: string;
   timeLimitLabel?: string | undefined;
+  /**
+   * Authoritative area count for the class (see `resolveAreaCount`), carried
+   * through so the scoresheet's per-dog time stack never recomputes it from
+   * `timeLimitLabel` text. Undefined off the class-level pages (cover,
+   * catalog); score-recording always sets it.
+   */
+  areaCount?: number;
+  /** See `EmergencyPacketClass.registryId`. Falls back to the trial's when unset. */
+  registryId?: string | null;
+  /**
+   * Raw hide/distraction counts for the score-recording class header (see
+   * `EmergencyPacketClass.numHides`/`distractionCount`). Only score-recording
+   * pages render these; `undefined`/`null` prints nothing, never `0`.
+   */
+  numHides?: number | null;
+  distractionCount?: number | null;
 }
 
 export interface EmergencyPacketEntry extends PacketReportEntry {
@@ -114,7 +136,14 @@ export interface EmergencyPacketPage {
   kind: EmergencyPacketPageKind;
   title: string;
   pageNumber: number;
-  marker: typeof EMERGENCY_PACKET_MARKER;
+  /**
+   * Empty string, not the marker, when this page was built with
+   * `snapshotMarker: false` (see `EmergencyPacketModel.snapshotMarker`) — a
+   * check-in sheet or scoresheet printed from Reports on an ordinary working
+   * day is not a degraded-mode snapshot, and stamping it "SNAPSHOT — NOT
+   * LIVE" tells a gate steward the paper may be stale when it is not.
+   */
+  marker: typeof EMERGENCY_PACKET_MARKER | '';
   generatedAt: string;
   context: EmergencyPacketPageContext;
   entries: EmergencyPacketEntry[];
@@ -135,11 +164,19 @@ export interface EmergencyPacketModel {
   show: EmergencyPacketShow;
   trials: EmergencyPacketTrialSection[];
   pages: EmergencyPacketPage[];
+  /**
+   * Whether every page in this model carries the emergency-packet snapshot
+   * marker and the PDF is titled as an emergency packet. `true` for the
+   * actual emergency trial packet (`EmergencyTrialPacketPanel`, the
+   * `generate-trial-packet` cron); `false` for the Reports page's check-in
+   * sheet and scoresheet, which reuse this same builder but are printed on
+   * an ordinary working day, not during degraded-mode operation.
+   */
+  snapshotMarker: boolean;
 }
 
 export type EmergencyPacketAvailability =
-  | { available: true }
-  | { available: false; reason: string };
+  { available: true } | { available: false; reason: string };
 
 export interface EmergencyPacketDeliveryResult {
   snapshotId: string;

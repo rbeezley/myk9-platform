@@ -124,10 +124,15 @@ describe('reportRegistry', () => {
       expect(report?.category).toBe('financial');
     });
 
-    it('official-PDF-only reports are enabled but render directly from ReportsPage', () => {
+    it('reports that render directly from ReportsPage (official PDFs and buildPdf-backed reports) are enabled with placeholder components', () => {
       const placeholderReportIds = [
         'armband-labels',
         'result-labels',
+        // check-in-sheet and scoresheet render via `buildPdf` (the shared
+        // trial-packet PDF renderer), not through `component` — see
+        // ReportPreview.tsx's PDF branch.
+        'check-in-sheet',
+        'scoresheet',
         'ukc-nosework-entry-form',
         'ukc-nosework-change-entry-form',
         'ukc-nosework-judges-book-element',

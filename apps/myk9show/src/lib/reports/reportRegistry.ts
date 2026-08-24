@@ -1,6 +1,6 @@
 import type { ReportDefinition, ReportProps } from '@/lib/reports/types';
-import { CheckInSheet } from '@/components/reports/CheckInSheet';
-import { ScoresheetReport } from '@/components/reports/ScoresheetReport';
+import { renderEmergencyTrialPacketPdf } from '@/features/emergency-trial-packet/renderPacketPdf';
+import { toScoresheetModel, selectPacketPages } from '@/lib/reports/toScoresheetModel';
 import { ResultsSheet } from '@/components/reports/ResultsSheet';
 import { ShowFlyerReport } from '@/components/reports/ShowFlyerReport';
 import { AKCScentWorkEntryForm } from '@/components/reports/AKCScentWorkEntryForm';
@@ -44,8 +44,17 @@ export const reportRegistry: ReportDefinition[] = [
     scopes: ['trial', 'class'],
     sortOptions: RUN_ORDER_SORT_OPTIONS,
     defaultSort: 'run-order',
-    component: CheckInSheet,
+    // Rendered by `buildPdf` below (the shared trial-packet PDF renderer),
+    // not this component — see ReportPreview.tsx's PDF branch. Kept as a
+    // placeholder rather than deleted so `ReportDefinition.component` stays
+    // non-optional. The old `CheckInSheet` React component and its test were
+    // deleted in Task 7 (was dead code — unreferenced outside its own test).
+    component: PlaceholderReport,
     enabled: true,
+    buildPdf: (dataset, sortOrder) =>
+      renderEmergencyTrialPacketPdf(
+        selectPacketPages(toScoresheetModel(dataset, sortOrder), 'check-in')
+      ),
   },
   {
     id: 'scoresheet',
@@ -54,8 +63,15 @@ export const reportRegistry: ReportDefinition[] = [
     scopes: ['trial', 'class'],
     sortOptions: RUN_ORDER_SORT_OPTIONS,
     defaultSort: 'run-order',
-    component: ScoresheetReport,
+    // Rendered by `buildPdf` below — see the check-in-sheet comment above.
+    // The old `ScoresheetReport` React component and its test were likewise
+    // deleted in Task 7.
+    component: PlaceholderReport,
     enabled: true,
+    buildPdf: (dataset, sortOrder) =>
+      renderEmergencyTrialPacketPdf(
+        selectPacketPages(toScoresheetModel(dataset, sortOrder), 'score-recording')
+      ),
   },
   {
     id: 'results-sheet',
@@ -117,6 +133,7 @@ export const reportRegistry: ReportDefinition[] = [
     ],
     defaultSort: 'armband',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
     supportsDogFilter: true,
   },
@@ -128,6 +145,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
     supportsDogFilter: true,
   },
@@ -139,6 +157,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -149,6 +168,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -159,6 +179,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -169,6 +190,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -179,6 +201,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -189,6 +212,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -199,6 +223,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -209,6 +234,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
   {
@@ -219,6 +245,7 @@ export const reportRegistry: ReportDefinition[] = [
     sortOptions: [],
     defaultSort: '',
     component: PlaceholderReport,
+    pdfOnly: true,
     enabled: true,
   },
 

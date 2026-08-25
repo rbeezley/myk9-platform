@@ -41,12 +41,13 @@ Captured 2026-08-25 against project `sojmvhhwsjxmfistvzbe` and current `main`.
 
 ## Implementation verification
 
-- Repository changes are published in PR #1792: `https://github.com/rbeezley/myk9-platform/pull/1792`.
+- Repository changes passed all required checks and merged in PR #1792 as `d98256382944a2d9114e7db5b66e402e71f8fe87`: `https://github.com/rbeezley/myk9-platform/pull/1792`.
+- The approved Linear batch added sanitized recurrence-closure evidence to exact issue MYK9-161 while preserving its correct Done state. MYK9-236 and MYK9-243 already contained complete deployed closure comments, and no duplicate issue was created for resolved report-only SHD findings.
 
 | Dimension | Result |
 | --- | --- |
-| Completeness | 17/21 tasks complete; repository implementation, review/CI, approved deployment, and hosted read-back proof are complete; merge, Linear evidence update, archive, and cleanup gates remain. |
+| Completeness | 21/21 tasks complete; repository implementation, review/CI, approved deployment, hosted read-back, merge, Linear reconciliation, archive, and cleanup gates all passed. |
 | Correctness | The two new assertions failed before implementation and passed afterward. Focused tests, database drift tests, full typecheck, full lint, strict OpenSpec validation, live phase-2 SQL, function inventory, bundle downloads, ACL replay, and index catalog preflight agree with the design. |
 | Coherence | No duplicated product surface or new data path. The migration is additive, the cron assertion uses the scheduler identity, and both email deployment roots remain byte-identical at the target helper. |
 
-No CRITICAL, WARNING, or SUGGESTION implementation or deployment finding remains. The change is not archive-ready because merge, approval-gated Linear evidence updates, archive, and cleanup remain incomplete.
+No CRITICAL, WARNING, or SUGGESTION implementation or deployment finding remains. All proof and governance gates passed; the change is archive-ready.

@@ -243,21 +243,32 @@ describe('sendResendEmailWithRetry', () => {
   });
 
   it('generates distinct fallback keys for separate invocations with the same body', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(Response.json({ id: 'email-repeat-body' }));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ id: 'email-repeat-body-1' }))
+      .mockResolvedValueOnce(Response.json({ id: 'email-repeat-body-2' }));
     const createIdempotencyKey = vi
       .fn()
       .mockReturnValueOnce('myk9-generated-1')
       .mockReturnValueOnce('myk9-generated-2');
     const body = '{"to":"recipient@example.com"}';
 
-    await sendResendEmailWithRetry({ method: 'POST', body }, { fetchImpl, createIdempotencyKey });
-    await sendResendEmailWithRetry({ method: 'POST', body }, { fetchImpl, createIdempotencyKey });
+    const first = await sendResendEmailWithRetry(
+      { method: 'POST', body },
+      { fetchImpl, createIdempotencyKey }
+    );
+    const second = await sendResendEmailWithRetry(
+      { method: 'POST', body },
+      { fetchImpl, createIdempotencyKey }
+    );
 
     expect(
       fetchImpl.mock.calls.map(call =>
         new Headers((call[1] as RequestInit).headers).get('Idempotency-Key')
       )
     ).toEqual(['myk9-generated-1', 'myk9-generated-2']);
+    await expect(first.json()).resolves.toEqual({ id: 'email-repeat-body-1' });
+    await expect(second.json()).resolves.toEqual({ id: 'email-repeat-body-2' });
   });
 
   it('parses an HTTP-date Retry-After value and clamps the wait to 2000 ms', async () => {

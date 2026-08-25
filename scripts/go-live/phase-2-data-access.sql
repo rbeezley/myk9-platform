@@ -79,7 +79,7 @@ WITH
       count(*) > 0,
       count(*)::text || ' active cron rows'
     FROM cron.job
-    WHERE jobname = 'cleanup_stale_ringside_anon_users'
+    WHERE jobname = 'cleanup-ringside-anon'
       AND active
 
     UNION ALL

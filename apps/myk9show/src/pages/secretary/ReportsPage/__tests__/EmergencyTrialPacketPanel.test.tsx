@@ -313,7 +313,10 @@ describe('packets prepared outside this session', () => {
       />
     );
 
-    expect(screen.getByText(/newer packet replaced the one that was printed/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/stale: a newer packet replaced the one that was printed/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/unconfirmed/i)).toBeNull();
     expect(
       screen.getByRole('button', { name: /mark Sat, Oct 3 packet printed/i })
     ).toBeInTheDocument();
@@ -385,5 +388,6 @@ describe('a confirmed packet stays confirmed regardless of report scope', () => 
 
     expect(screen.getByText(/Choose All Trials and All Classes/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /mark .* printed/i })).toBeNull();
+    expect(screen.getByText(/not confirmed printed/i)).toBeInTheDocument();
   });
 });

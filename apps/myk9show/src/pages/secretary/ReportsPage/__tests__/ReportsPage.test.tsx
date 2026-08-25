@@ -10,6 +10,13 @@ const mockReportState = vi.hoisted(() => ({
   dataState: null as null | 'loading' | 'unavailable' | 'stale' | 'error' | 'ready',
 }));
 
+const mockPrintState = vi.hoisted(() => ({
+  records: [] as Array<Record<string, unknown>>,
+  isLoading: false,
+  isError: false,
+  syncFailed: false,
+}));
+
 // The test renderer mounts no <Toaster/>, so a toast never reaches the DOM.
 // Assert on what the page asked for instead.
 const toastSpy = vi.hoisted(() => ({ called: vi.fn() }));
@@ -177,6 +184,19 @@ vi.mock('@/hooks/queries/useEntryFormData', () => ({
   }),
 }));
 
+vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
+  useShowPaperworkPrints: () => ({
+    data: mockPrintState.records,
+    isLoading: mockPrintState.isLoading,
+    isError: mockPrintState.isError,
+    syncFailed: mockPrintState.syncFailed,
+  }),
+}));
+
+vi.mock('../reportPreviewUtils', () => ({
+  printIframe: vi.fn(() => true),
+}));
+
 vi.mock('../ReportPreview', () => ({
   ReportPreview: (props: { trialId: string; classId: string }) => (
     <div data-testid="report-preview" data-trial-id={props.trialId} data-class-id={props.classId}>
@@ -190,6 +210,10 @@ describe('ReportsPage', () => {
     mockReportState.trialOneRegistryId = 'AKC';
     mockReportState.isLoading = false;
     mockReportState.dataState = null;
+    mockPrintState.records = [];
+    mockPrintState.isLoading = false;
+    mockPrintState.isError = false;
+    mockPrintState.syncFailed = false;
     toastSpy.called.mockClear();
   });
 
@@ -209,6 +233,68 @@ describe('ReportsPage', () => {
   it('renders Print button', () => {
     render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
     expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument();
+  });
+
+  it('shows existing print actor and timestamp with the shared stale vocabulary', () => {
+    mockPrintState.records = [
+      {
+        id: 'print-1',
+        reportId: 'check-in-sheet',
+        coverage: {
+          scopeKind: 'show',
+          scope: { kind: 'show', showId: '' },
+          subjectFingerprints: { 'entry:entry-1': 'different-print' },
+          subjectScopes: {
+            'entry:entry-1': { classIds: ['class-1'], trialIds: ['trial-1'] },
+          },
+        },
+        fingerprint: 'different-report',
+        printedAt: '2026-08-25T12:34:56.000Z',
+        printedByName: 'Jannie Secretary',
+      },
+    ];
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=check-in-sheet',
+    });
+
+    const status = screen.getByTestId('report-print-status');
+    expect(status).toHaveTextContent('Stale');
+    expect(status).toHaveTextContent('Printed by Jannie Secretary');
+    expect(status).toHaveTextContent('2026');
+    expect(status).not.toHaveTextContent(/superseded|unconfirmed/i);
+  });
+
+  it('does not offer to record a print while replicated status is loading', async () => {
+    mockPrintState.isLoading = true;
+    const user = userEvent.setup();
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=check-in-sheet',
+    });
+
+    expect(screen.getByTestId('report-print-status')).toHaveTextContent('Checking print status…');
+    await user.click(screen.getByRole('button', { name: /^print$/i }));
+
+    const lastToast = toastSpy.called.mock.calls.at(-1);
+    expect(lastToast?.[0]).toMatch(/wait for print status/i);
+    expect(lastToast?.[1]).toBeUndefined();
+  });
+
+  it('does not offer to record a print when replicated status sync failed', async () => {
+    mockPrintState.isError = true;
+    const user = userEvent.setup();
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=check-in-sheet',
+    });
+
+    expect(screen.getByTestId('report-print-status')).toHaveTextContent('Print status unavailable');
+    await user.click(screen.getByRole('button', { name: /^print$/i }));
+
+    const lastToast = toastSpy.called.mock.calls.at(-1);
+    expect(lastToast?.[0]).toMatch(/status is unavailable/i);
+    expect(lastToast?.[1]).toBeUndefined();
   });
 
   it('keeps emergency packet preparation in Show Desk tools', () => {

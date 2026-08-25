@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getDogBreedLabel, BREED_NOT_SET } from './dog-types';
+import { getDogBreedLabel, getDogRegisteredName, BREED_NOT_SET } from './dog-types';
 
 // MYK9-90 task 2.3. Breed belongs to a registration with a sanctioning
 // organization, not to the dog. `getDogBreedLabel` therefore reads the PRIMARY
@@ -70,5 +70,20 @@ describe('getDogBreedLabel', () => {
 
   it('ignores whitespace-only breeds', () => {
     expect(getDogBreedLabel({ registrations: [{ breed: '   ' }] })).toBe(BREED_NOT_SET);
+  });
+});
+
+describe('getDogRegisteredName', () => {
+  it('reads the primary registration and never the legacy dog name', () => {
+    expect(
+      getDogRegisteredName({
+        registrations: [{ registered_name: 'Maia TeraByte Van Neerland', is_primary: true }],
+      })
+    ).toBe('Maia TeraByte Van Neerland');
+    expect(getDogRegisteredName({ registrations: [] })).toBeNull();
+  });
+
+  it('treats blank registration names as absent', () => {
+    expect(getDogRegisteredName({ registrations: [{ registered_name: '  ' }] })).toBeNull();
   });
 });

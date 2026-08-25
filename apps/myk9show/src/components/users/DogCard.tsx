@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dog } from '../../types/dog-types';
+import { Dog, getDogBreedLabel } from '../../types/dog-types';
 import { Card } from '../ui/card';
 import {
   DropdownMenu,
@@ -127,7 +127,7 @@ const DogCard: React.FC<DogCardProps> = ({
           <div className="min-w-0">
             <h3 className="font-semibold text-lg truncate">{dog.callName}</h3>
             <p className="text-sm text-muted-foreground truncate">
-              {dog.registrations?.[0]?.breed || 'No breed specified'}
+              {getDogBreedLabel(dog)}
             </p>
           </div>
         </div>

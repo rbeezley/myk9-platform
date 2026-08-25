@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { Dog } from '@/types/dog-types';
+import { getDogBreedLabel, type Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../../ui/avatar';
@@ -61,12 +61,9 @@ const DogListRow: React.FC<DogListRowProps> = ({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-semibold text-lg text-foreground">{dog.callName}</span>
-          {dog.registrations?.[0]?.breed && (
-            <span className="text-sm text-muted-foreground ml-2">
-              Breed:{' '}
-              <span className="font-medium text-foreground">{dog.registrations[0].breed}</span>
-            </span>
-          )}
+          <span className="text-sm text-muted-foreground ml-2">
+            Breed: <span className="font-medium text-foreground">{getDogBreedLabel(dog)}</span>
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-1">
           <span>

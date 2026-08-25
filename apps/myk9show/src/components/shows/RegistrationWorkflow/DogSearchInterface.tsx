@@ -3,7 +3,7 @@ import { Search, X, Calendar, Award, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dog } from '@/types/dog-types';
+import { Dog, getDogBreedLabel } from '@/types/dog-types';
 import { useDebounce } from '@myk9/scoring-ui';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { SearchSuggestions } from '@/components/common/RecentSearches';
@@ -104,8 +104,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
       breeds: [
         ...new Set(
           dogs
-            .map(dog => dog.registrations?.[0]?.breed)
-            .filter((breed): breed is string => Boolean(breed))
+            .map(dog => getDogBreedLabel(dog))
+            .filter((breed): breed is string => Boolean(breed) && breed !== 'Breed not set')
         ),
       ].sort(),
       genders: [
@@ -156,7 +156,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               reg.registeredName?.toLowerCase().includes(query) ||
               reg.registrationNumber?.toLowerCase().includes(query)
           ) ||
-          dog.registrations?.[0]?.breed?.toLowerCase().includes(query) ||
+            getDogBreedLabel(dog).toLowerCase().includes(query) ||
           (dog.microchip && dog.microchip.toLowerCase().includes(query))
         );
       });
@@ -164,7 +164,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
 
     // Apply breed filter
     if (filters.breedFilter) {
-      filtered = filtered.filter(dog => dog.registrations?.[0]?.breed === filters.breedFilter);
+      filtered = filtered.filter(dog => getDogBreedLabel(dog) === filters.breedFilter);
     }
 
     // Apply gender filter

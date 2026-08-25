@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { HandlerInfo } from '@/types/show-registration-types';
-import { getDogDisplayName, type Dog } from '@/types/dog-types';
+import { getDogBreedLabel, getDogDisplayName, type Dog } from '@/types/dog-types';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { shouldLoadPeopleDirectory } from '@/services/database/users/peopleDirectoryAccess';
@@ -244,7 +244,7 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h4 className="font-semibold">{getDogDisplayName(dog)}</h4>
-            <p className="text-sm text-muted-foreground">{dog.breed}</p>
+            <p className="text-sm text-muted-foreground">{getDogBreedLabel(dog)}</p>
           </div>
           {ownerName && (
             <Badge variant="secondary" className="text-xs">

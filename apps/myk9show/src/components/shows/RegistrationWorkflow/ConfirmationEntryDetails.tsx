@@ -13,6 +13,7 @@ import type {
   HandlerAssignment,
 } from './ConfirmationStep.types';
 import { StatusBadge } from '@/components/status';
+import { getDogBreedLabel, getDogRegisteredName } from '@/types/dog-types';
 
 interface ConfirmationEntryDetailsProps {
   showId: string;
@@ -106,11 +107,11 @@ export function ConfirmationEntryDetails({
                     <div>
                       <h4 className="font-medium text-lg">
                         {details.dog.callName || details.dog.name}
-                        {details.dog.registrations?.[0]?.registeredName &&
-                          ` "${details.dog.registrations[0].registeredName}"`}
+                        {getDogRegisteredName(details.dog) &&
+                          ` "${getDogRegisteredName(details.dog)}"`}
                       </h4>
                       <p className="text-sm text-muted-foreground">
-                        {details.dog.registrations?.[0]?.breed || 'No breed specified'} &bull;{' '}
+                        {getDogBreedLabel(details.dog)} &bull;{' '}
                         {details.dog.gender} &bull;{' '}
                         {details.dog.dateOfBirth &&
                           `Born ${formatDateMMDDYYYY(details.dog.dateOfBirth)}`}

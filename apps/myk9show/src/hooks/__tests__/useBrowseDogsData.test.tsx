@@ -28,17 +28,29 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
   }),
 }));
 
-const dog = (overrides: Partial<Dog> & { id: string }): Dog =>
-  ({
+const dog = (overrides: Partial<Dog> & { id: string }): Dog => {
+  const breed = overrides.breed ?? 'Border Collie';
+
+  return ({
     name: overrides.callName ?? overrides.id,
     callName: overrides.id,
-    breed: 'Border Collie',
+    breed,
     sex: 'female',
     ownerId: 'owner-1',
     ownerName: 'Jane Doe',
-    registrations: [],
+    registrations: [
+      {
+        id: `reg-${overrides.id}`,
+        organization: 'AKC',
+        registeredName: `${overrides.id} Registered Name`,
+        breed,
+        registrationNumber: `AKC-${overrides.id}`,
+        status: 'Active',
+      },
+    ],
     ...overrides,
   }) as Dog;
+};
 
 describe('useBrowseDogsData', () => {
   beforeEach(() => {

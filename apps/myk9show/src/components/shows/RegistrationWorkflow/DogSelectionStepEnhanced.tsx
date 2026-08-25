@@ -24,7 +24,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { getDogDisplayName, getDogBreedLabel, Dog, User } from '@/types/dog-types';
+import { getDogBreedLabel, getDogDisplayName, getDogRegisteredName, Dog, User } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';
@@ -155,8 +155,8 @@ const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
   };
 
   const tooltipDetails: { label: string; value: string }[] = [];
-  if (reg?.registeredName)
-    tooltipDetails.push({ label: 'Registered Name', value: reg.registeredName });
+  const registeredName = getDogRegisteredName(dog);
+  if (registeredName) tooltipDetails.push({ label: 'Registered Name', value: registeredName });
   if (dog.gender) tooltipDetails.push({ label: 'Gender', value: dog.gender });
   if (dog.dateOfBirth)
     tooltipDetails.push({ label: 'Date of Birth', value: formatDateMMDDYYYY(dog.dateOfBirth) });
@@ -389,8 +389,8 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
           bVal = getDogDisplayName(b).toLowerCase();
           break;
         case 'breed':
-          aVal = (a.registrations?.[0]?.breed || a.breed || '').toLowerCase();
-          bVal = (b.registrations?.[0]?.breed || b.breed || '').toLowerCase();
+          aVal = getDogBreedLabel(a).toLowerCase();
+          bVal = getDogBreedLabel(b).toLowerCase();
           break;
         case 'owner':
           aVal = (a.ownerName || a.owner?.name || '').toLowerCase();

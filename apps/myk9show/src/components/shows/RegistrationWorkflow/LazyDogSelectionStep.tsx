@@ -12,6 +12,7 @@ import { useDebounce } from '@myk9/scoring-ui';
 import { useDogStoreCompat } from '../../../hooks/useDogStoreCompat';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { getDogBreedLabel } from '@/types/dog-types';
 
 interface LazyDogSelectionStepProps {
   selectedDogs: string[];
@@ -58,13 +59,13 @@ export function LazyDogSelectionStep({
             dog =>
               dog.callName?.toLowerCase().includes(query) ||
               dog.name.toLowerCase().includes(query) ||
-              dog.registrations?.[0]?.breed?.toLowerCase().includes(query)
+              getDogBreedLabel(dog).toLowerCase().includes(query)
           );
         }
 
         if (filters.breed) {
           filteredDogs = filteredDogs.filter(
-            dog => dog.registrations?.[0]?.breed === filters.breed
+            dog => getDogBreedLabel(dog) === filters.breed
           );
         }
 
@@ -134,8 +135,8 @@ export function LazyDogSelectionStep({
     const breeds = [
       ...new Set(
         allDogs
-          .map(dog => dog.registrations?.[0]?.breed)
-          .filter((breed): breed is string => Boolean(breed))
+          .map(dog => getDogBreedLabel(dog))
+          .filter((breed): breed is string => Boolean(breed) && breed !== 'Breed not set')
       ),
     ].sort();
     const genders = [

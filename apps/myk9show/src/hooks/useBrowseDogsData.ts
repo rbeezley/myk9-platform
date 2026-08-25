@@ -2,7 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { useRoleBasedDogs } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { getDogDisplayName, type Dog } from '@/types/dog-types';
+import { getDogBreedLabel, getDogDisplayName, type Dog } from '@/types/dog-types';
 
 export interface DogFilters {
   search: string;
@@ -56,7 +56,8 @@ export function useBrowseDogsData(): BrowseDogsData {
   const availableBreeds = useMemo(() => {
     const breeds = new Set<string>();
     for (const dog of dogs) {
-      if (dog.breed) breeds.add(dog.breed);
+      const breed = getDogBreedLabel(dog);
+      if (breed !== 'Breed not set') breeds.add(breed);
     }
     return [...breeds].sort((a, b) => a.localeCompare(b));
   }, [dogs]);
@@ -81,7 +82,7 @@ export function useBrowseDogsData(): BrowseDogsData {
   const searchIndex = useMemo(
     () =>
       sortedDogs.map(dog =>
-        [dog.callName, dog.name, dog.breed, dog.ownerName]
+        [dog.callName, dog.name, getDogBreedLabel(dog), dog.ownerName]
           .filter(Boolean)
           .join('\u0000')
           .toLowerCase()
@@ -98,7 +99,7 @@ export function useBrowseDogsData(): BrowseDogsData {
 
     return sortedDogs.filter((dog, i) => {
       if (query && !searchIndex[i]?.includes(query)) return false;
-      if (byBreed && dog.breed !== filters.breed) return false;
+      if (byBreed && getDogBreedLabel(dog) !== filters.breed) return false;
       if (bySex && dog.sex !== filters.sex) return false;
       return true;
     });

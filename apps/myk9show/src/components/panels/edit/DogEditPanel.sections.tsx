@@ -26,7 +26,6 @@ import { FormField } from '@/components/common/FormField';
 import type { DogFormData } from './DogEditPanel.types';
 import { DogEditContext } from './DogEditPanel';
 import { usePeopleQuery } from '@/hooks/usePeopleQuery';
-import { AKC_BREEDS } from '@/data/breedData';
 
 // ── Owner Selection Field (admin only) ──────────────────────────────
 
@@ -128,7 +127,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const { data, updateData, form } = useEditPanel<DogFormData>();
 
   const callNameError = form?.getError('callName');
-  const registeredNameError = form?.getError('registeredName');
   const genderError = form?.getError('gender');
   const dobError = form?.getError('dateOfBirth');
 
@@ -197,24 +195,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             />
           </FormField>
 
-          <FormField
-            label="Registered Name"
-            fieldId="registeredName"
-            required
-            error={registeredNameError}
-          >
-            <Input
-              id="registeredName"
-              value={data.registeredName}
-              onChange={handleInputChange('registeredName')}
-              onBlur={() => form?.touchField('registeredName')}
-              placeholder="Enter registered name"
-              className={cn(registeredNameError && 'border-destructive')}
-              {...form?.getFieldProps('registeredName')}
-            />
-          </FormField>
         </div>
 
+        {/* Breed is recorded on an organization registration, not on the base dog record. */}
+        {/*
         <FormField label="Breed" fieldId="breed">
           <input
             id="breed"
@@ -234,7 +218,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             or select "Mixed Breed" — this does not affect AKC PAL/ILP or mixed-breed registration
             eligibility.
           </p>
-        </FormField>
+        </FormField> */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Gender" fieldId="gender" required error={genderError}>
@@ -401,6 +385,12 @@ export const RegistrationsTab: React.FC = () => {
                   <div className="text-sm text-muted-foreground">
                     <span className="font-medium">Breed: </span>
                     {reg.breed}
+                  </div>
+                )}
+                {reg.registeredName && (
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium">Registered name: </span>
+                    {reg.registeredName}
                   </div>
                 )}
               </div>

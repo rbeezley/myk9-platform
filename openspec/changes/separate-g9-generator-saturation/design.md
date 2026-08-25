@@ -77,8 +77,10 @@ The canonical demo show may now have immutable emergency packet PDFs in the priv
 through the service-role Storage API before deleting their `trial_packet_snapshots`
 audit rows and running the SQL seed. Paths are deduplicated and must remain under the
 canonical show prefix. If Storage deletion fails, audit rows remain and the rehearsal
-fails closed. The SQL seed independently refuses to replace the show while snapshot
-rows remain, preventing a direct reseed from orphaning private objects.
+fails closed. Metadata deletion is limited to the selected snapshot IDs, then the helper
+re-reads the show and fails closed if a concurrent snapshot appeared. The SQL seed
+independently refuses to replace the show while snapshot rows remain, preventing a
+direct reseed from orphaning private objects.
 
 ## Risks / Trade-offs
 

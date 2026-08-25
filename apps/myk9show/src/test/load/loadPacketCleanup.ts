@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 const TRIAL_PACKET_BUCKET = 'trial-packets';
 
 interface TrialPacketSnapshotPath {
+  id: string;
   storage_path: string;
 }
 
@@ -12,7 +13,7 @@ export async function clearLoadTrialPacketSnapshots(
 ): Promise<{ objectsRemoved: number; rowsRemoved: number }> {
   const { data, error: readError } = await client
     .from('trial_packet_snapshots')
-    .select('storage_path')
+    .select('id, storage_path')
     .eq('show_id', showId);
   if (readError) throw new Error(`Could not read trial packet snapshots: ${readError.message}`);
 
@@ -32,12 +33,28 @@ export async function clearLoadTrialPacketSnapshots(
     }
   }
 
-  const { error: deleteError } = await client
+  if (rows.length > 0) {
+    const { error: deleteError } = await client
+      .from('trial_packet_snapshots')
+      .delete()
+      .in(
+        'id',
+        rows.map(row => row.id)
+      );
+    if (deleteError) {
+      throw new Error(`Could not remove trial packet snapshot rows: ${deleteError.message}`);
+    }
+  }
+
+  const { data: remaining, error: verifyError } = await client
     .from('trial_packet_snapshots')
-    .delete()
+    .select('id')
     .eq('show_id', showId);
-  if (deleteError) {
-    throw new Error(`Could not remove trial packet snapshot rows: ${deleteError.message}`);
+  if (verifyError) {
+    throw new Error(`Could not verify trial packet cleanup: ${verifyError.message}`);
+  }
+  if ((remaining ?? []).length > 0) {
+    throw new Error('A canonical trial packet snapshot appeared during cleanup.');
   }
 
   return { objectsRemoved: paths.length, rowsRemoved: rows.length };

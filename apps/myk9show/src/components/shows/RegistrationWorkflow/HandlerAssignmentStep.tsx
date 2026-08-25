@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { ClassSelectionData, HandlerInfo, makeHandlerKey } from '@/types/show-registration-types';
-import { getDogDisplayName } from '@/types/dog-types';
+import { getDogBreedLabel, getDogDisplayName } from '@/types/dog-types';
 import { compareLevels } from '@/utils/schedule-summary';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -161,7 +161,8 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
                 <div>
                   <h4 className="font-semibold">{getDogDisplayName(dog)}</h4>
                   <p className="text-sm text-muted-foreground">
-                    {dog.breed} &bull; {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+                    {getDogBreedLabel(dog)} &bull; {entries.length}{' '}
+                    {entries.length === 1 ? 'entry' : 'entries'}
                   </p>
                 </div>
                 {entries.length > 1 && (

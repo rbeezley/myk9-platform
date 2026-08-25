@@ -39,6 +39,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { formatRingLabel } from '@/utils/ringLabel';
 import { StatusIcon } from '@/components/status';
+import { getDogBreedLabel } from '@/types/dog-types';
 
 interface ClassCheckInProps {
   classInfo?: ExhibitorClassInfo;
@@ -291,7 +292,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
                 <p className="text-gray-500 text-sm">Dog</p>
                 <p className="font-medium">{entry.dog?.callName || entry.dogCallName}</p>
                 <p className="text-sm text-gray-600">
-                  {entry.dog?.registrations?.[0]?.breed || entry.breed}
+                  {entry.dog ? getDogBreedLabel(entry.dog) : entry.breed}
                 </p>
               </div>
 

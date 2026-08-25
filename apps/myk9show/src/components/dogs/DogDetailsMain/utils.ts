@@ -48,13 +48,8 @@ export function parseOptionalDogNumber(value: string | undefined): number | null
  * Convert Dog form data to DogInput for database updates
  */
 export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Partial<DogInput> {
-  // Extract breed from registrations or use existing dog breed
-  const breed =
-    dogData.registrations?.[0]?.breed || currentDog.registrations?.[0]?.breed || 'Unknown';
-
   // Build result object conditionally to comply with exactOptionalPropertyTypes
   const result: Partial<DogInput> = {
-    breed: breed,
     sex: (dogData.sex || dogData.gender?.toLowerCase()) as 'male' | 'female',
     ownerId: dogData.ownerId || currentDog.ownerId,
   };
@@ -80,7 +75,7 @@ export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Pa
       organization: reg.organization,
       number: reg.registrationNumber,
       registeredName: reg.registeredName,
-      type: reg.breed || 'Unknown',
+      type: reg.breed || '',
       status: reg.status,
     }));
   }

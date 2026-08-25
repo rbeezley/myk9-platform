@@ -2,7 +2,7 @@ import { ClassData, EntryData } from './types/classTypes';
 import { Show } from '@/types/show-types';
 import type { ClassStat } from './ClassDetailsMain.types';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
-import type { Dog } from '@/types/dog-types';
+import { getDogBreedLabel, type Dog } from '@/types/dog-types';
 import { msToDisplay } from '@/lib/timeUtils';
 
 /**
@@ -212,7 +212,7 @@ export function buildScentWorkEntries(
       displayInfo: {
         armband: entry.armband || '',
         dogName: entry.dog || 'Unknown Dog',
-        dogBreed: dog?.registrations?.[0]?.breed || 'Unknown Breed',
+        dogBreed: dog ? getDogBreedLabel(dog) : 'Breed not set',
         handlerName: entry.handler || 'Unknown Handler',
         dogId: dog?.id || '',
         handlerId: '',

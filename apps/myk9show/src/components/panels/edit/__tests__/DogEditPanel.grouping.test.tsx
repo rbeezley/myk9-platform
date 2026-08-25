@@ -21,8 +21,6 @@ vi.mock('@/services/LoggingService', () => ({
 
 const defaultFormData: DogFormData = {
   callName: 'Rex',
-  registeredName: 'Rex the Dog',
-  breed: '',
   gender: 'male',
   dateOfBirth: '2020-01-01',
   color: 'black',
@@ -57,11 +55,12 @@ function renderBasicInfoTab() {
 }
 
 describe('BasicInfoTab — Basics / More details grouping', () => {
-  it('shows basics fields (call name, breed) without needing to expand anything', () => {
+  it('shows the call name without exposing registration identity fields', () => {
     renderBasicInfoTab();
 
     expect(screen.getByLabelText(/Call Name/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Breed/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Breed/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Registered Name/)).not.toBeInTheDocument();
   });
 
   it('keeps advanced fields (weight, height, microchip, notes) collapsed by default', () => {
@@ -90,11 +89,10 @@ describe('BasicInfoTab — Basics / More details grouping', () => {
     expect(screen.getByText(/Format: MM\/DD\/YYYY/)).toBeInTheDocument();
   });
 
-  it('shows mixed-breed/registration guidance near the breed field', () => {
+  it('does not assert a breed on the base dog form', () => {
     renderBasicInfoTab();
 
-    expect(screen.getByText(/Mixed Breed/)).toBeInTheDocument();
-    expect(screen.getByText(/AKC PAL\/ILP/)).toBeInTheDocument();
+    expect(screen.queryByText(/Mixed Breed/)).not.toBeInTheDocument();
   });
 });
 

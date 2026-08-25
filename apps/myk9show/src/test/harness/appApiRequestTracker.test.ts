@@ -31,66 +31,85 @@ function createPageHarness() {
 describe('app API request tracker', () => {
   it('waits for an app API request to finish and remain idle', async () => {
     const harness = createPageHarness();
-    const pending = watchAppApiRequests(harness.page);
+    const tracker = watchAppApiRequests(harness.page);
     const request = createRequest('https://example.supabase.co/rest/v1/clubs?select=*');
 
     setTimeout(() => harness.emit('request', request), 5);
     setTimeout(() => harness.emit('requestfinished', request), 10);
 
-    const unsettledUrls = await waitForAppApiRequestsToSettle(harness.page, pending, {
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
       idleMs: 15,
       timeoutMs: 100,
     });
 
-    expect(unsettledUrls).toEqual([]);
-    expect(pending.size).toBe(0);
+    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
+    expect(tracker.pending.size).toBe(0);
   });
 
   it('tracks an app API request that started before the route sweep', async () => {
     const harness = createPageHarness();
-    const pending = watchAppApiRequests(harness.page);
+    const tracker = watchAppApiRequests(harness.page);
     const request = createRequest('https://example.supabase.co/rest/v1/clubs?select=*');
 
     harness.emit('request', request);
     setTimeout(() => harness.emit('requestfinished', request), 5);
 
-    const unsettledUrls = await waitForAppApiRequestsToSettle(harness.page, pending, {
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
       idleMs: 5,
       timeoutMs: 100,
     });
 
-    expect(unsettledUrls).toEqual([]);
-    expect(pending.size).toBe(0);
+    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
+    expect(tracker.pending.size).toBe(0);
   });
 
   it('reports an app API request that never settles', async () => {
     const harness = createPageHarness();
-    const pending = watchAppApiRequests(harness.page);
+    const tracker = watchAppApiRequests(harness.page);
     const request = createRequest('https://example.supabase.co/rest/v1/clubs?select=*');
 
     harness.emit('request', request);
 
-    const unsettledUrls = await waitForAppApiRequestsToSettle(harness.page, pending, {
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
       idleMs: 5,
       timeoutMs: 20,
     });
 
-    expect(unsettledUrls).toEqual(['https://example.supabase.co/rest/v1/clubs?select=*']);
+    expect(settlement).toEqual({
+      settled: false,
+      pendingUrls: ['https://example.supabase.co/rest/v1/clubs?select=*'],
+    });
+  });
+
+  it('does not accept a request that finishes just before the timeout', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const request = createRequest('https://example.supabase.co/rest/v1/clubs?select=*');
+
+    harness.emit('request', request);
+    setTimeout(() => harness.emit('requestfinished', request), 18);
+
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      idleMs: 15,
+      timeoutMs: 20,
+    });
+
+    expect(settlement).toEqual({ settled: false, pendingUrls: [] });
   });
 
   it('ignores assets and document requests', async () => {
     const harness = createPageHarness();
-    const pending = watchAppApiRequests(harness.page);
+    const tracker = watchAppApiRequests(harness.page);
 
     harness.emit('request', createRequest('http://127.0.0.1:5173/admin/dashboard'));
     harness.emit('request', createRequest('http://127.0.0.1:5173/assets/app.js'));
 
-    const unsettledUrls = await waitForAppApiRequestsToSettle(harness.page, pending, {
+    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
       idleMs: 5,
       timeoutMs: 20,
     });
 
-    expect(unsettledUrls).toEqual([]);
-    expect(pending.size).toBe(0);
+    expect(settlement).toEqual({ settled: true, pendingUrls: [] });
+    expect(tracker.pending.size).toBe(0);
   });
 });

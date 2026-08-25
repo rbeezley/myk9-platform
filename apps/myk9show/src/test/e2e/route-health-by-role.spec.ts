@@ -178,14 +178,14 @@ async function assertAppApiRequestsSettled(
   pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>,
   routeId: string
 ) {
-  const unsettledUrls = await waitForAppApiRequestsToSettle(page, pendingAppApiRequests);
+  const settlement = await waitForAppApiRequestsToSettle(page, pendingAppApiRequests);
   expect
-    .soft(unsettledUrls, `${routeId}: app API requests did not settle before route transition`)
-    .toEqual([]);
-  if (unsettledUrls.length > 0) {
+    .soft(settlement.settled, `${routeId}: app API requests did not settle before route transition`)
+    .toBe(true);
+  if (!settlement.settled) {
     test.info().annotations.push({
       type: 'route',
-      description: `${routeId} unsettled-api-requests=${unsettledUrls.join(',')}`,
+      description: `${routeId} unsettled-api-requests=${settlement.pendingUrls.join(',') || 'idle-window-incomplete'}`,
     });
   }
 }

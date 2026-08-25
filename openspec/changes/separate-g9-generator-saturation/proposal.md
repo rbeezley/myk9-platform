@@ -7,6 +7,7 @@ This directly supports fall 2026 launch readiness by protecting the shared prela
 ## What Changes
 
 - Add teardown preflight/drain checks that cancel or wait for in-flight scoring work, require zero active scoring workers, and require a bounded quiet rollback window before reseeding.
+- Pair canonical trial-packet Storage deletion with snapshot-row cleanup before reseeding; SQL-only reseeds fail closed instead of orphaning immutable PDFs.
 - Expand the unchanged 100-session/55-ringside rehearsal across additional standard public GitHub runners without weakening duration, roles, fixture, or thresholds.
 - Preserve exact global assignment and percentile aggregation for the larger shard topology.
 - Ensure Supabase CPU and disk IO samples are captured and carried into the aggregate evidence; missing telemetry remains a hard failure.

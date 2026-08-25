@@ -70,6 +70,18 @@ operation becomes the cancel/drain/quiet gate, followed by canonical reseed and 
 existing `514|504|0` check. If drain fails, the job exits before reseed and reports the
 operator recovery requirement rather than claiming cleanup succeeded.
 
+### Remove canonical packet objects before packet audit rows
+
+The canonical demo show may now have immutable emergency packet PDFs in the private
+`trial-packets` bucket. Both prepare and unconditional cleanup remove those objects
+through the service-role Storage API before deleting their `trial_packet_snapshots`
+audit rows and running the SQL seed. Paths are deduplicated and must remain under the
+canonical show prefix. If Storage deletion fails, audit rows remain and the rehearsal
+fails closed. Metadata deletion is limited to the selected snapshot IDs, then the helper
+re-reads the show and fails closed if a concurrent snapshot appeared. The SQL seed
+independently refuses to replace the show while snapshot rows remain, preventing a
+direct reseed from orphaning private objects.
+
 ## Risks / Trade-offs
 
 - **[Risk]** A scoring query may be missed because provider query text changes. →

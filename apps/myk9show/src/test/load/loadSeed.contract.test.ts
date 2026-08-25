@@ -20,6 +20,13 @@ describe('canonical MYK9-109 load fixture', () => {
     expect(seed).toMatch(/DELETE FROM public\.dogs[\s\S]+myk9_109/);
   });
 
+  it('refuses to replace a show while packet snapshots still reference storage objects', () => {
+    expect(seed).not.toContain('DELETE FROM public.trial_packet_snapshots');
+    expect(seed).toMatch(
+      /IF EXISTS[\s\S]*FROM public\.trial_packet_snapshots[\s\S]*RAISE EXCEPTION/
+    );
+  });
+
   it('asserts the declared 514-row show total', () => {
     expect(seed).toContain('MYK9-109 expected 514 demo-show entries');
   });

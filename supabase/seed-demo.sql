@@ -204,6 +204,18 @@ DELETE FROM public.email_log
 WHERE id >= 'ee110000-0000-0000-0001-000000000000'::uuid
   AND id <  'ee110000-0000-0000-0002-000000000000'::uuid;
 DELETE FROM public.show_visibility_settings WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+-- Emergency packet snapshots intentionally RESTRICT show deletion. Their
+-- private Storage objects must be removed through the Storage API before their
+-- audit rows; SQL-only deletion would orphan immutable PDFs.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.trial_packet_snapshots
+    WHERE show_id = 'dededede-0000-0000-0000-000000000010'
+  ) THEN
+    RAISE EXCEPTION 'seed-demo preflight: remove canonical trial packet objects through the Storage API before reseeding';
+  END IF;
+END $$;
 DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';
 -- club_members / club_officers / club_stripe_accounts all cascade on club delete.
 DELETE FROM public.clubs WHERE id IN (

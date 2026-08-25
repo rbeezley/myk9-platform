@@ -35,6 +35,8 @@ describe('manual distributed load workflow', () => {
     );
     expect(workflow).toContain('Abort and drain in-flight scoring work');
     expect(workflow).toContain('scripts/load-cleanup.ts');
+    expect(workflow.match(/scripts\/load-packet-cleanup\.ts/g)).toHaveLength(2);
+    expect(workflow.match(/Clear canonical trial packet snapshots/g)).toHaveLength(2);
     expect(workflow).toContain('Verify Supabase CPU/IO telemetry source');
     expect(workflow).toContain('Mark rehearsal ownership window');
     expect(workflow).toContain('clock_timestamp()');
@@ -50,6 +52,12 @@ describe('manual distributed load workflow', () => {
     expect(workflow.indexOf('Verify Supabase CPU/IO telemetry source')).toBeLessThan(
       workflow.indexOf('Canonical reseed')
     );
+    const firstPacketCleanup = workflow.indexOf('Clear canonical trial packet snapshots');
+    const firstSeed = workflow.indexOf('Canonical reseed');
+    const secondPacketCleanup = workflow.lastIndexOf('Clear canonical trial packet snapshots');
+    const secondSeed = workflow.lastIndexOf('Restore canonical seed');
+    expect(firstPacketCleanup).toBeLessThan(firstSeed);
+    expect(secondPacketCleanup).toBeLessThan(secondSeed);
   });
 
   it('approval-gates the preparation job once and offers a realistic preparation window', () => {

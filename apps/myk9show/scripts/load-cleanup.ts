@@ -33,13 +33,13 @@ async function runPsql(sql: string): Promise<string> {
 
 async function cancelScoringWorkers(): Promise<void> {
   await runPsql(`
-    SELECT pg_cancel_backend(pid)
+    SELECT pg_cancel_backend(pg_stat_activity.pid)
     FROM pg_stat_activity
-    WHERE pid <> pg_backend_pid()
-      AND datname = current_database()
-      AND state <> 'idle'
-      AND query ILIKE '%${SCORING_WORKER_QUERY_FRAGMENT}%'
-      AND query_start >= to_timestamp(${ownedSinceUs} / 1000000.0);
+    WHERE pg_stat_activity.pid <> pg_backend_pid()
+      AND pg_stat_activity.datname = current_database()
+      AND pg_stat_activity.state <> 'idle'
+      AND pg_stat_activity.query ILIKE '%${SCORING_WORKER_QUERY_FRAGMENT}%'
+      AND pg_stat_activity.query_start >= to_timestamp(${ownedSinceUs} / 1000000.0);
   `);
 }
 
@@ -47,16 +47,16 @@ async function readRollbackSample(): Promise<RollbackSample> {
   const output = await runPsql(`
     SELECT
       count(*) FILTER (
-        WHERE pid <> pg_backend_pid()
-          AND datname = current_database()
-          AND state <> 'idle'
-          AND query ILIKE '%${SCORING_WORKER_QUERY_FRAGMENT}%'
+        WHERE pg_stat_activity.pid <> pg_backend_pid()
+          AND pg_stat_activity.datname = current_database()
+          AND pg_stat_activity.state <> 'idle'
+          AND pg_stat_activity.query ILIKE '%${SCORING_WORKER_QUERY_FRAGMENT}%'
       ),
-      xact_rollback
+      pg_stat_database.xact_rollback
     FROM pg_stat_activity
     CROSS JOIN pg_stat_database
     WHERE pg_stat_database.datname = current_database()
-    GROUP BY xact_rollback;
+    GROUP BY pg_stat_database.xact_rollback;
   `);
   const [scoringWorkers, rollbackCount] = output.split('|').map(Number);
   if (!Number.isSafeInteger(scoringWorkers) || !Number.isSafeInteger(rollbackCount)) {

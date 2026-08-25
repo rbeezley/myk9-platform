@@ -43,7 +43,7 @@ Captured 2026-08-25 against project `sojmvhhwsjxmfistvzbe` and current `main`.
 
 | Dimension | Result |
 | --- | --- |
-| Completeness | 10/21 tasks complete; repository implementation, local/read-only verification, and PR publication are complete; review/CI, deployment, Linear, archive, and cleanup gates remain. |
+| Completeness | 12/21 tasks complete; repository implementation, local/read-only verification, and PR publication are complete; review/CI, deployment, Linear, archive, and cleanup gates remain. |
 | Correctness | The two new assertions failed before implementation and passed afterward. Focused tests, database drift tests, full typecheck, full lint, strict OpenSpec validation, live phase-2 SQL, function inventory, bundle downloads, ACL replay, and index catalog preflight agree with the design. |
 | Coherence | No duplicated product surface or new data path. The migration is additive, the cron assertion uses the scheduler identity, and both email deployment roots remain byte-identical at the target helper. |
 

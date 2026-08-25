@@ -53,8 +53,10 @@ describe('registration steps — dark-mode theming guards', () => {
 });
 
 describe('registration steps — mobile responsive guards', () => {
-  it('the dog list scroll height is viewport-relative on phones', () => {
-    expect(dogStep).toContain('h-[55vh]');
+  it('the dog list uses page flow on phones and an inner scroller only at md', () => {
+    expect(dogStep).toContain('h-auto');
+    expect(dogStep).toContain('md:h-[400px]');
+    expect(dogStep).not.toContain('h-[55vh]');
   });
 
   it('the dog-tab strip can scroll horizontally instead of overflowing', () => {

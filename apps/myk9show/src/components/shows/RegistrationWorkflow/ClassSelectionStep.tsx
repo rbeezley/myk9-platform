@@ -16,18 +16,20 @@ import { useClassAvailability } from '@/hooks/useClassAvailability';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { toast } from 'sonner';
 import { InlineHandlerSection } from './InlineHandlerSection';
-import type { ClassSelectionStepProps, ElementGroup } from './ClassSelectionStep.types';
+import type {
+  ClassSelectionStepProps,
+  ElementGroup,
+  RegistrationClassSource,
+} from './ClassSelectionStep.types';
 import {
   getDogById,
   isClassSelected,
   getClassFee,
-  findCartItem,
   getTotalFeesForDog,
   getCartCountForDog,
-  addClassToSelections,
-  removeClassFromSelections,
   buildDisplayLabel,
   reconcileCartToSelections,
+  toggleClassSelection,
 } from './ClassSelectionStep.helpers';
 import {
   DogTabTrigger,
@@ -47,14 +49,6 @@ import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
-
-type RegistrationClassSource = {
-  id: string;
-  element?: string | undefined;
-  level?: string | undefined;
-  section?: string | undefined;
-  className?: string | undefined;
-};
 
 export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   selectedDogs,
@@ -128,7 +122,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     });
   }, []);
 
-  // Re-expand when trials load from empty (replication delayed hydration)
   useEffect(() => {
     if (showTrials.length === 0) return;
     setExpandedTrials(prev => {
@@ -139,7 +132,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showTrials.length]);
 
-  // Build grouped class data: Map<trialId, ElementGroup[]>
   const classesByTrialElement = useMemo(() => {
     const result = new Map<string, ElementGroup[]>();
     const defaultFee = getClassFee(show, { entryFee: undefined });
@@ -233,7 +225,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     [classesByTrialElement]
   );
 
-  // Initialize cart on mount — uses exhibitor_profiles.id (not auth user id)
   const exhibitorId = exhibitorProfile?.id;
   useEffect(() => {
     const initializeCart = async () => {
@@ -246,12 +237,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     initializeCart();
   }, [showId, exhibitorId, loadCart, createCart]);
 
-  const isInCart = useCallback(
-    (dogId: string, classId: string) => findCartItem(cartItems, dogId, classId),
-    [cartItems]
-  );
-
-  // Build a quick lookup map: classId → availability info
   const availabilityMap = useMemo(() => {
     const map = new Map<
       string,
@@ -267,9 +252,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     return map;
   }, [availabilityClasses]);
 
-  // Skip cart for secretary/admin workflows. The cart requires classes to exist
-  // in Supabase (FK on entry_cart_items.class_id), but wizard-created classes
-  // may only be in the replication layer (IndexedDB). Local selection state is
+  // The cart requires classes to exist in Supabase (FK on entry_cart_items.class_id), but
+  // wizard-created classes may only be in the replication layer. Local selection state is
   // sufficient — the cart is only needed for exhibitor self-service persistence.
   const useCartFlow = !!exhibitorId && !isSecretary && !isAdmin;
 
@@ -277,9 +261,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // persisted items but classSelections (wizard-level state) starts empty.
   // isClassSelected() shows them as checked (inCart), but canProceed() only
   // reads classSelections — so Next stays grayed out. Reconcile once on load.
-  //
-  // Guard on show_id + exhibitor_id + !isLoading: the Zustand cart is global
-  // and may still hold a previous show's items while this show's cart loads.
+  // The global cart may still hold a previous show's items while this show's cart loads.
   // Reconciling against stale items would copy the wrong show's classes and
   // set the ref, preventing a second reconcile once the right cart arrives.
   const hasReconciledFromCart = useRef(false);
@@ -311,42 +293,22 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     classId: string,
     entryFee: number
   ) => {
-    if (!useCartFlow) {
-      // Local-only toggle for secretary/admin mode
-      if (isClassSelected(dogId, classId, cartItems, classSelections)) {
-        onSelectionChange(removeClassFromSelections(classSelections, dogId, classId));
-      } else {
-        onSelectionChange(addClassToSelections(classSelections, dogId, trialId, classId));
-      }
-      return;
-    }
-
-    const cartItem = isInCart(dogId, classId);
-    const itemKey = `${dogId}-${classId}`;
-
-    if (cartItem) {
-      const success = await removeItem(cartItem.id);
-      if (success) {
-        onSelectionChange(removeClassFromSelections(classSelections, dogId, classId));
-      } else {
-        toast.error('Failed to remove from cart');
-      }
-    } else {
-      setIsAddingToCart(itemKey);
-      const success = await addItem({
-        dogId,
-        classId,
-        entryFeeCents: entryFee * 100,
-      });
-      setIsAddingToCart(null);
-
-      if (success) {
-        toast.success('Added to cart', { description: 'Class added to your cart' });
-        onSelectionChange(addClassToSelections(classSelections, dogId, trialId, classId));
-      } else {
-        toast.error('Failed to add to cart');
-      }
-    }
+    await toggleClassSelection({
+      useCartFlow,
+      cartItems,
+      classSelections,
+      dogId,
+      trialId,
+      classId,
+      entryFee,
+      onSelectionChange,
+      addItem,
+      removeItem,
+      setAddingItem: setIsAddingToCart,
+      notifyAdded: () =>
+        toast.success('Added to cart', { description: 'Class added to your cart' }),
+      notifyError: message => toast.error(message),
+    });
   };
 
   if (selectedDogs.length === 0) {

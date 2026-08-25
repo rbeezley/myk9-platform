@@ -18,6 +18,14 @@ export interface ClassSelectionStepProps {
   workflowMode?: WorkflowMode | undefined;
 }
 
+export interface RegistrationClassSource {
+  id: string;
+  element?: string | undefined;
+  level?: string | undefined;
+  section?: string | undefined;
+  className?: string | undefined;
+}
+
 export interface LevelInfo {
   classId: string;
   /** Source class name retained for conservative eligibility checks. */

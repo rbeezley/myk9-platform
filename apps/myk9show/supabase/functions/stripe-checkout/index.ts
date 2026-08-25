@@ -218,6 +218,8 @@ async function getOrCreateStripeCustomer(
   user: { id: string; email?: string },
   personId: string
 ): Promise<string | null> {
+  const currentEmail = user.email?.trim() || undefined;
+
   // Check for existing customer
   const { data: existing, error: lookupError } = await supabase
     .from('stripe_customers')
@@ -241,6 +243,22 @@ async function getOrCreateStripeCustomer(
           .eq('person_id', personId)
           .eq('livemode', stripeLivemode);
       } else {
+        if (currentEmail && customer.email !== currentEmail) {
+          await stripe.customers.update(existing.stripe_customer_id, {
+            email: currentEmail,
+          });
+
+          const { error: emailSyncError } = await supabase
+            .from('stripe_customers')
+            .update({ email: currentEmail })
+            .eq('person_id', personId)
+            .eq('livemode', stripeLivemode);
+
+          if (emailSyncError) {
+            console.error('Failed to sync Stripe customer email locally:', emailSyncError);
+          }
+        }
+
         return existing.stripe_customer_id;
       }
     } catch (error) {
@@ -265,7 +283,7 @@ async function getOrCreateStripeCustomer(
   // Create new Stripe customer
   try {
     const stripeCustomer = await stripe.customers.create({
-      email: user.email,
+      email: currentEmail,
       metadata: {
         auth_user_id: user.id,
         person_id: personId,
@@ -281,7 +299,7 @@ async function getOrCreateStripeCustomer(
       person_id: personId,
       stripe_customer_id: stripeCustomer.id,
       livemode: stripeLivemode,
-      email: user.email,
+      email: currentEmail,
     });
 
     if (insertError) {

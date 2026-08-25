@@ -100,6 +100,7 @@ describe('ElementCard — wait list badge', () => {
   });
 
   it('blocks class selection and explains a missing registry registration', () => {
+    const onAddRegistration = vi.fn();
     const levels: LevelInfo[] = [
       {
         ...baseLevel,
@@ -107,10 +108,11 @@ describe('ElementCard — wait list badge', () => {
         registrationGuidance: "Add this dog's AKC registration before selecting this class.",
       },
     ];
-    render(<ElementCard {...defaultProps} levels={levels} />);
+    render(<ElementCard {...defaultProps} levels={levels} onAddRegistration={onAddRegistration} />);
 
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByText(/Add this dog's AKC registration/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add required registration' })).toBeInTheDocument();
   });
 
   it('keeps a puppy-exception class selectable while explaining why', () => {
@@ -277,6 +279,7 @@ function setupDefaultMocks(overrides: { judgeDayFull?: boolean; waitlistCount?: 
           id: TRIAL_ID,
           showId: SHOW_ID,
           name: 'Trial 1',
+          registryId: 'AKC',
           trialType: 'Nosework',
           order: '1',
           trialDate: '2026-05-01',
@@ -405,6 +408,7 @@ describe('ClassSelectionStep — empty class inventory', () => {
             id: TRIAL_ID,
             showId: SHOW_ID,
             name: 'Trial 1',
+            registryId: 'AKC',
             trialType: 'Nosework',
             order: '1',
             trialDate: '2026-05-01',
@@ -466,6 +470,7 @@ describe('ClassSelectionStep — empty class inventory', () => {
             id: TRIAL_ID,
             showId: SHOW_ID,
             name: 'Trial 1',
+            registryId: 'AKC',
             trialType: 'Nosework',
             order: '1',
             trialDate: '2026-05-01',
@@ -555,6 +560,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
             id: TRIAL_ID,
             showId: SHOW_ID,
             name: 'Trial 1',
+            registryId: 'AKC',
             trialType: 'Nosework',
             order: '1',
             trialDate: '2026-05-01',

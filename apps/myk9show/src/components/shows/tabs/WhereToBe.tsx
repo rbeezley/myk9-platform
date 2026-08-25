@@ -3,7 +3,11 @@ import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
-import { getPendingResultLabel } from './entryResultDisplay';
+import {
+  getPendingResultLabel,
+  hasUnpublishedScheduleDetails,
+  UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE,
+} from './entryResultDisplay';
 import { isRunnableScheduleStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
 
@@ -15,9 +19,7 @@ interface WhereToBeProps {
 export function WhereToBe({ entries, showId }: WhereToBeProps) {
   const scheduleEntries = entries.filter(entry => isRunnableScheduleStatus(entry.entryStatus));
   if (scheduleEntries.length === 0) return null;
-  const hasPendingScheduleDetails = scheduleEntries.some(
-    entry => !entry.startTime || !entry.armband || !entry.judgeName
-  );
+  const hasPendingScheduleDetails = hasUnpublishedScheduleDetails(scheduleEntries);
 
   // Group by day, preserving the sorted order from the hook (already by date+time).
   const dayMap = new Map<string, EnrichedShowEntry[]>();
@@ -35,9 +37,7 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
       </div>
 
       {hasPendingScheduleDetails && (
-        <p className="text-sm text-muted-foreground">
-          Schedule details will appear here when the show publishes them.
-        </p>
+        <p className="text-sm text-muted-foreground">{UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE}</p>
       )}
 
       {Array.from(dayMap.entries()).map(([date, dayEntries]) => (

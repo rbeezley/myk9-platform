@@ -64,7 +64,7 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 
 ## 5. Exhibitor surface legibility (audit #11, #12, #17, #18, #20)
 
-- [x] 5.1 Untruncate navigation descriptions in the exhibitor sidebar and drawer (allow wrapping / `line-clamp-2`) at all widths.
+- [x] 5.1 Untruncate navigation descriptions in the exhibitor sidebar and drawer; descriptions wrap in full without a line clamp at all widths.
 - [x] 5.2 Fix the **desktop** clipping in [`ExhibitorPaymentsPage.tsx`](../../../apps/myk9show/src/pages/exhibitor/ExhibitorPaymentsPage.tsx) so the Receipt column is not truncated at 1280px and the table does not scroll horizontally in its container. **The phone-width disclosure is owned by `exhibitor-journey-completion` task 6.6 — do not implement it here.** Coordinate before touching this file; slice 4 has not started as of 2026-07-24.
 - [x] 5.6 Make the dog record lead with the dog: identity details before sub-collections, reachable without scrolling past the whole tab strip at 390px, and a single add-registration action instead of three ("Add New Registration" / "Add Registration" / "Add registration"). Builds on the merged consolidation in PR #1438 — do not re-plan that structure.
 - [x] 5.3 Add visible or persistently discoverable labels to the icon-only Find Shows view toggles.
@@ -101,7 +101,7 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 
 - [x] 6.3.1 Final `pnpm typecheck` passed after integration with PR #1798 (26/26 tasks).
 - [x] 6.3.2 Final `pnpm lint` passed clean after integration with PR #1798 (14/14 tasks).
-- [x] 6.3.3 Final focused verification passed 348 tests across 27 touched and name-matched regression files.
+- [x] 6.3.3 Final focused verification passed 350 tests across 28 touched and name-matched regression files.
 
 ### 6.4 Manual multi-viewport re-walk (required before archiving)
 

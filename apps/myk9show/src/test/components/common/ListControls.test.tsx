@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen, userEvent } from '@/test/utils/testUtils';
 import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition } from '@/components/common/FilterChips';
 

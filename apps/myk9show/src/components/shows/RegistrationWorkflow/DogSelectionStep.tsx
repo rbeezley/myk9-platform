@@ -13,8 +13,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { Button } from '@/components/ui/button';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
-import type { Registration } from '@/types/dog-types';
-import { toast } from 'sonner';
+import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
 
 interface DogSelectionStepProps {
@@ -26,8 +25,9 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
 }) => {
-  const { dogs, isLoading, updateDog, refetch } = useDogStoreCompat();
-  const [registrationDogId, setRegistrationDogId] = React.useState<string | null>(null);
+  const { dogs, isLoading, refetch } = useDogStoreCompat();
+  const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
+    useInlineDogRegistration(refetch);
 
   // Compute eligible dogs directly from dogs (derived state, no useEffect needed)
   const eligibleDogs = React.useMemo(() => {
@@ -50,35 +50,6 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     } else {
       onSelectionChange([...selectedDogs, dogId]);
     }
-  };
-
-  const handleSaveRegistration = async (registration: Registration) => {
-    const dogId = registrationDogId;
-    if (!dogId || !updateDog) return;
-    const dog = dogs.find(candidate => candidate.id === dogId);
-    if (!dog) return;
-
-    const registrations = [
-      ...(dog.registrations ?? []).map(existing => ({
-        organization: existing.organization,
-        number: existing.registrationNumber,
-        registeredName: existing.registeredName,
-        type: existing.breed,
-        status: existing.status,
-      })),
-      {
-        organization: registration.organization,
-        number: registration.registrationNumber,
-        registeredName: registration.registeredName,
-        type: registration.breed,
-        status: registration.status,
-      },
-    ];
-
-    await updateDog(dogId, { registrations });
-    refetch?.();
-    toast.success('Registration added');
-    setRegistrationDogId(null);
   };
 
   const getDogEligibilityStatus = (dog: Dog) => {
@@ -219,7 +190,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                             size="sm"
                             onClick={event => {
                               event.stopPropagation();
-                              setRegistrationDogId(dog.id);
+                              openRegistrationEditor(dog.id);
                             }}
                           >
                             <Plus className="mr-2 h-4 w-4" />
@@ -247,8 +218,8 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       <div className="relative z-[60]">
         <AddEditRegistrationDialog
           open={registrationDogId !== null}
-          onOpenChange={open => !open && setRegistrationDogId(null)}
-          onSave={registration => void handleSaveRegistration(registration)}
+          onOpenChange={open => !open && closeRegistrationEditor()}
+          onSave={saveRegistration}
         />
       </div>
     </div>

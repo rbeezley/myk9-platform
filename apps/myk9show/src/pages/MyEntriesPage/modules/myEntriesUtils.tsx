@@ -69,10 +69,6 @@ function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind):
   }
 }
 
-function isSecretaryReviewKind(statusKind: EntryStatusKind): boolean {
-  return statusKind === 'pending' || statusKind === 'accepted' || statusKind === 'not_accepted';
-}
-
 /**
  * Returns a styled badge for entry status
  */
@@ -89,9 +85,7 @@ export function getEntryStatusBadge(
       else if (statusKind === 'absent') contextualLabel = 'Absent';
       else if (statusKind === 'unknown') contextualLabel = 'Status unavailable';
       else if (options.isPastShow) contextualLabel = 'Review incomplete';
-      else if (statusKind && isSecretaryReviewKind(statusKind)) {
-        contextualLabel = getEntryStatusStateLabel(EntryStatus.PENDING, 'exhibitor');
-      } else contextualLabel = getEntryStatusStateLabel(EntryStatus.PENDING, 'exhibitor');
+      else contextualLabel = getEntryStatusStateLabel(EntryStatus.PENDING, 'exhibitor');
       break;
     case EntryStatus.WAITLIST:
       contextualLabel = 'Waitlist';
@@ -140,14 +134,10 @@ export function getPaymentStatusBadge(
         </Badge>
       );
     case PaymentStatus.REFUNDED:
-      return (
-        <Badge className="bg-primary/10 text-primary border-border border">Refunded</Badge>
-      );
+      return <Badge className="bg-primary/10 text-primary border-border border">Refunded</Badge>;
     case PaymentStatus.PARTIAL_REFUND:
       return (
-        <Badge className="bg-primary/10 text-primary border-border border">
-          Partial Refund
-        </Badge>
+        <Badge className="bg-primary/10 text-primary border-border border">Partial Refund</Badge>
       );
     default:
       return <Badge className="bg-muted text-muted-foreground border-border border">Unknown</Badge>;

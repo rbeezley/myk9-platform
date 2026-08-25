@@ -111,7 +111,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                             {item.title}
                           </div>
                           {item.description && (
-                            <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                            <div className="mt-0.5 text-xs text-muted-foreground">
                               {item.description}
                             </div>
                           )}

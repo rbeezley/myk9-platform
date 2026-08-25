@@ -1,10 +1,11 @@
 import React from 'react';
-import { ChevronRight, Info, CheckCircle2, ShoppingCart } from 'lucide-react';
+import { ChevronRight, Info, CheckCircle2, ShoppingCart, Plus } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Dog } from '@/types/dog-types';
 import { formatTrialTypeLabel } from '@/types/template.types';
@@ -135,6 +136,7 @@ interface ElementCardProps {
   fee: number;
   isSingleClass: boolean;
   onToggle: (classId: string) => void;
+  onAddRegistration?: (() => void) | undefined;
 }
 
 export const ElementCard: React.FC<ElementCardProps> = ({
@@ -143,6 +145,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
   fee,
   isSingleClass,
   onToggle,
+  onAddRegistration,
 }) => {
   if (isSingleClass) {
     const cls = levels[0];
@@ -192,15 +195,30 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 Full
               </Badge>
             )}
-            {cls.registrationGuidance && (
+            {cls.registrationGuidance && !cls.isRegistrationBlocked && (
               <span className="text-sm text-muted-foreground">{cls.registrationGuidance}</span>
             )}
           </div>
           <span className="text-xs text-muted-foreground">${fee}</span>
         </div>
+        {cls.isRegistrationBlocked && cls.registrationGuidance && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 p-2">
+            <span className="text-sm text-foreground">{cls.registrationGuidance}</span>
+            {onAddRegistration && (
+              <Button type="button" variant="outline" size="sm" onClick={onAddRegistration}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add required registration
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
+
+  const blockedRegistration = levels.find(
+    level => level.isRegistrationBlocked && level.registrationGuidance
+  );
 
   return (
     <div className="myk9-element-card">
@@ -220,11 +238,24 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             waitlistCount={cls.waitlistCount}
             allowsWaitlist={cls.allowsWaitlist}
             isRegistrationBlocked={cls.isRegistrationBlocked}
-            registrationGuidance={cls.registrationGuidance}
+            registrationGuidance={cls.isRegistrationBlocked ? null : cls.registrationGuidance}
             onToggle={onToggle}
           />
         ))}
       </div>
+      {blockedRegistration?.registrationGuidance && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 p-2">
+          <span className="text-sm text-foreground">
+            {blockedRegistration.registrationGuidance}
+          </span>
+          {onAddRegistration && (
+            <Button type="button" variant="outline" size="sm" onClick={onAddRegistration}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add required registration
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

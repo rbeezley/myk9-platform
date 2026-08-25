@@ -40,14 +40,16 @@ describe('RoleSidebar', () => {
     expect(screen.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
   });
 
-  it('keeps expanded link names concise and lets descriptions wrap to two lines', () => {
+  it('keeps expanded link names concise and renders descriptions in full', () => {
     const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
 
     render(<RoleSidebar config={config} />, { initialRoute: '/exhibitor/dashboard' });
 
     const myShowsLink = screen.getByRole('link', { name: 'My Shows' });
     expect(myShowsLink).toBeInTheDocument();
-    expect(myShowsLink.querySelector('.line-clamp-2')).not.toBeNull();
+    const description = screen.getByText('Your entries, dogs, and upcoming shows');
+    expect(description).not.toHaveClass('line-clamp-1');
+    expect(description).not.toHaveClass('line-clamp-2');
   });
 
   it('identifies only the current navigation link', () => {

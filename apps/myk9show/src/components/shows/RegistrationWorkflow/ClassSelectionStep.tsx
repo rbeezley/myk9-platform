@@ -39,9 +39,11 @@ import {
   OverallCartSummary,
 } from './ClassSelectionStep.components';
 import { AlreadyEnteredNotice } from './AlreadyEnteredNotice';
-import { getTrialRegistry } from '@/features/registries';
+import { listRegistries } from '@/features/registries';
 import { getRegistrationPrerequisite } from './registrationPrerequisite';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
+import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
@@ -63,7 +65,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   onHandlerAssignmentChange,
   workflowMode,
 }) => {
-  const { dogs } = useDogStoreCompat();
+  const { dogs, refetch } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
@@ -81,6 +83,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
   const [, setIsAddingToCart] = useState<string | null>(null);
+  const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
+    useInlineDogRegistration(refetch);
 
   const cartItems = useCartItems();
   const cartShowId = useCartStore(state => state.cart?.show_id ?? null);
@@ -447,9 +451,17 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 isSingleClass={group.isSingleClass}
                                 levels={group.levels.map(l => {
                                   const avail = availabilityMap.get(l.classId);
+                                  const rawRegistryId = trial.registryId?.trim() || null;
+                                  const registryId =
+                                    rawRegistryId &&
+                                    listRegistries().some(
+                                      configuredId => configuredId === rawRegistryId
+                                    )
+                                      ? rawRegistryId
+                                      : null;
                                   const prerequisite = getRegistrationPrerequisite({
                                     registrations: dog?.registrations,
-                                    registryId: getTrialRegistry(trial).id,
+                                    registryId,
                                     trialType: trial.trialType,
                                     className: l.className,
                                     element: group.element,
@@ -476,6 +488,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 onToggle={classId =>
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }
+                                onAddRegistration={() => openRegistrationEditor(dogId)}
                               />
                             ))}
                           </TrialSection>
@@ -510,6 +523,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           0
         )}
       />
+
+      <div className="relative z-[60]">
+        <AddEditRegistrationDialog
+          open={registrationDogId !== null}
+          onOpenChange={open => !open && closeRegistrationEditor()}
+          onSave={saveRegistration}
+        />
+      </div>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatus as EntryLifecycleStatus } from '@/types/entry-lifecycle';
 import type { EntryAttentionReason } from '@/features/entry-operations/attentionClassification';
 
 /**
@@ -196,8 +197,10 @@ export function getEntryStatusStateLabel(
  * exhibitor's show-detail schedule. Non-review lifecycle states return null so
  * result/run-state presentation remains owned by that surface.
  */
-export function getExhibitorLifecycleReviewLabel(status: string): string | null {
-  if (status === 'submitted') return getReviewStateLabel('needs_review', 'exhibitor');
+export function getExhibitorLifecycleReviewLabel(status: EntryLifecycleStatus): string | null {
+  if (status === 'submitted') {
+    return getReviewStateLabel('needs_review', 'exhibitor');
+  }
   if (status === 'not_accepted') return getReviewStateLabel('not_accepted', 'exhibitor');
   return null;
 }

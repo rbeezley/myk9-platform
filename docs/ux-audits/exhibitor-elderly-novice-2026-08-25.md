@@ -55,7 +55,7 @@ Severity follows the 2026-07-24 audit: **Critical** = cannot complete core task 
 | 9 | High | RESOLVED | Exhibitor review status | Both exhibitor surfaces use the shared vocabulary: pending reads **Pending review**; true refusal reads **Declined** with a reason or secretary next step. |
 | 10 | Medium | RESOLVED — MYK9-71 | Entry counts | Count scope and units shipped in MYK9-71 / PR #1456. |
 | 11 | Medium | RESOLVED | My Payments | MYK9-71 owns phone disclosure; MYK9-88 fixes the 1280px table contract with fixed layout and reserved Receipt width. |
-| 12 | Medium | RESOLVED | Sidebar / drawer | Explanatory descriptions wrap to two lines rather than truncating to an ellipsis. |
+| 12 | Medium | RESOLVED | Sidebar / drawer | Explanatory descriptions wrap in full rather than truncating to an ellipsis. |
 | 13 | Medium | RESOLVED | Wizard dog selection | Phone layout uses page flow; the constrained inner region remains only at `md` and above. |
 | 14 | Medium | RESOLVED | Dog record Overview | Mobile identity renders before tab collections and the mobile record offers one add-registration action. |
 | 15 | Medium | RESOLVED | Wizard class selection | Static plain-language guidance names novice classes as the starting point before payment. |
@@ -106,8 +106,8 @@ mobile add-registration actions.
 
 ## Method notes
 
-- Focused implementation verification passed 216 tests across the touched and name-matched
-  regression files; an additional 42 accessibility and dog-hierarchy tests passed.
+- Focused implementation verification passed 350 tests across 28 touched and name-matched
+  regression files, including accessibility and dog-hierarchy coverage.
 - `pnpm typecheck`, `pnpm lint`, and strict target OpenSpec validation pass.
 - Playwright CLI measured Find Shows at 390×844, 834×1112, 1112×834, and 1280×800: four
   persistently labelled view controls and no horizontal document overflow at every size.

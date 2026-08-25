@@ -70,4 +70,13 @@ describe('getRegistrationPrerequisite', () => {
       })
     ).toMatchObject({ allowed: false, puppyException: false });
   });
+
+  it('does not let an AKC registration satisfy missing registry metadata', () => {
+    expect(
+      getRegistrationPrerequisite({
+        ...baseInput,
+        registryId: null,
+      })
+    ).toMatchObject({ allowed: false, puppyException: false });
+  });
 });

@@ -4,7 +4,7 @@
 
 | Dimension | Status |
 | --- | --- |
-| Completeness | 67/69 tasks complete; merge and archive/Linear close-out remain |
+| Completeness | 69/69 tasks complete; implementation merged and change ready to archive |
 | Correctness | Implementation checks and the authenticated four-viewport acceptance walk pass |
 | Coherence | Implementation follows the proposal/design and reuses existing surfaces |
 
@@ -24,13 +24,14 @@
 - `pnpm exec openspec validate exhibitor-ux-remediation --type change`: passed.
 - Independent review found five implementation blockers; commit `60d991714` resolves all five.
 - PR #1798 passed its complete CI pipeline before merge as `24d9e1088`.
-- PR #1799 CI is recorded in the final close-out update after completion.
+- PR #1799 passed package tests, all three myK9Show shards, coverage gate, quality, SQL, build, a11y smoke, and E2E smoke before merging as `0e39b2cdcc604b9f8b84871de54927fbe345b16b`.
+- The Vercel myK9Show preview was rate-limited by the Hobby deployment quota; repository policy treats that context as non-required when GitHub's required checks are green.
 - The final schedule regression passed 20 focused assertions across three files.
 
 ## Responsive evidence
 
 Playwright authenticated as `exhibitor@myk9t.com` and measured navigation descriptions, payment history/Receipt labels, Find Shows toggles, and the run schedule at 390×844, 834×1112, 1112×834, and 1280×800. Required labels were visible and horizontal overflow was false at every viewport. Phone wizard steps 1–3 used one vertical scroll context, the registration warning opened the shared editor, and payment reassurance appeared once.
 
-## Remaining close-out
+## Close-out
 
-PR #1799 must pass CI with the final schedule-message regression and merge. The OpenSpec change can then be synced/archived and MYK9-88 closed with the merge and verification evidence.
+PR #1799 merged on 2026-08-25 after the complete required pipeline passed. MYK9-88 is Done with the implementation PR attached. Delta specs are synced to the main specification set and this change is archived by the post-merge close-out PR.

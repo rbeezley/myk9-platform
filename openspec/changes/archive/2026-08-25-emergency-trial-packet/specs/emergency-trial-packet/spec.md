@@ -90,7 +90,7 @@ The packet cover, success state, and email SHALL instruct staff to print the pac
 - **AND** generation or email delivery alone is not treated as proof the paper exists
 
 ### Requirement: Paper recovery is operationally validated
-The release evidence SHALL include unauthenticated retrieval and printing plus a human mock trial-day walkthrough using only the printed packet.
+Release evidence SHALL include retrieval and printing outside the authenticated app path plus a human mock trial-day walkthrough using only the printed packet before live reliance, unless the product owner explicitly waives an exercise with the residual risk recorded.
 
 #### Scenario: Technical recovery check
 - **WHEN** verification is performed after generation and delivery
@@ -100,3 +100,8 @@ The release evidence SHALL include unauthenticated retrieval and printing plus a
 - **WHEN** a human runs the show workflow from the printed packet without the app
 - **THEN** missing operational information is recorded and corrected before the capability is accepted
 - **AND** the drill includes transcribing the recorded paper results back into myK9
+
+#### Scenario: Product owner waives a recovery exercise
+- **WHEN** the strict signed-out/clean-device check or mock paper-day drill is not performed before issue closure
+- **THEN** the product owner explicitly accepts the residual pre-live UAT risk
+- **AND** the record states exactly which exercise was waived rather than completed

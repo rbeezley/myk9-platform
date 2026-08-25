@@ -34,4 +34,4 @@ Email delivery is not readiness. A packet that exists only on the show laptop or
 
 ## Acceptance drill
 
-Before relying on this at a real trial, a human must run a mock trial day using only the printed packet, with myK9 unavailable. Record anything essential that is missing, correct the packet, and repeat the transcription check. MYK9-198 is not complete until this drill and a signed-out email-link print test are recorded.
+Before relying on this at a real trial, run a mock trial day using only the printed packet, with myK9 unavailable. Record anything essential that is missing, correct the packet, and repeat the transcription check. MYK9-198 closed on 2026-08-25 after live email/open/print verification; its owner explicitly waived this rehearsal as a closure gate, so the rehearsal remains recommended pre-live UAT rather than completed evidence.

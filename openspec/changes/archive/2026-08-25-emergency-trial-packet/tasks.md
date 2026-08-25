@@ -38,13 +38,13 @@
 - [x] 6.1 Add the secretary operator note covering where to store the paper packet, hand-annotating stale changes, preserving pages, and transcribing results back into myK9.
 - [x] 6.2 Run focused packet, Reports, Storage source-contract, and Edge Function tests; run myK9Show typecheck plus changed-file lint and `git diff --check`.
 - [x] 6.3 Generate a representative multi-day packet and inspect every page for legibility, reconstruction labels, writable space, and completeness.
-- [ ] 6.4 After approved migration/function deployment, deliver a packet and verify retrieval/printing while signed out or from a clean browser; record evidence.
-- [ ] 6.5 Have a human run a mock trial day using only the printed packet and transcribe the paper results; correct omissions before accepting MYK9-198.
+- [x] 6.4 After approved migration/function deployment, deliver a packet and verify retrieval/printing outside the app path; Richard confirmed receipt, opening, and printing on 2026-08-25.
+- [x] 6.5 Resolve the mock paper-day acceptance gate: Richard explicitly waived the rehearsal on 2026-08-25 and accepted the residual UAT risk. This records a waiver, not a completed drill.
 
 ## 7. Review, PR, and Tracking
 
 - [x] 7.1 Run OpenSpec verification against the implementation and record any deferred server-rendering automation as follow-up scope rather than silent incompleteness.
 - [x] 7.2 Review the diff for unrelated changes, security/privacy regressions, duplicate surfaces, report-data bypasses, and accidental treatment of email as physical print proof.
-- [ ] 7.3 Commit the verified change, push the feature branch, open a PR using the repository template, and monitor required CI/review through merge.
-- [ ] 7.4 Post implementation, verification, PR, risk, and acceptance evidence to MYK9-198; move it to Done only after the signed-out retrieval and human paper-day evidence gates pass.
-- [ ] 7.5 Sync/archive the OpenSpec change and clean up the merged branch/worktree after all acceptance gates are complete.
+- [x] 7.3 Commit the verified change, push the feature branch, open a PR using the repository template, and monitor required CI/review through merge. PR #1713 merged as `feat(reports): add emergency trial packet`; follow-up fixes and automation merged separately.
+- [x] 7.4 Post implementation and operator evidence to MYK9-198; the issue moved to Done on 2026-08-25 with the mock-day waiver recorded.
+- [x] 7.5 Sync and archive the OpenSpec change, then clean up the merged branch/worktree.

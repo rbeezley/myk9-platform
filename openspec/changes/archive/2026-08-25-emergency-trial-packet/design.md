@@ -14,9 +14,9 @@ The failure-independent artifact is online-only by definition: it must leave Ind
 - Fail closed on show authorization, object ownership, recipient derivation, upload, metadata, and email errors.
 - Preserve immutable packet history and explicit physical-print confirmation.
 
-**Non-Goals:**
+**Non-Goals at the time of this change:**
 
-- Automatic Deno/cron PDF rendering or a second server-side report implementation.
+- Automatic Deno/cron PDF rendering or a second server-side report implementation. MYK9-228 later superseded this boundary by extracting the same renderer for both runtimes and adding automated per-day generation without creating a second implementation.
 - A new reports, readiness, or packet page.
 - Decorative fidelity to each registry's official forms; official closeout downloads remain separate.
 - Treating email delivery as proof the packet was physically printed.
@@ -30,11 +30,13 @@ Add a pure TypeScript packet model/composer under the report feature. The Report
 
 This intentionally does not render React report DOM to canvas, which would produce image-only text, inconsistent pagination, and fragile browser behavior. It also does not reuse `OfflineReportService`, whose localStorage data gathering and legacy types are fixtures rather than the live report contract. Registry PDF templates may be appended later, but the first packet uses a legible cross-registry degraded-mode recording layout so it remains complete without duplicating all organization-form code.
 
-### Build a whole-show snapshot grouped by trial day and class
+### Build a whole-show snapshot grouped by trial day and class (superseded)
 
 One packet covers the show rather than requiring one action per trial. Its sections are cover/recovery, catalog, then each trial and class with check-in/running order and writable score rows, followed by certification/signature pages and transcription guidance. Page decoration is applied after content generation so every physical page carries the global snapshot identity and the most specific available trial/ring/class context.
 
 A whole-show packet better matches the user's trial-box mental model and survives confusion over which device or email contains a given day. It also reduces opportunities to forget a class. The PDF model retains trial-day boundaries so later scheduling can redeliver the same whole-show artifact before each day.
+
+MYK9-228 superseded the artifact unit after operational review: the shipped system creates one packet per trial day, preserving self-contained trial sections while avoiding repeated printing of already-completed days.
 
 ### Use immutable private objects plus long-lived signed URLs
 
@@ -64,7 +66,7 @@ Add an Emergency Trial Packet card/action beside the existing report controls, n
 
 Unit tests cover packet ordering/content/page markers, filename/path generation, upload arguments, recipient derivation, authorization, signed-link bounds, idempotent retry, and failure reporting. Component tests use the project custom render. Edge tests run under the existing edge-test TypeScript configuration.
 
-Technical completion additionally requires generating a real packet, signing out or clearing site data, opening the emailed link, and printing. MYK9-198 stays open until a human runs a mock trial day from the paper, records omissions, and verifies paper-result transcription.
+Technical completion additionally requires generating a real packet, opening the emailed link outside the app session, and printing. Richard recorded successful receipt, opening, and printing on 2026-08-25. He explicitly accepted MYK9-198 for closure while waiving the separate mock paper-day rehearsal; the waiver is recorded as accepted residual UAT risk rather than evidence that the rehearsal occurred.
 
 ## Risks / Trade-offs
 
@@ -81,6 +83,6 @@ Technical completion additionally requires generating a real packet, signing out
 2. Deploy and verify the authenticated delivery Edge Function with recipient/authz tests.
 3. Ship the packet composer and Reports action behind the availability checks.
 4. Generate and deliver a seeded-show packet; verify the signed URL from a signed-out/clean browser and print it.
-5. Run the human paper-day drill and keep MYK9-198 open until the evidence gate passes.
+5. Run the human paper-day drill before relying on the packet at a live trial, or record an explicit product-owner waiver. MYK9-198 closed on 2026-08-25 under that waiver after the live email/open/print path passed.
 
 Rollback removes the Reports action first, leaving immutable Storage objects and metadata available to operators. The function can then be undeployed. Data/bucket deletion is deliberately not part of rollback because existing emergency artifacts may still be operationally required.

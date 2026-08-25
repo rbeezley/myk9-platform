@@ -4,8 +4,8 @@
 
 | Dimension | Status |
 | --- | --- |
-| Completeness | 25/30 tasks complete; five deployment, human-evidence, and shipping tasks remain |
-| Correctness | Six implementation requirements covered; the operational-validation requirement awaits staging and human evidence |
+| Completeness | 30/30 tasks resolved; the mock paper-day task closed by explicit owner waiver, not a performed drill |
+| Correctness | Implementation, deployment, automation, and live email/open/print evidence are complete; the waived rehearsal remains residual pre-live UAT risk |
 | Coherence | Implementation follows the canonical Reports, immutable private Storage, server-derived recipient, and explicit physical-print decisions |
 
 ## Implementation Evidence
@@ -19,22 +19,22 @@
 - Repository-wide typecheck and lint passed. The broad myK9Show suite exposed and drove fixes for FORCE RLS and explicit table-grant decisions; all 36 related database-security tests then passed. A final broad rerun produced no further failures but exceeded the repository's 60-second local limit and was stopped, leaving CI as the broad completion signal.
 - Visual QA: a representative 14-page, two-day Letter packet was rendered through Poppler and every page was inspected. The pass caught and corrected table overflow and non-printing checkbox glyphs.
 
-## Critical - Must Complete Before Archive or MYK9-198 Acceptance
+## Closure Evidence
 
-1. Task 6.4: apply the migration and deploy the Edge Function only after shared-system approval, then verify the emailed signed link and printing while signed out or in a clean browser.
-2. Task 6.5: have a human conduct the mock paper-only trial-day and paper-to-myK9 transcription drill; record and correct omissions.
-3. Task 7.3: after the evidence-ready local slice is accepted, commit, push, open the PR, and monitor required CI/review.
-4. Task 7.4: post the implementation and evidence to MYK9-198; keep the issue In Progress until both operational evidence gates pass.
-5. Task 7.5: archive/sync the OpenSpec change and clean the branch/worktree only after merge and acceptance.
+1. PR #1713 merged the emergency packet; follow-up PRs fixed paper content, consolidated report rendering, and added automated per-day generation and print reminders under MYK9-228.
+2. The packet migrations and Edge Functions were deployed, and the linked Supabase database reports no unapplied migrations as of 2026-08-25.
+3. Richard confirmed on 2026-08-25 that he received the packet email and could open and print the PDF.
+4. Richard explicitly accepted MYK9-198 for closure and waived the separate mock paper-only trial-day/transcription rehearsal. This is an accepted evidence waiver, not a claim that the rehearsal ran.
+5. MYK9-198 moved to Done on 2026-08-25 with the operator evidence and waiver recorded in Linear.
 
 ## Warnings
 
-- The Storage and email path has source/unit/type verification but no live linked-project evidence yet. Do not describe the capability as operationally ready until task 6.4 passes.
+- The paper-only mock trial-day rehearsal was not performed. Keep it as recommended pre-live UAT and do not cite the closure waiver as drill evidence.
 
 ## Suggestions
 
-- Server-scheduled or server-rendered packet generation remains deliberately deferred. Track it only if show-eve operations demonstrate that manual preparation is unreliable; do not add a second report implementation preemptively.
+- MYK9-228 superseded the original manual-only boundary with automated per-day generation using the shared renderer; retain the manual action only as the late-change escape hatch.
 
 ## Assessment
 
-No unresolved local implementation or design divergence was found. Five critical execution/evidence tasks remain, so the change is not ready to archive and MYK9-198 must remain In Progress.
+The implementation and operational delivery path are accepted. The mock paper-day rehearsal remains a documented, owner-waived UAT risk. The change is ready to sync and archive.

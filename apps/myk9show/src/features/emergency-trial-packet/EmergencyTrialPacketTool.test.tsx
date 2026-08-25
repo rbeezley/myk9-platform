@@ -131,4 +131,38 @@ describe('EmergencyTrialPacketTool', () => {
       expect.objectContaining({ trials, classes, entries: mockState.entries })
     );
   });
+
+  it('accepts the replication-shaped class row used by normal authenticated reads', () => {
+    mockState.trials = [
+      {
+        id: 'trial-1',
+        date: '2026-04-12',
+        name: 'Trial 12',
+        trial_number: '12',
+        registry_id: 'UKC',
+      },
+    ];
+    mockState.classes = [
+      {
+        id: 'class-1',
+        trial_id: 'trial-1',
+        name: 'Buried Novice',
+        element: 'Buried',
+        level: 'Novice',
+        section: null,
+        display_order: 1,
+        start_time: '09:00:00',
+        time_limit_seconds: 120,
+        time_limit_area2_seconds: null,
+        time_limit_area3_seconds: null,
+        num_areas: 3,
+      },
+    ];
+
+    render(<EmergencyTrialPacketTool show={show} />);
+
+    expect(buildPacketData).toHaveBeenCalledWith(
+      expect.objectContaining({ classes: mockState.classes })
+    );
+  });
 });

@@ -26,18 +26,12 @@ const COMPLETE_CLASS_FIELDS = [
   'element',
   'level',
   'section',
-  'class_number',
   'display_order',
-  'judge_name',
-  'ring',
-  'ring_number',
   'start_time',
   'time_limit_seconds',
   'time_limit_area2_seconds',
   'time_limit_area3_seconds',
   'num_areas',
-  'num_hides',
-  'distraction_count',
 ] as const;
 const COMPLETE_ENTRY_FIELDS = [
   'id',

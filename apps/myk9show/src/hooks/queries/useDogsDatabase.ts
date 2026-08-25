@@ -16,25 +16,17 @@ import {
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
-import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
-import { UserRole } from '@/types/auth-types';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { rosterIsOwnDogsOnly } from '@/utils/dogRosterScope';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
-// Roles that can see all dogs; mirrors useRoleBasedDogs. JUDGE is excluded —
-// judges are scoped to their own dogs at the UI layer just like exhibitors.
-const ELEVATED_ROLES = new Set<UserRole>([
-  UserRole.SECRETARY,
-  UserRole.CLUB_ADMIN,
-  UserRole.SITE_ADMIN,
-]);
-
 // Get all dogs visible to the current user.
-// Elevated roles get showAll=true: no app-level ownership filter, RLS handles scoping.
-// Exhibitors (and judges) get showAll=false: filter to own dogs in both paths.
+// The canonical roster predicate controls both the replication and online paths.
+// Role chrome (cards/table and management affordances) is a separate question.
 export const useDogsQuery = () => {
   const personId = useCurrentPersonId();
-  const { getUserRoles } = useAuthContext();
-  const showAll = useMemo(() => ELEVATED_ROLES.has(getPrimaryRole(getUserRoles())), [getUserRoles]);
+  const { hasRole } = useAuthContext();
+  const showAll = useMemo(() => !rosterIsOwnDogsOnly(hasRole), [hasRole]);
 
   return useQuery({
     queryKey: [...queryKeys.dogs, personId, showAll],

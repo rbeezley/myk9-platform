@@ -333,6 +333,18 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(titles).not.toContain('People');
   });
 
+  it.each([
+    ['judge', [UserRole.JUDGE]],
+    ['judge + exhibitor', [UserRole.JUDGE, UserRole.EXHIBITOR]],
+    ['steward + exhibitor', [UserRole.STEWARD, UserRole.EXHIBITOR]],
+    ['chairman', [UserRole.CHAIRMAN]],
+  ] as const)('labels the browse destination My Dogs for %s', (_label, roles) => {
+    const config = buildUnifiedSidebarConfig(roles);
+    const browseDog = config.groups.flatMap(group => group.items).find(item => item.href === '/dogs');
+
+    expect(browseDog?.title).toBe('My Dogs');
+  });
+
   it('browse section shows People to secretary', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const browse = config.groups.find(g => g.title === 'Browse');

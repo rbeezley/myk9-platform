@@ -383,6 +383,26 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.getByPlaceholderText('Search your dogs by name or breed...')).toBeInTheDocument();
   });
 
+  it.each([
+    ['judge', [UserRole.JUDGE]],
+    ['steward', [UserRole.STEWARD, UserRole.EXHIBITOR]],
+    ['chairman', [UserRole.CHAIRMAN, UserRole.EXHIBITOR]],
+  ] as const)('uses the My Dogs title whenever %s has an own-dogs-only roster', (_label, roles) => {
+    mockGetUserRoles.mockReturnValue(roles);
+
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: 'My Dogs' })).toBeInTheDocument();
+  });
+
+  it('keeps the Dogs title when any full-roster role is held', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.JUDGE, UserRole.CLUB_ADMIN]);
+
+    renderPage();
+
+    expect(screen.getByRole('heading', { name: 'Dogs' })).toBeInTheDocument();
+  });
+
   describe('unresolved identity', () => {
     // useRoleBasedDogs returns [] until userWithRoles resolves, while isLoading
     // tracks only the dogs query. The page used to fall straight through to

@@ -39,7 +39,7 @@ describe('DogEntriesSection', () => {
     expect(screen.getByText('42')).toBeInTheDocument();
   });
 
-  it('collapses missing row details into one honest schedule message', () => {
+  it('does not repeat the page-level schedule message for each dog', () => {
     render(
       <DogEntriesSection
         group={{
@@ -54,8 +54,8 @@ describe('DogEntriesSection', () => {
     );
 
     expect(
-      screen.getAllByText('Schedule details will appear here when the show publishes them.')
-    ).toHaveLength(1);
+      screen.queryByText('Schedule details will appear here when the show publishes them.')
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Time pending')).not.toBeInTheDocument();
     expect(screen.queryByText('Armband pending')).not.toBeInTheDocument();
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();

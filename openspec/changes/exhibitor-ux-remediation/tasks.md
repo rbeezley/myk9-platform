@@ -107,16 +107,16 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 
 Re-walk as the elderly-novice persona at **390×844**, **834×1112**, **1112×834**, and **1280×800**, capturing evidence for each:
 
-- [ ] 6.4.1 Add a dog → edit that dog → save, **with a toast deliberately raised first**. Confirm the edit persists by reopening the record. This reproduces the exact sequence that lost data on 2026-07-24.
-- [ ] 6.4.2 Submit the dog form empty; confirm all errors are legible and reachable, and that the primary button is fully visible at 390px.
-- [ ] 6.4.3 Walk the registration wizard steps 1–3 on a phone; confirm one scroll context, eligibility guidance, an actionable registration warning, and a single payment reassurance.
-- [ ] 6.4.4 Confirm no exhibitor surface renders "Not accepted" for an entry awaiting review.
-- [ ] 6.4.5 Confirm nav descriptions, the payments table, Find Shows toggles, and the run schedule at all four viewports.
-- [ ] 6.4.6 Verify against the audit's "What worked well" list that nothing previously good regressed — particularly the "Biscuit added → Enter a show" toast pattern, which must keep working once toasts stop covering buttons.
+- [x] 6.4.1 Add a dog → edit that dog → save, **with a toast deliberately raised first**. Confirm the edit persists by reopening the record. This reproduces the exact sequence that lost data on 2026-07-24.
+- [x] 6.4.2 Submit the dog form empty; confirm all errors are legible and reachable, and that the primary button is fully visible at 390px.
+- [x] 6.4.3 Walk the registration wizard steps 1–3 on a phone; confirm one scroll context, eligibility guidance, an actionable registration warning, and a single payment reassurance.
+- [x] 6.4.4 Confirm no exhibitor surface renders "Not accepted" for an entry awaiting review.
+- [x] 6.4.5 Confirm nav descriptions, the payments table, Find Shows toggles, and the run schedule at all four viewports.
+- [x] 6.4.6 Verify against the audit's "What worked well" list that nothing previously good regressed — particularly the "Biscuit added → Enter a show" toast pattern, which must keep working once toasts stop covering buttons.
 
 ## 7. Close-out
 
-- [ ] 7.1 Write a follow-up audit report confirming which of findings #1–#20 are resolved, using the same report format so the next run diffs cleanly.
+- [x] 7.1 Write a follow-up audit report confirming which of findings #1–#20 are resolved, using the same report format so the next run diffs cleanly.
 - [x] 7.2 Confirm the excluded findings are still tracked: #6, #7, #8, and #10 with `exhibitor-journey-completion` (MYK9-71); cosmetic #21–#24 in the audit report only. Finding #14 remains in scope here through task 5.6. MYK9-71 is Done and links merged PR #1456.
 - [x] 7.3 Delete the audit's leftover test data if still present — dog **Biscuit**, one saved registration draft, one $30 cart item. **Verified 2026-08-21:** direct staging inventory found no matching dog or cart item under any owner; the saved draft was browser-local (`draft-storage`) rather than shared database data, so no destructive deletion was necessary.
 - [ ] 7.4 Open and review the final implementation PR(s), record CI evidence, and merge before archive.

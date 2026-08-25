@@ -4,8 +4,8 @@
 
 | Dimension | Status |
 | --- | --- |
-| Completeness | 60/69 tasks complete; six authenticated browser tasks and three close-out tasks remain |
-| Correctness | Implementation checks pass; authenticated acceptance is blocked by confirmed staging credential drift |
+| Completeness | 67/69 tasks complete; merge and archive/Linear close-out remain |
+| Correctness | Implementation checks and the authenticated four-viewport acceptance walk pass |
 | Coherence | Implementation follows the proposal/design and reuses existing surfaces |
 
 ## Requirement coverage
@@ -25,11 +25,12 @@
 - Independent review found five implementation blockers; commit `60d991714` resolves all five.
 - PR #1798 passed its complete CI pipeline before merge as `24d9e1088`.
 - PR #1799 CI is recorded in the final close-out update after completion.
+- The final schedule regression passed 20 focused assertions across three files.
 
 ## Responsive evidence
 
-Playwright measured Find Shows at 390×844, 834×1112, 1112×834, and 1280×800. Cards, Table, Calendar, and Map labels were visible and the document had no horizontal overflow at every viewport.
+Playwright authenticated as `exhibitor@myk9t.com` and measured navigation descriptions, payment history/Receipt labels, Find Shows toggles, and the run schedule at 390×844, 834×1112, 1112×834, and 1280×800. Required labels were visible and horizontal overflow was false at every viewport. Phone wizard steps 1–3 used one vertical scroll context, the registration warning opened the shared editor, and payment reassurance appeared once.
 
-## Open gate
+## Remaining close-out
 
-The repository's read-only credential check reports the canonical staging exhibitor account as drifted. No Auth mutation has been made. Tasks 6.4.1–6.4.6 remain intentionally unchecked until explicit approval allows the idempotent single-account reset and the authenticated four-viewport walk is completed.
+PR #1799 must pass CI with the final schedule-message regression and merge. The OpenSpec change can then be synced/archived and MYK9-88 closed with the merge and verification evidence.

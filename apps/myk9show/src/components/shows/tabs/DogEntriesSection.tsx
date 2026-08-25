@@ -17,12 +17,7 @@ import { Chip } from '@/components/base/Chip';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { DogEntriesGroup, EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
-import {
-  getPendingResultLabel,
-  getRemovedStateLabel,
-  hasUnpublishedScheduleDetails,
-  UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE,
-} from './entryResultDisplay';
+import { getPendingResultLabel, getRemovedStateLabel } from './entryResultDisplay';
 import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
 
 type ElementIconConfig = { icon: React.ElementType; bg: string; fg: string };
@@ -77,7 +72,6 @@ interface DogEntriesSectionProps {
 
 export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
   const { dogName, entries } = group;
-  const hasPendingScheduleDetails = hasUnpublishedScheduleDetails(entries);
 
   return (
     <section aria-label={`${dogName}'s entries`} className="space-y-3">
@@ -90,10 +84,6 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
           {entries.length} {entries.length === 1 ? 'class' : 'classes'}
         </Chip>
       </div>
-
-      {hasPendingScheduleDetails && (
-        <p className="text-sm text-muted-foreground">{UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE}</p>
-      )}
 
       <div className="space-y-2">
         {entries.map(entry => (

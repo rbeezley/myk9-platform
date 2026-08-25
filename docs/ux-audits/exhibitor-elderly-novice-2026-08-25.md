@@ -4,7 +4,7 @@
 - **Auditor:** Codex (`openspec-verify-change` + `playwright-cli`)
 - **Persona:** Retired, no computer or smartphone skills. Reads labels literally, does not
   discover hover/scroll affordances, and treats any number on screen as a promise.
-- **Account:** `e2e-exhibitor@test.myk9.com` (canonical seeded exhibitor, Free tier)
+- **Account:** `exhibitor@myk9t.com` (canonical seeded exhibitor, Free tier)
 - **Viewports:** mobile 390×844, tablet 834×1112 portrait + 1112×834 landscape, and
   desktop 1280×800
 - **Baseline:** [`exhibitor-elderly-novice-2026-07-24.md`](exhibitor-elderly-novice-2026-07-24.md)
@@ -18,13 +18,13 @@ navigation; dirty forms guard accidental abandonment; validation and primary act
 reachable at phone width. Dog identity now comes from the call name and organization-scoped
 registration, so the UI no longer promotes legacy placeholders as facts supplied by the owner.
 
-The remaining work in this report is verification-only. Focused regressions cover the changed
-logic and surfaces, full repository typecheck and lint pass, and Find Shows has been measured at
-all four viewports with visible labels and no horizontal overflow. The authenticated re-walk is
-temporarily blocked because the configured canonical test credential is rejected by Supabase;
-the report does not treat that missing live evidence as a product regression.
+The authenticated re-walk confirms the remediated workflow end to end. Focused regressions cover
+the changed logic and surfaces, full repository typecheck and lint pass, and all required
+authenticated surfaces were measured at four viewports with no horizontal overflow. The walk
+also exposed a repeated schedule fallback; the final implementation renders that message once
+at page level and pins the behavior with an integration regression.
 
-**Overall UX health: implementation complete; authenticated re-walk pending.**
+**Overall UX health: findings #1–#20 resolved; ready for merge close-out.**
 
 ## Regression line
 
@@ -63,7 +63,7 @@ Severity follows the 2026-07-24 audit: **Critical** = cannot complete core task 
 | 17 | Medium | RESOLVED | Find Shows | Cards, Table, Calendar, and Map labels are visible and accessible at all four viewports; measured page overflow is false at each size. |
 | 18 | Medium | RESOLVED | Nav, dog cards, Add Dog controls | Existing accessibility regressions plus sidebar and dog-record coverage expose non-empty accessible names. |
 | 19 | Medium | RESOLVED | Wizard payment | Secure-checkout / confirmation reassurance appears once beside the card control; disabled-submit guidance remains. |
-| 20 | Medium | RESOLVED | Show schedule | Missing time, armband, and judge detail collapses to one publication message; rows with real detail still render it. |
+| 20 | Medium | RESOLVED | Show schedule | Missing time, armband, and judge detail collapses to one page-level publication message across every dog section; rows with real detail still render it. |
 | 21 | Low | DEFERRED | Enum presentation | Cosmetic-only; retained in this report for a later polish pass. |
 | 22 | Low | DEFERRED | All-caps labels | Cosmetic-only; retained in this report for a later polish pass. |
 | 23 | Low | DEFERRED | Add/Edit vocabulary | Cosmetic-only; retained in this report for a later polish pass. |
@@ -71,14 +71,15 @@ Severity follows the 2026-07-24 audit: **Critical** = cannot complete core task 
 
 ## Responsive / cross-breakpoint notes
 
-- **390×844:** Find Shows labels are visible and the document has no horizontal overflow.
-  Component regressions cover the footer, wizard scroll context, mobile dog hierarchy, and
-  schedule fallback at this width.
-- **834×1112 and 1112×834:** Find Shows labels remain visible with no document overflow;
-  breakpoint contracts retain the constrained dog picker only at `md` and above.
-- **1280×800:** Find Shows remains overflow-free; the payments regression pins a fixed table
-  layout with a non-shrinking Receipt column.
-- **Authenticated surfaces:** final browser evidence is pending a valid canonical test session.
+- **390×844:** Add/edit validation and actions are fully visible; wizard steps 1–3 use one
+  document scroll context; navigation, payments, Find Shows, and the run schedule have no
+  horizontal overflow.
+- **834×1112 and 1112×834:** Navigation descriptions, payment history and Receipt labels,
+  all four Find Shows toggles, and the run schedule remain visible without horizontal overflow.
+- **1280×800:** The same surfaces remain overflow-free, including the fixed payments table and
+  non-shrinking Receipt column.
+- **Authenticated surfaces:** My Shows and show detail render no `Not accepted` copy; automated
+  pending-review cases pin the canonical `Pending review` label.
 
 ## Intentional-design carve-outs
 
@@ -99,7 +100,7 @@ mobile add-registration actions.
 
 - The calm two-step sign-in structure, password reveal, and Edit-email action are unchanged.
 - Add Dog still validates before persistence and keeps the confirmation-to-next-action toast
-  pattern.
+  pattern: the QA dog's add confirmation led to its record and visible **Enter a show** action.
 - The registration wizard keeps its stepper, per-class pricing, cart totals, handler assignment,
   agreement gate, and visible explanation for a disabled submit.
 - The Overview / Career / Records consolidation remains intact.
@@ -108,11 +109,15 @@ mobile add-registration actions.
 
 - Focused implementation verification passed 350 tests across 28 touched and name-matched
   regression files, including accessibility and dog-hierarchy coverage.
+- The final schedule-message regression passed 20 focused assertions across `MyEntriesTab`,
+  `DogEntriesSection`, and `WhereToBe`.
 - `pnpm typecheck`, `pnpm lint`, and strict target OpenSpec validation pass.
-- Playwright CLI measured Find Shows at 390×844, 834×1112, 1112×834, and 1280×800: four
-  persistently labelled view controls and no horizontal document overflow at every size.
-- The canonical exhibitor password in `apps/myk9show/.env.local` was rejected by Supabase on
-  2026-08-25. No shared-auth mutation was made. Authenticated browser tasks remain unchecked
-  until a valid session is available.
+- Playwright CLI authenticated as `exhibitor@myk9t.com` and measured navigation, payments, Find
+  Shows, and the run schedule at 390×844, 834×1112, 1112×834, and 1280×800. Required labels
+  were visible and horizontal document overflow was false at every size.
+- Phone wizard steps 1–3 had no visible inner vertical scroller, registry warnings opened the
+  shared editor, and secure-checkout reassurance appeared exactly once.
+- The temporary QA cart item, UKC registration, and dog were removed after the walk; the dog
+  count returned to the original 68.
 - Prior audit leftovers were inventoried on 2026-08-21: no Biscuit dog or $30 cart item remained;
   the registration draft was browser-local, so no destructive cleanup was required.

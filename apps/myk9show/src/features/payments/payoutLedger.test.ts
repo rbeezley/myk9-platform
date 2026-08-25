@@ -3,6 +3,8 @@ import {
   calculateShowPayoutCents,
   sumOnlineCollectedCents,
   sumRefundedCents,
+  sumUncollectedRefundCents,
+  countUncollectedRefunds,
   computeSettleDate,
   buildLedgerRows,
   summarizeLedger,
@@ -88,6 +90,22 @@ describe('sumOnlineCollectedCents / sumRefundedCents', () => {
         entry({ payment_method: 'cash', refund_amount: 99 }),
       ])
     ).toBe(1550);
+  });
+
+  it('separately counts refunds recorded before an online entry was paid', () => {
+    const entries = [
+      entry({ payment_status: 'pending', refund_amount: 25 }),
+      entry({ payment_status: null, refund_amount: 5.5 }),
+      entry({ payment_status: 'failed', refund_amount: 4 }),
+      entry({ payment_status: 'paid', refund_amount: 3 }),
+      entry({ payment_method: 'cash', payment_status: 'pending', refund_amount: 9 }),
+    ];
+
+    expect(countUncollectedRefunds(entries)).toBe(3);
+    expect(sumUncollectedRefundCents(entries)).toBe(3450);
+    expect(sumOnlineCollectedCents(entries) - sumRefundedCents(entries)).toBe(
+      calculateShowPayoutCents(entries)
+    );
   });
 });
 
@@ -238,6 +256,8 @@ describe('summarizeLedger', () => {
       outstandingCents: 3000,
       paidOutCents: 5000,
       unavailableShowCount: 0,
+      uncollectedRefundCount: 0,
+      uncollectedRefundCents: 0,
     });
   });
 });

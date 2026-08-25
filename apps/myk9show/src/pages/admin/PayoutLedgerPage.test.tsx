@@ -64,6 +64,8 @@ const row: LedgerRow = {
   showUnavailable: false,
   onlineCollectedCents: 5000,
   refundedCents: 0,
+  uncollectedRefundCents: 0,
+  uncollectedRefundCount: 0,
   unresolvedRefundDecisionCount: 0,
   netOwedCents: 5000,
   netOwedSource: 'transfer',
@@ -159,6 +161,27 @@ describe('PayoutLedgerPage', () => {
     render(<PayoutLedgerPage />);
     expect(
       within(screen.getByRole('table', { name: /payout ledger by show/i })).getByText('-$15.00')
+    ).toBeInTheDocument();
+  });
+
+  it('surfaces refunds recorded against entries not marked as paid', () => {
+    ledgerState.data = [
+      {
+        ...row,
+        uncollectedRefundCents: 2500,
+        uncollectedRefundCount: 1,
+      },
+    ];
+
+    render(<PayoutLedgerPage />);
+
+    expect(
+      screen.getByText(
+        /1 refund totaling \$25\.00 is recorded against an entry not marked as paid/i
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/excluded from Collected, Refunds, and Net owed until reconciled/i)
     ).toBeInTheDocument();
   });
 

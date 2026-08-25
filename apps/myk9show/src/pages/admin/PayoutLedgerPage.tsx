@@ -438,7 +438,13 @@ function PlatformFeeCard() {
 }
 
 function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
-  const { outstandingCents, paidOutCents, unavailableShowCount } = summarizeLedger(rows);
+  const {
+    outstandingCents,
+    paidOutCents,
+    unavailableShowCount,
+    uncollectedRefundCount,
+    uncollectedRefundCents,
+  } = summarizeLedger(rows);
   return (
     <dl className="grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-2">
       <div className="border-b border-border p-5 sm:border-b-0 sm:border-r">
@@ -477,6 +483,17 @@ function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
             {unavailableShowCount === 1
               ? '1 show below could not be identified. Its money is included in the totals above.'
               : `${unavailableShowCount} shows below could not be identified. Their money is included in the totals above.`}
+          </p>
+        </div>
+      )}
+      {uncollectedRefundCount > 0 && (
+        <div className="border-t border-border p-4 sm:col-span-2">
+          <p className="text-sm text-muted-foreground">
+            {uncollectedRefundCount} {uncollectedRefundCount === 1 ? 'refund' : 'refunds'} totaling{' '}
+            {formatCents(uncollectedRefundCents)}{' '}
+            {uncollectedRefundCount === 1 ? 'is' : 'are'} recorded against{' '}
+            {uncollectedRefundCount === 1 ? 'an entry' : 'entries'} not marked as paid.{' '}
+            These amounts are excluded from Collected, Refunds, and Net owed until reconciled.
           </p>
         </div>
       )}

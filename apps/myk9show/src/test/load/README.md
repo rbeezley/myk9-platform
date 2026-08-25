@@ -92,7 +92,9 @@ computes the actual cross-runner simultaneous peak instead of summing unrelated
 shard-local maxima. The separate `if: always()` cleanup job first cancels scoring
 queries that began inside the database-clock rehearsal ownership window, requires zero
 scoring workers across the target and three unchanged rollback samples, then reseeds
-and verifies `514|504|0` after success or failure. Pre-existing scoring work is never
+and verifies `514|504|0` after success or failure. Before either reseed, the workflow
+removes canonical-show emergency packet objects through the service-role Storage API,
+then deletes their audit rows; the SQL seed refuses metadata-only deletion. Pre-existing scoring work is never
 canceled; it blocks reseeding instead. If the quiet-window gate fails, cleanup leaves
 the target for operator recovery.
 

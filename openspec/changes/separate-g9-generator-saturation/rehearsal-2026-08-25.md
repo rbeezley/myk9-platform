@@ -29,7 +29,9 @@ No load traffic ran and the canonical fixture remained intact.
 
 ## Follow-up
 
-The repair explicitly deletes canonical-show packet snapshots before replacing the
-show and qualifies all `pg_stat_activity` columns in the cleanup SQL. Assertion-first
-seed-ordering and cleanup-query tests reproduce both failures. A new approved remote
-rehearsal is still required; this attempt does not satisfy G9.
+The repair removes canonical-show packet objects through the authenticated Storage API
+before deleting their audit rows, makes the SQL seed refuse metadata-only cleanup, and
+qualifies all `pg_stat_activity` columns in the cleanup SQL. Assertion-first paired
+storage/metadata, seed-guard, workflow-ordering, and cleanup-query tests reproduce the
+failures. A new approved remote rehearsal is still required; this attempt does not
+satisfy G9.

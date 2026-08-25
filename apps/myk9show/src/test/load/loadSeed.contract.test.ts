@@ -20,12 +20,11 @@ describe('canonical MYK9-109 load fixture', () => {
     expect(seed).toMatch(/DELETE FROM public\.dogs[\s\S]+myk9_109/);
   });
 
-  it('removes trial packet snapshots before replacing the canonical show', () => {
-    const snapshotDelete = seed.indexOf('DELETE FROM public.trial_packet_snapshots');
-    const showDelete = seed.indexOf('DELETE FROM public.shows');
-
-    expect(snapshotDelete).toBeGreaterThan(-1);
-    expect(snapshotDelete).toBeLessThan(showDelete);
+  it('refuses to replace a show while packet snapshots still reference storage objects', () => {
+    expect(seed).not.toContain('DELETE FROM public.trial_packet_snapshots');
+    expect(seed).toMatch(
+      /IF EXISTS[\s\S]*FROM public\.trial_packet_snapshots[\s\S]*RAISE EXCEPTION/
+    );
   });
 
   it('asserts the declared 514-row show total', () => {

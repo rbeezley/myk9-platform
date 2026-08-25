@@ -1,6 +1,6 @@
 ## Context
 
-See [proposal.md](proposal.md) for motivation. The applied database is current through `20260824223000`. Since the audit, MYK9-243 and MYK9-236 have merged, deployed, and passed their live proof gates. The MYK9-236 deployment also moved `cron-health-check` to v31; fresh read-only evidence now shows both ACL checks green across consecutive snapshots.
+See [proposal.md](proposal.md) for motivation. At change start, the applied database was current through `20260824223000`; deployment verification now records both `20260824220000` and `20260825130000` applied. Since the audit, MYK9-243 and MYK9-236 have merged, deployed, and passed their live proof gates. The MYK9-236 deployment also moved `cron-health-check` to v31; fresh read-only evidence now shows both ACL checks green across consecutive snapshots.
 
 Three gaps remain:
 

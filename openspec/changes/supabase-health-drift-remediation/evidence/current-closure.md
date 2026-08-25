@@ -23,18 +23,20 @@ Captured 2026-08-25 against project `sojmvhhwsjxmfistvzbe` and current `main`.
 - Current details: 19 anon table grants (1 write), 89 allowlisted columns, 130 authenticated/service-role table contracts, and 4 public sequences with no forbidden privilege/default drift.
 - The latest overall status is `warn`, not `fail`; the remaining warning is unrelated to ACL drift.
 
-## Email idempotency pre-deployment state
+## Email idempotency deployment closure
 
 - Hosted inventory contains all 45 repository functions with no deployed-only or repo-only names.
-- `send-waitlist-invite` v37 and `cron-process-payouts` v32 are ACTIVE with `verify_jwt=false`; these are the rollback anchors.
-- Downloaded bundles match current handlers and all extracted shared dependencies except the known target helper drift. `send-waitlist-invite` also lacks current localhost-only CORS aliases; deploying reviewed source changes no production origin behavior.
-- Both deployed bundles still contain the content-derived SHA-256 fallback key. Current repository helpers use a fresh opaque invocation key, remain byte-identical across both deployment roots, and both affected handlers import that local helper.
+- Pre-deployment rollback anchors were `send-waitlist-invite` v37 and `cron-process-payouts` v32.
+- After explicit approval, `send-waitlist-invite` v38 became ACTIVE at `2026-08-25T13:30:26Z` and `cron-process-payouts` v33 became ACTIVE at `2026-08-25T13:31:03Z`, both with internal auth (`verify_jwt=false`).
+- Downloaded v38/v33 handlers and `resendEmail.ts` helpers byte-match their reviewed deployment roots. Both deployed helpers now use a fresh opaque key per logical invocation and reuse that key only for retries.
 - Controlled test proof: retry attempts in one invocation reuse one key; two identical-body logical invocations use distinct keys and receive distinct controlled provider response IDs.
+- Credential-free POST smokes returned HTTP 403 for both functions before any email or payout action. No production email or transfer was triggered.
 
-## Migration preflight
+## Migration deployment and read-back
 
-- Hosted `sms_proximity_sends` has only `(auth_user_id, entry_id)` primary-key and `sent_at` indexes; no equivalent `entry_id`-leading index exists.
-- Linked dry-run did not mutate the database. It found prior merged migration `20260824220000_myk9_245_keep_own_cancelled_entries_visible.sql` missing before hosted `20260824223000`, so a normal push is blocked and `--include-all` would widen scope. The unrelated MYK9-245 migration requires its own approval/reconciliation before this change's index can be applied normally.
+- The approval-gated dry run listed exactly `20260824220000_myk9_245_keep_own_cancelled_entries_visible.sql` and `20260825130000_sms_proximity_entry_index.sql`; both applied successfully and now match local/remote migration history.
+- Live catalog read-back shows `sms_proximity_sends_entry_id_idx` as a B-tree index led by `entry_id`, covering the existing `sms_proximity_sends_entry_id_fkey` cascade constraint without changing the `(auth_user_id, entry_id)` idempotency primary key.
+- Live view-definition read-back confirms the MYK9-245 predicate preserves an exhibitor's own deleted entry while retaining the prior live-row boundary for other callers.
 - The corrected phase-2 SQL ran in a read-only transaction against staging: all six rows passed, including one active `cleanup-ringside-anon` cron row.
 
 ## Implementation verification
@@ -43,8 +45,8 @@ Captured 2026-08-25 against project `sojmvhhwsjxmfistvzbe` and current `main`.
 
 | Dimension | Result |
 | --- | --- |
-| Completeness | 12/21 tasks complete; repository implementation, local/read-only verification, and PR publication are complete; review/CI, deployment, Linear, archive, and cleanup gates remain. |
+| Completeness | 17/21 tasks complete; repository implementation, review/CI, approved deployment, and hosted read-back proof are complete; merge, Linear evidence update, archive, and cleanup gates remain. |
 | Correctness | The two new assertions failed before implementation and passed afterward. Focused tests, database drift tests, full typecheck, full lint, strict OpenSpec validation, live phase-2 SQL, function inventory, bundle downloads, ACL replay, and index catalog preflight agree with the design. |
 | Coherence | No duplicated product surface or new data path. The migration is additive, the cron assertion uses the scheduler identity, and both email deployment roots remain byte-identical at the target helper. |
 
-No CRITICAL, WARNING, or SUGGESTION implementation finding remains. The change is not archive-ready because review/CI, merge, and explicit shared-system approval gates are intentionally incomplete.
+No CRITICAL, WARNING, or SUGGESTION implementation or deployment finding remains. The change is not archive-ready because merge, approval-gated Linear evidence updates, archive, and cleanup remain incomplete.

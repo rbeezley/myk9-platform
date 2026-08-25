@@ -21,18 +21,18 @@
 
 - [x] 4.1 Commit the verified implementation and OpenSpec artifacts on the feature branch.
 - [x] 4.2 Push the branch and open one PR with Linear IDs, acceptance evidence, risks, non-goals, approval-gated commands, and `Tracked in openspec change: supabase-health-drift-remediation`.
-- [ ] 4.3 Obtain required second-opinion reviews and passing CI.
+- [x] 4.3 Obtain required second-opinion reviews and passing CI.
 - [ ] 4.4 Obtain explicit merge approval, merge the PR, and confirm the exact merge SHA on current `main`.
 
 ## 5. Shared-System Approval Gates
 
-- [ ] 5.1 Obtain explicit approval, apply the additive index migration, and read back the live index/FK coverage.
-- [ ] 5.2 Obtain supported Supabase Management authentication plus explicit deployment approval, deploy only `send-waitlist-invite` and `cron-process-payouts` from their correct roots, and record rollback anchors.
-- [ ] 5.3 Verify downloaded live bundles match reviewed source and run credential-free fail-closed smokes without sending email or triggering payouts.
+- [x] 5.1 Obtain explicit approval, apply the additive index migration, and read back the live index/FK coverage.
+- [x] 5.2 Obtain supported Supabase Management authentication plus explicit deployment approval, deploy only `send-waitlist-invite` and `cron-process-payouts` from their correct roots, and record rollback anchors.
+- [x] 5.3 Verify downloaded live bundles match reviewed source and run credential-free fail-closed smokes without sending email or triggering payouts.
 - [ ] 5.4 Obtain one Linear batch approval, then attach closure evidence to exact issues/findings without creating duplicates.
 
 ## 6. Archive And Cleanup
 
-- [ ] 6.1 Update the audit evidence ledger and automation memory only after each proof gate passes.
+- [x] 6.1 Update the audit evidence ledger and automation memory only after each proof gate passes.
 - [ ] 6.2 Archive the OpenSpec change after the implementation PR is merged and all required deployment evidence is recorded.
 - [ ] 6.3 Sync `main`, prune merged branches, and remove the feature worktree as the final cleanup step.

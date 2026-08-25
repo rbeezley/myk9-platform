@@ -35,6 +35,10 @@ import {
   watchBrowserHealth,
   type BrowserHealth,
 } from './uat/shared/artifacts';
+import {
+  waitForAppApiRequestsToSettle,
+  watchAppApiRequests,
+} from '../harness/appApiRequestTracker';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
@@ -176,6 +180,7 @@ async function measureHorizontalOverflow(page: Page) {
 async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
   const health = createBrowserHealth();
   watchBrowserHealth(page, health);
+  const pendingAppApiRequests = watchAppApiRequests(page);
 
   for (const route of routes) {
     const id = `${group}/${route.label}`;
@@ -273,6 +278,12 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
         .toBe(0);
       await page.setViewportSize(projectViewport);
     }
+
+    // Do not leave a route while one of its API reads is still in flight.
+    // WebKit reports a cross-origin fetch canceled by the next navigation as a
+    // page error ("due to access control checks"), even when the request is
+    // healthy and completes with 200 if allowed to finish (MYK9-244).
+    await waitForAppApiRequestsToSettle(page, pendingAppApiRequests, id);
 
     // Health checks (console errors, replication errors, owned 4xx/5xx).
     // Evaluated after the mobile resize so any mobile-triggered errors are included.

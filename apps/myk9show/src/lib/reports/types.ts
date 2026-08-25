@@ -4,10 +4,8 @@ import type React from 'react';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { PaymentStatus } from '@/types/show-registration-types';
 import type { Show } from '@/types/show-types';
-import type {
-  DogRegistrationLike,
-  MappedDogRegistrationLike,
-} from '@/features/dogs/identity';
+import type { DogRegistrationLike, MappedDogRegistrationLike } from '@/features/dogs/identity';
+import type { RegistryId } from '@/features/registries';
 
 export const REPORT_ENTRY_SOURCE = {
   MYK9: 'myk9',
@@ -149,6 +147,11 @@ export interface ReportDefinition {
   defaultSort: string;
   component: React.ComponentType<ReportProps>;
   enabled: boolean;
+  /**
+   * Registry-specific forms are only useful for trials sanctioned by this
+   * registry. Generic reports omit this field and remain available everywhere.
+   */
+  registryId?: RegistryId;
   supportsDogFilter?: boolean;
   /**
    * Present on the two reports that must also render server-side (check-in

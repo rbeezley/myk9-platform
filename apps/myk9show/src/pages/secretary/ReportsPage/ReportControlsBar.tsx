@@ -9,8 +9,9 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { reportRegistry, getReportById } from '@/lib/reports/reportRegistry';
+import { getReportById, getReportsForRegistries } from '@/lib/reports/reportRegistry';
 import type { ReportCategory, ReportDefinition } from '@/lib/reports/types';
+import type { RegistryId } from '@/features/registries';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
 
@@ -49,6 +50,38 @@ function formatDogOptionLabel(dog: {
   return `${dog.callName}${registered}${armband}`;
 }
 
+type TrialReportOption = {
+  id: string;
+  name: string;
+  trial_number: number;
+  date: string;
+  registry_id?: string | null;
+};
+
+const KNOWN_REGISTRY_IDS: readonly RegistryId[] = ['AKC', 'UKC', 'ASCA'];
+
+function getScopedRegistryIds(
+  trials: readonly TrialReportOption[],
+  trialId: string
+): RegistryId[] | undefined {
+  if (trials.length === 0) return undefined;
+
+  const scopedTrials = trialId === 'all' ? trials : trials.filter(trial => trial.id === trialId);
+  if (scopedTrials.length === 0) return undefined;
+
+  const ids = new Set<RegistryId>();
+  for (const trial of scopedTrials) {
+    const normalized = (trial.registry_id ?? 'AKC').trim().toUpperCase();
+    if (!KNOWN_REGISTRY_IDS.includes(normalized as RegistryId)) {
+      // An unexpected value should never hide a form. Leave the catalog
+      // unfiltered until the data contract is corrected.
+      return undefined;
+    }
+    ids.add(normalized as RegistryId);
+  }
+  return [...ids];
+}
+
 export interface OfficialPdfAction {
   disabled: boolean;
   isLoading: boolean;
@@ -65,7 +98,7 @@ interface ReportControlsBarProps {
   classId: string;
   dogId: string;
   sortOrder: string;
-  trials: Array<{ id: string; name: string; trial_number: number; date: string }>;
+  trials: TrialReportOption[];
   classes: Array<{
     id: string;
     name: string;
@@ -102,13 +135,6 @@ const REPORT_GROUP_ORDER: ReadonlyArray<{ category: ReportCategory; label: strin
   { category: 'statistics', label: 'Statistics' },
 ];
 
-const reportsByCategory: Record<ReportCategory, ReportDefinition[]> = {
-  operational: reportRegistry.filter(r => r.category === 'operational'),
-  organization: reportRegistry.filter(r => r.category === 'organization'),
-  financial: reportRegistry.filter(r => r.category === 'financial'),
-  statistics: reportRegistry.filter(r => r.category === 'statistics'),
-};
-
 export function ReportControlsBar({
   reportType,
   trialId,
@@ -128,6 +154,13 @@ export function ReportControlsBar({
   officialPdfAction,
 }: ReportControlsBarProps) {
   const selectedReport = getReportById(reportType);
+  const visibleReports = getReportsForRegistries(getScopedRegistryIds(trials, trialId), reportType);
+  const reportsByCategory: Record<ReportCategory, ReportDefinition[]> = {
+    operational: visibleReports.filter(r => r.category === 'operational'),
+    organization: visibleReports.filter(r => r.category === 'organization'),
+    financial: visibleReports.filter(r => r.category === 'financial'),
+    statistics: visibleReports.filter(r => r.category === 'statistics'),
+  };
 
   const hasTrialScope = selectedReport?.scopes.includes('trial') ?? false;
   const hasClassScope = selectedReport?.scopes.includes('class') ?? false;

@@ -1,3 +1,4 @@
+import type { RegistryId } from '@/features/registries';
 import type { ReportDefinition, ReportProps } from '@/lib/reports/types';
 import { renderEmergencyTrialPacketPdf } from '@/features/emergency-trial-packet/renderPacketPdf';
 import { toScoresheetModel, selectPacketPages } from '@/lib/reports/toScoresheetModel';
@@ -108,6 +109,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: 'armband',
     component: AKCScentWorkEntryForm,
     enabled: true,
+    registryId: 'AKC',
     supportsDogFilter: true,
   },
   {
@@ -119,6 +121,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: AKCScentWorkTransferFormPreview,
     enabled: true,
+    registryId: 'AKC',
     supportsDogFilter: true,
   },
   {
@@ -135,6 +138,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'UKC',
     supportsDogFilter: true,
   },
   {
@@ -147,6 +151,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'UKC',
     supportsDogFilter: true,
   },
   {
@@ -159,6 +164,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'UKC',
   },
   {
     id: 'ukc-nosework-judges-book-handler-discrimination',
@@ -170,6 +176,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'UKC',
   },
   {
     id: 'ukc-nosework-trial-score-sheet',
@@ -181,6 +188,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'UKC',
   },
   {
     id: 'asca-scent-detection-entry-form',
@@ -192,6 +200,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'ASCA',
   },
   {
     id: 'asca-scent-detection-trial-report',
@@ -203,6 +212,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'ASCA',
   },
   {
     id: 'asca-scent-detection-trial-roster',
@@ -214,6 +224,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'ASCA',
   },
   {
     id: 'asca-scent-detection-score-sheet',
@@ -225,6 +236,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'ASCA',
   },
   {
     id: 'asca-scent-detection-gross-receipts',
@@ -236,6 +248,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'ASCA',
   },
   {
     id: 'asca-scent-detection-post-event-evaluation',
@@ -247,6 +260,7 @@ export const reportRegistry: ReportDefinition[] = [
     component: PlaceholderReport,
     pdfOnly: true,
     enabled: true,
+    registryId: 'ASCA',
   },
 
   {
@@ -311,6 +325,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: TrialSecretaryReport,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'judges-certification',
@@ -321,6 +336,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: JudgesCertification,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'trial-chairman-report',
@@ -331,6 +347,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: TrialChairmanReport,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'financial-report',
@@ -431,6 +448,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: AKCJudgeReport,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'trial-secretary-certification',
@@ -441,6 +459,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: TrialSecretaryCertification,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'judge-supply-checklist',
@@ -460,4 +479,30 @@ export function getReportById(id: string): ReportDefinition | undefined {
 
 export function getEnabledReports(): ReportDefinition[] {
   return reportRegistry.filter(r => r.enabled);
+}
+
+/**
+ * Return the reports relevant to the registries represented by the current
+ * report scope. Generic reports have no registryId and are always retained.
+ * A selected report is retained even when its registry is outside the current
+ * scope so a deep link never turns into an unreachable report after data loads.
+ * An omitted registry list means the trial data is not ready, so keep the full
+ * catalog visible rather than hiding a report on incomplete information.
+ */
+export function getReportsForRegistries(
+  registryIds: readonly RegistryId[] | undefined,
+  selectedReportId?: string
+): ReportDefinition[] {
+  // Keep disabled entries in the selector so the existing "Coming Soon"
+  // affordance remains intact; registry scoping only changes which entries are
+  // relevant, not whether the catalog explains future reports.
+  const reports = reportRegistry;
+  if (!registryIds?.length) return reports;
+
+  return reports.filter(
+    report =>
+      report.registryId === undefined ||
+      registryIds.includes(report.registryId) ||
+      report.id === selectedReportId
+  );
 }

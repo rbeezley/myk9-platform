@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { reportRegistry, getReportById, getEnabledReports } from '@/lib/reports/reportRegistry';
+import {
+  reportRegistry,
+  getReportById,
+  getEnabledReports,
+  getReportsForRegistries,
+} from '@/lib/reports/reportRegistry';
 import type { ReportDefinition, ReportProps } from '@/lib/reports/types';
 
 const TEST_PROPS = {
@@ -60,6 +65,66 @@ describe('reportRegistry', () => {
 
   it('getReportById returns undefined for unknown id', () => {
     expect(getReportById('does-not-exist')).toBeUndefined();
+  });
+
+  describe('registry-scoped report discovery', () => {
+    it('shows only the matching registry forms while retaining generic reports', () => {
+      const visible = getReportsForRegistries(['UKC']);
+      const visibleIds = visible.map(report => report.id);
+      const akcReportIds = [
+        'akc-scent-work-entry-form',
+        'akc-scent-work-transfer-form',
+        'trial-secretary-report',
+        'judges-certification',
+        'trial-chairman-report',
+        'akc-judge-report',
+        'trial-secretary-certification',
+      ];
+
+      expect(visibleIds).toContain('ukc-nosework-entry-form');
+      expect(visibleIds).toContain('ukc-nosework-trial-score-sheet');
+      for (const id of akcReportIds) {
+        expect(visibleIds, `${id} should be hidden for UKC`).not.toContain(id);
+      }
+      expect(visibleIds).not.toContain('asca-scent-detection-entry-form');
+      expect(visibleIds).toContain('show-catalog');
+      expect(visibleIds).toContain('results-sheet');
+    });
+
+    it('marks every AKC organization form so non-AKC scopes cannot surface it', () => {
+      const akcReportIds = [
+        'akc-scent-work-entry-form',
+        'akc-scent-work-transfer-form',
+        'trial-secretary-report',
+        'judges-certification',
+        'trial-chairman-report',
+        'akc-judge-report',
+        'trial-secretary-certification',
+      ];
+
+      for (const id of akcReportIds) {
+        expect(getReportById(id)?.registryId, `${id} should be AKC-scoped`).toBe('AKC');
+      }
+    });
+
+    it('unions forms when a show contains trials from multiple registries', () => {
+      const visible = getReportsForRegistries(['AKC', 'ASCA']);
+      const visibleIds = visible.map(report => report.id);
+
+      expect(visibleIds).toContain('akc-scent-work-entry-form');
+      expect(visibleIds).toContain('asca-scent-detection-entry-form');
+      expect(visibleIds).not.toContain('ukc-nosework-entry-form');
+    });
+
+    it('keeps a deep-linked report reachable outside the current registry scope', () => {
+      const visible = getReportsForRegistries(['AKC'], 'ukc-nosework-entry-form');
+
+      expect(visible.map(report => report.id)).toContain('ukc-nosework-entry-form');
+    });
+
+    it('does not filter before trial data is available', () => {
+      expect(getReportsForRegistries(undefined)).toHaveLength(reportRegistry.length);
+    });
   });
 
   describe('Phase 1 enabled reports', () => {

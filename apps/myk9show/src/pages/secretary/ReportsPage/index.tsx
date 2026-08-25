@@ -159,6 +159,7 @@ export default function ReportsPage() {
         name: (t.name ?? '') as string,
         trial_number: Number(t.trial_number ?? 0),
         date: (t.date ?? '') as string,
+        registry_id: (t.registry_id ?? null) as string | null,
       })),
     [trials]
   );

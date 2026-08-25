@@ -71,13 +71,40 @@ describe('reportRegistry', () => {
     it('shows only the matching registry forms while retaining generic reports', () => {
       const visible = getReportsForRegistries(['UKC']);
       const visibleIds = visible.map(report => report.id);
+      const akcReportIds = [
+        'akc-scent-work-entry-form',
+        'akc-scent-work-transfer-form',
+        'trial-secretary-report',
+        'judges-certification',
+        'trial-chairman-report',
+        'akc-judge-report',
+        'trial-secretary-certification',
+      ];
 
       expect(visibleIds).toContain('ukc-nosework-entry-form');
       expect(visibleIds).toContain('ukc-nosework-trial-score-sheet');
-      expect(visibleIds).not.toContain('akc-scent-work-entry-form');
+      for (const id of akcReportIds) {
+        expect(visibleIds, `${id} should be hidden for UKC`).not.toContain(id);
+      }
       expect(visibleIds).not.toContain('asca-scent-detection-entry-form');
-      expect(visibleIds).toContain('trial-secretary-report');
+      expect(visibleIds).toContain('show-catalog');
       expect(visibleIds).toContain('results-sheet');
+    });
+
+    it('marks every AKC organization form so non-AKC scopes cannot surface it', () => {
+      const akcReportIds = [
+        'akc-scent-work-entry-form',
+        'akc-scent-work-transfer-form',
+        'trial-secretary-report',
+        'judges-certification',
+        'trial-chairman-report',
+        'akc-judge-report',
+        'trial-secretary-certification',
+      ];
+
+      for (const id of akcReportIds) {
+        expect(getReportById(id)?.registryId, `${id} should be AKC-scoped`).toBe('AKC');
+      }
     });
 
     it('unions forms when a show contains trials from multiple registries', () => {

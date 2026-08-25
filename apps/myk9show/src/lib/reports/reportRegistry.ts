@@ -325,6 +325,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: TrialSecretaryReport,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'judges-certification',
@@ -335,6 +336,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: JudgesCertification,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'trial-chairman-report',
@@ -345,6 +347,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: TrialChairmanReport,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'financial-report',
@@ -445,6 +448,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: AKCJudgeReport,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'trial-secretary-certification',
@@ -455,6 +459,7 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: TrialSecretaryCertification,
     enabled: true,
+    registryId: 'AKC',
   },
   {
     id: 'judge-supply-checklist',

@@ -75,10 +75,11 @@ export function sumOnlineCollectedCents(entries: LedgerEntryRow[]): number {
  * `refund_amount` but a payment_status of pending/failed/null contributed to
  * Refunds while contributing nothing to Collected — and the table presents those
  * two columns as a subtraction, so the row read as `$0.00 / -$25.00 / $0.00`.
- * A refund against money that was never collected is a data anomaly, and this
- * filter makes it invisible on this page rather than relocating it — the cron's
- * calculateShowPayoutCents filters identically, so no total diverges, but
- * nothing counts it either. Tracked in MYK9-235; not left implied here.
+ * A refund against money that was never collected is a data anomaly. This
+ * filter keeps it out of the subtraction so the columns tie out; the separate
+ * sumUncollectedRefundCents/countUncollectedRefunds summary signal is where
+ * that anomaly is visible. The cron's calculateShowPayoutCents filters
+ * identically, so no total diverges.
  */
 export function sumRefundedCents(entries: LedgerEntryRow[]): number {
   return entries
@@ -88,6 +89,34 @@ export function sumRefundedCents(entries: LedgerEntryRow[]): number {
         (e.payment_status === 'paid' || e.payment_status === 'refunded')
     )
     .reduce((sum, e) => sum + Math.round((e.refund_amount ?? 0) * 100), 0);
+}
+
+function isUncollectedRefund(entry: LedgerEntryRow): boolean {
+  return (
+    entry.payment_method === 'online' &&
+    (entry.refund_amount ?? 0) > 0 &&
+    entry.payment_status !== 'paid' &&
+    entry.payment_status !== 'refunded'
+  );
+}
+
+/**
+ * Count refunds recorded against online entries that were not marked as
+ * collected. These amounts stay out of Collected, Refunds, and Net owed so
+ * those three figures continue to tie out; this separate reconciliation signal
+ * is where the anomaly is visible. The live reachability query for MYK9-235
+ * returned no matching rows, but service-role manual reconciliation remains a
+ * supported write path, so the signal must not be removed as unreachable.
+ */
+export function sumUncollectedRefundCents(entries: LedgerEntryRow[]): number {
+  return entries.filter(isUncollectedRefund).reduce(
+    (sum, entry) => sum + Math.round((entry.refund_amount ?? 0) * 100),
+    0
+  );
+}
+
+export function countUncollectedRefunds(entries: LedgerEntryRow[]): number {
+  return entries.filter(isUncollectedRefund).length;
 }
 
 /** Where a row's Net owed figure came from. */
@@ -191,6 +220,9 @@ export interface LedgerRow {
   showUnavailable: boolean;
   onlineCollectedCents: number;
   refundedCents: number;
+  /** Refunds recorded before the entry was marked paid; excluded from totals. */
+  uncollectedRefundCents: number;
+  uncollectedRefundCount: number;
   unresolvedRefundDecisionCount: number;
   /** What the club is owed: the live payout row if one exists, else computed. */
   netOwedCents: number;
@@ -253,6 +285,8 @@ export function buildLedgerRows(
       showUnavailable: false,
       onlineCollectedCents: sumOnlineCollectedCents(entries),
       refundedCents: sumRefundedCents(entries),
+      uncollectedRefundCents: sumUncollectedRefundCents(entries),
+      uncollectedRefundCount: countUncollectedRefunds(entries),
       unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
       netOwedCents: useStoredAmount ? payout.amount_cents : computedNet,
       netOwedSource: useStoredAmount ? 'transfer' : 'computed',
@@ -280,6 +314,8 @@ export function buildLedgerRows(
       showUnavailable: true,
       onlineCollectedCents: sumOnlineCollectedCents(entries),
       refundedCents: sumRefundedCents(entries),
+      uncollectedRefundCents: sumUncollectedRefundCents(entries),
+      uncollectedRefundCount: countUncollectedRefunds(entries),
       unresolvedRefundDecisionCount: entries.filter(isUnresolvedPullRefundDecision).length,
       netOwedCents: useStoredAmount ? payout.amount_cents : calculateShowPayoutCents(entries),
       netOwedSource: useStoredAmount ? 'transfer' : 'computed',
@@ -308,6 +344,9 @@ export function summarizeLedger(rows: LedgerRow[]): {
    * say the identities are missing rather than leave the operator to notice.
    */
   unavailableShowCount: number;
+  /** Count and amount of refunds recorded against entries not marked collected. */
+  uncollectedRefundCount: number;
+  uncollectedRefundCents: number;
 } {
   return rows.reduce(
     (acc, r) => {
@@ -317,8 +356,16 @@ export function summarizeLedger(rows: LedgerRow[]): {
         acc.outstandingCents += r.netOwedCents;
       }
       if (r.showUnavailable) acc.unavailableShowCount += 1;
+      acc.uncollectedRefundCount += r.uncollectedRefundCount;
+      acc.uncollectedRefundCents += r.uncollectedRefundCents;
       return acc;
     },
-    { outstandingCents: 0, paidOutCents: 0, unavailableShowCount: 0 }
+    {
+      outstandingCents: 0,
+      paidOutCents: 0,
+      unavailableShowCount: 0,
+      uncollectedRefundCount: 0,
+      uncollectedRefundCents: 0,
+    }
   );
 }

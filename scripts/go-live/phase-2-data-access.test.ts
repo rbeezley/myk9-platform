@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -91,5 +91,17 @@ describe('buildPsqlArgs', () => {
       'scripts/go-live/phase-2-data-access.sql',
       'postgres://example',
     ]);
+  });
+});
+
+describe('hosted Phase 2 SQL contract', () => {
+  it('checks the canonical stale-anon cleanup cron job identity', () => {
+    const sql = readFileSync(
+      path.resolve(__dirname, 'phase-2-data-access.sql'),
+      'utf8'
+    );
+
+    expect(sql).toContain("WHERE jobname = 'cleanup-ringside-anon'");
+    expect(sql).not.toContain("WHERE jobname = 'cleanup_stale_ringside_anon_users'");
   });
 });

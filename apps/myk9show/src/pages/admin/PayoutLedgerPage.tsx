@@ -11,7 +11,7 @@
  * Behind the SITE_ADMIN route guard; writes are also RLS + trigger gated.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Wallet, Percent, AlertTriangle } from 'lucide-react';
@@ -21,20 +21,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePlatformFeeRatesQuery } from '@/hooks/queries/usePlatformFeeRates';
-import {
-  formatPlatformFeeLabel,
-  type PlatformFeeRates,
-} from '@/store/cartStore.helpers';
+import { formatPlatformFeeLabel, type PlatformFeeRates } from '@/store/cartStore.helpers';
 import { useUpdatePlatformFee } from '@/features/payments/useUpdatePlatformFee';
 import { usePlatformPayoutLedger } from '@/features/payments/usePlatformPayoutLedger';
 import {
@@ -490,10 +479,9 @@ function LedgerSummary({ rows }: { rows: LedgerRow[] }) {
         <div className="border-t border-border p-4 sm:col-span-2">
           <p className="text-sm text-muted-foreground">
             {uncollectedRefundCount} {uncollectedRefundCount === 1 ? 'refund' : 'refunds'} totaling{' '}
-            {formatCents(uncollectedRefundCents)}{' '}
-            {uncollectedRefundCount === 1 ? 'is' : 'are'} recorded against{' '}
-            {uncollectedRefundCount === 1 ? 'an entry' : 'entries'} not marked as paid.{' '}
-            These amounts are excluded from Collected, Refunds, and Net owed until reconciled.
+            {formatCents(uncollectedRefundCents)} {uncollectedRefundCount === 1 ? 'is' : 'are'}{' '}
+            recorded against {uncollectedRefundCount === 1 ? 'an entry' : 'entries'} not marked as
+            paid. These amounts are excluded from Collected, Refunds, and Net owed until reconciled.
           </p>
         </div>
       )}
@@ -523,59 +511,103 @@ function LedgerError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function LedgerMobileList({ rows, today }: { rows: LedgerRow[]; today: string }) {
+const LEDGER_COLUMNS = [
+  ['club', 'Club'],
+  ['show', 'Show'],
+  ['collected', 'Online collected'],
+  ['refunds', 'Refunds'],
+  ['net-owed', 'Net owed'],
+  ['settle-date', 'Settle date'],
+  ['status', 'Status'],
+] as const;
+
+const LEDGER_GRID_COLUMNS =
+  'md:grid-cols-[minmax(8rem,1.2fr)_minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(5rem,.8fr)_minmax(7rem,1fr)_minmax(7rem,1fr)_minmax(11rem,1.5fr)]';
+
+function ledgerValueId(showId: string, column: string): string {
+  return `payout-${showId}-${column}`;
+}
+
+function LedgerCell({
+  showId,
+  column,
+  className,
+  children,
+}: {
+  showId: string;
+  column: (typeof LEDGER_COLUMNS)[number][0];
+  className?: string;
+  children: ReactNode;
+}) {
+  const label = LEDGER_COLUMNS.find(([key]) => key === column)?.[1] ?? column;
+  const valueId = ledgerValueId(showId, column);
   return (
-    <ul className="space-y-3 md:hidden" aria-label="Payouts by show">
-      {rows.map(row => (
-        <li key={row.showId}>
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-foreground">{showLabel(row)}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {row.clubName ?? 'Unknown club'}
-                  </p>
-                </div>
-                {statusBadge(row, today)}
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">Net owed</dt>
-                  <dd className="mt-1 font-medium tabular-nums">
-                    {formatCents(row.netOwedCents)}
-                    {row.netOwedSource === 'transfer' && (
-                      <span className="block text-xs font-normal text-muted-foreground">
-                        {row.payoutStatus === 'completed' ? 'as transferred' : 'as recorded'}
-                      </span>
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Settle date</dt>
-                  <dd className="mt-1 tabular-nums">{settleDateLabel(row)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Online collected</dt>
-                  <dd className="mt-1 tabular-nums">{formatCents(row.onlineCollectedCents)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Refunds</dt>
-                  <dd className="mt-1 tabular-nums text-muted-foreground">
-                    {formatRefundCents(row.refundedCents)}
-                  </dd>
-                </div>
-              </dl>
-              {row.stripeTransferId && (
-                <p className="truncate font-mono text-xs text-muted-foreground">
-                  {row.stripeTransferId}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </li>
-      ))}
-    </ul>
+    <div
+      role="cell"
+      aria-labelledby={`payout-column-${column} ${valueId}`}
+      className={`min-w-0 p-3 md:px-2 md:py-3 ${className ?? ''}`}
+    >
+      <span aria-hidden="true" className="mb-1 block text-sm text-muted-foreground md:hidden">
+        {label}
+      </span>
+      <span id={valueId}>{children}</span>
+    </div>
+  );
+}
+
+/** One responsive row; the same node is a mobile card and a desktop row. */
+function PayoutLedgerRow({ row, today }: { row: LedgerRow; today: string }) {
+  return (
+    <div
+      role="row"
+      data-testid="payout-ledger-row"
+      className={`grid gap-x-3 rounded-xl border bg-card shadow-sm ${LEDGER_GRID_COLUMNS} md:items-center md:gap-0 md:rounded-none md:border-0 md:border-b md:bg-transparent md:shadow-none`}
+    >
+      <LedgerCell showId={row.showId} column="club" className="font-medium text-foreground">
+        {row.clubName ?? <span className="text-muted-foreground">Unknown club</span>}
+      </LedgerCell>
+      <LedgerCell showId={row.showId} column="show" className="font-medium text-foreground">
+        {showLabel(row)}
+      </LedgerCell>
+      <LedgerCell showId={row.showId} column="collected" className="tabular-nums md:text-right">
+        {formatCents(row.onlineCollectedCents)}
+      </LedgerCell>
+      <LedgerCell
+        showId={row.showId}
+        column="refunds"
+        className="tabular-nums text-muted-foreground md:text-right"
+      >
+        {formatRefundCents(row.refundedCents)}
+      </LedgerCell>
+      <LedgerCell
+        showId={row.showId}
+        column="net-owed"
+        className="font-medium tabular-nums md:text-right"
+      >
+        {formatCents(row.netOwedCents)}
+        {row.netOwedSource === 'transfer' && (
+          <span className="block text-xs font-normal text-muted-foreground">
+            {row.payoutStatus === 'completed' ? 'as transferred' : 'as recorded'}
+          </span>
+        )}
+      </LedgerCell>
+      <LedgerCell showId={row.showId} column="settle-date" className="tabular-nums">
+        {row.settleDate ?? <span className="text-muted-foreground">{settleDateLabel(row)}</span>}
+      </LedgerCell>
+      <LedgerCell showId={row.showId} column="status" className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          {statusBadge(row, today)}
+          {row.stripeTransferId && (
+            <span
+              className="inline-block max-w-[10rem] truncate font-mono text-xs text-muted-foreground"
+              title={`Stripe transfer ${row.stripeTransferId}`}
+            >
+              {row.stripeTransferId}
+            </span>
+          )}
+        </div>
+      </LedgerCell>
+    </div>
   );
 }
 
@@ -590,73 +622,41 @@ function LedgerTable({ rows, today }: { rows: LedgerRow[]; today: string }) {
     );
   }
   return (
-    <>
-      <LedgerMobileList rows={rows} today={today} />
-      <Card className="hidden md:block">
-        <CardContent className="p-0">
-          <Table aria-label="Payout ledger by show" scrollAreaLabel="Payout ledger">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Club</TableHead>
-                <TableHead>Show</TableHead>
-                <TableHead className="text-right">Online collected</TableHead>
-                <TableHead className="text-right">Refunds</TableHead>
-                <TableHead className="text-right">Net owed</TableHead>
-                <TableHead>Settle date</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map(row => (
-                <TableRow key={row.showId}>
-                  <TableCell className="font-medium">
-                    {row.clubName ?? <span className="text-muted-foreground">Unknown club</span>}
-                  </TableCell>
-                  <TableCell>{showLabel(row)}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCents(row.onlineCollectedCents)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {formatRefundCents(row.refundedCents)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatCents(row.netOwedCents)}
-                    {row.netOwedSource === 'transfer' && (
-                      /* Not Collected − Refunds. This is the amount the cron
-                         wrote onto the payout row, frozen at that moment, so a
-                         later refund leaves the three columns not adding up.
-                         Say so rather than let the operator find it as an
-                         arithmetic error in their own reconciliation. */
-                      <span className="block text-xs font-normal text-muted-foreground">
-                        {row.payoutStatus === 'completed' ? 'as transferred' : 'as recorded'}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {row.settleDate ?? (
-                      <span className="text-muted-foreground">{settleDateLabel(row)}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {statusBadge(row, today)}
-                      {row.stripeTransferId && (
-                        <span
-                          className="inline-block max-w-[10rem] truncate font-mono text-xs text-muted-foreground"
-                          title={`Stripe transfer ${row.stripeTransferId}`}
-                        >
-                          {row.stripeTransferId}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+    <Card>
+      <CardContent
+        className="overflow-x-auto p-0"
+        role="region"
+        aria-label="Payout ledger"
+        tabIndex={0}
+      >
+        <div
+          role="table"
+          aria-label="Payout ledger by show"
+          data-testid="payout-ledger-table"
+          className="w-full min-w-0 text-sm"
+        >
+          <div role="rowgroup" className="border-b border-border">
+            <div role="row" className={`grid ${LEDGER_GRID_COLUMNS} sr-only md:not-sr-only`}>
+              {LEDGER_COLUMNS.map(([column, label]) => (
+                <div
+                  key={column}
+                  role="columnheader"
+                  id={`payout-column-${column}`}
+                  className="p-3 text-left font-medium text-muted-foreground md:px-2 md:py-3"
+                >
+                  {label}
+                </div>
               ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </>
+            </div>
+          </div>
+          <div role="rowgroup" className="space-y-3 p-3 md:space-y-0 md:p-0">
+            {rows.map(row => (
+              <PayoutLedgerRow key={row.showId} row={row} today={today} />
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

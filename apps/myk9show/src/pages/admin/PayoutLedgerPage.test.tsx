@@ -198,15 +198,19 @@ describe('PayoutLedgerPage', () => {
     ).toHaveAttribute('href', '/shows/s1/entry-management?tab=exceptions&exception=pulls');
   });
 
-  it('provides a stacked payout list for narrow screens without hiding row context', () => {
+  it('renders one responsive row once with explicit column associations', () => {
     render(<PayoutLedgerPage />);
 
-    const list = screen.getByRole('list', { name: /payouts by show/i });
-    expect(within(list).getByText('Club One')).toBeInTheDocument();
-    expect(within(list).getByText('Spring Trial')).toBeInTheDocument();
-    const netOwed = within(list).getByText('Net owed').parentElement;
-    expect(netOwed).not.toBeNull();
-    expect(within(netOwed as HTMLElement).getByText('$50.00')).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: /payout ledger by show/i });
+    expect(screen.queryByRole('list', { name: /payouts by show/i })).not.toBeInTheDocument();
+    const rows = within(table).getAllByTestId('payout-ledger-row');
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getByText('Club One')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('Spring Trial')).toBeInTheDocument();
+    expect(within(rows[0]).getByRole('cell', { name: /Net owed \$50\.00/i })).toHaveAttribute(
+      'aria-labelledby',
+      'payout-column-net-owed payout-s1-net-owed'
+    );
   });
 
   it('omits the refund advisory when every pulled entry is resolved', () => {

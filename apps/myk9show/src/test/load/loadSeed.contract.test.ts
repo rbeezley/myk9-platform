@@ -20,6 +20,14 @@ describe('canonical MYK9-109 load fixture', () => {
     expect(seed).toMatch(/DELETE FROM public\.dogs[\s\S]+myk9_109/);
   });
 
+  it('removes trial packet snapshots before replacing the canonical show', () => {
+    const snapshotDelete = seed.indexOf('DELETE FROM public.trial_packet_snapshots');
+    const showDelete = seed.indexOf('DELETE FROM public.shows');
+
+    expect(snapshotDelete).toBeGreaterThan(-1);
+    expect(snapshotDelete).toBeLessThan(showDelete);
+  });
+
   it('asserts the declared 514-row show total', () => {
     expect(seed).toContain('MYK9-109 expected 514 demo-show entries');
   });

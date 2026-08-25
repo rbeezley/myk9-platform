@@ -17,4 +17,6 @@
 
 - [x] 4.1 Run focused load tests, discovery, typecheck, diff checks, and strict OpenSpec validation.
 - [x] 4.2 Review the diff for shared-target safety, secret leakage, workload weakening, and files over 500 lines.
+- [x] 4.3a Record approved rehearsal run 32904006355: preflight passed, canonical reseed failed before load, and read-only recovery proof confirmed `514|504|0` with zero scoring workers.
+- [x] 4.3b Fix the newly exposed snapshot cleanup ordering and ambiguous cleanup SQL with assertion-first regression coverage.
 - [ ] 4.3 Record the approved remote rehearsal as a separate operator-gated follow-up; do not claim G9 completion from local checks.

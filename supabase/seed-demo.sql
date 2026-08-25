@@ -204,6 +204,10 @@ DELETE FROM public.email_log
 WHERE id >= 'ee110000-0000-0000-0001-000000000000'::uuid
   AND id <  'ee110000-0000-0000-0002-000000000000'::uuid;
 DELETE FROM public.show_visibility_settings WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+-- Emergency packet snapshots intentionally RESTRICT show deletion so generated
+-- artifacts are not orphaned. The canonical reseed owns this demo show, so its
+-- snapshots must be removed explicitly before replacing the show.
+DELETE FROM public.trial_packet_snapshots WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';
 -- club_members / club_officers / club_stripe_accounts all cascade on club delete.
 DELETE FROM public.clubs WHERE id IN (

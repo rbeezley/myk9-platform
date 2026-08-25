@@ -10,6 +10,7 @@ import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
+import { EmergencyTrialPacketTool } from '@/features/emergency-trial-packet/EmergencyTrialPacketTool';
 import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
 import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
@@ -283,6 +284,13 @@ export function ShowWorkbenchShowDeskPage() {
             <WorkbenchLateEntryAction showId={currentShow.id} />
           </div>
         ),
+      },
+      {
+        id: 'emergency-trial-packet',
+        title: 'Emergency trial packet',
+        summary: 'Prepare or confirm the printed paper fallback for this show',
+        layout: 'wide',
+        content: <EmergencyTrialPacketTool show={currentShow} />,
       },
       {
         id: 'judge-hospitality',

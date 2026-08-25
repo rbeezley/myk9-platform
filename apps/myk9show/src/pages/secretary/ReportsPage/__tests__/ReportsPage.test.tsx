@@ -211,6 +211,16 @@ describe('ReportsPage', () => {
     expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument();
   });
 
+  it('keeps emergency packet preparation in Show Desk tools', () => {
+    render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
+
+    expect(screen.queryByRole('heading', { name: 'Emergency Trial Packet' })).toBeNull();
+    expect(screen.getByRole('link', { name: /open it in show desk tools/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1/show-desk?tool=emergency-trial-packet'
+    );
+  });
+
   it('offers the official AKC entry form PDF when a dog is selected', async () => {
     render(<ReportsPage />, {
       initialRoute: '/shows/show-1/reports?report=akc-scent-work-entry-form&dogId=dog-1',

@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData, type ReportDataState } from '@/hooks/queries/useReportData';
@@ -10,11 +10,7 @@ import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
-import {
-  buildClassReportProps,
-  buildEmergencyPacketData,
-  buildTrialReportProps,
-} from './reportDataMapping';
+import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
 import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import type { ReportScope } from '@/lib/reports/types';
@@ -25,8 +21,6 @@ import { PaperworkPrintConfirmationDialog } from '@/features/show-map/cockpit/Pa
 import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkPrintState';
 import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { EmergencyTrialPacketPanel } from './EmergencyTrialPacketPanel';
-import { useDeliveredPackets } from './useDeliveredPackets';
 import { useReportDogOptions } from './useReportDogOptions';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
@@ -78,6 +72,7 @@ export default function ReportsPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
   const { show: currentShow } = useFastShowDetails(showId);
+  const linkShowId = showId ?? currentShow?.id;
   const [searchParams] = useSearchParams();
   const [initialScope] = useState(() => resolveInitialReportScope(searchParams));
   // Resolve once on mount so subsequent ?report= changes don't fight the
@@ -289,28 +284,6 @@ export default function ReportsPage() {
     officialClassPdfProps,
   });
 
-  const emergencyPacketData = useMemo(() => {
-    // `isReady`, not `!isLoading` — buildEmergencyPacketData collapses undefined
-    // to [] on all three inputs, so a paused query used to produce a non-null
-    // packet model and the panel reported "Add a trial before preparing the
-    // emergency packet" on a show that has trials.
-    if (!show || !isReady || effectiveScope.kind !== 'show') return null;
-    return buildEmergencyPacketData({
-      show,
-      trials: trials as Parameters<typeof buildEmergencyPacketData>[0]['trials'],
-      classes: classes as Parameters<typeof buildEmergencyPacketData>[0]['classes'],
-      entries: entries as Parameters<typeof buildEmergencyPacketData>[0]['entries'],
-    });
-  }, [show, trials, classes, entries, isReady, effectiveScope.kind]);
-
-  // Packets that already exist, including any cron generated overnight — the
-  // only way to confirm printing one without re-preparing it, which would mint
-  // a new snapshot and email every official a second copy (MYK9-228 phase 5).
-  const { rows: deliveredPackets, isError: deliveredPacketsError } = useDeliveredPackets(
-    showId,
-    emergencyPacketData
-  );
-
   return (
     // px-4: this project's `.container` compiles to width + max-widths only,
     // with no horizontal padding, and nothing up the tree supplies any -- so at
@@ -325,22 +298,18 @@ export default function ReportsPage() {
           trial or class, then print or download.
         </p>
       </div>
-
-      <EmergencyTrialPacketPanel
-        data={emergencyPacketData}
-        deliveredPackets={deliveredPackets}
-        deliveredPacketsError={deliveredPacketsError}
-        unavailableReason={
-          effectiveScope.kind !== 'show'
-            ? 'Choose All Trials and All Classes to prepare the whole-show emergency packet.'
-            : dataState === 'unavailable'
-              ? 'No connection, so this show’s trials and entries could not be checked. Reconnect before preparing the packet.'
-              : dataState === 'error'
-                ? 'The show’s trials and entries could not be loaded. Use Try again in the preview below, then prepare the packet.'
-                : undefined
-        }
-        onMarkPrinted={setPendingConfirmation}
-      />
+      {linkShowId && (
+        <p className="mb-6 text-sm text-muted-foreground">
+          Need the emergency paper fallback?{' '}
+          <Link
+            to={`/shows/${linkShowId}/show-desk?tool=emergency-trial-packet`}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            Open it in Show Desk tools
+          </Link>
+          .
+        </p>
+      )}
 
       {/* Controls */}
       <ReportControlsBar

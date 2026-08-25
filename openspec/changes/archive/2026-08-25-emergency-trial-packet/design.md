@@ -66,7 +66,7 @@ Add an Emergency Trial Packet card/action beside the existing report controls, n
 
 Unit tests cover packet ordering/content/page markers, filename/path generation, upload arguments, recipient derivation, authorization, signed-link bounds, idempotent retry, and failure reporting. Component tests use the project custom render. Edge tests run under the existing edge-test TypeScript configuration.
 
-Technical completion additionally requires generating a real packet, opening the emailed link outside the app session, and printing. Richard recorded successful receipt, opening, and printing on 2026-08-25. He explicitly accepted MYK9-198 for closure while waiving the separate mock paper-day rehearsal; the waiver is recorded as accepted residual UAT risk rather than evidence that the rehearsal occurred.
+Technical completion additionally requires generating a real packet, opening the emailed link outside the app session, and printing. Richard recorded successful receipt, opening, and printing on 2026-08-25, but did not separately evidence a signed-out or clean-device condition. He explicitly accepted MYK9-198 for closure while waiving that stricter condition and the separate mock paper-day rehearsal; the waivers are recorded as accepted residual UAT risk rather than evidence that either exercise occurred.
 
 ## Risks / Trade-offs
 

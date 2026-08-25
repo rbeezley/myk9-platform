@@ -59,24 +59,6 @@ The system SHALL upload each generated packet as an immutable private Storage ob
 - **THEN** Storage remains private
 - **AND** authorized staff can prepare and deliver a new snapshot from Reports
 
-### Requirement: Upcoming trial-day packets are generated without a human step
-The system SHALL generate and email one packet per upcoming trial day before that day without requiring anyone to open the app, while preserving the manual action for late changes.
-
-#### Scenario: Evening-before automation runs
-- **WHEN** an eligible published show has trials the following day
-- **THEN** the system generates one packet scoped to that trial day and emails its retrieval link
-- **AND** trials on other dates are excluded from that packet
-
-#### Scenario: The trigger is retried
-- **WHEN** generation is invoked more than once for the same show and trial date
-- **THEN** the claim is idempotent
-- **AND** the retry does not create a duplicate packet or duplicate email
-
-#### Scenario: Printed paper is not confirmed
-- **WHEN** the current trial-day packet exists but no print confirmation covers that day
-- **THEN** the system reminds operational staff to print it and put it in the trial box
-- **AND** the reminder stops after a covering print confirmation is recorded
-
 ### Requirement: Delivery recipients and authorization are server-derived
 The system SHALL authorize packet delivery against current show-management roles and SHALL derive secretary and club-administrator email recipients from current role and person records rather than caller-supplied addresses.
 
@@ -108,7 +90,7 @@ The packet cover, success state, and email SHALL instruct staff to print the pac
 - **AND** generation or email delivery alone is not treated as proof the paper exists
 
 ### Requirement: Paper recovery is operationally validated
-Release evidence SHALL include retrieval and printing outside the authenticated app path. A human mock trial-day walkthrough using only the printed packet SHALL be completed before live reliance or explicitly waived by the product owner with the residual risk recorded.
+Release evidence SHALL include retrieval and printing outside the authenticated app path plus a human mock trial-day walkthrough using only the printed packet before live reliance, unless the product owner explicitly waives an exercise with the residual risk recorded.
 
 #### Scenario: Technical recovery check
 - **WHEN** verification is performed after generation and delivery
@@ -119,7 +101,7 @@ Release evidence SHALL include retrieval and printing outside the authenticated 
 - **THEN** missing operational information is recorded and corrected before the capability is accepted
 - **AND** the drill includes transcribing the recorded paper results back into myK9
 
-#### Scenario: Product owner waives the rehearsal
-- **WHEN** the technical recovery check passes but the mock paper-day drill is not performed before issue closure
+#### Scenario: Product owner waives a recovery exercise
+- **WHEN** the strict signed-out/clean-device check or mock paper-day drill is not performed before issue closure
 - **THEN** the product owner explicitly accepts the residual pre-live UAT risk
-- **AND** the record states that the drill was waived rather than completed
+- **AND** the record states exactly which exercise was waived rather than completed

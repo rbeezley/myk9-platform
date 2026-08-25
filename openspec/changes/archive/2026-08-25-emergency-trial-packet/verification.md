@@ -5,7 +5,7 @@
 | Dimension | Status |
 | --- | --- |
 | Completeness | 30/30 tasks resolved; the mock paper-day task closed by explicit owner waiver, not a performed drill |
-| Correctness | Implementation, deployment, automation, and live email/open/print evidence are complete; the waived rehearsal remains residual pre-live UAT risk |
+| Correctness | Implementation, deployment, automation, and live email/open/print evidence are complete; the strict signed-out/clean-device condition and rehearsal were explicitly waived rather than claimed as performed |
 | Coherence | Implementation follows the canonical Reports, immutable private Storage, server-derived recipient, and explicit physical-print decisions |
 
 ## Implementation Evidence
@@ -23,13 +23,13 @@
 
 1. PR #1713 merged the emergency packet; follow-up PRs fixed paper content, consolidated report rendering, and added automated per-day generation and print reminders under MYK9-228.
 2. The packet migrations and Edge Functions were deployed, and the linked Supabase database reports no unapplied migrations as of 2026-08-25.
-3. Richard confirmed on 2026-08-25 that he received the packet email and could open and print the PDF.
-4. Richard explicitly accepted MYK9-198 for closure and waived the separate mock paper-only trial-day/transcription rehearsal. This is an accepted evidence waiver, not a claim that the rehearsal ran.
+3. Richard confirmed on 2026-08-25 that he received the packet email and could open and print the PDF. He did not separately state that this occurred while signed out or from a clean device, so that stricter condition is recorded as waived rather than passed.
+4. Richard explicitly accepted MYK9-198 for closure and waived the separate mock paper-only trial-day/transcription rehearsal. These are accepted evidence waivers, not claims that either stricter exercise ran.
 5. MYK9-198 moved to Done on 2026-08-25 with the operator evidence and waiver recorded in Linear.
 
 ## Warnings
 
-- The paper-only mock trial-day rehearsal was not performed. Keep it as recommended pre-live UAT and do not cite the closure waiver as drill evidence.
+- The signed-out/clean-device check and paper-only mock trial-day rehearsal were not evidenced. Keep them as recommended pre-live UAT and do not cite the closure waiver as test evidence.
 
 ## Suggestions
 

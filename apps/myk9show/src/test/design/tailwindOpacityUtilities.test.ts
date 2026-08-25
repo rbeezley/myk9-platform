@@ -24,9 +24,7 @@ type ColorEntry = { name: string; value: string };
 
 function cssVariableColors(value: unknown, prefix = ''): ColorEntry[] {
   if (typeof value === 'string') {
-    return value.includes('var(--') && value.includes('<alpha-value>')
-      ? [{ name: prefix, value }]
-      : [];
+    return value.includes('var(--') ? [{ name: prefix, value }] : [];
   }
 
   if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
@@ -45,7 +43,13 @@ describe('Tailwind CSS-variable colours support opacity modifiers', () => {
   it('emits every configured semantic colour utility in the production pipeline', async () => {
     const tailwindConfig = (await import(`${APP_ROOT}/tailwind.config.js`)).default as Config;
     const colors = cssVariableColors(tailwindConfig.theme?.extend?.colors);
-    expect(colors.length, 'no alpha-capable CSS-variable colours were found').toBeGreaterThan(0);
+    expect(colors.length, 'no CSS-variable semantic colours were found').toBeGreaterThan(0);
+
+    const bareVariableColors = colors.filter(({ value }) => !value.includes('<alpha-value>'));
+    expect(
+      bareVariableColors.map(({ name }) => name),
+      'every CSS-variable semantic colour must expose an alpha channel'
+    ).toEqual([]);
 
     const utilities = colors.flatMap(({ name }) =>
       COLOR_UTILITIES.map(utility => `${utility}-${name}/${OPACITY}`)
@@ -60,6 +64,8 @@ describe('Tailwind CSS-variable colours support opacity modifiers', () => {
 
     const missing = utilities.filter(utility => !css.includes(`.${escapeClassName(utility)}`));
     expect(missing, 'opacity utility was silently dropped from generated CSS').toEqual([]);
+    expect(css).toContain('calc(0.3 * 100%)');
+    expect(css).not.toMatch(/var\(--[^)]+\)\s+0\.3\s*,/);
   });
 
   it('keeps the known load-bearing table states emitted', async () => {

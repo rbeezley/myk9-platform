@@ -43,45 +43,60 @@ export default {
         // `border-token/50`, and friends during the production build. The
         // `color-mix()` form lets Tailwind substitute its opacity value for
         // both the plain utility and its opacity variants.
-        background: 'color-mix(in srgb, var(--background) <alpha-value>, transparent)',
-        foreground: 'color-mix(in srgb, var(--foreground) <alpha-value>, transparent)',
-        'background-alt': 'color-mix(in srgb, var(--background-alt) <alpha-value>, transparent)',
+        background: 'color-mix(in srgb, var(--background) calc(<alpha-value> * 100%), transparent)',
+        foreground: 'color-mix(in srgb, var(--foreground) calc(<alpha-value> * 100%), transparent)',
+        'background-alt':
+          'color-mix(in srgb, var(--background-alt) calc(<alpha-value> * 100%), transparent)',
         /* Semantic status colors — single source of truth from design-tokens.css */
         status: {
-          'checked-in': 'color-mix(in srgb, var(--status-checked-in) <alpha-value>, transparent)',
-          conflict: 'color-mix(in srgb, var(--status-conflict) <alpha-value>, transparent)',
-          pulled: 'color-mix(in srgb, var(--status-pulled) <alpha-value>, transparent)',
-          'at-gate': 'color-mix(in srgb, var(--status-at-gate) <alpha-value>, transparent)',
+          'checked-in':
+            'color-mix(in srgb, var(--status-checked-in) calc(<alpha-value> * 100%), transparent)',
+          conflict:
+            'color-mix(in srgb, var(--status-conflict) calc(<alpha-value> * 100%), transparent)',
+          pulled:
+            'color-mix(in srgb, var(--status-pulled) calc(<alpha-value> * 100%), transparent)',
+          'at-gate':
+            'color-mix(in srgb, var(--status-at-gate) calc(<alpha-value> * 100%), transparent)',
           'come-to-gate':
-            'color-mix(in srgb, var(--status-come-to-gate) <alpha-value>, transparent)',
-          'in-ring': 'color-mix(in srgb, var(--status-in-ring) <alpha-value>, transparent)',
-          completed: 'color-mix(in srgb, var(--status-completed) <alpha-value>, transparent)',
-          'no-status': 'color-mix(in srgb, var(--status-no-status) <alpha-value>, transparent)',
+            'color-mix(in srgb, var(--status-come-to-gate) calc(<alpha-value> * 100%), transparent)',
+          'in-ring':
+            'color-mix(in srgb, var(--status-in-ring) calc(<alpha-value> * 100%), transparent)',
+          completed:
+            'color-mix(in srgb, var(--status-completed) calc(<alpha-value> * 100%), transparent)',
+          'no-status':
+            'color-mix(in srgb, var(--status-no-status) calc(<alpha-value> * 100%), transparent)',
         },
         card: {
-          DEFAULT: 'color-mix(in srgb, var(--card) <alpha-value>, transparent)',
-          secondary: 'color-mix(in srgb, var(--card-secondary) <alpha-value>, transparent)',
-          foreground: 'color-mix(in srgb, var(--card-foreground) <alpha-value>, transparent)',
+          DEFAULT: 'color-mix(in srgb, var(--card) calc(<alpha-value> * 100%), transparent)',
+          secondary:
+            'color-mix(in srgb, var(--card-secondary) calc(<alpha-value> * 100%), transparent)',
+          foreground:
+            'color-mix(in srgb, var(--card-foreground) calc(<alpha-value> * 100%), transparent)',
         },
         popover: {
-          DEFAULT: 'color-mix(in srgb, var(--popover) <alpha-value>, transparent)',
-          foreground: 'color-mix(in srgb, var(--popover-foreground) <alpha-value>, transparent)',
+          DEFAULT: 'color-mix(in srgb, var(--popover) calc(<alpha-value> * 100%), transparent)',
+          foreground:
+            'color-mix(in srgb, var(--popover-foreground) calc(<alpha-value> * 100%), transparent)',
         },
         primary: {
-          DEFAULT: 'color-mix(in srgb, var(--primary) <alpha-value>, transparent)',
-          foreground: 'color-mix(in srgb, var(--primary-foreground) <alpha-value>, transparent)',
+          DEFAULT: 'color-mix(in srgb, var(--primary) calc(<alpha-value> * 100%), transparent)',
+          foreground:
+            'color-mix(in srgb, var(--primary-foreground) calc(<alpha-value> * 100%), transparent)',
         },
         secondary: {
-          DEFAULT: 'color-mix(in srgb, var(--secondary) <alpha-value>, transparent)',
-          foreground: 'color-mix(in srgb, var(--secondary-foreground) <alpha-value>, transparent)',
+          DEFAULT: 'color-mix(in srgb, var(--secondary) calc(<alpha-value> * 100%), transparent)',
+          foreground:
+            'color-mix(in srgb, var(--secondary-foreground) calc(<alpha-value> * 100%), transparent)',
         },
         muted: {
-          DEFAULT: 'color-mix(in srgb, var(--muted) <alpha-value>, transparent)',
-          foreground: 'color-mix(in srgb, var(--muted-foreground) <alpha-value>, transparent)',
+          DEFAULT: 'color-mix(in srgb, var(--muted) calc(<alpha-value> * 100%), transparent)',
+          foreground:
+            'color-mix(in srgb, var(--muted-foreground) calc(<alpha-value> * 100%), transparent)',
         },
         accent: {
-          DEFAULT: 'color-mix(in srgb, var(--accent) <alpha-value>, transparent)',
-          foreground: 'color-mix(in srgb, var(--accent-foreground) <alpha-value>, transparent)',
+          DEFAULT: 'color-mix(in srgb, var(--accent) calc(<alpha-value> * 100%), transparent)',
+          foreground:
+            'color-mix(in srgb, var(--accent-foreground) calc(<alpha-value> * 100%), transparent)',
         },
         destructive: {
           DEFAULT: 'rgb(var(--destructive) / <alpha-value>)',
@@ -103,15 +118,15 @@ export default {
           foreground: 'rgb(var(--info-foreground) / <alpha-value>)',
           strong: 'rgb(var(--info-strong) / <alpha-value>)',
         },
-        border: 'color-mix(in srgb, var(--border) <alpha-value>, transparent)',
-        input: 'color-mix(in srgb, var(--input) <alpha-value>, transparent)',
-        ring: 'color-mix(in srgb, var(--ring) <alpha-value>, transparent)',
+        border: 'color-mix(in srgb, var(--border) calc(<alpha-value> * 100%), transparent)',
+        input: 'color-mix(in srgb, var(--input) calc(<alpha-value> * 100%), transparent)',
+        ring: 'color-mix(in srgb, var(--ring) calc(<alpha-value> * 100%), transparent)',
         chart: {
-          1: 'color-mix(in srgb, var(--chart-1) <alpha-value>, transparent)',
-          2: 'color-mix(in srgb, var(--chart-2) <alpha-value>, transparent)',
-          3: 'color-mix(in srgb, var(--chart-3) <alpha-value>, transparent)',
-          4: 'color-mix(in srgb, var(--chart-4) <alpha-value>, transparent)',
-          5: 'color-mix(in srgb, var(--chart-5) <alpha-value>, transparent)',
+          1: 'color-mix(in srgb, var(--chart-1) calc(<alpha-value> * 100%), transparent)',
+          2: 'color-mix(in srgb, var(--chart-2) calc(<alpha-value> * 100%), transparent)',
+          3: 'color-mix(in srgb, var(--chart-3) calc(<alpha-value> * 100%), transparent)',
+          4: 'color-mix(in srgb, var(--chart-4) calc(<alpha-value> * 100%), transparent)',
+          5: 'color-mix(in srgb, var(--chart-5) calc(<alpha-value> * 100%), transparent)',
         },
       },
       keyframes: {

@@ -1,5 +1,5 @@
 import type { Page, Request } from '@playwright/test';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { waitForAppApiRequestsToSettle, watchAppApiRequests } from './appApiRequestTracker';
 
 type RequestEvent = 'request' | 'requestfinished' | 'requestfailed';
@@ -29,7 +29,10 @@ function createPageHarness() {
 }
 
 describe('app API request tracker', () => {
+  afterEach(() => vi.useRealTimers());
+
   it('waits for an app API request to finish and remain idle', async () => {
+    vi.useFakeTimers();
     const harness = createPageHarness();
     const tracker = watchAppApiRequests(harness.page);
     const request = createRequest('https://example.supabase.co/rest/v1/clubs?select=*');
@@ -37,10 +40,20 @@ describe('app API request tracker', () => {
     setTimeout(() => harness.emit('request', request), 5);
     setTimeout(() => harness.emit('requestfinished', request), 10);
 
-    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+    let resolved = false;
+    const settlementPromise = waitForAppApiRequestsToSettle(harness.page, tracker, {
       idleMs: 15,
       timeoutMs: 100,
+    }).then(settlement => {
+      resolved = true;
+      return settlement;
     });
+
+    await vi.advanceTimersByTimeAsync(29);
+    expect(resolved).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    const settlement = await settlementPromise;
 
     expect(settlement).toEqual({ settled: true, pendingUrls: [] });
     expect(tracker.pending.size).toBe(0);

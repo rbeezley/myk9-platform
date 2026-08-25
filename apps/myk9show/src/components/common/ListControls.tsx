@@ -33,6 +33,7 @@ export interface ListControlsProps {
   viewMode?: string;
   onViewModeChange?: (mode: string) => void;
   viewModes?: readonly ViewMode[];
+  showViewLabels?: boolean;
 
   /** Result count summary (pluralize `entityName` at the call site). */
   resultsShowing: number;
@@ -66,6 +67,7 @@ export function ListControls({
   viewMode,
   onViewModeChange,
   viewModes = CARD_TABLE_MODES,
+  showViewLabels = false,
   resultsShowing,
   resultsTotal,
   filtered = false,
@@ -113,6 +115,7 @@ export function ListControls({
             modes={viewModes}
             active={viewMode}
             onChange={onViewModeChange}
+            showLabels={showViewLabels}
             className="self-end sm:ml-auto sm:self-auto"
           />
         )}

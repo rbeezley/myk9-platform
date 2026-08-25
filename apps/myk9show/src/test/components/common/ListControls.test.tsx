@@ -71,6 +71,13 @@ describe('ListControls', () => {
     expect(screen.getByLabelText('Calendar view')).toBeInTheDocument();
   });
 
+  it('can keep view labels visible for novice-facing lists', () => {
+    setup({ showViewLabels: true });
+
+    expect(screen.getByLabelText('Cards view')).toHaveTextContent('Cards');
+    expect(screen.getByLabelText('Table view')).toHaveTextContent('Table');
+  });
+
   it('reports a filter selection through the FilterChips contract', () => {
     const { onFilterChange } = setup();
 

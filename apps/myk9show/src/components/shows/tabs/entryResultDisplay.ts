@@ -7,6 +7,7 @@ import {
   getRemovedStatusLabel,
   isRemovedStatus,
 } from '@/services/entryDisplay/entryDisplaySelectors';
+import { getReviewStateLabel } from '@/components/entries/management/reviewStateLabels';
 
 interface PendingResultEntry {
   hasResult: boolean;
@@ -64,7 +65,10 @@ export function getRemovedStateLabel(entry: RemovedStateEntry): string | null {
   // legacy values like 'cancelled' and mislabeled them "Upcoming").
   const kind = getEntryStatusKind(entry.entryStatus);
   if (!isRemovedStatus(kind)) return null;
-  const base = getRemovedStatusLabel(kind) ?? '';
+  const base =
+    kind === 'not_accepted'
+      ? `${getReviewStateLabel('not_accepted', 'exhibitor')} · Contact show secretary`
+      : (getRemovedStatusLabel(kind) ?? '');
   const refund = getRefundLabel({ paymentStatus: entry.paymentStatus });
   return refund ? `${base} · ${refund}` : base;
 }

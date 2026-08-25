@@ -16,6 +16,7 @@ import {
   isSettledWithoutScore,
 } from './myEntriesStats.helpers';
 import type { EntryClass } from './my-entries-types';
+import { getEntryStatusStateLabel } from '@/components/entries/management/reviewStateLabels';
 
 /**
  * Normalize a raw DB check-in status into the dialog's model. Both `null` and
@@ -89,14 +90,14 @@ export function getEntryStatusBadge(
       else if (statusKind === 'unknown') contextualLabel = 'Status unavailable';
       else if (options.isPastShow) contextualLabel = 'Review incomplete';
       else if (statusKind && isSecretaryReviewKind(statusKind)) {
-        contextualLabel = 'Pending Secretary Approval';
-      } else contextualLabel = 'Pending Review';
+        contextualLabel = getEntryStatusStateLabel(EntryStatus.PENDING, 'exhibitor');
+      } else contextualLabel = getEntryStatusStateLabel(EntryStatus.PENDING, 'exhibitor');
       break;
     case EntryStatus.WAITLIST:
       contextualLabel = 'Waitlist';
       break;
     case EntryStatus.REJECTED:
-      contextualLabel = 'Rejected';
+      contextualLabel = getEntryStatusStateLabel(EntryStatus.REJECTED, 'exhibitor');
       break;
     case EntryStatus.COMPLETED:
       contextualLabel = 'Scored';
@@ -283,6 +284,13 @@ export function getContextualStatusMessage(
 
     return {
       message: entry.entryStatus === EntryStatus.SCRATCHED ? 'Scratched' : 'Withdrawn',
+      className: 'text-muted-foreground',
+    };
+  }
+
+  if (entry.entryStatus === EntryStatus.REJECTED || entry.entryStatusKind === 'not_accepted') {
+    return {
+      message: 'Contact the show secretary for next steps',
       className: 'text-muted-foreground',
     };
   }

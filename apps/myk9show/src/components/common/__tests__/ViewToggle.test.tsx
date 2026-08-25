@@ -12,4 +12,15 @@ describe('ViewToggle — flow icon', () => {
     render(<ViewToggle modes={modes} active="list" onChange={vi.fn()} />);
     expect(screen.getByTitle('Flow view')).toBeInTheDocument();
   });
+
+  it('renders persistent visible labels when requested', () => {
+    const modes = [
+      { key: 'cards', label: 'Cards', icon: 'grid' as const },
+      { key: 'map', label: 'Map', icon: 'map' as const },
+    ] as const;
+    render(<ViewToggle modes={modes} active="cards" onChange={vi.fn()} showLabels />);
+
+    expect(screen.getByRole('button', { name: 'Cards view' })).toHaveTextContent('Cards');
+    expect(screen.getByRole('button', { name: 'Map view' })).toHaveTextContent('Map');
+  });
 });

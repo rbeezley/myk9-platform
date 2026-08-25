@@ -26,8 +26,13 @@ export type RegistrationReviewState =
 
 export type ReviewStateTone = 'accepted' | 'warning' | 'destructive' | 'neutral';
 
+export type ReviewStateAudience = 'secretary' | 'exhibitor';
+
 interface ReviewStateLabelEntry {
+  /** Secretary work-queue wording retained for existing management consumers. */
   label: string;
+  /** Owner-facing wording that never describes a pending decision as refusal. */
+  exhibitorLabel: string;
   tone: ReviewStateTone;
 }
 
@@ -36,18 +41,35 @@ export const REGISTRATION_REVIEW_STATE_LABELS: Record<
   RegistrationReviewState,
   ReviewStateLabelEntry
 > = {
-  missing_information: { label: 'Missing information', tone: 'destructive' },
-  needs_review: { label: 'Needs review', tone: 'warning' },
-  accepted: { label: 'Accepted', tone: 'accepted' },
-  not_accepted: { label: 'Not accepted', tone: 'destructive' },
-  waitlisted: { label: 'Waitlisted', tone: 'warning' },
-  withdrawn: { label: 'Withdrawn', tone: 'neutral' },
-  scratched: { label: 'Scratched', tone: 'neutral' },
-  moved: { label: 'Moved', tone: 'neutral' },
-  complete: { label: 'Complete', tone: 'accepted' },
-  move_up_requested: { label: 'Move-up requested', tone: 'warning' },
-  mixed: { label: 'Mixed statuses', tone: 'neutral' },
+  missing_information: {
+    label: 'Missing information',
+    exhibitorLabel: 'Information needed',
+    tone: 'destructive',
+  },
+  needs_review: { label: 'Needs review', exhibitorLabel: 'Pending review', tone: 'warning' },
+  accepted: { label: 'Accepted', exhibitorLabel: 'Accepted', tone: 'accepted' },
+  not_accepted: { label: 'Not accepted', exhibitorLabel: 'Declined', tone: 'destructive' },
+  waitlisted: { label: 'Waitlisted', exhibitorLabel: 'Waitlisted', tone: 'warning' },
+  withdrawn: { label: 'Withdrawn', exhibitorLabel: 'Withdrawn', tone: 'neutral' },
+  scratched: { label: 'Scratched', exhibitorLabel: 'Scratched', tone: 'neutral' },
+  moved: { label: 'Moved', exhibitorLabel: 'Moved', tone: 'neutral' },
+  complete: { label: 'Complete', exhibitorLabel: 'Complete', tone: 'accepted' },
+  move_up_requested: {
+    label: 'Move-up requested',
+    exhibitorLabel: 'Move-up requested',
+    tone: 'warning',
+  },
+  mixed: { label: 'Mixed statuses', exhibitorLabel: 'Mixed statuses', tone: 'neutral' },
 };
+
+/** Canonical role-specific label for a resolved review state. */
+export function getReviewStateLabel(
+  state: RegistrationReviewState,
+  audience: ReviewStateAudience = 'secretary'
+): string {
+  const entry = REGISTRATION_REVIEW_STATE_LABELS[state];
+  return audience === 'exhibitor' ? entry.exhibitorLabel : entry.label;
+}
 
 interface ReviewableRegistration {
   attentionReasons: EntryAttentionReason[];
@@ -83,7 +105,7 @@ export function getRegistrationReviewState(
 
 /** Canonical label for a registration group's review state. */
 export function getRegistrationReviewLabel(registration: ReviewableRegistration): string {
-  return REGISTRATION_REVIEW_STATE_LABELS[getRegistrationReviewState(registration)].label;
+  return getReviewStateLabel(getRegistrationReviewState(registration));
 }
 
 /** Canonical tone for a registration group's review state (for badge styling). */
@@ -146,7 +168,36 @@ export const ENTRY_STATUS_STATE_LABELS: Record<EntryStatus, string> = {
   [EntryStatus.MOVE_UP_REQUESTED]: REGISTRATION_REVIEW_STATE_LABELS.move_up_requested.label,
 };
 
+export const EXHIBITOR_ENTRY_STATUS_STATE_LABELS: Record<EntryStatus, string> = {
+  [EntryStatus.PENDING]: getReviewStateLabel('needs_review', 'exhibitor'),
+  [EntryStatus.ACCEPTED]: getReviewStateLabel('accepted', 'exhibitor'),
+  [EntryStatus.REJECTED]: getReviewStateLabel('not_accepted', 'exhibitor'),
+  [EntryStatus.WAITLIST]: getReviewStateLabel('waitlisted', 'exhibitor'),
+  [EntryStatus.CANCELLED]: getReviewStateLabel('withdrawn', 'exhibitor'),
+  [EntryStatus.MISSING_INFO]: getReviewStateLabel('missing_information', 'exhibitor'),
+  [EntryStatus.SCRATCHED]: getReviewStateLabel('scratched', 'exhibitor'),
+  [EntryStatus.MOVED]: getReviewStateLabel('moved', 'exhibitor'),
+  [EntryStatus.COMPLETED]: getReviewStateLabel('complete', 'exhibitor'),
+  [EntryStatus.MOVE_UP_REQUESTED]: getReviewStateLabel('move_up_requested', 'exhibitor'),
+};
+
 /** Canonical label for a single entry's current status. */
-export function getEntryStatusStateLabel(status: EntryStatus): string {
-  return ENTRY_STATUS_STATE_LABELS[status] ?? status;
+export function getEntryStatusStateLabel(
+  status: EntryStatus,
+  audience: ReviewStateAudience = 'secretary'
+): string {
+  const labels =
+    audience === 'exhibitor' ? EXHIBITOR_ENTRY_STATUS_STATE_LABELS : ENTRY_STATUS_STATE_LABELS;
+  return labels[status] ?? status;
+}
+
+/**
+ * Review-only projection for the canonical show-entry lifecycle used by the
+ * exhibitor's show-detail schedule. Non-review lifecycle states return null so
+ * result/run-state presentation remains owned by that surface.
+ */
+export function getExhibitorLifecycleReviewLabel(status: string): string | null {
+  if (status === 'submitted') return getReviewStateLabel('needs_review', 'exhibitor');
+  if (status === 'not_accepted') return getReviewStateLabel('not_accepted', 'exhibitor');
+  return null;
 }

@@ -154,7 +154,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             <Checkbox
               id={`single-${cls.classId}`}
               checked={cls.isSelected || cls.isAlreadyEntered}
-              disabled={cls.isAlreadyEntered || (cls.isFull && cls.allowsWaitlist === false)}
+              disabled={
+                cls.isAlreadyEntered ||
+                cls.isRegistrationBlocked ||
+                (cls.isFull && cls.allowsWaitlist === false)
+              }
               aria-label={
                 cls.isAlreadyEntered ? `${element} (already entered)` : `Select ${element}`
               }
@@ -188,6 +192,9 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 Full
               </Badge>
             )}
+            {cls.registrationGuidance && (
+              <span className="text-sm text-muted-foreground">{cls.registrationGuidance}</span>
+            )}
           </div>
           <span className="text-xs text-muted-foreground">${fee}</span>
         </div>
@@ -212,6 +219,8 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             isFull={cls.isFull}
             waitlistCount={cls.waitlistCount}
             allowsWaitlist={cls.allowsWaitlist}
+            isRegistrationBlocked={cls.isRegistrationBlocked}
+            registrationGuidance={cls.registrationGuidance}
             onToggle={onToggle}
           />
         ))}
@@ -245,6 +254,8 @@ interface LevelChipProps {
   isFull?: boolean | undefined;
   waitlistCount?: number | undefined;
   allowsWaitlist?: boolean | undefined;
+  isRegistrationBlocked?: boolean | undefined;
+  registrationGuidance?: string | null | undefined;
   onToggle: (classId: string) => void;
 }
 
@@ -256,6 +267,8 @@ const LevelChip: React.FC<LevelChipProps> = ({
   isFull,
   waitlistCount,
   allowsWaitlist = true,
+  isRegistrationBlocked,
+  registrationGuidance,
   onToggle,
 }) => {
   const isChecked = isSelected || isAlreadyEntered;
@@ -272,7 +285,9 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <Checkbox
           id={`chip-${classId}`}
           checked={isChecked}
-          disabled={isAlreadyEntered || (isFull && allowsWaitlist === false)}
+          disabled={
+            isAlreadyEntered || isRegistrationBlocked || (isFull && allowsWaitlist === false)
+          }
           onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
           className="h-3.5 w-3.5"
         />
@@ -300,6 +315,9 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <Badge variant="outline" className="h-5 text-xs text-foreground">
           In cart
         </Badge>
+      )}
+      {registrationGuidance && (
+        <span className="max-w-64 text-sm text-muted-foreground">{registrationGuidance}</span>
       )}
     </div>
   );

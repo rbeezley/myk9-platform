@@ -39,6 +39,8 @@ import {
   OverallCartSummary,
 } from './ClassSelectionStep.components';
 import { AlreadyEnteredNotice } from './AlreadyEnteredNotice';
+import { getTrialRegistry } from '@/features/registries';
+import { getRegistrationPrerequisite } from './registrationPrerequisite';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import '@/styles/myk9-registration-workflow.css';
 
@@ -166,7 +168,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
             : availabilityBackedClasses;
       const elementMap = new Map<
         string,
-        { classId: string; level: string; section: string; displayLabel: string }[]
+        {
+          classId: string;
+          className: string;
+          level: string;
+          section: string;
+          displayLabel: string;
+        }[]
       >();
 
       const sorted = classes.slice().sort((a, b) => {
@@ -183,6 +191,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         const displayLabel = buildDisplayLabel(level, cls.section);
         const entry = {
           classId: cls.id,
+          className: cls.className || '',
           level,
           section: cls.section || '',
           displayLabel: displayLabel ?? '',
@@ -354,6 +363,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         </p>
       </div>
 
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          New to this sport? Start with Novice or the entry-level class named by the show. Move to
+          higher levels only after earning the required qualifications.
+        </AlertDescription>
+      </Alert>
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex gap-0 border-0 border-b border-border bg-transparent h-auto p-0 overflow-x-auto">
           {selectedDogs.map(dogId => (
@@ -430,6 +447,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 isSingleClass={group.isSingleClass}
                                 levels={group.levels.map(l => {
                                   const avail = availabilityMap.get(l.classId);
+                                  const prerequisite = getRegistrationPrerequisite({
+                                    registrations: dog?.registrations,
+                                    registryId: getTrialRegistry(trial).id,
+                                    trialType: trial.trialType,
+                                    className: l.className,
+                                    element: group.element,
+                                    level: l.level,
+                                  });
                                   return {
                                     ...l,
                                     isSelected: isClassSelected(
@@ -439,6 +464,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                       classSelections
                                     ),
                                     isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
+                                    isRegistrationBlocked: !prerequisite.allowed,
+                                    registrationGuidance: prerequisite.message,
                                     ...(avail !== undefined && {
                                       isFull: avail.isFull,
                                       waitlistCount: avail.waitlistCount,

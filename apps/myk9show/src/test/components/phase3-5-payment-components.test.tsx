@@ -151,10 +151,9 @@ describe('Phase 3.5: Payment Component Tests', () => {
       // Credit card option should be rendered and selected
       expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
 
-      // Should show informational notice instead of card input fields
-      // (appears in both PaymentMethodSelector and PaymentSummaryCard)
+      // The reassurance appears once, beside the card control it describes.
       const notices = screen.getAllByText(/secure checkout to complete payment/);
-      expect(notices.length).toBeGreaterThan(0);
+      expect(notices).toHaveLength(1);
 
       // Should NOT show card form fields (they were removed as a trust/security fix)
       expect(screen.queryByLabelText('Cardholder name')).not.toBeInTheDocument();
@@ -275,17 +274,8 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       expect(screen.getByText('Payment Summary')).toBeInTheDocument();
       expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
-      // Message appears in both PaymentMethodSelector and PaymentSummaryCard
       const notices = screen.getAllByText(/secure checkout to complete payment/);
-      expect(notices.length).toBeGreaterThan(0);
-    });
-
-    it('should show payment info notice', () => {
-      render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
-
-      expect(
-        screen.getByText(/Your registration will be confirmed once payment is received/)
-      ).toBeInTheDocument();
+      expect(notices).toHaveLength(1);
     });
   });
 

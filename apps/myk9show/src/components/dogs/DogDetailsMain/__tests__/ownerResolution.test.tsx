@@ -140,6 +140,22 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
+  it('places identity associations before sub-collections on narrow layouts with one add action', () => {
+    mockPeople = [
+      { id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' },
+    ];
+
+    render(<DogDetailsMain dog={mockDog} />);
+
+    const mobileIdentity = document.querySelector('[data-mobile-associations]');
+    expect(mobileIdentity).not.toBeNull();
+    const identity = mobileIdentity!.querySelector('span:last-child') ?? mobileIdentity!;
+    const tabs = screen.getByTestId('dog-tabs');
+    expect(identity.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(mobileIdentity!.querySelectorAll('button').length).toBe(1);
+    expect(mobileIdentity).toHaveTextContent('Add registration');
+  });
+
   it('shows Loading… then owner name when owner is not in the store but DB returns data', async () => {
     // Owner not in store
     mockPeople = [];

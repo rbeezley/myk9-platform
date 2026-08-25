@@ -21,6 +21,7 @@ export function RecordPageLayout({
   tabsContent,
   associations,
   associationsExtra,
+  mobileAssociationsFirst = false,
   storageKey = 'myk9:prop',
   className,
 }: RecordPageLayoutProps) {
@@ -57,6 +58,15 @@ export function RecordPageLayout({
           </aside>
         )}
 
+        {hasRightSidebar && mobileAssociationsFirst && (
+          <aside className="order-first w-full space-y-3 lg:hidden" data-mobile-associations>
+            {associations?.map(assoc => (
+              <AssociationCard key={assoc.key} association={assoc} />
+            ))}
+            {associationsExtra}
+          </aside>
+        )}
+
         {/* Center panel — tabs */}
         <main className="flex-1 min-w-0">
           {tabsContent}
@@ -81,7 +91,7 @@ export function RecordPageLayout({
       </div>
 
       {/* Mobile/tablet fallback — associations below tabs */}
-      {hasRightSidebar && (
+      {hasRightSidebar && !mobileAssociationsFirst && (
         <div className="lg:hidden px-6 pb-8 space-y-3">
           {associations?.map(assoc => (
             <AssociationCard key={assoc.key} association={assoc} />

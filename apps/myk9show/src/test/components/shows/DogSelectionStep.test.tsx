@@ -31,6 +31,21 @@ beforeEach(() => {
 });
 
 describe('DogSelectionStep', () => {
+  it('uses the page scroll on phones and constrains only medium viewports and wider', () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue({
+      dogs: [mockDog()],
+      isLoading: false,
+    } as ReturnType<typeof useDogStoreCompat>);
+
+    const { container } = render(
+      <DogSelectionStep selectedDogs={[]} onSelectionChange={() => {}} />
+    );
+
+    const scrollArea = container.querySelector('.h-auto');
+    expect(scrollArea).toHaveClass('md:h-[400px]');
+    expect(scrollArea).not.toHaveClass('h-[55vh]');
+  });
+
   it('renders an enabled checkbox for an eligible dog with no registrations loaded', () => {
     // Simulates the replication path where registrations array is always empty
     vi.mocked(useDogStoreCompat).mockReturnValue({
@@ -98,6 +113,26 @@ describe('DogSelectionStep', () => {
     const checkbox = screen.getByRole('checkbox');
     expect(checkbox).not.toBeDisabled();
     expect(screen.getByText(/no registration on file/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add registration/i })).toBeInTheDocument();
+  });
+
+  it('opens the shared registration editor without changing the selected dogs', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue({
+      dogs: [mockDog({ registrations: [] })],
+      isLoading: false,
+      updateDog: vi.fn(),
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useDogStoreCompat>);
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
+    );
+
+    await user.click(screen.getByRole('button', { name: /add registration/i }));
+
+    expect(await screen.findByText('Add New Registration')).toBeInTheDocument();
+    expect(onSelectionChange).not.toHaveBeenCalled();
+    expect(screen.getByText('Selected')).toBeInTheDocument();
   });
 
   it('does not show registration warning when registrations is undefined (replication path)', () => {

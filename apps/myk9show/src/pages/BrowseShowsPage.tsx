@@ -449,6 +449,7 @@ const BrowseShowsPage: React.FC = () => {
             viewMode={viewMode}
             onViewModeChange={handleViewModeChange}
             viewModes={VIEW_MODES}
+            showViewLabels
             resultsShowing={allEnhancedShows.length}
             resultsTotal={allEnhancedShows.length}
             filtered={hasActiveFilters}

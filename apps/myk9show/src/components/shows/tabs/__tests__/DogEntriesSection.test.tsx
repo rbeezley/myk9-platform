@@ -39,19 +39,25 @@ describe('DogEntriesSection', () => {
     expect(screen.getByText('42')).toBeInTheDocument();
   });
 
-  it('uses plain pending labels when schedule details are not posted yet', () => {
+  it('collapses missing row details into one honest schedule message', () => {
     render(
       <DogEntriesSection
         group={{
           ...group,
-          entries: [{ ...group.entries[0], armband: '', startTime: '' }],
+          entries: [
+            { ...group.entries[0], entryId: 'entry-1', armband: '', startTime: '', judgeName: '' },
+            { ...group.entries[0], entryId: 'entry-2', armband: '', startTime: '', judgeName: '' },
+          ],
         }}
         showId="show-1"
       />
     );
 
-    expect(screen.getByText('Time pending')).toBeInTheDocument();
-    expect(screen.getByText('Armband pending')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Schedule details will appear here when the show publishes them.')
+    ).toHaveLength(1);
+    expect(screen.queryByText('Time pending')).not.toBeInTheDocument();
+    expect(screen.queryByText('Armband pending')).not.toBeInTheDocument();
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();
     expect(screen.queryByText('No #')).not.toBeInTheDocument();
   });
@@ -76,5 +82,20 @@ describe('DogEntriesSection', () => {
 
     expect(screen.getByText('Awaiting results')).toBeInTheDocument();
     expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
+  });
+
+  it('uses the canonical pending-review label for an entry awaiting review', () => {
+    render(
+      <DogEntriesSection
+        group={{
+          ...group,
+          entries: [{ ...group.entries[0], entryStatus: 'submitted' }],
+        }}
+        showId="show-1"
+      />
+    );
+
+    expect(screen.getByText('Pending review')).toBeInTheDocument();
+    expect(screen.queryByText('Not accepted')).not.toBeInTheDocument();
   });
 });

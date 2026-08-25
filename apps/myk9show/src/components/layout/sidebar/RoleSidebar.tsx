@@ -72,7 +72,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                       key={`${groupIndex}:${item.title}:${item.href}`}
                       to={item.href}
                       onClick={onCloseMobile}
-                      aria-label={isCollapsed ? item.title : undefined}
+                      aria-label={item.title}
                       aria-current={active ? 'page' : undefined}
                       title={isCollapsed ? item.title : undefined}
                       className={cn(
@@ -111,7 +111,7 @@ export const RoleSidebar: React.FC<RoleSidebarProps> = ({ config, onCloseMobile,
                             {item.title}
                           </div>
                           {item.description && (
-                            <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                            <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                               {item.description}
                             </div>
                           )}

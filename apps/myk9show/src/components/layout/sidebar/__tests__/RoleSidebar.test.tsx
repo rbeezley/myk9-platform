@@ -19,7 +19,9 @@ describe('RoleSidebar', () => {
 
     render(<RoleSidebar config={config} />, { initialRoute: '/admin/dashboard' });
 
-    const accountMenu = screen.getByRole('button', { name: 'Account menu for Jamie, Site Admin +1' });
+    const accountMenu = screen.getByRole('button', {
+      name: 'Account menu for Jamie, Site Admin +1',
+    });
     expect(accountMenu).toHaveTextContent('Jamie');
     expect(accountMenu).toHaveTextContent('Site Admin +1');
     expect(screen.queryByRole('heading', { name: 'Jamie' })).not.toBeInTheDocument();
@@ -36,6 +38,16 @@ describe('RoleSidebar', () => {
       '/secretary/dashboard'
     );
     expect(screen.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+  });
+
+  it('keeps expanded link names concise and lets descriptions wrap to two lines', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.EXHIBITOR]);
+
+    render(<RoleSidebar config={config} />, { initialRoute: '/exhibitor/dashboard' });
+
+    const myShowsLink = screen.getByRole('link', { name: 'My Shows' });
+    expect(myShowsLink).toBeInTheDocument();
+    expect(myShowsLink.querySelector('.line-clamp-2')).not.toBeNull();
   });
 
   it('identifies only the current navigation link', () => {
@@ -101,12 +113,7 @@ describe('RoleSidebar', () => {
   });
 
   it('keeps the collapsed account control available to assistive technology', () => {
-    const config = buildUnifiedSidebarConfig(
-      [UserRole.SITE_ADMIN],
-      undefined,
-      undefined,
-      'Jamie'
-    );
+    const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN], undefined, undefined, 'Jamie');
 
     render(<RoleSidebar config={config} isCollapsed />, { initialRoute: '/admin/dashboard' });
 

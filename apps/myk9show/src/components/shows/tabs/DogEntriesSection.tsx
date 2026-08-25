@@ -18,6 +18,7 @@ import { PlacementPill } from '@/components/base/PlacementPill';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { DogEntriesGroup, EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { getPendingResultLabel, getRemovedStateLabel } from './entryResultDisplay';
+import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
 
 type ElementIconConfig = { icon: React.ElementType; bg: string; fg: string };
 
@@ -71,6 +72,9 @@ interface DogEntriesSectionProps {
 
 export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
   const { dogName, entries } = group;
+  const hasPendingScheduleDetails = entries.some(
+    entry => !entry.startTime || !entry.armband || !entry.judgeName
+  );
 
   return (
     <section aria-label={`${dogName}'s entries`} className="space-y-3">
@@ -83,6 +87,12 @@ export function DogEntriesSection({ group, showId }: DogEntriesSectionProps) {
           {entries.length} {entries.length === 1 ? 'class' : 'classes'}
         </Chip>
       </div>
+
+      {hasPendingScheduleDetails && (
+        <p className="text-sm text-muted-foreground">
+          Schedule details will appear here when the show publishes them.
+        </p>
+      )}
 
       <div className="space-y-2">
         {entries.map(entry => (
@@ -101,8 +111,6 @@ interface EntryRowProps {
 function EntryRow({ entry, showId }: EntryRowProps) {
   const { icon: Icon, bg, fg } = getElementIcon(entry.element);
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
-  const startTimeLabel = entry.startTime || 'Time pending';
-  const armbandLabel = entry.armband || 'Armband pending';
 
   const meta = [entry.dayLabel, entry.startTime, entry.judgeName ? `Judge ${entry.judgeName}` : '']
     .filter(Boolean)
@@ -129,18 +137,22 @@ function EntryRow({ entry, showId }: EntryRowProps) {
         )}
       </div>
 
-      <div className="hidden w-28 shrink-0 flex-col items-end gap-0.5 text-right sm:flex">
-        <span className="inline-flex max-w-full items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
-          <Clock className="h-3.5 w-3.5 text-primary" />
-          <span className={entry.startTime ? 'font-mono' : 'truncate text-xs font-medium'}>
-            {startTimeLabel}
-          </span>
-        </span>
-        <span className="inline-flex max-w-full items-center gap-1 text-xs font-medium text-muted-foreground">
-          <Hash className="h-3 w-3" />
-          <span className="truncate">{armbandLabel}</span>
-        </span>
-      </div>
+      {(entry.startTime || entry.armband) && (
+        <div className="hidden w-28 shrink-0 flex-col items-end gap-0.5 text-right sm:flex">
+          {entry.startTime && (
+            <span className="inline-flex max-w-full items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
+              <Clock className="h-3.5 w-3.5 text-primary" />
+              <span className="font-mono">{entry.startTime}</span>
+            </span>
+          )}
+          {entry.armband && (
+            <span className="inline-flex max-w-full items-center gap-1 text-xs font-medium text-muted-foreground">
+              <Hash className="h-3 w-3" />
+              <span className="truncate">{entry.armband}</span>
+            </span>
+          )}
+        </div>
+      )}
 
       <EntryResultBadge entry={entry} />
 
@@ -158,6 +170,15 @@ function EntryResultBadge({ entry }: { entry: EnrichedShowEntry }) {
     return (
       <Chip color="stone" size="sm">
         {removedLabel}
+      </Chip>
+    );
+  }
+
+  const reviewLabel = getExhibitorLifecycleReviewLabel(entry.entryStatus);
+  if (reviewLabel) {
+    return (
+      <Chip color="stone" size="sm">
+        {reviewLabel}
       </Chip>
     );
   }

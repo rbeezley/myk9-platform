@@ -5,7 +5,10 @@ import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryAttentionReason } from '@/features/entry-operations/attentionClassification';
 import {
   BULK_COMMAND_LABELS,
+  getEntryStatusStateLabel,
+  getExhibitorLifecycleReviewLabel,
   getRegistrationReviewLabel,
+  getReviewStateLabel,
   getRegistrationReviewState,
   getRegistrationReviewTone,
   REGISTRATION_REVIEW_STATE_LABELS,
@@ -79,8 +82,26 @@ describe('reviewStateLabels', () => {
     it('every registered state has both a label and a tone', () => {
       for (const entry of Object.values(REGISTRATION_REVIEW_STATE_LABELS)) {
         expect(entry.label.length).toBeGreaterThan(0);
+        expect(entry.exhibitorLabel.length).toBeGreaterThan(0);
         expect(['accepted', 'warning', 'destructive', 'neutral']).toContain(entry.tone);
       }
+    });
+
+    it('gives exhibitors pending wording rather than refusal wording', () => {
+      expect(getReviewStateLabel('needs_review', 'exhibitor')).toBe('Pending review');
+      expect(getEntryStatusStateLabel(EntryStatus.PENDING, 'exhibitor')).toBe('Pending review');
+      expect(getReviewStateLabel('needs_review', 'exhibitor')).not.toMatch(/not accepted|declined/i);
+    });
+
+    it('reserves declined wording for a genuinely rejected entry', () => {
+      expect(getReviewStateLabel('not_accepted', 'exhibitor')).toBe('Declined');
+      expect(getEntryStatusStateLabel(EntryStatus.REJECTED, 'exhibitor')).toBe('Declined');
+    });
+
+    it('maps canonical show-entry lifecycle values for exhibitor surfaces', () => {
+      expect(getExhibitorLifecycleReviewLabel('submitted')).toBe('Pending review');
+      expect(getExhibitorLifecycleReviewLabel('not_accepted')).toBe('Declined');
+      expect(getExhibitorLifecycleReviewLabel('confirmed')).toBeNull();
     });
   });
 

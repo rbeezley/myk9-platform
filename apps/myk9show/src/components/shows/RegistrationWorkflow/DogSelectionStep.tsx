@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,10 @@ import { getDogDisplayName, getDogBreedLabel, Dog } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { Button } from '@/components/ui/button';
+import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
+import type { Registration } from '@/types/dog-types';
+import { toast } from 'sonner';
 import '@/styles/myk9-registration-workflow.css';
 
 interface DogSelectionStepProps {
@@ -22,7 +26,8 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
 }) => {
-  const { dogs, isLoading } = useDogStoreCompat();
+  const { dogs, isLoading, updateDog, refetch } = useDogStoreCompat();
+  const [registrationDogId, setRegistrationDogId] = React.useState<string | null>(null);
 
   // Compute eligible dogs directly from dogs (derived state, no useEffect needed)
   const eligibleDogs = React.useMemo(() => {
@@ -45,6 +50,35 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     } else {
       onSelectionChange([...selectedDogs, dogId]);
     }
+  };
+
+  const handleSaveRegistration = async (registration: Registration) => {
+    const dogId = registrationDogId;
+    if (!dogId || !updateDog) return;
+    const dog = dogs.find(candidate => candidate.id === dogId);
+    if (!dog) return;
+
+    const registrations = [
+      ...(dog.registrations ?? []).map(existing => ({
+        organization: existing.organization,
+        number: existing.registrationNumber,
+        registeredName: existing.registeredName,
+        type: existing.breed,
+        status: existing.status,
+      })),
+      {
+        organization: registration.organization,
+        number: registration.registrationNumber,
+        registeredName: registration.registeredName,
+        type: registration.breed,
+        status: registration.status,
+      },
+    ];
+
+    await updateDog(dogId, { registrations });
+    refetch?.();
+    toast.success('Registration added');
+    setRegistrationDogId(null);
   };
 
   const getDogEligibilityStatus = (dog: Dog) => {
@@ -105,7 +139,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
         </p>
       </div>
 
-      <ScrollArea className="h-[55vh] pr-4 sm:h-[400px]">
+      <ScrollArea className="h-auto pr-0 md:h-[400px] md:pr-4">
         <div className="space-y-3">
           {eligibleDogs.map(dog => {
             const { eligible, issues, warnings } = getDogEligibilityStatus(dog);
@@ -174,12 +208,24 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       )}
 
                       {eligible && warnings.length > 0 && (
-                        <div className="mt-2">
+                        <div className="mt-2 space-y-2">
                           {warnings.map((warning, idx) => (
                             <p key={idx} className="text-xs text-warning ">
                               • {warning}
                             </p>
                           ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={event => {
+                              event.stopPropagation();
+                              setRegistrationDogId(dog.id);
+                            }}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add registration
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -198,6 +244,14 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
           </p>
         </div>
       )}
+
+      <div className="relative z-[60]">
+        <AddEditRegistrationDialog
+          open={registrationDogId !== null}
+          onOpenChange={open => !open && setRegistrationDogId(null)}
+          onSave={registration => void handleSaveRegistration(registration)}
+        />
+      </div>
     </div>
   );
 };

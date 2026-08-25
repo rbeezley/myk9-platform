@@ -26,28 +26,35 @@ export interface UseReportDataOptions {
   classId: string | 'all';
 }
 
-async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<ReportDbEntry[]> {
+interface HydratedReportEntries {
+  entries: ReportDbEntry[];
+  registrationsReadComplete: boolean;
+}
+
+async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<HydratedReportEntries> {
   const dogIds = [
     ...new Set(entries.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
   ];
-  if (dogIds.length === 0) return entries;
-
-  const { byDog, registrationsReadComplete } = await loadDogRegistrations(dogIds);
-  if (!registrationsReadComplete) {
-    throw new Error('Dog registration data is unavailable for this report.');
+  if (dogIds.length === 0) {
+    return { entries, registrationsReadComplete: true };
   }
 
-  return entries.map(entry => {
-    if (!entry.dog_id) return entry;
-    const dog = entry.dog ?? { id: entry.dog_id };
-    return {
-      ...entry,
-      dog: {
-        ...dog,
-        registrations: byDog.get(entry.dog_id) ?? [],
-      },
-    };
-  });
+  const { byDog, registrationsReadComplete } = await loadDogRegistrations(dogIds);
+
+  return {
+    entries: entries.map(entry => {
+      if (!entry.dog_id) return entry;
+      const dog = entry.dog ?? { id: entry.dog_id };
+      return {
+        ...entry,
+        dog: {
+          ...dog,
+          registrations: byDog.get(entry.dog_id) ?? [],
+        },
+      };
+    }),
+    registrationsReadComplete,
+  };
 }
 
 /**
@@ -102,6 +109,12 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     ...cacheStrategies.moderate,
   });
 
+  const entries = entriesQuery.data?.entries;
+  // INTENT: registration hydration is ancillary to the cached show/trial/
+  // class/entry rows needed by check-in sheets and scoresheets. Keep those
+  // reports printable when registration reads are incomplete; the emergency
+  // packet gates on this flag at its own safety boundary.
+  const registrationsReadComplete = entriesQuery.data?.registrationsReadComplete ?? true;
   const queries = [trialsQuery, classesQuery, entriesQuery];
 
   // Why this is an enum and not two booleans: every report on this page can end
@@ -159,7 +172,8 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     show,
     trials: trialsQuery.data,
     classes: classesQuery.data,
-    entries: entriesQuery.data,
+    entries,
+    registrationsReadComplete,
     dataState,
     /** True only when every row backing this report is present and current. */
     isReady: dataState === 'ready',

@@ -11,6 +11,7 @@ const mockState = vi.hoisted(() => ({
   trials: [] as Array<Record<string, unknown>>,
   classes: [] as Array<Record<string, unknown>>,
   entries: [] as Array<Record<string, unknown>>,
+  registrationsReadComplete: true,
 }));
 const buildPacketData = vi.hoisted(() => vi.fn((_input: unknown) => null));
 
@@ -26,6 +27,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
     entries: mockState.entries as never,
     dataState: mockState.dataState,
     isReady: mockState.isReady,
+    registrationsReadComplete: mockState.registrationsReadComplete,
   }),
 }));
 
@@ -64,6 +66,7 @@ describe('EmergencyTrialPacketTool', () => {
     mockState.trials = [];
     mockState.classes = [];
     mockState.entries = [];
+    mockState.registrationsReadComplete = true;
     buildPacketData.mockClear();
   });
 
@@ -76,6 +79,7 @@ describe('EmergencyTrialPacketTool', () => {
     expect(emergencyPacketReadinessCopy('error')).toMatch(/could not be loaded/);
     expect(emergencyPacketReadinessCopy('ready')).toBeUndefined();
     expect(emergencyPacketReadinessCopy('ready', false)).toMatch(/complete packet data/);
+    expect(emergencyPacketReadinessCopy('ready', true, false)).toMatch(/Registration details/);
   });
 
   it('does not expose the prepare action until complete rows are ready', () => {
@@ -88,6 +92,18 @@ describe('EmergencyTrialPacketTool', () => {
       'data-reason',
       'The complete packet data is unavailable. Reload Show Desk before preparing the packet.'
     );
+  });
+
+  it('does not prepare a packet when registration details are incomplete', () => {
+    mockState.registrationsReadComplete = false;
+
+    render(<EmergencyTrialPacketTool show={show} />);
+
+    expect(screen.getByTestId('packet-panel')).toHaveAttribute(
+      'data-reason',
+      'Registration details are unavailable. Reconnect before preparing the packet.'
+    );
+    expect(buildPacketData).not.toHaveBeenCalled();
   });
 
   it('passes authoritative trial and class fields through unchanged', () => {

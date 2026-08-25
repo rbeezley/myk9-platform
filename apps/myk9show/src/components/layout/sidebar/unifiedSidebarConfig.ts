@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
+import { rosterIsOwnDogsOnlyForRoles } from '@/utils/dogRosterScope';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem } from './types';
 
@@ -71,7 +72,7 @@ const EXHIBITOR_SHOW_DAY_NAV_ITEM: NavItem = {
   description: 'Find check-in, run order, and show-day details',
 };
 
-function hasAnyRole(userRoles: UserRole[], required: UserRole[]): boolean {
+function hasAnyRole(userRoles: readonly UserRole[], required: readonly UserRole[]): boolean {
   return required.some(r => userRoles.includes(r));
 }
 
@@ -82,7 +83,7 @@ function nextShowDescription(phase: NextShowContext['phase']): string {
 }
 
 export function buildUnifiedSidebarConfig(
-  userRoles: UserRole[],
+  userRoles: readonly UserRole[],
   clubContext?: ClubContext,
   nextShow?: NextShowContext,
   firstName?: string | null
@@ -98,6 +99,7 @@ export function buildUnifiedSidebarConfig(
     UserRole.STEWARD,
   ]);
   const isPureSiteAdmin = hasSiteAdmin && userRoles.length === 1;
+  const ownDogsOnly = rosterIsOwnDogsOnlyForRoles(userRoles);
 
   // Exhibitor-only users get a unified, plain-English sidebar
   const isExhibitorOnly =
@@ -246,7 +248,10 @@ export function buildUnifiedSidebarConfig(
     if (!isPureSiteAdmin) {
       const browseItems: NavItem[] = [
         { title: 'Shows', href: '/shows', icon: Calendar },
-        { title: 'Dogs', href: '/dogs', icon: Heart },
+        // This label follows the roster scope, while `isExhibitorOnly` above
+        // remains role chrome: it controls the simplified sidebar branch and
+        // card/table affordances, which are intentionally separate questions.
+        { title: ownDogsOnly ? 'My Dogs' : 'Dogs', href: '/dogs', icon: Heart },
       ];
       // Clubs and People are secretary + admin only (privacy restriction — navigation-ia.md)
       if (hasAnyRole(userRoles, [UserRole.SECRETARY, UserRole.SITE_ADMIN])) {

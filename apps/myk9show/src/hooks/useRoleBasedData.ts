@@ -6,34 +6,10 @@ import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
+import { rosterIsOwnDogsOnly } from '@/utils/dogRosterScope';
 
-/**
- * The roles whose dog roster is the whole platform. Everyone else — exhibitor,
- * judge, steward, chairman — is scoped to dogs they own, which is a broader set
- * of roles than "exhibitor" and the reason this is a named predicate rather
- * than a role comparison at each call site.
- */
-const ROLES_WITH_FULL_DOG_ROSTER: readonly UserRole[] = [
-  UserRole.SITE_ADMIN,
-  UserRole.CLUB_ADMIN,
-  UserRole.SECRETARY,
-];
-
-/**
- * True when the viewer's dog roster is scoped to dogs they own.
- *
- * The single source of truth for that question: `useRoleBasedDogs` below
- * decides the scope with it, and any surface that changes what it renders
- * because "these are all my own dogs" must ask the same question rather than
- * approximating it. Approximating it with `getPrimaryRole(...) === EXHIBITOR`
- * is wrong, because `USER_ROLE_HIERARCHY` ranks JUDGE, CLUB_ADMIN, CHAIRMAN and
- * STEWARD above EXHIBITOR — so a judge holding both roles has a primary role of
- * JUDGE, is not elevated here, and still sees only their own dogs (MYK9-219
- * review).
- */
-export function rosterIsOwnDogsOnly(hasRole: (role: UserRole) => boolean): boolean {
-  return !ROLES_WITH_FULL_DOG_ROSTER.some(role => hasRole(role));
-}
+// Re-export the pure predicate from the hook module for existing consumers.
+export { rosterIsOwnDogsOnly } from '@/utils/dogRosterScope';
 
 /** Hook form of {@link rosterIsOwnDogsOnly} for components. */
 export function useRosterIsOwnDogsOnly(): boolean {

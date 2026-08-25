@@ -168,7 +168,11 @@ const BrowseDogsPage: React.FC = () => {
     [filteredDogs, safeCardPage]
   );
 
-  const pageTitle = isExhibitorOnly ? 'My Dogs' : 'Dogs';
+  // The title describes the data scope, not the role-specific chrome. Staff
+  // roles may retain table/management chrome while still receiving an own-dogs
+  // roster, so deriving this from `isExhibitorOnly` would reintroduce the
+  // My Dogs/Dogs mismatch (MYK9-237).
+  const pageTitle = ownDogsOnly ? 'My Dogs' : 'Dogs';
   const breadcrumbs = useMemo(() => [{ label: pageTitle, href: '/dogs' }], [pageTitle]);
 
   const openCreateDogPanel = useCallback(() => {

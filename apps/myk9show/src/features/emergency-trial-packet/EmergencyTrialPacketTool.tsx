@@ -1,12 +1,10 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { Show } from '@/types/show-types';
-import type { SyncableTrial } from '@/store/trial-store-types';
-import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
-import type { SecretaryEntry } from '@/services/database/entries';
-import type { DbClass, DbTrial } from '@/types/database-mappings';
+import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { ReportDbEntry } from '@/lib/reports/types';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useReportData } from '@/hooks/queries/useReportData';
 import { showUndoToast } from '@/lib/undoToast';
 import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
 import { PaperworkPrintConfirmationDialog } from '@/features/show-map/cockpit/PaperworkPrintConfirmationDialog';
@@ -14,12 +12,78 @@ import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/reportDa
 import { EmergencyTrialPacketPanel } from '@/pages/secretary/ReportsPage/EmergencyTrialPacketPanel';
 import { useDeliveredPackets } from '@/pages/secretary/ReportsPage/useDeliveredPackets';
 import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkPrintState';
+import { emergencyPacketReadinessCopy } from './emergencyTrialPacketReadiness';
 
 interface EmergencyTrialPacketToolProps {
   show: Show;
-  trials: readonly SyncableTrial[];
-  classes: readonly ShowWorkbenchClassSummary[];
-  entries: readonly SecretaryEntry[];
+}
+
+const COMPLETE_TRIAL_FIELDS = ['id', 'date', 'name', 'trial_number', 'registry_id'] as const;
+const COMPLETE_CLASS_FIELDS = [
+  'id',
+  'trial_id',
+  'name',
+  'element',
+  'level',
+  'section',
+  'class_number',
+  'display_order',
+  'judge_name',
+  'ring',
+  'ring_number',
+  'start_time',
+  'time_limit_seconds',
+  'time_limit_area2_seconds',
+  'time_limit_area3_seconds',
+  'num_areas',
+  'num_hides',
+  'distraction_count',
+] as const;
+const COMPLETE_ENTRY_FIELDS = [
+  'id',
+  'class_id',
+  'dog_id',
+  'armband',
+  'run_order',
+  'check_in_status',
+  'is_scored',
+  'result_status',
+  'search_time_seconds',
+  'total_faults',
+  'final_placement',
+  'entry_status',
+  'entry_fee',
+  'payment_status',
+  'payment_method',
+  'entry_source',
+  'dog',
+] as const;
+
+function hasCompleteRows<T>(rows: unknown, fields: readonly string[]): rows is T[] {
+  return (
+    Array.isArray(rows) &&
+    rows.every(
+      row =>
+        row !== null &&
+        typeof row === 'object' &&
+        fields.every(field => Object.prototype.hasOwnProperty.call(row, field))
+    )
+  );
+}
+
+function completePacketRows(input: {
+  trials: unknown;
+  classes: unknown;
+  entries: unknown;
+}): { trials: DbTrial[]; classes: DbClass[]; entries: ReportDbEntry[] } | null {
+  if (!hasCompleteRows<DbTrial>(input.trials, COMPLETE_TRIAL_FIELDS)) return null;
+  if (!hasCompleteRows<DbClass>(input.classes, COMPLETE_CLASS_FIELDS)) return null;
+  if (!hasCompleteRows<DbEntry>(input.entries, COMPLETE_ENTRY_FIELDS)) return null;
+  return {
+    trials: input.trials,
+    classes: input.classes,
+    entries: input.entries as ReportDbEntry[],
+  };
 }
 
 /**
@@ -27,57 +91,36 @@ interface EmergencyTrialPacketToolProps {
  * existing panel intact and mount that one UI in Show Desk's tools sheet.
  * Reports links here instead of owning a second packet surface.
  */
-export function EmergencyTrialPacketTool({
-  show,
-  trials,
-  classes,
-  entries,
-}: EmergencyTrialPacketToolProps) {
+export function EmergencyTrialPacketTool({ show }: EmergencyTrialPacketToolProps) {
   const { user } = useAuthContext();
   const [pendingConfirmation, setPendingConfirmation] = useState<PaperworkDescriptor | null>(null);
+  const {
+    show: reportShow,
+    trials,
+    classes,
+    entries,
+    dataState,
+    isReady,
+  } = useReportData({
+    show,
+    trialId: 'all',
+    classId: 'all',
+  });
+  const completeRows = useMemo(
+    () => (isReady ? completePacketRows({ trials, classes, entries }) : null),
+    [classes, entries, isReady, trials]
+  );
   const packetData = useMemo(
     () =>
-      buildEmergencyPacketData({
-        show,
-        // Show Desk reads the canonical camel-case replicated trial/class rows.
-        // The packet mapper consumes the verified database names below; these
-        // adapters avoid making the packet path depend on a second database read.
-        trials: trials.map(
-          trial =>
-            ({
-              id: trial.id,
-              date: trial.trialDate,
-              name: trial.name ?? `Trial ${trial.trialNumber}`,
-              trial_number: Number(trial.trialNumber) || 0,
-              // `readTrialRegistryId` intentionally defaults legacy rows to AKC;
-              // the display organization is not a registry identifier.
-              registry_id: trial.registryId ?? null,
-            }) as unknown as DbTrial
-        ),
-        classes: classes.map(
-          classItem =>
-            ({
-              id: classItem.id,
-              trial_id: classItem.trialId,
-              name: classItem.name,
-              element: classItem.element,
-              level: classItem.level,
-              section: classItem.section,
-              class_number: null,
-              display_order: classItem.displayOrder ?? null,
-              judge_name: classItem.judgeName || null,
-              start_time: classItem.time || null,
-              time_limit_seconds: null,
-              time_limit_area2_seconds: null,
-              time_limit_area3_seconds: null,
-              num_areas: null,
-              num_hides: null,
-              distraction_count: null,
-            }) as unknown as DbClass
-        ),
-        entries: [...entries] as unknown as ReportDbEntry[],
-      }),
-    [classes, entries, show, trials]
+      completeRows && reportShow
+        ? buildEmergencyPacketData({
+            show: reportShow,
+            trials: completeRows.trials,
+            classes: completeRows.classes,
+            entries: completeRows.entries,
+          })
+        : null,
+    [completeRows, reportShow]
   );
   const { rows: deliveredPackets, isError: deliveredPacketsError } = useDeliveredPackets(
     show.id,
@@ -121,6 +164,7 @@ export function EmergencyTrialPacketTool({
         data={packetData}
         deliveredPackets={deliveredPackets}
         deliveredPacketsError={deliveredPacketsError}
+        unavailableReason={emergencyPacketReadinessCopy(dataState, completeRows !== null)}
         onMarkPrinted={setPendingConfirmation}
       />
       <PaperworkPrintConfirmationDialog

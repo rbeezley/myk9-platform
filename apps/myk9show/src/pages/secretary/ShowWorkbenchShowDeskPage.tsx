@@ -290,14 +290,7 @@ export function ShowWorkbenchShowDeskPage() {
         title: 'Emergency trial packet',
         summary: 'Prepare or confirm the printed paper fallback for this show',
         layout: 'wide',
-        content: (
-          <EmergencyTrialPacketTool
-            show={currentShow}
-            trials={associatedTrials}
-            classes={showClasses}
-            entries={showEntries}
-          />
-        ),
+        content: <EmergencyTrialPacketTool show={currentShow} />,
       },
       {
         id: 'judge-hospitality',
@@ -403,7 +396,6 @@ export function ShowWorkbenchShowDeskPage() {
       },
     ];
   }, [
-    associatedTrials,
     currentShow,
     closeoutClasses,
     closeoutTrials,

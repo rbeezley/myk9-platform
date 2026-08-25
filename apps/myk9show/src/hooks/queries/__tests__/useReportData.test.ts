@@ -245,7 +245,7 @@ describe('useReportData', () => {
     );
   });
 
-  it('does not mark a report ready when registration hydration is incomplete', async () => {
+  it('keeps cached report rows available when registration hydration is incomplete', async () => {
     mockGetTrialsByShow.mockResolvedValue({
       data: [{ id: 'trial-1', show_id: 'show-1' }],
       error: null,
@@ -265,9 +265,10 @@ describe('useReportData', () => {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => expect(result.current.dataState).toBe('error'));
-    expect(result.current.isReady).toBe(false);
-    expect(result.current.entries).toBeUndefined();
+    await waitFor(() => expect(result.current.dataState).toBe('ready'));
+    expect(result.current.isReady).toBe(true);
+    expect(result.current.registrationsReadComplete).toBe(false);
+    expect(result.current.entries?.[0]?.dog?.registrations).toEqual([]);
   });
 
   describe('dataState', () => {

@@ -95,14 +95,18 @@ export function EmergencyTrialPacketTool({ show }: EmergencyTrialPacketToolProps
     entries,
     dataState,
     isReady,
+    registrationsReadComplete,
   } = useReportData({
     show,
     trialId: 'all',
     classId: 'all',
   });
   const completeRows = useMemo(
-    () => (isReady ? completePacketRows({ trials, classes, entries }) : null),
-    [classes, entries, isReady, trials]
+    () =>
+      isReady && registrationsReadComplete
+        ? completePacketRows({ trials, classes, entries })
+        : null,
+    [classes, entries, isReady, registrationsReadComplete, trials]
   );
   const packetData = useMemo(
     () =>
@@ -158,7 +162,11 @@ export function EmergencyTrialPacketTool({ show }: EmergencyTrialPacketToolProps
         data={packetData}
         deliveredPackets={deliveredPackets}
         deliveredPacketsError={deliveredPacketsError}
-        unavailableReason={emergencyPacketReadinessCopy(dataState, completeRows !== null)}
+        unavailableReason={emergencyPacketReadinessCopy(
+          dataState,
+          completeRows !== null,
+          registrationsReadComplete
+        )}
         onMarkPrinted={setPendingConfirmation}
       />
       <PaperworkPrintConfirmationDialog

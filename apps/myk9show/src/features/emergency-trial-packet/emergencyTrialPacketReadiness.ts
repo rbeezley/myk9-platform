@@ -2,8 +2,12 @@ import type { ReportDataState } from '@/hooks/queries/useReportData';
 
 export function emergencyPacketReadinessCopy(
   dataState: ReportDataState,
-  hasCompleteRows = true
+  hasCompleteRows = true,
+  registrationsReadComplete = true
 ): string | undefined {
+  if (!registrationsReadComplete) {
+    return 'Registration details are unavailable. Reconnect before preparing the packet.';
+  }
   if (!hasCompleteRows) {
     return 'The complete packet data is unavailable. Reload Show Desk before preparing the packet.';
   }

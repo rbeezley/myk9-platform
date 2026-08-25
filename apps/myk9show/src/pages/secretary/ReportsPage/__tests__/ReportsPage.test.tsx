@@ -12,6 +12,9 @@ const mockReportState = vi.hoisted(() => ({
 
 const mockPrintState = vi.hoisted(() => ({
   records: [] as Array<Record<string, unknown>>,
+  isLoading: false,
+  isError: false,
+  syncFailed: false,
 }));
 
 // The test renderer mounts no <Toaster/>, so a toast never reaches the DOM.
@@ -184,9 +187,14 @@ vi.mock('@/hooks/queries/useEntryFormData', () => ({
 vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
   useShowPaperworkPrints: () => ({
     data: mockPrintState.records,
-    isError: false,
-    syncFailed: false,
+    isLoading: mockPrintState.isLoading,
+    isError: mockPrintState.isError,
+    syncFailed: mockPrintState.syncFailed,
   }),
+}));
+
+vi.mock('../reportPreviewUtils', () => ({
+  printIframe: vi.fn(() => true),
 }));
 
 vi.mock('../ReportPreview', () => ({
@@ -203,6 +211,9 @@ describe('ReportsPage', () => {
     mockReportState.isLoading = false;
     mockReportState.dataState = null;
     mockPrintState.records = [];
+    mockPrintState.isLoading = false;
+    mockPrintState.isError = false;
+    mockPrintState.syncFailed = false;
     toastSpy.called.mockClear();
   });
 
@@ -252,6 +263,38 @@ describe('ReportsPage', () => {
     expect(status).toHaveTextContent('Printed by Jannie Secretary');
     expect(status).toHaveTextContent('2026');
     expect(status).not.toHaveTextContent(/superseded|unconfirmed/i);
+  });
+
+  it('does not offer to record a print while replicated status is loading', async () => {
+    mockPrintState.isLoading = true;
+    const user = userEvent.setup();
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=check-in-sheet',
+    });
+
+    expect(screen.getByTestId('report-print-status')).toHaveTextContent('Checking print status…');
+    await user.click(screen.getByRole('button', { name: /^print$/i }));
+
+    const lastToast = toastSpy.called.mock.calls.at(-1);
+    expect(lastToast?.[0]).toMatch(/wait for print status/i);
+    expect(lastToast?.[1]).toBeUndefined();
+  });
+
+  it('does not offer to record a print when replicated status sync failed', async () => {
+    mockPrintState.isError = true;
+    const user = userEvent.setup();
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=check-in-sheet',
+    });
+
+    expect(screen.getByTestId('report-print-status')).toHaveTextContent('Print status unavailable');
+    await user.click(screen.getByRole('button', { name: /^print$/i }));
+
+    const lastToast = toastSpy.called.mock.calls.at(-1);
+    expect(lastToast?.[0]).toMatch(/status is unavailable/i);
+    expect(lastToast?.[1]).toBeUndefined();
   });
 
   it('keeps emergency packet preparation in Show Desk tools', () => {

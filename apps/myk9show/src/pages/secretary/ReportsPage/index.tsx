@@ -70,6 +70,56 @@ export function resolveInitialReportScope(params: URLSearchParams): InitialRepor
   };
 }
 
+function ReportPrintStatus({
+  hasDescriptor,
+  isChecking,
+  isUnavailable,
+  state,
+}: {
+  hasDescriptor: boolean;
+  isChecking: boolean;
+  isUnavailable: boolean;
+  state: ReturnType<typeof derivePaperworkPrintState> | null;
+}) {
+  if (!hasDescriptor) return null;
+  const label = isChecking
+    ? isUnavailable
+      ? 'Print status unavailable'
+      : 'Checking print status…'
+    : state?.state === 'current'
+      ? 'Printed'
+      : state?.state === 'stale'
+        ? 'Stale'
+        : 'Not confirmed printed';
+
+  return (
+    <div
+      className="mb-1 mt-4 rounded-lg border bg-muted/30 px-4 py-3 text-sm"
+      data-testid="report-print-status"
+    >
+      <div className="font-medium">{label}</div>
+      {isChecking && (
+        <div className="mt-1 text-muted-foreground">
+          {isUnavailable
+            ? 'Reload before recording this report as printed.'
+            : 'Checking the replicated print record…'}
+        </div>
+      )}
+      {state?.record && (
+        <div className="mt-1 text-muted-foreground">
+          Printed by {state.record.printedByName} on{' '}
+          {new Date(state.record.printedAt).toLocaleString()}
+        </div>
+      )}
+      {state?.state === 'stale' && (
+        <div className="mt-1 text-muted-foreground">
+          The report data changed after that print. Review and print the current version.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
@@ -170,12 +220,16 @@ export default function ReportsPage() {
     });
   }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
   const paperworkPrints = useShowPaperworkPrints(showId ?? '');
+  const printStatusUnavailable = paperworkPrints.isError || paperworkPrints.syncFailed;
+  const printStatusChecking =
+    paperworkPrints.isLoading || printStatusUnavailable || !paperworkPrints.data;
+  const printStatusKnown = Boolean(paperworkPrints.data) && !printStatusChecking;
   const printState = useMemo(
     () =>
-      paperworkDescriptor && paperworkPrints.data
+      printStatusKnown && paperworkDescriptor && paperworkPrints.data
         ? derivePaperworkPrintState(paperworkPrints.data, paperworkDescriptor)
         : null,
-    [paperworkDescriptor, paperworkPrints.data]
+    [paperworkDescriptor, paperworkPrints.data, printStatusKnown]
   );
 
   const handlePrint = () => {
@@ -207,6 +261,14 @@ export default function ReportsPage() {
     // should: there the secretary asked for it.
     if (paperworkDescriptor) {
       const descriptor = paperworkDescriptor;
+      if (!printStatusKnown || !printState) {
+        toast(
+          printStatusUnavailable
+            ? 'Print dialog opened. Reload before recording it printed because print status is unavailable.'
+            : 'Print dialog opened. Wait for print status to finish loading before recording it printed.'
+        );
+        return;
+      }
       // "Print dialog opened", not "Sent to your printer" -- the comment above
       // says window.print() reports nothing back, so claiming it printed would
       // assert the very thing that is unknowable.
@@ -220,7 +282,10 @@ export default function ReportsPage() {
   };
 
   const confirmPrinted = async (descriptor: PaperworkDescriptor) => {
-    if (!user) return;
+    if (!user || !printStatusKnown || !printState) {
+      toast.error('Print status is unavailable. Reload before recording it printed.');
+      return;
+    }
     try {
       await recordPaperworkPrinted({
         descriptor,
@@ -304,31 +369,12 @@ export default function ReportsPage() {
         </p>
       )}
 
-      {paperworkDescriptor && (
-        <div
-          className="mb-1 mt-4 rounded-lg border bg-muted/30 px-4 py-3 text-sm"
-          data-testid="report-print-status"
-        >
-          <div className="font-medium">
-            {printState?.state === 'current'
-              ? 'Printed'
-              : printState?.state === 'stale'
-                ? 'Stale'
-                : 'Not confirmed printed'}
-          </div>
-          {printState?.record && (
-            <div className="mt-1 text-muted-foreground">
-              Printed by {printState.record.printedByName} on{' '}
-              {new Date(printState.record.printedAt).toLocaleString()}
-            </div>
-          )}
-          {printState?.state === 'stale' && (
-            <div className="mt-1 text-muted-foreground">
-              The report data changed after that print. Review and print the current version.
-            </div>
-          )}
-        </div>
-      )}
+      <ReportPrintStatus
+        hasDescriptor={Boolean(paperworkDescriptor)}
+        isChecking={printStatusChecking}
+        isUnavailable={printStatusUnavailable}
+        state={printState}
+      />
 
       {/* Controls */}
       <ReportControlsBar

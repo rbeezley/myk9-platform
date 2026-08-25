@@ -141,6 +141,25 @@ describe('loadDogRegistrations', () => {
     expect(registrationsReadComplete).toBe(false);
   });
 
+  it('retains local-only registrations when the server leg fails', async () => {
+    const localRegistration = {
+      id: 'local-akc',
+      dog_id: 'dog-1',
+      created_at: '2025-06-01T11:59:58.000Z',
+      organization: 'AKC',
+      registration_number: 'LOCAL-101',
+      breed: 'All-American Dog',
+    };
+    mockServerIn.mockResolvedValue({ data: null, error: new Error('offline') });
+    mockLocalGet.mockResolvedValue([localRegistration]);
+
+    const { byDog, serverError, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
+
+    expect(serverError).toBeInstanceOf(Error);
+    expect(byDog.get('dog-1')).toEqual([localRegistration]);
+    expect(registrationsReadComplete).toBe(false);
+  });
+
   it('surfaces a THROWN network failure as serverError instead of rejecting', async () => {
     mockServerIn.mockRejectedValue(new Error('network down'));
     mockLocalGet.mockResolvedValue([]);

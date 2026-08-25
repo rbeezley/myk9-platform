@@ -2,7 +2,8 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
+import { fromAny } from '@total-typescript/shoehorn';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { toScoresheetModel } from '@/lib/reports/toScoresheetModel';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
@@ -37,16 +38,16 @@ const show = {
   endDate: '2026-04-12',
 } as Show;
 
-const cachedTrial = {
+const cachedTrial = fromAny<DbTrial, unknown>({
   id: 'trial-1',
   show_id: 'show-1',
   name: 'Saturday Trial',
   trial_number: 1,
   date: '2026-04-12',
   registry_id: 'AKC',
-} as DbTrial;
+});
 
-const cachedClass = {
+const cachedClass = fromAny<DbClass, unknown>({
   id: 'class-1',
   trial_id: 'trial-1',
   name: 'Container Novice A',
@@ -59,9 +60,9 @@ const cachedClass = {
   time_limit_area2_seconds: null,
   time_limit_area3_seconds: null,
   num_areas: 1,
-} as DbClass;
+});
 
-const cachedEntry = {
+const cachedEntry = fromAny<DbEntry, unknown>({
   id: 'entry-1',
   show_id: 'show-1',
   class_id: 'class-1',
@@ -84,7 +85,7 @@ const cachedEntry = {
     call_name: 'Rocket',
     breed: 'All-American Dog',
   },
-} as unknown as DbEntry;
+});
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -102,11 +103,18 @@ function createWrapper() {
   );
 }
 
+function decodePdfBytes(bytes: Uint8Array): string {
+  let text = '';
+  for (const byte of bytes) text += String.fromCharCode(byte);
+  return text;
+}
+
 async function expectRenderedReportPdf(input: {
   trial: DbTrial;
   classData: DbClass;
   entry: DbEntry;
   reportId: 'check-in-sheet' | 'scoresheet';
+  expectedPaperText: readonly string[];
 }) {
   const dataset = {
     show,
@@ -120,6 +128,17 @@ async function expectRenderedReportPdf(input: {
   expect(bytes).toBeInstanceOf(Uint8Array);
   const pdf = await PDFDocument.load(bytes as Uint8Array);
   expect(pdf.getPageCount()).toBeGreaterThan(0);
+  const paperText = pdf
+    .getPages()
+    .flatMap(page => {
+      const contents = page.node.Contents();
+      if (!(contents instanceof PDFRawStream)) return [];
+      return [decodePdfBytes(decodePDFRawStream(contents).decode())];
+    })
+    .join('\n')
+    .replace(/\\\(/g, '(')
+    .replace(/\\\)/g, ')');
+  for (const expected of input.expectedPaperText) expect(paperText).toContain(expected);
 }
 
 describe('useReportData cached-row PDF integration', () => {
@@ -149,6 +168,7 @@ describe('useReportData cached-row PDF integration', () => {
       classData: result.current.classes?.[0] as DbClass,
       entry: result.current.entries?.[0] as DbEntry,
       reportId: 'check-in-sheet',
+      expectedPaperText: ['101', 'Rocket'],
     });
   });
 
@@ -181,6 +201,7 @@ describe('useReportData cached-row PDF integration', () => {
       classData: result.current.classes?.[0] as DbClass,
       entry: result.current.entries?.[0] as DbEntry,
       reportId: 'scoresheet',
+      expectedPaperText: ['101', 'Rocket', 'LOCAL-101'],
     });
   });
 });

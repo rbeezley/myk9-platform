@@ -9,15 +9,6 @@ export const dogFormSchema = z
     // MYK9-90 §5.1 — `.trim()` before `.min(1)`; see AddDogPanel/validation.ts.
     // `dogs.call_name` is NOT NULL, so "   " is not an acceptable identifier.
     callName: z.string().trim().min(1, 'Please enter a call name'),
-    // MYK9-90 §5.2 — NOT unconditionally required. A registered name belongs to
-    // a registration, and adding a dog without one is an explicitly supported
-    // flow ("registration is optional when adding a dog; required when entering
-    // a show"). Requiring it here made every unregistered dog uneditable —
-    // changing an unrelated field like date of birth could not be saved. It is
-    // required only when the dog actually has a registration; see the refine
-    // below.
-    registeredName: z.string(),
-    breed: z.string(),
     gender: z.string().min(1, 'Please select a gender'),
     dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
     color: z.string(),
@@ -33,30 +24,10 @@ export const dogFormSchema = z
     notes: z.string().optional(),
     specialNeeds: z.string().optional(),
     spayedNeutered: z.boolean().optional(),
-  })
-  .superRefine((data, ctx) => {
-    // A registered name is required only once the dog actually has a
-    // registration — it is a property of that registration, so there is nothing
-    // to name without one. This keeps an unregistered dog fully editable while
-    // still refusing to save a registration with a blank registered name.
-    const hasRegistration = Array.isArray(data.registrations) && data.registrations.length > 0;
-    if (hasRegistration && !data.registeredName?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['registeredName'],
-        message: 'Please enter a registered name',
-      });
-    }
   }) as unknown as z.ZodSchema<DogFormData>;
 
 /** Convert DogType to form data for the edit panel. */
 export const dogToFormData = (dog: Partial<DogType>): DogFormData => {
-  // MYK9-90 §5.2 — the registered name comes from the registration and nowhere
-  // else. The old `|| dog.name` fallback is gone: `Dog.name` now falls back to
-  // the call name, so keeping it here would prefill the registered-name field
-  // with the call name and let an edit-and-save write that guess back out.
-  const registeredName = dog.registrations?.[0]?.registeredName || '';
-
   // Derive gender from sex if not set (use lowercase to match Select values)
   const gender =
     dog.gender?.toLowerCase() ||
@@ -64,8 +35,6 @@ export const dogToFormData = (dog: Partial<DogType>): DogFormData => {
 
   return {
     callName: getDogDisplayName({ callName: dog.callName, name: dog.name || '' }),
-    registeredName,
-    breed: dog.breed || dog.registrations?.[0]?.breed || '',
     gender,
     dateOfBirth: dog.dateOfBirth || dog.birthDate || '',
     color: dog.color || '',
@@ -84,25 +53,12 @@ export const dogToFormData = (dog: Partial<DogType>): DogFormData => {
 
 /** Convert form data back to DogType for saving. */
 export const formDataToDog = (formData: DogFormData): Partial<DogType> => {
-  // Update or create registrations with the registered name
-  let registrations = formData.registrations || [];
-
-  if (formData.registeredName) {
-    if (registrations.length > 0) {
-      // Update the first registration's registeredName with the form field value
-      registrations = registrations.map((reg, index) =>
-        index === 0 ? { ...reg, registeredName: formData.registeredName } : reg
-      );
-    }
-  }
-
   return {
     callName: formData.callName,
     // Display alias only — `mapDogInputToUpdate` does not persist `name`
     // (MYK9-90 §5.3), so this never reaches the legacy `dogs.name` column. It
     // is set so the optimistic in-memory Dog keeps a non-empty `name`.
     name: formData.callName,
-    breed: formData.breed,
     gender: formData.gender as 'Male' | 'Female' | '',
     ...(formData.gender ? { sex: formData.gender.toLowerCase() as 'male' | 'female' } : {}),
     dateOfBirth: formData.dateOfBirth,
@@ -118,7 +74,7 @@ export const formDataToDog = (formData: DogFormData): Partial<DogType> => {
     microchipNumber: formData.microchip, // Keep both for compatibility
     imageUrl: formData.imageUrl,
     ownerId: formData.ownerId,
-    registrations,
+    registrations: formData.registrations,
     healthRecords: formData.healthRecords,
     ...(formData.notes && ({ notes: formData.notes } as Record<string, unknown>)),
     ...(formData.specialNeeds &&

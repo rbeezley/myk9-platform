@@ -45,10 +45,10 @@ function renderTab(formOverrides: Partial<DogFormData> = {}) {
 }
 
 describe('RegistrationTab empty state (4.E — no silent Mixed Breed)', () => {
-  it('names the Mixed Breed fallback and says a registration can be added later', () => {
+  it('says a registration will supply the breed later', () => {
     renderTab({ registrations: [] });
-    expect(screen.getByText(/Mixed Breed/)).toBeInTheDocument();
-    expect(screen.getByText(/add a registration.*anytime later/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Mixed Breed/)).not.toBeInTheDocument();
+    expect(screen.getByText(/breed will be recorded with that organization/i)).toBeInTheDocument();
   });
 
   it('does not show the fallback note once a registration exists', () => {

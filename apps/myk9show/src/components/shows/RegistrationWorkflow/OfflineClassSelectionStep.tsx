@@ -26,7 +26,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useOfflineEntryCreation } from '@/hooks/useOfflineEntryCreation';
 import { ClassSelectionData } from '@/types/show-registration-types';
-import { Dog } from '@/types/dog-types';
+import { Dog, getDogBreedLabel } from '@/types/dog-types';
 import { Class } from '@/types/show-types';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils';
@@ -490,7 +490,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
           <div>
             <h3 className="font-medium">{dog.name}</h3>
             <p className="text-sm text-muted-foreground">
-              {dog.breed} • {selectedCount} class{selectedCount !== 1 ? 'es' : ''} selected
+              {getDogBreedLabel(dog)} • {selectedCount} class{selectedCount !== 1 ? 'es' : ''} selected
             </p>
           </div>
 

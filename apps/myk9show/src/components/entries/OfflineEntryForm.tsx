@@ -32,7 +32,7 @@ import { useEntryStoreCompat } from '@/hooks/useEntryStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import type { ShowEntryInput, RegistrationData } from '@/store/entryStore';
-import { getDogDisplayName } from '@/types/dog-types';
+import { getDogBreedLabel, getDogDisplayName } from '@/types/dog-types';
 
 interface NetworkStatus {
   isOnline: boolean;
@@ -175,7 +175,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
     return dogs.map(dog => ({
       id: dog.id,
       name: getDogDisplayName(dog),
-      breed: dog.breed,
+      breed: getDogBreedLabel(dog),
     }));
   }, [dogs]);
 
@@ -389,7 +389,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
                 <SelectContent>
                   {availableDogs.map(dog => (
                     <SelectItem key={dog.id} value={dog.id}>
-                      {dog.name} ({dog.breed})
+                      {getDogDisplayName(dog)} ({getDogBreedLabel(dog)})
                     </SelectItem>
                   ))}
                 </SelectContent>

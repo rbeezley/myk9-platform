@@ -343,6 +343,14 @@ export function getDogBreedLabel(dog: {
   return isMeaningfulBreed(breed) ? breed : BREED_NOT_SET;
 }
 
+/** Resolve a generic-surface registered name without borrowing from `Dog.name`. */
+export function getDogRegisteredName(dog: {
+  registrations?: readonly (DogRegistrationLike | MappedDogRegistrationLike)[] | null | undefined;
+}): string | null {
+  const registeredName = resolveDogIdentity(dog.registrations).registeredName;
+  return registeredName && registeredName.trim() ? registeredName.trim() : null;
+}
+
 /**
  * Format a dog's age for display, or `null` when its date of birth is not
  * recorded (or is not a usable date). `null` means "we do not know" — render

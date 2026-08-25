@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { User as UserIcon, CheckCircle, Plus, Info } from 'lucide-react';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
-import { User, Dog } from '@/types/dog-types';
+import { getDogBreedLabel, getDogRegisteredName, User, Dog } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 
 interface QuickCreateFlowProps {
@@ -224,7 +224,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{dog.callName}</span>
                             <Badge variant="outline">
-                              {dog.registrations?.[0]?.breed || 'No breed'}
+                              {getDogBreedLabel(dog)}
                             </Badge>
                             <Badge variant="secondary">{dog.gender}</Badge>
                           </div>
@@ -334,13 +334,13 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{dog.callName}</span>
                               <Badge variant="outline">
-                                {dog.registrations?.[0]?.breed || 'No breed'}
+                                {getDogBreedLabel(dog)}
                               </Badge>
                               <Badge variant="secondary">{dog.gender}</Badge>
                             </div>
-                            {dog.registrations?.[0]?.registeredName && (
+                            {getDogRegisteredName(dog) && (
                               <p className="text-sm text-gray-600">
-                                Registered Name: {dog.registrations[0].registeredName}
+                                Registered Name: {getDogRegisteredName(dog)}
                               </p>
                             )}
                             <p className="text-sm text-gray-600">

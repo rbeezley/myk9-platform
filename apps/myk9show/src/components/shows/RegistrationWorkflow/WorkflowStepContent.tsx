@@ -38,6 +38,7 @@ import {
   hasCreatedEntryOutcome,
 } from './entrySubmissionOutcomes';
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
+import { getDogRegisteredName } from '@/types/dog-types';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -181,7 +182,7 @@ export function WorkflowStepContent({
               : fmt(currentShow.startDate);
           })()
         : '',
-      dogRegisteredName: firstDog?.registrations?.[0]?.registeredName ?? firstDog?.name ?? '',
+      dogRegisteredName: firstDog ? getDogRegisteredName(firstDog) ?? '' : '',
       dogCallName: firstDog?.callName ?? null,
       classSummary,
       // Use T12:00:00 (noon) so date-only strings from Postgres never shift a calendar

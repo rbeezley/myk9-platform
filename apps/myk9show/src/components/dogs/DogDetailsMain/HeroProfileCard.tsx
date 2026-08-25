@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { formatDisplayDate } from './utils';
 import type { HeroProfileCardProps } from './types';
+import { getDogRegisteredName } from '@/types/dog-types';
 
 const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   dog,
@@ -21,8 +22,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
 }) => {
   const isSecretary = role === 'secretary';
 
-  // Registered name: use the first registration's registeredName if available
-  const registeredName = dog.registrations?.find(r => r.registeredName)?.registeredName ?? null;
+  const registeredName = getDogRegisteredName(dog);
 
   return (
     <Card className="p-6 shadow-sm">

@@ -4,8 +4,6 @@ import type { DogFormData, DogType } from '../DogEditPanel.types';
 
 const baseFormData: DogFormData = {
   callName: 'Rex',
-  registeredName: 'Rex the Dog',
-  breed: 'Mixed Breed',
   gender: 'male',
   dateOfBirth: '2020-01-01',
   color: 'Black',
@@ -28,7 +26,7 @@ describe('formDataToDog', () => {
     expect(result.registrations).toEqual([]);
   });
 
-  it('updates the first existing registration registered name', () => {
+  it('leaves registration identity untouched; registration editors own those fields', () => {
     const result = formDataToDog({
       ...baseFormData,
       registrations: [
@@ -43,12 +41,13 @@ describe('formDataToDog', () => {
       ],
     });
 
-    expect(result.registrations?.[0]?.registeredName).toBe('Rex the Dog');
+    expect(result.registrations?.[0]?.registeredName).toBe('Old Name');
     expect(result.registrations?.[0]?.registrationNumber).toBe('SR12345678');
+    expect(result).not.toHaveProperty('breed');
   });
 });
 
-describe('dogFormSchema — registered name (MYK9-90 §5.2)', () => {
+describe('dogFormSchema — dog identity fields', () => {
   const unregisteredDog = {
     id: 'dog-1',
     callName: 'Tera',
@@ -61,20 +60,14 @@ describe('dogFormSchema — registered name (MYK9-90 §5.2)', () => {
   } as unknown as Partial<DogType>;
 
   it('lets an unregistered dog be saved after changing an unrelated field', () => {
-    // Regression: `registeredName` used to be `min(1)` unconditionally. Once
-    // §5.2 stopped falling back to `dogs.name`, the field initialised to '' for
-    // every unregistered dog, so EditPanelWrapper rejected EVERY save — even a
-    // date-of-birth edit that has nothing to do with a registration. Adding a
-    // dog with no registration is an explicitly supported flow.
     const formData = dogToFormData(unregisteredDog);
-    expect(formData.registeredName).toBe('');
 
     const edited = { ...formData, dateOfBirth: '2021-06-05' };
 
     expect(dogFormSchema.safeParse(edited).success).toBe(true);
   });
 
-  it('still requires a registered name once the dog has a registration', () => {
+  it('does not validate registered-name data on the base dog form', () => {
     const formData = dogToFormData({
       ...unregisteredDog,
       registrations: [
@@ -90,12 +83,7 @@ describe('dogFormSchema — registered name (MYK9-90 §5.2)', () => {
     } as unknown as Partial<DogType>);
 
     expect(dogFormSchema.safeParse(formData).success).toBe(true);
-
-    const blanked = dogFormSchema.safeParse({ ...formData, registeredName: '   ' });
-    expect(blanked.success).toBe(false);
-    if (!blanked.success) {
-      expect(blanked.error.issues.some(issue => issue.path[0] === 'registeredName')).toBe(true);
-    }
+    expect(dogFormSchema.safeParse({ ...formData, registrations: [{ ...formData.registrations[0], registeredName: '' }] }).success).toBe(true);
   });
 
   it('still requires a call name — it is the identifier now', () => {

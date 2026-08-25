@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { Dog } from '@/types/dog-types';
+import { Dog, getDogBreedLabel } from '@/types/dog-types';
 import { logger } from '@/services/LoggingService';
 // import { User } from '@/types/user-types';
 
@@ -123,7 +123,7 @@ export const mockSearchDogs = async (
     filtered = filtered.filter(dog => 
       dog.callName?.toLowerCase().includes(searchTerm) ||
       dog.name?.toLowerCase().includes(searchTerm) ||
-      dog.registrations?.[0]?.breed?.toLowerCase().includes(searchTerm) ||
+      getDogBreedLabel(dog).toLowerCase().includes(searchTerm) ||
       dog.microchip?.toLowerCase().includes(searchTerm) ||
       dog.registrations?.some(reg => 
         reg.registeredName?.toLowerCase().includes(searchTerm) ||
@@ -134,7 +134,7 @@ export const mockSearchDogs = async (
   
   // Apply filters
   if (filters.breed) {
-    filtered = filtered.filter(dog => dog.registrations?.[0]?.breed === filters.breed);
+    filtered = filtered.filter(dog => getDogBreedLabel(dog) === filters.breed);
   }
   if (filters.gender) {
     filtered = filtered.filter(dog => dog.gender === filters.gender);

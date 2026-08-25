@@ -21,7 +21,16 @@ const DOGS: Dog[] = [
     sex: 'male',
     ownerId: 'owner-1',
     ownerName: 'Jane Doe',
-    registrations: [],
+    registrations: [
+      {
+        id: 'reg-1',
+        organization: 'AKC',
+        registeredName: 'Goldenworth Max',
+        breed: 'Golden Retriever',
+        registrationNumber: 'AKC-1',
+        status: 'Active',
+      },
+    ],
   } as unknown as Dog,
   {
     id: 'dog-2',
@@ -31,7 +40,16 @@ const DOGS: Dog[] = [
     sex: 'female',
     ownerId: 'owner-2',
     ownerName: 'John Roe',
-    registrations: [],
+    registrations: [
+      {
+        id: 'reg-2',
+        organization: 'AKC',
+        registeredName: 'Blackwood Bella',
+        breed: 'Border Collie',
+        registrationNumber: 'AKC-2',
+        status: 'Active',
+      },
+    ],
   } as unknown as Dog,
 ];
 

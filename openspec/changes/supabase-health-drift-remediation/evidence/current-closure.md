@@ -39,10 +39,12 @@ Captured 2026-08-25 against project `sojmvhhwsjxmfistvzbe` and current `main`.
 
 ## Implementation verification
 
+- Repository changes are published in PR #1792: `https://github.com/rbeezley/myk9-platform/pull/1792`.
+
 | Dimension | Result |
 | --- | --- |
-| Completeness | 9/21 tasks complete; repository implementation and local/read-only verification complete; PR, deployment, Linear, archive, and cleanup gates remain. |
+| Completeness | 10/21 tasks complete; repository implementation, local/read-only verification, and PR publication are complete; review/CI, deployment, Linear, archive, and cleanup gates remain. |
 | Correctness | The two new assertions failed before implementation and passed afterward. Focused tests, database drift tests, full typecheck, full lint, strict OpenSpec validation, live phase-2 SQL, function inventory, bundle downloads, ACL replay, and index catalog preflight agree with the design. |
 | Coherence | No duplicated product surface or new data path. The migration is additive, the cron assertion uses the scheduler identity, and both email deployment roots remain byte-identical at the target helper. |
 
-No CRITICAL, WARNING, or SUGGESTION implementation finding remains. The change is not archive-ready because the PR and explicit shared-system approval gates are intentionally incomplete.
+No CRITICAL, WARNING, or SUGGESTION implementation finding remains. The change is not archive-ready because review/CI, merge, and explicit shared-system approval gates are intentionally incomplete.

@@ -20,7 +20,7 @@
 ## 4. Ship Repository Changes
 
 - [x] 4.1 Commit the verified implementation and OpenSpec artifacts on the feature branch.
-- [ ] 4.2 Push the branch and open one PR with Linear IDs, acceptance evidence, risks, non-goals, approval-gated commands, and `Tracked in openspec change: supabase-health-drift-remediation`.
+- [x] 4.2 Push the branch and open one PR with Linear IDs, acceptance evidence, risks, non-goals, approval-gated commands, and `Tracked in openspec change: supabase-health-drift-remediation`.
 - [ ] 4.3 Obtain required second-opinion reviews and passing CI.
 - [ ] 4.4 Obtain explicit merge approval, merge the PR, and confirm the exact merge SHA on current `main`.
 

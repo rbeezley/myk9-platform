@@ -14,10 +14,10 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 
 ## Implementation constraints added by plan verification
 
-- [ ] 0.1 Reuse the existing dog-registration editor from the canonical dog record; do not add a second registration form inside the entry wizard. Preserve the selected show/dog and return path when the exhibitor follows the prerequisite action.
-- [ ] 0.2 Resolve the sanctioning organization through the existing registry helpers. Treat missing or ambiguous organization/class metadata as registration-required (fail closed); allow the puppy exception only when existing class metadata proves it is a conformation puppy class.
-- [ ] 0.3 Source declined reasons/next steps from existing entry data and use one honest scope-level schedule message (details appear when the show publishes them); do not invent dates or reasons.
-- [ ] 0.4 Keep rollback code-only: no migration, persisted-data rewrite, payment mutation, or replication-path change. The PR can be reverted without data repair.
+- [x] 0.1 Reuse the existing dog-registration editor from the canonical dog record; do not add a second registration form inside the entry wizard. Preserve the selected show/dog and return path when the exhibitor follows the prerequisite action.
+- [x] 0.2 Resolve the sanctioning organization through the existing registry helpers. Treat missing or ambiguous organization/class metadata as registration-required (fail closed); allow the puppy exception only when existing class metadata proves it is a conformation puppy class.
+- [x] 0.3 Source declined reasons/next steps from existing entry data and use one honest scope-level schedule message (details appear when the show publishes them); do not invent dates or reasons.
+- [x] 0.4 Keep rollback code-only: no migration, persisted-data rewrite, payment mutation, or replication-path change. The PR can be reverted without data repair.
 
 ## 1. Action-bar safety (audit #1, #2, #3) — Critical, do first
 
@@ -43,10 +43,10 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 - [x] 2.10 Reproduce and isolate the breed round-trip: does saving Edit Dog alter `dogs.breed` when the field is untouched? (Design open question 2.) **Fix only what the reproduction proves.** The base edit mapper no longer serializes breed or registered-name fields; a regression test proves an unrelated edit leaves registration identity and breed untouched.
 - [x] 2.3 **Remove the "Registered Name" field from the Edit Dog form's base dog record.** A dog is identified by its call name; a registered name belongs to a registration. This deletes a required field rather than adding one — see design decision 3.
 - [x] 2.8 Confirm nothing in this change makes a registration required to **create or edit** a dog — it must stay optional and completable later. Registration is enforced only at entry time (task 4.5). Keep the existing RegistrationTab copy that says so. The base schema accepts unregistered dogs and registration editors remain separate.
-- [ ] 2.4 Ensure the registration editor ([`AddEditRegistrationDialog.tsx`](../../../apps/myk9show/src/components/dogs/AddEditRegistrationDialog.tsx) and the Add Dog Registration tab) captures the registered name for that organization alongside its registration number, breed, and variety. `dog_registrations` already has all four columns (migration 014) — **no migration required**.
-- [ ] 2.5 Make organization-scoped surfaces display that organization's `dog_registrations.registered_name`. Keep the existing combined presentation where both are useful (`TERA "Maia TeraByte Van Neerland"`). Owner-facing surfaces lead with the call name.
-- [ ] 2.7 Leave `name: formData.callName` in [`AddDogPanel/index.tsx`](../../../apps/myk9show/src/components/panels/edit/AddDogPanel/index.tsx) in place, but **replace the bare assignment with a comment** explaining it satisfies the legacy `dogs.name NOT NULL` constraint and is not a registered name — mirroring how the breed default is disclosed. Normalizing the column is out of scope here (see Follow-ups).
-- [ ] 2.6 Grep for other call sites rendering breed or registered name and route them through the shared formatter (do not assume the surfaces above are exhaustive).
+- [x] 2.4 Ensure the registration editor ([`AddEditRegistrationDialog.tsx`](../../../apps/myk9show/src/components/dogs/AddEditRegistrationDialog.tsx) and the Add Dog Registration tab) captures the registered name for that organization alongside its registration number, breed, and variety. `dog_registrations` already has all four columns (migration 014) — **no migration required**.
+- [x] 2.5 Make organization-scoped surfaces display that organization's `dog_registrations.registered_name`. Keep the existing combined presentation where both are useful (`TERA "Maia TeraByte Van Neerland"`). Owner-facing surfaces lead with the call name.
+- [x] 2.7 Leave `name: formData.callName` in [`AddDogPanel/index.tsx`](../../../apps/myk9show/src/components/panels/edit/AddDogPanel/index.tsx) in place, but **replace the bare assignment with a comment** explaining it satisfies the legacy `dogs.name NOT NULL` constraint and is not a registered name — mirroring how the breed default is disclosed. Normalizing the column is out of scope here (see Follow-ups).
+- [x] 2.6 Grep for other call sites rendering breed or registered name and route them through the shared formatter (do not assume the surfaces above are exhaustive).
 
 ## 3. Exhibitor review vocabulary (audit #9)
 
@@ -56,20 +56,20 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 
 ## 4. Entry wizard guidance (audit #13, #15, #16, #19)
 
-- [ ] 4.1 Remove the fixed-height inner scroll region from the dog-selection step below `md`; retain it at `md` and above.
-- [ ] 4.2 Add plain-language class-level eligibility guidance to the class-selection step. **Static hint only** (resolved: design resolved-question 2). Record computed per-registry eligibility as a separate follow-up; do not scope it here.
-- [ ] 4.3 Make the "No registration on file" warning actionable — link it to adding a registration for that dog. Preserve its current accuracy (dogs with registrations must still show no warning).
-- [ ] 4.5 Treat a missing registration **for the sanctioning organization** as a blocking prerequisite, not an advisory note — a dog must be registered to compete. The sole exception is conformation puppy classes, where entry is permitted and the wizard explains why. A registration with a _different_ organization does not satisfy the requirement.
-- [ ] 4.4 Remove the duplicated payment reassurance copy so the statement appears exactly once, next to the control it describes. Keep the disabled-submit explanation.
+- [x] 4.1 Remove the fixed-height inner scroll region from the dog-selection step below `md`; retain it at `md` and above.
+- [x] 4.2 Add plain-language class-level eligibility guidance to the class-selection step. **Static hint only** (resolved: design resolved-question 2). Record computed per-registry eligibility as a separate follow-up; do not scope it here.
+- [x] 4.3 Make the "No registration on file" warning actionable — link it to adding a registration for that dog. Preserve its current accuracy (dogs with registrations must still show no warning).
+- [x] 4.5 Treat a missing registration **for the sanctioning organization** as a blocking prerequisite, not an advisory note — a dog must be registered to compete. The sole exception is conformation puppy classes, where entry is permitted and the wizard explains why. A registration with a _different_ organization does not satisfy the requirement.
+- [x] 4.4 Remove the duplicated payment reassurance copy so the statement appears exactly once, next to the control it describes. Keep the disabled-submit explanation.
 
 ## 5. Exhibitor surface legibility (audit #11, #12, #17, #18, #20)
 
-- [ ] 5.1 Untruncate navigation descriptions in the exhibitor sidebar and drawer (allow wrapping / `line-clamp-2`) at all widths.
-- [ ] 5.2 Fix the **desktop** clipping in [`ExhibitorPaymentsPage.tsx`](../../../apps/myk9show/src/pages/exhibitor/ExhibitorPaymentsPage.tsx) so the Receipt column is not truncated at 1280px and the table does not scroll horizontally in its container. **The phone-width disclosure is owned by `exhibitor-journey-completion` task 6.6 — do not implement it here.** Coordinate before touching this file; slice 4 has not started as of 2026-07-24.
-- [ ] 5.6 Make the dog record lead with the dog: identity details before sub-collections, reachable without scrolling past the whole tab strip at 390px, and a single add-registration action instead of three ("Add New Registration" / "Add Registration" / "Add registration"). Builds on the merged consolidation in PR #1438 — do not re-plan that structure.
-- [ ] 5.3 Add visible or persistently discoverable labels to the icon-only Find Shows view toggles.
-- [ ] 5.4 Add accessible names to exhibitor nav links, dog-card links, and the Add Dog dialog's tab and select controls.
-- [ ] 5.5 Collapse repeated "Time pending · Armband pending · Judge TBD" rows into one scope-level message that says when detail is expected; rows with real detail still show it.
+- [x] 5.1 Untruncate navigation descriptions in the exhibitor sidebar and drawer (allow wrapping / `line-clamp-2`) at all widths.
+- [x] 5.2 Fix the **desktop** clipping in [`ExhibitorPaymentsPage.tsx`](../../../apps/myk9show/src/pages/exhibitor/ExhibitorPaymentsPage.tsx) so the Receipt column is not truncated at 1280px and the table does not scroll horizontally in its container. **The phone-width disclosure is owned by `exhibitor-journey-completion` task 6.6 — do not implement it here.** Coordinate before touching this file; slice 4 has not started as of 2026-07-24.
+- [x] 5.6 Make the dog record lead with the dog: identity details before sub-collections, reachable without scrolling past the whole tab strip at 390px, and a single add-registration action instead of three ("Add New Registration" / "Add Registration" / "Add registration"). Builds on the merged consolidation in PR #1438 — do not re-plan that structure.
+- [x] 5.3 Add visible or persistently discoverable labels to the icon-only Find Shows view toggles.
+- [x] 5.4 Add accessible names to exhibitor nav links, dog-card links, and the Add Dog dialog's tab and select controls.
+- [x] 5.5 Collapse repeated "Time pending · Armband pending · Judge TBD" rows into one scope-level message that says when detail is expected; rows with real detail still show it.
 
 ## 6. Testing — no section is complete until its tests pass
 
@@ -87,21 +87,21 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 - [x] 6.2.3 Dirty-form guard prompts on navigation with unsaved changes, preserves data when the user stays, and does **not** fire on the form's own Cancel path. (PR #1609; re-run in this slice.)
 - [x] 6.2.4 Footer at 390px with the unsaved-changes indicator present: the primary control renders fully inside the viewport with its complete label; also assert at 320px. **Evidence (2026-08-20):** the unit test pins the responsive class contract. Playwright CLI bounding-box checks in the real dirty Edit Dog panel recorded the complete `Save Changes` control inside both viewports: x=200.5–366 at 390×844 and x=165.5–296 at 320×844.
 - [x] 6.2.5 Validation summary with three errors is rendered outside the footer row, and the `(+N more)` control reaches the hidden error.
-- [ ] 6.2.6 Submitting the Add Dog form empty creates no record and keeps the panel open.
+- [x] 6.2.6 Submitting the Add Dog form empty creates no record and keeps the panel open.
 - [x] 6.2.8 A registration editor captures its organization-scoped registered name without presenting or deriving a registered name on the base dog record; editing only that registration name leaves breed unchanged. Base edit mapping and registration-identity regression coverage pass.
 - [x] 6.2.9 A dog created with no registration displays **no breed** on the My Dogs list, dog record, and wizard, and no substitute breed reaches an entry, entry blank, or submission payload. Shared identity regression coverage plus focused dog-list, wizard, and entry tests pass.
 - [x] 6.2.10 The updated _"4.E"_ copy test passes: the empty state no longer claims the dog is saved as Mixed Breed.
-- [ ] 6.2.7 Accessible-name check over exhibitor nav links, dog-card links, and Add Dog dialog controls.
-- [ ] 6.2.11 Registration prerequisite coverage: matching organization passes; a missing/different organization blocks; a proven conformation puppy class passes with an explanation; ambiguous metadata fails closed; the add-registration action preserves a return path.
+- [x] 6.2.7 Accessible-name check over exhibitor nav links, dog-card links, and Add Dog dialog controls.
+- [x] 6.2.11 Registration prerequisite coverage: matching organization passes; a missing/different organization blocks; a proven conformation puppy class passes with an explanation; ambiguous metadata fails closed; the add-registration action preserves a return path.
 - [x] 6.2.12 Review vocabulary coverage on both exhibitor surfaces: pending wording is canonical, and declined wording includes an existing reason or next step. Focused mapping, My Shows, and show-detail tests pass (84 tests across the five relevant files).
-- [ ] 6.2.13 Responsive surface coverage: nav descriptions wrap, the desktop payments receipt column does not clip or scroll, Find Shows toggles have persistent labels, and schedule placeholders collapse to one scope-level message while real details remain.
-- [ ] 6.2.14 Dog-record hierarchy coverage: identity precedes sub-collections at phone width and the add-registration action appears once.
+- [x] 6.2.13 Responsive surface coverage: nav descriptions wrap, the desktop payments receipt column does not clip or scroll, Find Shows toggles have persistent labels, and schedule placeholders collapse to one scope-level message while real details remain.
+- [x] 6.2.14 Dog-record hierarchy coverage: identity precedes sub-collections at phone width and the add-registration action appears once.
 
 ### 6.3 Repo checks
 
-- [ ] 6.3.1 Re-run `pnpm typecheck` (never raw `tsc`) after every remaining slice is implemented. Prior action-bar evidence is retained but is not the final gate.
-- [ ] 6.3.2 Re-run `pnpm lint` clean at `--max-warnings 0` after every remaining slice is implemented. Prior action-bar evidence is retained but is not the final gate.
-- [ ] 6.3.3 Run the colocated tests for every file touched, plus tests found by grepping for the changed function names — not only colocated ones — after the final implementation diff is complete.
+- [x] 6.3.1 Final `pnpm typecheck` passed after integration with PR #1798 (26/26 tasks).
+- [x] 6.3.2 Final `pnpm lint` passed clean after integration with PR #1798 (14/14 tasks).
+- [x] 6.3.3 Final focused verification passed 348 tests across 27 touched and name-matched regression files.
 
 ### 6.4 Manual multi-viewport re-walk (required before archiving)
 
@@ -117,7 +117,7 @@ Re-walk as the elderly-novice persona at **390×844**, **834×1112**, **1112×83
 ## 7. Close-out
 
 - [ ] 7.1 Write a follow-up audit report confirming which of findings #1–#20 are resolved, using the same report format so the next run diffs cleanly.
-- [ ] 7.2 Confirm the excluded findings are still tracked: #6, #7, #8, and #10 with `exhibitor-journey-completion` (MYK9-71); cosmetic #21–#24 in the audit report only. Finding #14 remains in scope here through task 5.6.
+- [x] 7.2 Confirm the excluded findings are still tracked: #6, #7, #8, and #10 with `exhibitor-journey-completion` (MYK9-71); cosmetic #21–#24 in the audit report only. Finding #14 remains in scope here through task 5.6. MYK9-71 is Done and links merged PR #1456.
 - [x] 7.3 Delete the audit's leftover test data if still present — dog **Biscuit**, one saved registration draft, one $30 cart item. **Verified 2026-08-21:** direct staging inventory found no matching dog or cart item under any owner; the saved draft was browser-local (`draft-storage`) rather than shared database data, so no destructive deletion was necessary.
 - [ ] 7.4 Open and review the final implementation PR(s), record CI evidence, and merge before archive.
 - [ ] 7.5 Update the Linear pointer issue with implementation/verification evidence and archive this change only after every required PR is merged.

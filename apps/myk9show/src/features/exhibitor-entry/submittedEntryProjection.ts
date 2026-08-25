@@ -62,7 +62,7 @@ export function toSubmittedEntryProjectionRow(
 }
 
 function isActiveSubmittedEntry(row: SubmittedEntryProjectionRow): boolean {
-  return isActiveSubmittedEntryStatus(row.status, row.checkInStatus);
+  return !row.deletedAt && isActiveSubmittedEntryStatus(row.status, row.checkInStatus);
 }
 
 export function buildSubmittedEntryProjection({
@@ -82,7 +82,10 @@ export function buildSubmittedEntryProjection({
   for (const row of rows) {
     const isOwnedDog = ownedDogIds.has(row.dogId);
     const isAssignedHandler = personId != null && row.handlerId === personId;
-    if (row.deletedAt || (!isOwnedDog && !isAssignedHandler)) continue;
+    // A soft-deleted show cascades its tombstone to entries. Keep the
+    // exhibitor's own history visible so paid entries remain reconciled with
+    // My Payments; unowned tombstones remain excluded.
+    if (!isOwnedDog && !isAssignedHandler) continue;
     eligibleRows.push(row);
     if (getEntryStatusKind(row.status) !== 'moved') {
       dogsWithSurvivingRows.add(row.dogId);

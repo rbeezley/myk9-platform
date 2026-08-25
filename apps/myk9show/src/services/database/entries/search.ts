@@ -99,6 +99,9 @@ export const USER_ENTRIES_SELECT = `
       final_placement,
       class_results_released_at,
       dog_image_url,
+      deleted_at,
+      refund_amount,
+      refunded_at,
       submitted_at,
       created_at,
       updated_at,
@@ -161,7 +164,6 @@ async function postgrestGetUserEntries() {
   const { data, error } = await supabase
     .from('view_authenticated_entry_results')
     .select(USER_ENTRIES_SELECT)
-    .is('deleted_at', null)
     // My Entries is OWN entries only. The view returns can_manage OR
     // is_own_entry rows, so without this filter a secretary/admin would receive
     // every manageable show entry here. is_own_entry is a SQL-resolved column

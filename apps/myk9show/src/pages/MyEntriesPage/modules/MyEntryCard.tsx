@@ -148,6 +148,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         <div className="myk9-entries-badges">
           {getEntryStatusBadge(summaryStatus, {
             isPastShow,
+            isShowCancelled: entry.isShowCancelled,
             statusKind: summaryStatusKind,
             partiallyScored: Boolean(partiallyScored),
           })}

@@ -357,6 +357,7 @@ export const mapReplicatedEntryToDbRow = (
       scoring_completed_at: 'scoringCompletedAt',
       ring_entry_time: 'ring_entry_time',
       ring_exit_time: 'ring_exit_time',
+      deleted_at: 'deletedAt',
       updated_at: 'updated_at',
     }),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
@@ -367,7 +368,6 @@ export const mapReplicatedEntryToDbRow = (
     comped_reason: entry.compedReason ?? entry.comped_reason ?? null,
     is_scored: entry.isScored ?? false,
     created_at: entry.submittedAt ?? entry.updated_at ?? null,
-    deleted_at: null,
   };
 
   // Attach dog sub-object when provided

@@ -50,6 +50,15 @@ describe('groupEntriesByOrder — dog-level merge (unchanged from groupEntriesBy
     expect(result[0].dogs).toHaveLength(1);
   });
 
+  it('carries the show-cancelled marker onto the grouped card', () => {
+    const [order] = groupEntriesByOrder([
+      makeRow({ isShowCancelled: true, entryStatus: EntryStatus.CANCELLED }),
+    ]);
+
+    expect(order.isShowCancelled).toBe(true);
+    expect(order.entryStatus).toBe(EntryStatus.CANCELLED);
+  });
+
   it('merges two class rows for the same dog and registration into one card', () => {
     const classA = makeClass({ id: 'c1', name: 'Container Search', fee: 25 });
     const classB = makeClass({ id: 'c2', name: 'Exterior Search', fee: 30 });

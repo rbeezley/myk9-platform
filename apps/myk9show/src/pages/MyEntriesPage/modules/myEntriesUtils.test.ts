@@ -184,6 +184,37 @@ describe('My Entries terminal status display', () => {
     expect(message.message).not.toMatch(/Upcoming|Show in/i);
   });
 
+  it('labels a show-cancelled entry distinctly while preserving refund state', () => {
+    const message = getContextualStatusMessage(
+      {
+        ...baseEntry,
+        entryStatus: EntryStatus.CANCELLED,
+        paymentStatus: PaymentStatus.REFUNDED,
+        isShowCancelled: true,
+      },
+      dateHelpers.formatDistanceToNow,
+      dateHelpers.format,
+      dateHelpers.isToday,
+      dateHelpers.isTomorrow,
+      dateHelpers.differenceInDays
+    );
+
+    expect(message.message).toBe('Show cancelled - refunded');
+  });
+
+  it('labels a show-cancelled entry as Cancelled instead of generic Withdrawn', () => {
+    render(
+      React.createElement(
+        React.Fragment,
+        null,
+        getEntryStatusBadge(EntryStatus.CANCELLED, { isShowCancelled: true })
+      )
+    );
+
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.queryByText('Withdrawn')).not.toBeInTheDocument();
+  });
+
   it('describes partial refunds distinctly from full refunds', () => {
     const message = getContextualStatusMessage(
       {

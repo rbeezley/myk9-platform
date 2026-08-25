@@ -1,4 +1,6 @@
--- Behavioral contract: every entry-exposing view must hide a soft-deleted entry.
+-- Behavioral contract: entry-exposing views hide soft-deleted entries from
+-- non-owners; the authenticated own-entry surface deliberately retains the
+-- exhibitor's tombstone so payment and entry history stay reconciled.
 --
 -- Companion to anon_tv_entry_soft_delete_test.sql, which covers the ANON
 -- surfaces. The views exercised here are authenticated-only, and their
@@ -62,23 +64,29 @@ VALUES (
 -- auth_user_id matters for view_authenticated_entry_results only: that view is
 -- owner-run, so it resolves the caller through
 -- private.entry_results_caller_context(), which maps auth.uid() to
--- people.auth_user_id. Handing this person both entries makes its is_own_entry
--- branch true, which is the cheapest authenticated context that returns rows --
--- no roles, club membership or judge assignment needed.
+-- people.auth_user_id. Handing this person the live entry and one tombstone
+-- makes its is_own_entry branch true, while the third tombstone belongs to a
+-- different owner and proves the owner-only exception.
 INSERT INTO public.people (id, first_name, last_name, auth_user_id)
-VALUES (
-  '00000000-0000-0000-0000-000000181005',
-  'Views',
-  'Handler',
-  '00000000-0000-0000-0000-000000181101'
-);
+VALUES
+  (
+    '00000000-0000-0000-0000-000000181005',
+    'Views',
+    'Handler',
+    '00000000-0000-0000-0000-000000181101'
+  ),
+  (
+    '00000000-0000-0000-0000-000000181010',
+    'Other',
+    'Owner',
+    '00000000-0000-0000-0000-000000181102'
+  );
 
--- Two dogs for the same reason as anon_tv_entry_soft_delete_test.sql:
+-- Three dogs for the same reason as anon_tv_entry_soft_delete_test.sql:
 -- entries_dog_class_unique_idx is UNIQUE (dog_id, class_id) WHERE entry_status
 -- NOT IN ('withdrawn','scratched') and does NOT exclude soft-deleted rows, so
--- one dog cannot hold both entries. Same breed on purpose -- view_breed_stats
--- groups by dog_breed, so both entries land in one group and a leaked
--- tombstone shows up as an inflated total_entries.
+-- each fixture entry uses its own dog. Same breed on purpose -- view_breed_stats
+-- groups by dog_breed, so leaked tombstones show up as inflated totals.
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
 VALUES
   (
@@ -94,6 +102,13 @@ VALUES
     'Gone',
     'Beagle',
     '00000000-0000-0000-0000-000000181005'
+  ),
+  (
+    '00000000-0000-0000-0000-000000181011',
+    'Other Owner Dog',
+    'Unowned',
+    'Beagle',
+    '00000000-0000-0000-0000-000000181010'
   );
 
 -- Armbands MUST be numeric: view_myk9q_entries and view_stats_summary both
@@ -137,11 +152,30 @@ VALUES
     'qualified',
     30.0,
     2
+  ),
+  (
+    '00000000-0000-0000-0000-000000181012',
+    '00000000-0000-0000-0000-000000181011',
+    '00000000-0000-0000-0000-000000181004',
+    '00000000-0000-0000-0000-000000181002',
+    '00000000-0000-0000-0000-000000181003',
+    '00000000-0000-0000-0000-000000181010',
+    'confirmed',
+    '181003',
+    false,
+    true,
+    'qualified',
+    20.0,
+    3
   );
 
 UPDATE public.entries
 SET deleted_at = now()
 WHERE id = '00000000-0000-0000-0000-000000181008';
+
+UPDATE public.entries
+SET deleted_at = now()
+WHERE id = '00000000-0000-0000-0000-000000181012';
 
 -- Static contract: the predicate must live in each view's OWN top-level WHERE.
 --
@@ -238,6 +272,7 @@ $$;
 DO $$
 DECLARE
   live_entry_id uuid := '00000000-0000-0000-0000-000000181007';
+  own_deleted_entry_id uuid := '00000000-0000-0000-0000-000000181008';
   v_show_id uuid := '00000000-0000-0000-0000-000000181002';
   v_class_id uuid := '00000000-0000-0000-0000-000000181004';
   entry_results_ids uuid[];
@@ -336,6 +371,7 @@ SELECT set_config(
 DO $$
 DECLARE
   live_entry_id uuid := '00000000-0000-0000-0000-000000181007';
+  own_deleted_entry_id uuid := '00000000-0000-0000-0000-000000181008';
   v_show_id uuid := '00000000-0000-0000-0000-000000181002';
   authenticated_ids uuid[];
 BEGIN
@@ -351,14 +387,14 @@ BEGIN
       'FAIL fixture caller sees no entries at all; the assertion below would be vacuous';
   END IF;
 
-  IF authenticated_ids IS DISTINCT FROM ARRAY[live_entry_id] THEN
+  IF authenticated_ids IS DISTINCT FROM ARRAY[live_entry_id, own_deleted_entry_id] THEN
     RAISE EXCEPTION
-      'FAIL view_authenticated_entry_results returned %, expected only the live entry',
+      'FAIL view_authenticated_entry_results returned %, expected the live entry and the caller-owned cancelled entry',
       authenticated_ids;
   END IF;
 
   RAISE NOTICE
-    'PASS view_authenticated_entry_results excludes soft-deleted entries for an authorized caller';
+    'PASS view_authenticated_entry_results keeps the caller-owned cancelled entry while excluding other tombstones';
 END;
 $$;
 

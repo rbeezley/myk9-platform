@@ -129,6 +129,8 @@ export interface MyEntry {
   registrationId: string | null;
   showId: string;
   showName: string;
+  /** True when the show cascade tombstoned this entry; displayed as cancelled. */
+  isShowCancelled?: boolean | undefined;
   showDate: Date;
   /** Final calendar day the show runs; absent for legacy/single-day rows. */
   showEndDate?: Date | undefined;
@@ -165,6 +167,9 @@ export interface MyEntry {
    * 'waived' | 'secretary_paid' | 'group_payment' | null). Drives the cash/check
    * "pay at show" status vs the online "Finish Payment" CTA (4.C). */
   paymentMethod?: string | null;
+  /** Entry-level refund facts retained for cancelled-show reconciliation. */
+  refundAmount?: number | null | undefined;
+  refundedAt?: Date | undefined;
   confirmationNumber?: string | undefined;
   entryCloseDate?: Date | undefined;
   submittedAt: Date;

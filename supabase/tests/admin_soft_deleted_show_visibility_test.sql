@@ -188,6 +188,13 @@ UPDATE public.shows
 SET deleted_at = now()
 WHERE id = '00000000-0000-0000-0000-000000233002';
 
+-- soft_delete_show() cascades this tombstone in production. Keep the fixture's
+-- direct show update explicit so the entry-results contract sees the same
+-- cancelled entry state without depending on trigger behavior.
+UPDATE public.entries
+SET deleted_at = now()
+WHERE show_id = '00000000-0000-0000-0000-000000233002';
+
 -- ---------------------------------------------------------------------------
 -- Site admin: sees BOTH shows and BOTH entries.
 -- ---------------------------------------------------------------------------
@@ -315,19 +322,16 @@ $$;
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------
--- The entrant: still reads their OWN entry for the soft-deleted show.
+-- The entrant: reads their OWN entry for the soft-deleted show, including the
+-- authenticated entry-results surface used by My Entries and My Payments.
 --
--- This is current behaviour, not desired behaviour, and it is pinned here so the
--- gap is visible instead of silent. entries_select's handler and dog-owner arms
+-- This is deliberate behaviour, pinned here so the handler and dog-owner arms
 -- carry no show-liveness test, so they bypass manageable_show_ids() entirely;
--- MYK9-233 did not touch them and closing that arm is a separate product
--- decision about whether an exhibitor keeps sight of their own paid entry after
--- a club drops the show.
+-- MYK9-233 did not touch them; MYK9-245 records the product decision to keep
+-- the paid entry visible and mark it cancelled after a club drops the show.
 --
--- It is not a live exposure today: soft_delete_show() cascades deleted_at down
--- to entries, and every exhibitor-facing read filters entries.deleted_at. That
--- makes a CLIENT filter the only thing standing in front of a permission
--- boundary, which is why this is written down rather than shrugged off.
+-- soft_delete_show() cascades deleted_at down to entries. The view exception is
+-- scoped to is_own_entry, so another user's tombstone remains hidden.
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE authenticated;
 SELECT set_config(
@@ -335,11 +339,18 @@ SELECT set_config(
   '00000000-0000-0000-0000-000000233101',
   true
 );
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000233101","role":"authenticated"}',
+  true
+);
 
 DO $$
 DECLARE
   deleted_show_id uuid := '00000000-0000-0000-0000-000000233002';
+  deleted_entry_id uuid := '00000000-0000-0000-0000-000000233030';
   own_entries bigint;
+  visible_view_entries bigint;
 BEGIN
   SELECT count(*)
     INTO own_entries
@@ -350,6 +361,19 @@ BEGIN
     RAISE EXCEPTION
       'FAIL expected the entrant to still read their own 1 entry via the handler/owner arm, saw %. If this dropped to 0 the arm was gated - update the header contract and delete this block.',
       own_entries;
+  END IF;
+
+  SELECT count(*)
+    INTO visible_view_entries
+    FROM public.view_authenticated_entry_results v
+   WHERE v.id = deleted_entry_id
+     AND v.deleted_at IS NOT NULL
+     AND v.is_own_entry = true;
+
+  IF visible_view_entries <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL the entrant cannot reconcile their cancelled entry through view_authenticated_entry_results; saw % rows',
+      visible_view_entries;
   END IF;
 END;
 $$;

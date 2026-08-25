@@ -1,9 +1,6 @@
 import type { Page, Request } from '@playwright/test';
 import { describe, expect, it } from 'vitest';
-import {
-  waitForAppApiRequestsToSettle,
-  watchAppApiRequests,
-} from './appApiRequestTracker';
+import { waitForAppApiRequestsToSettle, watchAppApiRequests } from './appApiRequestTracker';
 
 type RequestEvent = 'request' | 'requestfinished' | 'requestfailed';
 
@@ -37,14 +34,32 @@ describe('app API request tracker', () => {
     const pending = watchAppApiRequests(harness.page);
     const request = createRequest('https://example.supabase.co/rest/v1/clubs?select=*');
 
+    setTimeout(() => harness.emit('request', request), 5);
+    setTimeout(() => harness.emit('requestfinished', request), 10);
+
+    const unsettledUrls = await waitForAppApiRequestsToSettle(harness.page, pending, {
+      idleMs: 15,
+      timeoutMs: 100,
+    });
+
+    expect(unsettledUrls).toEqual([]);
+    expect(pending.size).toBe(0);
+  });
+
+  it('tracks an app API request that started before the route sweep', async () => {
+    const harness = createPageHarness();
+    const pending = watchAppApiRequests(harness.page);
+    const request = createRequest('https://example.supabase.co/rest/v1/clubs?select=*');
+
     harness.emit('request', request);
     setTimeout(() => harness.emit('requestfinished', request), 5);
 
-    await waitForAppApiRequestsToSettle(harness.page, pending, 'admin/dashboard', {
+    const unsettledUrls = await waitForAppApiRequestsToSettle(harness.page, pending, {
       idleMs: 5,
       timeoutMs: 100,
     });
 
+    expect(unsettledUrls).toEqual([]);
     expect(pending.size).toBe(0);
   });
 
@@ -55,14 +70,12 @@ describe('app API request tracker', () => {
 
     harness.emit('request', request);
 
-    await expect(
-      waitForAppApiRequestsToSettle(harness.page, pending, 'admin/dashboard', {
-        idleMs: 5,
-        timeoutMs: 20,
-      })
-    ).rejects.toThrow(
-      'admin/dashboard: app API requests did not settle within 20ms: https://example.supabase.co/rest/v1/clubs?select=*'
-    );
+    const unsettledUrls = await waitForAppApiRequestsToSettle(harness.page, pending, {
+      idleMs: 5,
+      timeoutMs: 20,
+    });
+
+    expect(unsettledUrls).toEqual(['https://example.supabase.co/rest/v1/clubs?select=*']);
   });
 
   it('ignores assets and document requests', async () => {
@@ -72,11 +85,12 @@ describe('app API request tracker', () => {
     harness.emit('request', createRequest('http://127.0.0.1:5173/admin/dashboard'));
     harness.emit('request', createRequest('http://127.0.0.1:5173/assets/app.js'));
 
-    await waitForAppApiRequestsToSettle(harness.page, pending, 'admin/dashboard', {
+    const unsettledUrls = await waitForAppApiRequestsToSettle(harness.page, pending, {
       idleMs: 5,
       timeoutMs: 20,
     });
 
+    expect(unsettledUrls).toEqual([]);
     expect(pending.size).toBe(0);
   });
 });

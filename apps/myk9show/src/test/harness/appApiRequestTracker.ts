@@ -5,9 +5,7 @@ const DEFAULT_TIMEOUT_MS = 5000;
 
 export function isAppApiRequest(request: Request) {
   const url = request.url();
-  return (
-    url.includes('/rest/v1/') || url.includes('/functions/v1/') || url.includes('/auth/v1/')
-  );
+  return url.includes('/rest/v1/') || url.includes('/functions/v1/') || url.includes('/auth/v1/');
 }
 
 export function watchAppApiRequests(page: Page) {
@@ -25,7 +23,6 @@ export function watchAppApiRequests(page: Page) {
 export async function waitForAppApiRequestsToSettle(
   page: Page,
   pending: Set<Request>,
-  routeId: string,
   { idleMs = DEFAULT_IDLE_MS, timeoutMs = DEFAULT_TIMEOUT_MS } = {}
 ) {
   const deadline = Date.now() + timeoutMs;
@@ -34,7 +31,7 @@ export async function waitForAppApiRequestsToSettle(
   while (Date.now() < deadline) {
     if (pending.size === 0) {
       idleSince ??= Date.now();
-      if (Date.now() - idleSince >= idleMs) return;
+      if (Date.now() - idleSince >= idleMs) return [];
     } else {
       idleSince = null;
     }
@@ -42,8 +39,5 @@ export async function waitForAppApiRequestsToSettle(
     await page.waitForTimeout(Math.min(25, idleMs));
   }
 
-  const urls = [...pending].map(request => request.url());
-  throw new Error(
-    `${routeId}: app API requests did not settle within ${timeoutMs}ms: ${urls.join(', ')}`
-  );
+  return [...pending].map(request => request.url());
 }

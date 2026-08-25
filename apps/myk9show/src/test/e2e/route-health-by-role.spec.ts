@@ -173,14 +173,39 @@ async function measureHorizontalOverflow(page: Page) {
   });
 }
 
+async function assertAppApiRequestsSettled(
+  page: Page,
+  pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>,
+  routeId: string
+) {
+  const unsettledUrls = await waitForAppApiRequestsToSettle(page, pendingAppApiRequests);
+  expect
+    .soft(unsettledUrls, `${routeId}: app API requests did not settle before route transition`)
+    .toEqual([]);
+  if (unsettledUrls.length > 0) {
+    test.info().annotations.push({
+      type: 'route',
+      description: `${routeId} unsettled-api-requests=${unsettledUrls.join(',')}`,
+    });
+  }
+}
+
 /**
  * Visits each route, soft-asserting render, health, and overflow checks.
  * All routes are visited even when individual checks fail.
  */
-async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
+async function sweepRoutes(
+  page: Page,
+  group: string,
+  routes: RouteSpec[],
+  pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>
+) {
   const health = createBrowserHealth();
   watchBrowserHealth(page, health);
-  const pendingAppApiRequests = watchAppApiRequests(page);
+
+  // Authentication lands on the first route before the sweep starts. Let any
+  // API reads started by that navigation finish before the loop reloads it.
+  await assertAppApiRequestsSettled(page, pendingAppApiRequests, `${group}/sign-in-target`);
 
   for (const route of routes) {
     const id = `${group}/${route.label}`;
@@ -283,7 +308,7 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
     // WebKit reports a cross-origin fetch canceled by the next navigation as a
     // page error ("due to access control checks"), even when the request is
     // healthy and completes with 200 if allowed to finish (MYK9-244).
-    await waitForAppApiRequestsToSettle(page, pendingAppApiRequests, id);
+    await assertAppApiRequestsSettled(page, pendingAppApiRequests, id);
 
     // Health checks (console errors, replication errors, owned 4xx/5xx).
     // Evaluated after the mobile resize so any mobile-triggered errors are included.
@@ -302,7 +327,8 @@ async function sweepRoutes(page: Page, group: string, routes: RouteSpec[]) {
 
 test.describe('Route health: public', () => {
   test('public routes render clean', async ({ page }) => {
-    await sweepRoutes(page, 'public', PUBLIC_ROUTES);
+    const pendingAppApiRequests = watchAppApiRequests(page);
+    await sweepRoutes(page, 'public', PUBLIC_ROUTES, pendingAppApiRequests);
   });
 });
 
@@ -316,8 +342,9 @@ test.describe('Route health: exhibitor', () => {
       });
       test.skip(true, 'Exhibitor credentials absent — group skipped');
     }
+    const pendingAppApiRequests = watchAppApiRequests(page);
     await signIn(page, user.email, user.password, '/exhibitor/entries');
-    await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES);
+    await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES, pendingAppApiRequests);
   });
 });
 
@@ -331,8 +358,9 @@ test.describe('Route health: secretary', () => {
       });
       test.skip(true, 'Secretary credentials absent — group skipped');
     }
+    const pendingAppApiRequests = watchAppApiRequests(page);
     await signIn(page, user.email, user.password, '/secretary/dashboard');
-    await sweepRoutes(page, 'secretary', SECRETARY_ROUTES);
+    await sweepRoutes(page, 'secretary', SECRETARY_ROUTES, pendingAppApiRequests);
   });
 });
 
@@ -346,8 +374,9 @@ test.describe('Route health: judge', () => {
       });
       test.skip(true, 'Judge credentials absent — group skipped');
     }
+    const pendingAppApiRequests = watchAppApiRequests(page);
     await signIn(page, user.email, user.password, '/judge/dashboard');
-    await sweepRoutes(page, 'judge', JUDGE_ROUTES);
+    await sweepRoutes(page, 'judge', JUDGE_ROUTES, pendingAppApiRequests);
   });
 });
 
@@ -361,8 +390,9 @@ test.describe('Route health: club-admin', () => {
       });
       test.skip(true, 'Club-admin credentials absent — group skipped');
     }
+    const pendingAppApiRequests = watchAppApiRequests(page);
     await signIn(page, user.email, user.password, '/club-admin/members');
-    await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES);
+    await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES, pendingAppApiRequests);
   });
 });
 
@@ -376,7 +406,8 @@ test.describe('Route health: admin', () => {
       });
       test.skip(true, 'Admin credentials absent — group skipped');
     }
+    const pendingAppApiRequests = watchAppApiRequests(page);
     await signIn(page, user.email, user.password, '/admin/dashboard');
-    await sweepRoutes(page, 'admin', ADMIN_ROUTES);
+    await sweepRoutes(page, 'admin', ADMIN_ROUTES, pendingAppApiRequests);
   });
 });

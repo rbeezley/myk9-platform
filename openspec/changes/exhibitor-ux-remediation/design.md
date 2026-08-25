@@ -27,7 +27,7 @@ Two constraints shape every decision below:
 
 **Non-Goals**
 
-- The money contradiction, entry-count reconciliation, "Add or Change Entries" scope, and the dog Overview hierarchy — all owned by `exhibitor-journey-completion` (MYK9-71). This change consumes those contracts.
+- The money contradiction, entry-count reconciliation, and "Add or Change Entries" scope — all owned by `exhibitor-journey-completion` (MYK9-71). This change consumes those contracts. The dog-record hierarchy defect found after PR #1438 is in scope here through task 5.6.
 - Cosmetic-only audit findings #21–#24.
 - Any Premium surface, database migration, edge function, or Stripe behavior.
 
@@ -104,6 +104,14 @@ Add an explicit **exhibitor variant** to that shared module rather than creating
 
 **Decision:** Drop the fixed-height inner scroll region below `md`. The audit measured a 464px inner scroll container holding 1368px of content on an 844px-tall phone — two competing scrollbars in a step the user must complete to enter a show. The constrained-height presentation is retained at tablet and desktop where it does aid scanning.
 
+### 6. Registration remediation reuses the canonical dog record
+
+**Decision:** The wizard's missing-registration action deep-links to the existing dog record/registration editor with a return target; it does not embed or duplicate a registration form. The wizard resolves the sanctioning organization through the existing registry helpers. Missing or ambiguous organization/class metadata fails closed as registration-required, and the puppy exception applies only when existing metadata proves the selected class is a conformation puppy class.
+
+### 7. Honest fallbacks use existing data
+
+**Decision:** Declined-entry wording uses an existing reason when present and otherwise provides an existing next step; it never invents a reason. Unpublished schedule detail is summarized once as becoming available when the show publishes it; the app does not fabricate a date.
+
 ## Risks / Trade-offs
 
 - **The toast-offset mechanism is app-wide.** Every dialog, panel, and wizard inherits it, so a regression is broad. Mitigated by component-level offset-contract tests plus the real-browser mobile coordinate hit-test recorded in task 6.2.1, which proves the primary footer control remains the actual click target while an actionable toast is visible.
@@ -114,6 +122,8 @@ Add an explicit **exhibitor variant** to that shared module rather than creating
 ## Migration Plan
 
 No data migration, no Supabase deploy, no edge-function change. All changes are presentation-layer or client-side validation, so **offline-first behavior is untouched** — no replication-backed read or mutation path is modified, and `@myk9/replication` is not involved. The work is shippable incrementally: the toast/footer primitive first (it carries the Critical finding and the widest blast radius), then dog field integrity, then wizard and legibility items, which are independent of each other.
+
+Rollback is code-only: reverting the implementation PR restores the prior presentation and validation behavior without data repair. No persisted rows, payment state, or replication contracts are rewritten by this change.
 
 ## Follow-ups (deliberately out of scope here)
 

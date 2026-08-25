@@ -2,6 +2,8 @@
 
 Source: [`docs/ux-audits/exhibitor-elderly-novice-2026-07-24.md`](../../../docs/ux-audits/exhibitor-elderly-novice-2026-07-24.md). Finding numbers below refer to that report's findings table.
 
+Resume request (2026-08-25, verbatim): `continue until complete`
+
 Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and the widest blast radius — land it first. Sections 3, 4, and 5 are independent of each other and may run in parallel.
 
 ## Validation Profile
@@ -9,6 +11,13 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 - Risk: medium
 - Validation: app
 - Rationale: The work changes shared myK9Show UI primitives and user flows without changing persistence, auth, payments, or shared systems; focused regressions plus app typecheck/lint and viewport QA cover the blast radius.
+
+## Implementation constraints added by plan verification
+
+- [ ] 0.1 Reuse the existing dog-registration editor from the canonical dog record; do not add a second registration form inside the entry wizard. Preserve the selected show/dog and return path when the exhibitor follows the prerequisite action.
+- [ ] 0.2 Resolve the sanctioning organization through the existing registry helpers. Treat missing or ambiguous organization/class metadata as registration-required (fail closed); allow the puppy exception only when existing class metadata proves it is a conformation puppy class.
+- [ ] 0.3 Source declined reasons/next steps from existing entry data and use one honest scope-level schedule message (details appear when the show publishes them); do not invent dates or reasons.
+- [ ] 0.4 Keep rollback code-only: no migration, persisted-data rewrite, payment mutation, or replication-path change. The PR can be reverted without data repair.
 
 ## 1. Action-bar safety (audit #1, #2, #3) — Critical, do first
 
@@ -41,9 +50,9 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 
 ## 3. Exhibitor review vocabulary (audit #9)
 
-- [ ] 3.1 Add an explicit exhibitor variant to the shared review-state mapping module (`reviewStateLabels.ts`) rather than creating a parallel exhibitor-only mapping.
-- [ ] 3.2 Replace independently-derived labels on the show-detail run schedule and the My Shows entry card with lookups against that module, so "Not accepted" no longer renders for an entry awaiting review.
-- [ ] 3.3 Verify a genuinely declined entry still renders refusal wording accompanied by a reason or next step.
+- [x] 3.1 Add an explicit exhibitor variant to the shared review-state mapping module (`reviewStateLabels.ts`) rather than creating a parallel exhibitor-only mapping.
+- [x] 3.2 Replace independently-derived labels on the show-detail run schedule and the My Shows entry card with lookups against that module, so "Not accepted" no longer renders for an entry awaiting review.
+- [x] 3.3 Verify a genuinely declined entry still renders refusal wording accompanied by a reason or next step. Exhibitor surfaces use “Declined” and direct the owner to the show secretary when no stored reason is available.
 
 ## 4. Entry wizard guidance (audit #13, #15, #16, #19)
 
@@ -68,7 +77,7 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 
 - [ ] 6.1.1 Display formatter: null, `undefined`, empty string, and whitespace-only inputs all produce the single empty-state string; a real value passes through unchanged.
 - [ ] 6.1.4 Per-organization registered-name resolution: returns `registration.registered_name` when present; when it is null/empty, owner-facing identity remains the call name and organization paperwork shows the shared empty-state label rather than deriving a registered name from legacy `dog.name`.
-- [ ] 6.1.2 Review-state label mapping: every state resolves to both a secretary and an exhibitor label; no pending state maps to refusal wording in the exhibitor variant.
+- [x] 6.1.2 Review-state label mapping: every state resolves to both a secretary and an exhibitor label; no pending state maps to refusal wording in the exhibitor variant.
 - [x] 6.1.3 Action-bar offset calculation: registering and unregistering bars produces the expected reserved offset, including the zero-bars case. (PR #1574; re-run in this slice.)
 
 ### 6.2 Component / regression tests (these pin the Critical finding)
@@ -83,12 +92,16 @@ Sections 1–5 are PR-sized slices. Section 1 carries the Critical finding and t
 - [ ] 6.2.9 A dog created with no registration displays **no breed** on the My Dogs list, dog record, and wizard, and no substitute breed reaches an entry, entry blank, or submission payload.
 - [ ] 6.2.10 The updated _"4.E"_ copy test passes: the empty state no longer claims the dog is saved as Mixed Breed.
 - [ ] 6.2.7 Accessible-name check over exhibitor nav links, dog-card links, and Add Dog dialog controls.
+- [ ] 6.2.11 Registration prerequisite coverage: matching organization passes; a missing/different organization blocks; a proven conformation puppy class passes with an explanation; ambiguous metadata fails closed; the add-registration action preserves a return path.
+- [x] 6.2.12 Review vocabulary coverage on both exhibitor surfaces: pending wording is canonical, and declined wording includes an existing reason or next step. Focused mapping, My Shows, and show-detail tests pass (84 tests across the five relevant files).
+- [ ] 6.2.13 Responsive surface coverage: nav descriptions wrap, the desktop payments receipt column does not clip or scroll, Find Shows toggles have persistent labels, and schedule placeholders collapse to one scope-level message while real details remain.
+- [ ] 6.2.14 Dog-record hierarchy coverage: identity precedes sub-collections at phone width and the add-registration action appears once.
 
 ### 6.3 Repo checks
 
-- [x] 6.3.1 `pnpm typecheck` (never raw `tsc`). (26/26 tasks passed for the action-bar safety slice.)
-- [x] 6.3.2 `pnpm lint` clean at `--max-warnings 0`. (14/14 tasks passed for the action-bar safety slice.)
-- [x] 6.3.3 Run the colocated tests for every file touched, plus tests found by grepping for the changed function names — not only colocated ones. (86 tests across 11 focused files passed for the action-bar safety slice.)
+- [ ] 6.3.1 Re-run `pnpm typecheck` (never raw `tsc`) after every remaining slice is implemented. Prior action-bar evidence is retained but is not the final gate.
+- [ ] 6.3.2 Re-run `pnpm lint` clean at `--max-warnings 0` after every remaining slice is implemented. Prior action-bar evidence is retained but is not the final gate.
+- [ ] 6.3.3 Run the colocated tests for every file touched, plus tests found by grepping for the changed function names — not only colocated ones — after the final implementation diff is complete.
 
 ### 6.4 Manual multi-viewport re-walk (required before archiving)
 
@@ -104,7 +117,7 @@ Re-walk as the elderly-novice persona at **390×844**, **834×1112**, **1112×83
 ## 7. Close-out
 
 - [ ] 7.1 Write a follow-up audit report confirming which of findings #1–#20 are resolved, using the same report format so the next run diffs cleanly.
-- [ ] 7.2 Confirm the excluded findings are still tracked: #6, #7, #8, #10, #14 with `exhibitor-journey-completion` (MYK9-71); cosmetic #21–#24 in the audit report only.
-- [ ] 7.3 Delete the audit's leftover test data if still present — dog **Biscuit**, one saved registration draft, one $30 cart item.
+- [ ] 7.2 Confirm the excluded findings are still tracked: #6, #7, #8, and #10 with `exhibitor-journey-completion` (MYK9-71); cosmetic #21–#24 in the audit report only. Finding #14 remains in scope here through task 5.6.
+- [x] 7.3 Delete the audit's leftover test data if still present — dog **Biscuit**, one saved registration draft, one $30 cart item. **Verified 2026-08-21:** direct staging inventory found no matching dog or cart item under any owner; the saved draft was browser-local (`draft-storage`) rather than shared database data, so no destructive deletion was necessary.
 - [ ] 7.4 Open and review the final implementation PR(s), record CI evidence, and merge before archive.
 - [ ] 7.5 Update the Linear pointer issue with implementation/verification evidence and archive this change only after every required PR is merged.

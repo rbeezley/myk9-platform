@@ -115,7 +115,6 @@ export interface SecretaryPaymentManagementProps {
 export const PAYMENT_MESSAGES = {
   CARD_CHECKOUT_REDIRECT:
     "You'll be taken to our secure checkout to complete payment. Your entries will be confirmed once payment is processed.",
-  REGISTRATION_CONFIRMATION: 'Your registration will be confirmed once payment is received.',
 } as const;
 
 /** Props for the PaymentSummaryCard sub-component. */

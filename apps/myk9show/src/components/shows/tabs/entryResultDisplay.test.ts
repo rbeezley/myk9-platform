@@ -31,8 +31,10 @@ describe('getRemovedStateLabel', () => {
     expect(getRemovedStateLabel(entry('scratched', 'refunded'))).toBe('Scratched · Refunded');
   });
 
-  it('labels a declined entry "Not accepted"', () => {
-    expect(getRemovedStateLabel(entry('not_accepted', 'pending'))).toBe('Not accepted');
+  it('uses canonical declined wording with a next step', () => {
+    expect(getRemovedStateLabel(entry('not_accepted', 'pending'))).toBe(
+      'Declined · Contact show secretary'
+    );
   });
 
   it('returns null for live, non-terminal entries so the caller falls through', () => {

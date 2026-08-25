@@ -316,6 +316,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
           />
         }
         associationsExtra={sidebar}
+        mobileAssociationsFirst
       />
 
       <DogDialogs

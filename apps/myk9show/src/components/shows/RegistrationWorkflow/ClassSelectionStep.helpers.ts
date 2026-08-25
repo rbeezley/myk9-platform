@@ -1,6 +1,6 @@
 import type { ClassSelectionData } from '@/types/show-registration-types';
 import type { Dog } from '@/types/dog-types';
-import type { CartItemWithDetails } from '@/store/cartStore';
+import type { CartItemWithDetails, NewCartItem } from '@/store/cartStore';
 import { getShowEntryFee, type ShowFeeInfo } from './PaymentStep/utils';
 
 /**
@@ -131,6 +131,70 @@ export function removeClassFromSelections(
     filtered.push(updated);
   }
   return filtered;
+}
+
+interface ToggleClassSelectionOptions {
+  useCartFlow: boolean;
+  cartItems: CartItemWithDetails[];
+  classSelections: ClassSelectionData[];
+  dogId: string;
+  trialId: string;
+  classId: string;
+  entryFee: number;
+  onSelectionChange: (selections: ClassSelectionData[]) => void;
+  addItem: (item: NewCartItem) => Promise<boolean>;
+  removeItem: (itemId: string) => Promise<boolean>;
+  setAddingItem: (itemKey: string | null) => void;
+  notifyAdded: () => void;
+  notifyError: (message: string) => void;
+}
+
+export async function toggleClassSelection({
+  useCartFlow,
+  cartItems,
+  classSelections,
+  dogId,
+  trialId,
+  classId,
+  entryFee,
+  onSelectionChange,
+  addItem,
+  removeItem,
+  setAddingItem,
+  notifyAdded,
+  notifyError,
+}: ToggleClassSelectionOptions): Promise<void> {
+  const cartItem = findCartItem(cartItems, dogId, classId);
+  const isSelected = isClassSelected(dogId, classId, cartItems, classSelections);
+
+  if (!useCartFlow) {
+    onSelectionChange(
+      isSelected
+        ? removeClassFromSelections(classSelections, dogId, classId)
+        : addClassToSelections(classSelections, dogId, trialId, classId)
+    );
+    return;
+  }
+
+  if (cartItem) {
+    const removed = await removeItem(cartItem.id);
+    if (removed) {
+      onSelectionChange(removeClassFromSelections(classSelections, dogId, classId));
+    } else {
+      notifyError('Failed to remove from cart');
+    }
+    return;
+  }
+
+  setAddingItem(`${dogId}-${classId}`);
+  const added = await addItem({ dogId, classId, entryFeeCents: entryFee * 100 });
+  setAddingItem(null);
+  if (!added) {
+    notifyError('Failed to add to cart');
+    return;
+  }
+  notifyAdded();
+  onSelectionChange(addClassToSelections(classSelections, dogId, trialId, classId));
 }
 
 /**

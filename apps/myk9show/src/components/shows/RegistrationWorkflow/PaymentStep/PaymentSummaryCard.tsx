@@ -1,10 +1,9 @@
 import React from 'react';
-import { CreditCard, Calendar, Info } from 'lucide-react';
+import { Calendar, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getPaymentMethodLabel } from './utils';
-import { PAYMENT_MESSAGES } from './types';
 import type { PaymentSummaryCardProps } from './types';
 
 /**
@@ -19,8 +18,7 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
 }) => {
   const isWaived = paymentMethod === 'waived' || waiveFees;
   const amountDueValue = feeOverride ?? feeCalculation.total;
-  const requiresPaymentMethod =
-    capacityReady && !isWaived && amountDueValue > 0 && !paymentMethod;
+  const requiresPaymentMethod = capacityReady && !isWaived && amountDueValue > 0 && !paymentMethod;
   const amountDue = !capacityReady
     ? 'Checking availability'
     : isWaived
@@ -44,12 +42,6 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
             <span>Amount Due:</span>
             <span>{amountDue}</span>
           </div>
-          {paymentMethod === 'credit_card' && (
-            <Alert>
-              <CreditCard className="h-4 w-4" />
-              <AlertDescription>{PAYMENT_MESSAGES.CARD_CHECKOUT_REDIRECT}</AlertDescription>
-            </Alert>
-          )}
           {requiresPaymentMethod && (
             <Alert>
               <Info className="h-4 w-4" />

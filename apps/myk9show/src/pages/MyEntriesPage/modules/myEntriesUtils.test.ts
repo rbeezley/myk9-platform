@@ -21,7 +21,7 @@ describe('getEntryStatusBadge — preserved status kind', () => {
       )
     );
 
-    expect(screen.getByText('Pending Secretary Approval')).toBeInTheDocument();
+    expect(screen.getByText('Pending review')).toBeInTheDocument();
   });
 
   it.each(['accepted', 'not_accepted'] as const)(
@@ -35,7 +35,7 @@ describe('getEntryStatusBadge — preserved status kind', () => {
         )
       );
 
-      expect(screen.getByText('Pending Secretary Approval')).toBeInTheDocument();
+      expect(screen.getByText('Pending review')).toBeInTheDocument();
     }
   );
 
@@ -120,6 +120,19 @@ describe('getEntryStatusBadge — preserved status kind', () => {
 
     expect(screen.getByText('Scored')).toBeInTheDocument();
   });
+
+  it('uses the canonical exhibitor label for a genuinely declined entry', () => {
+    render(
+      React.createElement(
+        React.Fragment,
+        null,
+        getEntryStatusBadge(EntryStatus.REJECTED, { statusKind: 'not_accepted' })
+      )
+    );
+
+    expect(screen.getByText('Declined')).toBeInTheDocument();
+    expect(screen.queryByText('Not accepted')).not.toBeInTheDocument();
+  });
 });
 
 describe('formatTrialLabel', () => {
@@ -182,6 +195,24 @@ describe('My Entries terminal status display', () => {
     expect(message.message).toMatch(/Withdrawn/i);
     expect(message.message).toMatch(/refunded/i);
     expect(message.message).not.toMatch(/Upcoming|Show in/i);
+  });
+
+  it('gives a declined exhibitor a concrete next step', () => {
+    const message = getContextualStatusMessage(
+      {
+        ...baseEntry,
+        entryStatus: EntryStatus.REJECTED,
+        entryStatusKind: 'not_accepted',
+        paymentStatus: PaymentStatus.PENDING,
+      },
+      dateHelpers.formatDistanceToNow,
+      dateHelpers.format,
+      dateHelpers.isToday,
+      dateHelpers.isTomorrow,
+      dateHelpers.differenceInDays
+    );
+
+    expect(message.message).toBe('Contact the show secretary for next steps');
   });
 
   it('labels a show-cancelled entry distinctly while preserving refund state', () => {

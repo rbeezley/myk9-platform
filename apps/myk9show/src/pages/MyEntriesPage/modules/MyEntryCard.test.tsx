@@ -123,7 +123,7 @@ describe('MyEntryCard current status summary', () => {
       makeEntry({ entryStatus: EntryStatus.PENDING, paymentStatus: PaymentStatus.PENDING })
     );
     expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
-    expect(screen.getByText('Pending Secretary Approval')).toBeInTheDocument();
+    expect(screen.getByText('Pending review')).toBeInTheDocument();
     expect(screen.getByText('Payment Due')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Finish Payment/i })).toHaveAttribute(
       'href',
@@ -155,7 +155,7 @@ describe('MyEntryCard current status summary', () => {
       makeEntry({ entryStatus: EntryStatus.REJECTED, paymentStatus: PaymentStatus.PENDING })
     );
     expect(container.querySelector('.entry-status-stepper')).not.toBeInTheDocument();
-    expect(screen.getByText('Rejected')).toBeInTheDocument();
+    expect(screen.getByText('Declined')).toBeInTheDocument();
   });
 });
 
@@ -1450,14 +1450,16 @@ describe('MyEntryCard part-scored order badge', () => {
   });
 
   it('reads "Scored" when the only unrun class was scratched', () => {
-    renderCard(makePartScoredEntry([
+    renderCard(
+      makePartScoredEntry([
         scoredClass(),
         makeClass({
           status: 'scratched',
           entryStatus: EntryStatus.SCRATCHED,
           entryStatusKind: 'scratched',
         }),
-      ]));
+      ])
+    );
 
     expect(screen.getAllByText('Scored').length).toBeGreaterThan(0);
     expect(screen.queryByText('Partially scored')).not.toBeInTheDocument();

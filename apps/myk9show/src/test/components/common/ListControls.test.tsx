@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen, userEvent } from '@/test/utils/testUtils';
 import { ListControls } from '@/components/common/ListControls';
 import type { FilterDefinition } from '@/components/common/FilterChips';
 
@@ -69,6 +68,13 @@ describe('ListControls', () => {
     });
 
     expect(screen.getByLabelText('Calendar view')).toBeInTheDocument();
+  });
+
+  it('can keep view labels visible for novice-facing lists', () => {
+    setup({ showViewLabels: true });
+
+    expect(screen.getByLabelText('Cards view')).toHaveTextContent('Cards');
+    expect(screen.getByLabelText('Table view')).toHaveTextContent('Table');
   });
 
   it('reports a filter selection through the FilterChips contract', () => {

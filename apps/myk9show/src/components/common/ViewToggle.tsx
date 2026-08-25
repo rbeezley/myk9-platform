@@ -21,9 +21,16 @@ interface ViewToggleProps {
   active: string;
   onChange: (key: string) => void;
   className?: string;
+  showLabels?: boolean;
 }
 
-export function ViewToggle({ modes, active, onChange, className }: ViewToggleProps) {
+export function ViewToggle({
+  modes,
+  active,
+  onChange,
+  className,
+  showLabels = false,
+}: ViewToggleProps) {
   if (modes.length <= 1) return null;
 
   return (
@@ -39,13 +46,14 @@ export function ViewToggle({ modes, active, onChange, className }: ViewTogglePro
             title={`${mode.label} view`}
             onClick={() => onChange(mode.key)}
             className={cn(
-              'min-h-11 min-w-11 p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               isActive
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted/50 text-muted-foreground hover:bg-muted'
             )}
           >
             <Icon className="h-4 w-4" />
+            {showLabels && <span className="text-sm font-medium">{mode.label}</span>}
           </button>
         );
       })}

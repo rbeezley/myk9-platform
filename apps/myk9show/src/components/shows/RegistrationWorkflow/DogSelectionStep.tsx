@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,9 @@ import { getDogDisplayName, getDogBreedLabel, getDogRegisteredName, Dog } from '
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { Button } from '@/components/ui/button';
+import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
+import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
 
 interface DogSelectionStepProps {
@@ -22,7 +25,9 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
 }) => {
-  const { dogs, isLoading } = useDogStoreCompat();
+  const { dogs, isLoading, refetch } = useDogStoreCompat();
+  const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
+    useInlineDogRegistration(refetch);
 
   // Compute eligible dogs directly from dogs (derived state, no useEffect needed)
   const eligibleDogs = React.useMemo(() => {
@@ -105,7 +110,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
         </p>
       </div>
 
-      <ScrollArea className="h-[55vh] pr-4 sm:h-[400px]">
+      <ScrollArea className="h-auto pr-0 md:h-[400px] md:pr-4">
         <div className="space-y-3">
           {eligibleDogs.map(dog => {
             const { eligible, issues, warnings } = getDogEligibilityStatus(dog);
@@ -173,12 +178,24 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       )}
 
                       {eligible && warnings.length > 0 && (
-                        <div className="mt-2">
+                        <div className="mt-2 space-y-2">
                           {warnings.map((warning, idx) => (
                             <p key={idx} className="text-xs text-warning ">
                               • {warning}
                             </p>
                           ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={event => {
+                              event.stopPropagation();
+                              openRegistrationEditor(dog.id);
+                            }}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add registration
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -197,6 +214,14 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
           </p>
         </div>
       )}
+
+      <div className="relative z-[60]">
+        <AddEditRegistrationDialog
+          open={registrationDogId !== null}
+          onOpenChange={open => !open && closeRegistrationEditor()}
+          onSave={saveRegistration}
+        />
+      </div>
     </div>
   );
 };

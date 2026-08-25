@@ -3,8 +3,13 @@ import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
-import { getPendingResultLabel } from './entryResultDisplay';
+import {
+  getPendingResultLabel,
+  hasUnpublishedScheduleDetails,
+  UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE,
+} from './entryResultDisplay';
 import { isRunnableScheduleStatus } from '@/services/entryDisplay/entryDisplaySelectors';
+import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
 
 interface WhereToBeProps {
   entries: EnrichedShowEntry[];
@@ -14,6 +19,7 @@ interface WhereToBeProps {
 export function WhereToBe({ entries, showId }: WhereToBeProps) {
   const scheduleEntries = entries.filter(entry => isRunnableScheduleStatus(entry.entryStatus));
   if (scheduleEntries.length === 0) return null;
+  const hasPendingScheduleDetails = hasUnpublishedScheduleDetails(scheduleEntries);
 
   // Group by day, preserving the sorted order from the hook (already by date+time).
   const dayMap = new Map<string, EnrichedShowEntry[]>();
@@ -29,6 +35,10 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
         <MapPin className="h-5 w-5 text-primary shrink-0" />
         <h2 className="text-lg font-semibold">Where to be &amp; when</h2>
       </div>
+
+      {hasPendingScheduleDetails && (
+        <p className="text-sm text-muted-foreground">{UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE}</p>
+      )}
 
       {Array.from(dayMap.entries()).map(([date, dayEntries]) => (
         <div key={date}>
@@ -53,30 +63,33 @@ interface TimelineRowProps {
 
 function TimelineRow({ entry, showId }: TimelineRowProps) {
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
-  const startTimeLabel = entry.startTime || 'Time pending';
-  const armbandLabel = entry.armband || 'Armband pending';
+  const accessibleTimeLabel = entry.startTime || 'schedule details pending';
 
   return (
     <Link
       to={href}
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
-      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${startTimeLabel}`}
+      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel}`}
     >
-      <span className="flex w-28 shrink-0 flex-col gap-1">
-        <span className="inline-flex min-w-0 items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
-          <Clock className="h-3.5 w-3.5 text-primary" />
-          <span className={entry.startTime ? 'font-mono' : 'truncate text-xs font-medium'}>
-            {startTimeLabel}
-          </span>
+      {(entry.startTime || entry.armband) && (
+        <span className="flex w-28 shrink-0 flex-col gap-1">
+          {entry.startTime && (
+            <span className="inline-flex min-w-0 items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
+              <Clock className="h-3.5 w-3.5 text-primary" />
+              <span className="font-mono">{entry.startTime}</span>
+            </span>
+          )}
+          {entry.armband && (
+            <span
+              className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground"
+              aria-label={`Armband ${entry.armband}`}
+            >
+              <Hash className="h-3 w-3" />
+              <span className="truncate">{entry.armband}</span>
+            </span>
+          )}
         </span>
-        <span
-          className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground"
-          aria-label={entry.armband ? `Armband ${entry.armband}` : armbandLabel}
-        >
-          <Hash className="h-3 w-3" />
-          <span className="truncate">{armbandLabel}</span>
-        </span>
-      </span>
+      )}
 
       <PersonAvatar name={entry.dogName} size="sm" className="h-7 w-7" />
 
@@ -104,6 +117,15 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
 }
 
 function ResultChip({ entry }: { entry: EnrichedShowEntry }) {
+  const reviewLabel = getExhibitorLifecycleReviewLabel(entry.entryStatus);
+  if (reviewLabel) {
+    return (
+      <Chip color="stone" size="sm">
+        {reviewLabel}
+      </Chip>
+    );
+  }
+
   const pendingLabel = getPendingResultLabel(entry);
 
   if (pendingLabel) {

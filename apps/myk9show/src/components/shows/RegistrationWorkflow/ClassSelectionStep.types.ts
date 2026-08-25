@@ -18,8 +18,18 @@ export interface ClassSelectionStepProps {
   workflowMode?: WorkflowMode | undefined;
 }
 
+export interface RegistrationClassSource {
+  id: string;
+  element?: string | undefined;
+  level?: string | undefined;
+  section?: string | undefined;
+  className?: string | undefined;
+}
+
 export interface LevelInfo {
   classId: string;
+  /** Source class name retained for conservative eligibility checks. */
+  className?: string | undefined;
   level: string;
   section: string | undefined;
   displayLabel: string;
@@ -34,6 +44,10 @@ export interface LevelInfo {
   waitlistCount?: number | undefined;
   /** True when the class accepts new wait-list requests */
   allowsWaitlist?: boolean | undefined;
+  /** Entry is unavailable until the dog has a registration for this trial's registry. */
+  isRegistrationBlocked?: boolean | undefined;
+  /** Calm explanation for a registration block or puppy-class exception. */
+  registrationGuidance?: string | null | undefined;
 }
 
 export interface ElementGroup {

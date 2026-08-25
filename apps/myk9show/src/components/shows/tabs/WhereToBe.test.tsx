@@ -94,6 +94,18 @@ describe('WhereToBe', () => {
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
   });
 
+  it('uses the canonical pending-review label for an entry awaiting review', () => {
+    render(
+      <WhereToBe
+        entries={[makeEntry({ entryStatus: 'submitted', trialDate: '2099-05-10' })]}
+        showId={SHOW_ID}
+      />
+    );
+
+    expect(screen.getByText('Pending review')).toBeInTheDocument();
+    expect(screen.queryByText('Not accepted')).not.toBeInTheDocument();
+  });
+
   it('shows a pending-results chip when a past class has no result', () => {
     render(
       <WhereToBe
@@ -146,10 +158,21 @@ describe('WhereToBe', () => {
     expect(screen.getByLabelText('Armband 104')).toHaveTextContent('104');
   });
 
-  it('uses plain pending labels when armband and start time are empty', () => {
-    render(<WhereToBe entries={[makeEntry({ armband: '', startTime: '' })]} showId={SHOW_ID} />);
-    expect(screen.getByLabelText('Armband pending')).toHaveTextContent('Armband pending');
-    expect(screen.getByText('Time pending')).toBeInTheDocument();
+  it('collapses missing row details into one honest schedule message', () => {
+    render(
+      <WhereToBe
+        entries={[
+          makeEntry({ entryId: 'e1', armband: '', startTime: '', judgeName: '' }),
+          makeEntry({ entryId: 'e2', classId: 'c2', armband: '', startTime: '', judgeName: '' }),
+        ]}
+        showId={SHOW_ID}
+      />
+    );
+    expect(
+      screen.getAllByText('Schedule details will appear here when the show publishes them.')
+    ).toHaveLength(1);
+    expect(screen.queryByText('Time pending')).not.toBeInTheDocument();
+    expect(screen.queryByText('Armband pending')).not.toBeInTheDocument();
   });
 
   it('excludes withdrawn, moved source, and scratched rows from the runnable schedule', () => {

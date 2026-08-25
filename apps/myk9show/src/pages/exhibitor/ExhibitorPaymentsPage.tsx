@@ -275,15 +275,15 @@ function PaymentsHistoryList({ rows }: { rows: PaymentDisplayRow[] }) {
             ))}
           </div>
         ) : (
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Show</TableHead>
+                <TableHead className="w-28">Date</TableHead>
+                <TableHead className="w-[22%]">Show</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Receipt</TableHead>
+                <TableHead className="w-28 text-right">Amount</TableHead>
+                <TableHead className="w-28">Status</TableHead>
+                <TableHead className="w-32">Receipt</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

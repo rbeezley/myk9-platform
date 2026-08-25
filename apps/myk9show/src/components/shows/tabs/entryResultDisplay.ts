@@ -7,6 +7,20 @@ import {
   getRemovedStatusLabel,
   isRemovedStatus,
 } from '@/services/entryDisplay/entryDisplaySelectors';
+import { getReviewStateLabel } from '@/components/entries/management/reviewStateLabels';
+
+export const UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE =
+  'Schedule details will appear here when the show publishes them.';
+
+interface ScheduleDetailEntry {
+  startTime?: string | null;
+  armband?: string | null;
+  judgeName?: string | null;
+}
+
+export function hasUnpublishedScheduleDetails(entries: readonly ScheduleDetailEntry[]): boolean {
+  return entries.some(entry => !entry.startTime || !entry.armband || !entry.judgeName);
+}
 
 interface PendingResultEntry {
   hasResult: boolean;
@@ -64,7 +78,10 @@ export function getRemovedStateLabel(entry: RemovedStateEntry): string | null {
   // legacy values like 'cancelled' and mislabeled them "Upcoming").
   const kind = getEntryStatusKind(entry.entryStatus);
   if (!isRemovedStatus(kind)) return null;
-  const base = getRemovedStatusLabel(kind) ?? '';
+  const base =
+    kind === 'not_accepted'
+      ? `${getReviewStateLabel('not_accepted', 'exhibitor')} · Contact show secretary`
+      : (getRemovedStatusLabel(kind) ?? '');
   const refund = getRefundLabel({ paymentStatus: entry.paymentStatus });
   return refund ? `${base} · ${refund}` : base;
 }

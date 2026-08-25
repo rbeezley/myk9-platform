@@ -98,6 +98,36 @@ describe('ElementCard — wait list badge', () => {
     await user.click(screen.getByText('Novice A'));
     expect(onToggle).toHaveBeenCalledWith('c1');
   });
+
+  it('blocks class selection and explains a missing registry registration', () => {
+    const onAddRegistration = vi.fn();
+    const levels: LevelInfo[] = [
+      {
+        ...baseLevel,
+        isRegistrationBlocked: true,
+        registrationGuidance: "Add this dog's AKC registration before selecting this class.",
+      },
+    ];
+    render(<ElementCard {...defaultProps} levels={levels} onAddRegistration={onAddRegistration} />);
+
+    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText(/Add this dog's AKC registration/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add required registration' })).toBeInTheDocument();
+  });
+
+  it('keeps a puppy-exception class selectable while explaining why', () => {
+    const levels: LevelInfo[] = [
+      {
+        ...baseLevel,
+        registrationGuidance:
+          'Puppy conformation classes may be entered before registration is complete.',
+      },
+    ];
+    render(<ElementCard {...defaultProps} levels={levels} />);
+
+    expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText(/Puppy conformation classes may be entered/i)).toBeInTheDocument();
+  });
 });
 
 // ─── Single-class variant ──────────────────────────────────────────────────────
@@ -249,6 +279,7 @@ function setupDefaultMocks(overrides: { judgeDayFull?: boolean; waitlistCount?: 
           id: TRIAL_ID,
           showId: SHOW_ID,
           name: 'Trial 1',
+          registryId: 'AKC',
           trialType: 'Nosework',
           order: '1',
           trialDate: '2026-05-01',
@@ -377,6 +408,7 @@ describe('ClassSelectionStep — empty class inventory', () => {
             id: TRIAL_ID,
             showId: SHOW_ID,
             name: 'Trial 1',
+            registryId: 'AKC',
             trialType: 'Nosework',
             order: '1',
             trialDate: '2026-05-01',
@@ -438,6 +470,7 @@ describe('ClassSelectionStep — empty class inventory', () => {
             id: TRIAL_ID,
             showId: SHOW_ID,
             name: 'Trial 1',
+            registryId: 'AKC',
             trialType: 'Nosework',
             order: '1',
             trialDate: '2026-05-01',
@@ -499,7 +532,23 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
 
   function setupAddOnlyMocks() {
     mockUseDogStoreCompat.mockReturnValue({
-      dogs: [{ id: DOG_ID, name: 'Rex', callName: 'Rex', registrations: [] }],
+      dogs: [
+        {
+          id: DOG_ID,
+          name: 'Rex',
+          callName: 'Rex',
+          registrations: [
+            {
+              id: 'reg-akc',
+              organization: 'AKC',
+              registeredName: 'Rex of MyK9',
+              breed: 'Beagle',
+              registrationNumber: 'AKC123',
+              status: 'Active',
+            },
+          ],
+        },
+      ],
     });
     mockUseShowStore.mockReturnValue({
       shows: [{ id: SHOW_ID, name: 'Test Show', preEntryFee: '15', startDate: '2026-06-01' }],
@@ -511,6 +560,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
             id: TRIAL_ID,
             showId: SHOW_ID,
             name: 'Trial 1',
+            registryId: 'AKC',
             trialType: 'Nosework',
             order: '1',
             trialDate: '2026-05-01',

@@ -16,6 +16,7 @@ import {
   isSettledWithoutScore,
 } from './myEntriesStats.helpers';
 import type { EntryClass } from './my-entries-types';
+import { getEntryStatusStateLabel } from '@/components/entries/management/reviewStateLabels';
 
 /**
  * Normalize a raw DB check-in status into the dialog's model. Both `null` and
@@ -68,10 +69,6 @@ function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind):
   }
 }
 
-function isSecretaryReviewKind(statusKind: EntryStatusKind): boolean {
-  return statusKind === 'pending' || statusKind === 'accepted' || statusKind === 'not_accepted';
-}
-
 /**
  * Returns a styled badge for entry status
  */
@@ -88,15 +85,13 @@ export function getEntryStatusBadge(
       else if (statusKind === 'absent') contextualLabel = 'Absent';
       else if (statusKind === 'unknown') contextualLabel = 'Status unavailable';
       else if (options.isPastShow) contextualLabel = 'Review incomplete';
-      else if (statusKind && isSecretaryReviewKind(statusKind)) {
-        contextualLabel = 'Pending Secretary Approval';
-      } else contextualLabel = 'Pending Review';
+      else contextualLabel = getEntryStatusStateLabel(EntryStatus.PENDING, 'exhibitor');
       break;
     case EntryStatus.WAITLIST:
       contextualLabel = 'Waitlist';
       break;
     case EntryStatus.REJECTED:
-      contextualLabel = 'Rejected';
+      contextualLabel = getEntryStatusStateLabel(EntryStatus.REJECTED, 'exhibitor');
       break;
     case EntryStatus.COMPLETED:
       contextualLabel = 'Scored';
@@ -139,14 +134,10 @@ export function getPaymentStatusBadge(
         </Badge>
       );
     case PaymentStatus.REFUNDED:
-      return (
-        <Badge className="bg-primary/10 text-primary border-border border">Refunded</Badge>
-      );
+      return <Badge className="bg-primary/10 text-primary border-border border">Refunded</Badge>;
     case PaymentStatus.PARTIAL_REFUND:
       return (
-        <Badge className="bg-primary/10 text-primary border-border border">
-          Partial Refund
-        </Badge>
+        <Badge className="bg-primary/10 text-primary border-border border">Partial Refund</Badge>
       );
     default:
       return <Badge className="bg-muted text-muted-foreground border-border border">Unknown</Badge>;
@@ -283,6 +274,13 @@ export function getContextualStatusMessage(
 
     return {
       message: entry.entryStatus === EntryStatus.SCRATCHED ? 'Scratched' : 'Withdrawn',
+      className: 'text-muted-foreground',
+    };
+  }
+
+  if (entry.entryStatus === EntryStatus.REJECTED || entry.entryStatusKind === 'not_accepted') {
+    return {
+      message: 'Contact the show secretary for next steps',
       className: 'text-muted-foreground',
     };
   }

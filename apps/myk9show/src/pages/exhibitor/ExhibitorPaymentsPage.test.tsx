@@ -110,6 +110,13 @@ describe('ExhibitorPaymentsPage', () => {
     expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
   });
 
+  it('reserves desktop table width for the receipt column', () => {
+    render(<ExhibitorPaymentsPage />);
+
+    expect(screen.getByRole('table')).toHaveClass('table-fixed');
+    expect(screen.getByRole('columnheader', { name: 'Receipt' })).toHaveClass('w-32');
+  });
+
   it('offers a cart-recovery retry link for a failed payment, scoped to its show + entries', () => {
     state.data = [{ ...payment, status: 'failed', showId: 'show-1', entryIds: ['e1', 'e2'] }];
     render(<ExhibitorPaymentsPage />);

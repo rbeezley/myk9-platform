@@ -57,7 +57,6 @@ export default function RegistrationsSection({
     isLoading,
     error,
     createRegistration,
-    isCreating,
     updateRegistration,
     deleteRegistration,
     refetch,
@@ -220,26 +219,12 @@ export default function RegistrationsSection({
         </Alert>
       )}
 
-      <div className="flex justify-between items-center mb-4">
-        <Button
-          onClick={() => setIsAddRegistrationDialogOpen(true)}
-          variant="default"
-          disabled={isCreating}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {isCreating ? 'Adding...' : 'Add New Registration'}
-        </Button>
-      </div>
       {!registrations || registrations.length === 0 ? (
         <EmptyState
           icon={Plus}
           title="No Registrations Found"
           description="Add your first kennel club registration to get started."
-          action={{
-            label: 'Add Registration',
-            onClick: () => setIsAddRegistrationDialogOpen(true),
-            icon: Plus,
-          }}
+          action={null}
         />
       ) : (
         <div className="grid gap-4 grid-cols-1">

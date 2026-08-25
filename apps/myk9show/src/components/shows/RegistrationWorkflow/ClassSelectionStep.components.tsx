@@ -1,10 +1,11 @@
 import React from 'react';
-import { ChevronRight, Info, CheckCircle2, ShoppingCart } from 'lucide-react';
+import { ChevronRight, Info, CheckCircle2, ShoppingCart, Plus } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Dog } from '@/types/dog-types';
 import { formatTrialTypeLabel } from '@/types/template.types';
@@ -135,6 +136,7 @@ interface ElementCardProps {
   fee: number;
   isSingleClass: boolean;
   onToggle: (classId: string) => void;
+  onAddRegistration?: (() => void) | undefined;
 }
 
 export const ElementCard: React.FC<ElementCardProps> = ({
@@ -143,6 +145,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
   fee,
   isSingleClass,
   onToggle,
+  onAddRegistration,
 }) => {
   if (isSingleClass) {
     const cls = levels[0];
@@ -154,7 +157,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             <Checkbox
               id={`single-${cls.classId}`}
               checked={cls.isSelected || cls.isAlreadyEntered}
-              disabled={cls.isAlreadyEntered || (cls.isFull && cls.allowsWaitlist === false)}
+              disabled={
+                cls.isAlreadyEntered ||
+                cls.isRegistrationBlocked ||
+                (cls.isFull && cls.allowsWaitlist === false)
+              }
               aria-label={
                 cls.isAlreadyEntered ? `${element} (already entered)` : `Select ${element}`
               }
@@ -188,12 +195,30 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 Full
               </Badge>
             )}
+            {cls.registrationGuidance && !cls.isRegistrationBlocked && (
+              <span className="text-sm text-muted-foreground">{cls.registrationGuidance}</span>
+            )}
           </div>
           <span className="text-xs text-muted-foreground">${fee}</span>
         </div>
+        {cls.isRegistrationBlocked && cls.registrationGuidance && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 p-2">
+            <span className="text-sm text-foreground">{cls.registrationGuidance}</span>
+            {onAddRegistration && (
+              <Button type="button" variant="outline" size="sm" onClick={onAddRegistration}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add required registration
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
+
+  const blockedRegistration = levels.find(
+    level => level.isRegistrationBlocked && level.registrationGuidance
+  );
 
   return (
     <div className="myk9-element-card">
@@ -212,10 +237,25 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             isFull={cls.isFull}
             waitlistCount={cls.waitlistCount}
             allowsWaitlist={cls.allowsWaitlist}
+            isRegistrationBlocked={cls.isRegistrationBlocked}
+            registrationGuidance={cls.isRegistrationBlocked ? null : cls.registrationGuidance}
             onToggle={onToggle}
           />
         ))}
       </div>
+      {blockedRegistration?.registrationGuidance && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 p-2">
+          <span className="text-sm text-foreground">
+            {blockedRegistration.registrationGuidance}
+          </span>
+          {onAddRegistration && (
+            <Button type="button" variant="outline" size="sm" onClick={onAddRegistration}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add required registration
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -245,6 +285,8 @@ interface LevelChipProps {
   isFull?: boolean | undefined;
   waitlistCount?: number | undefined;
   allowsWaitlist?: boolean | undefined;
+  isRegistrationBlocked?: boolean | undefined;
+  registrationGuidance?: string | null | undefined;
   onToggle: (classId: string) => void;
 }
 
@@ -256,6 +298,8 @@ const LevelChip: React.FC<LevelChipProps> = ({
   isFull,
   waitlistCount,
   allowsWaitlist = true,
+  isRegistrationBlocked,
+  registrationGuidance,
   onToggle,
 }) => {
   const isChecked = isSelected || isAlreadyEntered;
@@ -272,7 +316,9 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <Checkbox
           id={`chip-${classId}`}
           checked={isChecked}
-          disabled={isAlreadyEntered || (isFull && allowsWaitlist === false)}
+          disabled={
+            isAlreadyEntered || isRegistrationBlocked || (isFull && allowsWaitlist === false)
+          }
           onCheckedChange={() => !isAlreadyEntered && onToggle(classId)}
           className="h-3.5 w-3.5"
         />
@@ -300,6 +346,9 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <Badge variant="outline" className="h-5 text-xs text-foreground">
           In cart
         </Badge>
+      )}
+      {registrationGuidance && (
+        <span className="max-w-64 text-sm text-muted-foreground">{registrationGuidance}</span>
       )}
     </div>
   );

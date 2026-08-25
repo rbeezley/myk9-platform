@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -14,7 +14,6 @@ import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
 import { PaymentSummaryCard } from './PaymentSummaryCard';
 import { EntryAgreementSection } from './EntryAgreementSection';
-import { PAYMENT_MESSAGES } from './types';
 import type { PaymentStepProps } from './types';
 import { removeClassFromSelections } from '../ClassSelectionStep.helpers';
 
@@ -130,8 +129,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Full classes marked as wait-list requests are not charged now. Payment is due only if
-            a spot is offered later.
+            Full classes marked as wait-list requests are not charged now. Payment is due only if a
+            spot is offered later.
           </AlertDescription>
         </Alert>
       )}
@@ -140,8 +139,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert role="alert" variant="destructive">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            A selected class is full and does not accept a wait list. Remove it from your
-            selection to continue.
+            A selected class is full and does not accept a wait list. Remove it from your selection
+            to continue.
           </AlertDescription>
         </Alert>
       )}
@@ -188,12 +187,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           isOnBehalf={isSecretary || isClubAdmin || isSiteAdmin}
         />
       )}
-
-      {/* Payment Info Notice */}
-      <Alert>
-        <CreditCard className="h-4 w-4" />
-        <AlertDescription>{PAYMENT_MESSAGES.REGISTRATION_CONFIRMATION}</AlertDescription>
-      </Alert>
     </div>
   );
 };

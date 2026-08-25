@@ -23,7 +23,7 @@ import { useClassEntriesWithQuery } from '@/hooks/useClassStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import type { CompetitionData } from '@/store/entryStore';
-import { getDogBreedLabel, type Dog } from '@/types/dog-types';
+import { BREED_NOT_SET, getDogBreedLabel, type Dog } from '@/types/dog-types';
 import type { ShowEntry } from '@/types/entry-lifecycle';
 import type {
   QualificationStatus,
@@ -136,7 +136,7 @@ function buildScentWorkEntryFromDb(
     displayInfo: {
       armband: dbEntry.armband || '',
       dogName: dbEntry.dog || 'Unknown Dog',
-      dogBreed: 'Unknown Breed',
+      dogBreed: BREED_NOT_SET,
       handlerName: dbEntry.handler || 'Unknown Handler',
       dogId: '',
       handlerId: '',

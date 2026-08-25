@@ -138,7 +138,7 @@ describe('useClassScentWorkEntries', () => {
     expect(entry.displayInfo).toEqual({
       armband: '7',
       dogName: 'Buddy',
-      dogBreed: 'Unknown Breed',
+      dogBreed: 'Breed not set',
       handlerName: 'Bob',
       dogId: '',
       handlerId: '',

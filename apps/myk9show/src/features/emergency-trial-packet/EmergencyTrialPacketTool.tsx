@@ -5,9 +5,8 @@ import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { ReportDbEntry } from '@/lib/reports/types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReportData } from '@/hooks/queries/useReportData';
-import { showUndoToast } from '@/lib/undoToast';
-import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
 import { PaperworkPrintConfirmationDialog } from '@/features/show-map/cockpit/PaperworkPrintConfirmationDialog';
+import { recordPaperworkPrinted } from '@/features/show-map/cockpit/paperworkPrintActions';
 import { buildEmergencyPacketData } from '@/pages/secretary/ReportsPage/reportDataMapping';
 import { EmergencyTrialPacketPanel } from '@/pages/secretary/ReportsPage/EmergencyTrialPacketPanel';
 import { useDeliveredPackets } from '@/pages/secretary/ReportsPage/useDeliveredPackets';
@@ -123,30 +122,15 @@ export function EmergencyTrialPacketTool({ show }: EmergencyTrialPacketToolProps
 
   const confirmPrinted = async (descriptor: PaperworkDescriptor) => {
     if (!user) return;
-    const metadata = user.user_metadata ?? {};
-    const fullName =
-      (metadata.full_name as string | undefined)?.trim() ||
-      [metadata.first_name, metadata.last_name].filter(Boolean).join(' ').trim() ||
-      user.email ||
-      'Secretary';
     try {
-      const record = await replicatedPaperworkPrintsTable.confirmPrinted({
-        scope: descriptor.scope,
-        reportId: descriptor.reportId,
-        coverage: descriptor.coverage as unknown as Record<string, unknown>,
-        fingerprint: descriptor.fingerprint,
-        printedBy: user.id,
-        printedByName: fullName,
+      await recordPaperworkPrinted({
+        descriptor,
+        user,
+        message: 'Marked as printed.',
+        undoReason: 'Undid print confirmation',
+        undoFailureMessage: 'Could not undo that. The packet is still marked printed.',
       });
       setPendingConfirmation(null);
-      showUndoToast({
-        message: 'Marked as printed.',
-        onUndo: () => {
-          void replicatedPaperworkPrintsTable
-            .voidPrint({ id: record.id, voidedBy: user.id, reason: 'Undid print confirmation' })
-            .catch(() => toast.error('Could not undo that. The packet is still marked printed.'));
-        },
-      });
     } catch {
       toast.error('Could not save that. Nothing was recorded, so try marking it printed again.');
     }

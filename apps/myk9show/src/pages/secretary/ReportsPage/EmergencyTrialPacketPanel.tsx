@@ -252,8 +252,8 @@ export function EmergencyTrialPacketPanel({
                   </span>
                   {row.printState === 'superseded' && (
                     <p className="text-warning">
-                      A newer packet replaced the one that was printed. Print this one and confirm
-                      again.
+                      Stale: a newer packet replaced the one that was printed. Print this one and
+                      confirm again.
                     </p>
                   )}
                 </div>
@@ -274,20 +274,25 @@ export function EmergencyTrialPacketPanel({
                   </span>
                 ) : !row.descriptor ? (
                   <span className="text-muted-foreground">
+                    {row.printState === 'superseded' ? 'Stale. ' : 'Not confirmed printed. '}
                     Choose All Trials and All Classes to confirm this packet.
                   </span>
                 ) : (
-                  onMarkPrinted &&
-                  row.descriptor && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => onMarkPrinted(row.descriptor as PaperworkDescriptor)}
-                    >
-                      <Printer className="size-4" />
-                      Mark {formatWeekdayMonthDay(row.trialDate)} packet printed
-                    </Button>
-                  )
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-muted-foreground">
+                      {row.printState === 'superseded' ? 'Stale.' : 'Not confirmed printed.'}
+                    </span>
+                    {onMarkPrinted && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => onMarkPrinted(row.descriptor as PaperworkDescriptor)}
+                      >
+                        <Printer className="size-4" />
+                        Mark {formatWeekdayMonthDay(row.trialDate)} packet printed
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             ))}

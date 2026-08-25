@@ -3,10 +3,11 @@ import { AlertTriangle, CheckCircle2, Clock3, Printer, RefreshCw } from 'lucide-
 import { toast } from 'sonner';
 
 import { formatTime } from '@/lib/format/dates';
-import { showUndoToast } from '@/lib/undoToast';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { replicatedPaperworkPrintsTable } from '@/services/replication';
+import { recordPaperworkPrinted } from './paperworkPrintActions';
+import type { PaperworkDescriptor } from './paperworkPrintState';
 
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
@@ -35,33 +36,19 @@ function PaperworkRow({
   const stale = item.state === 'stale';
   const recordAsPrinted = async () => {
     if (!user || !item.confirmation) return;
-    const metadata = user.user_metadata ?? {};
-    const printedByName =
-      (metadata.full_name as string | undefined)?.trim() ||
-      [metadata.first_name, metadata.last_name].filter(Boolean).join(' ').trim() ||
-      user.email ||
-      'Secretary';
     setIsRecording(true);
     try {
-      const record = await replicatedPaperworkPrintsTable.confirmPrinted({
-        scope: item.confirmation.scope,
-        reportId: item.reportId,
-        coverage: item.confirmation.coverage,
-        fingerprint: item.confirmation.fingerprint,
-        printedBy: user.id,
-        printedByName,
-      });
-      showUndoToast({
-        message: `${item.label} recorded as printed.`,
-        onUndo: () => {
-          void replicatedPaperworkPrintsTable
-            .voidPrint({
-              id: record.id,
-              voidedBy: user.id,
-              reason: 'Undid print confirmation',
-            })
-            .catch(() => toast.error('Print confirmation could not be undone.'));
+      await recordPaperworkPrinted({
+        descriptor: {
+          reportId: item.reportId,
+          scope: item.confirmation.scope,
+          coverage: item.confirmation.coverage as PaperworkDescriptor['coverage'],
+          fingerprint: item.confirmation.fingerprint,
         },
+        user,
+        message: `${item.label} recorded as printed.`,
+        undoReason: 'Undid print confirmation',
+        undoFailureMessage: 'Print confirmation could not be undone.',
       });
     } catch {
       toast.error('Print confirmation could not be saved.');
@@ -91,7 +78,7 @@ function PaperworkRow({
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             {item.printedAt
-              ? `Printed ${formatTime(item.printedAt, timeZone)}${item.printedBy ? ` by ${item.printedBy}` : ''}${item.coveredByScope ? ` · ${item.coveredByScope[0]?.toUpperCase()}${item.coveredByScope.slice(1)} scope` : ''}`
+              ? `${stale ? 'Stale · ' : ''}Printed ${formatTime(item.printedAt, timeZone)}${item.printedBy ? ` by ${item.printedBy}` : ''}${item.coveredByScope ? ` · ${item.coveredByScope[0]?.toUpperCase()}${item.coveredByScope.slice(1)} scope` : ''}`
               : 'Not confirmed printed'}
             {stale ? ' · Class data changed after printing' : ''}
           </div>

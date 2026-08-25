@@ -15,11 +15,13 @@ import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import type { ReportScope } from '@/lib/reports/types';
 import { resolveReportScope } from '@/lib/reports/reportScope';
-import { showUndoToast } from '@/lib/undoToast';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
-import { PaperworkPrintConfirmationDialog } from '@/features/show-map/cockpit/PaperworkPrintConfirmationDialog';
-import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkPrintState';
-import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
+import {
+  derivePaperworkPrintState,
+  type PaperworkDescriptor,
+} from '@/features/show-map/cockpit/paperworkPrintState';
+import { recordPaperworkPrinted } from '@/features/show-map/cockpit/paperworkPrintActions';
+import { useShowPaperworkPrints } from '@/features/show-map/cockpit/useShowPaperworkPrints';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReportDogOptions } from './useReportDogOptions';
 
@@ -85,7 +87,6 @@ export default function ReportsPage() {
   const [dogId, setDogId] = useState<string>(initialScope.dogId);
   const { user } = useAuthContext();
   const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
-  const [pendingConfirmation, setPendingConfirmation] = useState<PaperworkDescriptor | null>(null);
   const effectiveScope = useMemo<ReportScope>(
     () => resolveReportScope({ showId: showId ?? '', trialId, classId }),
     [showId, trialId, classId]
@@ -168,6 +169,14 @@ export default function ReportsPage() {
       >[0]['entries'],
     });
   }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
+  const paperworkPrints = useShowPaperworkPrints(showId ?? '');
+  const printState = useMemo(
+    () =>
+      paperworkDescriptor && paperworkPrints.data
+        ? derivePaperworkPrintState(paperworkPrints.data, paperworkDescriptor)
+        : null,
+    [paperworkDescriptor, paperworkPrints.data]
+  );
 
   const handlePrint = () => {
     // Check the DATA before the iframe. A paused query renders an empty report
@@ -212,29 +221,13 @@ export default function ReportsPage() {
 
   const confirmPrinted = async (descriptor: PaperworkDescriptor) => {
     if (!user) return;
-    const metadata = user.user_metadata ?? {};
-    const fullName =
-      (metadata.full_name as string | undefined)?.trim() ||
-      [metadata.first_name, metadata.last_name].filter(Boolean).join(' ').trim() ||
-      user.email ||
-      'Secretary';
     try {
-      const record = await replicatedPaperworkPrintsTable.confirmPrinted({
-        scope: descriptor.scope,
-        reportId: descriptor.reportId,
-        coverage: descriptor.coverage as unknown as Record<string, unknown>,
-        fingerprint: descriptor.fingerprint,
-        printedBy: user.id,
-        printedByName: fullName,
-      });
-      setPendingConfirmation(null);
-      showUndoToast({
+      await recordPaperworkPrinted({
+        descriptor,
+        user,
         message: 'Marked as printed.',
-        onUndo: () => {
-          void replicatedPaperworkPrintsTable
-            .voidPrint({ id: record.id, voidedBy: user.id, reason: 'Undid print confirmation' })
-            .catch(() => toast.error('Could not undo that. The packet is still marked printed.'));
-        },
+        undoReason: 'Undid print confirmation',
+        undoFailureMessage: 'Could not undo that. The packet is still marked printed.',
       });
     } catch {
       toast.error('Could not save that. Nothing was recorded, so try marking it printed again.');
@@ -309,6 +302,32 @@ export default function ReportsPage() {
           </Link>
           .
         </p>
+      )}
+
+      {paperworkDescriptor && (
+        <div
+          className="mb-1 mt-4 rounded-lg border bg-muted/30 px-4 py-3 text-sm"
+          data-testid="report-print-status"
+        >
+          <div className="font-medium">
+            {printState?.state === 'current'
+              ? 'Printed'
+              : printState?.state === 'stale'
+                ? 'Stale'
+                : 'Not confirmed printed'}
+          </div>
+          {printState?.record && (
+            <div className="mt-1 text-muted-foreground">
+              Printed by {printState.record.printedByName} on{' '}
+              {new Date(printState.record.printedAt).toLocaleString()}
+            </div>
+          )}
+          {printState?.state === 'stale' && (
+            <div className="mt-1 text-muted-foreground">
+              The report data changed after that print. Review and print the current version.
+            </div>
+          )}
+        </div>
       )}
 
       {/* Controls */}
@@ -394,27 +413,6 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
-      <PaperworkPrintConfirmationDialog
-        open={pendingConfirmation !== null}
-        reportLabel={
-          pendingConfirmation?.reportId === 'emergency-trial-packet'
-            ? 'Emergency Trial Packet'
-            : (report?.name ?? 'report')
-        }
-        // Always false, and there is no state behind it. The dialog's action
-        // button is a Base UI Close, so one click both fires onConfirm and
-        // starts the dismissal -- "Saving…" can never render, and a piece of
-        // state tracking it would be write-only. Closing immediately is the
-        // honest behaviour: the save continues and reports through its own
-        // toast either way.
-        isSaving={false}
-        onConfirm={() => {
-          if (pendingConfirmation) void confirmPrinted(pendingConfirmation);
-        }}
-        onOpenChange={open => {
-          if (!open) setPendingConfirmation(null);
-        }}
-      />
     </div>
   );
 }

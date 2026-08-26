@@ -5,7 +5,10 @@ export async function assertApplicationTarget(
   browser: Browser,
   target: ResolvedLoadTarget
 ): Promise<void> {
-  const context = await browser.newContext({ baseURL: target.baseUrl });
+  const context = await browser.newContext({
+    baseURL: target.baseUrl,
+    serviceWorkers: 'block',
+  });
   const page = await context.newPage();
 
   try {

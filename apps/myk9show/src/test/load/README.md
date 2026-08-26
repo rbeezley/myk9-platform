@@ -32,6 +32,41 @@ Do not use one local browser process as G9 evidence. The five-session smoke is
 supported locally, but two 100-session attempts saturated the local generator
 before they could produce a valid Supabase result.
 
+## Which server serves the app
+
+`LOAD_TEST_APP_SERVER` selects it, and the two modes are not interchangeable:
+
+| Value               | Serves                       | Used by          |
+| ------------------- | ---------------------------- | ---------------- |
+| `dev` (the default) | `vite` dev server            | local runs       |
+| `preview`           | prebuilt bundle (`.../dist`) | the CI rehearsal |
+
+CI sets `preview` and runs `pnpm run build` first — **`vite preview` serves
+whatever is in `dist/`, so without that build step the rehearsal measures a
+stale bundle or 404s.** The dev server was used until 2026-08-26 and is not
+valid for G9 evidence: it ships unminified dev-mode React and transforms
+modules on demand, which pegged all eight runners at 95–99.5% host CPU p95 and
+invalidated backend latency attribution (run 32927274194).
+
+Because a local run defaults to `dev`, its numbers are not comparable to CI's.
+
+### Service workers are blocked, and what that excludes
+
+The production bundle registers the PWA (`main.tsx` gates on
+`!import.meta.env.DEV`), so every context the harness opens sets
+`serviceWorkers: 'block'` — otherwise each of the 100 fresh contexts would
+Workbox-precache the full 41 MB manifest inside the measurement window. Real
+devices pay that once and arrive warm; 100 simultaneous cold contexts would
+measure the generator, not Supabase.
+
+**Caveat when reading a passing result.** `RingsideSessionHeartbeat` reaches
+`navigator.serviceWorker.ready`, which never resolves while registration is
+blocked, so the per-30s `upsert_ringside_session` write does not run during the
+rehearsal. That write path is therefore **outside** G9 coverage, and a pass does
+not by itself establish headroom for ringside presence traffic. This is not new
+to the preview switch — the dev server never registered a worker either — but it
+is now a deliberate, recorded gap rather than an accident.
+
 ## Free GitHub distributed rehearsal
 
 `.github/workflows/load-rehearsal.yml` is the gate-closing entry point. It is

@@ -263,8 +263,9 @@ export default defineConfig({
     host: true,
     // Vite resolves preview headers as `preview.headers ?? server.headers`, so
     // omitting this inherits the dev no-store block above and re-downloads the
-    // whole bundle on every navigation. Production serves hashed assets as
-    // immutable (vercel.json), so preview must not disable caching.
+    // whole bundle on every navigation. Empty stops that inheritance; sirv then
+    // revalidates via ETag (304), which is not production's `immutable`
+    // (vercel.json) but costs a conditional GET rather than a re-download.
     headers: {},
   },
   // Worker configuration for compression worker

@@ -1,13 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import { loadAppServerCommand, resolveLoadAppServerMode } from './src/test/load/loadAppServer';
 
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 const parsedBaseURL = new URL(baseURL);
-const port = Number(process.env.PLAYWRIGHT_PORT ?? parsedBaseURL.port ?? '5173');
+// `||` not `??`: URL.port is '' for a default-port base URL, which would coerce
+// to port 0 and bind a random port the harness never connects to.
+const port = Number(process.env.PLAYWRIGHT_PORT || parsedBaseURL.port || '5173');
 const startApp = process.env.LOAD_TEST_START_APP === 'true';
+const appServerMode = resolveLoadAppServerMode(process.env);
 
 export default defineConfig({
   testDir: './src/test/load',
@@ -38,7 +42,10 @@ export default defineConfig({
   ],
   webServer: startApp
     ? {
-        command: `pnpm run dev --host 127.0.0.1 --port ${port} --strictPort`,
+        // LOAD_TEST_APP_SERVER picks the server; CI sets 'preview' so the
+        // rehearsal measures the built bundle rather than dev-mode transform
+        // cost, and local runs keep the dev default.
+        command: loadAppServerCommand(appServerMode, port),
         port,
         reuseExistingServer: false,
         timeout: 120_000,

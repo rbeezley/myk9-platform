@@ -205,6 +205,14 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
 
+      - name: Build production bundle for load serving
+        working-directory: apps/myk9show
+        run: pnpm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
       - name: Run synchronized 12/13-session shard with generator telemetry
         working-directory: apps/myk9show
         run: pnpm test:load:playwright
@@ -216,6 +224,7 @@ jobs:
           LOAD_TEST_APPROVED_PROJECT_REFS: sojmvhhwsjxmfistvzbe
           LOAD_TEST_SUPABASE_PROJECT_REF: sojmvhhwsjxmfistvzbe
           LOAD_TEST_START_APP: 'true'
+          LOAD_TEST_APP_SERVER: preview
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
           LOAD_TEST_SHARD_COUNT: '8'
           LOAD_TEST_SHARD_INDEX: ${{ matrix.shard }}

@@ -30,6 +30,17 @@ describe('load Playwright discovery', () => {
     );
     const runner = readFileSync(resolve(__dirname, 'loadBrowserRunner.ts'), 'utf8');
     expect(runner).not.toContain('installSharedStagingWriteGuard');
+    // Preview serves the real PWA, so every context the harness opens must block
+    // service workers or it precaches the 41 MB manifest during measurement.
+    // Counted per file rather than merely present: the regression is adding it to
+    // one call and not its sibling, and loadAppTarget only escapes today because
+    // it closes before the sampler starts.
+    for (const file of ['loadBrowserRunner.ts', 'loadAppTarget.ts', 'loadGeneratorSampler.ts']) {
+      const source = readFileSync(resolve(__dirname, file), 'utf8');
+      expect(source.match(/serviceWorkers: 'block'/g) ?? [], file).toHaveLength(
+        (source.match(/\.newContext\(/g) ?? []).length
+      );
+    }
     expect(runner.indexOf('generatorSampler.markLoadStarted()')).toBeLessThan(
       runner.indexOf('const sessionResults =')
     );

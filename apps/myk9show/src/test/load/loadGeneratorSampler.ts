@@ -67,7 +67,7 @@ export async function startLoadGeneratorSampler(input: {
   const now = input.now ?? Date.now;
   const preparationStartedAtMs = now();
   const histogram = monitorEventLoopDelay({ resolution: 20 });
-  const probeContext = await input.browser.newContext();
+  const probeContext = await input.browser.newContext({ serviceWorkers: 'block' });
   const probePage = await probeContext.newPage();
   const hostCpuPercents: number[] = [];
   const hostMemoryPercents: number[] = [];

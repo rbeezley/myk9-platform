@@ -7,7 +7,9 @@ loadEnv({ path: '.env', override: false });
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 const parsedBaseURL = new URL(baseURL);
-const port = Number(process.env.PLAYWRIGHT_PORT ?? parsedBaseURL.port ?? '5173');
+// `||` not `??`: URL.port is '' for a default-port base URL, which would coerce
+// to port 0 and bind a random port the harness never connects to.
+const port = Number(process.env.PLAYWRIGHT_PORT || parsedBaseURL.port || '5173');
 const startApp = process.env.LOAD_TEST_START_APP === 'true';
 const appServerMode = resolveLoadAppServerMode(process.env);
 
@@ -40,8 +42,9 @@ export default defineConfig({
   ],
   webServer: startApp
     ? {
-        // Preview serves the prebuilt production bundle (vite preview) so the
-        // rehearsal measures what users get, not dev-mode transform cost.
+        // LOAD_TEST_APP_SERVER picks the server; CI sets 'preview' so the
+        // rehearsal measures the built bundle rather than dev-mode transform
+        // cost, and local runs keep the dev default.
         command: loadAppServerCommand(appServerMode, port),
         port,
         reuseExistingServer: false,

@@ -1,7 +1,9 @@
 export type LoadAppServerMode = 'dev' | 'preview';
 
 export function resolveLoadAppServerMode(env: NodeJS.ProcessEnv): LoadAppServerMode {
-  const mode = env.LOAD_TEST_APP_SERVER ?? 'dev';
+  // `||` not `??`: an unset GitHub expression expands to '', which must mean
+  // "default", not an invalid mode.
+  const mode = env.LOAD_TEST_APP_SERVER || 'dev';
   if (mode !== 'dev' && mode !== 'preview') {
     throw new Error(`LOAD_TEST_APP_SERVER must be "dev" or "preview"; received "${mode}".`);
   }

@@ -90,7 +90,15 @@ export async function runBrowserLoad(
       SESSION_PREPARATION_CONCURRENCY,
       async assignment => {
         const storageState = assignment.kind === 'exhibitor-read' ? exhibitorState : secretaryState;
-        const context = await browser.newContext({ baseURL: target.baseUrl, storageState });
+        // The production bundle registers the PWA (main.tsx gates on !DEV), so each
+        // fresh context would Workbox-precache the whole 41 MB manifest inside the
+        // measurement window. Real devices pay that once and arrive warm; 100 cold
+        // contexts would only measure the generator.
+        const context = await browser.newContext({
+          baseURL: target.baseUrl,
+          storageState,
+          serviceWorkers: 'block',
+        });
         contexts.push(context);
         const page = await context.newPage();
         await metrics.attach(page);
@@ -293,7 +301,7 @@ function pageRoute(page: Page): string {
 }
 
 async function createAuthState(browser: Browser, baseURL: string, role: 'secretary' | 'exhibitor') {
-  const context = await browser.newContext({ baseURL });
+  const context = await browser.newContext({ baseURL, serviceWorkers: 'block' });
   const page = await context.newPage();
   try {
     const warmFixture = loadEntryFixture(1);

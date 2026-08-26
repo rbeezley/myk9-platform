@@ -261,6 +261,11 @@ export default defineConfig({
   preview: {
     port: 4173,
     host: true,
+    // Vite resolves preview headers as `preview.headers ?? server.headers`, so
+    // omitting this inherits the dev no-store block above and re-downloads the
+    // whole bundle on every navigation. Production serves hashed assets as
+    // immutable (vercel.json), so preview must not disable caching.
+    headers: {},
   },
   // Worker configuration for compression worker
   worker: {

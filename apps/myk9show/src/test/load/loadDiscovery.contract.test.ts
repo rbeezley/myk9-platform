@@ -30,6 +30,12 @@ describe('load Playwright discovery', () => {
     );
     const runner = readFileSync(resolve(__dirname, 'loadBrowserRunner.ts'), 'utf8');
     expect(runner).not.toContain('installSharedStagingWriteGuard');
+    // Preview serves the real PWA, so every context the G9 runner opens must block
+    // service workers or it precaches the 41 MB manifest during measurement. Counted
+    // rather than merely present: the regression is adding it to one call, not both.
+    expect(runner.match(/serviceWorkers: 'block'/g)).toHaveLength(
+      (runner.match(/browser\.newContext\(/g) ?? []).length
+    );
     expect(runner.indexOf('generatorSampler.markLoadStarted()')).toBeLessThan(
       runner.indexOf('const sessionResults =')
     );

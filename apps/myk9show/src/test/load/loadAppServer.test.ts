@@ -8,6 +8,11 @@ describe('load app server selection', () => {
     expect(resolveLoadAppServerMode({ LOAD_TEST_APP_SERVER: 'dev' })).toBe('dev');
   });
 
+  it('treats an empty value as unset, not as an invalid mode', () => {
+    // An unset `${{ vars.X }}` expands to '' in a workflow env block.
+    expect(resolveLoadAppServerMode({ LOAD_TEST_APP_SERVER: '' })).toBe('dev');
+  });
+
   it('selects the production preview server when the rehearsal requests it', () => {
     expect(resolveLoadAppServerMode({ LOAD_TEST_APP_SERVER: 'preview' })).toBe('preview');
   });
@@ -33,5 +38,11 @@ describe('load app server selection', () => {
 
   it.each([0, -1, 1.5, 65_536, Number.NaN])('rejects invalid port %p', port => {
     expect(() => loadAppServerCommand('dev', port)).toThrow('valid TCP port');
+  });
+
+  // Without these the guard could be tightened to reject the legal extremes and
+  // every other test would still pass.
+  it.each([1, 5173, 65_535])('accepts valid port %p', port => {
+    expect(() => loadAppServerCommand('dev', port)).not.toThrow();
   });
 });

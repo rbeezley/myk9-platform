@@ -32,12 +32,12 @@ export function classifyTableSyncResults(
 
   for (const { name, ok, error, recoveredFromEmptyReplica } of results) {
     if (ok) {
-      tableStatusUpdates[name] = 'success';
+      tableStatusUpdates[name] ??= 'success';
       if (recoveredFromEmptyReplica) {
         recoveredTables.push(name);
       }
     } else if (isAbortSyncError(error)) {
-      tableStatusUpdates[name] = 'idle';
+      if (tableStatusUpdates[name] !== 'error') tableStatusUpdates[name] = 'idle';
       abortedTables.push(error === undefined ? { name } : { name, error });
     } else {
       const errorMsg = error || 'Unknown error';

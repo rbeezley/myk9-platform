@@ -10,7 +10,7 @@ import { classifyMutationFailure } from './mutation-retry';
 import * as rowSync from './mutation-row-sync';
 import * as uploadEvents from './mutation-upload-events';
 import { markPerf, measurePerf } from './perf';
-import type { PendingMutation, ReplicatedRow, SyncResult } from './types';
+import type { PendingMutation, ReplicatedRow, SyncResult, UploadedMutation } from './types';
 import type { MutationQueueStore } from './MutationQueueStore';
 import type { MutationUploadAuthContext } from './mutation-manager-options';
 
@@ -183,12 +183,10 @@ export class MutationUploadRunner {
       }
 
       const results: SyncResult[] = [];
+      const uploadedMutations: UploadedMutation[] = [];
       const failedMutations: PendingMutation[] = [];
-      // Skip accounting: a pass that touches nothing while the queue is
-      // non-empty must be loud (warn), because every individual skip below
-      // logs at debug level — invisible with the app's default log filter,
-      // which made a permanently-stalled queue indistinguishable from a
-      // healthy empty one (MYK9-47 restored-queue investigation).
+      // Warn on nonempty stalled queues: individual skips log below the app's
+      // default filter, concealing a stuck queue (MYK9-47).
       const skipped = mutationOwner.createMutationSkipCounts();
       const now = Date.now();
       // Independent mutations shouldn't stall on one mutation's backoff; track the
@@ -309,16 +307,15 @@ export class MutationUploadRunner {
           await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, uploadedMutation.id);
           uploadedMutationIds.add(uploadedMutation.id);
 
-          // Keep the localStorage backup aligned with the queue after each
-          // successful delete/version bump. A crash before the pass-level
-          // backup below must not restore a mutation that already reached the
-          // server.
+          // Back up each successful delete/version bump so a crash before the
+          // pass-level backup cannot replay an already-uploaded mutation.
           try {
             await this.writeBackup();
           } catch (err) {
             this.logger.warn('[MutationManager] Per-mutation backup failed:', err);
           }
 
+          uploadedMutations.push(uploadEvents.toUploadedMutation(uploadedMutation));
           results.push({
             success: true,
             tableName: uploadedMutation.tableName,
@@ -466,14 +463,18 @@ export class MutationUploadRunner {
         this.scheduleBackoffRetry(earliestBackoff);
       }
 
-      uploadEvents.dispatchUploadComplete(this.logger, results, pending.length, startTime);
+      uploadEvents.dispatchUploadComplete(
+        this.logger,
+        results,
+        pending.length,
+        startTime,
+        uploadedMutations
+      );
 
       return results;
     } catch (error) {
-      // Rethrow, don't return []: an empty array is the healthy "queue is
-      // empty" signal, and returning it here made a completely broken pass
-      // (e.g. IndexedDB open failure) indistinguishable from success — the
-      // queue stalled forever with diagnostics reporting all-clear.
+      // Rethrow: [] means a healthy empty queue, not a broken upload pass.
+      // Hiding IDB failures here stranded writes while reporting all-clear.
       this.logger.error('[MutationManager] Failed to upload mutations:', error);
       throw error;
     } finally {

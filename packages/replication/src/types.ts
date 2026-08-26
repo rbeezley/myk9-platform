@@ -179,6 +179,21 @@ export interface PendingMutation {
 export const MUTATION_OPERATIONS = ['INSERT', 'UPDATE', 'DELETE', 'BATCH_UPDATE'] as const;
 export type MutationOperation = (typeof MUTATION_OPERATIONS)[number];
 
+/** Successful upload identity only — never expose the mutation payload to listeners. */
+export interface UploadedMutation {
+  tableName: string;
+  rowId: string;
+  operation: MutationOperation;
+  rpcName?: string;
+}
+
+export interface UploadCompleteEventDetail {
+  tables: string[];
+  count: number;
+  /** Optional for compatibility with older event producers. */
+  mutations?: UploadedMutation[];
+}
+
 /**
  * Mutation processing status
  */

@@ -485,6 +485,11 @@ describe('MutationManager', () => {
           detail: expect.objectContaining({
             tables: expect.arrayContaining(['entries', 'dogs']),
             count: 3,
+            mutations: [
+              expect.objectContaining({ tableName: 'entries', operation: 'INSERT' }),
+              expect.objectContaining({ tableName: 'entries', operation: 'UPDATE' }),
+              expect.objectContaining({ tableName: 'dogs', operation: 'INSERT' }),
+            ],
           }),
         })
       );
@@ -658,6 +663,23 @@ describe('MutationManager', () => {
       });
       // The direct table-update path must NOT be used for an RPC-tagged mutation.
       expect(vi.mocked(mockSupabase.from)).not.toHaveBeenCalled();
+      expect(window.dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'replication:upload-complete',
+          detail: {
+            tables: ['entries'],
+            count: 1,
+            mutations: [
+              {
+                tableName: 'entries',
+                rowId: 'entry-1',
+                operation: 'UPDATE',
+                rpcName: 'ringside_update_entry',
+              },
+            ],
+          },
+        })
+      );
     });
 
     it('passes a null expected version when the tagged UPDATE has no serverVersion', async () => {

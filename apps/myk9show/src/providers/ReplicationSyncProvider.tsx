@@ -26,6 +26,7 @@ import {
   ReplicatedTable,
   configureConflictSurfacing,
   type ReplicationConflictEventDetail,
+  type UploadCompleteEventDetail,
 } from '@myk9/replication';
 import { toast } from 'sonner';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
@@ -65,6 +66,7 @@ import {
   shouldRequestPostUploadSync,
   type TableSyncStatus,
 } from './replicationSyncStatus';
+import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -196,7 +198,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const queryClient = useQueryClient();
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
-  const triggerSyncRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const triggerSyncRef = useRef<((targets?: UploadSyncTarget[]) => Promise<void>) | undefined>(
+    undefined
+  );
+  const pendingUploadTargets = useRef(new Map<string, UploadSyncTarget>());
+  const scopedSyncInFlight = useRef(false);
+  const pendingFullSync = useRef(false);
   const syncInFlightRef = useRef(false);
   const failedSyncToastIdsRef = useRef<string[]>([]);
 
@@ -279,132 +286,168 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   /**
    * Trigger sync for all tables
    */
-  const triggerSync = useCallback(async () => {
-    if (!isAuthenticated) {
-      logger.debug('Skipping sync - not authenticated', 'replication');
-      return;
-    }
+  const triggerSync = useCallback(
+    async (targets?: UploadSyncTarget[]) => {
+      if (!isAuthenticated) {
+        logger.debug('Skipping sync - not authenticated', 'replication');
+        return;
+      }
 
-    if (!isOnline) {
-      logger.debug('Skipping sync - offline', 'replication');
-      return;
-    }
+      if (!isOnline) {
+        logger.debug('Skipping sync - offline', 'replication');
+        return;
+      }
 
-    // State updates are asynchronous, so the startup timer and auth-session
-    // effect can both observe isSyncing=false in the same render. The ref flips
-    // synchronously before the first await and is the authoritative overlap
-    // guard.
-    if (syncInFlightRef.current) {
-      logger.debug('Sync already in progress', 'replication');
-      return;
-    }
+      // State updates are asynchronous, so the startup timer and auth-session
+      // effect can both observe isSyncing=false in the same render. The ref flips
+      // synchronously before the first await and is the authoritative overlap
+      // guard.
+      if (syncInFlightRef.current) {
+        // A download started before this upload may miss its derived state.
+        // Coalesce scopes, then run once more AFTER the in-flight pass finishes.
+        for (const target of targets ?? [])
+          pendingUploadTargets.current.set(`${target.name}:${target.scopeId}`, target);
+        if (!targets && scopedSyncInFlight.current) pendingFullSync.current = true;
+        logger.debug('Sync already in progress', 'replication');
+        return;
+      }
 
-    logger.info('Starting full sync', 'replication');
-    syncInFlightRef.current = true;
-    setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
+      const selectedTables = targets
+        ? targets.map(target => ({
+            ...REPLICATED_TABLES.find(table => table.name === target.name)!,
+            scope: target.scopeId,
+          }))
+        : REPLICATED_TABLES.map(table => ({ ...table, scope: syncScopeId }));
+      const selectedNames = [...new Set(selectedTables.map(table => table.name))];
+      logger.info(targets ? 'Starting scoped ringside sync' : 'Starting full sync', 'replication');
+      syncInFlightRef.current = true;
+      scopedSyncInFlight.current = targets !== undefined;
+      setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
-    try {
-      // Phase 1: Upload pending mutations to Supabase
       try {
-        const uploadResults = await mutationManager.uploadPendingMutations();
-        const succeeded = uploadResults.filter(r => r.success).length;
-        if (uploadResults.length > 0) {
-          logger.info('Phase 1 upload complete', 'replication', {
-            succeeded,
-            total: uploadResults.length,
-          });
-        }
-      } catch (uploadError) {
-        logger.error('Phase 1 upload failed', 'replication', {}, uploadError as Error);
-        // Continue to Phase 2 even if upload fails
-      }
-
-      await ensureAuthenticatedEntryResultReplicaVersion();
-
-      // Phase 2: parallel download — one failure must not block others.
-      setStatus(prev => ({
-        ...prev,
-        tablesStatus: createTablesStatus(REPLICATED_TABLE_NAMES, 'syncing'),
-      }));
-
-      const syncResults = await Promise.all(
-        REPLICATED_TABLES.map(async ({ name, table }) => {
-          try {
-            const result = await table.sync(syncScopeId);
-            return {
-              name,
-              ok: result.success,
-              error: result.error,
-              recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
-            };
-          } catch (err) {
-            logger.error('Table sync threw', 'replication', { name }, err as Error);
-            return {
-              name,
-              ok: false,
-              error: err instanceof Error ? err.message : String(err),
-              recoveredFromEmptyReplica: false,
-            };
+        // Phase 1: Upload pending mutations to Supabase
+        try {
+          const uploadResults = await mutationManager.uploadPendingMutations();
+          const succeeded = uploadResults.filter(r => r.success).length;
+          if (uploadResults.length > 0) {
+            logger.info('Phase 1 upload complete', 'replication', {
+              succeeded,
+              total: uploadResults.length,
+            });
           }
-        })
-      );
+        } catch (uploadError) {
+          logger.error('Phase 1 upload failed', 'replication', {}, uploadError as Error);
+          // Continue to Phase 2 even if upload fails
+        }
 
-      const { tableStatusUpdates, downloadFailures, recoveredTables, abortedTables } =
-        classifyTableSyncResults(syncResults, isAbortSyncError);
+        await ensureAuthenticatedEntryResultReplicaVersion();
 
-      for (const name of recoveredTables) {
-        warnRecoveredFromEmptyReplica(name);
+        // Phase 2: parallel download — one failure must not block others.
+        setStatus(prev => ({
+          ...prev,
+          tablesStatus: { ...prev.tablesStatus, ...createTablesStatus(selectedNames, 'syncing') },
+        }));
+
+        const syncResults = await Promise.all(
+          selectedTables.map(async ({ name, table, scope }) => {
+            try {
+              const result = await table.sync(scope);
+              return {
+                name,
+                ok: result.success,
+                error: result.error,
+                recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
+              };
+            } catch (err) {
+              logger.error('Table sync threw', 'replication', { name }, err as Error);
+              return {
+                name,
+                ok: false,
+                error: err instanceof Error ? err.message : String(err),
+                recoveredFromEmptyReplica: false,
+              };
+            }
+          })
+        );
+
+        const { tableStatusUpdates, downloadFailures, recoveredTables, abortedTables } =
+          classifyTableSyncResults(syncResults, isAbortSyncError);
+
+        for (const name of recoveredTables) {
+          warnRecoveredFromEmptyReplica(name);
+        }
+
+        for (const { name, error } of abortedTables) {
+          logger.debug('Table sync aborted', 'replication', { name, error });
+        }
+
+        for (const { name, error } of downloadFailures) {
+          logger.warn('Table sync failed', 'replication', { name, error });
+        }
+
+        setStatus(prev => ({
+          ...prev,
+          tablesStatus: { ...prev.tablesStatus, ...tableStatusUpdates },
+        }));
+
+        // Surface download-sync failures so the UI doesn't silently show empty
+        // lists when data exists in the database but couldn't be fetched
+        // (RLS rejection, network blip, auth race). Mirrors the mutation-failure
+        // toast added after the 2026-04-16 RLS data-loss incident.
+        if (downloadFailures.length > 0) {
+          notifications.error(formatDownloadFailureToast(downloadFailures));
+        }
+
+        setStatus(prev => ({
+          ...prev,
+          isSyncing: false,
+          lastSyncAt: new Date(),
+        }));
+        syncInFlightRef.current = false;
+
+        for (const queryKey of getPostSyncInvalidationKeys(selectedNames)) {
+          queryClient.invalidateQueries({ queryKey });
+        }
+
+        logger.info(
+          targets ? 'Scoped ringside sync complete' : 'Full sync complete',
+          'replication'
+        );
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Sync failed';
+        logger.error('Sync error', 'replication', {}, error as Error);
+        setStatus(prev => ({
+          ...prev,
+          isSyncing: false,
+          error: errorMessage,
+        }));
+        syncInFlightRef.current = false;
+      } finally {
+        scopedSyncInFlight.current = false;
+        if (pendingFullSync.current) {
+          pendingFullSync.current = false;
+          void triggerSyncRef.current?.();
+        } else {
+          const pending = [...pendingUploadTargets.current.values()];
+          pendingUploadTargets.current.clear();
+          if (pending.length) void triggerSyncRef.current?.(pending);
+        }
       }
-
-      for (const { name, error } of abortedTables) {
-        logger.debug('Table sync aborted', 'replication', { name, error });
-      }
-
-      for (const { name, error } of downloadFailures) {
-        logger.warn('Table sync failed', 'replication', { name, error });
-      }
-
-      setStatus(prev => ({
-        ...prev,
-        tablesStatus: { ...prev.tablesStatus, ...tableStatusUpdates },
-      }));
-
-      // Surface download-sync failures so the UI doesn't silently show empty
-      // lists when data exists in the database but couldn't be fetched
-      // (RLS rejection, network blip, auth race). Mirrors the mutation-failure
-      // toast added after the 2026-04-16 RLS data-loss incident.
-      if (downloadFailures.length > 0) {
-        notifications.error(formatDownloadFailureToast(downloadFailures));
-      }
-
-      setStatus(prev => ({
-        ...prev,
-        isSyncing: false,
-        lastSyncAt: new Date(),
-      }));
-      syncInFlightRef.current = false;
-
-      for (const queryKey of getPostSyncInvalidationKeys(REPLICATED_TABLE_NAMES)) {
-        queryClient.invalidateQueries({ queryKey });
-      }
-
-      logger.info('Full sync complete', 'replication');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Sync failed';
-      logger.error('Sync error', 'replication', {}, error as Error);
-      setStatus(prev => ({
-        ...prev,
-        isSyncing: false,
-        error: errorMessage,
-      }));
-      syncInFlightRef.current = false;
-    }
-  }, [isAuthenticated, isOnline, syncScopeId, queryClient]);
+    },
+    [isAuthenticated, isOnline, syncScopeId, queryClient]
+  );
 
   // Keep ref in sync so effects always call latest version without re-triggering
   useEffect(() => {
     triggerSyncRef.current = triggerSync;
   });
+
+  useEffect(
+    () => () => {
+      triggerSyncRef.current = undefined;
+    },
+    []
+  );
 
   // Trigger sync when session becomes available — covers both "page load while
   // already signed in" (initial sync fires before INITIAL_SESSION is delivered)
@@ -557,7 +600,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   // Invalidate React Query caches when auto-upload completes
   useEffect(() => {
     const handleUploadComplete = (event: Event) => {
-      const { tables } = (event as CustomEvent<{ tables: string[]; count: number }>).detail;
+      const detail = (event as CustomEvent<UploadCompleteEventDetail>).detail;
+      const { tables } = detail;
       logger.info('Auto-upload complete, invalidating queries', 'replication', { tables });
       // A successful upload means the backlog is draining — clear the standing
       // "backlog is full" overflow toast so it doesn't linger over a now-healthy
@@ -566,12 +610,15 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
       }
-      if (syncInFlightRef.current && tables.some(table => REPLICATED_TABLE_NAME_SET.has(table))) {
-        logger.debug('Post-upload sync skipped: sync in flight', 'replication', { tables });
-      }
-      if (shouldRequestPostUploadSync(tables, REPLICATED_TABLE_NAME_SET, syncInFlightRef.current)) {
-        triggerSyncRef.current?.();
-      }
+      void getRingsideUploadSyncTargets(detail, {
+        getEntry: id => replicatedEntriesTable.get(id),
+        getClass: id => replicatedClassesTable.get(id),
+      }).then(targets => {
+        if (targets) void triggerSyncRef.current?.(targets);
+        else if (shouldRequestPostUploadSync(tables, REPLICATED_TABLE_NAME_SET, false)) {
+          void triggerSyncRef.current?.();
+        }
+      });
     };
     window.addEventListener('replication:upload-complete', handleUploadComplete);
     return () => window.removeEventListener('replication:upload-complete', handleUploadComplete);

@@ -4,6 +4,20 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('load Playwright discovery', () => {
+  it('keeps request attribution opt-in, write-guarded and separate from load', () => {
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/test/e2e/load-request-phases.spec.ts'),
+      'utf8'
+    );
+    expect(source).toContain("process.env.LOAD_READINESS_DIAGNOSTIC !== 'true'");
+    expect(source).toContain("serviceWorkers: 'block'");
+    expect(source).toContain('strictRpcWrites: true');
+    expect(source.indexOf('await installSharedStagingWriteGuard')).toBeLessThan(
+      source.indexOf('signInAsSecretary(page')
+    );
+    expect(source).toContain("event.request.method === 'OPTIONS'");
+    expect(source).not.toContain('submitScore');
+  });
   it('guards readiness navigation writes without mocking the real G9 mutation workload', () => {
     const readiness = readFileSync(
       resolve(process.cwd(), 'src/test/e2e/load-readiness.spec.ts'),

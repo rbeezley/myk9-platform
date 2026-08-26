@@ -26,6 +26,8 @@ const hoisted = vi.hoisted(() => {
   const getEntryIds = vi.fn().mockResolvedValue(new Set(['cached-entry']));
   const getPendingCount = vi.fn().mockResolvedValue(0);
   const uploadPendingMutations = vi.fn().mockResolvedValue([]);
+  const getEntry = vi.fn().mockResolvedValue({ showId: 'show-1', classId: 'class-1' });
+  const getClass = vi.fn().mockResolvedValue({ trialId: 'trial-1' });
   return {
     authState,
     unsubscribeSpy,
@@ -34,6 +36,8 @@ const hoisted = vi.hoisted(() => {
     getEntryIds,
     getPendingCount,
     uploadPendingMutations,
+    getEntry,
+    getClass,
   };
 });
 
@@ -67,7 +71,11 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.trials },
 }));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.classes },
+  replicatedClassesTable: {
+    setMutationManager: vi.fn(),
+    sync: hoisted.syncSpies.classes,
+    get: hoisted.getClass,
+  },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
@@ -75,6 +83,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     sync: hoisted.syncSpies.entries,
     clearCache: hoisted.clearEntriesCache,
     getAllLocalIds: hoisted.getEntryIds,
+    get: hoisted.getEntry,
   },
 }));
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -154,6 +163,25 @@ function fakeSession(): Session {
   return { access_token: 'tok', user: { id: 'u1' } } as unknown as Session;
 }
 
+function dispatchRingsideUpload() {
+  window.dispatchEvent(
+    new CustomEvent('replication:upload-complete', {
+      detail: {
+        tables: ['entries'],
+        count: 1,
+        mutations: [
+          {
+            tableName: 'entries',
+            operation: 'UPDATE',
+            rowId: 'entry-1',
+            rpcName: 'ringside_update_entry',
+          },
+        ],
+      },
+    })
+  );
+}
+
 describe('ReplicationSyncProvider — auth guard', () => {
   beforeEach(() => {
     authState.callback = null;
@@ -167,6 +195,124 @@ describe('ReplicationSyncProvider — auth guard', () => {
     uploadPendingMutations.mockResolvedValue([]);
     window.localStorage.clear();
     for (const spy of Object.values(syncSpies)) spy.mockClear();
+  });
+
+  it('refreshes only the affected show entries and trial classes after a ringside upload', async () => {
+    renderProvider(false);
+    await act(async () => {
+      authState.callback?.('INITIAL_SESSION', fakeSession());
+    });
+    for (const spy of Object.values(syncSpies)) spy.mockClear();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('replication:upload-complete', {
+          detail: {
+            tables: ['entries'],
+            count: 1,
+            mutations: [
+              {
+                tableName: 'entries',
+                operation: 'UPDATE',
+                rowId: 'entry-1',
+                rpcName: 'ringside_update_entry',
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    expect(syncSpies.entries).toHaveBeenCalledWith('show-1');
+    expect(syncSpies.classes).toHaveBeenCalledWith('trial-1');
+    expect(syncSpies.shows).not.toHaveBeenCalled();
+    expect(syncSpies.dogs).not.toHaveBeenCalled();
+    expect(syncSpies.clubs).not.toHaveBeenCalled();
+    expect(syncSpies.waitlist_entries).not.toHaveBeenCalled();
+  });
+
+  it('coalesces uploads during a download into one subsequent scoped refresh', async () => {
+    renderProvider(false);
+    await act(async () => {
+      authState.callback?.('INITIAL_SESSION', fakeSession());
+    });
+    let finish!: () => void;
+    syncSpies.entries.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = () => resolve({ success: true, rowsAffected: 0 });
+        })
+    );
+    await act(async () => {
+      dispatchRingsideUpload();
+    });
+    await act(async () => {
+      dispatchRingsideUpload();
+      dispatchRingsideUpload();
+    });
+    expect(syncSpies.entries).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finish();
+    });
+    expect(syncSpies.entries).toHaveBeenCalledTimes(2);
+    expect(syncSpies.entries).toHaveBeenLastCalledWith('show-1');
+    expect(syncSpies.classes).toHaveBeenCalledTimes(2);
+    expect(syncSpies.shows).not.toHaveBeenCalled();
+  });
+
+  it('retains a full refresh requested during a scoped download', async () => {
+    renderProvider(false);
+    await act(async () => {
+      authState.callback?.('INITIAL_SESSION', fakeSession());
+    });
+    let finish!: () => void;
+    syncSpies.entries.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = () => resolve({ success: true, rowsAffected: 0 });
+        })
+    );
+    await act(async () => {
+      dispatchRingsideUpload();
+    });
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent('replication:upload-complete', {
+          detail: { tables: ['dogs'], count: 1 },
+        })
+      );
+    });
+    expect(syncSpies.shows).not.toHaveBeenCalled();
+    await act(async () => {
+      finish();
+    });
+    expect(syncSpies.shows).toHaveBeenCalledTimes(1);
+    expect(syncSpies.dogs).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not download after logout while local scope discovery is pending', async () => {
+    renderProvider(false);
+    await act(async () => {
+      authState.callback?.('INITIAL_SESSION', fakeSession());
+    });
+    let finish!: () => void;
+    hoisted.getEntry.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = () => resolve({ showId: 'show-1', classId: 'class-1' });
+        })
+    );
+    await act(async () => {
+      dispatchRingsideUpload();
+    });
+    await act(async () => {
+      authState.callback?.('SIGNED_OUT', null);
+    });
+    await act(async () => {
+      finish();
+    });
+    expect(syncSpies.entries).not.toHaveBeenCalled();
+    expect(syncSpies.classes).not.toHaveBeenCalled();
   });
 
   it('does not sync any table while there is no session', async () => {

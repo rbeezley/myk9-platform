@@ -18,7 +18,12 @@ describe('replicationSyncStatus helpers', () => {
     const result = classifyTableSyncResults(
       [
         { name: 'shows', ok: true, recoveredFromEmptyReplica: true },
-        { name: 'entries', ok: false, error: 'AbortError: superseded', recoveredFromEmptyReplica: false },
+        {
+          name: 'entries',
+          ok: false,
+          error: 'AbortError: superseded',
+          recoveredFromEmptyReplica: false,
+        },
         { name: 'dogs', ok: false, error: 'permission denied', recoveredFromEmptyReplica: false },
         { name: 'classes', ok: false, recoveredFromEmptyReplica: false },
       ],
@@ -47,6 +52,18 @@ describe('replicationSyncStatus helpers', () => {
     ]);
   });
 
+  it('does not hide a failed scope behind a successful scope of the same table', () => {
+    const result = classifyTableSyncResults(
+      [
+        { name: 'entries', ok: false, error: 'denied', recoveredFromEmptyReplica: false },
+        { name: 'entries', ok: true, recoveredFromEmptyReplica: false },
+      ],
+      () => false
+    );
+    expect(result.tableStatusUpdates.entries).toBe('error');
+    expect(result.downloadFailures).toEqual([{ name: 'entries', error: 'denied' }]);
+  });
+
   it('requests a follow-up download sync when an uploaded table is replicated', () => {
     const replicatedTables = new Set(['shows', 'entries', 'armbands']);
 
@@ -62,8 +79,6 @@ describe('replicationSyncStatus helpers', () => {
   it('does not request a nested download sync while a full sync is already running', () => {
     const replicatedTables = new Set(['shows', 'entries', 'armbands']);
 
-    expect(
-      shouldRequestPostUploadSync(['entries'], replicatedTables, true)
-    ).toBe(false);
+    expect(shouldRequestPostUploadSync(['entries'], replicatedTables, true)).toBe(false);
   });
 });

@@ -1,5 +1,19 @@
 import type { Logger } from './dependencies';
-import type { PendingMutation, SyncResult } from './types';
+import type {
+  PendingMutation,
+  SyncResult,
+  UploadedMutation,
+  UploadCompleteEventDetail,
+} from './types';
+
+export function toUploadedMutation(mutation: PendingMutation): UploadedMutation {
+  return {
+    tableName: mutation.tableName,
+    rowId: mutation.rowId,
+    operation: mutation.operation,
+    ...(mutation.rpc ? { rpcName: mutation.rpc.name } : {}),
+  };
+}
 
 export function dispatchQueueOverflow(logger: Logger, queueSize: number, maxSize: number): void {
   logger.error(
@@ -21,7 +35,8 @@ export function dispatchUploadComplete(
   logger: Logger,
   results: SyncResult[],
   pendingCount: number,
-  startTime: number
+  startTime: number,
+  mutations?: UploadedMutation[]
 ): void {
   const successful = results.filter(r => r.success);
   const duration = Date.now() - startTime;
@@ -34,7 +49,11 @@ export function dispatchUploadComplete(
     const affectedTables = [...new Set(successful.map(r => r.tableName))];
     window.dispatchEvent(
       new CustomEvent('replication:upload-complete', {
-        detail: { tables: affectedTables, count: successful.length },
+        detail: {
+          tables: affectedTables,
+          count: successful.length,
+          ...(mutations ? { mutations } : {}),
+        } satisfies UploadCompleteEventDetail,
       })
     );
   }

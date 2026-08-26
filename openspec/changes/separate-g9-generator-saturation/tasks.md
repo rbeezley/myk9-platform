@@ -48,4 +48,4 @@
 - [x] 7.2 Reproduce idle dev-server CPU overhead, add a failing config regression, and remove forced polling while retaining polling opt-in.
 - [x] 7.3 Verify native watcher events, guarded readiness, focused regression tests, types/lint, and record diagnostic limits.
 - [x] 7.4a Obtain approval to publish the generator follow-up patch, excluding private diagnostic notes and artifacts. Approved 2026-08-26.
-- [ ] 7.4 Obtain separate merge approval for the generator follow-up patch; keep further full G9 execution separately gated.
+- [x] 7.4 Obtain separate merge approval for the generator follow-up patch; keep further full G9 execution separately gated. Approved 2026-08-26.

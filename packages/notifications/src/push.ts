@@ -4,6 +4,20 @@ export interface PushSubscriptionData {
 }
 
 /**
+ * Result of asking the browser for this device's current push subscription.
+ *
+ * `unavailable` is deliberately distinct from `none`: it means we could not
+ * ASK (push unsupported, or the service worker registration never became
+ * ready), so the device may well still hold a live subscription. A caller that
+ * collapses the two into "not subscribed" will skip server-side cleanup on an
+ * opt-out and leave the user receiving notifications they turned off.
+ */
+export type PushSubscriptionLookup =
+  | { status: 'subscribed'; subscription: PushSubscriptionData }
+  | { status: 'none' }
+  | { status: 'unavailable' };
+
+/**
  * Checks whether the browser supports push notifications.
  */
 export function isPushSupported(): boolean {
@@ -107,20 +121,34 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 }
 
 /**
+ * Returns this device's push subscription, distinguishing "no subscription"
+ * from "could not determine one". Never throws and never hangs.
+ *
+ * Prefer this over {@link getExistingSubscription} whenever the difference
+ * matters — most importantly on the opt-out path, which must not treat an
+ * unreachable service worker as proof there is nothing to clean up.
+ */
+export async function lookupExistingSubscription(): Promise<PushSubscriptionLookup> {
+  const registration = await getReadyRegistration();
+  if (!registration) return { status: 'unavailable' };
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return { status: 'none' };
+  return { status: 'subscribed', subscription: extractSubscriptionData(subscription) };
+}
+
+/**
  * Returns the current push subscription data, or null if not subscribed.
  *
  * Also returns `null` — never throws or hangs — when push is unsupported or the
  * service worker registration does not settle within
- * `SERVICE_WORKER_READY_TIMEOUT_MS`. Callers must treat "cannot determine a
- * subscription" the same as "has no subscription"; the ringside heartbeat
- * depends on that so its push-independent revocation check still runs.
+ * `SERVICE_WORKER_READY_TIMEOUT_MS`. That collapse is what the ringside
+ * heartbeat wants: "no usable push endpoint" is a supported state with its own
+ * revocation fallback. Callers that need to tell those cases apart must use
+ * {@link lookupExistingSubscription} instead.
  */
 export async function getExistingSubscription(): Promise<PushSubscriptionData | null> {
-  const registration = await getReadyRegistration();
-  if (!registration) return null;
-  const subscription = await registration.pushManager.getSubscription();
-  if (!subscription) return null;
-  return extractSubscriptionData(subscription);
+  const result = await lookupExistingSubscription();
+  return result.status === 'subscribed' ? result.subscription : null;
 }
 
 function extractSubscriptionData(subscription: PushSubscription): PushSubscriptionData {

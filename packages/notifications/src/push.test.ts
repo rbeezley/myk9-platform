@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   isPushSupported,
+  lookupExistingSubscription,
   SERVICE_WORKER_READY_TIMEOUT_MS,
   requestPushPermission,
   subscribeToPush,
@@ -111,6 +112,45 @@ describe('unsubscribeFromPush', () => {
   it('returns false when no subscription exists', async () => {
     const result = await unsubscribeFromPush();
     expect(result).toBe(false);
+  });
+});
+
+describe('lookupExistingSubscription', () => {
+  // The three statuses must stay distinguishable: an opt-out that treats
+  // "could not ask" as "nothing to remove" leaves the server subscription live.
+  it('reports subscribed with the subscription data', async () => {
+    mockPushManager.getSubscription.mockResolvedValueOnce(mockSubscription);
+
+    await expect(lookupExistingSubscription()).resolves.toEqual({
+      status: 'subscribed',
+      subscription: {
+        endpoint: 'https://push.example.com/sub/123',
+        keys: { p256dh: 'test-p256dh', auth: 'test-auth' },
+      },
+    });
+  });
+
+  it('reports none when the browser confirms there is no subscription', async () => {
+    await expect(lookupExistingSubscription()).resolves.toEqual({ status: 'none' });
+  });
+
+  it('reports unavailable — not none — when serviceWorker is absent', async () => {
+    vi.stubGlobal('navigator', {});
+    await expect(lookupExistingSubscription()).resolves.toEqual({ status: 'unavailable' });
+  });
+
+  it('reports unavailable — not none — when .ready never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('navigator', { serviceWorker: { ready: new Promise(() => {}) } });
+
+      const pending = lookupExistingSubscription();
+      await vi.advanceTimersByTimeAsync(SERVICE_WORKER_READY_TIMEOUT_MS);
+
+      await expect(pending).resolves.toEqual({ status: 'unavailable' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

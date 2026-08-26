@@ -9,12 +9,14 @@
  * stale and kept access indefinitely after a secretary regenerated passcodes.
  *
  * These tests drive the REAL `@myk9/notifications` module (no vi.mock of it) so
- * they exercise the actual seam, not a stubbed one.
+ * they exercise the actual seam, not a stubbed one. That is why they live in
+ * their own file: the sibling `RingsideSessionHeartbeat.test.tsx` mocks that
+ * module module-wide, which would defeat the whole point here.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { RingsideSessionHeartbeat } from './RingsideSessionHeartbeat';
+import { RingsideSessionHeartbeat } from '../RingsideSessionHeartbeat';
 
 const { rpcMock, revokeMock, handleRevokedMock } = vi.hoisted(() => ({
   rpcMock: vi.fn(),
@@ -26,7 +28,7 @@ vi.mock('@/lib/supabase', () => ({
   supabase: { rpc: rpcMock },
 }));
 
-vi.mock('./ringsidePasscodeRevocation', () => ({
+vi.mock('../ringsidePasscodeRevocation', () => ({
   revokeRingsidePasscodeAccess: revokeMock,
   handleRingsidePasscodeRevoked: handleRevokedMock,
 }));

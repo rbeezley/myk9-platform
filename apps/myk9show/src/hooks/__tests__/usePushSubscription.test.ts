@@ -41,6 +41,7 @@ vi.mock('@myk9/notifications', async importOriginal => ({
   ),
   unsubscribeFromPush: vi.fn(() => Promise.resolve(true)),
   getExistingSubscription: vi.fn(() => Promise.resolve(null)),
+  lookupExistingSubscription: vi.fn(() => Promise.resolve({ status: 'none' as const })),
 }));
 
 // Mock supabase client — uses hoisted mockFrom
@@ -120,10 +121,13 @@ describe('usePushSubscription', () => {
 
   it('should unsubscribe and delete from Supabase', async () => {
     // Override mock to return existing subscription (otherwise delete is skipped)
-    const { unsubscribeFromPush, getExistingSubscription } = await import('@myk9/notifications');
-    vi.mocked(getExistingSubscription).mockResolvedValueOnce({
-      endpoint: 'https://push.example.com/sub1',
-      keys: { p256dh: 'key1', auth: 'auth1' },
+    const { unsubscribeFromPush, lookupExistingSubscription } = await import('@myk9/notifications');
+    vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({
+      status: 'subscribed',
+      subscription: {
+        endpoint: 'https://push.example.com/sub1',
+        keys: { p256dh: 'key1', auth: 'auth1' },
+      },
     });
 
     const { result } = renderHook(() => usePushSubscription());
@@ -175,6 +179,26 @@ describe('usePushSubscription', () => {
     });
 
     expect(response).toEqual({ ok: false, reason: 'subscribe-failed' });
+    expect(mockUpdatePreferences).not.toHaveBeenCalled();
+  });
+
+  it('reports failure and keeps the preference when the subscription is unknowable', async () => {
+    // A service worker that never becomes ready cannot tell us whether this
+    // device holds a subscription. Reporting success here would flip the toggle
+    // off while the push_subscriptions row survives, so the user keeps getting
+    // notifications they opted out of.
+    const { lookupExistingSubscription } = await import('@myk9/notifications');
+    vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({ status: 'unavailable' });
+
+    const { result } = renderHook(() => usePushSubscription());
+
+    let response: { ok: boolean } | undefined;
+    await act(async () => {
+      response = await result.current.unsubscribe();
+    });
+
+    expect(response).toEqual({ ok: false });
+    expect(mockDelete).not.toHaveBeenCalled();
     expect(mockUpdatePreferences).not.toHaveBeenCalled();
   });
 

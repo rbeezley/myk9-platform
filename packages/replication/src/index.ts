@@ -20,6 +20,8 @@ export type {
   SyncMetadata,
   ScopeSyncState,
   PendingMutation,
+  UploadedMutation,
+  UploadCompleteEventDetail,
   MutationOperation,
   MutationStatus,
   SyncResult,
@@ -136,10 +138,7 @@ export {
 export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
 export { isQuotaExceededError, withQuotaEviction } from './quota-eviction';
-export {
-  syncReplicatedTable,
-  configureConflictSurfacing,
-} from './syncReplicatedTable';
+export { syncReplicatedTable, configureConflictSurfacing } from './syncReplicatedTable';
 export type {
   RemoteFetchContext,
   RemoteRowCountContext,

@@ -40,8 +40,8 @@ export default defineConfig({
   ],
   webServer: startApp
     ? {
-        // Preview mode serves the prebuilt production bundle (vite preview) so the
-        // rehearsal measures what users get; a missing dist/ fails startup fast.
+        // Preview serves the prebuilt production bundle (vite preview) so the
+        // rehearsal measures what users get, not dev-mode transform cost.
         command: loadAppServerCommand(appServerMode, port),
         port,
         reuseExistingServer: false,

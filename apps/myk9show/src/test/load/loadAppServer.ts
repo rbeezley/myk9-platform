@@ -12,6 +12,5 @@ export function loadAppServerCommand(mode: LoadAppServerMode, port: number): str
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error(`Load app server port must be a valid TCP port; received ${port}.`);
   }
-  const script = mode === 'preview' ? 'preview' : 'dev';
-  return `pnpm run ${script} --host 127.0.0.1 --port ${port} --strictPort`;
+  return `pnpm run ${mode} --host 127.0.0.1 --port ${port} --strictPort`;
 }

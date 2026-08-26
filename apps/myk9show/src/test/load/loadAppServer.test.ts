@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { scripts as packageScripts } from '../../../package.json';
 import { loadAppServerCommand, resolveLoadAppServerMode } from './loadAppServer';
 
 describe('load app server selection', () => {
@@ -23,10 +24,11 @@ describe('load app server selection', () => {
     );
   });
 
-  it('keeps the dev-server command shape for dev mode', () => {
-    expect(loadAppServerCommand('dev', 4173)).toBe(
-      'pnpm run dev --host 127.0.0.1 --port 4173 --strictPort'
-    );
+  // Pinning the command string only proves someone typed it; these assert the
+  // script the command resolves to is one this package can actually run.
+  it.each(['dev', 'preview'] as const)('%s mode runs a real package script', mode => {
+    const script = loadAppServerCommand(mode, 5173).match(/pnpm run (\S+)/)?.[1];
+    expect(Object.keys(packageScripts)).toContain(script);
   });
 
   it.each([0, -1, 1.5, 65_536, Number.NaN])('rejects invalid port %p', port => {

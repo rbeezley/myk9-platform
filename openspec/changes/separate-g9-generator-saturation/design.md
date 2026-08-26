@@ -111,3 +111,34 @@ window to restore row counts.
 
 - Whether eight standard runners provide sufficient browser headroom will be answered by
   the next apples-to-apples evidence artifact; no capacity conclusion is made in source.
+
+## Authorized performance follow-up
+
+The failed eight-shard run exposed preparation-idle dilution in generator metrics.
+Preparation/headroom remain separate fields. Host CPU, memory, event-loop delay and
+browser probes start at the workload barrier and stop before persistence/platform
+reconciliation. Legacy reports without an explicit active-load window remain readable
+but cannot support backend attribution. Empty active sampling fails closed.
+
+Measured startup fan-out also includes four sequential HTTP reads per trial to enrich
+class visibility. Batch by at most 100 unique classes: read their trial/show mapping,
+then show settings, trial overrides and class overrides in parallel. Use the existing
+timing and check-in cascade unchanged. Each sync owns its maps; do not add a persistent
+cache or bypass RLS. Missing settings retain existing defaults; failed reads propagate
+to the existing best-effort replication handler rather than inventing permissive values.
+
+This narrow client optimization extends the original harness-only scope under the
+user's performance-fix request. No UI is duplicated. Database changes, production
+frontend changes to the load workflow, and further load execution remain operator-gated.
+
+A second reproduction proves cached scoresheets remain in a loading state while a
+whole-show refresh is stalled. Read the replicated class, target entry and trial first.
+When all exist, render the cached sheet immediately and refresh only the active trial
+and show's entries in the background; do not replace a sheet the judge is editing.
+Missing cache data and explicit retries retain the existing scoped foreground hydration.
+Scoring authorization, transitions, durable queue writes and completion stay unchanged.
+
+The readiness diagnostic installs the existing strict shared-staging write guard before
+sign-in/navigation and blocks service workers so routes cannot bypass interception.
+It reports intercepted/blocked writes, safe endpoint counts and readiness, not write
+correctness or capacity. Full G9 must continue to use real mutations and cleanup.

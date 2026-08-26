@@ -108,7 +108,7 @@ vi.mock('./atShowClassCompletion', () => ({
 
 describe('useAtShowScoresheet completion wiring', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     mocks.getTrialsByShow.mockResolvedValue([{ id: 'trial-1' }]);
     mocks.getTrialById.mockResolvedValue({
       id: 'trial-1',
@@ -167,6 +167,67 @@ describe('useAtShowScoresheet completion wiring', () => {
     expect(mocks.transitionToCompleted.mock.invocationCallOrder[0]).toBeLessThan(
       onScored.mock.invocationCallOrder[0]
     );
+  });
+
+  it('opens a cached scoresheet without waiting for stalled network sync', async () => {
+    mocks.syncTrials.mockReturnValueOnce(new Promise(() => undefined));
+    mocks.syncClasses.mockReturnValueOnce(new Promise(() => undefined));
+    mocks.syncEntries.mockReturnValueOnce(new Promise(() => undefined));
+    const { result } = renderScoresheet(vi.fn());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false), { timeout: 100 });
+    expect(result.current.entry?.entryId).toBe('entry-1');
+    expect(result.current.error).toBeNull();
+    expect(mocks.syncTrials).not.toHaveBeenCalled();
+    expect(mocks.syncClasses).toHaveBeenCalledWith('trial-1');
+    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+  });
+
+  it('keeps a cached sheet usable when its background refresh rejects', async () => {
+    mocks.syncClasses.mockRejectedValue(new Error('offline'));
+    const { result } = renderScoresheet(vi.fn());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.entry?.entryId).toBe('entry-1');
+    expect(result.current.error).toBeNull();
+  });
+
+  it('does not carry an explicit correction refresh into the next cached entry', async () => {
+    const { result, rerender } = renderHook(
+      ({ entryId }) =>
+        useAtShowScoresheet({
+          showId: 'show-1',
+          classId: 'route-class',
+          entryId,
+          onScored: vi.fn(),
+        }),
+      { initialProps: { entryId: 'entry-1' } }
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(mocks.syncTrials).toHaveBeenCalledTimes(1);
+
+    mocks.getEntriesByClass.mockResolvedValue([
+      { id: 'entry-2', dogId: 'dog-1', checkInStatus: 'checked-in' },
+    ]);
+    mocks.syncTrials.mockReturnValue(new Promise(() => undefined));
+    mocks.syncClasses.mockReturnValue(new Promise(() => undefined));
+    mocks.syncEntries.mockReturnValue(new Promise(() => undefined));
+    rerender({ entryId: 'entry-2' });
+
+    await waitFor(() => expect(result.current.loadedEntryId).toBe('entry-2'), { timeout: 100 });
+    expect(result.current.isLoading).toBe(false);
+    expect(mocks.syncTrials).toHaveBeenCalledTimes(1);
+  });
+
+  it('hydrates a missing entry before opening instead of treating a partial cache as complete', async () => {
+    mocks.getEntriesByClass.mockResolvedValueOnce([]);
+    const { result } = renderScoresheet(vi.fn());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.entry?.entryId).toBe('entry-1');
+    expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
+    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+    expect(mocks.transitionToInRing).toHaveBeenCalledOnce();
   });
 
   it('does not record completion, transition, or navigate when score submission fails', async () => {

@@ -240,16 +240,17 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     seed();
   });
 
-  it('loads the entry and renders the live scoresheet', async () => {
+  it('loads the cached entry and refreshes only its trial in the background', async () => {
     renderPage();
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(screen.getByText('Live scoresheet for #105')).toBeInTheDocument();
-    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedTrialsTable.sync).not.toHaveBeenCalled();
     expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
   });
 
   it('keeps the skeleton visible while the explicit scoped load is still pending', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
     vi.mocked(replicatedTrialsTable.sync).mockReturnValue(new Promise(() => undefined));
 
     renderPage();
@@ -277,6 +278,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
   it('retries the same scoped hydration path from the recoverable error', async () => {
     vi.mocked(replicatedClassesTable.getClassById)
+      .mockResolvedValueOnce(null as never)
       .mockResolvedValueOnce(null as never)
       .mockResolvedValue({
         id: 'class-1',
@@ -394,7 +396,9 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByRole('button', { name: /correct this score/i }));
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
-    expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(2);
+    // Opening the cached sheet skipped a foreground sync; explicit correction
+    // still forces the canonical scoped refresh once.
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(1);
     expect(replicatedEntriesTable.sync).toHaveBeenCalledTimes(2);
   });
 

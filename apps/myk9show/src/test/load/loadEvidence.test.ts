@@ -30,6 +30,7 @@ const observation: LoadObservation = {
     shards: [
       {
         shardIndex: 0,
+        samplingWindow: 'active-load' as const,
         logicalCpuCount: 2,
         samplingDurationMs: 600_000,
         sampleCount: 600,
@@ -109,6 +110,15 @@ const evaluation: LoadEvaluation = {
 };
 
 describe('load evidence', () => {
+  it('does not advertise a supported ceiling after a failed rehearsal', () => {
+    const evidence = buildLoadEvidence({
+      target: { mode: 'e2e', projectRef: 'approved', computeTier: 'Micro', gateEligible: true },
+      scenario: G9_NORMAL_SCENARIO,
+      observation,
+      evaluation: { ...evaluation, passed: false, failures: ['Incomplete evidence'] },
+    });
+    expect(evidence.supportedCeiling).toBe('Not established');
+  });
   it('records the sanitized target, seed, duration, and supported ceiling', () => {
     const evidence = buildLoadEvidence({
       target: {

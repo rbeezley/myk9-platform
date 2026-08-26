@@ -20,6 +20,8 @@ export interface HostCpuSnapshot {
 
 export interface GeneratorShardObservation {
   shardIndex: number;
+  /** Absent in legacy reports that included preparation idle time. */
+  samplingWindow?: 'active-load';
   logicalCpuCount: number;
   samplingDurationMs: number;
   sampleCount: number;
@@ -42,6 +44,7 @@ export interface GeneratorShardObservation {
 
 export interface LoadGeneratorSampler {
   markContextsPrepared(preparedAtMs?: number): void;
+  markLoadStarted(): void;
   stop(): Promise<GeneratorShardObservation>;
 }
 
@@ -81,8 +84,9 @@ export async function startLoadGeneratorSampler(input: {
   let sampleInFlight: Promise<void> | undefined;
   let browserControlAttempts = 0;
   let stopped = false;
-
-  histogram.enable();
+  let samplingStartedAtMs: number | undefined;
+  let hostTimer: ReturnType<typeof setInterval> | undefined;
+  let browserTimer: ReturnType<typeof setInterval> | undefined;
 
   const sampleHost = () => {
     const currentCpu = readHostCpuSnapshot();
@@ -103,14 +107,6 @@ export async function startLoadGeneratorSampler(input: {
     }
   };
 
-  const hostTimer = setInterval(sampleHost, SAMPLE_INTERVAL_MS);
-  const browserTimer = setInterval(() => {
-    if (sampleInFlight) return;
-    sampleInFlight = sampleBrowser().finally(() => {
-      sampleInFlight = undefined;
-    });
-  }, SAMPLE_INTERVAL_MS);
-
   return {
     markContextsPrepared(preparedAtMs = now()) {
       if (contextPreparationMs !== undefined) {
@@ -120,6 +116,24 @@ export async function startLoadGeneratorSampler(input: {
       startHeadroomMs =
         input.expectedStartAtMs === undefined ? 0 : input.expectedStartAtMs - preparedAtMs;
     },
+    markLoadStarted() {
+      if (stopped || samplingStartedAtMs !== undefined || contextPreparationMs === undefined) {
+        throw new Error('Load sampling must start once, after preparation and before stop.');
+      }
+      samplingStartedAtMs = now();
+      // Reset the CPU baseline and event-loop histogram at the barrier. Neither
+      // the idle preparation window nor its browser probes may dilute load p95.
+      previousCpu = readHostCpuSnapshot();
+      histogram.reset();
+      histogram.enable();
+      hostTimer = setInterval(sampleHost, SAMPLE_INTERVAL_MS);
+      browserTimer = setInterval(() => {
+        if (sampleInFlight) return;
+        sampleInFlight = sampleBrowser().finally(() => {
+          sampleInFlight = undefined;
+        });
+      }, SAMPLE_INTERVAL_MS);
+    },
     async stop() {
       if (stopped) {
         throw new Error('Load generator sampler was stopped more than once.');
@@ -127,19 +141,22 @@ export async function startLoadGeneratorSampler(input: {
       stopped = true;
       clearInterval(hostTimer);
       clearInterval(browserTimer);
-      await sampleInFlight;
-      if (hostCpuPercents.length === 0) sampleHost();
-      if (browserControlAttempts === 0) await sampleBrowser();
-      const samplingDurationMs = now() - preparationStartedAtMs;
+      const stoppedAtMs = now();
       histogram.disable();
+      await sampleInFlight;
       await closeProbe(probePage, probeContext);
-      if (contextPreparationMs === undefined || startHeadroomMs === undefined) {
-        throw new Error('Load generator sampler stopped before contexts were marked prepared.');
+      if (
+        contextPreparationMs === undefined ||
+        startHeadroomMs === undefined ||
+        samplingStartedAtMs === undefined
+      ) {
+        throw new Error('Load generator sampler stopped before active load started.');
       }
       return buildGeneratorShardObservation({
         shardIndex: input.shardIndex,
+        samplingWindow: 'active-load',
         logicalCpuCount: cpus().length,
-        samplingDurationMs,
+        samplingDurationMs: stoppedAtMs - samplingStartedAtMs,
         hostCpuPercents,
         hostMemoryPercents,
         hostLoad1m,
@@ -157,6 +174,7 @@ export async function startLoadGeneratorSampler(input: {
 
 export function buildGeneratorShardObservation(input: {
   shardIndex: number;
+  samplingWindow?: 'active-load';
   logicalCpuCount: number;
   samplingDurationMs: number;
   hostCpuPercents: readonly number[];
@@ -172,6 +190,7 @@ export function buildGeneratorShardObservation(input: {
 }): GeneratorShardObservation {
   return {
     shardIndex: input.shardIndex,
+    ...(input.samplingWindow && { samplingWindow: input.samplingWindow }),
     logicalCpuCount: input.logicalCpuCount,
     samplingDurationMs: roundMetric(input.samplingDurationMs),
     sampleCount: input.hostCpuPercents.length,
@@ -199,14 +218,9 @@ export function buildGeneratorShardObservation(input: {
   };
 }
 
-export function assessGeneratorShard(
-  shard: GeneratorShardObservation
-): GeneratorShardAssessment {
+export function assessGeneratorShard(shard: GeneratorShardObservation): GeneratorShardAssessment {
   const reasons: string[] = [];
-  const hostCoverage = calculateSampleCoveragePercent(
-    shard.samplingDurationMs,
-    shard.sampleCount
-  );
+  const hostCoverage = calculateSampleCoveragePercent(shard.samplingDurationMs, shard.sampleCount);
   const browserCoverage = calculateSampleCoveragePercent(
     shard.samplingDurationMs,
     shard.browserControlAttempts
@@ -215,14 +229,17 @@ export function assessGeneratorShard(
     hostCoverage === shard.hostSampleCoveragePercent &&
     browserCoverage === shard.browserControlAttemptCoveragePercent;
   const complete =
+    shard.samplingWindow === 'active-load' &&
     shard.samplingDurationMs > 0 &&
     shard.sampleCount > 0 &&
     shard.browserControlAttempts > 0 &&
-    shard.browserControlSamples + shard.browserControlFailures ===
-      shard.browserControlAttempts &&
+    shard.browserControlSamples + shard.browserControlFailures === shard.browserControlAttempts &&
     coverageReconciles &&
     hostCoverage >= MIN_SAMPLE_COVERAGE_PERCENT &&
     browserCoverage >= MIN_SAMPLE_COVERAGE_PERCENT;
+  if (shard.samplingWindow !== 'active-load') {
+    reasons.push('active-load sampling window missing');
+  }
   if (hostCoverage < MIN_SAMPLE_COVERAGE_PERCENT) {
     reasons.push(`host sampling coverage ${hostCoverage}%`);
   }
@@ -232,10 +249,7 @@ export function assessGeneratorShard(
   if (!coverageReconciles) {
     reasons.push('recorded sampling coverage did not reconcile');
   }
-  if (
-    shard.browserControlSamples + shard.browserControlFailures !==
-    shard.browserControlAttempts
-  ) {
+  if (shard.browserControlSamples + shard.browserControlFailures !== shard.browserControlAttempts) {
     reasons.push('browser-control attempts did not reconcile');
   }
 
@@ -259,7 +273,8 @@ export function assessGeneratorShard(
     reasons.push(`browser-control failure rate ${roundMetric(failureRate * 100)}%`);
   }
   const saturationReasonCount = reasons.filter(
-    reason => !reason.includes('coverage') && !reason.includes('reconcile')
+    reason =>
+      !reason.includes('coverage') && !reason.includes('reconcile') && !reason.includes('window')
   ).length;
   return { complete, saturated: saturationReasonCount > 0, reasons };
 }

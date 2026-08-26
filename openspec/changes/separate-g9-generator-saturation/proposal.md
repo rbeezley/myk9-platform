@@ -12,13 +12,16 @@ This directly supports fall 2026 launch readiness by protecting the shared prela
 - Preserve exact global assignment and percentile aggregation for the larger shard topology.
 - Ensure Supabase CPU and disk IO samples are captured and carried into the aggregate evidence; missing telemetry remains a hard failure.
 - Add assertion-first unit and workflow contracts for teardown safety, shard topology, and complete platform evidence.
+- Follow-up authorized after the failed eight-shard run: restrict generator metrics to the active workload window and batch existing class-visibility replication reads across trials. Preserve the current cascade, RBAC, offline storage and all workload thresholds.
+- Guard the opt-in readiness diagnostic against automatic page-entry writes; retain only safe endpoint/request-count evidence locally.
+- Open fully cached scoresheets without waiting for network hydration, retaining foreground hydration for incomplete caches and explicit retries/corrections.
 
 Non-goals:
 
 - No reduction of G9 thresholds, session count, duration, fixture size, or workload coverage.
 - No production load, compute-tier upgrade, or shared-system rehearsal execution in this change.
 - No user-facing UI or new product surface.
-- No broad backend tuning beyond the evidence needed to separate generator saturation from database capacity.
+- No broad backend tuning or database migration. The targeted client-side read batching addresses measured startup fan-out; it does not establish a Micro capacity ceiling.
 
 ## Capabilities
 
@@ -36,3 +39,5 @@ Non-goals:
 - `apps/myk9show/src/test/load/` shard, teardown, platform telemetry, aggregation, and contract tests.
 - `apps/myk9show/scripts/` only if a focused typed helper is needed.
 - OpenSpec rehearsal evidence and task tracking; no production application API changes.
+- Existing class-visibility replication enrichment, with no new product surface or API.
+- Existing at-show scoresheet readiness, with unchanged scoring mutations and no new UI.

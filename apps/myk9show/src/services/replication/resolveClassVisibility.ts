@@ -37,6 +37,13 @@ type VisRow = {
   self_checkin_enabled: boolean | null;
 };
 
+const VISIBILITY_COLUMNS =
+  'preset, placement_timing, qualification_timing, time_timing, faults_timing, self_checkin_enabled';
+// Bound URL size and stay below PostgREST's row cap even for unscoped syncs.
+const VISIBILITY_BATCH_SIZE = 100;
+
+type ClassScopeRow = { id: string | number; trial_id?: string | null };
+
 /**
  * Resolve the cascade for a batch of classes that all belong to `trialId`.
  * Preset cascade is last-non-null wins (class → trial → show → 'open');
@@ -47,61 +54,7 @@ export async function resolveClassVisibilityForTrial(
   trialId: string,
   classIds: string[]
 ): Promise<Map<string, ResolvedClassVisibility>> {
-  const result = new Map<string, ResolvedClassVisibility>();
-  if (classIds.length === 0) return result;
-
-  // The show-level row is the cascade base; derive the show id from the trial.
-  const { data: trialRow } = await supabase
-    .from('trials')
-    .select('show_id')
-    .eq('id', trialId)
-    .maybeSingle();
-  const showId = (trialRow as { show_id: string } | null)?.show_id;
-
-  const [showRes, trialRes, classRes] = await Promise.all([
-    showId
-      ? untypedSupabase
-          .from('show_visibility_settings')
-          .select(
-            'preset, placement_timing, qualification_timing, time_timing, faults_timing, self_checkin_enabled'
-          )
-          .eq('show_id', showId)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    untypedSupabase
-      .from('trial_visibility_overrides')
-      .select(
-        'preset, placement_timing, qualification_timing, time_timing, faults_timing, self_checkin_enabled'
-      )
-      .eq('trial_id', trialId)
-      .maybeSingle(),
-    untypedSupabase
-      .from('class_visibility_overrides')
-      .select(
-        'class_id, preset, placement_timing, qualification_timing, time_timing, faults_timing, self_checkin_enabled'
-      )
-      .in('class_id', classIds),
-  ]);
-
-  const show = showRes.data as VisRow | null;
-  const trial = trialRes.data as VisRow | null;
-  const classRows = (classRes.data ?? []) as Array<VisRow & { class_id: string }>;
-  const classById = new Map(classRows.map(r => [r.class_id, r]));
-  const showTimings = resolveTimingBase(show);
-
-  for (const classId of classIds) {
-    const cls = classById.get(classId);
-    const timings = applyTimingOverride(applyTimingOverride(showTimings, trial), cls);
-    result.set(classId, {
-      visibilityPreset: detectPreset(timings) ?? 'custom',
-      selfCheckinEnabled: resolveCheckinCascade(
-        show?.self_checkin_enabled ?? null,
-        trial?.self_checkin_enabled ?? null,
-        cls?.self_checkin_enabled ?? null
-      ),
-    });
-  }
-  return result;
+  return resolveVisibilityForClassRows(classIds.map(id => ({ id, trial_id: trialId })));
 }
 
 function resolveTimingBase(row: VisRow | null): FieldTimings {
@@ -122,27 +75,81 @@ function applyTimingOverride(base: FieldTimings, row: VisRow | null | undefined)
 }
 
 /**
- * Resolve visibility for a batch of raw class rows, grouping by each row's OWN
- * `trial_id` (so it works for scoped AND unscoped syncs, independent of the sync
- * scope id). Returns a classId → resolved-visibility map. Rows without a
- * trial_id are skipped. The caller is responsible for best-effort error handling.
+ * Resolve each class's OWN trial/show cascade with four bounded reads per batch,
+ * not four serial reads per trial. No cross-sync cache: permission or settings
+ * changes are read afresh. The caller preserves cached values on read failure.
  */
 export async function resolveVisibilityForClassRows(
-  rows: Array<{ id: string | number; trial_id?: string | null }>
+  rows: ClassScopeRow[]
 ): Promise<Map<string, ResolvedClassVisibility>> {
-  const classIdsByTrial = new Map<string, string[]>();
-  for (const r of rows) {
-    const tid = r.trial_id ? String(r.trial_id) : null;
-    if (!tid) continue;
-    const ids = classIdsByTrial.get(tid);
-    if (ids) ids.push(String(r.id));
-    else classIdsByTrial.set(tid, [String(r.id)]);
-  }
-
   const result = new Map<string, ResolvedClassVisibility>();
-  for (const [tid, classIds] of classIdsByTrial) {
-    const resolved = await resolveClassVisibilityForTrial(tid, classIds);
-    for (const [cid, vis] of resolved) result.set(cid, vis);
+  const scopedRows = [
+    ...new Map(rows.filter(row => row.trial_id).map(row => [String(row.id), row])).values(),
+  ];
+  for (let offset = 0; offset < scopedRows.length; offset += VISIBILITY_BATCH_SIZE) {
+    const batch = scopedRows.slice(offset, offset + VISIBILITY_BATCH_SIZE);
+    const trialIds = [...new Set(batch.map(row => String(row.trial_id)))];
+    const trials = await readRows<{ id: string; show_id: string | null }>(
+      'trials',
+      'id, show_id',
+      'id',
+      trialIds
+    );
+    const showIds = [...new Set(trials.flatMap(trial => (trial.show_id ? [trial.show_id] : [])))];
+    const [shows, trialOverrides, classOverrides] = await Promise.all([
+      readRows<VisRow & { show_id: string }>(
+        'show_visibility_settings',
+        `show_id, ${VISIBILITY_COLUMNS}`,
+        'show_id',
+        showIds
+      ),
+      readRows<VisRow & { trial_id: string }>(
+        'trial_visibility_overrides',
+        `trial_id, ${VISIBILITY_COLUMNS}`,
+        'trial_id',
+        trialIds
+      ),
+      readRows<VisRow & { class_id: string }>(
+        'class_visibility_overrides',
+        `class_id, ${VISIBILITY_COLUMNS}`,
+        'class_id',
+        batch.map(row => String(row.id))
+      ),
+    ]);
+    const showByTrial = new Map(trials.map(trial => [trial.id, trial.show_id]));
+    const showById = new Map(shows.map(show => [show.show_id, show]));
+    const trialById = new Map(trialOverrides.map(trial => [trial.trial_id, trial]));
+    const classById = new Map(classOverrides.map(cls => [cls.class_id, cls]));
+    for (const row of batch) {
+      const classId = String(row.id);
+      const trialId = String(row.trial_id);
+      const show = showById.get(showByTrial.get(trialId) ?? '') ?? null;
+      const trial = trialById.get(trialId);
+      const cls = classById.get(classId);
+      const timings = applyTimingOverride(applyTimingOverride(resolveTimingBase(show), trial), cls);
+      result.set(classId, {
+        visibilityPreset: detectPreset(timings) ?? 'custom',
+        selfCheckinEnabled: resolveCheckinCascade(
+          show?.self_checkin_enabled ?? null,
+          trial?.self_checkin_enabled ?? null,
+          cls?.self_checkin_enabled ?? null
+        ),
+      });
+    }
   }
   return result;
+}
+
+async function readRows<T>(
+  table: string,
+  columns: string,
+  key: string,
+  ids: string[]
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await untypedSupabase.from(table).select(columns).in(key, ids);
+  // A failed read is not a missing setting: do not replace cached restrictions
+  // with enabled/open defaults during a transient backend failure.
+  if (error) throw new Error(`Class visibility read failed: ${table}`);
+  return (data ?? []) as T[];
 }

@@ -44,6 +44,19 @@ export class TimeoutError extends Error {
   }
 }
 
+interface AbortablePromiseLike<T> extends PromiseLike<T> {
+  abortSignal(signal: AbortSignal): PromiseLike<T>;
+}
+
+function isAbortablePromiseLike<T>(value: PromiseLike<T>): value is AbortablePromiseLike<T> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'abortSignal' in value &&
+    typeof (value as { abortSignal?: unknown }).abortSignal === 'function'
+  );
+}
+
 /**
  * Wraps a promise or thenable with a timeout
  *
@@ -71,23 +84,33 @@ export async function withTimeout<T>(
   operationName: string = 'operation'
 ): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let abortController: AbortController | undefined;
+  let boundedPromiseLike = promiseLike;
 
-  // Convert PromiseLike to proper Promise (handles Supabase query builders)
-  const promise = Promise.resolve(promiseLike);
+  // Supabase query builders expose abortSignal(). Attach it before Promise.resolve
+  // assimilates the thenable and starts the request, so a local timeout also stops
+  // the underlying transport instead of leaving it alive beside the next retry.
+  if (typeof AbortController !== 'undefined' && isAbortablePromiseLike(promiseLike)) {
+    abortController = new AbortController();
+    boundedPromiseLike = promiseLike.abortSignal(abortController.signal);
+  }
+  const promise = Promise.resolve(boundedPromiseLike);
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new TimeoutError(`${operationName} timed out after ${timeoutMs}ms`, timeoutMs));
+      const timeoutError = new TimeoutError(
+        `${operationName} timed out after ${timeoutMs}ms`,
+        timeoutMs
+      );
+      reject(timeoutError);
+      abortController?.abort(timeoutError);
     }, timeoutMs);
   });
 
   try {
-    const result = await Promise.race([promise, timeoutPromise]);
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
     if (timeoutId) clearTimeout(timeoutId);
-    return result;
-  } catch (error) {
-    if (timeoutId) clearTimeout(timeoutId);
-    throw error;
   }
 }
 

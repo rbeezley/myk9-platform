@@ -19,6 +19,7 @@ import {
   waitForReplicatedEntrySync,
 } from './loadReplicationProbe';
 import { startLoadPlatformSampler, type LoadPlatformSampler } from './loadPlatformSampler';
+import { countPersistedScores } from './loadPersistence';
 import type { LoadScenario } from './loadScenario';
 import { LoadSessionLifecycle } from './loadSessionLifecycle';
 import { scheduledStartDelayMs, selectShardAssignments, type LoadShard } from './loadShard';
@@ -159,7 +160,7 @@ export async function runBrowserLoad(
     if (options.smoke && rejectedSessions[0]) throw rejectedSessions[0].reason;
 
     await metrics.settle();
-    const persistedScores = await countPersistedScores([...scoredEntryIds]);
+    const persistence = await countPersistedScores([...scoredEntryIds]);
     const platform = await platformSampler?.stop();
     platformSampler = undefined;
     const generator = await generatorSampler.stop();
@@ -176,7 +177,8 @@ export async function runBrowserLoad(
       finalReplicationQueueDepth: finalQueueDepth,
       queueTelemetryFailures,
       expectedPersistedScores: scoredEntryIds.size,
-      persistedScores,
+      persistedScores: persistence.count,
+      persistenceFailures: persistence.failures,
       platform,
     });
     return {
@@ -454,23 +456,6 @@ async function timedGoto(page: Page, path: string, metrics: LoadMetrics): Promis
   const startedAt = performance.now();
   await page.goto(path, { waitUntil: 'domcontentloaded' });
   metrics.recordPageDuration(performance.now() - startedAt);
-}
-
-async function countPersistedScores(entryIds: readonly string[]): Promise<number> {
-  if (entryIds.length === 0) return 0;
-  const url = process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase persistence-verification credentials.');
-  const client = createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-  });
-  const { count, error } = await client
-    .from('entries')
-    .select('id', { count: 'exact', head: true })
-    .in('id', [...entryIds])
-    .eq('is_scored', true);
-  if (error) throw new Error(`Could not reconcile persisted scores: ${error.message}`);
-  return count ?? 0;
 }
 
 async function assertCanonicalFixture(): Promise<void> {

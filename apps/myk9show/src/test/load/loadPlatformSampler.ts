@@ -1,6 +1,19 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { PlatformObservation, StatementDelta } from './loadEvaluation';
+import type {
+  PlatformObservation,
+  ResourceSamplingFailure,
+  StatementDelta,
+} from './loadEvaluation';
+
+class ResourceSampleError extends Error {
+  constructor(
+    readonly kind: ResourceSamplingFailure['kind'],
+    readonly status?: number
+  ) {
+    super(`Platform resource sample failed: ${kind}`);
+  }
+}
 
 const execFileAsync = promisify(execFile);
 const STATEMENT_SNAPSHOT_SQL = `
@@ -48,7 +61,9 @@ export async function startLoadPlatformSampler(
   ]);
   let peakConnections = 0;
   let connectionSamplingFailed = false;
-  let resourceSamplingFailed = false;
+  const resourceFailures: ResourceSamplingFailure[] = [];
+  let resourceAttempts = 1;
+  let resourceSuccesses = 1;
   let peakCpuPercent = Number.NaN;
   let peakIoPercent = Number.NaN;
   let previousResources = initialResources;
@@ -70,8 +85,10 @@ export async function startLoadPlatformSampler(
   };
 
   const sampleResources = () => {
+    resourceAttempts += 1;
     const task = readResourceCounters(env)
       .then(counters => {
+        resourceSuccesses += 1;
         const sampledAt = Date.now();
         const utilization = resourceUtilization(
           previousResources,
@@ -83,8 +100,14 @@ export async function startLoadPlatformSampler(
         previousResources = counters;
         previousResourceSampleAt = sampledAt;
       })
-      .catch(() => {
-        resourceSamplingFailed = true;
+      .catch((error: unknown) => {
+        const kind = error instanceof ResourceSampleError ? error.kind : 'transport';
+        const status = error instanceof ResourceSampleError ? error.status : undefined;
+        const existing = resourceFailures.find(
+          failure => failure.kind === kind && failure.status === status
+        );
+        if (existing) existing.count += 1;
+        else resourceFailures.push({ kind, ...(status !== undefined ? { status } : {}), count: 1 });
       })
       .finally(() => pendingSamples.delete(task));
     pendingSamples.add(task);
@@ -107,11 +130,16 @@ export async function startLoadPlatformSampler(
 
       const finalSnapshot = await readStatementSnapshot(command).catch(() => undefined);
       finalResult = {
-        peakCpuPercent: resourceSamplingFailed ? Number.NaN : peakCpuPercent,
-        peakIoPercent: resourceSamplingFailed ? Number.NaN : peakIoPercent,
+        peakCpuPercent: resourceFailures.length ? Number.NaN : peakCpuPercent,
+        peakIoPercent: resourceFailures.length ? Number.NaN : peakIoPercent,
         peakConnections: connectionSamplingFailed ? Number.NaN : peakConnections,
         connectionCap,
         statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
+        resourceSampling: {
+          attempts: resourceAttempts,
+          succeeded: resourceSuccesses,
+          failures: resourceFailures,
+        },
       };
       return finalResult;
     },
@@ -209,12 +237,29 @@ async function readResourceCounters(env: NodeJS.ProcessEnv): Promise<ResourceCou
   if (!serviceKey) throw new Error('Missing Supabase Metrics API credential.');
 
   const authorization = Buffer.from(`username:${serviceKey}`).toString('base64');
-  const response = await fetch(`https://${projectRef}.supabase.co/customer/v1/privileged/metrics`, {
-    headers: { Authorization: `Basic ${authorization}` },
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) throw new Error('Supabase Metrics API telemetry request failed.');
-  return parsePrometheusResourceCounters(await response.text());
+  try {
+    const response = await fetch(
+      `https://${projectRef}.supabase.co/customer/v1/privileged/metrics`,
+      {
+        headers: { Authorization: `Basic ${authorization}` },
+        signal: AbortSignal.timeout(15_000),
+      }
+    );
+    if (!response.ok) throw new ResourceSampleError('http', response.status);
+    const text = await response.text();
+    try {
+      return parsePrometheusResourceCounters(text);
+    } catch {
+      throw new ResourceSampleError('invalid-counters');
+    }
+  } catch (error) {
+    if (error instanceof ResourceSampleError) throw error;
+    throw new ResourceSampleError(
+      error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name)
+        ? 'timeout'
+        : 'transport'
+    );
+  }
 }
 
 function databaseCommand(databaseUrl: string, baseEnv: NodeJS.ProcessEnv): DatabaseCommand {

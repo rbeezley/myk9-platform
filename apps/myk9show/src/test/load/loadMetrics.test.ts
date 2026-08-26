@@ -51,6 +51,26 @@ function sessionEvidence(ringsideSessions: 0 | 1) {
 }
 
 describe('load metrics', () => {
+  it('retains collected samples alongside unknown persistence in the shard observation', () => {
+    const metrics = new LoadMetrics();
+    metrics.recordPageDuration(123);
+    const observation = metrics.buildObservation({
+      concurrentSessions: 1,
+      ringsideSessions: 1,
+      ...sessionEvidence(1),
+      elapsedMs: 1_000,
+      maxReplicationQueueDepth: 0,
+      finalReplicationQueueDepth: 0,
+      queueTelemetryFailures: 0,
+      expectedPersistedScores: 1,
+      persistedScores: null,
+      persistenceFailures: [{ kind: 'http', status: 503, entryCount: 1 }],
+    });
+    expect(observation.persistedScores).toBeNull();
+    expect(observation.persistenceFailures).toEqual([{ kind: 'http', status: 503, entryCount: 1 }]);
+    expect(observation.pageP95Ms).toBe(123);
+  });
+
   it('uses nearest-rank percentiles without mutating samples', () => {
     const samples = [100, 20, 80, 40, 60];
     expect(percentile(samples, 95)).toBe(100);

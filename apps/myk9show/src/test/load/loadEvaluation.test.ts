@@ -93,6 +93,28 @@ function passingObservation(overrides: Partial<LoadObservation> = {}): LoadObser
 }
 
 describe('load result evaluation', () => {
+  it('rejects explicit persistence failures even if counts happen to match', () => {
+    const observation = passingObservation({
+      persistenceFailures: [{ kind: 'http', status: 503, entryCount: 1 }],
+    });
+    expect(evaluateLoadResult(G9_NORMAL_SCENARIO, observation).failures).toContain(
+      'Persisted scoring results did not reconcile.'
+    );
+  });
+
+  it('rejects resource sample failures even when peak values are finite', () => {
+    const observation = passingObservation();
+    if (!observation.platform) throw new Error('Missing fixture platform');
+    observation.platform.resourceSampling = {
+      attempts: 3,
+      succeeded: 2,
+      failures: [{ kind: 'timeout', count: 1 }],
+    };
+    expect(evaluateLoadResult(G9_NORMAL_SCENARIO, observation).failures).toContain(
+      'Required platform telemetry was missing.'
+    );
+  });
+
   it('passes G9 only when every Normal workload and platform target is present', () => {
     expect(evaluateLoadResult(G9_NORMAL_SCENARIO, passingObservation())).toMatchObject({
       passed: true,

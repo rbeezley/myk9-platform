@@ -4,15 +4,19 @@ import {
   type LoadScenario,
   type LoadWorkloadKind,
 } from './loadScenario';
-import {
-  assessGeneratorShard,
-  type GeneratorShardObservation,
-} from './loadGeneratorSampler';
+import { assessGeneratorShard, type GeneratorShardObservation } from './loadGeneratorSampler';
 import {
   calculatePeakActiveWorkflows,
   type LoadSessionLifecycleObservation,
 } from './loadSessionLifecycle';
 import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
+import type { PersistenceFailure } from './loadPersistence';
+
+export interface ResourceSamplingFailure {
+  kind: 'http' | 'timeout' | 'transport' | 'invalid-counters';
+  status?: number;
+  count: number;
+}
 
 export interface StatementDelta {
   queryId: string;
@@ -28,6 +32,11 @@ export interface PlatformObservation {
   peakConnections: number;
   connectionCap: number;
   statementDeltas: readonly StatementDelta[];
+  resourceSampling?: {
+    attempts: number;
+    succeeded: number;
+    failures: readonly ResourceSamplingFailure[];
+  };
 }
 
 export interface WorkflowFailureDetail {
@@ -63,7 +72,8 @@ export interface LoadObservation {
   finalReplicationQueueDepth: number;
   queueTelemetryFailures: number;
   expectedPersistedScores: number;
-  persistedScores: number;
+  persistedScores: number | null;
+  persistenceFailures?: readonly PersistenceFailure[];
   platform?: PlatformObservation;
 }
 
@@ -154,7 +164,11 @@ export function evaluateLoadResult(
   if (observation.queueTelemetryFailures !== 0) {
     failures.push('Replication queue telemetry was incomplete.');
   }
-  if (observation.persistedScores !== observation.expectedPersistedScores) {
+  if (
+    !Number.isSafeInteger(observation.persistedScores) ||
+    observation.persistedScores !== observation.expectedPersistedScores ||
+    (observation.persistenceFailures?.length ?? 0) > 0
+  ) {
     failures.push('Persisted scoring results did not reconcile.');
   }
 
@@ -170,7 +184,8 @@ export function evaluateLoadResult(
       platform.peakIoPercent < 0 ||
       platform.peakConnections < 0 ||
       platform.connectionCap <= 0 ||
-      platform.statementDeltas.length === 0
+      platform.statementDeltas.length === 0 ||
+      (platform.resourceSampling?.failures.length ?? 0) > 0
     ) {
       failures.push('Required platform telemetry was missing.');
     } else if (platform.connectionCap !== scenario.targets.databaseConnectionCap) {
@@ -207,17 +222,14 @@ export function evaluateLoadResult(
   };
 }
 
-function validLifecycleIntervals(
-  lifecycle: LoadSessionLifecycleObservation | undefined
-): boolean {
+function validLifecycleIntervals(lifecycle: LoadSessionLifecycleObservation | undefined): boolean {
   if (!lifecycle || !Array.isArray(lifecycle.activityIntervals)) return false;
   const intervals = lifecycle.activityIntervals;
   const sequences = new Set(intervals.map(interval => interval.sequence));
   if (
     intervals.length !== lifecycle.startedWorkflows ||
     sequences.size !== intervals.length ||
-    intervals.filter(interval => interval.ringside).length !==
-      lifecycle.startedRingsideWorkflows ||
+    intervals.filter(interval => interval.ringside).length !== lifecycle.startedRingsideWorkflows ||
     intervals.some(
       interval =>
         !Number.isInteger(interval.sequence) ||
@@ -235,9 +247,10 @@ function validLifecycleIntervals(
   );
 }
 
-function analyzeGeneratorEvidence(
-  shards: readonly GeneratorShardObservation[] | undefined
-): { complete: boolean; saturatedShardIndexes: number[] } {
+function analyzeGeneratorEvidence(shards: readonly GeneratorShardObservation[] | undefined): {
+  complete: boolean;
+  saturatedShardIndexes: number[];
+} {
   if (!shards || shards.length !== DISTRIBUTED_G9_SHARD_COUNT) {
     return { complete: false, saturatedShardIndexes: [] };
   }

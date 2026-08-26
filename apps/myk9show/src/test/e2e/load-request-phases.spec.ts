@@ -53,13 +53,22 @@ test('G9 request attribution separates startup and cached navigation', async ({
   await installSharedStagingWriteGuard(page, { strictRpcWrites: true, ledger });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Network.enable');
+  await cdp.send('Performance.enable');
   await cdp.send('Debugger.enable');
   await cdp.send('Debugger.setAsyncCallStackDepth', { maxDepth: 16 });
   const requests = new Map<string, RequestSample>();
   let phase = 'cold-sign-in';
-  const phases: Array<{ name: string; durationMs: number }> = [];
+  const frontendRequests = new Map<string, { phase: string; type: string; bytes?: number }>();
+  const phases: Array<{
+    name: string;
+    durationMs: number;
+    rendererCounters: Record<string, number>;
+  }> = [];
   cdp.on('Network.requestWillBeSent', event => {
     const url = new URL(event.request.url);
+    if (url.origin === new URL(String(testInfo.project.use.baseURL)).origin) {
+      frontendRequests.set(event.requestId, { phase, type: event.type ?? 'Other' });
+    }
     if (!url.pathname.startsWith('/rest/v1/') || event.request.method === 'OPTIONS') return;
     // Only a digest leaves this callback: no filter values, body, tokens or headers.
     const fingerprint = createHash('sha256')
@@ -82,6 +91,8 @@ test('G9 request attribution separates startup and cached navigation', async ({
     if (request) request.status = event.response.status;
   });
   cdp.on('Network.loadingFinished', event => {
+    const frontend = frontendRequests.get(event.requestId);
+    if (frontend) frontend.bytes = event.encodedDataLength;
     const request = requests.get(event.requestId);
     if (request) request.durationMs = Math.round((event.timestamp - request.startedAt) * 1000);
   });
@@ -95,7 +106,27 @@ test('G9 request attribution separates startup and cached navigation', async ({
     try {
       await action();
     } finally {
-      phases.push({ name, durationMs: Math.round(performance.now() - started) });
+      const durationMs = Math.round(performance.now() - started);
+      // Raw cumulative counters for the current document, in seconds (except heap
+      // bytes). Document navigation resets them: do not subtract across documents
+      // or label renderer task time as whole-browser/host CPU utilization.
+      const { metrics } = await cdp.send('Performance.getMetrics');
+      const names = new Set([
+        'TaskDuration',
+        'ScriptDuration',
+        'LayoutDuration',
+        'RecalcStyleDuration',
+        'JSHeapUsedSize',
+      ]);
+      phases.push({
+        name,
+        durationMs,
+        rendererCounters: Object.fromEntries(
+          metrics
+            .filter(metric => names.has(metric.name))
+            .map(metric => [metric.name, metric.value])
+        ),
+      });
     }
   }
   const sheetPath = (entryNumber: number) => {
@@ -138,12 +169,21 @@ test('G9 request attribution separates startup and cached navigation', async ({
     const samples = [...requests.values()];
     const summaries = phases.map(window => {
       const own = samples.filter(sample => sample.phase === window.name);
+      const frontend = [...frontendRequests.values()].filter(
+        sample => sample.phase === window.name
+      );
       const byEndpoint = new Map<string, number>();
       for (const request of own) {
         byEndpoint.set(request.endpoint, (byEndpoint.get(request.endpoint) ?? 0) + 1);
       }
       return {
         ...window,
+        frontend: {
+          requests: frontend.length,
+          scripts: frontend.filter(sample => sample.type === 'Script').length,
+          completedRequests: frontend.filter(sample => sample.bytes !== undefined).length,
+          encodedBytes: frontend.reduce((total, sample) => total + (sample.bytes ?? 0), 0),
+        },
         requests: own.length,
         repeatedExactRequests: own.length - new Set(own.map(request => request.fingerprint)).size,
         endpoints: Object.fromEntries([...byEndpoint].sort((a, b) => b[1] - a[1])),

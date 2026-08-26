@@ -32,12 +32,20 @@
 - [x] 5.6a Restore the diagnostic's single unscored entry after explicit approval, with guarded transaction, quiet-window proof, and independent `514|504|0` verification.
 - [x] 5.6b Obtain explicit approval to publish the branch and open a PR, excluding private rehearsal diagnostics and repair SQL.
 - [x] 5.7 Run pre-publish typecheck/lint/tests and independent review, including a regression for correction followed by the next cached entry. Publication does not authorize merging or starting a load run.
-- [ ] 5.6 Obtain separate approval for unchanged full G9 validation still required. Keep MYK9-126/MYK9-109 open.
+- [x] 5.6 Obtain separate approval for unchanged full G9 validation still required. Keep MYK9-126/MYK9-109 open. Approved 2026-08-26; passing evidence remains required.
 
 ## 6. Post-merge request attribution
 
 - [x] 6.1 Measure bounded, write-guarded cold startup, first sheet, next cached sheet and background windows separately on the merged revision.
 - [x] 6.2 Attribute repeated requests to existing sync/query owners and reproduce confirmed avoidable work with failing tests before a minimal fix.
 - [x] 6.3 Run focused regression tests, typecheck/lint, build and the same guarded browser comparison; preserve offline/RBAC behavior and private evidence.
-- [ ] 6.4 Report remaining evidence gates; obtain separate publication/merge and full G9 approval as needed.
+- [x] 6.4 Report remaining evidence gates; obtain separate publication/merge and full G9 approval as needed. PR #1807 merged; one unchanged full G9 approved 2026-08-26.
 - [x] 6.4a Obtain approval to publish the scoped post-upload refresh patch, excluding private rehearsal notes and artifacts. Merge and full G9 remain separately gated.
+
+## 7. Bounded generator follow-up
+
+- [x] 7.1 Compare guarded single-session development and production-build frontend work; retain separate API counts and do not infer capacity.
+- [x] 7.2 Reproduce idle dev-server CPU overhead, add a failing config regression, and remove forced polling while retaining polling opt-in.
+- [x] 7.3 Verify native watcher events, guarded readiness, focused regression tests, types/lint, and record diagnostic limits.
+- [x] 7.4a Obtain approval to publish the generator follow-up patch, excluding private diagnostic notes and artifacts. Approved 2026-08-26.
+- [x] 7.4 Obtain separate merge approval for the generator follow-up patch; keep further full G9 execution separately gated. Approved 2026-08-26.

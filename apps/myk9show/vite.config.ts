@@ -247,11 +247,8 @@ export default defineConfig({
       overlay: true,
       port: Number(process.env.VITE_HMR_PORT || 24678),
     },
-    // Force file watching
-    watch: {
-      usePolling: true,
-      interval: 100,
-    },
+    // Use native file events: forced 100ms polling burns CPU even while idle.
+    // Filesystems that need polling can opt in with CHOKIDAR_USEPOLLING=true.
     // Proxy API calls during development
     proxy: {
       '/api': {

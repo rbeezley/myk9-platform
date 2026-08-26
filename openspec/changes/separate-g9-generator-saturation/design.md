@@ -142,3 +142,116 @@ The readiness diagnostic installs the existing strict shared-staging write guard
 sign-in/navigation and blocks service workers so routes cannot bypass interception.
 It reports intercepted/blocked writes, safe endpoint counts and readiness, not write
 correctness or capacity. Full G9 must continue to use real mutations and cleanup.
+
+## Telemetry lifecycle follow-up [ADDED]
+
+Resume the existing platform sampler seam; do not add a competing monitor or a
+product surface. First reproduce slow database commands and concurrent stop calls
+using mocked process/network boundaries and fake clocks. A command's connection
+timeout alone does not bound its query or child-process lifetime. Add bounded
+telemetry-owned command/query execution only after the regression demonstrates
+the gap. Set the query deadline with SQL before each SELECT on the existing
+session-mode pooler connection, not via startup options that the pooler may drop.
+The client must stop on SET failure and suppress SET command tags in parsed output.
+Periodic probes must not accumulate while an earlier probe remains live;
+skipped/lost coverage must remain visible and fail closed, not improve a reported
+peak by silently dropping work. Do not alter resource request cadence or extend
+timeouts to conceal the prior failure.
+
+Shutdown must have one shared in-flight completion, clear scheduling immediately,
+drain bounded telemetry work, and take final observations once. Startup or final
+query failures must remain explicit, sanitized missing evidence. Never include
+database URLs, credentials, response bodies or raw transport errors in artifacts.
+No shared database settings, writes, restarts or cleanup predicates are changed.
+Rollback is a source revert; no migration or data recovery is required for this
+local sampler slice.
+
+Testing precedes each repair: slow-probe concurrency, command/query deadline
+options, simultaneous/repeated stop, startup/active/final failures, timer/child
+cleanup, redaction and incomplete-evidence rejection. Use focused sampler/load
+tests and types/lint plus discovery and strict OpenSpec validation. Actual G9
+acceptance remains a separate reviewed, approved, evidence-complete execution.
+Do not assert that a local lifecycle reproduction explains the remote resource
+timeouts without a discriminating measurement.
+
+## Plan verification [ADDED]
+
+### Message subscription churn follow-up [ADDED]
+
+The existing request trace and local hook regression expose repeated thread
+subscription setup as replicated arrays are replaced without changing show IDs.
+Keep the existing message surface and store; do not duplicate UI or add a data
+cache. Stabilize the hook's show-ID set using the sorted-ID key pattern already
+used by useNotificationMonitor. Compare the auth snapshot by value so an identical
+user refresh does not restart channels; retain all auth fields in that comparison
+so changed roles, permissions, scopes or identity still force refresh. Do not
+change the store's RLS queries, current-subscription realtime behavior or offline data
+sources. Sign-out, changed membership and unmount must still release subscriptions.
+
+Testing: first reproduce five unchanged updates causing six subscriptions. Then
+cover stable membership despite reordered/replaced rows, changed membership,
+identity/authorization transitions, logout and unmount; verify real-store mocked
+transport request/channel counts, not only hook action mocks. Run affected hook,
+message store and notification tests, app types/lint and unchanged load contracts.
+Full CI and approved guarded/live evidence remain required before acceptance.
+Rollback is a source revert; no schema, shared target or test workload changes.
+
+Plan gap audit: initial follow-up coverage 80/100 (auth refresh and real request
+count verification were partial). Both are explicit above; patched coverage
+100/100 is plan coverage only. No new surface duplicates an existing page.
+
+| Requirement                                                 | Status  | Plan evidence                                                                 |
+| ----------------------------------------------------------- | ------- | ----------------------------------------------------------------------------- |
+| Reduce unchanged-scope request churn                        | Covered | Sorted-ID key and by-value auth snapshot                                      |
+| Preserve authorization, scope changes and lifecycle cleanup | Covered | All auth fields; membership, sign-out and unmount cases                       |
+| Preserve offline/realtime and recovery                      | Covered | No query/source change; active callbacks and failed-hydration recovery tests  |
+| Prove request reduction and guard G9 acceptance             | Covered | Hook and real-store transport tests; CI and approved evidence remain required |
+
+Validation profile for this follow-up: risk medium / validation app. The change
+affects the message subscription lifecycle across the app, but does not change
+authorization decisions, data access or replicated scoring paths. Reassess if
+the fix must alter store concurrency or authentication behavior.
+
+Review exposed a necessary concurrency repair: the store's busy flag drops a new
+show/auth request while an older fetch is pending, and stale work can reinstall
+channels after cleanup. Replace that dropped-request behavior with a
+generation-owned subscription: the latest request starts immediately, identical
+in-flight requests share work, and superseded fetches/callbacks cannot update the
+store or install channels. Unsubscribe invalidates pending work. Pass a private
+applicability predicate through the existing fetch action so obsolete results do
+not overwrite current threads; do not change query shapes or RLS. Extract the
+subscription action into a sibling module to keep the existing >500-line store
+under the repository limit. Add delayed-response A-to-B, logout/unmount,
+identical concurrent request and stale-data regressions. Validation is now risk
+high / full because store concurrency across message consumers is involved:
+repository types/lint and broad app tests, respecting the 60-second hang rule.
+
+Review also identified failed initial hydration becoming permanently skipped by
+stable dependencies. Return hydration success from the existing fetch action while
+retaining its non-throwing/logging contract for direct callers. Keep realtime
+channels available after a read failure, but expose incomplete hydration as an
+error and allow the same scope to retry. The hook retries only failed hydration
+on an existing replica/auth refresh or browser reconnect, once per event with
+in-flight deduplication; no polling timer or healthy-subscription restart. Retry
+the store's current scope so a secretary page's wider scope is not narrowed.
+Test fail-first recovery through both triggers, repeated events while pending,
+healthy no-op behavior and listener teardown. Workload and thresholds stay fixed.
+
+Initial review found lifecycle details only partially covered; score 85/100.
+The additions above and tasks 8–9 address the identified gaps; plan coverage is
+100/100 after patching (this is plan coverage, not implementation acceptance).
+
+| Requirement                                         | Status  | Evidence                                        |
+| --------------------------------------------------- | ------- | ----------------------------------------------- |
+| Preserve workload and truthful capacity attribution | Covered | Goals/Non-Goals; tasks 9.3–9.5                  |
+| Timeout, overlap and shutdown failure paths         | Covered | Telemetry lifecycle follow-up; tasks 8.1–8.3    |
+| Secret redaction and shared-system boundaries       | Covered | Telemetry lifecycle follow-up; tasks 8.5, 9.3   |
+| Offline/scoring correctness and real persistence    | Covered | Authorized performance follow-up; tasks 9.1–9.2 |
+| Regression tests, CI and independent review         | Covered | Testing paragraph; tasks 8.4–8.5, 9.2           |
+| Cleanup, rollback and incomplete evidence           | Covered | Migration Plan; tasks 9.4–9.5                   |
+
+## Validation Profile [ADDED]
+
+- Risk: high for the combined telemetry and message-subscription slice.
+- Validation: full repository types/lint and broad app tests, plus focused lifecycle/load contracts and independent review.
+- Rationale: the app follow-up now changes shared message-store concurrency and recovery. No schema/shared-system mutation is included; CI and an approved evidence-complete G9 remain required before acceptance.

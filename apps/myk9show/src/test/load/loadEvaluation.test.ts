@@ -135,6 +135,14 @@ describe('load result evaluation', () => {
     ['queue telemetry', { queueTelemetryFailures: 1 }],
     ['persistence reconciliation', { persistedScores: 54 }],
     ['platform metrics', { platform: undefined }],
+    [
+      'missing connection samples',
+      { platform: { ...passingObservation().platform!, peakConnections: Number.NaN } },
+    ],
+    [
+      'missing final statement snapshot',
+      { platform: { ...passingObservation().platform!, statementDeltas: [] } },
+    ],
     ['connection cap', { platform: { ...passingObservation().platform!, connectionCap: 61 } }],
     ['generator evidence', { generator: undefined }],
     [

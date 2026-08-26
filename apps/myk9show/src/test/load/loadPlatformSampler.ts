@@ -68,11 +68,16 @@ export async function startLoadPlatformSampler(
   let peakIoPercent = Number.NaN;
   let previousResources = initialResources;
   let previousResourceSampleAt = Date.now();
-  let stopped = false;
-  let finalResult: PlatformObservation | undefined;
+  let stopPromise: Promise<PlatformObservation> | undefined;
+  let connectionSample: Promise<void> | undefined;
   const pendingSamples = new Set<Promise<void>>();
 
   const sampleConnections = () => {
+    if (connectionSample) {
+      // A skipped scheduled observation is missing peak evidence, not a success.
+      connectionSamplingFailed = true;
+      return;
+    }
     const task = readConnectionCount(command)
       .then(count => {
         peakConnections = Math.max(peakConnections, count);
@@ -80,7 +85,11 @@ export async function startLoadPlatformSampler(
       .catch(() => {
         connectionSamplingFailed = true;
       })
-      .finally(() => pendingSamples.delete(task));
+      .finally(() => {
+        connectionSample = undefined;
+        pendingSamples.delete(task);
+      });
+    connectionSample = task;
     pendingSamples.add(task);
   };
 
@@ -118,30 +127,31 @@ export async function startLoadPlatformSampler(
   const resourceInterval = setInterval(sampleResources, 60_000);
 
   return {
-    async stop() {
-      if (stopped && finalResult) return finalResult;
-      stopped = true;
+    stop() {
+      if (stopPromise) return stopPromise;
       clearInterval(connectionInterval);
       clearInterval(resourceInterval);
-      await Promise.all(pendingSamples);
-      sampleConnections();
-      sampleResources();
-      await Promise.all(pendingSamples);
+      stopPromise = (async () => {
+        await Promise.all(pendingSamples);
+        sampleConnections();
+        sampleResources();
+        await Promise.all(pendingSamples);
 
-      const finalSnapshot = await readStatementSnapshot(command).catch(() => undefined);
-      finalResult = {
-        peakCpuPercent: resourceFailures.length ? Number.NaN : peakCpuPercent,
-        peakIoPercent: resourceFailures.length ? Number.NaN : peakIoPercent,
-        peakConnections: connectionSamplingFailed ? Number.NaN : peakConnections,
-        connectionCap,
-        statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
-        resourceSampling: {
-          attempts: resourceAttempts,
-          succeeded: resourceSuccesses,
-          failures: resourceFailures,
-        },
-      };
-      return finalResult;
+        const finalSnapshot = await readStatementSnapshot(command).catch(() => undefined);
+        return {
+          peakCpuPercent: resourceFailures.length ? Number.NaN : peakCpuPercent,
+          peakIoPercent: resourceFailures.length ? Number.NaN : peakIoPercent,
+          peakConnections: connectionSamplingFailed ? Number.NaN : peakConnections,
+          connectionCap,
+          statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
+          resourceSampling: {
+            attempts: resourceAttempts,
+            succeeded: resourceSuccesses,
+            failures: resourceFailures,
+          },
+        };
+      })();
+      return stopPromise;
     },
   };
 }
@@ -329,11 +339,19 @@ function maxFinite(left: number, right: number): number {
 
 async function runPsql(command: DatabaseCommand, sql: string): Promise<string> {
   try {
-    const result = await execFileAsync('psql', [...command.args, '--command', sql], {
-      env: command.env,
-      encoding: 'utf8',
-      maxBuffer: 4 * 1024 * 1024,
-    });
+    // Session-mode Supavisor need not forward PGOPTIONS. Set the deadline via SQL
+    // on this telemetry connection; ON_ERROR_STOP prevents sampling if SET fails.
+    const result = await execFileAsync(
+      'psql',
+      [...command.args, '--quiet', '--command', 'SET statement_timeout = 10000', '--command', sql],
+      {
+        env: command.env,
+        encoding: 'utf8',
+        maxBuffer: 4 * 1024 * 1024,
+        timeout: 15_000,
+        killSignal: 'SIGKILL',
+      }
+    );
     return result.stdout;
   } catch {
     throw new Error('Platform database telemetry query failed.');
@@ -367,7 +385,10 @@ async function readStatementSnapshot(
 }
 
 async function readConnectionCount(command: DatabaseCommand): Promise<number> {
-  const value = Number((await runPsql(command, CONNECTION_COUNT_SQL)).trim());
-  if (!Number.isFinite(value)) throw new Error('Platform connection telemetry was invalid.');
+  const output = (await runPsql(command, CONNECTION_COUNT_SQL)).trim();
+  const value = Number(output);
+  if (!/^\d+$/.test(output) || !Number.isSafeInteger(value)) {
+    throw new Error('Platform connection telemetry was invalid.');
+  }
   return value;
 }

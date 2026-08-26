@@ -28,6 +28,29 @@ export interface DbPerson {
 import type { MessageThread, Message } from '@/features/messages/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+export interface MessageState {
+  threads: MessageThread[];
+  messagesByThread: Record<string, Message[]>;
+  unreadCount: number;
+  isLoading: boolean;
+  error: string | null;
+  currentShowIds: string[];
+  currentUserId: string | null;
+  channels: RealtimeChannel[];
+  _subscribing: boolean;
+  setCurrentUserId: (userId: string) => void;
+  subscribe: (showIds: string[]) => Promise<void>;
+  unsubscribe: () => void;
+  fetchThreads: (showId: string, isCurrent?: () => boolean) => Promise<boolean>;
+  fetchMessages: (threadId: string) => Promise<void>;
+  addMessage: (message: Message) => void;
+  markThreadRead: (threadId: string) => void;
+  sendMessage: (threadId: string, showId: string, body: string) => Promise<void>;
+  getOrCreateThread: (showId: string, participantId: string) => Promise<MessageThread | null>;
+  recalculateUnread: () => void;
+  reset: () => void;
+}
+
 export const initialState = {
   threads: [] as MessageThread[],
   messagesByThread: {} as Record<string, Message[]>,

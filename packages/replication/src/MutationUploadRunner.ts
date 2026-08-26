@@ -334,7 +334,7 @@ export class MutationUploadRunner {
           // to the version the server reported, so when the pause lifts the
           // retry carries a fresh token instead of re-conflicting immediately.
           if (error instanceof ContainmentError) {
-            const until = now + error.retryAfterMs;
+            const until = Date.now() + error.retryAfterMs;
             if (this.containmentUntil === null || until > this.containmentUntil) {
               this.containmentUntil = until;
               uploadEvents.dispatchContainment(this.logger, until);
@@ -378,7 +378,7 @@ export class MutationUploadRunner {
               logger: this.logger,
               error,
               queuedMutation,
-              now,
+              now: Date.now(),
               retryBackoffBase: this.retryBackoffBase,
               maxOccAttempts: this.maxOccAttempts,
               results,

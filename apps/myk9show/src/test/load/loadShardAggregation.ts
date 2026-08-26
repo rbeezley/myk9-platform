@@ -170,7 +170,20 @@ export function aggregateLoadShardArtifacts(
         observations,
         observation => observation.expectedPersistedScores
       ),
-      persistedScores: sum(observations, observation => observation.persistedScores),
+      persistedScores: observations.every(
+        observation =>
+          Number.isSafeInteger(observation.persistedScores) &&
+          observation.persistedScores !== null &&
+          observation.persistedScores >= 0
+      )
+        ? sum(observations, observation => observation.persistedScores ?? 0)
+        : null,
+      persistenceFailures: artifacts.flatMap(artifact =>
+        (artifact.observation.persistenceFailures ?? []).map(failure => ({
+          ...failure,
+          shardIndex: artifact.shard.index,
+        }))
+      ),
       platform,
     },
   };

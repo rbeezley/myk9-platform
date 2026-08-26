@@ -3,6 +3,7 @@ import type { LoadObservation, PlatformObservation, WorkflowFailureDetail } from
 import type { GeneratorShardObservation } from './loadGeneratorSampler';
 import type { LoadWorkloadKind } from './loadScenario';
 import type { LoadSessionLifecycleObservation } from './loadSessionLifecycle';
+import type { PersistenceFailure } from './loadPersistence';
 
 interface RequestAttempt {
   entryId?: string;
@@ -168,7 +169,8 @@ export class LoadMetrics {
     finalReplicationQueueDepth: number;
     queueTelemetryFailures: number;
     expectedPersistedScores: number;
-    persistedScores: number;
+    persistedScores: number | null;
+    persistenceFailures?: readonly PersistenceFailure[];
     platform?: PlatformObservation;
   }): LoadObservation {
     const retryCounts = new Map<string, RequestAttempt[]>();
@@ -219,6 +221,7 @@ export class LoadMetrics {
       queueTelemetryFailures: input.queueTelemetryFailures,
       expectedPersistedScores: input.expectedPersistedScores,
       persistedScores: input.persistedScores,
+      persistenceFailures: input.persistenceFailures,
       platform: input.platform,
     };
   }

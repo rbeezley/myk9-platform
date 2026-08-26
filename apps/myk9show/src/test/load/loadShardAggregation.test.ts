@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LoadObservation } from './loadEvaluation';
+import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import type { LoadMetricSamples } from './loadMetrics';
 import { aggregateLoadShardArtifacts, type LoadShardArtifact } from './loadShardAggregation';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
@@ -144,6 +144,25 @@ function shardArtifact(index: number): LoadShardArtifact {
 }
 
 describe('distributed load aggregation', () => {
+  it('retains failed reconciliation evidence through JSON and rejects the complete run', () => {
+    const artifacts = Array.from({ length: 8 }, (_, index) => shardArtifact(index));
+    artifacts[7].observation.persistedScores = null;
+    artifacts[7].observation.persistenceFailures = [{ kind: 'http', status: 503, entryCount: 6 }];
+    const result = aggregateLoadShardArtifacts(
+      JSON.parse(JSON.stringify(artifacts)),
+      G9_NORMAL_SCENARIO
+    );
+
+    expect(result.observation.persistedScores).toBeNull();
+    expect(result.observation.persistenceFailures).toEqual([
+      { kind: 'http', status: 503, entryCount: 6, shardIndex: 7 },
+    ]);
+    expect(result.observation.requestCount).toBe(72_000);
+    expect(evaluateLoadResult(G9_NORMAL_SCENARIO, result.observation).failures).toContain(
+      'Persisted scoring results did not reconcile.'
+    );
+  });
+
   it('combines eight manifests without summing temporally disjoint shard peaks', () => {
     const result = aggregateLoadShardArtifacts(
       Array.from({ length: 8 }, (_, index) => shardArtifact(index)),
@@ -226,7 +245,11 @@ describe('distributed load aggregation', () => {
     } as unknown as LoadShardArtifact;
     expect(() =>
       aggregateLoadShardArtifacts(
-        [...Array.from({ length: 6 }, (_, index) => shardArtifact(index)), invalid, shardArtifact(7)],
+        [
+          ...Array.from({ length: 6 }, (_, index) => shardArtifact(index)),
+          invalid,
+          shardArtifact(7),
+        ],
         G9_NORMAL_SCENARIO
       )
     ).toThrow(/generator/i);

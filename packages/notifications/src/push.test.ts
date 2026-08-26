@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   isPushSupported,
+  SERVICE_WORKER_READY_TIMEOUT_MS,
   requestPushPermission,
   subscribeToPush,
   unsubscribeFromPush,
@@ -27,6 +28,12 @@ const mockRegistration = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks does NOT drain a queued mockResolvedValueOnce, so reset and
+  // restore the defaults explicitly — otherwise an unconsumed queue entry leaks
+  // into whichever test runs next under CI's --sequence.shuffle.
+  mockPushManager.getSubscription.mockReset().mockResolvedValue(null);
+  mockPushManager.subscribe.mockReset().mockResolvedValue(mockSubscription);
+  mockSubscription.unsubscribe.mockReset().mockResolvedValue(true);
   vi.stubGlobal('Notification', {
     permission: 'default',
     requestPermission: vi.fn().mockResolvedValue('granted'),
@@ -104,6 +111,66 @@ describe('unsubscribeFromPush', () => {
   it('returns false when no subscription exists', async () => {
     const result = await unsubscribeFromPush();
     expect(result).toBe(false);
+  });
+});
+
+describe('service worker availability', () => {
+  // A device that cannot query its push subscription must report "no
+  // subscription" rather than throwing or hanging: the ringside heartbeat's
+  // push-independent revocation check (J1.3) only runs on a null endpoint, and
+  // both of these shapes used to strand it before that branch.
+  it('getExistingSubscription returns null when serviceWorker is absent', async () => {
+    vi.stubGlobal('navigator', {});
+    await expect(getExistingSubscription()).resolves.toBeNull();
+  });
+
+  it('unsubscribeFromPush returns false when serviceWorker is absent', async () => {
+    vi.stubGlobal('navigator', {});
+    await expect(unsubscribeFromPush()).resolves.toBe(false);
+  });
+
+  it('getExistingSubscription returns null when Notification is unavailable', async () => {
+    vi.stubGlobal('Notification', undefined);
+
+    await expect(getExistingSubscription()).resolves.toBeNull();
+    // The not-called assertion is what makes this non-vacuous: the default mock
+    // also resolves null, so only the isPushSupported() guard can short-circuit.
+    expect(mockPushManager.getSubscription).not.toHaveBeenCalled();
+  });
+
+  it('getExistingSubscription returns null when .ready never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('navigator', { serviceWorker: { ready: new Promise(() => {}) } });
+
+      const pending = getExistingSubscription();
+      await vi.advanceTimersByTimeAsync(SERVICE_WORKER_READY_TIMEOUT_MS);
+
+      await expect(pending).resolves.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('unsubscribeFromPush returns false when .ready never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('navigator', { serviceWorker: { ready: new Promise(() => {}) } });
+
+      const pending = unsubscribeFromPush();
+      await vi.advanceTimersByTimeAsync(SERVICE_WORKER_READY_TIMEOUT_MS);
+
+      await expect(pending).resolves.toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('getExistingSubscription returns null when .ready rejects', async () => {
+    vi.stubGlobal('navigator', {
+      serviceWorker: { ready: Promise.reject(new Error('registration failed')) },
+    });
+    await expect(getExistingSubscription()).resolves.toBeNull();
   });
 });
 

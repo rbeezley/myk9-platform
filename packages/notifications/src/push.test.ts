@@ -139,6 +139,11 @@ describe('lookupExistingSubscription', () => {
     await expect(lookupExistingSubscription()).resolves.toEqual({ status: 'unavailable' });
   });
 
+  it('reports unavailable — not none — when getSubscription rejects', async () => {
+    mockPushManager.getSubscription.mockRejectedValueOnce(new Error('storage error'));
+    await expect(lookupExistingSubscription()).resolves.toEqual({ status: 'unavailable' });
+  });
+
   it('reports unavailable — not none — when .ready never settles', async () => {
     vi.useFakeTimers();
     try {
@@ -204,6 +209,11 @@ describe('service worker availability', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('getExistingSubscription returns null when getSubscription rejects', async () => {
+    mockPushManager.getSubscription.mockRejectedValueOnce(new Error('storage error'));
+    await expect(getExistingSubscription()).resolves.toBeNull();
   });
 
   it('getExistingSubscription returns null when .ready rejects', async () => {

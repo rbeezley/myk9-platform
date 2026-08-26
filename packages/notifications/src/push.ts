@@ -131,9 +131,18 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 export async function lookupExistingSubscription(): Promise<PushSubscriptionLookup> {
   const registration = await getReadyRegistration();
   if (!registration) return { status: 'unavailable' };
-  const subscription = await registration.pushManager.getSubscription();
-  if (!subscription) return { status: 'none' };
-  return { status: 'subscribed', subscription: extractSubscriptionData(subscription) };
+
+  try {
+    // `getSubscription()` can reject on its own — a storage error, a torn-down
+    // service worker, a browser that refuses the query. That is still "could
+    // not ask", not "there is none", and letting it throw would strand the
+    // ringside heartbeat exactly the way an unguarded `.ready` did.
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return { status: 'none' };
+    return { status: 'subscribed', subscription: extractSubscriptionData(subscription) };
+  } catch {
+    return { status: 'unavailable' };
+  }
 }
 
 /**

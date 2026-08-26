@@ -89,6 +89,22 @@ describe('RingsideSessionHeartbeat — devices with no usable push endpoint', ()
     expect(revokeMock).not.toHaveBeenCalled();
   });
 
+  it('still checks the passcode generation when getSubscription rejects', async () => {
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      serviceWorker: {
+        ready: Promise.resolve({
+          pushManager: { getSubscription: () => Promise.reject(new Error('storage error')) },
+        }),
+      },
+    });
+
+    renderHeartbeat();
+
+    await waitFor(() => expect(rpcMock).toHaveBeenCalledWith('ringside_claim_generation_current'));
+    await waitFor(() => expect(revokeMock).toHaveBeenCalled());
+  });
+
   it('still checks the passcode generation when serviceWorker.ready never settles', async () => {
     vi.useFakeTimers();
     try {

@@ -21,7 +21,8 @@ import { z } from 'zod';
 interface AddEditRegistrationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (registration: Registration) => void;
+  /** Return false when an async save failed and the form should remain open. */
+  onSave: (registration: Registration) => void | boolean | Promise<void | boolean>;
   initialData?: Registration | undefined; // For editing existing registration
 }
 
@@ -172,7 +173,11 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
     form.touchField('breed');
   };
 
-  const onSubmitValid = (validatedData: RegistrationFormData) => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const onSubmitValid = async (validatedData: RegistrationFormData) => {
+    if (isSaving) return;
+
     const registration: Registration = {
       id: validatedData.id || generateRegistrationId(),
       organization: validatedData.organization,
@@ -192,8 +197,15 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
       }),
       ...(validatedData.certificate != null && { certificate: validatedData.certificate }),
     };
-    onSave(registration);
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      const saveResult = await onSave(registration);
+      if (saveResult !== false) onOpenChange(false);
+    } catch {
+      // Async callers own their error message; preserve the form for retry.
+    } finally {
+      setIsSaving(false);
+    }
   };
   const handleSubmit = form.handleSubmit(onSubmitValid);
 
@@ -206,7 +218,9 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
       <Button variant="outline" onClick={() => onOpenChange(false)}>
         Cancel
       </Button>
-      <Button onClick={handleSubmit}>Save Registration</Button>
+      <Button onClick={handleSubmit} disabled={isSaving} aria-busy={isSaving}>
+        Save Registration
+      </Button>
     </div>
   );
 

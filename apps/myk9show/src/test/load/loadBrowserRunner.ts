@@ -107,6 +107,7 @@ export async function runBrowserLoad(
       : undefined;
     if (options.shard) await delay(scheduledStartDelayMs(options.shard));
     lifecycle.markPrepared(assertAllSessionsOpenAtStart(preparedSessions));
+    generatorSampler.markLoadStarted();
     const startedAtMs = Date.now();
     const startAtMs = options.shard?.startAtMs ?? startedAtMs;
     const endsAt = startAtMs + durationMs;
@@ -159,12 +160,13 @@ export async function runBrowserLoad(
     );
     if (options.smoke && rejectedSessions[0]) throw rejectedSessions[0].reason;
 
+    // Reconciliation/teardown is not generator load. Stop at the workload boundary.
+    const generator = await generatorSampler.stop();
+    generatorSampler = undefined;
     await metrics.settle();
     const persistence = await countPersistedScores([...scoredEntryIds]);
     const platform = await platformSampler?.stop();
     platformSampler = undefined;
-    const generator = await generatorSampler.stop();
-    generatorSampler = undefined;
     const elapsedMs = Date.now() - startAtMs;
     const sessionLifecycle = lifecycle.observation();
     const observation = metrics.buildObservation({

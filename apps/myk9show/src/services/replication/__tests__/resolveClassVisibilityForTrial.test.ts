@@ -33,11 +33,15 @@ function mockTables(rows: { show?: unknown; trial?: unknown; classRows?: unknown
   vi.mocked(supabase.from).mockImplementation((table: string) => {
     switch (table) {
       case 'trials':
-        return makeQuery({ show_id: 'show-1' }) as never;
+        return makeQuery([{ id: 'trial-1', show_id: 'show-1' }]) as never;
       case 'show_visibility_settings':
-        return makeQuery(rows.show ?? null) as never;
+        return makeQuery(
+          rows.show ? [{ show_id: 'show-1', ...(rows.show as object) }] : []
+        ) as never;
       case 'trial_visibility_overrides':
-        return makeQuery(rows.trial ?? null) as never;
+        return makeQuery(
+          rows.trial ? [{ trial_id: 'trial-1', ...(rows.trial as object) }] : []
+        ) as never;
       case 'class_visibility_overrides':
         return makeQuery(rows.classRows ?? []) as never;
       default:

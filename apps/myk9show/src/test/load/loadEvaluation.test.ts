@@ -33,6 +33,7 @@ function passingObservation(overrides: Partial<LoadObservation> = {}): LoadObser
     generator: {
       shards: Array.from({ length: 8 }, (_, shardIndex) => ({
         shardIndex,
+        samplingWindow: 'active-load' as const,
         logicalCpuCount: 2,
         samplingDurationMs: 600_000,
         sampleCount: 600,
@@ -234,6 +235,17 @@ describe('load result evaluation', () => {
       'Required per-runner generator evidence was missing or incomplete.'
     );
     expect(result.derived.generatorAttributionValid).toBe(false);
+  });
+
+  it('rejects legacy generator evidence that includes preparation idle time', () => {
+    const observation = passingObservation();
+    for (const shard of observation.generator.shards) delete shard.samplingWindow;
+    const result = evaluateLoadResult(G9_NORMAL_SCENARIO, observation);
+    expect(result.passed).toBe(false);
+    expect(result.derived.generatorAttributionValid).toBe(false);
+    expect(result.failures).toContain(
+      'Required per-runner generator evidence was missing or incomplete.'
+    );
   });
 
   it('identifies a saturated runner and invalidates backend latency attribution', () => {

@@ -62,7 +62,10 @@ export function buildLoadEvidence(input: {
       configuredSessions: scenarioSessionCount(input.scenario),
       configuredRingsideSessions,
     },
-    supportedCeiling: `${configuredRingsideSessions} concurrent ringside sessions on a show of ${LOAD_SHOW_ENTRY_COUNT} entries`,
+    supportedCeiling:
+      input.evaluation.passed && input.target.gateEligible
+        ? `${configuredRingsideSessions} concurrent ringside sessions on a show of ${LOAD_SHOW_ENTRY_COUNT} entries`
+        : 'Not established',
     observation: input.observation,
     evaluation: input.evaluation,
   };
@@ -93,10 +96,10 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
         : assessment.saturated
           ? 'SATURATED'
           : 'HEALTHY';
-      const reasons =
-        assessment.reasons.length === 0 ? 'none' : assessment.reasons.join('; ');
+      const reasons = assessment.reasons.length === 0 ? 'none' : assessment.reasons.join('; ');
       return `- Runner ${shard.shardIndex}: ${status} (${reasons})
   - Logical CPUs / duration: ${shard.logicalCpuCount} / ${shard.samplingDurationMs} ms
+  - Sampling window: ${shard.samplingWindow ?? 'legacy / unspecified'}
   - CPU p95/peak: ${shard.hostCpuP95Percent} / ${shard.hostCpuPeakPercent}%
   - Memory peak / load-1m peak: ${shard.hostMemoryPeakPercent}% / ${shard.hostLoad1mPeak}
   - Event-loop p95/max: ${shard.eventLoopDelayP95Ms} / ${shard.eventLoopDelayMaxMs} ms

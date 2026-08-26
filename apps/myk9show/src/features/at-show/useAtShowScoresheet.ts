@@ -13,7 +13,7 @@
  * hook (plan D1); kept separate here to avoid touching a live surface.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -85,9 +85,14 @@ export function useAtShowScoresheet({
   const [loadedEntryId, setLoadedEntryId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const handledLoadAttempt = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    // Consume the explicit retry once; advancing to another cached dog must
+    // not inherit a previous sheet's foreground refresh requirement.
+    const forceRefresh = loadAttempt !== handledLoadAttempt.current;
+    handledLoadAttempt.current = loadAttempt;
 
     async function loadData() {
       setEntry(null);
@@ -108,21 +113,33 @@ export function useAtShowScoresheet({
       setError(null);
 
       try {
-        await replicatedTrialsTable.sync(showId);
-        const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
-        await Promise.all([
-          // Classes are scoped by trial_id, so hydrate each trial belonging to
-          // the route's show instead of confusing a show id for a trial id.
-          ...showTrials.map(trial => replicatedClassesTable.sync(trial.id)),
-          replicatedEntriesTable.sync(showId),
-        ]);
-        if (cancelled) return;
-
-        const [cls, allEntries] = await Promise.all([
+        let [cls, allEntries] = await Promise.all([
           replicatedClassesTable.getClassById(classId),
           replicatedEntriesTable.getEntriesByClass(classId),
         ]);
         if (cancelled) return;
+        const cachedTrial = cls?.trialId
+          ? await replicatedTrialsTable.getTrialById(cls.trialId)
+          : null;
+        if (cancelled) return;
+        const hasCachedSheet = cls && cachedTrial && allEntries.some(row => row.id === entryId);
+        if (!hasCachedSheet || forceRefresh) {
+          await replicatedTrialsTable.sync(showId);
+          if (cancelled) return;
+          const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
+          await Promise.all([
+            // Cold loads/retries hydrate the route's show with the established
+            // trial-scoped replication path, never a direct PostgREST read.
+            ...showTrials.map(trial => replicatedClassesTable.sync(trial.id)),
+            replicatedEntriesTable.sync(showId),
+          ]);
+          if (cancelled) return;
+          [cls, allEntries] = await Promise.all([
+            replicatedClassesTable.getClassById(classId),
+            replicatedEntriesTable.getEntriesByClass(classId),
+          ]);
+          if (cancelled) return;
+        }
         if (!cls) {
           setError('Class not found');
           setIsLoading(false);
@@ -158,6 +175,17 @@ export function useAtShowScoresheet({
         setRules(buildResolvedClassRules(cls));
         setLoadedClassId(classId);
         setLoadedEntryId(entryId);
+        if (hasCachedSheet && !forceRefresh && cls.trialId) {
+          // INTENT: cached scoring must not wait for venue connectivity. Refresh
+          // only this trial and its show's entries without replacing a sheet
+          // the judge has started editing. Dirty rows remain protected by sync.
+          void Promise.all([
+            replicatedClassesTable.sync(cls.trialId),
+            replicatedEntriesTable.sync(showId),
+          ]).catch(err =>
+            logger.warn('Background scoresheet sync failed', 'at-show', { error: err })
+          );
+        }
       } catch (err) {
         if (cancelled) return;
         logger.error('Failed to load at-show scoresheet data:', 'at-show', {}, err as Error);

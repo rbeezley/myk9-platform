@@ -53,6 +53,7 @@ function shardArtifact(index: number): LoadShardArtifact {
       shards: [
         {
           shardIndex: index,
+          samplingWindow: 'active-load' as const,
           logicalCpuCount: 2,
           samplingDurationMs: 600_000,
           sampleCount: 600,

@@ -28,6 +28,7 @@ function sessionEvidence(ringsideSessions: 0 | 1) {
     },
     generator: {
       shardIndex: 0,
+      samplingWindow: 'active-load' as const,
       logicalCpuCount: 2,
       samplingDurationMs: 1_000,
       sampleCount: 1,

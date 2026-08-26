@@ -4,6 +4,25 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('load Playwright discovery', () => {
+  it('guards readiness navigation writes without mocking the real G9 mutation workload', () => {
+    const readiness = readFileSync(
+      resolve(process.cwd(), 'src/test/e2e/load-readiness.spec.ts'),
+      'utf8'
+    );
+    expect(readiness).toContain("serviceWorkers: 'block'");
+    expect(readiness).toContain('strictRpcWrites: true');
+    expect(readiness.indexOf('await installSharedStagingWriteGuard')).toBeLessThan(
+      readiness.indexOf('await signInAs')
+    );
+    const runner = readFileSync(resolve(__dirname, 'loadBrowserRunner.ts'), 'utf8');
+    expect(runner).not.toContain('installSharedStagingWriteGuard');
+    expect(runner.indexOf('generatorSampler.markLoadStarted()')).toBeLessThan(
+      runner.indexOf('const sessionResults =')
+    );
+    expect(runner.indexOf('await generatorSampler.stop()')).toBeLessThan(
+      runner.indexOf('await countPersistedScores')
+    );
+  });
   it('budgets for the longest synchronized start window and full scenario', () => {
     const config = readFileSync(resolve(process.cwd(), 'playwright.load.config.ts'), 'utf8');
 

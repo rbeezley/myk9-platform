@@ -7,12 +7,15 @@ const unsubscribeMock = vi.fn();
 const setCurrentUserIdMock = vi.fn();
 
 vi.mock('@/store/messageStore', () => ({
-  useMessageStore: (selector: (s: unknown) => unknown) =>
-    selector({
-      subscribe: subscribeMock,
-      unsubscribe: unsubscribeMock,
-      setCurrentUserId: setCurrentUserIdMock,
-    }),
+  useMessageStore: Object.assign(
+    (selector: (s: unknown) => unknown) =>
+      selector({
+        subscribe: subscribeMock,
+        unsubscribe: unsubscribeMock,
+        setCurrentUserId: setCurrentUserIdMock,
+      }),
+    { getState: () => ({ error: null }) }
+  ),
 }));
 
 let authState: Record<string, unknown> = {
@@ -67,6 +70,88 @@ beforeEach(() => {
 });
 
 describe('useMessageSubscription', () => {
+  it('does not refetch threads when replicated rows change but show membership does not', () => {
+    const { rerender, unmount } = renderHook(() => useMessageSubscription());
+    for (let update = 0; update < 5; update += 1) {
+      activeShows = [{ showId: 'today-show' }];
+      rerender();
+    }
+
+    expect(subscribeMock).toHaveBeenCalledTimes(1);
+    expect(unsubscribeMock).not.toHaveBeenCalled();
+    unmount();
+    expect(unsubscribeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not refetch threads when the same authenticated user is refreshed', () => {
+    const { rerender } = renderHook(() => useMessageSubscription());
+    for (let update = 0; update < 5; update += 1) {
+      authState = {
+        ...authState,
+        userWithRoles: { id: 'person-1', roles: ['exhibitor'], scopes: [] },
+      };
+      rerender();
+    }
+
+    expect(subscribeMock).toHaveBeenCalledTimes(1);
+    expect(unsubscribeMock).not.toHaveBeenCalled();
+  });
+
+  it('does not restart subscriptions for reordered or duplicated show IDs', () => {
+    activeShows = [{ showId: 'show-b' }, { showId: 'show-a' }];
+    const { rerender } = renderHook(() => useMessageSubscription());
+    activeShows = [{ showId: 'show-a' }, { showId: 'show-b' }, { showId: 'show-a' }];
+    rerender();
+
+    expect(subscribeMock).toHaveBeenCalledExactlyOnceWith(['show-a', 'show-b']);
+    expect(unsubscribeMock).not.toHaveBeenCalled();
+  });
+
+  it('releases the old membership and subscribes when a show is added or removed', () => {
+    const { rerender } = renderHook(() => useMessageSubscription());
+    activeShows = [{ showId: 'today-show' }, { showId: 'new-show' }];
+    rerender();
+    expect(subscribeMock).toHaveBeenLastCalledWith(['new-show', 'today-show']);
+    expect(unsubscribeMock).toHaveBeenCalledTimes(1);
+
+    activeShows = [];
+    rerender();
+    expect(subscribeMock).toHaveBeenLastCalledWith([]);
+    expect(unsubscribeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { id: 'other-user' },
+    { roles: ['secretary'] },
+    { permissions: ['show:read'] },
+    { scopes: [{ roleId: 'secretary', scopeType: 'club', scopeId: 'club-2' }] },
+    { databaseUserId: 'person-2' },
+  ])('refreshes subscriptions when authorization data changes: %j', change => {
+    const { rerender } = renderHook(() => useMessageSubscription());
+    authState = {
+      ...authState,
+      userWithRoles: { id: 'person-1', roles: ['exhibitor'], scopes: [], ...change },
+    };
+    rerender();
+
+    expect(subscribeMock).toHaveBeenCalledTimes(2);
+    expect(unsubscribeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('unsubscribes on logout and starts again after login', () => {
+    const signedIn = authState;
+    const { rerender } = renderHook(() => useMessageSubscription());
+    authState = { ...authState, user: null, userWithRoles: null };
+    rerender();
+    expect(unsubscribeMock).toHaveBeenCalled();
+    expect(subscribeMock).toHaveBeenCalledTimes(1);
+
+    authState = signedIn;
+    rerender();
+    expect(subscribeMock).toHaveBeenCalledTimes(2);
+    expect(setCurrentUserIdMock).toHaveBeenLastCalledWith('auth-user-1');
+  });
+
   it('subscribes exhibitors to active show-day shows', () => {
     renderHook(() => useMessageSubscription());
     expect(subscribeMock).toHaveBeenCalledWith(['today-show']);
@@ -83,7 +168,7 @@ describe('useMessageSubscription', () => {
     shows = [{ id: 'managed-1' }, { id: 'managed-2' }];
 
     renderHook(() => useMessageSubscription());
-    expect(subscribeMock).toHaveBeenCalledWith(['today-show', 'managed-1', 'managed-2']);
+    expect(subscribeMock).toHaveBeenCalledWith(['managed-1', 'managed-2', 'today-show']);
   });
 
   it('subscribes exhibitors to entered shows beyond active show-day shows', () => {

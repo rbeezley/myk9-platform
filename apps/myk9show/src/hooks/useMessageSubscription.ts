@@ -7,6 +7,13 @@ import { useEntryStore } from '@/store/entryStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 
+function retryIncompleteSubscription() {
+  const state = useMessageStore.getState();
+  if (state.error && !state._subscribing && state.currentShowIds.length > 0) {
+    void state.subscribe(state.currentShowIds);
+  }
+}
+
 /**
  * Manages message store subscription lifecycle.
  * Mirrors useAnnouncementSubscription — combines two show ID sources:
@@ -58,17 +65,23 @@ export function useMessageSubscription() {
   }, [shows, isSecretary, isAdmin, hasRole]);
 
   // Union both sources, deduplicated
-  const showIds = useMemo(() => {
+  const showIdsKey = useMemo(() => {
     const ids = new Set<string>();
     for (const showId of exhibitorShowIds) ids.add(showId);
     for (const showId of exhibitorEnteredShowIds) ids.add(showId);
     if (selectedShowId) ids.add(selectedShowId);
     for (const showId of managedShowIds) ids.add(showId);
-    return [...ids];
+    return [...ids].sort().join(',');
   }, [exhibitorShowIds, exhibitorEnteredShowIds, selectedShowId, managedShowIds]);
+  const showIds = useMemo(() => (showIdsKey ? showIdsKey.split(',') : []), [showIdsKey]);
+
+  // Replication and auth refreshes replace objects even when their values stay
+  // equal. Restart channels only for changed membership or auth data, retaining
+  // every auth field so permission/scope changes still refresh the subscription.
+  const authKey = userWithRoles ? JSON.stringify(userWithRoles) : null;
 
   useEffect(() => {
-    if (!userWithRoles) {
+    if (!authKey) {
       unsubscribe();
       return;
     }
@@ -78,5 +91,17 @@ export function useMessageSubscription() {
     return () => {
       unsubscribe();
     };
-  }, [userWithRoles, showIds, subscribe, unsubscribe]);
+  }, [authKey, showIds, subscribe, unsubscribe]);
+
+  // Healthy subscriptions are stable. Failed initial reads may recover when
+  // replication/auth refreshes or connectivity returns, without a polling loop.
+  useEffect(() => {
+    if (userWithRoles) retryIncompleteSubscription();
+  }, [activeShows, dogs, storeEntries, shows, userWithRoles]);
+
+  useEffect(() => {
+    if (!authKey) return;
+    window.addEventListener('online', retryIncompleteSubscription);
+    return () => window.removeEventListener('online', retryIncompleteSubscription);
+  }, [authKey]);
 }

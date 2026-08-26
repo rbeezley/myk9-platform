@@ -49,3 +49,23 @@
 - [x] 7.3 Verify native watcher events, guarded readiness, focused regression tests, types/lint, and record diagnostic limits.
 - [x] 7.4a Obtain approval to publish the generator follow-up patch, excluding private diagnostic notes and artifacts. Approved 2026-08-26.
 - [x] 7.4 Obtain separate merge approval for the generator follow-up patch; keep further full G9 execution separately gated. Approved 2026-08-26.
+
+## 8. Telemetry reliability follow-up [ADDED]
+
+- [x] 8.1 Reproduce slow/overlapping database probes, missing command deadlines and concurrent stop calls with deterministic local failing tests.
+- [x] 8.2 Bound telemetry-owned database command/query lifetimes, prevent overlapping probes, and make stop idempotent; preserve missing-sample failures and redact credentials/errors.
+- [x] 8.3 Test failures during startup, active sampling and shutdown, including timeout/error reporting, timer cleanup, child-kill option contracts and unchanged evaluation rejection of incomplete evidence. Process/network boundaries are mocked; shared-runtime proof remains in 9.4.
+- [x] 8.4 Run focused sampler/load tests, test types/lint, discovery and strict OpenSpec validation; independently review the scoped diff before any publication.
+- [ ] 8.5 Obtain the required publication and merge approvals for the verified slice; record PR/CI evidence without publishing private diagnostics.
+- [x] 8.5a Operator approved publishing the combined telemetry/message-lifecycle fixes and merging after required CI on 2026-08-26; private diagnostics remain excluded.
+
+## 9. Persistent passing-G9 goal [ADDED]
+
+- [ ] 9.1 Continue bounded scoresheet/API-read and representative workflow attribution; reproduce confirmed app defects before repair and preserve offline, RBAC, freshness and scoring correctness.
+- [x] 9.1a Reproduce repeated message subscriptions from unchanged replicated show membership and identical auth-object refreshes without shared network access.
+- [x] 9.1b Stabilize the existing message hook by show-set/auth values; retain membership/authorization changes, logout and unmount cleanup. Repair pending-scope ownership and failed-hydration recovery with real-store request/channel tests. Verify app/load regressions, full types/lint and independent review before publication. Broad sandbox run: two unchanged native-watcher failures; all three watcher tests pass outside the sandbox.
+- [ ] 9.2 Verify regression fixes and approved representative scoring/persistence workflows with generator headroom and complete platform evidence; guarded navigation alone cannot satisfy persistence.
+- [ ] 9.3 Obtain explicit approval for each required shared-target rehearsal window and any changed serving/topology setup; retain 100 sessions/55 ringside, Micro, eight shards, preparation/load duration, roles, fixture and thresholds unless separately approved.
+- [x] 9.3a Operator approved one unchanged post-merge G9 on 2026-08-26, including canonical reseed, mandatory scoring-worker drain, quiet rollback window and exact 514|504|0 restoration. No additional run or recovery is authorized.
+- [ ] 9.4 For each approved run, inspect all eight shard artifacts, aggregate outcomes, CPU/IO/connections/query/queue/retry/persistence evidence and cleanup logs; preserve failed/missing evidence and repair confirmed causes before another approved run.
+- [ ] 9.5 Mark G9 and linked issues complete only after all acceptance criteria pass, including zero scoring workers, quiet rollback window, exact 514|504|0 restoration and a defensible capacity conclusion. Failed cleanup requires operator recovery approval.

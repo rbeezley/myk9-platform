@@ -1,143 +1,29 @@
 import { create } from 'zustand';
 import { supabase } from '@/services/database/supabaseClient';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Message, MessageThread } from '@/features/messages/types';
 import { useToastStore } from '@/store/toastStore';
 import { logger } from '@/services/LoggingService';
-import { type DbMessage, type DbThread, type DbPerson, initialState } from './messageStore.types';
+import {
+  type DbMessage,
+  type DbThread,
+  type DbPerson,
+  type MessageState,
+  initialState,
+} from './messageStore.types';
+import { createMessageSubscriptions } from './messageStore.subscription';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase.from.bind(supabase) as (table: string) => any;
 
-interface MessageState {
-  threads: MessageThread[];
-  messagesByThread: Record<string, Message[]>;
-  unreadCount: number;
-  isLoading: boolean;
-  error: string | null;
-  currentShowIds: string[];
-  currentUserId: string | null;
-  channels: RealtimeChannel[];
-  _subscribing: boolean;
-
-  // Actions
-  setCurrentUserId: (userId: string) => void;
-  subscribe: (showIds: string[]) => Promise<void>;
-  unsubscribe: () => void;
-  fetchThreads: (showId: string) => Promise<void>;
-  fetchMessages: (threadId: string) => Promise<void>;
-  addMessage: (message: Message) => void;
-  markThreadRead: (threadId: string) => void;
-  sendMessage: (threadId: string, showId: string, body: string) => Promise<void>;
-  getOrCreateThread: (showId: string, participantId: string) => Promise<MessageThread | null>;
-  recalculateUnread: () => void;
-  reset: () => void;
-}
-
 export const useMessageStore = create<MessageState>()((set, get) => ({
   ...initialState,
+  ...createMessageSubscriptions(set, get),
 
   setCurrentUserId: (userId: string) => {
     set({ currentUserId: userId });
   },
 
-  subscribe: async (showIds: string[]) => {
-    // Mutex: prevent concurrent subscribe calls
-    if (get()._subscribing) return;
-    set({ _subscribing: true });
-
-    try {
-      const current = get();
-
-      // Skip if already subscribed to the same shows
-      const sorted = [...showIds].sort();
-      const currentSorted = [...current.currentShowIds].sort();
-      if (JSON.stringify(sorted) === JSON.stringify(currentSorted)) return;
-
-      // Clean up existing channels
-      current.unsubscribe();
-
-      if (showIds.length === 0) {
-        set({ currentShowIds: [], threads: [], messagesByThread: {}, unreadCount: 0 });
-        return;
-      }
-
-      set({ isLoading: true, error: null, currentShowIds: showIds });
-
-      try {
-        // Fetch initial threads for all shows
-        await Promise.all(showIds.map(showId => get().fetchThreads(showId)));
-
-        // Set up realtime channels for each show
-        const channels: RealtimeChannel[] = [];
-
-        for (const showId of showIds) {
-          const channel = supabase
-            .channel(`messages-${showId}`)
-            .on(
-              'postgres_changes',
-              {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'show_messages',
-                filter: `show_id=eq.${showId}`,
-              },
-              (payload: { new: DbMessage }) => {
-                get().addMessage(payload.new as Message);
-              }
-            )
-            .on(
-              'postgres_changes',
-              {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'show_messages',
-                filter: `show_id=eq.${showId}`,
-              },
-              (payload: { new: DbMessage }) => {
-                const updated = payload.new;
-                set(state => {
-                  const threadMessages = state.messagesByThread[updated.thread_id] ?? [];
-                  const newMessages = threadMessages.map(m =>
-                    m.id === updated.id ? { ...m, ...updated } : m
-                  );
-                  return {
-                    messagesByThread: {
-                      ...state.messagesByThread,
-                      [updated.thread_id]: newMessages,
-                    },
-                  };
-                });
-                get().recalculateUnread();
-              }
-            );
-
-          await channel.subscribe();
-          channels.push(channel);
-        }
-
-        set({ channels, isLoading: false });
-      } catch (err) {
-        logger.error('Failed to subscribe to messages:', 'messages', { data: err });
-        set({
-          error: err instanceof Error ? err.message : 'Failed to load messages',
-          isLoading: false,
-        });
-      }
-    } finally {
-      set({ _subscribing: false });
-    }
-  },
-
-  unsubscribe: () => {
-    const { channels } = get();
-    for (const ch of channels) {
-      supabase.removeChannel(ch);
-    }
-    set({ channels: [], currentShowIds: [] });
-  },
-
-  fetchThreads: async (showId: string) => {
+  fetchThreads: async (showId: string, isCurrent = () => true) => {
     try {
       // Fetch threads (no join — participant_id FK points to auth.users, not people)
       const { data: threadData, error } = (await db('show_message_threads')
@@ -149,6 +35,7 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
       };
 
       if (error) throw error;
+      if (!isCurrent()) return false;
 
       const rows = threadData ?? [];
 
@@ -162,6 +49,7 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
           data: DbPerson[] | null;
           error: Error | null;
         };
+        if (!isCurrent()) return false;
         for (const p of peopleData ?? []) {
           peopleMap.set(p.auth_user_id, `${p.first_name} ${p.last_name}`.trim());
         }
@@ -179,6 +67,7 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
         };
 
         if (messageError) throw messageError;
+        if (!isCurrent()) return false;
 
         messagesByThread = (messageData ?? []).reduce((map, row) => {
           const existing = map.get(row.thread_id) ?? [];
@@ -224,8 +113,10 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
           unreadCount: otherUnread + unreadCount,
         };
       });
+      return true;
     } catch (err) {
       logger.error('Failed to fetch threads:', 'messages', { data: err });
+      return false;
     }
   },
 

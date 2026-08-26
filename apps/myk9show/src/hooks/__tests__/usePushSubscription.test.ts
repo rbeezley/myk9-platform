@@ -187,7 +187,8 @@ describe('usePushSubscription', () => {
     // device holds a subscription. Reporting success here would flip the toggle
     // off while the push_subscriptions row survives, so the user keeps getting
     // notifications they opted out of.
-    const { lookupExistingSubscription } = await import('@myk9/notifications');
+    const { lookupExistingSubscription, unsubscribeFromPush } =
+      await import('@myk9/notifications');
     vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({ status: 'unavailable' });
 
     const { result } = renderHook(() => usePushSubscription());
@@ -200,6 +201,10 @@ describe('usePushSubscription', () => {
     expect(response).toEqual({ ok: false });
     expect(mockDelete).not.toHaveBeenCalled();
     expect(mockUpdatePreferences).not.toHaveBeenCalled();
+    // Must bail BEFORE unsubscribing: if the registration became ready between
+    // the two calls, dropping the browser subscription here would leave the
+    // retry with no endpoint to identify the surviving server row by.
+    expect(unsubscribeFromPush).not.toHaveBeenCalled();
   });
 
   it('should still update preferences when unsubscribe throws', async () => {

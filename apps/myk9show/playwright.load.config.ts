@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import { loadAppServerCommand, resolveLoadAppServerMode } from './src/test/load/loadAppServer';
 
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
@@ -8,6 +9,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 const parsedBaseURL = new URL(baseURL);
 const port = Number(process.env.PLAYWRIGHT_PORT ?? parsedBaseURL.port ?? '5173');
 const startApp = process.env.LOAD_TEST_START_APP === 'true';
+const appServerMode = resolveLoadAppServerMode(process.env);
 
 export default defineConfig({
   testDir: './src/test/load',
@@ -38,7 +40,9 @@ export default defineConfig({
   ],
   webServer: startApp
     ? {
-        command: `pnpm run dev --host 127.0.0.1 --port ${port} --strictPort`,
+        // Preview mode serves the prebuilt production bundle (vite preview) so the
+        // rehearsal measures what users get; a missing dist/ fails startup fast.
+        command: loadAppServerCommand(appServerMode, port),
         port,
         reuseExistingServer: false,
         timeout: 120_000,

@@ -29,19 +29,21 @@ export function useInlineDogRegistration(onSaved?: () => void) {
   const [registrationDogId, setRegistrationDogId] = useState<string | null>(null);
   const createRegistration = useCreateRegistrationMutation();
 
-  const saveRegistration = (registration: Registration) => {
-    if (!registrationDogId) return;
+  const saveRegistration = async (registration: Registration): Promise<boolean> => {
+    if (!registrationDogId) return false;
 
-    createRegistration.mutate(toDogRegistrationInsert(registrationDogId, registration), {
-      onSuccess: () => {
-        toast.success('Registration added');
-        setRegistrationDogId(null);
-        onSaved?.();
-      },
-      onError: error => {
-        toast.error(translateDogDbError(error).message);
-      },
-    });
+    try {
+      await createRegistration.mutateAsync(
+        toDogRegistrationInsert(registrationDogId, registration)
+      );
+      toast.success('Registration added');
+      setRegistrationDogId(null);
+      onSaved?.();
+      return true;
+    } catch (error) {
+      toast.error(translateDogDbError(error).message);
+      return false;
+    }
   };
 
   return {

@@ -17,11 +17,13 @@ import { Registration, REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { z } from 'zod';
+import { toast } from 'sonner';
 
 interface AddEditRegistrationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (registration: Registration) => void;
+  /** Return false when an async save failed and the form should remain open. */
+  onSave: (registration: Registration) => void | boolean | Promise<void | boolean>;
   initialData?: Registration | undefined; // For editing existing registration
 }
 
@@ -172,7 +174,11 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
     form.touchField('breed');
   };
 
-  const onSubmitValid = (validatedData: RegistrationFormData) => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const onSubmitValid = async (validatedData: RegistrationFormData) => {
+    if (isSaving) return;
+
     const registration: Registration = {
       id: validatedData.id || generateRegistrationId(),
       organization: validatedData.organization,
@@ -192,8 +198,15 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
       }),
       ...(validatedData.certificate != null && { certificate: validatedData.certificate }),
     };
-    onSave(registration);
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      const saveResult = await onSave(registration);
+      if (saveResult !== false) onOpenChange(false);
+    } catch {
+      toast.error("We couldn't save that registration. You can try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
   const handleSubmit = form.handleSubmit(onSubmitValid);
 
@@ -203,10 +216,12 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
 
   const footer = (
     <div className="flex items-center justify-end gap-2">
-      <Button variant="outline" onClick={() => onOpenChange(false)}>
+      <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
         Cancel
       </Button>
-      <Button onClick={handleSubmit}>Save Registration</Button>
+      <Button onClick={handleSubmit} disabled={isSaving} aria-busy={isSaving}>
+        Save Registration
+      </Button>
     </div>
   );
 
@@ -223,6 +238,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
       // per-caller override.
       size="lg"
       className="md:max-w-2xl lg:max-w-3xl"
+      preventClose={isSaving}
       footer={footer}
     >
       <div className="space-y-4 p-6">

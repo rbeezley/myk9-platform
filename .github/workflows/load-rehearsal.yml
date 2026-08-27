@@ -13,7 +13,10 @@ on:
         default: '25'
         type: choice
         options:
-          - '15'
+          # '15' was dropped on 2026-08-26: per-shard setup is checkout, install,
+          # packages build, Playwright, and a full production build, and 16 shards
+          # add runner-allocation latency on top. A shard that misses the barrier
+          # fails the run.
           - '25'
           - '35'
 
@@ -27,6 +30,10 @@ concurrency:
 env:
   LOAD_TEST_PROJECT_REF: sojmvhhwsjxmfistvzbe
   LOAD_TEST_DB_HOST: aws-1-us-east-2.pooler.supabase.com
+  # Keep aligned with DISTRIBUTED_G9_SHARD_COUNT; the contract test pins both.
+  LOAD_TEST_SHARD_COUNT: '16'
+  # GitHub Free: 20 concurrent jobs, ACCOUNT-WIDE across every repo.
+  LOAD_TEST_CONCURRENCY_CEILING: '20'
 
 jobs:
   prepare:
@@ -34,6 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     environment: load-rehearsal
+    permissions:
+      contents: read
+      # The headroom preflight reads other runs' job states.
+      actions: read
     outputs:
       run-id: ${{ steps.window.outputs.run-id }}
       start-at-ms: ${{ steps.window.outputs.start-at-ms }}
@@ -106,6 +117,35 @@ jobs:
           }
           grep -q 'node_disk_io_time_seconds_total' <<<"$metrics" || {
             echo "Supabase Metrics API did not provide disk IO counters." >&2
+            exit 1
+          }
+
+      # BEFORE the reseed, so a busy window costs nothing. The 20-job Free-plan
+      # ceiling is ACCOUNT-WIDE, not per-run: this rehearsal needs 17 of it (16
+      # shards + the sampler), and `support-triage.yml` alone runs every 15
+      # minutes. A shard that cannot get a runner before the barrier throws and
+      # the whole approved reseed-and-load window is burned, so fail here instead.
+      - name: Verify enough concurrent-runner headroom
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          required=$(( LOAD_TEST_SHARD_COUNT + 1 ))
+          busy=0
+          for status in in_progress queued; do
+            ids="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?status=${status}&per_page=100" \
+              --jq ".workflow_runs[] | select(.id != ${GITHUB_RUN_ID}) | .id")"
+            for id in $ids; do
+              count="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs?per_page=100" \
+                --jq '[.jobs[] | select(.status == "in_progress" or .status == "queued")] | length')"
+              busy=$(( busy + count ))
+            done
+          done
+          free=$(( LOAD_TEST_CONCURRENCY_CEILING - busy ))
+          echo "Other active jobs: ${busy}; free of ${LOAD_TEST_CONCURRENCY_CEILING}: ${free}; required: ${required}."
+          [[ "$free" -ge "$required" ]] || {
+            echo "Not enough runner headroom for a synchronized ${LOAD_TEST_SHARD_COUNT}-shard start." >&2
+            echo "Let other workflows finish, avoid pushing to main during the window, and re-dispatch." >&2
             exit 1
           }
 
@@ -227,9 +267,13 @@ jobs:
     timeout-minutes: 55
     strategy:
       fail-fast: false
-      max-parallel: 8
+      # Every shard must be live at the same barrier, so this cannot be throttled
+      # below the matrix size. 16 shards + the platform sampler = 17 concurrent
+      # jobs, inside the 20-job free public-repo ceiling; a shard that cannot get
+      # a runner before start_at_ms fails the run rather than skewing it.
+      max-parallel: 16
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
     steps:
       - uses: actions/checkout@v7
@@ -263,7 +307,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Run synchronized 12/13-session shard with generator telemetry
+      - name: Run synchronized 6/7-session shard with generator telemetry
         working-directory: apps/myk9show
         run: pnpm test:load:playwright
         env:
@@ -276,7 +320,7 @@ jobs:
           LOAD_TEST_START_APP: 'true'
           LOAD_TEST_APP_SERVER: preview
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
-          LOAD_TEST_SHARD_COUNT: '8'
+          LOAD_TEST_SHARD_COUNT: '16'
           LOAD_TEST_SHARD_INDEX: ${{ matrix.shard }}
           LOAD_TEST_RUN_ID: ${{ needs.prepare.outputs.run-id }}
           LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}
@@ -326,7 +370,7 @@ jobs:
           path: apps/myk9show/test-results/load-shards
           merge-multiple: true
 
-      # Tolerated so eight valid shards still produce evidence when the sampler
+      # Tolerated so the valid shards still produce evidence when the sampler
       # job died; aggregation records the missing telemetry as a G9 failure.
       - name: Download platform observation
         continue-on-error: true

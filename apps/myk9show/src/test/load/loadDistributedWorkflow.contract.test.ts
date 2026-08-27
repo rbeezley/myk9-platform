@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { buildSessionAssignments } from './loadAssignments';
+import { G9_NORMAL_SCENARIO } from './loadScenario';
+import { DISTRIBUTED_G9_SHARD_COUNT, selectShardAssignments } from './loadShard';
 
 describe('manual distributed load workflow', () => {
   const workflow = readFileSync(
@@ -8,13 +11,31 @@ describe('manual distributed load workflow', () => {
     'utf8'
   );
 
-  it('is manual-only and fans out exactly eight free runner shards', () => {
+  it('is manual-only and fans the whole workload across every free runner shard', () => {
     expect(workflow).toContain('workflow_dispatch:');
     expect(workflow).not.toMatch(/\b(schedule|push|pull_request):/);
     expect(workflow).toContain('runs-on: ubuntu-latest');
-    expect(workflow).toMatch(/shard:\s*\[0,\s*1,\s*2,\s*3,\s*4,\s*5,\s*6,\s*7\]/);
-    expect(workflow).toMatch(/LOAD_TEST_SHARD_COUNT:\s*['"]?8['"]?/);
-    expect(workflow).toContain('Run synchronized 12/13-session shard with generator telemetry');
+
+    // Derived from the constant the harness actually validates against, so the
+    // topology cannot change in one place and silently disagree with the other.
+    const indexes = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => index);
+    expect(workflow).toContain(`shard: [${indexes.join(', ')}]`);
+    expect(workflow).toMatch(
+      new RegExp(`LOAD_TEST_SHARD_COUNT:\\s*['"]?${DISTRIBUTED_G9_SHARD_COUNT}['"]?`)
+    );
+    // Shards must all be live at the same barrier; throttling below the matrix
+    // size would leave some starting after the synchronized start.
+    expect(workflow).toContain(`max-parallel: ${DISTRIBUTED_G9_SHARD_COUNT}`);
+
+    const sizes = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
+      selectShardAssignments(buildSessionAssignments(G9_NORMAL_SCENARIO), {
+        count: DISTRIBUTED_G9_SHARD_COUNT,
+        index,
+      })
+    ).map(shard => shard.length);
+    expect(workflow).toContain(
+      `Run synchronized ${Math.min(...sizes)}/${Math.max(...sizes)}-session shard with generator telemetry`
+    );
   });
 
   it('samples the platform from a browser-free job whose artifact name pairs', () => {
@@ -88,9 +109,16 @@ describe('manual distributed load workflow', () => {
   it('approval-gates the preparation job once and offers a realistic preparation window', () => {
     expect(workflow.match(/environment: load-rehearsal/g)).toHaveLength(1);
     expect(workflow).toContain("default: '25'");
-    expect(workflow).toContain("- '15'");
     expect(workflow).toContain("- '25'");
     expect(workflow).toContain("- '35'");
+    // '15' was withdrawn with the 16-shard topology: per-shard setup is a full
+    // production build plus Playwright, and 16 simultaneous runner allocations
+    // add latency on top. A shard that misses the barrier fails the whole run.
+    expect(workflow).not.toContain("- '15'");
+    // The reseed is irreversible, so headroom must be checked before it.
+    const preflight = workflow.indexOf('Verify enough concurrent-runner headroom');
+    expect(preflight).toBeGreaterThan(-1);
+    expect(preflight).toBeLessThan(workflow.indexOf('Canonical reseed'));
     expect(workflow).toMatch(
       /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 55/
     );

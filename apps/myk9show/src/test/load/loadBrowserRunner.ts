@@ -106,8 +106,8 @@ export async function runBrowserLoad(
     );
     generatorSampler.markContextsPrepared();
     // Distributed runs sample the platform from a dedicated browser-free runner:
-    // a shard that polls the database while driving 12-13 contexts saturates
-    // itself, and its own saturation then invalidates the attribution.
+    // a shard that polls the database while also driving browser contexts
+    // saturates itself, and that saturation invalidates the attribution.
     const collectPlatform = !options.smoke && !options.shard;
     platformSampler = collectPlatform
       ? await startLoadPlatformSampler(process.env, scenario.targets.databaseConnectionCap)

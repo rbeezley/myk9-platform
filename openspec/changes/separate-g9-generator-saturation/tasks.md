@@ -5,8 +5,8 @@
 
 ## 2. Generator topology
 
-- [x] 2.1 Expand shard assignment and aggregation contracts from four 25-session shards to eight 12/13-session shards while preserving all global sequences.
-- [x] 2.2 Update the manual workflow and documentation to run eight standard free runners without changing the G9 workload or thresholds.
+- [x] 2.1 Expand shard assignment and aggregation contracts from four 25-session shards to sixteen 6/7-session shards while preserving all global sequences (eight until 2026-08-26).
+- [x] 2.2 Update the manual workflow and documentation to run sixteen standard free runners without changing the G9 workload or thresholds.
 
 ## 3. Platform evidence
 
@@ -65,7 +65,8 @@
 - [x] 9.1a Reproduce repeated message subscriptions from unchanged replicated show membership and identical auth-object refreshes without shared network access.
 - [x] 9.1b Stabilize the existing message hook by show-set/auth values; retain membership/authorization changes, logout and unmount cleanup. Repair pending-scope ownership and failed-hydration recovery with real-store request/channel tests. Verify app/load regressions, full types/lint and independent review before publication. Broad sandbox run: two unchanged native-watcher failures; all three watcher tests pass outside the sandbox.
 - [ ] 9.2 Verify regression fixes and approved representative scoring/persistence workflows with generator headroom and complete platform evidence; guarded navigation alone cannot satisfy persistence.
-- [ ] 9.3 Obtain explicit approval for each required shared-target rehearsal window and any changed serving/topology setup; retain 100 sessions/55 ringside, Micro, eight shards, preparation/load duration, roles, fixture and thresholds unless separately approved.
+- [ ] 9.3 Obtain explicit approval for each required shared-target rehearsal window and any changed serving/topology setup; retain 100 sessions/55 ringside, Micro, sixteen shards, preparation/load duration, roles, fixture and thresholds unless separately approved.
 - [x] 9.3a Operator approved one unchanged post-merge G9 on 2026-08-26, including canonical reseed, mandatory scoring-worker drain, quiet rollback window and exact 514|504|0 restoration. No additional run or recovery is authorized.
-- [ ] 9.4 For each approved run, inspect all eight shard artifacts, aggregate outcomes, CPU/IO/connections/query/queue/retry/persistence evidence and cleanup logs; preserve failed/missing evidence and repair confirmed causes before another approved run.
+- [ ] 9.3b That approval was consumed by run 33014418976 and was granted for an **unchanged** topology. The shard count has since gone from eight to sixteen (same 100 sessions / 55 ringside, same thresholds, duration, fixture and gates), so the next rehearsal is not the run 9.3a authorized. Obtain a fresh operator approval naming the sixteen-shard topology before dispatching.
+- [ ] 9.4 For each approved run, inspect every shard artifact, aggregate outcomes, CPU/IO/connections/query/queue/retry/persistence evidence and cleanup logs; preserve failed/missing evidence and repair confirmed causes before another approved run.
 - [ ] 9.5 Mark G9 and linked issues complete only after all acceptance criteria pass, including zero scoring workers, quiet rollback window, exact 514|504|0 restoration and a defensible capacity conclusion. Failed cleanup requires operator recovery approval.

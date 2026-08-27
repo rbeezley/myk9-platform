@@ -3,7 +3,13 @@ import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import type { LoadMetricSamples } from './loadMetrics';
 import type { LoadPlatformArtifact } from './loadPlatformArtifact';
 import { aggregateLoadShardArtifacts, type LoadShardArtifact } from './loadShardAggregation';
-import { G9_NORMAL_SCENARIO } from './loadScenario';
+import {
+  G9_NORMAL_SCENARIO,
+  scenarioRingsideSessionCount,
+  scenarioSessionCount,
+} from './loadScenario';
+import { calculatePeakActiveWorkflows } from './loadSessionLifecycle';
+import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 
 const target = {
   mode: 'e2e' as const,
@@ -12,15 +18,55 @@ const target = {
   gateEligible: true,
 };
 
-function shardArtifact(index: number): LoadShardArtifact {
-  const sessionCount = index < 4 ? 13 : 12;
-  const sequenceBase = index < 4 ? index * 13 : 52 + (index - 4) * 12;
-  const scoringDurationsMs = Array.from(
-    { length: sessionCount },
-    (_, offset) => sequenceBase + offset + 1
+// Derived from the shard count rather than hardcoded, so changing the topology
+// (8 -> 16 on 2026-08-26) does not silently invalidate every fixture here.
+// Mirrors selectShardAssignments: shard i owns the sequences where
+// sequence % count === i, and the first RINGSIDE_SESSIONS of them are ringside.
+const TOTAL_SESSIONS = scenarioSessionCount(G9_NORMAL_SCENARIO);
+const RINGSIDE_SESSIONS = scenarioRingsideSessionCount(G9_NORMAL_SCENARIO);
+const PER_SHARD_REQUESTS = 9_000;
+const PER_SHARD_EXPECTED_SCORES = 110;
+// The busiest single shard -- the cross-shard peak, not the 100-session sum.
+const PEAK = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
+  shardPeak(index)
+).reduce(
+  (best, candidate) => ({
+    total: Math.max(best.total, candidate.total),
+    ringside: Math.max(best.ringside, candidate.ringside),
+  }),
+  { total: 0, ringside: 0 }
+);
+
+function shardSequences(index: number): number[] {
+  return Array.from({ length: TOTAL_SESSIONS }, (_, sequence) => sequence).filter(
+    sequence => sequence % DISTRIBUTED_G9_SHARD_COUNT === index
   );
-  const ringsideSessions = [7, 7, 7, 7, 7, 7, 7, 6][index];
-  const ringsidePeak = [6, 6, 6, 6, 6, 6, 6, 5][index];
+}
+
+/**
+ * Each shard's intervals are placed 10 s apart and are 9 s wide, so no two shards
+ * ever overlap. The true simultaneous peak is therefore the busiest SINGLE shard,
+ * which is what lets this fixture catch an aggregation that sums shard-local
+ * maxima instead of merging intervals.
+ *
+ * Reuses the runner's own primitive rather than restating the fixture's interval
+ * arithmetic: a hand-copied version could be edited into agreement with a broken
+ * aggregator and stop failing.
+ */
+function shardPeak(index: number): { total: number; ringside: number } {
+  return calculatePeakActiveWorkflows(
+    shardArtifact(index).observation.sessionLifecycle.activityIntervals
+  );
+}
+
+function shardArtifact(index: number): LoadShardArtifact {
+  const sequences = shardSequences(index);
+  const sessionCount = sequences.length;
+  const scoringDurationsMs = sequences.map(sequence => sequence + 1);
+  const ringsideSessions = sequences.filter(sequence => sequence < RINGSIDE_SESSIONS).length;
+  // One below the session count, so the aggregate peak stays a real cross-shard
+  // maximum rather than a sum of shard-local ones.
+  const ringsidePeak = Math.max(0, ringsideSessions - 1);
   const intervalBaseMs = 1_000 + index * 10_000;
   const observation: LoadObservation = {
     concurrentSessions: sessionCount,
@@ -43,7 +89,7 @@ function shardArtifact(index: number): LoadShardArtifact {
           offset < ringsidePeak ||
           (offset >= ringsideSessions && offset < ringsideSessions + (20 - ringsidePeak));
         return {
-          sequence: index + offset * 8,
+          sequence: sequences[offset],
           ringside: offset < ringsideSessions,
           startedAtMs: intervalBaseMs + (inPeakBatch ? 0 : 5_000),
           finishedAtMs: intervalBaseMs + (inPeakBatch ? 5_000 : 9_000),
@@ -76,7 +122,7 @@ function shardArtifact(index: number): LoadShardArtifact {
         },
       ],
     },
-    requestCount: 9_000,
+    requestCount: PER_SHARD_REQUESTS,
     failedRequestCount: 0,
     workflowFailures: 0,
     workflowFailureDetails:
@@ -104,8 +150,8 @@ function shardArtifact(index: number): LoadShardArtifact {
     maxReplicationQueueDepth: index + 1,
     finalReplicationQueueDepth: 0,
     queueTelemetryFailures: 0,
-    expectedPersistedScores: 110,
-    persistedScores: 110,
+    expectedPersistedScores: PER_SHARD_EXPECTED_SCORES,
+    persistedScores: PER_SHARD_EXPECTED_SCORES,
   };
   const samples: LoadMetricSamples = {
     scoringDurationsMs,
@@ -119,8 +165,8 @@ function shardArtifact(index: number): LoadShardArtifact {
     startAtMs: 1_785_283_200_000,
     startedAtMs: 1_785_283_200_000 + index,
     elapsedMs: 600_000,
-    shard: { count: 8, index },
-    assignmentSequences: Array.from({ length: sessionCount }, (_, offset) => index + offset * 8),
+    shard: { count: DISTRIBUTED_G9_SHARD_COUNT, index },
+    assignmentSequences: sequences,
     target,
     scenarioId: 'normal',
     observation,
@@ -153,7 +199,9 @@ function platformArtifact(): LoadPlatformArtifact {
 
 describe('distributed load aggregation', () => {
   it('retains failed reconciliation evidence through JSON and rejects the complete run', () => {
-    const artifacts = Array.from({ length: 8 }, (_, index) => shardArtifact(index));
+    const artifacts = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
+      shardArtifact(index)
+    );
     artifacts[7].observation.persistedScores = null;
     artifacts[7].observation.persistenceFailures = [{ kind: 'http', status: 503, entryCount: 6 }];
     const result = aggregateLoadShardArtifacts(
@@ -166,15 +214,15 @@ describe('distributed load aggregation', () => {
     expect(result.observation.persistenceFailures).toEqual([
       { kind: 'http', status: 503, entryCount: 6, shardIndex: 7 },
     ]);
-    expect(result.observation.requestCount).toBe(72_000);
+    expect(result.observation.requestCount).toBe(PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT);
     expect(evaluateLoadResult(G9_NORMAL_SCENARIO, result.observation).failures).toContain(
       'Persisted scoring results did not reconcile.'
     );
   });
 
-  it('combines eight manifests without summing temporally disjoint shard peaks', () => {
+  it('combines every manifest without summing temporally disjoint shard peaks', () => {
     const result = aggregateLoadShardArtifacts(
-      Array.from({ length: 8 }, (_, index) => shardArtifact(index)),
+      Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => shardArtifact(index)),
       G9_NORMAL_SCENARIO,
       platformArtifact()
     );
@@ -189,34 +237,30 @@ describe('distributed load aggregation', () => {
         startedWorkflows: 100,
         completedWorkflows: 100,
         failedWorkflows: 0,
-        peakActiveWorkflows: 12,
+        peakActiveWorkflows: PEAK.total,
         configuredRingsideSessions: 55,
         preparedRingsideSessions: 55,
         startedRingsideWorkflows: 55,
         completedRingsideWorkflows: 55,
         failedRingsideWorkflows: 0,
-        peakActiveRingsideWorkflows: 6,
+        peakActiveRingsideWorkflows: PEAK.ringside,
       },
       generator: {
-        shards: [
-          { shardIndex: 0, hostCpuP95Percent: 60 },
-          { shardIndex: 1, hostCpuP95Percent: 61 },
-          { shardIndex: 2, hostCpuP95Percent: 62 },
-          { shardIndex: 3, hostCpuP95Percent: 63 },
-          { shardIndex: 4, hostCpuP95Percent: 64 },
-          { shardIndex: 5, hostCpuP95Percent: 65 },
-          { shardIndex: 6, hostCpuP95Percent: 66 },
-          { shardIndex: 7, hostCpuP95Percent: 67 },
-        ],
+        // Every shard's evidence is preserved separately and in index order --
+        // the property that lets a single saturated runner be identified.
+        shards: Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => ({
+          shardIndex: index,
+          hostCpuP95Percent: 60 + index,
+        })),
       },
-      requestCount: 72_000,
+      requestCount: PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT,
       scoringWriteP95Ms: 95,
       apiP95Ms: 95,
       pageP95Ms: 1_000,
-      throughputRps: 120,
-      expectedPersistedScores: 880,
-      persistedScores: 880,
-      maxReplicationQueueDepth: 8,
+      throughputRps: (PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT) / 600,
+      expectedPersistedScores: PER_SHARD_EXPECTED_SCORES * DISTRIBUTED_G9_SHARD_COUNT,
+      persistedScores: PER_SHARD_EXPECTED_SCORES * DISTRIBUTED_G9_SHARD_COUNT,
+      maxReplicationQueueDepth: DISTRIBUTED_G9_SHARD_COUNT,
       finalReplicationQueueDepth: 0,
       workflowFailureDetails: [
         {
@@ -231,16 +275,29 @@ describe('distributed load aggregation', () => {
   });
 
   it.each([
-    ['missing shard', Array.from({ length: 7 }, (_, index) => shardArtifact(index))],
+    [
+      'missing shard',
+      Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT - 1 }, (_, index) => shardArtifact(index)),
+    ],
     [
       'duplicate shard',
-      [...Array.from({ length: 7 }, (_, index) => shardArtifact(index)), shardArtifact(6)],
+      [
+        ...Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT - 1 }, (_, index) =>
+          shardArtifact(index)
+        ),
+        shardArtifact(DISTRIBUTED_G9_SHARD_COUNT - 2),
+      ],
     ],
     [
       'late shard',
       [
-        ...Array.from({ length: 7 }, (_, index) => shardArtifact(index)),
-        { ...shardArtifact(7), startedAtMs: shardArtifact(7).startAtMs + 5_001 },
+        ...Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT - 1 }, (_, index) =>
+          shardArtifact(index)
+        ),
+        {
+          ...shardArtifact(DISTRIBUTED_G9_SHARD_COUNT - 1),
+          startedAtMs: shardArtifact(0).startAtMs + 5_001,
+        },
       ],
     ],
   ])('rejects a %s', (_name, artifacts) => {
@@ -249,16 +306,16 @@ describe('distributed load aggregation', () => {
     ).toThrow();
   });
 
-  it('still aggregates eight valid shards when the sampler produced nothing', () => {
-    // Eight shards of evidence are expensive and one-shot against shared
-    // staging; a dead sampler must degrade to a recorded FAIL, not destroy them.
+  it('still aggregates every valid shard when the sampler produced nothing', () => {
+    // A full set of shard evidence is expensive and one-shot against shared
+    // staging; a dead sampler must degrade to a recorded FAIL, not destroy it.
     const result = aggregateLoadShardArtifacts(
-      Array.from({ length: 8 }, (_, index) => shardArtifact(index)),
+      Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => shardArtifact(index)),
       G9_NORMAL_SCENARIO,
       undefined
     );
 
-    expect(result.observation.requestCount).toBe(72_000);
+    expect(result.observation.requestCount).toBe(PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT);
     expect(result.observation.platform).toBeUndefined();
     const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, result.observation);
     expect(evaluation.passed).toBe(false);
@@ -268,7 +325,9 @@ describe('distributed load aggregation', () => {
   it('rejects a shard that sampled the platform itself', () => {
     // Shard 0 owned the sampler until 2026-08-26; that extra work saturated it
     // (95.3% host CPU p95 against healthy siblings) and invalidated attribution.
-    const artifacts = Array.from({ length: 8 }, (_, index) => shardArtifact(index));
+    const artifacts = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
+      shardArtifact(index)
+    );
     artifacts[0].observation.platform = platformArtifact().platform;
 
     expect(() =>
@@ -281,7 +340,9 @@ describe('distributed load aggregation', () => {
     ['start', { startAtMs: 1_785_283_200_001 }],
     ['schema', { schemaVersion: 2 as unknown as 1 }],
   ])('rejects platform telemetry from a different %s', (_name, override) => {
-    const artifacts = Array.from({ length: 8 }, (_, index) => shardArtifact(index));
+    const artifacts = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
+      shardArtifact(index)
+    );
 
     expect(() =>
       aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, {
@@ -292,7 +353,7 @@ describe('distributed load aggregation', () => {
   });
 
   it('rejects an artifact that omits runner evidence', () => {
-    const artifact = shardArtifact(6);
+    const artifact = shardArtifact(DISTRIBUTED_G9_SHARD_COUNT - 2);
     const invalid = {
       ...artifact,
       observation: { ...artifact.observation, generator: undefined },
@@ -300,9 +361,11 @@ describe('distributed load aggregation', () => {
     expect(() =>
       aggregateLoadShardArtifacts(
         [
-          ...Array.from({ length: 6 }, (_, index) => shardArtifact(index)),
+          ...Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT - 2 }, (_, index) =>
+            shardArtifact(index)
+          ),
           invalid,
-          shardArtifact(7),
+          shardArtifact(DISTRIBUTED_G9_SHARD_COUNT - 1),
         ],
         G9_NORMAL_SCENARIO,
         platformArtifact()

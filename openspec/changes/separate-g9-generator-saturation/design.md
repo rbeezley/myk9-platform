@@ -52,7 +52,12 @@ termination is introduced.
 The shard count is sixteen, assigning global sequence `sequence % 16` to each shard.
 This yields 6 or 7 sessions per runner while retaining exactly 100 sessions and 55
 ringside sessions. It was eight until 2026-08-26, at which point 12-13 contexts per
-runner were shown to be the cause of the page-readiness timeouts. The aggregator continues to validate all global sequences and uses
+runner were shown to be the cause of the page-readiness timeouts. **Both halves of that
+sentence are superseded (2026-08-27).** Run 33038456110 ran all sixteen shards HEALTHY
+and 98 of 100 workflows still failed, so contexts-per-runner was not the cause; and the
+100/55 workload is being remodelled by `model-realistic-show-day-load` because 55 ringside
+sessions place ~7 concurrent scorers on every class. The sixteen-shard topology, sequence
+validation and raw-sample percentiles below are unaffected. The aggregator continues to validate all global sequences and uses
 raw samples, not averaged shard percentiles. Sixteen standard runners plus the platform sampler is 17 concurrent jobs. The 20-job Free
 ceiling is ACCOUNT-WIDE, so the prepare job now measures actual free capacity before the
 reseed and refuses the window rather than letting a queued shard miss the barrier.

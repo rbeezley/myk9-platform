@@ -32,6 +32,27 @@ production bundle showed those routes interactive in 1.5–2.4 s, so the failure
 generator contention rather than the application. Spreading the same workload thinner is
 the only permitted remedy; the workload itself is unchanged.
 
+**SUPERSEDED 2026-08-27 by `model-realistic-show-day-load`. Two claims above are now
+known false and are retained only as a record of what was believed at the time.**
+
+The contention attribution is wrong. Run 33038456110 ran all sixteen shards HEALTHY at
+45–70% CPU p95 with browser-control p95 of 9–15 ms, and 98 of 100 workflows still failed.
+Generator contention was therefore not the cause of the eight-shard failures, or not the
+whole of it.
+
+The workload freeze is wrong as a forward constraint. The 55 ringside sessions distribute
+across eight class IDs by `(entryNumber - 1) % 8`, placing roughly seven sessions scoring
+seven different dogs in the same class simultaneously. A class is scored by one judge, one
+dog at a time; the operator confirms the largest observed show ran eight judges, each in a
+separate ring on a separate class. The 9.4 s scoring-write p95 that run 33075234998
+measured with valid attribution is queueing on the row-exclusive lock
+`refresh_class_scoring_state` takes on the class row — an artifact of a shape that cannot
+occur, not a property of the platform.
+
+The session counts in this requirement MUST NOT be preserved by a future change. The
+topology, fail-closed teardown, ownership-window and evidence requirements around them
+stand and are unaffected. See `openspec/changes/model-realistic-show-day-load/`.
+
 #### Scenario: Shards aggregate the same workload
 
 - **WHEN** all sixteen synchronized shard artifacts are aggregated

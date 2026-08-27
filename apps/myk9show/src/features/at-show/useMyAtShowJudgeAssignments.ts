@@ -136,9 +136,19 @@ export function useMyAtShowJudgeAssignments(
       ? new Error('Judge assignments could not be refreshed')
       : null;
 
-  // An empty set is only trustworthy when a read actually completed.
+  // An empty set is only trustworthy when a read actually completed AND the
+  // table it read has synced at least once. The queryFn deliberately RESOLVES
+  // an empty array while the first sync is still pending (see above), so
+  // `data === undefined` alone misses the case where an offline judge's
+  // assignments simply had not landed before connectivity dropped -- the cache
+  // then holds a settled [] that is indistinguishable from "none assigned".
+  const judgeTableNeverSynced =
+    judgeTableStatus === 'idle' || judgeTableStatus === 'syncing' || judgeTableStatus === 'error';
   const assignmentsUnresolved =
-    isApplicable && query.data === undefined && !query.isLoading && !query.error;
+    isApplicable &&
+    !query.isLoading &&
+    !query.error &&
+    (query.data === undefined || (!hasAssignments && judgeTableNeverSynced));
 
   return {
     assignedClassIds,

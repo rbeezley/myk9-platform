@@ -42,7 +42,11 @@ describe('At-Show ringside — calm offline + tokenized status', () => {
   });
 
   it('highlights a favorite class with the accent token, not raw green', () => {
-    expect(classRow).toContain('border-primary');
+    // Anchored to the is_favorite branch on purpose. A bare
+    // toContain('border-primary') passes on `hover:border-primary/40` in the
+    // BASE class string, so it would still be green with the favorite styling
+    // deleted outright -- a pin that proves only that someone typed the word.
+    expect(classRow).toMatch(/is_favorite &&\s*'[^']*border-primary/);
     expect(classRow).toContain('fill-primary text-primary');
     expect(classRow).not.toContain('emerald');
   });

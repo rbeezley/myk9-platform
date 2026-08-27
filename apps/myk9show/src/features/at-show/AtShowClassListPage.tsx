@@ -38,6 +38,9 @@ import { getTrialTimezone } from '@/features/registries';
 import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { WIDE_COLUMN } from './atShowClassListLayout';
+
+/** The scopes the picker's own rows come from. */
+const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
 import { BackToRingsideExitButton } from './BackToRingsideExitButton';
 import {
   sortClassesForAtShowScan,
@@ -69,7 +72,6 @@ function AtShowOfflineReadySlot({
     </div>
   );
 }
-
 
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
@@ -149,8 +151,11 @@ export const AtShowClassListPage: React.FC = () => {
   // Staff accounts — including a secretary who also exhibits — keep the
   // class-first default.
   const isExhibitorOnly = isExhibitorOnlyForAtShow(hasRole);
-  const { ownEntryIds, isLoading: ownershipLoading, isUnknown: ownershipUnknown } =
-    useMyAtShowEntries(showId);
+  const {
+    ownEntryIds,
+    isLoading: ownershipLoading,
+    isUnknown: ownershipUnknown,
+  } = useMyAtShowEntries(showId);
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
@@ -236,11 +241,24 @@ export const AtShowClassListPage: React.FC = () => {
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
 
   // An empty picker is only a statement about the SHOW when a read actually
-  // reached the device. Offline with nothing cached it is a statement about
-  // this device, and must be phrased as one.
+  // reached the device. There are TWO ways it did not, and gating on
+  // connectivity alone catches only one:
+  //
+  //  - offline, nothing cached: every table sits at 'idle', because the sync
+  //    provider returns early while offline.
+  //  - ONLINE, but the first sync errored -- venue wifi that associates but
+  //    does not carry. `areReplicationTablesPendingFirstSync` counts only
+  //    'idle'/'syncing', so 'error' reads as settled; and `getAll()` catches
+  //    every read failure and returns [] (ReplicatedTableQuery.ts:150-155), so
+  //    `error` is null as well. Without the first term the page asserts "this
+  //    show has no classes yet" -- the exact false claim this file exists to
+  //    prevent, left standing in the one quadrant a `!isOnline` guard excludes.
+  const classSyncFailed = CLASS_DATA_TABLES.some(
+    table => syncStatus.tablesStatus[table] === 'error'
+  );
   const classDataNeverReachedDevice =
-    !isOnline &&
-    areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes']);
+    classSyncFailed ||
+    (!isOnline && areReplicationTablesPendingFirstSync(syncStatus, CLASS_DATA_TABLES));
 
   if (isLoading || isClassDataStillSyncing || assignmentsLoading) {
     return (
@@ -320,9 +338,11 @@ export const AtShowClassListPage: React.FC = () => {
           {classDataNeverReachedDevice ? 'Classes not on this device yet' : 'No classes'}
         </h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          {classDataNeverReachedDevice
-            ? "This device hasn't downloaded this show's classes, and there's no connection to fetch them now. Reconnect once and they'll be here for the rest of the day."
-            : 'This show has no classes yet.'}
+          {!classDataNeverReachedDevice
+            ? 'This show has no classes yet.'
+            : classSyncFailed
+              ? "This show's classes could not be loaded onto this device. Try again, and if it keeps failing move somewhere with a better signal."
+              : "This device hasn't downloaded this show's classes, and there's no connection to fetch them now. Reconnect once and they'll be here for the rest of the day."}
         </p>
         {/* The branch a cold replica lands in is exactly the branch where
             priming helps most, so the readiness action belongs here too. */}

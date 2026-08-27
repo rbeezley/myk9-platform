@@ -188,6 +188,28 @@ describe('AtShowClassListPage offline truthfulness', () => {
     expect(screen.queryByText(/This show has no classes yet/)).not.toBeInTheDocument();
   });
 
+  it('does not blame the show when the first sync errored while online', async () => {
+    // Venue wifi that associates but does not carry. The table lands on
+    // 'error', which the pending-first-sync helper does NOT count (it only
+    // counts idle/syncing), and getAll() catches the read failure and returns
+    // [] so the query reports no error either. Every signal says "settled and
+    // empty" while nothing was ever read -- and the device IS online, so a
+    // guard written only around connectivity misses it entirely.
+    seedColdDevice();
+
+    renderPage({
+      ...neverSyncedStatus,
+      // The sync ran and failed, so every scope it covers lands on 'error'.
+      // Leaving siblings at 'idle' would be a state no failed sync produces,
+      // and the skeleton would legitimately win because those really are
+      // still pending.
+      tablesStatus: { shows: 'error', trials: 'error', classes: 'error', entries: 'error' },
+    });
+
+    expect(await screen.findByText(/could not be loaded onto this device/i)).toBeInTheDocument();
+    expect(screen.queryByText(/This show has no classes yet/)).not.toBeInTheDocument();
+  });
+
   it('still reports a genuinely empty show as empty when online and synced', async () => {
     // The guard must not swallow the real zero: online, sync succeeded, and the
     // show truly has no classes.

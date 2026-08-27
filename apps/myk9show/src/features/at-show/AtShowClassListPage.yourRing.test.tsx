@@ -247,7 +247,7 @@ describe('AtShowClassListPage Your ring', () => {
     expect(syncJudgeAssignments).toHaveBeenCalledWith('judge_assignments');
   });
 
-  it('accepts an empty cached result offline instead of waiting for a sync', async () => {
+  it('shows the full picker offline rather than waiting for a sync or claiming no assignments', async () => {
     authState.hasRole = role => role === UserRole.JUDGE;
     authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
     authState.user = { is_anonymous: false };
@@ -263,7 +263,17 @@ describe('AtShowClassListPage Your ring', () => {
         },
       });
 
-      expect(await screen.findByText('No classes assigned yet')).toBeInTheDocument();
+      // The guarantee this test was written for (#1452, "keep assignment
+      // matching offline-safe") is the ABSENCE of a spinner: an empty cached
+      // result must settle, not hang. That still holds.
+      //
+      // What changed is the claim made once it settles. judge_assignments has
+      // never synced on this device, so an empty cache is unknown rather than
+      // authoritative, and "your secretary has not assigned you" was a
+      // statement about the secretary drawn from a table that was never read.
+      // The picker now fails open to the full class list instead.
+      expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+      expect(screen.queryByText('No classes assigned yet')).not.toBeInTheDocument();
       expect(
         screen.queryByRole('status', { name: 'Loading at-show classes' })
       ).not.toBeInTheDocument();

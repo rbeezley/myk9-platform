@@ -11,10 +11,33 @@ Seven concurrent scorers per class is the condition that produced a 9.4 s scorin
 - **WHEN** session assignments are built for any scenario
 - **THEN** no two `ringside-scoring` sessions resolve to the same class ID, and the scoring session count equals the fixture's total ring count
 
+This invariant holds for **every** scenario, including `peak` and `stress`. Those currently
+declare 125 and 250 ringside sessions against an eight-class fixture, which is the same
+impossibility at larger scale. They SHALL scale by adding shows and rings — the way platform
+growth actually arrives — not by adding scorers to a class. Their fixtures and
+`ringsideSessionsMin` values scale with them.
+
+`ringsideSessionsMin` SHALL be derived from the fixture's ring count rather than fixed.
+It is currently `50` for `normal`, which `validateScenarioDefinition` and
+`evaluateLoadResult` both check against the scenario's ringside session count; leaving it
+at 50 while scoring drops to 20 would fail every reshaped run at construction and again at
+evaluation. With one scorer per ring the correct assertion is equality with the ring count,
+not a floor.
+
 #### Scenario: A scenario over-subscribes a class
 
 - **WHEN** a scenario declares more scoring sessions than the fixture has rings
 - **THEN** scenario construction fails with an error naming the over-subscribed class, rather than silently distributing by modulo
+
+#### Scenario: Ringside minimum tracks the ring count
+
+- **WHEN** a scenario is validated or evaluated
+- **THEN** its ringside session count is asserted equal to its fixture's total ring count, and no fixed floor survives from the previous workload
+
+#### Scenario: Peak and stress scale by shows
+
+- **WHEN** `peak` or `stress` is defined
+- **THEN** it reaches its higher session count through additional shows and rings, with one scorer per class preserved, and remains constructable
 
 ### Requirement: The fixture spans concurrent shows
 

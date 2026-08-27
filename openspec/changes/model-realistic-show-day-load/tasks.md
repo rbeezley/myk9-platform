@@ -26,6 +26,8 @@
 
 - [ ] 4.1 Express every session count as a parameter with provenance — operator-observed or estimated, and for estimates what would replace them.
 - [ ] 4.2 Set counts per `design.md`: 20 scoring, 44 check-in, 264 readers, 10 ops across four shows.
+- [ ] 4.2a Derive `ringsideSessionsMin` from the fixture's ring count instead of the fixed `50`. `validateScenarioDefinition` (`loadScenario.ts:188`) and `evaluateLoadResult` both compare the scenario's ringside count against it, so 20 scoring sessions against a floor of 50 fails every reshaped run twice over — at construction and at evaluation. With one scorer per ring the assertion is equality with ring count, not a floor.
+- [ ] 4.2b Rebuild `peak` and `stress` to scale by shows and rings rather than by scorers per class. They currently declare 125 and 250 ringside sessions (`ringsideSessionsMin` 125 and 250) derived from `G9_NORMAL_SCENARIO`, which under the one-scorer-per-class invariant makes both unconstructable. Scale their fixtures and minimums together.
 - [ ] 4.3 Give check-in a bursty arrival pattern anchored to class start rather than uniform arrival.
 - [ ] 4.3a Route check-in through the **exhibitor self-check-in** path — exhibitor credentials, owned or handled entries, self-check-in mutation. Reusing `secretary-check-in` with staff auth would satisfy the arrival-pattern constraint while exercising different authorization and a different mutation, then be reported as exhibitor coverage. Assert the acting role in a contract test.
 - [ ] 4.4 Assert the reader-to-writer ratio in a contract test, so a future edit that inverts the mix fails rather than passing quietly.
@@ -69,3 +71,14 @@
 - [ ] 9.1 Obtain explicit operator approval for the reshaped rehearsal. The approval must name the new workload, the multi-show fixture and hybrid generation; approvals for the prior topology do not transfer.
 - [ ] 9.2 Confirm the concurrency preflight still proves headroom against the account-wide ceiling of 20.
 - [ ] 9.3 Run, then record evidence and the derived targets here.
+
+## 10. Delivery gate
+
+Required by `openspec/config.yaml`: PR, CI, review and merge are the final implementation gate before archive for code or workflow changes.
+
+- [ ] 10.1 Open a PR for the implementation and link it here.
+- [ ] 10.2 CI green, including `Quality Checks`. Run `pnpm qa:code-quality-ratchet` from the worktree first — a `cd` to the primary checkout silently measures `main`.
+- [ ] 10.3 Independent review (Codex) on the net diff against `origin/main`. Grep the log for `Review was interrupted` and usage-limit markers; the exit status is not the verdict.
+- [ ] 10.4 Merge to `main` from the primary checkout, never from a feature worktree.
+- [ ] 10.5 Update MYK9-126 with what changed, checks run, PR link, risks, and whether acceptance criteria passed. Move to Done only after merge.
+- [ ] 10.6 Archive this change with the PR URL or merge evidence in the summary.

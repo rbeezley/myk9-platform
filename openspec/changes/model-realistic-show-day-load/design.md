@@ -90,6 +90,14 @@ gateEligible: scenario.gate === 'G9' && !scenario.informational;
 
 Per-target gating needs each failure to carry whether it gates, and the evaluation to report gating and informational failures separately. That is new structure rather than a config edit, and it is the one piece of implementation this change adds beyond the workload itself. Evidence must render the two sets distinctly, or a reader cannot tell a passing run from a run that passed only the half still being enforced.
 
+## Peak and stress
+
+`PEAK_SCENARIO` and `STRESS_SCENARIO` derive from `G9_NORMAL_SCENARIO` and raise ringside sessions to 125 and 250 against the same eight-class fixture — 15 and 31 concurrent scorers per class. They are the same impossibility as `normal`, scaled up, and the one-scorer-per-class invariant makes them unconstructable as written.
+
+They scale by **shows and rings** instead. That is also how growth actually arrives: the operator expects 3–5 concurrent shows now, "depending on how popular our app becomes," and a busier platform means more shows running, not more judges crowding one ring. `ringsideSessionsMin` scales with the fixture rather than staying fixed.
+
+Both remain informational and both remain unrunnable on the free tier at their full session counts; hybrid generation improves that arithmetic but does not by itself make them dispatchable. The requirement here is that they be _coherent_, not that they be runnable today.
+
 ## Concurrency budget
 
 The account-wide GitHub Free ceiling of 20 concurrent jobs is unchanged. The topology stays at sixteen shards plus one platform sampler plus prepare/aggregate, which already fits. Hybrid generation is what keeps a 3.4× workload inside the same seventeen concurrent jobs.

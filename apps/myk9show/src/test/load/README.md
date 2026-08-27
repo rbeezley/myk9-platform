@@ -116,7 +116,23 @@ SUPABASE_DB_PASSWORD
 
 The prepare job requires the operator to type the approved project ref and
 performs the CPU/IO telemetry preflight and canonical reseed. Eight shards then run 12 or 13 unique global
-assignments each. Shard 0 owns the single platform sampler. The aggregate job
+assignments each.
+
+A ninth, browser-free `platform` job owns the sampler. Shard 0 owned it until
+2026-08-26, and that was self-defeating: polling `pg_stat_activity` every two
+seconds and the Metrics API while also driving 12-13 Chromium contexts left it
+the only saturated runner in the fleet (95.3% host CPU p95 against seven healthy
+siblings at 83-89%), and a saturated shard invalidates the very latency
+attribution the sampling exists to support — while its own dropped samples then
+fail the telemetry gate. The sampler waits on the same synchronized start,
+baselines 15 s ahead of it so the opening statement snapshot excludes rehearsal
+traffic, and keeps sampling 30 s past the scenario so draining work is still
+counted. Its artifact carries the run ID and start timestamp, and aggregation
+refuses a pair that does not match — nothing else structurally ties a separate
+runner's output to this rehearsal. Aggregation also rejects any shard that
+carries platform telemetry, so the old topology cannot creep back.
+
+The aggregate job
 requires all eight matching artifacts, concatenates sanitized raw timings for
 exact global percentiles, preserves each runner's generator evidence separately,
 evaluates G9 once, and uploads JSON/Markdown evidence. Session evidence reports

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import type { LoadMetricSamples } from './loadMetrics';
+import type { LoadPlatformArtifact } from './loadPlatformArtifact';
 import { aggregateLoadShardArtifacts, type LoadShardArtifact } from './loadShardAggregation';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
 
@@ -105,23 +106,6 @@ function shardArtifact(index: number): LoadShardArtifact {
     queueTelemetryFailures: 0,
     expectedPersistedScores: 110,
     persistedScores: 110,
-    ...(index === 0 && {
-      platform: {
-        peakCpuPercent: 60,
-        peakIoPercent: 20,
-        peakConnections: 40,
-        connectionCap: 60,
-        statementDeltas: [
-          {
-            queryId: 'query-1',
-            calls: 440,
-            rows: 440,
-            totalExecTimeMs: 4_400,
-            meanExecTimeMs: 10,
-          },
-        ],
-      },
-    }),
   };
   const samples: LoadMetricSamples = {
     scoringDurationsMs,
@@ -144,6 +128,29 @@ function shardArtifact(index: number): LoadShardArtifact {
   };
 }
 
+function platformArtifact(): LoadPlatformArtifact {
+  return {
+    schemaVersion: 1,
+    runId: '12345-1',
+    startAtMs: 1_785_283_200_000,
+    platform: {
+      peakCpuPercent: 60,
+      peakIoPercent: 20,
+      peakConnections: 40,
+      connectionCap: 60,
+      statementDeltas: [
+        {
+          queryId: 'query-1',
+          calls: 440,
+          rows: 440,
+          totalExecTimeMs: 4_400,
+          meanExecTimeMs: 10,
+        },
+      ],
+    },
+  };
+}
+
 describe('distributed load aggregation', () => {
   it('retains failed reconciliation evidence through JSON and rejects the complete run', () => {
     const artifacts = Array.from({ length: 8 }, (_, index) => shardArtifact(index));
@@ -151,7 +158,8 @@ describe('distributed load aggregation', () => {
     artifacts[7].observation.persistenceFailures = [{ kind: 'http', status: 503, entryCount: 6 }];
     const result = aggregateLoadShardArtifacts(
       JSON.parse(JSON.stringify(artifacts)),
-      G9_NORMAL_SCENARIO
+      G9_NORMAL_SCENARIO,
+      platformArtifact()
     );
 
     expect(result.observation.persistedScores).toBeNull();
@@ -167,7 +175,8 @@ describe('distributed load aggregation', () => {
   it('combines eight manifests without summing temporally disjoint shard peaks', () => {
     const result = aggregateLoadShardArtifacts(
       Array.from({ length: 8 }, (_, index) => shardArtifact(index)),
-      G9_NORMAL_SCENARIO
+      G9_NORMAL_SCENARIO,
+      platformArtifact()
     );
 
     expect(result.target).toEqual(target);
@@ -235,7 +244,35 @@ describe('distributed load aggregation', () => {
       ],
     ],
   ])('rejects a %s', (_name, artifacts) => {
-    expect(() => aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO)).toThrow();
+    expect(() =>
+      aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact())
+    ).toThrow();
+  });
+
+  it('rejects a shard that sampled the platform itself', () => {
+    // Shard 0 owned the sampler until 2026-08-26; that extra work saturated it
+    // (95.3% host CPU p95 against healthy siblings) and invalidated attribution.
+    const artifacts = Array.from({ length: 8 }, (_, index) => shardArtifact(index));
+    artifacts[0].observation.platform = platformArtifact().platform;
+
+    expect(() =>
+      aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact())
+    ).toThrow('sampling belongs to the dedicated runner');
+  });
+
+  it.each([
+    ['run', { runId: 'other-run' }],
+    ['start', { startAtMs: 1_785_283_200_001 }],
+    ['schema', { schemaVersion: 2 as unknown as 1 }],
+  ])('rejects platform telemetry from a different %s', (_name, override) => {
+    const artifacts = Array.from({ length: 8 }, (_, index) => shardArtifact(index));
+
+    expect(() =>
+      aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, {
+        ...platformArtifact(),
+        ...override,
+      })
+    ).toThrow(/does not belong to this rehearsal|schema is not supported/);
   });
 
   it('rejects an artifact that omits runner evidence', () => {
@@ -251,7 +288,8 @@ describe('distributed load aggregation', () => {
           invalid,
           shardArtifact(7),
         ],
-        G9_NORMAL_SCENARIO
+        G9_NORMAL_SCENARIO,
+        platformArtifact()
       )
     ).toThrow(/generator/i);
   });

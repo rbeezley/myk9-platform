@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildLoadEvidence, writeLoadEvidence } from '../src/test/load/loadEvidence';
+import type { LoadPlatformArtifact } from '../src/test/load/loadPlatformArtifact';
 import { evaluateLoadResult } from '../src/test/load/loadEvaluation';
 import {
   aggregateLoadShardArtifacts,
@@ -18,7 +19,12 @@ const artifactPaths = readdirSync(inputDirectory)
 const artifacts = artifactPaths.map(
   artifactPath => JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact
 );
-const aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO);
+const platformPath = resolve(
+  process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',
+  'platform.json'
+);
+const platformArtifact = JSON.parse(readFileSync(platformPath, 'utf8')) as LoadPlatformArtifact;
+const aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
 const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
 const evidence = buildLoadEvidence({
   target: aggregate.target,

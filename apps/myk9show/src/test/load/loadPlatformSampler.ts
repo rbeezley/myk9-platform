@@ -57,7 +57,10 @@ export async function startLoadPlatformSampler(
   const command = databaseCommand(databaseUrl, env);
   const [baseline, initialResources] = await Promise.all([
     readStatementSnapshot(command),
-    readResourceCounters(env),
+    // Retried like every other sample. Unprotected, a startup timeout rejects
+    // the whole sampler and produces no artifact at all — losing everything in
+    // precisely the transient case the retry exists to survive.
+    readResourceCountersWithRetry(env),
   ]);
   let peakConnections = 0;
   let connectionAttempts = 0;

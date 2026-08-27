@@ -111,6 +111,8 @@ describe('unusable telemetry degrades instead of throwing', () => {
     ['a peak that is not numeric', { peakConnections: '40' }],
     ['connectionCap omitted', { connectionCap: undefined }],
     ['resourceSampling missing its failures', { resourceSampling: { attempts: 2, succeeded: 1 } }],
+    ['connectionSampling missing succeeded', { connectionSampling: { attempts: 5 } }],
+    ['connectionSampling not an object', { connectionSampling: 5 }],
     ['no platform payload at all', undefined],
   ])('returns undefined when the payload has %s', (_name, platformOverride) => {
     const path = write(

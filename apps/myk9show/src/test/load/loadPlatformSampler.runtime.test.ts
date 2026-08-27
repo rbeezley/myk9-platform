@@ -115,7 +115,9 @@ describe('runtime platform evidence', () => {
       vi.useFakeTimers();
       const request = mockImmediateSamples();
       if (source === 'database') psql.mockRejectedValueOnce(new Error('secret-body'));
-      else request.mockRejectedValueOnce(new Error('secret-body'));
+      // The initial resource sample is retried like every other one, so a
+      // startup failure has to fail both attempts to abort the sampler.
+      else request.mockRejectedValue(new Error('secret-body'));
 
       await expect(startLoadPlatformSampler(testEnv, 60)).rejects.toThrow(
         source === 'database'
@@ -124,7 +126,10 @@ describe('runtime platform evidence', () => {
       );
       await vi.advanceTimersByTimeAsync(60_000);
       expect(psql).toHaveBeenCalledTimes(1);
-      expect(request).toHaveBeenCalledTimes(1);
+      // Resource startup: one attempt plus its retry. Database startup fails
+      // before the resource read is awaited, so only the initial call happens.
+      expect(request).toHaveBeenCalledTimes(source === 'resource' ? 2 : 1);
+      // The point of the test: no periodic work was scheduled either way.
       expect(vi.getTimerCount()).toBe(0);
     }
   );

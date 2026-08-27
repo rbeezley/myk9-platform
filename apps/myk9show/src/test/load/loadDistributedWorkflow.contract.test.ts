@@ -17,6 +17,31 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('Run synchronized 12/13-session shard with generator telemetry');
   });
 
+  it('samples the platform from a browser-free job whose artifact name pairs', () => {
+    // Name-pairing only: the load-bearing guard is the behavioral throw in
+    // loadShardAggregation when a shard carries telemetry. A typo in either
+    // half of this artifact name would otherwise surface only during a live
+    // rehearsal against shared staging.
+    const uploads = workflow.match(/name: load-platform/g) ?? [];
+    expect(uploads).toHaveLength(2);
+    expect(workflow).toContain('run: pnpm exec tsx scripts/run-load-platform.ts');
+    expect(workflow).toContain('needs: [prepare, shard, platform]');
+    expect(workflow).toContain('needs: [prepare, shard, platform, aggregate]');
+    // The sampler must not build or drive a browser; that co-location is the
+    // defect this job exists to remove.
+    // Slice to the NEXT top-level job, not to a named one: keying off '  shard:'
+    // returns '' if the jobs are ever reordered, and both assertions below would
+    // then pass vacuously.
+    const platformStart = workflow.indexOf('\n  platform:\n');
+    expect(platformStart).toBeGreaterThan(-1);
+    const nextJob = workflow.slice(platformStart + 1).search(/\n {2}[\w-]+:\n/);
+    expect(nextJob).toBeGreaterThan(0);
+    const platformJob = workflow.slice(platformStart, platformStart + 1 + nextJob);
+    expect(platformJob).toContain('run-load-platform.ts');
+    expect(platformJob).not.toContain('playwright');
+    expect(platformJob).not.toContain('LOAD_TEST_START_APP');
+  });
+
   it('fails closed on target confirmation and always restores the canonical seed', () => {
     expect(workflow).toContain('SUPABASE_SERVICE_ROLE_KEY');
     expect(workflow).toContain('SUPABASE_DB_PASSWORD');

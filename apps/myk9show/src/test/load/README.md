@@ -116,7 +116,39 @@ SUPABASE_DB_PASSWORD
 
 The prepare job requires the operator to type the approved project ref and
 performs the CPU/IO telemetry preflight and canonical reseed. Eight shards then run 12 or 13 unique global
-assignments each. Shard 0 owns the single platform sampler. The aggregate job
+assignments each.
+
+A ninth, browser-free `platform` job owns the sampler. Shard 0 owned it until
+2026-08-26, and that was self-defeating: polling `pg_stat_activity` every two
+seconds and the Metrics API while also driving 12-13 Chromium contexts left it
+the only saturated runner in the fleet (95.3% host CPU p95 against seven healthy
+siblings at 83-89%), and a saturated shard invalidates the very latency
+attribution the sampling exists to support — while its own dropped samples then
+fail the telemetry gate.
+
+The sampler proves its credentials and both transports before waiting, so a bad
+secret fails in seconds rather than after the barrier. It waits on the same
+synchronized start, baselines 15 s ahead of it so the opening statement snapshot
+excludes rehearsal traffic, and keeps sampling **150 s** past the scenario:
+sessions can still be hitting the database for the 90 s queue-drain budget plus
+three 20 s queue probes, and stopping earlier under-reports peak connections —
+which biases toward a false PASS, because the gate only fails when connections
+_exceed_ the cap.
+
+Its artifact carries the run ID and start timestamp, and a pair that does not
+match is discarded — nothing else structurally ties a separate runner's output
+to this rehearsal. Unusable telemetry of any kind (absent, truncated, corrupt or
+mismatched) is recorded as the G9 failure "Required platform telemetry was
+missing" **without** discarding the eight shards' evidence, which costs an
+operator-approved window to produce. Aggregation itself still throws on a
+mismatched artifact, so no other caller can count a stale one, and it rejects any
+shard that carries platform telemetry, so the old topology cannot creep back.
+
+Because cleanup waits on this job, a rehearsal whose shards all fail fast still
+holds the canonical reseed until the sampler finishes its window — deliberate, so
+a reseed cannot land mid-snapshot.
+
+The aggregate job
 requires all eight matching artifacts, concatenates sanitized raw timings for
 exact global percentiles, preserves each runner's generator evidence separately,
 evaluates G9 once, and uploads JSON/Markdown evidence. Session evidence reports

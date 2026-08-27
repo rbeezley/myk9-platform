@@ -6,6 +6,10 @@ import type { LoadObservation, WorkflowFailureDetail } from './loadEvaluation';
 import { percentile, type LoadMetricSamples } from './loadMetrics';
 import type { LoadScenario } from './loadScenario';
 import { scenarioSessionCount } from './loadScenario';
+import {
+  assertPlatformArtifactMatchesRun,
+  type LoadPlatformArtifact,
+} from './loadPlatformArtifact';
 import { DISTRIBUTED_G9_SHARD_COUNT, type LoadShard } from './loadShard';
 import { calculatePeakActiveWorkflows } from './loadSessionLifecycle';
 
@@ -62,9 +66,19 @@ export function writeLoadShardArtifact(
 
 export function aggregateLoadShardArtifacts(
   artifacts: readonly LoadShardArtifact[],
-  scenario: LoadScenario
+  scenario: LoadScenario,
+  // Undefined when the sampler job produced nothing. Evidence for eight valid
+  // shards is expensive and one-shot against shared staging, so a missing
+  // sampler degrades to a recorded FAIL rather than destroying the whole run.
+  platformArtifact: LoadPlatformArtifact | undefined
 ): { target: LoadEvidenceTarget; observation: LoadObservation } {
   validateArtifacts(artifacts, scenario);
+  if (platformArtifact) {
+    assertPlatformArtifactMatchesRun(platformArtifact, {
+      runId: artifacts[0].runId,
+      startAtMs: artifacts[0].startAtMs,
+    });
+  }
   const observations = artifacts.map(artifact => artifact.observation);
   const requestCount = sum(observations, observation => observation.requestCount);
   const failedRequestCount = sum(observations, observation => observation.failedRequestCount);
@@ -80,7 +94,7 @@ export function aggregateLoadShardArtifacts(
     api: artifacts.flatMap(artifact => [...artifact.samples.apiDurationsMs]),
     page: artifacts.flatMap(artifact => [...artifact.samples.pageDurationsMs]),
   };
-  const platform = observations.find(observation => observation.platform)?.platform;
+  const platform = platformArtifact?.platform;
   const activityIntervals = observations.flatMap(observation => [
     ...observation.sessionLifecycle.activityIntervals,
   ]);
@@ -215,7 +229,6 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
   const first = artifacts[0];
   const indexes = new Set<number>();
   const sequences: number[] = [];
-  let platformSamples = 0;
 
   for (const artifact of artifacts) {
     if (
@@ -242,11 +255,13 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
     }
     indexes.add(artifact.shard.index);
     sequences.push(...artifact.assignmentSequences);
+    // Telemetry moved to its own runner: a shard that samples the database while
+    // driving 12-13 browser contexts saturates itself, which invalidates the
+    // latency attribution the sampling exists to support.
     if (artifact.observation.platform) {
-      platformSamples += 1;
-      if (artifact.shard.index !== 0) {
-        throw new Error('Only load shard 0 may provide platform telemetry.');
-      }
+      throw new Error(
+        `Load shard ${artifact.shard.index} collected platform telemetry; sampling belongs to the dedicated runner.`
+      );
     }
   }
 
@@ -259,9 +274,6 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
     JSON.stringify(expectedSequences)
   ) {
     throw new Error('Load shard assignments were missing, duplicated, or out of range.');
-  }
-  if (platformSamples !== 1) {
-    throw new Error('Distributed load requires exactly one platform telemetry sample.');
   }
 }
 

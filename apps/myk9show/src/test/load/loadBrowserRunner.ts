@@ -29,7 +29,6 @@ const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
 const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
 const SESSION_PREPARATION_CONCURRENCY = 10;
 const BROWSER_CONTEXT_CLOSE_TIMEOUT_MS = 2_000;
-const PLATFORM_BASELINE_LEAD_MS = 15_000;
 const CONTENTION_FIRST_SESSION = 50;
 const CONTENTION_SESSION_COUNT = 5;
 const CONTENTION_ENTRY_NUMBER = CONTENTION_FIRST_SESSION * LOAD_CLASS_IDS.length + 1;
@@ -106,10 +105,10 @@ export async function runBrowserLoad(
       }
     );
     generatorSampler.markContextsPrepared();
-    const collectPlatform = !options.smoke && (!options.shard || options.shard.index === 0);
-    if (collectPlatform && options.shard) {
-      await delay(Math.max(0, options.shard.startAtMs - Date.now() - PLATFORM_BASELINE_LEAD_MS));
-    }
+    // Distributed runs sample the platform from a dedicated browser-free runner:
+    // a shard that polls the database while driving 12-13 contexts saturates
+    // itself, and its own saturation then invalidates the attribution.
+    const collectPlatform = !options.smoke && !options.shard;
     platformSampler = collectPlatform
       ? await startLoadPlatformSampler(process.env, scenario.targets.databaseConnectionCap)
       : undefined;

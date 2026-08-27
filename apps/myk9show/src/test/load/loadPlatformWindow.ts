@@ -1,0 +1,63 @@
+// The sampler takes its baseline before load starts so the first statement
+// snapshot excludes rehearsal traffic, and keeps sampling past the scenario so
+// the closing snapshot covers work still draining.
+export const PLATFORM_BASELINE_LEAD_MS = 15_000;
+// Each session's teardown can still be hitting the database for
+// QUEUE_DRAIN_TIMEOUT_MS (90s) plus three queue probes at QUEUE_PROBE_DEADLINE_MS
+// (20s each): one before the drain, one the drain itself may start just under its
+// deadline, and one after. Stopping earlier drops those flushes from the closing
+// snapshot and under-reports peakConnections -- and the gate only fails when
+// connections EXCEED the cap, so a truncated window can turn a real breach into a
+// pass. Kept a literal so the sampler needs no @myk9/replication at runtime, and
+// pinned against the composed bound in the tests so the two cannot drift.
+export const PLATFORM_DRAIN_GRACE_MS = 150_000;
+
+export interface PlatformSamplingWindow {
+  /** Wait this long before taking the baseline snapshot. */
+  baselineDelayMs: number;
+  /** Stop sampling at this absolute epoch millisecond. */
+  stopAtMs: number;
+}
+
+export function platformSamplingWindow(input: {
+  startAtMs: number;
+  durationMs: number;
+  nowMs: number;
+}): PlatformSamplingWindow {
+  const { startAtMs, durationMs, nowMs } = input;
+  if (!Number.isSafeInteger(startAtMs) || startAtMs <= 0) {
+    throw new Error('Platform sampling requires a valid synchronized start.');
+  }
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0) {
+    throw new Error('Platform sampling requires a positive scenario duration.');
+  }
+
+  const baselineAtMs = startAtMs - PLATFORM_BASELINE_LEAD_MS;
+  const stopAtMs = startAtMs + durationMs + PLATFORM_DRAIN_GRACE_MS;
+  // Fail closed rather than emit a window that never covered the load, which
+  // would read downstream as complete telemetry.
+  if (nowMs >= stopAtMs) {
+    throw new Error('Platform sampling missed the synchronized load window entirely.');
+  }
+  if (nowMs > baselineAtMs + PLATFORM_BASELINE_LEAD_MS) {
+    throw new Error('Platform sampling cannot take a baseline after load has started.');
+  }
+
+  return { baselineDelayMs: Math.max(0, baselineAtMs - nowMs), stopAtMs };
+}
+
+/**
+ * A baseline snapshot taken after load starts already contains rehearsal traffic,
+ * so every statement delta computed against it undercounts the run — while the
+ * artifact still pairs with the rehearsal and reads as complete telemetry.
+ */
+export function assertBaselineBeforeStart(input: {
+  startAtMs: number;
+  baselineCompletedAtMs: number;
+}): void {
+  if (input.baselineCompletedAtMs >= input.startAtMs) {
+    throw new Error(
+      'Platform baseline completed after load started; telemetry would undercount the rehearsal.'
+    );
+  }
+}

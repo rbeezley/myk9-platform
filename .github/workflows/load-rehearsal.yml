@@ -168,6 +168,56 @@ jobs:
           echo "run-id=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >>"$GITHUB_OUTPUT"
           echo "start-at-ms=$start_at_ms" >>"$GITHUB_OUTPUT"
 
+  # Samples Supabase from its own runner. Shard 0 used to do this while also
+  # driving 12-13 browser contexts, which saturated it (95.3% host CPU p95 while
+  # its seven identically-loaded siblings stayed healthy) and then invalidated
+  # the very latency attribution the sampling exists to support.
+  platform:
+    name: Sample platform telemetry
+    needs: prepare
+    runs-on: ubuntu-latest
+    # Covers runner setup, the longest 35-minute barrier, the 10-minute load,
+    # and the post-load drain grace.
+    timeout-minutes: 55
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Sample Supabase CPU, IO, connections, and statements
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/run-load-platform.ts
+        env:
+          LOAD_TEST_SUPABASE_PROJECT_REF: sojmvhhwsjxmfistvzbe
+          LOAD_TEST_RUN_ID: ${{ needs.prepare.outputs.run-id }}
+          LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+
+      - name: Upload platform observation
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: load-platform
+          path: apps/myk9show/test-results/load-platform/platform.json
+          if-no-files-found: warn
+          retention-days: 14
+
   shard:
     name: Load shard ${{ matrix.shard }}
     needs: prepare
@@ -251,7 +301,7 @@ jobs:
 
   aggregate:
     name: Aggregate G9 evidence
-    needs: [prepare, shard]
+    needs: [prepare, shard, platform]
     if: ${{ always() && needs.prepare.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -276,6 +326,15 @@ jobs:
           path: apps/myk9show/test-results/load-shards
           merge-multiple: true
 
+      # Tolerated so eight valid shards still produce evidence when the sampler
+      # job died; aggregation records the missing telemetry as a G9 failure.
+      - name: Download platform observation
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: load-platform
+          path: apps/myk9show/test-results/load-platform
+
       - name: Aggregate and evaluate G9
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/aggregate-load-shards.ts
@@ -293,7 +352,9 @@ jobs:
 
   cleanup:
     name: Always restore canonical seed
-    needs: [prepare, shard, aggregate]
+    # Includes `platform` so the reseed cannot land while the sampler is still
+    # taking its closing statement snapshot.
+    needs: [prepare, shard, platform, aggregate]
     if: ${{ always() && needs.prepare.outputs.restore-required == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12

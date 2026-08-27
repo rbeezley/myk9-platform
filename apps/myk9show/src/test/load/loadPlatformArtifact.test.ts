@@ -94,6 +94,17 @@ describe('unusable telemetry degrades instead of throwing', () => {
     expect(reasons[0]).not.toHaveLength(0);
   });
 
+  it('rejects a null connectionCap, which sampling can never legitimately produce', () => {
+    // Only the three peaks round-trip NaN as null. The cap is a verified
+    // scenario input, so null there means damage, and accepting it would hand
+    // the reader a PlatformObservation whose declared number is not one.
+    const path = write(
+      'null-cap.json',
+      JSON.stringify({ ...artifact(), platform: { ...artifact().platform, connectionCap: null } })
+    );
+    expect(readUsablePlatformArtifact(path, RUN)).toBeUndefined();
+  });
+
   it.each([
     ['statementDeltas omitted', { statementDeltas: undefined }],
     ['statementDeltas not an array', { statementDeltas: 3 }],

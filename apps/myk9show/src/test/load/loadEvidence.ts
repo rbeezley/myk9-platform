@@ -10,6 +10,16 @@ import type { ResolvedLoadTarget } from './loadTarget';
 import { LOAD_SHOW_ENTRY_COUNT } from './loadFixture';
 import { assessGeneratorShard } from './loadGeneratorSampler';
 
+/**
+ * Peaks are now accepted at partial coverage, so a reader must be able to see
+ * how much of the window a peak actually covers — otherwise an under-sampled
+ * peak is indistinguishable from a complete one.
+ */
+function samplingCoverage(sampling?: { attempts: number; succeeded: number }): string {
+  if (!sampling || sampling.attempts <= 0) return 'missing';
+  return `${((sampling.succeeded / sampling.attempts) * 100).toFixed(1)}%`;
+}
+
 export type LoadEvidenceTarget = Pick<
   ResolvedLoadTarget,
   'mode' | 'projectRef' | 'computeTier' | 'gateEligible'
@@ -135,6 +145,7 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Persisted scores expected/observed: ${evidence.observation.expectedPersistedScores} / ${evidence.observation.persistedScores}
 - Platform CPU/IO peak: ${platform?.peakCpuPercent ?? 'missing'} / ${platform?.peakIoPercent ?? 'missing'}%
 - Database connections peak/cap: ${platform?.peakConnections ?? 'missing'} / ${platform?.connectionCap ?? 'missing'}
+- Sampling coverage resource/connection: ${samplingCoverage(platform?.resourceSampling)} / ${samplingCoverage(platform?.connectionSampling)}
 - pg_stat_statements deltas: ${platform?.statementDeltas.length ?? 0}
 - Backend-latency attribution from browser timings: ${evidence.evaluation.derived.generatorAttributionValid ? 'VALID' : 'INVALID — generator evidence was incomplete or saturated'}
 

@@ -35,7 +35,18 @@ export interface PlatformObservation {
   resourceSampling?: {
     attempts: number;
     succeeded: number;
+    /** Rescued transient blips. A trace that the Metrics API was degrading. */
+    retried?: number;
     failures: readonly ResourceSamplingFailure[];
+  };
+  /**
+   * Connection probes stay zero-tolerance — any miss withholds the peak — but the
+   * counts still travel with the observation so an operator can see how much of
+   * the window was actually observed rather than inferring it from a bare NaN.
+   */
+  connectionSampling?: {
+    attempts: number;
+    succeeded: number;
   };
 }
 

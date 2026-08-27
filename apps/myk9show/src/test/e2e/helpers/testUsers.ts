@@ -228,8 +228,12 @@ export async function signInAsTestUser(page: Page, userType: keyof typeof TEST_U
 }
 
 /**
- * Role convenience wrappers — use the env-backed canonical accounts (the
- * `*@myk9t.com` accounts have no `auth.users` row and cannot authenticate).
+ * Role convenience wrappers — use the env-backed canonical accounts.
+ *
+ * The `*@myk9t.com` addresses are now real mailboxes with `auth.users` rows and
+ * DO authenticate; verified 2026-08-26 signing in as `secretary@myk9t.com` and
+ * `exhibitor@myk9t.com`. They are the defaults below for that reason. The older
+ * `e2e-*@test.myk9.com` addresses are what the env vars may still override with.
  */
 export const signInAsSecretary = (page: Page, returnTo = '/') =>
   signIn(page, TEST_USERS.SECRETARY.email, TEST_USERS.SECRETARY.password, returnTo);

@@ -57,34 +57,41 @@ export async function startLoadPlatformSampler(
   const command = databaseCommand(databaseUrl, env);
   const [baseline, initialResources] = await Promise.all([
     readStatementSnapshot(command),
-    readResourceCounters(env),
+    // Retried like every other sample. Unprotected, a startup timeout rejects
+    // the whole sampler and produces no artifact at all — losing everything in
+    // precisely the transient case the retry exists to survive.
+    readResourceCountersWithRetry(env),
   ]);
   let peakConnections = 0;
-  let connectionSamplingFailed = false;
+  let connectionAttempts = 0;
+  let connectionSuccesses = 0;
   const resourceFailures: ResourceSamplingFailure[] = [];
   let resourceAttempts = 1;
   let resourceSuccesses = 1;
+  // A rescued blip would otherwise leave no trace, hiding that the Metrics API
+  // is degrading and that the retry widened that sample's window past nominal.
+  let resourceRetries = 0;
   let peakCpuPercent = Number.NaN;
   let peakIoPercent = Number.NaN;
   let previousResources = initialResources;
   let previousResourceSampleAt = Date.now();
   let stopPromise: Promise<PlatformObservation> | undefined;
   let connectionSample: Promise<void> | undefined;
+  let resourceSample: Promise<void> | undefined;
   const pendingSamples = new Set<Promise<void>>();
 
   const sampleConnections = () => {
+    connectionAttempts += 1;
     if (connectionSample) {
       // A skipped scheduled observation is missing peak evidence, not a success.
-      connectionSamplingFailed = true;
       return;
     }
     const task = readConnectionCount(command)
       .then(count => {
+        connectionSuccesses += 1;
         peakConnections = Math.max(peakConnections, count);
       })
-      .catch(() => {
-        connectionSamplingFailed = true;
-      })
+      .catch(() => undefined)
       .finally(() => {
         connectionSample = undefined;
         pendingSamples.delete(task);
@@ -95,7 +102,18 @@ export async function startLoadPlatformSampler(
 
   const sampleResources = () => {
     resourceAttempts += 1;
-    const task = readResourceCounters(env)
+    // Symmetric with sampleConnections. Two attempts at 15s each against a 60s
+    // interval cannot overlap today, but that is arithmetic rather than a
+    // guarantee, and the consequence would be silent: the block below is a
+    // read-modify-write of previousResources across an await, so concurrent
+    // samples would diff against the same baseline and double-count a window.
+    if (resourceSample) {
+      resourceFailures.push({ kind: 'transport', count: 1 });
+      return;
+    }
+    const task = readResourceCountersWithRetry(env, () => {
+      resourceRetries += 1;
+    })
       .then(counters => {
         resourceSuccesses += 1;
         const sampledAt = Date.now();
@@ -118,7 +136,11 @@ export async function startLoadPlatformSampler(
         if (existing) existing.count += 1;
         else resourceFailures.push({ kind, ...(status !== undefined ? { status } : {}), count: 1 });
       })
-      .finally(() => pendingSamples.delete(task));
+      .finally(() => {
+        resourceSample = undefined;
+        pendingSamples.delete(task);
+      });
+    resourceSample = task;
     pendingSamples.add(task);
   };
 
@@ -138,16 +160,36 @@ export async function startLoadPlatformSampler(
         await Promise.all(pendingSamples);
 
         const finalSnapshot = await readStatementSnapshot(command).catch(() => undefined);
+        // Deliberately still zero-tolerance. A percentage coverage bar was tried
+        // here and reverted, because it fails in both directions at once.
+        //
+        // For resources it is INERT: coverage below 1.0 is exactly equivalent to
+        // `resourceFailures.length > 0`, which loadEvaluation already fails on,
+        // so no bar between 0.8 and 1.0 can ever decide anything.
+        //
+        // For connections it is DANGEROUS: probes run every 2s, so a single ~15s
+        // psql stall costs ~7 consecutive skips out of ~450 attempts -- under 2%,
+        // which no percentage bar catches -- and psql stalls precisely when the
+        // pool is at its cap. The misses cluster on the breach they would hide,
+        // and the gate only fails when connections EXCEED the cap, so tolerating
+        // them is a silent pass on the capacity verdict itself.
+        //
+        // The retry above is the real fix for transient loss. This stays closed.
         return {
           peakCpuPercent: resourceFailures.length ? Number.NaN : peakCpuPercent,
           peakIoPercent: resourceFailures.length ? Number.NaN : peakIoPercent,
-          peakConnections: connectionSamplingFailed ? Number.NaN : peakConnections,
+          peakConnections: connectionSuccesses < connectionAttempts ? Number.NaN : peakConnections,
           connectionCap,
           statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
           resourceSampling: {
             attempts: resourceAttempts,
             succeeded: resourceSuccesses,
+            retried: resourceRetries,
             failures: resourceFailures,
+          },
+          connectionSampling: {
+            attempts: connectionAttempts,
+            succeeded: connectionSuccesses,
           },
         };
       })();
@@ -236,6 +278,31 @@ export function resourceUtilization(
       totalCpuDelta > 0 ? Math.min(100, ((totalCpuDelta - idleCpuDelta) / totalCpuDelta) * 100) : 0,
     ioPercent,
   };
+}
+
+/**
+ * One immediate retry on a transient failure. A dropped sample costs more than
+ * itself: `previousResources` is only advanced on success, so the NEXT sample
+ * spans 120 s instead of 60 s and averages away exactly the spike a peak exists
+ * to catch. Run 33038456110 lost 3 of 14 samples to Metrics API timeouts and
+ * with them the whole CPU/IO/connection picture.
+ */
+async function readResourceCountersWithRetry(
+  env: NodeJS.ProcessEnv,
+  onRetry: () => void = () => {}
+): Promise<ResourceCounters> {
+  try {
+    return await readResourceCounters(env);
+  } catch (error) {
+    // Fail-closed classification: only an explicitly-classified transient kind
+    // is retried. A missing project ref or service key throws a plain Error
+    // before the fetch, and defaulting those to 'transport' would double the
+    // cost of every sample on a misconfigured run for no possible benefit.
+    if (!(error instanceof ResourceSampleError)) throw error;
+    if (error.kind !== 'timeout' && error.kind !== 'transport') throw error;
+    onRetry();
+    return await readResourceCounters(env);
+  }
 }
 
 async function readResourceCounters(env: NodeJS.ProcessEnv): Promise<ResourceCounters> {

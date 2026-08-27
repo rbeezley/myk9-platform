@@ -45,6 +45,14 @@ export function readUsablePlatformArtifact(
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as LoadPlatformArtifact;
     assertPlatformArtifactMatchesRun(parsed, run);
     assertPlatformPayload(parsed.platform);
+    // Restore NaN at the boundary. `PlatformObservation` declares these as
+    // `number`, and leaving null in place makes that type a lie: a later
+    // Math.max or arithmetic would coerce null to 0 — the worst direction for a
+    // peak. It also makes an in-process failure and a round-tripped one render
+    // identically instead of as `NaN` versus `missing`.
+    for (const key of ['peakCpuPercent', 'peakIoPercent', 'peakConnections'] as const) {
+      if (parsed.platform[key] === null) parsed.platform[key] = Number.NaN;
+    }
     return parsed;
   } catch (error) {
     onUnusable((error as Error).message);
@@ -61,16 +69,34 @@ export function readUsablePlatformArtifact(
 function assertPlatformPayload(platform: PlatformObservation | undefined): void {
   const incomplete = new Error('Platform telemetry payload is incomplete.');
   if (!platform || typeof platform !== 'object') throw incomplete;
-  // NaN is a legitimate fail-closed value for the peaks, and is typeof 'number'.
-  for (const key of [
-    'peakCpuPercent',
-    'peakIoPercent',
-    'peakConnections',
-    'connectionCap',
-  ] as const) {
-    if (typeof platform[key] !== 'number') throw incomplete;
+  // A peak may legitimately be NaN — that is the sampler failing closed, not
+  // damage — and `JSON.stringify` writes NaN as `null`. Requiring `typeof
+  // 'number'` here therefore threw away an otherwise-complete artifact in run
+  // 33038456110, losing 20 valid statement deltas with it. Accept null, reject
+  // anything else.
+  for (const key of ['peakCpuPercent', 'peakIoPercent', 'peakConnections'] as const) {
+    const value = platform[key];
+    if (value !== null && typeof value !== 'number') throw incomplete;
   }
+  // Not nullable: the cap is a verified scenario input, never a sampled value,
+  // so it can never legitimately be NaN. Allowing null here would hand the
+  // reader a PlatformObservation whose declared number is not one.
+  if (typeof platform.connectionCap !== 'number') throw incomplete;
   if (!Array.isArray(platform.statementDeltas)) throw incomplete;
+  // Optional for compatibility with artifacts written before it existed, but
+  // validated whenever present: a missing `succeeded` renders as `NaN%` coverage
+  // in the evidence rather than being caught as an unusable artifact.
+  const connections = platform.connectionSampling;
+  if (connections !== undefined) {
+    if (
+      typeof connections !== 'object' ||
+      connections === null ||
+      typeof connections.attempts !== 'number' ||
+      typeof connections.succeeded !== 'number'
+    ) {
+      throw incomplete;
+    }
+  }
   const sampling = platform.resourceSampling;
   if (sampling !== undefined) {
     if (

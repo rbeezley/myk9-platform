@@ -94,12 +94,25 @@ describe('unusable telemetry degrades instead of throwing', () => {
     expect(reasons[0]).not.toHaveLength(0);
   });
 
+  it('rejects a null connectionCap, which sampling can never legitimately produce', () => {
+    // Only the three peaks round-trip NaN as null. The cap is a verified
+    // scenario input, so null there means damage, and accepting it would hand
+    // the reader a PlatformObservation whose declared number is not one.
+    const path = write(
+      'null-cap.json',
+      JSON.stringify({ ...artifact(), platform: { ...artifact().platform, connectionCap: null } })
+    );
+    expect(readUsablePlatformArtifact(path, RUN)).toBeUndefined();
+  });
+
   it.each([
     ['statementDeltas omitted', { statementDeltas: undefined }],
     ['statementDeltas not an array', { statementDeltas: 3 }],
     ['a peak that is not numeric', { peakConnections: '40' }],
     ['connectionCap omitted', { connectionCap: undefined }],
     ['resourceSampling missing its failures', { resourceSampling: { attempts: 2, succeeded: 1 } }],
+    ['connectionSampling missing succeeded', { connectionSampling: { attempts: 5 } }],
+    ['connectionSampling not an object', { connectionSampling: 5 }],
     ['no platform payload at all', undefined],
   ])('returns undefined when the payload has %s', (_name, platformOverride) => {
     const path = write(
@@ -117,14 +130,28 @@ describe('unusable telemetry degrades instead of throwing', () => {
     expect(reasons).toHaveLength(1);
   });
 
-  it('accepts NaN peaks, which are the sampler failing closed rather than corruption', () => {
-    const path = write(
-      'nan-peaks.json',
-      // JSON has no NaN literal; the sampler's NaN serializes to null, so this
-      // asserts the shape check does not mistake a fail-closed peak for damage.
-      JSON.stringify({ ...artifact(), platform: { ...artifact().platform, peakCpuPercent: 0 } })
-    );
-    expect(readUsablePlatformArtifact(path, RUN)).toBeDefined();
+  it('accepts fail-closed NaN peaks as the sampler actually serializes them', () => {
+    // Round-trip a genuine NaN rather than standing in a placeholder: JSON has
+    // no NaN literal, so `JSON.stringify` writes `null`, and an earlier version
+    // of this test used 0 and therefore never exercised the case it described.
+    // That gap discarded a complete artifact in run 33038456110.
+    const serialized = JSON.stringify({
+      ...artifact(),
+      platform: {
+        ...artifact().platform,
+        peakCpuPercent: Number.NaN,
+        peakIoPercent: Number.NaN,
+        peakConnections: Number.NaN,
+      },
+    });
+    expect(serialized).toContain('"peakCpuPercent":null');
+
+    const parsed = readUsablePlatformArtifact(write('nan-peaks.json', serialized), RUN);
+    expect(parsed).toBeDefined();
+    // The rest of the payload must survive: statement deltas and the verified
+    // cap are usable evidence even when a peak failed closed.
+    expect(parsed?.platform.connectionCap).toBe(60);
+    expect(parsed?.platform.statementDeltas).toBeDefined();
   });
 
   it('returns the artifact when it belongs to this rehearsal', () => {

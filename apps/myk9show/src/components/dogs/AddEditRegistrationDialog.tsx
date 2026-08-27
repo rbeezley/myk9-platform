@@ -17,6 +17,7 @@ import { Registration, REGISTRATION_STATUS_VALUES } from '@/types/dog-types';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { z } from 'zod';
+import { toast } from 'sonner';
 
 interface AddEditRegistrationDialogProps {
   open: boolean;
@@ -202,7 +203,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
       const saveResult = await onSave(registration);
       if (saveResult !== false) onOpenChange(false);
     } catch {
-      // Async callers own their error message; preserve the form for retry.
+      toast.error("We couldn't save that registration. You can try again.");
     } finally {
       setIsSaving(false);
     }
@@ -215,7 +216,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
 
   const footer = (
     <div className="flex items-center justify-end gap-2">
-      <Button variant="outline" onClick={() => onOpenChange(false)}>
+      <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
         Cancel
       </Button>
       <Button onClick={handleSubmit} disabled={isSaving} aria-busy={isSaving}>
@@ -237,6 +238,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
       // per-caller override.
       size="lg"
       className="md:max-w-2xl lg:max-w-3xl"
+      preventClose={isSaving}
       footer={footer}
     >
       <div className="space-y-4 p-6">

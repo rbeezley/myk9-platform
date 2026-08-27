@@ -42,10 +42,47 @@ describe('AddEditRegistrationDialog save recovery', () => {
       />
     );
 
+    const registeredName = screen.getByDisplayValue('Ch Test Dog');
+    await user.clear(registeredName);
+    await user.type(registeredName, 'Updated Test Name');
     await user.click(screen.getByRole('button', { name: /save registration/i }));
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith(registration));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith({ ...registration, registeredName: 'Updated Test Name' })
+    );
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(screen.getByDisplayValue('Updated Test Name')).toHaveValue('Updated Test Name');
+    expect(screen.getByDisplayValue('SR12345')).toHaveValue('SR12345');
     expect(screen.getByRole('button', { name: /save registration/i })).toBeEnabled();
+  });
+
+  it('prevents closing the editor while a save is in flight', async () => {
+    let resolveSave!: () => void;
+    const onSave = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          resolveSave = resolve;
+        })
+    );
+    const onOpenChange = vi.fn();
+
+    const { user } = render(
+      <AddEditRegistrationDialog
+        open
+        onOpenChange={onOpenChange}
+        onSave={onSave}
+        initialData={registration}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /save registration/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
+    await user.keyboard('{Escape}');
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+
+    resolveSave();
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 });

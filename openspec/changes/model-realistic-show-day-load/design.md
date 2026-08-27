@@ -4,13 +4,15 @@
 
 Derived from the operator's domain inputs. Every figure below is either observed or an explicitly flagged estimate.
 
-| Source                                    | Scoring | Check-in | Readers | Ops    | Total   |
-| ----------------------------------------- | ------- | -------- | ------- | ------ | ------- |
-| Large show — 8 rings, 200 exhibitors      | 8       | 20       | 120     | 4      | 152     |
-| Mid show ×3 — 4 rings, 80 exhibitors each | 12      | 24       | 144     | 6      | 186     |
-| **Platform total**                        | **20**  | **44**   | **264** | **10** | **338** |
+| Source                                    | Scoring | Exhibitor check-in | Steward check-in | Readers | Ops    | Total   |
+| ----------------------------------------- | ------- | ------------------ | ---------------- | ------- | ------ | ------- |
+| Large show — 8 rings, 200 exhibitors      | 8       | 20                 | 8                | 120     | 4      | 160     |
+| Mid show ×3 — 4 rings, 80 exhibitors each | 12      | 24                 | 12               | 144     | 6      | 198     |
+| **Platform total**                        | **20**  | **44**             | **20**           | **264** | **10** | **358** |
 
-Compare to today: 55 scoring, 15 check-in, 30 read. The proposal is close to the inverse and about 3.4× the total.
+Compare to today: 55 scoring, 15 check-in, 30 read. The proposal is close to the inverse and about 3.6× the total.
+
+**Steward check-in is one session per ring**, matching the one-scorer-per-ring shape: the person working the gate for that ring. It is separate from exhibitor self-check-in because the two use different credentials and different mutations, but they take the same class-row lock. The **ops** sessions include the secretary class edits described under multi-actor contention below.
 
 ### How each figure was derived
 
@@ -48,18 +50,20 @@ Either way, a single-show fixture cannot surface any of it, because there is no 
 
 ## Generation strategy
 
-338 real Chromium contexts do not fit on sixteen free runners. The current 100 already drive them to 55–70% CPU p95.
+358 real Chromium contexts do not fit on sixteen free runners. The current 100 already drive them to 55–70% CPU p95.
 
 Split generation by what each session actually proves:
 
-| Session class               | Count               | Generator              | Rationale                                                                             |
-| --------------------------- | ------------------- | ---------------------- | ------------------------------------------------------------------------------------- |
-| Writers — scoring, check-in | 64                  | Real browser           | Exercise the full client path: OCC, replication queue, offline store, mutation upload |
-| Reader sample               | 16 (one per runner) | Real browser           | Preserve rendering and hydration evidence; catch client-side regressions              |
-| Reader bulk                 | 248                 | API-level virtual user | Backend load from a reader is HTTP — replication delta polls and PostgREST reads      |
-| Ops                         | 10                  | Real browser           | Low count, distinct surface                                                           |
+| Session class                        | Count               | Generator              | Rationale                                                                             |
+| ------------------------------------ | ------------------- | ---------------------- | ------------------------------------------------------------------------------------- |
+| Writers — scoring, both check-in kinds | 84                | Real browser           | Exercise the full client path: OCC, replication queue, offline store, mutation upload |
+| Reader sample                        | 16 (one per runner) | Real browser           | Preserve rendering and hydration evidence; catch client-side regressions              |
+| Reader bulk                          | 248                 | API-level virtual user | Backend load from a reader is HTTP — replication delta polls and PostgREST reads      |
+| Ops, including secretary class edits | 10                  | Real browser           | Low count, distinct surface, and the one lock holder outside the entries trigger      |
 
-That is 90 browser contexts across sixteen runners — under six per runner, **fewer than today's six to seven** — plus 248 lightweight virtual users. Runner headroom improves while modelled load triples.
+That is **110 browser contexts across sixteen runners — six or seven each, the same as today** — plus 248 lightweight virtual users. Modelled load rises about 3.6× at unchanged per-runner browser cost.
+
+An earlier draft of this section put writers at 64 and claimed browser contexts per runner would *fall*. Adding steward check-in and secretary class edits raised writers to 84, so the correct claim is parity, not improvement. Every writer session must stay on a real browser: OCC, the replication queue and the mutation upload path are exactly what a write workload has to exercise, and an API-level virtual user would bypass all three.
 
 **The tradeoff, stated plainly:** an API-level reader cannot catch a client-side rendering regression. It issues the same requests but never paints. The sixteen browser readers exist precisely to keep that coverage, and the split must be documented in the evidence so a reader of a passing run knows which sessions proved what.
 
@@ -89,6 +93,26 @@ gateEligible: scenario.gate === 'G9' && !scenario.informational;
 ```
 
 Per-target gating needs each failure to carry whether it gates, and the evaluation to report gating and informational failures separately. That is new structure rather than a config edit, and it is the one piece of implementation this change adds beyond the workload itself. Evidence must render the two sets distinctly, or a reader cannot tell a passing run from a run that passed only the half still being enforced.
+
+## Multi-actor contention on one class row
+
+One scorer per class removes the invalid 55-scorer contention, but it does not make a class row single-writer. Five paths take a row-exclusive lock on it, held to commit — all but the last reaching it through `refresh_class_scoring_state`:
+
+| Actor | Write |
+| --- | --- |
+| Judge scoring | `is_scored`, `result_status`, faults / time / points |
+| Steward or secretary check-in | `check_in_status` |
+| Exhibitor self-check-in | `check_in_status` (online-only) |
+| Scratch, pull or move | `entry_status`, `class_id`, `deleted_at` |
+| Secretary editing the class | `classes` directly, via `ReplicatedClassesTable.updateClass` |
+
+When a class is called these overlap: the steward works the gate while exhibitors self-check-in, the judge starts scoring, and the secretary may adjust the ring. Four to ten concurrent writers on one row is plausible.
+
+That is not the same failure as the invalid workload, and the difference is duration. Fifty-five scorers wrote continuously for ten minutes; this is a burst at class start followed by a judge writing once every thirty to ninety seconds. **Peak concurrency is comparable; sustained concurrency is not.**
+
+MYK9-248 removes both check-in rows from that table by narrowing the trigger's `WHEN` clause and making the class `UPDATE` conditional. The secretary class edit survives, because it never goes through the entries trigger. So the scenario must run both before and after that fix — it is the instrument that measures it, and a scenario that only models the post-fix world would leave the fix's effect unquantified.
+
+Targeting matters as much as the counts: these actors must drive classes that are **concurrently being scored**. Spread across idle classes they measure nothing, because contention is the property under test.
 
 ## Peak and stress
 

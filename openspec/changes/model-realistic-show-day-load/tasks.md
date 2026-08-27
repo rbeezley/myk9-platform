@@ -30,7 +30,12 @@
 - [ ] 4.2b Rebuild `peak` and `stress` to scale by shows and rings rather than by scorers per class. They currently declare 125 and 250 ringside sessions (`ringsideSessionsMin` 125 and 250) derived from `G9_NORMAL_SCENARIO`, which under the one-scorer-per-class invariant makes both unconstructable. Scale their fixtures and minimums together.
 - [ ] 4.3 Give check-in a bursty arrival pattern anchored to class start rather than uniform arrival.
 - [ ] 4.3a Route check-in through the **exhibitor self-check-in** path — exhibitor credentials, owned or handled entries, self-check-in mutation. Reusing `secretary-check-in` with staff auth would satisfy the arrival-pattern constraint while exercising different authorization and a different mutation, then be reported as exhibitor coverage. Assert the acting role in a contract test.
+- [ ] 4.3b Add a **steward/secretary check-in** workload alongside exhibitor self-check-in. Both write `check_in_status` and both take the class-row lock through `refresh_class_scoring_state`; modelling only the exhibitor path understates concurrency on the row that actually serializes.
+- [ ] 4.3c Add a small **secretary class-edit** workload writing `classes` directly via `ReplicatedClassesTable.updateClass`. This is the one lock holder that does not reach the row through the entries trigger, so MYK9-248's fixes will not remove it.
+- [ ] 4.3d Target these actors at classes that are **concurrently being scored**, not at idle classes. Isolating each actor to its own class would measure nothing — the contention is the point.
+- [ ] 4.3e Attribute class-row lock wait or write latency per originating actor type in the evidence, so a regression traces to check-in, scoring or class editing rather than an undifferentiated total.
 - [ ] 4.4 Assert the reader-to-writer ratio in a contract test, so a future edit that inverts the mix fails rather than passing quietly.
+- [ ] 4.5 Keep these actor workloads runnable both before and after MYK9-248 lands. The scenario is how that fix gets measured; removing the pre-fix case would leave its effect unquantified.
 
 ## 5. Hybrid generation
 

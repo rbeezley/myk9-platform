@@ -94,6 +94,39 @@ describe('unusable telemetry degrades instead of throwing', () => {
     expect(reasons[0]).not.toHaveLength(0);
   });
 
+  it.each([
+    ['statementDeltas omitted', { statementDeltas: undefined }],
+    ['statementDeltas not an array', { statementDeltas: 3 }],
+    ['a peak that is not numeric', { peakConnections: '40' }],
+    ['connectionCap omitted', { connectionCap: undefined }],
+    ['resourceSampling missing its failures', { resourceSampling: { attempts: 2, succeeded: 1 } }],
+    ['no platform payload at all', undefined],
+  ])('returns undefined when the payload has %s', (_name, platformOverride) => {
+    const path = write(
+      `payload-${_name.replace(/\W+/g, '-')}.json`,
+      JSON.stringify({
+        ...artifact(),
+        platform:
+          platformOverride === undefined
+            ? undefined
+            : { ...artifact().platform, ...platformOverride },
+      })
+    );
+    const reasons: string[] = [];
+    expect(readUsablePlatformArtifact(path, RUN, r => reasons.push(r))).toBeUndefined();
+    expect(reasons).toHaveLength(1);
+  });
+
+  it('accepts NaN peaks, which are the sampler failing closed rather than corruption', () => {
+    const path = write(
+      'nan-peaks.json',
+      // JSON has no NaN literal; the sampler's NaN serializes to null, so this
+      // asserts the shape check does not mistake a fail-closed peak for damage.
+      JSON.stringify({ ...artifact(), platform: { ...artifact().platform, peakCpuPercent: 0 } })
+    );
+    expect(readUsablePlatformArtifact(path, RUN)).toBeDefined();
+  });
+
   it('returns the artifact when it belongs to this rehearsal', () => {
     const path = write('good.json', JSON.stringify(artifact()));
     const reasons: string[] = [];

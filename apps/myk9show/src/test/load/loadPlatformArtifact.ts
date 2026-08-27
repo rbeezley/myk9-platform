@@ -44,10 +44,44 @@ export function readUsablePlatformArtifact(
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as LoadPlatformArtifact;
     assertPlatformArtifactMatchesRun(parsed, run);
+    assertPlatformPayload(parsed.platform);
     return parsed;
   } catch (error) {
     onUnusable((error as Error).message);
     return undefined;
+  }
+}
+
+/**
+ * Matching identity is not enough. `evaluateLoadResult` dereferences
+ * `statementDeltas.length` and `resourceSampling.failures.length` unguarded, so a
+ * payload that parses but is structurally incomplete would throw there — after
+ * this fallback has already accepted it, and before any evidence is written.
+ */
+function assertPlatformPayload(platform: PlatformObservation | undefined): void {
+  const incomplete = new Error('Platform telemetry payload is incomplete.');
+  if (!platform || typeof platform !== 'object') throw incomplete;
+  // NaN is a legitimate fail-closed value for the peaks, and is typeof 'number'.
+  for (const key of [
+    'peakCpuPercent',
+    'peakIoPercent',
+    'peakConnections',
+    'connectionCap',
+  ] as const) {
+    if (typeof platform[key] !== 'number') throw incomplete;
+  }
+  if (!Array.isArray(platform.statementDeltas)) throw incomplete;
+  const sampling = platform.resourceSampling;
+  if (sampling !== undefined) {
+    if (
+      typeof sampling !== 'object' ||
+      sampling === null ||
+      typeof sampling.attempts !== 'number' ||
+      typeof sampling.succeeded !== 'number' ||
+      !Array.isArray(sampling.failures)
+    ) {
+      throw incomplete;
+    }
   }
 }
 

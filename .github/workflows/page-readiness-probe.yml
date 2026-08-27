@@ -1,0 +1,80 @@
+name: Page Readiness Probe
+
+# MYK9-126 acceptance criterion 6, run WITHOUT an approved rehearsal window.
+#
+# G9 fails 100/100 workflows on element-visibility timeouts while Supabase sits
+# near idle (~280s of statement time across a 600s window; 0.19% request
+# failures) and seven of eight generators are healthy. The same 100/100 failure
+# happened on the dev server, so it is neither the production bundle nor
+# generator saturation.
+#
+# This drives the SAME routes and selectors with ONE session each, so a result
+# here separates an app defect from contention. It is READ-ONLY: it signs in and
+# navigates, never scores, and never reseeds. That is why it needs no operator
+# approval and no canonical fixture restoration.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: page-readiness-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Probe show-day page readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm -r --filter='./packages/*' build
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+
+      - name: Build production bundle
+        working-directory: apps/myk9show
+        run: pnpm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Probe page readiness
+        working-directory: apps/myk9show
+        run: pnpm exec playwright test --config=playwright.readiness.config.ts
+        env:
+          CI: 'true'
+          LOAD_TEST_START_APP: 'true'
+          LOAD_TEST_APP_SERVER: preview
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
+      - name: Upload readiness traces
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: page-readiness-traces
+          path: apps/myk9show/test-results/readiness/
+          if-no-files-found: warn
+          retention-days: 14

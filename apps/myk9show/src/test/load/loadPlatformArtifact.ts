@@ -61,14 +61,19 @@ export function readUsablePlatformArtifact(
 function assertPlatformPayload(platform: PlatformObservation | undefined): void {
   const incomplete = new Error('Platform telemetry payload is incomplete.');
   if (!platform || typeof platform !== 'object') throw incomplete;
-  // NaN is a legitimate fail-closed value for the peaks, and is typeof 'number'.
+  // A peak may legitimately be NaN — that is the sampler failing closed, not
+  // damage — and `JSON.stringify` writes NaN as `null`. Requiring `typeof
+  // 'number'` here therefore threw away an otherwise-complete artifact in run
+  // 33038456110, losing 20 valid statement deltas with it. Accept null, reject
+  // anything else.
   for (const key of [
     'peakCpuPercent',
     'peakIoPercent',
     'peakConnections',
     'connectionCap',
   ] as const) {
-    if (typeof platform[key] !== 'number') throw incomplete;
+    const value = platform[key];
+    if (value !== null && typeof value !== 'number') throw incomplete;
   }
   if (!Array.isArray(platform.statementDeltas)) throw incomplete;
   const sampling = platform.resourceSampling;

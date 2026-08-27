@@ -255,13 +255,18 @@ describe('runtime platform evidence', () => {
         stdout: args.at(-1)?.includes('pg_stat_statements') ? '1|2|2|20' : '10',
       }));
       const request = vi.fn().mockResolvedValueOnce(counters(100));
-      if (kind === 'invalid-counters') request.mockResolvedValueOnce(new Response('secret-body'));
-      else
-        request.mockRejectedValueOnce(
+      if (kind === 'invalid-counters') {
+        // Not transient, so it is never retried: one rejection is the failure.
+        request.mockResolvedValueOnce(new Response('secret-body'));
+      } else {
+        // Transient kinds get one retry, so a recorded failure needs BOTH
+        // attempts to fail — otherwise the retry would silently rescue it.
+        const transient = () =>
           Object.assign(new Error('secret-body'), {
             name: kind === 'timeout' ? 'TimeoutError' : 'TypeError',
-          })
-        );
+          });
+        request.mockRejectedValueOnce(transient()).mockRejectedValueOnce(transient());
+      }
       vi.stubGlobal('fetch', request);
       const sampler = await startLoadPlatformSampler(
         {
@@ -280,4 +285,52 @@ describe('runtime platform evidence', () => {
       expect(JSON.stringify(result)).not.toContain('secret-body');
     }
   );
+
+  it('retries a transient sample so one blip does not cost the peak', async () => {
+    // Run 33038456110 lost 3 of 14 samples to Metrics API timeouts, and with
+    // them the entire CPU/IO/connection picture. A dropped sample also widens
+    // the next sampling window, averaging away the spike a peak exists to catch.
+    psql.mockImplementation(async (_command, args: string[]) => ({
+      stdout: args.at(-1)?.includes('pg_stat_statements') ? '1|2|2|20' : '10',
+    }));
+    vi.useFakeTimers();
+    let call = 0;
+    // A fresh Response per call: a body can only be read once.
+    const request = vi.fn(async () => {
+      call += 1;
+      if (call === 2) throw Object.assign(new Error('blip'), { name: 'TimeoutError' });
+      return counters(100 + call * 20);
+    });
+    vi.stubGlobal('fetch', request);
+
+    const sampler = await startLoadPlatformSampler(testEnv, 60);
+    // Real elapsed time, or resourceUtilization returns NaN for a zero-length
+    // window whether or not sampling succeeded.
+    await vi.advanceTimersByTimeAsync(60_000);
+    const result = await sampler.stop();
+
+    // The blip was retried away rather than recorded, so coverage stays whole.
+    const sampling = result.resourceSampling;
+    expect(sampling).toBeDefined();
+    expect(sampling?.failures).toEqual([]);
+    expect(sampling?.succeeded).toBe(sampling?.attempts);
+    // And the peak survives as a real number instead of fail-closed NaN.
+    expect(Number.isNaN(result.peakCpuPercent)).toBe(false);
+  });
+
+  it('fails closed when coverage falls below the bar, not on a single loss', async () => {
+    psql.mockImplementation(async (_command, args: string[]) => ({
+      stdout: args.at(-1)?.includes('pg_stat_statements') ? '1|2|2|20' : '10',
+    }));
+    const dead = () => Object.assign(new Error('down'), { name: 'TimeoutError' });
+    const request = vi.fn().mockResolvedValueOnce(counters(100)).mockRejectedValue(dead());
+    vi.stubGlobal('fetch', request);
+
+    const sampler = await startLoadPlatformSampler(testEnv, 60);
+    const result = await sampler.stop();
+
+    // 1 of 2 attempts = 50% coverage, under the 80% bar.
+    expect(result.resourceSampling?.succeeded).toBe(1);
+    expect(Number.isNaN(result.peakCpuPercent)).toBe(true);
+  });
 });

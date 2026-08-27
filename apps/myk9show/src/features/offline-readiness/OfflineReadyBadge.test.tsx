@@ -50,6 +50,31 @@ describe('OfflineReadyBadge', () => {
     expect(primeSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('names the action in visible text, not only in the hover title', () => {
+    // This badge is the recovery control on ringside tablets, where there is no
+    // hover at all. "Not offline ready" stated the problem; what tapping would
+    // do lived only in `title`, so on the devices that need it most the control
+    // never explained itself. INTENT bans hover-only interactions outright.
+    hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
+
+    render(<OfflineReadyBadge showId="show-1" />);
+
+    expect(screen.getByRole('button')).toHaveTextContent(/save now/i);
+  });
+
+  it('keeps the visible label inside the accessible name (WCAG 2.5.3)', () => {
+    // An aria-label here would REPLACE the name with a sentence that shares no
+    // words with the visible text, so a speech-input user saying what they see
+    // could not activate it. The detail belongs in `title`, as a description.
+    hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
+
+    render(<OfflineReadyBadge showId="show-1" />);
+
+    const button = screen.getByRole('button');
+    expect(button).not.toHaveAttribute('aria-label');
+    expect(button.getAttribute('title')).toMatch(/save the show to this device/i);
+  });
+
   it('shows a preparing state while priming', () => {
     hookState.readiness = { ready: false, missing: ['entries'], asOf: null };
     hookState.priming = true;

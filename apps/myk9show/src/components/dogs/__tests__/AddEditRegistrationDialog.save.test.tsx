@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
 import { AddEditRegistrationDialog } from '../AddEditRegistrationDialog';
 import type { Registration } from '@/types/dog-types';
 
@@ -43,8 +43,7 @@ describe('AddEditRegistrationDialog save recovery', () => {
     );
 
     const registeredName = screen.getByDisplayValue('Ch Test Dog');
-    await user.clear(registeredName);
-    await user.type(registeredName, 'Updated Test Name', { delay: 5 });
+    fireEvent.change(registeredName, { target: { value: 'Updated Test Name' } });
     await user.click(screen.getByRole('button', { name: /save registration/i }));
 
     await waitFor(() =>

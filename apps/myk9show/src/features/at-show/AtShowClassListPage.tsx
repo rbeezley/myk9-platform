@@ -17,22 +17,15 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ChevronRight, ArrowLeft } from 'lucide-react';
-import {
-  getEffectiveClassStatus,
-  groupSectionedClasses,
-  getClassIds,
-  type ClassEntry,
-} from '@myk9/ringside';
+import { AlertCircle, ChevronRight } from 'lucide-react';
+import { groupSectionedClasses, getClassIds, type ClassEntry } from '@myk9/ringside';
 import { formatTrialDate } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole } from '@/types/auth-types';
-import { hasScopedClubRole } from '@/utils/roleScopes';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useAtShowClassList } from './useAtShowClassList';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
@@ -43,17 +36,21 @@ import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListS
 import { formatAtShowClassTime } from './atShowClassTiming';
 import { getTrialTimezone } from '@/features/registries';
 import { AtShowClassRow } from './AtShowClassRow';
+import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
+import { WIDE_COLUMN } from './atShowClassListLayout';
+
+/** The scopes the picker's own rows come from. */
+const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
+import { BackToRingsideExitButton } from './BackToRingsideExitButton';
+import {
+  sortClassesForAtShowScan,
+  sortClassesForYourRing,
+  yourRingScanPriority,
+} from './atShowClassListSort';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 import { isJudgeOnlyAtShow } from './isJudgeOnlyAtShow';
-
-const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
-  'briefing',
-  'start_time',
-  'in_progress',
-  'offline-scoring',
-]);
 
 /**
  * Staff-only readiness action. Rendered in EVERY branch of the page — the
@@ -76,119 +73,6 @@ function AtShowOfflineReadySlot({
   );
 }
 
-function AtShowClassListSkeleton() {
-  return (
-    <div
-      role="status"
-      aria-label="Loading at-show classes"
-      className="ringside-root mx-auto max-w-2xl px-4 py-4"
-    >
-      <Skeleton className="mb-4 h-11 w-40" />
-      <Skeleton className="mx-auto mb-5 h-6 w-56" />
-      {Array.from({ length: 2 }).map((_, trialIndex) => (
-        <div key={trialIndex} className="mb-6">
-          <div className="mb-2 flex min-h-11 items-center gap-2 px-1">
-            <Skeleton className="h-4 w-4 shrink-0" />
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-5 w-8 rounded-full" />
-          </div>
-          <div className="space-y-2">
-            {Array.from({ length: trialIndex === 0 ? 3 : 2 }).map((__, classIndex) => (
-              <div
-                key={classIndex}
-                className="flex min-h-12 items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm"
-              >
-                <Skeleton className="h-6 w-6 rounded-full" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-                <Skeleton className="h-6 w-20 rounded-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function classScanPriority(entry: ClassEntry): number {
-  if (entry.is_favorite) return 0;
-  if (LIVE_CLASS_STATUSES.has(entry.class_status)) return 1;
-  if (entry.entry_count > 0) return 2;
-  return 3;
-}
-
-function sortClassesForAtShowScan(classes: ClassEntry[]): ClassEntry[] {
-  return [...classes].sort((a, b) => {
-    const priorityDelta = classScanPriority(a) - classScanPriority(b);
-    if (priorityDelta !== 0) return priorityDelta;
-    const orderDelta = a.class_order - b.class_order;
-    if (orderDelta !== 0) return orderDelta;
-    return a.class_name.localeCompare(b.class_name);
-  });
-}
-
-function yourRingScanPriority(entry: ClassEntry): number {
-  const effectiveStatus = getEffectiveClassStatus(entry);
-  if (
-    effectiveStatus === 'briefing' ||
-    effectiveStatus === 'start_time' ||
-    effectiveStatus === 'in-progress' ||
-    effectiveStatus === 'offline-scoring'
-  ) {
-    return 0;
-  }
-  if (entry.entry_count > 0) return 1;
-  return 2;
-}
-
-interface YourRingClass {
-  entry: ClassEntry;
-  scanPriority: number;
-  trialTimeZone: string;
-}
-
-function sortClassesForYourRing(classes: YourRingClass[]): YourRingClass[] {
-  return [...classes].sort((a, b) => {
-    const priorityDelta = a.scanPriority - b.scanPriority;
-    if (priorityDelta !== 0) return priorityDelta;
-    const orderDelta = a.entry.class_order - b.entry.class_order;
-    if (orderDelta !== 0) return orderDelta;
-    return a.entry.class_name.localeCompare(b.entry.class_name);
-  });
-}
-
-function BackToRingsideExitButton({
-  showId,
-  clubId,
-}: {
-  showId: string | undefined;
-  clubId: string | undefined;
-}) {
-  const navigate = useNavigate();
-  const { hasRole, userWithRoles } = useAuthContext();
-  // Mirror ShowManagementSectionRoute's admission exactly: secretary/site-admin
-  // pass unconditionally, but a club admin only reaches show-desk when scoped to
-  // THIS show's club. Predicting with a coarser check (any club admin) would
-  // send a cross-club admin to a route that then bounces them to the public
-  // show page — the ringside eject this button exists to avoid.
-  const canUseShowDesk =
-    hasRole(UserRole.SECRETARY) ||
-    hasRole(UserRole.SITE_ADMIN) ||
-    (hasRole(UserRole.CLUB_ADMIN) && hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, clubId));
-  const label = canUseShowDesk ? 'Back to Show Desk' : 'Back to Ringside';
-  const target = canUseShowDesk && showId ? `/shows/${showId}/show-desk` : '/at-show';
-
-  return (
-    <Button variant="ghost" className="min-h-11 gap-2 px-3" onClick={() => navigate(target)}>
-      <ArrowLeft className="h-4 w-4" aria-hidden />
-      {label}
-    </Button>
-  );
-}
-
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
@@ -198,10 +82,12 @@ export const AtShowClassListPage: React.FC = () => {
   const { hasRole, user } = useAuthContext();
   const {
     assignedClassIds,
+    isUnknown: assignmentsUnknown,
     error: assignmentError,
     isLoading: assignmentsLoading,
     retry: retryAssignments,
   } = useMyAtShowJudgeAssignments(showId);
+  const isOnline = useOnlineStatus();
 
   // For a judge-only account, keep the picker focused on assigned classes.
   // This is a UI scope; route guards, RLS, and canScore remain the security
@@ -210,19 +96,29 @@ export const AtShowClassListPage: React.FC = () => {
   const isJudgeOnly =
     Boolean(user) && isJudgeOnlyAtShow({ isAnonymous: Boolean(user?.is_anonymous), hasRole });
 
+  // Narrowing the picker to "my classes" is only safe when we actually know
+  // which classes are mine. When the assignment set is unknown (offline cold
+  // boot, where roles are cached but identity is not), filtering by an empty
+  // set would hide every class and then report the show as unassigned. Fail
+  // OPEN to the full picker: showing a judge more than their ring is a mild
+  // inconvenience; showing them nothing is a dead end at ringside.
+  const scopeToAssignedClasses = isJudgeOnly && !assignmentsUnknown;
+
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
     () =>
       groups
         .map(g => ({
           ...g,
-          classes: isJudgeOnly ? g.classes.filter(cls => assignedClassIds.has(cls.id)) : g.classes,
+          classes: scopeToAssignedClasses
+            ? g.classes.filter(cls => assignedClassIds.has(cls.id))
+            : g.classes,
         }))
         .map(g => ({
           trial: g.trial,
           classes: sortClassesForAtShowScan(groupSectionedClasses(g.classes, organization)),
         })),
-    [assignedClassIds, groups, isJudgeOnly, organization]
+    [assignedClassIds, groups, scopeToAssignedClasses, organization]
   );
 
   // Filter before A/B grouping so a judge assigned to only one section never
@@ -255,7 +151,11 @@ export const AtShowClassListPage: React.FC = () => {
   // Staff accounts — including a secretary who also exhibits — keep the
   // class-first default.
   const isExhibitorOnly = isExhibitorOnlyForAtShow(hasRole);
-  const { ownEntryIds, isLoading: ownershipLoading } = useMyAtShowEntries(showId);
+  const {
+    ownEntryIds,
+    isLoading: ownershipLoading,
+    isUnknown: ownershipUnknown,
+  } = useMyAtShowEntries(showId);
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
@@ -331,14 +231,39 @@ export const AtShowClassListPage: React.FC = () => {
     [showId]
   );
 
+  // Only a sync that can still make progress justifies a spinner. Offline,
+  // `triggerSync` returns early and every table stays 'idle', which this helper
+  // counts as pending-first-sync -- so without the connectivity test the judge
+  // gets a skeleton that never resolves on a device that is already primed.
   const isClassDataStillSyncing =
     groups.length === 0 &&
+    isOnline &&
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
+
+  // An empty picker is only a statement about the SHOW when a read actually
+  // reached the device. There are TWO ways it did not, and gating on
+  // connectivity alone catches only one:
+  //
+  //  - offline, nothing cached: every table sits at 'idle', because the sync
+  //    provider returns early while offline.
+  //  - ONLINE, but the first sync errored -- venue wifi that associates but
+  //    does not carry. `areReplicationTablesPendingFirstSync` counts only
+  //    'idle'/'syncing', so 'error' reads as settled; and `getAll()` catches
+  //    every read failure and returns [] (ReplicatedTableQuery.ts:150-155), so
+  //    `error` is null as well. Without the first term the page asserts "this
+  //    show has no classes yet" -- the exact false claim this file exists to
+  //    prevent, left standing in the one quadrant a `!isOnline` guard excludes.
+  const classSyncFailed = CLASS_DATA_TABLES.some(
+    table => syncStatus.tablesStatus[table] === 'error'
+  );
+  const classDataNeverReachedDevice =
+    classSyncFailed ||
+    (!isOnline && areReplicationTablesPendingFirstSync(syncStatus, CLASS_DATA_TABLES));
 
   if (isLoading || isClassDataStillSyncing || assignmentsLoading) {
     return (
       <>
-        <div className="ringside-root mx-auto max-w-2xl px-4 pt-4">
+        <div className={`ringside-root ${WIDE_COLUMN} px-4 pt-4`}>
           <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
         </div>
         <AtShowClassListSkeleton />
@@ -348,10 +273,13 @@ export const AtShowClassListPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
-        <AlertCircle className="h-12 w-12 text-destructive" />
-        <p className="text-lg font-medium text-destructive">Failed to load classes</p>
-        <p className="text-sm text-muted-foreground">{error.message}</p>
+      <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive" aria-hidden />
+        <h1 className="text-lg font-medium text-destructive">Failed to load classes</h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          The class list could not be read on this device. Try again, and if it keeps failing ask
+          the secretary to check this show.
+        </p>
         <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
         <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
           <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
@@ -359,17 +287,17 @@ export const AtShowClassListPage: React.FC = () => {
           </Button>
           <BackToRingsideExitButton showId={showId} clubId={clubId} />
         </div>
-      </div>
+      </main>
     );
   }
 
-  if (isJudgeOnly && !assignmentsLoading && assignedClassIds.size === 0) {
+  if (isJudgeOnly && !assignmentsLoading && !assignmentsUnknown && assignedClassIds.size === 0) {
     return (
-      <div className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
-        <AlertCircle className="h-12 w-12 text-muted-foreground" />
-        <p className="text-lg font-medium">
+      <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
+        <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
+        <h1 className="text-lg font-medium">
           {assignmentError ? "We couldn't load your judge assignments" : 'No classes assigned yet'}
-        </p>
+        </h1>
         <p className="max-w-md text-sm text-muted-foreground">
           {assignmentError
             ? 'Check your connection and try again. Your classes will appear here once assignments are available.'
@@ -386,7 +314,7 @@ export const AtShowClassListPage: React.FC = () => {
             Back to Judge Dashboard
           </Button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -405,19 +333,46 @@ export const AtShowClassListPage: React.FC = () => {
   const hasClasses = groupedByTrial.some(g => g.classes.length > 0);
   if (!hasClasses) {
     return (
-      <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
-        <p className="text-lg font-medium">No classes</p>
-        <p className="text-sm text-muted-foreground">This show has no classes yet.</p>
-        <BackToRingsideExitButton showId={showId} clubId={clubId} />
-      </div>
+      <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
+        <h1 className="text-lg font-medium">
+          {classDataNeverReachedDevice ? 'Classes not on this device yet' : 'No classes'}
+        </h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          {!classDataNeverReachedDevice
+            ? 'This show has no classes yet.'
+            : classSyncFailed
+              ? "This show's classes could not be loaded onto this device. Try again, and if it keeps failing move somewhere with a better signal."
+              : "This device hasn't downloaded this show's classes, and there's no connection to fetch them now. Reconnect once and they'll be here for the rest of the day."}
+        </p>
+        {/* The branch a cold replica lands in is exactly the branch where
+            priming helps most, so the readiness action belongs here too. */}
+        <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
+        <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
+          {classDataNeverReachedDevice && (
+            <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
+              Try again
+            </Button>
+          )}
+          <BackToRingsideExitButton showId={showId} clubId={clubId} />
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="ringside-root mx-auto max-w-2xl px-4 py-4">
+    // Ringside is used on a tablet in landscape (INTENT s.6). A fixed 672px
+    // column left ~half the viewport empty there and forced avoidable
+    // scrolling through the class list mid-show, so the column widens with
+    // the display instead of being capped at phone width forever.
+    <main className={`ringside-root ${WIDE_COLUMN} px-4 py-4`}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <BackToRingsideExitButton showId={showId} clubId={clubId} />
-        {isExhibitorOnly && ownEntryIds.size > 0 && (
+        {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
+            to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
+            a cold device at the venue -- stranding them in the staff class
+            list. Offer the door whenever we have entries OR cannot rule them
+            out; the destination handles its own empty state. */}
+        {isExhibitorOnly && (ownEntryIds.size > 0 || ownershipUnknown) && (
           <Button
             type="button"
             variant="ghost"
@@ -435,6 +390,7 @@ export const AtShowClassListPage: React.FC = () => {
 
       {assignmentError && (
         <section
+          role="status"
           aria-label="Your ring unavailable"
           className="mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-warning"
         >
@@ -527,7 +483,7 @@ export const AtShowClassListPage: React.FC = () => {
           </Collapsible>
         );
       })}
-    </div>
+    </main>
   );
 };
 

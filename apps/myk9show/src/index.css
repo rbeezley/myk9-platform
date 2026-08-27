@@ -442,6 +442,12 @@ select:hover {
        muted-foreground (stone-500) is unchanged — it already passes AA on
        dark surfaces, so the light/dark values now diverge intentionally. */
     --muted-foreground: #6b6358; /* was #8c8376 (v2 stone-500); failed WCAG AA */
+    /* At-show "in the ring" marker. AMBER on purpose: Ring Green (#4e7c53) is
+       reserved for live judging surfaces and must not appear on the picker.
+       Light uses amber-700 because the amber-500 this replaced computed to
+       2.15:1 on a white card, under the 3:1 WCAG floor for a non-text
+       indicator. 5.02:1 here. */
+    --at-show-in-ring: #b45309;
     /* Primary overridden by accent color classes below */
     --secondary: #e8e6dc;
     --secondary-foreground: #4d4c48;
@@ -533,6 +539,8 @@ select:hover {
     --muted-foreground: var(
       --stone-500
     ); /* stone-500 #8c8376 — passes WCAG AA on dark surfaces (≥4.5:1); light mode now uses a darker value, see :root */
+    /* Dark keeps amber-500: 7.92:1 on the dark card, already well clear. */
+    --at-show-in-ring: #f59e0b;
     /* Primary overridden by accent color classes below */
     --secondary: #1e1c19;
     --secondary-foreground: var(--ivory-50);

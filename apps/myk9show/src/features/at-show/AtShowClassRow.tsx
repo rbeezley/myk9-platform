@@ -23,29 +23,32 @@ interface AtShowClassRowProps {
  *
  * INTENT: this exists so an exhibitor or gate steward can decide "do I need to
  * head to the ring?" without opening the entry list — glanceable, not a table.
- * The in-ring indicator is AMBER (#f59e0b, `--at-show-in-ring`) on purpose:
- * Ring Green (#4e7c53) is reserved exclusively for live judging surfaces and
- * must not appear here.
+ * The in-ring indicator is AMBER (`--at-show-in-ring`) on purpose: Ring Green
+ * (#4e7c53) is reserved exclusively for live judging surfaces and must not
+ * appear here. The token the comment always named now exists -- the colour was
+ * hardcoded #f59e0b, which computes to 2.15:1 on a white card and so failed the
+ * 3:1 non-text floor in light mode. Amber is preserved; only its light-mode
+ * value moved.
  */
 function AtShowClassRowNextUp({ preview }: { preview: AtShowNextUpPreview }) {
-  const inRingLabel = preview.inRingArmband ? `Armband ${preview.inRingArmband} in the ring` : '';
-  const nextLabel = preview.nextArmbands.length
-    ? `Next: armbands ${preview.nextArmbands.join(', ')}`
-    : '';
-
   return (
-    <div
-      className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
-      aria-label={[inRingLabel, nextLabel].filter(Boolean).join('. ')}
-    >
+    // `aria-label` on a plain div is dropped by AT (generic role), and the
+    // "Next" span was additionally aria-hidden -- so the one line telling a
+    // steward who is in the ring reached no screen reader at all. The visible
+    // text now carries its own meaning via sr-only qualifiers instead.
+    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
       {preview.inRingArmband && (
         <span className="flex items-center gap-1 font-semibold text-foreground">
-          <span aria-hidden className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#f59e0b]" />#
-          {preview.inRingArmband}
+          <span
+            aria-hidden
+            className="h-2 w-2 shrink-0 rounded-full bg-[color:var(--at-show-in-ring)]"
+          />
+          <span className="sr-only">Armband </span>#{preview.inRingArmband}
+          <span className="sr-only"> in the ring</span>
         </span>
       )}
       {preview.nextArmbands.length > 0 && (
-        <span className="truncate text-muted-foreground" aria-hidden>
+        <span className="truncate text-muted-foreground">
           Next {preview.nextArmbands.map(armband => `#${armband}`).join(' · ')}
         </span>
       )}
@@ -76,8 +79,12 @@ export function AtShowClassRow({
         onClick={() => onClick(entry)}
         className={cn(
           'flex min-h-12 w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md active:scale-[0.99]',
-          // #923 tokenized the favorite (theme-aware, calm in dark).
-          entry.is_favorite && 'border-primary bg-primary/5'
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          // #923 tokenized the favorite (theme-aware, calm in dark). The
+          // background tint is gone: it lightened the dark card just enough to
+          // drop text-muted-foreground to 4.26:1, under AA. The filled Star and
+          // the primary border already carry the state, so this loses no signal.
+          entry.is_favorite && 'border-primary'
         )}
       >
         <div className="min-w-0 flex-1">
@@ -111,7 +118,12 @@ export function AtShowClassRow({
         <div className="flex shrink-0 flex-col items-end gap-1">
           <StatusBadge family="class" status={status} className="px-2 py-0.5 text-xs font-medium" />
           <span className="text-xs text-muted-foreground">
-            {entry.completed_count} / {entry.entry_count}
+            <span aria-hidden>
+              {entry.completed_count} / {entry.entry_count}
+            </span>
+            <span className="sr-only">
+              {entry.completed_count} of {entry.entry_count} scored
+            </span>
           </span>
         </div>
         <ChevronRight size={18} className="shrink-0 text-muted-foreground" />

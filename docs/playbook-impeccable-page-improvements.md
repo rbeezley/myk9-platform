@@ -51,45 +51,45 @@ consolidation phase) they split four ways:
 
 ### Always run, in this order
 
-| Order | Command | What it does here |
-|---|---|---|
-| 1 | `critique` | Two **isolated** sub-agent design reviews (LLM design-director pass + automated detection), Nielsen heuristic scores 0–4, cognitive-load checklist, AI-slop verdict. Read-only. |
-| 2 | `audit` | Code-level technical scores 0–4: a11y, performance, responsive, theming (light AND dark), error/edge states. Read-only. |
-| 3 | *(triage — see below)* | Map findings → fix commands. Not a skill command. |
-| 4..n | conditional fixes (next table) | Only the passes the findings triggered. |
-| last | `polish` | Final pass. Starts with mandatory design-system discovery (DESIGN.md), classifies every drift as missing-token / one-off / conceptual, then fixes spacing, alignment, interaction-state gaps. **Always run, even if no fix passes fired.** |
+| Order | Command                        | What it does here                                                                                                                                                                                                                          |
+| ----- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1     | `critique`                     | Two **isolated** sub-agent design reviews (LLM design-director pass + automated detection), Nielsen heuristic scores 0–4, cognitive-load checklist, AI-slop verdict. Read-only.                                                            |
+| 2     | `audit`                        | Code-level technical scores 0–4: a11y, performance, responsive, theming (light AND dark), error/edge states. Read-only.                                                                                                                    |
+| 3     | _(triage — see below)_         | Map findings → fix commands. Not a skill command.                                                                                                                                                                                          |
+| 4..n  | conditional fixes (next table) | Only the passes the findings triggered.                                                                                                                                                                                                    |
+| last  | `polish`                       | Final pass. Starts with mandatory design-system discovery (DESIGN.md), classifies every drift as missing-token / one-off / conceptual, then fixes spacing, alignment, interaction-state gaps. **Always run, even if no fix passes fired.** |
 
 ### Run only when triggered by a finding
 
-| Command | Trigger from critique/audit |
-|---|---|
-| `clarify` | Confusing labels, jargon, passive voice, unhelpful errors, tone mismatch. (Earlier sweeps found stale copy like the "Today" reference — this is the pass that catches those.) **Gate check:** when renaming a label that's driven by a boolean/predicate (a readiness chip, a status badge, an error condition), match the gate's *full satisfaction set*, not just the dominant case — read the predicate, not only the old string. Narrowing a label to the common case lets an off-case dismiss a chip whose text no longer describes what cleared it (PR #676: "Premium list not posted yet" named one of three OR'd conditions → widened to "Exhibitor info not published yet"). |
-| `layout` | Spacing/rhythm/alignment findings, flat hierarchy, nested cards, everything-in-a-container. |
-| `typeset` | Flat type scale (<1.25 ratio), line lengths over 75ch, hierarchy problems. |
-| `colorize` | Monochrome UI that buries status meaning, OR hardcoded palette bugs (see watchlist below). |
-| `adapt` | Responsive failures at any breakpoint, touch targets under 44px. |
-| `harden` | Missing empty/loading/error states, long-text overflow, offline behavior gaps. Ringside-adjacent pages: test against the offline-first replication layer, never around it. |
-| `distill` | Cognitive-load checklist fails 2+ items, >4 options at a decision point. This is the consolidation phase's best friend — prefer deleting/merging surfaces over decorating them. |
-| `optimize` | Audit flags re-render storms, layout thrash, expensive animations. |
-| `onboard` | Only for pages with a real first-run/empty state (wizard, new-show flows). |
+| Command    | Trigger from critique/audit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `clarify`  | Confusing labels, jargon, passive voice, unhelpful errors, tone mismatch. (Earlier sweeps found stale copy like the "Today" reference — this is the pass that catches those.) **Gate check:** when renaming a label that's driven by a boolean/predicate (a readiness chip, a status badge, an error condition), match the gate's _full satisfaction set_, not just the dominant case — read the predicate, not only the old string. Narrowing a label to the common case lets an off-case dismiss a chip whose text no longer describes what cleared it (PR #676: "Premium list not posted yet" named one of three OR'd conditions → widened to "Exhibitor info not published yet"). |
+| `layout`   | Spacing/rhythm/alignment findings, flat hierarchy, nested cards, everything-in-a-container.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `typeset`  | Flat type scale (<1.25 ratio), line lengths over 75ch, hierarchy problems.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `colorize` | Monochrome UI that buries status meaning, OR hardcoded palette bugs (see watchlist below).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `adapt`    | Responsive failures at any breakpoint, touch targets under 44px.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `harden`   | Missing empty/loading/error states, long-text overflow, offline behavior gaps. Ringside-adjacent pages: test against the offline-first replication layer, never around it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `distill`  | Cognitive-load checklist fails 2+ items, >4 options at a decision point. This is the consolidation phase's best friend — prefer deleting/merging surfaces over decorating them.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `optimize` | Audit flags re-render storms, layout thrash, expensive animations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `onboard`  | Only for pages with a real first-run/empty state (wizard, new-show flows).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ### Gated — require explicit human opt-in per page
 
-| Command | Why gated |
-|---|---|
-| `animate` | Motion must serve the role's target feeling in docs/INTENT.md; show-day pages (ringside, Show Desk) should stay calm. |
+| Command   | Why gated                                                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `animate` | Motion must serve the role's target feeling in docs/INTENT.md; show-day pages (ringside, Show Desk) should stay calm.              |
 | `delight` | Project emoji policy: none in UI except celebratory moments (podium). Delight passes drift toward decoration; opt in deliberately. |
 
 ### Never run in this playbook
 
-| Command | Why not |
-|---|---|
-| `craft`, `shape` | Build new features. We are consolidating, not adding surface area. |
-| `teach`, `document` | PRODUCT.md and DESIGN.md already exist (DESIGN.md regenerated in PR #659). Do not rewrite them mid-sweep. **[ADDED] One exception:** the skill's own setup *forces* `teach` if PRODUCT.md is missing, empty, or placeholder (`[TODO]` markers, <200 chars). If the preflight context load reports that, the gate wins — run `teach` once, then resume. Do not bypass the skill's gate to honor this ban. |
-| `extract` | Design-system extraction is repo-wide work, its own task — not per-page. |
-| `bolder`, `overdrive` | Wrong register. These amplify; product pages for working secretaries need clarity, not spectacle. |
-| `quieter` | Only if a critique explicitly scores a page as overstimulating; none have. |
-| `live` | Interactive browser iteration with the user present — not autonomous-agent work. |
+| Command               | Why not                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `craft`, `shape`      | Build new features. We are consolidating, not adding surface area.                                                                                                                                                                                                                                                                                                                                       |
+| `teach`, `document`   | PRODUCT.md and DESIGN.md already exist (DESIGN.md regenerated in PR #659). Do not rewrite them mid-sweep. **[ADDED] One exception:** the skill's own setup _forces_ `teach` if PRODUCT.md is missing, empty, or placeholder (`[TODO]` markers, <200 chars). If the preflight context load reports that, the gate wins — run `teach` once, then resume. Do not bypass the skill's gate to honor this ban. |
+| `extract`             | Design-system extraction is repo-wide work, its own task — not per-page.                                                                                                                                                                                                                                                                                                                                 |
+| `bolder`, `overdrive` | Wrong register. These amplify; product pages for working secretaries need clarity, not spectacle.                                                                                                                                                                                                                                                                                                        |
+| `quieter`             | Only if a critique explicitly scores a page as overstimulating; none have.                                                                                                                                                                                                                                                                                                                               |
+| `live`                | Interactive browser iteration with the user present — not autonomous-agent work.                                                                                                                                                                                                                                                                                                                         |
 
 ---
 
@@ -114,8 +114,8 @@ of who runs the fixes:
 - `critique` and `audit` (Phase 1), and the **confirm re-score** after fixes
   (the iteration cap), MUST run on **Opus or Fable** — pass `model: 'opus'`
   (or `'fable'`) to the Agent/Workflow sub-agent that performs them, even when
-  a smaller model runs the fix passes. This holds the *bar* constant while only
-  the *craft* varies with the runner.
+  a smaller model runs the fix passes. This holds the _bar_ constant while only
+  the _craft_ varies with the runner.
 - The fix/polish passes MAY run on the dispatched runner's model. A smaller
   runner produces less-refined output but is still held to the pinned grader's
   standard, so it does not stop early.
@@ -194,8 +194,8 @@ could have measured.
     that map to nothing get fixed inline during `polish` or explicitly
     dropped with a reason.
 12. **The duplication question** (CLAUDE.md): if any fix proposes new UI,
-    answer in writing: *"Does this duplicate an existing surface? Why is
-    duplication justified instead of a link?"* Default answer is a deep-link,
+    answer in writing: _"Does this duplicate an existing surface? Why is
+    duplication justified instead of a link?"_ Default answer is a deep-link,
     not new UI. Prefer `distill`-style deletions over additions.
 13. Anything touching role feelings, `// INTENT:` behavior, or page IA beyond
     cosmetics: stop and surface to the user before proceeding.
@@ -216,7 +216,7 @@ when ALL of these hold — not when the agent runs out of ideas:
 
 **Iteration cap.** Re-run `critique`/`audit` at most **twice** after fixes (one
 fix round, one confirm round; the confirm re-score runs on the pinned evaluator
-model). If the confirm round still surfaces *new* blocking findings, stop and
+model). If the confirm round still surfaces _new_ blocking findings, stop and
 report to the dispatcher rather than looping a third time — a page that won't
 converge in two rounds is a sign of a deeper structural issue that needs a
 human decision, not more passes. Low-severity findings that survive the cap are
@@ -320,11 +320,11 @@ Score against these states. The same logic transfers to the other dimensions:
       or structure shift that reproduces without special seed data. The Vercel
       PR preview already renders the real branch — link it rather than restaging
       data when that suffices.
-    Faithfulness rule: every value in a reconstruction must come from the diff
-    or a computed measurement — never approximate, beautify, or invent, and
-    label it a reconstruction. Cover only the fixed findings, one comparison
-    block each with its metric. The reconstruction supplements the Vercel
-    preview; it does not replace it.
+      Faithfulness rule: every value in a reconstruction must come from the diff
+      or a computed measurement — never approximate, beautify, or invent, and
+      label it a reconstruction. Cover only the fixed findings, one comparison
+      block each with its metric. The reconstruction supplements the Vercel
+      preview; it does not replace it.
 
 ---
 
@@ -340,7 +340,7 @@ them explicitly:
    Known remaining instance: `ShowDeskAdaptiveHeader.tsx` hardcodes
    emerald/amber/slate chip colors.
 2. **`color-scheme` mismatches**: app theme is class-driven (`darkMode:
-   'class'`); any `@media (prefers-color-scheme: dark)` in CSS files bypasses
+'class'`); any `@media (prefers-color-scheme: dark)` in CSS files bypasses
    the toggle (two known: `myk9-registration-workflow.css`, `calendar.css`).
 3. **Tailwind JIT in dev**: responsive classes used only by lazy-loaded
    modules may be missing from the dev CSS bundle and look broken on other
@@ -368,42 +368,43 @@ routes here are the known-canonical ones.
 
 ### Secretary workflow — login `e2e-secretary@test.myk9.com`
 
-| # | Page | Route | Notes |
-|---|---|---|---|
-| 1 | Show Workbench — Setup | /shows/:id/setup | Critique/audit partially done; start from existing findings |
-| 2 | Show Workbench — Show Desk | /shows/:id/show-desk | ShowDeskAdaptiveHeader token fix lives here |
-| 3 | Entry Management | /shows/:id/entries | |
-| 4 | Reports | /shows/:id/reports | |
-| 5 | Results Control / Submit Results | /shows/:id/results-* | |
-| 6 | Show creation wizard | /shows/new | Has a real first-run state → `onboard` eligible |
-| 7 | Public show landing (default + heritage) | /shows/:id | **Brand register**, exhibitor-facing |
-| 8 | At-Show (ringside surfaces) | /at-show/:showId | Offline-first constraints dominate; keep calm, no motion |
+| #   | Page                                     | Route                                               | Notes                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | ---------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Show Workbench — Setup                   | /shows/:id/setup                                    | Critique/audit partially done; start from existing findings                                                                                                                                                                                                                                                                                                                                                      |
+| 2   | Show Workbench — Show Desk               | /shows/:id/show-desk                                | ShowDeskAdaptiveHeader token fix lives here                                                                                                                                                                                                                                                                                                                                                                      |
+| 3   | Entry Management                         | /shows/:id/entries                                  |                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 4   | Reports                                  | /shows/:id/reports                                  |                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 5   | Results Control / Submit Results         | /shows/:id/results-*                                |                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 6   | Show creation wizard                     | /shows/new                                          | Has a real first-run state → `onboard` eligible                                                                                                                                                                                                                                                                                                                                                                  |
+| 7   | Public show landing (default + heritage) | /shows/:id                                          | **Brand register**, exhibitor-facing                                                                                                                                                                                                                                                                                                                                                                             |
+| 8   | At-Show — class picker                   | /at-show/:showId                                    | **Swept** (PR #1827). Offline-first constraints dominate; keep calm, no motion                                                                                                                                                                                                                                                                                                                                   |
+| 8b  | At-Show — entry list + scoresheet        | /at-show/:showId/class/:classId, .../score/:entryId | **Not yet swept.** The p8 run covered only the picker. Watchlist #1 already has **19 raw palette hits** here (`packages/ringside` `SortableEntryCard.tsx`, `SortableEntryCardComponents.tsx`, `ClassCardSkeleton.tsx`) — start from those. `useEntryListData.ts` already sets `networkMode:'always'` correctly; confirm the combined A/B and scoresheet routes inherit it rather than deriving their own queries |
 
 ### Site admin — login `e2e-admin@test.myk9.com` (role: `SITE_ADMIN`)
 
-| # | Page | Route | Entry file | Notes |
-|---|---|---|---|---|
-| 9 | Admin Dashboard | /admin/dashboard | src/pages/admin/AdminDashboard.tsx | Landing; `/admin` redirects here |
-| 10 | User Management | /admin/users | src/pages/admin/UserManagementPage.tsx | High table/density surface |
-| 11 | Payout Ledger | /admin/payouts | src/pages/admin/PayoutLedgerPage.tsx | Money UI — `clarify`/`harden` sensitive |
-| 12 | Permission Management | /admin/permissions | src/pages/admin/permissions/PermissionManagementPage.tsx | RBAC config surface |
-| 13 | Role Requests | /admin/role-requests | src/pages/admin/RoleRequestsPage.tsx | Review-queue workflow |
+| #   | Page                  | Route                | Entry file                                               | Notes                                   |
+| --- | --------------------- | -------------------- | -------------------------------------------------------- | --------------------------------------- |
+| 9   | Admin Dashboard       | /admin/dashboard     | src/pages/admin/AdminDashboard.tsx                       | Landing; `/admin` redirects here        |
+| 10  | User Management       | /admin/users         | src/pages/admin/UserManagementPage.tsx                   | High table/density surface              |
+| 11  | Payout Ledger         | /admin/payouts       | src/pages/admin/PayoutLedgerPage.tsx                     | Money UI — `clarify`/`harden` sensitive |
+| 12  | Permission Management | /admin/permissions   | src/pages/admin/permissions/PermissionManagementPage.tsx | RBAC config surface                     |
+| 13  | Role Requests         | /admin/role-requests | src/pages/admin/RoleRequestsPage.tsx                     | Review-queue workflow                   |
 
 ### Exhibitor — login `e2e-exhibitor@test.myk9.com` (seeded dogs: Willow, Ranger, Juniper)
 
-| # | Page | Route | Entry file | Notes |
-|---|---|---|---|---|
-| 14 | My Entries / My Shows | /exhibitor/entries | src/pages/MyEntriesPage.tsx | Exhibitor home; **flagship** bar |
-| 15 | Show Registration wizard | /shows/:showId/register | src/pages/RegistrationWizardPage.tsx | Multi-step, first-run state → `onboard` eligible |
-| 16 | Exhibitor Payments | /exhibitor/payments | src/pages/exhibitor/ExhibitorPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive |
-| 17 | Cart | /cart | src/pages/CartPage.tsx | Checkout flow; conversion-critical |
+| #   | Page                     | Route                   | Entry file                                    | Notes                                            |
+| --- | ------------------------ | ----------------------- | --------------------------------------------- | ------------------------------------------------ |
+| 14  | My Entries / My Shows    | /exhibitor/entries      | src/pages/MyEntriesPage.tsx                   | Exhibitor home; **flagship** bar                 |
+| 15  | Show Registration wizard | /shows/:showId/register | src/pages/RegistrationWizardPage.tsx          | Multi-step, first-run state → `onboard` eligible |
+| 16  | Exhibitor Payments       | /exhibitor/payments     | src/pages/exhibitor/ExhibitorPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive          |
+| 17  | Cart                     | /cart                   | src/pages/CartPage.tsx                        | Checkout flow; conversion-critical               |
 
 ### Club admin — login `e2e-clubadmin@test.myk9.com` (role: `CLUB_ADMIN`)
 
-| # | Page | Route | Entry file | Notes |
-|---|---|---|---|---|
-| 18 | Club Members | /club-admin/members | src/pages/club-admin/ClubMembersPage.tsx | Roster management |
-| 19 | Club Payments | /club-admin/payments | src/pages/club-admin/ClubPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive |
+| #   | Page          | Route                | Entry file                                | Notes                                   |
+| --- | ------------- | -------------------- | ----------------------------------------- | --------------------------------------- |
+| 18  | Club Members  | /club-admin/members  | src/pages/club-admin/ClubMembersPage.tsx  | Roster management                       |
+| 19  | Club Payments | /club-admin/payments | src/pages/club-admin/ClubPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive |
 
 One page = one worktree = one PR. Do not batch pages; findings tables stay
 reviewable and reverts stay cheap.
@@ -479,8 +480,8 @@ deferred, and the IA task-chips created. This is the hand-back.
 
 ### Environment caveats
 
-- **Model:** run on Opus or Fable. The evaluator-pin keeps the *bar* honest on
-  any model, but unattended fix *craft* still tracks the runner — and there's no
+- **Model:** run on Opus or Fable. The evaluator-pin keeps the _bar_ honest on
+  any model, but unattended fix _craft_ still tracks the runner — and there's no
   human to catch a weak pass mid-run.
 - **Host:** a local overnight `/loop` is a safer host than a headless cloud
   agent — the impeccable skill, the browser, and the `show_widget` visual tool

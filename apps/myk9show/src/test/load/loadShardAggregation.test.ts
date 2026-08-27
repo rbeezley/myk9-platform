@@ -26,7 +26,20 @@ const TOTAL_SESSIONS = scenarioSessionCount(G9_NORMAL_SCENARIO);
 const RINGSIDE_SESSIONS = scenarioRingsideSessionCount(G9_NORMAL_SCENARIO);
 const PER_SHARD_REQUESTS = 9_000;
 const PER_SHARD_EXPECTED_SCORES = 110;
-// The busiest single shard -- the cross-shard peak, not the 100-session sum.
+// The busiest single shard -- the cross-shard peak, not the whole-workload sum.
+/**
+ * Aggregate p95 over every shard's samples. Each shard's durations are its own
+ * sequence numbers + 1, so the merged set is 1..TOTAL_SESSIONS and the expected
+ * percentile follows from the workload rather than from a pinned literal.
+ */
+const EXPECTED_P95_MS = (() => {
+  const merged = Array.from({ length: TOTAL_SESSIONS }, (_, sequence) => sequence + 1).sort(
+    (a, b) => a - b
+  );
+  const rank = Math.ceil(0.95 * merged.length) - 1;
+  return merged[rank];
+})();
+
 const PEAK = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
   shardPeak(index)
 ).reduce(
@@ -229,19 +242,19 @@ describe('distributed load aggregation', () => {
 
     expect(result.target).toEqual(target);
     expect(result.observation).toMatchObject({
-      concurrentSessions: 100,
-      ringsideSessions: 55,
+      concurrentSessions: TOTAL_SESSIONS,
+      ringsideSessions: RINGSIDE_SESSIONS,
       sessionLifecycle: {
-        configuredSessions: 100,
-        preparedSessions: 100,
-        startedWorkflows: 100,
-        completedWorkflows: 100,
+        configuredSessions: TOTAL_SESSIONS,
+        preparedSessions: TOTAL_SESSIONS,
+        startedWorkflows: TOTAL_SESSIONS,
+        completedWorkflows: TOTAL_SESSIONS,
         failedWorkflows: 0,
         peakActiveWorkflows: PEAK.total,
-        configuredRingsideSessions: 55,
-        preparedRingsideSessions: 55,
-        startedRingsideWorkflows: 55,
-        completedRingsideWorkflows: 55,
+        configuredRingsideSessions: RINGSIDE_SESSIONS,
+        preparedRingsideSessions: RINGSIDE_SESSIONS,
+        startedRingsideWorkflows: RINGSIDE_SESSIONS,
+        completedRingsideWorkflows: RINGSIDE_SESSIONS,
         failedRingsideWorkflows: 0,
         peakActiveRingsideWorkflows: PEAK.ringside,
       },
@@ -254,8 +267,8 @@ describe('distributed load aggregation', () => {
         })),
       },
       requestCount: PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT,
-      scoringWriteP95Ms: 95,
-      apiP95Ms: 95,
+      scoringWriteP95Ms: EXPECTED_P95_MS,
+      apiP95Ms: EXPECTED_P95_MS,
       pageP95Ms: 1_000,
       throughputRps: (PER_SHARD_REQUESTS * DISTRIBUTED_G9_SHARD_COUNT) / 600,
       expectedPersistedScores: PER_SHARD_EXPECTED_SCORES * DISTRIBUTED_G9_SHARD_COUNT,

@@ -2,11 +2,16 @@ import { createClient } from '@supabase/supabase-js';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { signInAsExhibitor, signInAsSecretary } from '../e2e/helpers/testUsers';
 import { assertApplicationTarget } from './loadAppTarget';
-import { buildSessionAssignments, type LoadSessionAssignment } from './loadAssignments';
+import {
+  buildSessionAssignments,
+  type LoadSessionAssignment,
+  type LoadSessionTarget,
+} from './loadAssignments';
 import type { LoadObservation } from './loadEvaluation';
 import {
   loadEntryFixture,
-  LOAD_CLASS_IDS,
+  loadEntryFixtureFor,
+  LOAD_SHOWS,
   LOAD_SHOW_ENTRY_COUNT,
   LOAD_SHOW_ID,
 } from './loadFixture';
@@ -29,9 +34,8 @@ const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
 const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
 const SESSION_PREPARATION_CONCURRENCY = 10;
 const BROWSER_CONTEXT_CLOSE_TIMEOUT_MS = 2_000;
-const CONTENTION_FIRST_SESSION = 50;
-const CONTENTION_SESSION_COUNT = 5;
-const CONTENTION_ENTRY_NUMBER = CONTENTION_FIRST_SESSION * LOAD_CLASS_IDS.length + 1;
+/** Kinds that score. They finish when their dogs are scored rather than holding open. */
+const SCORING_WORKLOAD_KINDS: readonly string[] = ['ringside-scoring', 'scoring-correction'];
 
 interface RunOptions {
   smoke?: boolean;
@@ -88,7 +92,11 @@ export async function runBrowserLoad(
       assignments,
       SESSION_PREPARATION_CONCURRENCY,
       async assignment => {
-        const storageState = assignment.kind === 'exhibitor-read' ? exhibitorState : secretaryState;
+        // Exhibitor self-check-in is a different authorization path and a
+        // different mutation from the staff check-in. Running it under staff
+        // credentials would exercise the secretary path and report it as
+        // exhibitor coverage.
+        const storageState = assignment.role === 'exhibitor' ? exhibitorState : secretaryState;
         // The production bundle registers the PWA (main.tsx gates on !DEV), so each
         // fresh context would Workbox-precache the whole 41 MB manifest inside the
         // measurement window. Real devices pay that once and arrive warm; 100 cold
@@ -139,7 +147,7 @@ export async function runBrowserLoad(
           lifecycle.markCompleted(assignment);
           result.scoredEntryIds.forEach(entryId => scoredEntryIds.add(entryId));
           maxQueueDepth = Math.max(maxQueueDepth, result.maxQueueDepth);
-          if (!options.smoke && assignment.kind !== 'ringside-scoring') {
+          if (!options.smoke && !SCORING_WORKLOAD_KINDS.includes(assignment.kind)) {
             await delay(connectedSessionHoldMs(endsAt, Date.now()));
           }
         } catch (error) {
@@ -274,18 +282,6 @@ export async function mapWithConcurrency<T, TResult>(
   return results;
 }
 
-export function scoringEntryNumber(sessionIndex: number, classIndex: number): number {
-  const isContentionSession =
-    sessionIndex >= CONTENTION_FIRST_SESSION &&
-    sessionIndex < CONTENTION_FIRST_SESSION + CONTENTION_SESSION_COUNT;
-  if (isContentionSession) {
-    if (classIndex === 0) return CONTENTION_ENTRY_NUMBER;
-    return sessionIndex * LOAD_CLASS_IDS.length + classIndex + 1;
-  }
-  const rotatedClassIndex = (sessionIndex + classIndex) % LOAD_CLASS_IDS.length;
-  return sessionIndex * LOAD_CLASS_IDS.length + rotatedClassIndex + 1;
-}
-
 export function connectedSessionHoldMs(endsAt: number, now: number): number {
   return Math.max(0, endsAt - now);
 }
@@ -329,32 +325,57 @@ async function runPrimaryWorkflow(
   smoke: boolean,
   onScored: (entryId: string) => void
 ): Promise<SessionResult> {
+  const { target } = assignment;
   switch (assignment.kind) {
+    // A judge works one ring, dog after dog — not across classes. The old model
+    // walked each session over every class, which is what produced multiple
+    // scorers per class row.
     case 'ringside-scoring':
-      return runScoringSession(page, assignment.index, metrics, endsAt, smoke, onScored);
-    case 'secretary-check-in':
-      await runCheckIn(page, assignment.index, metrics);
+      return runScoringSession(page, target, metrics, endsAt, smoke, onScored);
+
+    // Same ring, same first entry as that ring's scorer: a deliberate,
+    // bounded optimistic-concurrency collision.
+    case 'scoring-correction':
+      return runScoringSession(page, target, metrics, endsAt, true, onScored);
+
+    case 'steward-check-in':
+    case 'exhibitor-check-in':
+      await runCheckIn(page, target, metrics);
       return emptySessionResult();
-    case 'exhibitor-read':
-      await timedGoto(page, `/shows/${LOAD_SHOW_ID}?tab=my-entries`, metrics);
-      await page.getByRole('heading', { name: 'My run schedule' }).waitFor();
-      return emptySessionResult();
-    case 'run-order-read': {
-      const classId = LOAD_CLASS_IDS[assignment.index % LOAD_CLASS_IDS.length];
-      await timedGoto(page, `/at-show/${LOAD_SHOW_ID}/class/${classId}`, metrics);
+
+    // The one class-row lock holder that never goes through the entries trigger.
+    case 'secretary-class-edit':
+      await timedGoto(page, `/at-show/${target.showId}/class/${target.classId}`, metrics);
       await page.getByTestId('dog-card').first().waitFor();
       return emptySessionResult();
-    }
+
+    case 'exhibitor-read':
+      await timedGoto(page, `/shows/${target.showId}?tab=my-entries`, metrics);
+      await page.getByRole('heading', { name: 'My run schedule' }).waitFor();
+      return emptySessionResult();
+
+    case 'run-order-read':
+      await timedGoto(page, `/at-show/${target.showId}/class/${target.classId}`, metrics);
+      await page.getByTestId('dog-card').first().waitFor();
+      return emptySessionResult();
+
     case 'operations-read':
-      await timedGoto(page, `/shows/${LOAD_SHOW_ID}/show-desk`, metrics);
+      await timedGoto(page, `/shows/${target.showId}/show-desk`, metrics);
       await page.getByRole('heading', { name: 'Show Desk', exact: true }).waitFor();
       return emptySessionResult();
   }
 }
 
+/**
+ * Dogs a single ring gets through in one scenario. Eight over ten minutes is
+ * roughly one every 75 seconds, matching how a judge actually paces a class, and
+ * keeps write volume per session comparable with every prior measurement.
+ */
+const SCORED_DOGS_PER_SESSION = 8;
+
 async function runScoringSession(
   page: Page,
-  sessionIndex: number,
+  target: LoadSessionTarget,
   metrics: LoadMetrics,
   endsAt: number,
   smoke: boolean,
@@ -362,18 +383,21 @@ async function runScoringSession(
 ): Promise<SessionResult> {
   const scoredEntryIds: string[] = [];
   let maxQueueDepth = 0;
-  const entryCount = smoke ? 1 : LOAD_CLASS_IDS.length;
+  const show = LOAD_SHOWS[target.showIndex];
+  const dogCount = smoke ? 1 : SCORED_DOGS_PER_SESSION;
 
-  for (let classIndex = 0; classIndex < entryCount; classIndex += 1) {
-    const entryNumber = scoringEntryNumber(sessionIndex, classIndex);
-    const entryId = await runScoringEntry(page, entryNumber, metrics);
+  for (let dogOffset = 0; dogOffset < dogCount; dogOffset += 1) {
+    // Successive dogs in this ring's own class. The ring never changes: two
+    // scorers on one class row is the condition this workload exists to avoid.
+    const entryNumber = target.entryNumber + dogOffset * show.ringCount;
+    const entryId = await runScoringEntry(page, target, entryNumber, metrics);
     scoredEntryIds.push(entryId);
     onScored(entryId);
     maxQueueDepth = Math.max(maxQueueDepth, await readPendingMutationCount(page));
 
-    const entriesRemaining = entryCount - classIndex - 1;
-    if (entriesRemaining > 0) {
-      await delay(Math.max(0, Math.floor((endsAt - Date.now()) / (entriesRemaining + 1))));
+    const remaining = dogCount - dogOffset - 1;
+    if (remaining > 0) {
+      await delay(Math.max(0, Math.floor((endsAt - Date.now()) / (remaining + 1))));
     }
   }
 
@@ -382,13 +406,14 @@ async function runScoringSession(
 
 async function runScoringEntry(
   page: Page,
+  target: LoadSessionTarget,
   entryNumber: number,
   metrics: LoadMetrics
 ): Promise<string> {
-  const fixture = loadEntryFixture(entryNumber);
+  const fixture = loadEntryFixtureFor(target.showIndex, entryNumber);
   await timedGoto(
     page,
-    `/at-show/${LOAD_SHOW_ID}/class/${fixture.classId}/score/${fixture.entryId}`,
+    `/at-show/${target.showId}/class/${fixture.classId}/score/${fixture.entryId}`,
     metrics
   );
   await waitForReplicatedEntry(page, fixture.entryId, fixture.classId);
@@ -442,9 +467,13 @@ async function submitQualifiedScore(page: Page): Promise<void> {
   throw new Error('Expected the scoring result to remain actionable through confirmation.');
 }
 
-async function runCheckIn(page: Page, index: number, metrics: LoadMetrics): Promise<void> {
-  const fixture = loadEntryFixture(441 + index);
-  await timedGoto(page, `/at-show/${LOAD_SHOW_ID}/class/${fixture.classId}`, metrics);
+async function runCheckIn(
+  page: Page,
+  target: LoadSessionTarget,
+  metrics: LoadMetrics
+): Promise<void> {
+  const fixture = loadEntryFixtureFor(target.showIndex, target.entryNumber);
+  await timedGoto(page, `/at-show/${target.showId}/class/${fixture.classId}`, metrics);
   await waitForReplicatedEntry(page, fixture.entryId, fixture.classId);
   const dogCard = page
     .getByTestId('dog-card')

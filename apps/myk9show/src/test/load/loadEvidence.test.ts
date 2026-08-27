@@ -1,29 +1,33 @@
 import { describe, expect, it } from 'vitest';
+import { G9_NORMAL_SCENARIO, scenarioSessionCount } from './loadScenario';
+import { LOAD_SHOWS, LOAD_TOTAL_ENTRY_COUNT, LOAD_TOTAL_RING_COUNT } from './loadFixture';
+
+const TOTAL = scenarioSessionCount(G9_NORMAL_SCENARIO);
+const RINGSIDE = LOAD_TOTAL_RING_COUNT;
 import { buildLoadEvidence, renderLoadEvidenceMarkdown } from './loadEvidence';
 import type { LoadEvaluation, LoadObservation } from './loadEvaluation';
-import { G9_NORMAL_SCENARIO } from './loadScenario';
 
 const observation: LoadObservation = {
-  concurrentSessions: 100,
-  ringsideSessions: 55,
+  concurrentSessions: TOTAL,
+  ringsideSessions: RINGSIDE,
   sessionLifecycle: {
-    configuredSessions: 100,
-    preparedSessions: 100,
-    startedWorkflows: 100,
-    completedWorkflows: 97,
+    configuredSessions: TOTAL,
+    preparedSessions: TOTAL,
+    startedWorkflows: TOTAL,
+    completedWorkflows: TOTAL - 3,
     failedWorkflows: 3,
-    peakActiveWorkflows: 82,
-    configuredRingsideSessions: 55,
-    preparedRingsideSessions: 55,
-    startedRingsideWorkflows: 55,
+    peakActiveWorkflows: TOTAL,
+    configuredRingsideSessions: RINGSIDE,
+    preparedRingsideSessions: RINGSIDE,
+    startedRingsideWorkflows: RINGSIDE,
     completedRingsideWorkflows: 54,
     failedRingsideWorkflows: 1,
-    peakActiveRingsideWorkflows: 50,
-    activityIntervals: Array.from({ length: 100 }, (_, sequence) => ({
+    peakActiveRingsideWorkflows: RINGSIDE,
+    activityIntervals: Array.from({ length: TOTAL }, (_, sequence) => ({
       sequence,
-      ringside: sequence < 55,
-      startedAtMs: sequence < 50 || (sequence >= 55 && sequence < 87) ? 1_000 : 3_000,
-      finishedAtMs: sequence < 50 || (sequence >= 55 && sequence < 87) ? 3_000 : 4_000,
+      ringside: sequence < RINGSIDE,
+      startedAtMs: 1_000,
+      finishedAtMs: 3_000,
     })),
   },
   generator: {
@@ -57,7 +61,7 @@ const observation: LoadObservation = {
   workflowFailures: 3,
   workflowFailureDetails: [
     {
-      workload: 'secretary-check-in',
+      workload: 'steward-check-in',
       route: '/at-show/show-1/class/class-1',
       message: 'Checked-in button timed out',
       count: 3,
@@ -134,24 +138,24 @@ describe('load evidence', () => {
     });
 
     expect(evidence).toMatchObject({
-      seedSize: 514,
+      seedSize: LOAD_TOTAL_ENTRY_COUNT,
       target: { mode: 'e2e', projectRef: 'approved', computeTier: 'Small' },
       scenario: {
         durationMs: 600_000,
-        configuredSessions: 100,
-        configuredRingsideSessions: 55,
+        configuredSessions: TOTAL,
+        configuredRingsideSessions: RINGSIDE,
         browserBehaviorVersion: 'connected-devices-v3-generator-evidence',
       },
-      supportedCeiling: '55 concurrent ringside sessions on a show of 514 entries',
+      supportedCeiling: `${RINGSIDE} concurrent rings across ${LOAD_SHOWS.length} shows and ${LOAD_TOTAL_ENTRY_COUNT} entries`,
     });
     const serialized = JSON.stringify(evidence);
     expect(serialized).not.toContain('supabase.co');
     expect(renderLoadEvidenceMarkdown(evidence)).toContain('Result: PASS');
     expect(renderLoadEvidenceMarkdown(evidence)).toContain(
-      'secretary-check-in ×3 — Checked-in button timed out'
+      'steward-check-in ×3 — Checked-in button timed out'
     );
     expect(renderLoadEvidenceMarkdown(evidence)).toContain(
-      'Sessions configured/prepared/started/completed/failed/peak-active: 100 / 100 / 100 / 97 / 3 / 82'
+      `Sessions configured/prepared/started/completed/failed/peak-active: ${TOTAL} / ${TOTAL} / ${TOTAL} / ${TOTAL - 3} / 3 / ${TOTAL}`
     );
     expect(renderLoadEvidenceMarkdown(evidence)).toContain('Runner 0: HEALTHY');
     expect(renderLoadEvidenceMarkdown(evidence)).toContain(

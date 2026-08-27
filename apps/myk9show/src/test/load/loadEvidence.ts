@@ -7,7 +7,7 @@ import {
   type LoadScenario,
 } from './loadScenario';
 import type { ResolvedLoadTarget } from './loadTarget';
-import { LOAD_SHOW_ENTRY_COUNT } from './loadFixture';
+import { LOAD_SHOWS, LOAD_TOTAL_ENTRY_COUNT } from './loadFixture';
 import { assessGeneratorShard } from './loadGeneratorSampler';
 
 /**
@@ -34,7 +34,7 @@ export interface LoadRunEvidence {
     computeTier: string;
     gateEligible: boolean;
   };
-  seedSize: typeof LOAD_SHOW_ENTRY_COUNT;
+  seedSize: typeof LOAD_TOTAL_ENTRY_COUNT;
   scenario: {
     id: LoadScenario['id'];
     browserBehaviorVersion: LoadScenario['browserBehaviorVersion'];
@@ -64,7 +64,7 @@ export function buildLoadEvidence(input: {
       computeTier: input.target.computeTier,
       gateEligible: input.target.gateEligible,
     },
-    seedSize: LOAD_SHOW_ENTRY_COUNT,
+    seedSize: LOAD_TOTAL_ENTRY_COUNT,
     scenario: {
       id: input.scenario.id,
       browserBehaviorVersion: input.scenario.browserBehaviorVersion,
@@ -74,7 +74,9 @@ export function buildLoadEvidence(input: {
     },
     supportedCeiling:
       input.evaluation.passed && input.target.gateEligible
-        ? `${configuredRingsideSessions} concurrent ringside sessions on a show of ${LOAD_SHOW_ENTRY_COUNT} entries`
+        ? // One scorer per ring across concurrent shows. "a show of N entries"
+          // described a single-show fixture and would now understate the shape.
+          `${configuredRingsideSessions} concurrent rings across ${LOAD_SHOWS.length} shows and ${LOAD_TOTAL_ENTRY_COUNT} entries`
         : 'Not established',
     observation: input.observation,
     evaluation: input.evaluation,

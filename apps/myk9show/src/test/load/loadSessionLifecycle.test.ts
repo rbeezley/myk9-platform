@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { G9_NORMAL_SCENARIO, scenarioSessionCount } from './loadScenario';
+import { LOAD_TOTAL_RING_COUNT } from './loadFixture';
+
+// Derived so the fixture tracks the workload instead of pinning the old numbers.
+const TOTAL = scenarioSessionCount(G9_NORMAL_SCENARIO);
+const RINGSIDE = LOAD_TOTAL_RING_COUNT;
 import { buildSessionAssignments } from './loadAssignments';
-import { G9_NORMAL_SCENARIO } from './loadScenario';
 import { LoadSessionLifecycle } from './loadSessionLifecycle';
 
 describe('load session lifecycle', () => {
@@ -40,19 +45,19 @@ describe('load session lifecycle', () => {
     }
 
     expect(lifecycle.observation()).toMatchObject({
-      configuredSessions: 100,
-      preparedSessions: 100,
-      startedWorkflows: 100,
-      completedWorkflows: 100,
+      configuredSessions: TOTAL,
+      preparedSessions: TOTAL,
+      startedWorkflows: TOTAL,
+      completedWorkflows: TOTAL,
       failedWorkflows: 0,
       peakActiveWorkflows: 1,
-      configuredRingsideSessions: 55,
-      preparedRingsideSessions: 55,
-      startedRingsideWorkflows: 55,
-      completedRingsideWorkflows: 55,
+      configuredRingsideSessions: RINGSIDE,
+      preparedRingsideSessions: RINGSIDE,
+      startedRingsideWorkflows: RINGSIDE,
+      completedRingsideWorkflows: RINGSIDE,
       failedRingsideWorkflows: 0,
       peakActiveRingsideWorkflows: 1,
     });
-    expect(lifecycle.observation().activityIntervals).toHaveLength(100);
+    expect(lifecycle.observation().activityIntervals).toHaveLength(TOTAL);
   });
 });

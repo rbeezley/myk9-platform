@@ -25,9 +25,7 @@ export async function clearLoadTrialPacketSnapshots(
   }
 
   if (paths.length > 0) {
-    const { error: storageError } = await client.storage
-      .from(TRIAL_PACKET_BUCKET)
-      .remove(paths);
+    const { error: storageError } = await client.storage.from(TRIAL_PACKET_BUCKET).remove(paths);
     if (storageError) {
       throw new Error(`Could not remove trial packet objects: ${storageError.message}`);
     }

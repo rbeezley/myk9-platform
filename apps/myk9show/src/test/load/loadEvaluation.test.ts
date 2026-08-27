@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { G9_NORMAL_SCENARIO, LOAD_SCENARIOS, scenarioSessionCount } from './loadScenario';
+import { LOAD_TOTAL_RING_COUNT } from './loadFixture';
+
+// Derived, not fixed at 100/55: those were the invalid workload's numbers, and a
+// hardcoded fixture would have to be edited every time rings or attendance move.
+const TOTAL_SESSIONS = scenarioSessionCount(G9_NORMAL_SCENARIO);
+const RINGSIDE_SESSIONS = LOAD_TOTAL_RING_COUNT;
+const PEAK_SESSIONS = scenarioSessionCount(
+  LOAD_SCENARIOS.find(scenario => scenario.id === 'peak')!
+);
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
-import { G9_NORMAL_SCENARIO, LOAD_SCENARIOS } from './loadScenario';
 import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 
 function activityIntervals(sessionCount: number, ringsideCount: number) {
@@ -14,22 +23,22 @@ function activityIntervals(sessionCount: number, ringsideCount: number) {
 
 function passingObservation(overrides: Partial<LoadObservation> = {}): LoadObservation {
   return {
-    concurrentSessions: 100,
-    ringsideSessions: 55,
+    concurrentSessions: TOTAL_SESSIONS,
+    ringsideSessions: RINGSIDE_SESSIONS,
     sessionLifecycle: {
-      configuredSessions: 100,
-      preparedSessions: 100,
-      startedWorkflows: 100,
-      completedWorkflows: 100,
+      configuredSessions: TOTAL_SESSIONS,
+      preparedSessions: TOTAL_SESSIONS,
+      startedWorkflows: TOTAL_SESSIONS,
+      completedWorkflows: TOTAL_SESSIONS,
       failedWorkflows: 0,
-      peakActiveWorkflows: 100,
-      configuredRingsideSessions: 55,
-      preparedRingsideSessions: 55,
-      startedRingsideWorkflows: 55,
-      completedRingsideWorkflows: 55,
+      peakActiveWorkflows: TOTAL_SESSIONS,
+      configuredRingsideSessions: RINGSIDE_SESSIONS,
+      preparedRingsideSessions: RINGSIDE_SESSIONS,
+      startedRingsideWorkflows: RINGSIDE_SESSIONS,
+      completedRingsideWorkflows: RINGSIDE_SESSIONS,
       failedRingsideWorkflows: 0,
-      peakActiveRingsideWorkflows: 55,
-      activityIntervals: activityIntervals(100, 55),
+      peakActiveRingsideWorkflows: RINGSIDE_SESSIONS,
+      activityIntervals: activityIntervals(TOTAL_SESSIONS, RINGSIDE_SESSIONS),
     },
     generator: {
       shards: Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, shardIndex) => ({
@@ -73,8 +82,8 @@ function passingObservation(overrides: Partial<LoadObservation> = {}): LoadObser
     maxReplicationQueueDepth: 4,
     finalReplicationQueueDepth: 0,
     queueTelemetryFailures: 0,
-    expectedPersistedScores: 55,
-    persistedScores: 55,
+    expectedPersistedScores: RINGSIDE_SESSIONS,
+    persistedScores: RINGSIDE_SESSIONS,
     platform: {
       peakCpuPercent: 72,
       peakIoPercent: 44,
@@ -171,22 +180,25 @@ describe('load result evaluation', () => {
     const result = evaluateLoadResult(
       peak,
       passingObservation({
-        concurrentSessions: 250,
-        ringsideSessions: 125,
+        // Peak scales readers, never scorers: a busier platform means more people
+        // watching, not more judges crowding a ring. Ringside therefore stays at
+        // the fixture's ring count in every scenario.
+        concurrentSessions: PEAK_SESSIONS,
+        ringsideSessions: RINGSIDE_SESSIONS,
         sessionLifecycle: {
-          configuredSessions: 250,
-          preparedSessions: 250,
-          startedWorkflows: 250,
-          completedWorkflows: 250,
+          configuredSessions: PEAK_SESSIONS,
+          preparedSessions: PEAK_SESSIONS,
+          startedWorkflows: PEAK_SESSIONS,
+          completedWorkflows: PEAK_SESSIONS,
           failedWorkflows: 0,
-          peakActiveWorkflows: 250,
-          configuredRingsideSessions: 125,
-          preparedRingsideSessions: 125,
-          startedRingsideWorkflows: 125,
-          completedRingsideWorkflows: 125,
+          peakActiveWorkflows: PEAK_SESSIONS,
+          configuredRingsideSessions: RINGSIDE_SESSIONS,
+          preparedRingsideSessions: RINGSIDE_SESSIONS,
+          startedRingsideWorkflows: RINGSIDE_SESSIONS,
+          completedRingsideWorkflows: RINGSIDE_SESSIONS,
           failedRingsideWorkflows: 0,
-          peakActiveRingsideWorkflows: 125,
-          activityIntervals: activityIntervals(250, 125),
+          peakActiveRingsideWorkflows: RINGSIDE_SESSIONS,
+          activityIntervals: activityIntervals(PEAK_SESSIONS, RINGSIDE_SESSIONS),
         },
         errorRate: 0.09,
         throughputRps: 110,

@@ -1,3 +1,10 @@
+> **Workload freeze superseded 2026-08-27.** Every "unchanged 100-session/55-ringside"
+> constraint below is a record of what this change preserved, not a forward requirement.
+> The 55 ringside sessions put roughly seven concurrent scorers on every class, which
+> cannot happen at a real show, so the workload is being remodelled by
+> `openspec/changes/model-realistic-show-day-load/`. The teardown, drain, topology and
+> platform-evidence work in this change is unaffected and stands.
+
 ## Why
 
 The first instrumented G9 rehearsal proved that the four 25-session browser generators were saturated and that timed-out scoring requests survived into fixture cleanup, causing a rollback storm and an approved Supabase restart. Before another remote rehearsal can produce trustworthy capacity evidence, teardown must fail closed on active scoring work, the unchanged workload must be spread across more free runners, and the aggregate artifact must contain complete CPU/IO telemetry.

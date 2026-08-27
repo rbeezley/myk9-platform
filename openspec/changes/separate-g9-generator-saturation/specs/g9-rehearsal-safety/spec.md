@@ -32,6 +32,18 @@ production bundle showed those routes interactive in 1.5–2.4 s, so the failure
 generator contention rather than the application. Spreading the same workload thinner is
 the only permitted remedy; the workload itself is unchanged.
 
+**Superseded 2026-08-27.** The normative replacement is the MODIFIED requirement of the
+same name in `openspec/changes/model-realistic-show-day-load/specs/g9-rehearsal-safety/`,
+which removes the frozen session counts and keeps the topology guarantee. The text above
+is the historical record of this change, not a live contract; read the modification for
+what binds.
+
+Two of its claims are now known false. The contention attribution: run 33038456110 ran all
+sixteen shards HEALTHY at 45–70% CPU p95 with browser-control p95 of 9–15 ms, and 98 of
+100 workflows still failed, so generator contention was not the cause of the eight-shard
+failures. And the workload freeze: 55 ringside sessions place roughly seven concurrent
+scorers on every class, which cannot happen at a real show.
+
 #### Scenario: Shards aggregate the same workload
 
 - **WHEN** all sixteen synchronized shard artifacts are aggregated

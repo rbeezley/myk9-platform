@@ -49,6 +49,20 @@ describe('generateAKCScentWorkClasses (ClassDefinition)', () => {
     expect(c?.fieldOverrides).toHaveProperty('timeLimit3');
   });
 
+  it('uses the fixed three-hide total for Interior Excellent', () => {
+    const interiorExcellent = byName('Interior Excellent');
+
+    expect(interiorExcellent?.fieldOverrides?.hides).toEqual({ ruleValue: 'Set by Rules: 3' });
+  });
+
+  it('keeps Handler Discrimination Master fixed at three hides', () => {
+    const handlerDiscriminationMaster = byName('Handler Discrimination Master');
+
+    expect(handlerDiscriminationMaster?.fieldOverrides?.hides).toEqual({
+      ruleValue: 'Set by Rules: 3 per class',
+    });
+  });
+
   it('marks Handler Discrimination classes hcdExclude with the canonical element label', () => {
     const hd = byName('Handler Discrimination Novice A');
     expect(hd).toMatchObject({ element: 'Handler Discrimination', level: 'Novice', section: 'A' });

@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import {
+  LOAD_SHOWS,
+  LOAD_TOTAL_GENERATED_ENTRY_COUNT,
+  loadEntryFixtureFor,
+  PRIMARY_LOAD_SHOW,
+} from './loadFixture';
 
 const repoRoot = resolve(process.cwd(), '../..');
 const seed = readFileSync(resolve(repoRoot, 'supabase/seed-demo.sql'), 'utf8');
@@ -29,5 +35,116 @@ describe('canonical MYK9-109 load fixture', () => {
 
   it('asserts the declared 514-row show total', () => {
     expect(seed).toContain('MYK9-109 expected 514 demo-show entries');
+  });
+});
+
+/**
+ * These assertions are numeric rather than textual wherever possible. A test that
+ * greps for a string proves someone typed it, not that the seed produces what the
+ * fixture claims — and the seed cannot be executed here (no container runtime), so
+ * agreement between the two files is the only check available before CI.
+ */
+describe('multi-show seed agrees with the fixture', () => {
+  const midShows = LOAD_SHOWS.slice(1);
+
+  /**
+   * Just the 17b insert block. Slicing to end-of-file would sweep in the show-0
+   * postcondition that follows it, which legitimately names show 0.
+   */
+  const multiShowBlock = (() => {
+    const start = seed.indexOf('-- 17b. MULTI-SHOW LOAD FIXTURE');
+    const end = seed.indexOf('-- 18.', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    return seed.slice(start, end);
+  })();
+
+  it('declares the block and its provenance', () => {
+    expect(seed).toContain('-- 17b. MULTI-SHOW LOAD FIXTURE (shows 1-3)');
+    expect(seed).toContain('apps/myk9show/src/test/load/loadFixture.ts');
+  });
+
+  it('generates exactly the number of shows, trials, classes and dogs the fixture declares', () => {
+    expect(seed).toContain(`generate_series(1, ${midShows.length}) AS load_shows(s)`);
+    expect(seed).toContain(`generate_series(1, ${midShows[0].trials.length}) AS load_trials(t)`);
+    expect(seed).toContain(`generate_series(1, ${midShows[0].ringCount}) AS load_classes(c)`);
+    expect(seed).toContain(`generate_series(1, ${midShows[0].dogCount}) AS load_dogs(dog_number)`);
+  });
+
+  it('uses the fixture ring count in the entry-number formula', () => {
+    // entry_number = (dog - 1) * ringCount + class. A mismatch here would give
+    // every show the wrong entry ids without changing any literal id in the file.
+    expect(seed).toContain(`((dog_number - 1) * ${midShows[0].ringCount}) + class_number`);
+  });
+
+  it('derives armband numbers the same way the fixture does', () => {
+    // Fixture: armbandBase = 2000 + index * 1000, armband = base + dogNumber.
+    expect(midShows[0].armbandBase).toBe(3000);
+    expect(seed).toContain('2000 + (s * 1000) + dog_number');
+  });
+
+  it('emits every id inside a range the cleanup block deletes', () => {
+    const ranges = [
+      ['a1090000-0000-0000-0001-', 'a1090000-0000-0000-0002-'], // dogs
+      ['a1090000-0000-0000-0002-', 'a1090000-0000-0000-0003-'], // entries
+      ['a1090000-0000-0000-0003-', 'a1090000-0000-0000-0004-'], // armbands
+      ['a1090000-0000-0000-0010-', 'a1090000-0000-0000-0011-'], // shows
+      ['a1090000-0000-0000-0011-', 'a1090000-0000-0000-0012-'], // trials
+      ['a1090000-0000-0000-0012-', 'a1090000-0000-0000-0013-'], // classes
+    ];
+    for (const [lower, upper] of ranges) {
+      // Each range must be both written by the insert block and removed by cleanup,
+      // or rows accumulate one orphaned set per reseed.
+      expect(seed).toContain(`${lower}%s%s`);
+      expect(seed).toContain(`${lower}000000000000'::uuid`);
+      expect(seed).toContain(`${upper}000000000000'::uuid`);
+    }
+  });
+
+  it('places every mid-show fixture id in one of those ranges', () => {
+    for (const show of midShows) {
+      expect(show.showId.startsWith('a1090000-0000-0000-0010-')).toBe(true);
+      for (const trial of show.trials) {
+        expect(trial.trialId.startsWith('a1090000-0000-0000-0011-')).toBe(true);
+        for (const classId of trial.classIds) {
+          expect(classId.startsWith('a1090000-0000-0000-0012-')).toBe(true);
+        }
+      }
+      const entry = loadEntryFixtureFor(show.index, 1);
+      expect(entry.entryId.startsWith('a1090000-0000-0000-0002-')).toBe(true);
+      expect(entry.dogId.startsWith('a1090000-0000-0000-0001-')).toBe(true);
+    }
+  });
+
+  it('deletes armbands before dogs, so the dog delete cannot be blocked', () => {
+    const armbandRange = seed.indexOf("id >= 'a1090000-0000-0000-0003-000000000000'");
+    const dogRange = seed.indexOf("id >= 'a1090000-0000-0000-0001-000000000000'");
+    expect(armbandRange).toBeGreaterThan(-1);
+    expect(dogRange).toBeGreaterThan(-1);
+    expect(armbandRange).toBeLessThan(dogRange);
+  });
+
+  it('asserts the platform-wide totals the fixture computes', () => {
+    expect(seed).toContain(`found %', v_total`);
+    expect(seed).toContain(`<> ${LOAD_TOTAL_GENERATED_ENTRY_COUNT} THEN`);
+    expect(seed).toContain(`<> ${midShows[0].generatedEntryCount} THEN`);
+    expect(seed).toContain(`<> ${midShows.length} THEN`);
+  });
+
+  it('enables self-check-in explicitly rather than relying on the cascade default', () => {
+    // The exhibitor self-check-in workload writes check_in_status, one of the
+    // class-row lock holders under test. An absent settings row would default to
+    // enabled today, but silently follow any future change to that default.
+    expect(multiShowBlock).toContain('INSERT INTO public.show_visibility_settings');
+    expect(multiShowBlock).toContain(
+      "'open', 'class_complete', 'immediate', 'immediate', 'immediate', true"
+    );
+  });
+
+  it('leaves the original show untouched by the multi-show block', () => {
+    expect(multiShowBlock).not.toContain(PRIMARY_LOAD_SHOW.showId);
+    for (const classId of PRIMARY_LOAD_SHOW.classIds) {
+      expect(multiShowBlock).not.toContain(classId);
+    }
   });
 });

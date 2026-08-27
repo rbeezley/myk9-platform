@@ -136,6 +136,27 @@ interface ClassRuleDelta {
 }
 
 const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleDelta[]>>> = {
+  AKC: [
+    {
+      migration: '20260827120000_fix_akc_interior_excellent_hide_count.sql',
+      why: 'corrects Interior Excellent to its rules-set total of three while leaving the two-area distribution undisclosed; no class is added or removed',
+      proves: sql => {
+        expect(sql).toMatch(/UPDATE public\.sport_class_rules/i);
+        expect(sql).toMatch(/hide_count_fixed = 3/i);
+        expect(sql).toMatch(/hide_count_min = NULL/i);
+        expect(sql).toMatch(/hide_count_max = NULL/i);
+        expect(sql).toMatch(/hides_known = TRUE/i);
+        expect(sql).toMatch(/organization = 'AKC'/i);
+        expect(sql).toMatch(/sport_code = 'akc-scent-work'/i);
+        expect(sql).toMatch(/element = 'Interior'/i);
+        expect(sql).toMatch(/level = 'Excellent'/i);
+        expect(sql).toMatch(/UPDATE public\.classes/i);
+        expect(sql).not.toMatch(/INSERT INTO/i);
+        expect(sql).not.toMatch(/DELETE FROM/i);
+      },
+      apply: tuples => tuples,
+    },
+  ],
   ASCA: [
     {
       migration: '20260701130000_seed_asca_level_c_classes.sql',

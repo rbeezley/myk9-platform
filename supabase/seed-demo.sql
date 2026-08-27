@@ -149,6 +149,12 @@ WHERE class_id IN (
 -- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
 -- before deleting entries/dogs so their FKs can't block.
 DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
+-- Additional load shows keep their armbands in the same myk9_109 range, so one
+-- range delete covers every show. This must precede the dog delete below:
+-- armbands.dog_id would otherwise block it.
+DELETE FROM public.armbands
+WHERE id >= 'a1090000-0000-0000-0003-000000000000'::uuid
+  AND id <  'a1090000-0000-0000-0004-000000000000'::uuid; -- myk9_109 multi-show
 -- MYK9-109 LOAD FIXTURE CLEANUP
 -- Deterministic myk9_109 rows use separate UUID ranges so a reseed can remove
 -- them without broad predicates or touching the hand-authored demo fixtures.
@@ -158,6 +164,24 @@ WHERE id >= 'a1090000-0000-0000-0002-000000000000'::uuid
 DELETE FROM public.dogs
 WHERE id >= 'a1090000-0000-0000-0001-000000000000'::uuid
   AND id < 'a1090000-0000-0000-0002-000000000000'::uuid; -- myk9_109
+-- Scaffolding for the additional load shows (multi-show fixture). Their entries,
+-- dogs and armbands are already gone via the ranges above; this clears the shows
+-- themselves, FK-safe: cart items -> classes -> trials -> settings -> shows.
+DELETE FROM public.entry_cart_items
+WHERE class_id >= 'a1090000-0000-0000-0012-000000000000'::uuid
+  AND class_id <  'a1090000-0000-0000-0013-000000000000'::uuid;
+DELETE FROM public.classes
+WHERE id >= 'a1090000-0000-0000-0012-000000000000'::uuid
+  AND id <  'a1090000-0000-0000-0013-000000000000'::uuid;
+DELETE FROM public.trials
+WHERE id >= 'a1090000-0000-0000-0011-000000000000'::uuid
+  AND id <  'a1090000-0000-0000-0012-000000000000'::uuid;
+DELETE FROM public.show_visibility_settings
+WHERE show_id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+  AND show_id <  'a1090000-0000-0000-0011-000000000000'::uuid;
+DELETE FROM public.shows
+WHERE id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+  AND id <  'a1090000-0000-0000-0011-000000000000'::uuid;
 -- entries ...059 / ...060 are the GAP FIXTURE #4 withdrawn/refunded rows (added
 -- below: ...059 owned by beezley, ...060 owned by e2e-exhibitor for the P1-04
 -- exhibitor-surface walk). The refund-column guard fires only on INSERT/UPDATE,
@@ -1242,6 +1266,176 @@ SELECT
 FROM generate_series(1, 63) AS load_armbands(dog_number);
 
 -- ---------------------------------------------------------------------------
+-- 17b. MULTI-SHOW LOAD FIXTURE (shows 1-3)
+--
+--     The platform runs 3-5 shows concurrently on a busy weekend. A single-show
+--     fixture cannot surface cross-show behaviour at any session count, because
+--     there is no second show generating deltas: `dogs` and `classes` both skip
+--     their replication scope filter when no scope value is supplied, so a staff
+--     device pulls deltas produced by every other running show.
+--
+--     Three mid-size shows: 2 trials x 2 classes = 4 rings each, 63 dogs,
+--     63 x 4 = 252 entries. With the 8-ring show above that is 20 rings and
+--     1,270 entries platform-wide.
+--
+--     Ids encode the show in the FIRST digit of the final UUID group, keeping
+--     every load row inside the same myk9_109 ranges the cleanup above deletes.
+--     Show 0 is unaffected: a leading 0 plus eleven digits is byte-identical to
+--     the twelve-digit ordinal it always used. Mirrors
+--     apps/myk9show/src/test/load/loadFixture.ts — the two must agree.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (
+  id, name, organization, description,
+  start_date, end_date, entry_open_date, entry_close_date,
+  location, city, state, latitude, longitude, status, club_id,
+  pre_entry_fee, day_of_show_fee,
+  allow_non_owner_handlers, results_visible_to_all,
+  starting_armband_number, default_judge_day_capacity,
+  mail_in_strategy, mail_in_auto_release, waitlist_payment_deadline_hours,
+  accept_check_payments, accept_cash_payments,
+  cc_secretary_on_exhibitor_emails,
+  style, experience_is_published, experience_published_content,
+  brand_color, version, is_nationals
+)
+SELECT
+  format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
+  format('MYK9-109 Load Show %s', s),
+  'AKC',
+  format('Concurrent load-rehearsal show %s. Exists so multi-show replication and cross-show delta volume are measurable.', s),
+  '2026-08-01 00:00:00+00', '2026-08-03 00:00:00+00',
+  '2026-06-01 00:00:00+00', '2026-09-01 00:00:00+00',
+  format('%s00 Load Fixture Way, Tulsa, OK 74101', s),
+  'Tulsa', 'Oklahoma',
+  36.15, -95.99,
+  'published',
+  'dededede-0000-0000-0000-000000000001',
+  30.00, 35.00,
+  true, true,
+  100, 125,
+  'none', false, 48,
+  true, true,
+  true,
+  'headline', false, '{}'::jsonb,
+  '#0d4d4f', 1, false
+FROM generate_series(1, 3) AS load_shows(s);
+
+-- Explicit visibility rows so self-check-in is enabled by a stated setting, not
+-- by the cascade's absent-row default. The exhibitor self-check-in workload
+-- writes check_in_status, which is one of the class-row lock holders under test.
+INSERT INTO public.show_visibility_settings (
+  show_id, preset, placement_timing, qualification_timing,
+  time_timing, faults_timing, self_checkin_enabled
+)
+SELECT
+  format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
+  'open', 'class_complete', 'immediate', 'immediate', 'immediate', true
+FROM generate_series(1, 3) AS load_shows(s);
+
+INSERT INTO public.trials (
+  id, show_id, name, date, trial_number, status,
+  planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
+  display_order, category, registry_id, timezone, version
+)
+SELECT
+  format('a1090000-0000-0000-0011-%s%s', s, lpad(t::text, 11, '0'))::uuid,
+  format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
+  format('Load %s Trial %s', s, t),
+  (DATE '2026-08-01' + (t - 1)),
+  format('Load %s Trial %s', s, t),
+  'upcoming',
+  '8:00 AM', true, 'scent_work', 1, t,
+  format('Load %s Trial %s', s, t),
+  'AKC', 'America/Chicago', 1
+FROM generate_series(1, 3) AS load_shows(s)
+CROSS JOIN generate_series(1, 2) AS load_trials(t);
+
+-- Two classes per trial, matching the show-0 layout. class c belongs to trial
+-- ((c - 1) / 2) + 1, which loadFixture.ts pins in a test.
+INSERT INTO public.classes (
+  id, trial_id, name, level, element, section, judge_name,
+  entry_fee, status, time_limit_seconds, num_hides, num_areas,
+  has_blank, timer_mode, hides_known, display_order, version
+)
+SELECT
+  format('a1090000-0000-0000-0012-%s%s', s, lpad(c::text, 11, '0'))::uuid,
+  format('a1090000-0000-0000-0011-%s%s', s, lpad((((c - 1) / 2) + 1)::text, 11, '0'))::uuid,
+  format('Load %s Class %s', s, c),
+  'Advanced',
+  CASE ((c - 1) % 4)
+    WHEN 0 THEN 'Container'
+    WHEN 1 THEN 'Interior'
+    WHEN 2 THEN 'Exterior'
+    ELSE 'Buried'
+  END,
+  NULL, 'Test Judge',
+  30.00, 'upcoming', 180, 2, 2, false, 'single', true, c, 1
+FROM generate_series(1, 3) AS load_shows(s)
+CROSS JOIN generate_series(1, 4) AS load_classes(c);
+
+INSERT INTO public.dogs (
+  id, name, call_name, breed, sex, date_of_birth, color, status, owner_id, version
+)
+SELECT
+  format('a1090000-0000-0000-0001-%s%s', s, lpad(dog_number::text, 11, '0'))::uuid,
+  format('MYK9-109 Load %s Dog %s', s, lpad(dog_number::text, 2, '0')),
+  format('Load %s-%s', s, lpad(dog_number::text, 2, '0')),
+  'Mixed Breed',
+  CASE WHEN dog_number % 2 = 0 THEN 'female' ELSE 'male' END,
+  DATE '2021-01-01' + dog_number,
+  'Load Fixture',
+  'active',
+  (SELECT id FROM public.people WHERE lower(email) = 'exhibitor@myk9t.com'),
+  1
+FROM generate_series(1, 3) AS load_shows(s)
+CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number);
+
+WITH multi_show_entries AS (
+  SELECT
+    s,
+    dog_number,
+    class_number,
+    ((dog_number - 1) * 4) + class_number AS entry_number
+  FROM generate_series(1, 3) AS load_shows(s)
+  CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number)
+  CROSS JOIN generate_series(1, 4) AS load_classes(class_number)
+)
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, handler_id, handler,
+  entry_status, payment_status, entry_fee, armband, run_order,
+  move_up_requested, version
+)
+SELECT
+  format('a1090000-0000-0000-0002-%s%s', s, lpad(entry_number::text, 11, '0'))::uuid,
+  format('a1090000-0000-0000-0001-%s%s', s, lpad(dog_number::text, 11, '0'))::uuid,
+  format('a1090000-0000-0000-0012-%s%s', s, lpad(class_number::text, 11, '0'))::uuid,
+  format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
+  format('a1090000-0000-0000-0011-%s%s', s, lpad((((class_number - 1) / 2) + 1)::text, 11, '0'))::uuid,
+  (SELECT id FROM public.people WHERE lower(email) = 'exhibitor@myk9t.com'),
+  'Test Exhibitor',
+  'confirmed',
+  'paid',
+  30.00,
+  2000 + (s * 1000) + dog_number,
+  dog_number,
+  false,
+  1
+FROM multi_show_entries;
+
+INSERT INTO public.armbands (
+  id, show_id, dog_id, armband_number, is_available, assigned_at, version
+)
+SELECT
+  format('a1090000-0000-0000-0003-%s%s', s, lpad(dog_number::text, 11, '0'))::uuid,
+  format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
+  format('a1090000-0000-0000-0001-%s%s', s, lpad(dog_number::text, 11, '0'))::uuid,
+  (2000 + (s * 1000) + dog_number)::text,
+  false,
+  '2026-07-15 00:00:00+00',
+  1
+FROM generate_series(1, 3) AS load_shows(s)
+CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number);
+
+-- ---------------------------------------------------------------------------
 -- 18. Email delivery history (secretary "Email history" view)
 --
 -- Backs get_show_email_delivery_history(), added by migration
@@ -1382,6 +1576,48 @@ BEGIN
 
   IF v_entry_count <> 514 THEN
     RAISE EXCEPTION 'MYK9-109 expected 514 demo-show entries, found %', v_entry_count;
+  END IF;
+END $$;
+
+-- Multi-show fixture postcondition. Without this a partial seed — three shows
+-- created but one show's entries missing — would reseed "successfully" and the
+-- rehearsal would measure a workload that is not the one declared.
+DO $$
+DECLARE
+  v_show_count integer;
+  v_entry_count integer;
+  v_total integer;
+BEGIN
+  SELECT count(*) INTO v_show_count
+  FROM public.shows
+  WHERE id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+    AND id <  'a1090000-0000-0000-0011-000000000000'::uuid;
+
+  IF v_show_count <> 3 THEN
+    RAISE EXCEPTION 'MYK9-109 expected 3 additional load shows, found %', v_show_count;
+  END IF;
+
+  FOR v_entry_count IN
+    SELECT count(*)
+    FROM public.entries e
+    JOIN public.shows s ON s.id = e.show_id
+    WHERE s.id >= 'a1090000-0000-0000-0010-000000000000'::uuid
+      AND s.id <  'a1090000-0000-0000-0011-000000000000'::uuid
+    GROUP BY s.id
+  LOOP
+    IF v_entry_count <> 252 THEN
+      RAISE EXCEPTION 'MYK9-109 expected 252 entries per additional load show, found %', v_entry_count;
+    END IF;
+  END LOOP;
+
+  SELECT count(*) INTO v_total
+  FROM public.entries
+  WHERE id >= 'a1090000-0000-0000-0002-000000000000'::uuid
+    AND id <  'a1090000-0000-0000-0003-000000000000'::uuid;
+
+  -- 504 on the eight-ring show plus 252 on each of three four-ring shows.
+  IF v_total <> 1260 THEN
+    RAISE EXCEPTION 'MYK9-109 expected 1260 generated load entries platform-wide, found %', v_total;
   END IF;
 END $$;
 

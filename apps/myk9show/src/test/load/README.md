@@ -204,3 +204,26 @@ After a forced workflow cancellation, verify that the cleanup job completed.
 If GitHub itself prevented cleanup from running, manually restore the approved
 target with the canonical reseed and verify `514|504|0` before leaving the load
 window.
+
+## Known coverage caveats
+
+The harness runs with `serviceWorkers: 'block'` (`load-request-phases.spec.ts`,
+`load-readiness.spec.ts`, pinned by `loadDiscovery.contract.test.ts`), so every
+rehearsal session is a device with **no service worker at all**. Two
+consequences:
+
+- Nothing the harness measures exercises the push path — subscription lookup,
+  the `push_subscriptions` upsert, or any code that assumes a registration.
+  A rehearsal cannot produce evidence about push behaviour under load.
+- The rehearsal reaches the ringside heartbeat's push-independent fallback on
+  every session rather than the normal `upsert_ringside_session` path, so the
+  presence/heartbeat load it generates is not representative of a real
+  show-day mix. Read heartbeat-derived numbers with that in mind.
+
+This is also how a pre-existing bug surfaced during the #1812 rehearsal:
+`getExistingSubscription()` used to throw on a device with no
+`navigator.serviceWorker`, which killed the whole heartbeat before that
+fallback and left revoked ringside passcodes working indefinitely (fixed in
+#1813). Blocking service workers makes that class of assumption visible here
+first — treat a heartbeat anomaly in a rehearsal as a real finding, not a
+harness artifact.

@@ -29,11 +29,13 @@ export { speak, speakWithConfig, cancelSpeech, isSpeechSupported } from './voice
 export type { VoiceCategories, VoiceConfig } from './types';
 export { NOTIFICATION_TYPE_TO_VOICE_CATEGORY } from './types';
 
-export type { PushSubscriptionData } from './push';
+export type { PushSubscriptionData, PushSubscriptionLookup } from './push';
 export {
   isPushSupported,
   requestPushPermission,
   subscribeToPush,
   unsubscribeFromPush,
   getExistingSubscription,
+  lookupExistingSubscription,
+  SERVICE_WORKER_READY_TIMEOUT_MS,
 } from './push';

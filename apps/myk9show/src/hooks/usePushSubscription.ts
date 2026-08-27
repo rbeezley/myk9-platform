@@ -2,7 +2,7 @@ import {
   isPushSupported,
   subscribeToPush,
   unsubscribeFromPush,
-  getExistingSubscription,
+  lookupExistingSubscription,
 } from '@myk9/notifications';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -66,15 +66,33 @@ export function usePushSubscription() {
     if (!user?.id) return { ok: true };
 
     try {
-      const existing = await getExistingSubscription();
+      const lookup = await lookupExistingSubscription();
+
+      // `unavailable` means the browser could not tell us whether this device
+      // holds a subscription — NOT that it holds none. Deleting nothing and
+      // reporting success here would flip the toggle off while the
+      // push_subscriptions row (and possibly the live browser subscription)
+      // survives, so the user keeps receiving notifications they opted out of.
+      // Leave the preference on and report failure so the caller can retry.
+      //
+      // Bail BEFORE unsubscribeFromPush: if the registration became ready in
+      // the moment between the two calls, that call would succeed and drop the
+      // browser subscription while we still return without deleting the server
+      // row — and the retry, now seeing no subscription, could never identify
+      // which row to delete.
+      if (lookup.status === 'unavailable') {
+        console.error('Push unsubscribe: subscription state unavailable; server row not removed');
+        return { ok: false };
+      }
+
       await unsubscribeFromPush();
 
-      if (existing) {
+      if (lookup.status === 'subscribed') {
         const { error } = await supabase
           .from('push_subscriptions')
           .delete()
           .eq('user_id', user.id)
-          .eq('endpoint', existing.endpoint);
+          .eq('endpoint', lookup.subscription.endpoint);
 
         if (error) {
           console.error('Failed to delete push subscription:', error.message);

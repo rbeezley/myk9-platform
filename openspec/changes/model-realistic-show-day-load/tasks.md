@@ -56,9 +56,13 @@
 
 ## 8. Targets
 
-- [ ] 8.1 Ship the reshaped scenario `informational: true`; do not carry the old thresholds over.
-- [ ] 8.2 After the first valid reshaped run, derive targets from observation plus a stated margin, citing the run each came from.
-- [ ] 8.3 Only then restore `gate: 'G9'`.
+- [ ] 8.1 Move gate eligibility from scenario-level to per-target. `evaluateLoadResult` currently computes `gateEligible: scenario.gate === 'G9' && !scenario.informational` once for the whole run; each failure must instead carry whether it gates.
+- [ ] 8.2 Mark API p95, scoring-write p95 and throughput informational-pending-derivation. Keep every other check gating: lifecycle consistency, queue drain, queue telemetry, persistence reconciliation, platform telemetry, connection cap, generator attribution, error rate, availability.
+- [ ] 8.3 Report gating and informational failures as distinct sets in the evidence. A run that passes only the still-enforced half must not read as a clean pass.
+- [ ] 8.4 Add a mutation check proving the split is non-vacuous: making a gating invariant informational must fail a test, and so must making a shape-dependent target gate before derivation.
+- [ ] 8.5 After the first valid reshaped run, derive each shape-dependent target from observation plus a stated margin, citing the run it came from, and move it to the gating set.
+- [ ] 8.6 Re-examine error rate and availability against that run. Sustained latency depresses availability through client timeouts without any request being served wrongly — run 33075234998 showed 99.29%. Moving either to informational is permitted only with a recorded reason.
+- [ ] 8.7 Confirm `gate: 'G9'` is in force for the full target set once derivation completes.
 
 ## 9. Rehearsal
 

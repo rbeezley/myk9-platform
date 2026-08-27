@@ -71,7 +71,24 @@ Current `LoadTargets` do not carry over. `apiP95Ms: 200` and `scoringWriteP95Ms:
 
 Re-derivation must happen **after** the first valid reshaped run, from observed behavior plus a defensible margin — not before, and not by scaling the old numbers. A threshold invented ahead of the measurement repeats the mistake this change corrects.
 
-Until then the reshaped scenario runs `informational: true`, and G9 remains ungated. That is deliberate: it is better to hold the gate open briefly than to keep certifying against a shape that cannot happen.
+But suspending the whole gate to re-derive three numbers is heavier than the problem. Only some targets move with workload shape:
+
+- **Shape-dependent:** API p95, scoring-write p95, throughput. All three are a function of how many sessions do what, so their current values carry no information about the reshaped workload.
+- **Shape-independent:** session-lifecycle consistency, queue drain, queue-telemetry completeness, persistence reconciliation, platform-telemetry completeness, connections within the verified cap, generator attribution validity. A scoring write that vanishes or a queue that never drains is a defect whether one judge is scoring or seven.
+
+So gate eligibility becomes **per target** rather than per scenario: the three shape-dependent numbers report as informational until derived, and everything else keeps gating. That closes most of the coverage gap without fabricating a threshold.
+
+Error rate and availability are the awkward pair. Conceptually they are shape-independent — a request either succeeded or it did not, and 99.5% is a product decision. In practice sustained latency produces client timeouts that depress availability without any request being served wrongly, which is close to what run 33075234998 showed at 99.29%. They keep gating initially, and moving them is permitted only with a recorded reason, so the gate cannot quietly narrow.
+
+### Structural consequence
+
+`evaluateLoadResult` currently decides eligibility once for the whole scenario:
+
+```ts
+gateEligible: scenario.gate === 'G9' && !scenario.informational;
+```
+
+Per-target gating needs each failure to carry whether it gates, and the evaluation to report gating and informational failures separately. That is new structure rather than a config edit, and it is the one piece of implementation this change adds beyond the workload itself. Evidence must render the two sets distinctly, or a reader cannot tell a passing run from a run that passed only the half still being enforced.
 
 ## Concurrency budget
 

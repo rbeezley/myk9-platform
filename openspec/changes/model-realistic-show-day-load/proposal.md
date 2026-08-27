@@ -28,7 +28,7 @@ Supplied by the operator on 2026-08-27 and recorded here so the numbers can be c
 - Rebalance the mix from write-dominant to read-dominant, matching a show day where most participants are watching run order rather than writing.
 - Model check-in as exhibitor-driven and bursty at class start, since that is both the heavier case and the one that genuinely contends with a judge on the same class row.
 - Introduce hybrid generation: real browsers for every writer session plus a per-runner browser reader sample, with the bulk of reader load generated as API-level virtual users.
-- Re-derive `LoadTargets` against the reshaped workload; the current thresholds do not carry over.
+- Re-derive `LoadTargets` against the reshaped workload; the current thresholds do not carry over. Move gate eligibility from scenario-level to per-target so the three shape-dependent numbers — API p95, scoring-write p95, throughput — report informational until derived, while every shape-independent invariant keeps gating. Suspending the whole gate to re-derive three numbers would open it far wider than the remodel requires.
 - Express session counts as documented parameters with stated provenance, so a future change revises them instead of preserving them.
 
 Non-goals:
@@ -54,6 +54,7 @@ Non-goals:
 - `apps/myk9show/src/test/load/loadFixture.ts` — currently a single `LOAD_SHOW_ID` and a fixed eight-element `LOAD_CLASS_IDS`; becomes multi-show with per-show ring counts.
 - `apps/myk9show/src/test/load/loadAssignments.ts` and the shard assignment path, to map a session to a show as well as a class.
 - A new API-level virtual-user generator alongside `loadBrowserRunner.ts`.
+- `apps/myk9show/src/test/load/loadEvaluation.ts` — per-target gate eligibility, replacing the single scenario-level `gateEligible`, and evidence that renders gating and informational failures as distinct sets.
 - Seed data for the additional shows, plus a staff identity per show and exhibitor identities owning or handling entries. One cloned secretary auth state across all sessions would defeat the show-scoping this fixture exists to measure.
 - `apps/myk9show/src/test/load/README.md` scenario ladder and concurrency arithmetic.
 - No production application code, no migration, no user-facing change.

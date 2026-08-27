@@ -90,18 +90,57 @@ An API-level reader issues the same requests but never paints, so it cannot catc
 - **WHEN** an API virtual user's endpoint mix or sync cadence does not match the replication layer's own
 - **THEN** the contract test fails rather than allowing a fiction to be measured
 
-### Requirement: Targets are re-derived from a valid run before gating
+### Requirement: Shape-dependent targets are re-derived before they gate
 
-The reshaped scenario SHALL run `informational: true` until targets have been derived from at least one valid rehearsal against the reshaped workload. Prior thresholds SHALL NOT carry over.
+Gate eligibility SHALL be decided per target, not per scenario. A target whose value
+depends on workload shape SHALL be informational until derived from a valid rehearsal
+against the reshaped workload. A target that asserts a shape-independent invariant SHALL
+continue to gate throughout.
 
-`apiP95Ms: 200` and `scoringWriteP95Ms: 200` were set against a workload that cannot occur, and `throughputMin: 50` was calibrated to 100 sessions. Inventing replacements ahead of measurement would repeat the error this change corrects.
+`apiP95Ms: 200` and `scoringWriteP95Ms: 200` were set against a workload that cannot occur,
+and `throughputMin: 50` was calibrated to 100 sessions; all three move with how many
+sessions do what. Carrying them forward would be meaningless and inventing replacements
+ahead of measurement would repeat the error this change corrects. But a lost scoring write,
+a replication queue that never drains, an unreconciled persistence count or an invalid
+attribution is a defect at any workload, and suspending those would open the gate far wider
+than the remodel requires.
 
-#### Scenario: Gate stays open pending derivation
+Initial split:
 
-- **WHEN** the reshaped scenario runs before targets are re-derived
-- **THEN** it reports measurements as informational and does not gate G9
+| Informational until derived | Gating throughout                               |
+| --------------------------- | ----------------------------------------------- |
+| API p95                     | Session-lifecycle consistency                   |
+| Scoring-write p95           | Replication queues drain to zero                |
+| Throughput                  | Replication queue telemetry complete            |
+|                             | Persisted scores reconcile                      |
+|                             | Platform telemetry present and complete         |
+|                             | Peak connections within the verified cap        |
+|                             | Generator attribution valid, no saturated shard |
+|                             | Error rate and availability                     |
+
+Error rate and availability sit in the gating column because a request either succeeded or
+it did not, and the threshold is a product decision rather than a workload artifact. They
+are the likeliest to need revisiting: sustained latency produces client timeouts, which
+depress availability without any request being served incorrectly. If the first valid
+reshaped run shows either systematically driven by shape, moving it to the informational
+column is permitted **only** with a recorded reason.
+
+#### Scenario: A shape-dependent target is exceeded before derivation
+
+- **WHEN** API p95, scoring-write p95 or throughput misses its placeholder value before targets are derived
+- **THEN** the run reports the measurement, does not fail the gate, and states that the target is pending derivation
+
+#### Scenario: A shape-independent invariant fails
+
+- **WHEN** queues do not drain, persistence does not reconcile, telemetry is incomplete, connections exceed the verified cap, or attribution is invalid
+- **THEN** the run fails the gate regardless of whether shape-dependent targets have been derived
 
 #### Scenario: Targets are derived from observation
 
-- **WHEN** targets are set
-- **THEN** each cites the valid run it was derived from and the margin applied
+- **WHEN** a shape-dependent target is set
+- **THEN** it cites the valid run it was derived from and the margin applied, and moves to the gating column
+
+#### Scenario: A target changes column
+
+- **WHEN** a target moves between informational and gating
+- **THEN** the move records why, so the gate's coverage cannot narrow silently

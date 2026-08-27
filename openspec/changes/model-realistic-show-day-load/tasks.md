@@ -18,12 +18,16 @@
 - [ ] 3.2 Fail scenario construction when scoring sessions exceed available rings, naming the over-subscribed class. Do not distribute by modulo.
 - [ ] 3.3 Preserve exact global sequence assignment across sixteen shards for the new topology, as `g9-rehearsal-safety` requires.
 - [ ] 3.4 Add a mutation check proving the distinct-class guard is non-vacuous: reintroducing modulo distribution must fail a test.
+- [ ] 3.5 Provision a separate staff identity per show. The runner currently clones one secretary auth state across every secretary session; if that account can manage all four fixture shows, `manageable_show_ids()` returns all four and every session sees every show's entries, collapsing the own-show versus cross-show comparison the fixture exists to make.
+- [ ] 3.6 Assert before the load starts that each staff credential's `manageable_show_ids()` resolves to exactly its assigned show. Fail closed rather than inferring scoping from the fixture.
+- [ ] 3.7 Provision exhibitor identities owning or handling entries in their assigned show, for the check-in workload.
 
 ## 4. Workload mix and parameters
 
 - [ ] 4.1 Express every session count as a parameter with provenance — operator-observed or estimated, and for estimates what would replace them.
 - [ ] 4.2 Set counts per `design.md`: 20 scoring, 44 check-in, 264 readers, 10 ops across four shows.
 - [ ] 4.3 Give check-in a bursty arrival pattern anchored to class start rather than uniform arrival.
+- [ ] 4.3a Route check-in through the **exhibitor self-check-in** path — exhibitor credentials, owned or handled entries, self-check-in mutation. Reusing `secretary-check-in` with staff auth would satisfy the arrival-pattern constraint while exercising different authorization and a different mutation, then be reported as exhibitor coverage. Assert the acting role in a contract test.
 - [ ] 4.4 Assert the reader-to-writer ratio in a contract test, so a future edit that inverts the mix fails rather than passing quietly.
 
 ## 5. Hybrid generation
@@ -36,8 +40,9 @@
 
 ## 6. Cross-show observability
 
-- [ ] 6.1 Attribute replication delta volume to the originating show, so cross-show pull is visible in evidence.
-- [ ] 6.2 Record unscoped versus scoped sync counts for `dogs` and `classes`.
+- [ ] 6.1 Attribute `classes` replication delta volume to the originating show, so cross-show pull is visible in evidence. Classes churn cross-show because the writer workloads advance `classes.updated_at` through `refresh_class_scoring_state`.
+- [ ] 6.2 Record scoped versus unscoped sync counts **and per-poll cost** for both `dogs` and `classes`. Do not require cross-show dog _delta volume_: no declared workload mutates `dogs`, so after watermarks establish there are no dog deltas to return and the metric would be vacuous. The real dog cost is the unscoped poll itself — 79.7 ms mean in run 33075234998 with no owner filter.
+- [ ] 6.3 If a later revision wants dog delta volume as evidence, add a workload that actually mutates dogs first. Adding the metric without the writes reports an empty result as a finding.
 
 ## 7. Testing
 

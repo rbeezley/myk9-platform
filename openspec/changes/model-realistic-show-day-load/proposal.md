@@ -46,7 +46,7 @@ Non-goals:
 
 ### Modified Capabilities
 
-- `g9-rehearsal-safety`: its "unchanged workload" constraint is superseded. The safety, topology and evidence requirements stand; the frozen session counts they preserve do not.
+- `g9-rehearsal-safety`: the "Generator topology preserves the unchanged G9 workload" requirement is restated in `specs/g9-rehearsal-safety/` with the frozen session counts removed and the topology guarantee intact. A prose note in the older change would not have been enough — its `MUST retain exactly 100 sessions, 55 ringside sessions` is normative, and leaving it standing beside a contradicting one would give verification two mutually exclusive contracts.
 
 ## Impact
 
@@ -54,6 +54,6 @@ Non-goals:
 - `apps/myk9show/src/test/load/loadFixture.ts` — currently a single `LOAD_SHOW_ID` and a fixed eight-element `LOAD_CLASS_IDS`; becomes multi-show with per-show ring counts.
 - `apps/myk9show/src/test/load/loadAssignments.ts` and the shard assignment path, to map a session to a show as well as a class.
 - A new API-level virtual-user generator alongside `loadBrowserRunner.ts`.
-- Seed data for the additional shows.
+- Seed data for the additional shows, plus a staff identity per show and exhibitor identities owning or handling entries. One cloned secretary auth state across all sessions would defeat the show-scoping this fixture exists to measure.
 - `apps/myk9show/src/test/load/README.md` scenario ladder and concurrency arithmetic.
 - No production application code, no migration, no user-facing change.

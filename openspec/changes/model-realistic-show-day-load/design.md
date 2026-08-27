@@ -35,7 +35,16 @@ Three shows' worth of load is not merely three times one show's.
 
 A staff session has no owner scope, so its dog sync is unscoped and pulls every dog changed platform-wide since its watermark. This is permitted — `dogs_select` grants show managers platform-wide read via the unscoped `is_show_manager()`, deliberately, so a secretary can enter any dog into their show. Authorization is not in question.
 
-What is in question is sync volume. A device being _allowed_ to read a row is not the same as that row needing to be _proactively downloaded_. Cross-show delta volume scales with platform activity rather than with the operator's own show, and a single-show fixture cannot surface it at any session count, because there is no second show generating deltas. Measuring it is a primary reason this change exists.
+What is in question is sync volume. A device being _allowed_ to read a row is not the same as that row needing to be _proactively downloaded_.
+
+The two tables differ in how much that costs, and the distinction matters because the workload has to actually generate what it claims to measure:
+
+- **`classes` churn cross-show.** The scoring and check-in workloads write entries, which fires `refresh_class_scoring_state` and advances `classes.updated_at` — so an unscoped classes sync genuinely pulls other shows' deltas. This is measurable as delta volume, and MYK9-248 makes it worse than it needs to be.
+- **`dogs` barely churn during a show.** No declared workload in this scenario mutates `dogs`, and real show-day dog edits are rare. After reader watermarks establish, an unscoped dog poll returns little or nothing, so **delta volume is the wrong metric for it.** What remains real is the cost of the poll itself: run 33075234998 measured `dogs WHERE updated_at > $1` at 79.7 ms mean in-window with no owner filter — an index scan every device pays repeatedly to learn nothing.
+
+The evidence requirement is therefore split accordingly: cross-show **delta volume** for classes, and scoped-versus-unscoped **sync counts and per-poll cost** for both. Claiming to measure platform-wide dog delta scaling without a workload that writes dogs would be measuring nothing and reporting it as a result.
+
+Either way, a single-show fixture cannot surface any of it, because there is no second show generating deltas.
 
 ## Generation strategy
 

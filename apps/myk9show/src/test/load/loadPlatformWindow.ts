@@ -2,13 +2,15 @@
 // snapshot excludes rehearsal traffic, and keeps sampling past the scenario so
 // the closing snapshot covers work still draining.
 export const PLATFORM_BASELINE_LEAD_MS = 15_000;
-// Must cover loadReplicationProbe's QUEUE_DRAIN_TIMEOUT_MS (SYNC_INTERVAL_MS +
-// 30s = 90s), which is how long each session may still be flushing after the
-// scenario ends. Stopping earlier drops those flushes from the closing snapshot
-// and under-reports peakConnections -- and since the gate only fails when
-// connections EXCEED the cap, a truncated window can turn a real breach into a
-// pass. Pinned against that constant in the tests so the two cannot drift.
-export const PLATFORM_DRAIN_GRACE_MS = 90_000;
+// Each session's teardown can still be hitting the database for
+// QUEUE_DRAIN_TIMEOUT_MS (90s) plus three queue probes at QUEUE_PROBE_DEADLINE_MS
+// (20s each): one before the drain, one the drain itself may start just under its
+// deadline, and one after. Stopping earlier drops those flushes from the closing
+// snapshot and under-reports peakConnections -- and the gate only fails when
+// connections EXCEED the cap, so a truncated window can turn a real breach into a
+// pass. Kept a literal so the sampler needs no @myk9/replication at runtime, and
+// pinned against the composed bound in the tests so the two cannot drift.
+export const PLATFORM_DRAIN_GRACE_MS = 150_000;
 
 export interface PlatformSamplingWindow {
   /** Wait this long before taking the baseline snapshot. */

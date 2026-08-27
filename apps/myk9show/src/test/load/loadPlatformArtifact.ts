@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { PlatformObservation } from './loadEvaluation';
 
@@ -27,6 +27,28 @@ export function loadPlatformRunFromEnv(env: NodeJS.ProcessEnv): {
     throw new Error('Platform telemetry start must be a valid Unix timestamp in milliseconds.');
   }
   return { runId, startAtMs };
+}
+
+/**
+ * Absent, truncated, corrupt and mismatched telemetry all degrade identically:
+ * the eight shards' evidence costs an operator-approved window against shared
+ * staging, so it must survive, and the evaluator already fails closed on absent
+ * telemetry. Aggregation still throws on a mismatched artifact, so this is the
+ * only place allowed to forgive one.
+ */
+export function readUsablePlatformArtifact(
+  path: string,
+  run: { runId: string; startAtMs: number },
+  onUnusable: (reason: string) => void = () => {}
+): LoadPlatformArtifact | undefined {
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as LoadPlatformArtifact;
+    assertPlatformArtifactMatchesRun(parsed, run);
+    return parsed;
+  } catch (error) {
+    onUnusable((error as Error).message);
+    return undefined;
+  }
 }
 
 export function writeLoadPlatformArtifact(

@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildLoadEvidence, writeLoadEvidence } from '../src/test/load/loadEvidence';
-import type { LoadPlatformArtifact } from '../src/test/load/loadPlatformArtifact';
+import { readUsablePlatformArtifact } from '../src/test/load/loadPlatformArtifact';
 import { evaluateLoadResult } from '../src/test/load/loadEvaluation';
 import {
   aggregateLoadShardArtifacts,
@@ -23,15 +23,19 @@ const platformPath = resolve(
   process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',
   'platform.json'
 );
-// A missing sampler artifact must not destroy the eight shards' evidence; the
-// evaluator already fails closed on absent telemetry.
-let platformArtifact: LoadPlatformArtifact | undefined;
-try {
-  platformArtifact = JSON.parse(readFileSync(platformPath, 'utf8')) as LoadPlatformArtifact;
-} catch (error) {
-  if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  console.warn(`Platform telemetry artifact was absent at ${platformPath}.`);
-}
+// Unusable telemetry must not destroy the eight shards' evidence, which costs an
+// operator-approved window against shared staging. Absent, truncated, corrupt and
+// mismatched all degrade the same way: drop it, and let the evaluator record the
+// missing telemetry as a G9 failure. Pairing is checked here rather than left to
+// aggregation, which throws by design so no caller can count a stale artifact.
+const platformArtifact = readUsablePlatformArtifact(
+  platformPath,
+  { runId: artifacts[0].runId, startAtMs: artifacts[0].startAtMs },
+  reason =>
+    console.warn(
+      `Platform telemetry at ${platformPath} is unusable (${reason}); evaluating without it.`
+    )
+);
 const aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
 const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
 const evidence = buildLoadEvidence({

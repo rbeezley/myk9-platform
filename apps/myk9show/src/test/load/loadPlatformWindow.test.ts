@@ -5,7 +5,7 @@ import {
   PLATFORM_DRAIN_GRACE_MS,
   platformSamplingWindow,
 } from './loadPlatformWindow';
-import { QUEUE_DRAIN_TIMEOUT_MS } from './loadReplicationProbe';
+import { QUEUE_DRAIN_TIMEOUT_MS, QUEUE_PROBE_DEADLINE_MS } from './loadReplicationProbe';
 
 const START = 1_800_000_000_000;
 const DURATION = 10 * 60 * 1_000;
@@ -15,7 +15,11 @@ describe('platform sampling window', () => {
     // Sessions flush for up to QUEUE_DRAIN_TIMEOUT_MS after the scenario. Stop
     // sooner and the closing snapshot misses those connections, which biases
     // toward a false PASS because the gate only fails when the cap is exceeded.
-    expect(PLATFORM_DRAIN_GRACE_MS).toBeGreaterThanOrEqual(QUEUE_DRAIN_TIMEOUT_MS);
+    // The tail is the drain budget plus three probe deadlines: one before the
+    // drain, one the drain may start just under its own deadline, and one after.
+    expect(PLATFORM_DRAIN_GRACE_MS).toBeGreaterThanOrEqual(
+      QUEUE_DRAIN_TIMEOUT_MS + 3 * QUEUE_PROBE_DEADLINE_MS
+    );
   });
 
   it('waits so the baseline snapshot lands before load starts', () => {

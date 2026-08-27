@@ -4,6 +4,8 @@ import type { Page } from '@playwright/test';
 const REPLICATION_DB_NAME = 'myK9_Replication';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 export const QUEUE_DRAIN_TIMEOUT_MS = SYNC_INTERVAL_MS + 30_000;
+/** Each individual queue probe retries against its own deadline. */
+export const QUEUE_PROBE_DEADLINE_MS = 20_000;
 const QUEUE_PROBE_TIMEOUT_MS = 2_000;
 
 export async function waitForQueueDrain(page: Page): Promise<void> {
@@ -15,7 +17,7 @@ export async function waitForQueueDrain(page: Page): Promise<void> {
 }
 
 export async function readPendingMutationCount(page: Page): Promise<number> {
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + QUEUE_PROBE_DEADLINE_MS;
   let lastError: unknown;
 
   while (Date.now() < deadline) {

@@ -29,10 +29,15 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('needs: [prepare, shard, platform, aggregate]');
     // The sampler must not build or drive a browser; that co-location is the
     // defect this job exists to remove.
-    const platformJob = workflow.slice(
-      workflow.indexOf('  platform:'),
-      workflow.indexOf('  shard:')
-    );
+    // Slice to the NEXT top-level job, not to a named one: keying off '  shard:'
+    // returns '' if the jobs are ever reordered, and both assertions below would
+    // then pass vacuously.
+    const platformStart = workflow.indexOf('\n  platform:\n');
+    expect(platformStart).toBeGreaterThan(-1);
+    const nextJob = workflow.slice(platformStart + 1).search(/\n {2}[\w-]+:\n/);
+    expect(nextJob).toBeGreaterThan(0);
+    const platformJob = workflow.slice(platformStart, platformStart + 1 + nextJob);
+    expect(platformJob).toContain('run-load-platform.ts');
     expect(platformJob).not.toContain('playwright');
     expect(platformJob).not.toContain('LOAD_TEST_START_APP');
   });

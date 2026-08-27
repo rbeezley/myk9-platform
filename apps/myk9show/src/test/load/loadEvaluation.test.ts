@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import { G9_NORMAL_SCENARIO, LOAD_SCENARIOS } from './loadScenario';
+import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 
 function activityIntervals(sessionCount: number, ringsideCount: number) {
   return Array.from({ length: sessionCount }, (_, sequence) => ({
@@ -31,7 +32,7 @@ function passingObservation(overrides: Partial<LoadObservation> = {}): LoadObser
       activityIntervals: activityIntervals(100, 55),
     },
     generator: {
-      shards: Array.from({ length: 8 }, (_, shardIndex) => ({
+      shards: Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, shardIndex) => ({
         shardIndex,
         samplingWindow: 'active-load' as const,
         logicalCpuCount: 2,

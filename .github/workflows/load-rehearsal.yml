@@ -227,9 +227,13 @@ jobs:
     timeout-minutes: 55
     strategy:
       fail-fast: false
-      max-parallel: 8
+      # Every shard must be live at the same barrier, so this cannot be throttled
+      # below the matrix size. 16 shards + the platform sampler = 17 concurrent
+      # jobs, inside the 20-job free public-repo ceiling; a shard that cannot get
+      # a runner before start_at_ms fails the run rather than skewing it.
+      max-parallel: 16
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
     steps:
       - uses: actions/checkout@v7
@@ -263,7 +267,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Run synchronized 12/13-session shard with generator telemetry
+      - name: Run synchronized 6/7-session shard with generator telemetry
         working-directory: apps/myk9show
         run: pnpm test:load:playwright
         env:
@@ -276,7 +280,7 @@ jobs:
           LOAD_TEST_START_APP: 'true'
           LOAD_TEST_APP_SERVER: preview
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
-          LOAD_TEST_SHARD_COUNT: '8'
+          LOAD_TEST_SHARD_COUNT: '16'
           LOAD_TEST_SHARD_INDEX: ${{ matrix.shard }}
           LOAD_TEST_RUN_ID: ${{ needs.prepare.outputs.run-id }}
           LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}

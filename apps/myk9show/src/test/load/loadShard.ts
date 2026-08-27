@@ -1,6 +1,12 @@
 import type { LoadSessionAssignment } from './loadAssignments';
 
-export const DISTRIBUTED_G9_SHARD_COUNT = 8;
+// 16, not 8, since 2026-08-26. At 8 shards each runner drove 12-13 Chromium
+// contexts on 4 vCPUs and sat at 83-89% host CPU p95 -- under the 90% saturation
+// flag, but not enough headroom to render that many React apps. The single-session
+// probe settles it: the same routes are interactive in 1.5-2.4s alone and time out
+// at 20-60s under G9, so the page-readiness failures were contention, not the app.
+// Halving contexts per runner buys headroom without touching the workload.
+export const DISTRIBUTED_G9_SHARD_COUNT = 16;
 const MAX_START_LATENESS_MS = 5_000;
 const SHARD_ENV_KEYS = [
   'LOAD_TEST_SHARD_COUNT',
@@ -31,9 +37,7 @@ export function loadShardFromEnv(
   const runId = env.LOAD_TEST_RUN_ID ?? '';
   const startAtMs = Number(env.LOAD_TEST_START_AT);
   if (count !== DISTRIBUTED_G9_SHARD_COUNT) {
-    throw new Error(
-      `Distributed G9 load requires exactly ${DISTRIBUTED_G9_SHARD_COUNT} shards.`
-    );
+    throw new Error(`Distributed G9 load requires exactly ${DISTRIBUTED_G9_SHARD_COUNT} shards.`);
   }
   if (!Number.isInteger(index) || index < 0 || index >= count) {
     throw new Error('Distributed load shard index is outside the configured range.');

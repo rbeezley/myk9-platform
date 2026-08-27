@@ -70,8 +70,8 @@ is now a deliberate, recorded gap rather than an accident.
 ## Free GitHub distributed rehearsal
 
 `.github/workflows/load-rehearsal.yml` is the gate-closing entry point. It is
-manual-only and uses eight standard public-repository `ubuntu-latest` runners.
-Each runner serves the checked-out frontend locally, prepares 12 or 13 isolated
+manual-only and uses sixteen standard public-repository `ubuntu-latest` runners.
+Each runner serves the checked-out frontend locally, prepares 6 or 7 isolated
 browser sessions, connects to the same remote Supabase project, and waits for
 one shared UTC start barrier. This does not require a paid runner or Vercel.
 Page p95 remains informational because it includes browser-runner scheduling.
@@ -115,10 +115,25 @@ SUPABASE_DB_PASSWORD
 ```
 
 The prepare job requires the operator to type the approved project ref and
-performs the CPU/IO telemetry preflight and canonical reseed. Eight shards then run 12 or 13 unique global
+performs the CPU/IO telemetry preflight and canonical reseed. Sixteen shards then run 6 or 7 unique global
 assignments each.
 
-A ninth, browser-free `platform` job owns the sampler. Shard 0 owned it until
+**Why sixteen and not eight.** At eight, each runner drove 12–13 Chromium
+contexts on 4 vCPUs and sat at 83–89% host CPU p95 — under the 90% saturation
+flag, but not enough headroom to render that many React apps, and every one of
+the 100 workflows failed on element-visibility timeouts. The single-session probe
+(`pnpm exec playwright test --config=playwright.readiness.config.ts`) settles
+what that was: the same routes are interactive in 1.5–2.4 s alone and time out at
+20–60 s under G9, so it was contention, not the application. Halving contexts per
+runner buys headroom without touching the workload — the same 100 sessions and 55
+ringside sessions, the same thresholds, duration, fixture and safety gates.
+
+Sixteen shards plus the sampler is 17 concurrent jobs, inside the 20-job free
+public-repository ceiling. `max-parallel` must equal the matrix size: a throttled
+shard would start after the synchronized barrier and fail the run rather than
+skew it.
+
+A separate, browser-free `platform` job owns the sampler. Shard 0 owned it until
 2026-08-26, and that was self-defeating: polling `pg_stat_activity` every two
 seconds and the Metrics API while also driving 12-13 Chromium contexts left it
 the only saturated runner in the fleet (95.3% host CPU p95 against seven healthy
@@ -139,7 +154,7 @@ Its artifact carries the run ID and start timestamp, and a pair that does not
 match is discarded — nothing else structurally ties a separate runner's output
 to this rehearsal. Unusable telemetry of any kind (absent, truncated, corrupt or
 mismatched) is recorded as the G9 failure "Required platform telemetry was
-missing" **without** discarding the eight shards' evidence, which costs an
+missing" **without** discarding the shards' evidence, which costs an
 operator-approved window to produce. Aggregation itself still throws on a
 mismatched artifact, so no other caller can count a stale one, and it rejects any
 shard that carries platform telemetry, so the old topology cannot creep back.
@@ -149,7 +164,7 @@ holds the canonical reseed until the sampler finishes its window — deliberate,
 a reseed cannot land mid-snapshot.
 
 The aggregate job
-requires all eight matching artifacts, concatenates sanitized raw timings for
+requires every matching shard artifact, concatenates sanitized raw timings for
 exact global percentiles, preserves each runner's generator evidence separately,
 evaluates G9 once, and uploads JSON/Markdown evidence. Session evidence reports
 configured, prepared/open, started, completed, failed, and peak-active workflows;

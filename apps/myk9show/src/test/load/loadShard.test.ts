@@ -1,16 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { buildSessionAssignments } from './loadAssignments';
-import { loadShardFromEnv, scheduledStartDelayMs, selectShardAssignments } from './loadShard';
+import {
+  DISTRIBUTED_G9_SHARD_COUNT,
+  loadShardFromEnv,
+  scheduledStartDelayMs,
+  selectShardAssignments,
+} from './loadShard';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
 
 describe('distributed load shards', () => {
-  it('partitions all 100 global assignments into eight unique 12/13-session shards', () => {
+  it('partitions all 100 global assignments into unique, evenly sized shards', () => {
     const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
-    const shards = Array.from({ length: 8 }, (_, index) =>
-      selectShardAssignments(assignments, { count: 8, index })
+    const shards = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
+      selectShardAssignments(assignments, { count: DISTRIBUTED_G9_SHARD_COUNT, index })
     );
 
-    expect(shards.map(shard => shard.length)).toEqual([13, 13, 13, 13, 12, 12, 12, 12]);
+    // The workload is fixed at 100 sessions; only how thinly they spread changes.
+    // Sizes must differ by at most one, or some runner carries the contention the
+    // topology exists to relieve.
+    const sizes = shards.map(shard => shard.length);
+    expect(sizes.reduce((total, size) => total + size, 0)).toBe(100);
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
     expect(
       shards
         .flat()
@@ -19,11 +29,11 @@ describe('distributed load shards', () => {
     ).toEqual(Array.from({ length: 100 }, (_, index) => index));
   });
 
-  it('requires the complete eight-shard environment and a valid shared start', () => {
+  it('requires the complete shard environment and a valid shared start', () => {
     const now = Date.parse('2026-07-28T12:00:00.000Z');
     const shard = loadShardFromEnv(
       {
-        LOAD_TEST_SHARD_COUNT: '8',
+        LOAD_TEST_SHARD_COUNT: String(DISTRIBUTED_G9_SHARD_COUNT),
         LOAD_TEST_SHARD_INDEX: '2',
         LOAD_TEST_RUN_ID: '12345-1',
         LOAD_TEST_START_AT: String(now + 60_000),
@@ -32,7 +42,7 @@ describe('distributed load shards', () => {
     );
 
     expect(shard).toEqual({
-      count: 8,
+      count: DISTRIBUTED_G9_SHARD_COUNT,
       index: 2,
       runId: '12345-1',
       startAtMs: now + 60_000,
@@ -40,7 +50,7 @@ describe('distributed load shards', () => {
     expect(() =>
       loadShardFromEnv(
         {
-          LOAD_TEST_SHARD_COUNT: '8',
+          LOAD_TEST_SHARD_COUNT: String(DISTRIBUTED_G9_SHARD_COUNT),
           LOAD_TEST_SHARD_INDEX: '2',
         },
         now
@@ -52,7 +62,7 @@ describe('distributed load shards', () => {
     const now = Date.parse('2026-07-28T12:00:00.000Z');
     const shard = loadShardFromEnv(
       {
-        LOAD_TEST_SHARD_COUNT: '8',
+        LOAD_TEST_SHARD_COUNT: String(DISTRIBUTED_G9_SHARD_COUNT),
         LOAD_TEST_SHARD_INDEX: '2',
         LOAD_TEST_RUN_ID: '12345-1',
         LOAD_TEST_START_AT: String(now - 3_000),

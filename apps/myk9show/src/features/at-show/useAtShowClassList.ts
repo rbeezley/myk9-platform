@@ -48,11 +48,18 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     queryKey: ['at-show', 'classlist', showId],
     queryFn: () => fetchAtShowClassList(showId as string),
     enabled: !!showId,
+    // Reads IndexedDB, so it must run without a network. The default "online"
+    // mode PAUSES the queryFn offline, which leaves `isLoading` false and the
+    // data undefined -- the page then renders "no classes" as a fact about the
+    // show rather than about the connection. Matches RingsideShowBoundary and
+    // the ringside EntryList, which already set this for the same reason.
+    networkMode: 'always',
   });
   const showQuery = useQuery({
     queryKey: ['at-show', 'show', showId],
     queryFn: () => replicatedShowsTable.getShowById(showId as string),
     enabled: !!showId,
+    networkMode: 'always',
   });
 
   // Keyed off the query data (not a `?? []` fallback) so the merged map keeps a

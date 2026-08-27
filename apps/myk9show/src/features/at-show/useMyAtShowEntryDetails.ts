@@ -58,6 +58,9 @@ export function useMyAtShowEntryDetails(
     queryKey: ['at-show', 'my-entries-detail', showId],
     queryFn: () => replicatedEntriesTable.getEntriesByShow(showId as string),
     enabled: !!showId && ownEntryIds.size > 0,
+    // Reads IndexedDB; the default "online" mode pauses it offline, which would
+    // show an exhibitor an empty running order at the ring. See MYK9-200.
+    networkMode: 'always',
   });
 
   const entries = useMemo(() => {

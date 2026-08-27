@@ -33,6 +33,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { hasScopedClubRole } from '@/utils/roleScopes';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { useAtShowClassList } from './useAtShowClassList';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
@@ -198,10 +199,12 @@ export const AtShowClassListPage: React.FC = () => {
   const { hasRole, user } = useAuthContext();
   const {
     assignedClassIds,
+    isUnknown: assignmentsUnknown,
     error: assignmentError,
     isLoading: assignmentsLoading,
     retry: retryAssignments,
   } = useMyAtShowJudgeAssignments(showId);
+  const isOnline = useOnlineStatus();
 
   // For a judge-only account, keep the picker focused on assigned classes.
   // This is a UI scope; route guards, RLS, and canScore remain the security
@@ -210,19 +213,29 @@ export const AtShowClassListPage: React.FC = () => {
   const isJudgeOnly =
     Boolean(user) && isJudgeOnlyAtShow({ isAnonymous: Boolean(user?.is_anonymous), hasRole });
 
+  // Narrowing the picker to "my classes" is only safe when we actually know
+  // which classes are mine. When the assignment set is unknown (offline cold
+  // boot, where roles are cached but identity is not), filtering by an empty
+  // set would hide every class and then report the show as unassigned. Fail
+  // OPEN to the full picker: showing a judge more than their ring is a mild
+  // inconvenience; showing them nothing is a dead end at ringside.
+  const scopeToAssignedClasses = isJudgeOnly && !assignmentsUnknown;
+
   // Group Novice A/B pairs into single combined entries per trial.
   const groupedByTrial = useMemo(
     () =>
       groups
         .map(g => ({
           ...g,
-          classes: isJudgeOnly ? g.classes.filter(cls => assignedClassIds.has(cls.id)) : g.classes,
+          classes: scopeToAssignedClasses
+            ? g.classes.filter(cls => assignedClassIds.has(cls.id))
+            : g.classes,
         }))
         .map(g => ({
           trial: g.trial,
           classes: sortClassesForAtShowScan(groupSectionedClasses(g.classes, organization)),
         })),
-    [assignedClassIds, groups, isJudgeOnly, organization]
+    [assignedClassIds, groups, scopeToAssignedClasses, organization]
   );
 
   // Filter before A/B grouping so a judge assigned to only one section never
@@ -255,7 +268,8 @@ export const AtShowClassListPage: React.FC = () => {
   // Staff accounts — including a secretary who also exhibits — keep the
   // class-first default.
   const isExhibitorOnly = isExhibitorOnlyForAtShow(hasRole);
-  const { ownEntryIds, isLoading: ownershipLoading } = useMyAtShowEntries(showId);
+  const { ownEntryIds, isLoading: ownershipLoading, isUnknown: ownershipUnknown } =
+    useMyAtShowEntries(showId);
   const classesById = useMemo(() => {
     const map = new Map<string, AtShowClassSummary>();
     for (const group of groups) {
@@ -331,9 +345,21 @@ export const AtShowClassListPage: React.FC = () => {
     [showId]
   );
 
+  // Only a sync that can still make progress justifies a spinner. Offline,
+  // `triggerSync` returns early and every table stays 'idle', which this helper
+  // counts as pending-first-sync -- so without the connectivity test the judge
+  // gets a skeleton that never resolves on a device that is already primed.
   const isClassDataStillSyncing =
     groups.length === 0 &&
+    isOnline &&
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
+
+  // An empty picker is only a statement about the SHOW when a read actually
+  // reached the device. Offline with nothing cached it is a statement about
+  // this device, and must be phrased as one.
+  const classDataNeverReachedDevice =
+    !isOnline &&
+    areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes']);
 
   if (isLoading || isClassDataStillSyncing || assignmentsLoading) {
     return (
@@ -363,7 +389,7 @@ export const AtShowClassListPage: React.FC = () => {
     );
   }
 
-  if (isJudgeOnly && !assignmentsLoading && assignedClassIds.size === 0) {
+  if (isJudgeOnly && !assignmentsLoading && !assignmentsUnknown && assignedClassIds.size === 0) {
     return (
       <div className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
         <AlertCircle className="h-12 w-12 text-muted-foreground" />
@@ -405,10 +431,26 @@ export const AtShowClassListPage: React.FC = () => {
   const hasClasses = groupedByTrial.some(g => g.classes.length > 0);
   if (!hasClasses) {
     return (
-      <div className="ringside-root flex flex-col items-center justify-center h-96 gap-3 px-4 text-center">
-        <p className="text-lg font-medium">No classes</p>
-        <p className="text-sm text-muted-foreground">This show has no classes yet.</p>
-        <BackToRingsideExitButton showId={showId} clubId={clubId} />
+      <div className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
+        <h1 className="text-lg font-medium">
+          {classDataNeverReachedDevice ? 'Classes not on this device yet' : 'No classes'}
+        </h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          {classDataNeverReachedDevice
+            ? "This device hasn't downloaded this show's classes, and there's no connection to fetch them now. Reconnect once and they'll be here for the rest of the day."
+            : 'This show has no classes yet.'}
+        </p>
+        {/* The branch a cold replica lands in is exactly the branch where
+            priming helps most, so the readiness action belongs here too. */}
+        <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
+        <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
+          {classDataNeverReachedDevice && (
+            <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
+              Try again
+            </Button>
+          )}
+          <BackToRingsideExitButton showId={showId} clubId={clubId} />
+        </div>
       </div>
     );
   }
@@ -417,7 +459,12 @@ export const AtShowClassListPage: React.FC = () => {
     <div className="ringside-root mx-auto max-w-2xl px-4 py-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <BackToRingsideExitButton showId={showId} clubId={clubId} />
-        {isExhibitorOnly && ownEntryIds.size > 0 && (
+        {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
+            to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
+            a cold device at the venue -- stranding them in the staff class
+            list. Offer the door whenever we have entries OR cannot rule them
+            out; the destination handles its own empty state. */}
+        {isExhibitorOnly && (ownEntryIds.size > 0 || ownershipUnknown) && (
           <Button
             type="button"
             variant="ghost"

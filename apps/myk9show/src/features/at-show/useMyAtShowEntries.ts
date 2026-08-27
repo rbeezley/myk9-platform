@@ -13,12 +13,20 @@ export interface MyAtShowEntries {
   /** Classes containing at least one of those entries. */
   ownClassIds: ReadonlySet<string>;
   isLoading: boolean;
+  /**
+   * Ownership could not be determined: no live answer this session AND no
+   * persisted snapshot. An empty `ownEntryIds` then means "unknown", not "this
+   * account has no dogs here" -- so callers must not use emptiness to decide an
+   * exhibitor has nothing to show them.
+   */
+  isUnknown: boolean;
 }
 
 const EMPTY: MyAtShowEntries = {
   ownEntryIds: new Set<string>(),
   ownClassIds: new Set<string>(),
   isLoading: false,
+  isUnknown: false,
 };
 
 /**
@@ -51,6 +59,10 @@ export function useMyAtShowEntries(showId: string | undefined): MyAtShowEntries 
       ownEntryIds: new Set(sets.entryIds),
       ownClassIds: new Set(sets.classIds),
       isLoading: !fresh && accountEntries.isLoading,
+      // No live answer and nothing cached: the empty set is ignorance, not a
+      // finding. The RPC is network-only, so this is the normal cold-offline
+      // shape rather than an error.
+      isUnknown: !fresh && sets.entryIds.length === 0 && accountEntries.data === undefined,
     };
-  }, [accountEntries.isLoading, fresh, showId, userId]);
+  }, [accountEntries.data, accountEntries.isLoading, fresh, showId, userId]);
 }

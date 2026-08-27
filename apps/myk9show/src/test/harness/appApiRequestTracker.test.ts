@@ -95,6 +95,11 @@ describe('app API request tracker', () => {
   });
 
   it('does not accept a request that finishes just before the timeout', async () => {
+    // Fake timers keep "just before the timeout" exact. On a real clock the 15ms
+    // poll can wake late, and its await continuation (a microtask) runs before the
+    // 18ms requestfinished callback -- so the tracker reports the request as still
+    // pending and the assertion fails only under full-suite CPU contention.
+    vi.useFakeTimers();
     const harness = createPageHarness();
     const tracker = watchAppApiRequests(harness.page);
     const request = createRequest('https://example.supabase.co/rest/v1/clubs?select=*');
@@ -102,10 +107,13 @@ describe('app API request tracker', () => {
     harness.emit('request', request);
     setTimeout(() => harness.emit('requestfinished', request), 18);
 
-    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+    const settlementPromise = waitForAppApiRequestsToSettle(harness.page, tracker, {
       idleMs: 15,
       timeoutMs: 20,
     });
+
+    await vi.advanceTimersByTimeAsync(30);
+    const settlement = await settlementPromise;
 
     expect(settlement).toEqual({ settled: false, pendingUrls: [] });
   });

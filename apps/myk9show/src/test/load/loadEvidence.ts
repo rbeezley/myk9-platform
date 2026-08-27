@@ -139,6 +139,7 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Scoring/API p95: ${evidence.observation.scoringWriteP95Ms} / ${evidence.observation.apiP95Ms} ms
 - Page p95 (interpret with generator evidence): ${evidence.observation.pageP95Ms} ms
 - Requests/failures/workflow failures: ${evidence.observation.requestCount} / ${evidence.observation.failedRequestCount} / ${evidence.observation.workflowFailures}
+- Requests by generator (browser/API virtual user): ${evidence.observation.browserRequestCount ?? evidence.observation.requestCount} / ${evidence.observation.virtualUserRequestCount ?? 0} — an API virtual user issues the same requests but never paints, so it cannot catch a client-side rendering regression
 - Error rate / throughput / availability: ${evidence.observation.errorRate} / ${evidence.observation.throughputRps} rps / ${evidence.observation.availabilityPercent}%
 - SQLSTATE 40001: ${evidence.observation.serializationFailures} / ${evidence.observation.scoringWriteAttempts} (${evidence.evaluation.derived.serializationFailureRate})
 - Retries attempted/succeeded/exhausted: ${evidence.observation.retryAttempts} / ${evidence.observation.retrySuccesses} / ${evidence.observation.exhaustedRetries}

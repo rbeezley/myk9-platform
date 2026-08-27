@@ -65,6 +65,10 @@ export interface LoadObservation {
     shards: readonly GeneratorShardObservation[];
   };
   requestCount: number;
+  /** Of `requestCount`, how many an API-level virtual user issued. */
+  virtualUserRequestCount?: number;
+  /** Of `requestCount`, how many came from a real browser context. */
+  browserRequestCount?: number;
   failedRequestCount: number;
   workflowFailures: number;
   workflowFailureDetails: readonly WorkflowFailureDetail[];

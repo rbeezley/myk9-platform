@@ -2,6 +2,12 @@
 
 > **Status:** Active
 
+> **2026-08-27 correction — MYK9-127:** SA-2026-07-29-01 is resolved, not an active blocked P0.
+> The corrected product rule protects actual counts only for Master and Detective. The 2026-08-19
+> applied/browser replay satisfied the wire, official-offline, reconnect, and cache-purge gates.
+> The broader all-class `num_hides` ACL is stricter than required and is not itself a security
+> exposure. Historical phase/table text below reflects the plan as written on 2026-08-01.
+
 ## Goal
 
 Work the active security backlog in exploitability order while preserving the finding lifecycle
@@ -38,10 +44,10 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
   `supabase/functions` Vitest suite passes (88 files / 875 tests); the monorepo typecheck passes
   (26/26 tasks). The issue remains **In Progress** because disposable deployed expiry/revocation
   replay and the required per-handler side-effect matrix are still outstanding.
-- **MYK9-127:** implementation is intentionally paused at the cache-isolation decision gate. The
-  existing merged wire/ACL fix does not prove that protected hide counts cannot persist in the
-  shared IndexedDB after sign-out, role change, expiry, or passcode leave. A purge/namespace choice
-  must preserve authorized offline scoring before code changes continue.
+- **MYK9-127:** resolved. PR #1667 added cache scrubbing at auth boundaries, and the 2026-08-19
+  applied/browser replay proved exhibitor denial, authorized offline scoring, reconnect persistence,
+  and post-sign-out removal of `hideCount`. Under the corrected product rule, the protected levels
+  are Master and Detective; no active P0 remains.
 - **MYK9-125:** existing authorization code is present, but closure remains blocked on the
   authorized paid-path smoke, account-wide quota proof, and role matrix. No paid invocation was
   attempted.
@@ -96,11 +102,9 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
    and role-derived recipient fanouts. Cover recovery-link, deletion, invitation, registration,
    lifecycle, targeted-message, chat, and support paths. Add fail-closed query-error behavior and
    tests for expired, boundary, inactive, null-expiry, future-expiry, and current roles.
-2. **MYK9-127:** decide the cache isolation contract before implementation. Candidate designs must
-   preserve authorized judge/steward offline scoring while ensuring a later exhibitor or passcode
-   session cannot inspect protected fields. Implement the selected purge/namespace strategy and
-   prove role leave, revocation, expiry, anonymous leave, and sign-out behavior in a shared-browser
-   offline test.
+2. **MYK9-127 (completed):** cache scrubbing preserves authorized offline scoring and removes
+   protected `hideCount` data at authentication boundaries; applied/browser proof was completed on
+   2026-08-19. The corrected protected-level scope is Master and Detective.
 3. **MYK9-125:** run the existing authorization/unit suite, then complete the authorized paid-path
    replay and account-wide quota decision. Keep the issue blocked until every acceptance criterion
    has passing evidence.
@@ -160,7 +164,8 @@ SA-2026-07-30-01, MYK9-116, and MYK9-128 remain historical coverage references.
 
 ## Decision gates
 
-- **MYK9-127:** user/product decision required if cache isolation changes offline scoring semantics.
+- **MYK9-127:** decision gate satisfied by PR #1667 and the 2026-08-19 closure replay; no active
+  cache-isolation decision remains.
 - **MYK9-147:** product role matrix required before removing steward office writes.
 - **MYK9-148:** quota identity, reset, and account-budget semantics must be explicit.
 - **MYK9-150 / MYK9-151:** accepted-risk owner or code-hardening choice required.

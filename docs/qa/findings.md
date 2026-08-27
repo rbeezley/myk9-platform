@@ -83,6 +83,35 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### SA-2026-07-29-01
+
+- **Status:** fixed (2026-08-19 — MYK9-127 closure proof; product rule corrected 2026-08-27)
+- **Lifecycle status:** resolved
+- **Classification:** score-integrity security exposure
+- **Severity:** high
+- **Canonical priority:** P0 while exposed; no active P0 after closure
+- **Source label:** High
+- **Source:** security audit
+- **Role/workflow:** exhibitor and ringside passcode sessions / pre-run scent-work class information
+- **Surface:** `public.classes.num_hides`; `get_show_class_hide_counts(show_id)`; replicated class cache and auth-boundary purge
+- **Suite category:** security/show-day
+- **Pattern:** role-rls-mismatch
+- **Detected by:** daily and nightly full security audit
+- **First seen:** 2026-07-29
+- **Last seen:** 2026-08-19
+- **Consecutive-run count:** 4 before remediation
+- **Baseline SHA:** `7c1370bef2f3b5463157f2ecb4bfaa7401cb70d7`
+- **Corrected product rule:** The actual hide count is secret from exhibitors only for **Master** and **Detective** classes. Other levels may expose the rule-defined hide count. `hides_known` and `has_blank` are not protected secrets for this finding.
+- **Evidence:** The applied database denies ordinary authenticated users direct reads and predicates on `classes.num_hides`; unauthorized calls to `get_show_class_hide_counts(show_id)` return no rows, while managers and assigned judges receive authorized counts. PR #1667 added auth-boundary cache scrubbing. The 2026-08-19 MYK9-127 closure replay synchronized an official count into IndexedDB, scored offline, reconnected and persisted the score, signed out, and confirmed the replica no longer contained `hideCount`.
+- **Expected behavior:** Exhibitors and exhibitor passcode sessions cannot obtain actual Master or Detective hide counts through direct reads, predicates, the official RPC, replicated storage, or UI state. Authorized officials retain the true count online and offline. Known-count levels may show their rule-defined count.
+- **Observed behavior:** Resolved. The current implementation withholds `num_hides` from exhibitors for every class, which is stricter than required but still protects Master and Detective. Authorized counts use the official RPC and protected cached values are scrubbed at authentication boundaries.
+- **User impact:** The original pre-run competitive advantage and shared-device cache residue are closed. The broad ACL can suppress the stored count for known-count levels, but those counts remain derivable from the public `sport_class_rules` contract; this is not an active security exposure.
+- **Confidence:** high for closure under the corrected rule; the applied behavioral fixture explicitly names Master, while Detective is protected by the same column ACL and cache path rather than a separate level-specific database branch.
+- **Fix owner:** class column ACL, show-scoped official hide-count RPC, and replicated class cache lifecycle.
+- **Existing references:** Linear MYK9-127 — https://linear.app/myk9-platform/issue/MYK9-127/authenticated-exhibitors-can-still-read-scent-work-hide-counts; MYK9-116 is the closed cold-anon half; MYK9-128 is duplicate.
+- **Closure proof:** Satisfied by the applied 42501/predicate denial, official-role RPC matrix, network-disabled scoring/reconnect replay, and post-sign-out cache inspection recorded on MYK9-127 on 2026-08-19. Reopen only if an exhibitor can obtain an actual Master or Detective count, or a protected count survives an auth/role boundary.
+- **Implementation follow-up:** Repository rule metadata still contains stale statements that Excellent can have an unknown hide count (`supabase/migrations/030_seed_sport_templates.sql`, `apps/myk9show/src/data/templates/akcScentWorkRules.ts`, and `apps/myk9show/src/types/show-template-types.ts`). Reconcile those sources with the corrected Master/Detective rule before treating them as product truth. No application-code or migration change was made in this documentation-only correction.
+
 ### QA-CLUB-TABS-038
 
 - **Status:** fixed (2026-07-18 — MYK9-62)

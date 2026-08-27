@@ -14,6 +14,15 @@ did not create live identities, alter the shared database, invoke paid services,
 Edge capabilities. Existing closure evidence is identified explicitly; no item is resolved from code
 inspection alone.
 
+> **2026-08-27 correction — SA-2026-07-29-01 / MYK9-127:** The product rule used by
+> this audit was too broad. Actual hide counts are secret from exhibitors only for Master and
+> Detective classes; other levels may expose their rule-defined count. The P0 classification remains
+> appropriate for an actual Master/Detective exposure, but the finding is no longer active or
+> blocked. PR #1667 and the 2026-08-19 MYK9-127 applied/browser closure proof deny exhibitor reads,
+> preserve authorized offline scoring, and scrub cached `hideCount` at sign-out. The implementation
+> currently withholds `num_hides` for all classes, which is stricter than required and does not
+> reopen the security finding. The canonical corrected record is `docs/qa/findings.md`.
+
 ## Summary
 
 ### Active findings

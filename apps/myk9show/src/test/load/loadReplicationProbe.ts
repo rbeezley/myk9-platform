@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 
 const REPLICATION_DB_NAME = 'myK9_Replication';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
-const QUEUE_DRAIN_TIMEOUT_MS = SYNC_INTERVAL_MS + 30_000;
+export const QUEUE_DRAIN_TIMEOUT_MS = SYNC_INTERVAL_MS + 30_000;
 const QUEUE_PROBE_TIMEOUT_MS = 2_000;
 
 export async function waitForQueueDrain(page: Page): Promise<void> {

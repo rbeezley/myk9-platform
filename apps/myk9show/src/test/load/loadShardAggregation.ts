@@ -67,13 +67,18 @@ export function writeLoadShardArtifact(
 export function aggregateLoadShardArtifacts(
   artifacts: readonly LoadShardArtifact[],
   scenario: LoadScenario,
-  platformArtifact: LoadPlatformArtifact
+  // Undefined when the sampler job produced nothing. Evidence for eight valid
+  // shards is expensive and one-shot against shared staging, so a missing
+  // sampler degrades to a recorded FAIL rather than destroying the whole run.
+  platformArtifact: LoadPlatformArtifact | undefined
 ): { target: LoadEvidenceTarget; observation: LoadObservation } {
   validateArtifacts(artifacts, scenario);
-  assertPlatformArtifactMatchesRun(platformArtifact, {
-    runId: artifacts[0].runId,
-    startAtMs: artifacts[0].startAtMs,
-  });
+  if (platformArtifact) {
+    assertPlatformArtifactMatchesRun(platformArtifact, {
+      runId: artifacts[0].runId,
+      startAtMs: artifacts[0].startAtMs,
+    });
+  }
   const observations = artifacts.map(artifact => artifact.observation);
   const requestCount = sum(observations, observation => observation.requestCount);
   const failedRequestCount = sum(observations, observation => observation.failedRequestCount);
@@ -89,7 +94,7 @@ export function aggregateLoadShardArtifacts(
     api: artifacts.flatMap(artifact => [...artifact.samples.apiDurationsMs]),
     page: artifacts.flatMap(artifact => [...artifact.samples.pageDurationsMs]),
   };
-  const platform = platformArtifact.platform;
+  const platform = platformArtifact?.platform;
   const activityIntervals = observations.flatMap(observation => [
     ...observation.sessionLifecycle.activityIntervals,
   ]);

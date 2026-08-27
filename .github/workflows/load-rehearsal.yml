@@ -203,8 +203,6 @@ jobs:
         run: pnpm exec tsx scripts/run-load-platform.ts
         env:
           LOAD_TEST_SUPABASE_PROJECT_REF: sojmvhhwsjxmfistvzbe
-          LOAD_TEST_SHARD_COUNT: '8'
-          LOAD_TEST_SHARD_INDEX: '0'
           LOAD_TEST_RUN_ID: ${{ needs.prepare.outputs.run-id }}
           LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -328,7 +326,10 @@ jobs:
           path: apps/myk9show/test-results/load-shards
           merge-multiple: true
 
+      # Tolerated so eight valid shards still produce evidence when the sampler
+      # job died; aggregation records the missing telemetry as a G9 failure.
       - name: Download platform observation
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           name: load-platform

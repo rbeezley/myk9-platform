@@ -249,6 +249,22 @@ describe('distributed load aggregation', () => {
     ).toThrow();
   });
 
+  it('still aggregates eight valid shards when the sampler produced nothing', () => {
+    // Eight shards of evidence are expensive and one-shot against shared
+    // staging; a dead sampler must degrade to a recorded FAIL, not destroy them.
+    const result = aggregateLoadShardArtifacts(
+      Array.from({ length: 8 }, (_, index) => shardArtifact(index)),
+      G9_NORMAL_SCENARIO,
+      undefined
+    );
+
+    expect(result.observation.requestCount).toBe(72_000);
+    expect(result.observation.platform).toBeUndefined();
+    const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, result.observation);
+    expect(evaluation.passed).toBe(false);
+    expect(evaluation.failures).toContain('Required platform telemetry was missing.');
+  });
+
   it('rejects a shard that sampled the platform itself', () => {
     // Shard 0 owned the sampler until 2026-08-26; that extra work saturated it
     // (95.3% host CPU p95 against healthy siblings) and invalidated attribution.

@@ -9,10 +9,29 @@ export interface LoadPlatformArtifact {
   platform: PlatformObservation;
 }
 
+/**
+ * The sampler is not a shard, so it must not borrow `loadShardFromEnv`: that
+ * throws a shard-worded "missed the synchronized start" before this job's own
+ * fail-closed checks can run, sending an operator looking for a missing shard.
+ */
+export function loadPlatformRunFromEnv(env: NodeJS.ProcessEnv): {
+  runId: string;
+  startAtMs: number;
+} {
+  const runId = env.LOAD_TEST_RUN_ID ?? '';
+  const startAtMs = Number(env.LOAD_TEST_START_AT);
+  if (!/^[A-Za-z0-9._-]{1,100}$/.test(runId)) {
+    throw new Error('Platform telemetry run ID is missing or invalid.');
+  }
+  if (!Number.isSafeInteger(startAtMs) || startAtMs <= 0) {
+    throw new Error('Platform telemetry start must be a valid Unix timestamp in milliseconds.');
+  }
+  return { runId, startAtMs };
+}
+
 export function writeLoadPlatformArtifact(
   artifact: LoadPlatformArtifact,
-  directory = process.env.LOAD_TEST_PLATFORM_OUTPUT_DIR ??
-    resolve(process.cwd(), 'test-results/load-platform')
+  directory = resolve(process.env.LOAD_TEST_PLATFORM_OUTPUT_DIR ?? 'test-results/load-platform')
 ): string {
   mkdirSync(directory, { recursive: true });
   const outputPath = resolve(directory, 'platform.json');

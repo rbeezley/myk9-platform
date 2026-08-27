@@ -23,7 +23,15 @@ const platformPath = resolve(
   process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',
   'platform.json'
 );
-const platformArtifact = JSON.parse(readFileSync(platformPath, 'utf8')) as LoadPlatformArtifact;
+// A missing sampler artifact must not destroy the eight shards' evidence; the
+// evaluator already fails closed on absent telemetry.
+let platformArtifact: LoadPlatformArtifact | undefined;
+try {
+  platformArtifact = JSON.parse(readFileSync(platformPath, 'utf8')) as LoadPlatformArtifact;
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  console.warn(`Platform telemetry artifact was absent at ${platformPath}.`);
+}
 const aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
 const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
 const evidence = buildLoadEvidence({

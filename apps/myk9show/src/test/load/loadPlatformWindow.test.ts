@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assertBaselineBeforeStart,
   PLATFORM_BASELINE_LEAD_MS,
   PLATFORM_DRAIN_GRACE_MS,
   platformSamplingWindow,
 } from './loadPlatformWindow';
+import { QUEUE_DRAIN_TIMEOUT_MS } from './loadReplicationProbe';
 
 const START = 1_800_000_000_000;
 const DURATION = 10 * 60 * 1_000;
 
 describe('platform sampling window', () => {
+  it('samples at least as long as sessions may still be draining', () => {
+    // Sessions flush for up to QUEUE_DRAIN_TIMEOUT_MS after the scenario. Stop
+    // sooner and the closing snapshot misses those connections, which biases
+    // toward a false PASS because the gate only fails when the cap is exceeded.
+    expect(PLATFORM_DRAIN_GRACE_MS).toBeGreaterThanOrEqual(QUEUE_DRAIN_TIMEOUT_MS);
+  });
+
   it('waits so the baseline snapshot lands before load starts', () => {
     const window = platformSamplingWindow({
       startAtMs: START,
@@ -56,6 +65,23 @@ describe('platform sampling window', () => {
         nowMs: START + DURATION + PLATFORM_DRAIN_GRACE_MS,
       })
     ).toThrow('missed the synchronized load window');
+  });
+
+  it('accepts a baseline that completed before the barrier', () => {
+    expect(() =>
+      assertBaselineBeforeStart({ startAtMs: START, baselineCompletedAtMs: START - 1 })
+    ).not.toThrow();
+  });
+
+  it.each([
+    ['exactly at the barrier', START],
+    ['after the barrier', START + 1],
+  ])('rejects a baseline acquired %s', (_name, baselineCompletedAtMs) => {
+    // Would still pair with the rehearsal and read as complete telemetry, while
+    // every statement delta silently undercounts the load.
+    expect(() => assertBaselineBeforeStart({ startAtMs: START, baselineCompletedAtMs })).toThrow(
+      'would undercount the rehearsal'
+    );
   });
 
   it.each([0, -1, 1.5, Number.NaN])('rejects invalid start %p', startAtMs => {

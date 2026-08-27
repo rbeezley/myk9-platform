@@ -6,36 +6,41 @@ import {
   scheduledStartDelayMs,
   selectShardAssignments,
 } from './loadShard';
-import { G9_NORMAL_SCENARIO, scenarioRingsideSessionCount } from './loadScenario';
+import {
+  G9_NORMAL_SCENARIO,
+  scenarioRingsideSessionCount,
+  scenarioSessionCount,
+} from './loadScenario';
 
 describe('distributed load shards', () => {
-  it('partitions all 100 global assignments into unique, evenly sized shards', () => {
+  it('partitions every global assignment into unique, evenly sized shards', () => {
+    const totalSessions = scenarioSessionCount(G9_NORMAL_SCENARIO);
     const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
     const shards = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
       selectShardAssignments(assignments, { count: DISTRIBUTED_G9_SHARD_COUNT, index })
     );
 
-    // The workload is fixed at 100 sessions; only how thinly they spread changes.
-    // Sizes must differ by at most one, or some runner carries the contention the
-    // topology exists to relieve.
+    // Derived from the scenario rather than fixed at 100: the workload is defined
+    // by rings and attendance now, and a hardcoded total would need editing every
+    // time either changes. Sizes must differ by at most one, or some runner
+    // carries the contention the topology exists to relieve.
     const sizes = shards.map(shard => shard.length);
-    expect(sizes.reduce((total, size) => total + size, 0)).toBe(100);
+    expect(sizes.reduce((total, size) => total + size, 0)).toBe(totalSessions);
     expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
 
-    // The gate requires >= 50 ringside sessions (loadScenario targets), so a
-    // partition that dropped or duplicated any of them would weaken the workload
-    // the issue's non-goals forbid weakening -- while still passing every count
-    // assertion above.
+    // Scoring must be exactly one session per ring. A partition that dropped or
+    // duplicated any of them would leave a ring unjudged or put two scorers on a
+    // class row, while still passing every count assertion above.
     const ringside = shards.flat().filter(assignment => assignment.kind === 'ringside-scoring');
     expect(ringside).toHaveLength(scenarioRingsideSessionCount(G9_NORMAL_SCENARIO));
     expect(new Set(ringside.map(assignment => assignment.sequence)).size).toBe(ringside.length);
-    expect(ringside.length).toBeGreaterThanOrEqual(G9_NORMAL_SCENARIO.targets.ringsideSessionsMin);
+    expect(ringside.length).toBe(G9_NORMAL_SCENARIO.targets.ringsideSessionsExact);
     expect(
       shards
         .flat()
         .map(assignment => assignment.sequence)
         .sort((a, b) => a - b)
-    ).toEqual(Array.from({ length: 100 }, (_, index) => index));
+    ).toEqual(Array.from({ length: totalSessions }, (_, index) => index));
   });
 
   it('requires the complete shard environment and a valid shared start', () => {

@@ -131,9 +131,10 @@ export class LoadSessionLifecycle {
   }
 }
 
-export function calculatePeakActiveWorkflows(
-  intervals: readonly LoadSessionActivityInterval[]
-): { total: number; ringside: number } {
+export function calculatePeakActiveWorkflows(intervals: readonly LoadSessionActivityInterval[]): {
+  total: number;
+  ringside: number;
+} {
   const events = intervals
     .flatMap(interval => [
       { atMs: interval.startedAtMs, totalDelta: 1, ringsideDelta: interval.ringside ? 1 : 0 },

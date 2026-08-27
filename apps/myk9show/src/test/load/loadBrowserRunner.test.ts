@@ -2,36 +2,13 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { LoadSessionAssignment } from './loadAssignments';
+import { LOAD_SHOWS } from './loadFixture';
 import {
   assertAllSessionsOpenAtStart,
   closeBrowserContexts,
   connectedSessionHoldMs,
   mapWithConcurrency,
-  scoringEntryNumber,
 } from './loadBrowserRunner';
-
-describe('scoringEntryNumber', () => {
-  it('creates one bounded five-session overlap while keeping other scores disjoint', () => {
-    const firstTargets = Array.from({ length: 55 }, (_, sessionIndex) =>
-      scoringEntryNumber(sessionIndex, 0)
-    );
-
-    expect(firstTargets.filter(entryNumber => entryNumber === 401)).toHaveLength(5);
-    expect(new Set(firstTargets).size).toBe(51);
-    expect(firstTargets.slice(49)).toEqual([394, 401, 401, 401, 401, 401]);
-    expect(scoringEntryNumber(51, 1)).toBe(410);
-    expect(scoringEntryNumber(52, 1)).toBe(418);
-    expect(firstTargets.slice(0, 8).map(entryNumber => (entryNumber - 1) % 8)).toEqual([
-      0, 1, 2, 3, 4, 5, 6, 7,
-    ]);
-    for (let sessionIndex = 0; sessionIndex < 55; sessionIndex += 1) {
-      const sessionTargets = Array.from({ length: 8 }, (_, classIndex) =>
-        scoringEntryNumber(sessionIndex, classIndex)
-      );
-      expect(new Set(sessionTargets).size).toBe(8);
-    }
-  });
-});
 
 describe('connectedSessionHoldMs', () => {
   it('keeps a completed non-scoring device mounted until the scenario deadline', () => {
@@ -52,6 +29,15 @@ describe('prepared session readiness', () => {
     sequence: 0,
     index: 0,
     kind: 'ringside-scoring',
+    role: 'secretary',
+    target: {
+      showIndex: 0,
+      showId: LOAD_SHOWS[0].showId,
+      trialId: LOAD_SHOWS[0].trials[0].trialId,
+      classId: LOAD_SHOWS[0].classIds[0],
+      ringIndex: 0,
+      entryNumber: 1,
+    },
   };
 
   it('returns assignments whose browser pages are still open at synchronized start', () => {

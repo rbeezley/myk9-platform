@@ -319,7 +319,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Run synchronized 6/7-session shard with generator telemetry
+      - name: Run synchronized 22/23-session shard with generator telemetry
         working-directory: apps/myk9show
         run: pnpm test:load:playwright
         env:

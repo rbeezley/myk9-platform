@@ -46,10 +46,7 @@ describe('load trial packet cleanup', () => {
       rowsRemoved: 3,
     });
     expect(storageFrom).toHaveBeenCalledWith('trial-packets');
-    expect(remove).toHaveBeenCalledWith([
-      `${SHOW_ID}/packet-a.pdf`,
-      `${SHOW_ID}/packet-b.pdf`,
-    ]);
+    expect(remove).toHaveBeenCalledWith([`${SHOW_ID}/packet-a.pdf`, `${SHOW_ID}/packet-b.pdf`]);
     expect(deleteIn).toHaveBeenCalledWith('id', ['snapshot-a1', 'snapshot-a2', 'snapshot-b1']);
     expect(remove.mock.invocationCallOrder[0]).toBeLessThan(deleteIn.mock.invocationCallOrder[0]!);
   });

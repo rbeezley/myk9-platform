@@ -121,11 +121,16 @@ export function evaluateLoadResult(
       `Concurrent sessions ${observation.concurrentSessions} did not match ${expectedSessions}.`
     );
   }
+  // Equality, not a floor. One scorer per ring means "at least N" is the wrong
+  // shape: more ringside sessions than rings would put two scorers on a class
+  // row, and fewer would leave a ring unjudged. Both are defects.
   if (
-    observation.ringsideSessions < scenario.targets.ringsideSessionsMin ||
-    observation.ringsideSessions < expectedRingsideSessions
+    observation.ringsideSessions !== scenario.targets.ringsideSessionsExact ||
+    observation.ringsideSessions !== expectedRingsideSessions
   ) {
-    failures.push('Ringside-session requirement was not met.');
+    failures.push(
+      `Ringside sessions ${observation.ringsideSessions} did not equal the ring count ${scenario.targets.ringsideSessionsExact}.`
+    );
   }
   if (
     !lifecycle ||

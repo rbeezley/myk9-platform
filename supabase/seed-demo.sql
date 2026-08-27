@@ -182,6 +182,10 @@ WHERE show_id >= 'a1090000-0000-0000-0010-000000000000'::uuid
 DELETE FROM public.shows
 WHERE id >= 'a1090000-0000-0000-0010-000000000000'::uuid
   AND id <  'a1090000-0000-0000-0011-000000000000'::uuid;
+-- After the shows: clubs are the shows' parent, so the FK blocks the reverse order.
+DELETE FROM public.clubs
+WHERE id >= 'a1090000-0000-0000-0013-000000000000'::uuid
+  AND id <  'a1090000-0000-0000-0014-000000000000'::uuid;
 -- entries ...059 / ...060 are the GAP FIXTURE #4 withdrawn/refunded rows (added
 -- below: ...059 owned by beezley, ...060 owned by e2e-exhibitor for the P1-04
 -- exhibitor-surface walk). The refund-column guard fires only on INSERT/UPDATE,
@@ -1284,6 +1288,23 @@ FROM generate_series(1, 63) AS load_armbands(dog_number);
 --     the twelve-digit ordinal it always used. Mirrors
 --     apps/myk9show/src/test/load/loadFixture.ts — the two must agree.
 -- ---------------------------------------------------------------------------
+
+-- Each additional load show belongs to its OWN club. This is not cosmetic:
+-- `manageable_show_ids()` has a club-scoped arm (`is_trial_secretary(s.club_id)`),
+-- so shows sharing a club are all manageable by that club's secretary no matter
+-- what show-scoped grants exist. Per-show credential scoping is impossible on a
+-- shared club — and concurrent shows are run by different clubs anyway.
+INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version)
+SELECT
+  format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
+  format('MYK9-109 Load Club %s', s),
+  'Tulsa', 'Oklahoma',
+  'testadmin@myk9t.com',
+  format('Owns load show %s. Separate club so a per-show secretary can be scoped to one show.', s),
+  format('LOAD-%s', lpad(s::text, 3, '0')),
+  1
+FROM generate_series(1, 3) AS load_clubs(s);
+
 INSERT INTO public.shows (
   id, name, organization, description,
   start_date, end_date, entry_open_date, entry_close_date,
@@ -1308,7 +1329,7 @@ SELECT
   'Tulsa', 'Oklahoma',
   36.15, -95.99,
   'published',
-  'dededede-0000-0000-0000-000000000001',
+  format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
   30.00, 35.00,
   true, true,
   100, 125,
@@ -1420,6 +1441,50 @@ SELECT
   false,
   1
 FROM multi_show_entries;
+
+-- Per-show secretaries: one club-level secretary grant on each load club, so a
+-- staff session for show N can manage show N and nothing else. `manageable_show_ids()`
+-- resolves through the club arm, which is why each show needed its own club above.
+--
+-- CONDITIONAL BY DESIGN. These accounts are created by
+-- apps/myk9show/scripts/setup-e2e-test-users.ts through the Supabase admin API,
+-- not by this seed. Requiring them in the preflight would break every reseed until
+-- someone provisions them. Instead the grant is skipped when the account is absent,
+-- and the rehearsal harness fails closed before load if per-show scoping cannot be
+-- proven -- so a missing credential costs a refused dispatch, never a silent run
+-- where every staff session sees all four shows.
+UPDATE public.user_roles ur
+SET is_active = true, auth_user_id = p.auth_user_id, expires_at = NULL
+FROM public.people p, public.roles r, generate_series(1, 3) AS load_secretaries(s)
+WHERE ur.user_id = p.id
+  AND ur.role_id = r.id
+  AND ur.club_id = format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid
+  AND ur.show_id IS NULL
+  AND r.name = 'secretary'
+  AND lower(p.email) = format('load-secretary-%s@myk9t.com', s)
+  AND (ur.is_active IS DISTINCT FROM true
+       OR ur.auth_user_id IS DISTINCT FROM p.auth_user_id
+       OR ur.expires_at IS NOT NULL);
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
+SELECT
+  p.id,
+  r.id,
+  format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
+  true,
+  p.auth_user_id,
+  '2026-06-17 00:00:00+00'
+FROM generate_series(1, 3) AS load_secretaries(s)
+JOIN public.people p ON lower(p.email) = format('load-secretary-%s@myk9t.com', s)
+CROSS JOIN public.roles r
+WHERE r.name = 'secretary'
+  AND p.auth_user_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = p.id
+      AND ur.role_id = r.id
+      AND ur.club_id = format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid
+      AND ur.show_id IS NULL);
 
 INSERT INTO public.armbands (
   id, show_id, dog_id, armband_number, is_available, assigned_at, version

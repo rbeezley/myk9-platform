@@ -91,6 +91,7 @@ describe('multi-show seed agrees with the fixture', () => {
       ['a1090000-0000-0000-0010-', 'a1090000-0000-0000-0011-'], // shows
       ['a1090000-0000-0000-0011-', 'a1090000-0000-0000-0012-'], // trials
       ['a1090000-0000-0000-0012-', 'a1090000-0000-0000-0013-'], // classes
+      ['a1090000-0000-0000-0013-', 'a1090000-0000-0000-0014-'], // clubs
     ];
     for (const [lower, upper] of ranges) {
       // Each range must be both written by the insert block and removed by cleanup,
@@ -114,6 +115,39 @@ describe('multi-show seed agrees with the fixture', () => {
       expect(entry.entryId.startsWith('a1090000-0000-0000-0002-')).toBe(true);
       expect(entry.dogId.startsWith('a1090000-0000-0000-0001-')).toBe(true);
     }
+  });
+
+  it('gives each additional show its own club', () => {
+    // `manageable_show_ids()` resolves through a CLUB-scoped arm
+    // (`is_trial_secretary(s.club_id)`), so shows sharing a club are all
+    // manageable by that club's secretary regardless of show-scoped grants.
+    // Per-show credential scoping is impossible on a shared club.
+    expect(multiShowBlock).toContain('INSERT INTO public.clubs');
+    expect(multiShowBlock).toContain(
+      "format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,\n  30.00"
+    );
+  });
+
+  it('deletes clubs after their shows, never before', () => {
+    const showDelete = seed.indexOf(
+      "DELETE FROM public.shows\nWHERE id >= 'a1090000-0000-0000-0010-000000000000'"
+    );
+    const clubDelete = seed.indexOf(
+      "DELETE FROM public.clubs\nWHERE id >= 'a1090000-0000-0000-0013-000000000000'"
+    );
+    expect(showDelete).toBeGreaterThan(-1);
+    expect(clubDelete).toBeGreaterThan(showDelete);
+  });
+
+  it('grants each per-show secretary conditionally, never breaking a reseed', () => {
+    // These accounts come from the admin API, not this seed. An unconditional
+    // grant would fail every reseed until someone provisions them; the harness
+    // fails closed at dispatch instead.
+    expect(seed).toContain("format('load-secretary-%s@myk9t.com', s)");
+    expect(seed).toContain('p.auth_user_id IS NOT NULL');
+    // Must NOT appear in the preflight that raises on a missing account.
+    const preflight = seed.slice(0, seed.indexOf('-- 0. Idempotency'));
+    expect(preflight).not.toContain('load-secretary-');
   });
 
   it('deletes armbands before dogs, so the dog delete cannot be blocked', () => {

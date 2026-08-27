@@ -128,10 +128,17 @@ what that was: the same routes are interactive in 1.5–2.4 s alone and time out
 runner buys headroom without touching the workload — the same 100 sessions and 55
 ringside sessions, the same thresholds, duration, fixture and safety gates.
 
-Sixteen shards plus the sampler is 17 concurrent jobs, inside the 20-job free
-public-repository ceiling. `max-parallel` must equal the matrix size: a throttled
-shard would start after the synchronized barrier and fail the run rather than
-skew it.
+Sixteen shards plus the sampler is 17 concurrent jobs against a 20-job Free-plan
+ceiling that is **account-wide across every repository**, not per-workflow or
+per-run — three spare slots, where eight shards had eleven. `support-triage.yml`
+alone runs every 15 minutes, and any push to `main` starts `ci.yml` (~14 jobs).
+A shard that cannot get a runner starts after the barrier, throws, and burns the
+whole approved reseed-and-load window, so the prepare job measures real free
+capacity and refuses the window **before** the reseed. Quiesce other workflows
+and avoid pushing to `main` while a rehearsal is in flight.
+
+`max-parallel` must equal the matrix size: a throttled shard would start after
+the synchronized barrier and fail the run rather than skew it.
 
 A separate, browser-free `platform` job owns the sampler. Shard 0 owned it until
 2026-08-26, and that was self-defeating: polling `pg_stat_activity` every two
@@ -200,8 +207,43 @@ It passes only when all of these are present and passing:
 - CPU, IO, `pg_stat_activity` peak connections versus the verified cap, and
   `pg_stat_statements` baseline-to-final deltas are supplied.
 
-Peak (250 sessions) and Stress (500 sessions) definitions are informational and
-cannot close G9.
+### The scenario ladder, and why only the first rung runs here
+
+| Scenario | Sessions | Ringside | Gate          | Jobs needed (shards + sampler) |
+| -------- | -------- | -------- | ------------- | ------------------------------ |
+| `normal` | 100      | 55       | **G9**        | 16 + 1 = **17** — fits         |
+| `peak`   | 250      | 125      | informational | 40 + 1 = **41** — does not fit |
+| `stress` | 500      | 250      | informational | 80 + 1 = **81** — does not fit |
+
+Peak and Stress are defined, informational, and **cannot run on free runners** —
+this is arithmetic, not policy. At the 6–7 sessions per runner the topology now
+requires, 100 sessions needs 17 concurrent jobs against a **20-job ceiling that
+is account-wide, not per-workflow**. Peak needs twice that ceiling and Stress
+four times it. Packing sessions back to 12–13 per runner to fit is
+not available either: that density is precisely what produced the 100/100
+page-readiness timeouts.
+
+So running Peak means paid runners, or a generator that is not a browser.
+
+**Before reaching for either, get a passing G9 at 100.** Platform telemetry has
+failed to capture on every run to date, so there are currently no trustworthy
+utilization figures to extrapolate a ceiling from — one clean run supplies them,
+and arithmetic on real numbers is cheaper than climbing the ladder a rehearsal at
+a time. What evidence exists points the same way: at 100 sessions Supabase showed
+**4% User CPU, 3% system, 0.3% of disk IOPS and 32 of 60 connections**. The
+binding constraint has been the generator on every run so far, never the
+database.
+
+**Do not rebuild a request-level generator to get around the runner ceiling.**
+The fake `/api/*`, k6, Artillery and direct-database runners were retired for
+exactly one reason — they stopped representing the application — and a synthetic
+generator that outruns the browsers would measure something other than what
+users experience. That trade was already made once.
+
+For calibration: 100 concurrent sessions against a 514-entry show is roughly one
+live session per five entries, counting secretaries, stewards, judges and the
+fraction of exhibitors actually looking at a phone at any given moment. The gate
+number is already generous relative to a real show day.
 
 ## Target safety
 

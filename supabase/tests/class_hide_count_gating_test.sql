@@ -9,9 +9,10 @@
 -- All fixtures roll back.
 --
 -- The point of the fix is narrow: a competitor must not learn a JUDGE-SET hide
--- count before running. So the test asserts both halves — the secret is denied,
--- AND the non-secret columns an exhibitor legitimately needs are still readable.
--- A fix that simply broke class reads would pass a denial-only test.
+-- count before running, but may receive a fixed count already published by the
+-- matching registry rule. So the test asserts the raw-column/RPC denial, the
+-- corrected AKC rule matrix, non-AKC preservation, and official access. A fix
+-- that simply broke class reads would pass a denial-only test.
 
 BEGIN;
 
@@ -20,14 +21,22 @@ VALUES ('00000000-0000-0000-0000-0000000e0c01', 'Hide Gating Test Club');
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
                           accept_check_payments, accept_cash_payments)
-VALUES ('00000000-0000-0000-0000-0000000e0510', 'Hide Gating Test Show', 'AKC',
-        current_date + 20, current_date + 21, '00000000-0000-0000-0000-0000000e0c01',
-        'published', true, true);
+VALUES
+  ('00000000-0000-0000-0000-0000000e0510', 'AKC Hide Gating Test Show', 'AKC',
+   current_date + 20, current_date + 21, '00000000-0000-0000-0000-0000000e0c01',
+   'published', true, true),
+  ('00000000-0000-0000-0000-0000000e0511', 'UKC Hide Gating Test Show', 'UKC',
+   current_date + 20, current_date + 21, '00000000-0000-0000-0000-0000000e0c01',
+   'published', true, true);
 
 INSERT INTO public.trials (id, show_id, name, date, registry_id)
-VALUES ('00000000-0000-0000-0000-0000000e0520',
-        '00000000-0000-0000-0000-0000000e0510', 'Hide Gating Trial',
-        current_date + 20, 'AKC');
+VALUES
+  ('00000000-0000-0000-0000-0000000e0520',
+   '00000000-0000-0000-0000-0000000e0510', 'AKC Hide Gating Trial',
+   current_date + 20, 'AKC'),
+  ('00000000-0000-0000-0000-0000000e0521',
+   '00000000-0000-0000-0000-0000000e0511', 'UKC Hide Gating Trial',
+   current_date + 21, 'UKC');
 
 -- A judge-set class: the rule gives a band, the judge picked 3. This is the
 -- value that must not leak.
@@ -41,6 +50,32 @@ INSERT INTO public.classes (id, trial_id, name, level, element, status, num_hide
 VALUES ('00000000-0000-0000-0000-0000000e0531',
         '00000000-0000-0000-0000-0000000e0520',
         'Exterior Master', 'Master', 'Exterior', 'upcoming', 4, false);
+
+-- Known AKC totals: both are public in sport_class_rules and safe to derive for
+-- an already-visible class row, while the raw mixed-sensitivity column remains
+-- unreadable.
+INSERT INTO public.classes (id, trial_id, name, level, element, status, num_hides, hides_known)
+VALUES
+  ('00000000-0000-0000-0000-0000000e0532',
+   '00000000-0000-0000-0000-0000000e0520',
+   'Interior Excellent', 'Excellent', 'Interior', 'upcoming', 3, true),
+  ('00000000-0000-0000-0000-0000000e0533',
+   '00000000-0000-0000-0000-0000000e0520',
+   'Handler Discrimination Master', 'Master', 'Handler Discrimination', 'upcoming', 3, true);
+
+-- Detective is standalone and protected just like the variable Odor Search
+-- Master classes.
+INSERT INTO public.classes (id, trial_id, name, level, element, status, num_hides, hides_known)
+VALUES ('00000000-0000-0000-0000-0000000e0534',
+        '00000000-0000-0000-0000-0000000e0520',
+        'Detective', NULL, 'Detective', 'upcoming', 7, false);
+
+-- Non-AKC control: UKC Superior remains governed by UKC's own unknown band.
+INSERT INTO public.classes (id, trial_id, name, level, element, section, status,
+                            num_hides, hides_known)
+VALUES ('00000000-0000-0000-0000-0000000e0535',
+        '00000000-0000-0000-0000-0000000e0521',
+        'Container Superior A', 'Superior', 'Container', 'A', 'upcoming', 2, false);
 
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES
@@ -80,9 +115,12 @@ DECLARE
   manager    CONSTANT uuid := '00000000-0000-0000-0000-0000000e0002';
   judge      CONSTANT uuid := '00000000-0000-0000-0000-0000000e0003';
   show_id    CONSTANT uuid := '00000000-0000-0000-0000-0000000e0510';
+  ukc_show_id CONSTANT uuid := '00000000-0000-0000-0000-0000000e0511';
   buried     CONSTANT uuid := '00000000-0000-0000-0000-0000000e0530';
   n          bigint;
   v_count    integer;
+  v_min      integer;
+  v_max      integer;
   v_name     text;
   v_known    boolean;
 BEGIN
@@ -122,6 +160,91 @@ BEGIN
     RAISE EXCEPTION 'FAIL exhibitor received % hide-count rows from the official path', n;
   END IF;
 
+  SELECT count(*) INTO n FROM public.get_show_class_hide_counts(ukc_show_id);
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL exhibitor received % UKC hide-count rows from the official path', n;
+  END IF;
+
+  -- AKC Interior Excellent: three total hides are known; only their two-area
+  -- distribution is undisclosed.
+  SELECT r.hide_count_fixed, r.hide_count_min, r.hide_count_max, r.hides_known
+    INTO v_count, v_min, v_max, v_known
+    FROM public.sport_class_rules r
+    JOIN public.sport_templates st ON st.id = r.sport_template_id
+   WHERE st.organization = 'AKC'
+     AND st.sport_code = 'akc-scent-work'
+     AND r.element = 'Interior'
+     AND r.level = 'Excellent'
+     AND r.section IS NULL;
+  IF v_count IS DISTINCT FROM 3 OR v_min IS NOT NULL OR v_max IS NOT NULL
+     OR v_known IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL AKC Interior Excellent rule fixed=%, min=%, max=%, known=%',
+      v_count, v_min, v_max, v_known;
+  END IF;
+
+  -- AKC Handler Discrimination Master is fixed at three, despite sharing the
+  -- Master level label with protected Odor Search classes.
+  SELECT r.hide_count_fixed, r.hides_known
+    INTO v_count, v_known
+    FROM public.sport_class_rules r
+    JOIN public.sport_templates st ON st.id = r.sport_template_id
+   WHERE st.organization = 'AKC'
+     AND st.sport_code = 'akc-scent-work'
+     AND r.element = 'Handler Discrimination'
+     AND r.level = 'Master'
+     AND r.section IS NULL;
+  IF v_count IS DISTINCT FROM 3 OR v_known IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL AKC HD Master rule fixed=%, known=%', v_count, v_known;
+  END IF;
+
+  -- AKC Buried Master and Detective remain unknown bands; no public fixed value
+  -- exists for the replication resolver to attach.
+  SELECT r.hide_count_fixed, r.hide_count_min, r.hide_count_max, r.hides_known
+    INTO v_count, v_min, v_max, v_known
+    FROM public.sport_class_rules r
+    JOIN public.sport_templates st ON st.id = r.sport_template_id
+   WHERE st.organization = 'AKC'
+     AND st.sport_code = 'akc-scent-work'
+     AND r.element = 'Buried'
+     AND r.level = 'Master'
+     AND r.section IS NULL;
+  IF v_count IS NOT NULL OR v_min IS DISTINCT FROM 1 OR v_max IS DISTINCT FROM 4
+     OR v_known IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL AKC Buried Master rule fixed=%, min=%, max=%, known=%',
+      v_count, v_min, v_max, v_known;
+  END IF;
+
+  SELECT r.hide_count_fixed, r.hide_count_min, r.hide_count_max, r.hides_known
+    INTO v_count, v_min, v_max, v_known
+    FROM public.sport_class_rules r
+    JOIN public.sport_templates st ON st.id = r.sport_template_id
+   WHERE st.organization = 'AKC'
+     AND st.sport_code = 'akc-scent-work'
+     AND r.element = 'Detective'
+     AND r.level IS NULL
+     AND r.section IS NULL;
+  IF v_count IS NOT NULL OR v_min IS DISTINCT FROM 5 OR v_max IS DISTINCT FROM 10
+     OR v_known IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL AKC Detective rule fixed=%, min=%, max=%, known=%',
+      v_count, v_min, v_max, v_known;
+  END IF;
+
+  -- Registry-specific control: UKC Superior remains an unknown 2-3 band.
+  SELECT r.hide_count_fixed, r.hide_count_min, r.hide_count_max, r.hides_known
+    INTO v_count, v_min, v_max, v_known
+    FROM public.sport_class_rules r
+    JOIN public.sport_templates st ON st.id = r.sport_template_id
+   WHERE st.organization = 'UKC'
+     AND st.sport_code = 'ukc-nosework'
+     AND r.element = 'Container'
+     AND r.level = 'Superior'
+     AND r.section = 'A';
+  IF v_count IS NOT NULL OR v_min IS DISTINCT FROM 2 OR v_max IS DISTINCT FROM 3
+     OR v_known IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL UKC Superior rule fixed=%, min=%, max=%, known=%',
+      v_count, v_min, v_max, v_known;
+  END IF;
+
   ----------------------------------------------------------------------------
   -- Manager: club_admin for the show's club — sees every class in the show.
   ----------------------------------------------------------------------------
@@ -130,8 +253,13 @@ BEGIN
     jsonb_build_object('sub', manager, 'role', 'authenticated')::text, true);
 
   SELECT count(*) INTO n FROM public.get_show_class_hide_counts(show_id);
-  IF n <> 2 THEN
-    RAISE EXCEPTION 'FAIL manager saw % classes, expected 2', n;
+  IF n <> 5 THEN
+    RAISE EXCEPTION 'FAIL manager saw % AKC classes, expected 5', n;
+  END IF;
+
+  SELECT count(*) INTO n FROM public.get_show_class_hide_counts(ukc_show_id);
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL manager saw % UKC classes, expected 1', n;
   END IF;
 
   SELECT h.num_hides INTO v_count
@@ -160,7 +288,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL assigned judge read hide count %, expected 3', v_count;
   END IF;
 
-  RAISE NOTICE 'PASS exhibitor denied num_hides (read and predicate) but keeps the rest of the class; manager sees all, assigned judge sees only their class';
+  RAISE NOTICE 'PASS exhibitor receives only public registry rules, protected actual counts stay denied, manager sees all, assigned judge sees only their class';
 END;
 $$;
 

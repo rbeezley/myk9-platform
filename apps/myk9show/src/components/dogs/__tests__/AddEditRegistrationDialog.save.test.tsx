@@ -44,7 +44,7 @@ describe('AddEditRegistrationDialog save recovery', () => {
 
     const registeredName = screen.getByDisplayValue('Ch Test Dog');
     await user.clear(registeredName);
-    await user.type(registeredName, 'Updated Test Name');
+    await user.type(registeredName, 'Updated Test Name', { delay: 5 });
     await user.click(screen.getByRole('button', { name: /save registration/i }));
 
     await waitFor(() =>

@@ -94,7 +94,7 @@ export const SCENT_WORK_FIELDS: ShowFieldDefinition[] = [
     options: ['Novice', 'Advanced', 'Excellent', 'Masters'],
     required: false,
     description:
-      'Competition level - Novice: 1 hide basic search, Advanced: 2 simple hides, Excellent: complex with unknown number (interiors), Masters: ultimate teamwork test',
+      'Competition level - Novice: 1 hide basic search, Advanced: 2 simple hides, Excellent: complex search with 3 hides (Interior uses two areas), Master: ultimate teamwork test',
     showWhen: {
       field: 'element',
       value: ['Interior', 'Exterior', 'Container', 'Buried', 'Handler Discrimination'],

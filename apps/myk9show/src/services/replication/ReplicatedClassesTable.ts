@@ -126,8 +126,8 @@ export interface ReplicatedClass {
    * `classes.num_hides` — the scent-work hide count. Undefined means "not pinned
    * by the rule" (the judge sets it at the ring); it is NOT a synonym for 1, the
    * column's DB default, which is why toSupabaseRow writes an explicit null.
-   * Secret from competitors — see CLASS_HIDE_SECRET_COLUMNS. Replication runs as
-   * `authenticated`, so carrying it here does not widen who can read it.
+   * Replication derives public fixed totals from `sport_class_rules`; protected
+   * judge-set totals arrive only through the authorized show-scoped RPC.
    */
   hideCount?: number | undefined;
 
@@ -529,8 +529,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         let query = supabase
           .from('classes')
           // Not `*`: authenticated has no SELECT on num_hides (20260731160000), so a
-          // star select now fails 42501 for every user. The count comes back through
-          // resolveHideCountsForClassRows below, for officials only.
+          // star select now fails 42501 for every user. Safe public fixed counts and
+          // authorized official counts are enriched below.
           .select(
             `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(person_id, people!inner(first_name, last_name))`
           )
@@ -562,10 +562,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           return new Map<string, ResolvedClassVisibility>();
         });
 
-        // num_hides is no longer on the class row (20260731160000). Officials get it
-        // from the show-scoped RPC and it is merged here, so a judge's device still
-        // has the count offline; an exhibitor's map is empty and their IndexedDB
-        // never receives it.
+        // num_hides is no longer on the class row (20260731160000). Public fixed
+        // totals are derived from registry rules; protected judge-set totals are
+        // returned only by the show-scoped official RPC. Both are merged here so
+        // the caller keeps the count they are entitled to while offline.
         const hideCountByClassId = await resolveHideCountsForClassRows(rows).catch(() => {
           logger.warn(
             `[${this.getTableName()}] Hide-count resolve failed; scoring may fall back to the rule band`,

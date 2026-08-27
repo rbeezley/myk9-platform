@@ -134,7 +134,7 @@ export const getHideConfiguration = (element: string, level: string | undefined)
   // Variable hide counts for higher levels
   if (level === 'Excellent') {
     if (element === 'Interior') {
-      return 'Set by Rules: Unknown (1-3)';
+      return 'Set by Rules: 3';
     }
     if (element === 'Handler Discrimination') {
       return 'Set by Rules: 1';

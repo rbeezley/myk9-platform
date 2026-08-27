@@ -76,6 +76,7 @@
 
 Required by `openspec/config.yaml`: PR, CI, review and merge are the final implementation gate before archive for code or workflow changes.
 
+- [ ] 10.0 **Blocks archive.** Archive `separate-g9-generator-saturation` first, so `openspec/specs/g9-rehearsal-safety/spec.md` exists canonically for this change's `MODIFIED` requirement to target. Archiving before that fails: OpenSpec applies deltas to canonical specs, not to sibling pending changes, and rejects `MODIFIED` against a missing target. Whether that change is archivable is a separate judgement — its deliverable was making backend attribution trustworthy, which run 33075234998 achieved, but its task list still carries unchecked rehearsal items and its G9 gate did not pass. Resolve that before archiving this.
 - [ ] 10.1 Open a PR for the implementation and link it here.
 - [ ] 10.2 CI green, including `Quality Checks`. Run `pnpm qa:code-quality-ratchet` from the worktree first — a `cd` to the primary checkout silently measures `main`.
 - [ ] 10.3 Independent review (Codex) on the net diff against `origin/main`. Grep the log for `Review was interrupted` and usage-limit markers; the exit status is not the verdict.

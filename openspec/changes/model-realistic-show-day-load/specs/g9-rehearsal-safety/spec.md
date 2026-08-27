@@ -1,3 +1,11 @@
+> **Ordering dependency.** `openspec/specs/g9-rehearsal-safety/` does not exist yet — the
+> capability is still an `ADDED` delta inside the active `separate-g9-generator-saturation`
+> change. OpenSpec applies deltas to canonical specs, not to sibling pending changes, and
+> rejects a `MODIFIED` operation whose target is missing. That change must therefore be
+> archived before this one. `MODIFIED` is kept rather than downgraded to `ADDED`: the
+> requirement already exists, and adding it twice would collide when both changes archive.
+> See task 10.0.
+
 ## MODIFIED Requirements
 
 ### Requirement: Generator topology preserves the unchanged G9 workload

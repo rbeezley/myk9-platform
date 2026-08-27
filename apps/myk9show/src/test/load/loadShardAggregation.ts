@@ -67,8 +67,8 @@ export function writeLoadShardArtifact(
 export function aggregateLoadShardArtifacts(
   artifacts: readonly LoadShardArtifact[],
   scenario: LoadScenario,
-  // Undefined when the sampler job produced nothing. Evidence for eight valid
-  // shards is expensive and one-shot against shared staging, so a missing
+  // Undefined when the sampler job produced nothing. Evidence for a full set of
+  // valid shards is expensive and one-shot against shared staging, so a missing
   // sampler degrades to a recorded FAIL rather than destroying the whole run.
   platformArtifact: LoadPlatformArtifact | undefined
 ): { target: LoadEvidenceTarget; observation: LoadObservation } {
@@ -256,7 +256,7 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
     indexes.add(artifact.shard.index);
     sequences.push(...artifact.assignmentSequences);
     // Telemetry moved to its own runner: a shard that samples the database while
-    // driving 12-13 browser contexts saturates itself, which invalidates the
+    // also driving browser contexts saturates itself, which invalidates the
     // latency attribution the sampling exists to support.
     if (artifact.observation.platform) {
       throw new Error(

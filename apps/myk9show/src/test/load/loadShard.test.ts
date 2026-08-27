@@ -6,7 +6,7 @@ import {
   scheduledStartDelayMs,
   selectShardAssignments,
 } from './loadShard';
-import { G9_NORMAL_SCENARIO } from './loadScenario';
+import { G9_NORMAL_SCENARIO, scenarioRingsideSessionCount } from './loadScenario';
 
 describe('distributed load shards', () => {
   it('partitions all 100 global assignments into unique, evenly sized shards', () => {
@@ -21,6 +21,15 @@ describe('distributed load shards', () => {
     const sizes = shards.map(shard => shard.length);
     expect(sizes.reduce((total, size) => total + size, 0)).toBe(100);
     expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
+
+    // The gate requires >= 50 ringside sessions (loadScenario targets), so a
+    // partition that dropped or duplicated any of them would weaken the workload
+    // the issue's non-goals forbid weakening -- while still passing every count
+    // assertion above.
+    const ringside = shards.flat().filter(assignment => assignment.kind === 'ringside-scoring');
+    expect(ringside).toHaveLength(scenarioRingsideSessionCount(G9_NORMAL_SCENARIO));
+    expect(new Set(ringside.map(assignment => assignment.sequence)).size).toBe(ringside.length);
+    expect(ringside.length).toBeGreaterThanOrEqual(G9_NORMAL_SCENARIO.targets.ringsideSessionsMin);
     expect(
       shards
         .flat()

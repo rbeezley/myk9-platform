@@ -20,15 +20,22 @@ It MUST fail before reseeding if either condition cannot be proven.
 
 ### Requirement: Generator topology preserves the unchanged G9 workload
 
-The manual rehearsal SHALL use eight standard public GitHub runners with one unique shard
-index each. Together the shards MUST retain exactly 100 sessions, 55 ringside sessions,
-the original role composition, duration, fixture, thresholds, and every global assignment
-sequence exactly once.
+The manual rehearsal SHALL use sixteen standard public GitHub runners with one unique
+shard index each. Together the shards MUST retain exactly 100 sessions, 55 ringside
+sessions, the original role composition, duration, fixture, thresholds, and every global
+assignment sequence exactly once.
 
-#### Scenario: Eight shards aggregate the same workload
+Sixteen replaced eight on 2026-08-26. At eight, each runner drove 12–13 Chromium contexts
+and sat at 83–89% host CPU p95 — below the 90% saturation flag, yet every one of the 100
+workflows failed on element-visibility timeouts. A single-session probe against the same
+production bundle showed those routes interactive in 1.5–2.4 s, so the failures were
+generator contention rather than the application. Spreading the same workload thinner is
+the only permitted remedy; the workload itself is unchanged.
 
-- **WHEN** eight synchronized shard artifacts are aggregated
-- **THEN** the aggregator accepts 12/13-session shards whose combined global sequences represent the unchanged 100-session scenario
+#### Scenario: Shards aggregate the same workload
+
+- **WHEN** all sixteen synchronized shard artifacts are aggregated
+- **THEN** the aggregator accepts 6/7-session shards whose combined global sequences represent the unchanged 100-session scenario
 
 #### Scenario: Topology is incomplete or duplicated
 

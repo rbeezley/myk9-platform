@@ -16,7 +16,7 @@ show-day application or its replication-backed mutations.
 
 - Make cleanup abort/drain scoring work before any reseed and fail closed when the
   database is not quiet.
-- Distribute the unchanged 100-session/55-ringside workload across eight standard
+- Distribute the unchanged 100-session/55-ringside workload across sixteen standard
   public GitHub runners, preserving global assignment sequences and exact percentiles.
 - Preflight the Supabase Metrics API and preserve CPU/IO evidence as a required
   single-sampler field in the aggregate artifact.
@@ -47,13 +47,15 @@ connection itself. The operator-approved prelaunch target and existing workflow
 environment gate remain the authorization boundary; no application-wide backend
 termination is introduced.
 
-### Use eight free runners with the same global workload
+### Use sixteen free runners with the same global workload
 
-The shard count becomes eight, assigning global sequence `sequence % 8` to each shard.
-This yields 12 or 13 sessions per runner while retaining exactly 100 sessions and 55
-ringside sessions. The aggregator continues to validate all global sequences and uses
-raw samples, not averaged shard percentiles. Eight standard runners remain within the
-public GitHub Actions concurrency available to this repository and avoid paid runners.
+The shard count is sixteen, assigning global sequence `sequence % 16` to each shard.
+This yields 6 or 7 sessions per runner while retaining exactly 100 sessions and 55
+ringside sessions. It was eight until 2026-08-26, at which point 12-13 contexts per
+runner were shown to be the cause of the page-readiness timeouts. The aggregator continues to validate all global sequences and uses
+raw samples, not averaged shard percentiles. Sixteen standard runners plus the platform sampler is 17 concurrent jobs. The 20-job Free
+ceiling is ACCOUNT-WIDE, so the prepare job now measures actual free capacity before the
+reseed and refuses the window rather than letting a queued shard miss the barrier.
 
 ### Fail early on missing CPU/IO telemetry
 
@@ -88,9 +90,11 @@ direct reseed from orphaning private objects.
   **Mitigation:** fail closed on any non-zero rollback growth after cancellation, keep the
   predicate contract-tested, and require manual target recovery if the worker count cannot
   be proven zero.
-- **[Risk]** Eight runners could hit a repository concurrency limit. → **Mitigation:** use
-  the standard public runner label, `max-parallel: 8`, and fail closed on missing shard
-  artifacts; no workload is silently reduced.
+- **[Risk]** Sixteen runners plus the sampler leave only three spare slots under the
+  account-wide 20-job ceiling, and `support-triage.yml` runs every 15 minutes. →
+  **Mitigation:** the prepare job counts other active jobs and fails BEFORE the reseed;
+  `max-parallel` equals the matrix size so no shard is throttled past the barrier; missing
+  shard artifacts still fail closed. No workload is silently reduced.
 - **[Risk]** Metrics API access may pass preflight but fail during the load window. →
   **Mitigation:** the runtime sampler converts any missing CPU/IO sample to non-finite
   evidence and the evaluator rejects the result.
@@ -100,7 +104,7 @@ direct reseed from orphaning private objects.
 1. Run local unit, workflow-contract, discovery, typecheck, and OpenSpec validation.
 2. Merge the reviewed workflow/code change before dispatching the manual rehearsal.
 3. In an explicitly approved window, dispatch the unchanged G9 workload.
-4. Require drain, complete eight-shard artifacts, CPU/IO evidence, and `514|504|0`
+4. Require drain, a complete set of shard artifacts, CPU/IO evidence, and `514|504|0`
    restoration before interpreting the result.
 
 Rollback is a source revert before any rehearsal. If a rehearsal has started, use the
@@ -109,8 +113,11 @@ window to restore row counts.
 
 ## Open Questions
 
-- Whether eight standard runners provide sufficient browser headroom will be answered by
-  the next apples-to-apples evidence artifact; no capacity conclusion is made in source.
+- Eight standard runners did NOT provide sufficient browser headroom: 12–13 contexts each
+  held 83–89% host CPU p95 and every one of the 100 workflows failed on element-visibility
+  timeouts, while the same routes were interactive in 1.5–2.4 s at a single session.
+  Whether sixteen runners at 6–7 contexts each is sufficient will be answered by the next
+  apples-to-apples evidence artifact; no capacity conclusion is made in source.
 
 ## Authorized performance follow-up
 

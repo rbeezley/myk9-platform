@@ -9,12 +9,18 @@ import {
 } from '../src/test/load/loadShardAggregation';
 import { G9_NORMAL_SCENARIO } from '../src/test/load/loadScenario';
 
+function shardNumber(fileName: string): number {
+  return Number(fileName.replace(/\D/g, ''));
+}
+
 const inputDirectory = resolve(
   process.argv[2] ?? process.env.LOAD_TEST_SHARD_INPUT_DIR ?? 'test-results/load-shards'
 );
 const artifactPaths = readdirSync(inputDirectory)
   .filter(fileName => /^shard-\d+\.json$/.test(fileName))
-  .sort()
+  // Numeric, not lexicographic: past nine shards a plain sort orders these
+  // 0, 1, 10, 11, ... 2, which reorders the evidence a reader compares by index.
+  .sort((left, right) => shardNumber(left) - shardNumber(right))
   .map(fileName => resolve(inputDirectory, fileName));
 const artifacts = artifactPaths.map(
   artifactPath => JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact
@@ -23,7 +29,7 @@ const platformPath = resolve(
   process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',
   'platform.json'
 );
-// Unusable telemetry must not destroy the eight shards' evidence, which costs an
+// Unusable telemetry must not destroy the shards' evidence, which costs an
 // operator-approved window against shared staging. Absent, truncated, corrupt and
 // mismatched all degrade the same way: drop it, and let the evaluator record the
 // missing telemetry as a G9 failure. Pairing is checked here rather than left to

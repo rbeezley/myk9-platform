@@ -3,7 +3,12 @@ import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import type { LoadMetricSamples } from './loadMetrics';
 import type { LoadPlatformArtifact } from './loadPlatformArtifact';
 import { aggregateLoadShardArtifacts, type LoadShardArtifact } from './loadShardAggregation';
-import { G9_NORMAL_SCENARIO, scenarioSessionCount } from './loadScenario';
+import {
+  G9_NORMAL_SCENARIO,
+  scenarioRingsideSessionCount,
+  scenarioSessionCount,
+} from './loadScenario';
+import { calculatePeakActiveWorkflows } from './loadSessionLifecycle';
 import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 
 const target = {
@@ -18,11 +23,13 @@ const target = {
 // Mirrors selectShardAssignments: shard i owns the sequences where
 // sequence % count === i, and the first RINGSIDE_SESSIONS of them are ringside.
 const TOTAL_SESSIONS = scenarioSessionCount(G9_NORMAL_SCENARIO);
-const RINGSIDE_SESSIONS = 55;
+const RINGSIDE_SESSIONS = scenarioRingsideSessionCount(G9_NORMAL_SCENARIO);
 const PER_SHARD_REQUESTS = 9_000;
 const PER_SHARD_EXPECTED_SCORES = 110;
 // The busiest single shard -- the cross-shard peak, not the 100-session sum.
-const PEAK = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => shardPeak(index)).reduce(
+const PEAK = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
+  shardPeak(index)
+).reduce(
   (best, candidate) => ({
     total: Math.max(best.total, candidate.total),
     ringside: Math.max(best.ringside, candidate.ringside),
@@ -39,19 +46,17 @@ function shardSequences(index: number): number[] {
 /**
  * Each shard's intervals are placed 10 s apart and are 9 s wide, so no two shards
  * ever overlap. The true simultaneous peak is therefore the busiest SINGLE shard,
- * which is what makes this fixture able to catch an aggregation that sums
- * shard-local maxima instead of merging intervals.
+ * which is what lets this fixture catch an aggregation that sums shard-local
+ * maxima instead of merging intervals.
+ *
+ * Reuses the runner's own primitive rather than restating the fixture's interval
+ * arithmetic: a hand-copied version could be edited into agreement with a broken
+ * aggregator and stop failing.
  */
 function shardPeak(index: number): { total: number; ringside: number } {
-  const sequences = shardSequences(index);
-  const ringsideSessions = sequences.filter(sequence => sequence < RINGSIDE_SESSIONS).length;
-  const ringside = Math.max(0, ringsideSessions - 1);
-  const total = sequences.filter(
-    (_, offset) =>
-      offset < ringside ||
-      (offset >= ringsideSessions && offset < ringsideSessions + (20 - ringside))
-  ).length;
-  return { total, ringside };
+  return calculatePeakActiveWorkflows(
+    shardArtifact(index).observation.sessionLifecycle.activityIntervals
+  );
 }
 
 function shardArtifact(index: number): LoadShardArtifact {
@@ -302,8 +307,8 @@ describe('distributed load aggregation', () => {
   });
 
   it('still aggregates every valid shard when the sampler produced nothing', () => {
-    // Eight shards of evidence are expensive and one-shot against shared
-    // staging; a dead sampler must degrade to a recorded FAIL, not destroy them.
+    // A full set of shard evidence is expensive and one-shot against shared
+    // staging; a dead sampler must degrade to a recorded FAIL, not destroy it.
     const result = aggregateLoadShardArtifacts(
       Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => shardArtifact(index)),
       G9_NORMAL_SCENARIO,

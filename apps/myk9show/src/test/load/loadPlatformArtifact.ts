@@ -31,7 +31,7 @@ export function loadPlatformRunFromEnv(env: NodeJS.ProcessEnv): {
 
 /**
  * Absent, truncated, corrupt and mismatched telemetry all degrade identically:
- * the eight shards' evidence costs an operator-approved window against shared
+ * the shards' evidence costs an operator-approved window against shared
  * staging, so it must survive, and the evaluator already fails closed on absent
  * telemetry. Aggregation still throws on a mismatched artifact, so this is the
  * only place allowed to forgive one.

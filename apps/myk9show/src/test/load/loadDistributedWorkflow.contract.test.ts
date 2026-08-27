@@ -109,9 +109,16 @@ describe('manual distributed load workflow', () => {
   it('approval-gates the preparation job once and offers a realistic preparation window', () => {
     expect(workflow.match(/environment: load-rehearsal/g)).toHaveLength(1);
     expect(workflow).toContain("default: '25'");
-    expect(workflow).toContain("- '15'");
     expect(workflow).toContain("- '25'");
     expect(workflow).toContain("- '35'");
+    // '15' was withdrawn with the 16-shard topology: per-shard setup is a full
+    // production build plus Playwright, and 16 simultaneous runner allocations
+    // add latency on top. A shard that misses the barrier fails the whole run.
+    expect(workflow).not.toContain("- '15'");
+    // The reseed is irreversible, so headroom must be checked before it.
+    const preflight = workflow.indexOf('Verify enough concurrent-runner headroom');
+    expect(preflight).toBeGreaterThan(-1);
+    expect(preflight).toBeLessThan(workflow.indexOf('Canonical reseed'));
     expect(workflow).toMatch(
       /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 55/
     );

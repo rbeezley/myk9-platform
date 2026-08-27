@@ -42,8 +42,30 @@ describe('At-Show ringside — calm offline + tokenized status', () => {
   });
 
   it('highlights a favorite class with the accent token, not raw green', () => {
-    expect(classRow).toContain('border-primary bg-primary/5');
+    expect(classRow).toContain('border-primary');
     expect(classRow).toContain('fill-primary text-primary');
     expect(classRow).not.toContain('emerald');
+  });
+
+  it('does not tint the favorite row background, which broke AA in dark mode', () => {
+    // The tint was `bg-primary/5`. Composited over the dark card (#1e1c19) it
+    // lightened the surface to #272120, dropping --muted-foreground (#8c8376)
+    // from 4.55:1 to 4.26:1 -- under the 4.5:1 AA floor for the judge name,
+    // times and counts on every favorited row. The filled Star and the primary
+    // border already carry "favorite", so the tint was a third encoding whose
+    // only distinct effect was the contrast loss.
+    expect(classRow).not.toContain('bg-primary/5');
+  });
+
+  it('marks the in-ring dot with the at-show token rather than a raw hex', () => {
+    // #f59e0b computes to 2.15:1 on the light card, under the 3:1 WCAG floor
+    // for a non-text indicator. The token keeps it amber (never Ring Green)
+    // while giving light mode its own value.
+    expect(classRow).toContain('var(--at-show-in-ring)');
+    // Scoped to an arbitrary-value BACKGROUND rather than the bare hex string:
+    // the hex still appears in the comment above the dot explaining why it
+    // moved, and a test that cannot tell code from prose would fail on the
+    // explanation of its own fix.
+    expect(classRow).not.toMatch(/bg-\[#[0-9a-fA-F]{3,8}\]/);
   });
 });

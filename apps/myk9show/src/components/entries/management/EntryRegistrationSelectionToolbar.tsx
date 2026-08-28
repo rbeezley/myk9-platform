@@ -47,6 +47,7 @@ export function EntryRegistrationSelectionToolbar({
       ref={actionBarRef}
       className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-xl border bg-foreground px-3 py-2 text-background shadow-2xl"
       aria-label="Selected registration actions"
+      role="status"
     >
       <span className="whitespace-nowrap px-1 text-sm font-semibold">
         {registrations} {registrations === 1 ? 'registration' : 'registrations'} ·{' '}

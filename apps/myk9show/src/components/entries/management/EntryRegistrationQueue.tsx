@@ -307,8 +307,11 @@ export function EntryRegistrationQueue({
         className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         aria-label="Registration pagination"
       >
-        <p className="text-sm text-muted-foreground">
-          Showing {rangeStart}–{rangeEnd} of {total} registrations
+        {/* Typing in search silently rewrote this line, the queue badges and
+            the empty state, with nothing announced. This is the one place that
+            states the result count, so it is the one that should speak. */}
+        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+          Showing {rangeStart}&ndash;{rangeEnd} of {total} registrations
         </p>
         <div className="flex items-center gap-2">
           <Button

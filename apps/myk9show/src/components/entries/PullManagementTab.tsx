@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { formatEntryDateTime } from '@/lib/format/dates';
 import {
@@ -51,12 +50,20 @@ import { RefundEntryDialog } from './management/RefundEntryDialog';
 interface PullManagementTabProps {
   showId: string;
   processedEntries: EntryManagementEntry[];
+  /**
+   * The caller's entries read is still running or failed, so `processedEntries`
+   * being empty means NOTHING. Without this the Registrations tab showed an
+   * honest "Couldn't load entries" while this tab, fed the same failed read,
+   * confidently reported "There are no pulled entries for this show".
+   */
+  processedEntriesUnknown?: boolean;
   onRefresh?: () => void;
 }
 
 export const PullManagementTab: React.FC<PullManagementTabProps> = ({
   showId,
   processedEntries,
+  processedEntriesUnknown = false,
   onRefresh,
 }) => {
   const [pendingRequests, setPendingRequests] = useState<PullRecord[]>([]);
@@ -203,10 +210,10 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <XCircle className="h-5 w-5" />
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <XCircle className="h-5 w-5" aria-hidden />
             Pull Management
-          </h3>
+          </h2>
           <p className="text-sm text-muted-foreground">
             Review pull requests and reconcile refunds in one place.
           </p>
@@ -223,14 +230,6 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
           Refresh
         </Button>
       </div>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -252,7 +251,20 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
 
         {/* Pending Requests */}
         <TabsContent value="pending" className="mt-4">
-          {filteredPending.length === 0 ? (
+          {error ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" aria-hidden />
+                <p className="text-lg font-medium">Couldn&rsquo;t load pull requests</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  We don&rsquo;t know whether this show has any pending pulls.
+                </p>
+                <Button className="mt-4" onClick={loadData}>
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          ) : filteredPending.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
@@ -341,7 +353,18 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
 
         {/* Pulled entries */}
         <TabsContent value="processed" className="mt-4">
-          {filteredProcessed.length === 0 ? (
+          {processedEntriesUnknown ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" aria-hidden />
+                <p className="text-lg font-medium">Couldn&rsquo;t load this show&rsquo;s entries</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Pulled entries come from the same read, so we don&rsquo;t know whether this show
+                  has any. Retry from the Registrations tab.
+                </p>
+              </CardContent>
+            </Card>
+          ) : filteredProcessed.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />

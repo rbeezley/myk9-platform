@@ -134,7 +134,9 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               <button
                 className="inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => onOpenArmbandDialog(entry)}
-                aria-label={`Change armband for ${entry.dogName}`}
+                // WCAG 2.5.3: the visible text is the armband number, so the
+                // accessible name has to start with it.
+                aria-label={`${entry.armbandNumber}, change armband for ${entry.dogName}`}
                 title="Change armband"
               >
                 <Badge variant="outline" className="font-mono">
@@ -144,10 +146,11 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               </button>
             ) : (
               <button
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors border border-dashed border-border/50 rounded px-1.5 py-0.5"
+                className="inline-flex min-h-11 items-center gap-1 rounded border border-dashed border-border/50 px-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onOpenArmbandDialog(entry)}
+                aria-label={`Assign armband to ${entry.dogName}`}
               >
-                <Hash className="h-3 w-3" />
+                <Hash className="h-3 w-3" aria-hidden />
                 Assign
               </button>
             )}
@@ -155,7 +158,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               type="button"
               variant="ghost"
               size="sm"
-              className="ml-auto h-8 px-2 text-muted-foreground"
+              className="ml-auto min-h-11 px-2 text-muted-foreground"
               aria-label={`Edit entry for ${entry.dogName}`}
               onClick={() => onOpenEditEntry?.(entry)}
               disabled={!onOpenEditEntry}
@@ -167,7 +170,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-muted-foreground hover:text-destructive"
+              className="min-h-11 px-2 text-muted-foreground hover:text-destructive"
               aria-label={`Remove entry for ${entry.dogName}`}
               onClick={() => setRemoveDialog({ open: true, entry })}
             >
@@ -194,8 +197,9 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-5 px-1 text-xs text-muted-foreground hover:text-destructive"
+                        className="min-h-11 px-2 text-xs text-muted-foreground hover:text-destructive"
                         onClick={() => onUncompEntry(entry.id)}
+                        aria-label={`Undo comp for ${entry.dogName}`}
                       >
                         Undo
                       </Button>
@@ -211,8 +215,9 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-5 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  className="min-h-11 px-2 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => onCompEntry(entry.id)}
+                  aria-label={`Comp entry for ${entry.dogName}`}
                 >
                   <Gift className="h-3 w-3 mr-1" />
                   Comp
@@ -343,7 +348,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 cursor-pointer border border-border/40 rounded px-1.5 py-0.5 hover:border-border transition-colors"
-                        aria-label={`Change check-in status for ${entry.dogName} in ${cls.name}`}
+                        aria-label={`${getStatusDescriptor('entry', cls.checkInStatus || 'no-status').label}, change check-in status for ${entry.dogName} in ${cls.name}`}
                       >
                         <CheckInStatusIndicator
                           status={cls.checkInStatus || 'no-status'}

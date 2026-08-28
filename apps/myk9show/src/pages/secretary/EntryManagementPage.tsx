@@ -504,6 +504,7 @@ const EntryManagementPage: React.FC = () => {
                   <PullManagementTab
                     showId={selectedShowId}
                     processedEntries={pulledEntries}
+                processedEntriesUnknown={isLoading || Boolean(loadError)}
                     onRefresh={() => loadEntries(selectedShowId)}
                   />
                 </CardContent>

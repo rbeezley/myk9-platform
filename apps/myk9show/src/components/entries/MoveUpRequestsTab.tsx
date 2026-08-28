@@ -95,6 +95,8 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The class-capacity read failed, so move-up TARGETS are unknown. */
+  const [classesError, setClassesError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Dialog state
@@ -122,7 +124,14 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
           setRequests(requestsResult.data as MoveUpRequest[]);
         }
 
-        if (!classesResult.error) {
+        if (classesResult.error) {
+          // The approve dialog derives "which higher classes are available"
+          // from this list. Leaving it empty on a failed read makes the dialog
+          // assert "this show has no higher class available" -- a domain
+          // conclusion drawn from data that never loaded.
+          setClassesError(true);
+        } else {
+          setClassesError(false);
           setClasses(classesResult.data);
         }
 
@@ -158,7 +167,10 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
         setRequests(requestsResult.data as MoveUpRequest[]);
       }
 
-      if (!classesResult.error) {
+      if (classesResult.error) {
+        setClassesError(true);
+      } else {
+        setClassesError(false);
         setClasses(classesResult.data);
       }
 
@@ -273,10 +285,10 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <ArrowUpCircle className="h-5 w-5" />
-            Move-Up Requests ({filteredRequests.length})
-          </h3>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <ArrowUpCircle className="h-5 w-5" aria-hidden />
+            Move-Up Requests{error ? '' : ` (${filteredRequests.length})`}
+          </h2>
           <p className="text-sm text-muted-foreground">
             Review and process exhibitor requests to move up to higher classes
           </p>
@@ -286,14 +298,6 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
           Refresh
         </Button>
       </div>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
 
       {/* Search */}
       {requests.length > 0 && (
@@ -308,8 +312,29 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
         </div>
       )}
 
-      {/* Requests List */}
-      {filteredRequests.length === 0 ? (
+      {/*
+        Requests List
+
+        The empty state is gated on `!error`. When the read failed, the tab
+        used to show the destructive Alert AND "There are no pending move-up
+        requests for this show" at the same time -- two contradictory claims,
+        of which the confident one was the wrong one. An unread list is not an
+        empty list, so on failure the error card is the whole answer.
+      */}
+      {error ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" aria-hidden />
+            <p className="text-lg font-medium">Couldn&rsquo;t load move-up requests</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              We don&rsquo;t know whether this show has any pending requests.
+            </p>
+            <Button className="mt-4" onClick={loadData}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : filteredRequests.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <ArrowUpCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
@@ -419,6 +444,24 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
               const targetOptions = selectedRequest
                 ? getAvailableTargetClasses(selectedRequest)
                 : [];
+
+              // The class-capacity read failed, so an empty target list means
+              // "we don't know", not "there is nowhere to move up to". Stating
+              // the domain conclusion here would have the secretary deny a
+              // legitimate request on the strength of data that never loaded.
+              if (classesError) {
+                return (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" aria-hidden />
+                    <AlertDescription>
+                      We couldn&rsquo;t load this show&rsquo;s classes, so we can&rsquo;t tell which
+                      ones{' '}
+                      <strong>{selectedRequest?.dog?.call_name ?? 'this dog'}</strong> could move up
+                      to. Retry from the move-up list before approving or denying.
+                    </AlertDescription>
+                  </Alert>
+                );
+              }
 
               if (targetOptions.length === 0) {
                 return (

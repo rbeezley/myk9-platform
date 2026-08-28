@@ -68,7 +68,7 @@ export function useShowCreationWizardActions({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { show, trials, judgeDetails, saveProgress, resetWizard } = useWizardStore();
+  const { show, trials, judgeDetails, resetWizard } = useWizardStore();
   const { addShow, updateShow, deleteShowCascading } = useShowStore();
   const { clubs } = useClubStore();
   const { addTrial: addTrialToStore, trials: existingTrials, loadTrialClasses } = useTrialStore();
@@ -452,7 +452,6 @@ export function useShowCreationWizardActions({
       deleteShowCascading,
       createTrials,
       createClasses,
-      saveProgress,
       resetWizard,
       navigate,
       queryClient,
@@ -478,22 +477,9 @@ export function useShowCreationWizardActions({
     await saveShow('published', true);
   }, [saveShow]);
 
-  const handleSaveProgress = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      saveProgress();
-      logger.debug('Draft saved successfully', 'wizard');
-    } catch (error) {
-      logger.error('Error saving draft', 'wizard', {}, error as Error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [saveProgress, setIsLoading]);
-
   return {
     handleSaveDraft,
     handleCreateShow,
     handleCreateAndPublish,
-    handleSaveProgress,
   };
 }

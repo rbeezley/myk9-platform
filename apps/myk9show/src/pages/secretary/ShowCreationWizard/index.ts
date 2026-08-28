@@ -14,6 +14,6 @@ export { WizardStepContent } from './WizardStepContent';
 export { buildEditModeDraft } from './buildEditModeDraft';
 export { WizardEditModeGate } from './WizardEditModeGate';
 export { WizardDraftResumeBanner, shouldOfferDraftResume } from './WizardDraftResumeBanner';
-export { useEditModeInitialization } from './useEditModeInitialization';
+export { useEditModeInitialization, shouldSkipInitialization } from './useEditModeInitialization';
 export { resolveEditMode, parseEditMode } from './editModeResolution';
 export type { EditModeResolution } from './editModeResolution';

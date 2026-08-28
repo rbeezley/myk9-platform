@@ -41,6 +41,34 @@ export interface EditModeInitializationState {
   resetInitialization: () => void;
 }
 
+/**
+ * Decides whether to skip a draft (re-)initialization.
+ *
+ * Exported so the rule itself is testable: scoping it wrong is worse than not
+ * having it. An earlier version compared only "have we initialized at all?"
+ * against `isDirty`, so navigating from a dirty show A to show B's edit URL kept
+ * A's draft mounted while the save wrote to B -- the cross-show overwrite this
+ * whole hook exists to prevent.
+ */
+export function shouldSkipInitialization(input: {
+  initializedKey: string | null;
+  nextKey: string;
+  showId: string;
+  mode: string;
+  isDirty: boolean;
+}): boolean {
+  if (input.initializedKey === input.nextKey) return true;
+
+  // Late-replicating data is worth less than an edit in progress -- but ONLY
+  // for the same show. A changed target must always re-initialize.
+  const targetPrefix = `${input.showId}:${input.mode}`;
+  const isSameTarget =
+    input.initializedKey === targetPrefix ||
+    input.initializedKey?.startsWith(`${targetPrefix}:`) === true;
+
+  return isSameTarget && input.isDirty;
+}
+
 export function useEditModeInitialization({
   editMode,
   editModeResolution,
@@ -68,9 +96,17 @@ export function useEditModeInitialization({
         ? `${editMode.showId}:${editMode.mode}`
         : `${editMode.showId}:${editMode.mode}:${classCount}`;
 
-    // Late-replicating data is worth less than an edit in progress.
-    const wouldDiscardEdits = initializedRef.current !== null && isDirty;
-    if (initializedRef.current === initializationKey || wouldDiscardEdits) return;
+    if (
+      shouldSkipInitialization({
+        initializedKey: initializedRef.current,
+        nextKey: initializationKey,
+        showId: editMode.showId,
+        mode: editMode.mode,
+        isDirty,
+      })
+    ) {
+      return;
+    }
 
     initializedRef.current = initializationKey;
 
@@ -107,5 +143,6 @@ export function useEditModeInitialization({
     resetInitialization: () => {
       if (!isDirty) initializedRef.current = null;
     },
+
   };
 }

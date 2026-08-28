@@ -104,7 +104,7 @@ const ShowCreationWizardPage: React.FC = () => {
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
-  const { handleSaveDraft, handleCreateShow, handleCreateAndPublish, handleSaveProgress } =
+  const { handleSaveDraft, handleCreateShow, handleCreateAndPublish } =
     useShowCreationWizardActions({
       editMode,
       setIsLoading,
@@ -439,7 +439,6 @@ const ShowCreationWizardPage: React.FC = () => {
                   canGoNext={canGoNext}
                   onBack={handleBack}
                   onNext={handleNext}
-                  onSaveDraft={isDirty ? handleSaveProgress : undefined}
                   isLoading={isLoading}
                   remainingIssueCount={validationMessages.length}
                 />

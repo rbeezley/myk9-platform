@@ -115,3 +115,54 @@ describe('virtual user fleet', () => {
     }).not.toThrow();
   });
 });
+
+describe('virtual-user lifecycle accounting (MYK9-126)', () => {
+  // The G9 gate asserts concurrentSessions == the configured session count. The
+  // runner marked only browser sessions prepared, so a 358-session scenario
+  // reported 110 and could never pass — the 248 virtual readers ran, issued
+  // requests, and were invisible to every lifecycle counter.
+  it('exposes the assignment behind every reader so the lifecycle can count it', () => {
+    const { fleet } = fleetFor(12);
+    const assignments = fleet.assignments;
+    expect(assignments).toHaveLength(12);
+    expect(new Set(assignments.map(a => a.sequence)).size).toBe(12);
+  });
+
+  it('reports an outcome per reader once stopped', async () => {
+    const { fleet } = fleetFor(5);
+    await fleet.hydrate();
+    fleet.start();
+    fleet.stop();
+    const outcomes = fleet.outcomes();
+    expect(outcomes).toHaveLength(5);
+    for (const outcome of outcomes) {
+      expect(outcome.assignment.sequence).toEqual(expect.any(Number));
+      expect(typeof outcome.ok).toBe('boolean');
+    }
+  });
+
+  it('marks a reader failed when its requests fail', async () => {
+    const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
+    const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });
+    const failing = (async () =>
+      new Response('{}', { status: 500 })) as unknown as typeof fetch;
+    const fleet = new VirtualUserFleet(plan.virtualUser.slice(0, 3), {
+      supabaseUrl: 'https://fixture.supabase.co',
+      anonKey: 'anon',
+      accessTokenFor: () => 'token',
+      classColumnSelect: 'id,updated_at',
+      onSample: () => {},
+      fetchImpl: failing,
+    });
+    await fleet.hydrate();
+    fleet.stop();
+    expect(fleet.outcomes().every(outcome => outcome.ok)).toBe(false);
+  });
+
+  it('counts a healthy reader as successful', async () => {
+    const { fleet } = fleetFor(3);
+    await fleet.hydrate();
+    fleet.stop();
+    expect(fleet.outcomes().every(outcome => outcome.ok)).toBe(true);
+  });
+});

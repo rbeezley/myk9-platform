@@ -5,6 +5,7 @@ import type {
   ResourceSamplingFailure,
   StatementDelta,
 } from './loadEvaluation';
+import { summarizeObservedPeaks } from './loadPlatformPeaks';
 
 class ResourceSampleError extends Error {
   constructor(
@@ -176,9 +177,14 @@ export async function startLoadPlatformSampler(
         //
         // The retry above is the real fix for transient loss. This stays closed.
         return {
-          peakCpuPercent: resourceFailures.length ? Number.NaN : peakCpuPercent,
-          peakIoPercent: resourceFailures.length ? Number.NaN : peakIoPercent,
-          peakConnections: connectionSuccesses < connectionAttempts ? Number.NaN : peakConnections,
+          ...summarizeObservedPeaks({
+            peakCpuPercent,
+            peakIoPercent,
+            peakConnections,
+            resourceFailures,
+            connectionAttempts,
+            connectionSuccesses,
+          }),
           connectionCap,
           statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
           resourceSampling: {

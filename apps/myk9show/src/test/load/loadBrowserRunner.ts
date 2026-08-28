@@ -174,6 +174,13 @@ export async function runBrowserLoad(
       : undefined;
     if (options.shard) await delay(scheduledStartDelayMs(options.shard));
     lifecycle.markPrepared(assertAllSessionsOpenAtStart(preparedSessions));
+    // The virtual readers are sessions too. Counting only browser sessions made
+    // `concurrentSessions` report 110 of 358, which the G9 gate can never accept
+    // (MYK9-126). They are prepared once hydrated, and start with the barrier.
+    if (virtualUsers) {
+      lifecycle.markPrepared(virtualUsers.assignments);
+      for (const assignment of virtualUsers.assignments) lifecycle.markStarted(assignment);
+    }
     virtualUsers?.start();
     generatorSampler.markLoadStarted();
     const startedAtMs = Date.now();
@@ -228,8 +235,24 @@ export async function runBrowserLoad(
     );
     if (options.smoke && rejectedSessions[0]) throw rejectedSessions[0].reason;
 
+    // The measurement window is the SCENARIO's, not "however long the browser
+    // sessions happened to last". Only a successful non-scoring session held to
+    // `endsAt`; a failed one returned immediately and a scoring one skips the
+    // hold, so a shard whose sessions all failed stopped its virtual readers
+    // after ~90 s while a shard with one surviving reader ran the full 600 s.
+    // The 2026-08-28 rehearsal produced exactly that: five shards at 600 s and
+    // eleven between 85 s and 158 s, which makes every aggregate percentile an
+    // average over incommensurable windows (MYK9-126).
+    if (!options.smoke) await delay(connectedSessionHoldMs(endsAt, Date.now()));
+
     // Reconciliation/teardown is not generator load. Stop at the workload boundary.
     virtualUsers?.stop();
+    if (virtualUsers) {
+      for (const outcome of virtualUsers.outcomes()) {
+        if (outcome.ok) lifecycle.markCompleted(outcome.assignment);
+        else lifecycle.markFailed(outcome.assignment);
+      }
+    }
     const generator = await generatorSampler.stop();
     generatorSampler = undefined;
     await metrics.settle();

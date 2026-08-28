@@ -6,6 +6,7 @@ import { evaluateLoadResult } from '../src/test/load/loadEvaluation';
 import {
   aggregateLoadShardArtifacts,
   type LoadShardArtifact,
+  shardWindowDivergence,
 } from '../src/test/load/loadShardAggregation';
 import { G9_NORMAL_SCENARIO } from '../src/test/load/loadScenario';
 
@@ -44,6 +45,15 @@ const platformArtifact = readUsablePlatformArtifact(
 );
 const aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
 const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
+// Aggregating shards that measured different windows produces one percentile
+// over incommensurable samples. Appended rather than folded into
+// evaluateLoadResult because only the aggregate sees the per-shard windows
+// (MYK9-126).
+const windowDivergence = shardWindowDivergence(artifacts.map(artifact => artifact.elapsedMs));
+if (windowDivergence) {
+  evaluation.failures.push(windowDivergence);
+  evaluation.passed = false;
+}
 const evidence = buildLoadEvidence({
   target: aggregate.target,
   scenario: G9_NORMAL_SCENARIO,

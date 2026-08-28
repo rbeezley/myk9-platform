@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import type { LoadMetricSamples } from './loadMetrics';
 import type { LoadPlatformArtifact } from './loadPlatformArtifact';
-import { aggregateLoadShardArtifacts, type LoadShardArtifact } from './loadShardAggregation';
+import { aggregateLoadShardArtifacts, type LoadShardArtifact,
+  shardWindowDivergence,
+} from './loadShardAggregation';
 import {
   G9_NORMAL_SCENARIO,
   scenarioRingsideSessionCount,
@@ -384,5 +386,37 @@ describe('distributed load aggregation', () => {
         platformArtifact()
       )
     ).toThrow(/generator/i);
+  });
+});
+
+describe('shard measurement windows must be comparable (MYK9-126)', () => {
+  // The aggregate takes `Math.max` of every shard's elapsedMs and divides
+  // throughput by it. On 2026-08-28 five shards ran the full 600 s and eleven
+  // exited between 85 s and 158 s, so every percentile averaged incommensurable
+  // windows and throughput was computed against a window most shards never saw.
+  // Nothing failed on it: the divergence was invisible to the gate.
+  it('reports no divergence when every shard ran the same window', () => {
+    expect(shardWindowDivergence([600_000, 600_100, 599_900])).toBeUndefined();
+  });
+
+  it('flags the 2026-08-28 split', () => {
+    const message = shardWindowDivergence([
+      155_074, 154_187, 157_036, 158_024, 156_870, 140_474, 158_362, 158_410, 600_071, 85_277,
+      600_082, 600_067, 86_438, 600_104, 600_256, 87_015,
+    ]);
+    expect(message).toBeDefined();
+    expect(message).toContain('85277');
+    expect(message).toContain('600256');
+  });
+
+  it('tolerates ordinary jitter', () => {
+    // Shards do not stop on the same millisecond; only a structural difference
+    // should fail.
+    expect(shardWindowDivergence([600_000, 606_000, 597_000])).toBeUndefined();
+  });
+
+  it('needs at least two shards to say anything', () => {
+    expect(shardWindowDivergence([600_000])).toBeUndefined();
+    expect(shardWindowDivergence([])).toBeUndefined();
   });
 });

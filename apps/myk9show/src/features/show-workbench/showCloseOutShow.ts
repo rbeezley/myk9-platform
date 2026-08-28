@@ -71,9 +71,17 @@ function needsCascade(status: string | null | undefined): boolean {
 
 export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutReadiness {
   const concerns: string[] = [];
+  // A class whose counts could not be READ is not a class with nothing
+  // outstanding. `?? 0` made an unknown count fail the `entryCount > 0` test,
+  // so it dropped out of the incomplete tally and the gate reported "no
+  // concerns" over data it never loaded.
+  const unknownCountClassCount = input.classes.filter(
+    cls => (cls.entryCount == null || cls.scoredCount == null) && needsCascade(cls.status)
+  ).length;
   const incompleteClassCount = input.classes.filter(cls => {
-    const entryCount = Number(cls.entryCount ?? 0);
-    const scoredCount = Number(cls.scoredCount ?? 0);
+    if (cls.entryCount == null || cls.scoredCount == null) return false;
+    const entryCount = Number(cls.entryCount);
+    const scoredCount = Number(cls.scoredCount);
     return entryCount > 0 && scoredCount < entryCount && needsCascade(cls.status);
   }).length;
   const reconciliation = summarizeShowDayReconciliation(input.entries);
@@ -81,6 +89,11 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     SUBMITTED_STATUSES.has(normalizeStatus(row.status))
   );
 
+  if (unknownCountClassCount > 0) {
+    concerns.push(
+      `${unknownCountClassCount} ${unknownCountClassCount === 1 ? 'class has' : 'classes have'} entry data we could not load, so scoring completeness is unknown.`
+    );
+  }
   if (incompleteClassCount > 0) {
     concerns.push(
       `${incompleteClassCount} ${incompleteClassCount === 1 ? 'class still has' : 'classes still have'} unscored entries.`

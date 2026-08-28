@@ -20,6 +20,20 @@ export function buildClassPaperworkMap(input: {
   trials: readonly { id: string; trialDate: string }[];
   entries: readonly DbEntry[];
   records: readonly ReplicatedPaperworkPrint[];
+  /**
+   * The SERVER sync for those records failed, so `records` reflects only what
+   * this device already had. `useShowPaperworkPrints` exposes this precisely
+   * because its `useQuery` reads IndexedDB and therefore succeeds even when the
+   * server read did not -- its own comment calls it "the difference between
+   * 'nothing is printed' and 'I could not find out'".
+   *
+   * Without it, check-in sheets printed an hour ago on another device render as
+   * "Not confirmed printed" with a Print button, inviting a duplicate print run
+   * mid-show. `SecretaryCockpitPaperwork['state']` has always declared
+   * `'unknown'`, and `paperworkEvidence` already maps it -- nothing could
+   * produce it.
+   */
+  recordsUnavailable?: boolean;
   returnTo: string;
 }): ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]> {
   const result = new Map<string, SecretaryCockpitPaperwork[]>();
@@ -61,7 +75,7 @@ export function buildClassPaperworkMap(input: {
           {
             reportId: report.id,
             label: report.label,
-            state: derived.state,
+            state: input.recordsUnavailable ? 'unknown' : derived.state,
             printHref: getCockpitReportHref({
               reportId: report.id,
               scope,
@@ -89,7 +103,7 @@ export function buildClassPaperworkMap(input: {
         {
           reportId: report.id,
           label: report.label,
-          state: derived.state,
+          state: input.recordsUnavailable ? 'unknown' : derived.state,
           printHref: getCockpitReportHref({ reportId: report.id, scope, returnTo: input.returnTo }),
           confirmation: {
             scope: descriptor.scope,

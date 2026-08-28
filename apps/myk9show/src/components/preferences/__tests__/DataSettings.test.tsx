@@ -1,17 +1,6 @@
 // apps/myk9show/src/components/preferences/__tests__/DataSettings.test.tsx
-import { render, screen } from '@/test/utils/testUtils';
+import { createTestQueryClient, render, screen } from '@/test/utils/testUtils';
 import { DataSettings } from '../DataSettings';
-
-// Mock queryClient
-vi.mock('@/lib/queryClient', () => ({
-  queryClient: { clear: vi.fn() },
-  queryKeys: {},
-  cacheStrategies: {},
-}));
-
-// Grab a reference to the mock after module is loaded
-import { queryClient as mockQueryClient } from '@/lib/queryClient';
-const mockClear = vi.mocked(mockQueryClient.clear);
 
 // Mock window.confirm
 const mockConfirm = vi.fn();
@@ -25,34 +14,40 @@ Object.defineProperty(window, 'location', {
 });
 
 describe('DataSettings cache clear', () => {
+  const renderSettings = () => {
+    const queryClient = createTestQueryClient();
+    const clearSpy = vi.spyOn(queryClient, 'clear');
+    return { ...render(<DataSettings />, { queryClient }), clearSpy };
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
   });
 
   it('renders clear cache button', () => {
-    render(<DataSettings />);
+    renderSettings();
     expect(screen.getByRole('button', { name: /clear cache/i })).toBeInTheDocument();
   });
 
   it('shows the offline-first note', () => {
-    render(<DataSettings />);
+    renderSettings();
     expect(screen.getByText(/works offline automatically/i)).toBeInTheDocument();
   });
 
   it('shows confirmation before clearing', async () => {
     mockConfirm.mockReturnValue(false);
-    const { user } = render(<DataSettings />);
+    const { user, clearSpy } = renderSettings();
     await user.click(screen.getByRole('button', { name: /clear cache/i }));
     expect(mockConfirm).toHaveBeenCalledWith(expect.stringContaining('clear'));
-    expect(mockClear).not.toHaveBeenCalled();
+    expect(clearSpy).not.toHaveBeenCalled();
   });
 
   it('clears React Query cache and reloads on confirm', async () => {
     mockConfirm.mockReturnValue(true);
-    const { user } = render(<DataSettings />);
+    const { user, clearSpy } = renderSettings();
     await user.click(screen.getByRole('button', { name: /clear cache/i }));
-    expect(mockClear).toHaveBeenCalled();
+    expect(clearSpy).toHaveBeenCalled();
     expect(mockReload).toHaveBeenCalled();
   });
 
@@ -63,7 +58,7 @@ describe('DataSettings cache clear', () => {
     localStorage.setItem('scroll_shows', '150');
 
     mockConfirm.mockReturnValue(true);
-    const { user } = render(<DataSettings />);
+    const { user } = renderSettings();
     await user.click(screen.getByRole('button', { name: /clear cache/i }));
 
     // Preserved

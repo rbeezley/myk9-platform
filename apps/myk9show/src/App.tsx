@@ -1,12 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  optimizeQueryCache,
-  setupQueryPerformanceMonitoring,
-  prefetchCriticalData,
-} from '@/utils/performanceOptimizations';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 
 import { logger } from '@/services/LoggingService';
@@ -63,19 +57,6 @@ if (import.meta.env.DEV) {
   // }).catch(error => {
   //   logger.warn('Failed to load storage benchmarking:', 'app', {}, error as Error);
   // });
-}
-
-// Database optimization - removed preloading for better startup performance
-
-const queryClient = new QueryClient();
-
-// Apply performance optimizations
-optimizeQueryCache(queryClient);
-setupQueryPerformanceMonitoring(queryClient);
-
-// Prefetch critical data after a short delay to avoid blocking startup
-if (typeof window !== 'undefined') {
-  setTimeout(() => prefetchCriticalData(queryClient), 1000);
 }
 
 // Error fallback component
@@ -226,47 +207,45 @@ function App() {
   // Club data initialization is handled by useStoreSubscriptions in ReplicationSyncProvider
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <NetworkStatusProvider>
-        <ReplicationSyncProvider autoSync={true} syncOnReconnect={true}>
-          <StoreProvider>
-            <AuthProvider>
-              <UserDataInitializer />
-              <AnnouncementSubscriptionInitializer />
-              <MessageSubscriptionInitializer />
-              <NotificationMonitorInitializer />
-              <AudioSettingsProvider>
-                <PanelProvider>
-                  <UnsavedChangesRouteGuardProvider>
-                    <ExhibitorOnboardingChecker>
-                      <ErrorBoundary
-                        level="page"
-                        context="Application"
-                        fallback={({ error, resetErrorBoundary }) => (
-                          <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
-                        )}
-                      >
-                        <AppShellMobileNavProvider>
-                          <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-                            <PWAInstallBanner />
-                            <RbacOfflineNotice />
-                            <AppHeader />
-                            <NotificationCenter />
-                            <AppToaster />
-                            <ToastContainer />
-                            <Outlet />
-                          </div>
-                        </AppShellMobileNavProvider>
-                      </ErrorBoundary>
-                    </ExhibitorOnboardingChecker>
-                  </UnsavedChangesRouteGuardProvider>
-                </PanelProvider>
-              </AudioSettingsProvider>
-            </AuthProvider>
-          </StoreProvider>
-        </ReplicationSyncProvider>
-      </NetworkStatusProvider>
-    </QueryClientProvider>
+    <NetworkStatusProvider>
+      <ReplicationSyncProvider autoSync={true} syncOnReconnect={true}>
+        <StoreProvider>
+          <AuthProvider>
+            <UserDataInitializer />
+            <AnnouncementSubscriptionInitializer />
+            <MessageSubscriptionInitializer />
+            <NotificationMonitorInitializer />
+            <AudioSettingsProvider>
+              <PanelProvider>
+                <UnsavedChangesRouteGuardProvider>
+                  <ExhibitorOnboardingChecker>
+                    <ErrorBoundary
+                      level="page"
+                      context="Application"
+                      fallback={({ error, resetErrorBoundary }) => (
+                        <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
+                      )}
+                    >
+                      <AppShellMobileNavProvider>
+                        <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                          <PWAInstallBanner />
+                          <RbacOfflineNotice />
+                          <AppHeader />
+                          <NotificationCenter />
+                          <AppToaster />
+                          <ToastContainer />
+                          <Outlet />
+                        </div>
+                      </AppShellMobileNavProvider>
+                    </ErrorBoundary>
+                  </ExhibitorOnboardingChecker>
+                </UnsavedChangesRouteGuardProvider>
+              </PanelProvider>
+            </AudioSettingsProvider>
+          </AuthProvider>
+        </StoreProvider>
+      </ReplicationSyncProvider>
+    </NetworkStatusProvider>
   );
 }
 

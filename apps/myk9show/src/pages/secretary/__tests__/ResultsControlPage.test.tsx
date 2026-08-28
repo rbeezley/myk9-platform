@@ -238,7 +238,10 @@ describe('ResultsControlPage', () => {
     );
     expect(screen.getByText((_content, element) => element?.textContent === '1 unscored entry'))
       .toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Download draft XML' })).toHaveAttribute(
+    // Renamed: it is a navigation, not a download. The file lives on Submit
+    // Results, and labelling a Link as a file action on the page whose job is
+    // telling the truth about results was the wrong place to be loose.
+    expect(screen.getByRole('link', { name: 'Go to Submit Results' })).toHaveAttribute(
       'href',
       '/shows/show-1/submit-results'
     );

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent } from '@testing-library/react';
-import { render, screen } from '@/test/utils/testUtils';
+import { createTestQueryClient, render, screen } from '@/test/utils/testUtils';
 import { ClassStartTimeEditor } from '../ClassStartTimeEditor';
 
 const updateClassMock = vi.fn().mockResolvedValue('mutation-1');
@@ -8,12 +8,6 @@ const updateClassMock = vi.fn().mockResolvedValue('mutation-1');
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
     updateClass: (...args: unknown[]) => updateClassMock(...args),
-  },
-}));
-
-vi.mock('@/lib/queryClient', () => ({
-  queryClient: {
-    invalidateQueries: vi.fn(),
   },
 }));
 
@@ -67,7 +61,11 @@ describe('ClassStartTimeEditor', () => {
   });
 
   it('saves a valid time through replicatedClassesTable.updateClass and shows the new value', async () => {
-    const { user } = render(<ClassStartTimeEditor {...baseProps} startTime={null} />);
+    const queryClient = createTestQueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const { user } = render(<ClassStartTimeEditor {...baseProps} startTime={null} />, {
+      queryClient,
+    });
 
     await user.click(screen.getByRole('button', { name: /edit start time/i }));
 
@@ -78,6 +76,12 @@ describe('ClassStartTimeEditor', () => {
 
     expect(updateClassMock).toHaveBeenCalledWith('class-1', { startTime: '09:30:00' });
     expect(successMock).toHaveBeenCalledWith(expect.stringContaining('9:30 AM'));
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['shows', 'show-1', 'schedule-timeline'],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['classes', 'detail', 'class-1'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['classes', 'trial', 'trial-1'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['classes', 'list'] });
     expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('9:30 AM');
   });
 
@@ -123,9 +127,7 @@ describe('ClassStartTimeEditor', () => {
   });
 
   it('updates the displayed value when replicated data changes', () => {
-    const { rerender } = render(
-      <ClassStartTimeEditor {...baseProps} startTime="09:00:00" />
-    );
+    const { rerender } = render(<ClassStartTimeEditor {...baseProps} startTime="09:00:00" />);
 
     rerender(<ClassStartTimeEditor {...baseProps} startTime="10:15:00" />);
 

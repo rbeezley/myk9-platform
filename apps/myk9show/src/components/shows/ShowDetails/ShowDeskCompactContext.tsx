@@ -77,13 +77,27 @@ export function ShowDeskCompactContext({
   onDelete: () => void;
 }) {
   const { data: publishInfo } = usePublishInfo(show.id);
+  /**
+   * `undefined` means the publish read did not succeed -- this query has no
+   * `networkMode`, so it inherits 'online' and pauses offline, returning
+   * undefined with `isLoading` false.
+   *
+   * `classifyPremiumPublishState` reads an absent URL as "not published", so an
+   * unread response produced a persistent amber "Premium list is not published"
+   * warning on shows whose premium went out weeks ago. Same defect class as the
+   * counts above, with the polarity inverted: a false ALARM rather than a false
+   * all-clear, and no less corrosive on a show-day desk where every warning is
+   * meant to be worth acting on.
+   */
+  const publishInfoKnown = publishInfo !== undefined;
   const publishState = classifyPremiumPublishState({
     publishedPremiumUrl: publishInfo?.publishedUrl,
     publishedPremiumAt: publishInfo?.publishedAt,
     updatedAt: publishInfo?.updatedAt,
   });
-  const publishException =
-    publishState === 'unpublished'
+  const publishException = !publishInfoKnown
+    ? null
+    : publishState === 'unpublished'
       ? 'Premium list is not published'
       : publishState === 'published-stale'
         ? 'Show data changed after the premium was published'
@@ -118,7 +132,11 @@ export function ShowDeskCompactContext({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {(armbandCount ?? 0) > 0 && <ArmbandLookup showId={show.id} />}
+          {/* Shown whenever the count is positive OR UNKNOWN. `?? 0` hid the
+              control entirely when the count could not be read, which is the
+              false-zero pattern in its most awkward form: a missing affordance
+              gives the secretary nothing to retry. */}
+          {(armbandCount == null || armbandCount > 0) && <ArmbandLookup showId={show.id} />}
           <ShowDeskSyncStatus />
           <OfflineReadyBadge showId={show.id} />
           <LiveUpdateIndicator />

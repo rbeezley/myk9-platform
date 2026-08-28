@@ -138,6 +138,18 @@ jobs:
           HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}
         run: pnpm --filter @myk9/show exec tsx scripts/load-runner-headroom.ts
 
+      # Also BEFORE the reseed, and for the same reason as the headroom gate.
+      # The runner asserts these credentials too, but it does so in the shard
+      # job — after the reseed — so a missing secret would cost the whole
+      # approved window instead of a refused dispatch.
+      - name: Verify per-show staff credentials are provisioned
+        env:
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_LOAD_SECRETARY_1_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_1_PASSWORD }}
+          E2E_LOAD_SECRETARY_2_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_2_PASSWORD }}
+          E2E_LOAD_SECRETARY_3_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_3_PASSWORD }}
+        run: pnpm --filter @myk9/show exec tsx scripts/load-staff-preflight.ts
+
       - name: Mark rehearsal ownership window
         id: ownership
         env:
@@ -334,6 +346,13 @@ jobs:
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+          # One credential per additional load show. Without these the runner's
+          # staff sessions would all authenticate as the canonical secretary,
+          # which manages every fixture show and collapses the own-show versus
+          # cross-show measurement the multi-show fixture exists to make.
+          E2E_LOAD_SECRETARY_1_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_1_PASSWORD }}
+          E2E_LOAD_SECRETARY_2_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_2_PASSWORD }}
+          E2E_LOAD_SECRETARY_3_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_3_PASSWORD }}
 
       - name: Upload shard observation
         if: always()

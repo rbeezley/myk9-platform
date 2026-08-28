@@ -217,7 +217,13 @@ export async function saveShowAtomicOnline(
     // The show row is committed at this point. Signal a PARTIAL success so the
     // caller keeps it and stops inviting a retry -- a second press would mint a
     // new UUID and create a duplicate show.
-    throw new OfficialsNotAssignedError(showId, grantFailures.length);
+    // Carry the one-shot passcodes: this throw happens AFTER
+    // insert_show_passcodes, and the plaintexts cannot be recovered.
+    throw new OfficialsNotAssignedError(showId, grantFailures.length, {
+      showName: savedShow.name,
+      passcodes,
+      passcodeError,
+    });
   }
 
   queryClient.invalidateQueries({ queryKey: ['shows', showId, 'schedule-timeline'] });

@@ -101,8 +101,11 @@ export function useEditModeInitialization({
 
   return {
     officialsUnavailable,
+    // Only clears the guard when there is nothing to lose. Clearing it
+    // unconditionally disarmed `wouldDiscardEdits` below, so pressing the
+    // gate's "Try again" re-armed loadDraft over work in progress.
     resetInitialization: () => {
-      initializedRef.current = null;
+      if (!isDirty) initializedRef.current = null;
     },
   };
 }

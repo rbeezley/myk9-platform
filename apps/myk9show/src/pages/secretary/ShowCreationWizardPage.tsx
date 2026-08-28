@@ -32,6 +32,7 @@ import {
   WizardStepContent,
   WizardEditModeGate,
   WizardDraftResumeBanner,
+  shouldOfferDraftResume,
   useEditModeInitialization,
   resolveEditMode,
   parseEditMode,
@@ -76,11 +77,23 @@ const ShowCreationWizardPage: React.FC = () => {
     lastSaved,
   } = useWizardStore();
 
-  // Checked once on mount, so the banner doesn't appear the moment the
-  // secretary types the first character of a genuinely new show.
-  const [hasResumableDraft, setHasResumableDraft] = useState(
-    () => Boolean(show.name?.trim()) || trials.length > 0
-  );
+  // DERIVED, never latched on mount. `getOptimalStorage` returns an async
+  // `getItem` on BOTH branches, so zustand's persist middleware hydrates
+  // asynchronously in every environment -- a useState initializer here read the
+  // pristine store and the banner could never render on the one mount that
+  // matters, leaving the removed reset-on-mount with no replacement guard.
+  //
+  // `!isDirty` is what keeps it from appearing as soon as the secretary types
+  // the first character of a genuinely new show: `isDirty` is not persisted, so
+  // a rehydrated draft always arrives clean, while live typing sets it true.
+  const [resumeDismissed, setResumeDismissed] = useState(false);
+  const hasResumableDraft = shouldOfferDraftResume({
+    isEditMode: Boolean(editMode),
+    dismissed: resumeDismissed,
+    isDirty,
+    showName: show.name,
+    trialCount: trials.length,
+  });
 
   const { shows: zustandShows } = useShowStore();
   // No `= []` default: an unloaded list must stay distinguishable from an
@@ -346,12 +359,12 @@ const ShowCreationWizardPage: React.FC = () => {
           {/* Main Content — flat cream worksheet region (not a card) so the inner
               step cards are the single lifting card layer, never card-in-card. */}
           <div className="relative flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-border bg-background sm:min-h-[700px]">
-            {!editMode && hasResumableDraft && (
+            {hasResumableDraft && (
               <WizardDraftResumeBanner
                 lastSaved={lastSaved}
                 onStartFresh={() => {
                   resetWizard();
-                  setHasResumableDraft(false);
+                  setResumeDismissed(true);
                 }}
               />
             )}
@@ -410,6 +423,7 @@ const ShowCreationWizardPage: React.FC = () => {
                     onCreateShow={handleCreateShow}
                     onCreateAndPublish={handleCreateAndPublish}
                     onBack={handleBack}
+                    officialsUnknown={officialsUnavailable}
                   />
                 )}
               </div>

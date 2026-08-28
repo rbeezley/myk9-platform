@@ -62,7 +62,7 @@ function SearchablePopover<T extends { id: string }>({
             className="h-8"
           />
         </div>
-        <div className="max-h-60 overflow-auto" role="listbox">
+        <div className="max-h-60 overflow-auto">
           {items.map(item => (
             <React.Fragment key={item.id}>{renderItem(item)}</React.Fragment>
           ))}

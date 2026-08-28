@@ -106,7 +106,6 @@ function GroupedSearchablePopover<T extends { id: string }>({
                   <div
                     key={item.id}
                     role="option"
-                    aria-selected={false}
                     tabIndex={0}
                     onClick={choose}
                     onKeyDown={event => {

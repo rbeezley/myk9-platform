@@ -19,6 +19,8 @@ interface WizardStepContentProps {
   onCreateShow: () => void;
   onCreateAndPublish: () => void;
   onBack: () => void;
+  /** True when the show's existing officials could not be read. */
+  officialsUnknown?: boolean | undefined;
 }
 
 /**
@@ -37,6 +39,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   onCreateShow,
   onCreateAndPublish,
   onBack,
+  officialsUnknown,
 }) => {
   const stepProps = { className: '' };
 
@@ -83,6 +86,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
           onCreateShow={onCreateShow}
           onCreateAndPublish={onCreateAndPublish}
           onBack={onBack}
+          officialsUnknown={officialsUnknown}
           submitLabel={getSubmitLabel(editMode?.mode)}
           publishLabel={getPublishLabel(editMode?.mode)}
         />

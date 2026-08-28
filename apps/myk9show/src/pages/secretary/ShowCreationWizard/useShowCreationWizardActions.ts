@@ -33,10 +33,7 @@ import {
   grantShowOfficials,
   officialsDeferredOfflineMessage,
 } from './grantShowOfficials';
-import {
-  isOfficialsNotAssignedError,
-  officialsNotAssignedMessage,
-} from './showSaveErrors';
+import { completePartialShowSave, isOfficialsNotAssignedError } from './showSaveErrors';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { classDataToReplicatedClass } from './classDataToReplicatedClass';
@@ -242,9 +239,10 @@ export function useShowCreationWizardActions({
             /* non-critical */
           });
 
-          if (status === 'draft') {
-            saveProgress();
-          } else if (shouldResetWizard) {
+          // A draft save INSERTS a real show and navigates to it, so the wizard
+          // releases it: keeping it offered to "resume" an existing show, and
+          // creating again minted a fresh UUID -- a duplicate.
+          if (status === 'draft' || shouldResetWizard) {
             resetWizard();
           }
 
@@ -285,7 +283,14 @@ export function useShowCreationWizardActions({
           // Never send `status` in edit mode: the Review buttons carry a
           // CREATE-time status ("Add Trials (Unpublished)"), which would
           // silently unpublish a live show whose entries are already open.
-          const { status: _wizardStatus, ...editUpdates } = showToShowInput(wizardShow);
+          // `style` goes the same way as `status`: the draft doesn't carry it,
+          // so ensureShowDefaults backfills the DEFAULT and the write would
+          // reset a club's chosen premium style on the first "Add Trials".
+          const {
+            status: _wizardStatus,
+            style: _wizardStyle,
+            ...editUpdates
+          } = showToShowInput(wizardShow);
           const updated = await updateShow(editMode.showId, editUpdates);
           // null = show absent from the store (the cold-store case the wizard
           // now gates). Falling back to `wizardShow` toasted "saved
@@ -361,10 +366,8 @@ export function useShowCreationWizardActions({
         // Invalidate schedule timeline cache so the overview page shows new trials/classes
         queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'schedule-timeline'] });
 
-        // Save progress to wizard store if draft
-        if (status === 'draft') {
-          saveProgress();
-        } else if (shouldResetWizard) {
+        // See the atomic path above.
+        if (status === 'draft' || shouldResetWizard) {
           resetWizard();
         }
 
@@ -400,9 +403,12 @@ export function useShowCreationWizardActions({
             showId: error.showId,
             failedCount: error.failedCount,
           });
-          notifications.warning(officialsNotAssignedMessage(error.failedCount));
-          resetWizard();
-          navigate(`/shows/${error.showId}`);
+          completePartialShowSave(error, {
+            warn: notifications.warning,
+            resetWizard,
+            navigate,
+            onCreated: onCreatedRef.current,
+          });
           return;
         }
 
@@ -464,17 +470,14 @@ export function useShowCreationWizardActions({
     await saveShow('draft', false);
   }, [saveShow]);
 
-  /** Create show (unpublished) */
   const handleCreateShow = useCallback(async () => {
     await saveShow('unpublished', true);
   }, [saveShow]);
 
-  /** Create and publish show */
   const handleCreateAndPublish = useCallback(async () => {
     await saveShow('published', true);
   }, [saveShow]);
 
-  /** Save progress without navigating */
   const handleSaveProgress = useCallback(async () => {
     setIsLoading(true);
     try {

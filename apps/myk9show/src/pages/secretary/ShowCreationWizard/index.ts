@@ -13,7 +13,7 @@ export { WizardHeader } from './WizardHeader';
 export { WizardStepContent } from './WizardStepContent';
 export { buildEditModeDraft } from './buildEditModeDraft';
 export { WizardEditModeGate } from './WizardEditModeGate';
-export { WizardDraftResumeBanner } from './WizardDraftResumeBanner';
+export { WizardDraftResumeBanner, shouldOfferDraftResume } from './WizardDraftResumeBanner';
 export { useEditModeInitialization } from './useEditModeInitialization';
 export { resolveEditMode, parseEditMode } from './editModeResolution';
 export type { EditModeResolution } from './editModeResolution';

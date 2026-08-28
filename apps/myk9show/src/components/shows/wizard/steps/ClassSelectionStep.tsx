@@ -364,8 +364,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                   never compiled and the trial tabs collapsed to one column at
                   every trial count. */}
               <TabsList
-                className="grid w-full"
-                style={{ gridTemplateColumns: `repeat(${trials.length}, minmax(0, 1fr))` }}
+                className="grid w-full overflow-x-auto"
+                style={{
+                  gridTemplateColumns: `repeat(${trials.length}, minmax(7rem, 1fr))`,
+                }}
               >
                 {trials.map(trial => {
                   const isCompleted = trial.classes.length > 0;

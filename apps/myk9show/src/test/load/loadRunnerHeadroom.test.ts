@@ -362,8 +362,36 @@ describe('collectAccountJobCounts', () => {
       });
 
       // in_progress first would lose a run that is queued at the first read and
-      // running by the second: it appears in neither result.
-      expect(seen).toEqual(['queued', 'in_progress']);
+      // running by the second; the trailing queued re-read catches one enqueued
+      // after the first read that never started.
+      expect(seen).toEqual(['queued', 'in_progress', 'queued']);
+    });
+
+    it('counts a run that only appears in the second queued snapshot', async () => {
+      // Enqueued after the first queued read and still queued through the
+      // in_progress read — invisible to a two-snapshot count.
+      let queuedReads = 0;
+      const routes: StubRoute = {
+        ...userRoute(1),
+        [inventoryPage(1)]: [{ full_name: CURRENT, archived: false, private: false }],
+        [runsPage(CURRENT, 'in_progress', 1)]: { workflow_runs: [] },
+        [jobsPage(CURRENT, 77, 1)]: { jobs: [{ status: 'queued' }, { status: 'queued' }] },
+      };
+      const base = readerFor(routes);
+
+      const collected = await collectAccountJobCounts({
+        read: async path => {
+          if (path.includes('status=queued')) {
+            queuedReads += 1;
+            return { workflow_runs: queuedReads === 1 ? [] : [{ id: 77 }] };
+          }
+          return base(path);
+        },
+        currentRepo: CURRENT,
+        currentRunId: '1',
+      });
+
+      expect(collected.repos).toEqual([{ fullName: CURRENT, activeJobs: 2 }]);
     });
 
     it('counts a run appearing in both status reads only once', async () => {

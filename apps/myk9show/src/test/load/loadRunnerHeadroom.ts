@@ -214,17 +214,28 @@ export interface WorkflowJob {
 export type GitHubReader = (path: string) => Promise<unknown>;
 
 /**
- * QUEUED IS READ FIRST, and the results are de-duplicated by run id.
+ * Run-status snapshots, in read order: queued, in_progress, queued again.
  *
- * These are two separate API reads, so a run can move between them. Reading
- * `in_progress` first loses a run that is queued at the first read and running
- * by the second — it appears in neither result and its jobs vanish from the
- * count, which at the capacity boundary admits a rehearsal that should have been
- * refused. Reading `queued` first cannot lose a run: anything queued at T1 is
- * already captured, and anything that starts after T1 is still running at T2.
- * The same run legitimately appears in both reads, hence the dedup.
+ * `queued` and `in_progress` are separate API reads, so a run can move between
+ * them. Reading `in_progress` first loses a run that is queued at the first read
+ * and running by the second — it appears in neither result and its jobs vanish
+ * from the count, which at the capacity boundary admits a rehearsal that should
+ * have been refused. Reading `queued` first fixes that direction. The trailing
+ * `queued` re-read closes the other one: a run enqueued after the first queued
+ * read that is still queued during the in_progress read.
+ *
+ * The same run legitimately appears in more than one snapshot, so run ids are
+ * de-duplicated before their jobs are fetched.
+ *
+ * THIS DOES NOT MAKE THE COUNT INSTANTANEOUS, and no number of snapshots would.
+ * Work enqueued after the final read is missed by construction — that is a
+ * property of sampling, not a bug a fourth read would fix. The extra read
+ * narrows the window; the thing that actually absorbs late arrivals is the
+ * margin between the ceiling and what the rehearsal needs (20 - 17 = 3 slots).
+ * If that margin ever goes to zero, no amount of polling here rescues it.
  */
-const ACTIVE_RUN_STATUSES = ['queued', 'in_progress'] as const;
+const ACTIVE_RUN_STATUSES = ['queued', 'in_progress', 'queued'] as const;
+
 const ACTIVE_JOB_STATUSES = new Set(['in_progress', 'queued']);
 
 const PAGE_SIZE = 100;

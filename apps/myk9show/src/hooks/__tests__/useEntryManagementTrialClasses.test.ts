@@ -27,6 +27,7 @@ const queryState = {
   data: undefined as unknown,
   isLoading: false,
   isSuccess: false,
+  isError: false,
 };
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
@@ -34,6 +35,7 @@ vi.mock('@/hooks/queries/useClassesDatabase', () => ({
     data: queryState.data,
     isLoading: queryState.isLoading,
     isSuccess: queryState.isSuccess,
+    isError: queryState.isError,
     refetch: vi.fn(),
   }),
 }));
@@ -42,6 +44,7 @@ beforeEach(() => {
   queryState.data = undefined;
   queryState.isLoading = false;
   queryState.isSuccess = false;
+  queryState.isError = false;
 });
 
 describe('useEntryManagementTrialClasses (audit A1)', () => {
@@ -64,12 +67,15 @@ describe('useEntryManagementTrialClasses (audit A1)', () => {
   });
 
   it('reports UNKNOWN when the query errored', () => {
-    queryState.isSuccess = false;
+    // Distinct from the paused case above: the query settled, and settled in
+    // failure. Both must reach the same conclusion by different routes.
+    queryState.isError = true;
     queryState.data = undefined;
 
     const { result } = renderHook(() => useEntryManagementTrialClasses('trial-1'));
 
     expect(result.current.trialClassIds).toBeUndefined();
+    expect(result.current.trialClassesUnknown).toBe(true);
   });
 
   it('does not call a still-loading trial unknown, so no notice flashes on a normal pick', () => {

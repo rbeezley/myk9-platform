@@ -37,6 +37,15 @@ interface UseEntryManagementDataReturn {
   setSelectedShowId: (id: string) => void;
   isLoadingShows: boolean;
   /**
+   * Show resolution has finished: the show list loaded AND, for a deep link,
+   * the direct `getShowById` fallback has settled. `isLoadingShows` alone is
+   * NOT this -- it goes false while the fallback is still in flight, so gating
+   * the page on it renders "No show selected" for a show that is about to
+   * resolve. Any branch that concludes something from the ABSENCE of a
+   * selected show must wait for this.
+   */
+  didResolveShow: boolean;
+  /**
    * Show-resolution errors — the secretary's show list failed to read, or a
    * deep-linked show id could not be fetched. Distinct from `loadError`
    * (entries failed) and `error` (an action failed): here there is no show to
@@ -45,6 +54,15 @@ interface UseEntryManagementDataReturn {
    */
   showError: string | null;
   loadShows: () => Promise<void>;
+  /**
+   * Re-runs the whole show-resolution sequence, including the deep-link
+   * `getShowById` fallback. `loadShows()` on its own cannot recover a failed
+   * deep link: that lookup is latched behind `didApplyInitial`, which is
+   * already true by the time the error is on screen, so retrying with
+   * `loadShows` merely cleared the error and left the page saying "No show
+   * selected" for a show that does exist.
+   */
+  retryShowResolution: () => void;
 
   // Entries
   entries: EntryManagementEntry[];
@@ -300,6 +318,12 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     loadShows();
   }, [loadShows]);
 
+  const retryShowResolution = useCallback(() => {
+    setShowError(null);
+    setDidApplyInitial(false);
+    void loadShows();
+  }, [loadShows]);
+
   // Apply initial show: URL param > localStorage > none.
   // URL deep links must work even when the local replicated show cache is stale.
   useEffect(() => {
@@ -452,8 +476,10 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     selectedShowId,
     setSelectedShowId,
     isLoadingShows,
+    didResolveShow: didApplyInitial,
     showError,
     loadShows,
+    retryShowResolution,
     entries,
     setEntries,
     isLoading,

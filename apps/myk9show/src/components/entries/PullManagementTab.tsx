@@ -30,7 +30,6 @@ import {
   Check,
   X,
   Clock,
-  AlertCircle,
   Loader2,
   RefreshCw,
   Dog,
@@ -38,6 +37,12 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
+import {
+  NoPendingPullsCard,
+  NoPulledEntriesCard,
+  PullRequestsErrorCard,
+  PulledEntriesUnknownCard,
+} from './PullTabStateCards';
 import { getPendingPullRequests, type PullRecord } from '@/services/database/day-of-operations';
 import {
   approvePullRequestReplicated,
@@ -57,6 +62,14 @@ interface PullManagementTabProps {
    * confidently reported "There are no pulled entries for this show".
    */
   processedEntriesUnknown?: boolean;
+  /**
+   * The caller's entries read is still IN FLIGHT. Distinct from
+   * `processedEntriesUnknown`: nothing has failed, so this must render as
+   * pending, not as an error. Folding the two together traded one false claim
+   * for another -- a red "Couldn't load this show's entries" every time the
+   * secretary opened this tab or hit Refresh.
+   */
+  processedEntriesLoading?: boolean;
   onRefresh?: () => void;
 }
 
@@ -64,6 +77,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
   showId,
   processedEntries,
   processedEntriesUnknown = false,
+  processedEntriesLoading = false,
   onRefresh,
 }) => {
   const [pendingRequests, setPendingRequests] = useState<PullRecord[]>([]);
@@ -252,30 +266,9 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
         {/* Pending Requests */}
         <TabsContent value="pending" className="mt-4">
           {error ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" aria-hidden />
-                <p className="text-lg font-medium">Couldn&rsquo;t load pull requests</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  We don&rsquo;t know whether this show has any pending pulls.
-                </p>
-                <Button className="mt-4" onClick={loadData}>
-                  Retry
-                </Button>
-              </CardContent>
-            </Card>
+            <PullRequestsErrorCard onRetry={loadData} />
           ) : filteredPending.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Pending Pull Requests</p>
-                <p className="text-sm text-muted-foreground">
-                  {searchTerm
-                    ? 'No requests match your search'
-                    : 'There are no pending pull requests'}
-                </p>
-              </CardContent>
-            </Card>
+            <NoPendingPullsCard searching={Boolean(searchTerm)} />
           ) : (
             <div className="space-y-3">
               {filteredPending.map(request => (
@@ -353,29 +346,14 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
 
         {/* Pulled entries */}
         <TabsContent value="processed" className="mt-4">
-          {processedEntriesUnknown ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" aria-hidden />
-                <p className="text-lg font-medium">Couldn&rsquo;t load this show&rsquo;s entries</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Pulled entries come from the same read, so we don&rsquo;t know whether this show
-                  has any. Retry from the Registrations tab.
-                </p>
-              </CardContent>
-            </Card>
+          {processedEntriesLoading ? (
+            <div role="status" aria-label="Loading pulled entries" className="py-4">
+              <TableSkeleton rows={4} columns={4} />
+            </div>
+          ) : processedEntriesUnknown ? (
+            <PulledEntriesUnknownCard />
           ) : filteredProcessed.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Pulled Entries</p>
-                <p className="text-sm text-muted-foreground">
-                  {searchTerm
-                    ? 'No pulls match your search'
-                    : 'There are no pulled entries for this show'}
-                </p>
-              </CardContent>
-            </Card>
+            <NoPulledEntriesCard searching={Boolean(searchTerm)} />
           ) : (
             <div className="space-y-3">
               {filteredProcessed.map(entry => (

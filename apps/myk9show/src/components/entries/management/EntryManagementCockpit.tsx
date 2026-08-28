@@ -10,6 +10,7 @@ import { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
 import { TrialClassFilters } from './TrialClassFilters';
 import { EntryRegistrationQueue } from './EntryRegistrationQueue';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { getEntryRegistrationRowId } from './showRegistrationProjection';
 import { EntryFocusedRegistration } from './EntryFocusedRegistration';
 import { EntryRegistrationSelectionToolbar } from './EntryRegistrationSelectionToolbar';
@@ -200,6 +201,8 @@ export function EntryManagementCockpit({
   };
 
   const selectedEntries = cockpit.selection.selectedItems.flatMap(group => group.entries);
+  /** A trial is selected but which classes it holds is still being read. */
+  const trialScopePending = Boolean(cockpit.state.trialId) && isLoadingClasses;
   const showQueue = !responsive.compact || !responsive.detailOpen;
   const showDetail = !responsive.compact || responsive.detailOpen;
 
@@ -313,7 +316,21 @@ export function EntryManagementCockpit({
           !responsive.compact && 'grid-cols-[minmax(30rem,1.1fr)_minmax(25rem,.9fr)]'
         )}
       >
-        {showQueue && (
+        {/*
+          Trial picked, classes not back yet. `trialClassIds` is `undefined`
+          here, so the queue would render EVERY registration in the show while
+          appearing scoped to the trial -- and "Select all on page" would then
+          bulk-act on another trial's entries. Refusing to scope is the right
+          call once the read has failed, but during the read the honest answer
+          is "not yet", not a superset presented as a subset.
+        */}
+        {showQueue && trialScopePending && (
+          <div role="status" aria-label="Loading this trial's registrations" className="py-4">
+            <TableSkeleton rows={6} columns={4} />
+          </div>
+        )}
+
+        {showQueue && !trialScopePending && (
           <EntryRegistrationQueue
             groups={cockpit.page.items}
             focusedKey={focusedKey}

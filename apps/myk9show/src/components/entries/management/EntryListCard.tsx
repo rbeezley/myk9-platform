@@ -132,7 +132,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
 
             {entry.armbandNumber ? (
               <button
-                className="inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity"
+                className="inline-flex min-h-11 cursor-pointer items-center gap-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onOpenArmbandDialog(entry)}
                 // WCAG 2.5.3: the visible text is the armband number, so the
                 // accessible name has to start with it.
@@ -347,7 +347,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="inline-flex items-center gap-1 cursor-pointer border border-border/40 rounded px-1.5 py-0.5 hover:border-border transition-colors"
+                        className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded border border-border/40 px-1.5 transition-colors hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label={`${getStatusDescriptor('entry', cls.checkInStatus || 'no-status').label}, change check-in status for ${entry.dogName} in ${cls.name}`}
                       >
                         <CheckInStatusIndicator

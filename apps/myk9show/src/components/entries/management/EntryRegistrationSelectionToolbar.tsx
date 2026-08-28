@@ -47,11 +47,17 @@ export function EntryRegistrationSelectionToolbar({
       ref={actionBarRef}
       className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-xl border bg-foreground px-3 py-2 text-background shadow-2xl"
       aria-label="Selected registration actions"
-      role="status"
     >
-      <span className="whitespace-nowrap px-1 text-sm font-semibold">
+      {/* The selection COUNT is what changes and should be announced; the
+          toolbar around it holds buttons, and making the whole container a
+          live region re-announces every one of them on each change. */}
+      <span aria-hidden className="whitespace-nowrap px-1 text-sm font-semibold">
         {registrations} {registrations === 1 ? 'registration' : 'registrations'} ·{' '}
         {selectedEntries.length} {selectedEntries.length === 1 ? 'Entry' : 'Entries'}
+      </span>
+      <span role="status" aria-live="polite" className="sr-only">
+        {registrations} {registrations === 1 ? 'registration' : 'registrations'} selected,{' '}
+        {selectedEntries.length} {selectedEntries.length === 1 ? 'entry' : 'entries'}
       </span>
       {primaryAction && (
         <Button type="button" variant="secondary" onClick={primaryAction.onSelect} disabled={busy}>

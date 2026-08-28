@@ -53,8 +53,9 @@ const EntryManagementPage: React.FC = () => {
     shows,
     selectedShowId,
     isLoadingShows,
+    didResolveShow,
     showError,
-    loadShows,
+    retryShowResolution,
     entries,
     setEntries,
     isLoading,
@@ -207,7 +208,8 @@ const EntryManagementPage: React.FC = () => {
         <Card>
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+            {/* This branch replaces the whole page, so it owns the h1. */}
+            <h1 className="mb-2 text-xl font-semibold">Access Restricted</h1>
             <p className="text-muted-foreground">
               This page is only accessible to users with secretary permissions.
             </p>
@@ -307,7 +309,7 @@ const EntryManagementPage: React.FC = () => {
       <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
         <TabsContent value="registrations">
           {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
-          {!selectedShowId && isLoadingShows && (
+          {!selectedShowId && !didResolveShow && (
             <div role="status" aria-label="Opening show" className="py-4">
               <TableSkeleton rows={8} columns={5} />
             </div>
@@ -327,7 +329,7 @@ const EntryManagementPage: React.FC = () => {
             no error means nothing was ever selected, and the recovery is to
             pick a show.
           */}
-          {!selectedShowId && !isLoadingShows && (
+          {!selectedShowId && didResolveShow && (
             <Card>
               <CardContent className="py-12 text-center">
                 <AlertCircle
@@ -343,7 +345,7 @@ const EntryManagementPage: React.FC = () => {
                     : 'Choose a show to manage its entries.'}
                 </p>
                 {showError ? (
-                  <Button onClick={() => loadShows()} disabled={isLoadingShows}>
+                  <Button onClick={retryShowResolution} disabled={isLoadingShows}>
                     Retry
                   </Button>
                 ) : (
@@ -389,7 +391,7 @@ const EntryManagementPage: React.FC = () => {
             <Card>
               <CardContent className="py-12 text-center">
                 <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Couldn't load entries</h3>
+                <h2 className="mb-2 text-lg font-medium">Couldn't load entries</h2>
                 <Alert variant="destructive" className="text-left mb-4 max-w-md mx-auto">
                   <AlertDescription>{loadError}</AlertDescription>
                 </Alert>
@@ -504,7 +506,8 @@ const EntryManagementPage: React.FC = () => {
                   <PullManagementTab
                     showId={selectedShowId}
                     processedEntries={pulledEntries}
-                processedEntriesUnknown={isLoading || Boolean(loadError)}
+                processedEntriesUnknown={Boolean(loadError)}
+                processedEntriesLoading={isLoading}
                     onRefresh={() => loadEntries(selectedShowId)}
                   />
                 </CardContent>

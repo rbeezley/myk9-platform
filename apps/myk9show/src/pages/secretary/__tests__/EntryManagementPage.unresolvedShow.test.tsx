@@ -29,6 +29,11 @@ const dataState = {
   shows: [] as unknown[],
   selectedShowId: '',
   isLoadingShows: false,
+  // Show resolution has SETTLED. `isLoadingShows` is not this: it goes false
+  // while the deep-link `getShowById` fallback is still in flight, so the page
+  // gates its "no show selected" branch on `didResolveShow` instead. See
+  // useEntryManagementShowResolution.test.tsx for the hook-level coverage.
+  didResolveShow: true,
   showError: null as string | null,
 };
 
@@ -40,8 +45,10 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
     selectedShowId: dataState.selectedShowId,
     setSelectedShowId: vi.fn(),
     isLoadingShows: dataState.isLoadingShows,
+    didResolveShow: dataState.didResolveShow,
     showError: dataState.showError,
-    loadShows: mockLoadShows,
+    loadShows: vi.fn(),
+    retryShowResolution: mockLoadShows,
     entries: [],
     setEntries: vi.fn(),
     isLoading: false,
@@ -103,6 +110,7 @@ beforeEach(() => {
   dataState.shows = [];
   dataState.selectedShowId = '';
   dataState.isLoadingShows = false;
+  dataState.didResolveShow = true;
   dataState.showError = null;
 });
 
@@ -124,14 +132,27 @@ describe('EntryManagementPage — unresolved show (audit A2)', () => {
     expect(screen.queryByText(/no matching registrations/i)).not.toBeInTheDocument();
   });
 
-  it('retry re-runs the show load', async () => {
+  it('retry re-runs the FULL resolution, including the deep-link lookup', async () => {
     dataState.showError = "We couldn't open this show. Please retry.";
     const { user } = render(<EntryManagementPage />, {
       initialRoute: '/shows/show-1/entry-management',
     });
 
     await user.click(screen.getByRole('button', { name: /retry/i }));
+    // Wired to `retryShowResolution`, not `loadShows`: the deep-link lookup is
+    // latched behind `didApplyInitial`, so `loadShows` alone cleared the error
+    // without re-attempting the read that failed.
     expect(mockLoadShows).toHaveBeenCalled();
+  });
+
+  it('shows pending, not a verdict, while resolution is still running', () => {
+    dataState.didResolveShow = false;
+    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entry-management' });
+
+    // The regression this replaces: "No show selected" rendered confidently
+    // during the deep-link await, for a show that was about to resolve.
+    expect(screen.queryByText(/no show selected/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /opening show/i })).toBeInTheDocument();
   });
 
   it('offers a way forward, not a blank tab, when no show was ever selected', () => {

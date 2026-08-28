@@ -64,6 +64,43 @@ type TestUserResult =
   | { success: false; email: string; error: string };
 
 const CANONICAL_TEST_USERS: TestUser[] = [
+  // MYK9-126 per-show load secretaries. One per additional load show, so a staff
+  // session for show N can manage show N and nothing else.
+  //
+  // roles is deliberately EMPTY. getRoleScope() scopes every 'secretary' grant to
+  // one resolved club, so granting the role here would scope all three to the
+  // canonical demo club — the shared-club situation that makes per-show scoping
+  // impossible in the first place. seed-demo.sql grants each one a club-level
+  // secretary role on its OWN load club instead, conditionally, so a missing
+  // account never breaks a reseed.
+  //
+  // optional: the rehearsal harness fails closed when these passwords are unset,
+  // so provisioning them is a deliberate step rather than a prerequisite for
+  // everyone running this script.
+  {
+    email: 'load-secretary-1@myk9t.com',
+    passwordEnv: 'E2E_LOAD_SECRETARY_1_PASSWORD',
+    firstName: 'Load',
+    lastName: 'Secretary One',
+    roles: [],
+    optional: true,
+  },
+  {
+    email: 'load-secretary-2@myk9t.com',
+    passwordEnv: 'E2E_LOAD_SECRETARY_2_PASSWORD',
+    firstName: 'Load',
+    lastName: 'Secretary Two',
+    roles: [],
+    optional: true,
+  },
+  {
+    email: 'load-secretary-3@myk9t.com',
+    passwordEnv: 'E2E_LOAD_SECRETARY_3_PASSWORD',
+    firstName: 'Load',
+    lastName: 'Secretary Three',
+    roles: [],
+    optional: true,
+  },
   {
     email: 'exhibitor@myk9t.com',
     passwordEnv: 'E2E_DEMO_EXHIBITOR_PASSWORD',

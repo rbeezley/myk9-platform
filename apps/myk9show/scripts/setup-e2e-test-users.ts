@@ -501,7 +501,14 @@ async function main(): Promise<void> {
   console.log('========================================');
   console.log('Password: loaded from local/CI env; not printed');
   console.log('\nAccounts:');
-  TEST_USERS.forEach(user => console.log(`  ${user.roles[0].padEnd(12)} : ${user.email}`));
+  // roles[0] is not guaranteed: the per-show load secretaries carry no roles
+  // here on purpose, because seed-demo.sql grants each one a club-level
+  // secretary role on its OWN load club. Indexing blindly crashed this summary
+  // AFTER the accounts were created, turning a successful --apply into a
+  // non-zero exit that read like a failure.
+  TEST_USERS.forEach(user =>
+    console.log(`  ${(user.roles[0] ?? 'no role').padEnd(12)} : ${user.email}`)
+  );
 }
 
 main().catch(error => {

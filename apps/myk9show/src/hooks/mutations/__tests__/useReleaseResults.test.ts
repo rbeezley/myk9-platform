@@ -5,21 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useReleaseResults } from '../useReleaseResults';
 
 const mockUpdateClass = vi.hoisted(() => vi.fn());
-const mockSuccess = vi.hoisted(() => vi.fn());
-const mockError = vi.hoisted(() => vi.fn());
-const mockWarning = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
     updateClass: (...args: unknown[]) => mockUpdateClass(...args),
-  },
-}));
-
-vi.mock('@/lib/notifications', () => ({
-  notifications: {
-    success: mockSuccess,
-    error: mockError,
-    warning: mockWarning,
   },
 }));
 
@@ -35,6 +24,18 @@ function makeWrapper() {
     React.createElement(QueryClientProvider, { client }, children);
 }
 
+/*
+ * The toast assertions that used to live here moved with the toast itself.
+ * Both this hook AND `BulkOperationsBar` used to call sonner, so one release
+ * produced two differently-worded messages. The bar won, because its message
+ * describes the SELECTION outcome ("the failed classes stayed selected so you
+ * can retry") which this hook cannot see. The "never resolves silently"
+ * guarantee is covered by
+ * `pages/secretary/ResultsControlPage/__tests__/BulkOperationsBar.test.tsx`.
+ *
+ * What stays here is what this hook actually owns: the per-index partition of
+ * released vs failed, which the bar depends on to keep the right rows selected.
+ */
 describe('useReleaseResults', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,9 +51,6 @@ describe('useReleaseResults', () => {
     });
 
     expect(outcome).toEqual({ released: ['a', 'b'], failed: [] });
-    expect(mockSuccess).toHaveBeenCalledWith('Results released for 2 classes');
-    expect(mockWarning).not.toHaveBeenCalled();
-    expect(mockError).not.toHaveBeenCalled();
   });
 
   it('partitions released vs failed and warns when some classes fail', async () => {
@@ -70,10 +68,6 @@ describe('useReleaseResults', () => {
 
     // Assertion-first: the failed class is named so the secretary can retry just it.
     expect(outcome).toEqual({ released: ['a', 'c'], failed: ['b'] });
-    expect(mockWarning).toHaveBeenCalledWith(
-      'Released 2 of 3 classes. 1 failed — the failed classes stay selected so you can retry.'
-    );
-    expect(mockSuccess).not.toHaveBeenCalled();
   });
 
   it('surfaces an error (not success) when every class fails', async () => {
@@ -87,9 +81,6 @@ describe('useReleaseResults', () => {
     });
 
     expect(outcome).toEqual({ released: [], failed: ['a', 'b'] });
-    expect(mockError).toHaveBeenCalledWith('Failed to release 2 classes. Reselect and try again.');
-    expect(mockSuccess).not.toHaveBeenCalled();
-    expect(mockWarning).not.toHaveBeenCalled();
   });
 
   it('no-ops on an empty selection', async () => {

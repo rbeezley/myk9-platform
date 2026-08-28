@@ -63,6 +63,13 @@ export function useResultSubmission(showId?: string) {
 
   return useMutation({
     mutationFn: insertSubmission,
+    // The caller awaits this immediately after the results email has already
+    // reached the registry, so it must SETTLE rather than park. With the
+    // default 'online' networkMode an offline mutation pauses indefinitely and
+    // the send button stayed on "Sending..." forever after a successful send.
+    // 'always' lets the write fail fast, which the caller reports as "sent, but
+    // we couldn't log it" -- a true statement it can act on.
+    networkMode: 'always',
     onSuccess: () => {
       if (showId) {
         queryClient.invalidateQueries({ queryKey: resultSubmissionKeys.byShow(showId) });

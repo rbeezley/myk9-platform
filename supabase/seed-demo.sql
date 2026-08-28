@@ -1256,6 +1256,33 @@ SELECT
   1
 FROM load_entries;
 
+-- Club MEMBERSHIP for each load secretary, in its own club.
+--
+-- The role grant above is inert without this. `is_trial_secretary(club_id)` is
+-- the arm of `manageable_show_ids()` these accounts reach, and for a
+-- club-scoped grant it additionally requires
+-- `is_active_club_member(ur.user_id, ur.club_id)` -- so a secretary row with no
+-- club_members row resolves to ZERO manageable shows, not to its own show.
+--
+-- That failure is silent in the worst place: the harness's scope assertion runs
+-- in the SHARD job, after the canonical reseed, so it would report "manages
+-- nothing" only once an approved rehearsal window was already spent. Verified
+-- against staging on 2026-08-28, where all three load secretaries held the role
+-- and no membership.
+--
+-- Same conditional shape as the grant: the JOIN drops any account that has not
+-- been provisioned, so a reseed never breaks on a missing load secretary.
+INSERT INTO public.club_members (club_id, person_id, membership_type, membership_status, joined_date)
+SELECT
+  format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
+  p.id,
+  'full',
+  'active',
+  DATE '2026-06-17'
+FROM generate_series(1, 3) AS load_secretaries(s)
+JOIN public.people p ON lower(p.email) = format('load-secretary-%s@myk9t.com', s)
+ON CONFLICT (club_id, person_id) DO NOTHING;
+
 INSERT INTO public.armbands (
   id, show_id, dog_id, armband_number, is_available, assigned_at, version
 )

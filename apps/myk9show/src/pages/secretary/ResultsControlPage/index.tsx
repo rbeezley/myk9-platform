@@ -225,7 +225,7 @@ export default function ResultsControlPage() {
               classes, they are not, and the numbers are zeros by absence. */}
           <p className="font-medium" data-testid="results-readiness-verdict">
             {readiness.entriesUncorroborated
-              ? "We couldn't read this show's entries, so we can't tell whether results are ready."
+              ? "No entries are loaded for this show's classes, so scoring completeness can't be confirmed."
               : readiness.safeToSend
                 ? 'Results are released and ready to submit.'
                 : "Here's what is still blocking closeout."}

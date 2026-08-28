@@ -5,21 +5,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useReleaseResults } from '../useReleaseResults';
 
 const mockUpdateClass = vi.hoisted(() => vi.fn());
-const mockSuccess = vi.hoisted(() => vi.fn());
-const mockError = vi.hoisted(() => vi.fn());
-const mockWarning = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
     updateClass: (...args: unknown[]) => mockUpdateClass(...args),
-  },
-}));
-
-vi.mock('@/lib/notifications', () => ({
-  notifications: {
-    success: mockSuccess,
-    error: mockError,
-    warning: mockWarning,
   },
 }));
 

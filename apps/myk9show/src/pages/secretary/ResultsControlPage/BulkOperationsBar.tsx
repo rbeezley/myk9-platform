@@ -69,7 +69,11 @@ export function BulkOperationsBar({
   function handleBulkPreset(preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
     const classIds = getValidClassIds(selectedClasses, allClassIds);
-    if (classIds.length === 0) return;
+    if (classIds.length === 0) {
+      toast.warning('Those classes are no longer in this show. The selection has been cleared.');
+      onClearSelection();
+      return;
+    }
     bulkUpdate.mutate(
       {
         classIds,
@@ -94,7 +98,11 @@ export function BulkOperationsBar({
 
   function handleBulkCheckin(enabled: boolean) {
     const classIds = getValidClassIds(selectedClasses, allClassIds);
-    if (classIds.length === 0) return;
+    if (classIds.length === 0) {
+      toast.warning('Those classes are no longer in this show. The selection has been cleared.');
+      onClearSelection();
+      return;
+    }
     bulkUpdate.mutate(
       { classIds, showId, selfCheckinEnabled: enabled },
       {

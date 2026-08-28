@@ -41,6 +41,9 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 // Component
 // ---------------------------------------------------------------------------
 
+/** How long to wait for the submission record before reporting it unconfirmed. */
+const RECORD_SUBMISSION_TIMEOUT_MS = 8000;
+
 export default function ResultsSubmissionPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
@@ -57,7 +60,12 @@ export default function ResultsSubmissionPage() {
   const [showMarkConfirm, setShowMarkConfirm] = useState(false);
   const [markSuccess, setMarkSuccess] = useState(false);
   /** The send reached the registry but the local record of it did not land. */
-  const [recordFailed, setRecordFailed] = useState(false);
+  /**
+   * The registry the last send actually reached, captured at send time.
+   * Reading the live selection here let the banner name a registry nothing was
+   * sent to, once the secretary switched organisations after sending.
+   */
+  const [recordFailed, setRecordFailed] = useState<string | null>(null);
 
   const defaultSubmissionOptionKey = useMemo(
     () => chooseDefaultSubmissionOptionKey(show?.organization, submissionOptions),
@@ -94,7 +102,7 @@ export default function ResultsSubmissionPage() {
     setSendSuccess(false);
     setMarkSuccess(false);
     setSendError(null);
-    setRecordFailed(false);
+    setRecordFailed(null);
     setHasUserSelectedSubmissionOption(true);
     setSubmissionOptionKeyValue(nextOptionKey);
   };
@@ -126,13 +134,16 @@ export default function ResultsSubmissionPage() {
    * authoritative claim about the show -- for a fully scored show whose data
    * simply had not been read.
    */
-  const akcDataUnavailable = isAKCScentWork && !isAKCLoading && akcData === undefined;
+  const akcDataUnavailable = isAKCScentWork && !isAKCLoading && !akcData;
 
   const xmlPreview = isAKCScentWork && akcData ? AKCScentWorkFormatter.formatXml(akcData) : '';
 
   // Pre-flight: count entries missing AKC reg numbers
   const missingAKCCount = akcData ? akcData.entries.filter(e => !e.registrationNumber).length : 0;
-  const hasBlockingAKCPreflightIssue = isAKCScentWork && missingAKCCount > 0;
+  /** Nothing to send. An empty XML is still valid XML, so this must be its own gate. */
+  const hasNoAKCEntries = isAKCScentWork && Boolean(akcData) && akcData!.entries.length === 0;
+  const hasBlockingAKCPreflightIssue =
+    isAKCScentWork && (missingAKCCount > 0 || hasNoAKCEntries);
   const akcReadiness = akcData
     ? buildAKCSubmissionReadiness({
         entryCount: akcData.entries.length,
@@ -223,16 +234,27 @@ export default function ResultsSubmissionPage() {
       // an empty history -- inviting the secretary to send the same results
       // again. The send succeeding and the bookkeeping succeeding are two
       // different facts and have to be reported separately.
+      //
+      // Raced against a timeout. The mutation inherits React Query's 'online'
+      // networkMode, so offline it PAUSES and `mutateAsync` never settles --
+      // awaiting it bare would leave the button reading "Sending..." forever
+      // after the email had already gone out. A record we cannot confirm is
+      // exactly the case `recordFailed` exists to report, so time out into it.
       try {
-        await recordSubmissionAsync({
-          show_id: showId,
-          organization: activeFormatter.organization,
-          sport_type: activeFormatter.sportType,
-          xml_payload: xmlPreview,
-          status: 'sent',
-        });
+        await Promise.race([
+          recordSubmissionAsync({
+            show_id: showId,
+            organization: activeFormatter.organization,
+            sport_type: activeFormatter.sportType,
+            xml_payload: xmlPreview,
+            status: 'sent',
+          }),
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(new Error('record-timeout')), RECORD_SUBMISSION_TIMEOUT_MS)
+          ),
+        ]);
       } catch {
-        setRecordFailed(true);
+        setRecordFailed(activeFormatter.organization);
       }
 
       setSendSuccess(true);
@@ -254,7 +276,7 @@ export default function ResultsSubmissionPage() {
     setSendSuccess(false);
     setSendError(null);
     setMarkSuccess(false);
-    setRecordFailed(false);
+    setRecordFailed(null);
     recordSubmission(
       {
         show_id: showId,
@@ -410,6 +432,25 @@ export default function ResultsSubmissionPage() {
                   Mark results as submitted to {activeSubmissionOption?.organization}?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
+                  {/* The same guard as the Send dialog. This path writes a row
+                      to the ledger the closeout gate reads, and there is no
+                      delete or undo for it anywhere in the UI -- so a second
+                      click makes a second permanent record. Fixing the send
+                      dialog and not this one would have left the duplicate one
+                      button across. */}
+                  {priorSubmission && (
+                    <span className="mb-2 block font-medium text-warning">
+                      A submission to {priorSubmission.organization} is already recorded for this
+                      show, dated {formatEntryDateTime(priorSubmission.submitted_at)}. Recording
+                      again adds a second entry.
+                    </span>
+                  )}
+                  {historyUnavailable && (
+                    <span className="mb-2 block font-medium text-warning">
+                      We couldn&rsquo;t load this show&rsquo;s submission history, so we can&rsquo;t
+                      tell whether a record already exists.
+                    </span>
+                  )}
                   This records that you already submitted these results to{' '}
                   {activeSubmissionOption?.organization} through their portal or another method.{' '}
                   <span className="font-medium">It does not email anything.</span>{' '}
@@ -462,7 +503,7 @@ export default function ResultsSubmissionPage() {
         >
           <p className="font-medium">The results were sent, but we couldn&rsquo;t log them.</p>
           <p className="mt-1 text-muted-foreground">
-            The email reached {activeSubmissionOption?.organization}. Submission History below will
+            The email reached {recordFailed}. Submission History below will
             not show it, so note it elsewhere and do not send again on the strength of an empty
             history.
           </p>
@@ -526,7 +567,7 @@ export default function ResultsSubmissionPage() {
           <div
             role="status"
             className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
-            data-testid="submission-summary-no-data"
+            data-testid="submission-summary-unavailable"
           >
             <p className="font-medium">Couldn&rsquo;t load this show&rsquo;s results.</p>
             <p className="mt-1 text-muted-foreground">

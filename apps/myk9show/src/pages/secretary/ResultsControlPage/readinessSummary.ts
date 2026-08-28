@@ -68,8 +68,13 @@ export function buildResultsReadinessSummary(
    * ready to submit" for a show with unscored entries. A show with genuinely
    * zero entries has nothing to submit either, so refusing to vouch is the
    * right answer in both readings.
+   *
+   * This deliberately does NOT also require `classes.length > 0`. Both stores
+   * come through `getAll()`, which returns `[]` for every failure, so a doubly
+   * failed read looks exactly like an empty show -- and gating on classes let
+   * that case fall through to a confident verdict over three zeros.
    */
-  const entriesUncorroborated = classes.length > 0 && relevantEntries.length === 0;
+  const entriesUncorroborated = relevantEntries.length === 0;
 
   return {
     totalClasses: classes.length,

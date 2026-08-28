@@ -18,6 +18,7 @@ import type { AKCSubmissionData } from '@myk9/secretary';
 
 const mockHistoryData = vi.hoisted(() => ({
   rows: [] as SubmissionHistoryRow[],
+  isLoading: false,
 }));
 
 const mockAKCData = vi.hoisted(() => ({
@@ -71,15 +72,21 @@ vi.mock('@/hooks/queries/useAKCSubmissionData', () => ({
 }));
 
 const mockMutate = vi.hoisted(() => vi.fn());
+// `mutateAsync` MUST be here. The page awaits it after a successful send to
+// record the submission, and a mock without it made that call throw a
+// TypeError that the surrounding `catch` swallowed -- so every test passed
+// while the record path never ran, and deleting it would not have failed one.
+const mockMutateAsync = vi.hoisted(() => vi.fn(async () => ({})));
 vi.mock('@/hooks/mutations/useResultSubmission', () => ({
   useResultSubmission: () => ({
     mutate: mockMutate,
+    mutateAsync: mockMutateAsync,
     isPending: false,
     isError: false,
   }),
   useResultSubmissions: () => ({
     data: mockHistoryData.rows,
-    isLoading: false,
+    isLoading: mockHistoryData.isLoading,
   }),
 }));
 
@@ -191,7 +198,7 @@ describe('ResultsSubmissionPage', () => {
   });
 
   it('"Send to AKC" calls supabase.functions.invoke with send-results', async () => {
-    mockAKCData.data = makeAKCSubmissionData({ entries: [] });
+    mockAKCData.data = makeAKCSubmissionData();
 
     renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
@@ -246,8 +253,83 @@ describe('ResultsSubmissionPage', () => {
     expect(table.closest('.overflow-x-auto')).not.toBeNull();
   });
 
+  /**
+   * The confirm re-score found these three paths had NO coverage at all: the
+   * test mock omitted `mutateAsync`, so the awaited record call threw a
+   * TypeError that the surrounding catch swallowed. Every test passed while the
+   * path never ran, and deleting the whole block would not have failed one.
+   */
+  describe('a send must not become a second filing (audit A1/A2/C2)', () => {
+    it('blocks the send entirely when the show has no entries', async () => {
+      // An empty results file is still valid XML, so `xmlPreview` was non-empty
+      // and Send stayed enabled -- it would have emailed an empty submission to
+      // the registry. Meanwhile the harmless bookkeeping button was correctly
+      // disabled. The asymmetry was backwards.
+      mockAKCData.data = makeAKCSubmissionData({ entries: [] });
+
+      renderPage();
+
+      expect(await screen.findByTestId('send-btn')).toBeDisabled();
+    });
+
+    it('warns in the confirm dialog that these results were already sent', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = [
+        makeHistoryRow({ organization: 'AKC', status: 'sent' }),
+      ];
+
+      renderPage();
+      fireEvent.click(await screen.findByTestId('send-btn'));
+
+      const dialog = await screen.findByTestId('send-confirm-dialog');
+      expect(dialog).toHaveTextContent(/already sent/i);
+      expect(dialog).toHaveTextContent(/sending again files a second time/i);
+    });
+
+    it('warns when the history could not be read at all', async () => {
+      // The ledger is the only thing that answers "did I already submit?", so
+      // an unread one has to say so rather than render as "no submissions".
+      mockAKCData.data = makeAKCSubmissionData();
+      mockHistoryData.rows = undefined as unknown as typeof mockHistoryData.rows;
+
+      renderPage();
+      fireEvent.click(await screen.findByTestId('send-btn'));
+
+      expect(await screen.findByTestId('send-confirm-dialog')).toHaveTextContent(
+        /couldn.t load this show.s submission history/i
+      );
+    });
+
+    it('reports a send whose record did not land, instead of claiming success', async () => {
+      // The email has already reached the registry at this point. Saying
+      // "sent successfully" while the ledger stays empty is what invites the
+      // second send.
+      mockAKCData.data = makeAKCSubmissionData();
+      mockMutateAsync.mockRejectedValueOnce(new Error('rls'));
+
+      renderPage();
+      fireEvent.click(await screen.findByTestId('send-btn'));
+      fireEvent.click(await screen.findByTestId('send-confirm-btn'));
+
+      expect(await screen.findByText(/couldn.t log them/i)).toBeInTheDocument();
+    });
+
+    it('records the submission on a successful send', async () => {
+      mockAKCData.data = makeAKCSubmissionData();
+
+      renderPage();
+      fireEvent.click(await screen.findByTestId('send-btn'));
+      fireEvent.click(await screen.findByTestId('send-confirm-btn'));
+
+      await waitFor(() => expect(mockMutateAsync).toHaveBeenCalled());
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ organization: 'AKC', status: 'sent' })
+      );
+    });
+  });
+
   it('shows confirmation dialog before sending', async () => {
-    mockAKCData.data = makeAKCSubmissionData({ entries: [] });
+    mockAKCData.data = makeAKCSubmissionData();
 
     renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
@@ -259,7 +341,7 @@ describe('ResultsSubmissionPage', () => {
   });
 
   it('sends only after confirmation', async () => {
-    mockAKCData.data = makeAKCSubmissionData({ entries: [] });
+    mockAKCData.data = makeAKCSubmissionData();
 
     renderPage();
     const sendBtn = await screen.findByTestId('send-btn');
@@ -461,7 +543,9 @@ describe('ResultsSubmissionPage', () => {
       const view = renderPage();
 
       // Same as above: unknown, not AKC.
-      expect(await screen.findByTestId('org-selector')).not.toHaveTextContent('AKC Scent Work');
+      const initialSelector = await screen.findByTestId('org-selector');
+      expect(initialSelector).not.toHaveTextContent('AKC Scent Work');
+      expect(initialSelector).toHaveTextContent(/select organization/i);
 
       await view.user.click(screen.getByRole('combobox', { name: 'Organization' }));
       await view.user.click(await screen.findByRole('option', { name: 'ASCA Scent Detection' }));

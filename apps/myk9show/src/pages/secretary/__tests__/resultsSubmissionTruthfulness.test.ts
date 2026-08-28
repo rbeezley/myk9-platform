@@ -98,12 +98,15 @@ describe('buildResultsReadinessSummary — zero entries is not zero unscored (au
     expect(summary.safeToSend).toBe(false);
   });
 
-  it('is not uncorroborated when there are no classes either', () => {
-    // Nothing to corroborate. safeToSend is false on its own clause, and the
-    // page should not claim a read failure it has no evidence for.
+  it('is uncorroborated when BOTH reads come back empty', () => {
+    // Both stores come through `getAll()`, which returns [] for every failure
+    // (MYK9-252), so a doubly failed read is indistinguishable from an empty
+    // show. An earlier version of this test asserted the opposite and pinned
+    // the blind spot: gating on `classes.length > 0` let that case fall
+    // through to a confident verdict over three zeros.
     const summary = buildResultsReadinessSummary([], []);
 
-    expect(summary.entriesUncorroborated).toBe(false);
+    expect(summary.entriesUncorroborated).toBe(true);
     expect(summary.safeToSend).toBe(false);
   });
 

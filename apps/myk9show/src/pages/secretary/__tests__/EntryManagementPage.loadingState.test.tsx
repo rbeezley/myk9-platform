@@ -60,13 +60,10 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
     setCheckInDialog: vi.fn(),
     armbandDialog: { open: false, entry: null, value: '' },
     setArmbandDialog: vi.fn(),
-    autoArmbandDialog: { open: false, startNumber: '1' },
-    setAutoArmbandDialog: vi.fn(),
     bulkActionDialog: { open: false, action: null },
     setBulkActionDialog: vi.fn(),
     handleStatusChange: vi.fn(),
     handleAssignArmband: vi.fn(),
-    handleAutoAssignArmbands: vi.fn(),
     handleBulkCheckIn: vi.fn(),
     handleCheckInStatusUpdate: vi.fn(),
     handleBulkAction: vi.fn(),
@@ -105,9 +102,7 @@ describe('EntryManagementPage — loading state (Phase 4 skeleton convergence)',
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries/show-1' });
 
     // The pending region is a labelled status skeleton.
-    expect(
-      screen.getByRole('status', { name: /loading entries/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /loading entries/i })).toBeInTheDocument();
     // And it is NOT the old bare spinner.
     expect(document.querySelector('.animate-spin')).toBeNull();
   });
@@ -118,18 +113,14 @@ describe('EntryManagementPage — loading state (Phase 4 skeleton convergence)',
 
     // Pending skeleton gone — the loaded/empty state renders instead
     // (proving the skeleton replaces the pending state only).
-    expect(
-      screen.queryByRole('status', { name: /loading entries/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: /loading entries/i })).not.toBeInTheDocument();
   });
 
   it('does NOT render the loading skeleton when the load errored (error state stays distinct)', () => {
     dataState.loadError = 'Failed to load entries';
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries/show-1' });
 
-    expect(
-      screen.queryByRole('status', { name: /loading entries/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: /loading entries/i })).not.toBeInTheDocument();
     expect(screen.getByText(/couldn't load entries/i)).toBeInTheDocument();
   });
 });

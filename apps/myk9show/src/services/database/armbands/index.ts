@@ -7,15 +7,6 @@
 //   - setEntryArmband(entryId, armband) — caller specifies the number
 // They have different signatures and semantics; they are not interchangeable.
 
-export {
-  getArmbandCountForShow,
-  claimNextArmband,
-  lookupDogByArmband,
-} from './reads';
+export { getArmbandCountForShow, claimNextArmband, lookupDogByArmband } from './reads';
 
-export {
-  setEntryArmband,
-  autoAssignArmbands,
-  getNextArmbandForShow,
-  getEntryArmbandById,
-} from './secretary';
+export { setEntryArmband, getNextArmbandForShow, getEntryArmbandById } from './secretary';

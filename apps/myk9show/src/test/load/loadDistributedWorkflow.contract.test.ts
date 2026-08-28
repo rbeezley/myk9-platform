@@ -131,6 +131,18 @@ describe('manual distributed load workflow', () => {
     );
   });
 
+  it('runs the load anti-rot check by directory, not by an enumerated file list', () => {
+    // The list this replaced had drifted seven files behind the directory —
+    // every test file from the multi-show reshape plus the headroom gate. A
+    // hand-maintained allowlist fails silently: the new test passes locally
+    // (you named it) and simply never runs in the fast CI check. Selecting the
+    // directory is what makes that structurally impossible, so it is pinned.
+    const pkg = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../package.json'), 'utf8')
+    ) as { scripts: Record<string, string> };
+    expect(pkg.scripts['test:load:unit']).toBe('vitest run src/test/load');
+  });
+
   it('does not depend on Vercel or paid runner labels', () => {
     expect(workflow).not.toMatch(/VERCEL|larger-runner|self-hosted/i);
   });

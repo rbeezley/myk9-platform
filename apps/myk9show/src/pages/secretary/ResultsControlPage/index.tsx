@@ -220,28 +220,44 @@ export default function ResultsControlPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
+          {/* Three verdicts, not two. "Blocking closeout" is a claim that the
+              counts below are real; when entries have not corroborated the
+              classes, they are not, and the numbers are zeros by absence. */}
           <p className="font-medium" data-testid="results-readiness-verdict">
-            {readiness.safeToSend
-              ? 'Results are released and ready to submit.'
-              : "Here's what is still blocking closeout."}
+            {readiness.entriesUncorroborated
+              ? "No entries are loaded for this show's classes, so scoring completeness can't be confirmed."
+              : readiness.safeToSend
+                ? 'Results are released and ready to submit.'
+                : "Here's what is still blocking closeout."}
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <span className="font-semibold">{readiness.unscoredEntries}</span> unscored{' '}
-              {readiness.unscoredEntries === 1 ? 'entry' : 'entries'}
+              <span className="font-semibold">
+                {readiness.entriesUncorroborated ? '—' : readiness.unscoredEntries}
+              </span>{' '}
+              unscored {readiness.unscoredEntries === 1 ? 'entry' : 'entries'}
             </div>
             <div>
               <span className="font-semibold">{readiness.unreleasedClasses}</span> unreleased{' '}
               {readiness.unreleasedClasses === 1 ? 'class' : 'classes'}
             </div>
-            <div>Judge signatures: verify paper reports before sending</div>
             <div>
-              {readiness.totalEntries} entries in {readiness.totalClasses} classes
+              {readiness.entriesUncorroborated ? '—' : readiness.totalEntries} entries in{' '}
+              {readiness.totalClasses} classes
             </div>
           </div>
+          {/* C18: a constant instruction sat in a grid cell beside three live
+              counts and read as a fourth metric that never changed. */}
+          <p className="text-muted-foreground">
+            Verify judge signatures on the paper reports before sending.
+          </p>
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/shows/${showId}/submit-results`}>Download draft XML</Link>
+            <Button asChild variant="outline" size="sm" className="min-h-11">
+              {/* Named for what it does. It is a navigation, not a download --
+                  the file lives on Submit Results, and labelling a Link as a
+                  file action on the page whose job is telling the truth about
+                  results was the wrong place to be loose. */}
+              <Link to={`/shows/${showId}/submit-results`}>Go to Submit Results</Link>
             </Button>
             <p className="text-muted-foreground">
               To release results, select classes below and use the sticky{' '}
@@ -264,7 +280,7 @@ export default function ResultsControlPage() {
               variant="outline"
               size="sm"
               onClick={retryAll}
-              className="self-start sm:self-auto shrink-0"
+              className="min-h-11 shrink-0 self-start sm:self-auto"
             >
               Retry
             </Button>

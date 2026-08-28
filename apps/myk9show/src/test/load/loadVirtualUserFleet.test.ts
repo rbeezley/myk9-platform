@@ -384,6 +384,81 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
     }
   });
 
+  it('reports no request samples for a poll cancelled at the boundary', async () => {
+    // stop() aborts deliberately. Counting that as a failed request invents
+    // failures the system never produced: with a 60s cadence over 600s the final
+    // tick commonly straddles the boundary, so every reader would contribute
+    // three synthetic failures — enough across 248 readers to push availability
+    // under 99.5% and fail an otherwise healthy run.
+    vi.useFakeTimers();
+    try {
+      const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+      const hanging = ((_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          if (init?.signal?.aborted) {
+            reject(abortError());
+            return;
+          }
+          init?.signal?.addEventListener('abort', () => reject(abortError()));
+        })) as unknown as typeof fetch;
+
+      const samples: VirtualUserRequestSample[] = [];
+      const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
+      const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });
+      const fleet = new VirtualUserFleet(plan.virtualUser.slice(0, 1), {
+        supabaseUrl: 'https://fixture.supabase.co',
+        anonKey: 'anon',
+        accessTokenFor: () => 'token',
+        classColumnSelect: 'id,updated_at',
+        onSample: sample => samples.push(sample),
+        fetchImpl: hanging,
+      });
+
+      fleet.start();
+      vi.advanceTimersByTime(60_000);
+      for (let tick = 0; tick < 50; tick += 1) await Promise.resolve();
+      fleet.stop();
+      await fleet.drain();
+
+      expect(samples.filter(sample => !sample.ok)).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let pre-barrier hydration stand in for measured success', async () => {
+    // hydrate() runs before the synchronized start and is explicitly excluded
+    // from steady-state measurement. A reader whose token expires after
+    // preparation would otherwise be marked completed on the strength of that
+    // hydration alone, with no successful measured request behind it.
+    let phase: 'hydrate' | 'poll' = 'hydrate';
+    const shifting = (async () =>
+      phase === 'hydrate'
+        ? new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })
+        : new Response('{}', { status: 401 })) as unknown as typeof fetch;
+
+    const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
+    const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });
+    const fleet = new VirtualUserFleet(plan.virtualUser.slice(0, 1), {
+      supabaseUrl: 'https://fixture.supabase.co',
+      anonKey: 'anon',
+      accessTokenFor: () => 'token',
+      classColumnSelect: 'id,updated_at',
+      onSample: () => {},
+      fetchImpl: shifting,
+    });
+
+    await fleet.hydrate();
+    expect(fleet.outcomes()[0]?.ok).toBe(true);
+
+    phase = 'poll';
+    fleet.start();
+    fleet.stop();
+    await fleet.drain();
+    // Nothing succeeded inside the measured window.
+    expect(fleet.outcomes()[0]?.ok).toBe(false);
+  });
+
   it('marks a reader failed when its requests fail', async () => {
     const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
     const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });

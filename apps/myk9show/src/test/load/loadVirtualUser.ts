@@ -130,24 +130,35 @@ export class LoadVirtualUser {
   private async timed<T>(
     table: string,
     run: () => PromiseLike<{ data: unknown; error: { message: string } | null }>
-  ): Promise<{ sample: VirtualUserRequestSample; rows: T[] }> {
+  ): Promise<{ sample?: VirtualUserRequestSample; rows: T[] }> {
     // A pass aborted mid-flight must not issue its remaining queries: those are
     // precisely the requests that would reach shared staging after the window.
-    if (this.abort.signal.aborted) {
-      return { sample: { table, durationMs: 0, ok: false, status: 0 }, rows: [] };
-    }
+    // No sample at all: a request the harness cancelled is not an observation of
+    // the system. Recording it as a failure invents failures the target never
+    // produced — with a 60s cadence over 600s the last tick commonly straddles
+    // the boundary, so every reader would contribute three, which across the
+    // fleet is enough to push availability under its target on a healthy run.
+    if (this.abort.signal.aborted) return { rows: [] };
     const startedAt = Date.now();
     try {
       const { data, error } = await run();
       const durationMs = Date.now() - startedAt;
       if (error) {
+        // supabase-js converts a rejected fetch into an `error` result rather
+        // than throwing, so the abort arrives here rather than in the catch.
+        if (this.abort.signal.aborted) return { rows: [] };
         return { sample: { table, durationMs, ok: false, status: 0 }, rows: [] };
       }
       return {
         sample: { table, durationMs, ok: true, status: 200 },
         rows: (data ?? []) as T[],
       };
-    } catch {
+    } catch (error) {
+      // Same reasoning for a request aborted mid-flight rather than before it
+      // began: the cancellation is ours, not a defect in the target.
+      if (this.abort.signal.aborted || (error as { name?: string })?.name === 'AbortError') {
+        return { rows: [] };
+      }
       return {
         sample: { table, durationMs: Date.now() - startedAt, ok: false, status: 0 },
         rows: [],
@@ -169,7 +180,7 @@ export class LoadVirtualUser {
       if (this.options.trialId) query = query.eq('trial_id', this.options.trialId);
       return query.abortSignal(this.abort.signal);
     });
-    samples.push(classes.sample);
+    if (classes.sample) samples.push(classes.sample);
     this.advance('classes', classes.rows);
     rows += classes.rows.length;
 
@@ -184,7 +195,7 @@ export class LoadVirtualUser {
           .eq('show_id', this.options.showId)
           .abortSignal(this.abort.signal)
     );
-    samples.push(entries.sample);
+    if (entries.sample) samples.push(entries.sample);
     this.advance('view_authenticated_entry_results', entries.rows);
     rows += entries.rows.length;
 
@@ -199,7 +210,7 @@ export class LoadVirtualUser {
       if (this.options.ownerId) query = query.eq('owner_id', this.options.ownerId);
       return query.abortSignal(this.abort.signal);
     });
-    samples.push(dogs.sample);
+    if (dogs.sample) samples.push(dogs.sample);
     this.advance('dogs', dogs.rows);
     rows += dogs.rows.length;
 

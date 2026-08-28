@@ -112,6 +112,11 @@ export class VirtualUserFleet {
 
   /** Begin the periodic delta polling every reader performs. */
   start(): void {
+    // Hydration runs BEFORE the synchronized start and is deliberately excluded
+    // from steady-state measurement, so it must not stand in for success either:
+    // a token that expires after preparation would otherwise leave the reader
+    // marked completed with no successful measured request behind it.
+    this.succeeded.clear();
     for (const entry of this.entries) {
       entry.user.start(
         result => this.report(entry, result),

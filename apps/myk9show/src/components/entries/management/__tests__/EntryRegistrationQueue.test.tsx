@@ -217,8 +217,8 @@ describe('EntryRegistrationQueue', () => {
       restoreMatchMedia = stubMatchMedia(false);
       renderQueue();
 
-      expect(screen.getByRole('checkbox', { name: /select all registrations/i })).toBeVisible();
-      expect(screen.getByText('Select all')).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /select all on page/i })).toBeVisible();
+      expect(screen.getByText('Select all on page')).toBeInTheDocument();
     });
 
     it('still exposes the review label and action link per row', () => {

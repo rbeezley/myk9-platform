@@ -21,7 +21,9 @@ describe('EnrollmentPartialPaymentDialog', () => {
     render(
       <EnrollmentPartialPaymentDialog {...baseProps} state={makeState({ amountPaid: '50' })} />
     );
-    expect(screen.getByText('✓ Covers full balance — will mark as paid')).toBeTruthy();
+    expect(
+      screen.getByText('Covers the full balance. This will mark the registration paid.')
+    ).toBeTruthy();
   });
 
   it('shows the remaining balance when the amount is below the total', () => {

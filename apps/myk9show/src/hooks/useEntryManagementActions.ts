@@ -15,6 +15,7 @@ import {
   executeRemoveEntry,
 } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
+import { getEligibleForBulkStatusChange } from '@/components/entries/management/bulkActionEligibility';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
 import { showUndoToast } from '@/lib/undoToast';
@@ -291,7 +292,17 @@ export function useEntryManagementActions({
   // can't roll back or block the others — see design.md decision D3.
   const handleEnrollmentBulkStatusChange = useCallback(
     async (entryIds: string[], status: EntryStatus, onFullSuccess?: () => void) => {
-      const targets = entriesRef.current.filter(e => entryIds.includes(e.id));
+      const requested = entriesRef.current.filter(e => entryIds.includes(e.id));
+      // Narrow to the entries this status change may validly touch, HERE rather
+      // than in each caller. `bulkActionEligibility` says a bulk status change
+      // "must never" touch a completed/scratched/moved/cancelled/move-up-
+      // requested entry, because re-approving a scored entry corrupts closed
+      // results and the move-up queue. The selection toolbar filtered; the
+      // registration Actions menu passed `group.entries.map(e => e.id)` raw, so
+      // "Accept all" on a registration containing a scored entry rewrote it
+      // with no dialog and no count. Enforcing the rule at the single shared
+      // handler closes that hole for every present and future caller.
+      const targets = getEligibleForBulkStatusChange(requested, status);
       if (targets.length === 0) return false;
       // Capture each entry's prior status BEFORE the change so undo can revert
       // each item to exactly where it started (design.md D6).

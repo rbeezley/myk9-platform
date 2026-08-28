@@ -4,7 +4,11 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { logger } from '@/services/LoggingService';
 import { getSecretaryShows, getShowById } from '@/services/database/shows';
-import { getEntriesForShow, SECRETARY_ENTRIES_READ_ERROR } from '@/services/database/entries';
+import {
+  getEntriesForShow,
+  SECRETARY_ENTRIES_READ_ERROR,
+  SECRETARY_SHOW_READ_ERROR,
+} from '@/services/database/entries';
 import type { CheckInStatus } from '@myk9/core';
 import type {
   EntryManagementEntry,
@@ -32,7 +36,33 @@ interface UseEntryManagementDataReturn {
   selectedShowId: string;
   setSelectedShowId: (id: string) => void;
   isLoadingShows: boolean;
+  /**
+   * Show resolution has finished: the show list loaded AND, for a deep link,
+   * the direct `getShowById` fallback has settled. `isLoadingShows` alone is
+   * NOT this -- it goes false while the fallback is still in flight, so gating
+   * the page on it renders "No show selected" for a show that is about to
+   * resolve. Any branch that concludes something from the ABSENCE of a
+   * selected show must wait for this.
+   */
+  didResolveShow: boolean;
+  /**
+   * Show-resolution errors — the secretary's show list failed to read, or a
+   * deep-linked show id could not be fetched. Distinct from `loadError`
+   * (entries failed) and `error` (an action failed): here there is no show to
+   * read entries for at all. Without this the page had no branch to render and
+   * showed a blank tab, which reads as "this show is empty".
+   */
+  showError: string | null;
   loadShows: () => Promise<void>;
+  /**
+   * Re-runs the whole show-resolution sequence, including the deep-link
+   * `getShowById` fallback. `loadShows()` on its own cannot recover a failed
+   * deep link: that lookup is latched behind `didApplyInitial`, which is
+   * already true by the time the error is on screen, so retrying with
+   * `loadShows` merely cleared the error and left the page saying "No show
+   * selected" for a show that does exist.
+   */
+  retryShowResolution: () => void;
 
   // Entries
   entries: EntryManagementEntry[];
@@ -162,6 +192,11 @@ export function mapSecretaryEntryToEntryManagementEntry(
     ...(entry.registration?.refunded_at != null
       ? { enrollmentRefundedAt: entry.registration.refunded_at }
       : {}),
+    // Comp state. Persisted, and selected by both read paths, but never mapped
+    // until now -- so it survived only as an optimistic local patch and was
+    // dropped by every reload.
+    ...(entry.comped != null ? { comped: entry.comped } : {}),
+    ...(entry.comped_reason ? { compedReason: entry.comped_reason } : {}),
     // Entry-level Stripe payment/refund state (migration 20260609220000)
     paymentMethod: entry.payment_method ?? null,
     refundAmount: entry.refund_amount ?? null,
@@ -206,6 +241,13 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   const [selectedShowId, setSelectedShowId] = useState<string>('');
   const [isLoadingShows, setIsLoadingShows] = useState(true);
   const [didApplyInitial, setDidApplyInitial] = useState(false);
+  // Show-RESOLUTION errors, distinct from `loadError` (entries) and `error`
+  // (actions). `loadShows` and the `getShowById` deep-link fallback used to
+  // swallow their failures into the logger, leaving `shows: []` and
+  // `selectedShowId: ''` with `isLoadingShows: false` — a state none of the
+  // page's render branches matched, so the tab rendered nothing at all. An
+  // unresolved show is its own state; it is never "this show is empty".
+  const [showError, setShowError] = useState<string | null>(null);
 
   // Entry data
   const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
@@ -220,9 +262,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
   const loadShows = useCallback(async () => {
     setIsLoadingShows(true);
+    setShowError(null);
     try {
       const { data, error: queryError } = await getSecretaryShows(user?.id || '');
       if (queryError) {
+        setShowError(SECRETARY_SHOW_READ_ERROR);
         logger.error('Error loading shows:', 'secretary', {}, queryError as Error);
       } else {
         const nextShows = data || [];
@@ -230,6 +274,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
         setShows(nextShows);
       }
     } catch (err) {
+      setShowError(SECRETARY_SHOW_READ_ERROR);
       logger.error('Error loading shows:', 'secretary', {}, err as Error);
     } finally {
       setIsLoadingShows(false);
@@ -273,6 +318,12 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     loadShows();
   }, [loadShows]);
 
+  const retryShowResolution = useCallback(() => {
+    setShowError(null);
+    setDidApplyInitial(false);
+    void loadShows();
+  }, [loadShows]);
+
   // Apply initial show: URL param > localStorage > none.
   // URL deep links must work even when the local replicated show cache is stale.
   useEffect(() => {
@@ -302,8 +353,15 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
     let cancelled = false;
     void (async () => {
-      const { data } = await getShowById(initialShowId);
+      const { data, error: showQueryError } = await getShowById(initialShowId);
       if (cancelled) return;
+
+      // A deep-linked show that neither the scoped list nor the direct lookup
+      // can resolve leaves `selectedShowId` empty. Without an error here the
+      // page has nothing to render and reads as "this show is empty".
+      if (showQueryError || !data?.id) {
+        setShowError(SECRETARY_SHOW_READ_ERROR);
+      }
 
       if (data?.id) {
         const row = data as EntryManagementShowRow;
@@ -418,7 +476,10 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     selectedShowId,
     setSelectedShowId,
     isLoadingShows,
+    didResolveShow: didApplyInitial,
+    showError,
     loadShows,
+    retryShowResolution,
     entries,
     setEntries,
     isLoading,

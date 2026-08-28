@@ -72,7 +72,7 @@ export function EntryFocusedRegistration({
           <p className="mt-2 font-semibold">{registration.recommendedAction.label}</p>
           {registration.recommendedAction.id === 'view-registration' ? (
             <p className="text-sm text-muted-foreground">
-              No action needed — all entries processed.
+              No action needed. All entries processed.
             </p>
           ) : (
             <>

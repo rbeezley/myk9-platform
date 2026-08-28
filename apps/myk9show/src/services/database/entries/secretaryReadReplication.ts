@@ -243,6 +243,8 @@ function toSecretaryEntry(
     stripe_payment_intent_id: stringFrom(
       replicatedField(entry, 'stripePaymentIntentId', 'stripe_payment_intent_id')
     ),
+    comped: booleanFrom(replicatedField(entry, 'comped', 'comped')),
+    comped_reason: stringFrom(replicatedField(entry, 'compedReason', 'comped_reason')),
     refund_decision: pullMetadata?.refund_decision ?? null,
     refund_decided_at: pullMetadata?.refund_decided_at ?? null,
     registration_id: entry.registrationId ?? null,

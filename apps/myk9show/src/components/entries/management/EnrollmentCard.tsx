@@ -50,7 +50,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   showCheckInStatus = true,
   matchingEntryIds,
   onBulkStatusChange,
-  onBulkCheckIn,
   onPaymentStatusChange,
   emailStatusMap,
   onResendEmail,
@@ -161,12 +160,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                     entries={group.entries}
                     onBulkStatusChange={onBulkStatusChange}
                   />
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onBulkCheckIn(group.entries.map(entry => entry.id))}
-                  >
-                    Check In All
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button

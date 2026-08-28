@@ -29,8 +29,30 @@ export interface VirtualUserFleetOptions {
   readonly fetchImpl?: typeof fetch;
 }
 
+/** One reader plus the assignment it stands for, so lifecycle counters can see it. */
+interface FleetEntry {
+  readonly assignment: LoadSessionAssignment;
+  readonly user: LoadVirtualUser;
+}
+
+export interface VirtualUserOutcome {
+  readonly assignment: LoadSessionAssignment;
+  /** False once any request this reader issued failed. */
+  readonly ok: boolean;
+}
+
 export class VirtualUserFleet {
-  private readonly users: LoadVirtualUser[] = [];
+  private readonly entries: FleetEntry[] = [];
+  /**
+   * Sequences whose reader completed at least one successful request.
+   *
+   * A session is failed only when it NEVER succeeded — an auth failure, say. A
+   * single failed poll among many is a request-level event that the error-rate
+   * and availability budgets already own; promoting it to a failed workflow
+   * breaks evaluateLoadResult's `failedWorkflows === workflowFailures`
+   * invariant, since recordWorkflowFailure fires only for browser sessions.
+   */
+  private readonly succeeded = new Set<number>();
 
   constructor(
     assignments: readonly LoadSessionAssignment[],
@@ -39,8 +61,7 @@ export class VirtualUserFleet {
     for (const assignment of assignments) {
       const show = LOAD_SHOWS[assignment.target.showIndex];
       const role = assignment.role === 'exhibitor' ? 'exhibitor' : 'secretary';
-      this.users.push(
-        new LoadVirtualUser(
+      const user = new LoadVirtualUser(
           {
             supabaseUrl: options.supabaseUrl,
             anonKey: options.anonKey,
@@ -53,13 +74,32 @@ export class VirtualUserFleet {
             ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
           },
           options.classColumnSelect
-        )
       );
+      this.entries.push({ assignment, user });
     }
   }
 
   get size(): number {
-    return this.users.length;
+    return this.entries.length;
+  }
+
+  /**
+   * The assignments this fleet drives.
+   *
+   * The runner needs these to mark the readers prepared/started/finished. Without
+   * it the lifecycle counted browser sessions only, so `concurrentSessions`
+   * reported 110 of 358 and the G9 gate could never pass (MYK9-126).
+   */
+  get assignments(): readonly LoadSessionAssignment[] {
+    return this.entries.map(entry => entry.assignment);
+  }
+
+  /** Per-reader result, for the lifecycle's completed/failed split. */
+  outcomes(): readonly VirtualUserOutcome[] {
+    return this.entries.map(entry => ({
+      assignment: entry.assignment,
+      ok: this.succeeded.has(entry.assignment.sequence),
+    }));
   }
 
   /**
@@ -67,25 +107,47 @@ export class VirtualUserFleet {
    * synchronized start so hydration is not measured as steady-state load.
    */
   async hydrate(): Promise<void> {
-    await Promise.all(this.users.map(user => this.syncAndReport(user)));
+    await Promise.all(this.entries.map(entry => this.syncAndReport(entry)));
   }
 
   /** Begin the periodic delta polling every reader performs. */
   start(): void {
-    for (const user of this.users) {
-      user.start(result => this.report(result));
+    // Hydration runs BEFORE the synchronized start and is deliberately excluded
+    // from steady-state measurement, so it must not stand in for success either:
+    // a token that expires after preparation would otherwise leave the reader
+    // marked completed with no successful measured request behind it.
+    this.succeeded.clear();
+    for (const entry of this.entries) {
+      entry.user.start(
+        result => this.report(entry, result),
+        () => {
+          /* A throwing poll adds no success; the outcome stays as it was. */
+        }
+      );
     }
   }
 
   stop(): void {
-    for (const user of this.users) user.stop();
+    for (const entry of this.entries) entry.user.stop();
   }
 
-  private async syncAndReport(user: LoadVirtualUser): Promise<void> {
-    this.report(await user.syncOnce());
+  /** Settles polls already running when stop() was called, before outcomes(). */
+  async drain(): Promise<void> {
+    await Promise.all(this.entries.map(entry => entry.user.drain()));
   }
 
-  private report(result: VirtualUserSyncResult): void {
-    for (const sample of result.samples) this.options.onSample(sample);
+  private async syncAndReport(entry: FleetEntry): Promise<void> {
+    try {
+      this.report(entry, await entry.user.syncOnce());
+    } catch {
+      /* A throwing sync records no success; the reader stays failed. */
+    }
+  }
+
+  private report(entry: FleetEntry, result: VirtualUserSyncResult): void {
+    for (const sample of result.samples) {
+      if (sample.ok) this.succeeded.add(entry.assignment.sequence);
+      this.options.onSample(sample);
+    }
   }
 }

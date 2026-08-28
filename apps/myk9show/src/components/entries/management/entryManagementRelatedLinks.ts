@@ -13,7 +13,7 @@ export interface EntryManagementRelatedLinksInput {
 
 /**
  * Related-context links shown near Entry Management's existing
- * `FilterBreadcrumb`: when a trial filter is active, link to Trial Details;
+ * When a trial filter is active, link to Trial Details;
  * when a class filter is also active, link to that class's Class Details
  * page. Built entirely from loaded filter state — no new queries.
  */

@@ -1,9 +1,5 @@
 import { test, expect, Page, type TestInfo } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
-import {
-  installSharedStagingWriteGuard,
-  type GuardedRingsideRpcCall,
-} from '../helpers/sharedStagingWriteGuard';
 import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 
 /**
@@ -35,68 +31,7 @@ async function gotoEntries(page: Page) {
   await page.goto(ENTRIES_URL);
   // The "Total Entries" title is the data-loaded signal.
   await page.getByText('Total Entries', { exact: true }).waitFor({ timeout: 10_000 });
-  return (await entriesResponse).json() as SecretaryEntryRow[];
-}
-
-interface SecretaryEntryRow {
-  id: string;
-}
-
-/** Seed the replica required by the offline-first check-in writer. */
-async function seedEntryReplica(page: Page, rows: SecretaryEntryRow[]) {
-  await page.evaluate(
-    ({ rows, dbName }) =>
-      new Promise<void>((resolve, reject) => {
-        const request = indexedDB.open(dbName);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          const db = request.result;
-          if (!db.objectStoreNames.contains('replicated_tables')) {
-            db.close();
-            reject(new Error('replicated_tables store is unavailable'));
-            return;
-          }
-
-          const transaction = db.transaction('replicated_tables', 'readwrite');
-          const store = transaction.objectStore('replicated_tables');
-          const timestamp = new Date().toISOString();
-          for (const row of rows) {
-            store.put({
-              tableName: 'entries',
-              id: row.id,
-              data: {
-                id: row.id,
-                entryStatus: 'accepted',
-                entry_status: 'accepted',
-                checkInStatus: 'no-status',
-                check_in_status: 'no-status',
-              },
-              version: 1,
-              lastSyncedAt: timestamp,
-              lastAccessedAt: timestamp,
-              accessCount: 0,
-              lastModifiedAt: timestamp,
-              isDirty: false,
-              syncStatus: 'synced',
-            });
-          }
-
-          transaction.oncomplete = () => {
-            db.close();
-            resolve();
-          };
-          transaction.onerror = () => {
-            db.close();
-            reject(transaction.error);
-          };
-          transaction.onabort = () => {
-            db.close();
-            reject(transaction.error);
-          };
-        };
-      }),
-    { rows, dbName: 'myK9_Replication' }
-  );
+  await entriesResponse;
 }
 
 /**
@@ -187,7 +122,7 @@ test.describe('Browse entries', () => {
 // ─── Bulk actions ──────────────────────────────────────────────────────────────
 
 test.describe('Bulk actions', () => {
-  test('bulk action menu exposes canonical status and check-in actions', async ({
+  test('bulk action menu keeps registration decisions and omits check-in', async ({
     page,
   }, testInfo) => {
     skipMobileTableCoverage(testInfo);
@@ -201,38 +136,8 @@ test.describe('Bulk actions', () => {
     await bulkActions.click();
 
     await expect(page.getByRole('menuitem', { name: /Accept .* selected/ })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Check in .* selected/ })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /Check in .* selected/ })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: /Reject .* selected/ })).toBeVisible();
-  });
-
-  test('bulk check-in sends the authorized mutation and does not crash the component', async ({
-    page,
-  }, testInfo) => {
-    skipMobileTableCoverage(testInfo);
-    await signInAsSecretary(page);
-    const rows = await gotoEntries(page);
-    const entryIds = new Set(rows.map(row => row.id));
-    await page.getByRole('button', { name: 'Day-of', exact: true }).click();
-    await seedEntryReplica(page, rows);
-    const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls });
-
-    await selectAllEntries(page);
-
-    await page.getByRole('button', { name: 'Bulk actions' }).click();
-    const checkInItem = page.getByRole('menuitem', { name: /Check in .* selected/ });
-    await expect(checkInItem).toBeVisible();
-    await checkInItem.dispatchEvent('click');
-
-    // The current offline-first writer routes the check-in field through the
-    // authorized ringside RPC and sends the entry ID selected by the table.
-    await expect.poll(() => rpcCalls.length).toBeGreaterThan(0);
-    expect(rpcCalls[0]?.p_fields).toMatchObject({ check_in_status: 'checked-in' });
-    expect(rpcCalls.every(call => call.p_entry_id && entryIds.has(call.p_entry_id))).toBe(true);
-
-    // Regression guard: a successful mutation must leave the page mounted.
-    await expect(page.getByText('Failed to load component')).not.toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
   });
 });
 

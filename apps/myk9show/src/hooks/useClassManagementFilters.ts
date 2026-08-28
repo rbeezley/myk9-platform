@@ -24,7 +24,7 @@ interface UseClassManagementFiltersReturn {
 
 /**
  * URL-backed filter state for `ClassManagementPage`, mirroring
- * `useEntryManagementFilters` (`@/hooks/useEntryManagementFilters`). `status`
+ * Entry Management's URL-normalization model. `status`
  * is the lifecycle bucket, not the raw class status.
  */
 export function useClassManagementFilters(): UseClassManagementFiltersReturn {

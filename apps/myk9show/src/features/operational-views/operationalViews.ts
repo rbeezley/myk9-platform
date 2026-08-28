@@ -6,11 +6,11 @@
  *
  * ## Task 1.1 — Inventory (Entry Management + Class Management)
  *
- * Entry Management (`useEntryManagementFilters` +
- * `entryManagementFilters.normalizeEntryManagementSearchParams`) already
- * serializes to URL search params via `useSearchParams`:
+ * Entry Management's URL normalizers serialize the legacy operational-view
+ * model to search params:
  *   - `attention` -> EntryAttentionFilter (all | pending | missing_information |
- *     accepted | waitlist | issues) — the SINGLE status filter (INTENT-guarded).
+ *     accepted | waitlist | issues). The live cockpit replaces this with its
+ *     single `queue` control, where the status-filter INTENT guard now lives.
  *   - `payment` -> EntryPaymentFilter (all | pending | paid_online |
  *     paid_by_check | paid_by_cash | waived | refunded).
  *   - `mode` -> EntryWorkMode (review | day-of) — a curated combination of

@@ -1,18 +1,12 @@
 import { useMemo } from 'react';
-import { entryActions } from '@/components/entries/management/entryActions';
 import { useCommandMenuContext } from './commandMenuContextStore';
 import { buildContextualNavigationCommands } from './contextualCommands';
-import { buildCheckInCommand } from './checkInCommand';
 import type { CommandMenuCommand } from './commandMenuTypes';
 
 export interface CommandMenuCommands {
   /** Static, show-scoped navigation commands (task 2.1/2.3) — empty when no
    * context is registered. */
   navigationCommands: CommandMenuCommand[];
-  /** The single allowlisted mutation (task 2.2), or null when unavailable —
-   * no selection, ineligible selection, busy surface, or the shared
-   * `entryActions` registry entry is missing. */
-  checkInCommand: CommandMenuCommand | null;
 }
 
 /**
@@ -30,7 +24,5 @@ export function useCommandMenuCommands(): CommandMenuCommands {
     [context]
   );
 
-  const checkIn = useMemo(() => buildCheckInCommand(context, entryActions), [context]);
-
-  return { navigationCommands, checkInCommand: checkIn };
+  return { navigationCommands };
 }

@@ -11,6 +11,7 @@
  */
 
 import type { ClassEntry } from '@myk9/ringside';
+import type { SyncMetadata } from '@myk9/replication';
 import {
   replicatedTrialsTable,
   replicatedClassesTable,
@@ -51,7 +52,7 @@ export function toClassEntry(
   entries: ReplicatedEntry[],
   favoriteClassIds: Set<string>
 ): ClassEntry {
-  const completed = entries.filter(e => e.isScored ?? e.is_scored ?? false).length;
+  const completed = countCompletedEntries(entries);
 
   return {
     id: cls.id,
@@ -81,6 +82,80 @@ export function toClassEntry(
   };
 }
 
+function countCompletedEntries(entries: ReplicatedEntry[]): number {
+  return entries.filter(entry => entry.isScored ?? entry.is_scored ?? false).length;
+}
+
+function groupEntriesByClass(entries: ReplicatedEntry[]): Map<string, ReplicatedEntry[]> {
+  const entriesByClass = new Map<string, ReplicatedEntry[]>();
+  for (const entry of entries) {
+    const classId = entry.classId;
+    if (!classId) continue;
+    const bucket = entriesByClass.get(classId);
+    if (bucket) bucket.push(entry);
+    else entriesByClass.set(classId, [entry]);
+  }
+  return entriesByClass;
+}
+
+/**
+ * Re-project entry-derived class facts from a replication subscription's
+ * already-materialized snapshot. This avoids a second IndexedDB getAll() and
+ * unchanged trial/class reads for every score or check-in write.
+ */
+export function refreshAtShowClassListEntries(
+  groups: AtShowClassGroup[],
+  allEntries: ReplicatedEntry[],
+  showId: string
+): AtShowClassGroup[] {
+  const entriesByClass = groupEntriesByClass(allEntries.filter(entry => entry.showId === showId));
+
+  return groups.map(group => {
+    const nextUpByClassId = new Map<string, AtShowNextUpPreview>();
+    const classes = group.classes.map(classEntry => {
+      const entries = entriesByClass.get(classEntry.id) ?? [];
+      nextUpByClassId.set(classEntry.id, buildNextUpPreview(entries));
+      return {
+        ...classEntry,
+        entry_count: entries.length,
+        completed_count: countCompletedEntries(entries),
+      };
+    });
+    return { ...group, classes, nextUpByClassId };
+  });
+}
+
+/**
+ * Persisted proof that the locally empty trial/class scopes are complete.
+ * Row counts alone are insufficient because a cold or evicted replica is also
+ * empty; expectedRemoteRows is server-derived and survives app restarts.
+ */
+export async function isAtShowClassDataHydrated(
+  showId: string,
+  groups: AtShowClassGroup[]
+): Promise<boolean> {
+  const trialsMeta = (await replicatedTrialsTable.getSyncMetadata(showId)) as SyncMetadata | null;
+  if (
+    trialsMeta?.expectedRemoteRows === undefined ||
+    groups.length < trialsMeta.expectedRemoteRows
+  ) {
+    return false;
+  }
+
+  const classHydration = await Promise.all(
+    groups.map(async group => {
+      const metadata = (await replicatedClassesTable.getSyncMetadata(
+        group.trial.id
+      )) as SyncMetadata | null;
+      return (
+        metadata?.expectedRemoteRows !== undefined &&
+        group.classes.length >= metadata.expectedRemoteRows
+      );
+    })
+  );
+  return classHydration.every(Boolean);
+}
+
 /**
  * Fetch a show's trials and their classes (as ringside `ClassEntry`s), sorted
  * by class order within each trial.
@@ -95,14 +170,7 @@ export async function fetchAtShowClassList(showId: string): Promise<AtShowClassG
     replicatedEntriesTable.getEntriesByShow(showId),
   ]);
 
-  const entriesByClass = new Map<string, ReplicatedEntry[]>();
-  for (const entry of allEntries) {
-    const classId = entry.classId;
-    if (!classId) continue;
-    const bucket = entriesByClass.get(classId);
-    if (bucket) bucket.push(entry);
-    else entriesByClass.set(classId, [entry]);
-  }
+  const entriesByClass = groupEntriesByClass(allEntries);
 
   return Promise.all(
     trials.map(async trial => {

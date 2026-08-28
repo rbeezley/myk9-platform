@@ -13,7 +13,12 @@ import {
   replicatedShowsTable,
   replicatedTrialsTable,
 } from '@/services/replication';
-import { fetchAtShowClassList, type AtShowClassGroup } from './atShowClassListAdapter';
+import {
+  fetchAtShowClassList,
+  isAtShowClassDataHydrated,
+  refreshAtShowClassListEntries,
+  type AtShowClassGroup,
+} from './atShowClassListAdapter';
 import type { AtShowNextUpPreview } from './atShowNextUpPreview';
 
 export interface UseAtShowClassListResult {
@@ -26,6 +31,8 @@ export interface UseAtShowClassListResult {
   clubId: string | undefined;
   isLoading: boolean;
   error: Error | null;
+  /** Persisted proof for truthful offline zero-class copy. */
+  classDataHydration: 'not-needed' | 'checking' | 'hydrated' | 'incomplete';
   refresh: () => void;
 }
 
@@ -33,13 +40,33 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
   const queryClient = useQueryClient();
   useEffect(() => {
     if (!showId) return;
+    const queryKey = ['at-show', 'classlist', showId] as const;
     const invalidate = () => {
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'classlist', showId] });
+      void queryClient.invalidateQueries({ queryKey });
+    };
+    const invalidateStructure = () => {
+      invalidate();
+      void queryClient.invalidateQueries({
+        queryKey: ['at-show', 'classlist-hydration', showId],
+      });
+    };
+    const applyEntriesSnapshot = (
+      allEntries: Parameters<typeof refreshAtShowClassListEntries>[1]
+    ) => {
+      let hadCachedGroups = false;
+      queryClient.setQueryData<AtShowClassGroup[]>(queryKey, current => {
+        if (!current) return undefined;
+        hadCachedGroups = true;
+        return refreshAtShowClassListEntries(current, allEntries, showId);
+      });
+      // A leading notification can race the initial query. In that one case,
+      // preserve the old refetch behavior instead of dropping the update.
+      if (!hadCachedGroups) invalidate();
     };
     const unsubscribe = [
-      replicatedClassesTable.subscribe(invalidate),
-      replicatedTrialsTable.subscribe(invalidate),
-      replicatedEntriesTable.subscribe(invalidate),
+      replicatedClassesTable.subscribe(invalidateStructure, { emitCurrent: false }),
+      replicatedTrialsTable.subscribe(invalidateStructure, { emitCurrent: false }),
+      replicatedEntriesTable.subscribe(applyEntriesSnapshot, { emitCurrent: false }),
     ];
     return () => unsubscribe.forEach(stop => stop());
   }, [queryClient, showId]);
@@ -66,6 +93,19 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
   // stable identity across renders where nothing refetched.
   const groupsData = groupsQuery.data;
   const groups = useMemo(() => groupsData ?? [], [groupsData]);
+  const shouldCheckClassHydration =
+    !!showId && groupsData !== undefined && !groupsData.some(group => group.classes.length > 0);
+  const classStructureKey = groupsData
+    ?.map(group => `${group.trial.id}:${group.classes.length}`)
+    .join('|');
+  const classHydrationQuery = useQuery({
+    // Counts belong in the key so an offline structural write cannot reuse a
+    // hydration answer computed against the previous local snapshot.
+    queryKey: ['at-show', 'classlist-hydration', showId, classStructureKey],
+    queryFn: () => isAtShowClassDataHydrated(showId as string, groupsData ?? []),
+    enabled: shouldCheckClassHydration,
+    networkMode: 'always',
+  });
   const nextUpByClassId = useMemo(() => {
     const merged = new Map<string, AtShowNextUpPreview>();
     for (const group of groups) {
@@ -84,11 +124,20 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     // not group/render with the default ('') before the show metadata lands.
     isLoading: groupsQuery.isLoading || showQuery.isLoading,
     error: (groupsQuery.error as Error | null) ?? (showQuery.error as Error | null) ?? null,
-    // Refetch both queries: `error` surfaces whichever failed, so a retry
-    // that only refetched groups would no-op on a show-metadata failure.
+    classDataHydration: !shouldCheckClassHydration
+      ? 'not-needed'
+      : classHydrationQuery.isLoading
+        ? 'checking'
+        : classHydrationQuery.data === true
+          ? 'hydrated'
+          : 'incomplete',
+    // Retry every active source that can produce the current empty/error UI.
+    // Hydration metadata has its own key and does not refetch merely because
+    // the unchanged group structure was fetched again.
     refresh: () => {
       void groupsQuery.refetch();
       void showQuery.refetch();
+      if (shouldCheckClassHydration) void classHydrationQuery.refetch();
     },
   };
 }

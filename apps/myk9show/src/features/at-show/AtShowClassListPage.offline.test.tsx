@@ -24,8 +24,16 @@ const judgeAssignmentData = vi.hoisted(() => ({
 
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
-  replicatedTrialsTable: { getTrialsByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
-  replicatedClassesTable: { getClassesByTrial: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
+  replicatedTrialsTable: {
+    getTrialsByShow: vi.fn(),
+    getSyncMetadata: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
+  replicatedClassesTable: {
+    getClassesByTrial: vi.fn(),
+    getSyncMetadata: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedEntriesTable: { getEntriesByShow: vi.fn(), subscribe: vi.fn(() => vi.fn()) },
 }));
 
@@ -101,6 +109,26 @@ function seedColdDevice() {
   judgeAssignmentData.getActive.mockResolvedValue([]);
 }
 
+function seedHydratedEmptyShow() {
+  vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
+    id: 'show-1',
+    name: 'Spring Trial',
+    organization: 'AKC Scent Work',
+  } as never);
+  vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([
+    { id: 'trial-1', showId: 'show-1', trialNumber: 1 },
+  ] as never);
+  vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([] as never);
+  vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([] as never);
+  vi.mocked(replicatedTrialsTable.getSyncMetadata).mockResolvedValue({
+    expectedRemoteRows: 1,
+  } as never);
+  vi.mocked(replicatedClassesTable.getSyncMetadata).mockResolvedValue({
+    expectedRemoteRows: 0,
+  } as never);
+  judgeAssignmentData.getActive.mockResolvedValue([]);
+}
+
 /**
  * Going offline moves TWO things that this page reads independently:
  * react-query's `onlineManager` (which decides whether a query pauses) and
@@ -137,6 +165,8 @@ describe('AtShowClassListPage offline truthfulness', () => {
     authState.hasRole = () => false;
     authState.userWithRoles = null;
     authState.user = null;
+    vi.mocked(replicatedTrialsTable.getSyncMetadata).mockResolvedValue(null as never);
+    vi.mocked(replicatedClassesTable.getSyncMetadata).mockResolvedValue(null as never);
   });
 
   afterEach(() => {
@@ -180,6 +210,29 @@ describe('AtShowClassListPage offline truthfulness', () => {
 
   it('says the classes are not on this device rather than that the show has none', async () => {
     seedColdDevice();
+    goOffline();
+
+    renderPage(neverSyncedStatus);
+
+    expect(await screen.findByText(/Classes not on this device yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/This show has no classes yet/)).not.toBeInTheDocument();
+  });
+
+  it('reports a persistently hydrated class-less show truthfully after a cold offline boot', async () => {
+    seedHydratedEmptyShow();
+    goOffline();
+
+    renderPage(neverSyncedStatus);
+
+    expect(await screen.findByText(/This show has no classes yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/Classes not on this device yet/)).not.toBeInTheDocument();
+  });
+
+  it('keeps conservative device copy when persisted hydration metadata cannot be read', async () => {
+    seedHydratedEmptyShow();
+    vi.mocked(replicatedTrialsTable.getSyncMetadata).mockRejectedValue(
+      new Error('IndexedDB metadata read failed')
+    );
     goOffline();
 
     renderPage(neverSyncedStatus);

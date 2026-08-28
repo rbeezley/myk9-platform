@@ -50,13 +50,14 @@ VALUES
   ('00000000-0000-0000-0000-00000000d531',
    '00000000-0000-0000-0000-00000000d521', 'Puppy 6-9 Months', 'Puppy', 'Puppy');
 
-INSERT INTO public.dogs (id, name, call_name, status)
+-- `breed` and `call_name` are NOT NULL without defaults on public.dogs.
+INSERT INTO public.dogs (id, name, call_name, breed, status)
 VALUES
-  ('00000000-0000-0000-0000-00000000d541', 'Unregistered Dog', 'Nono', 'active'),
-  ('00000000-0000-0000-0000-00000000d542', 'Registered Dog', 'Yep', 'active'),
-  ('00000000-0000-0000-0000-00000000d543', 'Other Registry Dog', 'Ukc', 'active'),
-  ('00000000-0000-0000-0000-00000000d544', 'Drifted Name Dog', 'Drift', 'active'),
-  ('00000000-0000-0000-0000-00000000d545', 'Blank Number Dog', 'Blank', 'active');
+  ('00000000-0000-0000-0000-00000000d541', 'Unregistered Dog',   'Nono',  'Beagle', 'active'),
+  ('00000000-0000-0000-0000-00000000d542', 'Registered Dog',     'Yep',   'Beagle', 'active'),
+  ('00000000-0000-0000-0000-00000000d543', 'Other Registry Dog', 'Ukc',   'Beagle', 'active'),
+  ('00000000-0000-0000-0000-00000000d544', 'Drifted Name Dog',   'Drift', 'Beagle', 'active'),
+  ('00000000-0000-0000-0000-00000000d545', 'Blank Number Dog',   'Blank', 'Beagle', 'active');
 
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
 VALUES

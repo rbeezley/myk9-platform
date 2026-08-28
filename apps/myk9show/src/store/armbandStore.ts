@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
-import { logger } from '@/services/LoggingService';
 
 export interface ArmbandAssignment {
   id: string;
@@ -49,7 +48,6 @@ interface ArmbandState {
   
   // Assignment methods
   assignArmband: (assignment: Omit<ArmbandAssignment, 'id' | 'assignedDate'>) => ArmbandAssignment;
-  assignBulkArmbands: (showId: string, dogIds: string[], options?: BulkAssignmentOptions) => ArmbandAssignment[];
   unassignArmband: (assignmentId: string) => void;
   updateAssignment: (assignmentId: string, update: Partial<ArmbandAssignment>) => void;
   
@@ -74,15 +72,6 @@ interface ArmbandState {
   resetShowAssignments: (showId: string) => void;
   exportAssignments: (showId: string) => ExportData;
   importAssignments: (showId: string, data: ExportData) => void;
-}
-
-interface BulkAssignmentOptions {
-  trialId?: string;
-  ringId?: string;
-  dayNumber?: number;
-  startingNumber?: number;
-  prefix?: string;
-  skipConflictCheck?: boolean;
 }
 
 interface NumberOptions {
@@ -164,55 +153,6 @@ export const useArmbandStore = create<ArmbandState>()(
         }
         
         return newAssignment;
-      },
-      
-      assignBulkArmbands: (showId, dogIds, options = {}) => {
-        const assignments: ArmbandAssignment[] = [];
-        const nextNumber = get().getNextAvailableNumber(showId, options);
-        const startingNumber = options.startingNumber || 1;
-        let currentNumber: number;
-        if (typeof startingNumber === 'string') {
-          currentNumber = parseInt((startingNumber as string).replace(options.prefix || '', ''));
-        } else if (typeof startingNumber === 'number') {
-          currentNumber = startingNumber;
-        } else {
-          currentNumber = parseInt((nextNumber as string).replace(options.prefix || '', ''));
-        }
-        
-        dogIds.forEach((dogId) => {
-          const armbandNumber = `${options.prefix || ''}${currentNumber}`;
-          
-          // Skip conflict check if requested (for faster bulk operations)
-          if (!options.skipConflictCheck) {
-            const conflict = get().checkConflicts(showId, armbandNumber, dogId, {
-              trialId: options.trialId,
-              ringId: options.ringId,
-              dayNumber: options.dayNumber
-            });
-            
-            if (conflict) {
-              return;
-            }
-          }
-          
-          try {
-            const assignment = get().assignArmband({
-              showId,
-              dogId,
-              armbandNumber,
-              assignedBy: 'system',
-              trialId: options.trialId,
-              ringId: options.ringId,
-              dayNumber: options.dayNumber
-            });
-            assignments.push(assignment);
-            currentNumber++;
-          } catch (error) {
-            logger.error(`Failed to assign armband to dog ${dogId}:`, 'store', {}, error as Error);
-          }
-        });
-        
-        return assignments;
       },
       
       unassignArmband: (assignmentId) => {

@@ -27,6 +27,12 @@ DECLARE
   v_c6 uuid := gen_random_uuid();  -- 3.5 backfill skips manual
   v_c7 uuid := gen_random_uuid();  -- 3.6 manually-STARTED class not reopened by late entry
   v_c8 uuid := gen_random_uuid();  -- 3.7 DELETE of unscored entry completes class
+  v_c9 uuid := gen_random_uuid();  -- 3.8 ordinary check-in must not rewrite the class row
+  v_before_updated timestamptz;
+  v_after_updated timestamptz;
+  v_before_version integer;
+  v_after_version integer;
+  v_before_scored integer;
   v_e uuid;
   v_status text;
   v_source text;
@@ -264,6 +270,88 @@ BEGIN
     RAISE EXCEPTION '3.7 FAIL: DELETE did not re-derive class to completed, got %', v_status;
   END IF;
   RAISE NOTICE '3.7 PASS: DELETE of unscored entry completes class (status=%)', v_status;
+
+  -- =====================================================================
+  -- 3.8 MYK9-248: an ordinary check-in transition must not rewrite the
+  --     class row.
+  --
+  --     `check_in_status` reaches refresh_class_scoring_state through only one
+  --     predicate — `check_in_status IS DISTINCT FROM 'pulled'` — so the six
+  --     non-pulled values are interchangeable to every count it computes. A
+  --     transition among them therefore cannot change status or scored_count,
+  --     yet the trigger fires and the function rewrites the class row anyway.
+  --
+  --     That rewrite is not free: `classes` carries an unconditional realtime
+  --     broadcast, a replication version increment and an updated_at bump, and
+  --     it takes a row-exclusive lock the judge scoring that class must queue
+  --     behind. Asserting updated_at and version are unchanged is what proves
+  --     the write was actually suppressed rather than merely made idempotent.
+  -- =====================================================================
+  INSERT INTO public.classes (id, trial_id, name, level, element, judge_name,
+                              entry_fee, status, time_limit_seconds, num_areas,
+                              display_order, version)
+    VALUES (v_c9, v_trial, '3.8 Check-in Churn', 'Novice', 'Container', 'Test Judge',
+            30.00, 'upcoming', 120, 1, 9, 1);
+
+  INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+    VALUES (v_c9, v_show, v_trial, 'confirmed', 'no-status', false, 'pending')
+    RETURNING id INTO v_e;
+
+  SELECT updated_at, version, scored_count
+    INTO v_before_updated, v_before_version, v_before_scored
+    FROM public.classes WHERE id = v_c9;
+
+  -- The ordinary progression a dog walks through at a show.
+  UPDATE public.entries SET check_in_status = 'checked-in' WHERE id = v_e;
+  UPDATE public.entries SET check_in_status = 'at-gate' WHERE id = v_e;
+  UPDATE public.entries SET check_in_status = 'come-to-gate' WHERE id = v_e;
+  UPDATE public.entries SET check_in_status = 'in-ring' WHERE id = v_e;
+
+  SELECT updated_at, version, scored_count
+    INTO v_after_updated, v_after_version, v_scored
+    FROM public.classes WHERE id = v_c9;
+
+  IF v_scored IS DISTINCT FROM v_before_scored THEN
+    RAISE EXCEPTION '3.8 FAIL: ordinary check-in changed scored_count (% -> %)',
+      v_before_scored, v_scored;
+  END IF;
+  IF v_after_version IS DISTINCT FROM v_before_version THEN
+    RAISE EXCEPTION '3.8 FAIL: ordinary check-in bumped classes.version (% -> %) — the class row was rewritten and a replication delta published for a no-op',
+      v_before_version, v_after_version;
+  END IF;
+  IF v_after_updated IS DISTINCT FROM v_before_updated THEN
+    RAISE EXCEPTION '3.8 FAIL: ordinary check-in bumped classes.updated_at (% -> %) — every replicating device will re-pull this class for a write that changed nothing',
+      v_before_updated, v_after_updated;
+  END IF;
+  RAISE NOTICE '3.8 PASS: ordinary check-in left the class row untouched (version=%, scored=%)',
+    v_after_version, v_scored;
+
+  -- =====================================================================
+  -- 3.9 MYK9-248: a transition into 'pulled' MUST still re-derive.
+  --     This is the one check_in_status value the rollup reads, so
+  --     narrowing the trigger must not narrow it away.
+  -- =====================================================================
+  UPDATE public.entries SET check_in_status = 'pulled' WHERE id = v_e;
+
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c9;
+  IF v_status IS DISTINCT FROM 'upcoming' THEN
+    RAISE EXCEPTION '3.9 FAIL: pulling the only expected entry left status=%, expected upcoming', v_status;
+  END IF;
+  RAISE NOTICE '3.9 PASS: transition into pulled still re-derived (status=%)', v_status;
+
+  -- =====================================================================
+  -- 3.10 MYK9-248: a transition OUT of 'pulled' must re-derive too.
+  --      Guarding only one direction would leave a class stuck.
+  -- =====================================================================
+  UPDATE public.entries
+    SET check_in_status = 'checked-in', is_scored = true, result_status = 'qualified'
+    WHERE id = v_e;
+
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c9;
+  IF v_status IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION '3.10 FAIL: un-pulling and scoring the entry left status=%, expected completed', v_status;
+  END IF;
+  RAISE NOTICE '3.10 PASS: transition out of pulled re-derived (status=%)', v_status;
 
   RAISE NOTICE 'ALL class-status-auto-derivation assertions passed.';
 END $$;

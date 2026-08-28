@@ -194,9 +194,13 @@ export function SecretaryCockpitSchedule({
                               <ClassStatusControl
                                 classId={classItem.id}
                                 lifecycle={classItem.lifecycle.value}
+                                // `null`, not 0, when progress is unknown --
+                                // ClassStatusControl confirms on unknown, and
+                                // passing 0 here would silently disable the
+                                // guard exactly when it is needed most.
                                 unenteredScoreCount={
                                   classItem.progress.value === null
-                                    ? 0
+                                    ? null
                                     : Math.max(
                                         0,
                                         classItem.progress.value.total -

@@ -114,8 +114,11 @@ export interface ShowMapClassInput {
   actualFinishTime?: string | undefined;
   displayOrder?: number | undefined;
   status?: string | undefined;
-  entryCount?: number | undefined;
-  scoredCount?: number | undefined;
+  /** `null` = the entries read did not succeed, so the count is unknown.
+   *  `showMapStatus` already gates on `typeof === 'number'`, so an unknown
+   *  count yields no progress line rather than a fabricated "0 of 0". */
+  entryCount?: number | null | undefined;
+  scoredCount?: number | null | undefined;
   ring?: string | number | null | undefined;
   ringName?: string | undefined;
   trialDate?: string | undefined;

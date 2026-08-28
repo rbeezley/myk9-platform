@@ -40,7 +40,17 @@ export function ClassStatusControl({
 }: {
   classId: string;
   lifecycle: CockpitLifecycle | null;
-  unenteredScoreCount?: number;
+  /**
+   * How many scores are still unentered, or `null` when that is UNKNOWN
+   * because the entries read did not succeed.
+   *
+   * Null must not collapse to 0. The whole point of this guard is to stop a
+   * class being marked complete over unentered paper scores; when a paused or
+   * failed entries read makes the count unknowable, skipping the confirmation
+   * is the one behaviour that cannot be justified -- it turns "I don't know
+   * whether scores are outstanding" into "there are none".
+   */
+  unenteredScoreCount?: number | null;
   canManageShow: boolean;
 }) {
   const [isSaving, setIsSaving] = useState(false);
@@ -63,11 +73,15 @@ export function ClassStatusControl({
   }
 
   const update = async (status: ClassStatusValue) => {
+    const scoresUnknown = unenteredScoreCount === null;
+    const outstanding = unenteredScoreCount ?? 0;
     if (
       status === CLASS_STATUS.COMPLETED &&
-      unenteredScoreCount > 0 &&
+      (scoresUnknown || outstanding > 0) &&
       !window.confirm(
-        `${unenteredScoreCount} paper ${unenteredScoreCount === 1 ? 'score still needs' : 'scores still need'} entry. Mark this Class complete anyway?`
+        scoresUnknown
+          ? 'Entry data is unavailable, so we cannot tell whether paper scores still need entry. Mark this Class complete anyway?'
+          : `${outstanding} paper ${outstanding === 1 ? 'score still needs' : 'scores still need'} entry. Mark this Class complete anyway?`
       )
     ) {
       return;

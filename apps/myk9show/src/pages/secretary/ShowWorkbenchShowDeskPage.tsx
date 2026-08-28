@@ -39,11 +39,15 @@ import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
+import type { SecretaryEntry } from '@/services/database/entries';
 import type { ShowDayReconciliationEntry } from '@/features/show-workbench/showDayReconciliationSummary';
 import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
+
+/** Stable identity so a missing read does not remint the array each render. */
+const EMPTY_ENTRIES: SecretaryEntry[] = [];
 
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
 
@@ -105,16 +109,70 @@ export function ShowWorkbenchShowDeskPage() {
     useShallow(s => ({ trials: s.trials, trialClasses: s.trialClasses }))
   );
   const {
-    data: showEntries = [],
+    data: showEntriesData,
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
     error: showEntriesError,
     refetch: refetchShowEntries,
   } = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
+  const showEntries = useMemo(() => showEntriesData ?? EMPTY_ENTRIES, [showEntriesData]);
+  /**
+   * Did the entries read actually SUCCEED?
+   *
+   * This page derives every per-class count, every pending signal, the
+   * mark-complete guard, People at show, the Show Map and closeout from
+   * `showEntries`. An empty array therefore has to mean "this show has no
+   * entries" and nothing else -- but React Query hands back `data: undefined`
+   * in three settled-looking states, and `= []` turned all three into that
+   * claim.
+   *
+   * The offline one is why this matters on a show-day desk. The query inherits
+   * React Query's `'online'` networkMode (App.tsx mounts a bare QueryClient and
+   * `optimizeQueryCache` sets no networkMode), so losing wifi PAUSES it:
+   * `fetchStatus` becomes 'paused', which makes `isFetching` false, which makes
+   * `isLoading` false -- and pending is not error, so `isError` is false too.
+   * Both gates below fell straight through, and the desk rendered "0 of 0
+   * scored" on classes with 40 entries, with no attention chips at all, reading
+   * as fully clear mid-show.
+   *
+   * The error copy this page already shows says exactly that: the dependent
+   * surfaces are "paused so they do not show a false zero-entry state". That
+   * guard was right; it was wired to the one state that does not occur.
+   */
+  const entriesKnown = showEntriesData !== undefined;
+  /**
+   * Settled with no data and no error: paused offline, or the query disabled.
+   * Deliberately NOT keyed on connectivity -- what matters is whether the read
+   * produced data, and an online request that never resolves lands here too.
+   */
+  const entriesUnavailable =
+    showEntriesData === undefined && !showEntriesLoading && !showEntriesIsError;
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
   const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
   const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
+
+  /**
+   * Per-class entry tallies in a single pass.
+   *
+   * This used to be two `showEntries.filter()` scans inside a `.map` over every
+   * class, i.e. O(2 x classes x entries) recomputed whenever `showEntries`
+   * changed identity -- which realtime invalidation does routinely. At the
+   * load-rehearsal shape that is hundreds of thousands of array visits per
+   * recompute.
+   */
+  const entryTallies = useMemo(() => {
+    const tallies = new Map<string, { total: number; scored: number }>();
+    for (const entry of showEntries) {
+      const classId = entry.class_id;
+      if (!classId) continue;
+      const tally = tallies.get(classId) ?? { total: 0, scored: 0 };
+      tally.total += 1;
+      if (entry.is_scored === true) tally.scored += 1;
+      tallies.set(classId, tally);
+    }
+    return tallies;
+  }, [showEntries]);
 
   const associatedTrials = useMemo(
     () =>
@@ -149,17 +207,15 @@ export function ShowWorkbenchShowDeskPage() {
           actualFinishTime: cls.actualFinishTime,
           displayOrder: cls.displayOrder,
           status: cls.status || CLASS_STATUS.SCHEDULED,
-          entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
-          scoredCount: showEntries.filter(
-            entry => entry.class_id === cls.id && entry.is_scored === true
-          ).length,
+          entryCount: entriesKnown ? (entryTallies.get(cls.id)?.total ?? 0) : null,
+          scoredCount: entriesKnown ? (entryTallies.get(cls.id)?.scored ?? 0) : null,
           trialDate: trial.trialDate || '',
           timezone: trial.timezone ?? null,
           trialNumber: trial.trialNumber || '',
           trialName: trial.name || '',
         }));
       }),
-    [associatedTrials, showEntries, trialClasses]
+    [associatedTrials, entriesKnown, entryTallies, trialClasses]
   );
   const closeoutClasses = useMemo(() => showClasses.map(toCloseoutClassSummary), [showClasses]);
   const closeoutTrials = useMemo<CloseoutTrialSummary[]>(
@@ -419,6 +475,31 @@ export function ShowWorkbenchShowDeskPage() {
 
   if (showEntriesLoading) {
     return <LoadingSkeleton variant="cards" count={2} />;
+  }
+
+  // Settled, no data, no error: the read never happened (paused offline, or
+  // disabled). Everything below derives from `showEntries`, so rendering the
+  // desk here would state a zero it never read -- the exact thing the copy in
+  // both these branches promises not to do.
+  if (entriesUnavailable) {
+    return (
+      <div className="rounded-md border border-warning/40 bg-warning/10 p-4 text-sm">
+        <p className="font-medium">Entry data isn&rsquo;t available right now.</p>
+        <p className="mt-1 text-muted-foreground">
+          Entry counts, People at show, Show Map and closeout are paused so they do not show a
+          false zero-entry state. Class times and ring assignments below are unaffected.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-3 min-h-11"
+          onClick={() => void refetchShowEntries()}
+        >
+          Try again
+        </Button>
+      </div>
+    );
   }
 
   if (showEntriesIsError && showEntries.length === 0) {

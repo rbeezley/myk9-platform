@@ -10,6 +10,7 @@ import { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { useEntryDecisionLifecycleEmails } from '@/features/lifecycle-emails';
 import { TrialClassFilters } from './TrialClassFilters';
 import { EntryRegistrationQueue } from './EntryRegistrationQueue';
+import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { getEntryRegistrationRowId } from './showRegistrationProjection';
 import { EntryFocusedRegistration } from './EntryFocusedRegistration';
 import { EntryRegistrationSelectionToolbar } from './EntryRegistrationSelectionToolbar';
@@ -47,9 +48,15 @@ interface EntryManagementCockpitProps {
   cockpitState: EntryManagementCockpitState;
   trials: EntryManagementTrial[];
   trialClasses: EntryManagementTrialClass[];
-  trialClassIds: readonly string[];
+  /** `undefined` when the trial's class list could not be read — see
+   * `useEntryManagementTrialClasses`. Never coerce this to `[]`. */
+  trialClassIds: readonly string[] | undefined;
   isLoadingTrials: boolean;
   isLoadingClasses: boolean;
+  /** A trial is selected but its classes are unknown, so trial scoping cannot
+   * be applied and the counts below are for the whole show, not the trial. */
+  trialClassesUnknown?: boolean;
+  onRetryTrialClasses?: () => void;
   canValidateFocus?: boolean;
   showId: string;
   showName?: string;
@@ -105,6 +112,8 @@ export function EntryManagementCockpit({
   trialClassIds,
   isLoadingTrials,
   isLoadingClasses,
+  trialClassesUnknown = false,
+  onRetryTrialClasses,
   canValidateFocus = true,
   showId,
   showName,
@@ -192,6 +201,8 @@ export function EntryManagementCockpit({
   };
 
   const selectedEntries = cockpit.selection.selectedItems.flatMap(group => group.entries);
+  /** A trial is selected but which classes it holds is still being read. */
+  const trialScopePending = Boolean(cockpit.state.trialId) && isLoadingClasses;
   const showQueue = !responsive.compact || !responsive.detailOpen;
   const showDetail = !responsive.compact || responsive.detailOpen;
 
@@ -206,21 +217,23 @@ export function EntryManagementCockpit({
               variant={cockpit.state.queue === queue.id ? 'secondary' : 'ghost'}
               disabled={Boolean(cockpit.state.search)}
               className={cn(
-                'min-h-10 shrink-0 gap-3',
+                'min-h-11 shrink-0 gap-3',
                 cockpit.state.queue === queue.id && 'border border-primary/30 bg-primary/10'
               )}
               onClick={() => cockpit.setQueue(queue.id)}
             >
               {queue.label}
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {cockpit.queueCounts[queue.id]}
-              </span>
+              {!trialScopePending && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {cockpit.queueCounts[queue.id]}
+                </span>
+              )}
             </Button>
           ))}
         </div>
         <Popover>
           <PopoverTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="min-h-10 shrink-0 gap-2">
+            <Button type="button" variant="outline" size="sm" className="min-h-11 shrink-0 gap-2">
               <SlidersHorizontal className="h-4 w-4" aria-hidden />
               Density
             </Button>
@@ -266,13 +279,60 @@ export function EntryManagementCockpit({
         </p>
       )}
 
+      {/*
+        Trial scope could not be applied.
+
+        A trial is selected but its class list never loaded, so we do not know
+        which registrations belong to it. The queue below is therefore the whole
+        show, not the trial. Saying so is the only honest option: scoping to an
+        empty class list would report zero registrations and zero queue counts
+        as fact, and silently dropping the scope would let the secretary act on
+        the wrong trial believing it was filtered.
+      */}
+      {trialClassesUnknown && !cockpit.state.search && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
+        >
+          <span className="text-foreground">
+            Couldn&rsquo;t load this trial&rsquo;s classes, so the list below covers the whole show,
+            not just this trial.
+          </span>
+          {onRetryTrialClasses && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-11"
+              onClick={onRetryTrialClasses}
+            >
+              Retry
+            </Button>
+          )}
+        </div>
+      )}
+
       <div
         className={cn(
           'grid items-start gap-4',
           !responsive.compact && 'grid-cols-[minmax(30rem,1.1fr)_minmax(25rem,.9fr)]'
         )}
       >
-        {showQueue && (
+        {/*
+          Trial picked, classes not back yet. `trialClassIds` is `undefined`
+          here, so the queue would render EVERY registration in the show while
+          appearing scoped to the trial -- and "Select all on page" would then
+          bulk-act on another trial's entries. Refusing to scope is the right
+          call once the read has failed, but during the read the honest answer
+          is "not yet", not a superset presented as a subset.
+        */}
+        {(showQueue || showDetail) && trialScopePending && (
+          <div role="status" aria-label="Loading this trial's registrations" className="py-4">
+            <TableSkeleton rows={6} columns={4} />
+          </div>
+        )}
+
+        {showQueue && !trialScopePending && (
           <EntryRegistrationQueue
             groups={cockpit.page.items}
             focusedKey={focusedKey}
@@ -288,6 +348,10 @@ export function EntryManagementCockpit({
             rangeStart={cockpit.page.rangeStart}
             rangeEnd={cockpit.page.rangeEnd}
             total={cockpit.page.total}
+            // `registrationGroups` is every registration in the show, before any
+            // queue, scope or search narrowing, so an empty one means the show
+            // itself is empty rather than the filters being wrong.
+            showHasNoRegistrations={registrationGroups.length === 0}
             pageIndex={cockpit.page.pageIndex}
             pageCount={cockpit.page.pageCount}
             onPageChange={cockpit.setPageIndex}
@@ -295,7 +359,7 @@ export function EntryManagementCockpit({
           />
         )}
 
-        {showDetail && cockpit.focusedGroup && (
+        {showDetail && !trialScopePending && cockpit.focusedGroup && (
           <div className={cn(!responsive.compact && 'sticky top-4')}>
             <EntryFocusedRegistration
               key={cockpit.focusedGroup.groupKey}

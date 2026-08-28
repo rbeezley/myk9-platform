@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { formatEntryDateTime } from '@/lib/format/dates';
 import {
@@ -31,7 +30,6 @@ import {
   Check,
   X,
   Clock,
-  AlertCircle,
   Loader2,
   RefreshCw,
   Dog,
@@ -39,6 +37,12 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
+import {
+  NoPendingPullsCard,
+  NoPulledEntriesCard,
+  PullRequestsErrorCard,
+  PulledEntriesUnknownCard,
+} from './PullTabStateCards';
 import { getPendingPullRequests, type PullRecord } from '@/services/database/day-of-operations';
 import {
   approvePullRequestReplicated,
@@ -51,12 +55,29 @@ import { RefundEntryDialog } from './management/RefundEntryDialog';
 interface PullManagementTabProps {
   showId: string;
   processedEntries: EntryManagementEntry[];
+  /**
+   * The caller's entries read is still running or failed, so `processedEntries`
+   * being empty means NOTHING. Without this the Registrations tab showed an
+   * honest "Couldn't load entries" while this tab, fed the same failed read,
+   * confidently reported "There are no pulled entries for this show".
+   */
+  processedEntriesUnknown?: boolean;
+  /**
+   * The caller's entries read is still IN FLIGHT. Distinct from
+   * `processedEntriesUnknown`: nothing has failed, so this must render as
+   * pending, not as an error. Folding the two together traded one false claim
+   * for another -- a red "Couldn't load this show's entries" every time the
+   * secretary opened this tab or hit Refresh.
+   */
+  processedEntriesLoading?: boolean;
   onRefresh?: () => void;
 }
 
 export const PullManagementTab: React.FC<PullManagementTabProps> = ({
   showId,
   processedEntries,
+  processedEntriesUnknown = false,
+  processedEntriesLoading = false,
   onRefresh,
 }) => {
   const [pendingRequests, setPendingRequests] = useState<PullRecord[]>([]);
@@ -203,10 +224,10 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <XCircle className="h-5 w-5" />
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <XCircle className="h-5 w-5" aria-hidden />
             Pull Management
-          </h3>
+          </h2>
           <p className="text-sm text-muted-foreground">
             Review pull requests and reconcile refunds in one place.
           </p>
@@ -223,14 +244,6 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
           Refresh
         </Button>
       </div>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -252,18 +265,10 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
 
         {/* Pending Requests */}
         <TabsContent value="pending" className="mt-4">
-          {filteredPending.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Pending Pull Requests</p>
-                <p className="text-sm text-muted-foreground">
-                  {searchTerm
-                    ? 'No requests match your search'
-                    : 'There are no pending pull requests'}
-                </p>
-              </CardContent>
-            </Card>
+          {error ? (
+            <PullRequestsErrorCard onRetry={loadData} />
+          ) : filteredPending.length === 0 ? (
+            <NoPendingPullsCard searching={Boolean(searchTerm)} />
           ) : (
             <div className="space-y-3">
               {filteredPending.map(request => (
@@ -341,18 +346,14 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
 
         {/* Pulled entries */}
         <TabsContent value="processed" className="mt-4">
-          {filteredProcessed.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-lg font-medium">No Pulled Entries</p>
-                <p className="text-sm text-muted-foreground">
-                  {searchTerm
-                    ? 'No pulls match your search'
-                    : 'There are no pulled entries for this show'}
-                </p>
-              </CardContent>
-            </Card>
+          {processedEntriesLoading ? (
+            <div role="status" aria-label="Loading pulled entries" className="py-4">
+              <TableSkeleton rows={4} columns={4} />
+            </div>
+          ) : processedEntriesUnknown ? (
+            <PulledEntriesUnknownCard />
+          ) : filteredProcessed.length === 0 ? (
+            <NoPulledEntriesCard searching={Boolean(searchTerm)} />
           ) : (
             <div className="space-y-3">
               {filteredProcessed.map(entry => (

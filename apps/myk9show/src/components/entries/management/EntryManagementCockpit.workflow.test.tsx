@@ -135,7 +135,7 @@ describe('EntryManagementCockpit status seam', () => {
     renderCockpit(onStatusChange);
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 

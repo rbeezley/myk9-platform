@@ -4,7 +4,8 @@ import { planGeneration } from './loadGenerationPlan';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
 import { DISTRIBUTED_G9_SHARD_COUNT } from './loadShard';
 import { VirtualUserFleet } from './loadVirtualUserFleet';
-import type { VirtualUserRequestSample } from './loadVirtualUser';
+import { LOAD_SHOWS } from './loadFixture';
+import { LoadVirtualUser, type VirtualUserRequestSample } from './loadVirtualUser';
 
 function recordingFetch() {
   const urls: string[] = [];
@@ -231,6 +232,62 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
       await draining;
       expect(drained).toBe(true);
       expect(fleet.outcomes()[0]?.ok).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('drains every overlapping poll, not just the newest', async () => {
+    // A sync slower than the 60s cadence is the OVERLOAD case, and the last
+    // rehearsal measured ~140s syncs — so a second tick fires while the first is
+    // still running. Keeping a single `inFlight` handle let drain() wait only for
+    // the newest, so older requests settled after outcomes were captured and kept
+    // hitting shared staging past the workload boundary.
+    //
+    // Driven through syncOnce rather than fetch: one sync issues several
+    // requests, so gating at the fetch layer cannot separate two polls.
+    vi.useFakeTimers();
+    try {
+      const user = new LoadVirtualUser(
+        {
+          supabaseUrl: 'https://fixture.supabase.co',
+          anonKey: 'anon',
+          accessToken: 'token',
+          showId: LOAD_SHOWS[0].showId,
+          trialId: LOAD_SHOWS[0].trials[0].trialId,
+          role: 'exhibitor',
+        },
+        'id,updated_at'
+      );
+
+      const settle: (() => void)[] = [];
+      vi.spyOn(user, 'syncOnce').mockImplementation(
+        () =>
+          new Promise(resolve => {
+            settle.push(() => resolve({ samples: [], rows: 0 }));
+          })
+      );
+
+      user.start(() => {});
+      vi.advanceTimersByTime(60_000);
+      vi.advanceTimersByTime(60_000);
+      expect(settle).toHaveLength(2);
+
+      user.stop();
+      let drained = false;
+      const draining = user.drain().then(() => {
+        drained = true;
+      });
+
+      // Settle only the NEWEST poll. A single-handle drain resolves here and
+      // strands the older one.
+      settle[1]?.();
+      for (let tick = 0; tick < 20; tick += 1) await Promise.resolve();
+      expect(drained).toBe(false);
+
+      settle[0]?.();
+      await draining;
+      expect(drained).toBe(true);
     } finally {
       vi.useRealTimers();
     }

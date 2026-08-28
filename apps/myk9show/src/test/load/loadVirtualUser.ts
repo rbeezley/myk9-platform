@@ -67,7 +67,16 @@ interface TableWatermark {
 export class LoadVirtualUser {
   private readonly client: SupabaseClient;
   private readonly watermarks = new Map<string, TableWatermark>();
-  private inFlight: Promise<void> | undefined;
+  /**
+   * EVERY poll still running, not just the newest.
+   *
+   * A sync slower than the interval — the overload case, and the last rehearsal
+   * measured ~140s syncs against a 60s cadence — means the next tick starts
+   * another while the first is unfinished. A single handle let drain() wait only
+   * for the last one, so older requests settled after the metrics and lifecycle
+   * were captured and kept reaching shared staging past the workload boundary.
+   */
+  private readonly inFlight = new Set<Promise<void>>();
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
@@ -186,12 +195,12 @@ export class LoadVirtualUser {
   ): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
-      const pending = this.syncOnce()
+      const pending: Promise<void> = this.syncOnce()
         .then(onSync, error => onError?.(error))
         .finally(() => {
-          if (this.inFlight === pending) this.inFlight = undefined;
+          this.inFlight.delete(pending);
         });
-      this.inFlight = pending;
+      this.inFlight.add(pending);
     }, VIRTUAL_USER_SYNC_INTERVAL_MS);
   }
 
@@ -210,6 +219,10 @@ export class LoadVirtualUser {
    * since the cadence is 60 s (MYK9-126).
    */
   async drain(): Promise<void> {
-    await this.inFlight;
+    // Settling one poll can leave others outstanding, so loop until the set is
+    // empty rather than awaiting a single snapshot of it.
+    while (this.inFlight.size > 0) {
+      await Promise.all([...this.inFlight]);
+    }
   }
 }

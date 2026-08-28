@@ -30,7 +30,7 @@ export * from './moveUpNote';
 export * from './search';
 export * from './secretary';
 export * from './secretaryExport';
-export { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
+export { SECRETARY_ENTRIES_READ_ERROR, SECRETARY_SHOW_READ_ERROR } from './secretaryReadErrors';
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';
 export { entryInvalidationKeys } from './invalidation';
 export type { EntryChange } from './invalidation';

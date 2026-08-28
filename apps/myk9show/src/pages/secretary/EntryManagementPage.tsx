@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
-import { Users, AlertCircle, Download, MoreHorizontal, Plus, UserCheck } from 'lucide-react';
+import { AlertCircle, Download, MoreHorizontal, Plus, UserCheck } from 'lucide-react';
 import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
@@ -35,6 +35,7 @@ import { groupEntriesByShowRegistration } from '@/components/entries/management/
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
+import { EntryManagementUnresolvedShow } from './EntryManagementUnresolvedShow';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'registrations', label: 'Registrations' },
@@ -53,6 +54,9 @@ const EntryManagementPage: React.FC = () => {
     shows,
     selectedShowId,
     isLoadingShows,
+    didResolveShow,
+    showError,
+    retryShowResolution,
     entries,
     setEntries,
     isLoading,
@@ -100,8 +104,13 @@ const EntryManagementPage: React.FC = () => {
     );
   };
 
-  const { trialClasses, trialClassIds, isLoadingClasses } =
-    useEntryManagementTrialClasses(trialParam);
+  const {
+    trialClasses,
+    trialClassIds,
+    isLoadingClasses,
+    trialClassesUnknown,
+    refetchTrialClasses,
+  } = useEntryManagementTrialClasses(trialParam);
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
 
@@ -200,7 +209,8 @@ const EntryManagementPage: React.FC = () => {
         <Card>
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+            {/* This branch replaces the whole page, so it owns the h1. */}
+            <h1 className="mb-2 text-xl font-semibold">Access Restricted</h1>
             <p className="text-muted-foreground">
               This page is only accessible to users with secretary permissions.
             </p>
@@ -218,8 +228,18 @@ const EntryManagementPage: React.FC = () => {
           <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
             Entry Management
           </h1>
-          <p className="text-muted-foreground">
-            Manage show entries, process payments, and communicate with exhibitors
+          {/*
+            Name the show. Every accept, reject, refund and exhibitor email on
+            this page is scoped to one show, and the secretary can arrive here
+            from a bare `/secretary/entries` link that resolves the show from
+            localStorage — so without this line they act on a show the page
+            never named. The generic "Manage show entries, process payments…"
+            tagline that used to sit here restated the H1 and carried no state.
+            The fallback stays generic on purpose: an unresolved show must not
+            be described as a named one.
+          */}
+          <p className="break-words text-muted-foreground">
+            {selectedShow?.name ?? 'Manage entries, payments, and exhibitor email for one show'}
           </p>
         </div>
         <div className="manager-page-actions">
@@ -274,7 +294,7 @@ const EntryManagementPage: React.FC = () => {
         Surfaces failures from `useEntryManagementActions` (export
         CSV, bulk status, comp/uncomp, remove-entry, armband
         assignment, etc.). Stays at the top of the page so the
-        entries table below remains usable — these errors are
+        entries table below remains usable. These errors are
         action-scoped, not data-scoped, and the user's recovery is to
         retry the action, not reload entries. Load failures use the
         in-tab error card instead (see `loadError` below).
@@ -286,19 +306,26 @@ const EntryManagementPage: React.FC = () => {
         </Alert>
       )}
 
+      {/*
+        No show to manage. Rendered ABOVE the tabs, not inside one: without a
+        show neither tab means anything, and scoping this to Registrations left
+        the Exceptions tab showing three filter buttons over empty space -- the
+        same blank surface this replaced, one tab across.
+      */}
+      {!selectedShowId && (
+        <EntryManagementUnresolvedShow
+          didResolveShow={didResolveShow}
+          showError={showError}
+          onRetry={retryShowResolution}
+          retryDisabled={isLoadingShows}
+        />
+      )}
+
       {/* Page-level tabs: Entries | Move-ups | Pulls | Waitlist */}
+      {selectedShowId && (
       <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
         <TabsContent value="registrations">
           {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
-          {!selectedShowId && isLoadingShows && (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Loading...</h3>
-              </CardContent>
-            </Card>
-          )}
-
           {/*
             Loading State — a table-shaped skeleton (not a bare spinner) so the
             pending UI previews the entries table's layout. Motion-language
@@ -333,7 +360,7 @@ const EntryManagementPage: React.FC = () => {
             <Card>
               <CardContent className="py-12 text-center">
                 <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Couldn't load entries</h3>
+                <h2 className="mb-2 text-lg font-medium">Couldn't load entries</h2>
                 <Alert variant="destructive" className="text-left mb-4 max-w-md mx-auto">
                   <AlertDescription>{loadError}</AlertDescription>
                 </Alert>
@@ -361,6 +388,8 @@ const EntryManagementPage: React.FC = () => {
                 trials={trials}
                 trialClasses={trialClasses}
                 trialClassIds={trialClassIds}
+                trialClassesUnknown={trialClassesUnknown}
+                onRetryTrialClasses={() => void refetchTrialClasses()}
                 isLoadingTrials={isLoadingTrials}
                 isLoadingClasses={isLoadingClasses}
                 canValidateFocus={canValidateFocus}
@@ -446,6 +475,8 @@ const EntryManagementPage: React.FC = () => {
                   <PullManagementTab
                     showId={selectedShowId}
                     processedEntries={pulledEntries}
+                processedEntriesUnknown={Boolean(loadError)}
+                processedEntriesLoading={isLoading}
                     onRefresh={() => loadEntries(selectedShowId)}
                   />
                 </CardContent>
@@ -457,6 +488,7 @@ const EntryManagementPage: React.FC = () => {
           </div>
         </TabsContent>
       </PrimaryTabs>
+      )}
 
       {/* Armband Assignment Dialog */}
       <ArmbandDialog

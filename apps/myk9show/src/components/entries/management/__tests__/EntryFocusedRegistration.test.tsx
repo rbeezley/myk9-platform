@@ -192,7 +192,7 @@ describe('EntryFocusedRegistration', () => {
       />
     );
 
-    expect(screen.getByText('No action needed — all entries processed.')).toBeInTheDocument();
+    expect(screen.getByText('No action needed. All entries processed.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
   });

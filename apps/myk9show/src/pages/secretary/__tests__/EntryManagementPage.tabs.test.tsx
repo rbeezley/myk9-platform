@@ -14,11 +14,18 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   useEntryManagementData: () => ({
     user: null,
     hasRole: () => true,
-    shows: [],
-    selectedShowId: '',
+    // A resolved show. These tests are about which TABS exist and how legacy
+    // links normalize onto them; the tabs only render once there is a show to
+    // tab between, since without one neither tab means anything.
+    shows: [{ id: 'show-1', name: 'Test Show', start_date: null, end_date: null }],
+    selectedShowId: 'show-1',
     setSelectedShowId: vi.fn(),
     isLoadingShows: false,
+    didResolveShow: true,
+    showError: null,
     loadShows: vi.fn(),
+    retryShowResolution: vi.fn(),
+    loadedEntriesShowId: 'show-1',
     entries: [],
     setEntries: vi.fn(),
     isLoading: false,

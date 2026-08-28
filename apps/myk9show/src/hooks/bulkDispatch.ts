@@ -16,12 +16,49 @@ export interface BulkRetryOutcome<T> extends BulkDispatchOutcome<T> {
   skipped: T[];
 }
 
-/** Runs `runItem` over every item via `Promise.allSettled` and folds the results. */
+/**
+ * How many item writes may be in flight at once.
+ *
+ * This used to be unbounded: `Promise.allSettled(items.map(runItem))` starts
+ * every item immediately, so selecting a whole show and bulk-accepting fired one
+ * HTTP write per entry, all at once -- hundreds of concurrent PATCHes against
+ * the same table. That is the shape of the `ringside_update_entry` 40001
+ * serialization storm that has already pushed staging past 80% CPU, and each
+ * write also drives its own optimistic state patch on the client.
+ *
+ * Six is chosen to sit at the usual browser per-host connection limit, so the
+ * requests are ones the browser would have serialized anyway. The bound changes
+ * only HOW MANY run at once: every item still runs, results are still folded by
+ * index, and the succeeded/failed outcome is identical.
+ */
+export const BULK_DISPATCH_CONCURRENCY = 6;
+
+/**
+ * Runs `runItem` over every item with at most `BULK_DISPATCH_CONCURRENCY` in
+ * flight, and folds the results. Never rejects: a failing item is captured in
+ * `failed`, exactly as `Promise.allSettled` did.
+ */
 export async function dispatchBulk<T>(
   items: readonly T[],
   runItem: (item: T) => Promise<void>
 ): Promise<BulkDispatchOutcome<T>> {
-  const results = await Promise.allSettled(items.map(item => runItem(item)));
+  const results: PromiseSettledResult<void>[] = new Array(items.length);
+  let cursor = 0;
+
+  async function worker(): Promise<void> {
+    for (let index = cursor++; index < items.length; index = cursor++) {
+      try {
+        await runItem(items[index] as T);
+        results[index] = { status: 'fulfilled', value: undefined };
+      } catch (reason) {
+        results[index] = { status: 'rejected', reason };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(BULK_DISPATCH_CONCURRENCY, items.length) }, worker)
+  );
   const succeeded: T[] = [];
   const failed: Array<{ item: T; error: unknown }> = [];
   items.forEach((item, index) => {

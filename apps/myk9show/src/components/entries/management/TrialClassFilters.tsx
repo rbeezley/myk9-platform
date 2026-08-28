@@ -31,7 +31,8 @@ function formatTrialLabel(trial: TrialClassFiltersProps['trials'][number]): stri
   return label;
 }
 
-const selectClassName = 'h-9 rounded-lg border border-border bg-card px-3 text-sm';
+const selectClassName =
+  'min-h-11 max-w-full rounded-lg border border-border bg-card px-3 text-sm';
 
 export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
   trials,
@@ -48,7 +49,7 @@ export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
   const isClassDisabled = disabled || trialFilter === null || isLoadingClasses;
 
   return (
-    <div className="flex gap-3">
+    <div className="flex min-w-0 flex-wrap gap-3">
       <select
         aria-label="Trial filter"
         value={trialFilter ?? ''}

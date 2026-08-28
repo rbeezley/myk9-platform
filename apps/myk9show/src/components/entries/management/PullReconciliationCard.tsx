@@ -11,23 +11,32 @@ interface PullReconciliationCardProps {
   onResolved: () => void;
 }
 
+/**
+ * Pull-timing chip.
+ *
+ * Uses the semantic `--success` / `--warning` tokens rather than raw Tailwind
+ * palette classes. The previous `bg-green-50` / `bg-orange-50` / `bg-gray-50`
+ * backgrounds are fixed near-white at every theme, so in dark mode these were
+ * the only glaring light patches on the page -- the project watchlist's first
+ * entry, in its light-only direction.
+ */
 function PullTimingBadge({ pullTiming }: { pullTiming: EntryManagementEntry['pullTiming'] }) {
   if (pullTiming === 'before_close') {
     return (
-      <Badge variant="outline" className="bg-green-50 text-green-700">
+      <Badge variant="outline" className="bg-success/10 text-success">
         Before close
       </Badge>
     );
   }
   if (pullTiming === 'after_close') {
     return (
-      <Badge variant="outline" className="bg-orange-50 text-orange-700">
+      <Badge variant="outline" className="bg-warning/10 text-warning">
         After close
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="bg-gray-50 text-gray-500">
+    <Badge variant="outline" className="bg-muted text-muted-foreground">
       Timing unknown
     </Badge>
   );

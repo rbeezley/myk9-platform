@@ -33,7 +33,7 @@ export const NoShowSelectedState: React.FC = () => {
     <Card>
       <CardContent className="py-12 text-center">
         <ListOrdered className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-        <h3 className="text-lg font-medium mb-2">Select a Show to Begin</h3>
+        <h3 className="mb-2 text-lg font-medium">Select a Show to Begin</h3>
         <p className="text-muted-foreground">
           Choose a show from the dropdown above to view and manage its waitlists.
         </p>

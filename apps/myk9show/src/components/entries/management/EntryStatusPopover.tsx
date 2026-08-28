@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { StatusBadge, StatusIcon } from '@/components/status';
+import { StatusBadge, StatusIcon, getStatusDescriptor } from '@/components/status';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -63,6 +63,9 @@ export function EntryStatusPopover({
   };
 
   const isPending = pendingActionId !== null;
+  // The trigger's VISIBLE text, read from the same source StatusBadge renders
+  // from, so the accessible name below can contain it verbatim (WCAG 2.5.3).
+  const visibleStatusLabel = getStatusDescriptor('entry', entry.entryStatus).label;
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -75,7 +78,7 @@ export function EntryStatusPopover({
             className={cn(
               'inline-flex min-h-11 min-w-11 items-center justify-start gap-1 rounded-md px-1 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70'
             )}
-            aria-label={`Change entry status for ${entry.dogName} in ${entryClassName}`}
+            aria-label={`${visibleStatusLabel}, change entry status for ${entry.dogName} in ${entryClassName}`}
           >
             <StatusBadge family="entry" status={entry.entryStatus} variant="outline" />
             {isPending ? (
@@ -125,7 +128,7 @@ export function EntryStatusPopover({
 
       {queuedOffline && (
         <span role="status" className="text-xs text-muted-foreground">
-          Status change queued — will sync when online.
+          Status change queued. It will sync when you are back online.
         </span>
       )}
       {failedAction && (

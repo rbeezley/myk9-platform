@@ -44,6 +44,12 @@ interface EntryRegistrationQueueProps {
   rangeStart: number;
   rangeEnd: number;
   total: number;
+  /**
+   * The show has no registrations at all, as opposed to none matching the
+   * current queue/scope/search. Without the distinction the empty state sent
+   * the secretary hunting through filters that were never the cause.
+   */
+  showHasNoRegistrations?: boolean;
   pageIndex: number;
   pageCount: number;
   onPageChange: (pageIndex: number) => void;
@@ -124,6 +130,7 @@ export function EntryRegistrationQueue({
   rangeStart,
   rangeEnd,
   total,
+  showHasNoRegistrations = false,
   pageIndex,
   pageCount,
   onPageChange,
@@ -178,8 +185,14 @@ export function EntryRegistrationQueue({
 
       {groups.length === 0 ? (
         <div className="px-5 py-12 text-center">
-          <p className="font-semibold">No matching registrations</p>
-          <p className="mt-1 text-sm text-muted-foreground">Try another queue, scope, or search.</p>
+          <p className="font-semibold">
+            {showHasNoRegistrations ? 'No entries yet' : 'No matching registrations'}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {showHasNoRegistrations
+              ? 'Entries will appear here as exhibitors register, or you can add one.'
+              : 'Try another queue, scope, or search.'}
+          </p>
         </div>
       ) : (
         <div role="list" aria-label="Registration work queue">

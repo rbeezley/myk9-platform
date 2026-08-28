@@ -128,7 +128,7 @@ export function EntryStatusPopover({
 
       {queuedOffline && (
         <span role="status" className="text-xs text-muted-foreground">
-          Status change queued — will sync when online.
+          Status change queued. It will sync when you are back online.
         </span>
       )}
       {failedAction && (

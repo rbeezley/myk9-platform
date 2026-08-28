@@ -291,7 +291,7 @@ const EntryManagementPage: React.FC = () => {
         Surfaces failures from `useEntryManagementActions` (export
         CSV, bulk status, comp/uncomp, remove-entry, armband
         assignment, etc.). Stays at the top of the page so the
-        entries table below remains usable — these errors are
+        entries table below remains usable. These errors are
         action-scoped, not data-scoped, and the user's recovery is to
         retry the action, not reload entries. Load failures use the
         in-tab error card instead (see `loadError` below).

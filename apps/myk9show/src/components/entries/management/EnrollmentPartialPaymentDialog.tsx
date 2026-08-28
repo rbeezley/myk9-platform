@@ -99,7 +99,7 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
           return (
             <p className="text-xs text-muted-foreground">
               {amt >= totalDollars
-                ? '✓ Covers full balance — will mark as paid'
+                ? 'Covers the full balance. This will mark the registration paid.'
                 : `Remaining after payment: $${Math.max(0, totalDollars - amt).toFixed(2)}`}
             </p>
           );

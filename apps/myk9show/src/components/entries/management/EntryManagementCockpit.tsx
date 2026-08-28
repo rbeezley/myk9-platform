@@ -329,6 +329,10 @@ export function EntryManagementCockpit({
             rangeStart={cockpit.page.rangeStart}
             rangeEnd={cockpit.page.rangeEnd}
             total={cockpit.page.total}
+            // `registrationGroups` is every registration in the show, before any
+            // queue, scope or search narrowing, so an empty one means the show
+            // itself is empty rather than the filters being wrong.
+            showHasNoRegistrations={registrationGroups.length === 0}
             pageIndex={cockpit.page.pageIndex}
             pageCount={cockpit.page.pageCount}
             onPageChange={cockpit.setPageIndex}

@@ -33,7 +33,6 @@ describe('EntryRegistrationSelectionToolbar', () => {
         registrations={1}
         selectedEntries={[selectedEntry]}
         onBulkStatusChange={onBulkStatusChange}
-        onBulkCheckIn={vi.fn()}
         onClear={onClear}
       />
     );
@@ -61,11 +60,38 @@ describe('EntryRegistrationSelectionToolbar', () => {
         registrations={0}
         selectedEntries={[]}
         onBulkStatusChange={vi.fn()}
-        onBulkCheckIn={vi.fn()}
         onClear={vi.fn()}
       />
     );
 
     expect(screen.queryByLabelText('Selected registration actions')).not.toBeInTheDocument();
+  });
+
+  it('does not offer check-in for selected registrations', async () => {
+    const { user } = render(
+      <EntryRegistrationSelectionToolbar
+        registrations={1}
+        selectedEntries={[
+          {
+            ...selectedEntry,
+            entryStatus: EntryStatus.ACCEPTED,
+            classes: [
+              {
+                id: 'class-1',
+                name: 'Novice A',
+                number: '101',
+                fee: 25,
+                status: 'entered',
+              },
+            ],
+          },
+        ]}
+        onBulkStatusChange={vi.fn()}
+        onClear={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Bulk actions' }));
+    expect(screen.queryByText(/Check in .* selected/i)).not.toBeInTheDocument();
   });
 });

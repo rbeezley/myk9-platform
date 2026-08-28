@@ -25,37 +25,6 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 
-// Roster mode, with class "c1" selected.
-vi.mock('@/hooks/useEntryManagementFilters', () => ({
-  useEntryManagementFilters: () => ({
-    searchTerm: '',
-    setSearchTerm: vi.fn(),
-    paymentFilter: 'all',
-    setPaymentFilter: vi.fn(),
-    selectedTab: 'all',
-    setSelectedTab: vi.fn(),
-    attentionFilter: 'all',
-    setAttentionFilter: vi.fn(),
-    workMode: 'review',
-    setWorkMode: vi.fn(),
-    entryViewMode: 'table',
-    setEntryViewMode: vi.fn(),
-    trialFilter: 't1',
-    setTrialFilter: vi.fn(),
-    classFilter: 'c1',
-    setClassFilter: vi.fn(),
-    viewMode: 'roster',
-    rosterView: true,
-    setRosterView: vi.fn(),
-    selectedEntries: new Set<string>(),
-    setSelectedEntries: vi.fn(),
-    handleSelectEntry: vi.fn(),
-    handleSelectAll: vi.fn(),
-    filteredEntries: [],
-    tabCounts: { all: 0, pending: 0, accepted: 0, waitlist: 0, issues: 0 },
-  }),
-}));
-
 vi.mock('@/hooks/useEntryManagementActions', () => ({
   useEntryManagementActions: () => ({
     isProcessing: false,
@@ -65,7 +34,6 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
     handleAssignArmband: vi.fn(),
     handleNextArmband: vi.fn(),
     handleEnrollmentBulkStatusChange: vi.fn(),
-    handleEnrollmentBulkCheckIn: vi.fn(),
     handleEnrollmentPaymentChange: vi.fn(),
     handleCheckInStatusChange: vi.fn(),
     handleExportCSV: vi.fn(),

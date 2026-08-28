@@ -69,10 +69,6 @@ function registerEntryManagementContext(
   return registerCommandMenuContext({
     surface: 'entry-management',
     showId: 'show-1',
-    selectedEntryIds: [],
-    eligibleCheckInIds: [],
-    runBulkCheckIn: vi.fn(),
-    busy: false,
     ...overrides,
   });
 }
@@ -162,58 +158,26 @@ describe('CommandPalette contextual commands', () => {
   });
 });
 
-describe('CommandPalette check-in command', () => {
-  it('is absent when there is no eligible selection', () => {
-    mockAuth([UserRole.SECRETARY]);
-    registerEntryManagementContext({ selectedEntryIds: ['e1'], eligibleCheckInIds: [] });
-
-    render(<CommandPalette open onOpenChange={vi.fn()} />);
-
-    expect(screen.queryByText(/Check in/)).not.toBeInTheDocument();
-  });
-
-  it('dispatches the registered handler with the eligible ids and closes the palette', () => {
-    mockAuth([UserRole.SECRETARY]);
-    const runBulkCheckIn = vi.fn();
-    const onOpenChange = vi.fn();
-    registerEntryManagementContext({
-      selectedEntryIds: ['e1', 'e2'],
-      eligibleCheckInIds: ['e1'],
-      runBulkCheckIn,
-    });
-
-    render(<CommandPalette open onOpenChange={onOpenChange} />);
-
-    fireEvent.click(screen.getByText('Check in 1 of 2 selected'));
-
-    expect(runBulkCheckIn).toHaveBeenCalledTimes(1);
-    expect(runBulkCheckIn).toHaveBeenCalledWith(['e1']);
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-  });
-
-  it('exposes no mutation command other than check-in (action allowlist)', () => {
+describe('CommandPalette Entry Management context', () => {
+  it('does not add Entry Management mutations', () => {
     mockAuth([UserRole.SECRETARY], [PERMISSIONS.USER_CREATE, PERMISSIONS.SHOW_CREATE]);
-    registerEntryManagementContext({
-      selectedEntryIds: ['e1', 'e2'],
-      eligibleCheckInIds: ['e1'],
-    });
+    registerEntryManagementContext();
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    // The Actions group is exactly the navigation "Add New ..." shortcuts
-    // plus the single allowlisted check-in mutation — no status changes,
-    // approvals, rejections, or other registry mutations leak in.
-    const actionTitles = [
-      'Add New Dog',
-      'Add New User',
-      'Add New Show',
-      'Check in 1 of 2 selected',
-    ];
+    const actionTitles = ['Add New Dog', 'Add New User', 'Add New Show'];
     for (const title of actionTitles) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
-    for (const forbidden of ['Approve', 'Reject', 'Move to waitlist', 'Withdraw', 'Comp entry']) {
-      expect(screen.queryByText(new RegExp(forbidden))).not.toBeInTheDocument();
+    for (const forbidden of [
+      'Check in',
+      'Approve',
+      'Reject',
+      'Move to waitlist',
+      'Withdraw',
+      'Comp entry',
+    ]) {
+      expect(screen.queryByText(forbidden)).not.toBeInTheDocument();
     }
   });
 });

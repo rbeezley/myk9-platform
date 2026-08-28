@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   buildShowMapTree,
@@ -70,7 +70,28 @@ export function useShowMapWorkbenchState({
     () => ({ dayScope, completionScope }),
     [completionScope, dayScope]
   );
-  const effectiveScopeNow = useMemo(() => scopeNow ?? new Date(), [scopeNow]);
+  /**
+   * "Now", ticking once a minute.
+   *
+   * This used to be `useMemo(() => scopeNow ?? new Date(), [scopeNow])`. With
+   * no `scopeNow` passed -- which is the Show Desk's case -- the dependency is
+   * permanently `undefined`, so the memo evaluated ONCE per mount and the desk's
+   * clock stopped at page load. A desk left open from 8am to 4pm, which is the
+   * normal show-day pattern, kept its "Now" marker at 8am: the up-next ordering,
+   * the selected day, the running-late derivations and every time-triggered
+   * attention action were all reasoning about breakfast.
+   *
+   * A minute is the right granularity -- everything downstream is displayed to
+   * the minute -- and the interval only runs when no explicit `scopeNow` was
+   * supplied, so tests and callers that pin the clock stay deterministic.
+   */
+  const [tickNow, setTickNow] = useState(() => new Date());
+  useEffect(() => {
+    if (scopeNow) return undefined;
+    const id = setInterval(() => setTickNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, [scopeNow]);
+  const effectiveScopeNow = scopeNow ?? tickNow;
 
   const [expandedNodeIds, setExpandedNodeIds] = useState(() => getDefaultExpandedNodeIds(tree));
   const toggleNode = useCallback((nodeId: string) => {

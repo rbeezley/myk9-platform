@@ -77,13 +77,27 @@ export function ShowDeskCompactContext({
   onDelete: () => void;
 }) {
   const { data: publishInfo } = usePublishInfo(show.id);
+  /**
+   * `undefined` means the publish read did not succeed -- this query has no
+   * `networkMode`, so it inherits 'online' and pauses offline, returning
+   * undefined with `isLoading` false.
+   *
+   * `classifyPremiumPublishState` reads an absent URL as "not published", so an
+   * unread response produced a persistent amber "Premium list is not published"
+   * warning on shows whose premium went out weeks ago. Same defect class as the
+   * counts above, with the polarity inverted: a false ALARM rather than a false
+   * all-clear, and no less corrosive on a show-day desk where every warning is
+   * meant to be worth acting on.
+   */
+  const publishInfoKnown = publishInfo !== undefined;
   const publishState = classifyPremiumPublishState({
     publishedPremiumUrl: publishInfo?.publishedUrl,
     publishedPremiumAt: publishInfo?.publishedAt,
     updatedAt: publishInfo?.updatedAt,
   });
-  const publishException =
-    publishState === 'unpublished'
+  const publishException = !publishInfoKnown
+    ? null
+    : publishState === 'unpublished'
       ? 'Premium list is not published'
       : publishState === 'published-stale'
         ? 'Show data changed after the premium was published'

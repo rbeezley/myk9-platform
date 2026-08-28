@@ -485,23 +485,38 @@ VALUES
    (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 1);
 
 -- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
--- (20260828210000) rejects an entry whose dog has none for the trial's registry, so a
--- seed without these would fail on the first entry insert. Idempotent and keyed off the
--- dog id so reseeds are stable.
+-- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a
+-- seed without these would fail on the first entry insert.
+--
+-- One row per registry the seed actually uses, NOT just AKC: this show hosts AKC,
+-- UKC and ASCA trials side by side, and the load block gives every dog 8 entries
+-- spanning all four trials (classes ...036/...037 are UKC, ...038/...039 are ASCA).
+-- An AKC-only backfill therefore fails half of them with 23514 and no reseed can
+-- complete. Idempotent and keyed off the dog id so reseeds are stable; the
+-- NOT EXISTS matches on the NORMALISED organisation so a differently-spelled
+-- existing row does not trip UNIQUE (dog_id, organization).
 INSERT INTO public.dog_registrations (
   dog_id, organization, registration_number, registered_name, breed, status, is_primary
 )
 SELECT
   d.id,
-  'AKC (American Kennel Club)',
-  'SR' || upper(substr(md5(d.id::text), 1, 8)),
+  reg.organization,
+  reg.prefix || upper(substr(md5(d.id::text || reg.registry), 1, 8)),
   d.name,
   d.breed,
   'Active',
-  true
+  reg.registry = 'AKC'
 FROM public.dogs d
+CROSS JOIN (VALUES
+  ('AKC',  'AKC (American Kennel Club)',                 'SR'),
+  ('UKC',  'UKC (United Kennel Club)',                   'P'),
+  ('ASCA', 'ASCA (Australian Shepherd Club of America)', 'E')
+) AS reg(registry, organization, prefix)
 WHERE NOT EXISTS (
-  SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
+  SELECT 1
+  FROM public.dog_registrations r
+  WHERE r.dog_id = d.id
+    AND upper(btrim(regexp_replace(r.organization, '\(.*$', ''))) = reg.registry
 );
 
 -- ---------------------------------------------------------------------------
@@ -1231,23 +1246,38 @@ SELECT
 FROM generate_series(1, 63) AS load_dogs(dog_number);
 
 -- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
--- (20260828210000) rejects an entry whose dog has none for the trial's registry, so a
--- seed without these would fail on the first entry insert. Idempotent and keyed off the
--- dog id so reseeds are stable.
+-- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a
+-- seed without these would fail on the first entry insert.
+--
+-- One row per registry the seed actually uses, NOT just AKC: this show hosts AKC,
+-- UKC and ASCA trials side by side, and the load block gives every dog 8 entries
+-- spanning all four trials (classes ...036/...037 are UKC, ...038/...039 are ASCA).
+-- An AKC-only backfill therefore fails half of them with 23514 and no reseed can
+-- complete. Idempotent and keyed off the dog id so reseeds are stable; the
+-- NOT EXISTS matches on the NORMALISED organisation so a differently-spelled
+-- existing row does not trip UNIQUE (dog_id, organization).
 INSERT INTO public.dog_registrations (
   dog_id, organization, registration_number, registered_name, breed, status, is_primary
 )
 SELECT
   d.id,
-  'AKC (American Kennel Club)',
-  'SR' || upper(substr(md5(d.id::text), 1, 8)),
+  reg.organization,
+  reg.prefix || upper(substr(md5(d.id::text || reg.registry), 1, 8)),
   d.name,
   d.breed,
   'Active',
-  true
+  reg.registry = 'AKC'
 FROM public.dogs d
+CROSS JOIN (VALUES
+  ('AKC',  'AKC (American Kennel Club)',                 'SR'),
+  ('UKC',  'UKC (United Kennel Club)',                   'P'),
+  ('ASCA', 'ASCA (Australian Shepherd Club of America)', 'E')
+) AS reg(registry, organization, prefix)
 WHERE NOT EXISTS (
-  SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
+  SELECT 1
+  FROM public.dog_registrations r
+  WHERE r.dog_id = d.id
+    AND upper(btrim(regexp_replace(r.organization, '\(.*$', ''))) = reg.registry
 );
 
 WITH load_entries AS (
@@ -1451,23 +1481,38 @@ FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number);
 
 -- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
--- (20260828210000) rejects an entry whose dog has none for the trial's registry, so a
--- seed without these would fail on the first entry insert. Idempotent and keyed off the
--- dog id so reseeds are stable.
+-- (20260828210000) rejects an entry whose dog has none for the TRIAL'S registry, so a
+-- seed without these would fail on the first entry insert.
+--
+-- One row per registry the seed actually uses, NOT just AKC: this show hosts AKC,
+-- UKC and ASCA trials side by side, and the load block gives every dog 8 entries
+-- spanning all four trials (classes ...036/...037 are UKC, ...038/...039 are ASCA).
+-- An AKC-only backfill therefore fails half of them with 23514 and no reseed can
+-- complete. Idempotent and keyed off the dog id so reseeds are stable; the
+-- NOT EXISTS matches on the NORMALISED organisation so a differently-spelled
+-- existing row does not trip UNIQUE (dog_id, organization).
 INSERT INTO public.dog_registrations (
   dog_id, organization, registration_number, registered_name, breed, status, is_primary
 )
 SELECT
   d.id,
-  'AKC (American Kennel Club)',
-  'SR' || upper(substr(md5(d.id::text), 1, 8)),
+  reg.organization,
+  reg.prefix || upper(substr(md5(d.id::text || reg.registry), 1, 8)),
   d.name,
   d.breed,
   'Active',
-  true
+  reg.registry = 'AKC'
 FROM public.dogs d
+CROSS JOIN (VALUES
+  ('AKC',  'AKC (American Kennel Club)',                 'SR'),
+  ('UKC',  'UKC (United Kennel Club)',                   'P'),
+  ('ASCA', 'ASCA (Australian Shepherd Club of America)', 'E')
+) AS reg(registry, organization, prefix)
 WHERE NOT EXISTS (
-  SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
+  SELECT 1
+  FROM public.dog_registrations r
+  WHERE r.dog_id = d.id
+    AND upper(btrim(regexp_replace(r.organization, '\(.*$', ''))) = reg.registry
 );
 
 WITH multi_show_entries AS (

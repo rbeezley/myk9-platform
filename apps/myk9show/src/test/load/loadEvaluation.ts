@@ -30,6 +30,16 @@ export interface PlatformObservation {
   peakCpuPercent: number;
   peakIoPercent: number;
   peakConnections: number;
+  /**
+   * What sampling actually saw, kept separate from the gate fields above.
+   *
+   * A LOWER BOUND on the true peak — sampling can miss a spike but cannot invent
+   * one — so it is diagnostic evidence, never a pass. The gate reads the fields
+   * above and nothing here (MYK9-126).
+   */
+  observedPeakCpuPercent?: number;
+  observedPeakIoPercent?: number;
+  observedPeakConnections?: number;
   connectionCap: number;
   statementDeltas: readonly StatementDelta[];
   resourceSampling?: {

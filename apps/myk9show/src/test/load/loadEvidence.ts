@@ -154,6 +154,8 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Replication queue telemetry failures: ${evidence.observation.queueTelemetryFailures}
 - Persisted scores expected/observed: ${evidence.observation.expectedPersistedScores} / ${evidence.observation.persistedScores}
 - Platform CPU/IO peak: ${platform?.peakCpuPercent ?? 'missing'} / ${platform?.peakIoPercent ?? 'missing'}%
+- Observed CPU/IO peak (lower bound; reported even when sampling was incomplete): ${platform?.observedPeakCpuPercent ?? 'missing'} / ${platform?.observedPeakIoPercent ?? 'missing'}%
+- Observed connections peak (lower bound): ${platform?.observedPeakConnections ?? 'missing'}
 - Database connections peak/cap: ${platform?.peakConnections ?? 'missing'} / ${platform?.connectionCap ?? 'missing'}
 - Sampling coverage resource/connection: ${samplingCoverage(platform?.resourceSampling)} / ${samplingCoverage(platform?.connectionSampling)}
 - pg_stat_statements deltas: ${platform?.statementDeltas.length ?? 0}

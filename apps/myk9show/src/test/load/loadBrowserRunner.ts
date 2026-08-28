@@ -174,6 +174,13 @@ export async function runBrowserLoad(
       : undefined;
     if (options.shard) await delay(scheduledStartDelayMs(options.shard));
     lifecycle.markPrepared(assertAllSessionsOpenAtStart(preparedSessions));
+    // The virtual readers are sessions too. Counting only browser sessions made
+    // `concurrentSessions` report 110 of 358, which the G9 gate can never accept
+    // (MYK9-126). They are prepared once hydrated, and start with the barrier.
+    if (virtualUsers) {
+      lifecycle.markPrepared(virtualUsers.assignments);
+      for (const assignment of virtualUsers.assignments) lifecycle.markStarted(assignment);
+    }
     virtualUsers?.start();
     generatorSampler.markLoadStarted();
     const startedAtMs = Date.now();
@@ -228,15 +235,54 @@ export async function runBrowserLoad(
     );
     if (options.smoke && rejectedSessions[0]) throw rejectedSessions[0].reason;
 
+    // The measurement window is the SCENARIO's, not "however long the browser
+    // sessions happened to last". Only a successful non-scoring session held to
+    // `endsAt`; a failed one returned immediately and a scoring one skips the
+    // hold, so a shard whose sessions all failed stopped its virtual readers
+    // after ~90 s while a shard with one surviving reader ran the full 600 s.
+    // The 2026-08-28 rehearsal produced exactly that: five shards at 600 s and
+    // eleven between 85 s and 158 s, which makes every aggregate percentile an
+    // average over incommensurable windows (MYK9-126).
+    if (!options.smoke) await delay(connectedSessionHoldMs(endsAt, Date.now()));
+
+    // Stamped at the workload boundary, BEFORE teardown. Everything below —
+    // aborting readers, draining, reconciliation, platform stop — is not
+    // generation, and folding it into elapsedMs would divide throughput by a
+    // window generation never occupied. The divergence guard cannot catch that:
+    // every shard overruns similarly, so the windows stay consistent and wrong.
+    const scenarioElapsedMs = Date.now() - startAtMs;
+
     // Reconciliation/teardown is not generator load. Stop at the workload boundary.
     virtualUsers?.stop();
+    if (virtualUsers) {
+      // Settle polls still running at the boundary before snapshotting: stop()
+      // only clears future ticks, and a 60 s cadence against a 600 s window makes
+      // an in-flight request at the boundary likely rather than exotic.
+      await virtualUsers.drain();
+      for (const outcome of virtualUsers.outcomes()) {
+        if (outcome.ok) {
+          lifecycle.markCompleted(outcome.assignment);
+          continue;
+        }
+        lifecycle.markFailed(outcome.assignment);
+        // evaluateLoadResult requires failedWorkflows === workflowFailures, and
+        // recordWorkflowFailure otherwise fires only for browser sessions — a
+        // failed reader counted on one side only would trip "lifecycle evidence
+        // inconsistent" for a reason unrelated to the run.
+        metrics.recordWorkflowFailure({
+          workload: outcome.assignment.kind,
+          route: `virtual-user:${outcome.assignment.kind}`,
+          error: new Error('Virtual reader completed no successful request.'),
+        });
+      }
+    }
     const generator = await generatorSampler.stop();
     generatorSampler = undefined;
     await metrics.settle();
     const persistence = await countPersistedScores([...scoredEntryIds]);
     const platform = await platformSampler?.stop();
     platformSampler = undefined;
-    const elapsedMs = Date.now() - startAtMs;
+    const elapsedMs = scenarioElapsedMs;
     const sessionLifecycle = lifecycle.observation();
     const observation = metrics.buildObservation({
       concurrentSessions: sessionLifecycle.preparedSessions,

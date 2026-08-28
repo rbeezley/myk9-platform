@@ -119,9 +119,28 @@ describe('manual distributed load workflow', () => {
     const preflight = workflow.indexOf('Verify enough concurrent-runner headroom');
     expect(preflight).toBeGreaterThan(-1);
     expect(preflight).toBeLessThan(workflow.indexOf('Canonical reseed'));
+    // NCR-2026-08-27-01: the ceiling is account-wide, so the gate must not be
+    // counting through the repo-scoped GITHUB_TOKEN. These pin the wiring only;
+    // the counting and refusal behaviour is covered by
+    // loadRunnerHeadroom.test.ts, which exercises the logic rather than the text.
+    expect(workflow).toContain('scripts/load-runner-headroom.ts');
+    expect(workflow).toContain('HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}');
+    expect(workflow).not.toMatch(/repos\/\$\{GITHUB_REPOSITORY\}\/actions\/runs/);
     expect(workflow).toMatch(
       /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 55/
     );
+  });
+
+  it('runs the load anti-rot check by directory, not by an enumerated file list', () => {
+    // The list this replaced had drifted seven files behind the directory —
+    // every test file from the multi-show reshape plus the headroom gate. A
+    // hand-maintained allowlist fails silently: the new test passes locally
+    // (you named it) and simply never runs in the fast CI check. Selecting the
+    // directory is what makes that structurally impossible, so it is pinned.
+    const pkg = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../package.json'), 'utf8')
+    ) as { scripts: Record<string, string> };
+    expect(pkg.scripts['test:load:unit']).toBe('vitest run src/test/load');
   });
 
   it('does not depend on Vercel or paid runner labels', () => {

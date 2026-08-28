@@ -141,6 +141,101 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
     }
   });
 
+  it('treats a reader that succeeded at least once as completed', async () => {
+    // A single failed poll is NOT a failed session — the reader keeps polling and
+    // the error-rate budget already accounts for the request. Marking the session
+    // failed instead breaks evaluateLoadResult's
+    // `failedWorkflows === workflowFailures` invariant, because
+    // recordWorkflowFailure only fires for browser sessions: one transient 500
+    // would force a spurious "lifecycle evidence inconsistent" failure.
+    let call = 0;
+    const flaky = (async () => {
+      call += 1;
+      return call === 1
+        ? new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })
+        : new Response('{}', { status: 500 });
+    }) as unknown as typeof fetch;
+    const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
+    const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });
+    const fleet = new VirtualUserFleet(plan.virtualUser.slice(0, 1), {
+      supabaseUrl: 'https://fixture.supabase.co',
+      anonKey: 'anon',
+      accessTokenFor: () => 'token',
+      classColumnSelect: 'id,updated_at',
+      onSample: () => {},
+      fetchImpl: flaky,
+    });
+    await fleet.hydrate();
+    fleet.stop();
+    await fleet.drain();
+    expect(fleet.outcomes()[0]?.ok).toBe(true);
+  });
+
+  it('awaits an in-flight poll before reporting outcomes', async () => {
+    // stop() only clears future interval ticks. A sync still running at the
+    // boundary would otherwise settle after outcomes() had already snapshotted,
+    // so its failure is lost and its samples miss the observation. A 60s cadence
+    // against a 600s window makes that likely, not exotic.
+    vi.useFakeTimers();
+    try {
+      const ok = () =>
+        new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+      let phase: 'hydrate' | 'poll' = 'hydrate';
+      let gated = false;
+      let release: (() => void) | undefined;
+      // A sync issues several requests through supabase-js; gate only the first
+      // of the poll so releasing it lets the rest of that sync finish.
+      const gatedFetch = (async () => {
+        if (phase === 'hydrate') return new Response('{}', { status: 500 });
+        if (!gated) {
+          gated = true;
+          return new Promise<Response>(resolve => {
+            release = () => resolve(ok());
+          });
+        }
+        return ok();
+      }) as unknown as typeof fetch;
+
+      const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
+      const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });
+      const fleet = new VirtualUserFleet(plan.virtualUser.slice(0, 1), {
+        supabaseUrl: 'https://fixture.supabase.co',
+        anonKey: 'anon',
+        accessTokenFor: () => 'token',
+        classColumnSelect: 'id,updated_at',
+        onSample: () => {},
+        fetchImpl: gatedFetch,
+      });
+
+      await fleet.hydrate();
+      expect(fleet.outcomes()[0]?.ok).toBe(false);
+
+      phase = 'poll';
+      fleet.start();
+      vi.advanceTimersByTime(60_000);
+      // supabase-js takes several microtask ticks to reach fetch.
+      for (let tick = 0; tick < 50; tick += 1) await Promise.resolve();
+      fleet.stop();
+
+      let drained = false;
+      const draining = fleet.drain().then(() => {
+        drained = true;
+      });
+      await Promise.resolve();
+      // The poll has not settled, so a real drain is still waiting. A no-op
+      // drain would already have resolved here.
+      expect(drained).toBe(false);
+      expect(release).toBeDefined();
+
+      release?.();
+      await draining;
+      expect(drained).toBe(true);
+      expect(fleet.outcomes()[0]?.ok).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('marks a reader failed when its requests fail', async () => {
     const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
     const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });

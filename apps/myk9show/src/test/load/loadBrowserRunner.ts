@@ -248,9 +248,25 @@ export async function runBrowserLoad(
     // Reconciliation/teardown is not generator load. Stop at the workload boundary.
     virtualUsers?.stop();
     if (virtualUsers) {
+      // Settle polls still running at the boundary before snapshotting: stop()
+      // only clears future ticks, and a 60 s cadence against a 600 s window makes
+      // an in-flight request at the boundary likely rather than exotic.
+      await virtualUsers.drain();
       for (const outcome of virtualUsers.outcomes()) {
-        if (outcome.ok) lifecycle.markCompleted(outcome.assignment);
-        else lifecycle.markFailed(outcome.assignment);
+        if (outcome.ok) {
+          lifecycle.markCompleted(outcome.assignment);
+          continue;
+        }
+        lifecycle.markFailed(outcome.assignment);
+        // evaluateLoadResult requires failedWorkflows === workflowFailures, and
+        // recordWorkflowFailure otherwise fires only for browser sessions — a
+        // failed reader counted on one side only would trip "lifecycle evidence
+        // inconsistent" for a reason unrelated to the run.
+        metrics.recordWorkflowFailure({
+          workload: outcome.assignment.kind,
+          route: `virtual-user:${outcome.assignment.kind}`,
+          error: new Error('Virtual reader completed no successful request.'),
+        });
       }
     }
     const generator = await generatorSampler.stop();

@@ -67,6 +67,7 @@ interface TableWatermark {
 export class LoadVirtualUser {
   private readonly client: SupabaseClient;
   private readonly watermarks = new Map<string, TableWatermark>();
+  private inFlight: Promise<void> | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
@@ -179,10 +180,18 @@ export class LoadVirtualUser {
     return { samples, rows };
   }
 
-  start(onSync: (result: VirtualUserSyncResult) => void): void {
+  start(
+    onSync: (result: VirtualUserSyncResult) => void,
+    onError?: (error: unknown) => void
+  ): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
-      void this.syncOnce().then(onSync);
+      const pending = this.syncOnce()
+        .then(onSync, error => onError?.(error))
+        .finally(() => {
+          if (this.inFlight === pending) this.inFlight = undefined;
+        });
+      this.inFlight = pending;
     }, VIRTUAL_USER_SYNC_INTERVAL_MS);
   }
 
@@ -190,5 +199,17 @@ export class LoadVirtualUser {
     if (!this.timer) return;
     clearInterval(this.timer);
     this.timer = undefined;
+  }
+
+  /**
+   * Settles a poll that was already running when stop() was called.
+   *
+   * stop() only clears future ticks; the request in flight resolves afterwards.
+   * Without this its samples miss the observation and its failure lands after the
+   * fleet has already reported outcomes — most likely at the 600 s boundary,
+   * since the cadence is 60 s (MYK9-126).
+   */
+  async drain(): Promise<void> {
+    await this.inFlight;
   }
 }

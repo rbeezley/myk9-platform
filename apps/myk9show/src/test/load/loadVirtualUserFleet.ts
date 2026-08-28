@@ -43,8 +43,16 @@ export interface VirtualUserOutcome {
 
 export class VirtualUserFleet {
   private readonly entries: FleetEntry[] = [];
-  /** Sequences whose reader has seen at least one failed request. */
-  private readonly failed = new Set<number>();
+  /**
+   * Sequences whose reader completed at least one successful request.
+   *
+   * A session is failed only when it NEVER succeeded — an auth failure, say. A
+   * single failed poll among many is a request-level event that the error-rate
+   * and availability budgets already own; promoting it to a failed workflow
+   * breaks evaluateLoadResult's `failedWorkflows === workflowFailures`
+   * invariant, since recordWorkflowFailure fires only for browser sessions.
+   */
+  private readonly succeeded = new Set<number>();
 
   constructor(
     assignments: readonly LoadSessionAssignment[],
@@ -90,7 +98,7 @@ export class VirtualUserFleet {
   outcomes(): readonly VirtualUserOutcome[] {
     return this.entries.map(entry => ({
       assignment: entry.assignment,
-      ok: !this.failed.has(entry.assignment.sequence),
+      ok: this.succeeded.has(entry.assignment.sequence),
     }));
   }
 
@@ -105,7 +113,12 @@ export class VirtualUserFleet {
   /** Begin the periodic delta polling every reader performs. */
   start(): void {
     for (const entry of this.entries) {
-      entry.user.start(result => this.report(entry, result));
+      entry.user.start(
+        result => this.report(entry, result),
+        () => {
+          /* A throwing poll adds no success; the outcome stays as it was. */
+        }
+      );
     }
   }
 
@@ -113,18 +126,22 @@ export class VirtualUserFleet {
     for (const entry of this.entries) entry.user.stop();
   }
 
+  /** Settles polls already running when stop() was called, before outcomes(). */
+  async drain(): Promise<void> {
+    await Promise.all(this.entries.map(entry => entry.user.drain()));
+  }
+
   private async syncAndReport(entry: FleetEntry): Promise<void> {
     try {
       this.report(entry, await entry.user.syncOnce());
     } catch {
-      // A reader that threw is a failed reader, not an absent one.
-      this.failed.add(entry.assignment.sequence);
+      /* A throwing sync records no success; the reader stays failed. */
     }
   }
 
   private report(entry: FleetEntry, result: VirtualUserSyncResult): void {
     for (const sample of result.samples) {
-      if (!sample.ok) this.failed.add(entry.assignment.sequence);
+      if (sample.ok) this.succeeded.add(entry.assignment.sequence);
       this.options.onSample(sample);
     }
   }

@@ -67,11 +67,15 @@ FROM public.roles
 WHERE name = 'club_admin';
 
 -- One show in club A, and one with NO club at all — the shape that leaked.
-INSERT INTO public.shows (id, name, club_id, status, start_date, end_date)
+-- `organization` is NOT NULL with no default (migration 040 renamed the original
+-- required `type` column), so omitting it aborts the whole test file before any
+-- assertion runs.
+INSERT INTO public.shows (id, name, organization, club_id, status, start_date, end_date)
 VALUES
   (
     '00000000-0000-0000-0000-000000000c31',
     'MYK9-258 Club A Show',
+    'AKC',
     '00000000-0000-0000-0000-000000000c01',
     'published',
     DATE '2026-09-01',
@@ -80,11 +84,20 @@ VALUES
   (
     '00000000-0000-0000-0000-000000000c32',
     'MYK9-258 Club-less Show',
+    'AKC',
     NULL,
     'published',
     DATE '2026-09-01',
     DATE '2026-09-02'
   );
+
+-- An entry on EACH show. Without one on the club-less show, case 1.6 passes
+-- against the vulnerable function too — an empty export and a denied export are
+-- indistinguishable — so the assertion would certify nothing.
+INSERT INTO public.entries (id, show_id, armband)
+VALUES
+  ('00000000-0000-0000-0000-000000000c51', '00000000-0000-0000-0000-000000000c31', '101'),
+  ('00000000-0000-0000-0000-000000000c52', '00000000-0000-0000-0000-000000000c32', '201');
 
 -- ---------------------------------------------------------------------------
 -- 1. The club secretary
@@ -143,13 +156,25 @@ BEGIN
 
   -- get_entries_for_export returns owner email and phone, so the club-less show
   -- handed every secretary a full entrant export including PII.
+  --
+  -- Both directions, and in this order: the authorized export must return its
+  -- seeded row FIRST, otherwise "returns nothing" below proves only that the
+  -- function is broken for everyone.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.get_entries_for_export('00000000-0000-0000-0000-000000000c31')
+  ) THEN
+    RAISE EXCEPTION
+      'FAIL 1.6a get_entries_for_export returned nothing for the secretary''s own show';
+  END IF;
+  RAISE NOTICE 'PASS 1.6a get_entries_for_export returns the secretary''s own show';
+
   IF EXISTS (
     SELECT 1 FROM public.get_entries_for_export('00000000-0000-0000-0000-000000000c32')
   ) THEN
     RAISE EXCEPTION
-      'FAIL 1.6 get_entries_for_export returned rows for a club-less show (MYK9-258)';
+      'FAIL 1.6b get_entries_for_export returned rows for a club-less show (MYK9-258)';
   END IF;
-  RAISE NOTICE 'PASS 1.6 get_entries_for_export returns nothing for a club-less show';
+  RAISE NOTICE 'PASS 1.6b get_entries_for_export returns nothing for a club-less show';
 END;
 $$;
 
@@ -195,12 +220,13 @@ $$;
 -- can_manage_trial reaches the club through the trial's show, so it inherits
 -- the same defect one join away.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.trials (id, show_id, trial_date, trial_number)
+-- `trials` uses `date` (not `trial_date`) and requires `name`.
+INSERT INTO public.trials (id, show_id, name, date)
 VALUES (
   '00000000-0000-0000-0000-000000000c41',
   '00000000-0000-0000-0000-000000000c32',
-  DATE '2026-09-01',
-  1
+  'MYK9-258 Club-less Trial',
+  DATE '2026-09-01'
 );
 
 SELECT set_config(

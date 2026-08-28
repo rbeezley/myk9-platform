@@ -17,18 +17,6 @@ export interface CommandMenuContext {
   surface: CommandMenuSurfaceId;
   showId: string;
   trialId?: string | undefined;
-  /** Currently selected entry IDs on the owner surface (row/bulk selection). */
-  selectedEntryIds: readonly string[];
-  /** Subset of `selectedEntryIds` eligible for check-in, precomputed by the
-   * page via `getEligibleForBulkAction` — the palette never recomputes
-   * eligibility itself. */
-  eligibleCheckInIds: readonly string[];
-  /** The page's registered bulk check-in handler (e.g.
-   * `handleEnrollmentBulkCheckIn`) — same handler the bulk action bar calls. */
-  runBulkCheckIn: (ids: readonly string[]) => void | Promise<unknown>;
-  /** True while a mutation from this surface is in flight; contextual
-   * mutating commands must not be offered while busy. */
-  busy: boolean;
 }
 
 export type CommandMenuGroup = 'navigation' | 'go-to' | 'actions' | 'recent';

@@ -120,7 +120,6 @@ function renderCockpit(onStatusChange: StatusChangeHandler) {
       onUncompEntry={vi.fn()}
       onRemoveEntry={vi.fn()}
       onBulkStatusChange={vi.fn()}
-      onBulkCheckIn={vi.fn()}
       onPaymentStatusChange={vi.fn()}
       onSendDecisionEmail={vi.fn().mockResolvedValue(undefined)}
       onRefresh={vi.fn()}

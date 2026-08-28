@@ -122,7 +122,6 @@ const EntryManagementPage: React.FC = () => {
     handleAssignArmband,
     handleNextArmband,
     handleEnrollmentBulkStatusChange,
-    handleEnrollmentBulkCheckIn,
     handleEnrollmentPaymentChange,
     handleCheckInStatusChange,
     handleExportCSV,
@@ -142,9 +141,6 @@ const EntryManagementPage: React.FC = () => {
 
   const { trials, isLoadingTrials } = useEntryManagementTrialScope({
     selectedShowId,
-    trialFilter: cockpitUrl.state.trialId,
-    classFilter: cockpitUrl.state.classId,
-    trialClasses,
   });
 
   const [compDialog, setCompDialog] = useState<{
@@ -419,7 +415,6 @@ const EntryManagementPage: React.FC = () => {
                 onUncompEntry={handleUncompEntry}
                 onRemoveEntry={handleRemoveEntry}
                 onBulkStatusChange={handleEnrollmentBulkStatusChange}
-                onBulkCheckIn={handleEnrollmentBulkCheckIn}
                 onPaymentStatusChange={handleEnrollmentPaymentChange}
                 onSendDecisionEmail={async (registrationId, message, amountDue) => {
                   await handleSendDecisionEmail(registrationId, message, amountDue);

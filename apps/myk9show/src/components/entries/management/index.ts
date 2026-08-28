@@ -4,11 +4,6 @@
  */
 
 export { ArmbandDialog } from './ArmbandDialog';
-export { AutoArmbandDialog } from './AutoArmbandDialog';
-export { BulkCheckInDialog } from './BulkCheckInDialog';
 export { EntryListCard } from './EntryListCard';
 export { CompEntryDialog } from './CompEntryDialog';
-export { FilterBreadcrumb } from './FilterBreadcrumb';
 export { TrialClassFilters } from './TrialClassFilters';
-export { TrialRosterView } from './TrialRosterView';
-export { TrialScopeBar } from './TrialScopeBar';

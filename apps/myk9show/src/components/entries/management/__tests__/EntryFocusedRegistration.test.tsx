@@ -57,7 +57,6 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onBulkCheckIn={vi.fn()}
         onPaymentStatusChange={vi.fn()}
         showCheckInStatus={false}
         matchingEntryIds={new Set(['entry-2'])}
@@ -90,7 +89,6 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onBulkCheckIn={vi.fn()}
         onPaymentStatusChange={vi.fn()}
       />
     );
@@ -112,7 +110,6 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onBulkCheckIn={vi.fn()}
         onPaymentStatusChange={vi.fn()}
         onSendDecisionEmail={vi.fn()}
       />
@@ -146,7 +143,6 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={onBulkStatusChange}
-        onBulkCheckIn={vi.fn()}
         onPaymentStatusChange={vi.fn()}
       />
     );
@@ -187,7 +183,6 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onBulkCheckIn={vi.fn()}
         onPaymentStatusChange={vi.fn()}
       />
     );
@@ -216,7 +211,6 @@ describe('EntryFocusedRegistration', () => {
         onOpenArmbandDialog={vi.fn()}
         onRemoveEntry={vi.fn()}
         onBulkStatusChange={vi.fn()}
-        onBulkCheckIn={vi.fn()}
         onPaymentStatusChange={vi.fn()}
       />
     );

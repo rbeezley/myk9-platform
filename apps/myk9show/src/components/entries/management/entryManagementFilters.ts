@@ -1,4 +1,3 @@
-import type { FilterDefinition } from '@/components/common/FilterChips';
 import type { ViewMode } from '@/components/common/ViewToggle';
 import { PaymentStatus } from '@/types/show-registration-types';
 import {
@@ -78,46 +77,6 @@ export const ENTRY_WORK_MODE_PRESETS: Record<
     view: 'table',
   },
 };
-
-/**
- * Filters surfaced through the shared `ListControls` / `FilterChips` on the
- * Entry Management page.
- *
- * INTENT: `attention` is the SINGLE source of entry-status filtering. Do not add
- * a second status-based filter key here — two status controls let the user set
- * contradictory state (e.g. attention="pending" + a second filter="accepted" =
- * always 0 rows). Status is filtered exclusively by the `attention` chip; the
- * only other structured filter is `payment`. Search (handled separately by
- * `ListControls`) is the primary triage tool and shares the same chrome as
- * Browse Shows / Dogs / People so the secretary sees one search affordance
- * app-wide. (Migrated from the now-deleted `EntryFiltersCard` guard.)
- */
-export const ENTRY_MANAGEMENT_FILTERS: FilterDefinition[] = [
-  {
-    key: 'attention',
-    label: 'Attention',
-    options: [
-      { label: 'All entries', value: 'all' },
-      { label: 'Pending review', value: 'pending' },
-      { label: 'Missing information', value: 'missing_information' },
-      { label: 'Accepted', value: 'accepted' },
-      { label: 'Waitlist', value: 'waitlist' },
-      { label: 'Issues', value: 'issues' },
-    ],
-  },
-  {
-    key: 'payment',
-    label: 'Payment',
-    options: [
-      { label: 'All payments', value: 'all' },
-      { label: 'Payment due', value: PaymentStatus.PENDING },
-      { label: 'Paid online', value: PaymentStatus.PAID_ONLINE },
-      { label: 'Paid by check', value: PaymentStatus.PAID_BY_CHECK },
-      { label: 'Waived', value: PaymentStatus.WAIVED },
-      { label: 'Refunded', value: PaymentStatus.REFUNDED },
-    ],
-  },
-];
 
 export function isEntryAttentionFilter(value: string | null): value is EntryAttentionFilter {
   return ENTRY_ATTENTION_FILTER_VALUES.includes(value as EntryAttentionFilter);

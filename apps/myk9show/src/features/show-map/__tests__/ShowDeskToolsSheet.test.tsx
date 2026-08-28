@@ -71,6 +71,7 @@ describe('ShowDeskToolsSheet', () => {
     toolCount?: number;
     actionableCount?: number;
     actionableTone?: 'urgent' | 'routine';
+    actionableIncomplete?: boolean;
     showId?: string;
     requestedToolId?: string;
   }) {
@@ -81,6 +82,9 @@ describe('ShowDeskToolsSheet', () => {
         toolCount={props?.toolCount}
         {...(props?.actionableCount !== undefined && { actionableCount: props.actionableCount })}
         {...(props?.actionableTone !== undefined && { actionableTone: props.actionableTone })}
+        {...(props?.actionableIncomplete !== undefined && {
+          actionableIncomplete: props.actionableIncomplete,
+        })}
         {...(props?.requestedToolId !== undefined && {
           requestedToolId: props.requestedToolId,
         })}
@@ -91,11 +95,11 @@ describe('ShowDeskToolsSheet', () => {
   it('renders the Tools trigger button with a default badge matching tool count', () => {
     renderSheet();
 
-    const trigger = screen.getByRole('button', { name: /open tools panel/i });
+    const trigger = screen.getByRole('button', { name: /tools/i });
     expect(trigger).toBeInTheDocument();
     const badge = screen.getByTestId('show-desk-tools-badge');
     expect(badge).toHaveTextContent('3');
-    expect(badge).toHaveAttribute('aria-label', '3 tools available');
+    expect(badge).toHaveTextContent('3 tools available');
   });
 
   it('keeps the sheet closed by default (tool content not rendered)', () => {
@@ -119,7 +123,7 @@ describe('ShowDeskToolsSheet', () => {
   it('opens the sheet on trigger click and renders collapsed tool sections', async () => {
     const { user } = renderSheet();
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
 
     expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
@@ -163,7 +167,7 @@ describe('ShowDeskToolsSheet', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
 
     expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
       'data-layout',
@@ -181,7 +185,7 @@ describe('ShowDeskToolsSheet', () => {
   it('closes the sheet when Escape is pressed', async () => {
     const { user } = renderSheet();
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
     expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
@@ -194,14 +198,16 @@ describe('ShowDeskToolsSheet', () => {
 
     const badge = screen.getByTestId('show-desk-tools-badge');
     expect(badge).toHaveTextContent('3');
-    expect(badge).toHaveAttribute('aria-label', '3 items need attention');
+    expect(badge).toHaveTextContent('3 items need attention');
+    // The count must reach assistive tech through the TRIGGER's name, not just
+    // the badge: an aria-label on the button used to replace it entirely.
+    expect(screen.getByRole('button', { name: /3 items need attention/i })).toBeInTheDocument();
   });
 
-  it('singularizes the actionable aria-label when count is 1', () => {
+  it('singularizes the actionable label when count is 1', () => {
     renderSheet({ actionableCount: 1 });
 
-    expect(screen.getByTestId('show-desk-tools-badge')).toHaveAttribute(
-      'aria-label',
+    expect(screen.getByTestId('show-desk-tools-badge')).toHaveTextContent(
       '1 item needs attention'
     );
   });
@@ -211,8 +217,35 @@ describe('ShowDeskToolsSheet', () => {
 
     const badge = screen.getByTestId('show-desk-tools-badge');
     expect(badge).toHaveTextContent('3');
-    expect(badge).toHaveAttribute('aria-label', '3 tools available');
+    expect(badge).toHaveTextContent('3 tools available');
     expect(badge).toHaveAttribute('data-tone', 'idle');
+  });
+
+  /**
+   * Audit H2. The badge is the secretary's only "is anything waiting?" glance
+   * while the wrench is shut, and the incident and task queries both pause
+   * offline. Summing unread sources as zero rendered the calm idle tool-count
+   * during exactly the outage this signal exists to surface -- an urgent
+   * incident logged by a steward could not raise it.
+   */
+  it('says it could not check, rather than showing the idle tool count', () => {
+    renderSheet({ actionableCount: 0, actionableIncomplete: true });
+
+    const badge = screen.getByTestId('show-desk-tools-badge');
+    expect(badge).toHaveAttribute('data-tone', 'unknown');
+    expect(badge).toHaveTextContent('?');
+    expect(badge).not.toHaveTextContent('3 tools available');
+    expect(badge).toHaveTextContent(/cannot check/i);
+  });
+
+  it('still reports a known count as a floor when one source is unreadable', () => {
+    renderSheet({ actionableCount: 2, actionableTone: 'routine', actionableIncomplete: true });
+
+    const badge = screen.getByTestId('show-desk-tools-badge');
+    expect(badge).toHaveTextContent('2');
+    expect(badge).toHaveTextContent(/some could not be checked/i);
+    // Partial knowledge is not no knowledge: a real count still wins the tone.
+    expect(badge).toHaveAttribute('data-tone', 'routine');
   });
 
   it('uses the urgent tone for incident-driven attention', () => {
@@ -229,7 +262,7 @@ describe('ShowDeskToolsSheet', () => {
     const badge = screen.getByTestId('show-desk-tools-badge');
     expect(badge).toHaveTextContent('4');
     expect(badge).toHaveAttribute('data-tone', 'routine');
-    expect(badge).toHaveAttribute('aria-label', '4 items need attention');
+    expect(badge).toHaveTextContent('4 items need attention');
   });
 
   it('defaults an untoned actionable count to the urgent tone', () => {
@@ -241,7 +274,7 @@ describe('ShowDeskToolsSheet', () => {
   it('expands and collapses a single tool section', async () => {
     const { user } = renderSheet();
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
     await user.click(screen.getByRole('button', { name: /schedule slip script/i }));
 
     expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
@@ -263,7 +296,7 @@ describe('ShowDeskToolsSheet', () => {
   it('toggles a section from the keyboard', async () => {
     const { user } = renderSheet();
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
     const scheduleSlipScript = screen.getByRole('button', { name: /schedule slip script/i });
     scheduleSlipScript.focus();
     await user.keyboard('{Enter}');
@@ -274,12 +307,12 @@ describe('ShowDeskToolsSheet', () => {
   it('persists open sections per show', async () => {
     const { user, unmount } = renderSheet({ showId: 'show-1' });
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
     await user.click(screen.getByRole('button', { name: /schedule slip script/i }));
     unmount();
 
     const second = renderSheet({ showId: 'show-1' });
-    await second.user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await second.user.click(screen.getByRole('button', { name: /tools/i }));
 
     expect(screen.getByTestId('broadcast-tool')).toBeInTheDocument();
   });
@@ -288,7 +321,7 @@ describe('ShowDeskToolsSheet', () => {
     window.localStorage.setItem('show-desk-tools:show-1', JSON.stringify(['broadcast']));
 
     const { user } = renderSheet({ showId: 'show-2' });
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
 
     expect(screen.queryByTestId('broadcast-tool')).not.toBeInTheDocument();
     expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
@@ -298,7 +331,7 @@ describe('ShowDeskToolsSheet', () => {
     window.localStorage.setItem('show-desk-tools:show-1', 'not json');
     const { user } = renderSheet({ showId: 'show-1' });
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
 
     expect(screen.getByTestId('add-entries-tool')).toBeInTheDocument();
     expect(screen.getByTestId('access-codes-tool')).toBeInTheDocument();
@@ -308,7 +341,7 @@ describe('ShowDeskToolsSheet', () => {
     window.localStorage.setItem('show-desk-tools:show-1', JSON.stringify(['add-entries']));
     const { user } = renderSheet({ showId: 'show-1' });
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
 
     expect(screen.getByText('Needs review')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /access codes/i })).toHaveAttribute(
@@ -341,7 +374,7 @@ describe('ShowDeskToolsSheet', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /open tools panel/i }));
+    await user.click(screen.getByRole('button', { name: /tools/i }));
     await user.click(screen.getByRole('button', { name: /access codes/i }));
     await user.click(screen.getByRole('button', { name: /generate new codes/i }));
     await user.click(await screen.findByRole('button', { name: /^generate$/i }));

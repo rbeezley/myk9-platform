@@ -46,8 +46,10 @@ import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/ove
 import { isValidUUID } from '@/utils/validation';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
 
-/** Stable identity so a missing read does not remint the array each render. */
+/** Stable identities so a missing read does not remint an array each render. */
 const EMPTY_ENTRIES: SecretaryEntry[] = [];
+const EMPTY_INCIDENTS: Awaited<ReturnType<typeof listShowIncidentCloseout>> = [];
+const EMPTY_TASKS: SecretaryTask[] = [];
 
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
 
@@ -266,11 +268,16 @@ export function ShowWorkbenchShowDeskPage() {
   // INTENT: Urgent or reportable incidents surface themselves on the tools
   // sheet (attentionLabel auto-opens the section) instead of waiting silently
   // behind the wrench icon while the secretary handles a crisis.
-  const { data: closeoutIncidents = [] } = useQuery({
+  const { data: closeoutIncidentsData } = useQuery({
     queryKey: showIncidentCloseoutQueryKey(showId ?? ''),
     queryFn: () => listShowIncidentCloseout(showId ?? ''),
     enabled: Boolean(showId),
   });
+  const closeoutIncidents = useMemo(
+    () => closeoutIncidentsData ?? EMPTY_INCIDENTS,
+    [closeoutIncidentsData]
+  );
+  const incidentsKnown = closeoutIncidentsData !== undefined;
   const incidentSummary = useMemo(
     () => summarizeShowIncidents(closeoutIncidents),
     [closeoutIncidents]
@@ -294,19 +301,29 @@ export function ShowWorkbenchShowDeskPage() {
     showId ?? '',
     hospitalityJudges
   );
-  const { data: showTasks = [] } = useSecretaryTasks(showId);
+  const { data: showTasksData } = useSecretaryTasks(showId);
+  const showTasks = useMemo(() => showTasksData ?? EMPTY_TASKS, [showTasksData]);
+  /**
+   * `null` when the tasks read did not succeed. Both this and the incident
+   * count feed the closed Tools badge, which is the secretary's only "is
+   * anything waiting?" glance -- so an unread source has to withhold the
+   * count rather than contribute a zero to it.
+   */
   const tasksOpenCount = useMemo(
-    () => showTasks.filter((task: SecretaryTask) => task.status === 'todo').length,
-    [showTasks]
+    () =>
+      showTasksData === undefined
+        ? null
+        : showTasks.filter((task: SecretaryTask) => task.status === 'todo').length,
+    [showTasks, showTasksData]
   );
   const actionable = useMemo(
     () =>
       computeShowDeskActionable({
-        incidentReportableCount: incidentSummary.reportableCount,
+        incidentReportableCount: incidentsKnown ? incidentSummary.reportableCount : null,
         hospitalityReminderCount,
         tasksOpenCount,
       }),
-    [hospitalityReminderCount, incidentSummary.reportableCount, tasksOpenCount]
+    [hospitalityReminderCount, incidentsKnown, incidentSummary.reportableCount, tasksOpenCount]
   );
 
   const showDeskTools = useMemo<ShowDeskToolSection[]>(() => {
@@ -534,6 +551,7 @@ export function ShowWorkbenchShowDeskPage() {
         tools={showDeskTools}
         actionableCount={actionable.count}
         actionableTone={actionable.tone}
+        actionableIncomplete={actionable.incomplete}
       />
     </Suspense>
   );

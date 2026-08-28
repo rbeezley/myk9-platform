@@ -92,12 +92,36 @@ export interface LoadObservation {
   platform?: PlatformObservation;
 }
 
+/**
+ * Whether a target's value depends on workload shape.
+ *
+ * API p95, scoring-write p95 and throughput all move with how many sessions do
+ * what, so their current values carry no information about the reshaped workload
+ * and must be derived from a valid run before they can gate. Everything else
+ * asserts a shape-independent invariant: a lost scoring write, a queue that never
+ * drains or an unreconciled persistence count is a defect at any workload, and
+ * suspending those would open the gate far wider than the remodel requires.
+ */
+export type LoadFailureKind = 'gating' | 'pending-derivation';
+
+export interface LoadFailure {
+  readonly message: string;
+  readonly kind: LoadFailureKind;
+}
+
 export interface LoadEvaluation {
   passed: boolean;
   gateEligible: boolean;
   informational: boolean;
   gate: LoadScenario['gate'];
+  /** Gating failures only. A run passes when this is empty. */
   failures: string[];
+  /**
+   * Shape-dependent targets that missed their placeholder before derivation.
+   * Reported, never gating — and rendered separately, or a run that passed only
+   * the still-enforced half would read as a clean pass.
+   */
+  pendingDerivation: string[];
   derived: {
     serializationFailureRate: number;
     generatorAttributionValid: boolean;
@@ -114,6 +138,7 @@ export function evaluateLoadResult(
   observation: LoadObservation
 ): LoadEvaluation {
   const failures: string[] = [];
+  const pendingDerivation: string[] = [];
   const expectedSessions = scenarioSessionCount(scenario);
   const expectedRingsideSessions = scenarioRingsideSessionCount(scenario);
   const lifecycle = observation.sessionLifecycle;
@@ -158,10 +183,10 @@ export function evaluateLoadResult(
     !finite(observation.scoringWriteP95Ms) ||
     observation.scoringWriteP95Ms > scenario.targets.scoringWriteP95Ms
   ) {
-    failures.push('Scoring-write p95 exceeded or was missing.');
+    pendingDerivation.push('Scoring-write p95 exceeded or was missing.');
   }
   if (!finite(observation.apiP95Ms) || observation.apiP95Ms > scenario.targets.apiP95Ms) {
-    failures.push('API p95 exceeded or was missing.');
+    pendingDerivation.push('API p95 exceeded or was missing.');
   }
   if (!finite(observation.errorRate) || observation.errorRate > scenario.targets.errorRateMax) {
     failures.push('Error rate exceeded or was missing.');
@@ -170,7 +195,7 @@ export function evaluateLoadResult(
     !finite(observation.throughputRps) ||
     observation.throughputRps < scenario.targets.throughputMin
   ) {
-    failures.push('Throughput target was not met.');
+    pendingDerivation.push('Throughput target was not met.');
   }
   if (
     !finite(observation.availabilityPercent) ||
@@ -228,7 +253,10 @@ export function evaluateLoadResult(
       : 0;
 
   return {
+    // Only gating failures decide the verdict. Shape-dependent misses are
+    // reported alongside, so the gate stays honest in both directions.
     passed: failures.length === 0,
+    pendingDerivation,
     gateEligible: scenario.gate === 'G9' && !scenario.informational,
     informational: scenario.informational,
     gate: scenario.gate,

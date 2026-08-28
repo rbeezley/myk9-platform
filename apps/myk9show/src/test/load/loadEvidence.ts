@@ -89,6 +89,13 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
     evidence.evaluation.failures.length === 0
       ? '- None'
       : evidence.evaluation.failures.map(failure => `- ${failure}`).join('\n');
+  // Rendered as its own section. Folding these into Failures would make a run
+  // that passed only the still-enforced half read as a clean pass, and folding
+  // them into nothing would hide that a shape-dependent target was missed.
+  const pendingDerivation =
+    evidence.evaluation.pendingDerivation.length === 0
+      ? '- None'
+      : evidence.evaluation.pendingDerivation.map(item => `- ${item}`).join('\n');
   const platform = evidence.observation.platform;
   const lifecycle = evidence.observation.sessionLifecycle;
   const workflowFailures =
@@ -163,6 +170,14 @@ ${workflowFailures}
 ## Failures
 
 ${failures}
+
+## Pending target derivation (reported, not gating)
+
+These targets move with workload shape, so their pre-remodel values carry no
+information about the reshaped workload. They gate again once derived from a
+valid run.
+
+${pendingDerivation}
 `;
 }
 

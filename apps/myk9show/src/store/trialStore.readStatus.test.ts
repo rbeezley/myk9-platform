@@ -7,13 +7,13 @@ const replicationMocks = vi.hoisted(() => ({
   classesSubscribe: vi.fn<
     (
       callback: (rows: unknown[]) => void,
-      options?: { onError?: (error: unknown) => void }
+      options?: { emitCurrent?: boolean; onError?: (error: unknown) => void }
     ) => () => void
   >(() => vi.fn()),
   trialsSubscribe: vi.fn<
     (
       callback: (rows: unknown[]) => void,
-      options?: { onError?: (error: unknown) => void }
+      options?: { emitCurrent?: boolean; onError?: (error: unknown) => void }
     ) => () => void
   >(() => vi.fn()),
 }));
@@ -218,6 +218,8 @@ describe('trialStore replicated read status', () => {
 
     const trialOptions = replicationMocks.trialsSubscribe.mock.calls[0]?.[1];
     const classOptions = replicationMocks.classesSubscribe.mock.calls[0]?.[1];
+    expect(trialOptions?.emitCurrent).toBe(false);
+    expect(classOptions?.emitCurrent).toBe(false);
     trialOptions?.onError?.(new Error('Trial subscription read failed'));
     classOptions?.onError?.(new Error('Class subscription read failed'));
 

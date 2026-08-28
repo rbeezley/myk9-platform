@@ -626,6 +626,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         });
       },
       {
+        emitCurrent: false,
         onError: error => {
           const message = error instanceof Error ? error.message : 'Failed to refresh trials';
           set({ trialsReadStatus: 'error', trialsReadError: message });
@@ -661,6 +662,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         });
       },
       {
+        emitCurrent: false,
         onError: error => {
           const message =
             error instanceof Error ? error.message : 'Failed to refresh trial classes';

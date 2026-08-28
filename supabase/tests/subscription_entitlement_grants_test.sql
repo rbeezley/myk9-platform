@@ -279,6 +279,17 @@ INSERT INTO public.trials (id, show_id, name, date)
 VALUES ('00000000-0000-0000-0000-000000000965','00000000-0000-0000-0000-000000000961','Seg Trial',CURRENT_DATE);
 INSERT INTO public.classes (id, trial_id, name, status)
 VALUES ('00000000-0000-0000-0000-000000000966','00000000-0000-0000-0000-000000000965','Seg Class','completed');
+-- `trg_entries_require_dog_registration` (20260828210000) refuses an entry whose dog
+-- holds no registration for the trial's registry. These fixtures predate that rule
+-- and are about something else entirely, so give every dog an AKC number -- every
+-- trial in this file is AKC -- rather than reshaping the test around it.
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+SELECT d.id, 'AKC (American Kennel Club)', 'SR' || upper(substr(md5(d.id::text), 1, 8)), true
+FROM public.dogs d
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
+);
+
 INSERT INTO public.entries (id, show_id, class_id, dog_id, is_scored, result_status)
 VALUES ('00000000-0000-0000-0000-000000000971','00000000-0000-0000-0000-000000000961',
         '00000000-0000-0000-0000-000000000966',

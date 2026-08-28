@@ -1,3 +1,4 @@
+import { formatShowDate, resolveDisplayDate } from '@/features/_shared/landing/calendarDate';
 /**
  * Date formatting helpers for Magazine surfaces.
  *
@@ -12,10 +13,13 @@ export function formatDateInTimezone(
   format: 'short' | 'long' | 'time'
 ): string {
   try {
-    const date = new Date(iso);
+    // A show date names a calendar DAY (stored as midnight-UTC timestamptz).
+    // Converting it through a timezone rolls it back a day west of UTC; only a
+    // genuine instant gets the zone applied. See _shared/landing/calendarDate.
+    const { date, isCalendarDay } = resolveDisplayDate(iso);
     if (isNaN(date.getTime())) return '';
 
-    const opts: Intl.DateTimeFormatOptions = { timeZone: timezone };
+    const opts: Intl.DateTimeFormatOptions = isCalendarDay ? {} : { timeZone: timezone };
 
     if (format === 'short') {
       return date.toLocaleDateString('en-US', {
@@ -51,10 +55,10 @@ export function formatDateInTimezone(
 /** Format an ISO date as a journey step label, e.g. "15 Apr". */
 export function formatJourneyDate(iso: string, timezone: string): string {
   try {
-    const date = new Date(iso);
+    const { date, isCalendarDay } = resolveDisplayDate(iso);
     if (isNaN(date.getTime())) return '';
     return date.toLocaleDateString('en-US', {
-      timeZone: timezone,
+      ...(isCalendarDay ? {} : { timeZone: timezone }),
       day: 'numeric',
       month: 'short',
     });
@@ -66,10 +70,10 @@ export function formatJourneyDate(iso: string, timezone: string): string {
 /** Format an ISO date as a short editorial range, e.g. "Jun 12". */
 export function formatShortDate(iso: string, timezone: string): string {
   try {
-    const date = new Date(iso);
+    const { date, isCalendarDay } = resolveDisplayDate(iso);
     if (isNaN(date.getTime())) return '';
     return date.toLocaleDateString('en-US', {
-      timeZone: timezone,
+      ...(isCalendarDay ? {} : { timeZone: timezone }),
       month: 'short',
       day: 'numeric',
     });
@@ -96,29 +100,24 @@ export function formatEditorialDateRange(
   timezone: string
 ): string {
   if (!startIso) return '';
-  const start = new Date(startIso);
-  if (isNaN(start.getTime())) return '';
-  const opts: Intl.DateTimeFormatOptions = {
-    timeZone: timezone,
-    month: 'short',
-    day: 'numeric',
-  };
-  const startStr = start.toLocaleDateString('en-US', opts);
+  // formatShowDate applies the zone only to real instants; these columns arrive
+  // as midnight UTC and must render as the day they name.
+  const startStr = formatShowDate(startIso, timezone, { month: 'short', day: 'numeric' });
+  if (!startStr) return '';
 
   if (!endIso || endIso === startIso) return startStr;
-  const end = new Date(endIso);
-  if (isNaN(end.getTime())) return startStr;
-  const endStr = end.toLocaleDateString('en-US', opts);
+  const endStr = formatShowDate(endIso, timezone, { month: 'short', day: 'numeric' });
+  if (!endStr) return startStr;
 
   // Same month → drop the month from the end, e.g. "Jun 12 – 14".
   // Cross-month → keep both, e.g. "Jun 30 – Jul 2".
   // Compare month via Intl in the same timezone so DST + cross-midnight
   // edge cases route to the same month bucket the user sees.
-  const monthOpts: Intl.DateTimeFormatOptions = { timeZone: timezone, month: 'short' };
   const sameMonth =
-    start.toLocaleDateString('en-US', monthOpts) === end.toLocaleDateString('en-US', monthOpts);
+    formatShowDate(startIso, timezone, { month: 'short' }) ===
+    formatShowDate(endIso, timezone, { month: 'short' });
   if (sameMonth) {
-    const endDay = end.toLocaleDateString('en-US', { timeZone: timezone, day: 'numeric' });
+    const endDay = formatShowDate(endIso, timezone, { day: 'numeric' });
     return `${startStr} – ${endDay}`;
   }
   return `${startStr} – ${endStr}`;

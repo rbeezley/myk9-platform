@@ -34,18 +34,31 @@ function endOfDayInTimeZone(year: number, month: number, day: number, timeZone: 
 }
 
 /**
- * A bare `entry_close_date` is a DATE column with no timezone — the calendar
- * day it names is in the SHOW's timezone, not the viewer's. Parsing it with
- * `new Date('YYYY-MM-DD')` (UTC midnight) or the viewer's local end-of-day
- * both misreport "closed" by hours for a viewer in a different zone than the
- * show. Resolve DATE-only values as open through end-of-day in `timeZone`,
- * matching the inclusive "Closes Today!" convention in
- * `utils/entryStatusUtils.ts` — just computed in the show's zone, not the
- * browser's. A value that already carries a time component is a real
+ * `entry_close_date` names a calendar DAY in the SHOW's timezone, not an
+ * instant. Parsing it with `new Date()` (UTC midnight) or the viewer's local
+ * end-of-day both misreport "closed" by hours for a viewer in a different zone
+ * than the show. Resolve day-valued targets as open through end-of-day in
+ * `timeZone`, matching the inclusive "Closes Today!" convention in
+ * `utils/entryStatusUtils.ts`. A value carrying a real time component is a real
  * instant and is used as-is.
+ *
+ * The normalization is NOT optional. `shows.entry_close_date` is `timestamptz`
+ * (migration 035 converted it from DATE), so PostgREST serializes it as
+ * `2026-09-01T00:00:00+00:00` and `showMappers` passes that through raw — which
+ * never matched a bare `YYYY-MM-DD` test. The end-of-day branch below was
+ * therefore DEAD CODE for the only column that calls it, and every public
+ * landing flipped to "Entries Closed" at UTC midnight: 8pm the previous evening
+ * in New York, 5pm in Los Angeles, ~28 hours early. Meanwhile the logged-in
+ * exhibitor view, which normalizes via `toLocalDate`, still said entries were
+ * open — the same show, two surfaces, a day apart.
+ *
+ * Note this deliberately does NOT reuse `toLocalDateOnly`: that helper maps
+ * EVERY instant to a calendar date, so routing this through it would widen a
+ * genuine mid-day cutoff (`...T17:00:00Z`) to end-of-day too. Only exact
+ * midnight UTC means "a day".
  */
 function resolveTargetInstant(targetIso: string, timeZone: string): Date {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(targetIso);
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.0+)?(?:Z|\+00:?00))?$/.exec(targetIso);
   if (match) {
     const [, y, m, d] = match;
     return endOfDayInTimeZone(Number(y), Number(m), Number(d), timeZone);

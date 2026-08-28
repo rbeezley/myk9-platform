@@ -7,15 +7,18 @@ import {
 
 describe('formatDateInTimezone', () => {
   it('formats short dates with year', () => {
-    expect(formatDateInTimezone('2026-06-12T00:00:00Z', 'America/Chicago', 'short')).toMatch(
-      /Jun \d+, 2026/
+    expect(formatDateInTimezone('2026-06-12T00:00:00Z', 'America/Chicago', 'short')).toBe(
+      'Jun 12, 2026'
     );
   });
 
   it('formats long dates with weekday', () => {
     const out = formatDateInTimezone('2026-06-12T00:00:00Z', 'America/Chicago', 'long');
     expect(out).toContain('2026');
-    expect(out).toMatch(/(Friday|Thursday)/);
+    // Was /(Friday|Thursday)/ -- loose enough to pass either way. June 12 2026
+    // is a Friday, and a stored show date must render as the day it names.
+    expect(out).toContain('Friday');
+    expect(out).not.toContain('Thursday');
   });
 
   it('formats time with timeZoneName', () => {
@@ -25,12 +28,12 @@ describe('formatDateInTimezone', () => {
 
   it('formats monthDay (short)', () => {
     const out = formatDateInTimezone('2026-06-03T00:00:00Z', 'America/Chicago', 'monthDay');
-    expect(out).toMatch(/Jun \d+/);
+    expect(out).toBe('Jun 3');
   });
 
   it('formats monthDayUpper as uppercase', () => {
     const out = formatDateInTimezone('2026-06-03T00:00:00Z', 'America/Chicago', 'monthDayUpper');
-    expect(out).toMatch(/JUN \d+/);
+    expect(out).toBe('JUN 3');
     expect(out).not.toMatch(/Jun/);
   });
 
@@ -46,7 +49,8 @@ describe('formatDateRange', () => {
 
   it('formats same-month range with em dash', () => {
     const out = formatDateRange('2026-06-12T00:00:00Z', '2026-06-14T00:00:00Z', 'America/Chicago');
-    expect(out).toMatch(/Jun 12—14|Jun 11—13/);
+    // Was an either/or alternation, which passed with the date rolled back.
+    expect(out).toBe('Jun 12—14');
   });
 
   it('formats cross-month range with en dash and second month', () => {
@@ -68,7 +72,7 @@ describe('formatDateRange', () => {
 
   it('uses the start date alone when start === end', () => {
     const out = formatDateRange('2026-06-12T00:00:00Z', '2026-06-12T00:00:00Z', 'America/Chicago');
-    expect(out).toMatch(/Jun \d+$/);
+    expect(out).toBe('Jun 12');
     expect(out).not.toContain('—');
   });
 });

@@ -1,3 +1,4 @@
+import { resolveDisplayDate } from '@/features/_shared/landing/calendarDate';
 /**
  * Date formatting helpers for Monogram surfaces.
  * All formatting respects the trial's IANA timezone.
@@ -7,32 +8,14 @@
  * self-contained for future style-level refactors.
  */
 
-// exhibitor-ux-remediation (date-formatting delta): `shows.start_date` /
-// `end_date` / `entry_close_date` are DATE-only columns ("2026-08-01", no time
-// component). `new Date('2026-08-01')` parses that as UTC midnight, and
-// formatting a UTC instant in a timezone behind UTC (e.g. America/Chicago for
-// a Tulsa, OK show) rolls the displayed date back a day — the audit walk saw
-// "Jul 31 – Aug 2" here while the shows list correctly showed "Aug 1–3" for
-// the same show. A date-only value is a calendar date, not an instant — it
-// must never be converted through a timezone, only a genuine timestamp
-// (with a time component) should be.
-const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * Build a local `Date` from a "YYYY-MM-DD" string's own Y/M/D — no UTC/timezone
- * conversion. Callers gate on DATE_ONLY_PATTERN first, so all three parts exist;
- * `Number(...)` (which accepts `undefined`) keeps this compiling cleanly even
- * under `noUncheckedIndexedAccess`, where the split parts type as
- * `string | undefined`.
- */
-function parseDateOnlyAsLocalCalendarDate(dateOnly: string): Date {
-  const parts = dateOnly.split('-');
-  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-}
-
+// UPDATE: the guard that used to live here was right in intent and dead in
+// practice. These are `timestamptz` columns (migration 035), so they arrive as
+// "2026-09-01T00:00:00+00:00" and never matched a bare YYYY-MM-DD -- so this
+// variant rendered the wrong day too, having copied heritage's dead fix. The
+// rule now lives in _shared/landing/calendarDate.ts, matching both forms.
 function parseAsCalendarOrInstant(iso: string): { date: Date; isDateOnly: boolean } {
-  const isDateOnly = DATE_ONLY_PATTERN.test(iso);
-  return { date: isDateOnly ? parseDateOnlyAsLocalCalendarDate(iso) : new Date(iso), isDateOnly };
+  const { date, isCalendarDay } = resolveDisplayDate(iso);
+  return { date, isDateOnly: isCalendarDay };
 }
 
 export function formatDateInTimezone(

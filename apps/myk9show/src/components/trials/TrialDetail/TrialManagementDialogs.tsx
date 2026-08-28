@@ -1,5 +1,6 @@
 import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -21,7 +22,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import { replicatedClassesTable } from '@/services/replication';
-import { queryClient } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { TrialWithClasses } from '@/hooks/useTrialDetailData';
@@ -59,6 +59,7 @@ export const TrialManagementDialogs = forwardRef<
 ) {
   const { showId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuthContext();
   const { trials, updateTrial, deleteTrial: deleteTrialAsync } = useTrialStore();
   const { addClass, updateClass, deleteClass } = useClassStoreCompat();

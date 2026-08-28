@@ -1,10 +1,10 @@
 import { useEffect, useId, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { Check, Pencil, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { replicatedClassesTable } from '@/services/replication';
-import { queryClient } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { notifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
@@ -60,6 +60,7 @@ export function ClassStartTimeEditor({
   label,
   className,
 }: ClassStartTimeEditorProps) {
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [savedStartTime, setSavedStartTime] = useState(startTime);

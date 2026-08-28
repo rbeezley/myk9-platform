@@ -1,7 +1,6 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { act, createTestQueryClient, render, screen } from '@/test/utils/testUtils';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
 import {
   TrialManagementDialogs,
   type TrialManagementDialogsHandle,
@@ -23,8 +22,12 @@ vi.mock('@/components/panels/edit/TrialEditPanel', () => ({
     open ? <div data-testid="edit-trial-panel" /> : null,
 }));
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
-  ClassEditPanel: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="edit-class-panel" /> : null,
+  ClassEditPanel: ({ open, onSave }: { open: boolean; onSave: (data: object) => Promise<void> }) =>
+    open ? (
+      <div data-testid="edit-class-panel">
+        <button onClick={() => void onSave({})}>Save class</button>
+      </div>
+    ) : null,
 }));
 vi.mock('@/components/common/StandardDialog', () => ({
   default: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
@@ -80,6 +83,7 @@ function makeClass(): TrialClass {
 
 function renderDialogs(overrides: Partial<TrialManagementDialogsProps> = {}) {
   const ref = React.createRef<TrialManagementDialogsHandle>();
+  const queryClient = createTestQueryClient();
   const props: TrialManagementDialogsProps = {
     currentTrial: makeTrial(),
     parentShow: { id: 's1', organization: 'AKC' } as Show,
@@ -87,12 +91,11 @@ function renderDialogs(overrides: Partial<TrialManagementDialogsProps> = {}) {
     entryCountByClass: new Map(),
     ...overrides,
   };
-  render(
-    <MemoryRouter initialEntries={['/shows/s1/trials/t1']}>
-      <TrialManagementDialogs ref={ref} {...props} />
-    </MemoryRouter>
-  );
-  return ref;
+  const rendered = render(<TrialManagementDialogs ref={ref} {...props} />, {
+    initialRoute: '/shows/s1/trials/t1',
+    queryClient,
+  });
+  return { ref, queryClient, ...rendered };
 }
 
 describe('TrialManagementDialogs', () => {
@@ -106,31 +109,31 @@ describe('TrialManagementDialogs', () => {
   });
 
   it('openEditTrial() opens the trial edit panel', () => {
-    const ref = renderDialogs();
+    const { ref } = renderDialogs();
     act(() => ref.current?.openEditTrial());
     expect(screen.getByTestId('edit-trial-panel')).toBeInTheDocument();
   });
 
   it('openDeleteTrial() opens the delete-trial dialog', () => {
-    const ref = renderDialogs();
+    const { ref } = renderDialogs();
     act(() => ref.current?.openDeleteTrial());
     expect(screen.getByTestId('delete-trial-dialog')).toBeInTheDocument();
   });
 
   it('openAddClasses() opens the add-classes panel', () => {
-    const ref = renderDialogs();
+    const { ref } = renderDialogs();
     act(() => ref.current?.openAddClasses());
     expect(screen.getByTestId('add-classes-panel')).toBeInTheDocument();
   });
 
   it('openEditClass() opens the class edit panel', () => {
-    const ref = renderDialogs();
+    const { ref } = renderDialogs();
     act(() => ref.current?.openEditClass(makeClass()));
     expect(screen.getByTestId('edit-class-panel')).toBeInTheDocument();
   });
 
   it('openDeleteClass() opens the delete-class dialog with the entry-count warning', () => {
-    const ref = renderDialogs({ entryCountByClass: new Map([['c1', 3]]) });
+    const { ref } = renderDialogs({ entryCountByClass: new Map([['c1', 3]]) });
     act(() => ref.current?.openDeleteClass(makeClass()));
     const dialog = screen.getByTestId('delete-class-dialog');
     expect(dialog).toBeInTheDocument();
@@ -138,10 +141,22 @@ describe('TrialManagementDialogs', () => {
   });
 
   it('omits the entry-count warning when the class has no entries', () => {
-    const ref = renderDialogs({ entryCountByClass: new Map() });
+    const { ref } = renderDialogs({ entryCountByClass: new Map() });
     act(() => ref.current?.openDeleteClass(makeClass()));
     expect(screen.getByTestId('delete-class-dialog')).not.toHaveTextContent(
       'This will also delete'
     );
+  });
+
+  it('invalidates class queries on the active routed client after an edit', async () => {
+    const { ref, queryClient, user } = renderDialogs();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    act(() => ref.current?.openEditClass(makeClass()));
+    await user.click(screen.getByRole('button', { name: 'Save class' }));
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['classes', 'list'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['classes', 'trial', 't1'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['classes', 'detail', 'c1'] });
   });
 });

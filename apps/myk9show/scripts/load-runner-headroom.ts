@@ -91,6 +91,7 @@ async function main(): Promise<void> {
     repos: collected.repos,
     inventory: collected.inventory,
     unreadableRepos: collected.unreadableRepos,
+    publicRepoAudit: collected.publicRepoAudit,
   });
 
   for (const repo of collected.repos) {

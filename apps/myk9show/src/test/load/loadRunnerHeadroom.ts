@@ -37,9 +37,23 @@
  * against the raw inventory rather than the countable subset, so archiving a
  * repository does not trip the gate.
  *
- * Adding a repository to the account does not require updating this list for
- * correctness (its jobs are counted either way), but adding it here makes the
- * scope proof stricter and is the safer default.
+ * KNOWN RESIDUAL GAP, stated rather than papered over. This floor proves the
+ * token is not scoped to a SUBSET of these four; it cannot prove the token is
+ * scoped to "All repositories" rather than to exactly these four. The
+ * distinction matters only if the account later gains a fifth repository while
+ * the token is a selected-repository token — a fine-grained PAT created with
+ * "All repositories", as the README instructs, picks up new repositories
+ * automatically and has no gap.
+ *
+ * There is no API that closes this. `/user/repos` returns what the token can
+ * see, which is the quantity in doubt, and the count fields on `GET /user` that
+ * would settle it (`owned_private_repos`, `total_private_repos`) come back null
+ * unless the token carries classic `repo` scope — verified against the live API
+ * on 2026-08-28. Only `public_repos` is populated, which is why the public half
+ * is cross-checked below and the private half is not.
+ *
+ * So: create the token with "All repositories", and add any new repository here
+ * in the same change that creates it.
  */
 export const EXPECTED_ACCOUNT_REPOS: readonly string[] = [
   'rbeezley/myk9-platform',
@@ -68,6 +82,12 @@ export interface HeadroomInputs {
   readonly unreadableRepos: readonly string[];
   /** Repositories that must appear in the inventory to prove account-wide scope. */
   readonly expectedRepos?: readonly string[];
+  /**
+   * `public_repos` from `GET /user` against the count of public repositories the
+   * token enumerated. A mismatch proves a narrowed token; absent (null) means
+   * the check could not run and is not treated as a pass.
+   */
+  readonly publicRepoAudit?: { readonly reported: number | null; readonly enumerated: number };
 }
 
 export type HeadroomVerdict =
@@ -133,6 +153,22 @@ export function evaluateHeadroom(inputs: HeadroomInputs): HeadroomVerdict {
     };
   }
 
+  // The one scope proof the API can actually supply. `public_repos` on the user
+  // record is a property of the ACCOUNT, not of the token's repository scope, so
+  // a token that hides a public repository shows up here as a shortfall.
+  const audit = inputs.publicRepoAudit;
+  if (audit && audit.reported !== null && audit.enumerated < audit.reported) {
+    return {
+      ok: false,
+      reason:
+        `Account-wide capacity could not be verified: the account reports ` +
+        `${audit.reported} public repositories but the headroom token enumerated ` +
+        `only ${audit.enumerated}. The token is scoped to a subset of the account. ` +
+        `Re-issue HEADROOM_GITHUB_TOKEN with Actions:read and Metadata:read on ALL ` +
+        `repositories.`,
+    };
+  }
+
   const busy = inputs.repos.reduce((total, repo) => total + repo.activeJobs, 0);
   const free = inputs.ceiling - busy;
 
@@ -158,6 +194,7 @@ export function evaluateHeadroom(inputs: HeadroomInputs): HeadroomVerdict {
 export interface AccountRepo {
   readonly full_name: string;
   readonly archived: boolean;
+  readonly private: boolean;
 }
 
 /** Minimal shape of a workflow run as returned by `GET /repos/{repo}/actions/runs`. */
@@ -176,7 +213,18 @@ export interface WorkflowJob {
  */
 export type GitHubReader = (path: string) => Promise<unknown>;
 
-const ACTIVE_RUN_STATUSES = ['in_progress', 'queued'] as const;
+/**
+ * QUEUED IS READ FIRST, and the results are de-duplicated by run id.
+ *
+ * These are two separate API reads, so a run can move between them. Reading
+ * `in_progress` first loses a run that is queued at the first read and running
+ * by the second — it appears in neither result and its jobs vanish from the
+ * count, which at the capacity boundary admits a rehearsal that should have been
+ * refused. Reading `queued` first cannot lose a run: anything queued at T1 is
+ * already captured, and anything that starts after T1 is still running at T2.
+ * The same run legitimately appears in both reads, hence the dedup.
+ */
+const ACTIVE_RUN_STATUSES = ['queued', 'in_progress'] as const;
 const ACTIVE_JOB_STATUSES = new Set(['in_progress', 'queued']);
 
 const PAGE_SIZE = 100;
@@ -198,6 +246,7 @@ export interface CollectedCounts {
   readonly repos: readonly RepoJobCount[];
   readonly inventory: readonly string[];
   readonly unreadableRepos: readonly string[];
+  readonly publicRepoAudit: { readonly reported: number | null; readonly enumerated: number };
 }
 
 /**
@@ -249,12 +298,25 @@ export async function collectAccountJobCounts(options: CollectOptions): Promise<
       repos: [],
       inventory: [],
       unreadableRepos: [`<account repository inventory: ${describeError(error)}>`],
+      publicRepoAudit: { reported: null, enumerated: 0 },
     };
   }
 
   const named = inventory.filter(entry => typeof entry?.full_name === 'string');
   const repos: RepoJobCount[] = [];
   const unreadableRepos: string[] = [];
+
+  // Best-effort: `public_repos` is populated for any token, unlike the private
+  // counts. A read failure leaves `reported` null, which evaluateHeadroom treats
+  // as "check did not run" rather than as a pass.
+  let reportedPublicRepos: number | null = null;
+  try {
+    const profile = await options.read('user');
+    const value = (profile as { public_repos?: unknown })?.public_repos;
+    if (typeof value === 'number') reportedPublicRepos = value;
+  } catch {
+    reportedPublicRepos = null;
+  }
 
   for (const entry of named) {
     if (entry.archived) continue;
@@ -268,11 +330,19 @@ export async function collectAccountJobCounts(options: CollectOptions): Promise<
     }
   }
 
-  return { repos, inventory: named.map(entry => entry.full_name), unreadableRepos };
+  return {
+    repos,
+    inventory: named.map(entry => entry.full_name),
+    unreadableRepos,
+    publicRepoAudit: {
+      reported: reportedPublicRepos,
+      enumerated: named.filter(entry => entry.private === false).length,
+    },
+  };
 }
 
 async function countActiveJobs(fullName: string, options: CollectOptions): Promise<number> {
-  let active = 0;
+  const runIds = new Set<number>();
 
   for (const status of ACTIVE_RUN_STATUSES) {
     const runs = await readAllPages<WorkflowRun>(
@@ -280,16 +350,20 @@ async function countActiveJobs(fullName: string, options: CollectOptions): Promi
       page => `repos/${fullName}/actions/runs?status=${status}&per_page=${PAGE_SIZE}&page=${page}`,
       body => (body as { workflow_runs?: WorkflowRun[] })?.workflow_runs
     );
-
     for (const run of runs) {
       if (String(run.id) === options.currentRunId) continue;
-      const jobs = await readAllPages<WorkflowJob>(
-        options.read,
-        page => `repos/${fullName}/actions/runs/${run.id}/jobs?per_page=${PAGE_SIZE}&page=${page}`,
-        body => (body as { jobs?: WorkflowJob[] })?.jobs
-      );
-      active += jobs.filter(job => ACTIVE_JOB_STATUSES.has(job.status)).length;
+      runIds.add(run.id);
     }
+  }
+
+  let active = 0;
+  for (const runId of runIds) {
+    const jobs = await readAllPages<WorkflowJob>(
+      options.read,
+      page => `repos/${fullName}/actions/runs/${runId}/jobs?per_page=${PAGE_SIZE}&page=${page}`,
+      body => (body as { jobs?: WorkflowJob[] })?.jobs
+    );
+    active += jobs.filter(job => ACTIVE_JOB_STATUSES.has(job.status)).length;
   }
 
   return active;

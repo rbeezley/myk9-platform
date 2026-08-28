@@ -122,6 +122,28 @@ describe('evaluateHeadroom', () => {
     expect(verdictReason(verdict)).toContain('rbeezley/myk9show-launch-video');
   });
 
+  it('refuses when the account reports more public repos than the token can see', () => {
+    // The one scope proof the API supplies: `public_repos` is an account
+    // property, so a token hiding a public repository shows up as a shortfall.
+    const verdict = headroom({ publicRepoAudit: { reported: 3, enumerated: 1 } });
+
+    expect(verdict.ok).toBe(false);
+    expect(verdictReason(verdict)).toContain('reports 3 public repositories');
+    expect(verdictReason(verdict)).toContain('enumerated only 1');
+  });
+
+  it('does not refuse when the public-repo audit could not run', () => {
+    // `reported: null` means the profile read failed. That is a check that did
+    // not run, and the other guards still stand; it must not become a refusal
+    // that blocks every dispatch on a transient profile read.
+    expect(headroom({ publicRepoAudit: { reported: null, enumerated: 0 } }).ok).toBe(true);
+  });
+
+  it('accepts an enumeration ahead of the reported public count', () => {
+    // A repo made public between the two reads is not evidence of narrowing.
+    expect(headroom({ publicRepoAudit: { reported: 1, enumerated: 2 } }).ok).toBe(true);
+  });
+
   it('accepts repositories beyond the expected floor', () => {
     // The pinned set is a floor, not a ceiling: a repo created later is counted
     // without anyone having to update the list first.
@@ -154,6 +176,8 @@ function readerFor(routes: StubRoute, failing: readonly string[] = []) {
 }
 
 const inventoryPage = (page: number) => `user/repos?per_page=100&page=${page}&affiliation=owner`;
+/** Profile route; public_repos matches the public repos the stubs enumerate. */
+const userRoute = (publicRepos: number) => ({ user: { public_repos: publicRepos } });
 const runsPage = (repo: string, status: string, page: number) =>
   `repos/${repo}/actions/runs?status=${status}&per_page=100&page=${page}`;
 const jobsPage = (repo: string, runId: number, page: number) =>
@@ -170,9 +194,10 @@ function idleRepoRoutes(repo: string): StubRoute {
 describe('collectAccountJobCounts', () => {
   it('sums active jobs across every repository on the account', async () => {
     const routes: StubRoute = {
+      ...userRoute(1),
       [inventoryPage(1)]: [
-        { full_name: CURRENT, archived: false },
-        { full_name: SIBLING, archived: false },
+        { full_name: CURRENT, archived: false, private: false },
+        { full_name: SIBLING, archived: false, private: true },
       ],
       [runsPage(CURRENT, 'in_progress', 1)]: { workflow_runs: [{ id: 1 }, { id: 999 }] },
       [runsPage(CURRENT, 'queued', 1)]: { workflow_runs: [] },
@@ -195,11 +220,55 @@ describe('collectAccountJobCounts', () => {
       { fullName: SIBLING, activeJobs: 3 },
     ]);
     expect(collected.inventory).toEqual([CURRENT, SIBLING]);
+    // One public repo enumerated, one reported: the audit is satisfied.
+    expect(collected.publicRepoAudit).toEqual({ reported: 1, enumerated: 1 });
+  });
+
+  it('surfaces a public-repo shortfall from the live profile', async () => {
+    const routes: StubRoute = {
+      ...userRoute(4),
+      [inventoryPage(1)]: [{ full_name: CURRENT, archived: false, private: false }],
+      ...idleRepoRoutes(CURRENT),
+    };
+
+    const collected = await collectAccountJobCounts({
+      read: readerFor(routes),
+      currentRepo: CURRENT,
+      currentRunId: '1',
+    });
+
+    expect(collected.publicRepoAudit).toEqual({ reported: 4, enumerated: 1 });
+    expect(headroom({ ...collected }).ok).toBe(false);
+  });
+
+  it('leaves the audit unreported when the profile read fails', async () => {
+    const routes: StubRoute = {
+      [inventoryPage(1)]: [{ full_name: CURRENT, archived: false, private: false }],
+      ...idleRepoRoutes(CURRENT),
+    };
+    const base = readerFor(routes);
+
+    const collected = await collectAccountJobCounts({
+      // Exactly the profile route, not a prefix — 'user' as a prefix would also
+      // kill 'user/repos' and the inventory would be what failed instead.
+      read: async path => {
+        if (path === 'user') throw new Error('HTTP 403');
+        return base(path);
+      },
+      currentRepo: CURRENT,
+      currentRunId: '1',
+    });
+
+    // The inventory still read cleanly; only the audit is unavailable.
+    expect(collected.inventory).toEqual([CURRENT]);
+    expect(collected.unreadableRepos).toEqual([]);
+    expect(collected.publicRepoAudit.reported).toBeNull();
   });
 
   it('excludes the rehearsal run itself', async () => {
     const routes: StubRoute = {
-      [inventoryPage(1)]: [{ full_name: CURRENT, archived: false }],
+      ...userRoute(1),
+      [inventoryPage(1)]: [{ full_name: CURRENT, archived: false, private: false }],
       [runsPage(CURRENT, 'in_progress', 1)]: { workflow_runs: [{ id: 4242 }] },
       [runsPage(CURRENT, 'queued', 1)]: { workflow_runs: [] },
     };
@@ -215,9 +284,10 @@ describe('collectAccountJobCounts', () => {
 
   it('reports a repository it cannot read instead of counting it as idle', async () => {
     const routes: StubRoute = {
+      ...userRoute(1),
       [inventoryPage(1)]: [
-        { full_name: CURRENT, archived: false },
-        { full_name: SIBLING, archived: false },
+        { full_name: CURRENT, archived: false, private: false },
+        { full_name: SIBLING, archived: false, private: true },
       ],
       ...idleRepoRoutes(CURRENT),
     };
@@ -251,9 +321,10 @@ describe('collectAccountJobCounts', () => {
     // They cannot run Actions, so zero is right — but dropping them from the
     // inventory would make archiving a repo look like a narrowly-scoped token.
     const routes: StubRoute = {
+      ...userRoute(1),
       [inventoryPage(1)]: [
-        { full_name: CURRENT, archived: false },
-        { full_name: SIBLING, archived: true },
+        { full_name: CURRENT, archived: false, private: false },
+        { full_name: SIBLING, archived: true, private: true },
       ],
       ...idleRepoRoutes(CURRENT),
     };
@@ -269,15 +340,64 @@ describe('collectAccountJobCounts', () => {
     expect(collected.unreadableRepos).toEqual([]);
   });
 
+  describe('run-status transitions', () => {
+    it('reads queued before in_progress so a starting run cannot slip between them', async () => {
+      const seen: string[] = [];
+      const routes: StubRoute = {
+        ...userRoute(1),
+        [inventoryPage(1)]: [{ full_name: CURRENT, archived: false, private: false }],
+        ...idleRepoRoutes(CURRENT),
+      };
+      const base = readerFor(routes);
+
+      await collectAccountJobCounts({
+        read: async path => {
+          if (path.includes('/actions/runs?status=')) {
+            seen.push(path.includes('status=queued') ? 'queued' : 'in_progress');
+          }
+          return base(path);
+        },
+        currentRepo: CURRENT,
+        currentRunId: '1',
+      });
+
+      // in_progress first would lose a run that is queued at the first read and
+      // running by the second: it appears in neither result.
+      expect(seen).toEqual(['queued', 'in_progress']);
+    });
+
+    it('counts a run appearing in both status reads only once', async () => {
+      const routes: StubRoute = {
+        ...userRoute(1),
+        [inventoryPage(1)]: [{ full_name: CURRENT, archived: false, private: false }],
+        // The same run id in both lists — exactly what a queued -> in_progress
+        // transition between the two reads produces.
+        [runsPage(CURRENT, 'queued', 1)]: { workflow_runs: [{ id: 42 }] },
+        [runsPage(CURRENT, 'in_progress', 1)]: { workflow_runs: [{ id: 42 }] },
+        [jobsPage(CURRENT, 42, 1)]: { jobs: [{ status: 'in_progress' }, { status: 'queued' }] },
+      };
+
+      const collected = await collectAccountJobCounts({
+        read: readerFor(routes),
+        currentRepo: CURRENT,
+        currentRunId: '1',
+      });
+
+      expect(collected.repos).toEqual([{ fullName: CURRENT, activeJobs: 2 }]);
+    });
+  });
+
   describe('pagination', () => {
     it('follows every page of the repository inventory', async () => {
       const firstPage = Array.from({ length: 100 }, (_, index) => ({
         full_name: `rbeezley/filler-${index}`,
         archived: true,
+        private: true,
       }));
       const routes: StubRoute = {
+        ...userRoute(1),
         [inventoryPage(1)]: firstPage,
-        [inventoryPage(2)]: [{ full_name: CURRENT, archived: false }],
+        [inventoryPage(2)]: [{ full_name: CURRENT, archived: false, private: false }],
         ...idleRepoRoutes(CURRENT),
       };
 
@@ -302,7 +422,8 @@ describe('collectAccountJobCounts', () => {
         ])
       );
       const routes: StubRoute = {
-        [inventoryPage(1)]: [{ full_name: CURRENT, archived: false }],
+        ...userRoute(1),
+        [inventoryPage(1)]: [{ full_name: CURRENT, archived: false, private: false }],
         [runsPage(CURRENT, 'in_progress', 1)]: { workflow_runs: fullRunPage },
         [runsPage(CURRENT, 'in_progress', 2)]: { workflow_runs: [{ id: 101 }] },
         [runsPage(CURRENT, 'queued', 1)]: { workflow_runs: [] },
@@ -320,7 +441,8 @@ describe('collectAccountJobCounts', () => {
 
     it('follows every page of a run’s jobs', async () => {
       const routes: StubRoute = {
-        [inventoryPage(1)]: [{ full_name: CURRENT, archived: false }],
+        ...userRoute(1),
+        [inventoryPage(1)]: [{ full_name: CURRENT, archived: false, private: false }],
         [runsPage(CURRENT, 'in_progress', 1)]: { workflow_runs: [{ id: 5 }] },
         [runsPage(CURRENT, 'queued', 1)]: { workflow_runs: [] },
         [jobsPage(CURRENT, 5, 1)]: {
@@ -346,6 +468,7 @@ describe('collectAccountJobCounts', () => {
           return Array.from({ length: 100 }, (_, index) => ({
             full_name: `rbeezley/endless-${index}`,
             archived: true,
+            private: true,
           }));
         }
         throw new Error(`unexpected path: ${path}`);

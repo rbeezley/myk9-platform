@@ -67,6 +67,27 @@ interface TableWatermark {
 export class LoadVirtualUser {
   private readonly client: SupabaseClient;
   private readonly watermarks = new Map<string, TableWatermark>();
+  /**
+   * EVERY poll still running, not just the newest.
+   *
+   * A sync slower than the interval — the overload case, and the last rehearsal
+   * measured ~140s syncs against a 60s cadence — means the next tick starts
+   * another while the first is unfinished. A single handle let drain() wait only
+   * for the last one, so older requests settled after the metrics and lifecycle
+   * were captured and kept reaching shared staging past the workload boundary.
+   */
+  private readonly inFlight = new Set<Promise<void>>();
+
+  /**
+   * Cancels outstanding requests at the workload boundary.
+   *
+   * Draining by WAITING was itself a defect: a fetch that never settles blocks
+   * until the 55-minute shard timeout, so the run writes no artifact at all; the
+   * wait also folds the poll's latency into elapsedMs and lets requests keep
+   * reaching shared staging after the approved window closed. Aborting ends all
+   * three — the boundary is a boundary, not a request to please finish.
+   */
+  private readonly abort = new AbortController();
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
@@ -109,19 +130,35 @@ export class LoadVirtualUser {
   private async timed<T>(
     table: string,
     run: () => PromiseLike<{ data: unknown; error: { message: string } | null }>
-  ): Promise<{ sample: VirtualUserRequestSample; rows: T[] }> {
+  ): Promise<{ sample?: VirtualUserRequestSample; rows: T[] }> {
+    // A pass aborted mid-flight must not issue its remaining queries: those are
+    // precisely the requests that would reach shared staging after the window.
+    // No sample at all: a request the harness cancelled is not an observation of
+    // the system. Recording it as a failure invents failures the target never
+    // produced — with a 60s cadence over 600s the last tick commonly straddles
+    // the boundary, so every reader would contribute three, which across the
+    // fleet is enough to push availability under its target on a healthy run.
+    if (this.abort.signal.aborted) return { rows: [] };
     const startedAt = Date.now();
     try {
       const { data, error } = await run();
       const durationMs = Date.now() - startedAt;
       if (error) {
+        // supabase-js converts a rejected fetch into an `error` result rather
+        // than throwing, so the abort arrives here rather than in the catch.
+        if (this.abort.signal.aborted) return { rows: [] };
         return { sample: { table, durationMs, ok: false, status: 0 }, rows: [] };
       }
       return {
         sample: { table, durationMs, ok: true, status: 200 },
         rows: (data ?? []) as T[],
       };
-    } catch {
+    } catch (error) {
+      // Same reasoning for a request aborted mid-flight rather than before it
+      // began: the cancellation is ours, not a defect in the target.
+      if (this.abort.signal.aborted || (error as { name?: string })?.name === 'AbortError') {
+        return { rows: [] };
+      }
       return {
         sample: { table, durationMs: Date.now() - startedAt, ok: false, status: 0 },
         rows: [],
@@ -141,9 +178,9 @@ export class LoadVirtualUser {
         .gt('updated_at', this.sinceIso('classes'))
         .order('updated_at', { ascending: true });
       if (this.options.trialId) query = query.eq('trial_id', this.options.trialId);
-      return query;
+      return query.abortSignal(this.abort.signal);
     });
-    samples.push(classes.sample);
+    if (classes.sample) samples.push(classes.sample);
     this.advance('classes', classes.rows);
     rows += classes.rows.length;
 
@@ -156,8 +193,9 @@ export class LoadVirtualUser {
           .gt('updated_at', this.sinceIso('view_authenticated_entry_results'))
           .order('updated_at', { ascending: true })
           .eq('show_id', this.options.showId)
+          .abortSignal(this.abort.signal)
     );
-    samples.push(entries.sample);
+    if (entries.sample) samples.push(entries.sample);
     this.advance('view_authenticated_entry_results', entries.rows);
     rows += entries.rows.length;
 
@@ -170,25 +208,53 @@ export class LoadVirtualUser {
       // Staff have no owner scope, so their dog sync is unscoped and pulls deltas
       // from every show on the platform. That cost is a thing under test.
       if (this.options.ownerId) query = query.eq('owner_id', this.options.ownerId);
-      return query;
+      return query.abortSignal(this.abort.signal);
     });
-    samples.push(dogs.sample);
+    if (dogs.sample) samples.push(dogs.sample);
     this.advance('dogs', dogs.rows);
     rows += dogs.rows.length;
 
     return { samples, rows };
   }
 
-  start(onSync: (result: VirtualUserSyncResult) => void): void {
+  start(
+    onSync: (result: VirtualUserSyncResult) => void,
+    onError?: (error: unknown) => void
+  ): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
-      void this.syncOnce().then(onSync);
+      const pending: Promise<void> = this.syncOnce()
+        .then(onSync, error => onError?.(error))
+        .finally(() => {
+          this.inFlight.delete(pending);
+        });
+      this.inFlight.add(pending);
     }, VIRTUAL_USER_SYNC_INTERVAL_MS);
   }
 
   stop(): void {
-    if (!this.timer) return;
-    clearInterval(this.timer);
-    this.timer = undefined;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = undefined;
+    }
+    // Abort AFTER clearing the interval so no new poll can be scheduled.
+    if (!this.abort.signal.aborted) this.abort.abort();
+  }
+
+  /**
+   * Settles a poll that was already running when stop() was called.
+   *
+   * stop() only clears future ticks; the request in flight resolves afterwards.
+   * Without this its samples miss the observation and its failure lands after the
+   * fleet has already reported outcomes — most likely at the 600 s boundary,
+   * since the cadence is 60 s (MYK9-126).
+   */
+  async drain(): Promise<void> {
+    // Bounded because stop() aborted every outstanding request: these settle as
+    // AbortErrors rather than hanging. Looping because settling one poll can
+    // leave others outstanding.
+    while (this.inFlight.size > 0) {
+      await Promise.all([...this.inFlight]);
+    }
   }
 }

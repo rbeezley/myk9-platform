@@ -13,5 +13,5 @@
 
 - [x] 3.1 Run the focused At-Show and replication-helper unit tests, the myK9Show test suite where practical, plus app typecheck/lint, and verify all changed logic compiles and passes; stop and report any suite hang beyond 60 seconds.
 - [x] 3.2 Run OpenSpec implementation verification, review the diff for unrelated changes and offline/RBAC regressions, and resolve all critical findings.
-- [ ] 3.3 Open a PR linked to MYK9-250 with acceptance evidence, obtain green CI and review, merge when authorized, then update Linear with the PR, merge commit, tests, risks, and acceptance result.
-- [ ] 3.4 After merge, sync the delta spec if approved, archive the OpenSpec change, and clean up the feature branch/worktree with worktree removal as the final command.
+- [x] 3.3 Open a PR linked to MYK9-250 with acceptance evidence, obtain green CI and review, merge when authorized, then update Linear with the PR, merge commit, tests, risks, and acceptance result.
+- [x] 3.4 After merge, sync the delta spec if approved, archive the OpenSpec change, and clean up the feature branch/worktree with worktree removal as the final command.

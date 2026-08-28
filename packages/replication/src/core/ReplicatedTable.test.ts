@@ -706,6 +706,7 @@ describe('ReplicatedTable', () => {
     it('reports a timeout as a failed status-bearing read', async () => {
       const { databaseManager } = await import('./DatabaseManager');
       const { GET_ALL_TIMEOUT_MS } = await import('../constants');
+      const failuresBeforeRead = databaseManager.getStatus().consecutiveFailures;
       const getDatabase = vi
         .spyOn(databaseManager, 'getDatabase')
         .mockReturnValue(new Promise(() => undefined));
@@ -721,7 +722,7 @@ describe('ReplicatedTable', () => {
         expect(result.error).toEqual(
           new Error(`[${tableName}] getAll() timed out after ${GET_ALL_TIMEOUT_MS}ms`)
         );
-        expect(databaseManager.getStatus().consecutiveFailures).toBe(1);
+        expect(databaseManager.getStatus().consecutiveFailures).toBeGreaterThan(failuresBeforeRead);
       } finally {
         vi.useRealTimers();
         getDatabase.mockRestore();

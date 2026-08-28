@@ -608,47 +608,66 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
     reportDebug('store', 'Initializing replicated table subscriptions for trials/classes');
 
     // Subscribe to trial changes
-    const unsubTrials = replicatedTrialsTable.subscribe(trials => {
-      const currentTrials = get().trials;
-      const mergedTrials = trials.map(replicated => {
-        const existing = currentTrials.find(t => t.id === replicated.id);
-        return mergeTrialData(replicated, existing);
-      });
-      set({
-        trials: mergedTrials,
-        trialsReadStatus: 'ready',
-        trialsReadError: null,
-        trialsHasConfirmedSnapshot: true,
-      });
-      reportDebug('store', 'Trials updated from replicated table', { count: mergedTrials.length });
-    });
+    const unsubTrials = replicatedTrialsTable.subscribe(
+      trials => {
+        const currentTrials = get().trials;
+        const mergedTrials = trials.map(replicated => {
+          const existing = currentTrials.find(t => t.id === replicated.id);
+          return mergeTrialData(replicated, existing);
+        });
+        set({
+          trials: mergedTrials,
+          trialsReadStatus: 'ready',
+          trialsReadError: null,
+          trialsHasConfirmedSnapshot: true,
+        });
+        reportDebug('store', 'Trials updated from replicated table', {
+          count: mergedTrials.length,
+        });
+      },
+      {
+        onError: error => {
+          const message = error instanceof Error ? error.message : 'Failed to refresh trials';
+          set({ trialsReadStatus: 'error', trialsReadError: message });
+        },
+      }
+    );
 
     // Subscribe to class changes — group by trialId
-    const unsubClasses = replicatedClassesTable.subscribe(classes => {
-      const currentClasses = get().trialClasses;
-      const grouped: Record<string, SyncableTrialClass[]> = {};
+    const unsubClasses = replicatedClassesTable.subscribe(
+      classes => {
+        const currentClasses = get().trialClasses;
+        const grouped: Record<string, SyncableTrialClass[]> = {};
 
-      for (const replicated of classes) {
-        const trialId = replicated.trialId || replicated.trial_id;
-        if (!trialId) continue;
+        for (const replicated of classes) {
+          const trialId = replicated.trialId || replicated.trial_id;
+          if (!trialId) continue;
 
-        const existing = currentClasses[trialId]?.find(c => c.id === replicated.id);
-        const merged = mergeTrialClassData(replicated, existing);
+          const existing = currentClasses[trialId]?.find(c => c.id === replicated.id);
+          const merged = mergeTrialClassData(replicated, existing);
 
-        if (!grouped[trialId]) grouped[trialId] = [];
-        grouped[trialId].push(merged);
+          if (!grouped[trialId]) grouped[trialId] = [];
+          grouped[trialId].push(merged);
+        }
+
+        set({
+          trialClasses: grouped,
+          trialClassesReadStatus: 'ready',
+          trialClassesReadError: null,
+          trialClassesHasConfirmedSnapshot: true,
+        });
+        reportDebug('store', 'Trial classes updated from replicated table', {
+          trialCount: Object.keys(grouped).length,
+        });
+      },
+      {
+        onError: error => {
+          const message =
+            error instanceof Error ? error.message : 'Failed to refresh trial classes';
+          set({ trialClassesReadStatus: 'error', trialClassesReadError: message });
+        },
       }
-
-      set({
-        trialClasses: grouped,
-        trialClassesReadStatus: 'ready',
-        trialClassesReadError: null,
-        trialClassesHasConfirmedSnapshot: true,
-      });
-      reportDebug('store', 'Trial classes updated from replicated table', {
-        trialCount: Object.keys(grouped).length,
-      });
-    });
+    );
 
     set({ _unsubscribe: unsubTrials, _unsubscribeClasses: unsubClasses });
 

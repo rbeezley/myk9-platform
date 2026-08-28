@@ -26,6 +26,11 @@ export interface ReplicatedTableSubscriptionOptions {
    * Defaults to true for backward compatibility.
    */
   emitCurrent?: boolean;
+
+  /**
+   * Receive snapshot read failures without changing the legacy row callback.
+   */
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -34,6 +39,7 @@ export interface ReplicatedTableSubscriptionOptions {
  */
 export class ReplicatedTableCacheManager<T extends { id: string }> {
   private listeners: Set<(data: T[]) => void> = new Set();
+  private listenerErrorCallbacks = new Map<(data: T[]) => void, (error: unknown) => void>();
   private notifyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private hasNotifiedLeadingEdge: boolean = false;
 
@@ -305,18 +311,29 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   ): () => void {
     let isActive = true;
     this.listeners.add(callback);
+    if (options.onError) {
+      this.listenerErrorCallbacks.set(callback, options.onError);
+    }
     if (options.emitCurrent !== false) {
       this.getAllData()
         .then(result => {
-          if (isActive && result.ok) {
+          if (!isActive) return;
+
+          if (result.ok) {
             callback(result.rows);
+          } else {
+            options.onError?.(result.error);
           }
         })
-        .catch(this.logger.error);
+        .catch(error => {
+          this.logger.error(error);
+          if (isActive) options.onError?.(error);
+        });
     }
     return () => {
       isActive = false;
       this.listeners.delete(callback);
+      this.listenerErrorCallbacks.delete(callback);
     };
   }
 
@@ -347,7 +364,16 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
 
   private async actuallyNotifyListeners(): Promise<void> {
     const result = await this.getAllData();
-    if (!result.ok) return;
+    if (!result.ok) {
+      this.listenerErrorCallbacks.forEach(onError => {
+        Promise.resolve()
+          .then(() => onError(result.error))
+          .catch(error => {
+            this.logger.error(`[${this.tableName}] Listener error callback failed:`, error);
+          });
+      });
+      return;
+    }
 
     this.listeners.forEach(callback => {
       Promise.resolve()

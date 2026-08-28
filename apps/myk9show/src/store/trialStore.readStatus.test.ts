@@ -4,16 +4,28 @@ import type { ReplicatedClass, ReplicatedTrial } from '@/services/replication';
 const replicationMocks = vi.hoisted(() => ({
   classesGetAllWithStatus: vi.fn(),
   trialsGetAllWithStatus: vi.fn(),
+  classesSubscribe: vi.fn<
+    (
+      callback: (rows: unknown[]) => void,
+      options?: { onError?: (error: unknown) => void }
+    ) => () => void
+  >(() => vi.fn()),
+  trialsSubscribe: vi.fn<
+    (
+      callback: (rows: unknown[]) => void,
+      options?: { onError?: (error: unknown) => void }
+    ) => () => void
+  >(() => vi.fn()),
 }));
 
 vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: {
     getAllWithStatus: replicationMocks.trialsGetAllWithStatus,
-    subscribe: vi.fn(() => vi.fn()),
+    subscribe: replicationMocks.trialsSubscribe,
   },
   replicatedClassesTable: {
     getAllWithStatus: replicationMocks.classesGetAllWithStatus,
-    subscribe: vi.fn(() => vi.fn()),
+    subscribe: replicationMocks.classesSubscribe,
   },
 }));
 
@@ -56,6 +68,8 @@ describe('trialStore replicated read status', () => {
     useTrialStore.setState(useTrialStore.getInitialState(), true);
     replicationMocks.trialsGetAllWithStatus.mockReset();
     replicationMocks.classesGetAllWithStatus.mockReset();
+    replicationMocks.trialsSubscribe.mockClear();
+    replicationMocks.classesSubscribe.mockClear();
   });
 
   it('records a successful confirmed-empty snapshot independently for each dataset', async () => {
@@ -180,5 +194,42 @@ describe('trialStore replicated read status', () => {
       trialClassesReadError: null,
       trialClassesHasConfirmedSnapshot: true,
     });
+  });
+
+  it('marks confirmed snapshots stale when subscription refresh reads fail', async () => {
+    replicationMocks.trialsGetAllWithStatus.mockResolvedValue({
+      ok: true,
+      rows: [TRIAL],
+      error: null,
+    });
+    replicationMocks.classesGetAllWithStatus.mockResolvedValue({
+      ok: true,
+      rows: [TRIAL_CLASS],
+      error: null,
+    });
+
+    useTrialStore.getState().initializeSubscription();
+    await vi.waitFor(() => {
+      expect(readState()).toMatchObject({
+        trialsReadStatus: 'ready',
+        trialClassesReadStatus: 'ready',
+      });
+    });
+
+    const trialOptions = replicationMocks.trialsSubscribe.mock.calls[0]?.[1];
+    const classOptions = replicationMocks.classesSubscribe.mock.calls[0]?.[1];
+    trialOptions?.onError?.(new Error('Trial subscription read failed'));
+    classOptions?.onError?.(new Error('Class subscription read failed'));
+
+    expect(readState()).toMatchObject({
+      trialsReadStatus: 'error',
+      trialsReadError: 'Trial subscription read failed',
+      trialsHasConfirmedSnapshot: true,
+      trialClassesReadStatus: 'error',
+      trialClassesReadError: 'Class subscription read failed',
+      trialClassesHasConfirmedSnapshot: true,
+    });
+    expect(useTrialStore.getState().trials).toHaveLength(1);
+    expect(useTrialStore.getState().trialClasses['trial-1']).toHaveLength(1);
   });
 });

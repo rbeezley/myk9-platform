@@ -49,18 +49,69 @@ function latestDefinitions(): Map<string, { file: string; body: string }> {
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(sql)) !== null) {
       const name = match[1];
-      // Body runs to the next function declaration or end of file.
       const start = match.index;
       pattern.lastIndex = match.index + match[0].length;
-      const nextIndex = sql
-        .slice(pattern.lastIndex)
-        .search(/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s/i);
-      const end = nextIndex === -1 ? sql.length : pattern.lastIndex + nextIndex;
+
+      // Terminate at the function's own dollar-quoted body, NOT at the next
+      // function declaration. Running to the next declaration swept in whatever
+      // followed — on the first run this attributed a trailing
+      // `entry_status_history_select` POLICY to record_entry_status_history,
+      // which calls no helper at all.
+      const rest = sql.slice(pattern.lastIndex);
+      const tagMatch = /AS\s+(\$[a-zA-Z_]*\$)/.exec(rest);
+      let end: number;
+      if (tagMatch) {
+        const tag = tagMatch[1];
+        const bodyStart = pattern.lastIndex + tagMatch.index + tagMatch[0].length;
+        const closing = sql.indexOf(tag, bodyStart);
+        end = closing === -1 ? sql.length : closing + tag.length;
+      } else {
+        const nextIndex = rest.search(/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s/i);
+        end = nextIndex === -1 ? sql.length : pattern.lastIndex + nextIndex;
+      }
       latest.set(name, { file, body: sql.slice(start, end) });
     }
   }
   return latest;
 }
+
+/**
+ * Call sites that pass a nullable `club_id` column to a club-scoped helper, and
+ * have been reviewed.
+ *
+ * A REGISTRY, not a heuristic. Three text heuristics were tried and each was
+ * wrong in one direction or the other:
+ *
+ *   * whole-body search  — a guarded is_club_admin call satisfied the check on
+ *     behalf of an UNguarded is_trial_secretary call in the same function
+ *   * fixed window before the call — the window reached back into the previous
+ *     conjunct, which carries its own guard
+ *   * nearest-OR conjunct — flagged can_manage_show_lifecycle_email, which is
+ *     correctly guarded with the test placed before the whole (a OR b) group
+ *
+ * SQL boolean structure needs a parser, and a half-right parser on an
+ * authorization check is worse than none: it produces confident wrong answers
+ * in both directions. So this asserts something a regex CAN decide — WHICH call
+ * sites exist. A new one fails the test, and a human reads the actual SQL and
+ * adds it here. That is the protection that matters, because the defect's
+ * character is that nobody notices the call site at all.
+ */
+const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
+  // Guarded by 20260828230000 (MYK9-258).
+  'can_manage_show -> is_club_admin',
+  'can_manage_show -> is_trial_secretary',
+  'can_manage_trial -> is_club_admin',
+  'can_manage_trial -> is_trial_secretary',
+  'manageable_show_ids -> is_club_admin',
+  'manageable_show_ids -> is_trial_secretary',
+  'is_show_office_manager -> is_club_admin',
+  'is_show_office_manager -> is_trial_secretary',
+  'get_entries_for_export -> is_trial_secretary',
+  // Already guarded before MYK9-258; the source of the idiom.
+  'get_show_officials -> is_club_admin',
+  'can_manage_show_lifecycle_email -> is_club_admin',
+  'can_manage_show_lifecycle_email -> is_trial_secretary',
+];
 
 describe('club-scoped authorization helpers are never handed a bare club_id column', () => {
   const definitions = latestDefinitions();
@@ -73,10 +124,10 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
     expect(definitions.has('can_manage_show')).toBe(true);
   });
 
-  it('guards every argumented call with an IS NOT NULL test', () => {
-    const offenders: string[] = [];
+  it('surfaces any NEW call site for review', () => {
+    const found = new Set<string>();
 
-    for (const [name, { file, body }] of definitions) {
+    for (const [name, { body }] of definitions) {
       // The helpers themselves legitimately compare against their own parameter.
       if (name === 'is_club_admin' || name === 'is_trial_secretary') continue;
 
@@ -84,21 +135,16 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
         const argument = call[2];
         // The no-argument form is the intended "anywhere?" question.
         if (argument === '') continue;
-        // Only a column reference can be NULL at runtime here; a literal or a
-        // function parameter named check_club_id is the caller's own choice.
+        // Only a column reference can be NULL at runtime; a literal or a
+        // parameter named check_club_id is the caller's own choice.
         if (!/^[a-z_][a-z0-9_]*\.club_id$/i.test(argument)) continue;
-
-        const alias = argument.split('.')[0];
-        const guarded =
-          new RegExp(`${alias}\\.club_id\\s+IS\\s+NOT\\s+NULL`, 'i').test(body) ||
-          new RegExp(`${alias}\\.club_id\\s+is\\s+not\\s+null`).test(body);
-        if (!guarded) {
-          offenders.push(`${name} (${file}) passes ${argument} to ${call[1]} unguarded`);
-        }
+        found.add(`${name} -> ${call[1]}`);
       }
     }
 
-    expect(offenders).toEqual([]);
+    // Read the SQL before adding an entry: the guard belongs in the call's own
+    // boolean branch, as `<alias>.club_id IS NOT NULL AND …`.
+    expect([...found].sort()).toEqual([...REVIEWED_CLUB_HELPER_CALL_SITES].sort());
   });
 
   it('still finds the guard on the two callers that always had it', () => {

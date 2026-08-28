@@ -246,32 +246,80 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4. A show-scoped grant still reaches a club-less show
+-- 4. The show-scoped arm still works
 --
--- The show-scoped arm matches on ur.show_id and says nothing about clubs, so it
--- must keep working. Without this the guard could hide the show from someone
--- explicitly granted it — the opposite failure, equally wrong.
+-- This case originally granted a show-scoped secretary role on the CLUB-LESS
+-- show, to prove the guard had not broken that arm. CI rejected it:
+--
+--   club_id is required for role "secretary" — secretary and club_admin roles
+--   must be scoped to a club
+--
+-- So that state is unreachable: a show-scoped secretary grant always carries a
+-- club, and the show-scoped arm therefore cannot reach a club-less show at all.
+-- The original case was asserting something the schema forbids.
+--
+-- What is worth pinning is the opposite risk — that the new `club_id IS NOT
+-- NULL` guards did not narrow the show-scoped arm for shows that DO have a
+-- club. A secretary of club B, with no membership or role in club A, reaches
+-- club A's show only through their explicit show-scoped grant.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.user_roles (user_id, role_id, show_id, is_active, auth_user_id)
+INSERT INTO public.clubs (id, name)
+VALUES ('00000000-0000-0000-0000-000000000c02', 'MYK9-258 Club B');
+
+INSERT INTO public.people (id, first_name, last_name, auth_user_id)
+VALUES (
+  '00000000-0000-0000-0000-000000000c13',
+  'Club B',
+  'Secretary',
+  '00000000-0000-0000-0000-000000000c23'
+);
+
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES (
+  '00000000-0000-0000-0000-000000000c02',
+  '00000000-0000-0000-0000-000000000c13',
+  'active'
+);
+
+-- club_id is club B (the schema requires one); show_id points at club A's show.
+INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
 SELECT
-  '00000000-0000-0000-0000-000000000c11',
+  '00000000-0000-0000-0000-000000000c13',
   id,
-  '00000000-0000-0000-0000-000000000c32',
+  '00000000-0000-0000-0000-000000000c02',
+  '00000000-0000-0000-0000-000000000c31',
   true,
-  '00000000-0000-0000-0000-000000000c21'
+  '00000000-0000-0000-0000-000000000c23'
 FROM public.roles
 WHERE name = 'secretary';
+
+SELECT set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000c23',
+  true
+);
 
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.manageable_show_ids() m
+    WHERE m = '00000000-0000-0000-0000-000000000c31'
+  ) THEN
+    RAISE EXCEPTION
+      'FAIL 4.1 an explicit show-scoped grant no longer reaches its show';
+  END IF;
+  RAISE NOTICE 'PASS 4.1 an explicit show-scoped grant still reaches its show';
+
+  -- And the guard still holds for someone who reached a show this way: their
+  -- club-B secretary role must not hand them the club-less show.
+  IF EXISTS (
+    SELECT 1 FROM public.manageable_show_ids() m
     WHERE m = '00000000-0000-0000-0000-000000000c32'
   ) THEN
     RAISE EXCEPTION
-      'FAIL 4.1 an explicit show-scoped grant no longer reaches a club-less show';
+      'FAIL 4.2 a show-scoped grantee also received the club-less show (MYK9-258)';
   END IF;
-  RAISE NOTICE 'PASS 4.1 an explicit show-scoped grant still reaches a club-less show';
+  RAISE NOTICE 'PASS 4.2 a show-scoped grantee does not receive the club-less show';
 END;
 $$;
 

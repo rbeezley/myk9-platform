@@ -89,6 +89,7 @@ async function main(): Promise<void> {
     required,
     currentRepo,
     repos: collected.repos,
+    inventory: collected.inventory,
     unreadableRepos: collected.unreadableRepos,
   });
 

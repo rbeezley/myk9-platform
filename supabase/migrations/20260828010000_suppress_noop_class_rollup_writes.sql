@@ -45,19 +45,26 @@ BEGIN;
 -- Column list is unchanged; only the WHEN clause is added. search_time_seconds,
 -- total_faults and points_earned stay in the list because completion calls
 -- recalculate_class_placements, which ranks on them.
+-- TG_OP is NOT available in a trigger WHEN clause — only inside the function
+-- body — so the operations are split. A WHEN clause on INSERT can reference only
+-- NEW and on DELETE only OLD, which makes one guarded trigger across all three
+-- operations impossible regardless.
+--
+-- The UPDATE trigger keeps the original name so every contract and grep that
+-- looks for it still resolves, and is declared FIRST so a slice anchored on that
+-- name reads the guarded one.
 DROP TRIGGER IF EXISTS entries_refresh_class_scoring_state ON public.entries;
+DROP TRIGGER IF EXISTS entries_refresh_class_scoring_state_insert_delete ON public.entries;
 
 CREATE TRIGGER entries_refresh_class_scoring_state
-AFTER INSERT OR DELETE OR UPDATE OF
+AFTER UPDATE OF
   class_id, entry_status, check_in_status, deleted_at, is_scored, result_status,
   search_time_seconds, total_faults, points_earned
 ON public.entries
 FOR EACH ROW
 WHEN (
-  -- INSERT and DELETE always re-derive: the expected set itself changed.
-  TG_OP <> 'UPDATE'
   -- Any of these can move a row between the counted sets.
-  OR OLD.class_id IS DISTINCT FROM NEW.class_id
+  OLD.class_id IS DISTINCT FROM NEW.class_id
   OR OLD.entry_status IS DISTINCT FROM NEW.entry_status
   OR OLD.deleted_at IS DISTINCT FROM NEW.deleted_at
   OR OLD.is_scored IS DISTINCT FROM NEW.is_scored
@@ -73,6 +80,13 @@ WHEN (
     AND ('pulled' IN (OLD.check_in_status, NEW.check_in_status))
   )
 )
+EXECUTE FUNCTION public.handle_entry_scoring_state_change();
+
+-- INSERT and DELETE always re-derive: the expected set itself changed, so there
+-- is nothing to guard against.
+CREATE TRIGGER entries_refresh_class_scoring_state_insert_delete
+AFTER INSERT OR DELETE ON public.entries
+FOR EACH ROW
 EXECUTE FUNCTION public.handle_entry_scoring_state_change();
 
 -- ---------------------------------------------------------------------------

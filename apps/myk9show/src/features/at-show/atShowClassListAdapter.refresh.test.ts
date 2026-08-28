@@ -18,6 +18,7 @@ function makeGroups(): AtShowClassGroup[] {
         toClassEntry(
           {
             id: 'class-1',
+            name: 'Novice Container',
             element: 'Container',
             level: 'Novice',
             classStatus: 'in_progress',

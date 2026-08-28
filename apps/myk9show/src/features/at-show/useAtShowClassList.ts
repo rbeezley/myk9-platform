@@ -131,11 +131,13 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
         : classHydrationQuery.data === true
           ? 'hydrated'
           : 'incomplete',
-    // Refetch both queries: `error` surfaces whichever failed, so a retry
-    // that only refetched groups would no-op on a show-metadata failure.
+    // Retry every active source that can produce the current empty/error UI.
+    // Hydration metadata has its own key and does not refetch merely because
+    // the unchanged group structure was fetched again.
     refresh: () => {
       void groupsQuery.refetch();
       void showQuery.refetch();
+      if (shouldCheckClassHydration) void classHydrationQuery.refetch();
     },
   };
 }

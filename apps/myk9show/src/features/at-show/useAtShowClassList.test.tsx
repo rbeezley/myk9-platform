@@ -21,6 +21,7 @@ vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn(),
+    getSyncMetadata: vi.fn(),
     subscribe: vi.fn((callback: () => void) => {
       subscriptions.trials = callback;
       return stops.trials;
@@ -28,6 +29,7 @@ vi.mock('@/services/replication', () => ({
   },
   replicatedClassesTable: {
     getClassesByTrial: vi.fn(),
+    getSyncMetadata: vi.fn(),
     subscribe: vi.fn((callback: () => void) => {
       subscriptions.classes = callback;
       return stops.classes;
@@ -142,5 +144,26 @@ describe('useAtShowClassList entry refresh', () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: ['at-show', 'classlist', 'show-1'],
     });
+  });
+
+  it('retries failed hydration metadata when the user refreshes', async () => {
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([]);
+    vi.mocked(replicatedTrialsTable.getSyncMetadata)
+      .mockRejectedValueOnce(new Error('metadata unavailable'))
+      .mockResolvedValue({ expectedRemoteRows: 1 } as never);
+    vi.mocked(replicatedClassesTable.getSyncMetadata).mockResolvedValue({
+      expectedRemoteRows: 0,
+    } as never);
+    const client = makeClient();
+    const { result } = renderHook(() => useAtShowClassList('show-1'), {
+      wrapper: wrapper(client),
+    });
+
+    await waitFor(() => expect(result.current.classDataHydration).toBe('incomplete'));
+
+    await act(async () => result.current.refresh());
+
+    await waitFor(() => expect(result.current.classDataHydration).toBe('hydrated'));
+    expect(replicatedTrialsTable.getSyncMetadata).toHaveBeenCalledTimes(2);
   });
 });

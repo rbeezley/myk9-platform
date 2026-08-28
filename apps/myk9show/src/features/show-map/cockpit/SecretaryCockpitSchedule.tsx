@@ -153,7 +153,12 @@ export function SecretaryCockpitSchedule({
                           className={cn(
                             'grid cursor-pointer gap-3 px-4 py-4 transition-colors hover:bg-muted/40 sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center',
                             focused &&
-                              'bg-primary/10 shadow-[inset_4px_0_0_hsl(var(--primary)),inset_0_0_0_1px_hsl(var(--primary)/0.55)] hover:bg-primary/10'
+                              // `--primary` is a HEX (#a8472d / #d97757), not HSL channels, so
+                            // `hsl(var(--primary))` was invalid and the browser
+                            // discarded the WHOLE box-shadow: the focused row has
+                            // never had its 4px bar or its ring, in either theme.
+                            // Only `bg-primary/10` was ever visible.
+                            'bg-primary/10 shadow-[inset_4px_0_0_var(--primary)] ring-1 ring-inset ring-primary/55 hover:bg-primary/10'
                           )}
                         >
                           <div onClick={event => event.stopPropagation()}>
@@ -194,9 +199,13 @@ export function SecretaryCockpitSchedule({
                               <ClassStatusControl
                                 classId={classItem.id}
                                 lifecycle={classItem.lifecycle.value}
+                                // `null`, not 0, when progress is unknown --
+                                // ClassStatusControl confirms on unknown, and
+                                // passing 0 here would silently disable the
+                                // guard exactly when it is needed most.
                                 unenteredScoreCount={
                                   classItem.progress.value === null
-                                    ? 0
+                                    ? null
                                     : Math.max(
                                         0,
                                         classItem.progress.value.total -

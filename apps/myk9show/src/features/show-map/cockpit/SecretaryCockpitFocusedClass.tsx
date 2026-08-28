@@ -34,6 +34,8 @@ function PaperworkRow({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const current = item.state === 'current';
   const stale = item.state === 'stale';
+  /** The print records could not be read, so absence of a record proves nothing. */
+  const printStateUnknown = item.state === 'unknown';
   const recordAsPrinted = async () => {
     if (!user || !item.confirmation) return;
     setIsRecording(true);
@@ -79,7 +81,9 @@ function PaperworkRow({
           <div className="mt-1 text-xs text-muted-foreground">
             {item.printedAt
               ? `${stale ? 'Stale · ' : ''}Printed ${formatTime(item.printedAt, timeZone)}${item.printedBy ? ` by ${item.printedBy}` : ''}${item.coveredByScope ? ` · ${item.coveredByScope[0]?.toUpperCase()}${item.coveredByScope.slice(1)} scope` : ''}`
-              : 'Not confirmed printed'}
+              : printStateUnknown
+                ? 'Print history unavailable'
+                : 'Not confirmed printed'}
             {stale ? ' · Class data changed after printing' : ''}
           </div>
         </div>
@@ -91,7 +95,13 @@ function PaperworkRow({
           >
             <span className="inline-flex items-center gap-2">
               <Printer className="h-4 w-4" />
-              {stale ? 'Review and reprint' : item.printedAt ? 'Reprint' : 'Print'}
+              {stale
+                ? 'Review and reprint'
+                : item.printedAt
+                  ? 'Reprint'
+                  : printStateUnknown
+                    ? 'Print anyway'
+                    : 'Print'}
             </span>
           </CockpitActionLink>
         )}

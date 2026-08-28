@@ -29,6 +29,7 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   tools?: readonly ShowDeskToolSection[];
   actionableCount?: number | undefined;
   actionableTone?: ShowDeskActionableTone | undefined;
+  actionableIncomplete?: boolean | undefined;
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the
@@ -45,6 +46,7 @@ export default function ShowDeskPanel({
   tools,
   actionableCount,
   actionableTone,
+  actionableIncomplete,
 }: ShowDeskPanelProps) {
   const location = useLocation();
   const state = useShowMapWorkbenchState({
@@ -93,9 +95,21 @@ export default function ShowDeskPanel({
         trials: trials.map(trialItem => ({ id: trialItem.id, trialDate: trialItem.trialDate })),
         entries: entries as unknown as DbEntry[],
         records: paperworkPrints.data ?? [],
+        // Dropping this is what made "Not confirmed printed" a claim rather
+        // than a reading -- see useShowPaperworkPrints' own comment.
+        recordsUnavailable: paperworkPrints.isError || paperworkPrints.syncFailed,
         returnTo,
       }),
-    [classes, entries, paperworkPrints.data, returnTo, show.id, trials]
+    [
+      classes,
+      entries,
+      paperworkPrints.data,
+      paperworkPrints.isError,
+      paperworkPrints.syncFailed,
+      returnTo,
+      show.id,
+      trials,
+    ]
   );
   const snapshot = useMemo(
     () =>
@@ -159,6 +173,7 @@ export default function ShowDeskPanel({
               tools={tools}
               {...(actionableCount !== undefined && { actionableCount })}
               {...(actionableTone !== undefined && { actionableTone })}
+              {...(actionableIncomplete !== undefined && { actionableIncomplete })}
             />
           ) : undefined
         }

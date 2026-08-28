@@ -43,6 +43,8 @@ interface ShowDeskToolsSheetProps {
   // 'urgent' to preserve the original incident-only behavior for callers that
   // pass a count without a tone.
   actionableTone?: ShowDeskActionableTone;
+  /** At least one attention source could not be read, so the count is a floor. */
+  actionableIncomplete?: boolean;
   tools: readonly ShowDeskToolSection[];
   requestedToolId?: string;
 }
@@ -76,23 +78,34 @@ function ShowDeskToolsSheetState({
   toolCount,
   actionableCount,
   actionableTone = 'urgent',
+  actionableIncomplete = false,
   tools,
 }: ShowDeskToolsSheetProps & { effectiveRequestedToolId: string | undefined }) {
   const effectiveToolCount = toolCount ?? tools.length;
   const hasActionable = typeof actionableCount === 'number' && actionableCount > 0;
-  const badgeValue = hasActionable ? actionableCount : effectiveToolCount;
+  // Nothing was counted AND at least one source could not be read. Falling back
+  // to the idle tool count here is the failure this guards: the badge's own
+  // contract is "muted idle so an idle tool-count never reads as a pending
+  // signal", and an unread count rendered exactly that during an outage.
+  const signalsUnknown = Boolean(actionableIncomplete) && !hasActionable;
+  const badgeValue = hasActionable ? actionableCount : signalsUnknown ? '?' : effectiveToolCount;
   const badgeAriaLabel = hasActionable
-    ? `${actionableCount} ${actionableCount === 1 ? 'item needs' : 'items need'} attention`
-    : `${effectiveToolCount} tools available`;
+    ? `${actionableCount} ${actionableCount === 1 ? 'item needs' : 'items need'} attention${
+        actionableIncomplete ? ', and some could not be checked' : ''
+      }`
+    : signalsUnknown
+      ? 'Cannot check whether anything needs attention'
+      : `${effectiveToolCount} tools available`;
   // Urgent → destructive (red, alarming). Routine actionable → secondary
-  // (ambient "you have items"). Nothing actionable → outline (muted idle), so
-  // an idle tool-count never reads as a pending signal.
+  // (ambient "you have items"). Unknown → outline with a warning border, so it
+  // reads as "unchecked" rather than "clear". Nothing actionable → outline
+  // (muted idle), so an idle tool-count never reads as a pending signal.
   const badgeVariant = !hasActionable
     ? 'outline'
     : actionableTone === 'urgent'
       ? 'destructive'
       : 'secondary';
-  const badgeTone = hasActionable ? actionableTone : 'idle';
+  const badgeTone = hasActionable ? actionableTone : signalsUnknown ? 'unknown' : 'idle';
   const toolStateSignature = JSON.stringify(
     tools.map(tool => ({
       id: tool.id,
@@ -113,17 +126,17 @@ function ShowDeskToolsSheetState({
           variant="outline"
           size="sm"
           className="min-h-11 gap-2"
-          aria-label="Open tools panel"
         >
           <Wrench className="h-4 w-4" aria-hidden="true" />
           Tools
           <Badge
             variant={badgeVariant}
-            aria-label={badgeAriaLabel}
+            className={signalsUnknown ? 'border-warning/60 text-warning' : undefined}
             data-testid="show-desk-tools-badge"
             data-tone={badgeTone}
           >
-            {badgeValue}
+            <span aria-hidden="true">{badgeValue}</span>
+            <span className="sr-only">{badgeAriaLabel}</span>
           </Badge>
         </Button>
       </SheetTrigger>

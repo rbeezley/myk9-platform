@@ -287,9 +287,16 @@ function preparationAttention(
       classId: cls.id,
       kind: 'preparation' as const,
       label: `Prepare ${item.label}`,
-      reason: isImminent
-        ? `${item.label} not confirmed printed · starts in ${minutesUntil} minutes`
-        : `${item.label} not confirmed printed · next in schedule order for Trial ${trial.number}`,
+      // `unknown` means the print records could not be READ, so "not confirmed
+      // printed" would be a claim about the world we cannot support. The chip
+      // still belongs -- the secretary should look -- but it has to say which
+      // situation it is in.
+      reason: (() => {
+        const status = item.state === 'unknown' ? 'print history unavailable' : 'not confirmed printed';
+        return isImminent
+          ? `${item.label} ${status} · starts in ${minutesUntil} minutes`
+          : `${item.label} ${status} · next in schedule order for Trial ${trial.number}`;
+      })(),
       destination: { kind: 'href' as const, href: item.printHref },
     }));
 }

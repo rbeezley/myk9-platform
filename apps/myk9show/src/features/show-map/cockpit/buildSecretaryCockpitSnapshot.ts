@@ -219,8 +219,14 @@ export function buildSecretaryCockpitSnapshot({
         lifecycle: lifecycleFor(classItem.status),
         actualStart: classItem.actualStartTime ?? null,
         actualFinish: classItem.actualFinishTime ?? null,
-        entryCount: classItem.entryCount ?? 0,
-        scoredCount: classItem.scoredCount ?? 0,
+        // NOT `?? 0`. `progressFor` in secretaryCockpitModel returns
+        // { evidence: 'unknown', value: null } when either count is null, and
+        // the whole EvidenceValue design exists so the cockpit can say "I don't
+        // know" instead of "zero". Defaulting here filled that state in one
+        // step before it could ever be entered, so the unknown branch was dead
+        // code and a paused entries read rendered as "0 of 0 scored".
+        entryCount: classItem.entryCount ?? null,
+        scoredCount: classItem.scoredCount ?? null,
         closeout: closeoutFor(node?.wrapUpStatus?.value),
         judgeName: classItem.judgeName ?? null,
         operationalArea:

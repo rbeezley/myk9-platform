@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { useShowPresenceRoster } from '@/features/show-presence/showPresenceContext';
 import { useMessageStore } from '@/store/messageStore';
@@ -54,6 +55,7 @@ export function ShowDeskPeopleRoster({
   const [filter, setFilter] = useState<PeopleRosterFilter>('all');
   const [busyEntryIds, setBusyEntryIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentDate) return undefined;
@@ -105,11 +107,18 @@ export function ShowDeskPeopleRoster({
   async function checkInRows(person: PeopleRosterPerson, entryIds: string[]) {
     if (entryIds.length === 0) return;
     setActionError(null);
+    setActionNotice(null);
     setBusyEntryIds(current => new Set([...current, ...entryIds]));
-    const results = await Promise.allSettled(
-      entryIds.map(entryId => updateReplicatedCheckInStatus(entryId, 'checked-in'))
-    );
-    const succeeded = entryIds.filter((_, index) => results[index]?.status === 'fulfilled');
+    // Bounded, not `Promise.allSettled(map(...))`. An exhibitor with a dozen
+    // entries across a weekend issued a dozen simultaneous replicated writes
+    // against `entries`, which is the shape that produced the
+    // `ringside_update_entry` 40001 conflict storm on staging. `dispatchBulk`
+    // is the shared six-worker pool; every item still runs and the outcome is
+    // folded by index exactly as before.
+    const outcome = await dispatchBulk(entryIds, async entryId => {
+      await updateReplicatedCheckInStatus(entryId, 'checked-in');
+    });
+    const succeeded = outcome.succeeded;
 
     if (succeeded.length > 0) {
       setCheckedInEntryIds(current => new Set([...current, ...succeeded]));
@@ -120,6 +129,13 @@ export function ShowDeskPeopleRoster({
         succeeded.length > 0
           ? `Checked in ${succeeded.length} of ${entryIds.length} for ${person.name}.`
           : `Couldn't check in ${person.name}. Try again.`
+      );
+    } else {
+      // The success path used to set nothing, so a screen-reader secretary got
+      // silence on the primary outcome and had no way to tell a completed
+      // check-in from one that never fired.
+      setActionNotice(
+        `Checked in ${succeeded.length} ${succeeded.length === 1 ? 'entry' : 'entries'} for ${person.name}.`
       );
     }
 
@@ -193,7 +209,7 @@ export function ShowDeskPeopleRoster({
             type="button"
             variant={filter === option.id ? 'default' : 'outline'}
             size="sm"
-            className="min-h-10 rounded-full"
+            className="min-h-11 rounded-full"
             onClick={() => {
               setFilter(option.id);
               setExpandedId(null);
@@ -205,10 +221,18 @@ export function ShowDeskPeopleRoster({
       </div>
 
       {actionError && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+        >
           {actionError}
         </div>
       )}
+
+      <span role="status" aria-live="polite" className="sr-only">
+        {actionNotice ?? ''}
+      </span>
 
       {roster.length === 0 ? (
         <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
@@ -241,7 +265,7 @@ export function ShowDeskPeopleRoster({
                   <span
                     className={cn(
                       'h-2.5 w-2.5 shrink-0 rounded-full',
-                      person.presence ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                      person.presence ? 'bg-success' : 'bg-muted-foreground/40'
                     )}
                     aria-label={person.presence ? 'Online now' : 'Not currently online'}
                     role="img"
@@ -261,7 +285,7 @@ export function ShowDeskPeopleRoster({
                       <Button
                         type="button"
                         size="sm"
-                        className="min-h-10 gap-2"
+                        className="min-h-11 gap-2"
                         onClick={() => void handleMessage(person)}
                         disabled={!person.authUserId}
                         title={!person.authUserId ? 'No message-capable account' : undefined}
@@ -273,7 +297,7 @@ export function ShowDeskPeopleRoster({
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="min-h-10 gap-2"
+                        className="min-h-11 gap-2"
                         onClick={() => void checkInRows(person, eligibleEntryIds)}
                         disabled={eligibleEntryIds.length === 0 || anyBusy}
                       >
@@ -284,7 +308,7 @@ export function ShowDeskPeopleRoster({
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="min-h-10"
+                        className="min-h-11"
                         onClick={() => handleManageEntries(person)}
                       >
                         Manage entries
@@ -329,7 +353,7 @@ export function ShowDeskPeopleRoster({
                               <Button
                                 type="button"
                                 size="sm"
-                                className="min-h-10"
+                                className="min-h-11"
                                 disabled={busy}
                                 onClick={() => void checkInRows(person, [row.entryId])}
                               >
@@ -351,6 +375,12 @@ export function ShowDeskPeopleRoster({
   );
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong';
+/**
+ * Deliberately does NOT surface `error.message`. A PostgREST or replication
+ * string in front of a secretary mid-show is a technical error message, which
+ * docs/INTENT.md names as an anti-pattern for this role, and it tells them
+ * nothing they can act on. The recovery is the same in every case: retry.
+ */
+function getErrorMessage(_error: unknown): string {
+  return 'We could not load the exhibitor list. Retry, or carry on from the class schedule.';
 }

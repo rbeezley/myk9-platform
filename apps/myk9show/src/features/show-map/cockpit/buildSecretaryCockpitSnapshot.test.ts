@@ -32,6 +32,95 @@ const tree: ShowMapTree = {
 };
 
 describe('buildSecretaryCockpitSnapshot', () => {
+  /**
+   * Audit H1/H3. This builder used to run `entryCount ?? 0`, which made
+   * `secretaryCockpitModel`'s `{ evidence: 'unknown' }` progress branch
+   * unreachable -- a paused entries read then rendered "0 of 0 scored" on a
+   * class with 40 entries, and disabled the mark-complete guard, which is
+   * driven by the same numbers.
+   */
+  it('carries an unknown entry count through as null, not zero', () => {
+    const snapshot = buildSecretaryCockpitSnapshot({
+      showId: 'show-1',
+      trials: [
+        {
+          id: 'trial-1',
+          showId: 'show-1',
+          showName: 'Show',
+          name: 'Sunday AM',
+          trialDate: '2026-07-20',
+          trialNumber: '2',
+          status: 'In Progress',
+          order: '2',
+          _version: 1,
+          _lastModified: new Date(),
+          _lastModifiedBy: 'user-1',
+          _syncStatus: 'synced',
+        },
+      ],
+      classes: [
+        {
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Container Novice',
+          time: '10:00',
+          status: 'In Progress',
+          entryCount: null,
+          scoredCount: null,
+        },
+      ],
+      tree,
+      pendingSignals: [],
+      returnTo: '/shows/show-1/show-desk',
+      now: new Date('2026-07-20T15:10:00.000Z'),
+    });
+
+    const cls = snapshot.classes[0];
+    expect(cls?.entryCount).toBeNull();
+    expect(cls?.scoredCount).toBeNull();
+  });
+
+  it('still carries a real zero through as zero', () => {
+    const snapshot = buildSecretaryCockpitSnapshot({
+      showId: 'show-1',
+      trials: [
+        {
+          id: 'trial-1',
+          showId: 'show-1',
+          showName: 'Show',
+          name: 'Sunday AM',
+          trialDate: '2026-07-20',
+          trialNumber: '2',
+          status: 'In Progress',
+          order: '2',
+          _version: 1,
+          _lastModified: new Date(),
+          _lastModifiedBy: 'user-1',
+          _syncStatus: 'synced',
+        },
+      ],
+      classes: [
+        {
+          id: 'class-1',
+          trialId: 'trial-1',
+          name: 'Container Novice',
+          time: '10:00',
+          status: 'In Progress',
+          entryCount: 0,
+          scoredCount: 0,
+        },
+      ],
+      tree,
+      pendingSignals: [],
+      returnTo: '/shows/show-1/show-desk',
+      now: new Date('2026-07-20T15:10:00.000Z'),
+    });
+
+    const cls = snapshot.classes[0];
+    expect(cls?.entryCount).toBe(0);
+    expect(cls?.scoredCount).toBe(0);
+  });
+
   it('groups by Trial, preserves scheduled time, and adds canonical class work links', () => {
     const snapshot = buildSecretaryCockpitSnapshot({
       showId: 'show-1',

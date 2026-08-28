@@ -39,11 +39,21 @@ import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
+import {
+  EMPTY_ENTRIES,
+  getShowDeskEntriesAvailability,
+  tallyEntriesByClass,
+} from './showDeskEntryAvailability';
+import { ShowDeskEntriesUnavailable } from './ShowDeskEntriesUnavailable';
 import type { ShowDayReconciliationEntry } from '@/features/show-workbench/showDayReconciliationSummary';
 import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
+
+/** Stable identities so a missing read does not remint an array each render. */
+const EMPTY_INCIDENTS: Awaited<ReturnType<typeof listShowIncidentCloseout>> = [];
+const EMPTY_TASKS: SecretaryTask[] = [];
 
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
 
@@ -105,16 +115,25 @@ export function ShowWorkbenchShowDeskPage() {
     useShallow(s => ({ trials: s.trials, trialClasses: s.trialClasses }))
   );
   const {
-    data: showEntries = [],
+    data: showEntriesData,
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
     error: showEntriesError,
     refetch: refetchShowEntries,
   } = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
+  const showEntries = useMemo(() => showEntriesData ?? EMPTY_ENTRIES, [showEntriesData]);
+  const { entriesKnown, entriesUnavailable } = getShowDeskEntriesAvailability({
+    data: showEntriesData,
+    isLoading: showEntriesLoading,
+    isError: showEntriesIsError,
+    isEnabled: Boolean(showId),
+  });
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
   const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
   const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
+
+  const entryTallies = useMemo(() => tallyEntriesByClass(showEntries), [showEntries]);
 
   const associatedTrials = useMemo(
     () =>
@@ -149,17 +168,15 @@ export function ShowWorkbenchShowDeskPage() {
           actualFinishTime: cls.actualFinishTime,
           displayOrder: cls.displayOrder,
           status: cls.status || CLASS_STATUS.SCHEDULED,
-          entryCount: showEntries.filter(entry => entry.class_id === cls.id).length,
-          scoredCount: showEntries.filter(
-            entry => entry.class_id === cls.id && entry.is_scored === true
-          ).length,
+          entryCount: entriesKnown ? (entryTallies.get(cls.id)?.total ?? 0) : null,
+          scoredCount: entriesKnown ? (entryTallies.get(cls.id)?.scored ?? 0) : null,
           trialDate: trial.trialDate || '',
           timezone: trial.timezone ?? null,
           trialNumber: trial.trialNumber || '',
           trialName: trial.name || '',
         }));
       }),
-    [associatedTrials, showEntries, trialClasses]
+    [associatedTrials, entriesKnown, entryTallies, trialClasses]
   );
   const closeoutClasses = useMemo(() => showClasses.map(toCloseoutClassSummary), [showClasses]);
   const closeoutTrials = useMemo<CloseoutTrialSummary[]>(
@@ -210,11 +227,16 @@ export function ShowWorkbenchShowDeskPage() {
   // INTENT: Urgent or reportable incidents surface themselves on the tools
   // sheet (attentionLabel auto-opens the section) instead of waiting silently
   // behind the wrench icon while the secretary handles a crisis.
-  const { data: closeoutIncidents = [] } = useQuery({
+  const { data: closeoutIncidentsData } = useQuery({
     queryKey: showIncidentCloseoutQueryKey(showId ?? ''),
     queryFn: () => listShowIncidentCloseout(showId ?? ''),
     enabled: Boolean(showId),
   });
+  const closeoutIncidents = useMemo(
+    () => closeoutIncidentsData ?? EMPTY_INCIDENTS,
+    [closeoutIncidentsData]
+  );
+  const incidentsKnown = closeoutIncidentsData !== undefined;
   const incidentSummary = useMemo(
     () => summarizeShowIncidents(closeoutIncidents),
     [closeoutIncidents]
@@ -238,19 +260,29 @@ export function ShowWorkbenchShowDeskPage() {
     showId ?? '',
     hospitalityJudges
   );
-  const { data: showTasks = [] } = useSecretaryTasks(showId);
+  const { data: showTasksData } = useSecretaryTasks(showId);
+  const showTasks = useMemo(() => showTasksData ?? EMPTY_TASKS, [showTasksData]);
+  /**
+   * `null` when the tasks read did not succeed. Both this and the incident
+   * count feed the closed Tools badge, which is the secretary's only "is
+   * anything waiting?" glance -- so an unread source has to withhold the
+   * count rather than contribute a zero to it.
+   */
   const tasksOpenCount = useMemo(
-    () => showTasks.filter((task: SecretaryTask) => task.status === 'todo').length,
-    [showTasks]
+    () =>
+      showTasksData === undefined
+        ? null
+        : showTasks.filter((task: SecretaryTask) => task.status === 'todo').length,
+    [showTasks, showTasksData]
   );
   const actionable = useMemo(
     () =>
       computeShowDeskActionable({
-        incidentReportableCount: incidentSummary.reportableCount,
+        incidentReportableCount: incidentsKnown ? incidentSummary.reportableCount : null,
         hospitalityReminderCount,
         tasksOpenCount,
       }),
-    [hospitalityReminderCount, incidentSummary.reportableCount, tasksOpenCount]
+    [hospitalityReminderCount, incidentsKnown, incidentSummary.reportableCount, tasksOpenCount]
   );
 
   const showDeskTools = useMemo<ShowDeskToolSection[]>(() => {
@@ -421,6 +453,10 @@ export function ShowWorkbenchShowDeskPage() {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
+  // Settled, no data, no error: the read never happened (paused offline, or
+  // disabled). Everything below derives from `showEntries`, so rendering the
+  // desk here would state a zero it never read -- the exact thing the copy in
+  // both these branches promises not to do.
   if (showEntriesIsError && showEntries.length === 0) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
@@ -444,6 +480,9 @@ export function ShowWorkbenchShowDeskPage() {
 
   return (
     <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+      {entriesUnavailable && (
+        <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />
+      )}
       <ShowDeskPanel
         show={currentShow}
         trials={showMapTrials}
@@ -453,6 +492,7 @@ export function ShowWorkbenchShowDeskPage() {
         tools={showDeskTools}
         actionableCount={actionable.count}
         actionableTone={actionable.tone}
+        actionableIncomplete={actionable.incomplete}
       />
     </Suspense>
   );

@@ -174,6 +174,11 @@ export function mapSecretaryEntryToEntryManagementEntry(
     ...(entry.registration?.refunded_at != null
       ? { enrollmentRefundedAt: entry.registration.refunded_at }
       : {}),
+    // Comp state. Persisted, and selected by both read paths, but never mapped
+    // until now -- so it survived only as an optimistic local patch and was
+    // dropped by every reload.
+    ...(entry.comped != null ? { comped: entry.comped } : {}),
+    ...(entry.comped_reason ? { compedReason: entry.comped_reason } : {}),
     // Entry-level Stripe payment/refund state (migration 20260609220000)
     paymentMethod: entry.payment_method ?? null,
     refundAmount: entry.refund_amount ?? null,

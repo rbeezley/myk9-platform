@@ -32,6 +32,15 @@ export interface SecretaryEntry {
   refund_amount: number | null;
   refunded_at: string | null;
   stripe_payment_intent_id: string | null;
+  /**
+   * Comp state is a real, persisted column, and both read paths already select
+   * it -- but SecretaryEntry did not carry it, so the mapper could not set it
+   * and `comped` was only ever written by the local optimistic patch. Any
+   * reload dropped the Comped badge and offered "Comp" again for an entry that
+   * was already comped, inviting a duplicate; `comped_reason` was unrecoverable.
+   */
+  comped?: boolean | null;
+  comped_reason?: string | null;
   refund_decision?: string | null;
   refund_decided_at?: string | null;
   registration_id: string | null;

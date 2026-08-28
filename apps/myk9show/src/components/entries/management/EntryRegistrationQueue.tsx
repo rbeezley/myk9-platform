@@ -146,12 +146,12 @@ export function EntryRegistrationQueue({
         <div className="flex items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
           <Checkbox
             className="relative before:absolute before:-inset-3.5 before:content-['']"
-            aria-label="Select all registrations"
+            aria-label="Select all on page"
             checked={allSelected}
             indeterminate={partiallySelected}
             onCheckedChange={onToggleAll}
           />
-          <span>Select all</span>
+          <span>Select all on page</span>
         </div>
       ) : (
         <div
@@ -163,7 +163,7 @@ export function EntryRegistrationQueue({
           <span className="flex min-h-11 items-center justify-center">
             <Checkbox
               className="relative before:absolute before:-inset-3.5 before:content-['']"
-              aria-label="Select all registrations"
+              aria-label="Select all registrations on this page"
               checked={allSelected}
               indeterminate={partiallySelected}
               onCheckedChange={onToggleAll}

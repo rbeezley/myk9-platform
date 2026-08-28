@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
-import { Users, AlertCircle, Download, MoreHorizontal, Plus, UserCheck } from 'lucide-react';
+import { AlertCircle, Download, MoreHorizontal, Plus, UserCheck } from 'lucide-react';
 import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
@@ -53,6 +53,8 @@ const EntryManagementPage: React.FC = () => {
     shows,
     selectedShowId,
     isLoadingShows,
+    showError,
+    loadShows,
     entries,
     setEntries,
     isLoading,
@@ -100,8 +102,13 @@ const EntryManagementPage: React.FC = () => {
     );
   };
 
-  const { trialClasses, trialClassIds, isLoadingClasses } =
-    useEntryManagementTrialClasses(trialParam);
+  const {
+    trialClasses,
+    trialClassIds,
+    isLoadingClasses,
+    trialClassesUnknown,
+    refetchTrialClasses,
+  } = useEntryManagementTrialClasses(trialParam);
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
 
@@ -218,8 +225,18 @@ const EntryManagementPage: React.FC = () => {
           <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
             Entry Management
           </h1>
-          <p className="text-muted-foreground">
-            Manage show entries, process payments, and communicate with exhibitors
+          {/*
+            Name the show. Every accept, reject, refund and exhibitor email on
+            this page is scoped to one show, and the secretary can arrive here
+            from a bare `/secretary/entries` link that resolves the show from
+            localStorage — so without this line they act on a show the page
+            never named. The generic "Manage show entries, process payments…"
+            tagline that used to sit here restated the H1 and carried no state.
+            The fallback stays generic on purpose: an unresolved show must not
+            be described as a named one.
+          */}
+          <p className="break-words text-muted-foreground">
+            {selectedShow?.name ?? 'Manage entries, payments, and exhibitor email for one show'}
           </p>
         </div>
         <div className="manager-page-actions">
@@ -291,10 +308,49 @@ const EntryManagementPage: React.FC = () => {
         <TabsContent value="registrations">
           {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
           {!selectedShowId && isLoadingShows && (
+            <div role="status" aria-label="Opening show" className="py-4">
+              <TableSkeleton rows={8} columns={5} />
+            </div>
+          )}
+
+          {/*
+            Show Resolution Failed / No Show Selected
+
+            Every branch below requires `selectedShowId`. When show resolution
+            finishes without one, none of them matched and the tab rendered
+            NOTHING: no error, no empty state, no retry, under a header whose
+            actions are disabled. A secretary reads that as "this show has no
+            entries" when in fact the show was never opened.
+
+            Two distinct outcomes share this branch because they need different
+            copy: `showError` means a read failed and retry is the recovery;
+            no error means nothing was ever selected, and the recovery is to
+            pick a show.
+          */}
+          {!selectedShowId && !isLoadingShows && (
             <Card>
               <CardContent className="py-12 text-center">
-                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Loading...</h3>
+                <AlertCircle
+                  className={`mx-auto mb-4 h-12 w-12 ${showError ? 'text-destructive' : 'text-muted-foreground'}`}
+                  aria-hidden
+                />
+                <h2 className="mb-2 text-lg font-medium">
+                  {showError ? "Couldn't open this show" : 'No show selected'}
+                </h2>
+                <p className="mx-auto mb-4 max-w-md text-sm text-muted-foreground">
+                  {showError
+                    ? "We couldn't tell whether this show has entries, so nothing is shown below."
+                    : 'Choose a show to manage its entries.'}
+                </p>
+                {showError ? (
+                  <Button onClick={() => loadShows()} disabled={isLoadingShows}>
+                    Retry
+                  </Button>
+                ) : (
+                  <Button asChild variant="outline">
+                    <Link to="/secretary/dashboard">Go to your shows</Link>
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -361,6 +417,8 @@ const EntryManagementPage: React.FC = () => {
                 trials={trials}
                 trialClasses={trialClasses}
                 trialClassIds={trialClassIds}
+                trialClassesUnknown={trialClassesUnknown}
+                onRetryTrialClasses={() => void refetchTrialClasses()}
                 isLoadingTrials={isLoadingTrials}
                 isLoadingClasses={isLoadingClasses}
                 canValidateFocus={canValidateFocus}

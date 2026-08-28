@@ -7,9 +7,9 @@ import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
 import { groupEnrollmentEntriesByDog } from './enrollmentDogGroups';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { PaymentStatus } from '@/types/show-registration-types';
 import type { EnrollmentCardProps } from './EnrollmentCard.types';
-import { BULK_COMMAND_LABELS } from './reviewStateLabels';
+import { EnrollmentBulkStatusItems } from './EnrollmentBulkStatusItems';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -157,36 +157,10 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() =>
-                      onBulkStatusChange(
-                        group.entries.map(entry => entry.id),
-                        EntryStatus.ACCEPTED
-                      )
-                    }
-                  >
-                    {BULK_COMMAND_LABELS[EntryStatus.ACCEPTED]}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      onBulkStatusChange(
-                        group.entries.map(entry => entry.id),
-                        EntryStatus.REJECTED
-                      )
-                    }
-                  >
-                    {BULK_COMMAND_LABELS[EntryStatus.REJECTED]}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      onBulkStatusChange(
-                        group.entries.map(entry => entry.id),
-                        EntryStatus.MISSING_INFO
-                      )
-                    }
-                  >
-                    {BULK_COMMAND_LABELS[EntryStatus.MISSING_INFO]}
-                  </DropdownMenuItem>
+                  <EnrollmentBulkStatusItems
+                    entries={group.entries}
+                    onBulkStatusChange={onBulkStatusChange}
+                  />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => onBulkCheckIn(group.entries.map(entry => entry.id))}

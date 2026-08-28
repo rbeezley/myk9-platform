@@ -4,7 +4,11 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { logger } from '@/services/LoggingService';
 import { getSecretaryShows, getShowById } from '@/services/database/shows';
-import { getEntriesForShow, SECRETARY_ENTRIES_READ_ERROR } from '@/services/database/entries';
+import {
+  getEntriesForShow,
+  SECRETARY_ENTRIES_READ_ERROR,
+  SECRETARY_SHOW_READ_ERROR,
+} from '@/services/database/entries';
 import type { CheckInStatus } from '@myk9/core';
 import type {
   EntryManagementEntry,
@@ -32,6 +36,14 @@ interface UseEntryManagementDataReturn {
   selectedShowId: string;
   setSelectedShowId: (id: string) => void;
   isLoadingShows: boolean;
+  /**
+   * Show-resolution errors — the secretary's show list failed to read, or a
+   * deep-linked show id could not be fetched. Distinct from `loadError`
+   * (entries failed) and `error` (an action failed): here there is no show to
+   * read entries for at all. Without this the page had no branch to render and
+   * showed a blank tab, which reads as "this show is empty".
+   */
+  showError: string | null;
   loadShows: () => Promise<void>;
 
   // Entries
@@ -206,6 +218,13 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   const [selectedShowId, setSelectedShowId] = useState<string>('');
   const [isLoadingShows, setIsLoadingShows] = useState(true);
   const [didApplyInitial, setDidApplyInitial] = useState(false);
+  // Show-RESOLUTION errors, distinct from `loadError` (entries) and `error`
+  // (actions). `loadShows` and the `getShowById` deep-link fallback used to
+  // swallow their failures into the logger, leaving `shows: []` and
+  // `selectedShowId: ''` with `isLoadingShows: false` — a state none of the
+  // page's render branches matched, so the tab rendered nothing at all. An
+  // unresolved show is its own state; it is never "this show is empty".
+  const [showError, setShowError] = useState<string | null>(null);
 
   // Entry data
   const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
@@ -220,9 +239,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
   const loadShows = useCallback(async () => {
     setIsLoadingShows(true);
+    setShowError(null);
     try {
       const { data, error: queryError } = await getSecretaryShows(user?.id || '');
       if (queryError) {
+        setShowError(SECRETARY_SHOW_READ_ERROR);
         logger.error('Error loading shows:', 'secretary', {}, queryError as Error);
       } else {
         const nextShows = data || [];
@@ -230,6 +251,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
         setShows(nextShows);
       }
     } catch (err) {
+      setShowError(SECRETARY_SHOW_READ_ERROR);
       logger.error('Error loading shows:', 'secretary', {}, err as Error);
     } finally {
       setIsLoadingShows(false);
@@ -302,8 +324,15 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
 
     let cancelled = false;
     void (async () => {
-      const { data } = await getShowById(initialShowId);
+      const { data, error: showQueryError } = await getShowById(initialShowId);
       if (cancelled) return;
+
+      // A deep-linked show that neither the scoped list nor the direct lookup
+      // can resolve leaves `selectedShowId` empty. Without an error here the
+      // page has nothing to render and reads as "this show is empty".
+      if (showQueryError || !data?.id) {
+        setShowError(SECRETARY_SHOW_READ_ERROR);
+      }
 
       if (data?.id) {
         const row = data as EntryManagementShowRow;
@@ -418,6 +447,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     selectedShowId,
     setSelectedShowId,
     isLoadingShows,
+    showError,
     loadShows,
     entries,
     setEntries,

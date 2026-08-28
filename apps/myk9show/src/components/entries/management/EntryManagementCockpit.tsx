@@ -47,9 +47,15 @@ interface EntryManagementCockpitProps {
   cockpitState: EntryManagementCockpitState;
   trials: EntryManagementTrial[];
   trialClasses: EntryManagementTrialClass[];
-  trialClassIds: readonly string[];
+  /** `undefined` when the trial's class list could not be read — see
+   * `useEntryManagementTrialClasses`. Never coerce this to `[]`. */
+  trialClassIds: readonly string[] | undefined;
   isLoadingTrials: boolean;
   isLoadingClasses: boolean;
+  /** A trial is selected but its classes are unknown, so trial scoping cannot
+   * be applied and the counts below are for the whole show, not the trial. */
+  trialClassesUnknown?: boolean;
+  onRetryTrialClasses?: () => void;
   canValidateFocus?: boolean;
   showId: string;
   showName?: string;
@@ -105,6 +111,8 @@ export function EntryManagementCockpit({
   trialClassIds,
   isLoadingTrials,
   isLoadingClasses,
+  trialClassesUnknown = false,
+  onRetryTrialClasses,
   canValidateFocus = true,
   showId,
   showName,
@@ -264,6 +272,39 @@ export function EntryManagementCockpit({
         <p role="status" className="text-sm text-muted-foreground">
           Search covers the whole show. Clear search to use queue, Trial, and Class filters.
         </p>
+      )}
+
+      {/*
+        Trial scope could not be applied.
+
+        A trial is selected but its class list never loaded, so we do not know
+        which registrations belong to it. The queue below is therefore the whole
+        show, not the trial. Saying so is the only honest option: scoping to an
+        empty class list would report zero registrations and zero queue counts
+        as fact, and silently dropping the scope would let the secretary act on
+        the wrong trial believing it was filtered.
+      */}
+      {trialClassesUnknown && !cockpit.state.search && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
+        >
+          <span className="text-foreground">
+            Couldn&rsquo;t load this trial&rsquo;s classes, so the list below covers the whole show,
+            not just this trial.
+          </span>
+          {onRetryTrialClasses && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-11"
+              onClick={onRetryTrialClasses}
+            >
+              Retry
+            </Button>
+          )}
+        </div>
       )}
 
       <div

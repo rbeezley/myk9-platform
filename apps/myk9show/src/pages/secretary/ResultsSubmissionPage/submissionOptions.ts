@@ -64,9 +64,9 @@ const ASCA_SCENT_DETECTION_OPTION: RegistrySubmissionOption = {
       },
     ],
     preservation:
-      'After uploading through ASCA, mark it submitted here so the club has a myK9 closeout record. No XML file is generated for ASCA in this release.',
+      'After uploading through ASCA, mark it submitted here so the club has a myK9 closeout record. myK9 does not generate an XML file for ASCA.',
     steps: [
-      'Prepare the ASCA Scent Detection packet from the official ASCA forms until myK9 packet generation is wired.',
+      'Prepare the ASCA Scent Detection packet from the official ASCA forms.',
       'Upload results and gross receipt payment through ASCA Online Results and Payment Upload.',
       'Keep the uploaded packet with club records, then mark the submission here after ASCA accepts it.',
     ],

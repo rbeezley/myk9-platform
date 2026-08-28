@@ -88,6 +88,13 @@ export default function ResultsSubmissionPage() {
   ]);
 
   const handleSubmissionOptionChange = (nextOptionKey: string) => {
+    // Clear every per-submission claim. The banner used to survive the switch,
+    // so "Results sent successfully" read as a statement about the registry the
+    // secretary had just moved to.
+    setSendSuccess(false);
+    setMarkSuccess(false);
+    setSendError(null);
+    setRecordFailed(false);
     setHasUserSelectedSubmissionOption(true);
     setSubmissionOptionKeyValue(nextOptionKey);
   };
@@ -105,9 +112,21 @@ export default function ResultsSubmissionPage() {
   const isElectronicSubmission = activeSubmissionOption?.mode === 'electronic';
 
   // Fetch real AKC data when AKC scent work formatter is selected
-  const { data: akcData, isLoading: isAKCLoading } = useAKCSubmissionData(
-    isAKCScentWork ? (showId ?? '') : ''
-  );
+  const {
+    data: akcData,
+    isLoading: isAKCLoading,
+    refetch: refetchAKCData,
+  } = useAKCSubmissionData(isAKCScentWork ? (showId ?? '') : '');
+  /**
+   * The AKC results read settled without producing data.
+   *
+   * This query inherits React Query's 'online' networkMode, so offline it
+   * pauses: `isLoading` false, `data` undefined, and no error. The page then
+   * printed "No results data is available for this show yet." -- an
+   * authoritative claim about the show -- for a fully scored show whose data
+   * simply had not been read.
+   */
+  const akcDataUnavailable = isAKCScentWork && !isAKCLoading && akcData === undefined;
 
   const xmlPreview = isAKCScentWork && akcData ? AKCScentWorkFormatter.formatXml(akcData) : '';
 
@@ -217,10 +236,14 @@ export default function ResultsSubmissionPage() {
       }
 
       setSendSuccess(true);
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : 'Failed to send. Please download and email manually.';
-      setSendError(msg);
+    } catch {
+      // Deliberately does not read the thrown error. Supabase throws
+      // "Edge Function returned a non-2xx status code" for every failure, which
+      // names nothing the secretary can act on. The recovery is the same in
+      // every case and the page already offers it.
+      setSendError(
+        'We could not send the results. Download the XML and email it to the registry, or try again.'
+      );
     } finally {
       setIsSending(false);
     }
@@ -499,6 +522,27 @@ export default function ResultsSubmissionPage() {
           </p>
         ) : isAKCLoading ? (
           <p className="text-sm text-muted-foreground">Fetching show data...</p>
+        ) : akcDataUnavailable ? (
+          <div
+            role="status"
+            className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
+            data-testid="submission-summary-no-data"
+          >
+            <p className="font-medium">Couldn&rsquo;t load this show&rsquo;s results.</p>
+            <p className="mt-1 text-muted-foreground">
+              This is a problem reading the data, not a statement about the show. Nothing can be
+              submitted until it loads.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3 min-h-11"
+              onClick={() => void refetchAKCData()}
+            >
+              Try again
+            </Button>
+          </div>
         ) : !akcData ? (
           <p className="text-sm text-muted-foreground" data-testid="submission-summary-no-data">
             No results data is available for this show yet.
@@ -514,7 +558,15 @@ export default function ResultsSubmissionPage() {
               <span>{akcReadiness?.verdict}</span>
             </li>
             <li className="flex items-center gap-2">
-              {missingAKCCount === 0 ? (
+              {akcData.entries.length === 0 ? (
+                <>
+                  {/* Vacuous truth is not a green check. "All entries have AKC
+                      registration numbers" was rendered as satisfied for a show
+                      with no entries at all. */}
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>No entries to check for AKC registration numbers</span>
+                </>
+              ) : missingAKCCount === 0 ? (
                 <>
                   <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
                   <span>All entries have AKC registration numbers</span>
@@ -531,7 +583,7 @@ export default function ResultsSubmissionPage() {
               )}
             </li>
             <li className="flex items-center gap-2">
-              {hasBlockingAKCPreflightIssue ? (
+              {hasBlockingAKCPreflightIssue || akcData.entries.length === 0 ? (
                 <>
                   <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
                   <span>{akcReadiness?.details}</span>

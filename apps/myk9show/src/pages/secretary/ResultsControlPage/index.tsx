@@ -280,7 +280,7 @@ export default function ResultsControlPage() {
               variant="outline"
               size="sm"
               onClick={retryAll}
-              className="self-start sm:self-auto shrink-0"
+              className="min-h-11 shrink-0 self-start sm:self-auto"
             >
               Retry
             </Button>

@@ -89,6 +89,13 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
     evidence.evaluation.failures.length === 0
       ? '- None'
       : evidence.evaluation.failures.map(failure => `- ${failure}`).join('\n');
+  // Rendered as its own section. Folding these into Failures would make a run
+  // that passed only the still-enforced half read as a clean pass, and folding
+  // them into nothing would hide that a shape-dependent target was missed.
+  const pendingDerivation =
+    evidence.evaluation.pendingDerivation.length === 0
+      ? '- None'
+      : evidence.evaluation.pendingDerivation.map(item => `- ${item}`).join('\n');
   const platform = evidence.observation.platform;
   const lifecycle = evidence.observation.sessionLifecycle;
   const workflowFailures =
@@ -139,6 +146,7 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Scoring/API p95: ${evidence.observation.scoringWriteP95Ms} / ${evidence.observation.apiP95Ms} ms
 - Page p95 (interpret with generator evidence): ${evidence.observation.pageP95Ms} ms
 - Requests/failures/workflow failures: ${evidence.observation.requestCount} / ${evidence.observation.failedRequestCount} / ${evidence.observation.workflowFailures}
+- Requests by generator (browser/API virtual user): ${evidence.observation.browserRequestCount ?? evidence.observation.requestCount} / ${evidence.observation.virtualUserRequestCount ?? 0} — an API virtual user issues the same requests but never paints, so it cannot catch a client-side rendering regression
 - Error rate / throughput / availability: ${evidence.observation.errorRate} / ${evidence.observation.throughputRps} rps / ${evidence.observation.availabilityPercent}%
 - SQLSTATE 40001: ${evidence.observation.serializationFailures} / ${evidence.observation.scoringWriteAttempts} (${evidence.evaluation.derived.serializationFailureRate})
 - Retries attempted/succeeded/exhausted: ${evidence.observation.retryAttempts} / ${evidence.observation.retrySuccesses} / ${evidence.observation.exhaustedRetries}
@@ -162,6 +170,14 @@ ${workflowFailures}
 ## Failures
 
 ${failures}
+
+## Pending target derivation (reported, not gating)
+
+These targets move with workload shape, so their pre-remodel values carry no
+information about the reshaped workload. They gate again once derived from a
+valid run.
+
+${pendingDerivation}
 `;
 }
 

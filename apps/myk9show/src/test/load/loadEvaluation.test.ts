@@ -136,10 +136,12 @@ describe('load result evaluation', () => {
   });
 
   it.each([
+    // Scoring-write p95, API p95 and throughput are deliberately absent: they
+    // move with workload shape, so they report rather than gate until derived
+    // from a valid reshaped run. loadGateSplit.test.ts fixes that split in both
+    // directions.
     ['ringside sessions', { ringsideSessions: 49 }],
-    ['scoring latency', { scoringWriteP95Ms: 201 }],
     ['error rate', { errorRate: 0.051 }],
-    ['throughput', { throughputRps: 49.9 }],
     ['availability', { availabilityPercent: 99.4 }],
     ['queue drain', { finalReplicationQueueDepth: 1 }],
     ['queue telemetry', { queueTelemetryFailures: 1 }],

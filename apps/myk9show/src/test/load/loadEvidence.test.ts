@@ -106,6 +106,7 @@ const evaluation: LoadEvaluation = {
   informational: false,
   gate: 'G9',
   failures: [],
+  pendingDerivation: [],
   derived: {
     serializationFailureRate: 2 / 440,
     generatorAttributionValid: true,

@@ -134,7 +134,6 @@ const EntryManagementPage: React.FC = () => {
     setEntries,
     selectedShowId,
     selectedShow,
-    loadEntries,
     setError,
     user,
   });

@@ -21,7 +21,6 @@ import type {
 import { generateId } from '@/utils/idUtils';
 
 const DEFAULT_CONFIG: ArmbandManagerConfig = {
-  autoAssignArmbands: true,
   allowDuplicates: false,
   conflictResolutionStrategy: 'reassign',
   armbandRanges: [{ start: 1, end: 999 }],

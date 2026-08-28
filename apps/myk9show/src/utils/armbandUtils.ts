@@ -1,8 +1,3 @@
-export interface ArmbandAssignment {
-  dogId: string;
-  armband: string;
-}
-
 export const UNASSIGNED_ARMBAND_DISPLAY = '—';
 
 export type ArmbandDisplayValue = string | number | null | undefined;
@@ -19,13 +14,6 @@ export function formatArmbandDisplay(armband: ArmbandDisplayValue): string {
   if (/^\d+$/.test(trimmed) && Number(trimmed) === 0) return UNASSIGNED_ARMBAND_DISPLAY;
 
   return trimmed;
-}
-
-export function computeArmbandAssignments(
-  dogIds: string[],
-  startNumber: number
-): ArmbandAssignment[] {
-  return dogIds.map((dogId, i) => ({ dogId, armband: String(startNumber + i) }));
 }
 
 export function resolveStartNumber(

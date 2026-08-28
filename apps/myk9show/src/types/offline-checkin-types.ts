@@ -336,7 +336,6 @@ export interface OfflineCheckInServiceConfig {
 }
 
 export interface ArmbandManagerConfig {
-  autoAssignArmbands: boolean;
   allowDuplicates: boolean;
   conflictResolutionStrategy: 'reassign' | 'manual' | 'first_wins';
   armbandRanges: { start: number; end: number; class?: string | undefined }[];

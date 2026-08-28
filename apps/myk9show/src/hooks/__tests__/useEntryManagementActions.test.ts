@@ -11,7 +11,6 @@ import { fromAny } from '@total-typescript/shoehorn';
 
 const mocks = vi.hoisted(() => ({
   setEntryArmband: vi.fn(),
-  autoAssignArmbands: vi.fn(),
   getEntryArmbandById: vi.fn(),
   getNextArmbandForShow: vi.fn(),
   changeSecretaryEntryStatus: vi.fn(),
@@ -20,7 +19,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/database/armbands', () => ({
   setEntryArmband: mocks.setEntryArmband,
-  autoAssignArmbands: mocks.autoAssignArmbands,
   getEntryArmbandById: mocks.getEntryArmbandById,
   getNextArmbandForShow: mocks.getNextArmbandForShow,
 }));
@@ -125,7 +123,6 @@ describe('useEntryManagementActions', () => {
         setEntries: vi.fn(),
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -154,7 +151,6 @@ describe('useEntryManagementActions', () => {
         setEntries: vi.fn(),
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -183,7 +179,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -211,7 +206,6 @@ describe('useEntryManagementActions', () => {
           setEntries,
           selectedShowId: 'show-1',
           selectedShow: null,
-          loadEntries: vi.fn(),
           setError: vi.fn(),
           user: { id: 'secretary-1' },
         })
@@ -241,7 +235,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -285,7 +278,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -329,7 +321,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -389,7 +380,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -444,7 +434,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -492,7 +481,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })

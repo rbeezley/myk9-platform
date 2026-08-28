@@ -77,7 +77,7 @@ describe('EntryStatusPopover', () => {
     );
 
     const trigger = screen.getByRole('button', {
-      name: 'Change entry status for Fido in Novice A',
+      name: /change entry status for Fido in Novice A/i,
     });
     expect(trigger).toHaveClass('min-h-11');
 
@@ -104,7 +104,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     expect(screen.queryByText('Check in all classes')).not.toBeInTheDocument();
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
@@ -125,7 +125,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
 
     const currentItem = screen.getByRole('menuitem', { name: /Accepted/ });
@@ -148,7 +148,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 
@@ -161,7 +161,7 @@ describe('EntryStatusPopover', () => {
     expect(screen.queryByText('This entry has a recorded result')).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
     await user.click(screen.getByRole('button', { name: 'Change status' }));
@@ -182,7 +182,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 
@@ -208,7 +208,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 
@@ -232,7 +232,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Mark pending' }));
 
@@ -255,7 +255,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Mark pending' }));
 
@@ -278,7 +278,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Mark pending' }));
 
@@ -298,7 +298,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
     await user.click(screen.getByRole('button', { name: 'Change status' }));
@@ -318,7 +318,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -339,7 +339,7 @@ describe('EntryStatusPopover', () => {
     );
 
     await user.click(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
     );
 
     // Canonical vocabulary (reviewStateLabels) says "Waitlisted", not the

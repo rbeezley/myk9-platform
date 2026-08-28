@@ -43,8 +43,9 @@ jobs:
     environment: load-rehearsal
     permissions:
       contents: read
-      # The headroom preflight reads other runs' job states.
-      actions: read
+      # No `actions: read` here on purpose: the headroom preflight needs an
+      # ACCOUNT-wide view, which no permission on the repo-scoped GITHUB_TOKEN
+      # can grant. It uses the HEADROOM_GITHUB_TOKEN secret instead.
     outputs:
       run-id: ${{ steps.window.outputs.run-id }}
       start-at-ms: ${{ steps.window.outputs.start-at-ms }}
@@ -125,29 +126,29 @@ jobs:
       # shards + the sampler), and `support-triage.yml` alone runs every 15
       # minutes. A shard that cannot get a runner before the barrier throws and
       # the whole approved reseed-and-load window is burned, so fail here instead.
+      # The Actions-issued GITHUB_TOKEN is scoped to THIS repository, so it
+      # cannot see a sibling repo's jobs — `rbeezley/myK9Qv3` carries an active
+      # CI workflow that draws from the same account pool. The gate therefore
+      # reads a fine-grained PAT (Actions: read-only on all repositories) and
+      # refuses the dispatch when it cannot prove account-wide capacity, rather
+      # than narrowing to one repository and calling the result headroom.
+      # Logic and its regression coverage: src/test/load/loadRunnerHeadroom.ts.
       - name: Verify enough concurrent-runner headroom
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          required=$(( LOAD_TEST_SHARD_COUNT + 1 ))
-          busy=0
-          for status in in_progress queued; do
-            ids="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?status=${status}&per_page=100" \
-              --jq ".workflow_runs[] | select(.id != ${GITHUB_RUN_ID}) | .id")"
-            for id in $ids; do
-              count="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs?per_page=100" \
-                --jq '[.jobs[] | select(.status == "in_progress" or .status == "queued")] | length')"
-              busy=$(( busy + count ))
-            done
-          done
-          free=$(( LOAD_TEST_CONCURRENCY_CEILING - busy ))
-          echo "Other active jobs: ${busy}; free of ${LOAD_TEST_CONCURRENCY_CEILING}: ${free}; required: ${required}."
-          [[ "$free" -ge "$required" ]] || {
-            echo "Not enough runner headroom for a synchronized ${LOAD_TEST_SHARD_COUNT}-shard start." >&2
-            echo "Let other workflows finish, avoid pushing to main during the window, and re-dispatch." >&2
-            exit 1
-          }
+          HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}
+        run: pnpm --filter @myk9/show exec tsx scripts/load-runner-headroom.ts
+
+      # Also BEFORE the reseed, and for the same reason as the headroom gate.
+      # The runner asserts these credentials too, but it does so in the shard
+      # job — after the reseed — so a missing secret would cost the whole
+      # approved window instead of a refused dispatch.
+      - name: Verify per-show staff credentials are provisioned
+        env:
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_LOAD_SECRETARY_1_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_1_PASSWORD }}
+          E2E_LOAD_SECRETARY_2_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_2_PASSWORD }}
+          E2E_LOAD_SECRETARY_3_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_3_PASSWORD }}
+        run: pnpm --filter @myk9/show exec tsx scripts/load-staff-preflight.ts
 
       - name: Mark rehearsal ownership window
         id: ownership
@@ -345,6 +346,13 @@ jobs:
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
           E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+          # One credential per additional load show. Without these the runner's
+          # staff sessions would all authenticate as the canonical secretary,
+          # which manages every fixture show and collapses the own-show versus
+          # cross-show measurement the multi-show fixture exists to make.
+          E2E_LOAD_SECRETARY_1_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_1_PASSWORD }}
+          E2E_LOAD_SECRETARY_2_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_2_PASSWORD }}
+          E2E_LOAD_SECRETARY_3_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_3_PASSWORD }}
 
       - name: Upload shard observation
         if: always()

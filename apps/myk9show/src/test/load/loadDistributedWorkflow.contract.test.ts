@@ -119,9 +119,49 @@ describe('manual distributed load workflow', () => {
     const preflight = workflow.indexOf('Verify enough concurrent-runner headroom');
     expect(preflight).toBeGreaterThan(-1);
     expect(preflight).toBeLessThan(workflow.indexOf('Canonical reseed'));
+    // NCR-2026-08-27-01: the ceiling is account-wide, so the gate must not be
+    // counting through the repo-scoped GITHUB_TOKEN. These pin the wiring only;
+    // the counting and refusal behaviour is covered by
+    // loadRunnerHeadroom.test.ts, which exercises the logic rather than the text.
+    expect(workflow).toContain('scripts/load-runner-headroom.ts');
+    expect(workflow).toContain('HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}');
+    expect(workflow).not.toMatch(/repos\/\$\{GITHUB_REPOSITORY\}\/actions\/runs/);
     expect(workflow).toMatch(
       /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 55/
     );
+  });
+
+  it('passes every per-show staff credential to the shards and checks them pre-reseed', () => {
+    // The runner authenticates one staff credential PER SHOW. Unwired, all three
+    // resolve to undefined, assertStaffCredentialsComplete throws inside the
+    // shard job, and because that is after the reseed it burns the approved
+    // window rather than refusing the dispatch.
+    // Each name must appear TWICE — once in the shard job that uses it, once in
+    // the pre-reseed preflight that refuses without it. A bare toContain here is
+    // vacuous: drop the shard's line and the preflight's copy still satisfies it,
+    // which is exactly how the original wiring gap would have slipped back in.
+    for (const index of [1, 2, 3]) {
+      const name = `E2E_LOAD_SECRETARY_${index}_PASSWORD`;
+      expect(workflow).toContain(`${name}: \${{ secrets.${name} }}`);
+      expect(workflow.match(new RegExp(`${name}: `, 'g'))).toHaveLength(2);
+    }
+
+    const preflight = workflow.indexOf('Verify per-show staff credentials are provisioned');
+    expect(preflight).toBeGreaterThan(-1);
+    expect(preflight).toBeLessThan(workflow.indexOf('Canonical reseed'));
+    expect(workflow).toContain('scripts/load-staff-preflight.ts');
+  });
+
+  it('runs the load anti-rot check by directory, not by an enumerated file list', () => {
+    // The list this replaced had drifted seven files behind the directory —
+    // every test file from the multi-show reshape plus the headroom gate. A
+    // hand-maintained allowlist fails silently: the new test passes locally
+    // (you named it) and simply never runs in the fast CI check. Selecting the
+    // directory is what makes that structurally impossible, so it is pinned.
+    const pkg = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../package.json'), 'utf8')
+    ) as { scripts: Record<string, string> };
+    expect(pkg.scripts['test:load:unit']).toBe('vitest run src/test/load');
   });
 
   it('does not depend on Vercel or paid runner labels', () => {

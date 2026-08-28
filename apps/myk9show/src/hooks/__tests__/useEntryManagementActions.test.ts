@@ -107,6 +107,72 @@ describe('useEntryManagementActions', () => {
     mocks.changeSecretaryEntryStatus.mockResolvedValue({});
   });
 
+  /**
+   * Audit finding C2. `bulkActionEligibility` says a bulk status change "must
+   * never" touch a closed entry, because re-approving a scored one corrupts
+   * closed results and the move-up queue. The multi-select toolbar filtered
+   * before calling this handler; the registration Actions menu passed every
+   * entry in the group. The rule now lives in the handler, so no caller can
+   * reopen the hole.
+   */
+  it('never writes a status change to a closed entry, even when the caller asks it to', async () => {
+    const pending = { ...makeEntry(), id: 'pending-1', entryStatus: EntryStatus.PENDING };
+    const scored = { ...makeEntry(), id: 'scored-1', entryStatus: EntryStatus.COMPLETED };
+    const pulled = { ...makeEntry(), id: 'pulled-1', entryStatus: EntryStatus.SCRATCHED };
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [pending, scored, pulled],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+
+    await act(async () => {
+      // Exactly what the registration "Accept all" menu used to send.
+      await result.current.handleEnrollmentBulkStatusChange(
+        ['pending-1', 'scored-1', 'pulled-1'],
+        EntryStatus.ACCEPTED
+      );
+    });
+
+    const written = mocks.changeSecretaryEntryStatus.mock.calls.map(
+      call => (call[0] as { entry: EntryManagementEntry }).entry.id
+    );
+    expect(written).toEqual(['pending-1']);
+  });
+
+  it('does nothing at all when no entry in the request is eligible', async () => {
+    const scored = { ...makeEntry(), id: 'scored-1', entryStatus: EntryStatus.COMPLETED };
+
+    const { result } = renderHook(() =>
+      useEntryManagementActions({
+        entries: [scored],
+        setEntries: vi.fn(),
+        selectedShowId: 'show-1',
+        selectedShow: null,
+        loadEntries: vi.fn(),
+        setError: vi.fn(),
+        user: { id: 'secretary-1' },
+      })
+    );
+
+    let outcome: boolean | undefined;
+    await act(async () => {
+      outcome = await result.current.handleEnrollmentBulkStatusChange(
+        ['scored-1'],
+        EntryStatus.ACCEPTED
+      );
+    });
+
+    expect(outcome).toBe(false);
+    expect(mocks.changeSecretaryEntryStatus).not.toHaveBeenCalled();
+  });
+
   it('reports a failed status mutation so the badge can offer retry', async () => {
     mocks.changeSecretaryEntryStatus.mockRejectedValueOnce(new Error('offline write failed'));
     const entry = makeEntry();

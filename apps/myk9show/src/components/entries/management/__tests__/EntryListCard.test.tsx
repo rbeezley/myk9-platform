@@ -1,3 +1,4 @@
+import { getStatusDescriptor } from '@/components/status';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -77,7 +78,11 @@ describe('EntryListCard - check-in button affordance', () => {
     expect(button).toHaveClass('border');
   });
 
-  it('names chip-style armband, entry status, and check-in controls by action', () => {
+  // Each chip control still names its own action distinctly. The names now also
+  // LEAD with the control's visible text, which WCAG 2.5.3 (Label in Name)
+  // requires: an aria-label that replaces the visible text leaves a speech-input
+  // user unable to activate the control by saying what they can see.
+  it('names chip-style armband, entry status, and check-in controls by visible label and action', () => {
     render(
       <EntryListCard
         {...defaultProps}
@@ -85,13 +90,24 @@ describe('EntryListCard - check-in button affordance', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'Change armband for Fido' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Change entry status for Fido in Novice A' })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Change check-in status for Fido in Novice A' })
-    ).toBeInTheDocument();
+    const armband = screen.getByRole('button', { name: /change armband for Fido/i });
+    const status = screen.getByRole('button', { name: /change entry status for Fido in Novice A/i });
+    const checkIn = screen.getByRole('button', {
+      name: /change check-in status for Fido in Novice A/i,
+    });
+
+    // The visible text of each control must appear in its accessible name.
+    // The status and check-in chips render their label from
+    // `getStatusDescriptor`, so assert against that same source rather than
+    // against `textContent` -- CheckInStatusIndicator is mocked here, and
+    // comparing to the mock's output would only test the mock.
+    expect(armband).toHaveAccessibleName(/^42,/);
+    expect(status.getAttribute('aria-label')).toContain(
+      getStatusDescriptor('entry', 'accepted').label
+    );
+    expect(checkIn.getAttribute('aria-label')).toContain(
+      getStatusDescriptor('entry', 'no-status').label
+    );
   });
 
   it('renders check-in buttons for all classes in an entry', () => {

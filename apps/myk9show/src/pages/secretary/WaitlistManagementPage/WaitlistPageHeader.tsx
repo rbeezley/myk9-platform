@@ -18,10 +18,13 @@ export const WaitlistPageHeader: React.FC<WaitlistPageHeaderProps> = ({
   return (
     <div className="flex justify-between items-start">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <ListOrdered className="h-8 w-8" />
+        {/* h2, not h1: this "page" is only ever rendered EMBEDDED, inside the
+            Waitlist exception of Entry Management, which owns the h1. It has
+            no route of its own. */}
+        <h2 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+          <ListOrdered className="h-8 w-8" aria-hidden />
           Waitlist Management
-        </h1>
+        </h2>
         <p className="text-muted-foreground">
           Manage class waitlists, offer spots to exhibitors, and track capacity
         </p>

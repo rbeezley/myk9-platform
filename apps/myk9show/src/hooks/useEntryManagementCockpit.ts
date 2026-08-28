@@ -26,7 +26,7 @@ import type { OperationalViewDensity } from '@/features/operational-views/operat
 interface UseEntryManagementCockpitOptions {
   groups: ShowRegistrationGroup[];
   state: EntryManagementCockpitState;
-  trialClassIds?: readonly string[];
+  trialClassIds?: readonly string[] | undefined;
   canValidateFocus?: boolean;
 }
 
@@ -51,7 +51,13 @@ export function useEntryManagementCockpit({
         queue: state.queue,
         search: state.search,
         classId: state.classId,
-        ...(state.trialId ? { trialClassIds: trialClassIds ?? [] } : {}),
+        // Scope by trial ONLY when the trial's class ids are actually known.
+        // `trialClassIds` is `undefined` when the classes query is pending,
+        // paused (offline) or errored; passing `[]` there is an empty
+        // allowlist, which filters every registration out and reports zero as
+        // fact. Omitting the key leaves the groups unscoped, and the cockpit
+        // renders an explicit "scope unavailable" notice instead.
+        ...(state.trialId && trialClassIds ? { trialClassIds } : {}),
         pageIndex,
       }),
     [groups, pageIndex, state.classId, state.queue, state.search, state.trialId, trialClassIds]
@@ -77,7 +83,7 @@ export function useEntryManagementCockpit({
         : getScopedShowRegistrationQueueCounts(
             groups,
             state.classId,
-            state.trialId ? (trialClassIds ?? []) : undefined
+            state.trialId && trialClassIds ? trialClassIds : undefined
           ),
     [groups, state.classId, state.search, state.trialId, trialClassIds]
   );

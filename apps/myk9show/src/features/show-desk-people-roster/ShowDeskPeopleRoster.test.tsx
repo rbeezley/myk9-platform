@@ -185,8 +185,13 @@ describe('ShowDeskPeopleRoster', () => {
     });
 
     expect(screen.getByText("Couldn't load exhibitors.")).toBeInTheDocument();
-    expect(screen.getByText('Replica unavailable')).toBeInTheDocument();
     expect(screen.queryByText(/No exhibitors are entered/i)).not.toBeInTheDocument();
+    // The RAW exception string used to be printed here. INTENT.md names
+    // technical error messages as an anti-pattern for this role, and
+    // "Replica unavailable" tells a secretary nothing they can act on -- the
+    // recovery is the same either way, so the copy states it.
+    expect(screen.queryByText('Replica unavailable')).not.toBeInTheDocument();
+    expect(screen.getByText(/retry, or carry on from the class schedule/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /retry/i }));
     expect(onRetry).toHaveBeenCalledTimes(1);

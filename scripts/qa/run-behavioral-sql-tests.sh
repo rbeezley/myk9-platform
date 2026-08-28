@@ -42,6 +42,7 @@ TEST_FILES=(
   "$TEST_DIR/club_secretary_grant_test.sql"
   "$TEST_DIR/create_show_with_children_tenant_isolation_test.sql"
   "$TEST_DIR/entries_manager_policy_hashable_test.sql"
+  "$TEST_DIR/entry_requires_dog_registration_test.sql"
   "$TEST_DIR/anon_tv_entry_soft_delete_test.sql"
   "$TEST_DIR/judge_assignment_private_read_test.sql"
   "$TEST_DIR/office_admin_rls_test.sql"

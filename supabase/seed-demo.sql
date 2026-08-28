@@ -484,6 +484,26 @@ VALUES
   ('dededede-0000-0000-0000-000000000046', 'Cooper', 'Cooper', 'Beagle', 'male', '2023-01-12', 'Tricolor', 'active',
    (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 1);
 
+-- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
+-- (20260828210000) rejects an entry whose dog has none for the trial's registry, so a
+-- seed without these would fail on the first entry insert. Idempotent and keyed off the
+-- dog id so reseeds are stable.
+INSERT INTO public.dog_registrations (
+  dog_id, organization, registration_number, registered_name, breed, status, is_primary
+)
+SELECT
+  d.id,
+  'AKC (American Kennel Club)',
+  'SR' || upper(substr(md5(d.id::text), 1, 8)),
+  d.name,
+  d.breed,
+  'Active',
+  true
+FROM public.dogs d
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
+);
+
 -- ---------------------------------------------------------------------------
 -- 6. Entries (8)  -- valid entry_status + payment_status, denormalized
 --    show_id/trial_id, sequential armbands. handler_id = owner (demo).
@@ -1210,6 +1230,26 @@ SELECT
   1
 FROM generate_series(1, 63) AS load_dogs(dog_number);
 
+-- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
+-- (20260828210000) rejects an entry whose dog has none for the trial's registry, so a
+-- seed without these would fail on the first entry insert. Idempotent and keyed off the
+-- dog id so reseeds are stable.
+INSERT INTO public.dog_registrations (
+  dog_id, organization, registration_number, registered_name, breed, status, is_primary
+)
+SELECT
+  d.id,
+  'AKC (American Kennel Club)',
+  'SR' || upper(substr(md5(d.id::text), 1, 8)),
+  d.name,
+  d.breed,
+  'Active',
+  true
+FROM public.dogs d
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
+);
+
 WITH load_entries AS (
   SELECT
     dog_number,
@@ -1409,6 +1449,26 @@ SELECT
   1
 FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number);
+
+-- Every seeded dog needs a registration number: `trg_entries_require_dog_registration`
+-- (20260828210000) rejects an entry whose dog has none for the trial's registry, so a
+-- seed without these would fail on the first entry insert. Idempotent and keyed off the
+-- dog id so reseeds are stable.
+INSERT INTO public.dog_registrations (
+  dog_id, organization, registration_number, registered_name, breed, status, is_primary
+)
+SELECT
+  d.id,
+  'AKC (American Kennel Club)',
+  'SR' || upper(substr(md5(d.id::text), 1, 8)),
+  d.name,
+  d.breed,
+  'Active',
+  true
+FROM public.dogs d
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
+);
 
 WITH multi_show_entries AS (
   SELECT

@@ -181,7 +181,7 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
     // Same rule as the ranking pin above: repoint it at the new file and
     // re-check every assertion below, rather than deleting it.
     expect(latestGateMigrationFile).toBe(
-      '20260817150000_clear_tombstone_placement_on_manual_classes.sql'
+      '20260828010000_suppress_noop_class_rollup_writes.sql'
     );
   });
 

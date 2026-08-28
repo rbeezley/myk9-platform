@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { LOAD_SHOWS } from './loadFixture';
 
 /**
@@ -106,4 +107,46 @@ export function assertScopedToOwnShow(scopes: readonly ManageableShowScope[]): v
   if (problems.length > 0) {
     throw new Error(`Staff credentials are not scoped to one show: ${problems.join('; ')}.`);
   }
+}
+
+/**
+ * Signs a credential in and returns both its access token and the shows it can
+ * actually manage.
+ *
+ * The scope comes from the database rather than the fixture: a club-level grant,
+ * a site-admin role or a stale `user_roles` row would each widen it invisibly,
+ * and `manageable_show_ids()` resolves through four arms — one of them
+ * club-scoped — so no amount of reading the seed proves what a credential sees.
+ */
+export async function authenticateAndResolveScope(
+  supabaseUrl: string,
+  anonKey: string,
+  credential: { email: string; password: string; showIndex: number }
+): Promise<{ accessToken: string; scope: ManageableShowScope }> {
+  const client = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await client.auth.signInWithPassword({
+    email: credential.email,
+    password: credential.password,
+  });
+  if (error || !data.session) {
+    throw new Error(`Could not sign in ${credential.email}: ${error?.message ?? 'no session'}`);
+  }
+
+  const { data: shows, error: rpcError } = await client.rpc('manageable_show_ids');
+  if (rpcError) {
+    throw new Error(
+      `Could not resolve manageable shows for ${credential.email}: ${rpcError.message}`
+    );
+  }
+
+  const manageableShowIds = Array.isArray(shows)
+    ? shows.map(row => (typeof row === 'string' ? row : String((row as { id?: string }).id ?? '')))
+    : [];
+
+  return {
+    accessToken: data.session.access_token,
+    scope: { showIndex: credential.showIndex, email: credential.email, manageableShowIds },
+  };
 }

@@ -15,6 +15,14 @@ import {
   LOAD_SHOW_ENTRY_COUNT,
   LOAD_SHOW_ID,
 } from './loadFixture';
+import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
+import { planGeneration } from './loadGenerationPlan';
+import {
+  assertScopedToOwnShow,
+  assertStaffCredentialsComplete,
+  authenticateAndResolveScope,
+  resolveStaffCredentials,
+} from './loadStaffCredentials';
 import { startLoadGeneratorSampler, type LoadGeneratorSampler } from './loadGeneratorSampler';
 import { LoadMetrics, type LoadMetricSamples } from './loadMetrics';
 import {
@@ -28,6 +36,7 @@ import { countPersistedScores } from './loadPersistence';
 import type { LoadScenario } from './loadScenario';
 import { LoadSessionLifecycle } from './loadSessionLifecycle';
 import { scheduledStartDelayMs, selectShardAssignments, type LoadShard } from './loadShard';
+import { VirtualUserFleet } from './loadVirtualUserFleet';
 import type { ResolvedLoadTarget } from './loadTarget';
 
 const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
@@ -69,7 +78,13 @@ export async function runBrowserLoad(
   const assignments = options.shard
     ? selectShardAssignments(allAssignments, options.shard)
     : allAssignments;
+  // Readers are the bulk of the workload and 270 Chromium contexts do not fit on
+  // sixteen runners: all-browser generation needs 22.4 contexts per runner against
+  // today's 6-7. Writers stay real; one reader per runner stays real so rendering
+  // coverage survives.
+  const generation = planGeneration(assignments, { browserReaderSample: 1 });
   const contexts: BrowserContext[] = [];
+  let virtualUsers: VirtualUserFleet | undefined;
   const scoredEntryIds = new Set<string>();
   let platformSampler: LoadPlatformSampler | undefined;
   let generatorSampler: LoadGeneratorSampler | undefined;
@@ -86,10 +101,31 @@ export async function runBrowserLoad(
       shardIndex: options.shard?.index ?? 0,
       expectedStartAtMs: options.shard?.startAtMs,
     });
+    // Fail closed BEFORE the reseed window is spent. A missing credential costs a
+    // refused dispatch; discovering it after the barrier costs the whole approved
+    // window, and a run where every staff session silently saw all four shows
+    // would look like it worked.
+    const staff = resolveStaffCredentials(process.env);
+    assertStaffCredentialsComplete(staff);
+    const supabaseUrl = requiredEnv('VITE_SUPABASE_URL');
+    const anonKey = requiredEnv('VITE_SUPABASE_ANON_KEY');
+    const staffAuth = await Promise.all(
+      staff.credentials.map(credential =>
+        authenticateAndResolveScope(supabaseUrl, anonKey, credential)
+      )
+    );
+    // Scope comes from the database, never the fixture: manageable_show_ids()
+    // resolves through four arms and one of them is club-scoped.
+    assertScopedToOwnShow(staffAuth.map(entry => entry.scope));
+    const secretaryTokens = new Map(
+      staffAuth.map(entry => [entry.scope.showIndex, entry.accessToken])
+    );
+
     const secretaryState = await createAuthState(browser, target.baseUrl, 'secretary');
     const exhibitorState = await createAuthState(browser, target.baseUrl, 'exhibitor');
+    const exhibitorAccessToken = await exhibitorAccessTokenFor(supabaseUrl, anonKey);
     const preparedSessions = await mapWithConcurrency(
-      assignments,
+      generation.browser,
       SESSION_PREPARATION_CONCURRENCY,
       async assignment => {
         // Exhibitor self-check-in is a different authorization path and a
@@ -112,6 +148,22 @@ export async function runBrowserLoad(
         return { assignment, context, page };
       }
     );
+    // Built after the browser contexts and hydrated before the barrier, so their
+    // cold first pass is not measured as steady-state load.
+    if (generation.virtualUser.length > 0) {
+      virtualUsers = new VirtualUserFleet(generation.virtualUser, {
+        supabaseUrl,
+        anonKey,
+        accessTokenFor: (role, showIndex) =>
+          role === 'exhibitor'
+            ? exhibitorAccessToken
+            : (secretaryTokens.get(showIndex) ?? secretaryTokens.get(0) ?? ''),
+        classColumnSelect: LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT,
+        onSample: sample =>
+          metrics.recordVirtualUserRequest({ durationMs: sample.durationMs, ok: sample.ok }),
+      });
+      await virtualUsers.hydrate();
+    }
     generatorSampler.markContextsPrepared();
     // Distributed runs sample the platform from a dedicated browser-free runner:
     // a shard that polls the database while also driving browser contexts
@@ -122,6 +174,7 @@ export async function runBrowserLoad(
       : undefined;
     if (options.shard) await delay(scheduledStartDelayMs(options.shard));
     lifecycle.markPrepared(assertAllSessionsOpenAtStart(preparedSessions));
+    virtualUsers?.start();
     generatorSampler.markLoadStarted();
     const startedAtMs = Date.now();
     const startAtMs = options.shard?.startAtMs ?? startedAtMs;
@@ -176,6 +229,7 @@ export async function runBrowserLoad(
     if (options.smoke && rejectedSessions[0]) throw rejectedSessions[0].reason;
 
     // Reconciliation/teardown is not generator load. Stop at the workload boundary.
+    virtualUsers?.stop();
     const generator = await generatorSampler.stop();
     generatorSampler = undefined;
     await metrics.settle();
@@ -207,6 +261,10 @@ export async function runBrowserLoad(
       elapsedMs,
     };
   } finally {
+    // Unconditional: a throw before the workload boundary would otherwise leave
+    // reader intervals polling the shared target after the approved window has
+    // closed. Stopping is idempotent, so the happy-path call above is harmless.
+    virtualUsers?.stop();
     await platformSampler?.stop().catch(() => undefined);
     await generatorSampler?.stop().catch(() => undefined);
     await closeBrowserContexts(contexts);
@@ -484,6 +542,25 @@ async function runCheckIn(
   const checkedInButton = page.getByRole('button', { name: 'Checked-in', exact: true });
   await checkedInButton.waitFor({ state: 'visible', timeout: 20_000 });
   await checkedInButton.click();
+}
+
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required to drive API-level virtual readers.`);
+  return value;
+}
+
+/** One exhibitor token serves every exhibitor reader; they share a scope. */
+async function exhibitorAccessTokenFor(supabaseUrl: string, anonKey: string): Promise<string> {
+  const email = process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'exhibitor@myk9t.com';
+  const password = process.env.E2E_DEMO_EXHIBITOR_PASSWORD;
+  if (!password) throw new Error('E2E_DEMO_EXHIBITOR_PASSWORD is required for virtual readers.');
+  const { accessToken } = await authenticateAndResolveScope(supabaseUrl, anonKey, {
+    email,
+    password,
+    showIndex: 0,
+  });
+  return accessToken;
 }
 
 function emptySessionResult(): SessionResult {

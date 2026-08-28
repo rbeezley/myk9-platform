@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
+import { LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT } from './loadClassColumns';
 import { LoadVirtualUser, VIRTUAL_USER_SYNC_INTERVAL_MS } from './loadVirtualUser';
 
 /**
@@ -87,6 +88,14 @@ async function realDogsUrl(ownerId?: string): Promise<string> {
 }
 
 describe('virtual user request fidelity', () => {
+  it("keeps the harness class column list identical to the application's", () => {
+    // The harness holds a copy because importing the real constant pulls in
+    // supabaseClient, which reads import.meta.env and breaks Playwright
+    // discovery. This is what stops the copy drifting into a query the
+    // application never issues.
+    expect(LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT).toBe(CLASS_AUTHENTICATED_COLUMN_SELECT);
+  });
+
   it('polls at the replication layer cadence', () => {
     // Mirrors SYNC_INTERVAL_MS in packages/replication. A virtual user polling on
     // a different clock would misreport reader load per unit time.

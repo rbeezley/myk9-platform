@@ -293,6 +293,97 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
     }
   });
 
+  it('aborts in-flight requests at the boundary instead of waiting for them', async () => {
+    // Waiting was itself the defect. A Supabase fetch that never settles — the
+    // overload case — made drain() block until the 55-minute shard timeout, so
+    // the run wrote NO artifact at all. Waiting also let the poll's latency land
+    // inside elapsedMs and kept requests reaching shared staging past the
+    // approved window. Aborting removes all three.
+    vi.useFakeTimers();
+    try {
+      // Never settles on its own; only an abort can end it.
+      const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+      const hanging = ((_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          // Real fetch rejects immediately on an already-aborted signal.
+          if (init?.signal?.aborted) {
+            reject(abortError());
+            return;
+          }
+          init?.signal?.addEventListener('abort', () => reject(abortError()));
+        })) as unknown as typeof fetch;
+
+      const user = new LoadVirtualUser(
+        {
+          supabaseUrl: 'https://fixture.supabase.co',
+          anonKey: 'anon',
+          accessToken: 'token',
+          showId: LOAD_SHOWS[0].showId,
+          trialId: LOAD_SHOWS[0].trials[0].trialId,
+          role: 'exhibitor',
+          fetchImpl: hanging,
+        },
+        'id,updated_at'
+      );
+
+      user.start(() => {});
+      vi.advanceTimersByTime(60_000);
+      for (let tick = 0; tick < 50; tick += 1) await Promise.resolve();
+
+      user.stop();
+      // Unbounded before: this would never resolve.
+      await expect(user.drain()).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('issues no further requests once the boundary has passed', async () => {
+    // Aborting the in-flight request is not enough: a sync is three sequential
+    // queries, so a pass cancelled on its first would still issue the other two
+    // — requests reaching shared staging after the approved window closed.
+    vi.useFakeTimers();
+    try {
+      let issued = 0;
+      const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+      const counting = ((_url: RequestInfo | URL, init?: RequestInit) => {
+        issued += 1;
+        return new Promise((_resolve, reject) => {
+          if (init?.signal?.aborted) {
+            reject(abortError());
+            return;
+          }
+          init?.signal?.addEventListener('abort', () => reject(abortError()));
+        });
+      }) as unknown as typeof fetch;
+
+      const user = new LoadVirtualUser(
+        {
+          supabaseUrl: 'https://fixture.supabase.co',
+          anonKey: 'anon',
+          accessToken: 'token',
+          showId: LOAD_SHOWS[0].showId,
+          trialId: LOAD_SHOWS[0].trials[0].trialId,
+          role: 'exhibitor',
+          fetchImpl: counting,
+        },
+        'id,updated_at'
+      );
+
+      user.start(() => {});
+      vi.advanceTimersByTime(60_000);
+      for (let tick = 0; tick < 50; tick += 1) await Promise.resolve();
+      expect(issued).toBe(1);
+
+      user.stop();
+      await user.drain();
+      // The remaining two queries of the cancelled pass must never be issued.
+      expect(issued).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('marks a reader failed when its requests fail', async () => {
     const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
     const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });

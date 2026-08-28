@@ -245,6 +245,13 @@ export async function runBrowserLoad(
     // average over incommensurable windows (MYK9-126).
     if (!options.smoke) await delay(connectedSessionHoldMs(endsAt, Date.now()));
 
+    // Stamped at the workload boundary, BEFORE teardown. Everything below —
+    // aborting readers, draining, reconciliation, platform stop — is not
+    // generation, and folding it into elapsedMs would divide throughput by a
+    // window generation never occupied. The divergence guard cannot catch that:
+    // every shard overruns similarly, so the windows stay consistent and wrong.
+    const scenarioElapsedMs = Date.now() - startAtMs;
+
     // Reconciliation/teardown is not generator load. Stop at the workload boundary.
     virtualUsers?.stop();
     if (virtualUsers) {
@@ -275,7 +282,7 @@ export async function runBrowserLoad(
     const persistence = await countPersistedScores([...scoredEntryIds]);
     const platform = await platformSampler?.stop();
     platformSampler = undefined;
-    const elapsedMs = Date.now() - startAtMs;
+    const elapsedMs = scenarioElapsedMs;
     const sessionLifecycle = lifecycle.observation();
     const observation = metrics.buildObservation({
       concurrentSessions: sessionLifecycle.preparedSessions,

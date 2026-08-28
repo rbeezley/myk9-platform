@@ -53,33 +53,6 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useEntryManagementFilters', () => ({
-  useEntryManagementFilters: () => ({
-    searchTerm: '',
-    setSearchTerm: vi.fn(),
-    paymentFilter: 'all',
-    setPaymentFilter: vi.fn(),
-    selectedTab: 'all',
-    setSelectedTab: vi.fn(),
-    attentionFilter: 'all',
-    setAttentionFilter: vi.fn(),
-    workMode: 'review',
-    setWorkMode: vi.fn(),
-    entryViewMode: 'table',
-    setEntryViewMode: vi.fn(),
-    trialFilter: null,
-    setTrialFilter: vi.fn(),
-    classFilter: null,
-    setClassFilter: vi.fn(),
-    viewMode: 'registration',
-    selectedEntries: new Set<string>(),
-    setSelectedEntries: vi.fn(),
-    handleSelectEntry: vi.fn(),
-    handleSelectAll: vi.fn(),
-    filteredEntries: [],
-  }),
-}));
-
 vi.mock('@/hooks/useEntryManagementActions', () => ({
   useEntryManagementActions: () => ({
     isProcessing: false,

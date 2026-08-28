@@ -1,6 +1,5 @@
 import {
   CheckCircle2,
-  ClipboardCheck,
   CreditCard,
   DollarSign,
   Mail,
@@ -24,7 +23,6 @@ import { STATUS_COMMAND_LABELS } from './reviewStateLabels';
  * disappears from the row menu rather than firing into a no-op. */
 export interface EntryActionHandlers {
   onStatusChange?: ((entryId: string, status: EntryStatus) => void) | undefined;
-  onCheckInEntry?: ((entryId: string) => void) | undefined;
   onOpenArmbandDialog?: ((entry: EntryManagementEntry) => void) | undefined;
   onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
   onOpenCompDialog?: ((entry: EntryManagementEntry) => void) | undefined;
@@ -37,10 +35,6 @@ export interface EntryActionHandlers {
   onBulkStatusChange?: (
     entryIds: string[],
     status: EntryStatus,
-    onFullSuccess?: () => void
-  ) => BulkActionResult | Promise<BulkActionResult>;
-  onBulkCheckIn?: (
-    entryIds: string[],
     onFullSuccess?: () => void
   ) => BulkActionResult | Promise<BulkActionResult>;
   onClear?: () => void;
@@ -57,9 +51,6 @@ export type EntryStatusActionDefinition = EntryActionDefinition & {
 
 const canMoveToWaitlist = (status: EntryStatus) =>
   status === EntryStatus.PENDING || status === EntryStatus.MISSING_INFO;
-
-const canCheckIn = (status: EntryStatus) =>
-  status === EntryStatus.ACCEPTED || status === EntryStatus.MOVE_UP_REQUESTED;
 
 /** Runs a bulk status/check-in mutation and clears the selection unless the
  * handler explicitly reports failure (`result === false`) — mirrors the prior
@@ -168,30 +159,6 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
       entry.entryStatus !== EntryStatus.SCRATCHED &&
       entry.entryStatus !== EntryStatus.MOVED,
     run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.SCRATCHED),
-  },
-  {
-    id: 'check-in',
-    label: 'Check in all classes',
-    sectionLabel: 'Show day',
-    icon: <ClipboardCheck className="h-4 w-4" />,
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onCheckInEntry) && canCheckIn(entry.entryStatus),
-    run: (entry, handlers) => handlers.onCheckInEntry?.(entry.id),
-    bulk: {
-      applicableWhen: entry => getEligibleForBulkAction([entry], 'check-in').length === 1,
-      label: (eligibleCount, selectedCount) =>
-        eligibleCount > 0
-          ? `Check in ${eligibleCount} of ${selectedCount} selected`
-          : 'Check in selected',
-      unavailableReason: 'Only accepted entries can be checked in',
-      run: (eligible, handlers) =>
-        runBulkAndClear(handlers, onFullSuccess =>
-          handlers.onBulkCheckIn?.(
-            eligible.map(entry => entry.id),
-            onFullSuccess
-          )
-        ),
-    },
   },
   {
     id: 'armband',

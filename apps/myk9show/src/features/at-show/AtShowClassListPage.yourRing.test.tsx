@@ -171,9 +171,28 @@ describe('AtShowClassListPage Your ring', () => {
     );
     expect(within(yourRing).queryByText(/Buried Advanced/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Buried Advanced/)).not.toBeInTheDocument();
-    expect(yourRing.compareDocumentPosition(screen.getByTestId('at-show-trial-trial-1'))).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING
-    );
+    expect(screen.getAllByText(/Container Novice/)).toHaveLength(1);
+    expect(screen.getAllByText(/Interior Excellent/)).toHaveLength(1);
+    expect(screen.queryByTestId('at-show-trial-trial-1')).not.toBeInTheDocument();
+  });
+
+  it('keeps trial sections for broader staff who also judge', async () => {
+    authState.hasRole = role => role === UserRole.JUDGE || role === UserRole.SECRETARY;
+    authState.userWithRoles = { databaseUserId: 'judge-secretary-1' } as UserWithRoles;
+    authState.user = { is_anonymous: false };
+    judgeAssignmentData.getActive.mockResolvedValue([
+      {
+        id: 'assignment-a',
+        personId: 'judge-secretary-1',
+        classId: 'class-a',
+        status: 'confirmed',
+      },
+    ] as never);
+
+    renderPage();
+
+    expect(await screen.findByTestId('at-show-trial-trial-1')).toBeInTheDocument();
+    expect(screen.getByText(/Buried Advanced/)).toBeInTheDocument();
   });
 
   it('keeps the class list stable while the judge assignment cache is loading', async () => {

@@ -42,6 +42,12 @@ const QUEUES = [
   { id: 'all', label: 'All registrations' },
 ] as const;
 
+// INTENT: `queue` is the single source of registration-status filtering on
+// Entry Management. Do not add a second status control: contradictory status
+// filters create an honest-looking zero-registration state. Show-day check-in
+// is also intentionally absent here; the page links to the canonical Check-in
+// desk instead of duplicating that concern in registration management.
+
 interface EntryManagementCockpitProps {
   entries: EntryManagementEntry[];
   registrationGroups: ShowRegistrationGroup[];
@@ -80,10 +86,6 @@ interface EntryManagementCockpitProps {
   onBulkStatusChange: (
     entryIds: string[],
     status: EntryStatus,
-    onFullSuccess?: () => void
-  ) => BulkActionResult | Promise<BulkActionResult>;
-  onBulkCheckIn: (
-    entryIds: string[],
     onFullSuccess?: () => void
   ) => BulkActionResult | Promise<BulkActionResult>;
   onPaymentStatusChange: (
@@ -127,7 +129,6 @@ export function EntryManagementCockpit({
   onUncompEntry,
   onRemoveEntry,
   onBulkStatusChange,
-  onBulkCheckIn,
   onPaymentStatusChange,
   onSendDecisionEmail,
   onRefresh,
@@ -393,7 +394,6 @@ export function EntryManagementCockpit({
                 new Set(cockpit.matchingEntryIdsByGroup.get(cockpit.focusedGroup.groupKey) ?? [])
               }
               onBulkStatusChange={onBulkStatusChange}
-              onBulkCheckIn={onBulkCheckIn}
               onPaymentStatusChange={onPaymentStatusChange}
               emailStatusMap={emailStatusMap}
               onResendEmail={handleResendEmail}
@@ -418,7 +418,6 @@ export function EntryManagementCockpit({
         registrations={cockpit.selection.selectedCount}
         selectedEntries={selectedEntries}
         onBulkStatusChange={onBulkStatusChange}
-        onBulkCheckIn={onBulkCheckIn}
         onClear={cockpit.selection.clearSelection}
         busy={busy}
       />

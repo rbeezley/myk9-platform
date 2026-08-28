@@ -75,7 +75,6 @@ const defaultProps = {
   onOpenArmbandDialog: vi.fn(),
   onRemoveEntry: vi.fn(),
   onBulkStatusChange: vi.fn(),
-  onBulkCheckIn: vi.fn(),
   onPaymentStatusChange: vi.fn(),
 };
 
@@ -183,7 +182,7 @@ describe('EnrollmentCard', () => {
     expect(status).toBe(PaymentStatus.PAID_BY_CASH);
   });
 
-  it('omits "Waitlist All" from the bulk actions menu', () => {
+  it('omits show-day check-in and waitlist actions from the registration menu', () => {
     // Real waitlisting is per-class with position/capacity tracked in
     // `waitlist_entries` (WaitlistManagementPage). The bulk status write maps
     // WAITLIST → 'submitted', so it never creates membership and leaves the
@@ -192,11 +191,12 @@ describe('EnrollmentCard', () => {
     render(<EnrollmentCard {...defaultProps} />);
     fireEvent.click(screen.getByRole('button', { name: /actions/i }));
 
-    // Bulk actions that map to a valid entry_status write remain reachable…
+    // Registration decisions remain reachable here…
     expect(screen.getByText('Accept all')).toBeTruthy();
     expect(screen.getByText('Reject all')).toBeTruthy();
-    expect(screen.getByText('Check In All')).toBeTruthy();
-    // …but "Waitlist All" is intentionally absent.
+    // …but show-day check-in belongs to the canonical Check-in desk, and real
+    // waitlisting belongs to Waitlist Management.
+    expect(screen.queryByText('Check In All')).toBeNull();
     expect(screen.queryByText('Waitlist All')).toBeNull();
   });
 

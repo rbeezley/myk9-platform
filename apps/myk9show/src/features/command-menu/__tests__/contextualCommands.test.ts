@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildContextualNavigationCommands } from '../contextualCommands';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getClassManagementHref } from '@/components/classes/classManagementFilters';
@@ -8,10 +8,6 @@ function baseCtx(overrides: Partial<CommandMenuContext> = {}): CommandMenuContex
   return {
     surface: 'entry-management',
     showId: 'show-1',
-    selectedEntryIds: [],
-    eligibleCheckInIds: [],
-    runBulkCheckIn: vi.fn(),
-    busy: false,
     ...overrides,
   };
 }

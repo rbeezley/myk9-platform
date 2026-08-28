@@ -74,7 +74,6 @@ interface UseEntryManagementActionsReturn {
     status: CheckInStatus
   ) => Promise<void>;
   handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<boolean>;
-  handleEnrollmentBulkCheckIn: (entryIds: string[]) => Promise<boolean>;
   handleEnrollmentPaymentChange: (
     enrollmentId: string,
     status: PaymentStatus,
@@ -153,19 +152,6 @@ export function useEntryManagementActions({
   const bulkStatusDispatch = useBulkDispatch<EntryManagementEntry>({
     getLabel: entry => `${entry.dogName} (#${entry.entryNumber})`,
     applicableWhen: entry => !CLOSED_STATUSES.has(entry.entryStatus),
-  });
-  // Dispatched over raw entry ids (not entry objects) — check-in has always accepted
-  // any id it's given, independent of whether the id is present in the currently
-  // loaded local entries snapshot; mirrors the pre-allSettled Promise.all behavior.
-  const bulkCheckInDispatch = useBulkDispatch<string>({
-    getLabel: entryId => {
-      const entry = entriesRef.current.find(e => e.id === entryId);
-      return entry ? `${entry.dogName} (#${entry.entryNumber})` : entryId;
-    },
-    applicableWhen: entryId => {
-      const entry = entriesRef.current.find(e => e.id === entryId);
-      return !entry || (entry.entryStatus === EntryStatus.ACCEPTED && entry.classes.length > 0);
-    },
   });
 
   const handleStatusChange = useCallback(
@@ -350,51 +336,6 @@ export function useEntryManagementActions({
       }
     },
     [bulkStatusDispatch, setEntries, setError, user, runBulkUndo]
-  );
-
-  // Handle enrollment-level bulk check-in. Only entries that actually succeed get their
-  // local check-in state patched — a partial failure leaves failed entries' local state
-  // untouched (and the selection, owned by the caller, stays intact for retry).
-  const handleEnrollmentBulkCheckIn = useCallback(
-    async (entryIds: string[], onFullSuccess?: () => void) => {
-      if (entryIds.length === 0) return false;
-      setIsProcessing(true);
-      try {
-        const outcome = await bulkCheckInDispatch.run(
-          entryIds,
-          async entryId => {
-            await updateReplicatedCheckInStatus(entryId, 'checked-in');
-          },
-          { onFullSuccess }
-        );
-        // null = latched no-op — nothing dispatched, keep selection intact.
-        if (outcome === null) return false;
-        if (outcome.succeeded.length > 0) {
-          const succeededIds = new Set(outcome.succeeded);
-          setEntries(prev =>
-            prev.map(e =>
-              succeededIds.has(e.id)
-                ? {
-                    ...e,
-                    classes: e.classes.map(cls => ({
-                      ...cls,
-                      checkInStatus: 'checked-in' as const,
-                    })),
-                  }
-                : e
-            )
-          );
-        }
-        return outcome.failed.length === 0;
-      } catch (err) {
-        setError('Failed to check in entries');
-        logger.error('Error bulk checking in entries:', 'secretary', {}, err as Error);
-        return false;
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [bulkCheckInDispatch, setEntries, setError]
   );
 
   const handleEnrollmentPaymentChange = useCallback(
@@ -792,7 +733,6 @@ export function useEntryManagementActions({
     handleAutoAssignArmbands,
     handleCheckInStatusChange,
     handleEnrollmentBulkStatusChange,
-    handleEnrollmentBulkCheckIn,
     handleEnrollmentPaymentChange,
     handleExportCSV,
     handleCompEntry,

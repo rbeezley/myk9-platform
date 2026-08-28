@@ -5,7 +5,7 @@ import { useScoredRevertGuard } from './useScoredRevertGuard';
 
 export interface EntryRowActionMenuProps extends Omit<
   EntryActionHandlers,
-  'onBulkStatusChange' | 'onBulkCheckIn' | 'onClear'
+  'onBulkStatusChange' | 'onClear'
 > {
   entry: EntryManagementEntry;
 }

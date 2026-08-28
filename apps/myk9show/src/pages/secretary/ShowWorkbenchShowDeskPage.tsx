@@ -111,8 +111,26 @@ export function ShowWorkbenchShowDeskPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
   const { show: currentShow, isLoading } = useFastShowDetails(showId);
-  const { trials, trialClasses } = useTrialStore(
-    useShallow(s => ({ trials: s.trials, trialClasses: s.trialClasses }))
+  const {
+    trials,
+    trialClasses,
+    trialsReadStatus,
+    trialsHasConfirmedSnapshot,
+    trialClassesReadStatus,
+    trialClassesHasConfirmedSnapshot,
+    loadTrials,
+    loadTrialClasses,
+  } = useTrialStore(
+    useShallow(s => ({
+      trials: s.trials,
+      trialClasses: s.trialClasses,
+      trialsReadStatus: s.trialsReadStatus,
+      trialsHasConfirmedSnapshot: s.trialsHasConfirmedSnapshot,
+      trialClassesReadStatus: s.trialClassesReadStatus,
+      trialClassesHasConfirmedSnapshot: s.trialClassesHasConfirmedSnapshot,
+      loadTrials: s.loadTrials,
+      loadTrialClasses: s.loadTrialClasses,
+    }))
   );
   const {
     data: showEntriesData,
@@ -128,6 +146,17 @@ export function ShowWorkbenchShowDeskPage() {
     isError: showEntriesIsError,
     isEnabled: Boolean(showId),
   });
+  const scheduleHasConfirmedSnapshot =
+    trialsHasConfirmedSnapshot && trialClassesHasConfirmedSnapshot;
+  const scheduleReadFailed = trialsReadStatus === 'error' || trialClassesReadStatus === 'error';
+  const scheduleReadPending =
+    trialsReadStatus === 'idle' ||
+    trialsReadStatus === 'loading' ||
+    trialClassesReadStatus === 'idle' ||
+    trialClassesReadStatus === 'loading';
+  const retrySchedule = () => {
+    void Promise.all([loadTrials(), loadTrialClasses()]);
+  };
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
   const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
@@ -453,6 +482,36 @@ export function ShowWorkbenchShowDeskPage() {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
+  // INTENT: An unread local replica is unknown, not an empty schedule. Pause
+  // status claims until both schedule dependencies have produced a confirmed
+  // snapshot; this keeps Show Desk calm and truthful during show-day failures.
+  if (!scheduleHasConfirmedSnapshot) {
+    if (scheduleReadFailed) {
+      return (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
+          <p className="font-medium text-destructive">Couldn't load the show schedule.</p>
+          <p className="mt-1 text-muted-foreground">
+            Class timing and show-day status are paused so they do not show an empty schedule that
+            wasn't read.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={retrySchedule}
+          >
+            Retry schedule
+          </Button>
+        </div>
+      );
+    }
+
+    if (scheduleReadPending) {
+      return <LoadingSkeleton variant="cards" count={2} />;
+    }
+  }
+
   // Settled, no data, no error: the read never happened (paused offline, or
   // disabled). Everything below derives from `showEntries`, so rendering the
   // desk here would state a zero it never read -- the exact thing the copy in
@@ -480,6 +539,23 @@ export function ShowWorkbenchShowDeskPage() {
 
   return (
     <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+      {scheduleReadFailed && scheduleHasConfirmedSnapshot && (
+        <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 p-4 text-sm">
+          <p className="font-medium">Couldn't refresh the show schedule.</p>
+          <p className="mt-1 text-muted-foreground">
+            The last loaded schedule is still shown. Retry when you're ready.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={retrySchedule}
+          >
+            Retry schedule
+          </Button>
+        </div>
+      )}
       {entriesUnavailable && (
         <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />
       )}

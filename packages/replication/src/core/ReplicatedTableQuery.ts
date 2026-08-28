@@ -1,6 +1,6 @@
 import type { IDBPDatabase } from 'idb';
 import type { Logger } from '../dependencies';
-import type { ReplicatedRow } from '../types';
+import type { ReplicatedReadResult, ReplicatedRow } from '../types';
 import { GET_ALL_TIMEOUT_MS, QUERY_TIMEOUT_MS, SLOW_QUERY_THRESHOLD_MS } from '../constants';
 import { databaseManager, REPLICATION_STORES } from './DatabaseManager';
 import { collectFreshLocalIds } from './ReplicatedTableRowState';
@@ -121,6 +121,15 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
    * Get all rows for this table
    */
   async getAll(licenseKey?: string): Promise<T[]> {
+    return (await this.getAllWithStatus(licenseKey)).rows;
+  }
+
+  /**
+   * Get all rows while preserving the difference between an empty table and
+   * a failed local read. Prefer this for callers that make factual claims from
+   * an empty result; getAll() remains the compatibility adapter.
+   */
+  async getAllWithStatus(licenseKey?: string): Promise<ReplicatedReadResult<T>> {
     const getAllPromise = (async () => {
       const db = await this.getDb();
       const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
@@ -147,11 +156,11 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
     try {
       const result = await Promise.race([getAllPromise, timeoutPromise]);
       databaseManager.resetFailures();
-      return result;
+      return { ok: true, rows: result, error: null };
     } catch (error) {
       this.logger.error(`[${this.tableName}] getAll() failed:`, error);
       databaseManager.recordFailure();
-      return [];
+      return { ok: false, rows: [], error };
     }
   }
 

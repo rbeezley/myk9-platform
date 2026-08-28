@@ -169,6 +169,18 @@ describe('ReplicatedJudgeAssignmentsTable', () => {
       expect(result[0].notes).toBeNull();
     });
 
+    it('redacts private fields from status-bearing collection reads', async () => {
+      await table.set('ja-1', baseAssignment);
+
+      const result = await table.getAllWithStatus();
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error('Expected a successful local read');
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].fee).toBeNull();
+      expect(result.rows[0].notes).toBeNull();
+    });
+
     it('should return null for non-existent assignment', async () => {
       const result = await table.get('nonexistent');
       expect(result).toBeNull();

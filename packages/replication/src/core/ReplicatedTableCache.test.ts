@@ -40,11 +40,11 @@ describe('ReplicatedTableCacheManager', () => {
     db = await dbManager.getDatabase(tableName);
 
     const getDb = async () => db;
-    const getAllData = async (): Promise<TestEntity[]> => {
+    const getAllData = async () => {
       const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
       const index = tx.store.index('tableName');
       const rows = (await index.getAll(tableName)) as ReplicatedRow<TestEntity>[];
-      return rows.map(r => r.data);
+      return { ok: true as const, rows: rows.map(r => r.data), error: null };
     };
 
     cacheManager = new ReplicatedTableCacheManager<TestEntity>(
@@ -301,7 +301,7 @@ describe('ReplicatedTableCacheManager', () => {
         async () => db,
         async () => {
           readCount++;
-          if (readCount === 1) return [];
+          if (readCount === 1) return { ok: true as const, rows: [], error: null };
           throw error;
         }
       );

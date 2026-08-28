@@ -63,6 +63,29 @@ describe('ReplicatedTable subscription lifecycle', () => {
     expect(callback).toHaveBeenCalled();
   });
 
+  it('suppresses a failed snapshot and notifies after a later successful read', async () => {
+    const table = makeTable('status-subscription');
+    const readError = new Error('IndexedDB unavailable');
+    const getAllWithStatus = vi.spyOn(table, 'getAllWithStatus');
+    getAllWithStatus.mockResolvedValueOnce({ ok: false, rows: [], error: readError });
+    const callback = vi.fn();
+
+    table.subscribe(callback);
+    await new Promise(r => setTimeout(r, 50));
+
+    expect(callback).not.toHaveBeenCalled();
+
+    getAllWithStatus.mockResolvedValue({
+      ok: true,
+      rows: [{ id: '1', name: 'Rex' }],
+      error: null,
+    });
+    await table.set('1', { id: '1', name: 'Rex' });
+    await new Promise(r => setTimeout(r, 250));
+
+    expect(callback).toHaveBeenCalledWith([{ id: '1', name: 'Rex' }]);
+  });
+
   // -------------------------------------------------------------------------
   // Test 1: The IDB listener subscription is torn down when unsubscribe is called.
   //

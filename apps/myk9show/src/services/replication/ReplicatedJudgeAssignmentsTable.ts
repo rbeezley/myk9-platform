@@ -13,6 +13,7 @@ import {
   parseUpdatedAtMs,
   REPLICATION_INCREMENTAL_BUFFER_MS,
   type SyncReplicatedTableAdapter,
+  type ReplicatedReadResult,
   type SyncResult,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
@@ -147,6 +148,19 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   override async getAll(): Promise<ReplicatedJudgeAssignment[]> {
     const rows = await super.getAll();
     return rows.map(row => ({ ...row, fee: null, notes: null }));
+  }
+
+  override async getAllWithStatus(
+    licenseKey?: string
+  ): Promise<ReplicatedReadResult<ReplicatedJudgeAssignment>> {
+    const result = await super.getAllWithStatus(licenseKey);
+    if (!result.ok) return result;
+
+    return {
+      ok: true,
+      rows: result.rows.map(row => ({ ...row, fee: null, notes: null })),
+      error: null,
+    };
   }
 
   private toSupabaseRow(assignment: ReplicatedJudgeAssignment): Record<string, unknown> {

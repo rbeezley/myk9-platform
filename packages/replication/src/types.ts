@@ -63,6 +63,16 @@ export interface ReplicatedRow<T> {
 export type SyncStatus = 'synced' | 'pending' | 'conflict' | 'error';
 
 /**
+ * Truthful result for an all-rows read from a replicated table.
+ *
+ * `ok: true` with zero rows confirms an empty readable table. `ok: false`
+ * means the local replica could not be read; callers must not treat it as an
+ * empty dataset.
+ */
+export type ReplicatedReadResult<T> =
+  { ok: true; rows: T[]; error: null } | { ok: false; rows: []; error: unknown };
+
+/**
  * Per-scope sync state.
  *
  * A replicated table can be synced under multiple `SyncScope.value`s — e.g.

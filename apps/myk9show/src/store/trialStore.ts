@@ -41,6 +41,12 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
   trialClasses: {},
   isLoading: false,
   error: null,
+  trialsReadStatus: 'idle',
+  trialsReadError: null,
+  trialsHasConfirmedSnapshot: false,
+  trialClassesReadStatus: 'idle',
+  trialClassesReadError: null,
+  trialClassesHasConfirmedSnapshot: false,
   _unsubscribe: null,
   _unsubscribeClasses: null,
 
@@ -230,13 +236,36 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
 
   loadTrials: async (): Promise<void> => {
     try {
-      set({ isLoading: true, error: null });
+      set({
+        isLoading: true,
+        error: null,
+        trialsReadStatus: 'loading',
+        trialsReadError: null,
+      });
 
       if (shouldUseMockTrials()) {
-        set({ trials: mockTrials, isLoading: false });
+        set({
+          trials: mockTrials,
+          isLoading: false,
+          trialsReadStatus: 'ready',
+          trialsReadError: null,
+          trialsHasConfirmedSnapshot: true,
+        });
       } else {
         // Load from replicated table (IndexedDB)
-        const replicatedTrials = await replicatedTrialsTable.getAll();
+        const result = await replicatedTrialsTable.getAllWithStatus();
+        if (!result.ok) {
+          const readError =
+            result.error instanceof Error ? result.error.message : 'Failed to load trials';
+          set({
+            isLoading: false,
+            trialsReadStatus: 'error',
+            trialsReadError: readError,
+          });
+          return;
+        }
+
+        const replicatedTrials = result.rows;
         const currentTrials = get().trials;
 
         // Merge replicated data with existing local-only fields
@@ -245,20 +274,47 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
           return mergeTrialData(replicated, existing);
         });
 
-        set({ trials: mergedTrials, isLoading: false });
+        set({
+          trials: mergedTrials,
+          isLoading: false,
+          trialsReadStatus: 'ready',
+          trialsReadError: null,
+          trialsHasConfirmedSnapshot: true,
+        });
         reportDebug('store', 'Loaded trials from replicated table', { count: mergedTrials.length });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load trials';
-      set({ error: errorMessage, isLoading: false });
+      set({
+        error: errorMessage,
+        isLoading: false,
+        trialsReadStatus: 'error',
+        trialsReadError: errorMessage,
+      });
     }
   },
 
   loadTrialClasses: async (): Promise<void> => {
     try {
-      if (shouldUseMockTrials()) return;
+      if (shouldUseMockTrials()) {
+        set({
+          trialClassesReadStatus: 'ready',
+          trialClassesReadError: null,
+          trialClassesHasConfirmedSnapshot: true,
+        });
+        return;
+      }
 
-      const allClasses = await replicatedClassesTable.getAll();
+      set({ trialClassesReadStatus: 'loading', trialClassesReadError: null });
+      const result = await replicatedClassesTable.getAllWithStatus();
+      if (!result.ok) {
+        const readError =
+          result.error instanceof Error ? result.error.message : 'Failed to load trial classes';
+        set({ trialClassesReadStatus: 'error', trialClassesReadError: readError });
+        return;
+      }
+
+      const allClasses = result.rows;
       const currentClasses = get().trialClasses;
 
       // Group classes by trialId, merging with existing local data
@@ -274,14 +330,23 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         grouped[trialId].push(merged);
       }
 
-      set({ trialClasses: grouped });
+      set({
+        trialClasses: grouped,
+        trialClassesReadStatus: 'ready',
+        trialClassesReadError: null,
+        trialClassesHasConfirmedSnapshot: true,
+      });
       reportDebug('store', 'Loaded trial classes from replicated table', {
         trialCount: Object.keys(grouped).length,
         classCount: allClasses.length,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load trial classes';
-      set({ error: errorMessage });
+      set({
+        error: errorMessage,
+        trialClassesReadStatus: 'error',
+        trialClassesReadError: errorMessage,
+      });
     }
   },
 
@@ -549,7 +614,12 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         const existing = currentTrials.find(t => t.id === replicated.id);
         return mergeTrialData(replicated, existing);
       });
-      set({ trials: mergedTrials });
+      set({
+        trials: mergedTrials,
+        trialsReadStatus: 'ready',
+        trialsReadError: null,
+        trialsHasConfirmedSnapshot: true,
+      });
       reportDebug('store', 'Trials updated from replicated table', { count: mergedTrials.length });
     });
 
@@ -569,7 +639,12 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         grouped[trialId].push(merged);
       }
 
-      set({ trialClasses: grouped });
+      set({
+        trialClasses: grouped,
+        trialClassesReadStatus: 'ready',
+        trialClassesReadError: null,
+        trialClassesHasConfirmedSnapshot: true,
+      });
       reportDebug('store', 'Trial classes updated from replicated table', {
         trialCount: Object.keys(grouped).length,
       });

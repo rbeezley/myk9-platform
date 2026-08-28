@@ -433,7 +433,12 @@ describe('ResultsSubmissionPage', () => {
 
       const view = renderPage();
 
-      expect(await screen.findByTestId('org-selector')).toHaveTextContent('AKC Scent Work');
+      // Before the show record arrives the registry is UNKNOWN, and the
+      // selector says so rather than defaulting to AKC -- on a UKC trial that
+      // default silently offered AKC guidance and the AKC forms link.
+      const selector = await screen.findByTestId('org-selector');
+      expect(selector).not.toHaveTextContent('AKC Scent Work');
+      expect(selector).toHaveTextContent(/select organization/i);
 
       mockShowState.isLoaded = true;
       view.rerender(
@@ -455,7 +460,8 @@ describe('ResultsSubmissionPage', () => {
 
       const view = renderPage();
 
-      expect(await screen.findByTestId('org-selector')).toHaveTextContent('AKC Scent Work');
+      // Same as above: unknown, not AKC.
+      expect(await screen.findByTestId('org-selector')).not.toHaveTextContent('AKC Scent Work');
 
       await view.user.click(screen.getByRole('combobox', { name: 'Organization' }));
       await view.user.click(await screen.findByRole('option', { name: 'ASCA Scent Detection' }));

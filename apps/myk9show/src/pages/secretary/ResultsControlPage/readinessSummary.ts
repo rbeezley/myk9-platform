@@ -6,6 +6,11 @@ export interface ResultsReadinessSummary {
   totalEntries: number;
   unscoredEntries: number;
   unreleasedClasses: number;
+  /**
+   * There are classes but no entries for them, so scoring completeness cannot
+   * be judged. Not the same as "everything is scored".
+   */
+  entriesUncorroborated: boolean;
   safeToSend: boolean;
 }
 
@@ -48,11 +53,34 @@ export function buildResultsReadinessSummary(
   const unscoredEntries = relevantEntries.filter(isOutstanding).length;
   const unreleasedClasses = classes.filter(cls => !cls.results_released_at).length;
 
+  /**
+   * Classes are present but not one entry belongs to them.
+   *
+   * `classes` and `entries` arrive from two INDEPENDENT replication
+   * subscriptions, and `ReplicatedTableQuery.getAll()` returns `[]` for every
+   * failure including its own timeout (MYK9-252). So this state is reached
+   * either mid-hydration or on a swallowed read error -- and in both,
+   * `unscoredEntries` is 0 because there are no entries to be unscored, not
+   * because everything is scored.
+   *
+   * With `results_released_at` already stamped, that used to satisfy
+   * `safeToSend` and the page told the secretary results were "released and
+   * ready to submit" for a show with unscored entries. A show with genuinely
+   * zero entries has nothing to submit either, so refusing to vouch is the
+   * right answer in both readings.
+   */
+  const entriesUncorroborated = classes.length > 0 && relevantEntries.length === 0;
+
   return {
     totalClasses: classes.length,
     totalEntries: relevantEntries.length,
     unscoredEntries,
     unreleasedClasses,
-    safeToSend: classes.length > 0 && unscoredEntries === 0 && unreleasedClasses === 0,
+    entriesUncorroborated,
+    safeToSend:
+      classes.length > 0 &&
+      !entriesUncorroborated &&
+      unscoredEntries === 0 &&
+      unreleasedClasses === 0,
   };
 }

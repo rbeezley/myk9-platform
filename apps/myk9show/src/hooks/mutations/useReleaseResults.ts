@@ -4,9 +4,9 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { notifications } from '@/lib/notifications';
 import { useAuth } from '@/hooks/useAuth';
 import { settingsQueryKeys } from '../queries/useShowSettingsDatabase';
+import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { replicatedClassesTable } from '@/services/replication';
 
 interface ReleaseResultsInput {
@@ -21,7 +21,6 @@ export interface ReleaseResultsResult {
   failed: string[];
 }
 
-const plural = (n: number) => (n === 1 ? '' : 'es');
 
 export function useReleaseResults() {
   const queryClient = useQueryClient();
@@ -35,26 +34,27 @@ export function useReleaseResults() {
       // A partial local failure leaves a mixed release state; we settle every update so
       // we can surface exactly which classes failed. The secretary can reselect and retry
       // just those — sync preserves the queued successes.
-      const outcomes = await Promise.allSettled(
-        classIds.map(classId =>
-          replicatedClassesTable.updateClass(classId, {
-            resultsReleasedAt: releasedAt,
-            results_released_at: releasedAt,
-            resultsReleasedBy: user?.id ?? null,
-            results_released_by: user?.id ?? null,
-          })
-        )
-      );
-
-      const released: string[] = [];
-      const failed: string[] = [];
-      outcomes.forEach((outcome, i) => {
-        if (outcome.status === 'fulfilled') released.push(classIds[i]);
-        else failed.push(classIds[i]);
+      // Bounded, not `Promise.allSettled(map(...))`. Select All on a large show
+      // fired one replicated write per class with no cap -- hundreds of
+      // simultaneous updates and optimistic patches, the shape `bulkDispatch`
+      // documents as the `ringside_update_entry` 40001 storm that pushed
+      // staging past 80% CPU.
+      //
+      // The INTENT contract above is preserved exactly: `dispatchBulk` settles
+      // every item and folds the outcome BY INDEX, so a partial failure still
+      // reports precisely which classes failed and the secretary can reselect
+      // and retry just those.
+      const outcome = await dispatchBulk(classIds, async classId => {
+        await replicatedClassesTable.updateClass(classId, {
+          resultsReleasedAt: releasedAt,
+          results_released_at: releasedAt,
+          resultsReleasedBy: user?.id ?? null,
+          results_released_by: user?.id ?? null,
+        });
       });
-      return { released, failed };
+      return { released: outcome.succeeded, failed: outcome.failed.map(entry => entry.item) };
     },
-    onSuccess: ({ released, failed }, variables) => {
+    onSuccess: ({ released }, variables) => {
       // Invalidate whenever at least one release landed so the UI reflects partial progress.
       if (released.length > 0) {
         queryClient.invalidateQueries({
@@ -63,21 +63,11 @@ export function useReleaseResults() {
         queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
       }
 
-      if (failed.length === 0) {
-        notifications.success(`Results released for ${released.length} class${plural(released.length)}`);
-      } else if (released.length === 0) {
-        notifications.error(
-          `Failed to release ${failed.length} class${plural(failed.length)}. Reselect and try again.`
-        );
-      } else {
-        notifications.warning(
-          `Released ${released.length} of ${released.length + failed.length} classes. ` +
-            `${failed.length} failed — the failed classes stay selected so you can retry.`
-        );
-      }
-    },
-    onError: () => {
-      notifications.error('Failed to release results');
+      // NO toast here. `BulkOperationsBar` is the only layer that toasts these
+      // results: it owns the selection outcome the message describes ("the
+      // failed classes stayed selected so you can retry"), which this hook
+      // cannot see. Both layers used to toast, so one release produced two
+      // differently-worded messages and read as two separate operations.
     },
   });
 }

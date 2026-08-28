@@ -96,10 +96,13 @@ export function chooseDefaultSubmissionOptionKey(
   options: readonly RegistrySubmissionOption[]
 ): string {
   const registry = normalizeShowOrganization(showOrganization);
+  // No registry means we could not tell. Returning '' leaves the selector
+  // unset, so the secretary chooses deliberately instead of inheriting a guess.
+  if (!registry) return '';
   const matchingManualOption = options.find(option => option.organization === registry);
   if (matchingManualOption) return matchingManualOption.key;
 
-  return options[0]?.key ?? '';
+  return '';
 }
 
 export function submissionOptionKey(organization: string, sportType: string): string {
@@ -125,9 +128,22 @@ function buildElectronicGuidance(formatter: ResultFormatter): RegistrySubmission
   };
 }
 
-function normalizeShowOrganization(showOrganization: string | null | undefined): string {
+/**
+ * Maps a show's organization string onto a registry, or `null` when there is
+ * nothing to map.
+ *
+ * The `?? ''` here used to fall through to `'AKC'`, so a show whose record had
+ * not loaded -- offline, a paused query, an RLS failure -- was indistinguishable
+ * from a genuine AKC show. On a UKC trial that silently preselected AKC Scent
+ * Work, printed AKC closeout steps, and offered the AKC forms link. This is the
+ * page that submits results to a sanctioning body; a guessed registry is the
+ * one default it must not have.
+ */
+function normalizeShowOrganization(showOrganization: string | null | undefined): string | null {
   const value = showOrganization?.trim().toUpperCase() ?? '';
+  if (!value) return null;
   if (value.includes('UKC')) return 'UKC';
   if (value.includes('ASCA')) return 'ASCA';
-  return 'AKC';
+  if (value.includes('AKC')) return 'AKC';
+  return null;
 }

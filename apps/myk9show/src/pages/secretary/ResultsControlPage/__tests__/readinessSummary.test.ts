@@ -93,6 +93,7 @@ describe('buildResultsReadinessSummary', () => {
       totalEntries: 1,
       unscoredEntries: 1,
       unreleasedClasses: 1,
+      entriesUncorroborated: false,
       safeToSend: false,
     });
   });
@@ -108,6 +109,7 @@ describe('buildResultsReadinessSummary', () => {
       totalEntries: 1,
       unscoredEntries: 0,
       unreleasedClasses: 0,
+      entriesUncorroborated: false,
       safeToSend: true,
     });
   });
@@ -219,6 +221,7 @@ describe('buildResultsReadinessSummary', () => {
         totalEntries: 1,
         unscoredEntries: 0,
         unreleasedClasses: 0,
+        entriesUncorroborated: false,
         safeToSend: true,
       });
     });

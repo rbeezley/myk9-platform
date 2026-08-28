@@ -150,6 +150,33 @@ describe('multi-show seed agrees with the fixture', () => {
     expect(preflight).not.toContain('load-secretary-');
   });
 
+  it('pairs every per-show secretary grant with club membership in the same club', () => {
+    // A club-scoped secretary grant is INERT without a club_members row:
+    // is_trial_secretary() requires is_active_club_member(user_id, club_id), so
+    // the account resolves to zero manageable shows rather than to its own show.
+    // Verified against staging 2026-08-28 -- all three held the role, none held a
+    // membership, and the harness would only have reported "manages nothing"
+    // from the shard job, after the reseed had spent the approved window.
+    const block = multiShowBlock;
+    expect(block).toContain('INSERT INTO public.club_members');
+    expect(block).toContain('ON CONFLICT (club_id, person_id) DO NOTHING');
+
+    // The membership must land in the SAME club the grant is scoped to. Both
+    // derive the club id from the same format() expression, so a divergence
+    // here is what a wrong-club membership would look like.
+    const clubExpr = "format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid";
+    const membershipStart = block.indexOf('INSERT INTO public.club_members');
+    const membership = block.slice(membershipStart, block.indexOf(';', membershipStart));
+    expect(membership).toContain(clubExpr);
+    expect(membership).toContain("format('load-secretary-%s@myk9t.com', s)");
+    expect(membership).toContain("'active'");
+
+    // Conditional like the grant: a missing account drops out of the JOIN rather
+    // than breaking every reseed.
+    expect(membership).toContain('JOIN public.people p');
+    expect(membership).not.toContain('generate_series(1, 4)');
+  });
+
   it('deletes armbands before dogs, so the dog delete cannot be blocked', () => {
     const armbandRange = seed.indexOf("id >= 'a1090000-0000-0000-0003-000000000000'");
     const dogRange = seed.indexOf("id >= 'a1090000-0000-0000-0001-000000000000'");

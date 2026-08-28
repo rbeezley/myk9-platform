@@ -359,7 +359,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           ) : (
             <Tabs value={currentTrialId} onValueChange={setSelectedTrialId}>
               {/* Trial Tabs */}
-              <TabsList className={`grid w-full grid-cols-${trials.length}`}>
+              {/* gridTemplateColumns inline, not `grid-cols-${n}`: Tailwind
+                  extracts class names statically, so the interpolated class was
+                  never compiled and the trial tabs collapsed to one column at
+                  every trial count. */}
+              <TabsList
+                className="grid w-full"
+                style={{ gridTemplateColumns: `repeat(${trials.length}, minmax(0, 1fr))` }}
+              >
                 {trials.map(trial => {
                   const isCompleted = trial.classes.length > 0;
                   return (

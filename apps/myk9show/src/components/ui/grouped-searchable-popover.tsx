@@ -83,7 +83,7 @@ function GroupedSearchablePopover<T extends { id: string }>({
             className="h-8"
           />
         </div>
-        <div className="max-h-60 overflow-auto">
+        <div className="max-h-60 overflow-auto" role="listbox">
           {loading && (
             <div className="p-3 text-sm text-muted-foreground text-center">{loadingLabel}</div>
           )}
@@ -97,18 +97,31 @@ function GroupedSearchablePopover<T extends { id: string }>({
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 {group.label}
               </div>
-              {group.items.map(item => (
-                <div
-                  key={item.id}
-                  onClick={() => {
-                    onSelect(item, group.groupKey);
-                    onOpenChange(false);
-                  }}
-                  data-group-key={group.groupKey}
-                >
-                  {renderItem(item, group.groupKey)}
-                </div>
-              ))}
+              {group.items.map(item => {
+                const choose = () => {
+                  onSelect(item, group.groupKey);
+                  onOpenChange(false);
+                };
+                return (
+                  <div
+                    key={item.id}
+                    role="option"
+                    aria-selected={false}
+                    tabIndex={0}
+                    onClick={choose}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        choose();
+                      }
+                    }}
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                    data-group-key={group.groupKey}
+                  >
+                    {renderItem(item, group.groupKey)}
+                  </div>
+                );
+              })}
             </React.Fragment>
           ))}
         </div>

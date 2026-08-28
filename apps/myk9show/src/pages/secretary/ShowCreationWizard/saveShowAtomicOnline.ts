@@ -7,6 +7,7 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { useShowStore } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { logger } from '@/services/LoggingService';
+import { OfficialsNotAssignedError } from './showSaveErrors';
 import { UserRole } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { Club } from '@/types/club-types';
@@ -213,9 +214,10 @@ export async function saveShowAtomicOnline(
   });
   queryClient.invalidateQueries({ queryKey: ['shows', showId, 'officials'] });
   if (grantFailures.length > 0) {
-    throw new Error(
-      `Failed to assign ${grantFailures.length} official role${grantFailures.length === 1 ? '' : 's'}. The show was created but officials could not be set. Please retry or assign them manually via the Officials tab.`
-    );
+    // The show row is committed at this point. Signal a PARTIAL success so the
+    // caller keeps it and stops inviting a retry -- a second press would mint a
+    // new UUID and create a duplicate show.
+    throw new OfficialsNotAssignedError(showId, grantFailures.length);
   }
 
   queryClient.invalidateQueries({ queryKey: ['shows', showId, 'schedule-timeline'] });

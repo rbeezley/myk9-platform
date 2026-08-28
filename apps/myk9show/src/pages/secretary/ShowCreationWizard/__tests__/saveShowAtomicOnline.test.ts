@@ -54,6 +54,7 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 // Import after mocks so the module-under-test picks them up.
+import { OfficialsNotAssignedError } from '../showSaveErrors';
 import { saveShowAtomicOnline } from '../saveShowAtomicOnline';
 
 const baseShow: WizardShowData = {
@@ -220,7 +221,7 @@ describe('saveShowAtomicOnline', () => {
     expect(triggerSync).toHaveBeenCalled();
   });
 
-  it('throws when grant_show_official fails so the wizard surfaces a real save error', async () => {
+  it('reports a grant failure as a PARTIAL success, naming the show that already exists', async () => {
     rpcMock.mockImplementation(async (fn: string) => {
       if (fn === 'grant_show_official') return { error: { message: 'forbidden' } };
       return { error: null };
@@ -241,7 +242,22 @@ describe('saveShowAtomicOnline', () => {
         queryClient: makeQueryClient(),
         triggerSync: vi.fn().mockResolvedValue(undefined),
       })
-    ).rejects.toThrow(/Failed to assign 1 official role/);
+    ).rejects.toBeInstanceOf(OfficialsNotAssignedError);
+
+    // The show row is committed before the grants run. Carrying the id lets the
+    // caller KEEP the show and navigate to it instead of compensating-deleting
+    // it and inviting a retry -- which mints a fresh UUID and duplicates it.
+    await expect(
+      saveShowAtomicOnline({
+        show: showWithOfficial,
+        trials: baseTrials,
+        judgeDetails: {},
+        clubs: [],
+        status: 'unpublished',
+        queryClient: makeQueryClient(),
+        triggerSync: vi.fn().mockResolvedValue(undefined),
+      })
+    ).rejects.toMatchObject({ failedCount: 1, showId: expect.any(String) });
   });
 
   it('calls insert_show_passcodes(p_show_id) with no codes payload and surfaces the returned plaintexts', async () => {

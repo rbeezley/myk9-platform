@@ -16,11 +16,9 @@ import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { deriveRegistryId } from '@/features/registries';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
-import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
-import { UserRole } from '@/types/auth-types';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
 import type { Show } from '@/types/show-types';
@@ -31,6 +29,14 @@ import {
   showToShowInput,
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
+import {
+  grantShowOfficials,
+  officialsDeferredOfflineMessage,
+} from './grantShowOfficials';
+import {
+  isOfficialsNotAssignedError,
+  officialsNotAssignedMessage,
+} from './showSaveErrors';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { classDataToReplicatedClass } from './classDataToReplicatedClass';
@@ -276,8 +282,20 @@ export function useShowCreationWizardActions({
         // Save to show store and get the real DB UUID back
         let savedShow: Show;
         if (editMode?.showId) {
-          const updated = await updateShow(editMode.showId, showToShowInput(wizardShow));
-          savedShow = updated || wizardShow;
+          // Never send `status` in edit mode: the Review buttons carry a
+          // CREATE-time status ("Add Trials (Unpublished)"), which would
+          // silently unpublish a live show whose entries are already open.
+          const { status: _wizardStatus, ...editUpdates } = showToShowInput(wizardShow);
+          const updated = await updateShow(editMode.showId, editUpdates);
+          // null = show absent from the store (the cold-store case the wizard
+          // now gates). Falling back to `wizardShow` toasted "saved
+          // successfully" for a write that never happened.
+          if (!updated) {
+            throw new Error(
+              'We couldn\u2019t save your changes because this show didn\u2019t load. Nothing was changed. Please reopen it and try again.'
+            );
+          }
+          savedShow = updated;
         } else {
           savedShow = await addShow(showToShowInput(wizardShow));
           createdShowId = savedShow.id;
@@ -313,37 +331,17 @@ export function useShowCreationWizardActions({
           }
         }
 
-        // Grant official roles scoped to the show via the grant_show_official
-        // RPC (migration 144). Block on results so a failed grant surfaces as
-        // a save error rather than a silently-missing secretary on the show.
-        const officialGrants = [
-          ...show.officials.secretary.map(id => ({ id, role: UserRole.SECRETARY })),
-          ...show.officials.chairman.map(id => ({ id, role: UserRole.CHAIRMAN })),
-          ...show.officials.steward.map(id => ({ id, role: UserRole.STEWARD })),
-        ];
-
-        const grantResults = await Promise.allSettled(
-          officialGrants.map(async grant => {
-            const { error } = await supabase.rpc('grant_show_official', {
-              p_person_id: grant.id,
-              p_role_name: grant.role,
-              p_show_id: realShowId,
-            });
-            if (error) throw error;
-          })
-        );
-        const grantFailures = grantResults.filter(r => r.status === 'rejected');
-        grantFailures.forEach(r => {
-          const err = (r as PromiseRejectedResult).reason;
-          logger.warn('Failed to grant official role', 'wizard', {
-            error: err instanceof Error ? err.message : String(err),
-          });
+        // Grant official roles scoped to the show. Throws
+        // OfficialsNotAssignedError on failure (a PARTIAL success -- the show
+        // exists), and defers instead of failing when offline.
+        const { deferredOffline } = await grantShowOfficials({
+          showId: realShowId,
+          officials: show.officials,
+          isOnline,
         });
         queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'officials'] });
-        if (grantFailures.length > 0) {
-          throw new Error(
-            `Failed to assign ${grantFailures.length} official role${grantFailures.length === 1 ? '' : 's'}. The show was created but officials could not be set. Please retry or assign them manually via the Officials tab.`
-          );
+        if (deferredOffline > 0) {
+          notifications.warning(officialsDeferredOfflineMessage(deferredOffline));
         }
 
         // Second sync pass to flush the child INSERTs (trials/classes) we just
@@ -394,6 +392,20 @@ export function useShowCreationWizardActions({
           showName: savedShow.name,
         });
       } catch (error) {
+        // A show missing only its role grants is a PARTIAL SUCCESS. Deleting it
+        // destroyed a completed show, and reporting "Failed to create show"
+        // invited a retry that minted a new UUID and duplicated it.
+        if (isOfficialsNotAssignedError(error)) {
+          logger.warn('Show created without full official assignments', 'wizard', {
+            showId: error.showId,
+            failedCount: error.failedCount,
+          });
+          notifications.warning(officialsNotAssignedMessage(error.failedCount));
+          resetWizard();
+          navigate(`/shows/${error.showId}`);
+          return;
+        }
+
         // Compensating soft-delete: if the show was created but trials/classes
         // failed, remove it so the user isn't left with an orphaned show.
         if (createdShowId) {
@@ -452,23 +464,17 @@ export function useShowCreationWizardActions({
     await saveShow('draft', false);
   }, [saveShow]);
 
-  /**
-   * Create show (unpublished)
-   */
+  /** Create show (unpublished) */
   const handleCreateShow = useCallback(async () => {
     await saveShow('unpublished', true);
   }, [saveShow]);
 
-  /**
-   * Create and publish show
-   */
+  /** Create and publish show */
   const handleCreateAndPublish = useCallback(async () => {
     await saveShow('published', true);
   }, [saveShow]);
 
-  /**
-   * Save progress without navigating
-   */
+  /** Save progress without navigating */
   const handleSaveProgress = useCallback(async () => {
     setIsLoading(true);
     try {

@@ -17,7 +17,6 @@ import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
-import { getShowOfficials } from '@/hooks/queries/useShowOfficials';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import { PanelProvider, PanelStack } from '@/components/panels';
@@ -27,11 +26,15 @@ import {
   type CreatedShow,
   getEditModeTitle,
   getValidationMessagesForStep,
-  buildEditModeDraft,
   WizardSuccessOverlay,
   WizardValidationBanner,
   WizardHeader,
   WizardStepContent,
+  WizardEditModeGate,
+  WizardDraftResumeBanner,
+  useEditModeInitialization,
+  resolveEditMode,
+  parseEditMode,
 } from './ShowCreationWizard';
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
 
@@ -50,14 +53,14 @@ const ShowCreationWizardPage: React.FC = () => {
   // that doesn't re-fire as the secretary fixes fields.
   const pendingBannerScrollRef = useRef(false);
 
-  const editModeInitializedRef = useRef<string | null>(null);
 
-  // Extract edit mode from URL params
-  const editMode: EditMode | undefined = (() => {
-    const showId = searchParams.get('showId');
-    const mode = searchParams.get('mode') as 'add-trials' | 'add-classes' | 'edit-show' | null;
-    return showId && mode ? { showId, mode } : undefined;
-  })();
+  // Extract edit mode from URL params. `parseEditMode` allowlists the two modes
+  // the app actually links to; previously an unchecked `as` cast turned ANY
+  // string into an EditModeType.
+  const editMode: EditMode | undefined = parseEditMode(
+    searchParams.get('showId'),
+    searchParams.get('mode')
+  );
 
   const {
     currentStep,
@@ -70,10 +73,19 @@ const ShowCreationWizardPage: React.FC = () => {
     loadDraft,
     show,
     trials,
+    lastSaved,
   } = useWizardStore();
 
+  // Checked once on mount, so the banner doesn't appear the moment the
+  // secretary types the first character of a genuinely new show.
+  const [hasResumableDraft, setHasResumableDraft] = useState(
+    () => Boolean(show.name?.trim()) || trials.length > 0
+  );
+
   const { shows: zustandShows } = useShowStore();
-  const { data: queryShows = [] } = useShowsQuery();
+  // No `= []` default: an unloaded list must stay distinguishable from an
+  // empty one, because edit mode writes a full show record.
+  const { data: queryShows, isLoading: showsLoading, refetch: refetchShows } = useShowsQuery();
   const { trials: existingTrials } = useTrialStore();
   const { classes: existingClasses } = useClassStoreCompat();
   const { people, loadPeople } = useUserStore();
@@ -87,15 +99,9 @@ const ShowCreationWizardPage: React.FC = () => {
         setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
     });
 
-  // Reset wizard state when entering fresh create mode (not edit mode)
-  // so stale drafts from previous sessions don't persist.
-  const hasResetRef = React.useRef(false);
-  useEffect(() => {
-    if (!editMode && !hasResetRef.current) {
-      hasResetRef.current = true;
-      resetWizard();
-    }
-  }, [editMode, resetWizard]);
+  // NOTE: deliberately no reset-on-mount. It used to destroy the persisted
+  // draft on every fresh create, losing the secretary's show setup while a
+  // "Save Draft" button claimed the opposite.
 
   // Pre-select club when navigating from a club details page
   const preselectedClubId = searchParams.get('clubId');
@@ -152,59 +158,28 @@ const ShowCreationWizardPage: React.FC = () => {
     const seen = new Set<string>();
     const merged = [...zustandShows];
     for (const s of merged) seen.add(s.id);
-    for (const s of queryShows) {
+    for (const s of queryShows ?? []) {
       if (!seen.has(s.id)) merged.push(s);
     }
     return merged;
   }, [zustandShows, queryShows]);
 
-  // Initialize wizard with existing show data in edit mode (once per showId)
-  useEffect(() => {
-    if (editMode) {
-      const existingShow = allShows.find(s => s.id === editMode.showId);
-      const showTrials = existingTrials.filter(t => t.showId === editMode.showId);
-      const showTrialIds = new Set(showTrials.map(trial => trial.id));
-      const existingClassCountForShow = existingClasses.filter(c =>
-        showTrialIds.has(c.trialId)
-      ).length;
-      const initializationKey =
-        editMode.mode === 'add-trials'
-          ? `${editMode.showId}:${editMode.mode}`
-          : `${editMode.showId}:${editMode.mode}:${existingClassCountForShow}`;
+  // Is the edit-mode target show actually KNOWN? Gates the WRITE, not just the
+  // render -- see editModeResolution.ts.
+  const editModeResolution = React.useMemo(
+    () => resolveEditMode({ editMode, allShows, showsLoading }),
+    [editMode, allShows, showsLoading]
+  );
 
-      if (existingShow && editModeInitializedRef.current !== initializationKey) {
-        editModeInitializedRef.current = initializationKey;
-
-        const draft = buildEditModeDraft({
-          editMode,
-          existingShow,
-          showTrials,
-          existingClasses,
-          people,
-        });
-
-        // Load draft immediately with empty officials, then backfill asynchronously
-        loadDraft(draft);
-
-        getShowOfficials(existingShow.id)
-          .then(o => {
-            useWizardStore.setState(state => ({
-              show: {
-                ...state.show,
-                officials: {
-                  secretary: o.secretaries.map(s => s.personId),
-                  chairman: o.chairmen.map(c => c.personId),
-                  steward: o.stewards.map(s => s.personId),
-                },
-              },
-            }));
-          })
-          .catch(() => {
-            // Officials fetch failed — keep empty defaults
-          });
-      }
-    }
-  }, [editMode, allShows, existingTrials, loadDraft, people, existingClasses]);
+  const { officialsUnavailable, resetInitialization } = useEditModeInitialization({
+    editMode,
+    editModeResolution,
+    existingTrials,
+    existingClasses,
+    people,
+    isDirty,
+    loadDraft,
+  });
 
   // Handle wizard close
   const handleClose = useCallback(() => {
@@ -371,6 +346,27 @@ const ShowCreationWizardPage: React.FC = () => {
           {/* Main Content — flat cream worksheet region (not a card) so the inner
               step cards are the single lifting card layer, never card-in-card. */}
           <div className="relative flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-border bg-background sm:min-h-[700px]">
+            {!editMode && hasResumableDraft && (
+              <WizardDraftResumeBanner
+                lastSaved={lastSaved}
+                onStartFresh={() => {
+                  resetWizard();
+                  setHasResumableDraft(false);
+                }}
+              />
+            )}
+
+            {officialsUnavailable && (
+              <div
+                className="border-b border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground sm:px-6"
+                role="alert"
+              >
+                We couldn&rsquo;t load this show&rsquo;s current officials, so the Officials
+                fields below may look empty even if people are already assigned. Check them
+                before saving.
+              </div>
+            )}
+
             {/* Collapsible Validation Banner — only shown after user clicks Next.
                 Wrapped so handleNext can scroll it into view on a failed attempt. */}
             {hasAttemptedNext && validationMessages.length > 0 && (
@@ -392,18 +388,30 @@ const ShowCreationWizardPage: React.FC = () => {
                 role="region"
                 aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
               >
-                <WizardStepContent
-                  currentStep={currentStep}
-                  editMode={editMode}
-                  existingTrials={existingTrials}
-                  existingClasses={existingClasses}
-                  hasAttemptedNext={hasAttemptedNext}
-                  isLoading={isLoading}
-                  onSaveDraft={handleSaveDraft}
-                  onCreateShow={handleCreateShow}
-                  onCreateAndPublish={handleCreateAndPublish}
-                  onBack={handleBack}
-                />
+                {editModeResolution.state === 'loading' ||
+                editModeResolution.state === 'unavailable' ? (
+                  <WizardEditModeGate
+                    state={editModeResolution.state}
+                    onRetry={() => {
+                      resetInitialization();
+                      void refetchShows();
+                    }}
+                    onLeave={() => navigate('/shows')}
+                  />
+                ) : (
+                  <WizardStepContent
+                    currentStep={currentStep}
+                    editMode={editMode}
+                    existingTrials={existingTrials}
+                    existingClasses={existingClasses}
+                    hasAttemptedNext={hasAttemptedNext}
+                    isLoading={isLoading}
+                    onSaveDraft={handleSaveDraft}
+                    onCreateShow={handleCreateShow}
+                    onCreateAndPublish={handleCreateAndPublish}
+                    onBack={handleBack}
+                  />
+                )}
               </div>
             </div>
 

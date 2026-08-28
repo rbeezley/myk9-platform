@@ -93,11 +93,22 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
               emptyMessage="No clubs found"
               renderItem={club => (
                 <div
-                  className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                  role="option"
+                  aria-selected={club.id === clubId}
+                  tabIndex={0}
+                  className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                   onClick={() => {
                     onSelectClub(club.id);
                     setShowSearch(false);
                     setSearchTerm('');
+                  }}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelectClub(club.id);
+                      setShowSearch(false);
+                      setSearchTerm('');
+                    }
                   }}
                 >
                   <div className="font-medium">{club.name}</div>

@@ -65,30 +65,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   // deliberately never un-publishes. Fail closed here too, INCLUDING on a
   // missing club (round-11 review: the pill fails closed clubless; the wizard
   // inverting that was a gap reachable via stale drafts/back-nav).
-  const handleCreateAndPublish = () => {
-    if (!show.clubId) {
-      toast.error('Select a club before publishing. Entry fees are paid out to the club.');
-      return;
-    }
-    if (clubAccountQuery.isLoading) {
-      toast.info('Checking the club’s payment account. Try again in a moment.');
-      return;
-    }
-    if (clubAccountQuery.isError) {
-      // A failed lookup is not "not connected" — say so instead of blaming
-      // the club's setup. Refetch so "try again" can actually succeed.
-      void clubAccountQuery.refetch();
-      toast.error('Could not check the club’s payment account. Please try again.');
-      return;
-    }
-    if (!canEnableOnlineEntries(clubAccountQuery.data)) {
-      toast.error(PUBLISH_BLOCKED_MESSAGE, {
-        action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
-      });
-      return;
-    }
-    onCreateAndPublish?.();
-  };
+  // Blocking issues are already listed in the error card above; this names them
+  // at the moment of action so the refusal is explained rather than silent.
 
   // Calculate summary stats
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
@@ -118,6 +96,54 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     trials,
     totalClasses,
   ]);
+
+  const reportBlockingErrors = () => {
+    const [first] = errors;
+    toast.error(
+      errors.length === 1
+        ? `${first} — fix that before creating this show.`
+        : `${errors.length} things still need attention, starting with: ${first}.`
+    );
+  };
+
+  const handleCreateShowGuarded = () => {
+    if (errors.length > 0) {
+      reportBlockingErrors();
+      return;
+    }
+    onCreateShow?.();
+  };
+
+  const handleCreateAndPublish = () => {
+    // Club stays FIRST: it has the money-aware message, and 'Club selection is
+    // required' is also in `errors`, so a generic report would bury it.
+    if (!show.clubId) {
+      toast.error('Select a club before publishing. Entry fees are paid out to the club.');
+      return;
+    }
+    if (errors.length > 0) {
+      reportBlockingErrors();
+      return;
+    }
+    if (clubAccountQuery.isLoading) {
+      toast.info('Checking the club’s payment account. Try again in a moment.');
+      return;
+    }
+    if (clubAccountQuery.isError) {
+      // A failed lookup is not "not connected" — say so instead of blaming
+      // the club's setup. Refetch so "try again" can actually succeed.
+      void clubAccountQuery.refetch();
+      toast.error('Could not check the club’s payment account. Please try again.');
+      return;
+    }
+    if (!canEnableOnlineEntries(clubAccountQuery.data)) {
+      toast.error(PUBLISH_BLOCKED_MESSAGE, {
+        action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
+      });
+      return;
+    }
+    onCreateAndPublish?.();
+  };
 
   // Mark step complete when valid
   useEffect(() => {
@@ -480,12 +506,6 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                           </div>
                           <div className="text-xs text-muted-foreground">Assigned</div>
                         </div>
-                        <div title="Estimated at ~15 min per class">
-                          <div className="text-lg font-semibold text-purple-600 dark:text-purple-400">
-                            ~{trial.classes.length * 15}
-                          </div>
-                          <div className="text-xs text-muted-foreground">Est. Minutes</div>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -498,20 +518,24 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
           <div className="space-y-4">
             {/* Consolidated Status Messages */}
             <div className="space-y-2">
-              {/* Success Status */}
-              <div className="bg-success/10 border border-success/30 rounded-lg p-3">
+              {/* Success Status — only when there is actually nothing blocking.
+                  This used to render unconditionally, directly beneath the card
+                  listing the blocking errors. */}
+              {errors.length === 0 && (
+                <div className="bg-success/10 border border-success/30 rounded-lg p-3">
                 <div className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <div className="font-medium text-success text-sm">
                       Show Configuration Complete
                     </div>
-                    <p className="text-xs text-success mt-0.5">
-                      "{show.name}" ready with {trials.length} trials and {totalClasses} classes
-                    </p>
+                      <p className="text-xs text-success mt-0.5">
+                        "{show.name}" ready with {trials.length} trials and {totalClasses} classes
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Warning if judges not fully assigned */}
               {totalJudges > 0 && classesWithJudges < totalClasses && (
@@ -559,7 +583,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
                 <Button
                   variant="secondary"
-                  onClick={onCreateShow}
+                  onClick={handleCreateShowGuarded}
                   disabled={isLoading}
                   className="flex-1"
                 >
@@ -571,7 +595,11 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   {isLoading ? 'Saving...' : submitLabel}
                 </Button>
 
-                <Button onClick={handleCreateAndPublish} disabled={isLoading} className="flex-1">
+                <Button
+                  onClick={handleCreateAndPublish}
+                  disabled={isLoading}
+                  className="flex-1"
+                >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (

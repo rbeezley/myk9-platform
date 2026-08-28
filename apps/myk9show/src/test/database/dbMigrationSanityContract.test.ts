@@ -155,10 +155,20 @@ describe('DB migration sanity contracts', () => {
       'CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state',
       'COMMENT ON FUNCTION public.refresh_class_scoring_state'
     );
+    // Ends at the next statement in the file rather than at a backfill block:
+    // the trigger and its handler were co-located when this contract was
+    // written, and 20260828010000 redefines only the trigger. Slicing to a
+    // marker that lives in the handler's migration made this assert against
+    // file layout instead of behaviour.
     const trigger = sliceBetween(
       triggerSql,
       'CREATE TRIGGER entries_refresh_class_scoring_state',
-      'ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push'
+      'EXECUTE FUNCTION public.handle_entry_scoring_state_change();'
+    );
+    // Read from whichever migration last defined the HANDLER, which is not
+    // necessarily the one that last defined the trigger.
+    const { sql: handlerSql } = latestMigrationContaining(
+      /CREATE OR REPLACE FUNCTION public\.handle_entry_scoring_state_change/i
     );
 
     // The COMPLETENESS COUNTS must ignore tombstones: a soft-deleted entry is
@@ -171,13 +181,18 @@ describe('DB migration sanity contracts', () => {
     // that is what leaves an emptied class's tombstone unplaced
     // (20260817140000). Asserted in classPlacementContract.test.ts alongside
     // the final_placement IS NOT NULL guard that bounds them.
-    expect(triggerSql).toContain('NEW.deleted_at IS NULL');
+    expect(handlerSql).toContain('NEW.deleted_at IS NULL');
+    // The trigger must still fire on deleted_at: a soft delete changes the
+    // expected set, so the class has to re-derive.
     expect(trigger).toContain('deleted_at');
-    expect(triggerSql).toContain(
+    // The one-time backfill lives in the migration that introduced the handler,
+    // and is asserted there rather than against whatever file most recently
+    // touched the trigger.
+    expect(handlerSql).toContain(
       'ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push'
     );
-    expect(triggerSql).toContain('PERFORM public.refresh_class_scoring_state(r.id);');
-    expect(triggerSql).toContain(
+    expect(handlerSql).toContain('PERFORM public.refresh_class_scoring_state(r.id);');
+    expect(handlerSql).toContain(
       'ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push'
     );
   });

@@ -35,10 +35,20 @@ export function getShowDeskEntriesAvailability(input: {
   data: readonly SecretaryEntry[] | undefined;
   isLoading: boolean;
   isError: boolean;
+  /**
+   * Whether the query is enabled at all. A DISABLED query is also "settled with
+   * no data", but it is not a failure and `refetch()` on it does nothing -- so
+   * offering a Try again button there hands the secretary an affordance that
+   * can never succeed. Defaults to true so callers that always enable the query
+   * need not pass it.
+   */
+  isEnabled?: boolean;
 }): ShowDeskEntriesAvailability {
+  const enabled = input.isEnabled ?? true;
   return {
     entriesKnown: input.data !== undefined,
-    entriesUnavailable: input.data === undefined && !input.isLoading && !input.isError,
+    entriesUnavailable:
+      enabled && input.data === undefined && !input.isLoading && !input.isError,
   };
 }
 

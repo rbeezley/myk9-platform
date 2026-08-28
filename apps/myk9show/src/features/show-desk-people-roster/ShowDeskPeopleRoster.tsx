@@ -55,6 +55,7 @@ export function ShowDeskPeopleRoster({
   const [filter, setFilter] = useState<PeopleRosterFilter>('all');
   const [busyEntryIds, setBusyEntryIds] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentDate) return undefined;
@@ -106,6 +107,7 @@ export function ShowDeskPeopleRoster({
   async function checkInRows(person: PeopleRosterPerson, entryIds: string[]) {
     if (entryIds.length === 0) return;
     setActionError(null);
+    setActionNotice(null);
     setBusyEntryIds(current => new Set([...current, ...entryIds]));
     // Bounded, not `Promise.allSettled(map(...))`. An exhibitor with a dozen
     // entries across a weekend issued a dozen simultaneous replicated writes
@@ -127,6 +129,13 @@ export function ShowDeskPeopleRoster({
         succeeded.length > 0
           ? `Checked in ${succeeded.length} of ${entryIds.length} for ${person.name}.`
           : `Couldn't check in ${person.name}. Try again.`
+      );
+    } else {
+      // The success path used to set nothing, so a screen-reader secretary got
+      // silence on the primary outcome and had no way to tell a completed
+      // check-in from one that never fired.
+      setActionNotice(
+        `Checked in ${succeeded.length} ${succeeded.length === 1 ? 'entry' : 'entries'} for ${person.name}.`
       );
     }
 
@@ -220,6 +229,10 @@ export function ShowDeskPeopleRoster({
           {actionError}
         </div>
       )}
+
+      <span role="status" aria-live="polite" className="sr-only">
+        {actionNotice ?? ''}
+      </span>
 
       {roster.length === 0 ? (
         <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">

@@ -126,6 +126,7 @@ export function ShowWorkbenchShowDeskPage() {
     data: showEntriesData,
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
+    isEnabled: Boolean(showId),
   });
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
   const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
@@ -456,10 +457,6 @@ export function ShowWorkbenchShowDeskPage() {
   // disabled). Everything below derives from `showEntries`, so rendering the
   // desk here would state a zero it never read -- the exact thing the copy in
   // both these branches promises not to do.
-  if (entriesUnavailable) {
-    return <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />;
-  }
-
   if (showEntriesIsError && showEntries.length === 0) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
@@ -483,6 +480,9 @@ export function ShowWorkbenchShowDeskPage() {
 
   return (
     <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+      {entriesUnavailable && (
+        <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />
+      )}
       <ShowDeskPanel
         show={currentShow}
         trials={showMapTrials}

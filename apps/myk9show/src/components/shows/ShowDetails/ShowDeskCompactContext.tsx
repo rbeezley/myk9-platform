@@ -132,7 +132,11 @@ export function ShowDeskCompactContext({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {(armbandCount ?? 0) > 0 && <ArmbandLookup showId={show.id} />}
+          {/* Shown whenever the count is positive OR UNKNOWN. `?? 0` hid the
+              control entirely when the count could not be read, which is the
+              false-zero pattern in its most awkward form: a missing affordance
+              gives the secretary nothing to retry. */}
+          {(armbandCount == null || armbandCount > 0) && <ArmbandLookup showId={show.id} />}
           <ShowDeskSyncStatus />
           <OfflineReadyBadge showId={show.id} />
           <LiveUpdateIndicator />

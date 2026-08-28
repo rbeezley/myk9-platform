@@ -129,8 +129,9 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   //  - DISABLED-UPSTREAM. classes waits on trials and entries waits on classes,
   //    so a paused trials query leaves both downstream queries idle, which is
   //    also not "loading".
-  //  - PLACEHOLDER. `placeholderData: previousData => previousData` is a GLOBAL
-  //    default, and changing the Trial select changes the classes and entries
+  //  - PLACEHOLDER. `placeholderData: previousData => previousData` is the
+  //    configured default on the application client (lib/queryClient.ts), and
+  //    changing the Trial select changes the classes and entries
   //    keys. React Query then reports status:'success' while serving the
   //    PREVIOUS trial's rows, so the old trial's dogs would render under the
   //    new trial's header until the fetch lands.

@@ -6,7 +6,7 @@
  */
 
 import { HardDrive } from 'lucide-react';
-import { queryClient } from '@/lib/queryClient';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label';
 const PRESERVED_KEYS = ['myK9Q_settings'];
 
 export function DataSettings() {
+  const queryClient = useQueryClient();
+
   const handleClearCache = async () => {
     const confirmed = window.confirm(
       'This will clear all cached data and reload the app. Your settings and login will be preserved. Continue?'

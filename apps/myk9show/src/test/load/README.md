@@ -106,13 +106,24 @@ E2E_DEMO_EXHIBITOR_EMAIL
 E2E_DEMO_EXHIBITOR_PASSWORD
 ```
 
-It also requires these two repository secrets, which must be installed before
+It also requires these repository secrets, which must be installed before
 the first dispatch:
 
 ```text
 SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_DB_PASSWORD
+HEADROOM_GITHUB_TOKEN
 ```
+
+`HEADROOM_GITHUB_TOKEN` is a **fine-grained personal access token** with
+`Actions: read-only` and `Metadata: read-only` on **all repositories**. The
+concurrency ceiling below is account-wide, and the Actions-issued `GITHUB_TOKEN`
+can only see the repository it runs in — `rbeezley/myK9Qv3` carries an active CI
+workflow whose jobs draw from the same pool and would otherwise be invisible to
+the gate. The preflight refuses to dispatch when this token is absent or cannot
+enumerate every repository on the account, because "we could not see the other
+repositories" and "the other repositories are idle" are indistinguishable from a
+repo-scoped token and only one of them is safe (NCR-2026-08-27-01).
 
 The prepare job requires the operator to type the approved project ref and
 performs the CPU/IO telemetry preflight and canonical reseed. Sixteen shards then run 6 or 7 unique global

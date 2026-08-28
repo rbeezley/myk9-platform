@@ -119,6 +119,13 @@ describe('manual distributed load workflow', () => {
     const preflight = workflow.indexOf('Verify enough concurrent-runner headroom');
     expect(preflight).toBeGreaterThan(-1);
     expect(preflight).toBeLessThan(workflow.indexOf('Canonical reseed'));
+    // NCR-2026-08-27-01: the ceiling is account-wide, so the gate must not be
+    // counting through the repo-scoped GITHUB_TOKEN. These pin the wiring only;
+    // the counting and refusal behaviour is covered by
+    // loadRunnerHeadroom.test.ts, which exercises the logic rather than the text.
+    expect(workflow).toContain('scripts/load-runner-headroom.ts');
+    expect(workflow).toContain('HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}');
+    expect(workflow).not.toMatch(/repos\/\$\{GITHUB_REPOSITORY\}\/actions\/runs/);
     expect(workflow).toMatch(
       /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 55/
     );

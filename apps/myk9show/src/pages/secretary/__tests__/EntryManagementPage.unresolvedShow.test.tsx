@@ -165,6 +165,33 @@ describe('EntryManagementPage — unresolved show (audit A2)', () => {
   });
 });
 
+describe('EntryManagementPage — every tab, not just Registrations', () => {
+  // The first fix put the unresolved-show state inside the Registrations tab.
+  // The Exceptions tab then rendered its three filter buttons over empty space
+  // -- the same silent blank surface, one tab across. The state now sits above
+  // the tabs, because without a show neither tab means anything.
+  it('does not render the tab bar at all when there is no show', () => {
+    dataState.showError = "We couldn't open this show. Please retry.";
+    render(<EntryManagementPage />, { initialRoute: '/shows/show-1/entry-management' });
+
+    expect(screen.queryByRole('tab', { name: /exceptions/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /registrations/i })).not.toBeInTheDocument();
+  });
+
+  it('states the problem once, wherever the secretary was headed', () => {
+    dataState.showError = "We couldn't open this show. Please retry.";
+    render(<EntryManagementPage />, {
+      initialRoute: '/shows/show-1/entry-management?tab=exceptions&exception=pulls',
+    });
+
+    // Deep-linked straight at the Pulls exception, which previously rendered
+    // three buttons and nothing else.
+    expect(screen.getByText(/couldn't open this show/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no pulled entries/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /pulls \/ scratches/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('EntryManagementPage — names the show it edits (audit C1)', () => {
   it('renders the selected show name in the header', () => {
     dataState.shows = [

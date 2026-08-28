@@ -58,19 +58,19 @@ describe('useEntryManagementTrialClasses (audit A1)', () => {
     expect(result.current.trialClassesUnknown).toBe(false);
   });
 
-  it('reports UNKNOWN, not an empty allowlist, when the query is paused offline', () => {
-    // A paused query: not loading, not successful, no data.
-    const { result } = renderHook(() => useEntryManagementTrialClasses('trial-1'));
-
-    expect(result.current.trialClassIds).toBeUndefined();
-    expect(result.current.trialClassesUnknown).toBe(true);
-  });
-
-  it('reports UNKNOWN when the query errored', () => {
-    // Distinct from the paused case above: the query settled, and settled in
-    // failure. Both must reach the same conclusion by different routes.
-    queryState.isError = true;
-    queryState.data = undefined;
+  // The hook's rule is deliberately "unknown unless the read SUCCEEDED", so a
+  // paused query and a failed one take the same path on purpose. That is worth
+  // one test naming the rule, not two tests dressed up as separate routes: an
+  // earlier version of this file set `isError` to look like a second case, but
+  // the hook never reads `isError`, so it asserted the same thing twice.
+  it.each([
+    ['paused offline (no data, not loading, never succeeded)', { isError: false }],
+    ['errored', { isError: true }],
+  ])('reports UNKNOWN rather than an empty allowlist when the read did not succeed: %s', (
+    _name,
+    overrides
+  ) => {
+    Object.assign(queryState, overrides);
 
     const { result } = renderHook(() => useEntryManagementTrialClasses('trial-1'));
 

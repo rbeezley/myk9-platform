@@ -217,21 +217,23 @@ export function EntryManagementCockpit({
               variant={cockpit.state.queue === queue.id ? 'secondary' : 'ghost'}
               disabled={Boolean(cockpit.state.search)}
               className={cn(
-                'min-h-10 shrink-0 gap-3',
+                'min-h-11 shrink-0 gap-3',
                 cockpit.state.queue === queue.id && 'border border-primary/30 bg-primary/10'
               )}
               onClick={() => cockpit.setQueue(queue.id)}
             >
               {queue.label}
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {cockpit.queueCounts[queue.id]}
-              </span>
+              {!trialScopePending && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {cockpit.queueCounts[queue.id]}
+                </span>
+              )}
             </Button>
           ))}
         </div>
         <Popover>
           <PopoverTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="min-h-10 shrink-0 gap-2">
+            <Button type="button" variant="outline" size="sm" className="min-h-11 shrink-0 gap-2">
               <SlidersHorizontal className="h-4 w-4" aria-hidden />
               Density
             </Button>
@@ -324,7 +326,7 @@ export function EntryManagementCockpit({
           call once the read has failed, but during the read the honest answer
           is "not yet", not a superset presented as a subset.
         */}
-        {showQueue && trialScopePending && (
+        {(showQueue || showDetail) && trialScopePending && (
           <div role="status" aria-label="Loading this trial's registrations" className="py-4">
             <TableSkeleton rows={6} columns={4} />
           </div>
@@ -357,7 +359,7 @@ export function EntryManagementCockpit({
           />
         )}
 
-        {showDetail && cockpit.focusedGroup && (
+        {showDetail && !trialScopePending && cockpit.focusedGroup && (
           <div className={cn(!responsive.compact && 'sticky top-4')}>
             <EntryFocusedRegistration
               key={cockpit.focusedGroup.groupKey}

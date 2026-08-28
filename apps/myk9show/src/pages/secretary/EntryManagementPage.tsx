@@ -35,6 +35,7 @@ import { groupEntriesByShowRegistration } from '@/components/entries/management/
 import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkButton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
+import { EntryManagementUnresolvedShow } from './EntryManagementUnresolvedShow';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'registrations', label: 'Registrations' },
@@ -305,58 +306,26 @@ const EntryManagementPage: React.FC = () => {
         </Alert>
       )}
 
+      {/*
+        No show to manage. Rendered ABOVE the tabs, not inside one: without a
+        show neither tab means anything, and scoping this to Registrations left
+        the Exceptions tab showing three filter buttons over empty space -- the
+        same blank surface this replaced, one tab across.
+      */}
+      {!selectedShowId && (
+        <EntryManagementUnresolvedShow
+          didResolveShow={didResolveShow}
+          showError={showError}
+          onRetry={retryShowResolution}
+          retryDisabled={isLoadingShows}
+        />
+      )}
+
       {/* Page-level tabs: Entries | Move-ups | Pulls | Waitlist */}
+      {selectedShowId && (
       <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
         <TabsContent value="registrations">
           {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
-          {!selectedShowId && !didResolveShow && (
-            <div role="status" aria-label="Opening show" className="py-4">
-              <TableSkeleton rows={8} columns={5} />
-            </div>
-          )}
-
-          {/*
-            Show Resolution Failed / No Show Selected
-
-            Every branch below requires `selectedShowId`. When show resolution
-            finishes without one, none of them matched and the tab rendered
-            NOTHING: no error, no empty state, no retry, under a header whose
-            actions are disabled. A secretary reads that as "this show has no
-            entries" when in fact the show was never opened.
-
-            Two distinct outcomes share this branch because they need different
-            copy: `showError` means a read failed and retry is the recovery;
-            no error means nothing was ever selected, and the recovery is to
-            pick a show.
-          */}
-          {!selectedShowId && didResolveShow && (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <AlertCircle
-                  className={`mx-auto mb-4 h-12 w-12 ${showError ? 'text-destructive' : 'text-muted-foreground'}`}
-                  aria-hidden
-                />
-                <h2 className="mb-2 text-lg font-medium">
-                  {showError ? "Couldn't open this show" : 'No show selected'}
-                </h2>
-                <p className="mx-auto mb-4 max-w-md text-sm text-muted-foreground">
-                  {showError
-                    ? "We couldn't tell whether this show has entries, so nothing is shown below."
-                    : 'Choose a show to manage its entries.'}
-                </p>
-                {showError ? (
-                  <Button onClick={retryShowResolution} disabled={isLoadingShows}>
-                    Retry
-                  </Button>
-                ) : (
-                  <Button asChild variant="outline">
-                    <Link to="/secretary/dashboard">Go to your shows</Link>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
           {/*
             Loading State — a table-shaped skeleton (not a bare spinner) so the
             pending UI previews the entries table's layout. Motion-language
@@ -519,6 +488,7 @@ const EntryManagementPage: React.FC = () => {
           </div>
         </TabsContent>
       </PrimaryTabs>
+      )}
 
       {/* Armband Assignment Dialog */}
       <ArmbandDialog

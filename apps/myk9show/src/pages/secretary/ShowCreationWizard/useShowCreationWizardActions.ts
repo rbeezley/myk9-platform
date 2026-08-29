@@ -53,9 +53,41 @@ interface UseShowCreationWizardActionsOptions {
 }
 
 export async function createDraftShow(
-  saveShow: (status: ShowStatus, showSuccessOverlay: boolean) => Promise<void>
+  saveShow: (status: ShowStatus, shouldShowCompletion: boolean) => Promise<void>
 ): Promise<void> {
   await saveShow('draft', true);
+}
+
+interface FinishShowSaveOptions {
+  status: ShowStatus;
+  shouldShowCompletion: boolean;
+  showId: string;
+  showName: string;
+  passcodes: ShowPasscodes | null;
+  passcodeError: string | null;
+  onCreated: UseShowCreationWizardActionsOptions['onCreated'];
+  navigate: ReturnType<typeof useNavigate>;
+}
+
+export function finishShowSave({
+  status,
+  shouldShowCompletion,
+  showId,
+  showName,
+  passcodes,
+  passcodeError,
+  onCreated,
+  navigate,
+}: FinishShowSaveOptions): void {
+  if (shouldShowCompletion && onCreated) {
+    onCreated(showId, showName, passcodes, passcodeError);
+  } else if (status === 'draft') {
+    navigate(`/shows/${showId}`);
+  } else if (onCreated) {
+    onCreated(showId, showName, passcodes, passcodeError);
+  } else {
+    navigate('/secretary/dashboard');
+  }
 }
 
 export function useShowCreationWizardActions({
@@ -207,7 +239,7 @@ export function useShowCreationWizardActions({
    * Main save/create function - handles all save operations
    */
   const saveShow = useCallback(
-    async (status: ShowStatus, shouldResetWizard: boolean) => {
+    async (status: ShowStatus, shouldShowCompletion: boolean) => {
       // Prevent double submission
       if (isSavingRef.current) return;
       isSavingRef.current = true;
@@ -242,22 +274,25 @@ export function useShowCreationWizardActions({
             /* non-critical */
           });
 
-          // A draft save INSERTS a real show and navigates to it, so the wizard
-          // releases it: keeping it offered to "resume" an existing show, and
-          // creating again minted a fresh UUID -- a duplicate.
-          if (status === 'draft' || shouldResetWizard) {
+          // A draft save INSERTS a real show, so the wizard releases it whether
+          // completion continues through the overlay or directly to show detail.
+          // Keeping it resumable would mint a duplicate UUID on the next create.
+          if (status === 'draft' || shouldShowCompletion) {
             resetWizard();
           }
 
-          if (status === 'draft') {
-            navigate(`/shows/${realShowId}`);
-          } else if (onCreatedRef.current) {
-            onCreatedRef.current(realShowId, savedShow.name, passcodes, passcodeError);
-          } else {
-            navigate('/secretary/dashboard');
-          }
+          finishShowSave({
+            status,
+            shouldShowCompletion,
+            showId: realShowId,
+            showName: savedShow.name,
+            passcodes,
+            passcodeError,
+            onCreated: onCreatedRef.current,
+            navigate,
+          });
 
-          if (status === 'draft') {
+          if (status === 'draft' && !shouldShowCompletion) {
             notifications.success(`"${savedShow.name}" saved as draft`);
           } else if (!onCreatedRef.current) {
             notifications.success(`"${savedShow.name}" created successfully`);
@@ -370,24 +405,26 @@ export function useShowCreationWizardActions({
         queryClient.invalidateQueries({ queryKey: ['shows', realShowId, 'schedule-timeline'] });
 
         // See the atomic path above.
-        if (status === 'draft' || shouldResetWizard) {
+        if (status === 'draft' || shouldShowCompletion) {
           resetWizard();
         }
 
-        // Navigate: drafts go to show detail, created shows go to pipeline (mission control)
-        if (status === 'draft') {
-          navigate(`/shows/${realShowId}`);
-        } else if (onCreatedRef.current) {
-          // Offline / edit path has no insert_show_passcodes wiring yet. Keep
-          // the management surface available so the secretary can regenerate
-          // codes after returning to the show settings page.
-          onCreatedRef.current(realShowId, savedShow.name, null, null);
-        } else {
-          navigate('/secretary/dashboard');
-        }
+        // Offline / edit paths have no insert_show_passcodes wiring yet. Keep
+        // the management surface available so the secretary can regenerate
+        // codes after returning to the show settings page.
+        finishShowSave({
+          status,
+          shouldShowCompletion,
+          showId: realShowId,
+          showName: savedShow.name,
+          passcodes: null,
+          passcodeError: null,
+          onCreated: onCreatedRef.current,
+          navigate,
+        });
 
         // Show success toast (skip for non-draft when the success overlay is shown instead)
-        if (status === 'draft') {
+        if (status === 'draft' && !shouldShowCompletion) {
           notifications.success(`"${savedShow.name}" saved as draft`);
         } else if (!onCreatedRef.current) {
           notifications.success(`"${savedShow.name}" created successfully`);

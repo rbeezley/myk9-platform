@@ -31,9 +31,7 @@ vi.mock('@/pages/secretary/ShowCreationWizard/useShowCreationWizardActions', () 
   }) => {
     capturedOnCreated = opts.onCreated;
     return {
-      handleSaveDraft: vi.fn(),
       handleCreateShow: vi.fn(),
-      handleCreateAndPublish: vi.fn(),
       handleSaveProgress: vi.fn(),
     };
   },
@@ -92,7 +90,7 @@ describe('ShowCreationWizardPage success overlay', () => {
     expect(screen.getByText(FIXTURE_PASSCODES.exhibitor)).toBeInTheDocument();
   });
 
-  it('navigates to the dashboard when Go to Dashboard is clicked', async () => {
+  it('opens the created show so the secretary can review and publish it', async () => {
     const { user } = render(<ShowCreationWizardPage />);
 
     act(() => {
@@ -103,8 +101,8 @@ describe('ShowCreationWizardPage success overlay', () => {
       );
     });
 
-    await user.click(screen.getByRole('button', { name: /go to dashboard/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/secretary/dashboard');
+    await user.click(screen.getByRole('button', { name: /review & publish show/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/shows/63165809-e025-25c6-6cf9-979f63165809');
   });
 
   it('keeps passcode management available when initial generation fails', () => {

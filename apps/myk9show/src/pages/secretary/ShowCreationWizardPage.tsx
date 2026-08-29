@@ -38,6 +38,7 @@ import {
   parseEditMode,
 } from './ShowCreationWizard';
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
+import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 
 const ShowCreationWizardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -53,7 +54,6 @@ const ShowCreationWizardPage: React.FC = () => {
   // view once it has mounted. A ref (not state) keeps this a one-shot signal
   // that doesn't re-fire as the secretary fixes fields.
   const pendingBannerScrollRef = useRef(false);
-
 
   // Extract edit mode from URL params. `parseEditMode` allowlists the two modes
   // the app actually links to; previously an unchecked `as` cast turned ANY
@@ -104,13 +104,12 @@ const ShowCreationWizardPage: React.FC = () => {
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
-  const { handleSaveDraft, handleCreateShow, handleCreateAndPublish } =
-    useShowCreationWizardActions({
-      editMode,
-      setIsLoading,
-      onCreated: (id, name, passcodes, passcodeError) =>
-        setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
-    });
+  const { handleCreateShow } = useShowCreationWizardActions({
+    editMode,
+    setIsLoading,
+    onCreated: (id, name, passcodes, passcodeError) =>
+      setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
+  });
 
   // NOTE: deliberately no reset-on-mount. It used to destroy the persisted
   // draft on every fresh create, losing the secretary's show setup while a
@@ -120,10 +119,8 @@ const ShowCreationWizardPage: React.FC = () => {
   const preselectedClubId = searchParams.get('clubId');
   const { updateShowData } = useWizardStore();
   useEffect(() => {
-    if (preselectedClubId && !editMode && !show.clubId) {
-      updateShowData({ clubId: preselectedClubId });
-    }
-  }, [preselectedClubId, editMode, show.clubId, updateShowData]);
+    applyReturnedClubId(preselectedClubId, editMode, updateShowData);
+  }, [preselectedClubId, editMode, updateShowData]);
 
   // Load people data when page mounts (clubs handled by global store subscriptions)
   useEffect(() => {
@@ -326,10 +323,11 @@ const ShowCreationWizardPage: React.FC = () => {
         {createdShow && (
           <WizardSuccessOverlay
             createdShow={createdShow}
-            onGoToDashboard={() => {
+            onReviewShow={() => {
+              const createdShowId = createdShow.id;
               setCreatedShow(null);
               resetWizard();
-              navigate('/secretary/dashboard');
+              navigate(`/shows/${createdShowId}`);
             }}
           />
         )}
@@ -374,9 +372,8 @@ const ShowCreationWizardPage: React.FC = () => {
                 className="border-b border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground sm:px-6"
                 role="alert"
               >
-                We couldn&rsquo;t load this show&rsquo;s current officials, so the Officials
-                fields below may look empty even if people are already assigned. Check them
-                before saving.
+                We couldn&rsquo;t load this show&rsquo;s current officials, so the Officials fields
+                below may look empty even if people are already assigned. Check them before saving.
               </div>
             )}
 
@@ -419,9 +416,7 @@ const ShowCreationWizardPage: React.FC = () => {
                     existingClasses={existingClasses}
                     hasAttemptedNext={hasAttemptedNext}
                     isLoading={isLoading}
-                    onSaveDraft={handleSaveDraft}
                     onCreateShow={handleCreateShow}
-                    onCreateAndPublish={handleCreateAndPublish}
                     onBack={handleBack}
                     officialsUnknown={officialsUnavailable}
                   />

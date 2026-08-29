@@ -29,10 +29,7 @@ import {
   showToShowInput,
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
-import {
-  grantShowOfficials,
-  officialsDeferredOfflineMessage,
-} from './grantShowOfficials';
+import { grantShowOfficials, officialsDeferredOfflineMessage } from './grantShowOfficials';
 import { completePartialShowSave, isOfficialsNotAssignedError } from './showSaveErrors';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
@@ -53,6 +50,12 @@ interface UseShowCreationWizardActionsOptions {
     passcodes: ShowPasscodes | null,
     passcodeError?: string | null
   ) => void;
+}
+
+export async function createDraftShow(
+  saveShow: (status: ShowStatus, showSuccessOverlay: boolean) => Promise<void>
+): Promise<void> {
+  await saveShow('draft', true);
 }
 
 export function useShowCreationWizardActions({
@@ -462,24 +465,9 @@ export function useShowCreationWizardActions({
     ]
   );
 
-  /**
-   * Save as draft
-   */
-  const handleSaveDraft = useCallback(async () => {
-    await saveShow('draft', false);
-  }, [saveShow]);
-
   const handleCreateShow = useCallback(async () => {
-    await saveShow('unpublished', true);
+    await createDraftShow(saveShow);
   }, [saveShow]);
 
-  const handleCreateAndPublish = useCallback(async () => {
-    await saveShow('published', true);
-  }, [saveShow]);
-
-  return {
-    handleSaveDraft,
-    handleCreateShow,
-    handleCreateAndPublish,
-  };
+  return { handleCreateShow };
 }

@@ -6,7 +6,7 @@ import type { CreatedShow } from './show-creation-wizard-types';
 
 interface WizardSuccessOverlayProps {
   createdShow: CreatedShow;
-  onGoToDashboard: () => void;
+  onReviewShow: () => void;
 }
 
 /**
@@ -20,7 +20,7 @@ interface WizardSuccessOverlayProps {
  */
 export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
   createdShow,
-  onGoToDashboard,
+  onReviewShow,
 }) => (
   <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background p-8">
     <CheckCircle className="h-16 w-16 text-success" />
@@ -37,8 +37,8 @@ export const WizardSuccessOverlay: React.FC<WizardSuccessOverlayProps> = ({
         canRegenerate
       />
     </div>
-    <Button size="lg" onClick={onGoToDashboard}>
-      Go to Dashboard
+    <Button size="lg" onClick={onReviewShow}>
+      Review &amp; Publish Show
     </Button>
   </div>
 );

@@ -158,6 +158,10 @@ describe('seed-demo club scope fixtures', () => {
       'premium_generations',
       'secretary_tasks',
       'user_roles',
+      // No exemptions. Upserting the DECLARED row is a different property from
+      // removing UNDECLARED ones, and exempting this table on that basis is exactly
+      // the mistake this list exists to prevent.
+      'club_stripe_accounts',
     ]) {
       expect(idempotencyBlock).toContain(`DELETE FROM public.${child}`);
     }

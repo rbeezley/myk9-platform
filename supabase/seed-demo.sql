@@ -275,8 +275,13 @@ DELETE FROM public.secretary_tasks    WHERE club_id IN (
 -- here removes exactly the undeclared grants the cascade used to remove.
 DELETE FROM public.user_roles         WHERE club_id IN (
   'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
--- club_stripe_accounts is left alone: section 1 upserts it with DO UPDATE on
--- (club_id, livemode), which already restores it to the declared state.
+-- club_stripe_accounts too. An earlier version of this block exempted it because
+-- section 1 upserts the declared row on (club_id, livemode) -- but that restores the
+-- DECLARED row and says nothing about UNDECLARED ones. A Prairie Trail account, or a
+-- second Heartland row at livemode=true, would survive and let a payment or
+-- publish-gate test observe account configuration the fixture never declared.
+DELETE FROM public.club_stripe_accounts WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
 
 -- ---------------------------------------------------------------------------
 -- 1. Clubs (2)

@@ -31,6 +31,7 @@ import {
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
+import { formatJudgeAvailabilityWindow } from '@/utils/classJudgeDisplay';
 
 // Cast schemas to match the pre-existing form data interfaces.
 // Needed because exactOptionalPropertyTypes causes structural mismatch
@@ -139,9 +140,9 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     assignedJudges.map(judge => (
                       <SelectItem key={judge.judgeId} value={judge.judgeId}>
                         {judge.judgeName}
-                        {judge.availableStartTime !== 'Full Day' && (
+                        {formatJudgeAvailabilityWindow(judge) && (
                           <span className="text-xs text-muted-foreground ml-2">
-                            ({judge.availableStartTime} - {judge.availableEndTime})
+                            {formatJudgeAvailabilityWindow(judge)}
                           </span>
                         )}
                       </SelectItem>

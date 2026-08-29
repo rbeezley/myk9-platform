@@ -4,6 +4,7 @@ import { CalendarDays, ChevronRight, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useShowTodayBanner } from './useShowTodayBanner';
 import { formatClassTime, type ShowTodayBannerItem } from './showTodayBanner.helpers';
+import { pluralize } from '@/utils/pluralize';
 
 // Two DESIGN.md rules shape this banner.
 //
@@ -25,10 +26,6 @@ const bannerLabelClassName = 'text-success ';
 const bannerTitleClassName = 'text-success ';
 const iconClassName =
   'flex size-10 shrink-0 items-center justify-center rounded-lg bg-success/20 text-success ';
-
-function pluralize(count: number, singular: string, plural = `${singular}s`) {
-  return count === 1 ? singular : plural;
-}
 
 export function ShowTodayBanner() {
   const navigate = useNavigate();

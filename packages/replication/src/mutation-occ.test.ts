@@ -153,7 +153,10 @@ describe('getConflictServerVersion', () => {
 });
 
 describe('classifyEmptyUpdateResult', () => {
-  it('returns the current row-missing error when the server re-check finds no row', () => {
+  it('does not claim deletion when the re-read finds no row (F31)', () => {
+    // The re-check SELECT runs under the same policy that denied the UPDATE, so an
+    // unreadable row and a deleted one look identical. Previously this asserted
+    // deletion outright, which misdirected the diagnosis of a permission loss.
     const result = classifyEmptyUpdateResult({
       tableName: 'entries',
       rowId: 'entry-1',
@@ -162,7 +165,11 @@ describe('classifyEmptyUpdateResult', () => {
     });
 
     expect(result).toBeInstanceOf(Error);
-    expect(result.message).toBe('Row entry-1 on entries no longer exists server-side.');
+    expect(result).not.toBeInstanceOf(OccRejectionError);
+    expect(result.message).toContain('either deleted, or RLS no longer grants');
+    expect(result.message).toContain('entry-1');
+    // The old wording stated a deletion as fact; it must not come back.
+    expect(result.message).not.toContain('no longer exists server-side');
   });
 
   it('returns an OCC rejection when the server version advanced', () => {

@@ -638,7 +638,7 @@ The likely cause is the `canManageShow` (or `compact`) gate in `ShowMapTab`, whi
 needs a focused look — this is "the control never rendered on these paths", not
 "the feature does not exist anywhere".
 
-### F30 — P2 — CORRECTED — Nothing prevents a club-less show, and such a show is now unmanageable by anyone
+### F30 — P1 — MECHANISM FOUND — Deleting a club silently strips management from its shows, permanently
 
 **Twice rewritten. The first version blamed the creation wizard, the second the edit
 path. Both were wrong, and the disproof is the useful part.**
@@ -655,9 +655,22 @@ Attempts to reproduce, all negative:
 | Probe 1 again | More show actions → Edit → Judges → Save Changes | `club_id` **preserved** |
 
 The wizard and the edit path are therefore exonerated: identical steps produced a
-correct `club_id` twice. The audit show's `updated_at` (21:59) is also long after its
-creation (19:19), so whatever cleared the column did so later. **I could not identify
-it**, and the three explanations I offered before checking were each wrong.
+correct `club_id` twice.
+
+**The cause is club deletion, and a reseed does it every time.** Both probe shows had
+a correct `club_id` at 00:58; after running `seed-demo.sql` they were both NULL. The
+chain:
+
+- `seed-demo.sql:249` — `DELETE FROM public.clubs WHERE id IN ('dededede-…001', …)`.
+- `shows_club_id_fkey` is `FOREIGN KEY (club_id) REFERENCES clubs(id)`
+  **`ON DELETE SET NULL`**.
+- So deleting the club nulls `club_id` on **every** show that references it.
+- The seed recreates the club under the same id and re-inserts *its own* fixture shows
+  with `club_id` set, so the fixture data looks correct — and every non-fixture show is
+  silently orphaned.
+
+That also explains the original audit show, whose `updated_at` (21:59) was hours after
+its creation: a reseed, not the wizard.
 
 What *is* established, and is the finding worth keeping:
 
@@ -670,12 +683,28 @@ What *is* established, and is the finding worth keeping:
   not its creator, not a club admin, only a site admin. There is no in-app route back,
   because every repair write is itself gated by `can_manage_show`.
 
-So the severity is not "the wizard is broken" but "an unreachable state exists and is
-now unrecoverable". A `CHECK (club_id IS NOT NULL)` on `shows`, or a site-admin repair
-path, would close it regardless of how a show gets there.
+So the severity is not "the wizard is broken" but **"deleting a club silently and
+permanently removes management from all of its shows"**.
 
-*Audit artifacts:* two probe shows (`6cea4cdf-…`, plus the publish probe) remain on
-staging alongside the walk show.
+Pre-launch this only costs demo and QA shows on every reseed. It is not a demo-only
+problem though: the same FK rule applies to a real club deleted for any reason, and
+after MYK9-258 the resulting shows cannot be repaired from inside the app, because
+every repair write is itself gated by `can_manage_show`.
+
+Worth noting the two changes are individually reasonable and only dangerous together:
+`ON DELETE SET NULL` was harmless while `club_id` was descriptive, and MYK9-258 is
+correct that a club-less show should not be manageable by every secretary. Making
+`club_id` authorization-critical turned an existing nullable FK into a trapdoor.
+
+Options, none of which I am picking unilaterally: `ON DELETE RESTRICT` (would require
+the seed to stop delete-recreating its club), a `NOT NULL` constraint, or a site-admin
+reassign-club repair path. The seed could also simply re-point or refuse to orphan
+shows it does not own.
+
+*Audit artifacts on staging:* the walk show plus three probe shows
+(`6cea4cdf-…`, the publish probe, and `ZZ Audit - Rewalk`), and one move-up-created
+entry on the demo show (`7ae6ac8b-…`, Interior Advanced) whose id falls outside the
+seed's fixture ranges, so a reseed will not remove it.
 
 ### F31 — P3 — CORRECTED — A denied entry update is diagnosed internally as a deletion
 
@@ -727,6 +756,115 @@ does not exist, which is worse than saying nothing.
 
 Third instance of the same shape: `Compose` not inheriting the show (F23), Show Desk's
 "Run order and class setup" naming a capability its destination lacks (F29), and this.
+
+### F33 — P1 — FIXED AND DEPLOYED — The receipt says $30.00 and the database records $0.00
+
+Found during the post-fix re-walk, on a clean show with a club. A mail-in entry
+submitted through Entry Management produced:
+
+- Receipt on screen: **"Confirmation # MK9-000103 $30.00"**
+- `entries.entry_fee`: **0.00**
+- `enrollments.total_amount`: **0**, `paid_amount`: **0.00**, `payment_status`: `paid`
+
+So the secretary is told they took $30 and the club's records say the entry was free.
+For contrast, the 514 seeded entries on the demo show all carry `entry_fee = 30.00`,
+so this is specific to the wizard's write path, not the data model.
+
+This is **not** F15 resurfacing. F15 displayed $0 and stored $0 — wrong but internally
+consistent, and the fix corrected the computation the Payment step displays. Here the
+display is now right and the persisted value is still zero, which is worse: nothing on
+screen contradicts the record, so it cannot be noticed at the desk.
+
+It also explains something I saw earlier and did not question: the closeout panel on a
+514-entry show reports **"At-show collected $0.00"**.
+
+**Root cause — the server-side twin of F15.** The client was never at fault: it
+computed and sent 3000 cents. `submit_show_entries` is authoritative and priced the
+entry itself:
+
+```sql
+v_server_fee := COALESCE(
+  CASE WHEN v_show_start IS NOT NULL AND CURRENT_DATE >= v_show_start
+       THEN v_show_dos_fee ELSE v_show_pre_fee END,
+  v_class_fee, 0);
+```
+
+`COALESCE` only falls through on NULL, and a blank Day-of-Show Fee is stored as
+`0.00`. So from the show's start date the day-of branch yields zero.
+
+The fee-mismatch guard cannot catch it, because it is one-directional:
+
+```sql
+IF v_client_cents IS NOT NULL AND v_client_cents < v_server_cents THEN RAISE ...
+```
+
+It exists to stop underpayment, so `3000 < 0` is false and the correct client figure
+is silently discarded. Fixing F15 on the client therefore made this *less* visible,
+not more: before, display and record agreed at zero; now the screen says $30 and the
+record says nothing.
+
+`submit_show_entries` is the only server-side use of `day_of_show_fee` for pricing —
+the edge functions only print it on the premium list — so the fix is contained.
+
+Impact is the Financial Report, closeout reconciliation and any payout maths: entries
+the secretary believes are paid contribute nothing to the show's totals.
+
+**Fixed. Migration applied to staging 2026-08-29.**
+`supabase/migrations/20260829030000_day_of_fee_zero_is_not_a_tier.sql` takes the
+day-of fee only when it is `> 0`, mirroring the client fix. Rebuilt from the LIVE
+`pg_get_functiondef` rather than an older migration file so no intervening change is
+reverted; the only edit is the fee expression. Role decisions restate the verified
+live grants (anon false, authenticated true, service_role true). 733 DB contract tests
+pass — the suite first rejected it for missing EXECUTE decisions.
+
+*Verified against the applied database:* the fee expression now carries
+`v_show_dos_fee > 0`, grants are unchanged (anon false, authenticated true,
+service_role true) and the function is still `SECURITY DEFINER`.
+
+*Verified end to end* on the same show, same wizard, same dog:
+
+| Entry | Created | `entry_fee` |
+| --- | --- | --- |
+| Container Novice A | 01:54, before the push | **0.00** |
+| Interior Novice A | 02:32, after the push | **30.00** |
+
+The enrollment moved from `total_amount: 0` to `3000` with `paid_amount: 30.00`.
+
+**History is not repaired.** Every entry created on or after a show's start date while
+this was live still carries `entry_fee = 0` and contributes nothing to that show's
+totals. A backfill would need to decide which fee tier applied on the day each entry
+was taken, so it is a deliberate decision rather than an obvious follow-up.
+
+*Push note:* `pg_get_functiondef` returns the definition WITHOUT a trailing semicolon,
+so the first push failed with a syntax error at the following `REVOKE` — the grants had
+run on as part of the function statement. Worth knowing for any migration rebuilt from
+a live definition.
+
+*Unit oddity, not investigated:* `enrollments.total_amount` is in cents (3000) while
+`paid_amount` is in dollars (30.00). `utils/enrollmentGrouping.ts` documents the cents
+convention for Stripe, so this looks intentional rather than a defect.
+
+### Move-up semantics (verified, not a defect)
+
+Worth writing down because the dialog's wording ("Move this entry into another
+class") does not describe what happens, and a reader of the data would otherwise
+suspect a duplicate:
+
+- The original entry becomes `entry_status = 'moved'`, keeps `move_up_requested = true`
+  and **keeps its $30 fee** — the paid record and its history survive.
+- A **new** entry is created in the target class, `confirmed`, at `entry_fee = 0.00`.
+
+So the dog is not double-booked and not double-charged; the money stays on the record
+that was paid. The one thing to check downstream is whether the Financial Report and
+closeout totals count `moved` entries — if they only count `confirmed`, that $30 would
+vanish from show takings. Not investigated here.
+
+Target eligibility is enforced by `utils/moveUpEligibility` via
+`buildMoveUpTargets`: same element, strictly higher level, deliberately aligned across
+the Show Map, Show Desk and Entry Management so none of them offers cross-element or
+lower-level targets. Confirmed live: an Interior Novice entry offered exactly one
+target (Interior Advanced), and a show with only Container Novice A + Interior Novice A
+correctly offered none.
 
 ## What works well
 
@@ -795,7 +933,7 @@ Third instance of the same shape: `Compose` not inheriting the show (F23), Show 
 | 13 | Waitlist | **Verified present** — Entry Management → Exceptions → Waitlist shows judge-day capacity and "View Wait List" per judge-day; no waitlisted entries to promote on this show |
 | 14 | Payments / refunds | **Partial** — Pull Management ("reconcile refunds in one place") loads with Pending/Pulled queues; payment channel is mislabelled (F18) and check references are not stored (F16) |
 | 5 | Set run order | **FIXED (F29)** — "Run order" now renders per class on the Show Map |
-| 8 | Process a move-up | **FIXED (F29)** — entry rows now expose Review entry · Mark checked in · **Move up** · Pull / no-show · Message handler |
+| 8 | Process a move-up | **FIXED (F29) and verified end to end** — moved armband 103 from Interior Novice B to Interior Advanced (65 -> 66 entries). The dialog offers only same-element, strictly-higher-level targets, and asks for a reason |
 | 15 | Scratches / pulls / no-shows | **Verified present** — Entry Management → Exceptions → Pulls / scratches: "Review pull requests and reconcile refunds in one place", Pending/Pulled queues with search |
 | 16 | Late / walk-in entries | **Verified** — see Task 3; Show Desk → Tools → Late entry completes end to end |
 | 6 | Print check-in sheets | **Verified** — 33-page PDF, US Letter, "Check-in & Running Order", columns Gate Order / Armband / Call Name / Breed / Reg # / Handler / Pull-Move-Note. The Reg # column is blank for every dog (see F21) |

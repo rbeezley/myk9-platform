@@ -117,16 +117,37 @@ describe('seed-demo club scope fixtures', () => {
     expect(seed).toContain('Prairie Trail Dog Sports Club');
   });
 
-  it('removes both clubs in the idempotency block', () => {
+  it('re-seeds both clubs without a second-run collision', () => {
     // A seed that creates a row it cannot clean up fails its SECOND run, which is
-    // the run nobody watches.
+    // the run nobody watches. That intent is unchanged; the MECHANISM had to move.
+    //
+    // F30 made shows.club_id ON DELETE RESTRICT, so the old
+    // `DELETE FROM public.clubs` in the idempotency block can no longer run at all
+    // — a club that owns a show refuses to be deleted, which is the whole point of
+    // the finding. The clubs INSERT now upserts instead, which is what actually
+    // delivers idempotency. Dependent rows carry their own conflict clauses
+    // (club_members DO NOTHING, club_stripe_accounts DO UPDATE) and club_officers
+    // is not seeded, so nothing relied on the cascade the DELETE used to trigger.
+    const clubsBlock = seed.slice(seed.indexOf('-- 1. Clubs'), seed.indexOf('club_stripe_accounts'));
+    expect(clubsBlock).toContain('ON CONFLICT (id) DO UPDATE');
+    expect(clubsBlock).toContain(HEARTLAND_CLUB_ID);
+    expect(clubsBlock).toContain(PRAIRIE_TRAIL_CLUB_ID);
+    // The delete-and-recreate pair must not come back for the DEMO clubs: it cannot
+    // survive RESTRICT. The load-fixture clubs are a different range and are still
+    // deleted here — legitimately, because their shows are deleted first.
     const idempotencyBlock = seed.slice(
       seed.indexOf('-- 0. Idempotency'),
       seed.indexOf('-- 1. Clubs')
     );
-    expect(idempotencyBlock).toContain('DELETE FROM public.clubs');
-    expect(idempotencyBlock).toContain(HEARTLAND_CLUB_ID);
-    expect(idempotencyBlock).toContain(PRAIRIE_TRAIL_CLUB_ID);
+    const clubDeleteStart = idempotencyBlock.indexOf('DELETE FROM public.clubs');
+    if (clubDeleteStart !== -1) {
+      const clubDelete = idempotencyBlock.slice(
+        clubDeleteStart,
+        idempotencyBlock.indexOf(';', clubDeleteStart)
+      );
+      expect(clubDelete).not.toContain(HEARTLAND_CLUB_ID);
+      expect(clubDelete).not.toContain(PRAIRIE_TRAIL_CLUB_ID);
+    }
   });
 
   it('seeds club_members for both clubs', () => {

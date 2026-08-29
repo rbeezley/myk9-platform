@@ -130,7 +130,8 @@ Deno.serve(async req => {
       return corsResponse(corsHeaders, { error: 'Entry not found' }, 404);
     }
 
-    // club_id is nullable (shows.club_id is ON DELETE SET NULL).
+    // Keep the nullable shape while legacy audit shows are cleaned up. New
+    // club deletion is RESTRICTed, so it cannot create additional orphans.
     const show = entry.show as unknown as { id: string; club_id: string | null };
 
     // Authorize: show-scoped secretary, the club's admin, or site admin —

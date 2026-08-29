@@ -245,11 +245,8 @@ BEGIN
   END IF;
 END $$;
 DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';
--- club_members / club_officers / club_stripe_accounts all cascade on club delete.
-DELETE FROM public.clubs WHERE id IN (
-  'dededede-0000-0000-0000-000000000001',
-  'dededede-0000-0000-0000-000000000002'
-);
+-- The shows.club_id FK is RESTRICT: reset the show above, then upsert the
+-- tenant roots instead of deleting and recreating clubs.
 
 -- ---------------------------------------------------------------------------
 -- 1. Clubs (2)
@@ -279,7 +276,15 @@ VALUES (
   'testadmin@myk9t.com',
   'Second demo club. Exists so club-scoped authority has a club to be REFUSED on — see MYK9-137.',
   'PTDSC-002', 1
-);
+)
+ON CONFLICT (id) DO UPDATE
+  SET name        = EXCLUDED.name,
+      city        = EXCLUDED.city,
+      state       = EXCLUDED.state,
+      email       = EXCLUDED.email,
+      description = EXCLUDED.description,
+      club_number = EXCLUDED.club_number,
+      version     = EXCLUDED.version;
 
 -- Stripe Connect sandbox account for the demo club.
 -- payouts_enabled=true gates the stripe-checkout edge function's online-entry

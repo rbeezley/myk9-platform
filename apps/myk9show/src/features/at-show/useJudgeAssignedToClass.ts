@@ -141,6 +141,25 @@ export function useJudgeAssignedToClass({
   }, [lookupKey, classId, personId]);
 
   if (!applicable) return { status: 'not-applicable' };
+
+  // Identity unresolved -> fail OPEN, not 'checking'.
+  //
+  // `databaseUserId` comes from a `people` lookup in AuthContext that declares
+  // no networkMode, so it inherits 'online' and PAUSES offline -- a judge who
+  // cold-boots at a ringside with no signal has `personId === null`
+  // indefinitely. `lookupKey` is then null, the effect returns early, `resolved`
+  // never sets, and this used to report 'checking' forever, which the scoresheet
+  // renders as a skeleton with no error, no retry, and no way out. The judge
+  // could not score the dog in front of them.
+  //
+  // Returning 'checking' here also contradicted this hook's documented posture:
+  // a cold cache, a sync failure and a read error all resolve `assigned`, with
+  // the server RPC as the real enforcement boundary. An unknown identity is the
+  // same kind of ignorance and gets the same answer -- it must not be the one
+  // ignorance that blocks. See CLAUDE.md on the roles/identity coupled pair.
+
+  if (!personId) return { status: 'not-applicable' };
+
   if (resolved && resolved.key === lookupKey) return { status: resolved.value };
   return { status: 'checking' };
 }

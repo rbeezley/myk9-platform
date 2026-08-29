@@ -69,6 +69,23 @@ function pruneCompletionFlags(now: number): void {
 }
 
 /** Record a fresh final-score intent for this device and class. */
+/**
+ * Clears the module-scope memos. TEST-ONLY.
+ *
+ * `pendingInMemory` / `celebratedInMemory` are module scope, so a celebration
+ * claimed by one test file stays claimed for every later file in the same
+ * worker. Clearing `localStorage` alone does not reach them, which made
+ * "celebrates a final-score intent exactly once" pass or fail depending on file
+ * order — invisible locally, random in CI, which runs `--sequence.shuffle`.
+ *
+ * `.clear()` is O(1) deliberately: a reset that walks the accumulated keys would
+ * grow with the leak it exists to undo.
+ */
+export function __resetClassCompletionMemoForTests(): void {
+  pendingInMemory.clear();
+  celebratedInMemory.clear();
+}
+
 export function markClassCompletionPending(classId: string): void {
   const now = Date.now();
   pruneCompletionFlags(now);

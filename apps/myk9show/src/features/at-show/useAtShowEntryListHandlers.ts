@@ -151,7 +151,20 @@ export function useAtShowEntryListHandlers(
   // ── Entry tap ────────────────────────────────────────────────────────
   const handleEntryClick = useCallback<EntryListHandlers['handleEntryClick']>(
     entry => {
-      if (entry.isScored) return;
+      if (entry.isScored) {
+        // Was a SILENT return. A judge who spots a typo two dogs later taps the
+        // card -- the obvious action -- and nothing happens at all: no
+        // navigation, no message, indistinguishable from a missed tap or a
+        // frozen app. Say what the state is and where the correction lives.
+        //
+        // Deliberately not routed to the scoresheet: `toScoresheetEntry` maps
+        // identity only, so the sheet would open BLANK rather than pre-filled,
+        // making it a re-score from nothing with the existing value invisible.
+        // Turning a dead tap into a silent-overwrite path is not an improvement.
+        // Wiring a real correction flow is a product decision, filed separately.
+        toast.info(`${entry.callName} is already scored — use the card's ⋯ menu to change it.`);
+        return;
+      }
       if (!hasPermission('canScore')) {
         toast.error('You do not have permission to score entries.');
         return;

@@ -17,6 +17,13 @@ const supabaseMocks = vi.hoisted(() => ({
   rpc: vi.fn(() => Promise.resolve({ error: null })),
 }));
 
+const { toastInfo, toastError } = vi.hoisted(() => ({
+  toastInfo: vi.fn(),
+  toastError: vi.fn(),
+}));
+vi.mock('sonner', () => ({
+  toast: { info: toastInfo, error: toastError, success: vi.fn(), warning: vi.fn() },
+}));
 vi.mock('@/utils/logger', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), log: vi.fn() },
 }));
@@ -212,6 +219,29 @@ describe('useAtShowEntryListHandlers — entry-card view intent', () => {
 
     expect(actions.handleMarkInRing).not.toHaveBeenCalled();
     expect(actions.handleToggleInRing).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Tapping a SCORED dog used to `return` silently — no navigation, no message,
+   * indistinguishable from a missed tap or a frozen app. A judge who spots a
+   * typo two dogs later reaches for the obvious action and gets nothing.
+   *
+   * It deliberately still does not navigate: `toScoresheetEntry` maps identity
+   * only, so the sheet would open BLANK rather than pre-filled — turning a dead
+   * tap into a silent-overwrite path is not an improvement.
+   */
+  it('explains itself when a scored entry is tapped, instead of doing nothing', () => {
+    toastInfo.mockClear();
+    const scored = makeEntry({ id: 'entry-1', isScored: true, callName: 'Rex' });
+    const { result } = renderHandlers([scored], actions);
+
+    act(() => {
+      result.current.handleEntryClick(scored);
+    });
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    expect(toastInfo.mock.calls[0]?.[0]).toMatch(/already scored/i);
+    expect(actions.handleMarkInRing).not.toHaveBeenCalled();
   });
 });
 

@@ -48,6 +48,7 @@ type PrintDialogState = CombinedEntryListUiState['printDialogState'];
 import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import { applyCombinedRunOrder } from './applyCombinedRunOrder';
+import { toast } from 'sonner';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue } from './ringsideCapabilities';
@@ -179,10 +180,22 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   const currentEntries = activeTab === 'pending' ? pendingEntries : completedEntries;
 
   // ── Combined handlers bag (ringside hook) ──────────────────────────────
+  // ringside can't depend on sonner, so both of its alert() call sites took
+  // window.alert -- a blocking native dialog mid-class, where the single-class
+  // page uses a toast for the identical cases. Inject the real thing.
+  const notifyRingside = useCallback((message: string, tone: 'error' | 'info') => {
+    if (tone === 'error') {
+      toast.error(message);
+      return;
+    }
+    toast.info(message);
+  }, []);
+
   const combinedHandlers = useEntryHandlers({
     localEntries,
     setLocalEntries,
     entries,
+    notify: notifyRingside,
     handleMarkInRing: actions.handleMarkInRing,
     handleMarkCompleted: actions.handleMarkCompleted,
     handleStatusChangeHook: actions.handleStatusChange,
@@ -302,6 +315,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           />
         )}
         <CombinedEntryListPage
+          onNotify={notifyRingside}
           classIds={{ a: classIdA, b: classIdB }}
           data={{ entries, classInfo }}
           dataStatus={{ isRefreshing, fetchError, refresh }}

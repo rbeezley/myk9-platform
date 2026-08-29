@@ -22,7 +22,11 @@ import { useNavigate } from 'react-router-dom';
 import { StatusIcon, TabBar, type Tab } from '@myk9/ui';
 import { ArrowUpDown, Trophy } from 'lucide-react';
 import type { Entry } from '../../stores/entryStore';
-import type { CombinedEntryListPageProps, FilterPanelSortOption } from './pageProps';
+import type {
+  CombinedEntryListPageProps,
+  EntryListNotify,
+  FilterPanelSortOption,
+} from './pageProps';
 import type { SortOrder } from './types';
 import type { PrintSortOrder } from './dialogSlots';
 import { EntryListHeader, EntryListContent } from './components';
@@ -70,6 +74,7 @@ function CombinedEntryListSkeleton() {
 }
 
 export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
+  onNotify,
   classIds,
   data,
   dataStatus,
@@ -136,12 +141,26 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
 
   // Score click — combined view navigates with paired classId in
   // state so the scoresheet knows about the other class.
+  // Falls back to `window.alert` when the host injects nothing: a blocking
+  // dialog is a poor experience, but a silently-failed score reset is worse.
+  const notify = useCallback<EntryListNotify>(
+    (message, tone) => {
+      if (onNotify) {
+        onNotify(message, tone);
+        return;
+      }
+      // eslint-disable-next-line no-alert
+      window.alert(message);
+    },
+    [onNotify]
+  );
+
   const handleScoreClick = useCallback(
     (entry: Entry) => {
       if (entry.isScored) return;
 
       if (!hasPermission('canScore')) {
-        alert('You do not have permission to score entries.');
+        notify('You do not have permission to score entries.', 'error');
         return;
       }
 

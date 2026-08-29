@@ -287,8 +287,19 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         }
         dragHandle={
           isDragMode && !isInRing ? (
-            <div {...attributes} {...listeners} className="drag-handle">
-              <GripVertical size={20} />
+            // dnd-kit's `attributes` supply role="button", tabIndex and
+            // aria-roledescription="sortable" but NO accessible name, so this
+            // announced as "button, sortable" with no indication of which dog.
+            // `.drag-handle` also has no CSS since the Tailwind migration, and
+            // there was no focus ring, so a keyboard user reordering with arrow
+            // keys could not see which handle was focused.
+            <div
+              {...attributes}
+              {...listeners}
+              aria-label={`Reorder ${entry.callName}, armband ${entry.armband}`}
+              className="inline-flex min-h-11 min-w-11 cursor-grab items-center justify-center rounded-md text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+            >
+              <GripVertical size={20} aria-hidden="true" />
             </div>
           ) : undefined
         }
@@ -300,7 +311,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
               onClick={handleStatusBadgeClick}
             />
           ) : hasPermission('canScore') ? (
-            <ResetButton onClick={handleResetClick} />
+            <ResetButton onClick={handleResetClick} callName={entry.callName} />
           ) : undefined
         }
       />
@@ -346,11 +357,23 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick })
   const pulseClass = isAnimating ? 'status-just-changed' : '';
 
   return (
-    <div
+    // A <button>, not a <div onClick>. This is the most-used steward control on
+    // the surface and it had no role, no tabIndex and no key handler, so a
+    // keyboard or switch-control user could not change a dog's check-in status
+    // at all, and a screen reader announced it as static text.
+    //
+    // `aria-disabled` rather than the `disabled` attribute ON PURPOSE: when
+    // self check-in is off, clicking is what opens the dialog EXPLAINING that
+    // (handleStatusBadgeClick). A truly disabled button would swallow the click
+    // and leave the steward with a greyed pill and no explanation.
+    <button
+      type="button"
+      aria-disabled={isDisabled}
       className={cn(
         // min-h-11 = 44px INTENT touch-target floor — stewards tap this pill
         // outdoors, often gloved; do not shrink it back for visual density.
         'relative inline-flex min-h-11 max-w-[140px] items-center justify-center gap-0.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-bl-xl px-3 py-1 text-xs font-semibold leading-tight tracking-wider transition',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
         isDisabled
           ? 'cursor-not-allowed bg-muted text-muted-foreground opacity-60'
           : cn(
@@ -365,7 +388,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick })
       title={isDisabled ? 'Self check-in disabled' : 'Tap to change status'}
     >
       <StatusBadgeContent status={displayStatus} />
-    </div>
+    </button>
   );
 };
 
@@ -416,17 +439,23 @@ const OwnDogConflictChip: React.FC<{ label: string }> = ({ label }) => (
  */
 interface ResetButtonProps {
   onClick: (e: React.MouseEvent) => void;
+  /** Named so the control is distinguishable in a list of identical glyphs. */
+  callName: string;
 }
 
-const ResetButton: React.FC<ResetButtonProps> = ({ onClick }) => (
+const ResetButton: React.FC<ResetButtonProps> = ({ onClick, callName }) => (
   <button
-    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground active:scale-95 sm:min-h-12 sm:min-w-12"
+    // The label used to be "More options" while the tooltip said "Reset score" —
+    // the announced name and the visible hint disagreed about what the control
+    // does, on a button whose only visible content is "⋯". It also had no
+    // focus-visible treatment, unlike the primary action beside it.
+    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:scale-95 sm:min-h-12 sm:min-w-12"
     data-testid="reset-menu-button"
     onClick={onClick}
     onMouseDown={e => e.stopPropagation()}
-    aria-label="More options"
-    title="Reset score"
+    aria-label={`Score options for ${callName}`}
+    title="Score options"
   >
-    ⋯
+    <span aria-hidden="true">⋯</span>
   </button>
 );

@@ -113,7 +113,7 @@ describe('SortableEntryCard', () => {
     );
     // Unscored entry → status badge slot occupied; reset button not present.
     expect(screen.getByTestId('action-button-slot')).not.toBeNull();
-    expect(screen.queryByLabelText('More options')).toBeNull();
+    expect(screen.queryByTestId('reset-menu-button')).toBeNull();
   });
 
   it('shows a reset button (not a status badge) for scored entries when permitted', () => {
@@ -130,7 +130,7 @@ describe('SortableEntryCard', () => {
         DogCard={StubDogCard}
       />
     );
-    expect(screen.getByLabelText('More options')).not.toBeNull();
+    expect(screen.getByTestId('reset-menu-button')).not.toBeNull();
   });
 
   it('renders the reset button with self-contained touch-target styling', () => {
@@ -156,6 +156,54 @@ describe('SortableEntryCard', () => {
     expect(resetButton.className).toContain('sm:min-w-12');
   });
 
+  /**
+   * The status pill is the most-used steward control here and it was a
+   * `<div onClick>` — no role, no tabIndex, no key handler — so a keyboard or
+   * switch-control user could not change a dog's check-in status at all, and a
+   * screen reader announced it as static text.
+   */
+  it('renders the check-in status pill as a real button, not a clickable div', () => {
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    const pill = screen.getByTitle('Tap to change status');
+    expect(pill.tagName).toBe('BUTTON');
+    expect(pill.className).toContain('focus-visible:ring-2');
+  });
+
+  it('activates the status pill via its button semantics', () => {
+    const handleStatusClick = vi.fn();
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={handleStatusClick}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    const pill = screen.getByTitle('Tap to change status');
+    pill.focus();
+    expect(document.activeElement).toBe(pill);
+
+    fireEvent.click(pill);
+    expect(handleStatusClick).toHaveBeenCalled();
+  });
+
   it('omits the reset button for scored entries when canScore is denied', () => {
     const scored: Entry = { ...baseEntry, isScored: true };
     renderInDndContext(
@@ -170,7 +218,7 @@ describe('SortableEntryCard', () => {
         DogCard={StubDogCard}
       />
     );
-    expect(screen.queryByLabelText('More options')).toBeNull();
+    expect(screen.queryByTestId('reset-menu-button')).toBeNull();
     expect(screen.queryByTestId('action-button-slot')).toBeNull();
   });
 

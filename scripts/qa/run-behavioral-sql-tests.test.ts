@@ -35,6 +35,7 @@ const launchCriticalSqlTests = [
   'class_status_auto_derivation_test.sql',
   'entry_requires_dog_registration_test.sql',
   'club_secretary_grant_test.sql',
+  'club_delete_restrict_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',
   'entries_manager_policy_hashable_test.sql',
   'null_club_show_authorization_test.sql',

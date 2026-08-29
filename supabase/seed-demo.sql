@@ -245,11 +245,43 @@ BEGIN
   END IF;
 END $$;
 DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';
--- club_members / club_officers / club_stripe_accounts all cascade on club delete.
-DELETE FROM public.clubs WHERE id IN (
-  'dededede-0000-0000-0000-000000000001',
-  'dededede-0000-0000-0000-000000000002'
-);
+-- The shows.club_id FK is RESTRICT (F30), so the demo clubs can no longer be
+-- delete-and-recreated: the row is upserted in section 1 instead.
+--
+-- That DELETE was doing more than removing two rows. It cascaded to every child of
+-- `clubs`, which is what made a reseed DETERMINISTIC -- not merely collision-free.
+-- An upsert only touches the rows the fixture declares, so anything a QA run or a
+-- manual walkthrough added would survive: an extra club member, a club-scoped role
+-- grant, a secretary task. The seed would report success on a contaminated dataset,
+-- and roster and authorization walks would start from it.
+--
+-- Replicate the cascade explicitly for the two demo clubs. Enumerated from
+-- pg_constraint (contype='f', confrelid='public.clubs', confdeltype='c'), not from
+-- memory -- if a new child table is added with ON DELETE CASCADE, it belongs here
+-- too. `shows` is deliberately absent: it is the RESTRICT parent this finding is
+-- about, and its own seeded row is reset above.
+DELETE FROM public.club_members       WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+DELETE FROM public.club_officers      WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+DELETE FROM public.club_premium_templates WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+DELETE FROM public.premium_generations WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+DELETE FROM public.secretary_tasks    WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+-- Club-scoped role grants only. Section 10 re-creates the declared ones (it guards
+-- every insert with NOT EXISTS and normalises is_active/expires_at), so clearing
+-- here removes exactly the undeclared grants the cascade used to remove.
+DELETE FROM public.user_roles         WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+-- club_stripe_accounts too. An earlier version of this block exempted it because
+-- section 1 upserts the declared row on (club_id, livemode) -- but that restores the
+-- DECLARED row and says nothing about UNDECLARED ones. A Prairie Trail account, or a
+-- second Heartland row at livemode=true, would survive and let a payment or
+-- publish-gate test observe account configuration the fixture never declared.
+DELETE FROM public.club_stripe_accounts WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
 
 -- ---------------------------------------------------------------------------
 -- 1. Clubs (2)
@@ -279,7 +311,43 @@ VALUES (
   'testadmin@myk9t.com',
   'Second demo club. Exists so club-scoped authority has a club to be REFUSED on — see MYK9-137.',
   'PTDSC-002', 1
-);
+)
+ON CONFLICT (id) DO UPDATE
+  SET name        = EXCLUDED.name,
+      city        = EXCLUDED.city,
+      state       = EXCLUDED.state,
+      email       = EXCLUDED.email,
+      description = EXCLUDED.description,
+      club_number = EXCLUDED.club_number,
+      version     = EXCLUDED.version,
+      -- Clear the soft delete. The DELETE+INSERT this replaced always produced a
+      -- fresh row; an upsert that leaves deleted_at set would "succeed" while the
+      -- club stays invisible to every read (they all filter `.is('deleted_at',
+      -- null)`), silently emptying the demo dataset. The app does soft-delete clubs
+      -- (services/database/clubs/reads.ts) and clubCRUD.spec.ts exercises it, so a
+      -- prior e2e run can leave exactly this state behind.
+      deleted_at  = NULL,
+      deleted_by  = NULL,
+      -- Every column the fixture does NOT declare, reset to its default. The
+      -- delete-and-recreate this replaced produced a row with these at their
+      -- defaults; an upsert that lists only the declared columns preserves whatever
+      -- a QA run or manual walkthrough left in the rest. Enumerated from
+      -- pg_attribute, not from a reviewer's list -- an eyeballed list of this missed
+      -- cover_image_url, accent_color and all four default_withdrawal_* columns.
+      -- created_at / updated_at are deliberately absent: they are row bookkeeping,
+      -- not fixture state.
+      address                            = DEFAULT,
+      zip_code                           = DEFAULT,
+      phone                              = DEFAULT,
+      website                            = DEFAULT,
+      logo_url                           = DEFAULT,
+      license_key                        = DEFAULT,
+      cover_image_url                    = DEFAULT,
+      accent_color                       = DEFAULT,
+      default_withdrawal_cutoff_date     = DEFAULT,
+      default_withdrawal_retention_type  = DEFAULT,
+      default_withdrawal_retention_value = DEFAULT,
+      default_withdrawal_policy_notes    = DEFAULT;
 
 -- Stripe Connect sandbox account for the demo club.
 -- payouts_enabled=true gates the stripe-checkout edge function's online-entry
@@ -332,7 +400,22 @@ FROM (
     ('dededede-0000-0000-0000-000000000002'::uuid, 'exhibitor@myk9t.com', 'associate')
 ) AS club(club_id, email, membership_type)
 JOIN public.people p ON lower(p.email) = club.email
-ON CONFLICT (club_id, person_id) DO NOTHING;
+ON CONFLICT (club_id, person_id) DO UPDATE
+  -- RESET, not just collide-safely-insert. The demo clubs are no longer
+  -- delete-and-recreated (F30 made shows.club_id RESTRICT), so the cascade that
+  -- used to clear these rows every reseed is gone. DO NOTHING would preserve
+  -- whatever a QA run left behind -- a membership set to `suspended`, a changed
+  -- membership_type -- and a role walkthrough would start in the wrong state while
+  -- the reseed reported success. The load-club membership insert below keeps
+  -- DO NOTHING: those clubs ARE still deleted in the idempotency block.
+  SET membership_type   = EXCLUDED.membership_type,
+      membership_status = EXCLUDED.membership_status,
+      joined_date       = EXCLUDED.joined_date,
+      -- Columns the seed deliberately leaves at their defaults still have to be
+      -- reset, or QA drift on them survives a reseed too.
+      dues_paid_through = DEFAULT,
+      voting_eligible   = DEFAULT,
+      notes             = DEFAULT;
 
 -- ---------------------------------------------------------------------------
 -- 2. Published show  (AKC, fixed dates ~ Aug 1-3 2026)

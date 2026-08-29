@@ -142,7 +142,7 @@ export function ShowDeskCompactContext({
           <LiveUpdateIndicator />
           <ShowPresenceStack />
           <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
-            <ShowStatusPill showId={show.id} status={show.status} />
+            <ShowStatusPill showId={show.id} status={show.status} clubId={show.clubId} />
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

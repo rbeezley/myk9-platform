@@ -36,6 +36,7 @@ import {
   parseEditMode,
 } from './ShowCreationWizard';
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
+import { applyReturnedClubId } from './ShowCreationWizard/applyReturnedClubId';
 
 const ShowCreationWizardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -97,13 +98,12 @@ const ShowCreationWizardPage: React.FC = () => {
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
-  const { handleSaveDraft, handleCreateShow, handleCreateAndPublish } =
-    useShowCreationWizardActions({
-      editMode,
-      setIsLoading,
-      onCreated: (id, name, passcodes, passcodeError) =>
-        setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
-    });
+  const { handleCreateShow } = useShowCreationWizardActions({
+    editMode,
+    setIsLoading,
+    onCreated: (id, name, passcodes, passcodeError) =>
+      setCreatedShow({ id, name, passcodes, passcodeError: passcodeError ?? null }),
+  });
 
   // NOTE: deliberately no reset-on-mount. It used to destroy the persisted
   // draft on every fresh create, losing the secretary's show setup while a
@@ -113,10 +113,8 @@ const ShowCreationWizardPage: React.FC = () => {
   const preselectedClubId = searchParams.get('clubId');
   const { updateShowData } = useWizardStore();
   useEffect(() => {
-    if (preselectedClubId && !editMode && !show.clubId) {
-      updateShowData({ clubId: preselectedClubId });
-    }
-  }, [preselectedClubId, editMode, show.clubId, updateShowData]);
+    applyReturnedClubId(preselectedClubId, editMode, updateShowData);
+  }, [preselectedClubId, editMode, updateShowData]);
 
   // Load people data when page mounts (clubs handled by global store subscriptions)
   useEffect(() => {
@@ -309,10 +307,11 @@ const ShowCreationWizardPage: React.FC = () => {
         {createdShow && (
           <WizardSuccessOverlay
             createdShow={createdShow}
-            onGoToDashboard={() => {
+            onReviewShow={() => {
+              const createdShowId = createdShow.id;
               setCreatedShow(null);
               resetWizard();
-              navigate('/secretary/dashboard');
+              navigate(`/shows/${createdShowId}`);
             }}
           />
         )}
@@ -398,9 +397,7 @@ const ShowCreationWizardPage: React.FC = () => {
                     existingClasses={existingClasses}
                     hasAttemptedNext={hasAttemptedNext}
                     isLoading={isLoading}
-                    onSaveDraft={handleSaveDraft}
                     onCreateShow={handleCreateShow}
-                    onCreateAndPublish={handleCreateAndPublish}
                     onBack={handleBack}
                     officialsUnknown={officialsUnavailable}
                   />

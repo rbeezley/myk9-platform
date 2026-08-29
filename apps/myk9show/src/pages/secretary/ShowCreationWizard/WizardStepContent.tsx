@@ -6,7 +6,7 @@ import TrialConfigurationStep from '@/components/shows/wizard/steps/TrialConfigu
 import ClassSelectionStep from '@/components/shows/wizard/steps/ClassSelectionStep';
 import ReviewStep from '@/components/shows/wizard/steps/ReviewStep';
 import type { EditMode } from './show-creation-wizard-types';
-import { getSubmitLabel, getPublishLabel } from './wizardLabels';
+import { getSubmitLabel } from './wizardLabels';
 
 interface WizardStepContentProps {
   currentStep: number;
@@ -15,9 +15,7 @@ interface WizardStepContentProps {
   existingClasses: SyncableClassData[];
   hasAttemptedNext: boolean;
   isLoading: boolean;
-  onSaveDraft: () => void;
   onCreateShow: () => void;
-  onCreateAndPublish: () => void;
   onBack: () => void;
   /** True when the show's existing officials could not be read. */
   officialsUnknown?: boolean | undefined;
@@ -35,9 +33,7 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
   existingClasses,
   hasAttemptedNext,
   isLoading,
-  onSaveDraft,
   onCreateShow,
-  onCreateAndPublish,
   onBack,
   officialsUnknown,
 }) => {
@@ -82,13 +78,10 @@ export const WizardStepContent: React.FC<WizardStepContentProps> = ({
         <ReviewStep
           {...stepProps}
           isLoading={isLoading}
-          onSaveDraft={onSaveDraft}
           onCreateShow={onCreateShow}
-          onCreateAndPublish={onCreateAndPublish}
           onBack={onBack}
           officialsUnknown={officialsUnknown}
           submitLabel={getSubmitLabel(editMode?.mode)}
-          publishLabel={getPublishLabel(editMode?.mode)}
         />
       );
     default:

@@ -30,7 +30,9 @@ vi.mock('@/components/shows/ArmbandLookup', () => ({
   ),
 }));
 vi.mock('@/components/shows/ShowStatusPill', () => ({
-  ShowStatusPill: () => <div data-testid="status-pill" />,
+  ShowStatusPill: ({ clubId }: { clubId?: string }) => (
+    <div data-testid="status-pill" data-club-id={clubId} />
+  ),
 }));
 vi.mock('@/features/show-presence/ShowPresenceStack', () => ({
   ShowPresenceStack: () => <div data-testid="presence-stack" />,
@@ -61,7 +63,7 @@ vi.mock('@/store/showStore', () => ({
 }));
 
 function makeShow(): Show {
-  return { id: 'show-1', name: 'Test Show', status: 'Upcoming' } as Show;
+  return { id: 'show-1', name: 'Test Show', status: 'Upcoming', clubId: 'club-1' } as Show;
 }
 
 function makeTabs(): ShowDetailTabsProps {
@@ -118,6 +120,11 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('presence-stack')).toBeInTheDocument();
     expect(screen.getByTestId('live-indicator')).toBeInTheDocument();
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
+  });
+
+  it('gives the status control the host club required for publishing', () => {
+    renderShell();
+    expect(screen.getByTestId('status-pill')).toHaveAttribute('data-club-id', 'club-1');
   });
 
   it('renders the management section nav without Setup as a peer workflow', () => {

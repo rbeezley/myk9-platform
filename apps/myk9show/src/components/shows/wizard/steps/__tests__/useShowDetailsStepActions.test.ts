@@ -1,22 +1,12 @@
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockLoadClubs = vi.fn().mockResolvedValue(undefined);
 const mockLoadPeople = vi.fn().mockResolvedValue(undefined);
-const mockUpdateShowData = vi.fn();
 
 let mockPeople: Array<{ id: string; email?: string; phone?: string }> = [];
 
-vi.mock('@/store/clubStore', () => ({
-  useClubStore: vi.fn(() => ({ loadClubs: mockLoadClubs })),
-}));
-
 vi.mock('@/store/userStore', () => ({
   useUserStore: vi.fn(() => ({ people: mockPeople, loadPeople: mockLoadPeople })),
-}));
-
-vi.mock('@/store/wizardStore', () => ({
-  useWizardStore: vi.fn(() => ({ updateShowData: mockUpdateShowData })),
 }));
 
 const mockCreateUser = vi.fn();
@@ -31,11 +21,6 @@ vi.mock('@/services/database/judges', () => ({
   createJudgeQualification: (...args: unknown[]) => mockCreateJudgeQualification(...args),
 }));
 
-const mockCreateClub = vi.fn();
-vi.mock('@/services/database/clubs', () => ({
-  createClub: (...args: unknown[]) => mockCreateClub(...args),
-}));
-
 vi.mock('@/services/LoggingService', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
@@ -46,35 +31,6 @@ describe('useShowDetailsStepActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPeople = [];
-  });
-
-  describe('handleCreateClub', () => {
-    it('calls createClub with name and email, then loadClubs and updateShowData on success', async () => {
-      mockCreateClub.mockResolvedValue({ data: { id: 'club-1' }, error: null });
-      const { result } = renderHook(() => useShowDetailsStepActions());
-
-      await result.current.handleCreateClub({ name: 'Test Club', email: 'club@example.com' });
-
-      expect(mockCreateClub).toHaveBeenCalledWith({
-        name: 'Test Club',
-        email: 'club@example.com',
-      });
-      expect(mockLoadClubs).toHaveBeenCalled();
-      expect(mockUpdateShowData).toHaveBeenCalledWith({ clubId: 'club-1' });
-    });
-
-    it('throws on result.error and does not call loadClubs/updateShowData', async () => {
-      const error = new Error('insert failed');
-      mockCreateClub.mockResolvedValue({ data: null, error });
-      const { result } = renderHook(() => useShowDetailsStepActions());
-
-      await expect(
-        result.current.handleCreateClub({ name: 'Bad Club', email: 'bad@example.com' })
-      ).rejects.toThrow('insert failed');
-
-      expect(mockLoadClubs).not.toHaveBeenCalled();
-      expect(mockUpdateShowData).not.toHaveBeenCalled();
-    });
   });
 
   describe('handleCreateOfficialPerson', () => {

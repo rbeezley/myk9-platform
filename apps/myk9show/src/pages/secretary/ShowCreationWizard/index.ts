@@ -6,7 +6,7 @@ export * from './show-creation-wizard-types';
 export * from './showCreationWizardValidation';
 export * from './showCreationWizardTransformers';
 export { useShowCreationWizardActions } from './useShowCreationWizardActions';
-export { getEditModeTitle, getSubmitLabel, getPublishLabel } from './wizardLabels';
+export { getEditModeTitle, getSubmitLabel } from './wizardLabels';
 export { WizardSuccessOverlay } from './WizardSuccessOverlay';
 export { WizardValidationBanner } from './WizardValidationBanner';
 export { WizardHeader } from './WizardHeader';

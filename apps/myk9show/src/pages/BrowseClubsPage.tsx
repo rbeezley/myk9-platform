@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, Building2 } from 'lucide-react';
 import { PanelProvider, PanelStack } from '@/components/panels';
@@ -26,19 +26,26 @@ import { EmptyState } from '@/components/common/EmptyState';
 
 const BrowseClubsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { user, userWithRoles } = useAuthContext();
   const isAuthenticated = !!user;
 
-  // clubs_insert RLS allows site_admin only. Hide the entry point entirely
-  // for all other roles — secretaries work within existing clubs.
+  // Keep the affordance aligned with migration 160's clubs_insert policy.
+  // Secretaries need this complete surface when a host club does not yet exist;
+  // the show wizard links here instead of maintaining a partial club creator.
   const canCreateClub = useMemo(() => {
     const roles = userWithRoles?.roles ?? [];
-    return roles.includes(UserRole.SITE_ADMIN);
+    return [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN].some(role =>
+      roles.includes(role)
+    );
   }, [userWithRoles]);
 
   const [viewMode, setViewMode] = useViewPreference('clubs', 'table');
-  const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
+  const [createPanelRequested, setCreatePanelRequested] = useState(
+    () => searchParams.get('create') === 'true'
+  );
+  const showCreateClubPanel = canCreateClub && createPanelRequested;
 
   const addClub = useClubStore(state => state.addClub);
   const selectClub = useClubStore(state => state.selectClub);
@@ -117,23 +124,34 @@ const BrowseClubsPage: React.FC = () => {
 
         if (createdId) {
           selectClub(createdId);
-          navigate(`/clubs/${createdId}`);
+          const returnTo = searchParams.get('returnTo');
+          if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
+            const target = new URL(returnTo, window.location.origin);
+            if (target.origin === window.location.origin) {
+              target.searchParams.set('clubId', createdId);
+              navigate(`${target.pathname}${target.search}${target.hash}`);
+            } else {
+              navigate(`/clubs/${createdId}`);
+            }
+          } else {
+            navigate(`/clubs/${createdId}`);
+          }
         }
 
-        setShowCreateClubPanel(false);
+        setCreatePanelRequested(false);
         notifications.success('Club created successfully');
       } catch (error) {
         logger.error('Failed to create club', 'clubs', {}, error as Error);
         notifications.error('Failed to create club');
       }
     },
-    [addClub, selectClub, navigate]
+    [addClub, selectClub, navigate, searchParams]
   );
 
   const actionButton = useMemo(
     () =>
       canCreateClub ? (
-        <Button onClick={() => setShowCreateClubPanel(true)}>
+        <Button onClick={() => setCreatePanelRequested(true)}>
           <Plus className="h-4 w-4 mr-2" />
           New Club
         </Button>
@@ -156,7 +174,7 @@ const BrowseClubsPage: React.FC = () => {
           }
           action={
             canCreateClub
-              ? { label: 'New Club', onClick: () => setShowCreateClubPanel(true), icon: Plus }
+              ? { label: 'New Club', onClick: () => setCreatePanelRequested(true), icon: Plus }
               : null
           }
         />
@@ -230,7 +248,7 @@ const BrowseClubsPage: React.FC = () => {
         >
           <ClubEditPanel
             open={showCreateClubPanel}
-            onClose={() => setShowCreateClubPanel(false)}
+            onClose={() => setCreatePanelRequested(false)}
             clubId=""
             clubName=""
             initialClubData={{}}

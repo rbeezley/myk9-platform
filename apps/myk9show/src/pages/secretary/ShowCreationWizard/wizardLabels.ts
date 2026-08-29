@@ -3,9 +3,9 @@
  *
  * The wizard runs in four modes: a fresh create plus three edit modes
  * (`add-trials`, `add-classes`, `edit-show`). The header breadcrumb, the
- * sidebar heading, and the Review step's submit/publish buttons each render a
- * mode-specific label. Centralizing the mapping here keeps those three call
- * sites in sync — previously each inlined its own nested ternary.
+ * sidebar heading, and the Review step's completion button each render a
+ * mode-specific label. Centralizing the mapping here keeps those call sites
+ * in sync.
  */
 import type { EditMode, EditModeType } from './show-creation-wizard-types';
 
@@ -26,16 +26,9 @@ export function getEditModeTitle(editMode: EditMode | undefined): string | undef
   }
 }
 
-/** Label for the Review step's "create without publishing" button. */
+/** Label for the Review step's single completion action. */
 export function getSubmitLabel(mode: EditModeType | undefined): string {
-  if (mode === 'add-trials') return 'Add Trials (Unpublished)';
-  if (mode === 'add-classes') return 'Add Classes (Unpublished)';
-  return 'Create Show (Unpublished)';
-}
-
-/** Label for the Review step's "create and publish" button. */
-export function getPublishLabel(mode: EditModeType | undefined): string {
-  if (mode === 'add-trials') return 'Add & Publish Trials';
-  if (mode === 'add-classes') return 'Add & Publish Classes';
-  return 'Create & Publish Show';
+  if (mode === 'add-trials') return 'Add Trials';
+  if (mode === 'add-classes') return 'Add Classes';
+  return 'Create Show';
 }

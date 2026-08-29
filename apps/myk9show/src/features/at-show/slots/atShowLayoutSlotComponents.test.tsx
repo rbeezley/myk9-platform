@@ -1,7 +1,9 @@
+
 import { act } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { __resetContainmentMemoForTests } from '@/hooks/useReplicationContainment';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import {
   CompactOfflineIndicator,
   FilterTriggerButton,
@@ -97,7 +99,28 @@ describe('ContainmentBanner', () => {
 
 describe('CompactOfflineIndicator', () => {
   it('labels offline capability without implying the device is currently offline', () => {
-    render(<CompactOfflineIndicator />);
+    // The chip now consults replication sync so it cannot promise readiness
+    // before the data is local; the CAPABILITY framing this case pins (#739) is
+    // unchanged, so the case only needs its new dependency supplied.
+    render(
+      <ReplicationSyncContext.Provider
+        value={
+          {
+            status: {
+              isSyncing: false,
+              tablesStatus: {
+                shows: 'synced',
+                trials: 'synced',
+                classes: 'synced',
+                entries: 'synced',
+              },
+            },
+          } as never
+        }
+      >
+        <CompactOfflineIndicator />
+      </ReplicationSyncContext.Provider>
+    );
 
     expect(screen.getByText('Offline ready')).toBeInTheDocument();
     expect(screen.queryByText(/^Offline$/)).toBeNull();

@@ -198,6 +198,19 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     (reordered: Entry[]) => persistEntryRunOrder(reordered),
     []
   );
+  // A drag whose write never QUEUED used to be silent on both routes: the
+  // reordered list stayed on screen and the steward worked the gate from an
+  // order that existed only on their phone. Notify, then re-derive from the
+  // replicated data -- the write is per-row, so a failure may be partial and
+  // only a refresh can settle what actually landed.
+  const handleRunOrderPersistError = useCallback(
+    (error: unknown) => {
+      notifyRunOrderPersistError(error);
+      void refresh(true);
+    },
+    [refresh]
+  );
+
   const { sensors, handleDragStart, handleDragEnd } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
@@ -205,6 +218,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     updateExhibitorOrder,
     isDraggingRef,
     setManualOrder,
+    onPersistError: handleRunOrderPersistError,
   });
 
   // ── Effects: mirror fetched entries (drag-guarded) + initial load ──────

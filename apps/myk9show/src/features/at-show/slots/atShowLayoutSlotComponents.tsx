@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -9,6 +9,8 @@ import {
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import type {
   CompactOfflineIndicatorProps,
   ErrorStateProps,
@@ -44,18 +46,51 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ backNavigation, cl
   );
 };
 
-export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = ({ className }) => (
-  <span
-    className={cn(
-      'at-show-offline-indicator inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-      badgeClass('neutral'),
-      className
-    )}
-  >
-    <CloudOff size={13} className="shrink-0" />
-    Offline ready
-  </span>
-);
+/** The tables the at-show surface must hold locally before it can promise offline use. */
+const AT_SHOW_OFFLINE_TABLES = ['shows', 'trials', 'classes', 'entries'] as const;
+
+/**
+ * The persistent "this app works offline" affordance in the at-show header.
+ *
+ * The CAPABILITY framing is deliberate and pre-existing: #739 ("Clarify
+ * persistent offline capability copy as Offline ready") chose it specifically so
+ * the chip does not read as a statement about current connectivity, and
+ * `atShowLayoutSlotComponents.test.ts` pins that it never renders a bare
+ * "Offline". That decision is preserved here — this is not a network indicator,
+ * and the sync/queue state has its own dedicated surfaces.
+ *
+ * What was NOT true is the timing. The chip rendered the constant with no inputs
+ * at all, so it promised offline readiness on a cold first load, before the
+ * tables this surface depends on had ever synced — a judge deciding whether to
+ * walk into a dead-zone ring was reading a hard-coded string. The capability is
+ * only real once that data is local, so until then we say we are still preparing
+ * rather than claiming readiness. Connectivity is still never mentioned.
+ */
+export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = ({ className }) => {
+  // Read the context directly rather than through `useReplicationSync`, which
+  // throws when no provider is mounted. App.tsx wraps the whole tree so that
+  // never happens in production -- but a header chip must not be able to take
+  // down a judge's ring list, and "no provider" is one more way of not knowing
+  // whether the data is local. Unknown is handled like every other unknown
+  // here: decline to promise.
+  const replication = useContext(ReplicationSyncContext);
+  const pendingFirstSync =
+    replication === null ||
+    areReplicationTablesPendingFirstSync(replication.status, AT_SHOW_OFFLINE_TABLES);
+
+  return (
+    <span
+      className={cn(
+        'at-show-offline-indicator inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+        badgeClass('neutral'),
+        className
+      )}
+    >
+      <CloudOff size={13} className="shrink-0" />
+      {pendingFirstSync ? 'Preparing offline copy…' : 'Offline ready'}
+    </span>
+  );
+};
 
 /**
  * Shown while the server has asked this device to pause score uploads

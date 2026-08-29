@@ -51,7 +51,7 @@ const trials = [
     registryId: 'AKC',
     confirmationDate: '2026-09-25',
   },
-] as Trial[];
+] as unknown as Trial[];
 
 describe('buildLandingData', () => {
   it('derives the shared factual contract once for every landing style', () => {

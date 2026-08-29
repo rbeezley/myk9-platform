@@ -28,9 +28,8 @@ interface GazetteLandingPageProps {
 }
 
 /**
- * Gazette-style public trial landing page. Renders when
- * `show.landing_style === 'gazette'`. Branches in from TrialDetailsPage
- * after loading checks so all hooks fire unconditionally.
+ * Gazette-style public show landing page. ShowDetailsPage dispatches it through
+ * the styled landing registry when `getShowStyle(show) === 'gazette'`.
  *
  * `data-gazette` on the root element scopes all .gz-* CSS rules (gazette.css).
  * Reduced-motion handling lives inside individual sections via the shared

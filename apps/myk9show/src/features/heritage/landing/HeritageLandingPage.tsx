@@ -28,8 +28,8 @@ interface HeritageLandingPageProps {
 }
 
 /**
- * Heritage-style public trial landing page. Renders when show.landing_style === 'heritage'.
- * Branches in from TrialDetailsPage after loading checks so all hooks fire unconditionally.
+ * Heritage-style public show landing page. ShowDetailsPage dispatches it through
+ * the styled landing registry when `getShowStyle(show) === 'heritage'`.
  *
  * data-heritage on the root element scopes all .hl-* CSS rules (heritage.css).
  */

@@ -472,7 +472,7 @@ routes here are the known-canonical ones.
 | 12  | Permission Management | /admin/permissions   | src/pages/admin/permissions/PermissionManagementPage.tsx | RBAC config surface                     |
 | 13  | Role Requests         | /admin/role-requests | src/pages/admin/RoleRequestsPage.tsx                     | Review-queue workflow                   |
 
-### Exhibitor — login `e2e-exhibitor@test.myk9.com` (seeded dogs: Willow, Ranger, Juniper)
+### Exhibitor — login `exhibitor@myk9t.com` (seeded dogs: Willow, Ranger, Juniper)
 
 | #   | Page                     | Route                   | Entry file                                    | Notes                                            |
 | --- | ------------------------ | ----------------------- | --------------------------------------------- | ------------------------------------------------ |

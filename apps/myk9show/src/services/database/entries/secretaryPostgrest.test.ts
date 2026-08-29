@@ -64,3 +64,66 @@ describe('postgrestGetSecretaryPullMetadataMap', () => {
     });
   });
 });
+
+describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /**
+   * The payment bookkeeping columns arrive with migration 20260828200000. Until it
+   * is applied the view rejects them with 42703, and the whole secretary read would
+   * fail -- the same shape as the 42501 that made Entry Management render
+   * "Couldn't load entries". The read must degrade to the pre-migration columns.
+   */
+  it('retries without the payment columns when the migration is not applied', async () => {
+    const reads: Array<{ relation: string; select: string }> = [];
+
+    mocks.from.mockImplementation((relation: string) => {
+      let selected = '';
+      const respond = () => {
+        if (relation !== 'view_authenticated_entry_results') {
+          return { data: [], error: null };
+        }
+        if (selected.includes('payment_received_on')) {
+          return {
+            data: null,
+            error: {
+              code: '42703',
+              message:
+                'column view_authenticated_entry_results.payment_received_on does not exist',
+            },
+          };
+        }
+        return { data: [{ id: 'entry-1' }], error: null };
+      };
+      const query = {
+        select: vi.fn((columns: string) => {
+          selected = columns;
+          reads.push({ relation, select: columns });
+          return query;
+        }),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        order: vi.fn(() => Promise.resolve(respond())),
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve(respond()).then(resolve),
+      };
+      return query;
+    });
+
+    const { postgrestGetSecretaryEntriesForShow } = await import('./secretaryPostgrest');
+    const result = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual([{ id: 'entry-1' }]);
+
+    const viewReads = reads.filter(r => r.relation === 'view_authenticated_entry_results');
+    expect(viewReads).toHaveLength(2);
+    expect(viewReads[0].select).toContain('payment_received_on');
+    // NOTE: `payment_reference` also appears inside the registration embed of the
+    // base select, so `payment_received_on` is the only safe discriminator here.
+    expect(viewReads[1].select).not.toContain('payment_received_on');
+    // The retry must not also drop the scored columns the reports depend on.
+    expect(viewReads[1].select).toContain('final_placement');
+  });
+});

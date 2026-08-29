@@ -16,10 +16,11 @@
  * this show has no classes assigned yet, so entries are not available" for a
  * fully configured show.
  *
- * Known limitation, deliberately not papered over: `trialClassesLoaded` means
- * the load RAN, not that it succeeded. `ReplicatedTableQuery.getAll()` reports
- * every failure as an empty list (MYK9-252), so a silent failure still reads as
- * ready. This closes the during-load window; MYK9-252 owns the failed-read one.
+ * This originally had to carry a caveat -- a "the load ran" flag could not tell
+ * a silent failure from a genuinely empty list, because `getAll()` reports every
+ * error as `[]` (MYK9-252). That caveat is gone: `loadTrialClasses` now reads via
+ * `getAllWithStatus()` and surfaces a real `'error'` state, so `'ready'` means
+ * the read actually succeeded.
  */
 
 export interface EntryClassInventoryInput {
@@ -29,8 +30,12 @@ export interface EntryClassInventoryInput {
   effectiveTrialCount: number;
   /** Classes actually being rendered, from whichever source applies. */
   effectiveClassCount: number;
-  /** Whether the store's class load has completed a pass. */
-  trialClassesLoaded: boolean;
+  /**
+   * The store's class-read status. `'ready'` genuinely means the read SUCCEEDED:
+   * `loadTrialClasses` now uses `getAllWithStatus()`, which reports failure
+   * instead of returning an empty list (the MYK9-252 shape).
+   */
+  trialClassesReadStatus: 'idle' | 'loading' | 'ready' | 'error';
   /** Whether the cold/anon class query has settled successfully. */
   publicClassInventoryResolved: boolean;
 }
@@ -43,13 +48,14 @@ export function resolveEntryClassInventory({
   storeTrialCount,
   effectiveTrialCount,
   effectiveClassCount,
-  trialClassesLoaded,
+  trialClassesReadStatus,
   publicClassInventoryResolved,
 }: EntryClassInventoryInput): boolean | null {
   // No trials known yet: nothing can be said about classes either.
   if (effectiveTrialCount === 0) return null;
 
-  const known = storeTrialCount > 0 ? trialClassesLoaded : publicClassInventoryResolved;
+  const known =
+    storeTrialCount > 0 ? trialClassesReadStatus === 'ready' : publicClassInventoryResolved;
   if (!known) return null;
 
   return effectiveClassCount > 0;

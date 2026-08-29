@@ -11,7 +11,7 @@ const base = {
   storeTrialCount: 0,
   effectiveTrialCount: 0,
   effectiveClassCount: 0,
-  trialClassesLoaded: false,
+  trialClassesReadStatus: 'idle' as const,
   publicClassInventoryResolved: false,
 };
 
@@ -69,7 +69,7 @@ describe('resolveEntryClassInventory', () => {
           storeTrialCount: 3,
           effectiveTrialCount: 3,
           effectiveClassCount: 0,
-          trialClassesLoaded: false,
+          trialClassesReadStatus: 'loading' as const,
         })
       ).toBeNull();
     });
@@ -81,9 +81,23 @@ describe('resolveEntryClassInventory', () => {
           storeTrialCount: 3,
           effectiveTrialCount: 3,
           effectiveClassCount: 0,
-          trialClassesLoaded: true,
+          trialClassesReadStatus: 'ready' as const,
         })
       ).toBe(false);
+    });
+
+    it('is UNKNOWN when the class read actually FAILED', () => {
+      // main's loadTrialClasses now reads via getAllWithStatus(), so a failed
+      // read is observable rather than arriving as an empty list (MYK9-252).
+      expect(
+        resolveEntryClassInventory({
+          ...base,
+          storeTrialCount: 3,
+          effectiveTrialCount: 3,
+          effectiveClassCount: 0,
+          trialClassesReadStatus: 'error',
+        })
+      ).toBeNull();
     });
 
     it('does not consult the cold-path flag when the store is warm', () => {
@@ -95,7 +109,7 @@ describe('resolveEntryClassInventory', () => {
           storeTrialCount: 3,
           effectiveTrialCount: 3,
           effectiveClassCount: 0,
-          trialClassesLoaded: false,
+          trialClassesReadStatus: 'loading' as const,
           publicClassInventoryResolved: true,
         })
       ).toBeNull();

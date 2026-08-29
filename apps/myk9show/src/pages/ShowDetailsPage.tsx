@@ -52,7 +52,7 @@ const ShowDetailsPage: React.FC = () => {
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
-  const trialClassesLoaded = useTrialStore(s => s.trialClassesLoaded);
+  const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
   const {
@@ -285,7 +285,7 @@ const ShowDetailsPage: React.FC = () => {
     storeTrialCount: associatedTrials.length,
     effectiveTrialCount: effectiveTrials.length,
     effectiveClassCount: effectiveShowClasses.length,
-    trialClassesLoaded,
+    trialClassesReadStatus,
     publicClassInventoryResolved,
   });
 

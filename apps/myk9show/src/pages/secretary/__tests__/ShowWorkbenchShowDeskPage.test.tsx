@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -28,7 +28,26 @@ const trialStoreState = vi.hoisted<{
       completedEntries?: number;
     }>
   >;
-}>(() => ({ trials: [], trialClasses: {} }));
+  trialsReadStatus: 'idle' | 'loading' | 'ready' | 'error';
+  trialsReadError: string | null;
+  trialsHasConfirmedSnapshot: boolean;
+  trialClassesReadStatus: 'idle' | 'loading' | 'ready' | 'error';
+  trialClassesReadError: string | null;
+  trialClassesHasConfirmedSnapshot: boolean;
+  loadTrials: ReturnType<typeof vi.fn>;
+  loadTrialClasses: ReturnType<typeof vi.fn>;
+}>(() => ({
+  trials: [],
+  trialClasses: {},
+  trialsReadStatus: 'ready',
+  trialsReadError: null,
+  trialsHasConfirmedSnapshot: true,
+  trialClassesReadStatus: 'ready',
+  trialClassesReadError: null,
+  trialClassesHasConfirmedSnapshot: true,
+  loadTrials: vi.fn(async () => undefined),
+  loadTrialClasses: vi.fn(async () => undefined),
+}));
 
 vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="loading-skeleton" />,
@@ -144,6 +163,14 @@ describe('ShowWorkbenchShowDeskPage', () => {
     getEntriesForShowMock.mockReset();
     trialStoreState.trials = [];
     trialStoreState.trialClasses = {};
+    trialStoreState.trialsReadStatus = 'ready';
+    trialStoreState.trialsReadError = null;
+    trialStoreState.trialsHasConfirmedSnapshot = true;
+    trialStoreState.trialClassesReadStatus = 'ready';
+    trialStoreState.trialClassesReadError = null;
+    trialStoreState.trialClassesHasConfirmedSnapshot = true;
+    trialStoreState.loadTrials.mockClear();
+    trialStoreState.loadTrialClasses.mockClear();
   });
 
   it('holds Show Desk while entries are loading so counts cannot render as false zero', () => {
@@ -234,5 +261,73 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
     expect(screen.queryByText("Couldn't load show entries.")).not.toBeInTheDocument();
+  });
+
+  it('pauses Show Desk claims and retries both schedule reads after an initial failure', async () => {
+    trialStoreState.trialsReadStatus = 'error';
+    trialStoreState.trialsReadError = 'Trial read failed';
+    trialStoreState.trialsHasConfirmedSnapshot = false;
+    trialStoreState.trialClassesReadStatus = 'error';
+    trialStoreState.trialClassesReadError = 'Class read failed';
+    trialStoreState.trialClassesHasConfirmedSnapshot = false;
+    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load the show schedule.")).toBeInTheDocument();
+    expect(screen.queryByTestId('show-desk-panel')).not.toBeInTheDocument();
+    expect(screen.queryByText(/No Classes are scheduled/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Show-day work has not started/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry schedule' }));
+
+    expect(trialStoreState.loadTrials).toHaveBeenCalledTimes(1);
+    expect(trialStoreState.loadTrialClasses).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds Show Desk while the initial schedule snapshot is loading', async () => {
+    trialStoreState.trialsReadStatus = 'loading';
+    trialStoreState.trialsHasConfirmedSnapshot = false;
+    trialStoreState.trialClassesReadStatus = 'loading';
+    trialStoreState.trialClassesHasConfirmedSnapshot = false;
+    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+
+    renderPage();
+
+    expect(await screen.findByTestId('loading-skeleton')).toBeInTheDocument();
+    expect(screen.queryByTestId('show-desk-panel')).not.toBeInTheDocument();
+  });
+
+  it('keeps a confirmed schedule visible and warns when refresh fails', async () => {
+    trialStoreState.trials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    trialStoreState.trialClasses = {
+      'trial-1': [
+        {
+          id: 'class-1',
+          element: 'Container',
+          level: 'Novice',
+          status: 'Scheduled',
+        },
+      ],
+    };
+    trialStoreState.trialsReadStatus = 'error';
+    trialStoreState.trialsReadError = 'Trial refresh failed';
+    trialStoreState.trialClassesReadStatus = 'error';
+    trialStoreState.trialClassesReadError = 'Class refresh failed';
+    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+
+    renderPage();
+
+    expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
+    expect(screen.getByText("Couldn't refresh the show schedule.")).toBeInTheDocument();
+    expect(screen.getByText(/last loaded schedule is still shown/i)).toBeInTheDocument();
   });
 });

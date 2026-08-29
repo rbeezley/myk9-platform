@@ -45,6 +45,7 @@ const classes: SyncableClassData[] = [
 ];
 
 function renderTree(opts?: {
+  facet?: 'visibility' | 'checkin';
   trialOverrides?: TrialOverrideEntry[];
   classOverrides?: ClassOverrideEntry[];
   selectedClasses?: Set<string>;
@@ -53,6 +54,7 @@ function renderTree(opts?: {
 }) {
   return render(
     <OverrideTree
+      facet={opts?.facet ?? 'visibility'}
       showId="show-1"
       settings={settings}
       trials={trials}
@@ -69,16 +71,28 @@ function renderTree(opts?: {
 describe('OverrideTree', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('renders one trial row with both a visibility Select and a check-in Switch', () => {
+  it('renders only visibility controls in visibility mode', () => {
     renderTree();
     expect(
       screen.getByRole('combobox', { name: 'Results visibility for Trial A' })
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('switch', { name: 'Self check-in for Trial A' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Check-in:/)).not.toBeInTheDocument();
+  });
+
+  it('renders only check-in controls in check-in mode', () => {
+    renderTree({ facet: 'checkin' });
     expect(screen.getByRole('switch', { name: 'Self check-in for Trial A' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: 'Results visibility for Trial A' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Visibility:/)).not.toBeInTheDocument();
   });
 
   it('dispatches a trial check-in update when the trial switch is toggled', async () => {
-    const { user } = renderTree();
+    const { user } = renderTree({ facet: 'checkin' });
     await user.click(screen.getByRole('switch', { name: 'Self check-in for Trial A' }));
     expect(mockTrialMutate).toHaveBeenCalledWith(
       expect.objectContaining({ trialId: 'trial-1', showId: 'show-1', selfCheckinEnabled: false }),
@@ -86,14 +100,21 @@ describe('OverrideTree', () => {
     );
   });
 
-  it('shows per-facet status when the two facets sit at different levels', () => {
-    // Visibility overridden at trial, check-in inheriting from show.
+  it('shows only the active facet status', () => {
     renderTree({
       trialOverrides: [
         { trialId: 'trial-1', override: { preset: 'review' }, selfCheckinEnabled: null },
       ],
     });
     expect(screen.getByText(/Visibility: Override: review/)).toBeInTheDocument();
+    expect(screen.queryByText(/Check-in:/)).not.toBeInTheDocument();
+
+    renderTree({
+      facet: 'checkin',
+      trialOverrides: [
+        { trialId: 'trial-1', override: { preset: 'review' }, selfCheckinEnabled: null },
+      ],
+    });
     expect(screen.getByText(/Check-in: Inheriting from show/)).toBeInTheDocument();
   });
 
@@ -108,7 +129,7 @@ describe('OverrideTree', () => {
     expect(screen.getAllByText(/Visibility: Inheriting from show · After Class/)).toHaveLength(3);
   });
 
-  it('reset buttons dispatch the matching facet independently', async () => {
+  it('visibility mode exposes only the visibility reset', async () => {
     const { user } = renderTree({
       // Both facets overridden at trial → both reset buttons visible.
       trialOverrides: [
@@ -121,15 +142,14 @@ describe('OverrideTree', () => {
       expect.any(Object)
     );
 
-    await user.click(screen.getByRole('button', { name: 'Reset check-in for Trial A' }));
-    expect(mockResetMutate).toHaveBeenLastCalledWith(
-      expect.objectContaining({ entityId: 'trial-1', level: 'trial', facet: 'checkin' }),
-      expect.any(Object)
-    );
+    expect(
+      screen.queryByRole('button', { name: 'Reset check-in for Trial A' })
+    ).not.toBeInTheDocument();
   });
 
   it('expands to class rows and dispatches class-level check-in with facet-independent reset', async () => {
     const { user } = renderTree({
+      facet: 'checkin',
       classOverrides: [
         { classId: 'class-1', trialId: 'trial-1', override: {}, selfCheckinEnabled: false },
       ],
@@ -144,21 +164,25 @@ describe('OverrideTree', () => {
     );
   });
 
-  it('fires bulk-selection callbacks from class + select-all checkboxes', async () => {
-    const onToggleClass = vi.fn();
-    const onToggleAllInTrial = vi.fn();
-    const { user } = renderTree({ onToggleClass, onToggleAllInTrial });
-    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+  it.each(['visibility', 'checkin'] as const)(
+    'fires bulk-selection callbacks in %s mode',
+    async facet => {
+      const onToggleClass = vi.fn();
+      const onToggleAllInTrial = vi.fn();
+      const { user } = renderTree({ facet, onToggleClass, onToggleAllInTrial });
+      await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
 
-    await user.click(screen.getByRole('checkbox', { name: 'Select all classes in Trial A' }));
-    expect(onToggleAllInTrial).toHaveBeenCalledWith('trial-1', ['class-1', 'class-2']);
+      await user.click(screen.getByRole('checkbox', { name: 'Select all classes in Trial A' }));
+      expect(onToggleAllInTrial).toHaveBeenCalledWith('trial-1', ['class-1', 'class-2']);
 
-    await user.click(screen.getByRole('checkbox', { name: 'Select Container Novice' }));
-    expect(onToggleClass).toHaveBeenCalledWith('class-1');
-  });
+      await user.click(screen.getByRole('checkbox', { name: 'Select Container Novice' }));
+      expect(onToggleClass).toHaveBeenCalledWith('class-1');
+    }
+  );
 
   it('every switch is named and wrapped in a ≥44px tap row; reset is 44px', async () => {
     const { user } = renderTree({
+      facet: 'checkin',
       trialOverrides: [
         { trialId: 'trial-1', override: { preset: 'review' }, selfCheckinEnabled: false },
       ],

@@ -142,12 +142,13 @@ describe('overrideTreeUtils — check-in cascade (independent of visibility)', (
 });
 
 describe('countOverriddenClasses', () => {
-  it('counts classes with a visibility OR check-in override', () => {
+  it('counts only overrides for the requested facet', () => {
     const overrides: ClassOverrideEntry[] = [
       { classId: 'c1', trialId: 't1', override: { preset: 'review' }, selfCheckinEnabled: null },
       { classId: 'c2', trialId: 't1', override: {}, selfCheckinEnabled: false },
       { classId: 'c3', trialId: 't1', override: {}, selfCheckinEnabled: null }, // empty row
     ];
-    expect(countOverriddenClasses(['c1', 'c2', 'c3'], overrides)).toBe(2);
+    expect(countOverriddenClasses(['c1', 'c2', 'c3'], overrides, 'visibility')).toBe(1);
+    expect(countOverriddenClasses(['c1', 'c2', 'c3'], overrides, 'checkin')).toBe(1);
   });
 });

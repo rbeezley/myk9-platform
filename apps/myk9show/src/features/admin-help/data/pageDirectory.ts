@@ -289,9 +289,8 @@ export const pageDirectory: readonly PageEntry[] = [
   },
   {
     path: '/shows/:showId/results-control',
-    title: 'Results & Check-In',
-    description:
-      'Set result visibility, configure self check-in, and release results to exhibitors.',
+    title: 'Results',
+    description: 'Verify results, set result visibility, and release results to exhibitors.',
     roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Results',

@@ -96,27 +96,6 @@ export function BulkOperationsBar({
     );
   }
 
-  function handleBulkCheckin(enabled: boolean) {
-    const classIds = getValidClassIds(selectedClasses, allClassIds);
-    if (classIds.length === 0) {
-      toast.warning('Those classes are no longer in this show. The selection has been cleared.');
-      onClearSelection();
-      return;
-    }
-    bulkUpdate.mutate(
-      { classIds, showId, selfCheckinEnabled: enabled },
-      {
-        onSuccess: () => {
-          toast.success(
-            `Self check-in ${enabled ? 'enabled' : 'disabled'} for ${classIds.length} class${classIds.length === 1 ? '' : 'es'}`
-          );
-          onClearSelection();
-        },
-        onError: () => toast.error('Failed to update check-in'),
-      }
-    );
-  }
-
   function handleReleaseResults() {
     const classIds = getValidClassIds(selectedClasses, allClassIds);
     if (classIds.length === 0) {
@@ -228,24 +207,6 @@ export function BulkOperationsBar({
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            className="min-h-[44px]"
-            onClick={() => handleBulkCheckin(true)}
-            disabled={isPending}
-          >
-            Enable Check-in
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="min-h-[44px]"
-            onClick={() => handleBulkCheckin(false)}
-            disabled={isPending}
-          >
-            Disable Check-in
-          </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button

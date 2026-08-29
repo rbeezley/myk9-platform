@@ -1,0 +1,89 @@
+# Secretary Task Walk — Remediation
+
+> **Status:** Active
+
+Closes the findings from [`audits/2026-08-28-secretary-task-walk.md`](audits/2026-08-28-secretary-task-walk.md),
+a live browser walk of all 20 common secretary tasks. 33 findings; 8 are already fixed
+and deployed. This plan covers the remainder.
+
+## How this plan is grouped, and why
+
+The remaining findings are **not** uniform work. Three of them need a decision that is
+not mine to make, and about five look mechanical but are actually product intent. That
+distinction is the point of the grouping — during the walk I twice changed something
+that looked like drift and was not (the Show Map read-only test, `manageable_show_ids`'
+missing predicate is the standing precedent), and once nearly did.
+
+Phase 1 is safe to run unattended. Phases 2 and 3 are not.
+
+---
+
+## Phase 1 — Mechanical fixes (safe to batch)
+
+Each is a contained change with an observable before/after. No product decision.
+
+| # | Finding | Change |
+| --- | --- | --- |
+| 1.1 | F9 | "1 classes" → singular form on the Detective element |
+| 1.2 | F13 | Judge option renders `Test Judge( - )`; drop the empty separator/parens |
+| 1.3 | F17 | Secretary entry wizard's Help link points at the exhibitor guide |
+| 1.4 | F28 | Manage Classes shows the judge's raw UUID instead of their name |
+| 1.5 | F20 | Waitlist capacity cards title a judge-day with a bare person name |
+| 1.6 | F32 | Volunteers empty state names a sidebar picker that does not exist |
+| 1.7 | F5 | "Judges Assigned n/n" counts judges used/added, not classes covered |
+| 1.8 | F19 | Filter chips expose no pressed state (Entry Management queues, Show Map filters); Manage Classes already does it correctly — copy that |
+| 1.9 | F7 | Judge/chairman picker rows are bare `<div>`s: no option/listitem role, name not a leaf node |
+| 1.10 | F27 | Cold replication store reports "Class not found" for a class that exists |
+| 1.11 | F31 | `classifyEmptyUpdateResult` calls an unreadable row a deleted one; the re-read is filtered by the same policy that denied the write |
+| 1.12 | F6 | Entry-close picker defaults to 11:59 PM, so choosing the show's own start date is always invalid |
+| 1.13 | F2 | `.env.local` `E2E_SECRETARY_EMAIL` points at a deleted account, breaking every local secretary e2e run |
+| 1.14 | F10 | Playwright `error-context.md` captures the password field's value in plaintext |
+| 1.15 | F11 | Root `playwright.config.ts` cannot load from a worktree (`@playwright/test` undeclared at root) |
+
+**Testing (Phase 1):** each fix needs a test that fails without it. Prefer rendered
+behaviour over source strings — `dropdownMenuOverflow.test.ts` is the standing example
+of a source-grep test certifying a no-op. 1.9, 1.11 and 1.15 have natural unit seams;
+1.1–1.8 are component assertions; 1.13–1.15 are developer-experience and verified by
+running the thing they unblock.
+
+---
+
+## Phase 2 — Needs a product decision first
+
+Do not start these until the question is answered. Each is a plausible-looking defect
+that may be a deliberate choice.
+
+| # | Finding | The question |
+| --- | --- | --- |
+| 2.1 | **F30** (P1) | Deleting a club nulls `club_id` on every show it owns (`ON DELETE SET NULL`), and MYK9-258 then makes those shows manageable by nobody with no in-app repair. Fix as `ON DELETE RESTRICT` (the seed would have to stop delete-recreating its club), a `NOT NULL` constraint, or a site-admin reassign-club path? |
+| 2.2 | **F26** (P1) | High in Trial / High in Class does not exist — `AwardsProcessor` is a prototype returning hardcoded winners. What is the rule? Which element/level qualifies, how do ties break, what happens across multiple trials in a day? |
+| 2.3 | F3 | Escape anywhere in the creation wizard raises "Unsaved Changes — leave the wizard?". Is that intended, or should Escape only dismiss the focused popover? |
+| 2.4 | F8 | The Show Chairman picker lists every person on the platform. Should it be club-scoped, or is cross-club chairman selection legitimate? |
+| 2.5 | F22 / F23 | `/secretary/messages` is history-only and composing lives in a header panel that does not inherit the show you opened it from. Should Messages gain a composer, or should the panel be the only entry point and Messages link to it? |
+| 2.6 | F18 | Every paid entry displays "Paid online" because `mapPaymentStatus` maps the generic `'paid'` onto `PAID_ONLINE`. Should the label read `entries.payment_method`, or should the status enum carry the channel? |
+| 2.7 | F24 | Other clubs' show names appear in the Communication History filter. Names and existence leak; content isolation is **untested** (no load show has messages). Needs a scoping decision and a test that proves content is isolated. |
+
+---
+
+## Phase 3 — Follow-ups from fixes already shipped
+
+| # | Item | Why |
+| --- | --- | --- |
+| 3.1 | Backfill decision for F33 | Entries written while the server priced day-of at $0 still carry `entry_fee = 0`. A backfill must decide which tier applied on the day each was taken. |
+| 3.2 | F16 UI surfacing | `payment_reference` / `payment_received_on` / `payment_notes` are stored and readable but not shown in Entry Management. |
+| 3.3 | Regenerate `database.types.ts` | Stale for the columns added by `20260828200000`; the replication mapper reads them through a defensive accessor meanwhile. |
+| 3.4 | Do `moved` entries count in financial totals? | Move-up leaves the paid original as `entry_status = 'moved'`. If the Financial Report counts only `confirmed`, that money vanishes from show takings. Unverified. |
+| 3.5 | Staging cleanup | Four audit shows, and a move-up-created entry (`7ae6ac8b-…`) whose id falls outside the seed's fixture ranges, so a reseed will not remove it. |
+
+---
+
+## Phase 4 — The deliverable
+
+Rewrite [`user-guides/secretary-guide.md`](user-guides/secretary-guide.md) as one short
+card per task — *When you do this / Where / Steps / Gotchas* — from the walk's verified
+click-paths, replacing the narrative sections. Blocked on Phase 1 and on 2.2 (task 11
+has no steps to document until High in Trial exists).
+
+**Testing (Phase 4):** every card's click-path is re-walked against the live app before
+the guide's status moves off `qa-draft`. A card nobody has walked is the failure mode
+this whole audit exists to catch.

@@ -352,7 +352,7 @@ dropping the scored columns the reports need.
 columns through a defensive accessor precisely because the generated row type cannot
 know them yet.
 
-### F21 — P2 — A dog can be entered with no registration number by any path but the wizard
+### F21 — P2 — FIXED — A dog can be entered with no registration number by any path but the wizard
 
 `registrationPrerequisite.ts` correctly blocks class selection when the dog has no
 registration for the show's registry, and carves out only conformation puppy classes.
@@ -615,7 +615,7 @@ page whose purpose is assigning judges.
 Also note this is the **third** surface that sets a class judge, after the class
 detail Edit dialog and Edit Show → Judges (F12).
 
-### F29 — P2 — The Show Map action layer (run order AND move-up) never renders
+### F29 — P2 — FIXED — The Show Map action layer (run order AND move-up) never renders
 
 Task 5 has an implementation — `features/show-map/` contains `ShowMapRunOrderMenu`
 ("Run order" per class), `ShowMapSortableEntryRow` with drag plus

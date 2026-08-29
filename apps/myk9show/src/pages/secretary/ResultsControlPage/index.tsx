@@ -2,7 +2,7 @@
  * Results Control Page
  *
  * Standalone secretary page for managing result visibility,
- * self check-in, and releasing results with bulk operations.
+ * result visibility and releasing results with bulk operations.
  */
 
 import { useEffect, useMemo, useCallback } from 'react';
@@ -22,7 +22,6 @@ import {
 } from '@/hooks/queries/useShowSettingsDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { PresetSelector } from './PresetSelector';
-import { ShowCheckinToggle } from './ShowCheckinToggle';
 import { OverrideTree } from './OverrideTree';
 import { BulkOperationsBar } from './BulkOperationsBar';
 import { buildResultsReadinessSummary } from './readinessSummary';
@@ -206,7 +205,7 @@ export default function ResultsControlPage() {
   return (
     <div className="container mx-auto py-6 space-y-8 pb-44 sm:pb-28">
       <ShowDeskReturnLink showId={showId} />
-      <h1 className="text-3xl font-bold tracking-tight">Results &amp; Check-In</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Results</h1>
 
       <Card>
         <CardHeader>
@@ -288,12 +287,12 @@ export default function ResultsControlPage() {
         </Alert>
       )}
 
-      {/* Results visibility + self check-in — one hierarchy, two controls per row */}
+      {/* Result visibility and release controls */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
-            <CardTitle>Results &amp; Self Check-In</CardTitle>
+            <CardTitle>Result visibility</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -313,14 +312,14 @@ export default function ResultsControlPage() {
             <CardLoadError />
           ) : (
             <div className="space-y-6">
-              {/* Show defaults — the cascade root for both facets */}
+              {/* Show default — the visibility cascade root */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Show defaults</h3>
                 <PresetSelector showId={showId} settings={effectiveSettings} />
-                <ShowCheckinToggle showId={showId} enabled={effectiveSettings.selfCheckinEnabled} />
               </div>
-              {/* Per-trial / per-class overrides — one tree carrying both facets */}
+              {/* Per-trial / per-class visibility overrides */}
               <OverrideTree
+                facet="visibility"
                 showId={showId}
                 settings={effectiveSettings}
                 trials={showTrials}

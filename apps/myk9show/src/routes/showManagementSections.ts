@@ -3,7 +3,7 @@ export const SHOW_MANAGEMENT_SECTIONS = [
   { label: 'Show Desk', path: 'show-desk' },
   { label: 'Entry Management', path: 'entry-management' },
   { label: 'Reports', path: 'reports' },
-  { label: 'Results & Check-In', path: 'results-control' },
+  { label: 'Results', path: 'results-control' },
   { label: 'Submit Results', path: 'submit-results' },
 ] as const;
 

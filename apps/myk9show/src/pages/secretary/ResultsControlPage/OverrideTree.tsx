@@ -1,9 +1,7 @@
 /**
- * OverrideTree — one trial→class hierarchy carrying BOTH facets per row:
- * results-visibility preset (Select) and self check-in (Switch), each with its own
- * independent reset. Replaces the four duplicated trees (visibility-trial,
- * visibility-class, checkin-trial, checkin-class) that previously split this same
- * hierarchy across two cards.
+ * OverrideTree — one reusable trial→class hierarchy that renders either results
+ * visibility or self check-in. The owner page chooses the facet, so the hierarchy
+ * stays DRY without mixing show-day check-in into closeout work.
  *
  * Inheritance is resolved per facet (see overrideTreeUtils): a row can have its
  * visibility overridden while check-in still inherits, so each control shows its own
@@ -36,8 +34,6 @@ import type {
   TrialOverrideEntry,
   ClassOverrideEntry,
 } from '@/hooks/queries/useShowSettingsDatabase';
-import type { SyncableTrial } from '@/store/trial-store-types';
-import type { SyncableClassData } from '@/store/classStore';
 import { getClassName } from '@/components/classes/types/classTypes';
 import {
   resolveTrialVisibility,
@@ -50,10 +46,19 @@ import {
 } from './overrideTreeUtils';
 
 interface OverrideTreeProps {
+  facet: OverrideFacet;
   showId: string;
   settings: ShowSettings;
-  trials: SyncableTrial[];
-  classes: SyncableClassData[];
+  trials: Array<{ id: string; name?: string | undefined }>;
+  classes: Array<{
+    id: string;
+    trialId: string;
+    name?: string | undefined;
+    element?: string | undefined;
+    level?: string | undefined;
+    section?: string | undefined;
+    className?: string | undefined;
+  }>;
   trialOverrides: TrialOverrideEntry[];
   classOverrides: ClassOverrideEntry[];
   selectedClasses: Set<string>;
@@ -62,10 +67,27 @@ interface OverrideTreeProps {
 }
 
 const PRESET_KEYS = Object.keys(PRESET_INFO) as VisibilityPreset[];
+type OverrideFacet = 'visibility' | 'checkin';
 
-// ── Shared per-row controls: visibility Select + check-in Switch + two resets ──
+function getOverrideClassName(cls: {
+  name?: string | undefined;
+  element?: string | undefined;
+  level?: string | undefined;
+  section?: string | undefined;
+  className?: string | undefined;
+}): string {
+  return getClassName({
+    element: cls.element,
+    level: cls.level,
+    section: cls.section,
+    className: cls.className ?? cls.name,
+  });
+}
+
+// ── Shared per-row controls for the owner-selected facet ──
 
 interface OverrideControlsProps {
+  facet: OverrideFacet;
   name: string;
   visibility: VisibilityFacet;
   checkin: CheckinFacet;
@@ -77,6 +99,7 @@ interface OverrideControlsProps {
 }
 
 function OverrideControls({
+  facet,
   name,
   visibility,
   checkin,
@@ -89,83 +112,91 @@ function OverrideControls({
   const switchId = useId();
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-1 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-2">
-      {/* Results visibility */}
-      <Select
-        value={visibility.preset ?? ''}
-        onValueChange={v => onVisibilityPreset(v as VisibilityPreset)}
-      >
-        <SelectTrigger
-          className="min-h-[44px] w-32 shrink-0"
-          aria-label={`Results visibility for ${name}`}
-        >
-          <SelectValue placeholder="Inherit" />
-        </SelectTrigger>
-        <SelectContent>
-          {PRESET_KEYS.map(p => (
-            <SelectItem key={p} value={p}>
-              {PRESET_INFO[p].title}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {visibility.hasOverride && (
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          title={`Reset visibility for ${name}`}
-          onClick={onResetVisibility}
-          disabled={mutating}
-        >
-          <RotateCcw className="h-4 w-4" />
-        </Button>
+      {facet === 'visibility' && (
+        <>
+          <Select
+            value={visibility.preset ?? ''}
+            onValueChange={v => onVisibilityPreset(v as VisibilityPreset)}
+          >
+            <SelectTrigger
+              className="min-h-[44px] w-32 shrink-0"
+              aria-label={`Results visibility for ${name}`}
+            >
+              <SelectValue placeholder="Inherit" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRESET_KEYS.map(p => (
+                <SelectItem key={p} value={p}>
+                  {PRESET_INFO[p].title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {visibility.hasOverride && (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              title={`Reset visibility for ${name}`}
+              onClick={onResetVisibility}
+              disabled={mutating}
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          )}
+        </>
       )}
 
-      {/* Self check-in: 44px tap row wraps the ~20px switch without resizing it. */}
-      <label
-        htmlFor={switchId}
-        className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center"
-      >
-        <Switch
-          id={switchId}
-          aria-label={`Self check-in for ${name}`}
-          checked={checkin.effective}
-          onCheckedChange={onCheckinToggle}
-          disabled={mutating}
-        />
-      </label>
-      {checkin.hasOverride && (
-        <Button
-          variant="ghost"
-          size="icon-lg"
-          title={`Reset check-in for ${name}`}
-          onClick={onResetCheckin}
-          disabled={mutating}
-        >
-          <RotateCcw className="h-4 w-4" />
-        </Button>
+      {facet === 'checkin' && (
+        <>
+          {/* 44px tap row wraps the ~20px switch without resizing it. */}
+          <label
+            htmlFor={switchId}
+            className="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center"
+          >
+            <Switch
+              id={switchId}
+              aria-label={`Self check-in for ${name}`}
+              checked={checkin.effective}
+              onCheckedChange={onCheckinToggle}
+              disabled={mutating}
+            />
+          </label>
+          {checkin.hasOverride && (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              title={`Reset check-in for ${name}`}
+              onClick={onResetCheckin}
+              disabled={mutating}
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-/** Two-facet status line shown under a trial/class name. */
+/** Status line for the owner-selected facet. */
 function FacetStatus({
+  facet,
   visibility,
   checkin,
 }: {
+  facet: OverrideFacet;
   visibility: VisibilityFacet;
   checkin: CheckinFacet;
 }) {
   return (
     <p className="text-xs text-muted-foreground">
-      <span>Visibility: {visibility.label}</span>
-      <span className="px-1">·</span>
-      <span>Check-in: {checkin.label}</span>
+      {facet === 'visibility' ? `Visibility: ${visibility.label}` : `Check-in: ${checkin.label}`}
     </p>
   );
 }
 
 export function OverrideTree({
+  facet,
   showId,
   settings,
   trials,
@@ -291,7 +322,7 @@ export function OverrideTree({
         const trialClassIds = trialClasses.map(c => c.id);
         const allSelected =
           trialClassIds.length > 0 && trialClassIds.every(id => selectedClasses.has(id));
-        const overrideCount = countOverriddenClasses(trialClassIds, classOverrides);
+        const overrideCount = countOverriddenClasses(trialClassIds, classOverrides, facet);
 
         return (
           <Collapsible key={trial.id} className="rounded-md border">
@@ -314,11 +345,12 @@ export function OverrideTree({
                         {overrideCount > 0 && ` · ${overrideCount} overridden`}
                       </span>
                     </span>
-                    <FacetStatus visibility={trialVis} checkin={trialCheckin} />
+                    <FacetStatus facet={facet} visibility={trialVis} checkin={trialCheckin} />
                   </span>
                 </button>
               </CollapsibleTrigger>
               <OverrideControls
+                facet={facet}
                 name={trial.name ?? ''}
                 visibility={trialVis}
                 checkin={trialCheckin}
@@ -345,7 +377,7 @@ export function OverrideTree({
                   <span className="text-xs text-muted-foreground">Select all</span>
                 </div>
                 {trialClasses.map(cls => {
-                  const className = getClassName(cls);
+                  const className = getOverrideClassName(cls);
                   const classOverride = classOverrideById.get(cls.id);
                   const classVis = resolveClassVisibility(settings, classOverride, trialOverride);
                   const classCheckin = resolveClassCheckin(settings, classOverride, trialOverride);
@@ -366,10 +398,11 @@ export function OverrideTree({
                           <p className="truncate text-sm font-medium" title={className}>
                             {className}
                           </p>
-                          <FacetStatus visibility={classVis} checkin={classCheckin} />
+                          <FacetStatus facet={facet} visibility={classVis} checkin={classCheckin} />
                         </div>
                       </div>
                       <OverrideControls
+                        facet={facet}
                         name={className}
                         visibility={classVis}
                         checkin={classCheckin}

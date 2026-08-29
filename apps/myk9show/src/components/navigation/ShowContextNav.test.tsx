@@ -16,13 +16,7 @@ function renderNav(path = '/shows/show-42/setup') {
 describe('ShowContextNav', () => {
   it('renders all visible management section links without Setup', () => {
     renderNav();
-    const labels = [
-      'Show Desk',
-      'Entry Management',
-      'Reports',
-      'Results & Check-In',
-      'Submit Results',
-    ];
+    const labels = ['Show Desk', 'Entry Management', 'Reports', 'Results', 'Submit Results'];
     for (const label of labels) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
     }

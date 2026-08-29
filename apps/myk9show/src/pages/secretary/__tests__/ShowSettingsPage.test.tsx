@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -157,6 +157,14 @@ describe('ShowSettingsPage', () => {
     it('renders two Manage buttons', () => {
       renderPage();
       expect(screen.getAllByRole('button', { name: /manage/i })).toHaveLength(2);
+    });
+
+    it('deep-links Self Check-In management to its Show Desk tool', () => {
+      renderPage();
+
+      fireEvent.click(screen.getAllByRole('button', { name: /manage/i })[1]);
+
+      expect(mockNavigate).toHaveBeenCalledWith('/shows/show-1/show-desk?tool=self-checkin');
     });
   });
 

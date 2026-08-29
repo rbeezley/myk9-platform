@@ -165,15 +165,18 @@ export function resolveClassCheckin(
   };
 }
 
-/** Count classes in a trial that carry an explicit visibility OR check-in override. */
+/** Count classes in a trial that carry an explicit override for the active facet. */
 export function countOverriddenClasses(
   classIds: string[],
-  classOverrides: ClassOverrideEntry[]
+  classOverrides: ClassOverrideEntry[],
+  facet: 'visibility' | 'checkin'
 ): number {
   const byId = new Map(classOverrides.map(o => [o.classId, o]));
   return classIds.filter(id => {
     const o = byId.get(id);
     if (!o) return false;
-    return hasVisibilityOverride(o.override) || o.selfCheckinEnabled !== null;
+    return facet === 'visibility'
+      ? hasVisibilityOverride(o.override)
+      : o.selfCheckinEnabled !== null;
   }).length;
 }

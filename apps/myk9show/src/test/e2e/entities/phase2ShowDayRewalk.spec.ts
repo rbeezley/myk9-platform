@@ -69,9 +69,7 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
 
     await expect(page.getByRole('heading', { name: 'Show-day reconciliation' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Incident closeout' })).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: 'Results & Check-In Verify results' })
-    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Results Verify results' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Reports Print and export' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Submit Results Send final files' })).toBeVisible();
 

@@ -24,7 +24,7 @@
 - [x] 4.1 Reconcile PR #1851 after it lands or explicitly rebase its focused diff, then review the combined date/stale-read/count behavior for regressions; verify the branch diff contains only MYK9-259 plus its merged predecessor baseline.
 - [x] 4.2 [EXPANDED] Run focused Vitest files during implementation, then run the myK9Show unit suite, app typecheck, lint, and relevant responsive Playwright coverage; stop a runner that hangs beyond 60 seconds and record any pre-existing broad-check failure separately.
 - [x] 4.3 Run OpenSpec validation and `openspec-verify-change`, fix critical/warning findings, and complete a code review of the final diff.
-- [ ] 4.4 Commit the implementation, update MYK9-259 with the change summary and verification evidence, and open a PR using the repository template with `Tracked in openspec change: myk9-259-public-landing-consistency`.
+- [x] 4.4 Commit the implementation, update MYK9-259 with the change summary and verification evidence, and open a PR using the repository template with `Tracked in openspec change: myk9-259-public-landing-consistency`.
 - [ ] 4.5 Confirm required CI and review gates pass, merge only with user authorization, move MYK9-259 to Done when its evidence gate is satisfied, then archive the OpenSpec change and clean up the branch/worktree.
 
 ## Validation Profile

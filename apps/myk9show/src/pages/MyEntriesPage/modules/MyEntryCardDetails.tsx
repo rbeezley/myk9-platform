@@ -235,15 +235,22 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
           )}
 
           {/* Moved off the summary band, where it was a second outline button
-              competing with the single next action. */}
-          <Button
-            variant="outline"
-            onClick={onAddToCalendarClick}
-            className="min-h-[44px] hover:bg-muted transition-all duration-state"
-          >
-            <CalendarPlus className="h-5 w-5 mr-1.5" />
-            Add to Calendar
-          </Button>
+              competing with the single next action. The `entry.showId` guard
+              moves WITH it: an empty showId is the partial-replication window
+              (see the payment INTENT on MyEntryCard), and AddToCalendarDialog
+              issues a subscription for the id as soon as it opens — so an
+              unguarded button would fire `issue('')` and offer a control that
+              cannot work. */}
+          {entry.showId && (
+            <Button
+              variant="outline"
+              onClick={onAddToCalendarClick}
+              className="min-h-[44px] hover:bg-muted transition-all duration-state"
+            >
+              <CalendarPlus className="h-5 w-5 mr-1.5" />
+              Add to Calendar
+            </Button>
+          )}
 
           {canShowReceipt && (
             <Button

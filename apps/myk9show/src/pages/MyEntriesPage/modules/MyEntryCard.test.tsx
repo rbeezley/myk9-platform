@@ -1271,6 +1271,22 @@ describe('MyEntryCard grouped-order dogs grid (task 8.2 — one card per online 
     );
   });
 
+  it('offers Add to Calendar in the details panel when the show id is known', () => {
+    renderCard(makeEntry({ classes: [makeClass()] }));
+    openDetails();
+    expect(screen.getByRole('button', { name: /add to calendar/i })).toBeInTheDocument();
+  });
+
+  it('withholds Add to Calendar while the show id is still replicating', () => {
+    // An empty showId is the partial-replication window. AddToCalendarDialog
+    // issues a subscription for the id the moment it opens, so an unguarded
+    // button fires issue('') and offers a control that cannot work. The guard
+    // moved with the button when it left the summary band.
+    renderCard(makeEntry({ showId: '', classes: [makeClass()] }));
+    openDetails();
+    expect(screen.queryByRole('button', { name: /add to calendar/i })).not.toBeInTheDocument();
+  });
+
   it('single-dog orders never render the dogs grid — flat class list only', () => {
     const { container } = renderCard(makeEntry({ classes: [makeClass()] }));
     openDetails();

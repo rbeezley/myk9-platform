@@ -22,21 +22,22 @@ type QueryResult = { data: unknown; error: unknown };
 function makeCtx(spec: { entries?: QueryResult; email_log?: QueryResult }): ToolContext {
   const supabase = {
     from(table: string) {
-      const result =
-        (spec as Record<string, QueryResult | undefined>)[table] ?? {
-          data: null,
-          error: null,
-        };
+      const result = (spec as Record<string, QueryResult | undefined>)[table] ?? {
+        data: null,
+        error: null,
+      };
       const builder: Record<string, unknown> = {};
       const chain = () => builder;
       builder.select = chain;
       builder.eq = chain;
       builder.or = chain;
+      builder.order = chain;
+      builder.limit = chain;
       builder.returns = chain;
       builder.maybeSingle = () => Promise.resolve(result);
       builder.then = (
         resolve: (value: QueryResult) => unknown,
-        reject: (reason: unknown) => unknown,
+        reject: (reason: unknown) => unknown
       ) => Promise.resolve(result).then(resolve, reject);
       return builder;
     },
@@ -58,15 +59,13 @@ function entry(overrides: Record<string, unknown>) {
 describe('diagnoseConfirmationEmail', () => {
   it('returns not_found when the entry is missing', async () => {
     const ctx = makeCtx({ entries: { data: null, error: null } });
-    expect((await diagnoseConfirmationEmail({ entryId: ENTRY_ID }, ctx)).state).toBe(
-      'not_found',
-    );
+    expect((await diagnoseConfirmationEmail({ entryId: ENTRY_ID }, ctx)).state).toBe('not_found');
   });
 
   it('returns source_unavailable when the entry query errors', async () => {
     const ctx = makeCtx({ entries: { data: null, error: { code: 'PGRST' } } });
     expect((await diagnoseConfirmationEmail({ entryId: ENTRY_ID }, ctx)).state).toBe(
-      'source_unavailable',
+      'source_unavailable'
     );
   });
 
@@ -137,7 +136,7 @@ describe('diagnoseConfirmationEmail', () => {
     expect(result.state).toBe('found');
     expect(result.limitations.join(' ')).toContain('No email-log row');
     expect(String((result.summary as { assessment?: string }).assessment)).toContain(
-      'no matching email-log row',
+      'no matching email-log row'
     );
   });
 
@@ -167,9 +166,40 @@ describe('diagnoseConfirmationEmail', () => {
     });
     const result = await diagnoseConfirmationEmail({ entryId: ENTRY_ID }, ctx);
     expect(result.state).toBe('found');
-    expect(String((result.summary as { assessment?: string }).assessment)).toContain(
-      'failed',
-    );
+    expect(String((result.summary as { assessment?: string }).assessment)).toContain('failed');
+  });
+
+  it('redacts secret-shaped provider errors from the summary', async () => {
+    const secret = 'sk_live_abcdefgh12345678';
+    const ctx = makeCtx({
+      entries: {
+        data: entry({
+          confirmation_email_status: 'failed',
+          confirmation_email_message_id: 're_x1y2z3a4',
+          confirmation_email_sent_at: '2026-06-01T00:00:00Z',
+        }),
+        error: null,
+      },
+      email_log: {
+        data: [
+          {
+            status: 'failed',
+            error_message: `provider rejected ${secret}`,
+            created_at: '2026-06-01T00:00:00Z',
+            status_updated_at: null,
+            resend_message_id: 're_x1y2z3a4',
+            recipient_email: 'a@b.com',
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await diagnoseConfirmationEmail({ entryId: ENTRY_ID }, ctx);
+    const serialized = JSON.stringify(result.summary);
+
+    expect(serialized).not.toContain(secret);
+    expect(serialized).toContain('[redacted-secret]');
   });
 
   it('returns insufficient_data when nothing has been sent', async () => {
@@ -178,7 +208,7 @@ describe('diagnoseConfirmationEmail', () => {
       email_log: { data: [], error: null },
     });
     expect((await diagnoseConfirmationEmail({ entryId: ENTRY_ID }, ctx)).state).toBe(
-      'insufficient_data',
+      'insufficient_data'
     );
   });
 });

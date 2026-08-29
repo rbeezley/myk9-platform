@@ -6,15 +6,10 @@
  * always knows which database an answer came from (local/staging/production).
  */
 import type { EnvLabel } from '../config';
-import { redactEvidenceValue } from './redaction';
+import { redactDiagnosticValue, redactEvidenceValue, redactSensitive } from './redaction';
 
 export type DiagnosticState =
-  | 'found'
-  | 'not_found'
-  | 'ambiguous'
-  | 'insufficient_data'
-  | 'source_unavailable'
-  | 'error';
+  'found' | 'not_found' | 'ambiguous' | 'insufficient_data' | 'source_unavailable' | 'error';
 
 export interface DiagnosticEvidence {
   label: string;
@@ -58,17 +53,17 @@ export function createDiagnosticResult<
 >(
   envLabel: EnvLabel,
   state: DiagnosticState,
-  init: DiagnosticResultInit<TSummary> = {},
+  init: DiagnosticResultInit<TSummary> = {}
 ): DiagnosticResult<TSummary> {
   return {
     state,
     envLabel,
-    summary: (init.summary ?? {}) as TSummary,
-    evidence: (init.evidence ?? []).map((entry) => ({
+    summary: redactDiagnosticValue((init.summary ?? {}) as TSummary),
+    evidence: (init.evidence ?? []).map(entry => ({
       ...entry,
       value: redactEvidenceValue(entry.value),
     })),
     links: init.links ?? [],
-    limitations: init.limitations ?? [],
+    limitations: (init.limitations ?? []).map(redactSensitive),
   };
 }

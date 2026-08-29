@@ -11,10 +11,7 @@
  */
 import type { AdminToolDefinition } from '../mcp/server';
 import type { ToolContext } from '../tools/index';
-import {
-  diagnosePaymentInput,
-  type DiagnosePaymentInput,
-} from '../tools/schemas';
+import { diagnosePaymentInput, type DiagnosePaymentInput } from '../tools/schemas';
 import { buildEntryManagementLink } from './links';
 import { shortenProviderId } from './redaction';
 import type { DiagnosticEvidence, DiagnosticResult } from './types';
@@ -62,6 +59,11 @@ function orderEvidence(order: OrderRow): DiagnosticEvidence[] {
       source: 'stripe_orders.entry_ids',
     },
     {
+      label: 'Linked entry ids',
+      value: (order.entry_ids ?? []).join(', '),
+      source: 'stripe_orders.entry_ids',
+    },
+    {
       label: 'Payment intent',
       value: shortenProviderId(order.stripe_payment_intent_id),
       source: 'stripe_orders.stripe_payment_intent_id',
@@ -76,7 +78,7 @@ function orderEvidence(order: OrderRow): DiagnosticEvidence[] {
 
 export async function diagnosePayment(
   input: DiagnosePaymentInput,
-  ctx: ToolContext,
+  ctx: ToolContext
 ): Promise<DiagnosticResult> {
   const { config, supabase } = ctx;
   const { entryId, paymentIntentId, checkoutSessionId } = input;
@@ -110,7 +112,7 @@ export async function diagnosePayment(
     : paymentIntentId
       ? base.eq('stripe_payment_intent_id', paymentIntentId)
       : base.eq('stripe_checkout_session_id', checkoutSessionId ?? '');
-  const orders = await filtered.returns<OrderRow[]>();
+  const orders = await filtered.order('id', { ascending: true }).limit(2).returns<OrderRow[]>();
   if (orders.error) {
     return createDiagnosticResult(config.envLabel, 'source_unavailable', {
       limitations: ['Could not read Stripe orders.'],
@@ -128,22 +130,18 @@ export async function diagnosePayment(
           },
         ]
       : [];
-  const links = entryShowId
-    ? [buildEntryManagementLink(config, entryShowId)]
-    : [];
+  const links = entryShowId ? [buildEntryManagementLink(config, entryShowId)] : [];
 
   if (rows.length > 1) {
     return createDiagnosticResult(config.envLabel, 'ambiguous', {
       summary: { matchCount: rows.length },
       evidence: [
         ...entryStatusEvidence,
-        ...rows.map(
-          (order, index): DiagnosticEvidence => ({
-            label: `Order ${index + 1}`,
-            value: `${order.status ?? 'unknown'} · ${formatAmount(order.amount_cents, order.currency)}`,
-            source: 'stripe_orders',
-          }),
-        ),
+        ...rows.map((order, index): DiagnosticEvidence => ({
+          label: `Order ${index + 1}`,
+          value: `${order.status ?? 'unknown'} · ${formatAmount(order.amount_cents, order.currency)}`,
+          source: 'stripe_orders',
+        })),
       ],
       links,
       limitations: [
@@ -202,7 +200,7 @@ export function diagnosePaymentTool(ctx: ToolContext): AdminToolDefinition {
       },
       additionalProperties: false,
     },
-    parseInput: (raw) => diagnosePaymentInput.parse(raw),
-    handle: (input) => diagnosePayment(input as DiagnosePaymentInput, ctx),
+    parseInput: raw => diagnosePaymentInput.parse(raw),
+    handle: input => diagnosePayment(input as DiagnosePaymentInput, ctx),
   };
 }

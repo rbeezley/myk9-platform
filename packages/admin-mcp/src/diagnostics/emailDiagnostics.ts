@@ -15,22 +15,23 @@ import {
   type DiagnoseConfirmationEmailInput,
 } from '../tools/schemas';
 import { buildEntryManagementLink } from './links';
-import { redactEmail, shortenProviderId } from './redaction';
+import { redactEmail, redactSensitive, shortenProviderId } from './redaction';
 import type { DiagnosticEvidence, DiagnosticResult } from './types';
 import { createDiagnosticResult } from './types';
 
 interface EmailLogRow {
+  id: string;
   status: string;
   error_message: string | null;
   created_at: string;
   status_updated_at: string | null;
   resend_message_id: string | null;
-  recipient_email: string;
+  recipient_email: string | null;
 }
 
 export async function diagnoseConfirmationEmail(
   input: DiagnoseConfirmationEmailInput,
-  ctx: ToolContext,
+  ctx: ToolContext
 ): Promise<DiagnosticResult> {
   const { config, supabase } = ctx;
   const { entryId } = input;
@@ -38,7 +39,7 @@ export async function diagnoseConfirmationEmail(
   const entry = await supabase
     .from('entries')
     .select(
-      'id, show_id, confirmation_email_sent_at, confirmation_email_message_id, confirmation_email_status',
+      'id, show_id, confirmation_email_sent_at, confirmation_email_message_id, confirmation_email_status'
     )
     .eq('id', entryId)
     .maybeSingle();
@@ -59,12 +60,16 @@ export async function diagnoseConfirmationEmail(
   const baseLogQuery = supabase
     .from('email_log')
     .select(
-      'status, error_message, created_at, status_updated_at, resend_message_id, recipient_email',
+      'id, status, error_message, created_at, status_updated_at, resend_message_id, recipient_email'
     );
-  const log = await (messageId
+  const filteredLogQuery = messageId
     ? baseLogQuery.or(`related_id.eq.${entryId},resend_message_id.eq.${messageId}`)
-    : baseLogQuery.eq('related_id', entryId)
-  ).returns<EmailLogRow[]>();
+    : baseLogQuery.eq('related_id', entryId);
+  const log = await filteredLogQuery
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: true })
+    .limit(config.maxLimit)
+    .returns<EmailLogRow[]>();
   if (log.error) {
     return createDiagnosticResult(config.envLabel, 'source_unavailable', {
       limitations: ['Could not read the email log.'],
@@ -130,9 +135,7 @@ export async function diagnoseConfirmationEmail(
 
   const limitations: string[] = [];
   if (logRows.length === 0) {
-    limitations.push(
-      'No email-log row was found for this entry id or confirmation message id.',
-    );
+    limitations.push('No email-log row was found for this entry id or confirmation message id.');
   }
 
   const links = e.show_id ? [buildEntryManagementLink(config, e.show_id)] : [];
@@ -153,14 +156,13 @@ export async function diagnoseConfirmationEmail(
 
   let assessment: string;
   if (e.confirmation_email_status === 'sent' && logRows.length === 0) {
-    assessment =
-      'Marked sent on the entry, but no matching email-log row was found.';
+    assessment = 'Marked sent on the entry, but no matching email-log row was found.';
   } else if (
     e.confirmation_email_status === 'failed' ||
     e.confirmation_email_status === 'bounced'
   ) {
     assessment = `Confirmation email ${e.confirmation_email_status}${
-      primaryLog?.error_message ? `: ${primaryLog.error_message}` : ''
+      primaryLog?.error_message ? `: ${redactSensitive(primaryLog.error_message)}` : ''
     }.`;
   } else {
     assessment = `Confirmation email status: ${e.confirmation_email_status}${
@@ -182,9 +184,7 @@ export async function diagnoseConfirmationEmail(
   });
 }
 
-export function diagnoseConfirmationEmailTool(
-  ctx: ToolContext,
-): AdminToolDefinition {
+export function diagnoseConfirmationEmailTool(ctx: ToolContext): AdminToolDefinition {
   return {
     name: 'diagnose_confirmation_email',
     description:
@@ -196,8 +196,7 @@ export function diagnoseConfirmationEmailTool(
       required: ['entryId'],
       additionalProperties: false,
     },
-    parseInput: (raw) => diagnoseConfirmationEmailInput.parse(raw),
-    handle: (input) =>
-      diagnoseConfirmationEmail(input as DiagnoseConfirmationEmailInput, ctx),
+    parseInput: raw => diagnoseConfirmationEmailInput.parse(raw),
+    handle: input => diagnoseConfirmationEmail(input as DiagnoseConfirmationEmailInput, ctx),
   };
 }

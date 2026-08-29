@@ -1,6 +1,6 @@
 # Site Admin MCP V1 Implementation Plan
 
-> **Status:** Active
+> **Status:** V1.0 validated 2026-08-29; optional V1.1 deferred until usage proves the lookup friction
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -113,12 +113,7 @@ All tools return this envelope:
 
 ```ts
 type DiagnosticState =
-  | 'found'
-  | 'not_found'
-  | 'ambiguous'
-  | 'insufficient_data'
-  | 'source_unavailable'
-  | 'error';
+  'found' | 'not_found' | 'ambiguous' | 'insufficient_data' | 'source_unavailable' | 'error';
 
 interface DiagnosticEvidence {
   label: string;
@@ -166,7 +161,7 @@ V1 tools:
 - `stripe_orders.stripe_payment_intent_id` and `stripe_orders.stripe_checkout_session_id` are the provider lookup fields.
 - Role assignments live in `user_roles`; role names live in `roles`.
 - Show access must consider both show-scoped roles (`user_roles.show_id = show.id`) and club-scoped roles for the show club (`user_roles.show_id IS NULL AND user_roles.club_id = shows.club_id`), while labeling inactive or expired grants using `user_roles.is_active` and `user_roles.expires_at`.
-- [ADDED] Task 8 must confirm the exact role-name strings present in `roles` before hardcoding tests for secretary/chairman/chief steward/club-admin/site-admin access.
+- [VERIFIED 2026-08-29] Current role names are `chairman`, `club_admin`, `exhibitor`, `judge`, `secretary`, `site_admin`, and `steward`. The access diagnostic tests the five policy-relevant roles and mirrors the current `is_show_secretary` / `is_show_official` scope rules, including active-club-membership enforcement for club-scoped secretaries.
 
 ## Milestone Cut
 
@@ -177,9 +172,28 @@ V1 tools:
 - **V1.1 — ergonomic lookups, only if reached for:** Task 4 (`lookup_show`, `list_recent_shows`, `summarize_show_configuration`) + Task 5 (`lookup_entry`, `diagnose_entry`, `list_unpaid_entries`, `list_unconfirmed_entries`) + expanded Task 10 smoke. Add these only after V1.0 use confirms the ID-sourcing workflow is annoying enough to warrant curated lookups; otherwise the generic Supabase MCP covers them.
   - [ADDED] Optional even-lighter probe before committing to V1.1: document the three V1.0 diagnostic queries in `docs/admin-diagnostics.md` for the AI to read, and only promote a lookup to a curated tool once you have actually reached for it repeatedly.
 
+## V1.0 Closure Evidence — 2026-08-29
+
+### Requirements audit
+
+| Requirement                              | Status          | Evidence                                                                                                                                                                   |
+| ---------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local, owner-only stdio server           | Covered         | Tasks 1 and 3; live MCP client connected over stdio with no app server running.                                                                                            |
+| Read-only, typed, bounded diagnostics    | Covered         | Tasks 3 and 6–8; source review found no mutation calls, queries are ordered/capped, and only three V1.0 tools register.                                                    |
+| Fail-closed validation and source errors | Covered         | Task 3 tests plus live invalid-UUID result (`error`, `isError: true`) and no-env startup refusal.                                                                          |
+| Redacted output and secret handling      | Covered         | Task 2 boundary tests recursively scrub summaries, evidence, and limitations; live response scan contained no service-role key.                                            |
+| Current RBAC/schema fidelity             | Covered         | Task 0 live role inventory; Task 8 mirrors global site-admin, show/club scope, active membership, expiry, and linked-auth requirements.                                    |
+| Real-schema tool proof                   | Covered         | Staging stdio smoke: confirmation `insufficient_data`, payment `found`, access `found`, missing entry `not_found`; every registered tool returned a typed non-error state. |
+| Production smoke                         | Waived for V1.0 | No separate myK9Show production environment exists yet. Repeat the same read-only smoke after production is provisioned; this does not block the local staging-only V1.0.  |
+
+### Coverage: 100/100 for the available V1.0 environment
+
+The implementation, failure modes, security boundary, and current staging schema are verified. The only unavailable check is the explicitly documented production rerun. V1.1 remains optional and is not part of V1.0 closure.
+
 ## Task 0: Pin Schema and SDK Assumptions
 
 **Files:**
+
 - Modify: `docs/admin-mcp-local-setup.md` if implementation discovers setup-specific SDK constraints
 - Read: `packages/supabase/src/types/database.types.ts`
 - Read: `supabase/migrations/005_myk9show_specific.sql`
@@ -188,19 +202,21 @@ V1 tools:
 - Read: `supabase/migrations/20260619140000_fix_waitlist_entries_rls_role_name.sql`
 
 **Interfaces:**
+
 - Produces: exact import path for generated database types
 - Produces: exact MCP SDK import names for stdio server startup
 
-- [ ] Confirm the current official MCP TypeScript SDK package name and stdio API before coding.
-- [ ] Confirm `packages/supabase/src/types/database.types.ts` exports a `Database` type suitable for `createClient<Database>()`.
-- [ ] Confirm the verified schema anchors above still match the current branch.
-- [ ] [ADDED] Query or inspect seeded migrations for the exact `roles.name` values used for show officials and admins; update Task 8 tests to match real role strings, not display labels.
-- [ ] Add a package-local schema anchor comment near diagnostic query code that points back to this plan section.
-- [ ] Verify with a quick TypeScript compile after Task 1 creates the package.
+- [x] Confirm the current official MCP TypeScript SDK package name and stdio API before coding.
+- [x] Confirm `packages/supabase/src/types/database.types.ts` exports a `Database` type suitable for `createClient<Database>()`.
+- [x] Confirm the verified schema anchors above still match the current branch.
+- [x] [ADDED] Query or inspect seeded migrations for the exact `roles.name` values used for show officials and admins; update Task 8 tests to match real role strings, not display labels.
+- [x] Add a package-local schema anchor comment near diagnostic query code that points back to this plan section.
+- [x] Verify with a quick TypeScript compile after Task 1 creates the package.
 
 ## Task 1: Scaffold the Local MCP Package
 
 **Files:**
+
 - Create: `packages/admin-mcp/package.json`
 - Create: `packages/admin-mcp/tsconfig.json`
 - Create: `packages/admin-mcp/src/index.ts`
@@ -209,21 +225,22 @@ V1 tools:
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces: `loadAdminMcpConfig(env: NodeJS.ProcessEnv): AdminMcpConfig`
 - Produces: `AdminMcpConfig`
 
-- [ ] Create a feature worktree before implementation because this task writes TypeScript code.
-- [ ] [ADDED] Before choosing MCP SDK imports, verify the current official MCP TypeScript SDK package name and stdio server API. Pin the package version in `packages/admin-mcp/package.json`.
-- [ ] Add the package with TypeScript ESM, Vitest, `tsx`, `@supabase/supabase-js`, the MCP TypeScript SDK, and validation dependency choices pinned in `package.json`.
-- [ ] Add root scripts:
+- [x] Create a feature worktree before implementation because this task writes TypeScript code.
+- [x] [ADDED] Before choosing MCP SDK imports, verify the current official MCP TypeScript SDK package name and stdio server API. Pin the package version in `packages/admin-mcp/package.json`.
+- [x] Add the package with TypeScript ESM, Vitest, `tsx`, `@supabase/supabase-js`, the MCP TypeScript SDK, and validation dependency choices pinned in `package.json`.
+- [x] Add root scripts:
   - `mcp:admin` runs the local server.
   - `mcp:admin:test` runs package tests.
   - `mcp:admin:build` typechecks and builds the package.
-- [ ] Write a failing config test that rejects missing Supabase URL, service-role key, and app base URL.
-- [ ] [ADDED] Write a failing config test that rejects `MYK9_MCP_ENV_LABEL` values outside `local`, `staging`, and `production`.
-- [ ] [ADDED] Write a failing config test that rejects non-positive limits and caps `MYK9_MCP_MAX_LIMIT` at 100.
-- [ ] Implement `loadAdminMcpConfig`.
-- [ ] Verify with `pnpm --dir packages/admin-mcp test`.
+- [x] Write a failing config test that rejects missing Supabase URL, service-role key, and app base URL.
+- [x] [ADDED] Write a failing config test that rejects `MYK9_MCP_ENV_LABEL` values outside `local`, `staging`, and `production`.
+- [x] [ADDED] Write a failing config test that rejects non-positive limits and caps `MYK9_MCP_MAX_LIMIT` at 100.
+- [x] Implement `loadAdminMcpConfig`.
+- [x] Verify with `pnpm --dir packages/admin-mcp test`.
 
 Expected config behavior:
 
@@ -241,6 +258,7 @@ interface AdminMcpConfig {
 ## Task 2: Add Shared Diagnostic Types, Redaction, and Links
 
 **Files:**
+
 - Create: `packages/admin-mcp/src/diagnostics/types.ts`
 - Create: `packages/admin-mcp/src/diagnostics/redaction.ts`
 - Create: `packages/admin-mcp/src/diagnostics/links.ts`
@@ -249,24 +267,26 @@ interface AdminMcpConfig {
 - Create: `packages/admin-mcp/src/__tests__/links.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AdminMcpConfig`
 - Produces: `DiagnosticResult`
 - Produces: `redactEmail(email: string | null | undefined): string | null`
 - Produces: `buildShowLink(config: AdminMcpConfig, showId: string): DiagnosticLink`
 - Produces: `buildEntryManagementLink(config: AdminMcpConfig, showId: string, entryId?: string): DiagnosticLink`
 
-- [ ] [ADDED] Write failing tests proving each diagnostic envelope includes the configured `envLabel`.
-- [ ] Write failing tests for each `DiagnosticState`.
-- [ ] Write failing tests proving `redactEmail('handler@example.com')` returns `h***@example.com`.
-- [ ] Write failing tests proving Stripe IDs are shortened to a prefix and last 4 characters in summary evidence.
-- [ ] [ADDED] Write failing tests proving service-role-looking tokens, JWT-looking strings, and full checkout URLs are redacted from evidence values.
-- [ ] Write failing tests for show and entry-management links.
-- [ ] Implement the shared envelope, redaction helpers, and link helpers.
-- [ ] Verify with `pnpm --dir packages/admin-mcp test`.
+- [x] [ADDED] Write failing tests proving each diagnostic envelope includes the configured `envLabel`.
+- [x] Write failing tests for each `DiagnosticState`.
+- [x] Write failing tests proving `redactEmail('handler@example.com')` returns `h***@example.com`.
+- [x] Write failing tests proving Stripe IDs are shortened to a prefix and last 4 characters in summary evidence.
+- [x] [ADDED] Write failing tests proving service-role-looking tokens, JWT-looking strings, and full checkout URLs are redacted from evidence values.
+- [x] Write failing tests for show and entry-management links.
+- [x] Implement the shared envelope, redaction helpers, and link helpers.
+- [x] Verify with `pnpm --dir packages/admin-mcp test`.
 
 ## Task 3: Register MCP Server and Tool Validation
 
 **Files:**
+
 - Create: `packages/admin-mcp/src/db/supabaseAdmin.ts`
 - Create: `packages/admin-mcp/src/mcp/server.ts`
 - Create: `packages/admin-mcp/src/tools/schemas.ts`
@@ -275,31 +295,34 @@ interface AdminMcpConfig {
 - Modify: `packages/admin-mcp/src/index.ts`
 
 **Interfaces:**
+
 - Consumes: `AdminMcpConfig`
 - Consumes: `DiagnosticResult`
 - Produces: `createSupabaseAdminClient(config: AdminMcpConfig)`
 - Produces: `createAdminMcpServer(deps: AdminMcpServerDeps)`
 - Produces: validated input schemas for all V1 tools
 
-- [ ] Write failing schema tests for UUID validation, trimmed search strings, default limits, and max limits.
-- [ ] Implement schemas for all V1 tools.
-- [ ] Implement the Supabase admin client with `persistSession: false`.
-- [ ] Register MCP tools with typed schemas and a shared response formatter.
-- [ ] Log each tool call to stderr with tool name, env label, result state, elapsed milliseconds, and no secrets.
-- [ ] [ADDED] Stamp `envLabel` into every tool response so the admin can see whether an answer came from local, staging, or production.
-- [ ] [ADDED] Catch Supabase query errors and unexpected exceptions at the MCP boundary and return `state: 'source_unavailable'` or `state: 'error'` with a short limitation. Do not throw stack traces to the MCP client.
-- [ ] [ADDED] Add a server-level tool allowlist so only the V1 tools in this plan can be registered.
-- [ ] Start the server over stdio in `src/index.ts`.
-- [ ] Verify with `pnpm --dir packages/admin-mcp test` and `pnpm --dir packages/admin-mcp typecheck`.
+- [x] Write failing schema tests for UUID validation, trimmed search strings, default limits, and max limits.
+- [x] Implement schemas for all V1 tools.
+- [x] Implement the Supabase admin client with `persistSession: false`.
+- [x] Register MCP tools with typed schemas and a shared response formatter.
+- [x] Log each tool call to stderr with tool name, env label, result state, elapsed milliseconds, and no secrets.
+- [x] [ADDED] Stamp `envLabel` into every tool response so the admin can see whether an answer came from local, staging, or production.
+- [x] [ADDED] Catch Supabase query errors and unexpected exceptions at the MCP boundary and return `state: 'source_unavailable'` or `state: 'error'` with a short limitation. Do not throw stack traces to the MCP client.
+- [x] [ADDED] Add a server-level tool allowlist so only the V1 tools in this plan can be registered.
+- [x] Start the server over stdio in `src/index.ts`.
+- [x] Verify with `pnpm --dir packages/admin-mcp test` and `pnpm --dir packages/admin-mcp typecheck`.
 
 ## Task 4: Show Lookup and Show Configuration Tools
 
 **Files:**
+
 - Create: `packages/admin-mcp/src/diagnostics/showDiagnostics.ts`
 - Create: `packages/admin-mcp/src/__tests__/showDiagnostics.test.ts`
 - Modify: `packages/admin-mcp/src/tools/index.ts`
 
 **Interfaces:**
+
 - Produces: `listRecentShows(input, deps): Promise<DiagnosticResult>`
 - Produces: `lookupShow(input, deps): Promise<DiagnosticResult>`
 - Produces: `summarizeShowConfiguration(input, deps): Promise<DiagnosticResult>`
@@ -316,11 +339,13 @@ interface AdminMcpConfig {
 ## Task 5: Entry Lookup and Entry State Diagnostics
 
 **Files:**
+
 - Create: `packages/admin-mcp/src/diagnostics/entryDiagnostics.ts`
 - Create: `packages/admin-mcp/src/__tests__/entryDiagnostics.test.ts`
 - Modify: `packages/admin-mcp/src/tools/index.ts`
 
 **Interfaces:**
+
 - Produces: `lookupEntry(input, deps): Promise<DiagnosticResult>`
 - Produces: `diagnoseEntry(input, deps): Promise<DiagnosticResult>`
 - Produces: `listUnpaidEntries(input, deps): Promise<DiagnosticResult>`
@@ -340,109 +365,119 @@ interface AdminMcpConfig {
 ## Task 6: Confirmation Email Diagnostic
 
 **Files:**
+
 - Create: `packages/admin-mcp/src/diagnostics/emailDiagnostics.ts`
 - Create: `packages/admin-mcp/src/__tests__/emailDiagnostics.test.ts`
 - Modify: `packages/admin-mcp/src/tools/index.ts`
 
 **Interfaces:**
+
 - Produces: `diagnoseConfirmationEmail(input, deps): Promise<DiagnosticResult>`
 
-- [ ] Write failing tests for an entry with `confirmation_email_status = 'sent'`.
-- [ ] Write failing tests for an entry with `confirmation_email_status = 'failed'`.
-- [ ] Write failing tests for an entry with no sent timestamp and no message ID.
-- [ ] [ADDED] Write failing tests for Supabase/email-log lookup failure returning `state: 'source_unavailable'` without claiming the email failed.
-- [ ] Include evidence from `entries.confirmation_email_sent_at`, `entries.confirmation_email_message_id`, and `entries.confirmation_email_status`.
-- [ ] [EXPANDED] Look up `email_log` by `related_id = entry.id` and, when `entries.confirmation_email_message_id` is present, also by `resend_message_id = entries.confirmation_email_message_id`.
-- [ ] [EXPANDED] Include `email_log.status`, `email_log.error_message`, `email_log.created_at`, and shortened `email_log.resend_message_id` when available.
-- [ ] If no matching `email_log` row exists, add a limitation saying no email-log row was found for the entry ID or confirmation message ID.
-- [ ] Return a plain admin summary like “confirmation email was marked sent, but no email-log row was found.”
-- [ ] Verify with `pnpm --dir packages/admin-mcp test`.
+- [x] Write failing tests for an entry with `confirmation_email_status = 'sent'`.
+- [x] Write failing tests for an entry with `confirmation_email_status = 'failed'`.
+- [x] Write failing tests for an entry with no sent timestamp and no message ID.
+- [x] [ADDED] Write failing tests for Supabase/email-log lookup failure returning `state: 'source_unavailable'` without claiming the email failed.
+- [x] Include evidence from `entries.confirmation_email_sent_at`, `entries.confirmation_email_message_id`, and `entries.confirmation_email_status`.
+- [x] [EXPANDED] Look up `email_log` by `related_id = entry.id` and, when `entries.confirmation_email_message_id` is present, also by `resend_message_id = entries.confirmation_email_message_id`.
+- [x] [EXPANDED] Include `email_log.status`, `email_log.error_message`, `email_log.created_at`, and shortened `email_log.resend_message_id` when available.
+- [x] If no matching `email_log` row exists, add a limitation saying no email-log row was found for the entry ID or confirmation message ID.
+- [x] Return a plain admin summary like “confirmation email was marked sent, but no email-log row was found.”
+- [x] Verify with `pnpm --dir packages/admin-mcp test`.
 
 ## Task 7: Payment Diagnostic
 
 **Files:**
+
 - Create: `packages/admin-mcp/src/diagnostics/paymentDiagnostics.ts`
 - Create: `packages/admin-mcp/src/__tests__/paymentDiagnostics.test.ts`
 - Modify: `packages/admin-mcp/src/tools/index.ts`
 
 **Interfaces:**
+
 - Produces: `diagnosePayment(input, deps): Promise<DiagnosticResult>`
 
-- [ ] Write failing tests for payment diagnosis by `entryId`.
-- [ ] Write failing tests for payment diagnosis by Stripe payment intent ID.
-- [ ] Write failing tests for payment diagnosis by checkout session ID.
-- [ ] [ADDED] Write failing tests for multiple matching `stripe_orders` rows returning `state: 'ambiguous'`.
-- [ ] [ADDED] Write failing tests proving display amounts are derived from `stripe_orders.amount_cents / 100`.
-- [ ] [ADDED] Write failing tests proving entry-to-order lookup uses `stripe_orders.entry_ids` array containment.
-- [ ] Query `entries`, `stripe_orders`, and `stripe_customers` only as needed for the identifier provided.
-- [ ] Include evidence for payment status, order status, amount, paid timestamp, linked entry IDs, and shortened provider references.
-- [ ] [EXPANDED] Treat `stripe_orders.amount_cents` as integer cents in all summaries and evidence; never label it as dollars without conversion.
-- [ ] [EXPANDED] For `entryId`, find matching online orders with array containment on `stripe_orders.entry_ids`; do not use scalar equality.
-- [ ] Add limitations when an entry has `payment_status = 'paid'` but no matching `stripe_orders` row, because mail/check/manual payment can be valid.
-- [ ] Verify with `pnpm --dir packages/admin-mcp test`.
+- [x] Write failing tests for payment diagnosis by `entryId`.
+- [x] Write failing tests for payment diagnosis by Stripe payment intent ID.
+- [x] Write failing tests for payment diagnosis by checkout session ID.
+- [x] [ADDED] Write failing tests for multiple matching `stripe_orders` rows returning `state: 'ambiguous'`.
+- [x] [ADDED] Write failing tests proving display amounts are derived from `stripe_orders.amount_cents / 100`.
+- [x] [ADDED] Write failing tests proving entry-to-order lookup uses `stripe_orders.entry_ids` array containment.
+- [x] Query `entries`, `stripe_orders`, and `stripe_customers` only as needed for the identifier provided.
+- [x] Include evidence for payment status, order status, amount, paid timestamp, linked entry IDs, and shortened provider references.
+- [x] [EXPANDED] Treat `stripe_orders.amount_cents` as integer cents in all summaries and evidence; never label it as dollars without conversion.
+- [x] [EXPANDED] For `entryId`, find matching online orders with array containment on `stripe_orders.entry_ids`; do not use scalar equality.
+- [x] Add limitations when an entry has `payment_status = 'paid'` but no matching `stripe_orders` row, because mail/check/manual payment can be valid.
+- [x] Verify with `pnpm --dir packages/admin-mcp test`.
 
 ## Task 8: Show Access Diagnostic
 
 **Files:**
+
 - Create: `packages/admin-mcp/src/diagnostics/accessDiagnostics.ts`
 - Create: `packages/admin-mcp/src/__tests__/accessDiagnostics.test.ts`
 - Modify: `packages/admin-mcp/src/tools/index.ts`
 
 **Interfaces:**
+
 - Produces: `listShowAccess(input, deps): Promise<DiagnosticResult>`
 
-- [ ] Write failing tests for active secretary, chairman, chief steward, club admin, and site admin roles.
-- [ ] [ADDED] Write failing tests for inactive and expired roles being clearly labeled instead of silently omitted.
-- [ ] [ADDED] Write failing tests proving club-scoped roles for the show's `club_id` are included even when `user_roles.show_id` is null.
-- [ ] Query `user_roles`, `roles`, and `people` using actual role names from the database/migrations.
-- [ ] [EXPANDED] First load the show's `club_id`; then union show-scoped grants and club-scoped grants for that club. Mirror the access pattern used by `is_show_secretary(show_id)` / `is_club_admin(club_id)` policies.
-- [ ] [ADDED] Add a limitation note if a grant has both a non-matching `show_id` and the show's `club_id`; V1 should not count it as show access unless current policy helpers do.
-- [ ] Return role name, person display name, redacted email, active state, club scope, show scope, and expiration when present.
-- [ ] Include a limitation if the show has no scoped secretary-like role.
-- [ ] Verify with `pnpm --dir packages/admin-mcp test`.
+- [x] Write failing tests for active secretary, chairman, steward, club admin, and site admin roles.
+- [x] [ADDED] Write failing tests for inactive and expired roles being clearly labeled instead of silently omitted.
+- [x] [ADDED] Write failing tests proving club-scoped roles for the show's `club_id` are included even when `user_roles.show_id` is null.
+- [x] Query `user_roles`, `roles`, and `people` using actual role names from the database/migrations.
+- [x] [EXPANDED] First load the show's `club_id`; then union show-scoped grants and club-scoped grants for that club. Mirror the access pattern used by `is_show_secretary(show_id)` / `is_club_admin(club_id)` policies.
+- [x] [ADDED] Add a limitation note if a grant has both a non-matching `show_id` and the show's `club_id`; V1 does not count it as show access unless current policy helpers do.
+- [x] Return role name, person display name, redacted email, active state, club scope, show scope, and expiration when present.
+- [x] Include a limitation if the show has no scoped secretary-like role.
+- [x] Verify with `pnpm --dir packages/admin-mcp test`.
 
 ## Task 9: Local Setup Documentation and MCP Config
 
 **Files:**
+
 - Create: `docs/admin-mcp-local-setup.md`
 - Modify: `.mcp.json` only if the config can be committed without secrets
 
 **Interfaces:**
+
 - Consumes: root script `pnpm mcp:admin`
 - Produces: local setup instructions for Codex/Claude
 
-- [ ] Document the purpose: local site-admin read diagnostics only.
-- [ ] Document required env vars:
+- [x] Document the purpose: local site-admin read diagnostics only.
+- [x] Document required env vars:
   - `MYK9_MCP_SUPABASE_URL`
   - `MYK9_MCP_SUPABASE_SERVICE_ROLE_KEY`
   - `MYK9_MCP_APP_BASE_URL`
   - `MYK9_MCP_ENV_LABEL`
-- [ ] [ADDED] Document that the service-role key gives full database access, so this server should only run on the owner's trusted machine.
-- [ ] [ADDED] Document how to disable the server by removing or commenting out the `myk9-admin` MCP entry.
-- [ ] Document example questions:
+- [x] [ADDED] Document that the service-role key gives full database access, so this server should only run on the owner's trusted machine.
+- [x] [ADDED] Document how to disable the server by removing or commenting out the `myk9-admin` MCP entry.
+- [x] Document example questions:
   - “Which entries are unpaid for this show?”
   - “Why did this entry not get a confirmation email?”
   - “Who has secretary access to this show?”
   - “Does this show look ready to publish?”
-- [ ] Document that generic Supabase MCP still exists for schema/database work, while this package is myK9-aware diagnostics.
-- [ ] Document that write actions are intentionally out of V1.
-- [ ] [ADDED] Document that committing `.mcp.json` changes is not docs-only work; implementation must use a feature branch/PR if it modifies `.mcp.json`.
-- [ ] Verify docs with `git diff --check`.
+- [x] Document that generic Supabase MCP still exists for schema/database work, while this package is myK9-aware diagnostics.
+- [x] Document that write actions are intentionally out of V1.
+- [x] [ADDED] Document that committing `.mcp.json` changes is not docs-only work; implementation must use a feature branch/PR if it modifies `.mcp.json`.
+- [x] Verify docs with `git diff --check`.
 
 ## Task 10: End-to-End Smoke Test and Hardening Pass
 
 **Files:**
+
 - Modify only files created in earlier tasks if failures are found.
 
 **Interfaces:**
+
 - Consumes: all V1 tools
 - Produces: verified local MCP server
 
-- [ ] Run `pnpm mcp:admin:build`.
-- [ ] Run `pnpm mcp:admin:test`.
-- [ ] Run one local MCP smoke test from Codex or Claude with staging credentials.
-- [ ] [ADDED] Run one smoke test with production credentials only after staging smoke passes.
-- [ ] [REVISED] V1.0 smoke questions (the three diagnostics; source the IDs via generic Supabase MCP or the app UI):
+- [x] Run `pnpm mcp:admin:build`.
+- [x] Run `pnpm mcp:admin:test`.
+- [x] Run one local MCP smoke test from Codex or Claude with staging credentials.
+- [ ] [DEFERRED — no separate production environment exists] Run one smoke test with production credentials only after staging smoke passes.
+- [x] [REVISED] V1.0 smoke questions (the three diagnostics; source the IDs via generic Supabase MCP or the app UI):
   - “Diagnose the confirmation email for this entry ID.”
   - “Diagnose the payment for this entry ID / payment intent ID.”
   - “Who has access to this show?”
@@ -450,12 +485,12 @@ interface AdminMcpConfig {
   - “List recent shows.”
   - “Summarize configuration for this show ID.”
   - “List unpaid entries for this show ID.”
-- [ ] [ADDED] Run at least one real-schema smoke call for every registered tool and require `state !== 'error'`. A mocked query-builder test is not enough to call a tool complete.
-- [ ] Confirm no response contains the service-role key, full Stripe secrets, raw table dumps, or unrelated PII.
-- [ ] Confirm the server works without running the myK9Show dev server.
-- [ ] Confirm the server fails closed when a required env var is missing.
-- [ ] [ADDED] Confirm invalid UUIDs, ambiguous text lookups, and empty result sets return typed diagnostic states.
-- [ ] Confirm all returned links use `MYK9_MCP_APP_BASE_URL`.
+- [x] [ADDED] Run at least one real-schema smoke call for every registered tool and require `state !== 'error'`. A mocked query-builder test is not enough to call a tool complete.
+- [x] Confirm no response contains the service-role key, full Stripe secrets, raw table dumps, or unrelated PII.
+- [x] Confirm the server works without running the myK9Show dev server.
+- [x] Confirm the server fails closed when a required env var is missing.
+- [x] [ADDED] Confirm invalid UUIDs, ambiguous inputs, and empty result sets return typed diagnostic states.
+- [x] Confirm all returned links use `MYK9_MCP_APP_BASE_URL`.
 
 ## Testing Phase
 

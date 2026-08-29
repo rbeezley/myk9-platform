@@ -13,7 +13,7 @@ const ALL_STATES: DiagnosticState[] = [
 ];
 
 describe('createDiagnosticResult', () => {
-  it.each(ALL_STATES)('builds a valid envelope for state %s', (state) => {
+  it.each(ALL_STATES)('builds a valid envelope for state %s', state => {
     const result = createDiagnosticResult('staging', state);
 
     expect(result.state).toBe(state);
@@ -42,6 +42,21 @@ describe('createDiagnosticResult', () => {
     expect(result.evidence[0]?.value).toBe('[redacted-secret]');
     expect(result.evidence[1]?.value).toBe(4200);
     expect(result.evidence[2]?.value).toBe(true);
+  });
+
+  it('redacts secret-shaped values in summaries and limitations', () => {
+    const secret = 'sk_live_abcdefgh12345678';
+    const result = createDiagnosticResult('staging', 'found', {
+      summary: {
+        assessment: `provider rejected ${secret}`,
+        nested: { detail: secret },
+      },
+      limitations: [`retry without ${secret}`],
+    });
+
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain(secret);
+    expect(serialized.match(/\[redacted-secret\]/g)).toHaveLength(3);
   });
 
   it('preserves supplied summary, evidence, links, and limitations', () => {

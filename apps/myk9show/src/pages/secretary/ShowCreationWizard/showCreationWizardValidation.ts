@@ -1,6 +1,7 @@
 /**
  * Validation logic for the Show Creation Wizard
  */
+import { toLocalDateOnly } from '@/utils/date-format';
 
 interface ShowData {
   name: string;
@@ -50,6 +51,13 @@ export function getShowDetailsValidationMessages(show: ShowData): string[] {
 
   // Normalize to YYYY-MM-DD so lexicographic comparison is date-only safe
   // regardless of whether the picker stores dates or ISO datetimes.
+  //
+  // F6: this used to slice the first 10 chars off the ISO string, which is the UTC
+  // date. DateRangePicker defaults the entry close to 11:59 PM LOCAL and emits
+  // toISOString(), so west of UTC that lands on the next calendar day
+  // ("Aug 29 11:59 PM CDT" -> "2026-08-30T04:59:00Z"). Compared against a show
+  // starting 8:00 AM the same day, close > start and a day-of-entry show could never
+  // be saved. toLocalDateOnly resolves the calendar date the user actually picked.
   const start = toDatePart(show.startDate);
   const end = toDatePart(show.endDate);
   const open = toDatePart(show.entryOpenDate);
@@ -65,7 +73,7 @@ export function getShowDetailsValidationMessages(show: ShowData): string[] {
 }
 
 function toDatePart(value: string | undefined | null): string {
-  return value ? value.slice(0, 10) : '';
+  return value ? toLocalDateOnly(value) : '';
 }
 
 /**

@@ -99,7 +99,11 @@ export function ShowMapToolbar({
   return (
     <div className="flex flex-col gap-3 border-b bg-background p-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-wrap gap-2">
-        <div className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1">
+        <div
+          className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1"
+          role="group"
+          aria-label="Date range"
+        >
           {dayScopes.map(item => (
             <Button
               key={item.value}
@@ -107,13 +111,23 @@ export function ShowMapToolbar({
               variant={dayScope === item.value ? 'default' : 'ghost'}
               size="sm"
               className="min-h-9"
+              // F19: without aria-pressed nothing announces WHICH filter is active,
+              // and the colour-only cue cost real time during the secretary walk --
+              // a scored class vanished from the tree while the header still said
+              // "2 Classes", and only clicking Completed revealed that the default
+              // Active filter was hiding it. Manage Classes already does this.
+              aria-pressed={dayScope === item.value}
               onClick={() => onDayScopeChange(item.value)}
             >
               {item.label}
             </Button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1">
+        <div
+          className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1"
+          role="group"
+          aria-label="Class completion"
+        >
           {completionScopes.map(item => (
             <Button
               key={item.value}
@@ -121,13 +135,23 @@ export function ShowMapToolbar({
               variant={completionScope === item.value ? 'default' : 'ghost'}
               size="sm"
               className="min-h-9"
+              // F19: without aria-pressed nothing announces WHICH filter is active,
+              // and the colour-only cue cost real time during the secretary walk --
+              // a scored class vanished from the tree while the header still said
+              // "2 Classes", and only clicking Completed revealed that the default
+              // Active filter was hiding it. Manage Classes already does this.
+              aria-pressed={completionScope === item.value}
               onClick={() => onCompletionScopeChange(item.value)}
             >
               {item.label}
             </Button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1">
+        <div
+          className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1"
+          role="group"
+          aria-label="Class status"
+        >
           {filters.map(item => (
             <Button
               key={item.value}
@@ -135,6 +159,12 @@ export function ShowMapToolbar({
               variant={filter === item.value ? 'default' : 'ghost'}
               size="sm"
               className="min-h-9"
+              // F19: without aria-pressed nothing announces WHICH filter is active,
+              // and the colour-only cue cost real time during the secretary walk --
+              // a scored class vanished from the tree while the header still said
+              // "2 Classes", and only clicking Completed revealed that the default
+              // Active filter was hiding it. Manage Classes already does this.
+              aria-pressed={filter === item.value}
               onClick={() => onFilterChange(item.value)}
             >
               {item.label}

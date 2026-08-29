@@ -11,9 +11,7 @@ import ShowCreationWizardPage from '../ShowCreationWizardPage';
 
 vi.mock('@/pages/secretary/ShowCreationWizard/useShowCreationWizardActions', () => ({
   useShowCreationWizardActions: () => ({
-    handleSaveDraft: vi.fn(),
     handleCreateShow: vi.fn(),
-    handleCreateAndPublish: vi.fn(),
     handleSaveProgress: vi.fn(),
   }),
 }));

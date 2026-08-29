@@ -3,9 +3,10 @@ import { FieldGuideSectionHead } from '../../components/FieldGuideSectionHead';
 import { FIELD_GUIDE_DISPLAY_FAMILY, FIELD_GUIDE_MONO_FAMILY } from '../../fonts';
 import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
 import { formatDateInTimezone } from '../utils/dateFormat';
+import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
   entryOpenDate: string | null;
   entryCloseDate: string | null;
@@ -30,7 +31,7 @@ export function RosterSection({
 }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   if (entryLimit == null) return null;
-  const pct = entryLimit > 0 ? Math.min(100, Math.round((entryCount / entryLimit) * 100)) : 0;
+  const pct = entryCapacityPercent(entryCount, entryLimit);
   const openedLabel = entryOpenDate ? formatDateInTimezone(entryOpenDate, timezone, 'iso') : 'TBA';
   const closesLabel = entryCloseDate
     ? formatDateInTimezone(entryCloseDate, timezone, 'iso')
@@ -46,7 +47,11 @@ export function RosterSection({
         padding: `${fieldGuideSpacing.sectionPaddingY}px ${fieldGuideSpacing.pageGutterX}px`,
       }}
     >
-      <FieldGuideSectionHead folio="§05" title="Roster status" meta={`LIVE · ${pct}% CLAIMED`} />
+      <FieldGuideSectionHead
+        folio="§05"
+        title="Roster status"
+        meta={pct == null ? 'LIVE · COUNT UNAVAILABLE' : `LIVE · ${pct}% CLAIMED`}
+      />
       <div
         ref={ref}
         className={`fg-reveal ${revealed ? 'in' : ''}`}
@@ -71,7 +76,7 @@ export function RosterSection({
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {entryCount}
+          {formatEntryCount(entryCount)}
           <span style={{ color: fieldGuideColors.mute, fontSize: 56 }}>/{entryLimit}</span>
           <span
             style={{
@@ -85,35 +90,37 @@ export function RosterSection({
               textTransform: 'uppercase',
             }}
           >
-            RUNS CLAIMED · {pct}%
+            {pct == null ? 'RUN COUNT UNAVAILABLE' : `RUNS CLAIMED · ${pct}%`}
           </span>
         </div>
         <div>
-          <div
-            role="progressbar"
-            aria-valuenow={pct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`${pct}% of entry limit filled`}
-            style={{
-              height: 10,
-              background: fieldGuideColors.paperWarm,
-              border: `1px solid ${fieldGuideColors.ink}`,
-              position: 'relative',
-              overflow: 'hidden',
-              marginBottom: 14,
-            }}
-          >
+          {pct != null && (
             <div
-              className="fg-capacity-bar-fill"
+              role="progressbar"
+              aria-valuenow={pct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${pct}% of entry limit filled`}
               style={{
-                position: 'absolute',
-                inset: '-1px auto -1px -1px',
-                background: fieldGuideColors.orange,
-                width: `${pct}%`,
+                height: 10,
+                background: fieldGuideColors.paperWarm,
+                border: `1px solid ${fieldGuideColors.ink}`,
+                position: 'relative',
+                overflow: 'hidden',
+                marginBottom: 14,
               }}
-            />
-          </div>
+            >
+              <div
+                className="fg-capacity-bar-fill"
+                style={{
+                  position: 'absolute',
+                  inset: '-1px auto -1px -1px',
+                  background: fieldGuideColors.orange,
+                  width: `${pct}%`,
+                }}
+              />
+            </div>
+          )}
           <div
             style={{
               fontFamily: FIELD_GUIDE_MONO_FAMILY,

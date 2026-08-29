@@ -112,9 +112,14 @@ function RegistrationWizardContent() {
                 <span>/</span>
                 <span className="text-foreground font-medium">{workflowLabel}</span>
               </div>
-              {/* Contextual deep-link to the public exhibitor guide. */}
+              {/* Contextual deep-link to the guide for whoever is actually driving
+                  the wizard. F17: this always pointed at the exhibitor guide, so a
+                  secretary taking a mail-in or late entry was sent to instructions
+                  written for the person entering their own dog. */}
               <a
-                href={helpUrl('exhibitor-guide')}
+                href={helpUrl(
+                  currentWorkflowMode === 'exhibitor' ? 'exhibitor-guide' : 'secretary-guide'
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-auto hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"

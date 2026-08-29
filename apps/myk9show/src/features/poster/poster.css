@@ -43,6 +43,21 @@
   text-decoration: none;
 }
 
+[data-poster] a:focus-visible,
+[data-poster] button:focus-visible {
+  outline: 2px solid var(--po-red);
+  outline-offset: 3px;
+}
+
+[data-poster] .landing-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+[data-poster] .landing-table-scroll > table {
+  min-width: 520px;
+}
+
 /* Section reveal — children get `.in` once the IntersectionObserver fires;
    we transition opacity 0 → 1 over 600ms. Mirrors Banner's pattern. */
 [data-poster] .po-reveal {
@@ -93,8 +108,12 @@
 
 /* Capacity bar fill — gradient bar fills from 0 to its final percent. */
 @keyframes po-capacity-bar-fill {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 [data-poster] .po-capacity-bar-fill {

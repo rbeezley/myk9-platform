@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { CloneFromShowCombobox } from './CloneFromShowCombobox';
 import { useWizardStore } from '@/store/wizardStore';
@@ -25,6 +26,7 @@ import { useShowDetailsStepActions } from './useShowDetailsStepActions';
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
+  const location = useLocation();
   const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } =
     useWizardStore();
   const { clubs, loadClubs, syncClubs } = useClubStore();
@@ -98,12 +100,13 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     [show.judgeIds, people, judgeDetails]
   );
 
-  const {
-    handleCreateClub,
-    handleCreateOfficialPerson,
-    handleSaveJudgeCredentials,
-    handleCreateNewJudge,
-  } = useShowDetailsStepActions();
+  const { handleCreateOfficialPerson, handleSaveJudgeCredentials, handleCreateNewJudge } =
+    useShowDetailsStepActions();
+
+  const createClubHref = React.useMemo(() => {
+    const returnTo = `${location.pathname}${location.search}`;
+    return `/clubs?${new URLSearchParams({ create: 'true', returnTo }).toString()}`;
+  }, [location.pathname, location.search]);
 
   // Entry close date is set manually by the secretary — no auto-populate.
 
@@ -139,7 +142,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               searchTerm={clubSearchTerm}
               setSearchTerm={setClubSearchTerm}
               onSelectClub={clubId => updateShowData({ clubId })}
-              onCreateClub={handleCreateClub}
+              createClubHref={createClubHref}
             />
           }
         />

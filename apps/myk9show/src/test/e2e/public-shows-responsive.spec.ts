@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('Public Shows Responsive Smoke', () => {
-  test.use({ viewport: { width: 375, height: 667 } });
+  test.use({ viewport: { width: 320, height: 667 } });
 
   test('renders the public shows page without mobile overflow', async ({ page }) => {
     await page.goto('/shows');
@@ -14,7 +14,7 @@ test.describe('Public Shows Responsive Smoke', () => {
     await expect(tabList).toHaveCSS('overflow-x', 'auto');
 
     const bodyWidth = await page.locator('body').evaluate(body => body.scrollWidth);
-    const viewportWidth = page.viewportSize()?.width ?? 375;
+    const viewportWidth = page.viewportSize()?.width ?? 320;
     expect(bodyWidth).toBeLessThanOrEqual(viewportWidth);
   });
 

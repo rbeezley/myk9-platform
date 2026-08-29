@@ -117,16 +117,83 @@ describe('seed-demo club scope fixtures', () => {
     expect(seed).toContain('Prairie Trail Dog Sports Club');
   });
 
-  it('removes both clubs in the idempotency block', () => {
+  it('re-seeds both clubs without a second-run collision', () => {
     // A seed that creates a row it cannot clean up fails its SECOND run, which is
-    // the run nobody watches.
+    // the run nobody watches. That intent is unchanged; the MECHANISM had to move.
+    //
+    // F30 made shows.club_id ON DELETE RESTRICT, so the old
+    // `DELETE FROM public.clubs` in the idempotency block can no longer run at all
+    // — a club that owns a show refuses to be deleted, which is the whole point of
+    // the finding. The clubs INSERT now upserts instead, which is what actually
+    // delivers idempotency. Dependent rows carry their own conflict clauses
+    // (club_members DO NOTHING, club_stripe_accounts DO UPDATE) and club_officers
+    // is not seeded, so nothing relied on the cascade the DELETE used to trigger.
+    const clubsBlock = seed.slice(
+      seed.indexOf('-- 1. Clubs'),
+      seed.indexOf('INSERT INTO public.club_stripe_accounts')
+    );
+    expect(clubsBlock).toContain('ON CONFLICT (id) DO UPDATE');
+    // An upsert that leaves deleted_at set "succeeds" while the club stays invisible
+    // to every read, silently emptying the demo dataset. The DELETE it replaced
+    // always produced a fresh row, so recovery must be explicit.
+    expect(clubsBlock).toContain('deleted_at  = NULL');
+    expect(clubsBlock).toContain('deleted_by  = NULL');
+    // Columns the fixture does not declare must be reset too, or QA drift on them
+    // survives a reseed. This list came from pg_attribute; an eyeballed one missed
+    // cover_image_url, accent_color and the default_withdrawal_* group.
+    for (const col of [
+      'address',
+      'zip_code',
+      'phone',
+      'website',
+      'logo_url',
+      'license_key',
+      'cover_image_url',
+      'accent_color',
+      'default_withdrawal_cutoff_date',
+      'default_withdrawal_retention_type',
+      'default_withdrawal_retention_value',
+      'default_withdrawal_policy_notes',
+    ]) {
+      expect(clubsBlock).toMatch(new RegExp(`${col}\\s*= DEFAULT`));
+    }
+    expect(clubsBlock).toContain(HEARTLAND_CLUB_ID);
+    expect(clubsBlock).toContain(PRAIRIE_TRAIL_CLUB_ID);
+    // The delete-and-recreate pair must not come back for the DEMO clubs: it cannot
+    // survive RESTRICT. The load-fixture clubs are a different range and are still
+    // deleted here — legitimately, because their shows are deleted first.
     const idempotencyBlock = seed.slice(
       seed.indexOf('-- 0. Idempotency'),
       seed.indexOf('-- 1. Clubs')
     );
-    expect(idempotencyBlock).toContain('DELETE FROM public.clubs');
-    expect(idempotencyBlock).toContain(HEARTLAND_CLUB_ID);
-    expect(idempotencyBlock).toContain(PRAIRIE_TRAIL_CLUB_ID);
+    // The removed club DELETE cascaded to every child of `clubs`. An upsert only
+    // touches declared rows, so the cascade is replicated explicitly or a reseed
+    // stops being deterministic: extra members, stale club-scoped role grants and
+    // orphaned secretary tasks would all survive and contaminate role walks.
+    for (const child of [
+      'club_members',
+      'club_officers',
+      'club_premium_templates',
+      'premium_generations',
+      'secretary_tasks',
+      'user_roles',
+      // No exemptions. Upserting the DECLARED row is a different property from
+      // removing UNDECLARED ones, and exempting this table on that basis is exactly
+      // the mistake this list exists to prevent.
+      'club_stripe_accounts',
+    ]) {
+      expect(idempotencyBlock).toContain(`DELETE FROM public.${child}`);
+    }
+
+    const clubDeleteStart = idempotencyBlock.indexOf('DELETE FROM public.clubs');
+    if (clubDeleteStart !== -1) {
+      const clubDelete = idempotencyBlock.slice(
+        clubDeleteStart,
+        idempotencyBlock.indexOf(';', clubDeleteStart)
+      );
+      expect(clubDelete).not.toContain(HEARTLAND_CLUB_ID);
+      expect(clubDelete).not.toContain(PRAIRIE_TRAIL_CLUB_ID);
+    }
   });
 
   it('seeds club_members for both clubs', () => {
@@ -138,8 +205,13 @@ describe('seed-demo club scope fixtures', () => {
     );
     expect(membersBlock).toContain(HEARTLAND_CLUB_ID);
     expect(membersBlock).toContain(PRAIRIE_TRAIL_CLUB_ID);
-    // Idempotent: a reseed must not collide with the UNIQUE(club_id, person_id).
-    expect(membersBlock).toContain('ON CONFLICT (club_id, person_id) DO NOTHING');
+    // Idempotent AND reset. Not colliding is only half of it: since F30 the demo
+    // clubs are upserted rather than delete-and-recreated, so the cascade that used
+    // to clear these rows is gone. DO NOTHING would preserve a membership a QA run
+    // had suspended, and the reseed would report success on a wrong dataset.
+    expect(membersBlock).toContain('ON CONFLICT (club_id, person_id) DO UPDATE');
+    expect(membersBlock).toContain('membership_status = EXCLUDED.membership_status');
+    expect(membersBlock).not.toContain('ON CONFLICT (club_id, person_id) DO NOTHING');
   });
 
   // Bounded by the NEXT subsection, not by section 11. 10e was the last block

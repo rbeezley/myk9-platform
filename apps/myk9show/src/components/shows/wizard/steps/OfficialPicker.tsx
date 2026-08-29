@@ -149,6 +149,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
             { groupKey: 'all', label: 'All People', items: others },
           ]}
           renderItem={renderPersonRow}
+          selectedItemIds={selectedPersonId ? [selectedPersonId] : []}
           onSelect={person => onSelect(person.id)}
           footer={
             <Button

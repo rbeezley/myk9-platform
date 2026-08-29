@@ -75,6 +75,7 @@ export function StickyNav({
 
   return (
     <nav
+      aria-label="Show sections"
       className="sticky top-0 z-50 flex h-16 items-center justify-between gap-4 border-b px-6 md:px-16"
       style={{
         background: 'var(--mz-paper)',

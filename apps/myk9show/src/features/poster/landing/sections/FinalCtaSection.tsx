@@ -157,7 +157,7 @@ export function FinalCtaSection({
                 textDecoration: 'none',
               }}
             >
-              OPEN ENTRY WIZARD →
+              OPEN ENTRY WIZARD <span aria-hidden="true">→</span>
             </a>
           </>
         ) : (

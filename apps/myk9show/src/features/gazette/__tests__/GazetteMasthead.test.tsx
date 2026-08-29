@@ -3,6 +3,14 @@ import { render, screen } from '@testing-library/react';
 import { GazetteMasthead } from '../components/GazetteMasthead';
 
 describe('GazetteMasthead', () => {
+  it('uses the show name as the primary heading name', () => {
+    render(
+      <GazetteMasthead clubName="Bexar County Gazette" headingLabel="Spring Scent Work Trial" />
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Spring Scent Work Trial' })).toBeTruthy();
+  });
+
   it('renders the club name plain when fewer than 3 words', () => {
     const { container } = render(<GazetteMasthead clubName="Bexar Gazette" />);
     const title = container.querySelector('.gz-masthead__title');
@@ -12,9 +20,7 @@ describe('GazetteMasthead', () => {
   });
 
   it('auto-italicizes first and last word when clubName has 3+ words', () => {
-    const { container } = render(
-      <GazetteMasthead clubName="Bexar County Kennel Club" />
-    );
+    const { container } = render(<GazetteMasthead clubName="Bexar County Kennel Club" />);
     const ems = container.querySelectorAll('.gz-masthead__title em');
     expect(ems.length).toBe(2);
     expect(ems[0]).toHaveTextContent('Bexar');
@@ -29,9 +35,7 @@ describe('GazetteMasthead', () => {
 
   it('renders an explicit titleSlot when provided, bypassing auto-italic', () => {
     render(
-      <GazetteMasthead
-        titleSlot={<span data-testid="custom-title">Custom Title Here</span>}
-      />
+      <GazetteMasthead titleSlot={<span data-testid="custom-title">Custom Title Here</span>} />
     );
     expect(screen.getByTestId('custom-title')).toHaveTextContent('Custom Title Here');
   });
@@ -66,9 +70,7 @@ describe('GazetteMasthead', () => {
   });
 
   it('suppresses animation classes when noAnimation is set', () => {
-    const { container } = render(
-      <GazetteMasthead clubName="Static Test Gazette" noAnimation />
-    );
+    const { container } = render(<GazetteMasthead clubName="Static Test Gazette" noAnimation />);
     const title = container.querySelector('.gz-masthead__title');
     expect(title).not.toHaveClass('gz-rise');
   });
@@ -79,9 +81,7 @@ describe('GazetteMasthead', () => {
   // names with hyphens, periods, possessives, and acronym embedding.
 
   it('treats a hyphenated word as a single token', () => {
-    const { container } = render(
-      <GazetteMasthead clubName="Bexar-County Kennel Club" />
-    );
+    const { container } = render(<GazetteMasthead clubName="Bexar-County Kennel Club" />);
     const ems = container.querySelectorAll('.gz-masthead__title em');
     expect(ems.length).toBe(2);
     expect(ems[0]).toHaveTextContent('Bexar-County');
@@ -89,17 +89,13 @@ describe('GazetteMasthead', () => {
   });
 
   it('keeps trailing punctuation attached to the italicized last word', () => {
-    const { container } = render(
-      <GazetteMasthead clubName="The Working Dog Co." />
-    );
+    const { container } = render(<GazetteMasthead clubName="The Working Dog Co." />);
     const ems = container.querySelectorAll('.gz-masthead__title em');
     expect(ems[1]).toHaveTextContent('Co.');
   });
 
   it('italicizes around an embedded apostrophe', () => {
-    const { container } = render(
-      <GazetteMasthead clubName="St. John's Kennel Club" />
-    );
+    const { container } = render(<GazetteMasthead clubName="St. John's Kennel Club" />);
     const ems = container.querySelectorAll('.gz-masthead__title em');
     expect(ems[0]).toHaveTextContent('St.');
     expect(ems[1]).toHaveTextContent('Club');

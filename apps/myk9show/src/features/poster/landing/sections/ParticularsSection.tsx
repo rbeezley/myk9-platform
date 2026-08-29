@@ -1,10 +1,7 @@
 import { type ReactNode } from 'react';
 import { PosterSectionHead } from '../../components/PosterSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
-import {
-  POSTER_DISPLAY_TIGHT_FAMILY,
-  POSTER_MONO_FAMILY,
-} from '../../fonts';
+import { POSTER_DISPLAY_TIGHT_FAMILY, POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
 import { formatDateInTimezone } from '../utils/dateFormat';
 
@@ -41,8 +38,7 @@ export function ParticularsSection({
   timezone,
 }: ParticularsSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const fmt = (iso: string | null) =>
-    iso ? formatDateInTimezone(iso, timezone, 'short') : null;
+  const fmt = (iso: string | null) => (iso ? formatDateInTimezone(iso, timezone, 'short') : null);
   const fmtCloseUpper = entryCloseDate
     ? formatDateInTimezone(entryCloseDate, timezone, 'monthDayUpper')
     : null;
@@ -60,7 +56,9 @@ export function ParticularsSection({
     {
       label: 'Entries close',
       value: fmtCloseUpper ? (
-        <span style={{ background: posterColors.red, color: posterColors.cream, padding: '2px 6px' }}>
+        <span
+          style={{ background: posterColors.red, color: posterColors.cream, padding: '2px 6px' }}
+        >
           {fmtCloseUpper}
           {fmtCloseTime ? ` · ${fmtCloseTime.toUpperCase()}` : ''}
         </span>
@@ -76,7 +74,9 @@ export function ParticularsSection({
       label: 'Entry limit',
       value:
         entryLimit != null ? (
-          <span style={{ background: posterColors.red, color: posterColors.cream, padding: '2px 6px' }}>
+          <span
+            style={{ background: posterColors.red, color: posterColors.cream, padding: '2px 6px' }}
+          >
             {entryLimit} RUNS · FIRM
           </span>
         ) : null,
@@ -102,71 +102,78 @@ export function ParticularsSection({
       </PosterSectionHead>
 
       <div ref={ref} className={`po-reveal ${revealed ? 'in' : ''}`}>
-        <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            borderTop: `2px solid ${posterColors.ink}`,
-          }}
+        <div
+          className="landing-table-scroll"
+          role="region"
+          aria-label="Show particulars table"
+          tabIndex={0}
         >
-          <tbody>
-            {rows.map((row, i) => (
-              <tr
-                key={`${row.label}-${i}`}
-                style={{
-                  borderBottom:
-                    i === rows.length - 1
-                      ? `2px solid ${posterColors.ink}`
-                      : `1px solid ${posterColors.hair}`,
-                }}
-              >
-                <th
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              borderTop: `2px solid ${posterColors.ink}`,
+            }}
+          >
+            <tbody>
+              {rows.map((row, i) => (
+                <tr
+                  key={`${row.label}-${i}`}
                   style={{
-                    textAlign: 'left',
-                    fontFamily: POSTER_MONO_FAMILY,
-                    fontWeight: 500,
-                    fontSize: 11,
-                    letterSpacing: '0.04em',
-                    color: posterColors.mute,
-                    padding: '22px 28px 22px 0',
-                    width: 280,
-                    verticalAlign: 'top',
+                    borderBottom:
+                      i === rows.length - 1
+                        ? `2px solid ${posterColors.ink}`
+                        : `1px solid ${posterColors.hair}`,
                   }}
                 >
-                  {row.label.toUpperCase()}
-                </th>
-                <td
-                  style={{
-                    padding: '22px 0',
-                    fontFamily: POSTER_DISPLAY_TIGHT_FAMILY,
-                    fontWeight: 800,
-                    fontSize: 22,
-                    letterSpacing: '-0.02em',
-                    color: posterColors.ink,
-                  }}
-                >
-                  {row.value}
-                  {row.sub && (
-                    <span
-                      style={{
-                        display: 'block',
-                        marginTop: 6,
-                        fontFamily: POSTER_MONO_FAMILY,
-                        fontWeight: 400,
-                        fontSize: 12,
-                        color: posterColors.mute,
-                        letterSpacing: '0.02em',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {row.sub}
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <th
+                    style={{
+                      textAlign: 'left',
+                      fontFamily: POSTER_MONO_FAMILY,
+                      fontWeight: 500,
+                      fontSize: 11,
+                      letterSpacing: '0.04em',
+                      color: posterColors.mute,
+                      padding: '22px 28px 22px 0',
+                      width: 280,
+                      verticalAlign: 'top',
+                    }}
+                  >
+                    {row.label.toUpperCase()}
+                  </th>
+                  <td
+                    style={{
+                      padding: '22px 0',
+                      fontFamily: POSTER_DISPLAY_TIGHT_FAMILY,
+                      fontWeight: 800,
+                      fontSize: 22,
+                      letterSpacing: '-0.02em',
+                      color: posterColors.ink,
+                    }}
+                  >
+                    {row.value}
+                    {row.sub && (
+                      <span
+                        style={{
+                          display: 'block',
+                          marginTop: 6,
+                          fontFamily: POSTER_MONO_FAMILY,
+                          fontWeight: 400,
+                          fontSize: 12,
+                          color: posterColors.mute,
+                          letterSpacing: '0.02em',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {row.sub}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );

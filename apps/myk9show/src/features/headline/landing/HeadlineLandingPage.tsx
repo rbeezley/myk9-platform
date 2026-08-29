@@ -7,6 +7,7 @@ import { formatJourneyDate } from '@/features/heritage/landing/utils/dateFormat'
 import { useCountdown } from '@/features/heritage/hooks/useCountdown';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 import { ensureHeadlineFontsLoaded } from '../fonts';
 import { FinalCta, Footer, Officers, ScheduleAndPlan } from './HeadlineLandingLowerSections';
 import { SectionHead } from './HeadlineLandingPrimitives';
@@ -21,11 +22,6 @@ interface HeadlineLandingPageProps {
   hasEntryClassInventory?: boolean | null;
   /** True when the entry window has not opened yet. */
   entryNotYetOpen?: boolean | undefined;
-}
-
-function formatPercent(current: number, limit: number | null): number {
-  if (!limit || limit <= 0) return 0;
-  return Math.min(100, Math.round((current / limit) * 100));
 }
 
 function formatTimezoneName(timezone: string): string {
@@ -228,40 +224,49 @@ function Particulars({ data }: { data: HeritageLandingData }) {
       <SectionHead index={2} kicker="Before you enter" title="Entry details.">
         <p className="hd-prose">{data.showSubtitle}</p>
       </SectionHead>
-      <table className="hd-detail-table">
-        <tbody>
-          <tr>
-            <th>Sanctioning</th>
-            <td>{data.licenseLanguage}</td>
-          </tr>
-          <tr>
-            <th>Format</th>
-            <td>
-              {data.trials.length || 'TBD'} trial{data.trials.length === 1 ? '' : 's'}
-            </td>
-          </tr>
-          <tr>
-            <th>Entry limit</th>
-            <td>
-              <span className="accent">{data.entryLimit ? `${data.entryLimit} runs` : 'TBD'}</span>
-            </td>
-          </tr>
-          <tr>
-            <th>Opens</th>
-            <td>{shortDate(data.entryOpenDate, data.timezone)}</td>
-          </tr>
-          <tr>
-            <th>Closes</th>
-            <td>
-              <span className="accent">{shortDate(data.entryCloseDate, data.timezone)}</span>
-            </td>
-          </tr>
-          <tr>
-            <th>Confirmation</th>
-            <td>{shortDate(data.confirmationDate, data.timezone)}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div
+        className="landing-table-scroll"
+        role="region"
+        aria-label="Entry details table"
+        tabIndex={0}
+      >
+        <table className="hd-detail-table">
+          <tbody>
+            <tr>
+              <th>Sanctioning</th>
+              <td>{data.licenseLanguage}</td>
+            </tr>
+            <tr>
+              <th>Format</th>
+              <td>
+                {data.trials.length || 'TBD'} trial{data.trials.length === 1 ? '' : 's'}
+              </td>
+            </tr>
+            <tr>
+              <th>Entry limit</th>
+              <td>
+                <span className="accent">
+                  {data.entryLimit ? `${data.entryLimit} runs` : 'TBD'}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <th>Opens</th>
+              <td>{shortDate(data.entryOpenDate, data.timezone)}</td>
+            </tr>
+            <tr>
+              <th>Closes</th>
+              <td>
+                <span className="accent">{shortDate(data.entryCloseDate, data.timezone)}</span>
+              </td>
+            </tr>
+            <tr>
+              <th>Confirmation</th>
+              <td>{shortDate(data.confirmationDate, data.timezone)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       {data.fees.length > 0 && (
         <>
@@ -289,7 +294,7 @@ function Particulars({ data }: { data: HeritageLandingData }) {
 
 function Roster({ data }: { data: HeritageLandingData }) {
   const hasLimit = typeof data.entryLimit === 'number' && data.entryLimit > 0;
-  const pct = formatPercent(data.entryCount, data.entryLimit);
+  const pct = entryCapacityPercent(data.entryCount, data.entryLimit);
 
   return (
     <section className="hd-section" id="roster">
@@ -297,22 +302,30 @@ function Roster({ data }: { data: HeritageLandingData }) {
       <div className="hd-twocol">
         <div
           className="hd-capacity in"
-          style={{ '--hd-capacity-pct': `${pct}%` } as React.CSSProperties}
+          style={{ '--hd-capacity-pct': `${pct ?? 0}%` } as React.CSSProperties}
         >
           <div className="hd-capacity-head">
             <div className="nums">
-              {data.entryCount}
+              {formatEntryCount(data.entryCount)}
               {hasLimit && <span className="of">/{data.entryLimit}</span>}
             </div>
             <div className="lbl">
               Runs claimed
               <br />
-              <span className="accent">{hasLimit ? `${pct}% full` : 'Limit not posted yet'}</span>
+              <span className="accent">
+                {data.entryCount == null
+                  ? 'Count unavailable'
+                  : hasLimit && pct != null
+                    ? `${pct}% full`
+                    : 'Limit not posted yet'}
+              </span>
             </div>
           </div>
-          <div className="bar">
-            <div className="bar-fill" />
-          </div>
+          {pct != null && (
+            <div className="bar">
+              <div className="bar-fill" />
+            </div>
+          )}
           <div className="hd-capacity-foot">
             <div>{shortDate(data.entryOpenDate, data.timezone)}</div>
             <div>{shortDate(data.entryCloseDate, data.timezone)}</div>
@@ -321,24 +334,31 @@ function Roster({ data }: { data: HeritageLandingData }) {
 
         <div>
           <div className="hd-h2-kicker">Limits at a glance</div>
-          <table className="hd-detail-table">
-            <tbody>
-              <tr>
-                <th>Total</th>
-                <td>{data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD'}</td>
-              </tr>
-              <tr>
-                <th>Status</th>
-                <td>
-                  <span className="accent">Open</span> · accepting entries
-                </td>
-              </tr>
-              <tr>
-                <th>Times shown in</th>
-                <td>{formatTimezoneName(data.timezone)}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div
+            className="landing-table-scroll"
+            role="region"
+            aria-label="Entry limits table"
+            tabIndex={0}
+          >
+            <table className="hd-detail-table">
+              <tbody>
+                <tr>
+                  <th>Total</th>
+                  <td>{data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD'}</td>
+                </tr>
+                <tr>
+                  <th>Status</th>
+                  <td>
+                    <span className="accent">Open</span> · accepting entries
+                  </td>
+                </tr>
+                <tr>
+                  <th>Times shown in</th>
+                  <td>{formatTimezoneName(data.timezone)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -383,8 +403,7 @@ export function HeadlineLandingPage({
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline =
-    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   return (
     <div data-headline className="hd-shell">

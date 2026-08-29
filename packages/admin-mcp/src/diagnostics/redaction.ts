@@ -65,3 +65,19 @@ export function redactEvidenceValue(
 ): string | number | boolean | null {
   return redactSecretLikeValue(value);
 }
+
+/** Recursively scrub secret-shaped strings from structured diagnostic output. */
+export function redactDiagnosticValue<T>(value: T): T {
+  if (typeof value === 'string') {
+    return redactSensitive(value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => redactDiagnosticValue(item)) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, redactDiagnosticValue(item)])
+    ) as T;
+  }
+  return value;
+}

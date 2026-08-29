@@ -2,9 +2,10 @@ import { useRevealOnScroll } from '@/features/heritage/hooks/useRevealOnScroll';
 import { GazetteSectionHead } from '../../components/GazetteSectionHead';
 import { formatJourneyDate } from '../utils/dateFormat';
 import type { GazetteJourneyStep } from '../types';
+import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
   journeySteps: GazetteJourneyStep[];
   timezone: string;
@@ -25,9 +26,7 @@ export function RosterSection({
   volumeRoman,
 }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const pct = entryLimit && entryLimit > 0
-    ? Math.min(100, Math.round((entryCount / entryLimit) * 100))
-    : null;
+  const pct = entryCapacityPercent(entryCount, entryLimit);
 
   return (
     <section
@@ -41,7 +40,15 @@ export function RosterSection({
         page={4}
         volume={volumeRoman}
         kicker="As reported"
-        title={entryLimit ? <>Roster <em>filling</em></> : <>Roster open</>}
+        title={
+          entryLimit ? (
+            <>
+              Roster <em>filling</em>
+            </>
+          ) : (
+            <>Roster open</>
+          )
+        }
       />
       <div className="text-center">
         <div
@@ -54,7 +61,7 @@ export function RosterSection({
             color: 'var(--gz-ink)',
           }}
         >
-          {entryCount}
+          {formatEntryCount(entryCount)}
           {entryLimit != null && (
             <em
               style={{
@@ -96,13 +103,14 @@ export function RosterSection({
               } as React.CSSProperties
             }
           >
-            <div className="gz-capacity-bar" style={{ position: 'absolute', inset: '0 auto 0 0' }} />
+            <div
+              className="gz-capacity-bar"
+              style={{ position: 'absolute', inset: '0 auto 0 0' }}
+            />
           </div>
         )}
         {journeySteps.length > 0 && (
-          <div
-            className="mx-auto mt-6 grid max-w-[760px] grid-cols-1 gap-2 px-2 sm:grid-cols-2"
-          >
+          <div className="mx-auto mt-6 grid max-w-[760px] grid-cols-1 gap-2 px-2 sm:grid-cols-2">
             {journeySteps.map((step, i) => (
               <div
                 key={i}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { fetchScoringHierarchy } from '@/services/database/classes/scoringHierarchy';
 
 export interface ScoringBreadcrumbData {
   showId: string | undefined;
@@ -35,13 +36,20 @@ export function useScoringBreadcrumb(classId: string | undefined): ScoringBreadc
       try {
         const cls = await replicatedClassesTable.getClassById(classId);
         if (!cls) {
+          // F27 (second pass): a cold replica returns null WITHOUT throwing, and
+          // `showId` is DERIVED from this row -- so reporting undefined here left
+          // every caller unable to hydrate the show that would contain the class.
+          // Resolve the hierarchy from the server instead; callers can then sync
+          // the right scope. Mirrors the self-fall-through in
+          // services/database/classes/reads.ts.
+          const remote = await fetchScoringHierarchy(classId);
           setData({
-            showId: undefined,
-            showName: undefined,
-            trialId: undefined,
-            trialLabel: undefined,
+            showId: remote?.showId,
+            showName: remote?.showName,
+            trialId: remote?.trialId,
+            trialLabel: remote?.trialLabel,
             classId,
-            className: undefined,
+            className: remote?.className,
             isLoading: false,
           });
           return;

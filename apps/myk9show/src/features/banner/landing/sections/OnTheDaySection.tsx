@@ -8,15 +8,25 @@ import type { BannerOnDayItem } from '../types';
 interface OnTheDaySectionProps {
   items: BannerOnDayItem[];
   hospitalityNotes: string | null;
+  awardsDescription: string | null;
+  houseRulesNotes: string | null;
   flag: string;
 }
 
-export function OnTheDaySection({ items, hospitalityNotes, flag }: OnTheDaySectionProps) {
+export function OnTheDaySection({
+  items,
+  hospitalityNotes,
+  awardsDescription,
+  houseRulesNotes,
+  flag,
+}: OnTheDaySectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
   const all: BannerOnDayItem[] = [
     ...items,
     ...(hospitalityNotes ? [{ label: 'Hospitality', value: hospitalityNotes }] : []),
+    ...(awardsDescription ? [{ label: 'Awards', value: awardsDescription }] : []),
+    ...(houseRulesNotes ? [{ label: 'House rules', value: houseRulesNotes }] : []),
   ];
 
   if (all.length === 0) return null;

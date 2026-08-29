@@ -14,15 +14,16 @@ export function NotFoundState({ entityName, backTo, backLabel, className }: NotF
 
   return (
     <div
+      role="status"
       className={cn(
         'flex flex-col items-center justify-center min-h-[50vh] text-center',
-        className,
+        className
       )}
     >
       <div className="bg-muted rounded-full p-4 mb-4">
         <FileQuestion className="h-10 w-10 text-muted-foreground" />
       </div>
-      <h3 className="text-lg font-semibold mb-2">{entityName} Not Found</h3>
+      <h1 className="text-lg font-semibold mb-2">{entityName} Not Found</h1>
       <p className="text-muted-foreground mb-6">
         The {entityName.toLowerCase()} you&apos;re looking for doesn&apos;t exist or has been
         removed.

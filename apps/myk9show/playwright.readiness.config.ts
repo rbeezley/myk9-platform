@@ -23,7 +23,12 @@ export default defineConfig({
   workers: 1,
   timeout: 4 * 60 * 1_000,
   expect: { timeout: 20_000 },
-  reporter: [['list']],
+  reporter: [
+    ['list'],
+    // F10: must run AFTER the html reporter writes its report, so this is a
+    // reporter listed LAST -- a globalTeardown runs before reporter.onEnd.
+    ['./src/test/e2e/reporters/scrubSecretsReporter.ts'],
+  ],
   outputDir: 'test-results/readiness',
   use: {
     baseURL,

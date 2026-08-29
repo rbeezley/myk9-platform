@@ -50,7 +50,7 @@ export interface ShowLandingData {
 export function useShowLandingData(
   showId: string | undefined,
   associatedTrials: Trial[],
-  showEntries: Record<string, unknown>[]
+  showEntries: Record<string, unknown>[] | null
 ): ShowLandingData {
   // Public/anon fallback for trials. The trial store (associatedTrials) is fed by the
   // replication layer, which does NOT sync for guests — so a cold signed-out visitor on a

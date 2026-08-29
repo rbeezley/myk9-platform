@@ -108,6 +108,19 @@ describe('HeadlineLandingPage', () => {
     );
   });
 
+  it('keeps both wide tables in keyboard-reachable scroll regions', () => {
+    render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
+
+    expect(screen.getByRole('region', { name: 'Entry details table' })).toHaveAttribute(
+      'tabindex',
+      '0'
+    );
+    expect(screen.getByRole('region', { name: 'Entry limits table' })).toHaveAttribute(
+      'tabindex',
+      '0'
+    );
+  });
+
   it('renders heritage countdown content without requiring desktop-only layout', () => {
     render(<HeadlineLandingPage show={null} trial={null} allTrials={[]} />);
 

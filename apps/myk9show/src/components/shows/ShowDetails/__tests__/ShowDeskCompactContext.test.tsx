@@ -28,7 +28,11 @@ vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => mocks.sync,
 }));
 vi.mock('@/components/shows/ArmbandLookup', () => ({ ArmbandLookup: () => null }));
-vi.mock('@/components/shows/ShowStatusPill', () => ({ ShowStatusPill: () => null }));
+vi.mock('@/components/shows/ShowStatusPill', () => ({
+  ShowStatusPill: ({ clubId }: { clubId?: string }) => (
+    <div data-testid="status-pill" data-club-id={clubId} />
+  ),
+}));
 vi.mock('@/features/show-live-sync/LiveUpdateIndicator', () => ({
   LiveUpdateIndicator: () => null,
 }));
@@ -41,6 +45,7 @@ const show = {
   startDate: '2026-07-20',
   endDate: '2026-07-21',
   status: 'In Progress',
+  clubId: 'club-1',
 } as Show;
 
 function renderContext() {
@@ -68,10 +73,12 @@ describe('ShowDeskCompactContext', () => {
   it('keeps the canonical Overview reachable from Show Desk context', () => {
     renderContext();
 
-    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute(
-      'href',
-      '/shows/show-1'
-    );
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/shows/show-1');
+  });
+
+  it('gives the compact status control the host club required for publishing', () => {
+    renderContext();
+    expect(screen.getByTestId('status-pill')).toHaveAttribute('data-club-id', 'club-1');
   });
 
   it('shows a compact resolving exception when the premium is unpublished', () => {

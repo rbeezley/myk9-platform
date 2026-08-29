@@ -75,10 +75,11 @@ consolidation phase) they split four ways:
 
 ### Gated — require explicit human opt-in per page
 
-| Command   | Why gated                                                                                                                          |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `animate` | Motion must serve the role's target feeling in docs/INTENT.md; show-day pages (ringside, Show Desk) should stay calm.              |
-| `delight` | Project emoji policy: none in UI except celebratory moments (podium). Delight passes drift toward decoration; opt in deliberately. |
+| Command   | Why gated                                                                                                                                                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `animate` | Motion must serve the role's target feeling in docs/INTENT.md; show-day pages (ringside, Show Desk) should stay calm.                                                                                                                                  |
+| `delight` | Project emoji policy: none in UI except celebratory moments (podium). Delight passes drift toward decoration; opt in deliberately.                                                                                                                     |
+| `/design` | Not an `impeccable` command — the separate Claude Design canvas skill, used at **Phase 2.5** to turn a structural scope decision into a visual choice. Costs a round trip, needs the dispatcher present, and produces mockups that are never evidence. |
 
 ### Never run in this playbook
 
@@ -198,7 +199,83 @@ could have measured.
     duplication justified instead of a link?"_ Default answer is a deep-link,
     not new UI. Prefer `distill`-style deletions over additions.
 13. Anything touching role feelings, `// INTENT:` behavior, or page IA beyond
-    cosmetics: stop and surface to the user before proceeding.
+    cosmetics: stop and surface to the user before proceeding. If the
+    dispatcher opted in, Phase 2.5 is how that surfacing is done.
+
+### [ADDED] Phase 2.5 — Design canvas (gated; attended runs only)
+
+Step 13 currently hands the dispatcher a markdown findings table and asks them
+to approve a restructure sight-unseen; the first time they see it is the Vercel
+preview. This phase makes that one decision visual. It is optional, it is the
+only place `/design` belongs in this pipeline, and it changes no code.
+
+**Gate — run it only when ALL of these hold:**
+
+- Triage produced at least one IA / hierarchy / structural finding that step 13
+  requires surfacing. A table of pure `colorize` / `adapt` / `clarify` findings
+  does not qualify — go straight to Phase 3.
+- The run is **attended**. A canvas nobody looks at until morning is wasted
+  tokens; see the sweep-mode defaults.
+- The dispatcher opted in for this page, exactly as with `animate` / `delight`.
+
+Steps (lettered so the numbered pipeline keeps its existing cross-references):
+
+13a. **Read the ledger first, then seed from reality.** Open
+[`docs/reference/impeccable-structural-decisions.md`](reference/impeccable-structural-decisions.md)
+and read its **Patterns in force** table — those are the structural decisions
+earlier runs already made, and every artboard below must conform to them or
+explicitly argue against them (see 13d). `DESIGN.md` governs color, type, and
+component styling; the ledger governs page structure, which `DESIGN.md` does
+not cover. Then artboard 1 is **Current**: the
+Phase 1 screenshots at the width where the finding actually bites (usually
+1280; 375 if it is a mobile finding). If Phase 1 could not screenshot the
+branch — the worktree / Preview MCP caveat in step 9 — rebuild artboard 1 from
+the entry file's real markup and `DESIGN.md` tokens, and label it a
+reconstruction.
+
+13b. **`/design` 2–3 alternatives** for the SAME content at the SAME width,
+drawn with `DESIGN.md` tokens (`--chip-*`, `--status-*`, `--accent`, `--muted`,
+the real type scale) so the winner is buildable rather than aspirational.
+Constraints, inherited from CLAUDE.md's consolidation phase and the step 15
+bans:
+
+- Every element on an alternative must already exist on this page or on a page
+  it deep-links to. A blank canvas invites new surfaces, which is precisely
+  backwards for the phase we are in. Anything genuinely new still owes the
+  step 12 duplication answer **in writing, before** it reaches an artboard.
+- One alternative is always the **subtractive** option: the contested block
+  deleted and deep-linked elsewhere. It is often the right answer and it never
+  gets drawn unless you require it.
+- The Phase 3 hard bans apply to mockups too — no side-stripe borders, gradient
+  text, glassmorphism, hero-metric template, identical card grids, `#000`/`#fff`,
+  em dashes, or emoji. An artboard that violates them gets implemented and then
+  caught in `polish`, which wastes the whole round trip.
+
+13c. **The dispatcher picks one artboard, and that pick IS the step 13 scope
+decision.** Record it as the disposition of each structural finding in the
+merged table, then run Phase 3 implementing the chosen artboard. If the
+dispatcher picks none, the structural findings are dropped with that as their
+one-line reason and the run continues mechanical-only.
+
+13d. **Record the decision before Phase 3 starts.** Append one row to the
+ledger's decision log — date, page, PR, the triggering finding, the pattern
+chosen stated as a reusable rule, the rejected alternatives (including why the
+subtractive one lost), and the canvas Artifact URL. If the decision establishes
+a rule the next page should follow, also add a one-sentence entry to **Patterns
+in force**. This is the only write path the pipeline has back into shared
+design knowledge; skipping it is how the divergence this phase exists to
+prevent gets reintroduced. **If the chosen artboard contradicts a pattern
+already in force, stop and surface it** — either this page is a recorded
+exception or the pattern needs revising everywhere it shipped, and that is a
+repo-wide task, not a page task. Never resolve that conflict autonomously.
+
+**What this phase is not.** The canvas is a decision aid, never evidence. It
+does not satisfy the Phase 5 visual verification (step 23) or the Phase 6
+before/after (step 28) — both still require the real rendered branch. If the
+shipped page looks worse than the artboard, the implementation is wrong; the
+artboard does not get to stand in for it. And skip this phase whenever the fix
+is already obvious from the findings table — a round trip you did not need is
+the main way this phase goes wrong.
 
 ### [ADDED] Definition of done — the exit condition
 
@@ -375,9 +452,9 @@ routes here are the known-canonical ones.
 
 | #   | Page                                     | Route                                               | Notes                                                                                                                                                                                                                                                                                                                                                                                                            |
 | --- | ---------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | ~~Show Workbench — Setup~~                | ~~/shows/:id/setup~~                                | **RETIRED — not a valid target.** `ShowWorkbenchSetupPage.tsx` is now a 12-line `<Navigate>` to `/shows/:id`; the workbench-collapse plan moved its content to the Overview. Do not dispatch it. Its `SetupAdaptiveHeader` was stranded by the retirement and deleted in the p2 sweep.                                                                                                                       |
-| 2   | Show Workbench — Show Desk               | /shows/:showId/show-desk                            | **Swept** (PR pending). The old note ("ShowDeskAdaptiveHeader token fix lives here") was doubly stale: those chips had already been tokenised, AND the component was not rendered at all — `ShowDeskPanel` renders `SecretaryCockpit`. Deleted in that sweep.                                                                                                                                          |
-| 3   | Entry Management                         | /shows/:showId/entry-management                     | **Swept** ([#1835](https://github.com/rbeezley/myk9-platform/pull/1835)). The queue previously listed `/shows/:id/entries` and `EntriesManagementPage.tsx`; neither exists.                                                                                                                                                                                                                          |
+| 1   | ~~Show Workbench — Setup~~               | ~~/shows/:id/setup~~                                | **RETIRED — not a valid target.** `ShowWorkbenchSetupPage.tsx` is now a 12-line `<Navigate>` to `/shows/:id`; the workbench-collapse plan moved its content to the Overview. Do not dispatch it. Its `SetupAdaptiveHeader` was stranded by the retirement and deleted in the p2 sweep.                                                                                                                           |
+| 2   | Show Workbench — Show Desk               | /shows/:showId/show-desk                            | **Swept** (PR pending). The old note ("ShowDeskAdaptiveHeader token fix lives here") was doubly stale: those chips had already been tokenised, AND the component was not rendered at all — `ShowDeskPanel` renders `SecretaryCockpit`. Deleted in that sweep.                                                                                                                                                    |
+| 3   | Entry Management                         | /shows/:showId/entry-management                     | **Swept** ([#1835](https://github.com/rbeezley/myk9-platform/pull/1835)). The queue previously listed `/shows/:id/entries` and `EntriesManagementPage.tsx`; neither exists.                                                                                                                                                                                                                                      |
 | 4   | Reports                                  | /shows/:id/reports                                  |                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 5   | Results Control / Submit Results         | /shows/:id/results-*                                |                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 6   | Show creation wizard                     | /secretary/create-show/wizard                       | Has a real first-run state → `onboard` eligible                                                                                                                                                                                                                                                                                                                                                                  |
@@ -439,6 +516,13 @@ checkpoints and the cross-page sequencing.
    (skip + log) — never guess, never block the sweep waiting for an answer.
 3. **Do not merge by default.** Open each page's PR and leave it for morning
    review (the Vercel preview is the dispatcher's visual gate). See merge policy.
+4. **Phase 2.5 is skipped entirely, and the ledger is read-only.** The design
+   canvas exists to put a structural choice in front of a human; unattended
+   there is no human to look, and its output is a mockup no later phase
+   consumes. Structural findings are logged as chips per default 1, not drawn.
+   A sweep may **read** `docs/reference/impeccable-structural-decisions.md` for
+   context, but must never append a row — an unattended agent recording a
+   structural decision nobody approved is worse than no record at all.
 
 ### Sequencing — the collision rule (non-negotiable)
 

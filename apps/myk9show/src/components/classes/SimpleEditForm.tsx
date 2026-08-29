@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { TrialClass } from '@/components/trials/types/trial.types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
+import { formatJudgeAvailabilityWindow } from '@/utils/classJudgeDisplay';
 
 interface SimpleEditFormProps {
   open: boolean;
@@ -90,9 +91,9 @@ const SimpleEditForm: React.FC<SimpleEditFormProps> = ({
                     assignedJudges.map(judge => (
                       <SelectItem key={judge.judgeId} value={judge.judgeId}>
                         {judge.judgeName}
-                        {judge.availableStartTime !== 'Full Day' && (
+                        {formatJudgeAvailabilityWindow(judge) && (
                           <span className="text-xs text-muted-foreground ml-2">
-                            ({judge.availableStartTime} - {judge.availableEndTime})
+                            {formatJudgeAvailabilityWindow(judge)}
                           </span>
                         )}
                       </SelectItem>

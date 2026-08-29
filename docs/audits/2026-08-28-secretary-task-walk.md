@@ -113,7 +113,7 @@ any `.from('entries')` select in that module requests a revoked scored column, o
 if the fallback stops reading the view. Confirmed non-vacuous — all three
 assertions fail when the fix is reverted.
 
-### F2 — P2 — `.env.local` points secretary e2e runs at a deleted account
+### F2 — P2 — FIXED (#1858) — `.env.local` points secretary e2e runs at a deleted account
 
 `E2E_SECRETARY_EMAIL=e2e-secretary@test.myk9.com` has **no `auth.users` row**, so
 every local secretary sign-in fails with `Invalid login credentials`. The code
@@ -147,14 +147,14 @@ With a judge added, it works well — Step 3 auto-assigned the single judge to b
 secretary to "assign a judge to each class" on Step 3 without mentioning the Step 1
 prerequisite, so following the guide literally produces a show with no judges.
 
-### F5 — P2 — "Judges Assigned n/n" counts the wrong thing
+### F5 — P2 — FIXED (#1858) — "Judges Assigned n/n" counts the wrong thing
 
 The Review summary tile counts **judges used / judges added**, not classes covered.
 Two classes both assigned to one judge reads `1/1`; zero judges added with two
 unassigned classes reads `0/0` — which looks complete. The adjacent line
 ("2 Classes 0 Assigned") is correct, so the page contradicts itself.
 
-### F6 — P2 — Entry-close default time makes same-day close always invalid
+### F6 — P2 — FIXED (#1858) — Entry-close default time makes same-day close always invalid
 
 The wizard enforces *"Entry close date must be on or before the show start date."*
 The entry-period picker defaults the close time to **11:59 PM** while the show start
@@ -162,12 +162,29 @@ defaults to **8:00 AM**, so choosing the show's own start date as the entry-clos
 date — normal for a day-of-entry show — always violates the rule. The time control
 is inside the date popover, so the fix is not where the error is shown.
 
-### F7 — P3 — Judge and chairman pickers are not exposed as lists
+### F7 — P3 — MOSTLY FIXED ELSEWHERE — Judge and chairman pickers were not exposed as lists
 
-Rows in both pickers render as bare `<div>`s inside a `role="dialog"` popover, with
-no `option`, `listitem`, or button role, and the person's name is not a leaf node.
-Nothing is keyboard-navigable as a list or announced as a set of choices. This
-matters for a role explicitly described as low-computer-savviness volunteers.
+Accurate when observed, and largely resolved by someone else the same day.
+
+The walk found both pickers rendering rows as bare `<div>`s inside a `role="dialog"`
+popover — no `option`/`listitem` role, nothing keyboard-navigable, the person's name
+not a leaf node. `git log -S 'role="option"'` on
+`components/ui/grouped-searchable-popover.tsx` returns exactly one commit: `8b8868f33`,
+[#1845](https://github.com/rbeezley/myk9-platform/pull/1845), merged **2026-08-28** —
+the day of the walk. It added `role="listbox"`, `role="option"`, `tabIndex={0}` and
+Enter/Space activation. My snapshot predates it.
+
+Checked before changing anything, because F29 had just taught me what happens when I
+do not.
+
+**Residual, and it is real:** the listbox had no `aria-selected`. An ARIA listbox
+option carries its chosen state there, so a screen reader could enumerate the choices
+but never say which one was in effect — for a role the audit elsewhere describes as
+low-computer-savviness volunteers, that is the half that matters. Both pickers now
+pass their selection (`selectedItemIds`), single-select for chairman/secretary and
+multi-select for judges. The prop is optional: a picker tracking no persistent
+selection omits the attribute entirely rather than announcing a misleading
+"not selected".
 
 ### F8 — P3 — Chairman picker lists every person on the platform
 
@@ -176,17 +193,17 @@ admins — with no club-member grouping. A search box exists. The judge picker d
 this better: it splits "Qualified Judges: Credentials on File" from
 "All People: No Credentials Yet" with a *Tap to add credentials* affordance.
 
-### F9 — P3 — "1 classes"
+### F9 — P3 — FIXED (#1858) — "1 classes"
 
 Step 3, Detective element. Missing singular form.
 
-### F10 — P3 — Playwright failure artifacts capture the password in plaintext
+### F10 — P3 — FIXED (#1858) — Playwright failure artifacts capture the password in plaintext
 
 `test-results/**/error-context.md` records the accessibility snapshot including the
 filled password field's value. These artifacts persist locally and are uploaded by
 CI on failure.
 
-### F11 — P3 — Root `playwright.config.ts` cannot load from a worktree
+### F11 — P3 — FIXED (#1858) — Root `playwright.config.ts` cannot load from a worktree
 
 The root config imports `@playwright/test`, which the root workspace does not
 declare; it resolves in the main checkout only by hoisting accident. In a fresh
@@ -201,7 +218,7 @@ no way forward from the dialog they are standing in. The judge must first be add
 via **More show actions → Edit → Judges tab**, after which the dropdown offers them.
 Both halves work; nothing in the class dialog points at the other half.
 
-### F13 — P3 — Judge option label renders empty placeholders
+### F13 — P3 — FIXED (#1858) — Judge option label renders empty placeholders
 
 The class Edit dropdown lists the judge as `Test Judge( - )` — a template emitting
 its separator and parentheses with no values to put in them.
@@ -410,7 +427,7 @@ machine does not have, so CI is their first real run. It is registered in both
 `scripts/qa/run-behavioral-sql-tests.sh` and `run-behavioral-sql-tests.test.ts`;
 that registration is checked and passing, which proves only that it is on the list.
 
-### F17 — P3 — Secretary entry wizard links to the exhibitor guide
+### F17 — P3 — FIXED (#1858) — Secretary entry wizard links to the exhibitor guide
 
 The **Help** link on `/secretary/register/:showId` points at
 `help.myk9show.com/guides/exhibitor-guide` even in the secretary's mail-in and
@@ -438,7 +455,7 @@ A secretary reconciling mail-in checks against the Stripe payout therefore canno
 tell the two apart on the list, and the row asserts a payment channel that did not
 happen. The truth is on `entries.payment_method`, which the label never consults.
 
-### F19 — P3 — Filter chips do not expose their selected state (several pages)
+### F19 — P3 — FIXED (#1858) — Filter chips do not expose their selected state (several pages)
 
 `Needs review` / `Missing information` / `Payment due` / `All registrations` carry no
 `aria-pressed` or `aria-selected`, so assistive tech cannot tell which queue is
@@ -457,7 +474,7 @@ and only clicking `Completed` revealed that the default `Active` filter was hidi
 Manage Classes gets it right (`2 Total Classes [pressed]`), so the app is
 inconsistent with itself in three places.
 
-### F20 — P3 — Waitlist capacity cards are headed by the judge's name
+### F20 — P3 — FIXED (#1858) — Waitlist capacity cards are headed by the judge's name
 
 Waitlist Management lists capacity cards titled "Richard Beezley" and "Test Judge"
 with a date and "1 / 125 entries". This is the judge-day capacity model working as
@@ -589,7 +606,7 @@ computes — verified during the walk. So this is one missing report, not two.
 
 Planned as Phase 2B in `plan-secretary-walk-remediation.md`.
 
-### F27 — P2 — A cold replication store reports "Class not found" for a class that exists
+### F27 — P2 — FIXED (#1858) — A cold replication store reports "Class not found" for a class that exists
 
 Navigating directly to `/scoring/classes/:classId/entries` immediately after sign-in
 renders **"Class not found"** with a Go Back button. The class exists, renders on its
@@ -604,7 +621,7 @@ but here it states the absence as a fact rather than an error. It matters becaus
 class detail page's readiness rows deep-link straight to this URL, so a bookmark, a
 shared link, or a fresh device lands on a flat denial that the class is real.
 
-### F28 — P2 — Manage Classes shows the judge's UUID instead of their name
+### F28 — P2 — FIXED (#1858) — Manage Classes shows the judge's UUID instead of their name
 
 On `/shows/:showId/classes/:trialId` ("Manage Classes"), the per-class judge selector
 renders the judge's raw id as its visible text:
@@ -745,7 +762,7 @@ shows it does not own.
 entry on the demo show (`7ae6ac8b-…`, Interior Advanced) whose id falls outside the
 seed's fixture ranges, so a reseed will not remove it.
 
-### F31 — P3 — CORRECTED — A denied entry update is diagnosed internally as a deletion
+### F31 — P3 — CORRECTED, diagnosis FIXED (#1858) — CORRECTED — A denied entry update is diagnosed internally as a deletion
 
 **This finding was first written as a P1 silent-data-loss bug. That was wrong, and the
 correction is the substantive part.** The app *does* tell the secretary. On the failed
@@ -780,7 +797,7 @@ reading the log to work out *why* is pointed at the wrong cause.
 The optimistic list also shows the change as applied ("Needs review 1") until the
 failure lands — correct for offline-first, worth knowing when reading a screenshot.
 
-### F32 — P3 — The Volunteers page tells you to use a sidebar picker that does not exist
+### F32 — P3 — FIXED (#1858) — The Volunteers page tells you to use a sidebar picker that does not exist
 
 `/secretary/volunteers` without a `showId` renders **"Select a Show — Choose a show
 from the sidebar to manage volunteers."** The sidebar has no show picker; it has a
@@ -904,6 +921,98 @@ the Show Map, Show Desk and Entry Management so none of them offers cross-elemen
 lower-level targets. Confirmed live: an Interior Novice entry offered exactly one
 target (Interior Advanced), and a show with only Container Novice A + Interior Novice A
 correctly offered none.
+
+### F34 — P1 — FIXED — Every id-keyed dropdown in the app displayed a raw UUID
+
+Found while fixing F28, which turned out to be one instance of a general defect rather
+than a one-page bug.
+
+**Mechanism, verified against the installed package.** `@base-ui/react` 1.7.0 documents
+on `Select.Root` (`select/root/SelectRoot.d.ts:97`):
+
+> "Data structure of the items rendered in the select popup. When specified,
+> `<Select.Value>` renders the label of the selected item instead of the raw value."
+
+Our `SelectItem` wraps its children in `Select.ItemText` correctly, but the items are
+**unmounted while the popup is closed** — which is exactly when the trigger has to render
+a label. Without `items` on the root there is nothing to resolve the value against, so
+the trigger prints the value itself.
+
+**It is not limited to preselected values.** A scratch probe (written, run, deleted)
+rendered a select with no `items`, opened it, and clicked "Richard Beezley". The closed
+trigger then read:
+
+```
+TRIGGER TEXT AFTER SELECT >>> "08a66fc8-51b4-484a-918a-03bdd5a8d5bf"
+```
+
+So the user picks a name and the control answers with a UUID. Both the preset path (data
+loaded from the database) and the interactive path are affected.
+
+**Blast radius.** 179 `<Select>` sites pass a value without `items`. Most are harmless
+because their value already *is* the label (`"Novice"`, `"AKC"`). The visible damage is
+where value != label — **43 option sites across 34 files** keyed by an id:
+
+| Surface | File |
+| --- | --- |
+| Move-up target class | `features/show-map/ShowMapMoveUpDialog.tsx:100` |
+| Reports selector | `pages/secretary/ReportsPage/ReportControlsBar.tsx:228` (4) |
+| Incident log | `features/show-workbench/IncidentLogCard.tsx:190` (4) |
+| Waitlist show picker | `pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:66` (2) |
+| Check-in report trial | `pages/secretary/CheckInReportPage.tsx:258` |
+| Volunteer scheduling trial | `pages/secretary/VolunteerSchedulingPage/index.tsx:190` |
+| Class judge (4 more surfaces) | `SimpleClassSelector`, `SimpleEditForm`, `ClassEditForm`, `ClassEditPanel` |
+| Club pickers | `ShowEditBasicInfoTab`, `ManageUserRolesDialog`, `BulkRoleDialog` |
+| …plus 20 more | see the scan in the Phase 1 commit |
+
+**Fixed (2026-08-29) in the WRAPPER, not at the call sites.** The first pass patched
+`ClassManagementRow` alone and filed the other 33 files as a sweep. That framing was
+wrong: 43 hand-written `items` props would fix 43 sites and leave the 44th to
+reintroduce the bug — the "fix the class, not the instance" case.
+
+The shared `Select` wrapper now derives `items` by walking the `SelectItem` children it
+is already handed (through arrays, fragments and `SelectGroup`, since call sites nest
+them in `.map()` and conditionals). All 179 sites are fixed with no call-site change,
+and a new dropdown is correct by default.
+
+Two deliberate limits:
+
+- **An explicit `items` always wins.** A caller whose options are rendered by a nested
+  component is invisible to the walk and must pass them; `ClassManagementRow` also keeps
+  its override for a better label ("Assigned judge (unavailable)").
+- **A UUID-shaped value with no matching option is masked** as "Unavailable" rather than
+  printed. A selected row can legitimately be absent from the options — a judge filtered
+  out of a qualified list, or a list that has not loaded. Non-id values are left alone,
+  because there the value IS the label ("Novice", "Withdrawn").
+
+The "should the wrapper fail loudly when given a value with no items" question is now
+moot: it supplies the items itself.
+
+
+### F35 — P3 — NEW — A local time that is exactly UTC midnight resolves one day late
+
+Surfaced while fixing F6, and **pre-existing** rather than introduced by it.
+
+`toLocalDateOnly` (`utils/date-format.ts`) short-circuits any ISO string ending
+`T00:00:00Z` to its literal date part. That is deliberate and correct for its stated
+case: a `DATE` column round-trips as UTC midnight, and local getters would misread it
+as the previous day west of UTC. But a genuine *local* timestamp that happens to land
+on UTC midnight is indistinguishable from that — 5:00 PM PDT, 7:00 PM EST — so it
+resolves to the next calendar day.
+
+Concretely, a show ending 5:00 PM Pacific serialises to `2026-08-29T00:00:00.000Z` and
+reads as Aug 29 rather than Aug 28, which suppresses the "End date must be on or after
+start date" rule for that combination.
+
+Not a regression: the previous `slice(0, 10)` returned the same wrong date for the same
+input (verified before changing it), so F6's fix is a strict improvement that merely
+made this visible. Pinned by a test in `showCreationWizardValidation.test.ts` marked
+KNOWN LIMITATION rather than folded silently into an unrelated assertion.
+
+The real fix is for the wizard to carry date-only values instead of ISO datetimes, so
+the ambiguity never arises — that is a data-shape change across the picker and the
+show payload, not a one-line edit, so it is left open.
+
 
 ## What works well
 

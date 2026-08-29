@@ -3,6 +3,7 @@ import { formatMastheadDate } from '../utils/dateFormat';
 
 interface MastheadSectionProps {
   clubName: string;
+  showName: string;
   volumeRoman: string;
   edition: number | null;
   motto: string;
@@ -24,6 +25,7 @@ interface MastheadSectionProps {
  */
 export function MastheadSection({
   clubName,
+  showName,
   volumeRoman,
   edition,
   motto,
@@ -38,6 +40,7 @@ export function MastheadSection({
   return (
     <GazetteMasthead
       clubName={clubName}
+      headingLabel={showName}
       volumeRoman={volumeRoman}
       edition={edition}
       dateLabel={dateLabel}

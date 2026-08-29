@@ -2,45 +2,24 @@ import React, { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Calendar,
-  Trophy,
-  CheckCircle,
-  Edit,
-  Building2,
-  Save,
-  FileText,
-  Eye,
-  AlertTriangle,
-  ArrowLeft,
-  Users,
-  Loader2,
-} from 'lucide-react';
+import { Calendar, Trophy, Edit, Building2, FileText, AlertTriangle, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
-import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
-import {
-  canEnableOnlineEntries,
-  PUBLISH_BLOCKED_MESSAGE,
-} from '@/features/payments/onlineEntryGate';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import { format } from 'date-fns';
 import { formatFee } from '@/utils/format';
 import { formatTrialTypeLabel } from '@/types/template.types';
+import { countLabel } from '@/utils/pluralize';
+import { ReviewStepActions } from './ReviewStepActions';
 
 interface ReviewStepProps {
   className?: string;
   isLoading?: boolean;
-  onSaveDraft?: () => void;
   onCreateShow?: () => void;
-  onCreateAndPublish?: () => void;
   onBack?: () => void;
-  /** Override for the unpublished-save button label. Defaults to "Create Show (Unpublished)". */
+  /** Override for the create button label. Defaults to "Create Show". */
   submitLabel?: string;
-  /** Override for the publish button label. Defaults to "Create & Publish Show". */
-  publishLabel?: string;
   /**
    * True when the show's existing officials could not be READ. The wizard draft
    * starts with empty officials arrays, so without this an unreadable list is
@@ -54,19 +33,14 @@ interface ReviewStepProps {
 export const ReviewStep: React.FC<ReviewStepProps> = ({
   className,
   isLoading = false,
-  onSaveDraft,
   onCreateShow,
-  onCreateAndPublish,
   onBack,
-  submitLabel = 'Create Show (Unpublished)',
-  publishLabel = 'Create & Publish Show',
+  submitLabel = 'Create Show',
   officialsUnknown = false,
 }) => {
   const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
-  const navigate = useNavigate();
-  const clubAccountQuery = useClubStripeAccount(show.clubId || undefined);
 
   // Blocking issues are already listed in the error card above; this names them
   // at the moment of action so the refusal is explained rather than silent.
@@ -120,43 +94,6 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
       return;
     }
     onCreateShow?.();
-  };
-
-  // Publish gate (same rule as ShowStatusPill): the wizard is the primary way
-  // shows get published, and a show created already-published would permanently
-  // escape the transition-surface gates — onlineEntryGate deliberately never
-  // un-publishes. Fail closed here too, INCLUDING on a missing club (round-11
-  // review: the pill fails closed clubless; the wizard inverting that was a gap
-  // reachable via stale drafts/back-nav).
-  const handleCreateAndPublish = () => {
-    // Club stays FIRST: it has the money-aware message, and 'Club selection is
-    // required' is also in `errors`, so a generic report would bury it.
-    if (!show.clubId) {
-      toast.error('Select a club before publishing. Entry fees are paid out to the club.');
-      return;
-    }
-    if (errors.length > 0) {
-      reportBlockingErrors();
-      return;
-    }
-    if (clubAccountQuery.isLoading) {
-      toast.info('Checking the club’s payment account. Try again in a moment.');
-      return;
-    }
-    if (clubAccountQuery.isError) {
-      // A failed lookup is not "not connected" — say so instead of blaming
-      // the club's setup. Refetch so "try again" can actually succeed.
-      void clubAccountQuery.refetch();
-      toast.error('Could not check the club’s payment account. Please try again.');
-      return;
-    }
-    if (!canEnableOnlineEntries(clubAccountQuery.data)) {
-      toast.error(PUBLISH_BLOCKED_MESSAGE, {
-        action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
-      });
-      return;
-    }
-    onCreateAndPublish?.();
   };
 
   // Mark step complete when valid
@@ -290,10 +227,23 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
               <Users className="absolute -right-3 -bottom-3 h-20 w-20 text-muted-foreground/10" />
               <div className="relative">
-                <p className="text-sm font-medium text-muted-foreground">Judges Assigned</p>
+                {/* F5: this used to read uniqueAssignedJudges/totalJudges -- judges
+                    USED over judges ADDED -- under the label "Judges Assigned". Two
+                    classes sharing one judge showed 1/1, and a show with no judges and
+                    two uncovered classes showed 0/0, which reads as complete. A
+                    readiness tile has to count the thing that must be covered, so it
+                    now counts classes, agreeing with the "n of m classes need judges"
+                    line below rather than contradicting it. */}
+                <p className="text-sm font-medium text-muted-foreground">
+                  Classes with a Judge
+                </p>
                 <p className="text-4xl font-bold mt-1 text-foreground">
-                  {uniqueAssignedJudges}
-                  <span className="text-2xl text-muted-foreground">/{totalJudges}</span>
+                  {classesWithJudges}
+                  <span className="text-2xl text-muted-foreground">/{totalClasses}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {countLabel(uniqueAssignedJudges, 'judge')} of{' '}
+                  {countLabel(totalJudges, 'judge')} added
                 </p>
               </div>
             </div>
@@ -419,10 +369,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             <CardContent>
               <div className="space-y-6">
                 {trials.map((trial, trialIndex) => (
-                  <div
-                    key={trial.id}
-                    className="border rounded-lg p-5 bg-muted/30"
-                  >
+                  <div key={trial.id} className="border rounded-lg p-5 bg-muted/30">
                     {/* Trial Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -528,108 +475,18 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             </CardContent>
           </Card>
 
-          {/* Final Actions */}
-          <div className="space-y-4">
-            {/* Consolidated Status Messages */}
-            <div className="space-y-2">
-              {/* Success Status — only when there is actually nothing blocking.
-                  This used to render unconditionally, directly beneath the card
-                  listing the blocking errors. */}
-              {errors.length === 0 && (
-                <div className="bg-success/10 border border-success/30 rounded-lg p-3">
-                <div className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <div className="font-medium text-success text-sm">
-                      Show Configuration Complete
-                    </div>
-                      <p className="text-xs text-success mt-0.5">
-                        "{show.name}" ready with {trials.length} trials and {totalClasses} classes
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Warning if judges not fully assigned */}
-              {totalJudges > 0 && classesWithJudges < totalClasses && (
-                <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <div className="font-medium text-warning text-sm">
-                        Incomplete Judge Assignments
-                      </div>
-                      <p className="text-xs text-warning mt-0.5">
-                        {totalClasses - classesWithJudges} of {totalClasses} classes need judges
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Navigation and Actions */}
-            <div className="space-y-4">
-              {/* Back Button */}
-              <div className="flex justify-start">
-                <Button variant="outline" onClick={onBack}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Classes
-                </Button>
-              </div>
-
-              {/* Main Actions */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  variant="outline"
-                  onClick={onSaveDraft}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  Save as Draft
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  onClick={handleCreateShowGuarded}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <FileText className="h-4 w-4 mr-2" />
-                  )}
-                  {isLoading ? 'Saving...' : submitLabel}
-                </Button>
-
-                <Button
-                  onClick={handleCreateAndPublish}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Eye className="h-4 w-4 mr-2" />
-                  )}
-                  {isLoading ? 'Saving...' : publishLabel}
-                </Button>
-              </div>
-            </div>
-
-            <div className="text-xs text-muted-foreground text-center">
-              <p>Draft: Save progress and continue later</p>
-              <p>Create: Create show but keep private until you're ready</p>
-              <p>Create & Publish: Make show immediately visible for entries</p>
-            </div>
-          </div>
+          <ReviewStepActions
+            errorCount={errors.length}
+            showName={show.name}
+            trialCount={trials.length}
+            totalClasses={totalClasses}
+            totalJudges={totalJudges}
+            classesWithJudges={classesWithJudges}
+            isLoading={isLoading}
+            submitLabel={submitLabel}
+            onBack={onBack}
+            onCreateShow={handleCreateShowGuarded}
+          />
         </div>
       </div>
     </div>

@@ -12,7 +12,15 @@ interface TopStripProps {
   entryClosed?: boolean;
 }
 
-const SECTION_ANCHORS = ['§01', '§02', '§03', '§04', '§05', '§06', '§07'];
+const SECTION_ANCHORS = [
+  { id: '§01', label: 'Welcome' },
+  { id: '§02', label: 'Particulars' },
+  { id: '§03', label: 'Judges' },
+  { id: '§04', label: 'Roster' },
+  { id: '§05', label: 'Schedule' },
+  { id: '§06', label: 'Plan' },
+  { id: '§07', label: 'Registration details' },
+] as const;
 
 /**
  * The top ID strip — a sticky dark band carrying the show code, registry
@@ -45,11 +53,12 @@ export function TopStrip({
         <span>{licenseLanguage}</span>
         {entryLimit != null && <span>{entryLimit}-RUN LIMIT</span>}
       </div>
-      <nav style={{ display: 'flex', gap: 16 }}>
-        {SECTION_ANCHORS.map(a => (
+      <nav aria-label="Show sections" style={{ display: 'flex', gap: 16 }}>
+        {SECTION_ANCHORS.map(anchor => (
           <a
-            key={a}
-            href={`#${a}`}
+            key={anchor.id}
+            href={`#${anchor.id}`}
+            aria-label={anchor.label}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -59,13 +68,14 @@ export function TopStrip({
               textDecoration: 'none',
             }}
           >
-            {a}
+            <span aria-hidden="true">{anchor.id}</span>
           </a>
         ))}
       </nav>
       {canEnterOnline ? (
         <a
           href={entryWizardUrl}
+          aria-label="Enter show"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -77,7 +87,7 @@ export function TopStrip({
             textDecoration: 'none',
           }}
         >
-          ENTER →
+          ENTER <span aria-hidden="true">→</span>
         </a>
       ) : (
         <span

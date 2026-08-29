@@ -148,7 +148,20 @@ export function classifyEmptyUpdateResult({
     }
 
     if (!serverCheck) {
-      return new Error(`Row ${rowId} on ${tableName} no longer exists server-side.`);
+      // An empty re-read does NOT prove deletion. The re-check SELECT is filtered by
+      // the same RLS policy that just denied the UPDATE, so a row the caller may no
+      // longer read comes back indistinguishable from one that is genuinely gone --
+      // and PostgREST reports an RLS-denied UPDATE as `200 []`, not an error, so
+      // `serverCheckError` is unset on that path. Asserting deletion here sent
+      // developers hunting for a phantom delete when the real cause was a lost
+      // permission (F31: shows.club_id went NULL, so can_manage_show returned false).
+      // Both cases need the same user action, so name both rather than guessing.
+      return new Error(
+        `Row ${rowId} on ${tableName} is not readable after a rejected UPDATE: it was ` +
+          `either deleted, or RLS no longer grants this user access to it. ` +
+          `The re-read is filtered by the same policy that denied the write, so these ` +
+          `are indistinguishable from the client.`
+      );
     }
 
     if (serverCheck.version !== serverVersion) {

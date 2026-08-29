@@ -235,6 +235,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             { groupKey: GROUP_OTHERS, label: 'All People: No Credentials Yet', items: others },
           ]}
           renderItem={renderJudgeRow}
+          selectedItemIds={selectedIds}
           onSelect={handleSelect}
           footer={
             <Button

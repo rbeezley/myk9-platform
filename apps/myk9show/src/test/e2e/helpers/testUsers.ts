@@ -37,16 +37,23 @@ export interface TestUser {
   description: string;
 }
 
+// F2: these defaulted to '' while only the `description` named the real account, so a
+// stale env override (or a missing one) failed as `Invalid login credentials` -- the
+// same message Supabase returns for a wrong password, which reads as a rotation problem
+// rather than a bad address. The @test.myk9.com set these once pointed at was retired
+// on 2026-08-23 and has no auth.users rows. Defaulting to the canonical @myk9t.com
+// accounts, as DEMO_EXHIBITOR already did, makes a missing override harmless and an
+// unset email impossible. Passwords stay env-only and are never defaulted.
 export const TEST_USERS: Record<string, TestUser> = {
   SITE_ADMIN: {
-    email: process.env.E2E_ADMIN_EMAIL ?? '',
+    email: process.env.E2E_ADMIN_EMAIL ?? 'testadmin@myk9t.com',
     password: process.env.E2E_ADMIN_PASSWORD ?? '',
     role: 'site_admin',
     description: 'Site administrator — testadmin@myk9t.com, rotated 2026-06-18',
   },
 
   SECRETARY: {
-    email: process.env.E2E_SECRETARY_EMAIL ?? '',
+    email: process.env.E2E_SECRETARY_EMAIL ?? 'secretary@myk9t.com',
     password: process.env.E2E_SECRETARY_PASSWORD ?? '',
     role: 'secretary',
     description: 'Show secretary — secretary@myk9t.com, rotated 2026-06-18',
@@ -62,7 +69,7 @@ export const TEST_USERS: Record<string, TestUser> = {
   // Assigned to classes 031..035 of the Heartland show; 036..039 are assigned to
   // nobody, which is the negative subject for assignment-isolation tests.
   JUDGE: {
-    email: process.env.E2E_JUDGE_EMAIL ?? '',
+    email: process.env.E2E_JUDGE_EMAIL ?? 'judge@myk9t.com',
     password: process.env.E2E_JUDGE_PASSWORD ?? '',
     role: 'judge',
     description: 'Show judge — judge@myk9t.com, rotated 2026-06-18',

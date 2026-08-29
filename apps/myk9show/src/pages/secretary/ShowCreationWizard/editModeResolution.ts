@@ -35,20 +35,20 @@ export type EditModeResolution =
 
 interface ResolveEditModeArgs {
   editMode: EditMode | undefined;
-  /** Merged Zustand + React Query shows. */
-  allShows: readonly Show[];
-  /** React Query's list state. `undefined` data means not yet known. */
+  /** Shows available to the Zustand writer used by the wizard's save path. */
+  writableShows: readonly Show[];
+  /** The writer's backing store is still being loaded. */
   showsLoading: boolean;
 }
 
 export function resolveEditMode({
   editMode,
-  allShows,
+  writableShows,
   showsLoading,
 }: ResolveEditModeArgs): EditModeResolution {
   if (!editMode) return { state: 'not-applicable' };
 
-  const show = allShows.find(candidate => candidate.id === editMode.showId);
+  const show = writableShows.find(candidate => candidate.id === editMode.showId);
   if (show) return { state: 'resolved', show };
 
   if (showsLoading) return { state: 'loading' };

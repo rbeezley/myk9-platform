@@ -1,6 +1,6 @@
 /**
  * Single source of truth for "which styled landing page renders for
- * `shows.landing_style = X`". Used by ShowDetailsPage to pick the
+ * `getShowStyle(show) = X` from `shows.style`. Used by ShowDetailsPage to pick the
  * component, and by the cascade-routing test to assert that every
  * `ShowStyle` value maps to a non-null component.
  *

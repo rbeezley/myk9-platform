@@ -33,6 +33,12 @@
   --mz-meta: 'Inter Tight', system-ui, sans-serif;
 }
 
+[data-magazine] a:focus-visible,
+[data-magazine] button:focus-visible {
+  outline: 2px solid var(--mz-gold-2);
+  outline-offset: 3px;
+}
+
 /* ─── MagazineHeading ────────────────────────────────────────────────── */
 
 [data-magazine] .mz-heading {

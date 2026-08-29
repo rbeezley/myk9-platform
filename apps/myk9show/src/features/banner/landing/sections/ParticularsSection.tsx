@@ -34,8 +34,7 @@ export function ParticularsSection({
   flag,
 }: ParticularsSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const fmt = (iso: string | null) =>
-    iso ? formatDateInTimezone(iso, timezone, 'short') : null;
+  const fmt = (iso: string | null) => (iso ? formatDateInTimezone(iso, timezone, 'short') : null);
 
   const rows: Row[] = [
     { label: 'License', value: licenseLanguage },
@@ -65,48 +64,58 @@ export function ParticularsSection({
 
       <div ref={ref} className={`bn-reveal ${revealed ? 'in' : ''}`}>
         {rows.length > 0 && (
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontFamily: BANNER_BODY_FAMILY,
-              marginBottom: 48,
-            }}
+          <div
+            className="landing-table-scroll"
+            role="region"
+            aria-label="Show particulars table"
+            tabIndex={0}
           >
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={`${row.label}-${i}`} style={{ borderBottom: `1px solid ${bannerColors.hair}` }}>
-                  <td
-                    style={{
-                      padding: '18px 0',
-                      width: 240,
-                      fontFamily: BANNER_BODY_FAMILY,
-                      fontWeight: 500,
-                      fontSize: 11,
-                      letterSpacing: '0.2em',
-                      textTransform: 'uppercase',
-                      color: bannerColors.mute,
-                      verticalAlign: 'top',
-                    }}
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontFamily: BANNER_BODY_FAMILY,
+                marginBottom: 48,
+              }}
+            >
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr
+                    key={`${row.label}-${i}`}
+                    style={{ borderBottom: `1px solid ${bannerColors.hair}` }}
                   >
-                    {row.label}
-                  </td>
-                  <td
-                    style={{
-                      padding: '18px 0',
-                      fontFamily: BANNER_DISPLAY_FAMILY,
-                      fontWeight: 700,
-                      fontSize: 20,
-                      letterSpacing: '-0.02em',
-                      color: bannerColors.ink,
-                    }}
-                  >
-                    {row.value}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td
+                      style={{
+                        padding: '18px 0',
+                        width: 240,
+                        fontFamily: BANNER_BODY_FAMILY,
+                        fontWeight: 500,
+                        fontSize: 11,
+                        letterSpacing: '0.2em',
+                        textTransform: 'uppercase',
+                        color: bannerColors.mute,
+                        verticalAlign: 'top',
+                      }}
+                    >
+                      {row.label}
+                    </td>
+                    <td
+                      style={{
+                        padding: '18px 0',
+                        fontFamily: BANNER_DISPLAY_FAMILY,
+                        fontWeight: 700,
+                        fontSize: 20,
+                        letterSpacing: '-0.02em',
+                        color: bannerColors.ink,
+                      }}
+                    >
+                      {row.value}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {fees.length > 0 && (
@@ -125,8 +134,7 @@ export function ParticularsSection({
                 key={`${fee.label}-${i}`}
                 style={{
                   padding: '32px 24px',
-                  borderRight:
-                    i === fees.length - 1 ? 'none' : `1px solid ${bannerColors.hair}`,
+                  borderRight: i === fees.length - 1 ? 'none' : `1px solid ${bannerColors.hair}`,
                 }}
               >
                 <div

@@ -77,6 +77,17 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     expect(screen.queryByText('Payment Methods')).not.toBeInTheDocument();
   });
 
+  it('preserves the current wizard route when handing off complete club creation', () => {
+    render(<ShowDetailsStep />, {
+      initialRoute: '/secretary/create-show/wizard?source=club-handoff',
+    });
+
+    expect(screen.getByRole('link', { name: /create new club/i })).toHaveAttribute(
+      'href',
+      '/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard%3Fsource%3Dclub-handoff'
+    );
+  });
+
   it('renders "Credit/Debit Card — always enabled" as a locked row', () => {
     render(<ShowDetailsStep />);
     expect(screen.getByText('Credit/Debit Card — always enabled')).toBeInTheDocument();

@@ -139,7 +139,7 @@ describe('useMonogramLandingData', () => {
     const { result } = renderHook(() => useMonogramLandingData(show, null, []));
     expect(result.current.fees).toEqual([
       { label: 'First entry', amount: expect.stringContaining('25') },
-      { label: 'Each additional', amount: expect.stringContaining('22') },
+      { label: 'Day-of entry', amount: expect.stringContaining('22') },
     ]);
   });
 

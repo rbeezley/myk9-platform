@@ -84,3 +84,23 @@ export function resolveTrialJudgeName(
   if (judgeNames.length === 1) return judgeNames[0]!;
   return 'Multiple judges';
 }
+
+/**
+ * The "(09:00 - 17:00)" suffix shown beside a judge's name in the class judge
+ * pickers, or `null` when there is no window worth showing.
+ *
+ * F13: the call sites guarded only on `availableStartTime !== 'Full Day'`, so a
+ * judge with blank times -- which is what the seed and every judge added without
+ * an explicit window carry -- rendered the separator and parentheses with nothing
+ * in them: "Test Judge( - )". Both times must actually be present.
+ */
+export function formatJudgeAvailabilityWindow(judge: {
+  availableStartTime?: string | null | undefined;
+  availableEndTime?: string | null | undefined;
+}): string | null {
+  const start = cleanDisplayName(judge.availableStartTime);
+  const end = cleanDisplayName(judge.availableEndTime);
+  if (!start || !end) return null;
+  if (start === 'Full Day' || end === 'Full Day') return null;
+  return `(${start} - ${end})`;
+}

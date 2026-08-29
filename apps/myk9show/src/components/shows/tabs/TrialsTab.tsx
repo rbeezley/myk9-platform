@@ -17,7 +17,7 @@ import { StatusBadge } from '@/components/status';
 
 export interface TrialStats {
   classCount: number;
-  entryCount: number;
+  entryCount: number | null;
   completedClasses: number;
   hasStarted?: boolean;
 }
@@ -64,7 +64,7 @@ interface TrialRow {
   plannedStartTime: string | undefined;
   status: ClassStatusValue;
   classCount: number;
-  entryCount: number;
+  entryCount: number | null;
   completedClasses: number;
   hasStarted?: boolean;
 }
@@ -82,7 +82,11 @@ const trialColumns: ColumnDef<TrialRow, unknown>[] = [
   { accessorKey: 'trialTypeLabel', header: 'Type', meta: { responsiveHide: 'md' as const } },
   { accessorKey: 'plannedStartTime', header: 'Time', meta: { responsiveHide: 'md' as const } },
   { accessorKey: 'classCount', header: 'Classes' },
-  { accessorKey: 'entryCount', header: 'Entries' },
+  {
+    accessorKey: 'entryCount',
+    header: 'Entries',
+    cell: ({ row }) => row.original.entryCount ?? '—',
+  },
   {
     accessorKey: 'completedClasses',
     header: 'Scored',
@@ -279,8 +283,10 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
                             classes
                           </span>
                           <span>
-                            <strong className="text-card-foreground">{stats.entryCount}</strong>{' '}
-                            entries
+                            <strong className="text-card-foreground">
+                              {stats.entryCount ?? '—'}
+                            </strong>{' '}
+                            {stats.entryCount == null ? 'entries unavailable' : 'entries'}
                           </span>
                         </div>
                         {showScored && (

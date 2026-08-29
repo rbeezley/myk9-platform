@@ -142,3 +142,30 @@ describe('EntryManagementCockpit status seam', () => {
     expect(onStatusChange).toHaveBeenCalledWith('entry-1', EntryStatus.ACCEPTED, undefined);
   });
 });
+
+describe('EntryManagementCockpit queue chips (F19)', () => {
+  // The active queue was signalled by colour alone. A show with one entry lands on
+  // "Needs review", reads "No matching registrations", and shows "All registrations 1"
+  // beside it with nothing saying which filter is responsible. The Exceptions
+  // sub-tabs on this same page already exposed a pressed state.
+  it('marks the active queue and leaves the rest unpressed', () => {
+    renderCockpit(vi.fn<StatusChangeHandler>(async () => true));
+
+    expect(screen.getByRole('button', { name: /Needs review/ })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    for (const label of [/Missing information/, /Payment due/, /All registrations/]) {
+      expect(screen.getByRole('button', { name: label })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+    }
+  });
+
+  it('exposes the queue chips as a labelled group', () => {
+    renderCockpit(vi.fn<StatusChangeHandler>(async () => true));
+
+    expect(screen.getByRole('group', { name: 'Registration queues' })).toBeInTheDocument();
+  });
+});

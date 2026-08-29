@@ -98,6 +98,9 @@ export default defineConfig({
     ['html', { outputFolder: 'playwright-report-ci', open: 'never' }],
     ['github'],
     ['list'],
+    // F10: must run AFTER the html reporter writes its report, so this is a
+    // reporter listed LAST -- a globalTeardown runs before reporter.onEnd.
+    ['./src/test/e2e/reporters/scrubSecretsReporter.ts'],
   ],
   timeout: 60000,
   expect: {

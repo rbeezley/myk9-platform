@@ -72,7 +72,7 @@ test.describe('Show management workflow', () => {
       ['Show Desk', 'show-desk'],
       ['Entry Management', 'entry-management'],
       ['Reports', 'reports'],
-      ['Results & Check-In', 'results-control'],
+      ['Results', 'results-control'],
       ['Submit Results', 'submit-results'],
     ] as const) {
       await expect(managementNav.getByRole('link', { name: section[0] })).toHaveAttribute(

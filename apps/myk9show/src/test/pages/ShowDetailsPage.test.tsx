@@ -639,7 +639,7 @@ describe('ShowDetailsPage', () => {
       'href',
       '/shows/show-1/reports'
     );
-    expect(screen.getByRole('link', { name: 'Results & Check-In' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Results' })).toHaveAttribute(
       'href',
       '/shows/show-1/results-control'
     );

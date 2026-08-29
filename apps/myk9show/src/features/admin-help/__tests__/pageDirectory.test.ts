@@ -36,6 +36,12 @@ describe('pageDirectory (invariant)', () => {
     expect(paths).not.toContain('/secretary/run-order');
   });
 
+  it('catalogs Results without assigning self check-in to the closeout page', () => {
+    const results = pageDirectory.find(e => e.path === '/shows/:showId/results-control');
+    expect(results?.title).toBe('Results');
+    expect(`${results?.title} ${results?.description}`).not.toMatch(/check-in/i);
+  });
+
   it('matches canonical show management roles to the route guard', () => {
     const managementPaths = [
       '/shows/:showId/setup',

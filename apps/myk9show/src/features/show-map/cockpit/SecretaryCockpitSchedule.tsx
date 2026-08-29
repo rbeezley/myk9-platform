@@ -154,11 +154,11 @@ export function SecretaryCockpitSchedule({
                             'grid cursor-pointer gap-3 px-4 py-4 transition-colors hover:bg-muted/40 sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center',
                             focused &&
                               // `--primary` is a HEX (#a8472d / #d97757), not HSL channels, so
-                            // `hsl(var(--primary))` was invalid and the browser
-                            // discarded the WHOLE box-shadow: the focused row has
-                            // never had its 4px bar or its ring, in either theme.
-                            // Only `bg-primary/10` was ever visible.
-                            'bg-primary/10 shadow-[inset_4px_0_0_var(--primary)] ring-1 ring-inset ring-primary/55 hover:bg-primary/10'
+                              // wrapping the token in hsl() was invalid and the browser
+                              // discarded the WHOLE box-shadow: the focused row has
+                              // never had its 4px bar or its ring, in either theme.
+                              // Only `bg-primary/10` was ever visible.
+                              'bg-primary/10 shadow-[inset_4px_0_0_var(--primary)] ring-1 ring-inset ring-primary/55 hover:bg-primary/10'
                           )}
                         >
                           <div onClick={event => event.stopPropagation()}>

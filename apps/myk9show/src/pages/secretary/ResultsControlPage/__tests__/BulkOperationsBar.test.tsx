@@ -193,9 +193,15 @@ describe('BulkOperationsBar', () => {
 
   it('gives every action button a 44px minimum touch height', () => {
     renderBar();
-    for (const name of ['Clear', 'Enable Check-in', 'Disable Check-in', 'Release Results']) {
+    for (const name of ['Clear', 'Release Results']) {
       expect(screen.getByRole('button', { name: new RegExp(name) })).toHaveClass('min-h-[44px]');
     }
+  });
+
+  it('does not duplicate the self check-in bulk actions owned by Show Desk', () => {
+    renderBar();
+    expect(screen.queryByRole('button', { name: /Enable Check-in/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Disable Check-in/i })).not.toBeInTheDocument();
   });
 
   describe('Hide Results (un-release)', () => {

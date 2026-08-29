@@ -109,6 +109,7 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
         {classes.map(cls => cls.scoredCount).join(',')}
       </div>
       {tools.find(tool => tool.id === 'people-at-show')?.content}
+      {tools.find(tool => tool.id === 'self-checkin')?.content}
       {tools.find(tool => tool.id === 'show-closeout')?.content}
     </div>
   ),
@@ -128,6 +129,12 @@ vi.mock('@/features/show-desk-people-roster/ShowDeskPeopleRoster', () => ({
         {classes.map(cls => cls.entryCount).join(',')}
       </span>
     </div>
+  ),
+}));
+
+vi.mock('@/features/show-workbench/SelfCheckinTool', () => ({
+  SelfCheckinTool: ({ showId }: { showId: string }) => (
+    <div data-testid="self-checkin-tool">Self check-in for {showId}</div>
   ),
 }));
 
@@ -221,6 +228,11 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(screen.getByTestId('people-roster-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('people-roster-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('closeout-entry-count')).toHaveTextContent('8');
+    expect(screen.getByTestId('self-checkin-tool')).toHaveTextContent('Self check-in for show-1');
+    expect(screen.getByRole('link', { name: 'Results' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/results-control'
+    );
   });
 
   it('keeps cached Show Desk counts visible when a background refresh fails', async () => {

@@ -236,8 +236,9 @@ describe('ResultsControlPage', () => {
     expect(screen.getByTestId('results-readiness-verdict')).toHaveTextContent(
       "Here's what is still blocking closeout."
     );
-    expect(screen.getByText((_content, element) => element?.textContent === '1 unscored entry'))
-      .toBeInTheDocument();
+    expect(
+      screen.getByText((_content, element) => element?.textContent === '1 unscored entry')
+    ).toBeInTheDocument();
     // Renamed: it is a navigation, not a download. The file lives on Submit
     // Results, and labelling a Link as a file action on the page whose job is
     // telling the truth about results was the wrong place to be loose.
@@ -249,7 +250,7 @@ describe('ResultsControlPage', () => {
 
   it('renders page title', () => {
     renderPage();
-    expect(screen.getByText('Results & Check-In')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Results', level: 1 })).toBeInTheDocument();
   });
 
   it('renders all three preset cards', () => {
@@ -259,13 +260,13 @@ describe('ResultsControlPage', () => {
     expect(screen.getByText('After Review')).toBeInTheDocument();
   });
 
-  it('renders the show-level self check-in control', () => {
+  it('does not duplicate self check-in controls owned by Show Desk', () => {
     renderPage();
-    // The dedicated "Self Check-In" card was merged into the unified Results & Self
-    // Check-In card; the show-level toggle now lives under "Show defaults".
     expect(
-      screen.getByRole('switch', { name: 'Allow self check-in for show' })
-    ).toBeInTheDocument();
+      screen.queryByRole('switch', { name: 'Allow self check-in for show' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Enable Check-in/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Result visibility' })).toBeInTheDocument();
   });
 
   it('clicking a preset calls the visibility mutation', async () => {
@@ -287,14 +288,13 @@ describe('ResultsControlPage', () => {
 
     renderPage();
 
-    expect(screen.getByText('Results & Check-In')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Results', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Immediately')).toBeInTheDocument();
     expect(screen.getByText('After Class')).toBeInTheDocument();
     expect(screen.getByText('After Review')).toBeInTheDocument();
-    // Show-level check-in toggle renders even with no trials (independent of the tree).
     expect(
-      screen.getByRole('switch', { name: 'Allow self check-in for show' })
-    ).toBeInTheDocument();
+      screen.queryByRole('switch', { name: 'Allow self check-in for show' })
+    ).not.toBeInTheDocument();
   });
 
   it('shows the error state (not a perpetual skeleton) when the settings query errors', () => {

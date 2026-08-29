@@ -215,7 +215,7 @@ export function EntryRegistrationQueue({
                   density === 'compact' && 'py-2',
                   density === 'comfortable' && 'py-3',
                   focused &&
-                    'relative z-[1] bg-primary/10 shadow-[inset_4px_0_0_hsl(var(--primary)),inset_0_0_0_1px_hsl(var(--primary)/0.55)] hover:bg-primary/10'
+                    'relative z-[1] bg-primary/10 shadow-[inset_4px_0_0_var(--primary)] ring-1 ring-inset ring-primary/55 hover:bg-primary/10'
                 )}
                 onClick={() => onFocus(group)}
               >

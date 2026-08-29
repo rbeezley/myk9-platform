@@ -387,31 +387,39 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         onTabChange={tabId => setActiveTab(tabId as 'pending' | 'completed')}
       />
 
-      <div className="isolate">
-        <div className="pb-8 pt-2">
-          <EntryListContent
-            entries={currentEntries}
-            activeTab={activeTab}
-            isDragMode={isDragMode}
-            showContext={showContext}
-            classInfo={classInfo}
-            hasPermission={hasPermission}
-            onEntryClick={handleScoreClick}
-            onStatusClick={combinedHandlers.handleStatusClick}
-            onResetMenuClick={combinedHandlers.handleResetMenuClick}
-            onSelfCheckinDisabled={() => setSelfCheckinDisabledDialog(true)}
-            onPrefetch={handleEntryPrefetch}
-            showSectionBadges={true}
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onOpenDragMode={handleOpenDragMode}
-            {...(favorites ? { favorites } : {})}
-            {...(ownership ? { ownership } : {})}
-            DogCard={layout.DogCard}
-          />
+      {/* Wrapped in PullToRefresh like the single-class page. That slot also
+          carries the MYK9-115 containment banner ("Score sync paused"), so
+          rendering a plain div here meant a judge on a COMBINED class got no
+          notice that the server had paused their score uploads -- the precise
+          "queue stopped draining, assume it's lost, re-enter everything"
+          scenario the banner exists to prevent. */}
+      <layout.PullToRefresh onRefresh={() => refresh(true)} enabled={false} threshold={80}>
+        <div className="isolate">
+          <div className="pb-8 pt-2">
+            <EntryListContent
+              entries={currentEntries}
+              activeTab={activeTab}
+              isDragMode={isDragMode}
+              showContext={showContext}
+              classInfo={classInfo}
+              hasPermission={hasPermission}
+              onEntryClick={handleScoreClick}
+              onStatusClick={combinedHandlers.handleStatusClick}
+              onResetMenuClick={combinedHandlers.handleResetMenuClick}
+              onSelfCheckinDisabled={() => setSelfCheckinDisabledDialog(true)}
+              onPrefetch={handleEntryPrefetch}
+              showSectionBadges={true}
+              sensors={sensors}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onOpenDragMode={handleOpenDragMode}
+              {...(favorites ? { favorites } : {})}
+              {...(ownership ? { ownership } : {})}
+              DogCard={layout.DogCard}
+            />
+          </div>
         </div>
-      </div>
+      </layout.PullToRefresh>
 
       <CombinedEntryListDialogs
         isFilterPanelOpen={isFilterPanelOpen}

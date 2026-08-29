@@ -19,6 +19,9 @@ vi.mock('../components/EntryListContent', () => ({
 }));
 
 const passthrough = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
+const pullToRefreshSpy = ({ children }: { children?: React.ReactNode }) => (
+  <div data-testid="pull-to-refresh">{children}</div>
+);
 
 function makeProps(
   overrides: {
@@ -34,7 +37,17 @@ function makeProps(
     data: { entries, classInfo: { className: 'Novice A/B' } },
     dataStatus: { isRefreshing: false, fetchError, refresh: vi.fn() },
     actions: {},
-    combinedHandlers: {},
+    combinedHandlers: {
+      resetConfirmDialog: { show: false, entry: null },
+      resetMenuEntryId: null,
+      resetMenuPosition: null,
+      handleStatusClick: vi.fn(),
+      handleResetMenuClick: vi.fn(),
+      handleResetScore: vi.fn(),
+      confirmResetScore: vi.fn(),
+      cancelResetScore: vi.fn(),
+      closeResetMenu: vi.fn(),
+    },
     uiState: {
       localEntries: entries,
       sortOrder: 'section-armband',
@@ -59,6 +72,8 @@ function makeProps(
     },
     derived: {
       currentEntries: entries,
+      completedEntries: [],
+      pendingEntries: entries,
       entryCounts: { pending: 0, completed: 0, all: 0 },
       searchTerm: '',
       setSearchTerm: vi.fn(),
@@ -74,7 +89,7 @@ function makeProps(
       ScoresheetPrintDialog: () => null,
     },
     layout: {
-      PullToRefresh: passthrough,
+      PullToRefresh: pullToRefreshSpy,
       HamburgerMenu: () => null,
       CompactOfflineIndicator: () => null,
       SyncIndicator: () => null,
@@ -108,6 +123,15 @@ describe('CombinedEntryListPage — load states', () => {
 
     expect(screen.getByText(/no entries yet/i)).not.toBeNull();
     expect(screen.queryByTestId('entry-list-content')).toBeNull();
+  });
+
+  it('routes its content through the PullToRefresh slot, which carries the containment banner', () => {
+    // Rendering a plain div here meant a judge on a COMBINED class got no notice
+    // that the server had paused their score uploads (MYK9-115) -- the single-
+    // class page has always wrapped its content in this slot.
+    renderPage(makeProps({ entries: [{ id: 'e1', classId: 'class-a' }], isLoaded: true }));
+
+    expect(screen.getByTestId('pull-to-refresh')).not.toBeNull();
   });
 
   it('still shows the skeleton while the load has not completed', () => {

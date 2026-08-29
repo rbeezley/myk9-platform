@@ -23,7 +23,7 @@ import {
   SensorOptions,
   AutoScrollActivator,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { SortableEntryCard } from '../SortableEntryCard';
 import type { Entry } from '../../../stores/entryStore';
 import type { EntryListPermission } from '../permissions';
@@ -146,7 +146,13 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
         interval: 5,
       }}
     >
-      <SortableContext items={entries.map(e => e.id)} strategy={verticalListSortingStrategy}>
+      {/* rectSortingStrategy, NOT verticalListSortingStrategy: the container is
+          `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`, and the vertical strategy
+          assumes single-column stacking. Above 640px -- a phone in landscape at
+          ringside, or any tablet -- it computed drop previews and translate
+          offsets against the wrong axis, so cards jumped to visibly wrong slots
+          and reorder was unusable on every layout except one column. */}
+      <SortableContext items={entries.map(e => e.id)} strategy={rectSortingStrategy}>
         <div
           className={`grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5 ${isAnimating ? 'stagger-children' : 'stagger-pending'} ${isDragMode ? 'drag-mode' : ''}`}
         >

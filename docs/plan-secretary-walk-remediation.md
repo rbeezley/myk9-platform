@@ -55,13 +55,82 @@ that may be a deliberate choice.
 
 | # | Finding | The question |
 | --- | --- | --- |
-| 2.1 | **F30** (P1) | Deleting a club nulls `club_id` on every show it owns (`ON DELETE SET NULL`), and MYK9-258 then makes those shows manageable by nobody with no in-app repair. Fix as `ON DELETE RESTRICT` (the seed would have to stop delete-recreating its club), a `NOT NULL` constraint, or a site-admin reassign-club path? |
-| 2.2 | **F26** (P1) | High in Trial / High in Class does not exist — `AwardsProcessor` is a prototype returning hardcoded winners. What is the rule? Which element/level qualifies, how do ties break, what happens across multiple trials in a day? |
+| 2.1 | **F30** (P1) | **DECIDED 2026-08-29 — see Phase 2A.** |
+| 2.2 | **F26** (P1) | **DECIDED 2026-08-29 — rules read, see Phase 2B.** |
 | 2.3 | F3 | Escape anywhere in the creation wizard raises "Unsaved Changes — leave the wizard?". Is that intended, or should Escape only dismiss the focused popover? |
 | 2.4 | F8 | The Show Chairman picker lists every person on the platform. Should it be club-scoped, or is cross-club chairman selection legitimate? |
 | 2.5 | F22 / F23 | `/secretary/messages` is history-only and composing lives in a header panel that does not inherit the show you opened it from. Should Messages gain a composer, or should the panel be the only entry point and Messages link to it? |
 | 2.6 | F18 | Every paid entry displays "Paid online" because `mapPaymentStatus` maps the generic `'paid'` onto `PAID_ONLINE`. Should the label read `entries.payment_method`, or should the status enum carry the channel? |
 | 2.7 | F24 | Other clubs' show names appear in the Communication History filter. Names and existence leak; content isolation is **untested** (no load show has messages). Needs a scoping decision and a test that proves content is isolated. |
+
+---
+
+## Phase 2A — F30: make the orphaned-show state unreachable
+
+**Decision:** `ON DELETE RESTRICT`, not a repair path.
+
+A site-admin reassign path only helps once someone notices, and nobody will: the
+failure is silent and the affected secretary cannot act, because every repair write is
+itself gated by `can_manage_show`. `RESTRICT` states the actual invariant — a club is a
+tenant root, so its shows must be moved or removed before it can be deleted.
+
+1. Alter `shows_club_id_fkey` from `ON DELETE SET NULL` to `ON DELETE RESTRICT`.
+2. Change `seed-demo.sql` to stop delete-recreating its club: replace the
+   `DELETE FROM public.clubs WHERE id IN (…)` + `INSERT` pair with
+   `INSERT … ON CONFLICT (id) DO UPDATE`, which sidesteps the cascade entirely. Without
+   this the seed cannot run against the new constraint.
+3. Behavioural SQL test: deleting a club that owns a show is refused; deleting one with
+   no shows still works. Register it in BOTH `run-behavioral-sql-tests.sh` and
+   `run-behavioral-sql-tests.test.ts`.
+
+**Deferred:** `NOT NULL` on `shows.club_id`. It is the stronger guard but needs the four
+already-orphaned audit shows cleaned up first — and one of them cannot be repaired
+in-app, which is this finding. Do it after Phase 3.5.
+
+**Accepted trade-off:** club deletion becomes harder for a real admin. That is the
+correct direction, but it is a deliberate cost, not an oversight.
+
+---
+
+## Phase 2B — F26: High in Trial
+
+**Rules read** from `docs/rulebooks/akc-scent-work-regulations.txt`, Chapter 6. This is
+a club award, not an AKC-recorded one, but it is computed from qualifying data and must
+not be invented.
+
+**§8 — High in Trial.** Offered only when a club runs **more than one element**
+(Container, Interior, Exterior, Buried) at a given difficulty level. Eligible teams are
+those that **entered every element offered at that level and qualified in each**.
+Handler Discrimination is **excluded**, even when offered. Ranking: fewest **faults
+summed across the elements**; tie → fastest **summed time**; still tied → **coin flip**.
+**One winner per difficulty level.**
+
+**§10 — limited offerings.** Where elements differ by level, a level's HIT is computed
+over all classes *available at that level*. Rulebook example: Container + Interior +
+Exterior at Novice and Container + Interior at Advanced gives a Novice HIT across three
+elements and an Advanced HIT across two.
+
+**§9 — High Combined Division.** If a club offers HIT **and** Handler Discrimination, it
+**must also** confer HCD: same computation, including HD. Our text copy truncates
+mid-sentence at a page break, so HCD's tie-break wording must be checked against
+`docs/AKC-forms/` or the source PDF before implementing it.
+
+**"High in Class" is not an AKC concept** — zero occurrences in the rulebook. The
+equivalent is §6 **Placements 1–4** per class (fewest faults, then time, then coin
+flip), which the app already computes correctly (verified during the walk). So task 11
+needs one report, not two.
+
+Implementation notes:
+
+- Scope is **trial**, not class — a `reportRegistry` entry with `scopes: ['trial']`.
+- The report must **surface ties rather than resolve them**: a coin flip is a human act,
+  so a tied pair is displayed as tied and the secretary records the outcome.
+- Eligibility needs the element set offered per level, so it is derived from the
+  trial's classes, not from entries alone.
+- Do **not** reuse `components/awards/AwardsProcessor.tsx` — it computes nothing
+  (simulated delays, hardcoded winners). Delete it with this work, along with the test
+  that keeps it alive.
+- HCD is in scope only once §9's full text is confirmed; ship HIT first.
 
 ---
 

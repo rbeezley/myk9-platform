@@ -576,12 +576,18 @@ Its only importer anywhere is `src/test/phase5-component-validation.test.ts`, wh
 renders it directly. So a passing test keeps a mock alive that no user can reach and
 that would produce fabricated winners if they could.
 
-**Not fixed, and deliberately not attempted.** This is a feature, not a wiring bug:
-it needs a real High-in-Trial rule (which element/level counts, how ties break, what
-happens across multiple trials in a day), and inventing one would put invented
-placements on paperwork that goes to a registry. The report scaffolding is cheap —
-a `reportRegistry` entry is id/name/scopes/component — so the cost is the rule, not
-the plumbing.
+**Not fixed; rule since established.** `docs/rulebooks/akc-scent-work-regulations.txt`
+Chapter 6 §8 defines it: offered only when more than one element runs at a difficulty
+level; eligible teams entered every element offered at that level and qualified in each;
+Handler Discrimination excluded; ranked by summed faults, then summed time, then a coin
+flip; one winner per level. §10 covers uneven element offerings, and §9 makes High
+Combined Division mandatory alongside HIT when Handler Discrimination is offered.
+
+Also worth correcting: **"High in Class" is not an AKC concept** (zero rulebook
+occurrences). The equivalent is §6 Placements 1–4 per class, which the app already
+computes — verified during the walk. So this is one missing report, not two.
+
+Planned as Phase 2B in `plan-secretary-walk-remediation.md`.
 
 ### F27 — P2 — A cold replication store reports "Class not found" for a class that exists
 

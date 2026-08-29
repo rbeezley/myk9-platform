@@ -38,6 +38,7 @@ export type {
   TableFilter,
   QueryOptions,
   CacheStats,
+  ReplicatedReadResult,
 } from './types';
 
 // Conflict Resolution

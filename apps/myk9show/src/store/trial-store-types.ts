@@ -4,6 +4,8 @@ import type { ClassStatusValue } from '@myk9/core';
 // Re-export types for external usage
 export type { Trial, TrialClass };
 
+export type ReplicatedReadStatus = 'idle' | 'loading' | 'ready' | 'error';
+
 // Extend Trial interface with sync metadata
 export interface SyncableTrial extends Trial {
   _version: number;
@@ -77,6 +79,9 @@ export interface TrialStore {
   selectedTrialId: string | null;
   isLoading: boolean;
   error: string | null;
+  trialsReadStatus: ReplicatedReadStatus;
+  trialsReadError: string | null;
+  trialsHasConfirmedSnapshot: boolean;
 
   // Local-First Trial Actions
   addTrial: (trialData: TrialInput, userId: string) => Promise<SyncableTrial>;
@@ -104,6 +109,9 @@ export interface TrialStore {
 
   // Trial Classes
   trialClasses: Record<string, SyncableTrialClass[]>; // Maps trialId to its classes
+  trialClassesReadStatus: ReplicatedReadStatus;
+  trialClassesReadError: string | null;
+  trialClassesHasConfirmedSnapshot: boolean;
   addTrialClass: (
     trialId: string,
     trialClassData: TrialClassInput,

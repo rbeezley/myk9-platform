@@ -5,6 +5,7 @@ import type { SyncResult, SyncOptions } from '../types';
 interface TestEntity {
   id: string;
   name: string;
+  license_key?: string;
   score?: number;
   class_id?: string;
   status?: string;
@@ -408,11 +409,17 @@ describe('ReplicatedTable', () => {
         baseData: { status: 'absent', finalPlacement: 2 },
         serverVersion: 5,
       });
-      expect(reconcileQueue).toHaveBeenCalledWith(table.getTableName(), '1', 5, {
-        id: '1',
-        status: 'checked-in',
-        final_placement: 2,
-      }, ['status']);
+      expect(reconcileQueue).toHaveBeenCalledWith(
+        table.getTableName(),
+        '1',
+        5,
+        {
+          id: '1',
+          status: 'checked-in',
+          final_placement: 2,
+        },
+        ['status']
+      );
     });
 
     it('resolveReplicationConflict take-remote replaces local data and marks synced', async () => {
@@ -516,7 +523,9 @@ describe('ReplicatedTable', () => {
       await table.set('1', entity, true);
       await table.markAsSynced('1');
 
-      await expect(table.set('1', { id: '1', name: 'Rex from server' }, false)).resolves.not.toThrow();
+      await expect(
+        table.set('1', { id: '1', name: 'Rex from server' }, false)
+      ).resolves.not.toThrow();
       const result = await table.get('1');
       expect(result?.name).toBe('Rex from server');
     });
@@ -615,7 +624,11 @@ describe('ReplicatedTable', () => {
       await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
       await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
       const row1 = await table.getReplicatedRow('1');
-      await table.markConflict('1', { ...makeSnapshot(row1!.version), tableName: table.getTableName(), rowId: '1' });
+      await table.markConflict('1', {
+        ...makeSnapshot(row1!.version),
+        tableName: table.getTableName(),
+        rowId: '1',
+      });
 
       // Row 2: just pending (not conflicted)
       await table.set('2', { id: '2', name: 'Buddy', status: 'ready' });
@@ -625,7 +638,11 @@ describe('ReplicatedTable', () => {
       await table.set('3', { id: '3', name: 'Max', status: 'ready' });
       await table.set('3', { id: '3', name: 'Max', status: 'checked-in' }, true);
       const row3 = await table.getReplicatedRow('3');
-      await table.markConflict('3', { ...makeSnapshot(row3!.version), tableName: table.getTableName(), rowId: '3' });
+      await table.markConflict('3', {
+        ...makeSnapshot(row3!.version),
+        tableName: table.getTableName(),
+        rowId: '3',
+      });
 
       const conflicts = await table.getConflictedRows();
       expect(conflicts).toHaveLength(2);
@@ -637,7 +654,10 @@ describe('ReplicatedTable', () => {
       await table.set('1', { id: '1', name: 'Rex', status: 'ready' });
       await table.set('1', { id: '1', name: 'Rex', status: 'checked-in' }, true);
       const row = await table.getReplicatedRow('1');
-      await table.markConflict('1', { ...makeSnapshot(row!.version), tableName: table.getTableName() });
+      await table.markConflict('1', {
+        ...makeSnapshot(row!.version),
+        tableName: table.getTableName(),
+      });
 
       await table.clearConflict('1');
 
@@ -646,6 +666,69 @@ describe('ReplicatedTable', () => {
   });
 
   describe('getAll', () => {
+    it('distinguishes a confirmed empty table from a failed read', async () => {
+      await expect(table.getAllWithStatus()).resolves.toEqual({
+        ok: true,
+        rows: [],
+        error: null,
+      });
+    });
+
+    it('preserves license filtering in status-bearing reads', async () => {
+      await table.set('1', { id: '1', name: 'Rex', license_key: 'license-a' });
+      await table.set('2', { id: '2', name: 'Mabel', license_key: 'license-b' });
+
+      await expect(table.getAllWithStatus('license-a')).resolves.toEqual({
+        ok: true,
+        rows: [{ id: '1', name: 'Rex', license_key: 'license-a' }],
+        error: null,
+      });
+    });
+
+    it('reports a failed read while legacy getAll keeps its empty-array fallback', async () => {
+      const { databaseManager } = await import('./DatabaseManager');
+      const getDatabase = vi
+        .spyOn(databaseManager, 'getDatabase')
+        .mockRejectedValueOnce(new Error('IndexedDB unavailable'))
+        .mockRejectedValueOnce(new Error('IndexedDB unavailable'));
+
+      const statusResult = await table.getAllWithStatus();
+
+      expect(statusResult.ok).toBe(false);
+      expect(statusResult.rows).toEqual([]);
+      expect(statusResult.error).toBeInstanceOf(Error);
+      expect(databaseManager.getStatus().consecutiveFailures).toBe(1);
+      await expect(table.getAll()).resolves.toEqual([]);
+      expect(databaseManager.getStatus().consecutiveFailures).toBe(2);
+      getDatabase.mockRestore();
+    });
+
+    it('reports a timeout as a failed status-bearing read', async () => {
+      const { databaseManager } = await import('./DatabaseManager');
+      const { GET_ALL_TIMEOUT_MS } = await import('../constants');
+      const failuresBeforeRead = databaseManager.getStatus().consecutiveFailures;
+      const getDatabase = vi
+        .spyOn(databaseManager, 'getDatabase')
+        .mockReturnValue(new Promise(() => undefined));
+      vi.useFakeTimers();
+
+      try {
+        const pendingResult = table.getAllWithStatus();
+        await vi.advanceTimersByTimeAsync(GET_ALL_TIMEOUT_MS);
+
+        const result = await pendingResult;
+        expect(result.ok).toBe(false);
+        expect(result.rows).toEqual([]);
+        expect(result.error).toEqual(
+          new Error(`[${tableName}] getAll() timed out after ${GET_ALL_TIMEOUT_MS}ms`)
+        );
+        expect(databaseManager.getStatus().consecutiveFailures).toBeGreaterThan(failuresBeforeRead);
+      } finally {
+        vi.useRealTimers();
+        getDatabase.mockRestore();
+      }
+    });
+
     it('should return empty array when no data', async () => {
       const results = await table.getAll();
 

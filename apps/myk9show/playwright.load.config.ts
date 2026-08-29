@@ -14,6 +14,8 @@ const startApp = process.env.LOAD_TEST_START_APP === 'true';
 const appServerMode = resolveLoadAppServerMode(process.env);
 
 export default defineConfig({
+  // F10: scrub e2e passwords out of failure artifacts before CI uploads them.
+  globalTeardown: './src/test/e2e/helpers/scrubArtifactSecrets.ts',
   testDir: './src/test/load',
   testMatch: 'playwright-load-tests.spec.ts',
   fullyParallel: false,

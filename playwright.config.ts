@@ -27,6 +27,8 @@ loadEnv({ path: path.join(myk9showRoot, '.env.local'), override: false });
 loadEnv({ path: path.join(myk9showRoot, '.env'), override: false });
 
 export default defineConfig({
+  // F10: scrub e2e passwords out of failure artifacts before they are uploaded.
+  globalTeardown: path.join(myk9showRoot, 'src/test/e2e/helpers/scrubArtifactSecrets.ts'),
   testDir: path.join(myk9showRoot, 'src/test/e2e'),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

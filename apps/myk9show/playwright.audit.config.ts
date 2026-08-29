@@ -18,6 +18,8 @@ const target = resolveAuditTarget(process.env);
  * write guard before navigation.
  */
 export default defineConfig({
+  // F10: scrub e2e passwords out of failure artifacts before CI uploads them.
+  globalTeardown: './src/test/e2e/helpers/scrubArtifactSecrets.ts',
   testDir: './src/test/e2e',
   fullyParallel: false,
   workers: 1,

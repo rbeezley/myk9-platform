@@ -42,6 +42,13 @@ export function scrubSecrets(text: string, secrets: readonly string[]): string {
   return out;
 }
 
+/**
+ * Extensions that can carry a snapshot verbatim. The HTML reporter inlines
+ * attachments (error-context.md among them) into its own .json/.html payloads, so
+ * scrubbing only .md/.txt under test-results/ leaves the uploaded report untouched.
+ */
+const SCRUBBABLE_EXTENSIONS = ['.md', '.txt', '.json', '.html'] as const;
+
 async function* walk(dir: string): AsyncGenerator<string> {
   let entries;
   try {
@@ -52,17 +59,27 @@ async function* walk(dir: string): AsyncGenerator<string> {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) yield* walk(full);
-    else if (entry.name.endsWith('.md') || entry.name.endsWith('.txt')) yield full;
+    else if (SCRUBBABLE_EXTENSIONS.some(ext => entry.name.endsWith(ext))) yield full;
   }
 }
 
-export async function scrubArtifactSecrets(outputDir: string): Promise<void> {
+/**
+ * Every artifact root a Playwright config in this repo writes to. CI uploads
+ * `playwright-report-ci/` for BOTH the e2e and a11y jobs (ci.yml), and the audit,
+ * readiness and load configs each use their own `test-results/<name>` subdirectory --
+ * all of which live under these roots.
+ */
+export const ARTIFACT_ROOTS = ['test-results', 'playwright-report', 'playwright-report-ci'];
+
+export async function scrubArtifactSecrets(...outputDirs: string[]): Promise<void> {
   const secrets = collectSecrets();
   if (secrets.length === 0) return;
 
-  for await (const file of walk(outputDir)) {
-    const original = await readFile(file, 'utf8');
-    const scrubbed = scrubSecrets(original, secrets);
-    if (scrubbed !== original) await writeFile(file, scrubbed, 'utf8');
+  for (const outputDir of outputDirs) {
+    for await (const file of walk(outputDir)) {
+      const original = await readFile(file, 'utf8');
+      const scrubbed = scrubSecrets(original, secrets);
+      if (scrubbed !== original) await writeFile(file, scrubbed, 'utf8');
+    }
   }
 }

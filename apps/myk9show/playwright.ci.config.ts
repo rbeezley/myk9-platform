@@ -83,6 +83,8 @@ const PR_SMOKE_SPECS = [
  * Regression: PLAYWRIGHT_REGRESSION=true npx playwright test --config=playwright.ci.config.ts
  */
 export default defineConfig({
+  // F10: scrub e2e passwords out of failure artifacts before CI uploads them.
+  globalTeardown: './src/test/e2e/helpers/scrubArtifactSecrets.ts',
   testDir: './src/test/e2e',
   testMatch: isA11ySmoke
     ? ['**/a11y-smoke.spec.ts']

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectSecrets, scrubSecrets } from '../scrubArtifactSecrets';
+import { ARTIFACT_ROOTS, collectSecrets, scrubSecrets } from '../scrubArtifactSecrets';
 
 describe('scrubArtifactSecrets', () => {
   it('replaces every occurrence of a secret', () => {
@@ -32,5 +32,15 @@ describe('scrubArtifactSecrets', () => {
       E2E_SECRETARY_PASSWORD: 'shared-password',
     } as NodeJS.ProcessEnv);
     expect(secrets).toEqual(['shared-password']);
+  });
+});
+
+describe('ARTIFACT_ROOTS', () => {
+  it('covers the report directory CI uploads, not just test-results', () => {
+    // ci.yml uploads apps/myk9show/playwright-report-ci/ for BOTH the e2e job and
+    // the a11y job. Scrubbing only test-results/ left those artifacts untouched.
+    expect(ARTIFACT_ROOTS).toContain('test-results');
+    expect(ARTIFACT_ROOTS).toContain('playwright-report-ci');
+    expect(ARTIFACT_ROOTS).toContain('playwright-report');
   });
 });

@@ -34,6 +34,7 @@ import { completePartialShowSave, isOfficialsNotAssignedError } from './showSave
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { classDataToReplicatedClass } from './classDataToReplicatedClass';
+import { createDraftShow, finishShowSave } from './showSaveCompletion';
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
@@ -50,44 +51,6 @@ interface UseShowCreationWizardActionsOptions {
     passcodes: ShowPasscodes | null,
     passcodeError?: string | null
   ) => void;
-}
-
-export async function createDraftShow(
-  saveShow: (status: ShowStatus, shouldShowCompletion: boolean) => Promise<void>
-): Promise<void> {
-  await saveShow('draft', true);
-}
-
-interface FinishShowSaveOptions {
-  status: ShowStatus;
-  shouldShowCompletion: boolean;
-  showId: string;
-  showName: string;
-  passcodes: ShowPasscodes | null;
-  passcodeError: string | null;
-  onCreated: UseShowCreationWizardActionsOptions['onCreated'];
-  navigate: ReturnType<typeof useNavigate>;
-}
-
-export function finishShowSave({
-  status,
-  shouldShowCompletion,
-  showId,
-  showName,
-  passcodes,
-  passcodeError,
-  onCreated,
-  navigate,
-}: FinishShowSaveOptions): void {
-  if (shouldShowCompletion && onCreated) {
-    onCreated(showId, showName, passcodes, passcodeError);
-  } else if (status === 'draft') {
-    navigate(`/shows/${showId}`);
-  } else if (onCreated) {
-    onCreated(showId, showName, passcodes, passcodeError);
-  } else {
-    navigate('/secretary/dashboard');
-  }
 }
 
 export function useShowCreationWizardActions({

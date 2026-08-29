@@ -75,27 +75,27 @@ export function useShowLandingData(
   // self-falls-through to a direct anon-safe PostgREST read, so fetch per
   // landing trial when the store is cold, then reshape to the tab's ClassInfo.
   const landingTrialIdsKey = useMemo(() => landingTrials.map(t => t.id).join(','), [landingTrials]);
-  const { data: publicClassesByTrial, isSuccess: publicClassesLoaded } = useQuery<
-    TrialClassRows[]
-  >({
-    queryKey: ['public-show-classes', showId, landingTrialIdsKey],
-    queryFn: async () => {
-      const results = await Promise.all(
-        landingTrials.map(async trial => {
-          const { data, error } = await getClassesByTrialId(trial.id);
-          // The service returns { data: [], error } on a fallback failure — NOT a
-          // throw. Swallowing that error would turn a failed read into a silent
-          // empty tab, re-creating the exact false-empty bug this query fixes.
-          // Throw so React Query surfaces the error (and retries) instead.
-          if (error) throw error;
-          return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
-        })
-      );
-      return results;
-    },
-    enabled: !!showId && associatedTrials.length === 0 && landingTrials.length > 0,
-    staleTime: 60_000,
-  });
+  const { data: publicClassesByTrial, isSuccess: publicClassesLoaded } = useQuery<TrialClassRows[]>(
+    {
+      queryKey: ['public-show-classes', showId, landingTrialIdsKey],
+      queryFn: async () => {
+        const results = await Promise.all(
+          landingTrials.map(async trial => {
+            const { data, error } = await getClassesByTrialId(trial.id);
+            // The service returns { data: [], error } on a fallback failure — NOT a
+            // throw. Swallowing that error would turn a failed read into a silent
+            // empty tab, re-creating the exact false-empty bug this query fixes.
+            // Throw so React Query surfaces the error (and retries) instead.
+            if (error) throw error;
+            return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
+          })
+        );
+        return results;
+      },
+      enabled: !!showId && associatedTrials.length === 0 && landingTrials.length > 0,
+      staleTime: 60_000,
+    }
+  );
 
   // Anon/cold-store fallback for the Classes tab + overview. When the store has
   // trials the page keeps the store-derived classes verbatim (warm session, no

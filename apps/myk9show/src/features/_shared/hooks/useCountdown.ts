@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getCalendarDayParts } from '@/features/_shared/landing/calendarDate';
 
 /**
  * The UTC instant at which `Y-M-D 23:59:59` occurs in `timeZone` — computed
@@ -52,16 +53,14 @@ function endOfDayInTimeZone(year: number, month: number, day: number, timeZone: 
  * exhibitor view, which normalizes via `toLocalDate`, still said entries were
  * open — the same show, two surfaces, a day apart.
  *
- * Note this deliberately does NOT reuse `toLocalDateOnly`: that helper maps
- * EVERY instant to a calendar date, so routing this through it would widen a
- * genuine mid-day cutoff (`...T17:00:00Z`) to end-of-day too. Only exact
- * midnight UTC means "a day".
+ * The rule itself lives in `_shared/landing/calendarDate`, which the eight
+ * styled landings also use -- a hand-copy here would be the same shape as the
+ * bug being fixed (heritage's rule, copied into monogram, both going stale).
  */
 function resolveTargetInstant(targetIso: string, timeZone: string): Date {
-  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.0+)?(?:Z|\+00:?00))?$/.exec(targetIso);
-  if (match) {
-    const [, y, m, d] = match;
-    return endOfDayInTimeZone(Number(y), Number(m), Number(d), timeZone);
+  const parts = getCalendarDayParts(targetIso);
+  if (parts) {
+    return endOfDayInTimeZone(parts.year, parts.month, parts.day, timeZone);
   }
   return new Date(targetIso);
 }

@@ -37,6 +37,20 @@ describe('formatDateInTimezone', () => {
     expect(out).not.toMatch(/Jun/);
   });
 
+  /**
+   * A calendar date has no time-of-day. The shared resolver returns a
+   * LOCAL-midnight Date for one, so an unguarded 'time' branch renders
+   * "12:00 AM" labelled with the VIEWER's timezone -- a fabricated deadline
+   * that also contradicts the countdown rendered beside it.
+   *
+   * The existing 'time' case below feeds a real instant, which is why this gap
+   * survived: a fixture in a shape the column never emits proves nothing about
+   * the shape it does.
+   */
+  it('renders no time-of-day for a stored calendar date', () => {
+    expect(formatDateInTimezone('2026-06-12T00:00:00Z', 'America/Chicago', 'time')).toBe('');
+  });
+
   it('returns the input on parse failure', () => {
     expect(formatDateInTimezone('not-a-date', 'America/Chicago', 'short')).toBe('');
   });

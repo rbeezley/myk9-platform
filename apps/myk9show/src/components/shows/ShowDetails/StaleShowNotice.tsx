@@ -12,6 +12,11 @@
  * deliberately a thin strip rather than an ErrorState: the content below it is
  * still useful, and replacing a whole readable page with an error because a
  * refresh failed is the mistake in the other direction.
+ *
+ * The copy says "haven't been able to refresh", not "couldn't reach the server":
+ * this fires for a PAUSED (offline) query as well as a failed one, and the page
+ * cannot tell those apart from here. Claiming a server failure we cannot observe
+ * would be the same defect the rest of this sweep is about, one level down.
  */
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
@@ -28,8 +33,8 @@ export const StaleShowNotice: React.FC<StaleShowNoticeProps> = ({ onRetry }) => 
     aria-live="polite"
   >
     <span className="text-foreground">
-      Showing saved details — we couldn&rsquo;t reach the server, so dates and fees may be out of
-      date.
+      Showing saved details — we haven&rsquo;t been able to refresh them, so dates and fees may
+      be out of date.
     </span>
     <Button variant="outline" size="sm" onClick={onRetry}>
       <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />

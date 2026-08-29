@@ -39,6 +39,11 @@ export function formatDateInTimezone(
       });
     }
     if (format === 'time') {
+      // A calendar date has no time-of-day. Without this the resolver's
+      // local-midnight Date renders "12:00 AM" labelled with the VIEWER's zone
+      // -- a fabricated deadline that also contradicts the countdown beside it.
+      // heritage and monogram already guarded this; these five did not.
+      if (isCalendarDay) return '';
       return date.toLocaleTimeString('en-US', {
         ...opts,
         hour: 'numeric',

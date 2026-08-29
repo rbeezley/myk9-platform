@@ -54,6 +54,7 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
     isError: isNetworkError,
     refetch,
     isPlaceholderData,
+    fetchStatus,
   } = useQuery({
     queryKey: showQueryKeys.detail(showId || ''),
     queryFn: async () => {
@@ -100,14 +101,19 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
     isLoading: isNetworkLoading && !show,
     isError: isNetworkError && !show,
     /**
-     * The network read FAILED but a placeholder (list cache or Zustand store) is
-     * standing in, so `isError` above is suppressed and the page renders a full,
-     * confident show page from a possibly-stale row -- dates and fee included --
-     * with nothing telling the viewer it could not be refreshed. `isError` stays
-     * as-is so the hard-failure branch is unchanged; this is the "showing you
-     * something older" case, which needs saying rather than hiding.
+     * The network read did not land but a placeholder (list cache or Zustand
+     * store) is standing in, so `isError` above is suppressed and the page
+     * renders a full, confident show page from a possibly-stale row -- dates and
+     * fee included -- with nothing telling the viewer it could not be refreshed.
+     *
+     * `fetchStatus === 'paused'` is not optional here. This query declares no
+     * `networkMode`, so it inherits 'online' and PAUSES rather than errors when
+     * the device is offline -- meaning the single most common way to "not reach
+     * the server" never sets `isError` at all. Checking only the error would
+     * have shipped a stale-data notice that stays silent in exactly the case its
+     * own copy describes.
      */
-    refreshFailed: isNetworkError && !!show,
+    refreshFailed: (isNetworkError || fetchStatus === 'paused') && !!show,
     refetch,
     isFromCache,
     loadTime,

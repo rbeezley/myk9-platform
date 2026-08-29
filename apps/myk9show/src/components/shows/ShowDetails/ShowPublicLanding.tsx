@@ -61,10 +61,10 @@ export function ShowPublicLanding({
     <>
       {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
       <StyledLanding
-      show={publicLandingShow}
-      trial={landingTrials[0] ?? null}
-      allTrials={landingTrials}
-      hasEntryClassInventory={hasEntryClassInventory}
+        show={publicLandingShow}
+        trial={landingTrials[0] ?? null}
+        allTrials={landingTrials}
+        hasEntryClassInventory={hasEntryClassInventory}
         entryNotYetOpen={entryNotYetOpen}
       />
     </>

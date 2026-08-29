@@ -150,11 +150,7 @@ const ShowDetailsPage: React.FC = () => {
   // classes, and per-trial stats fetched via anon-safe PostgREST when the
   // replicated store is cold (guest session). See useShowLandingData.
   const { landingTrials, publicShowClasses, publicTrialStats, publicClassInventoryResolved } =
-    useShowLandingData(
-    showId_,
-    associatedTrials,
-    showEntries
-  );
+    useShowLandingData(showId_, associatedTrials, showEntries);
   // For tabs/counts/derivations, treat landingTrials as the effective trial
   // list: it IS associatedTrials when the store is warm, and the anon-safe
   // public rows when the store is cold. (Lane 3.7)

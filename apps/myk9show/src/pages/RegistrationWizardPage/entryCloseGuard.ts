@@ -27,13 +27,30 @@ function parseCalendarDate(value?: string | null): Date | undefined {
   return parseLocalDateString(value.split('T')[0] ?? value);
 }
 
+/**
+ * Blocks the exhibitor self-service path after entries close.
+ *
+ * Organizer workflows pass through, mirroring `getEntryOpenSubmitBlocker`. That
+ * symmetry was missing and it broke a core secretary task: recording a mail-in
+ * entry after the close date -- a cheque that arrived before the deadline,
+ * processed after it, or a day-of entry -- is ordinary secretary work. Entry
+ * Management's "Add mail-in entry" sends the secretary here with no URL flag, so
+ * they were told "Entries are closed for this show. Contact the trial secretary
+ * for late-entry help." The secretary IS the trial secretary.
+ *
+ * `isLateEntryMode` is no longer honoured on its own. It is derived purely from
+ * `?source=show-desk&entryMode=late`, which any exhibitor can append -- the same
+ * reason `getEntryOpenSubmitBlocker` already refuses to trust it. Every
+ * legitimate late-entry caller reaches this through an organizer workflow, which
+ * the RBAC-derived check above already covers.
+ */
 export function getEntryCloseSubmitBlocker({
   entryCloseDate,
   today,
   entryWindowTimezone,
-  isLateEntryMode,
+  workflowMode,
 }: EntryCloseSubmitGuardContext): string | null {
-  if (isLateEntryMode) return null;
+  if (workflowMode !== 'exhibitor') return null;
 
   const closeDate = parseCalendarDate(entryCloseDate);
   if (!closeDate) return null;

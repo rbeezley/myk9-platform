@@ -206,7 +206,7 @@ Both halves work; nothing in the class dialog points at the other half.
 The class Edit dropdown lists the judge as `Test Judge( - )` — a template emitting
 its separator and parentheses with no values to put in them.
 
-### F14 — P1 — "Add mail-in entry" is a dead end once entries close
+### F14 — P1 — FIXED — "Add mail-in entry" is a dead end once entries close
 
 Entry Management → **Add entry** → **Add mail-in entry** routes to
 `/secretary/register/:showId`, the exhibitor registration wizard, which enforces the
@@ -225,6 +225,22 @@ Management points at it, and Entry Management is the canonical entries surface.
 
 Note the Tools panel offers *both* "Add mail-in entry" (blocked) and "Add late entry"
 (works) side by side, with no indication that one of them will refuse.
+
+**Fix applied.** `getEntryCloseSubmitBlocker` now exempts organizer workflows
+(`workflowMode !== 'exhibitor'`), mirroring `getEntryOpenSubmitBlocker`. The
+asymmetry was the whole bug: the open gate already exempted RBAC-derived organizers
+and deliberately refused to trust the URL flag, while the close gate did the reverse —
+trusting only `?source=show-desk&entryMode=late` and never exempting the secretary.
+
+That also closes a hole the open gate's own comment had already named: the flag "any
+exhibitor can append" was the *only* way past the close gate, so appending it bought a
+self-service entry after the deadline. `isLateEntryMode` is no longer honoured alone;
+every legitimate late-entry caller is an organizer, which the RBAC check covers.
+
+*Verified:* Entry Management → Add entry → Add mail-in entry now opens Step 1 (Select
+Dogs) on a show whose entries closed, with no `entryMode=late` in the URL. Two new
+guard tests: a secretary is not blocked after close without the flag, and an exhibitor
+IS blocked after close even with it. 18 guard tests pass.
 
 ### F15 — P1 — FIXED — A blank Day-of-Show Fee charges $0 for every entry once the show starts
 
@@ -545,19 +561,27 @@ three showed the Score Sheet):
 blob is dropped before the markup write. Confirmed non-vacuous (it fails when the
 handoff is removed). 123 ReportsPage tests, typecheck, ratchet and lint all clean.
 
-### F26 — P1 — High in Trial / High in Class has no reachable surface
+### F26 — P1 — CORRECTED — High in Trial / High in Class does not exist
 
 Task 11 has no report. The Reports picker lists 24 report types and none of them is a
 High in Trial or High in Class award report.
 
-An implementation exists — `components/awards/AwardsProcessor.tsx` computes
-`High In Trial`, including a winner spotlight — but it is **orphaned**: its only
-importer anywhere in the repo is `src/test/phase5-component-validation.test.ts`,
-which renders it directly. No route, no page, no component mounts it. `awards/` holds
-that one file.
+I first recorded this as "an implementation exists but is orphaned". **That was too
+generous.** `components/awards/AwardsProcessor.tsx` computes nothing: it runs
+`simulateProcessing(800)` fake delays behind a progress bar and then returns a
+hardcoded `mockAwards` array — "Champion Rex / John Smith", "Lady Belle /
+Mary Johnson". It is a UI prototype, not an award calculator.
 
-So the component is kept green by a test while being unreachable in the product —
-the shape where a passing test certifies something no user can get to.
+Its only importer anywhere is `src/test/phase5-component-validation.test.ts`, which
+renders it directly. So a passing test keeps a mock alive that no user can reach and
+that would produce fabricated winners if they could.
+
+**Not fixed, and deliberately not attempted.** This is a feature, not a wiring bug:
+it needs a real High-in-Trial rule (which element/level counts, how ties break, what
+happens across multiple trials in a day), and inventing one would put invented
+placements on paperwork that goes to a registry. The report scaffolding is cheap —
+a `reportRegistry` entry is id/name/scopes/component — so the cost is the rule, not
+the plumbing.
 
 ### F27 — P2 — A cold replication store reports "Class not found" for a class that exists
 
@@ -591,7 +615,7 @@ page whose purpose is assigning judges.
 Also note this is the **third** surface that sets a class judge, after the class
 detail Edit dialog and Edit Show → Judges (F12).
 
-### F29 — P2 — Run order: no reorder control renders on the paths a secretary would use
+### F29 — P2 — The Show Map action layer (run order AND move-up) never renders
 
 Task 5 has an implementation — `features/show-map/` contains `ShowMapRunOrderMenu`
 ("Run order" per class), `ShowMapSortableEntryRow` with drag plus
@@ -613,6 +637,96 @@ So the deep link is named for a capability the destination does not appear to of
 The likely cause is the `canManageShow` (or `compact`) gate in `ShowMapTab`, which
 needs a focused look — this is "the control never rendered on these paths", not
 "the feature does not exist anywhere".
+
+### F30 — P2 — CORRECTED — Nothing prevents a club-less show, and such a show is now unmanageable by anyone
+
+**Twice rewritten. The first version blamed the creation wizard, the second the edit
+path. Both were wrong, and the disproof is the useful part.**
+
+Observed: `shows.club_id IS NULL` on the audit show
+(`e8675466-…`), which makes every secretary write to it fail — see F31 for the chain.
+
+Attempts to reproduce, all negative:
+
+| Probe | Path | Result |
+| --- | --- | --- |
+| `ZZ Audit - Club Persistence Probe` | wizard → **Create Show (Unpublished)** | `club_id` set correctly |
+| `ZZ Audit - Publish Path Probe` | wizard → **Create & Publish Show** | `club_id` set correctly |
+| Probe 1 again | More show actions → Edit → Judges → Save Changes | `club_id` **preserved** |
+
+The wizard and the edit path are therefore exonerated: identical steps produced a
+correct `club_id` twice. The audit show's `updated_at` (21:59) is also long after its
+creation (19:19), so whatever cleared the column did so later. **I could not identify
+it**, and the three explanations I offered before checking were each wrong.
+
+What *is* established, and is the finding worth keeping:
+
+- `shows.club_id` is nullable and nothing — no constraint, no trigger — prevents a
+  club-less show from existing.
+- `20260828230000` (MYK9-258) rewrote `can_manage_show` to require
+  `s.club_id IS NOT NULL`. That fix is right on its own terms: a club-less show
+  should not be manageable by *every* secretary.
+- Together those mean a show that loses its club becomes manageable by **nobody** —
+  not its creator, not a club admin, only a site admin. There is no in-app route back,
+  because every repair write is itself gated by `can_manage_show`.
+
+So the severity is not "the wizard is broken" but "an unreachable state exists and is
+now unrecoverable". A `CHECK (club_id IS NOT NULL)` on `shows`, or a site-admin repair
+path, would close it regardless of how a show gets there.
+
+*Audit artifacts:* two probe shows (`6cea4cdf-…`, plus the publish probe) remain on
+staging alongside the walk show.
+
+### F31 — P3 — CORRECTED — A denied entry update is diagnosed internally as a deletion
+
+**This finding was first written as a P1 silent-data-loss bug. That was wrong, and the
+correction is the substantive part.** The app *does* tell the secretary. On the failed
+status change it raised a persistent toast:
+
+> We couldn't update this entry. Retry or discard this change.  [Retry] [Discard]
+
+with `duration: Infinity` and both recovery actions wired to
+`retryFailedMutation` / `discardFailedMutation`
+(`providers/ReplicationSyncProvider.tsx:674`). I originally grepped a snapshot taken
+before the toast rendered and concluded "no error anywhere". The user-facing
+behaviour here is good.
+
+What remains, and it is developer-facing only: the failure is **misdiagnosed**. The
+chain is
+
+1. `shows.club_id IS NULL` (F30), so `can_manage_show` — which `20260828230000` now
+   requires `s.club_id IS NOT NULL` for — returns false.
+2. The `entries_update` policy denies, so the UPDATE matches zero rows and PostgREST
+   answers `200 []` (captured: `PATCH 200 rows=[]`; the walk's 4xx count stays 0).
+3. `classifyEmptyUpdateResult` (`packages/replication/src/mutation-occ.ts:139`) then
+   re-reads the row to tell deletion, OCC conflict and RLS denial apart — good design.
+   But the re-read `SELECT` is filtered by the *same* policy that denied the UPDATE,
+   so it returns nothing, and the `!serverCheck` branch concludes:
+
+   `Row <id> on entries no longer exists server-side.`
+
+An unreadable row and a deleted row are indistinguishable to that check, so a
+permission problem is logged as data loss. The user gets the right prompt; anyone
+reading the log to work out *why* is pointed at the wrong cause.
+
+The optimistic list also shows the change as applied ("Needs review 1") until the
+failure lands — correct for offline-first, worth knowing when reading a screenshot.
+
+### F32 — P3 — The Volunteers page tells you to use a sidebar picker that does not exist
+
+`/secretary/volunteers` without a `showId` renders **"Select a Show — Choose a show
+from the sidebar to manage volunteers."** The sidebar has no show picker; it has a
+single link to the current live show, and following it navigates away from Volunteers.
+Visiting a show first does not help either — the page still asks you to select one.
+
+The working entry point is **Show Desk → Tools → Volunteers → Open volunteer
+scheduling**, which appends `?showId=…`; with that param the page is fully functional
+(Add Volunteer, per-class "Assign volunteer" slots grouped by trial). So the feature
+works and only its empty state misdirects — but it misdirects toward a control that
+does not exist, which is worse than saying nothing.
+
+Third instance of the same shape: `Compose` not inheriting the show (F23), Show Desk's
+"Run order and class setup" naming a capability its destination lacks (F29), and this.
 
 ## What works well
 
@@ -655,6 +769,18 @@ needs a focused look — this is "the control never rendered on these paths", no
 - **Paper scoring flow.** Selecting Q reveals exactly the fields that result needs,
   the time input is digit-masked so no separator can be typed wrong, and placement is
   computed on save.
+- **Registry submission gate.** Submit Results refuses to send when data is missing and
+  says exactly what is missing ("514 entries are missing AKC registration numbers"),
+  while still allowing a draft XML download. This is the same invariant the new
+  entry-time registration rule enforces — the app already blocked it at filing time,
+  after the dogs had taken their spots.
+- **Sync-failure recovery.** A write the server refuses raises a persistent toast
+  naming the entry, with Retry and Discard actions, and the mutation survives in
+  IndexedDB either way. This is the half of offline-first that is usually missing.
+- **Status-change guard.** Moving a scored entry back to Pending raises a named
+  consequence — "This entry has a recorded result. Changing it to Pending removes it
+  from results until re-scored" — with Cancel / Change status, rather than a generic
+  confirmation.
 - **Honest empty states.** The workbench refuses to render a false zero entry count
   and says so explicitly — the correct behaviour, even though here it is masking F1.
 
@@ -662,21 +788,27 @@ needs a focused look — this is "the control never rendered on these paths", no
 
 | # | Task | Status |
 | --- | --- | --- |
-| 1 | Create a show, trial, and classes | **Verified** — completed end to end; show published with 1 trial, 2 classes, 1 judge |
+| 1 | Create a show, trial, and classes | **Verified** — completed end to end three times (draft and published); Host Club persists correctly. The audit show's NULL `club_id` (F30) was not caused by creation |
 | 2 | Edit a show / reassign a judge | **Verified** — added a second judge via Edit Show → Judges, reassigned Container Novice A to them; `judge_assignments` updated, other class untouched |
-| 3 | Process a mail-in entry | **Works via Show Desk → Tools → Late entry** (F14 still open). Entry created, confirmed, and now correctly priced after the F15 fix; check reference still discarded (F16) |
+| 3 | Process a mail-in entry | **FIXED (F14)** — Entry Management's own "Add mail-in entry" now works after close. Entry created, confirmed, and now correctly priced after the F15 fix; check reference still discarded (F16) |
 | 4 | Email exhibitors | **Possible, badly signposted** — composer is in the header Message Center panel, not the Messages page (F22), and does not inherit show context (F23) |
 | 13 | Waitlist | **Verified present** — Entry Management → Exceptions → Waitlist shows judge-day capacity and "View Wait List" per judge-day; no waitlisted entries to promote on this show |
 | 14 | Payments / refunds | **Partial** — Pull Management ("reconcile refunds in one place") loads with Pending/Pulled queues; payment channel is mislabelled (F18) and check references are not stored (F16) |
-| 5 | Set run order | **Not reachable (F29)** — implementation exists (drag + Alt+Arrow), but no control renders on Show Map, Manage Classes, or Show Desk |
-| 8 | Move-up | Surface found (Exceptions → Move-ups); not yet exercised |
+| 5 | Set run order | **FIXED (F29)** — "Run order" now renders per class on the Show Map |
+| 8 | Process a move-up | **FIXED (F29)** — entry rows now expose Review entry · Mark checked in · **Move up** · Pull / no-show · Message handler |
+| 15 | Scratches / pulls / no-shows | **Verified present** — Entry Management → Exceptions → Pulls / scratches: "Review pull requests and reconcile refunds in one place", Pending/Pulled queues with search |
+| 16 | Late / walk-in entries | **Verified** — see Task 3; Show Desk → Tools → Late entry completes end to end |
 | 6 | Print check-in sheets | **Verified** — 33-page PDF, US Letter, "Check-in & Running Order", columns Gate Order / Armband / Call Name / Breed / Reg # / Handler / Pull-Move-Note. The Reg # column is blank for every dog (see F21) |
 | 7 | Print scoresheets | **Verified** — 106-page "AKC Scent Work Scoresheet": per-dog armband/breed/handler, Q/NQ/EX/ABS, Place, the full AKC fault taxonomy and MM/SS/TT time fields |
 | 10 | Print preliminary results | **Verified** (after the F25 fix) — "AKC Container Preliminary Results" with element, level, trial, date and judge |
 | 12 | Registry reports | **Verified present** (after the F25 fix) — Trial Secretary Report and AKC Judge's Report render their real AKC instruction text; Show Catalog, Result Catalog and Financial Report also render. Content not yet checked line-by-line against the official forms |
 | 9 | Enter results from paper scoresheets | **Verified** — `/scoring/classes/:id/entries`: Q/NQ/ABS/EX, prefill, Search Time (digit-masked, `4520` → `0:45.20`), faults stepper, Save / Save & Next. Persisted `qualified`, 45.2s, 0 faults, and computed placement 1. Blocked on a cold store by F27 |
+| 12 (submit) | Submit results to the registry | **Verified** — `/shows/:id/submit-results`: organization selector, Download draft XML, Mark as submitted, closeout guidance, submission history. **Send to AKC is correctly disabled** with "514 entries are missing AKC registration numbers" |
+| 17 | Volunteer scheduling | **Verified via Show Desk → Tools** — Add Volunteer and per-class assign slots by trial. Direct navigation misdirects (F32) |
+| 18 | Ringside access codes | **Verified** — Admin/Judge/Steward/Exhibitor codes with copy, copy-link, Print slip, Regenerate |
+| 19 | Close out the show | **Verified** — closeout panel reconciles attendance & fees (entries, day-of, at-show collected, waived, pulled/no-show, refund review) and incidents (all/reportable/urgent), e.g. "2 pulled entries have $60.00 marked refunded" |
 | 11 | High in Trial / High in Class | **Gap (F26)** — no report exists; the only implementation is orphaned |
-| 20 | Approve / accept online entries | Surface confirmed (Entry Management queues + Bulk actions Accept/Reject); not yet exercised — no pending online entry exists on the audit show |
+| 20 | Approve / accept online entries | **Blocked by F30** — every entry write on the audit show is refused because the show has no club, so accept could not be exercised end to end. The refusal is surfaced correctly (F31) |
 
 Tasks 20 (approve/accept online entries) and 13 (waitlist) were added to the canonical
 list at the owner's request on 2026-08-28. Accept/reject is the secretary's

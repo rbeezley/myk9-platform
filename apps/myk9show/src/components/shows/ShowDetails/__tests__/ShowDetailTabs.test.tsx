@@ -104,10 +104,29 @@ describe('ShowDetailTabs', () => {
     expect(screen.queryByTestId('entries-tab')).toBeNull();
   });
 
-  it('renders the Show Map (read-only) only when canShowMap is true', async () => {
+  it('forwards canManageShow to the Show Map so managers get its row actions', async () => {
+    // CHANGED (secretary task walk, 2026-08-28). This previously asserted
+    // `data-can-manage="false"` with the comment "the shell always renders the map
+    // read-only, even for managers" -- a property #1035 inherited and preserved
+    // during a refactor ("stays read-only"), not a stated product decision.
+    //
+    // The consequence was that `ShowMapRowActionsMenu` -- Move up, Pull / no-show,
+    // Mark checked in, Edit score -- and the run-order reorder mode were
+    // unreachable ANYWHERE, because this is the only mount of `ShowMapTab` in the
+    // app. Two responsibilities in docs/roles/secretary.md ("manage class changes
+    // and move-ups", "publish the running order") therefore had no UI at all.
+    // ShowDetailTabs' own doc comment already says the management surface passes
+    // this true "to light up the Show Map".
     renderTabs({ activeTab: 'map', canShowMap: true, canManageShow: true });
     const map = await screen.findByTestId('show-map-tab');
-    // The shell always renders the map read-only, even for managers.
+    expect(map).toHaveAttribute('data-can-manage', 'true');
+  });
+
+  it('keeps the Show Map read-only for the exhibitor surface', async () => {
+    // The exhibitor view passes canManageShow=false; forwarding must not hand
+    // exhibitors the manager action menu.
+    renderTabs({ activeTab: 'map', canShowMap: true, canManageShow: false });
+    const map = await screen.findByTestId('show-map-tab');
     expect(map).toHaveAttribute('data-can-manage', 'false');
   });
 

@@ -413,6 +413,17 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByText('My Entries 0')).toBeNull();
   });
 
+  it('preserves the anonymous public landing when the entry read fails', () => {
+    mockAuthContext.user = null;
+    mockAuthContext.userWithRoles = null;
+    mockShowEntriesError = true;
+
+    renderPage();
+
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
+    expect(screen.queryByText('My Entries 0')).toBeNull();
+  });
+
   it('renders the default Monogram landing when user has no entries', () => {
     renderPage();
     expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();

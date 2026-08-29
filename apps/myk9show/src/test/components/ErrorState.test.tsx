@@ -15,10 +15,16 @@ describe('ErrorState', () => {
     expect(onRetry).toHaveBeenCalled();
   });
 
-  it('announces the error and starts with a page heading', () => {
-    render(<ErrorState message="Show unavailable" />);
+  it('announces a page error at the requested heading level', () => {
+    render(<ErrorState message="Show unavailable" headingLevel={1} />);
 
     expect(screen.getByRole('alert')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Show unavailable' })).toBeTruthy();
+  });
+
+  it('keeps embedded errors below the page heading by default', () => {
+    render(<ErrorState message="Section unavailable" />);
+
+    expect(screen.getByRole('heading', { level: 3, name: 'Section unavailable' })).toBeTruthy();
   });
 });

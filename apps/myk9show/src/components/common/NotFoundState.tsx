@@ -14,6 +14,7 @@ export function NotFoundState({ entityName, backTo, backLabel, className }: NotF
 
   return (
     <div
+      role="status"
       className={cn(
         'flex flex-col items-center justify-center min-h-[50vh] text-center',
         className

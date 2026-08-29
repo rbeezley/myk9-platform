@@ -15,12 +15,13 @@ describe('LoadingSkeleton', () => {
     expect(rows.length).toBeGreaterThanOrEqual(5);
   });
 
-  it('announces loading as a busy status', () => {
-    render(<LoadingSkeleton variant="cards" />);
+  it('announces loading as a busy status with an optional page heading', () => {
+    render(<LoadingSkeleton variant="cards" heading="Loading show" />);
 
     expect(screen.getByRole('status', { name: 'Loading content' })).toHaveAttribute(
       'aria-busy',
       'true'
     );
+    expect(screen.getByRole('heading', { level: 1, name: 'Loading show' })).toBeTruthy();
   });
 });

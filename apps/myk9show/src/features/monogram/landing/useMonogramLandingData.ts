@@ -28,10 +28,7 @@ export function useMonogramLandingData(
         credential: null,
         bio: null,
       })),
-      fees: shared.fees.map(fee => ({
-        ...fee,
-        label: fee.label === 'Day-of entry' ? 'Each additional' : fee.label,
-      })),
+      fees: shared.fees,
       officers: [],
     }),
     [shared]

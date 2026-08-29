@@ -12,24 +12,15 @@ import type {
  * `monogramLetters` added as the Monogram-specific derivation.
  */
 
-export interface MonogramTrial extends LandingTrial {
-  id: string;
-  trialNumber: number | string;
-  date: string | null;
-  judgeName?: string;
-}
+export type MonogramTrial = LandingTrial;
 
 export interface MonogramJudge extends LandingJudge {
-  id: string;
-  name: string;
   /** Pre-derived 2-letter initials shown as the bronze portrait monogram. */
   initials: string;
   /** Uppercase-roman trial numbers this judge is assigned to (e.g. ["I", "III"]).
    *  Not yet surfaced in the JudgesSection UI; preserved so a future
    *  "Trials I & III" credential line can read it without re-deriving. */
-  trials: string[];
   city: string | null;
-  elements: string[];
   /** Trial-panel summary like "Containers · Interiors". */
   credential: string | null;
   /** Optional bio paragraph, displayed below the credential line. */
@@ -44,19 +35,9 @@ export interface MonogramOfficer {
   email?: string | null;
 }
 
-export interface MonogramFee extends LandingFee {
-  label: string;
-  /** Pre-formatted, e.g. "$25.00". */
-  amount: string;
-}
+export type MonogramFee = LandingFee;
 
-export interface MonogramAccommodation extends LandingAccommodation {
-  name: string;
-  address?: string;
-  phone?: string;
-  url?: string;
-  type?: string;
-}
+export type MonogramAccommodation = LandingAccommodation;
 
 export interface MonogramPlanItem {
   /** Small-caps label, e.g. "Doors", "First class". */
@@ -78,56 +59,10 @@ export interface MonogramLandingData extends LandingData<
   /** Pre-derived club initials (e.g. "BC") used by hero, nav, footer, final CTA. */
   monogramLetters: string;
 
-  // Show-level
-  clubName: string;
-  showName: string;
-  showSubtitle: string;
-  welcomeText: string | null;
-  trialChairName: string | null;
-
-  // Dates (ISO strings or null)
-  entryOpenDate: string | null;
-  entryCloseDate: string | null;
-  confirmationDate: string | null;
-  trialStartDate: string | null;
-  trialEndDate: string | null;
-  timezone: string;
-
-  // Venue
-  venueName: string | null;
-  venueAddress: string | null;
-  venueCity: string | null;
-
-  // Trial structure
-  trials: MonogramTrial[];
-  judges: MonogramJudge[];
-
-  // Capacity
-  entryCount: number | null;
-  entryLimit: number | null;
-
-  // Fees
-  fees: MonogramFee[];
-
   // Officers
   officers: MonogramOfficer[];
 
   // Plan / On-the-day (two-col section folio v). Once the schema grows
   // structured day-of-event data, add an `onTheDay: MonogramPlanItem[]`
   // field here and source it from supplemental experience snapshots.
-  accommodations: MonogramAccommodation[];
-  hospitalityNotes: string | null;
-  awardsDescription: string | null;
-  houseRulesNotes: string | null;
-
-  // Contact
-  secretaryName: string | null;
-  secretaryEmail: string | null;
-
-  // Registry
-  licenseLanguage: string;
-  memberClubLanguage: string;
-
-  // Entry wizard link
-  entryWizardUrl: string;
 }

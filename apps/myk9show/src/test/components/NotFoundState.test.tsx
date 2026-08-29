@@ -18,6 +18,7 @@ describe('NotFoundState', () => {
     );
 
     expect(screen.getByRole('heading', { level: 1, name: 'Show Not Found' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('navigates back when button clicked', () => {

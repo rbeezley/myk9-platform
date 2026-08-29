@@ -3,6 +3,7 @@ import type {
   LandingData,
   LandingFee,
   LandingJudge,
+  LandingJourneyStep,
   LandingTrial,
 } from '@/features/_shared/landing/landingData';
 
@@ -17,22 +18,13 @@ import type {
  */
 
 export interface MagazineTrial extends LandingTrial {
-  id: string;
-  trialNumber: number | string;
-  date: string | null;
   element?: string;
   judge?: string;
-  judgeName?: string;
 }
 
 export interface MagazineJudge extends LandingJudge {
-  id: string;
-  name: string;
-  city?: string | null;
   /** Already-formatted trial labels (e.g. ["i", "iii", "v"]). */
-  trials: string[];
   /** Element names this judge is panelled for (e.g. ["Containers", "Interiors"]). */
-  elements: string[];
   /** Plate caption rendered top-right on the portrait — "Plate I", "Plate II". */
   plateLabel: string;
   /** Initials overlaid on the portrait. */
@@ -41,31 +33,16 @@ export interface MagazineJudge extends LandingJudge {
   portraitUrl: string | null;
 }
 
-export interface MagazineJourneyStep {
-  date: string | null;
-  label: string;
-  description: string;
-  status: 'done' | 'active' | 'future';
-}
+export type MagazineJourneyStep = LandingJourneyStep;
 
 export interface MagazineOfficer {
   title: string;
   name: string;
 }
 
-export interface MagazineFee extends LandingFee {
-  label: string;
-  /** Pre-formatted, e.g. "$25.00". */
-  amount: string;
-}
+export type MagazineFee = LandingFee;
 
-export interface MagazineAccommodation extends LandingAccommodation {
-  name: string;
-  address?: string;
-  phone?: string;
-  url?: string;
-  type?: string;
-}
+export type MagazineAccommodation = LandingAccommodation;
 
 /** Assembled by `useMagazineLandingData`. Sections only receive this. */
 export interface MagazineLandingData extends LandingData<
@@ -75,64 +52,12 @@ export interface MagazineLandingData extends LandingData<
   MagazineAccommodation
 > {
   // Identity
-  clubName: string;
   /** 1–3 character monogram derived from club name. Used by cover +
    *  portrait placeholders. */
   monogramLetters: string;
 
-  showName: string;
-  showSubtitle: string;
-  /** Welcome prose. Paragraphs delimited by double newline. Null hides the
-   *  whole Welcome section. */
-  welcomeText: string | null;
-  trialChairName: string | null;
-
-  /** Optional pull quote sourced from supplemental content. When null the
-   *  pull-quote element does not render — there is no muted fallback. */
-  pullQuote: string | null;
-  pullQuoteAttribution: string | null;
-
-  // Dates
-  entryOpenDate: string | null;
-  entryCloseDate: string | null;
-  confirmationDate: string | null;
-  trialStartDate: string | null;
-  trialEndDate: string | null;
-  timezone: string;
-
-  // Venue
-  venueName: string | null;
-  venueAddress: string | null;
-  venueCity: string | null;
-
-  // Cover photograph
-  coverImageUrl: string | null;
   /** Caption rendered over the cover (e.g. photographer credit). */
   coverCaption: string | null;
 
-  // Trial structure
-  trials: MagazineTrial[];
-  judges: MagazineJudge[];
-
-  // Capacity
-  entryCount: number | null;
-  entryLimit: number | null;
-
-  fees: MagazineFee[];
   officers: MagazineOfficer[];
-  accommodations: MagazineAccommodation[];
-  hospitalityNotes: string | null;
-  awardsDescription: string | null;
-  houseRulesNotes: string | null;
-
-  secretaryName: string | null;
-  secretaryEmail: string | null;
-
-  // Registry
-  licenseLanguage: string;
-  memberClubLanguage: string;
-
-  journeySteps: MagazineJourneyStep[];
-
-  entryWizardUrl: string;
 }

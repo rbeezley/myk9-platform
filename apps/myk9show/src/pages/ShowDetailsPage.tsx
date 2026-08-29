@@ -366,7 +366,7 @@ const ShowDetailsPage: React.FC = () => {
   if (fastLoading) {
     return (
       <PageShell>
-        <LoadingSkeleton variant="cards" count={3} />
+        <LoadingSkeleton variant="cards" count={3} heading="Loading show" />
       </PageShell>
     );
   }
@@ -375,7 +375,11 @@ const ShowDetailsPage: React.FC = () => {
   if (fastError) {
     return (
       <PageShell>
-        <ErrorState message="We couldn't load this show. Please try again." onRetry={refetchShow} />
+        <ErrorState
+          message="We couldn't load this show. Please try again."
+          onRetry={refetchShow}
+          headingLevel={1}
+        />
       </PageShell>
     );
   }
@@ -407,7 +411,7 @@ const ShowDetailsPage: React.FC = () => {
   if (audience === 'pending') {
     return (
       <PageShell>
-        <LoadingSkeleton variant="cards" />
+        <LoadingSkeleton variant="cards" heading="Loading show" />
       </PageShell>
     );
   }

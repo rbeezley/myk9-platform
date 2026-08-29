@@ -3,6 +3,7 @@ import type {
   LandingData,
   LandingFee,
   LandingJudge,
+  LandingJourneyStep,
   LandingTrial,
 } from '@/features/_shared/landing/landingData';
 
@@ -17,23 +18,14 @@ import type {
  */
 
 export interface GazetteTrial extends LandingTrial {
-  id: string;
-  trialNumber: number | string;
-  date: string | null;
   element?: string;
   judge?: string;
-  judgeName?: string;
 }
 
 export interface GazetteJudge extends LandingJudge {
-  id: string;
-  name: string;
-  city?: string | null;
   /** Roman-numeral trial labels this judge sits, e.g. ["i", "iii", "v"]. */
-  trials: string[];
   /** Optional hall identifier, e.g. "Hall A". */
   hall?: string | null;
-  elements: string[];
   /** Short bio paragraph, italic-supported. */
   bio?: string | null;
 }
@@ -43,16 +35,9 @@ export interface GazetteOfficer {
   name: string;
 }
 
-export interface GazetteFee extends LandingFee {
-  label: string;
-  amount: string;
-}
+export type GazetteFee = LandingFee;
 
 export interface GazetteAccommodation extends LandingAccommodation {
-  name: string;
-  address?: string;
-  phone?: string;
-  url?: string;
   /** "Lodging", "Emergency Vet", "Hospitality", "Awards" — drives classifieds category caps. */
   type?: string;
   /** Free-form body for the classified card. */
@@ -70,12 +55,7 @@ export interface GazetteScheduleItem {
   hall?: string | null;
 }
 
-export interface GazetteJourneyStep {
-  date: string | null;
-  label: string;
-  description: string;
-  status: 'done' | 'active' | 'future';
-}
+export type GazetteJourneyStep = LandingJourneyStep;
 
 /** All data needed by GazetteLandingPage, assembled by useGazetteLandingData. */
 export interface GazetteLandingData extends LandingData<
@@ -85,11 +65,6 @@ export interface GazetteLandingData extends LandingData<
   GazetteAccommodation
 > {
   // Masthead / show-level
-  clubName: string;
-  showName: string;
-  showSubtitle: string;
-  welcomeText: string | null;
-  trialChairName: string | null;
   trialChairTitle: string | null;
 
   // Visual metadata (display-only; not stored)
@@ -99,54 +74,11 @@ export interface GazetteLandingData extends LandingData<
   established: string | null;
   cityLabel: string | null;
 
-  // Dates
-  entryOpenDate: string | null;
-  entryCloseDate: string | null;
-  confirmationDate: string | null;
-  trialStartDate: string | null;
-  trialEndDate: string | null;
-  timezone: string;
-
-  // Venue
-  venueName: string | null;
-  venueAddress: string | null;
-  venueCity: string | null;
-
-  // Structure
-  trials: GazetteTrial[];
-  judges: GazetteJudge[];
-
-  // Capacity
-  entryCount: number | null;
-  entryLimit: number | null;
-
-  // Particulars facts (formatted for the dl)
-  fees: GazetteFee[];
-
-  // Plan / logistics → classifieds
-  accommodations: GazetteAccommodation[];
-  hospitalityNotes: string | null;
-  awardsDescription: string | null;
-  houseRulesNotes: string | null;
-
   // Schedule (may be empty)
   schedule: GazetteScheduleItem[];
 
   // Officers
   officers: GazetteOfficer[];
 
-  // Contact
-  secretaryName: string | null;
-  secretaryEmail: string | null;
   secretaryPhone: string | null;
-
-  // Registry
-  licenseLanguage: string;
-  memberClubLanguage: string;
-
-  // Journey timeline
-  journeySteps: GazetteJourneyStep[];
-
-  // Entry wizard link
-  entryWizardUrl: string;
 }

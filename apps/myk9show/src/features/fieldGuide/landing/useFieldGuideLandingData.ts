@@ -66,8 +66,8 @@ export function useFieldGuideLandingData(
     ];
     const fees = shared.fees.map(fee => ({
       ...fee,
-      label: fee.label === 'Day-of entry' ? 'EACH ADDITIONAL' : 'FIRST ENTRY',
-      sub: fee.label === 'Day-of entry' ? 'SAME DOG / +TRIALS' : 'PER DOG / PER TRIAL',
+      label: fee.label.toUpperCase(),
+      sub: fee.label === 'Day-of entry' ? 'PER DOG / DAY OF SHOW' : 'PER DOG / PER TRIAL',
     }));
 
     return {

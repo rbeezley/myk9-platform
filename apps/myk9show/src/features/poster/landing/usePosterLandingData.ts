@@ -32,8 +32,7 @@ export function usePosterLandingData(
     });
     const fees = shared.fees.map(fee => ({
       ...fee,
-      label: fee.label === 'Day-of entry' ? 'Each additional' : fee.label,
-      sub: fee.label === 'Day-of entry' ? 'same dog, additional trials' : 'per dog, per trial',
+      sub: fee.label === 'Day-of entry' ? 'per dog, day of show' : 'per dog, per trial',
     }));
 
     return {

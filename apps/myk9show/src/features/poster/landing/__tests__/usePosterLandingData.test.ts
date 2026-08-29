@@ -148,7 +148,7 @@ describe('usePosterLandingData', () => {
     const { result } = renderHook(() => usePosterLandingData(show, null, []));
     expect(result.current.fees).toEqual([
       { label: 'First entry', amount: '$25.00', sub: 'per dog, per trial' },
-      { label: 'Each additional', amount: '$22.00', sub: 'same dog, additional trials' },
+      { label: 'Day-of entry', amount: '$22.00', sub: 'per dog, day of show' },
     ]);
   });
 

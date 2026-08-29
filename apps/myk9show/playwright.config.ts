@@ -19,6 +19,10 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   // Output directory for test artifacts
   outputDir: 'test-results',
+  // F10: a failed test's error-context.md carries the page's accessibility snapshot,
+  // which includes the filled password field's value -- and CI uploads these on
+  // failure. Scrub the literal secrets after the run, before that upload.
+  globalTeardown: './src/test/e2e/helpers/scrubArtifactSecrets.ts',
   // Snapshot settings for visual regression testing
   snapshotDir: './src/test/e2e/__snapshots__',
   snapshotPathTemplate: '{snapshotDir}/{testFilePath}/{projectName}/{arg}{ext}',

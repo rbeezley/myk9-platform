@@ -6,15 +6,19 @@ import path from 'node:path';
  * Root-level Playwright config for the monorepo.
  *
  * The Playwright MCP tool (`mcp__playwright-test__*`) walks up from the cwd
- * looking for a `playwright.config.ts`. With two app-level configs
- * (`apps/myk9q` and `apps/myk9show`) and no root config, MCP would pick the
- * first alphabetical match (`apps/myk9q`), whose `testDir` does not include
- * the myk9show platform e2e suite.
+ * looking for a `playwright.config.ts`, so the root needs one that points at the
+ * myk9show e2e suite rather than leaving the choice to whatever config is found
+ * first. (`apps/myk9q`, the other config this once had to outrank, has since been
+ * deleted -- see CLAUDE.md "Deleted monorepo app".)
  *
  * This config mirrors `apps/myk9show/playwright.config.ts` but uses absolute
- * paths anchored at the monorepo root so paths resolve correctly when MCP
- * tooling runs from the root. To run myk9q tests, invoke them from
- * `apps/myk9q` directly (`pnpm --filter myk9q test:e2e`).
+ * paths anchored at the monorepo root so paths resolve correctly when tooling
+ * runs from the root.
+ *
+ * F11: the root workspace must DECLARE `@playwright/test`, which this file
+ * imports. It previously resolved only by pnpm hoisting accident in the primary
+ * checkout; a fresh worktree failed with `Cannot find module '@playwright/test'`
+ * after bootstrap, because worktrees do not share node_modules.
  */
 
 const myk9showRoot = path.resolve(__dirname, 'apps/myk9show');

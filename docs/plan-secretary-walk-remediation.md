@@ -25,6 +25,13 @@ missing predicate is the standing precedent), and once nearly did.
 
 Phase 1 is safe to run unattended. Phases 2 and 3 are not.
 
+**Phase 1 progress (2026-08-29):** 12 of 15 done. Remaining: 1.8 (F19 filter-chip
+pressed state), 1.9 (F7 picker list semantics), 1.10 (F27 cold-store "Class not
+found"). Two new findings came out of the work — **F34** (id-keyed Selects render raw
+UUIDs app-wide, 43 sites) and **F35** (a local time exactly on UTC midnight resolves a
+day late) — both recorded in the audit and deferred to Phase 3 rather than swept in
+here.
+
 ---
 
 ## Phase 1 — Mechanical fixes (safe to batch)
@@ -33,21 +40,21 @@ Each is a contained change with an observable before/after. No product decision.
 
 | # | Finding | Change |
 | --- | --- | --- |
-| 1.1 | F9 | "1 classes" → singular form on the Detective element |
-| 1.2 | F13 | Judge option renders `Test Judge( - )`; drop the empty separator/parens |
-| 1.3 | F17 | Secretary entry wizard's Help link points at the exhibitor guide |
+| 1.1 | F9 | "1 classes" → singular form on the Detective element — **DONE** — shared `utils/pluralize` (extracted the only existing copy) |
+| 1.2 | F13 | Judge option renders `Test Judge( - )`; drop the empty separator/parens — **DONE** — `formatJudgeAvailabilityWindow`, both call sites |
+| 1.3 | F17 | Secretary entry wizard's Help link points at the exhibitor guide — **DONE** — follows `currentWorkflowMode` |
 | 1.4 | F28 | Manage Classes shows the judge's raw UUID instead of their name — **DONE**; root cause is Base UI needing `items` on the Select root, which turned out to be systemic (see **F34**, Phase 3) |
-| 1.5 | F20 | Waitlist capacity cards title a judge-day with a bare person name |
-| 1.6 | F32 | Volunteers empty state names a sidebar picker that does not exist |
-| 1.7 | F5 | "Judges Assigned n/n" counts judges used/added, not classes covered |
+| 1.5 | F20 | Waitlist capacity cards title a judge-day with a bare person name — **DONE** — labelled as a judge; entry count pluralized |
+| 1.6 | F32 | Volunteers empty state names a sidebar picker that does not exist — **DONE** — names the Show Desk path that works, links to the shows list |
+| 1.7 | F5 | "Judges Assigned n/n" counts judges used/added, not classes covered — **DONE** — tile now counts classes covered, not judges used (mutation-checked) |
 | 1.8 | F19 | Filter chips expose no pressed state (Entry Management queues, Show Map filters); Manage Classes already does it correctly — copy that |
 | 1.9 | F7 | Judge/chairman picker rows are bare `<div>`s: no option/listitem role, name not a leaf node |
 | 1.10 | F27 | Cold replication store reports "Class not found" for a class that exists |
-| 1.11 | F31 | `classifyEmptyUpdateResult` calls an unreadable row a deleted one; the re-read is filtered by the same policy that denied the write |
-| 1.12 | F6 | Entry-close picker defaults to 11:59 PM, so choosing the show's own start date is always invalid |
-| 1.13 | F2 | `.env.local` `E2E_SECRETARY_EMAIL` points at a deleted account, breaking every local secretary e2e run |
-| 1.14 | F10 | Playwright `error-context.md` captures the password field's value in plaintext |
-| 1.15 | F11 | Root `playwright.config.ts` cannot load from a worktree (`@playwright/test` undeclared at root) |
+| 1.11 | F31 | `classifyEmptyUpdateResult` calls an unreadable row a deleted one; the re-read is filtered by the same policy that denied the write — **DONE** — no longer asserts deletion for an unreadable row |
+| 1.12 | F6 | Entry-close picker defaults to 11:59 PM, so choosing the show's own start date is always invalid — **DONE** — `toLocalDateOnly`; tested across 6 timezones; surfaced **F35** |
+| 1.13 | F2 | `.env.local` `E2E_SECRETARY_EMAIL` points at a deleted account, breaking every local secretary e2e run — **DONE** — canonical `@myk9t.com` defaults in `testUsers.ts` (audit was wrong: the default was `''`, not the named account) |
+| 1.14 | F10 | Playwright `error-context.md` captures the password field's value in plaintext — **DONE** — `globalTeardown` scrubs secrets from artifacts; pure half in `src/utils` so vitest actually runs it |
+| 1.15 | F11 | Root `playwright.config.ts` cannot load from a worktree (`@playwright/test` undeclared at root) — **DONE** — root declares `@playwright/test` |
 
 **Testing (Phase 1):** each fix needs a test that fails without it. Prefer rendered
 behaviour over source strings — `dropdownMenuOverflow.test.ts` is the standing example

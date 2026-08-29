@@ -29,6 +29,7 @@ import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import { format } from 'date-fns';
 import { formatFee } from '@/utils/format';
 import { formatTrialTypeLabel } from '@/types/template.types';
+import { countLabel } from '@/utils/pluralize';
 
 interface ReviewStepProps {
   className?: string;
@@ -290,10 +291,23 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-sm">
               <Users className="absolute -right-3 -bottom-3 h-20 w-20 text-muted-foreground/10" />
               <div className="relative">
-                <p className="text-sm font-medium text-muted-foreground">Judges Assigned</p>
+                {/* F5: this used to read uniqueAssignedJudges/totalJudges -- judges
+                    USED over judges ADDED -- under the label "Judges Assigned". Two
+                    classes sharing one judge showed 1/1, and a show with no judges and
+                    two uncovered classes showed 0/0, which reads as complete. A
+                    readiness tile has to count the thing that must be covered, so it
+                    now counts classes, agreeing with the "n of m classes need judges"
+                    line below rather than contradicting it. */}
+                <p className="text-sm font-medium text-muted-foreground">
+                  Classes with a Judge
+                </p>
                 <p className="text-4xl font-bold mt-1 text-foreground">
-                  {uniqueAssignedJudges}
-                  <span className="text-2xl text-muted-foreground">/{totalJudges}</span>
+                  {classesWithJudges}
+                  <span className="text-2xl text-muted-foreground">/{totalClasses}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {countLabel(uniqueAssignedJudges, 'judge')} of{' '}
+                  {countLabel(totalJudges, 'judge')} added
                 </p>
               </div>
             </div>

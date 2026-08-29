@@ -171,8 +171,16 @@ export async function submitOfflineLateEntry({
         jumpHeight: selectedClass.jumpHeight,
         moveUpRequested: selectedClass.moveUpRequested,
         move_up_requested: selectedClass.moveUpRequested,
-        specialRequests: paymentDetails?.paymentNotes ?? null,
-        special_requests: paymentDetails?.paymentNotes ?? null,
+        // Secretary payment bookkeeping goes to its own columns (20260828200000).
+        // It used to be written into `special_requests` -- the exhibitor-facing
+        // field that can surface on ring paperwork -- while the check number and
+        // payment date were dropped entirely.
+        paymentReference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
+        payment_reference: paymentDetails?.paymentReference ?? paymentDetails?.checkNumber ?? null,
+        paymentReceivedOn: paymentDetails?.paymentDate ?? null,
+        payment_received_on: paymentDetails?.paymentDate ?? null,
+        paymentNotes: paymentDetails?.paymentNotes ?? null,
+        payment_notes: paymentDetails?.paymentNotes ?? null,
         submittedAt,
         updated_at: submittedAt,
       };

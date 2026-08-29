@@ -79,6 +79,16 @@ values
   ('00000000-0000-0000-0000-000000114025', 'Null Show Dog', 'Null Show Dog', 'Beagle',
    '00000000-0000-0000-0000-000000114017');
 
+-- `trg_entries_require_dog_registration` (20260828210000) refuses an entry whose dog
+-- holds no registration for the trial's registry. This fixture predates that rule and
+-- is about something else, so give every dog an AKC number -- every trial here is AKC.
+insert into public.dog_registrations (dog_id, organization, registration_number, is_primary)
+select d.id, 'AKC (American Kennel Club)', 'SR' || upper(substr(md5(d.id::text), 1, 8)), true
+from public.dogs d
+where not exists (
+  select 1 from public.dog_registrations r where r.dog_id = d.id
+);
+
 insert into public.entries (
   id, dog_id, class_id, show_id, trial_id, handler_id, entry_status,
   payment_status, entry_fee, is_scored, result_status, total_score, judge_notes

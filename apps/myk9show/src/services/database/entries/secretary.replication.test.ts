@@ -544,48 +544,73 @@ describe('secretary entry read replication', () => {
       'database',
       { showId: 'show-1', operation: 'get_entries_for_show' }
     );
-    expect(mocks.supabaseFrom).toHaveBeenCalledWith('entries');
+    // The scored columns are revoked from `authenticated` on public.entries and
+    // re-exposed through this owner-run view, so the cold fallback must read it.
+    expect(mocks.supabaseFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(1);
     expect(result.data![0]).toMatchObject({ id: 'entry-from-postgrest' });
   });
 
-  it('retries the cold PostgREST fallback without migration-backed refund columns', async () => {
-    mocks.getEntriesByShow.mockRejectedValueOnce(new Error('replicated entries unavailable'));
-    const selects: string[] = [];
-    mocks.supabaseFrom.mockImplementation(() => {
-      let selected = '';
-      const query = {
-        select: vi.fn((select: string) => {
-          selected = select;
-          selects.push(select);
-          return query;
-        }),
-        eq: vi.fn(() => query),
-        is: vi.fn(() => query),
-        order: vi.fn(() =>
-          Promise.resolve(
-            selected.includes('refund_decision')
-              ? {
-                  data: null,
-                  error: {
-                    code: '42703',
-                    message: 'column entries.refund_decision does not exist',
-                  },
-                }
-              : { data: [{ id: 'entry-from-pre-migration-db' }], error: null }
-          )
-        ),
-      };
-      return query;
-    });
+  it('reads the view for entries and retries pull metadata without migration-backed refund columns', () => {
+    // The main fallback select no longer carries refund_decision at all -- the
+    // view does not expose it. The pre-migration guard therefore belongs to the
+    // pull-metadata read, which still goes to public.entries where those
+    // columns are allowlisted for `authenticated`.
+    return (async () => {
+      mocks.getEntriesByShow.mockRejectedValueOnce(new Error('replicated entries unavailable'));
+      const reads: Array<{ relation: string; select: string }> = [];
 
-    const result = await getEntriesForShow('show-1');
+      mocks.supabaseFrom.mockImplementation((relation: string) => {
+        let selected = '';
+        const respond = () => {
+          if (relation !== 'entries') return { data: [{ id: 'entry-from-view' }], error: null };
+          if (selected.includes('refund_decision')) {
+            return {
+              data: null,
+              error: { code: '42703', message: 'column entries.refund_decision does not exist' },
+            };
+          }
+          // Pre-migration shape: withdrawn_at only, still merged onto the row.
+          return { data: [{ id: 'entry-from-view', withdrawn_at: '2026-08-28T12:00:00Z' }], error: null };
+        };
 
-    expect(result).toEqual({ data: [{ id: 'entry-from-pre-migration-db' }], error: null });
-    expect(selects).toHaveLength(2);
-    expect(selects[0]).toContain('refund_decision');
-    expect(selects[1]).not.toContain('refund_decision');
+        const query = {
+          select: vi.fn((select: string) => {
+            selected = select;
+            reads.push({ relation, select });
+            return query;
+          }),
+          eq: vi.fn(() => query),
+          is: vi.fn(() => query),
+          order: vi.fn(() => Promise.resolve(respond())),
+          // The pull-metadata chain ends at .eq(), so it awaits the query itself.
+          then: (resolve: (value: unknown) => unknown) => Promise.resolve(respond()).then(resolve),
+        };
+        return query;
+      });
+
+      const result = await getEntriesForShow('show-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data).toHaveLength(1);
+      // Pull bookkeeping lives only on public.entries; the fallback must merge it
+      // back or every scratched entry reads as "no saved decision".
+      expect(result.data![0]).toMatchObject({
+        id: 'entry-from-view',
+        withdrawn_at: '2026-08-28T12:00:00Z',
+      });
+
+      const entryReads = reads.filter(r => r.relation === 'view_authenticated_entry_results');
+      expect(entryReads).toHaveLength(1);
+      expect(entryReads[0].select).not.toContain('refund_decision');
+      expect(entryReads[0].select).toContain('final_placement');
+
+      const metadataReads = reads.filter(r => r.relation === 'entries');
+      expect(metadataReads).toHaveLength(2);
+      expect(metadataReads[0].select).toContain('refund_decision');
+      expect(metadataReads[1].select).not.toContain('refund_decision');
+    })();
   });
 
   it('hydrates a cold show-scoped replica before using PostgREST', async () => {

@@ -9,7 +9,13 @@
  */
 
 import type { IDBPDatabase } from 'idb';
-import type { ReplicatedRow, SyncMetadata, ScopeSyncState, CacheStats } from '../types';
+import type {
+  ReplicatedReadResult,
+  ReplicatedRow,
+  SyncMetadata,
+  ScopeSyncState,
+  CacheStats,
+} from '../types';
 import type { Logger } from '../dependencies';
 import { REPLICATION_STORES } from './DatabaseManager';
 import { NOTIFY_DEBOUNCE_MS } from '../constants';
@@ -20,6 +26,11 @@ export interface ReplicatedTableSubscriptionOptions {
    * Defaults to true for backward compatibility.
    */
   emitCurrent?: boolean;
+
+  /**
+   * Receive snapshot read failures without changing the legacy row callback.
+   */
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -28,6 +39,7 @@ export interface ReplicatedTableSubscriptionOptions {
  */
 export class ReplicatedTableCacheManager<T extends { id: string }> {
   private listeners: Set<(data: T[]) => void> = new Set();
+  private listenerErrorCallbacks = new Map<(data: T[]) => void, (error: unknown) => void>();
   private notifyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private hasNotifiedLeadingEdge: boolean = false;
 
@@ -39,7 +51,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     private getTtl: () => number,
     private logger: Logger,
     private getDb: () => Promise<IDBPDatabase>,
-    private getAllData: () => Promise<T[]>
+    private getAllData: () => Promise<ReplicatedReadResult<T>>
   ) {}
 
   // ========================================
@@ -89,7 +101,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
 
-    const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
     const now = Date.now();
 
     for (const row of rows) {
@@ -112,7 +124,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
 
-    const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
     let deletedCount = 0;
 
     for (const row of rows) {
@@ -156,7 +168,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
     const index = tx.store.index('tableName');
 
-    const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
 
     return rows.reduce((sum, row) => sum + this.estimateRowSize(row), 0);
   }
@@ -169,7 +181,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
     const index = tx.store.index('tableName');
 
-    const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
 
     const sizeBytes = rows.reduce((sum, row) => sum + this.estimateRowSize(row), 0);
     const dirtyCount = rows.filter(row => row.isDirty).length;
@@ -217,20 +229,20 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    * measured current size, then evict LRU/LFU-ranked rows until at/under target.
    * Dirty and recently-touched rows are always protected.
    */
-  private async evictToTarget(
-    deriveTarget: (currentSize: number) => number
-  ): Promise<number> {
+  private async evictToTarget(deriveTarget: (currentSize: number) => number): Promise<number> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
 
-    const rows = await index.getAll(this.tableName) as ReplicatedRow<T>[];
+    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
 
     let currentSize = rows.reduce((sum, row) => sum + this.estimateRowSize(row), 0);
     const targetSizeBytes = deriveTarget(currentSize);
 
     if (currentSize <= targetSizeBytes) {
-      this.logger.log(`[${this.tableName}] Cache size ${(currentSize / 1024 / 1024).toFixed(2)} MB already under target`);
+      this.logger.log(
+        `[${this.tableName}] Cache size ${(currentSize / 1024 / 1024).toFixed(2)} MB already under target`
+      );
       return 0;
     }
 
@@ -246,8 +258,9 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     const evictableRows = rows
       .filter(row => {
         if (row.isDirty) return false;
-        if (row.lastModifiedAt && (now - row.lastModifiedAt) < RECENT_EDIT_PROTECTION_MS) return false;
-        if ((now - row.lastAccessedAt) < EVICTION_GRACE_PERIOD_MS) return false;
+        if (row.lastModifiedAt && now - row.lastModifiedAt < RECENT_EDIT_PROTECTION_MS)
+          return false;
+        if (now - row.lastAccessedAt < EVICTION_GRACE_PERIOD_MS) return false;
         return true;
       })
       .sort((a, b) => {
@@ -298,18 +311,29 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   ): () => void {
     let isActive = true;
     this.listeners.add(callback);
+    if (options.onError) {
+      this.listenerErrorCallbacks.set(callback, options.onError);
+    }
     if (options.emitCurrent !== false) {
       this.getAllData()
-        .then(data => {
-          if (isActive) {
-            callback(data);
+        .then(result => {
+          if (!isActive) return;
+
+          if (result.ok) {
+            callback(result.rows);
+          } else {
+            options.onError?.(result.error);
           }
         })
-        .catch(this.logger.error);
+        .catch(error => {
+          this.logger.error(error);
+          if (isActive) options.onError?.(error);
+        });
     }
     return () => {
       isActive = false;
       this.listeners.delete(callback);
+      this.listenerErrorCallbacks.delete(callback);
     };
   }
 
@@ -339,10 +363,21 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   }
 
   private async actuallyNotifyListeners(): Promise<void> {
-    const data = await this.getAllData();
-    this.listeners.forEach((callback) => {
+    const result = await this.getAllData();
+    if (!result.ok) {
+      this.listenerErrorCallbacks.forEach(onError => {
+        Promise.resolve()
+          .then(() => onError(result.error))
+          .catch(error => {
+            this.logger.error(`[${this.tableName}] Listener error callback failed:`, error);
+          });
+      });
+      return;
+    }
+
+    this.listeners.forEach(callback => {
       Promise.resolve()
-        .then(() => callback(data))
+        .then(() => callback(result.rows))
         .catch(error => {
           this.logger.error(`[${this.tableName}] Listener error:`, error);
         });
@@ -376,8 +411,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     const readPromise = (async () => {
       const db = await this.getDb();
       const row = (await db.get(REPLICATION_STORES.SYNC_METADATA, this.tableName)) as
-        | SyncMetadata
-        | undefined;
+        SyncMetadata | undefined;
       return this.projectScopedMetadata(row ?? null, scopeValue);
     })();
 
@@ -464,7 +498,8 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
         atomicUpdates.conflictCount = (existing.conflictCount || 0) + updates.conflictCount;
       }
       if (updates.pendingMutations !== undefined && existing) {
-        atomicUpdates.pendingMutations = (existing.pendingMutations || 0) + updates.pendingMutations;
+        atomicUpdates.pendingMutations =
+          (existing.pendingMutations || 0) + updates.pendingMutations;
       }
 
       // Per-scope watermark routing + optional monotonic advance.
@@ -478,8 +513,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
 
       if (scopeValue !== undefined) {
         const prevScope = existing?.scopes?.[scopeValue];
-        const rawWatermark =
-          updates.lastIncrementalSyncAt ?? prevScope?.lastIncrementalSyncAt ?? 0;
+        const rawWatermark = updates.lastIncrementalSyncAt ?? prevScope?.lastIncrementalSyncAt ?? 0;
         const nextWatermark =
           advanceWatermarkMonotonically && updates.lastIncrementalSyncAt !== undefined
             ? Math.max(prevScope?.lastIncrementalSyncAt ?? 0, updates.lastIncrementalSyncAt)

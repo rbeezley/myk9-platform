@@ -62,6 +62,36 @@ describe('getShowEntryFee — timezone-safe date comparison', () => {
     expect(getShowEntryFee(show)).toBe(25);
   });
 
+  it('falls back to the pre-entry fee when the day-of fee is unset (stored as 0.00)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-01T09:00:00'));
+
+    // Leaving "Day-of-Show Fee" blank in the creation wizard persists "0.00",
+    // not NULL. Treating that as a real $0 tier prices every day-of entry free
+    // and stores it `payment_status: paid`, so nothing downstream flags it.
+    const show: ShowFeeInfo = {
+      startDate: '2026-05-01',
+      preEntryFee: '$30',
+      dayOfShowFee: '0.00',
+    };
+
+    expect(getShowEntryFee(show)).toBe(30);
+  });
+
+  it('still applies a day-of fee that is genuinely lower than the pre-entry fee', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-01T09:00:00'));
+
+    const show: ShowFeeInfo = {
+      startDate: '2026-05-01',
+      preEntryFee: '$30',
+      dayOfShowFee: '$10',
+    };
+
+    // Only zero is treated as "no day-of tier" -- any positive amount wins.
+    expect(getShowEntryFee(show)).toBe(10);
+  });
+
   it('triggers day-of-show fee on the actual start date', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 4, 1, 9, 0, 0)); // May 1, 2026 at 9am local

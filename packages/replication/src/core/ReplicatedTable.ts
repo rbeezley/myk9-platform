@@ -21,6 +21,7 @@ import type {
   SyncResult,
   SyncOptions,
   CacheStats,
+  ReplicatedReadResult,
 } from '../types';
 import type { Logger, GetTableTTL, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger, defaultGetTableTTL } from '../dependencies';
@@ -103,7 +104,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       () => this.ttl,
       this.logger,
       () => this.init(),
-      () => this.getAll()
+      () => this.getAllWithStatus()
     );
 
     this.batchManager = new ReplicatedTableBatchManager<T>(
@@ -315,8 +316,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const key = [this.tableName, normalizedId];
 
     const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
-      | ReplicatedRow<T>
-      | undefined;
+      ReplicatedRow<T> | undefined;
 
     if (!row) {
       this.logger.log(`[${this.tableName}] Cache miss for ID: ${normalizedId}`);
@@ -399,8 +399,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     const normalizedId = String(id);
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-      | ReplicatedRow<T>
-      | undefined;
+      ReplicatedRow<T> | undefined;
 
     // Optimistic locking - verify version hasn't changed
     if (expectedVersion !== undefined && existingRow && existingRow.version !== expectedVersion) {
@@ -450,8 +449,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const normalizedId = String(id);
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-      | ReplicatedRow<T>
-      | undefined;
+      ReplicatedRow<T> | undefined;
 
     const conflictedRow = applyConflictSnapshot(existingRow, conflict);
     if (!conflictedRow) {
@@ -488,8 +486,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const normalizedId = String(id);
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-      | ReplicatedRow<T>
-      | undefined;
+      ReplicatedRow<T> | undefined;
 
     const clearedRow = clearConflictSnapshot(existingRow, newServerVersion);
     if (!clearedRow) {
@@ -539,8 +536,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const normalizedId = String(id);
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-      | ReplicatedRow<T>
-      | undefined;
+      ReplicatedRow<T> | undefined;
 
     const row = buildRemoteReplacementRow({
       tableName: this.tableName,
@@ -583,8 +579,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // version had this race; see PR #351 review finding #1.
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-      | ReplicatedRow<T>
-      | undefined;
+      ReplicatedRow<T> | undefined;
 
     if (!existingRow || !existingRow.isDirty) {
       // No-op: row absent, or already synced. End the transaction cleanly.
@@ -642,8 +637,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // mutation between our read and write (same race markAsSynced guards against).
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-      | ReplicatedRow<T>
-      | undefined;
+      ReplicatedRow<T> | undefined;
 
     // Only reconcile a still-dirty, non-conflicted row.
     if (!existingRow || !existingRow.isDirty || existingRow.syncStatus === 'conflict') {
@@ -809,6 +803,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   async getAll(licenseKey?: string): Promise<T[]> {
     return this.queryManager.getAll(licenseKey);
+  }
+
+  /**
+   * Get all rows with explicit local-read status. Use this when an empty result
+   * would drive a user-visible or operational claim.
+   */
+  async getAllWithStatus(licenseKey?: string): Promise<ReplicatedReadResult<T>> {
+    return this.queryManager.getAllWithStatus(licenseKey);
   }
 
   /**

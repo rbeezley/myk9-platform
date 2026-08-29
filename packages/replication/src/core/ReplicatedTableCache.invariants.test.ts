@@ -70,7 +70,7 @@ describe('ReplicatedTableCache invariants', () => {
       () => 5000,
       { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
       async () => db,
-      getAllData
+      async () => ({ ok: true, rows: await getAllData(), error: null })
     );
   });
 

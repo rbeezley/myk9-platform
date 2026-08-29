@@ -962,6 +962,31 @@ when given a `value` with no `items`, so the next one cannot ship silently; and 
 a lint rule can catch it. Filed as Phase 3.
 
 
+### F35 — P3 — NEW — A local time that is exactly UTC midnight resolves one day late
+
+Surfaced while fixing F6, and **pre-existing** rather than introduced by it.
+
+`toLocalDateOnly` (`utils/date-format.ts`) short-circuits any ISO string ending
+`T00:00:00Z` to its literal date part. That is deliberate and correct for its stated
+case: a `DATE` column round-trips as UTC midnight, and local getters would misread it
+as the previous day west of UTC. But a genuine *local* timestamp that happens to land
+on UTC midnight is indistinguishable from that — 5:00 PM PDT, 7:00 PM EST — so it
+resolves to the next calendar day.
+
+Concretely, a show ending 5:00 PM Pacific serialises to `2026-08-29T00:00:00.000Z` and
+reads as Aug 29 rather than Aug 28, which suppresses the "End date must be on or after
+start date" rule for that combination.
+
+Not a regression: the previous `slice(0, 10)` returned the same wrong date for the same
+input (verified before changing it), so F6's fix is a strict improvement that merely
+made this visible. Pinned by a test in `showCreationWizardValidation.test.ts` marked
+KNOWN LIMITATION rather than folded silently into an unrelated assertion.
+
+The real fix is for the wizard to carry date-only values instead of ISO datetimes, so
+the ambiguity never arises — that is a data-shape change across the picker and the
+show payload, not a one-line edit, so it is left open.
+
+
 ## What works well
 
 - **Show creation wizard defaults.** Host club auto-selected when only one is

@@ -139,7 +139,7 @@ cd apps/myk9show && pnpm vitest run -t "pattern"
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
 - **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
 
-- **Heritage / registry columns** (migrations 192–193): schema notes in [`docs/reference/heritage-registry-columns.md`](docs/reference/heritage-registry-columns.md) — always read via the `@/features/registries` helpers (`getShowLandingStyle`, `getTrialRegistry`, `getTrialTimezone`), never raw column access.
+- **Heritage / registry columns** (migrations 192–195): schema notes in [`docs/reference/heritage-registry-columns.md`](docs/reference/heritage-registry-columns.md) — always read via the `@/features/registries` helpers (`getShowStyle`, `getTrialRegistry`, `getTrialTimezone`), never raw column access.
 
 ## Deployment
 

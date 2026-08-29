@@ -107,12 +107,13 @@ describe('CompactOfflineIndicator', () => {
         value={
           {
             status: {
+              lastSyncAt: new Date(),
               isSyncing: false,
               tablesStatus: {
-                shows: 'synced',
-                trials: 'synced',
-                classes: 'synced',
-                entries: 'synced',
+                shows: 'success',
+                trials: 'success',
+                classes: 'success',
+                entries: 'success',
               },
             },
           } as never

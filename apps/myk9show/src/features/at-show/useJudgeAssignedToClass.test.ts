@@ -208,8 +208,9 @@ describe('useJudgeAssignedToClass', () => {
    * one that blocks -- it used to report 'checking' forever, which the scoresheet
    * renders as a skeleton with no error, no retry and no way out.
    */
-  it('fails open when identity has not resolved, instead of checking forever', async () => {
+  it('fails open when identity has not resolved AND cannot arrive (offline)', async () => {
     authIdentity.databaseUserId = undefined;
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     getAll.mockResolvedValue([]);
 
     const { result } = renderHook(() =>
@@ -224,6 +225,27 @@ describe('useJudgeAssignedToClass', () => {
       expect(result.current.status).not.toBe('checking');
     });
     expect(result.current.status).toBe('not-applicable');
+  });
+
+  it('KEEPS CHECKING while identity is merely pending online', async () => {
+    // The window my first fix opened. `databaseUserId` comes from a React Query
+    // that is pending on every ONLINE cold load, not just offline. Returning a
+    // verdict here mounts the scoring engine, and mounting WRITES `in-ring` --
+    // so an unassigned judge would leave the dog in-ring with no score and see
+    // the sheet flash and vanish once identity resolved.
+    authIdentity.databaseUserId = undefined;
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    getAll.mockResolvedValue([]);
+
+    const { result } = renderHook(() =>
+      useJudgeAssignedToClass({
+        showRole: ShowRole.JUDGE,
+        isAnonymous: false,
+        classId: 'class-1',
+      })
+    );
+
+    expect(result.current.status).toBe('checking');
   });
 
   it('resumes the normal fail-open path once identity resolves', async () => {

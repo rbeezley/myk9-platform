@@ -64,10 +64,18 @@ export const RingsideModal: React.FC<RingsideModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      // z-[200]: the entry-list header's action cluster is `relative z-[100]`,
+      // so a z-50 scrim left the refresh/filter/menu buttons painting on top of
+      // it and still clickable behind the dialog.
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
       // A scrim click is a dismiss, matching the platform convention. The panel
       // stops propagation so a click inside never closes it.
-      onClick={onDismiss}
+      onClick={event => {
+        // Only a click that both started and ended on the scrim dismisses. A
+        // drag-select of the dog's name that releases outside the panel
+        // otherwise closed the dialog mid-read.
+        if (event.target === event.currentTarget) onDismiss();
+      }}
       onKeyDown={handleKeyDown}
     >
       <div

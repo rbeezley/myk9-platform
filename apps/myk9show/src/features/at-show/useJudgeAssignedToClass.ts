@@ -158,7 +158,23 @@ export function useJudgeAssignedToClass({
   // same kind of ignorance and gets the same answer -- it must not be the one
   // ignorance that blocks. See CLAUDE.md on the roles/identity coupled pair.
 
-  if (!personId) return { status: 'not-applicable' };
+  if (!personId) {
+    // Fail open ONLY when identity can never arrive. The `people` query in
+    // AuthContext declares no networkMode, so it PAUSES offline -- there,
+    // `personId` stays null indefinitely and holding 'checking' strands a judge
+    // on an endless skeleton, unable to score the dog in front of them.
+    //
+    // ONLINE it is merely PENDING and resolves a moment later, so returning a
+    // verdict would be worse than waiting: `not-applicable` mounts the scoring
+    // engine, and mounting WRITES `in-ring` (useAtShowScoresheet ->
+    // transitionToInRing). A judge we are about to deny would leave the dog
+    // marked in-ring with a ring_entry_time and no score, and watch the sheet
+    // flash and get yanked away. My first pass at this fix missed that window
+    // by treating unresolved identity as an offline-only condition.
+    const identityCanStillArrive =
+      typeof navigator === 'undefined' || navigator.onLine !== false;
+    return identityCanStillArrive ? { status: 'checking' } : { status: 'not-applicable' };
+  }
 
   if (resolved && resolved.key === lookupKey) return { status: resolved.value };
   return { status: 'checking' };

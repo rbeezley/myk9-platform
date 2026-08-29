@@ -157,7 +157,14 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
 
   const handleScoreClick = useCallback(
     (entry: Entry) => {
-      if (entry.isScored) return;
+      if (entry.isScored) {
+        // Was a silent `return` here too. The single-class route was fixed and
+        // this one was not -- the same divergence this page keeps producing.
+        // (handleEntryPrefetch below keeps its silent return on purpose: it is
+        // a prefetch, not a user-facing tap.)
+        notify(`${entry.callName} is already scored — use the card's ⋯ menu to change it.`, 'info');
+        return;
+      }
 
       if (!hasPermission('canScore')) {
         notify('You do not have permission to score entries.', 'error');
@@ -171,7 +178,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         navigate(route, { state: { pairedClassId } });
       }
     },
-    [hasPermission, classIds.a, classIds.b, getScoresheetNavigationRoute, navigate]
+    [hasPermission, classIds.a, classIds.b, getScoresheetNavigationRoute, navigate, notify]
   );
 
   // Prefetch — call the shim's per-entry prefetch for the focused

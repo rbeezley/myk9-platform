@@ -279,7 +279,7 @@ export function useDragAndDropEntries({
         }, gracePeriodMs);
       }
     }
-  }, [localEntries, setLocalEntries, setManualOrder, isDraggingRef, gracePeriodMs, updateExhibitorOrder]);
+  }, [localEntries, setLocalEntries, setManualOrder, isDraggingRef, gracePeriodMs, updateExhibitorOrder, onPersistError]);
 
   return {
     sensors,

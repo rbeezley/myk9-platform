@@ -14,8 +14,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { CombinedEntryListPage } from '../CombinedEntryListPage';
 import type { CombinedEntryListPageProps } from '../pageProps';
 
+let capturedOnEntryClick: ((entry: unknown) => void) | undefined;
 vi.mock('../components/EntryListContent', () => ({
-  EntryListContent: () => <div data-testid="entry-list-content" />,
+  EntryListContent: (props: { onEntryClick?: (entry: unknown) => void }) => {
+    capturedOnEntryClick = props.onEntryClick;
+    return <div data-testid="entry-list-content" />;
+  },
 }));
 
 const passthrough = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
@@ -123,6 +127,22 @@ describe('CombinedEntryListPage — load states', () => {
 
     expect(screen.getByText(/no entries yet/i)).not.toBeNull();
     expect(screen.queryByTestId('entry-list-content')).toBeNull();
+  });
+
+  it('explains a tap on an already-scored dog, like the single-class route', () => {
+    // The single-class route was fixed and this one was not — the divergence
+    // this page keeps producing. A silent return is indistinguishable from a
+    // missed tap or a frozen app for the judge who spotted a typo.
+    const onNotify = vi.fn();
+    renderPage({
+      ...makeProps({ entries: [{ id: 'e1', classId: 'class-a' }], isLoaded: true }),
+      onNotify,
+    });
+
+    capturedOnEntryClick?.({ id: 'e1', callName: 'Rex', isScored: true });
+
+    expect(onNotify).toHaveBeenCalled();
+    expect(onNotify.mock.calls[0]?.[0]).toMatch(/already scored/i);
   });
 
   it('routes its content through the PullToRefresh slot, which carries the containment banner', () => {

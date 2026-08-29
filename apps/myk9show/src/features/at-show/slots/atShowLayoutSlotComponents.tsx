@@ -10,7 +10,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
-import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import type {
   CompactOfflineIndicatorProps,
   ErrorStateProps,
@@ -74,9 +73,22 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
   // whether the data is local. Unknown is handled like every other unknown
   // here: decline to promise.
   const replication = useContext(ReplicationSyncContext);
-  const pendingFirstSync =
-    replication === null ||
-    areReplicationTablesPendingFirstSync(replication.status, AT_SHOW_OFFLINE_TABLES);
+
+  // Deliberately NOT `areReplicationTablesPendingFirstSync`. That helper starts
+  // with `if (status.isSyncing) return true`, which is right for a page-level
+  // empty-state gate and wrong for a persistent capability chip: the provider
+  // re-syncs every 60s, so the chip would retract its promise once a minute for
+  // the whole show. An aborted table sync also lands back on 'idle' -- a
+  // "pending" status -- which would strand the chip on "Preparing..." while the
+  // data it describes is already in IndexedDB.
+  //
+  // The honest question is whether the data is LOCAL, not whether a sync is in
+  // flight. `lastSyncAt` answers that durably: once a full sync has completed,
+  // a later refresh (or a failed one) does not remove what is already stored.
+  const status = replication?.status;
+  const ready =
+    !!status?.lastSyncAt &&
+    AT_SHOW_OFFLINE_TABLES.every(table => status.tablesStatus[table] !== 'error');
 
   return (
     <span
@@ -87,7 +99,7 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
       )}
     >
       <CloudOff size={13} className="shrink-0" />
-      {pendingFirstSync ? 'Preparing offline copy…' : 'Offline ready'}
+      {ready ? 'Offline ready' : 'Preparing offline copy…'}
     </span>
   );
 };

@@ -28,31 +28,37 @@ function renderChip(status: SyncStatus | null) {
   );
 }
 
-function syncStatus(isSyncing: boolean, tablesStatus: Record<string, string>): SyncStatus {
-  return { isSyncing, tablesStatus } as unknown as SyncStatus;
+function syncStatus(
+  isSyncing: boolean,
+  tablesStatus: Record<string, string>,
+  lastSyncAt: Date | null = new Date()
+): SyncStatus {
+  return { isSyncing, tablesStatus, lastSyncAt } as unknown as SyncStatus;
 }
 
 describe('CompactOfflineIndicator', () => {
   it('does NOT promise offline readiness before the first sync completes', () => {
     // The case the constant got wrong: a cold first load, nothing cached yet.
-    renderChip(syncStatus(true, {}));
+    renderChip(syncStatus(true, {}, null));
 
     expect(screen.queryByText(/offline ready/i)).not.toBeInTheDocument();
     expect(screen.getByText(/preparing offline copy/i)).toBeInTheDocument();
   });
 
-  it('does not promise readiness while a required table has not synced', () => {
+  it('does not promise readiness before a full sync has ever completed', () => {
     // 'idle' and 'syncing' are the real pending statuses
     // (replicationSyncEmptyState.PENDING_TABLE_STATUSES). Entries has never
     // synced here, so an offline promise would be unfounded even though the
     // other three tables are ready.
     renderChip(
       syncStatus(false, {
-        shows: 'synced',
-        trials: 'synced',
-        classes: 'synced',
+        shows: 'success',
+        trials: 'success',
+        classes: 'success',
         entries: 'idle',
-      })
+      },
+        null
+      )
     );
 
     expect(screen.queryByText(/offline ready/i)).not.toBeInTheDocument();
@@ -61,14 +67,43 @@ describe('CompactOfflineIndicator', () => {
   it('promises offline readiness only once every required table has synced', () => {
     renderChip(
       syncStatus(false, {
-        shows: 'synced',
-        trials: 'synced',
-        classes: 'synced',
-        entries: 'synced',
+        shows: 'success',
+        trials: 'success',
+        classes: 'success',
+        entries: 'success',
       })
     );
 
     expect(screen.getByText('Offline ready')).toBeInTheDocument();
+  });
+
+  it("keeps the promise during the provider's periodic re-sync", () => {
+    // The provider re-syncs every 60s. Keying the chip on `isSyncing` made it
+    // retract "Offline ready" once a minute for the whole show, and strand on
+    // "Preparing..." after an aborted sync — while the data was already local.
+    renderChip(
+      syncStatus(true, {
+        shows: 'syncing',
+        trials: 'success',
+        classes: 'success',
+        entries: 'success',
+      })
+    );
+
+    expect(screen.getByText('Offline ready')).not.toBeNull();
+  });
+
+  it('withdraws the promise when a required table actually errored', () => {
+    renderChip(
+      syncStatus(false, {
+        shows: 'success',
+        trials: 'success',
+        classes: 'success',
+        entries: 'error',
+      })
+    );
+
+    expect(screen.queryByText(/offline ready/i)).toBeNull();
   });
 
   it('declines to promise when there is no replication context at all', () => {

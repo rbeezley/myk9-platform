@@ -83,6 +83,93 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### MYK9-258
+
+- **Status:** fixed (2026-08-29 — PR #1847 / commit `dd8184afe741b754c0c2f701648b116a858dd9b5`; focused SQL/source-contract proof)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed authorization/security defect
+- **Severity:** Pilot blocker
+- **Canonical priority:** P0
+- **Source label:** Pilot blocker
+- **Source:** codex
+- **Role/workflow:** secretary / Entries Management and export for club-less shows
+- **Surface:** `supabase/migrations/20260828230000_null_club_show_authorization.sql:48-169`; `manageable_show_ids`, `can_manage_show`, `can_manage_trial`, `is_show_office_manager`, and `get_entries_for_export`
+- **Suite category:** security/show-day
+- **Pattern:** null-scope authorization widening
+- **Detected by:** daily commit review / secretary task walk
+- **First seen:** 2026-08-28
+- **Last seen:** 2026-08-29
+- **Baseline SHA:** `dd8184afe741b754c0c2f701648b116a858dd9b5`
+- **Evidence:** A NULL `shows.club_id` was passed into club-scoped authorization helpers whose NULL argument means “no club filter,” making club-less shows visible to unrelated secretaries and allowing the export path to expose entrant PII. PR #1847 guards every club-scoped arm with `club_id IS NOT NULL` while retaining explicit show-scoped grants. The focused null-club source contract and the repository SQL test passed; all required PR checks for #1847 passed.
+- **Expected behavior:** Club-scoped secretary/admin authorization must never widen to all club-less shows; explicit show-scoped grants may still authorize their named show.
+- **Observed behavior:** Resolved. Club-less shows are excluded from club-scoped arms, while explicit show-scoped and platform-admin paths remain available.
+- **User impact:** Before the fix, an unrelated secretary could see or export another club-less show's entries and owner contact data.
+- **Intent check:** Restores the secretary expectation that show-day records are private, scoped, and trustworthy.
+- **Confidence:** high for source and CI closure; live shared-database replay was not independently repeated by this run.
+- **Fix owner:** security-definer show authorization helpers and entry export RPC.
+- **Existing references:** Linear MYK9-258 (Done; PR #1847 attached).
+- **Linear issue:** reused MYK9-258; no new issue created.
+- **Proof required:** Satisfied by the focused source contract and SQL behavioral test in passing PR checks; independently repeat against the deployed database if the migration has not yet reached the target environment.
+- **Notes:** This is newly resolved in the reviewed range, not a new open work item.
+
+### MYK9-252
+
+- **Status:** fixed (2026-08-29 — PR #1849 / docs follow-up #1850; focused read-status proof)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed show-day data-truthfulness defect
+- **Severity:** High
+- **Canonical priority:** P1
+- **Source label:** High
+- **Source:** codex
+- **Role/workflow:** secretary / Show Desk schedule and trial loading
+- **Surface:** `packages/replication/src/core/ReplicatedTableQuery.ts:123-165`; `packages/replication/src/core/ReplicatedTable.ts:804-814`; `apps/myk9show/src/store/trialStore.ts:237-294,297-320`; `apps/myk9show/src/pages/secretary/useShowDeskScheduleRead.ts`
+- **Suite category:** security/show-day
+- **Pattern:** empty-on-read-failure
+- **Detected by:** daily commit review / page audit
+- **First seen:** 2026-08-28
+- **Last seen:** 2026-08-29
+- **Baseline SHA:** `5bb396707dbc79c441a97af859131fbcba819b16`
+- **Evidence:** The replicated query layer now returns `{ ok, rows, error }`, preserving the difference between an empty snapshot and a failed local read. Trial state records read errors, and Show Desk consumes that status instead of treating an error as an empty schedule. Focused replication, trial-store, and Show Desk tests passed; all required PR checks for #1849 passed.
+- **Expected behavior:** A failed local read must not produce a factual empty schedule or “all clear” claim; the secretary must receive an explicit recovery state.
+- **Observed behavior:** Resolved. Read failures are retained and surfaced to the Show Desk path, while `getAll()` remains a compatibility adapter.
+- **User impact:** Before the fix, a show-day secretary could mistake a storage/read failure for no trials or classes and make an incorrect operational decision.
+- **Intent check:** Restores “calm control” by making uncertainty visible instead of silently claiming an empty schedule.
+- **Confidence:** high for focused source/test closure; no live offline storage-failure replay was independently repeated by this run.
+- **Fix owner:** replication read result contract, trial store, and Show Desk read-state presentation.
+- **Existing references:** Linear MYK9-252 (Done; PR #1849 and docs follow-up #1850 attached), related MYK9-257/MYK9-259 remain separate.
+- **Linear issue:** reused MYK9-252; no new issue created.
+- **Proof required:** Satisfied by focused tests and passing required PR checks; retain a browser/offline replay as follow-up evidence for future changes to this path.
+- **Notes:** Newly resolved in the reviewed range.
+
+### MYK9-253
+
+- **Status:** fixed (2026-08-29 — PR #1852 / commit `96edfbc4a1f0c764831ce4745bca4489165b8b0e`; focused token-syntax and CI proof)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed visual rendering defect
+- **Severity:** Medium
+- **Canonical priority:** P2
+- **Source label:** Medium
+- **Source:** codex
+- **Role/workflow:** secretary / entry registration and schedule surfaces; public legal page
+- **Surface:** `apps/myk9show/src/features/secretary/EntryRegistrationQueue.tsx`; `apps/myk9show/src/features/secretary/SecretaryCockpitSchedule.tsx`; chart pages; `apps/myk9show/src/styles/legal.css`
+- **Suite category:** feature-audit
+- **Pattern:** invalid-theme-token-wrapper
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-28
+- **Last seen:** 2026-08-29
+- **Baseline SHA:** `96edfbc4a1f0c764831ce4745bca4489165b8b0e`
+- **Evidence:** Hex-backed theme tokens were wrapped in `hsl(var(...))`, producing invalid CSS and silently dropping intended colors. PR #1852 renders the tokens directly and adds token-syntax coverage plus a legal-page regression. The focused token test passed and all required PR checks passed.
+- **Expected behavior:** Theme tokens must compile to valid CSS and preserve the intended visual hierarchy across affected surfaces.
+- **Observed behavior:** Resolved. Hex-backed tokens are emitted directly; the invalid HSL wrapper is removed from the affected paths.
+- **User impact:** Before the fix, affected surfaces could lose semantic colors and appear visually inconsistent or misleading.
+- **Intent check:** Preserves the “invisible technology” experience by keeping visual status cues dependable.
+- **Confidence:** high for source/CI closure; no local browser replay was run in this review.
+- **Fix owner:** theme-token consumers and legal-page styles.
+- **Existing references:** Linear MYK9-253 (Done; PR #1852 attached).
+- **Linear issue:** reused MYK9-253; no new issue created.
+- **Proof required:** Satisfied by focused token coverage and passing PR checks; repeat the legal-page browser replay if token syntax changes again.
+- **Notes:** Newly resolved in the reviewed range.
+
 ### SA-2026-07-29-01
 
 - **Status:** fixed (2026-08-19 — MYK9-127 closure proof; product rule corrected 2026-08-27)
@@ -215,35 +302,95 @@ Copy this block for each new finding.
 
 ## Open Findings
 
-### NCR-2026-08-24-01
+### MYK9-257
 
 - **Status:** open
 - **Lifecycle status:** new
-- **Classification:** Confirmed show-day data-integrity defect
-- **Severity:** high
-- **Canonical priority:** P1
-- **Source label:** High
+- **Classification:** Confirmed product/UX workflow defect
+- **Severity:** Medium
+- **Canonical priority:** P2
+- **Source label:** Medium
 - **Source:** codex
-- **Role/workflow:** secretary and judge / emergency or offline trial packet generation and paper score recording
-- **Surface:** `supabase/migrations/20260821220000_emergency_packet_input_rpc.sql:109-134`; shared packet renderer
-- **Suite category:** security/show-day
-- **Pattern:** stale-derived-state
-- **Detected by:** daily commit review
-- **First seen:** 2026-08-24
-- **Last seen:** 2026-08-24
+- **Role/workflow:** secretary / reopen an existing show in the creation wizard and save edits
+- **Surface:** `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx:169-185`; `apps/myk9show/src/pages/secretary/ShowCreationWizard/editModeResolution.ts:44-57`; `apps/myk9show/src/pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts:282-300`; `apps/myk9show/src/store/showStore.ts:367-375`
+- **Suite category:** feature-audit
+- **Pattern:** read-source/write-source mismatch
+- **Detected by:** daily commit review / adversarial secretary workflow audit
+- **First seen:** 2026-08-29
+- **Last seen:** 2026-08-29
 - **Consecutive-run count:** 1
-- **Baseline SHA:** `c01e08d7707dd6673d33a8d0e20b16ce5235482a`
-- **Evidence:** Commit `e557cfcea519e1199b33b0159ed6eea5cd7d122e` / PR #1738 introduced the RPC. Its comments say `armbands` is authoritative because `entries.armband` is a denormalized copy that may lag, but lines 123-126 use `COALESCE(NULLIF(btrim(e.armband), ''), ab.armband_number::text)`, so any stale non-empty entry value wins over the canonical table. The same denormalized-first expression is used for the fallback call name at lines 130-132. The `ELSE 0` branch converts acknowledged real suffixed values such as `12A` into numeric armband `0`. The renderer requires `armband: number` (`supabase/functions/_shared/trialPacket/renderer/types.ts:11`), sorts by armband when run order ties (`supabase/functions/_shared/trialPacket/renderer/emergencyTrialPacket.ts:53-56`), and prints it on packet rows (`buildEmergencyTrialPacketPdf.ts:321-361`). The contract test at `apps/myk9show/src/test/database/emergencyPacketInputRpcContract.test.ts:117-127` asserts the faulty precedence and is therefore a false-negative guard.
-- **Expected behavior:** Packet JSON and rendered paper use the current canonical armband for each show/dog, and suffixed/non-numeric values are preserved or handled by an explicit product-safe representation; no valid value silently becomes `#0`.
-- **Observed behavior:** A stale non-empty `entries.armband` overrides `armbands.armband_number`; a value such as `12A` falls through to integer `0`, then prints and sorts as `#0`.
-- **User impact:** Emergency paperwork can misidentify a dog or misorder the running sheet. The secretary or judge must manually correct the packet, and a score recorded against the wrong printed identity risks transcription error during the show-day fallback workflow.
-- **Intent check:** Harms the secretary/judge expectation that emergency paper is calm, trustworthy, and safe when the app or laptop path is unavailable.
-- **Confidence:** high for the `12A` → `0` path; high for stale-entry precedence given the schema and authoritative-read comments.
-- **Fix owner:** emergency packet input RPC and shared packet renderer/type contract.
-- **Existing references:** Linear search with `includeArchived: true` found no exact duplicate. Related work is MYK9-228 (packet cron generation) and MYK9-198 (out-of-band packet PDF); neither tracks armband identity correctness.
-- **Linear issue:** MYK9-243 — https://linear.app/myk9-platform/issue/MYK9-243/ncr-2026-08-24-01-emergency-packet-can-print-wrong-armbands
-- **Proof required:** Applied SQL fixture or deployed RPC replay covering stale non-empty entry values, missing values, numeric values, and suffixed values; inspect packet JSON and rendered PDF/text for identity and order; add regression tests proving corrected precedence and suffixed-value behavior; rerun the focused database and renderer suites. Do not close from source changes alone.
-- **Notes:** The current focused contract suite passes `3` files / `47` tests, but its armband assertion encodes the incorrect denormalized-first order. No later commit through `339d0e2701ded7ba7323c3f20ebf7f0067f3273d` fixes this finding.
+- **Baseline SHA:** `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`
+- **Evidence:** PR #1845 makes the edit-mode gate search the union of Zustand `zustandShows` and React Query `queryShows` (`ShowCreationWizardPage.tsx:169-185`; `editModeResolution.ts:44-57`). The final edit save still calls Zustand `updateShow`, which searches only `get().shows` and returns `null` when the target exists only in React Query (`showStore.ts:367-375`). The action then throws the honest “show didn’t load” error (`useShowCreationWizardActions.ts:294-300`) after the secretary has completed the wizard. Existing edit-mode tests cover resolution from `allShows`, but no test proves that a React Query-only resolved show can complete the final save through the same source.
+- **Expected behavior:** The show used to pass edit-mode resolution must be available to the write path, or the wizard must refuse entry before the secretary invests work and provide a recoverable reload path.
+- **Observed behavior:** A React Query-only show passes the edit gate, initializes the draft, and allows wizard work; final save searches a different store, returns `null`, and rejects the completed save without persisting changes.
+- **User impact:** A secretary can spend several steps editing a show only to hit a dead end at the final save and lose confidence that the workflow is safe. No silent write or data corruption was observed.
+- **Intent check:** Violates “That was easy” and the no-dead-ends expectation for secretary show administration.
+- **Confidence:** high from the complete source path and current tests; a browser replay with a deliberately React Query-only fixture remains useful confirmation.
+- **Fix owner:** Show Creation Wizard edit-mode data-source contract and `showStore.updateShow` integration.
+- **Existing references:** Linear MYK9-257 (Backlog; exact issue, no duplicate); related MYK9-252 is the separate replicated-read truthfulness fix.
+- **Linear issue:** reused MYK9-257; no new issue created.
+- **Proof required:** Add a focused regression test that resolves an edit target from React Query-only data and completes `updateShow`, or change the gate/write path to share one authoritative source; then run a secretary browser replay that edits and saves a React Query-only show and verifies persistence.
+- **Notes:** Introduced by PR #1845 / commit `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`; no subsequent commit through `96edfbc4a1f0c764831ce4745bca4489165b8b0e` reconciles the lookup and write stores. P2 remains report-only under the lifecycle contract.
+
+### NCR-2026-08-26-01
+
+- **Status:** fixed (2026-08-28 — commit `a2c4fd382` / PR #1809; browser closure replay)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed UX recovery defect
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source label:** Medium
+- **Source:** codex
+- **Role/workflow:** exhibitor / registration wizard adding a required dog registration inline
+- **Surface:** `apps/myk9show/src/components/dogs/AddEditRegistrationDialog.tsx:179-242`; `apps/myk9show/src/components/shows/RegistrationWorkflow/useInlineDogRegistration.ts:32-45`; callers in `DogSelectionStep.tsx:15-30,218-223` and `ClassSelectionStep.tsx:47-81,489-494`
+- **Suite category:** feature-audit
+- **Pattern:** lost-form-on-save-error
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-26
+- **Last seen:** 2026-08-28
+- **Consecutive-run count:** 3
+- **Baseline SHA:** `0e39b2cdcc604b9f8b84871de54927fbe345b16b`
+- **Evidence:** PR #1809 / commit `a2c4fd38294aac0858af1e870a08eb5a14b655c6` now awaits `onSave`, keeps the panel open when it returns `false`, catches rejected saves, disables close/save while pending, and preserves the form values (`AddEditRegistrationDialog.tsx:179-242`; `useInlineDogRegistration.ts:32-45`). The focused recovery suites pass 4/4 tests, including a rejected mutation and an in-flight close attempt. Browser closure replay then forced the `POST /rest/v1/dog_registrations` request to return 503 in both callers: secretary mail-in class selection at `/secretary/register/:showId` and exhibitor self-service dog selection at `/shows/:showId/register`. At 1280x720 and 390x844, both panels stayed open and retained the entered registered name and registration number; no persistent row was created.
+- **Expected behavior:** A failed registration save keeps the form open with the entered values and an actionable retry path, or restores the values when reopened.
+- **Observed behavior:** The reviewed implementation preserves the editor and entered values after a failed transport in both wizard callers and supported desktop/mobile viewports.
+- **User impact:** An exhibitor at a required-registration step can lose a complete registration entry after a transient network/RLS failure and must re-enter it, creating avoidable friction and a possible wizard dead end.
+- **Intent check:** Violates the novice-friendly “That was easy” flow and the offline-first expectation that a failed save has a calm recovery path.
+- **Confidence:** high; source-level and browser failure-recovery evidence agree.
+- **Fix owner:** inline registration dialog/mutation lifecycle.
+- **Existing references:** Linear searches with `includeArchived: true` found no exact duplicate. Related registration-workflow issues include `MYK9-14`, `MYK9-97`, and `MYK9-104`, but none tracks loss of inline registration form state on mutation failure.
+- **Linear issue:** no issue created; P2 remains report-only under the lifecycle contract.
+- **Proof required:** Satisfied: focused 4-test recovery suite plus controlled 503 browser replay at 1280x720 and 390x844 in both wizard callers. The replay used the existing valid `secretary@myk9t.com` and `exhibitor@myk9t.com` fixtures because the configured `e2e-secretary@test.myk9.com` auth row is absent; this is test-account maintenance, not a product defect.
+- **Notes:** Expanded into new required-registration surfaces by `0e39b2cdc` / PR #1799; fixed in source by `a2c4fd382` / PR #1809. Closure is based on focused tests plus browser failure proof, not the merge alone.
+
+### NCR-2026-08-27-01
+
+- **Status:** fixed (2026-08-29 — PR #1834 / commit `37cf673295a4d22d12f72933fa4a4f988395ba52`; focused and CI proof)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed test-harness / operational capacity-gate defect
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source label:** Medium
+- **Source:** codex
+- **Role/workflow:** release operator / approved distributed G9 show-day load rehearsal
+- **Surface:** `.github/workflows/load-rehearsal.yml:123-149`
+- **Suite category:** test-harness
+- **Pattern:** incomplete-verification
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-27
+- **Last seen:** 2026-08-29
+- **Consecutive-run count:** 3
+- **Baseline SHA:** `a9d44d47c5435c1b4692f8d41d9833938a379078`
+- **Evidence:** PR #1817 initially added a repository-scoped headroom preflight for an account-wide GitHub Free 20-job ceiling. PR #1834 replaces that with account-level repository inventory and run/job aggregation, requires the current and expected repositories to be visible, and fails closed on unreadable or incomplete inventory. The focused load-headroom tests passed, and all required PR checks for #1834 passed.
+- **Expected behavior:** The preflight must count all account-wide concurrent jobs that can consume the shared 20-job ceiling, or fail closed with a conservative operator-controlled capacity gate before reseeding.
+- **Observed behavior:** Resolved. The preflight now counts active jobs across the visible account repository inventory and refuses to proceed when that inventory is incomplete. The residual limitation that a future fifth repository cannot be proven from a four-repository floor is documented and conservative.
+- **User impact:** A secretary/operator can spend an approved staging reseed-and-load window on invalid or incomplete G9 evidence, delaying launch-readiness decisions and requiring another coordinated rehearsal.
+- **Intent check:** Harms the operator's need for calm, trustworthy rehearsal evidence; this is a harness/verification defect, not a confirmed production-path defect.
+- **Confidence:** high for the harness contract and focused closure proof; live cross-repository contention was not independently exercised.
+- **Fix owner:** `.github/workflows/load-rehearsal.yml` capacity preflight / G9 rehearsal operations.
+- **Existing references:** Related active Linear `MYK9-126` owns G9 generator saturation and show-day latency; no exact Linear issue was created for this harness finding.
+- **Linear issue:** no issue created; resolved in the audit ledger after focused proof.
+- **Proof required:** Satisfied by the focused load-headroom tests and passing required PR checks. Reopen if an account repository is omitted, unreadable inventory is treated as sufficient, or known cross-repository contention is not counted.
+- **Notes:** Introduced by #1817; fixed by #1834 / commit `37cf673295a4d22d12f72933fa4a4f988395ba52`. The prior 2026-08-28 unchanged observation is retained as the second consecutive run before closure.
 
 ### NCR-2026-08-17-01
 
@@ -661,6 +808,64 @@ Copy this block for each new finding.
 - **2026-06-05 — CLOSED (non-reproducing; proof met).** Phase 3 route sweep (site-admin session, isolated single-occupant worktree on port `5191`) reported `/admin/dashboard` `render=ok` with `loading=N`, `skel=0`, `err=0`, `repl=0`, `http=0` at both desktop and 375px, alongside all 9 admin routes rendering cleanly. This is the third consecutive clean scheduled replay (06-02, 06-04, 06-05) and the first where the full route sweep completed, satisfying this finding's `Proof required`. The original 2026-05-30 stuck-`Loading...` evidence was gathered under cross-agent dev-server contention. Closed as non-reproducing.
 
 ## Closed Findings
+
+### NCR-2026-08-25-01
+
+- **Status:** fixed (2026-08-26 — #1793 / #1797)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed show-day offline reliability regression
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source label:** High
+- **Source:** codex
+- **Role/workflow:** secretary / offline or degraded-connectivity report and emergency packet PDF generation
+- **Surface:** `apps/myk9show/src/hooks/queries/useReportData.ts:29-58,96-117`; `apps/myk9show/src/services/database/dogs/reads.ts:140-148,175-196`; `apps/myk9show/src/features/emergency-trial-packet/EmergencyTrialPacketTool.tsx:90-119`
+- **Suite category:** security/show-day
+- **Pattern:** network-error
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-25
+- **Last seen:** 2026-08-26
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `d090257996b7065cda6fac51db595eb8349e6e32`
+- **Evidence:** PR #1793 changed registration hydration from a query-failing gate into a completeness signal while retaining cached entry rows. PR #1797 then proved both failure modes through actual PDF bytes/text: whole-show check-in renders cached armband/name when the registration server is offline, and class scoresheets render local registrations when the server leg fails. The emergency packet remains deliberately gated by `registrationsReadComplete` and tells the secretary to reconnect, which is the report-specific safety boundary allowed by the original acceptance contract. Focused report/registration, PDF UI, emergency packet, and model tests passed in this run.
+- **Expected behavior:** Cached check-in and scoresheet reports remain printable when registration hydration is incomplete; only workflows requiring verified registration identity block with an explicit recovery message.
+- **Observed behavior:** Resolved. Cached check-in and scoresheet PDFs retain their rows and render verified available fields; the emergency packet refuses incomplete registration data with `Registration details are unavailable. Reconnect before preparing the packet.`
+- **User impact:** The original blanket report/PDF outage is removed while the emergency packet preserves its no-unverified-identity safety rule.
+- **Intent check:** Restores calm, trustworthy secretary paperwork during venue connectivity loss without permitting an unsafe emergency packet.
+- **Confidence:** high
+- **Fix owner:** report data hydration and report-specific PDF safety boundaries.
+- **Existing references:** Linear searches with `includeArchived: true` found no exact duplicate beyond `MYK9-246`; related `MYK9-104` remains dog-list scoped and `MYK9-198` remains broader out-of-band packet resilience work. Linear `MYK9-246` is Done with #1793 and #1797 attached.
+- **Closure proof:** Satisfied by the focused query tests, two actual rendered-PDF byte/text integrations, and emergency-packet incomplete-registration regression test. No SQL/deployed-bundle proof was needed because the fix changed no applied packet/RPC contract.
+- **Notes:** Introduced by `d090257996` / PR #1784; fixed by `3e6926c12` / PR #1793 and verified by `eaf4c69b4` / PR #1797. The Show Desk entry point remains in `a2d55e390` / PR #1790.
+
+### NCR-2026-08-24-01
+
+- **Status:** fixed (2026-08-25 — PR #1778 / applied SQL and deployed replay)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed show-day data-integrity defect
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source label:** High
+- **Source:** codex
+- **Role/workflow:** secretary and judge / emergency or offline trial packet generation and paper score recording
+- **Surface:** `supabase/migrations/20260824150000_emergency_packet_armband_label.sql:89-131`; `supabase/migrations/20260824223000_emergency_packet_registration_numbers.sql:96-107`; shared packet renderer
+- **Suite category:** security/show-day
+- **Pattern:** stale-derived-state
+- **Detected by:** daily commit review
+- **First seen:** 2026-08-24
+- **Last seen:** 2026-08-25
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `c01e08d7707dd6673d33a8d0e20b16ce5235482a`
+- **Evidence:** PR #1778 / commit `8fea39cda` changes the applied RPC to use authoritative `armbands.armband_number` first, preserve packet labels such as `12A`, and compute a numeric sort key without an `ELSE 0` coercion. PR #1784 / commit `d09025799` recreates the same corrected precedence while adding registry-specific registration numbers. Linear MYK9-243 records applied SQL replay for stale, suffixed, numeric, missing, blank, and overlong cases; live RPC and generated packet bundle inspection found no old denormalized-first or `ELSE 0` pattern. Focused contract/renderer tests and the full suite passed.
+- **Expected behavior:** Packet JSON and rendered paper use the current canonical armband for each show/dog, and suffixed/non-numeric values are preserved or handled by an explicit product-safe representation; no valid value silently becomes `#0`.
+- **Observed behavior:** Resolved. The deployed RPC and renderer use authoritative-first labels and preserve suffixed values.
+- **User impact:** The original risk of misidentifying a dog or misordering emergency paperwork is covered by the applied SQL and rendered-output proof.
+- **Intent check:** Restores the secretary/judge expectation that emergency paper is calm, trustworthy, and safe when the app or laptop path is unavailable.
+- **Confidence:** high
+- **Fix owner:** emergency packet input RPC and shared packet renderer/type contract.
+- **Existing references:** Linear MYK9-243 — https://linear.app/myk9-platform/issue/MYK9-243/ncr-2026-08-24-01-emergency-packet-can-print-wrong-armbands
+- **Closure proof:** Satisfied by the applied migration replay and deployed-bundle inspection recorded in the 2026-08-24 MYK9-243 completion comment, plus current focused renderer/contract tests. The later PR #1784 RPC recreation retains the corrected precedence.
+- **Notes:** Introduced by `e557cfcea` / PR #1738; fixed by `8fea39cda` / PR #1778 and retained by `d09025799` / PR #1784. The fix was not inferred from source changes alone.
 
 ### QA-SENTRY-CRON-MONITOR-SCOPE-2026-08-22
 

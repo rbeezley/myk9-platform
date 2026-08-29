@@ -43,11 +43,11 @@ UTC.
 
 | Stream                | Last reviewed SHA | Window end | Run by | Run date |
 | --------------------- | ----------------- | ---------- | ------ | -------- |
-| `daily-commit-review` | `339d0e2701ded7ba7323c3f20ebf7f0067f3273d` | 2026-08-24T13:13:07Z | codex-daily-commit-review | 2026-08-24 |
+| `daily-commit-review` | `96edfbc4a1f0c764831ce4745bca4489165b8b0e` | 2026-08-29T10:11:32Z | codex-daily-commit-review | 2026-08-29 |
 
-Seeded `unset` deliberately. Nobody has verified which commits the Codex daily stream has actually
-covered, and writing a plausible-looking SHA here would claim coverage no one proved. The first run
-of either automation on this stream takes its default window and stamps a real boundary.
+If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
+covered; the first run of either automation on this stream must take its default window and stamp a
+real boundary.
 
 ### Adding a stream
 

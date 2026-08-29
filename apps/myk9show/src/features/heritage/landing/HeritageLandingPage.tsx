@@ -23,6 +23,8 @@ interface HeritageLandingPageProps {
   trial: Trial | null | undefined;
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
+  /** True when the entry window has not opened yet. */
+  entryNotYetOpen?: boolean | undefined;
 }
 
 /**
@@ -36,6 +38,7 @@ export function HeritageLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
+  entryNotYetOpen,
 }: HeritageLandingPageProps) {
   // Lazy-load Heritage fonts on first render — preconnect + <link> injected once.
   useEffect(() => {
@@ -49,7 +52,10 @@ export function HeritageLandingPage({
   const classesHref = publicClassesHref(show?.id, allTrials);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
+  // `entryNotYetOpen` matters as much as closed: a show whose entries open
+  // months from now must not advertise an entry CTA that dead-ends.
+  const canEnterOnline =
+    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   return (
     // INTENT: Heritage is a deliberately fixed-light public style. It keeps the

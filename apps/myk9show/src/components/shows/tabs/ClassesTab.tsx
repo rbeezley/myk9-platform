@@ -27,7 +27,7 @@ export interface ClassInfo {
   time: string;
   ring: number;
   status: ClassStatusValue;
-  entryCount: number;
+  entryCount: number | null;
   scoredCount?: number;
   isScoringFinalized?: boolean;
   hasActiveEntries?: boolean;
@@ -94,7 +94,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
     for (const cls of mineFilteredClasses) {
       const input: Parameters<typeof getClassDisplayStatus>[0] = {
         status: cls.status,
-        entry_count: cls.entryCount,
+        entry_count: cls.entryCount ?? 0,
         scored_count: cls.scoredCount ?? 0,
       };
       if (cls.isScoringFinalized !== undefined) input.is_scoring_finalized = cls.isScoringFinalized;
@@ -239,6 +239,7 @@ export function ClassesTab({ classes, showId, userHasEntries, hideRing = false }
       {
         accessorKey: 'entryCount',
         header: 'Entries',
+        cell: ({ row }) => row.original.entryCount ?? '—',
       }
     );
 

@@ -177,7 +177,7 @@ export function FinalCtaSection({
                 textDecoration: 'none',
               }}
             >
-              SUBMIT ENTRY →
+              SUBMIT ENTRY <span aria-hidden="true">→</span>
             </a>
             <div style={{ marginTop: 10, textAlign: 'center' }}>
               <SeeClassesLink

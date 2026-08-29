@@ -53,8 +53,7 @@ export function GazetteLandingPage({
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline =
-    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   const editionLabel =
     data.edition != null
@@ -86,6 +85,7 @@ export function GazetteLandingPage({
 
       <MastheadSection
         clubName={data.clubName}
+        showName={data.showName}
         volumeRoman={data.volumeRoman}
         edition={data.edition}
         motto={data.motto}
@@ -134,6 +134,7 @@ export function GazetteLandingPage({
           accommodations={data.accommodations}
           hospitalityNotes={data.hospitalityNotes}
           awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
           volumeRoman={data.volumeRoman}
         />
 

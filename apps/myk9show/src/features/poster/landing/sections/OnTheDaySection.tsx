@@ -1,16 +1,14 @@
 import { PosterSectionHead } from '../../components/PosterSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
-import {
-  POSTER_BODY_FAMILY,
-  POSTER_DISPLAY_FAMILY,
-  POSTER_MONO_FAMILY,
-} from '../../fonts';
+import { POSTER_BODY_FAMILY, POSTER_DISPLAY_FAMILY, POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
 import type { PosterOnDayItem } from '../types';
 
 interface OnTheDaySectionProps {
   items: PosterOnDayItem[];
   hospitalityNotes: string | null;
+  awardsDescription: string | null;
+  houseRulesNotes: string | null;
 }
 
 /**
@@ -18,12 +16,19 @@ interface OnTheDaySectionProps {
  * folio and Archivo Black title in cream, then a 2-column grid of
  * doors/parking/crating/etc.
  */
-export function OnTheDaySection({ items, hospitalityNotes }: OnTheDaySectionProps) {
+export function OnTheDaySection({
+  items,
+  hospitalityNotes,
+  awardsDescription,
+  houseRulesNotes,
+}: OnTheDaySectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
   const all: PosterOnDayItem[] = [
     ...items,
     ...(hospitalityNotes ? [{ label: 'Hospitality', value: hospitalityNotes }] : []),
+    ...(awardsDescription ? [{ label: 'Awards', value: awardsDescription }] : []),
+    ...(houseRulesNotes ? [{ label: 'House rules', value: houseRulesNotes }] : []),
   ];
 
   if (all.length === 0) return null;
@@ -41,11 +46,7 @@ export function OnTheDaySection({ items, hospitalityNotes }: OnTheDaySectionProp
       }}
     >
       <div style={{ maxWidth: posterSpacing.contentMax, margin: '0 auto' }}>
-        <PosterSectionHead
-          number="06"
-          label="On the day"
-          titleColor={posterColors.cream}
-        >
+        <PosterSectionHead number="06" label="On the day" titleColor={posterColors.cream}>
           From here
           <br />
           to <span style={{ color: posterColors.red }}>trial day.</span>

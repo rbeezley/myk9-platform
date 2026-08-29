@@ -20,11 +20,14 @@ export function ErrorState({
   description = 'Check your connection and try again.',
 }: ErrorStateProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center py-16 text-center', className)}>
+    <div
+      role="alert"
+      className={cn('flex flex-col items-center justify-center py-16 text-center', className)}
+    >
       <div className="bg-destructive/10 rounded-full p-4 mb-4">
         <AlertCircle className="h-10 w-10 text-destructive" />
       </div>
-      <h3 className="text-lg font-semibold mb-2">{message}</h3>
+      <h1 className="text-lg font-semibold mb-2">{message}</h1>
       <p className="text-muted-foreground mb-6">{description}</p>
       {onRetry && (
         <button

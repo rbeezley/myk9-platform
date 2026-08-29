@@ -6,6 +6,7 @@ interface ClassifiedsSectionProps {
   accommodations: GazetteAccommodation[];
   hospitalityNotes: string | null;
   awardsDescription: string | null;
+  houseRulesNotes: string | null;
   volumeRoman: string;
 }
 
@@ -21,6 +22,7 @@ export function ClassifiedsSection({
   accommodations,
   hospitalityNotes,
   awardsDescription,
+  houseRulesNotes,
   volumeRoman,
 }: ClassifiedsSectionProps) {
   const cards: Array<{
@@ -60,9 +62,23 @@ export function ClassifiedsSection({
     cards.push({
       key: 'awards',
       category: 'AWARDS',
-      title: <>Ribbons <em>&amp; trophies</em></>,
+      title: (
+        <>
+          Ribbons <em>&amp; trophies</em>
+        </>
+      ),
       body: awardsDescription,
       meta: 'PRESENTED END OF DAY',
+    });
+  }
+
+  if (houseRulesNotes) {
+    cards.push({
+      key: 'house-rules',
+      category: 'HOUSE RULES',
+      title: 'Know before you go',
+      body: houseRulesNotes,
+      meta: 'SITE GUIDANCE',
     });
   }
 
@@ -80,7 +96,11 @@ export function ClassifiedsSection({
         page={6}
         volume={volumeRoman}
         kicker="Classified advertisements"
-        title={<>Lodging, <em>victuals &amp; vet</em></>}
+        title={
+          <>
+            Lodging, <em>victuals &amp; vet</em>
+          </>
+        }
       />
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map(card => (

@@ -38,7 +38,9 @@
   font-size: 15px;
   line-height: 1.65;
   /* Old-style figures on body copy. Outlook strips this so email opts out. */
-  font-feature-settings: 'onum' 1, 'liga' 1;
+  font-feature-settings:
+    'onum' 1,
+    'liga' 1;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -52,6 +54,12 @@
 
 [data-gazette] a:hover {
   text-decoration-color: var(--gz-brown);
+}
+
+[data-gazette] a:focus-visible,
+[data-gazette] button:focus-visible {
+  outline: 2px solid var(--gz-brown);
+  outline-offset: 3px;
 }
 
 /* ─── GazetteHeading ──────────────────────────────────────────────────── */
@@ -76,7 +84,7 @@
 }
 [data-gazette] .gz-h.h2 {
   font-size: clamp(32px, 4vw, 44px);
-  line-height: 1.0;
+  line-height: 1;
 }
 [data-gazette] .gz-h.h3 {
   font-size: clamp(18px, 2.2vw, 22px);

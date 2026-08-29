@@ -2,6 +2,7 @@ import { POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors } from '../../tokens';
 import { PosterMonoStrip } from '../../components/PosterMonoStrip';
 import { formatDateRange } from '../utils/dateFormat';
+import { formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface StickyNavProps {
   showAbbreviation: string;
@@ -10,7 +11,7 @@ interface StickyNavProps {
   timezone: string;
   venueName: string | null;
   venueCity: string | null;
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
   entryWizardUrl: string;
   canEnterOnline?: boolean;
@@ -42,7 +43,11 @@ export function StickyNav({
   const dateLabel = formatDateRange(trialStartDate, trialEndDate, timezone, true);
   const venueLabel = [venueName, venueCity].filter(Boolean).join(', ').toUpperCase();
   const capacityLabel =
-    entryLimit != null ? `${entryCount} / ${entryLimit} CLAIMED` : `${entryCount} ENTERED`;
+    entryCount == null
+      ? 'ENTRY COUNT UNAVAILABLE'
+      : entryLimit != null
+        ? `${formatEntryCount(entryCount)} / ${entryLimit} CLAIMED`
+        : `${formatEntryCount(entryCount)} ENTERED`;
 
   const items = [
     { label: showAbbreviation || 'TRIAL' },
@@ -53,7 +58,12 @@ export function StickyNav({
 
   if (!canEnterOnline) {
     return (
-      <PosterMonoStrip items={items} className="po-sticky-nav" ariaLabel="Trial header">
+      <PosterMonoStrip
+        items={items}
+        className="po-sticky-nav"
+        ariaLabel="Show navigation"
+        landmarkRole="navigation"
+      >
         <span
           style={{
             color: posterColors.mute,
@@ -75,7 +85,8 @@ export function StickyNav({
       items={items}
       cta={{ label: 'ENTER →', href: entryWizardUrl }}
       className="po-sticky-nav"
-      ariaLabel="Trial header"
+      ariaLabel="Show navigation"
+      landmarkRole="navigation"
     />
   );
 }

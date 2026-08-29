@@ -59,7 +59,6 @@ const ShowDetailsPage: React.FC = () => {
     data: showEntries = [],
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
-    refetch: refetchShowEntries,
   } = useEntriesByShowQuery(id || '', !!id);
   const { dogs } = useDogStoreCompat();
 
@@ -108,6 +107,9 @@ const ShowDetailsPage: React.FC = () => {
         ? 'error'
         : 'loading';
   const managerEntryDataUnavailable = canManageShow && entryDataState !== 'ready';
+  const classEntryCountsUnavailable = canManageShow
+    ? managerEntryDataUnavailable
+    : showEntriesIsError;
   const effectiveShowEntries = useMemo(
     () => (canManageShow ? (secretaryEntries ?? []) : showEntries),
     [canManageShow, secretaryEntries, showEntries]
@@ -150,7 +152,7 @@ const ShowDetailsPage: React.FC = () => {
   // classes, and per-trial stats fetched via anon-safe PostgREST when the
   // replicated store is cold (guest session). See useShowLandingData.
   const { landingTrials, publicShowClasses, publicTrialStats, publicClassInventoryResolved } =
-    useShowLandingData(showId_, associatedTrials, showEntries);
+    useShowLandingData(showId_, associatedTrials, showEntriesIsError ? null : showEntries);
   // For tabs/counts/derivations, treat landingTrials as the effective trial
   // list: it IS associatedTrials when the store is warm, and the anon-safe
   // public rows when the store is cold. (Lane 3.7)
@@ -224,7 +226,7 @@ const ShowDetailsPage: React.FC = () => {
         time: cls.startTime || '',
         ring: 0,
         status: cls.status || CLASS_STATUS.SCHEDULED,
-        entryCount: entryCountByClassId.get(cls.id) ?? 0,
+        entryCount: classEntryCountsUnavailable ? null : (entryCountByClassId.get(cls.id) ?? 0),
         scoredCount: cls.completedEntries ?? 0,
         reopenedAfterCloseoutAt: cls.reopenedAfterCloseoutAt ?? null,
         userHasEntry: userEntryClassIds.has(cls.id),
@@ -233,7 +235,13 @@ const ShowDetailsPage: React.FC = () => {
         trialName: trial.name || '',
       }));
     });
-  }, [associatedTrials, trialClasses, userEntryClassIds, entryCountByClassId]);
+  }, [
+    associatedTrials,
+    trialClasses,
+    userEntryClassIds,
+    entryCountByClassId,
+    classEntryCountsUnavailable,
+  ]);
 
   // When the store has trials we keep the store-derived `showClasses` verbatim
   // (warm session, no behavior change); only a cold guest swaps in the public
@@ -259,10 +267,9 @@ const ShowDetailsPage: React.FC = () => {
     const stats: Record<string, TrialStats> = {};
     for (const trial of associatedTrials) {
       const classes = trialClasses[trial.id] || [];
-      const trialEntryCount = classes.reduce(
-        (sum, c) => sum + (entryCountByClassId.get(c.id) ?? 0),
-        0
-      );
+      const trialEntryCount = classEntryCountsUnavailable
+        ? null
+        : classes.reduce((sum, c) => sum + (entryCountByClassId.get(c.id) ?? 0), 0);
       stats[trial.id] = {
         classCount: classes.length,
         entryCount: trialEntryCount,
@@ -275,7 +282,7 @@ const ShowDetailsPage: React.FC = () => {
       };
     }
     return stats;
-  }, [associatedTrials, trialClasses, entryCountByClassId]);
+  }, [associatedTrials, trialClasses, entryCountByClassId, classEntryCountsUnavailable]);
 
   // Same cold-store fallback for the Trials tab's per-trial stat cards
   // (publicTrialStats from useShowLandingData).
@@ -382,17 +389,6 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
-  if (isAuthenticated && !canManageShow && showEntriesIsError) {
-    return (
-      <PageShell>
-        <ErrorState
-          message="We couldn't load your entries. Please try again."
-          onRetry={() => void refetchShowEntries()}
-        />
-      </PageShell>
-    );
-  }
-
   // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
   // and management-section URLs reach the tabbed/management UI; non-staff visitors
   // with no entries get the styled marketing landing; an authenticated visitor whose
@@ -480,7 +476,7 @@ const ShowDetailsPage: React.FC = () => {
         <ShowExhibitorView
           show={actualCurrentShow}
           breadcrumbs={breadcrumbs}
-          catalogEntryCount={catalogEntryCount}
+          catalogEntryCount={classEntryCountsUnavailable ? null : catalogEntryCount}
           entryStatus={entryStatus}
           hasUserEntries={hasUserEntries}
           onRegister={handleRegisterForShow}

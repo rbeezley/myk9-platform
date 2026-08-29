@@ -1,17 +1,25 @@
+import type {
+  LandingAccommodation,
+  LandingData,
+  LandingFee,
+  LandingJudge,
+  LandingTrial,
+} from '@/features/_shared/landing/landingData';
+
 /**
  * Prop types for MonogramLandingPage and its 10 sections.
  * Mirrors the Heritage landing shape — most data flows identically, with
  * `monogramLetters` added as the Monogram-specific derivation.
  */
 
-export interface MonogramTrial {
+export interface MonogramTrial extends LandingTrial {
   id: string;
   trialNumber: number | string;
   date: string | null;
   judgeName?: string;
 }
 
-export interface MonogramJudge {
+export interface MonogramJudge extends LandingJudge {
   id: string;
   name: string;
   /** Pre-derived 2-letter initials shown as the bronze portrait monogram. */
@@ -20,6 +28,8 @@ export interface MonogramJudge {
    *  Not yet surfaced in the JudgesSection UI; preserved so a future
    *  "Trials I & III" credential line can read it without re-deriving. */
   trials: string[];
+  city: string | null;
+  elements: string[];
   /** Trial-panel summary like "Containers · Interiors". */
   credential: string | null;
   /** Optional bio paragraph, displayed below the credential line. */
@@ -34,13 +44,13 @@ export interface MonogramOfficer {
   email?: string | null;
 }
 
-export interface MonogramFee {
+export interface MonogramFee extends LandingFee {
   label: string;
   /** Pre-formatted, e.g. "$25.00". */
   amount: string;
 }
 
-export interface MonogramAccommodation {
+export interface MonogramAccommodation extends LandingAccommodation {
   name: string;
   address?: string;
   phone?: string;
@@ -59,7 +69,12 @@ export interface MonogramPlanItem {
   isBody?: boolean;
 }
 
-export interface MonogramLandingData {
+export interface MonogramLandingData extends LandingData<
+  MonogramTrial,
+  MonogramJudge,
+  MonogramFee,
+  MonogramAccommodation
+> {
   /** Pre-derived club initials (e.g. "BC") used by hero, nav, footer, final CTA. */
   monogramLetters: string;
 
@@ -88,7 +103,7 @@ export interface MonogramLandingData {
   judges: MonogramJudge[];
 
   // Capacity
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
 
   // Fees
@@ -102,6 +117,8 @@ export interface MonogramLandingData {
   // field here and source it from supplemental experience snapshots.
   accommodations: MonogramAccommodation[];
   hospitalityNotes: string | null;
+  awardsDescription: string | null;
+  houseRulesNotes: string | null;
 
   // Contact
   secretaryName: string | null;

@@ -14,4 +14,11 @@ describe('ErrorState', () => {
     fireEvent.click(screen.getByText('Try Again'));
     expect(onRetry).toHaveBeenCalled();
   });
+
+  it('announces the error and starts with a page heading', () => {
+    render(<ErrorState message="Show unavailable" />);
+
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Show unavailable' })).toBeTruthy();
+  });
 });

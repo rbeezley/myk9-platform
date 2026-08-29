@@ -10,20 +10,21 @@ vi.mock('react-router-dom', async () => {
 });
 
 describe('NotFoundState', () => {
-  it('renders entity name in message', () => {
+  it('renders entity name in message as a page-level heading', () => {
     render(
       <MemoryRouter>
         <NotFoundState entityName="Show" backTo="/shows" backLabel="Back to Shows" />
-      </MemoryRouter>,
+      </MemoryRouter>
     );
-    expect(screen.getByText('Show Not Found')).toBeInTheDocument();
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Show Not Found' })).toBeInTheDocument();
   });
 
   it('navigates back when button clicked', () => {
     render(
       <MemoryRouter>
         <NotFoundState entityName="Show" backTo="/shows" backLabel="Back to Shows" />
-      </MemoryRouter>,
+      </MemoryRouter>
     );
     fireEvent.click(screen.getByText('Back to Shows'));
     expect(mockNavigate).toHaveBeenCalledWith('/shows');

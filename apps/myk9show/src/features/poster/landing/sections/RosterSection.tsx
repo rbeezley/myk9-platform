@@ -1,14 +1,11 @@
 import { PosterSectionHead } from '../../components/PosterSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
-import {
-  POSTER_BODY_FAMILY,
-  POSTER_DISPLAY_FAMILY,
-  POSTER_MONO_FAMILY,
-} from '../../fonts';
+import { POSTER_BODY_FAMILY, POSTER_DISPLAY_FAMILY, POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
+import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
 }
 
@@ -19,10 +16,7 @@ interface RosterSectionProps {
  */
 export function RosterSection({ entryCount, entryLimit }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const pct =
-    entryLimit && entryLimit > 0
-      ? Math.min(100, Math.round((entryCount / entryLimit) * 100))
-      : null;
+  const pct = entryCapacityPercent(entryCount, entryLimit);
   const pace =
     pct != null && pct >= 90 ? 'fast.' : pct != null && pct >= 50 ? 'quickly.' : 'slowly.';
 
@@ -63,7 +57,7 @@ export function RosterSection({ entryCount, entryLimit }: RosterSectionProps) {
             color: posterColors.red,
           }}
         >
-          {entryCount}
+          {formatEntryCount(entryCount)}
           {entryLimit != null && (
             <span style={{ color: posterColors.ink, fontSize: 144 }}>/{entryLimit}</span>
           )}
@@ -79,7 +73,11 @@ export function RosterSection({ entryCount, entryLimit }: RosterSectionProps) {
               marginBottom: 18,
             }}
           >
-            {pct != null ? `${pct}% CLAIMED` : `${entryCount} ENTERED`}
+            {entryCount == null
+              ? 'ENTRY COUNT UNAVAILABLE'
+              : pct != null
+                ? `${pct}% CLAIMED`
+                : `${formatEntryCount(entryCount)} ENTERED`}
           </div>
           {pct != null && (
             <div

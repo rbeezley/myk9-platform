@@ -5,17 +5,18 @@ import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
 import { useReducedMotion } from '../../../_shared/hooks/useReducedMotion';
 import { formatJourneyDate } from '../utils/dateFormat';
 import type { HeritageJourneyStep } from '../types';
+import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
   journeySteps: HeritageJourneyStep[];
   timezone: string;
 }
 
-function CapacityMeter({ count, limit }: { count: number; limit: number | null }) {
+function CapacityMeter({ count, limit }: { count: number | null; limit: number | null }) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const pct = limit && limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : null;
+  const pct = entryCapacityPercent(count, limit);
 
   return (
     <div
@@ -32,7 +33,7 @@ function CapacityMeter({ count, limit }: { count: number; limit: number | null }
             lineHeight: 1,
           }}
         >
-          {count}
+          {formatEntryCount(count)}
           {limit != null && (
             <>
               {' '}
@@ -47,7 +48,7 @@ function CapacityMeter({ count, limit }: { count: number; limit: number | null }
         className="text-sm italic"
         style={{ color: 'var(--hl-quill)', fontFamily: "'EB Garamond', Georgia, serif" }}
       >
-        runs claimed at this hour
+        {count == null ? 'entry count unavailable' : 'runs claimed at this hour'}
       </p>
       {pct != null && (
         <div

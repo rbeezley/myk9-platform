@@ -21,9 +21,6 @@ export type ShowStyle =
   | 'fieldGuide'
   | 'heritage';
 
-/** @deprecated Use ShowStyle instead */
-export type LandingStyle = 'default' | 'heritage';
-
 interface ShowLike {
   /** Post-migration 195: shows.style */
   style?: string | null;
@@ -63,13 +60,6 @@ export function getShowStyle(show: ShowLike | null | undefined): ShowStyle {
   if (raw === 'default') return 'monogram';
   if (raw && VALID_STYLES.has(raw as ShowStyle)) return raw as ShowStyle;
   return 'monogram';
-}
-
-/**
- * @deprecated Use getShowStyle. Returns 'heritage' or 'default' for legacy callers.
- */
-export function getShowLandingStyle(show: ShowLike | null | undefined): LandingStyle {
-  return getShowStyle(show) === 'heritage' ? 'heritage' : 'default';
 }
 
 /**

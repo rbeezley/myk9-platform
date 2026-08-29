@@ -2,9 +2,10 @@ import { MonogramSectionHead } from '../../components/MonogramSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { MONOGRAM_BODY_FAMILY, MONOGRAM_MONOGRAM_FAMILY } from '../../fonts';
 import { monogramColors } from '../../tokens';
+import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
   asOfLabel?: string | null;
 }
@@ -17,12 +18,10 @@ interface RosterSectionProps {
  */
 export function RosterSection({ entryCount, entryLimit, asOfLabel }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const pct =
-    entryLimit && entryLimit > 0
-      ? Math.min(100, Math.round((entryCount / entryLimit) * 100))
-      : null;
+  const pct = entryCapacityPercent(entryCount, entryLimit);
 
-  const fillPace = pct != null && pct >= 90 ? 'fast' : pct != null && pct >= 50 ? 'steadily' : 'slowly';
+  const fillPace =
+    pct != null && pct >= 90 ? 'fast' : pct != null && pct >= 50 ? 'steadily' : 'slowly';
 
   return (
     <section className="mg-section">
@@ -57,7 +56,7 @@ export function RosterSection({ entryCount, entryLimit, asOfLabel }: RosterSecti
             letterSpacing: '-0.04em',
           }}
         >
-          {entryCount}
+          {formatEntryCount(entryCount)}
           {entryLimit != null && (
             <span
               style={{
@@ -84,7 +83,7 @@ export function RosterSection({ entryCount, entryLimit, asOfLabel }: RosterSecti
             color: monogramColors.bronze,
           }}
         >
-          {asOfLabel ?? 'Entries received'}
+          {asOfLabel ?? (entryCount == null ? 'Entry count unavailable' : 'Entries received')}
         </span>
         {pct != null && (
           <div

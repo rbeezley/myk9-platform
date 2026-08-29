@@ -22,6 +22,21 @@
   color: inherit;
 }
 
+[data-headline] a:focus-visible,
+[data-headline] button:focus-visible {
+  outline: 2px solid var(--hd-accent);
+  outline-offset: 3px;
+}
+
+[data-headline] .landing-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+[data-headline] .landing-table-scroll > table {
+  min-width: 520px;
+}
+
 [data-headline] .hd-topbar {
   height: 6px;
   background: var(--hd-accent);
@@ -574,5 +589,11 @@
 
   [data-headline] .hd-ticker .b:last-child {
     border-bottom: none;
+  }
+}
+
+@media (max-width: 480px) {
+  [data-headline] .hd-nav-inner {
+    padding: 12px 16px;
   }
 }

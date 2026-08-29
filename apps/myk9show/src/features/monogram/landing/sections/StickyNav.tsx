@@ -28,6 +28,7 @@ export function StickyNav({
 }: StickyNavProps) {
   return (
     <nav
+      aria-label="Show navigation"
       className="mg-nav"
       style={{
         position: 'sticky',

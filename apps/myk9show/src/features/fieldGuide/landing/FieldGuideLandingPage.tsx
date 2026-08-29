@@ -29,7 +29,7 @@ interface FieldGuideLandingPageProps {
 
 /**
  * Field-Guide-style public trial landing page. Renders when
- * `getShowLandingStyle(show) === 'fieldGuide'`.
+ * `getShowStyle(show) === 'fieldGuide'`.
  *
  * Field Guide is fully fixed (no per-club brand color), so unlike
  * Banner there's no `style` prop carrying a CSS-var bundle — the
@@ -52,8 +52,7 @@ export function FieldGuideLandingPage({
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline =
-    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   return (
     <div data-field-guide className="min-h-screen">
@@ -117,7 +116,12 @@ export function FieldGuideLandingPage({
           entryCloseDate={data.entryCloseDate}
           timezone={data.timezone}
         />
-        <ScheduleSection items={data.onTheDay} hospitalityNotes={data.hospitalityNotes} />
+        <ScheduleSection
+          items={data.onTheDay}
+          hospitalityNotes={data.hospitalityNotes}
+          awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
+        />
         <PlanSection accommodations={data.accommodations} />
         <OfficersSection
           officers={data.officers}

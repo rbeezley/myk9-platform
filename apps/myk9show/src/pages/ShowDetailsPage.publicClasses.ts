@@ -37,7 +37,8 @@ function judgeNameFromRow(row: Record<string, unknown>): string {
   return `${people.first_name ?? ''} ${people.last_name ?? ''}`.trim();
 }
 
-function entryCountForClass(showEntries: EntryRow[], classId: string): number {
+function entryCountForClass(showEntries: EntryRow[] | null, classId: string): number | null {
+  if (showEntries == null) return null;
   return showEntries.filter(entry => entry.class_id === classId).length;
 }
 
@@ -48,7 +49,7 @@ function entryCountForClass(showEntries: EntryRow[], classId: string): number {
 export function buildPublicShowClasses(
   landingTrials: Trial[],
   classesByTrial: TrialClassRows[],
-  showEntries: EntryRow[]
+  showEntries: EntryRow[] | null
 ): ClassInfo[] {
   const rowsByTrialId = new Map(classesByTrial.map(entry => [entry.trialId, entry.rows]));
   const result: ClassInfo[] = [];
@@ -100,15 +101,16 @@ export function markCurrentUserEntryClasses(
  */
 export function buildPublicTrialStats(
   classesByTrial: TrialClassRows[],
-  showEntries: EntryRow[]
+  showEntries: EntryRow[] | null
 ): Record<string, TrialStats> {
   const stats: Record<string, TrialStats> = {};
 
   for (const { trialId, rows } of classesByTrial) {
     const classIds = new Set(rows.map(row => str(row.id)));
-    const entryCount = showEntries.filter(entry =>
-      classIds.has(str(entry.class_id))
-    ).length;
+    const entryCount =
+      showEntries == null
+        ? null
+        : showEntries.filter(entry => classIds.has(str(entry.class_id))).length;
     const completedClasses = rows.filter(
       row => normalizeClassStatus(str(row.status)) === CLASS_STATUS.COMPLETED
     ).length;

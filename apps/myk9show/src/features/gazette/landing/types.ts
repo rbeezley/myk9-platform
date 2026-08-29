@@ -1,3 +1,11 @@
+import type {
+  LandingAccommodation,
+  LandingData,
+  LandingFee,
+  LandingJudge,
+  LandingTrial,
+} from '@/features/_shared/landing/landingData';
+
 /**
  * Prop types for the Gazette Landing Page and its 11 sections.
  *
@@ -8,7 +16,7 @@
  * present session: build only what Gazette needs.
  */
 
-export interface GazetteTrial {
+export interface GazetteTrial extends LandingTrial {
   id: string;
   trialNumber: number | string;
   date: string | null;
@@ -17,7 +25,7 @@ export interface GazetteTrial {
   judgeName?: string;
 }
 
-export interface GazetteJudge {
+export interface GazetteJudge extends LandingJudge {
   id: string;
   name: string;
   city?: string | null;
@@ -35,12 +43,12 @@ export interface GazetteOfficer {
   name: string;
 }
 
-export interface GazetteFee {
+export interface GazetteFee extends LandingFee {
   label: string;
   amount: string;
 }
 
-export interface GazetteAccommodation {
+export interface GazetteAccommodation extends LandingAccommodation {
   name: string;
   address?: string;
   phone?: string;
@@ -70,7 +78,12 @@ export interface GazetteJourneyStep {
 }
 
 /** All data needed by GazetteLandingPage, assembled by useGazetteLandingData. */
-export interface GazetteLandingData {
+export interface GazetteLandingData extends LandingData<
+  GazetteTrial,
+  GazetteJudge,
+  GazetteFee,
+  GazetteAccommodation
+> {
   // Masthead / show-level
   clubName: string;
   showName: string;
@@ -104,7 +117,7 @@ export interface GazetteLandingData {
   judges: GazetteJudge[];
 
   // Capacity
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
 
   // Particulars facts (formatted for the dl)

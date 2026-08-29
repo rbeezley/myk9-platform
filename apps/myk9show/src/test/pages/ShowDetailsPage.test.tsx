@@ -404,14 +404,12 @@ describe('ShowDetailsPage', () => {
     expect(document.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
   });
 
-  it('shows the retry error instead of a false zero-entry landing when entry reads fail', () => {
+  it('keeps the public landing available without treating a failed entry read as zero', () => {
     mockShowEntriesError = true;
     renderPage();
 
-    expect(
-      screen.getByText("We couldn't load your entries. Please try again.")
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId('monogram-landing')).toBeNull();
+    expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
+    expect(screen.queryByText("We couldn't load your entries. Please try again.")).toBeNull();
     expect(screen.queryByText('My Entries 0')).toBeNull();
   });
 

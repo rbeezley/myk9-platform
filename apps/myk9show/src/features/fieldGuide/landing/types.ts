@@ -1,3 +1,11 @@
+import type {
+  LandingAccommodation,
+  LandingData,
+  LandingFee,
+  LandingJudge,
+  LandingTrial,
+} from '@/features/_shared/landing/landingData';
+
 /**
  * Prop types for FieldGuideLandingPage and its sections. Mirrors the
  * Banner / Monogram landing shape, with two Field-Guide-specific
@@ -10,18 +18,20 @@
  * `tokens.ts`.
  */
 
-export interface FieldGuideTrial {
+export interface FieldGuideTrial extends LandingTrial {
   id: string;
   trialNumber: number | string;
   date: string | null;
   judgeName?: string;
 }
 
-export interface FieldGuideJudge {
+export interface FieldGuideJudge extends LandingJudge {
   id: string;
   name: string;
   /** "TRIALS 01·03·05" — chip label rendered above the judge's name. */
   trialsLabel: string | null;
+  trials: string[];
+  elements: string[];
   city: string | null;
   /** Element panel summary, e.g. "Containers · Interiors · Buried". */
   elementPanel: string | null;
@@ -34,7 +44,7 @@ export interface FieldGuideOfficer {
   email?: string | null;
 }
 
-export interface FieldGuideFee {
+export interface FieldGuideFee extends LandingFee {
   /** Mono uppercase label, e.g. "FIRST ENTRY". */
   label: string;
   /** Display amount, e.g. "$25.00". */
@@ -43,7 +53,7 @@ export interface FieldGuideFee {
   sub?: string;
 }
 
-export interface FieldGuideAccommodation {
+export interface FieldGuideAccommodation extends LandingAccommodation {
   name: string;
   address?: string;
   phone?: string;
@@ -64,7 +74,12 @@ export interface FieldGuideQuickRefCell {
   emphasis?: boolean;
 }
 
-export interface FieldGuideLandingData {
+export interface FieldGuideLandingData extends LandingData<
+  FieldGuideTrial,
+  FieldGuideJudge,
+  FieldGuideFee,
+  FieldGuideAccommodation
+> {
   // Show identity
   /** Compact ID for the top strip — e.g. "BCKC.2026.SS". Derived from the
    *  show + year + slug; falls back to the raw show name uppercased if no
@@ -97,7 +112,7 @@ export interface FieldGuideLandingData {
   judges: FieldGuideJudge[];
 
   // Capacity
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
 
   // Hero quick-ref cells (typically 6)
@@ -113,6 +128,8 @@ export interface FieldGuideLandingData {
   onTheDay: FieldGuideOnDayItem[];
   accommodations: FieldGuideAccommodation[];
   hospitalityNotes: string | null;
+  awardsDescription: string | null;
+  houseRulesNotes: string | null;
 
   // Contact
   secretaryName: string | null;

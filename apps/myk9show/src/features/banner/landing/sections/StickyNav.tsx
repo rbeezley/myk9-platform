@@ -1,9 +1,10 @@
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors } from '../../tokens';
+import { formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface StickyNavProps {
   flag: string;
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
 }
 
@@ -22,12 +23,15 @@ const SECTIONS = [
  */
 export function StickyNav({ flag, entryCount, entryLimit }: StickyNavProps) {
   const statusLabel =
-    entryLimit != null
-      ? `Entries open · ${entryCount} / ${entryLimit}`
-      : `Entries open · ${entryCount}`;
+    entryCount == null
+      ? 'Entries open · count unavailable'
+      : entryLimit != null
+        ? `Entries open · ${formatEntryCount(entryCount)} / ${entryLimit}`
+        : `Entries open · ${formatEntryCount(entryCount)}`;
 
   return (
     <nav
+      aria-label="Show sections"
       className="bn-subbar"
       style={{
         position: 'sticky',

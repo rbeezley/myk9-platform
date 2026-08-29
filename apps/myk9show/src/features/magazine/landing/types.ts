@@ -1,3 +1,11 @@
+import type {
+  LandingAccommodation,
+  LandingData,
+  LandingFee,
+  LandingJudge,
+  LandingTrial,
+} from '@/features/_shared/landing/landingData';
+
 /**
  * Prop types for the Magazine Landing Page and its sections.
  *
@@ -8,7 +16,7 @@
  * monogram letters used by both photo-placeholder slots.
  */
 
-export interface MagazineTrial {
+export interface MagazineTrial extends LandingTrial {
   id: string;
   trialNumber: number | string;
   date: string | null;
@@ -17,7 +25,7 @@ export interface MagazineTrial {
   judgeName?: string;
 }
 
-export interface MagazineJudge {
+export interface MagazineJudge extends LandingJudge {
   id: string;
   name: string;
   city?: string | null;
@@ -45,13 +53,13 @@ export interface MagazineOfficer {
   name: string;
 }
 
-export interface MagazineFee {
+export interface MagazineFee extends LandingFee {
   label: string;
   /** Pre-formatted, e.g. "$25.00". */
   amount: string;
 }
 
-export interface MagazineAccommodation {
+export interface MagazineAccommodation extends LandingAccommodation {
   name: string;
   address?: string;
   phone?: string;
@@ -60,7 +68,12 @@ export interface MagazineAccommodation {
 }
 
 /** Assembled by `useMagazineLandingData`. Sections only receive this. */
-export interface MagazineLandingData {
+export interface MagazineLandingData extends LandingData<
+  MagazineTrial,
+  MagazineJudge,
+  MagazineFee,
+  MagazineAccommodation
+> {
   // Identity
   clubName: string;
   /** 1–3 character monogram derived from club name. Used by cover +
@@ -102,7 +115,7 @@ export interface MagazineLandingData {
   judges: MagazineJudge[];
 
   // Capacity
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
 
   fees: MagazineFee[];

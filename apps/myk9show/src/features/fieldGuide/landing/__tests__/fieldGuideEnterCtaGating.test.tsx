@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import { TopStrip } from '../sections/TopStrip';
 import { FinalCtaSection } from '../sections/FinalCtaSection';
 
@@ -14,6 +14,14 @@ describe('FieldGuide Enter CTA gating', () => {
       classesHref: null,
       entryLimit: 360,
     };
+
+    it('labels its section navigation with descriptive link names', () => {
+      render(<TopStrip {...baseProps} />);
+
+      const nav = screen.getByRole('navigation', { name: 'Show sections' });
+      expect(within(nav).getByRole('link', { name: 'Welcome' })).toHaveAttribute('href', '#§01');
+      expect(screen.getByRole('link', { name: 'Enter show' })).toHaveAttribute('href', ENTRY_URL);
+    });
 
     it('renders the Enter link when canEnterOnline is omitted (default true)', () => {
       render(<TopStrip {...baseProps} />);

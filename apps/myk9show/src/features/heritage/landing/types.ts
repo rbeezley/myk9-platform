@@ -1,9 +1,17 @@
+import type {
+  LandingAccommodation,
+  LandingData,
+  LandingFee,
+  LandingJudge,
+  LandingTrial,
+} from '@/features/_shared/landing/landingData';
+
 /**
  * Prop types for the Heritage Landing Page and its 11 sections.
  * All sections receive only what they need — no god-object prop drilling.
  */
 
-export interface HeritageTrial {
+export interface HeritageTrial extends LandingTrial {
   id: string;
   trialNumber: number | string;
   date: string | null;
@@ -12,7 +20,7 @@ export interface HeritageTrial {
   judgeName?: string;
 }
 
-export interface HeritageJudge {
+export interface HeritageJudge extends LandingJudge {
   id: string;
   name: string;
   city?: string | null;
@@ -32,12 +40,12 @@ export interface HeritageOfficer {
   name: string;
 }
 
-export interface HeritageFee {
+export interface HeritageFee extends LandingFee {
   label: string;
   amount: string; // pre-formatted, e.g. "$25.00"
 }
 
-export interface HeritageAccommodation {
+export interface HeritageAccommodation extends LandingAccommodation {
   name: string;
   address?: string;
   phone?: string;
@@ -46,7 +54,12 @@ export interface HeritageAccommodation {
 }
 
 /** All data needed by HeritageLandingPage, assembled by useHeritageLandingData. */
-export interface HeritageLandingData {
+export interface HeritageLandingData extends LandingData<
+  HeritageTrial,
+  HeritageJudge,
+  HeritageFee,
+  HeritageAccommodation
+> {
   // Show-level
   clubName: string;
   showName: string;
@@ -72,7 +85,7 @@ export interface HeritageLandingData {
   judges: HeritageJudge[];
 
   // Capacity
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
 
   // Fees

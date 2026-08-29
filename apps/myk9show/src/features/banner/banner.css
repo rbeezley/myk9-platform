@@ -45,10 +45,30 @@
   text-decoration: none;
 }
 
+[data-banner] a:focus-visible,
+[data-banner] button:focus-visible {
+  outline: 2px solid var(--bn-flag-bright);
+  outline-offset: 3px;
+}
+
+[data-banner] .landing-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+[data-banner] .landing-table-scroll > table {
+  min-width: 520px;
+}
+
 /* Status-dot pulse — the only animated colored element on the page. */
 @keyframes bn-status-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 [data-banner] .bn-status-dot {

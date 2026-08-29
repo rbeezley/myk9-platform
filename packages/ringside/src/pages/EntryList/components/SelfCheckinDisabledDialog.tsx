@@ -1,4 +1,5 @@
 import React from 'react';
+import { RingsideModal, modalButtonClass } from './RingsideModal';
 
 export interface SelfCheckinDisabledDialogProps {
   /** Whether the dialog is visible */
@@ -10,6 +11,12 @@ export interface SelfCheckinDisabledDialogProps {
 /**
  * Dialog shown when a user tries to check in but self check-in is disabled.
  * Shared between EntryList and CombinedEntryList.
+ *
+ * Same history as ResetConfirmDialog: authored against `ringside.css`, which
+ * #436 deleted without migrating this component, so its `reset-dialog-overlay`
+ * classes had no CSS and this rendered unstyled and unscrimmed. This dialog is
+ * the ONLY explanation an exhibitor gets for a status pill that refuses to
+ * change, so rendering it somewhere they might not see it defeated its purpose.
  */
 export const SelfCheckinDisabledDialog: React.FC<SelfCheckinDisabledDialogProps> = ({
   isOpen,
@@ -20,25 +27,22 @@ export const SelfCheckinDisabledDialog: React.FC<SelfCheckinDisabledDialogProps>
   }
 
   return (
-    <div className="reset-dialog-overlay">
-      <div className="reset-dialog">
-        <h3>🚫 Self Check-in Disabled</h3>
-        <p>
-          Self check-in has been disabled for this class by the administrator.
-        </p>
-        <p className="reset-dialog-warning">
-          Please check in at the central table or contact the ring steward for assistance.
-        </p>
-        <div className="reset-dialog-buttons">
-          <button
-            className="reset-dialog-confirm self-checkin-ok-button"
-            onClick={onClose}
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
+    <RingsideModal
+      title="Self check-in is off for this class"
+      onDismiss={onClose}
+      footer={
+        <button
+          type="button"
+          data-testid="self-checkin-ok-button"
+          className={`${modalButtonClass} bg-primary text-primary-foreground hover:bg-primary/90`}
+          onClick={onClose}
+        >
+          OK
+        </button>
+      }
+    >
+      <p>Check in at the central table, or ask the ring steward for help.</p>
+    </RingsideModal>
   );
 };
 

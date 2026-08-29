@@ -20,9 +20,13 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusIcon, TabBar, type Tab } from '@myk9/ui';
-import { ArrowUpDown, Trophy } from 'lucide-react';
+import { ArrowUpDown, Trophy, Users } from 'lucide-react';
 import type { Entry } from '../../stores/entryStore';
-import type { CombinedEntryListPageProps, FilterPanelSortOption } from './pageProps';
+import type {
+  CombinedEntryListPageProps,
+  EntryListNotify,
+  FilterPanelSortOption,
+} from './pageProps';
 import type { SortOrder } from './types';
 import type { PrintSortOrder } from './dialogSlots';
 import { EntryListHeader, EntryListContent } from './components';
@@ -70,6 +74,7 @@ function CombinedEntryListSkeleton() {
 }
 
 export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
+  onNotify,
   classIds,
   data,
   dataStatus,
@@ -136,12 +141,33 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
 
   // Score click — combined view navigates with paired classId in
   // state so the scoresheet knows about the other class.
+  // Falls back to `window.alert` when the host injects nothing: a blocking
+  // dialog is a poor experience, but a silently-failed score reset is worse.
+  const notify = useCallback<EntryListNotify>(
+    (message, tone) => {
+      if (onNotify) {
+        onNotify(message, tone);
+        return;
+      }
+      // eslint-disable-next-line no-alert
+      window.alert(message);
+    },
+    [onNotify]
+  );
+
   const handleScoreClick = useCallback(
     (entry: Entry) => {
-      if (entry.isScored) return;
+      if (entry.isScored) {
+        // Was a silent `return` here too. The single-class route was fixed and
+        // this one was not -- the same divergence this page keeps producing.
+        // (handleEntryPrefetch below keeps its silent return on purpose: it is
+        // a prefetch, not a user-facing tap.)
+        notify(`${entry.callName} is already scored — use the card's ⋯ menu to change it.`, 'info');
+        return;
+      }
 
       if (!hasPermission('canScore')) {
-        alert('You do not have permission to score entries.');
+        notify('You do not have permission to score entries.', 'error');
         return;
       }
 
@@ -152,7 +178,7 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         navigate(route, { state: { pairedClassId } });
       }
     },
-    [hasPermission, classIds.a, classIds.b, getScoresheetNavigationRoute, navigate]
+    [hasPermission, classIds.a, classIds.b, getScoresheetNavigationRoute, navigate, notify]
   );
 
   // Prefetch — call the shim's per-entry prefetch for the focused
@@ -263,8 +289,27 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   const hasActiveFilters = searchTerm.length > 0 || sortOrder !== 'section-armband';
 
   // Loading state
-  if (!entries.length && !fetchError) {
+  // Gate on LOAD COMPLETION, not emptiness. `!entries.length` meant a combined
+  // Novice A/B class that genuinely has no entries shimmered forever, and a
+  // partially-arrived list read as complete the moment one entry landed. The
+  // single-class page has always used this signal; the combined route tracked
+  // `isLoaded` and then ignored it.
+  if (!isLoaded && !fetchError) {
     return <CombinedEntryListSkeleton />;
+  }
+
+  if (isLoaded && !entries.length && !fetchError) {
+    return (
+      <div className="p-3">
+        <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
+          <Users size={48} aria-hidden="true" />
+          <h2 className="m-0 text-lg font-semibold text-foreground">No Entries Yet</h2>
+          <p className="max-w-sm text-sm">
+            Neither section has entries yet. They&rsquo;ll appear here once they are registered.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // Error state
@@ -349,31 +394,39 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
         onTabChange={tabId => setActiveTab(tabId as 'pending' | 'completed')}
       />
 
-      <div className="isolate">
-        <div className="pb-8 pt-2">
-          <EntryListContent
-            entries={currentEntries}
-            activeTab={activeTab}
-            isDragMode={isDragMode}
-            showContext={showContext}
-            classInfo={classInfo}
-            hasPermission={hasPermission}
-            onEntryClick={handleScoreClick}
-            onStatusClick={combinedHandlers.handleStatusClick}
-            onResetMenuClick={combinedHandlers.handleResetMenuClick}
-            onSelfCheckinDisabled={() => setSelfCheckinDisabledDialog(true)}
-            onPrefetch={handleEntryPrefetch}
-            showSectionBadges={true}
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onOpenDragMode={handleOpenDragMode}
-            {...(favorites ? { favorites } : {})}
-            {...(ownership ? { ownership } : {})}
-            DogCard={layout.DogCard}
-          />
+      {/* Wrapped in PullToRefresh like the single-class page. That slot also
+          carries the MYK9-115 containment banner ("Score sync paused"), so
+          rendering a plain div here meant a judge on a COMBINED class got no
+          notice that the server had paused their score uploads -- the precise
+          "queue stopped draining, assume it's lost, re-enter everything"
+          scenario the banner exists to prevent. */}
+      <layout.PullToRefresh onRefresh={() => refresh(true)} enabled={false} threshold={80}>
+        <div className="isolate">
+          <div className="pb-8 pt-2">
+            <EntryListContent
+              entries={currentEntries}
+              activeTab={activeTab}
+              isDragMode={isDragMode}
+              showContext={showContext}
+              classInfo={classInfo}
+              hasPermission={hasPermission}
+              onEntryClick={handleScoreClick}
+              onStatusClick={combinedHandlers.handleStatusClick}
+              onResetMenuClick={combinedHandlers.handleResetMenuClick}
+              onSelfCheckinDisabled={() => setSelfCheckinDisabledDialog(true)}
+              onPrefetch={handleEntryPrefetch}
+              showSectionBadges={true}
+              sensors={sensors}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onOpenDragMode={handleOpenDragMode}
+              {...(favorites ? { favorites } : {})}
+              {...(ownership ? { ownership } : {})}
+              DogCard={layout.DogCard}
+            />
+          </div>
         </div>
-      </div>
+      </layout.PullToRefresh>
 
       <CombinedEntryListDialogs
         isFilterPanelOpen={isFilterPanelOpen}

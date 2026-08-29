@@ -8,7 +8,8 @@ import {
   ClassPodium,
   markClassCompletionPending,
 } from './ClassCompletionPresentation';
-import { COMPLETION_INTENT_MAX_AGE_MS } from './classCompletionStorage';
+import {
+  __resetClassCompletionMemoForTests, COMPLETION_INTENT_MAX_AGE_MS } from './classCompletionStorage';
 
 const { confettiBurst } = vi.hoisted(() => ({
   confettiBurst: vi.fn(),
@@ -117,6 +118,10 @@ function PresentationHarness({
 describe('ClassCompletionPresentation', () => {
   beforeEach(() => {
     localStorage.clear();
+    // localStorage.clear() does NOT reach the module-scope memos in
+    // classCompletionStorage, so a celebration claimed by an earlier test file
+    // stayed claimed here. Order-dependent, and CI runs --sequence.shuffle.
+    __resetClassCompletionMemoForTests();
     confettiBurst.mockClear();
     vi.mocked(window.matchMedia).mockImplementation(
       query =>

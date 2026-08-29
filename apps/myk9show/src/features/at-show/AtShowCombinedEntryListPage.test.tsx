@@ -10,6 +10,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowCombinedEntryListPage } from './AtShowCombinedEntryListPage';
 
 vi.mock('@/services/replication', () => ({
@@ -98,14 +100,33 @@ function seed() {
   vi.mocked(replicatedEntriesTable.updateEntry).mockResolvedValue('a1');
 }
 
-const renderPage = () =>
+// Mirrors AtShowEntryListPage.test.tsx. The combined route now consults
+// replication sync for its first-load gate -- previously it derived "loaded"
+// from `isRefreshing` alone and presented an empty ring as settled truth while
+// the first sync was still running.
+const settledSyncStatus = {
+  isSyncing: false,
+  lastSyncAt: new Date().toISOString(),
+  tablesStatus: {
+    shows: 'success',
+    trials: 'success',
+    classes: 'success',
+    entries: 'success',
+  },
+} as unknown as ReplicationSyncContextValue['status'];
+
+const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledSyncStatus) =>
   render(
-    <Routes>
-      <Route
-        path="/at-show/:showId/class/:classIdA/:classIdB"
-        element={<AtShowCombinedEntryListPage />}
-      />
-    </Routes>,
+    <ReplicationSyncContext.Provider
+      value={{ status: syncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+    >
+      <Routes>
+        <Route
+          path="/at-show/:showId/class/:classIdA/:classIdB"
+          element={<AtShowCombinedEntryListPage />}
+        />
+      </Routes>
+    </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1/class/class-a/class-b' }
   );
 

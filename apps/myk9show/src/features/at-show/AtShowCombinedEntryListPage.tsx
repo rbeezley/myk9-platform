@@ -48,6 +48,9 @@ type PrintDialogState = CombinedEntryListUiState['printDialogState'];
 import { replicatedShowsTable } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import { applyCombinedRunOrder } from './applyCombinedRunOrder';
+import { toast } from 'sonner';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
+import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue } from './ringsideCapabilities';
@@ -142,10 +145,17 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   );
 
   // ── Shim-owned state (mirrors CombinedEntryListUiState) ────────────────
+  const { status: syncStatus } = useReplicationSync();
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [, setManualOrder] = useState<Entry[]>([]);
   const [sortOrder, setSortOrder] = useState<SortOrder>('section-armband');
   const [isLoaded, setIsLoaded] = useState(false);
+  // Mirrors AtShowEntryListPage. Without this the combined route presented an
+  // empty ring as settled truth while the FIRST replication sync was still
+  // running -- `isRefreshing` alone only covers a refetch, not the cold boot.
+  const isInitialEntryDataSyncing =
+    entries.length === 0 &&
+    areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [runOrderDialogOpen, setRunOrderDialogOpen] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -179,10 +189,22 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   const currentEntries = activeTab === 'pending' ? pendingEntries : completedEntries;
 
   // ── Combined handlers bag (ringside hook) ──────────────────────────────
+  // ringside can't depend on sonner, so both of its alert() call sites took
+  // window.alert -- a blocking native dialog mid-class, where the single-class
+  // page uses a toast for the identical cases. Inject the real thing.
+  const notifyRingside = useCallback((message: string, tone: 'error' | 'info') => {
+    if (tone === 'error') {
+      toast.error(message);
+      return;
+    }
+    toast.info(message);
+  }, []);
+
   const combinedHandlers = useEntryHandlers({
     localEntries,
     setLocalEntries,
     entries,
+    notify: notifyRingside,
     handleMarkInRing: actions.handleMarkInRing,
     handleMarkCompleted: actions.handleMarkCompleted,
     handleStatusChangeHook: actions.handleStatusChange,
@@ -198,27 +220,48 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     (reordered: Entry[]) => persistEntryRunOrder(reordered),
     []
   );
-  const { sensors, handleDragStart, handleDragEnd } = useDragAndDropEntries({
+  // A drag whose write never QUEUED used to be silent on both routes: the
+  // reordered list stayed on screen and the steward worked the gate from an
+  // order that existed only on their phone. Notify, then re-derive from the
+  // replicated data -- the write is per-row, so a failure may be partial and
+  // only a refresh can settle what actually landed.
+  const handleRunOrderPersistError = useCallback(
+    (error: unknown) => {
+      notifyRunOrderPersistError(error);
+      void refresh(true);
+    },
+    [refresh]
+  );
+
+  const { sensors, handleDragStart, handleDragEnd, isDragging } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
     currentEntries,
     updateExhibitorOrder,
     isDraggingRef,
     setManualOrder,
+    onPersistError: handleRunOrderPersistError,
   });
 
   // ── Effects: mirror fetched entries (drag-guarded) + initial load ──────
+  // `isDragging` is a dep (not just the ref) so the mirror re-runs when a drag
+  // ENDS. The drag hook clears `isDraggingRef` inside a grace-period timeout --
+  // a ref mutation that does not re-trigger this effect on its own -- so with
+  // `[entries]` alone a sync landing mid-drag was silently DROPPED until some
+  // unrelated future refetch, leaving the combined list stale after every
+  // reorder. The single-class page has carried this dep and its rationale since
+  // it was written; this route did not. The ref stays as the synchronous guard.
   useEffect(() => {
     if (isDraggingRef.current) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalEntries(entries);
-  }, [entries]);
+  }, [entries, isDragging]);
   useEffect(() => {
-    if (!isRefreshing && !isLoaded) {
+    if (!isRefreshing && !isInitialEntryDataSyncing && !isLoaded) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoaded(true);
     }
-  }, [isRefreshing, isLoaded]);
+  }, [isRefreshing, isInitialEntryDataSyncing, isLoaded]);
 
   // ── Scoresheet route (built in a later slice; may 404 until then) ──────
   const getScoresheetNavigationRoute = useCallback(
@@ -288,6 +331,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           />
         )}
         <CombinedEntryListPage
+          onNotify={notifyRingside}
           classIds={{ a: classIdA, b: classIdB }}
           data={{ entries, classInfo }}
           dataStatus={{ isRefreshing, fetchError, refresh }}

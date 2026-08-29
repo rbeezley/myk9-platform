@@ -56,6 +56,22 @@ interface UseDragAndDropEntriesOptions {
   setManualOrder?: React.Dispatch<React.SetStateAction<Entry[]>>;
   /** Grace period in ms before accepting new sync data after drag (default: 1500) */
   gracePeriodMs?: number;
+  /**
+   * Called when the run-order write could NOT be queued. Injected because
+   * `@myk9/ringside` is a shared package and must not depend on the host's
+   * toast library.
+   *
+   * The handler should both TELL the user and refresh from the replicated data.
+   * The write is per-row, so a failure may be partial; the host's refresh is the
+   * only thing that can resolve what actually landed.
+   *
+   * This is not an "offline" path. `updateExhibitorOrder` persists through the
+   * replication mutation queue, which is durable-first: offline it queues
+   * locally and resolves. A rejection therefore means the mutation was NEVER
+   * QUEUED (quota/overflow), so nothing will retry it later — the one case
+   * where the new order on screen is a fiction.
+   */
+  onPersistError?: (error: unknown) => void;
 }
 
 interface UseDragAndDropEntriesReturn {
@@ -89,7 +105,8 @@ export function useDragAndDropEntries({
   updateExhibitorOrder,
   isDraggingRef: externalIsDraggingRef,
   setManualOrder: externalSetManualOrder,
-  gracePeriodMs = 1500
+  gracePeriodMs = 1500,
+  onPersistError
 }: UseDragAndDropEntriesOptions): UseDragAndDropEntriesReturn {
   // Drag state refs - prevent race conditions with sync
   const dragSnapshotRef = useRef<Entry[] | null>(null);
@@ -225,8 +242,19 @@ export function useDragAndDropEntries({
       await updateExhibitorOrder(entriesWithNewOrder);
     } catch (error) {
       logger.error('Failed to update run order in database:', error);
-      // The optimistic update already happened, so UI shows new order
-      // If offline, the sync will happen later
+      // The old comment here reasoned "if offline, the sync will happen later"
+      // -- but an offline write never reaches this catch: the replication queue
+      // is durable-first and resolves once the mutation is stored locally.
+      // Everything that DOES land here failed to QUEUE, so nothing will retry it
+      // and the reordered list on screen is a fiction.
+      //
+      // Deliberately NOT a rollback. `persistEntryRunOrder` writes each row
+      // independently, so a failure can be PARTIAL -- some rows renumbered, some
+      // not -- and snapping back to the pre-drag order would then contradict
+      // what is actually queued. The hook cannot know which rows landed, so it
+      // reports rather than guesses, and the host re-derives the list from the
+      // replicated data it owns.
+      onPersistError?.(error);
     } finally {
       setIsUpdatingOrder(false);
       if (!isMountedRef.current) {
@@ -251,7 +279,7 @@ export function useDragAndDropEntries({
         }, gracePeriodMs);
       }
     }
-  }, [localEntries, setLocalEntries, setManualOrder, isDraggingRef, gracePeriodMs, updateExhibitorOrder]);
+  }, [localEntries, setLocalEntries, setManualOrder, isDraggingRef, gracePeriodMs, updateExhibitorOrder, onPersistError]);
 
   return {
     sensors,

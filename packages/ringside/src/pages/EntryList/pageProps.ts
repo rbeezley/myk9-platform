@@ -689,7 +689,23 @@ export interface EntryListPageProps {
  * E2d-2 will refine this further as the combined-page move details
  * come into focus.
  */
+/**
+ * Host-injected user notifier. `@myk9/ringside` is a shared package and must not
+ * depend on the host's toast library, so the combined page took the only
+ * dependency-free option available to it: `window.alert`. On a phone mid-class
+ * that is a blocking native modal stamped with the domain name — and the
+ * single-class page already routes the identical cases through a toast.
+ */
+export type EntryListNotify = (message: string, tone: 'error' | 'info') => void;
+
 export interface CombinedEntryListPageProps {
+  /**
+   * Notifies the user. Optional so existing consumers keep compiling; when it is
+   * absent the page falls back to `window.alert` rather than going silent —
+   * a blocking dialog is bad, but silence on a failed score reset is worse.
+   */
+  onNotify?: EntryListNotify;
+
   /** Route params: classIdA + classIdB from the combined route. */
   classIds: { a: string | undefined; b: string | undefined };
 

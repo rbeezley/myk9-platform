@@ -1,5 +1,6 @@
 import React from 'react';
 import { Entry } from '../../../stores/entryStore';
+import { RingsideModal, modalButtonClass } from './RingsideModal';
 
 export interface ResetConfirmDialogProps {
   /** Whether the dialog is visible */
@@ -15,6 +16,12 @@ export interface ResetConfirmDialogProps {
 /**
  * Confirmation dialog for resetting an entry's score.
  * Shared between EntryList and CombinedEntryList.
+ *
+ * Previously authored against `ringside.css`, which #436 deleted without
+ * migrating this component — so its `dialog-overlay` / `dialog-button` classes
+ * had no CSS at all and this rendered as an unstyled inline block at the bottom
+ * of the page. A judge confirming a destructive score reset could be reading a
+ * prompt below the fold, with the page behind it still fully interactive.
  */
 export const ResetConfirmDialog: React.FC<ResetConfirmDialogProps> = ({
   isOpen,
@@ -27,35 +34,38 @@ export const ResetConfirmDialog: React.FC<ResetConfirmDialogProps> = ({
   }
 
   return (
-    <div className="dialog-overlay">
-      <div className="dialog-container reset-dialog-container">
-        <div className="dialog-header">
-          <h3 className="dialog-title">Reset Score</h3>
-        </div>
-        <div className="dialog-content">
-          <p>
-            Are you sure you want to reset the score for <strong>{entry.callName}</strong> ({entry.armband})?
-          </p>
-          <p className="reset-dialog-warning">
-            This will remove their current score and move them back to the pending list.
-          </p>
-        </div>
-        <div className="dialog-footer">
+    <RingsideModal
+      title="Reset score"
+      onDismiss={onCancel}
+      footer={
+        <>
           <button
-            className="dialog-button dialog-button-secondary"
+            type="button"
+            className={`${modalButtonClass} border border-border bg-background text-foreground hover:bg-muted`}
             onClick={onCancel}
           >
             Cancel
           </button>
           <button
-            className="dialog-button dialog-button-primary reset-dialog-confirm"
+            type="button"
+            data-testid="reset-dialog-confirm"
+            className={`${modalButtonClass} bg-destructive text-destructive-foreground hover:bg-destructive/90`}
             onClick={onConfirm}
           >
-            Confirm
+            Reset score
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <p>
+        Reset the score for{' '}
+        <strong className="text-foreground">
+          {entry.callName} ({entry.armband})
+        </strong>
+        ?
+      </p>
+      <p>This removes their current score and moves them back to the pending list.</p>
+    </RingsideModal>
   );
 };
 

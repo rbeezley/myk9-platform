@@ -44,6 +44,7 @@ import { replicatedShowsTable } from '@/services/replication';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
+import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
@@ -194,6 +195,19 @@ export const AtShowEntryListPage: React.FC = () => {
     []
   );
 
+  // A drag whose write never QUEUED used to be silent: the reordered list stayed
+  // on screen and the steward worked the gate from an order that existed only on
+  // their phone. Notify, then re-derive from the replicated data -- the write is
+  // per-row, so a failure may be partial and only a refresh can settle what
+  // actually landed.
+  const handleRunOrderPersistError = useCallback(
+    (error: unknown) => {
+      notifyRunOrderPersistError(error);
+      void refresh(true);
+    },
+    [refresh]
+  );
+
   const { sensors, handleDragStart, handleDragEnd, isDragging } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
@@ -201,6 +215,7 @@ export const AtShowEntryListPage: React.FC = () => {
     updateExhibitorOrder,
     isDraggingRef,
     setManualOrder,
+    onPersistError: handleRunOrderPersistError,
   });
 
   // ── UI state bag ───────────────────────────────────────────────────────

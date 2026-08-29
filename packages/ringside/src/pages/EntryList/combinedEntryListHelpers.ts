@@ -157,6 +157,12 @@ export function useEntryHandlers(opts: {
   handleResetScoreHook: (entryId: string) => Promise<void>;
   refresh: (force?: boolean) => Promise<void>;
   setActiveTab: (tab: 'pending' | 'completed') => void;
+  /**
+   * Host-injected notifier. Optional; falls back to `window.alert` so a failed
+   * reset is never silent, but the host should supply a toast — a blocking
+   * native dialog mid-class is exactly what the single-class page avoids.
+   */
+  notify?: (message: string, tone: 'error' | 'info') => void;
 }) {
   const {
     localEntries,
@@ -168,6 +174,7 @@ export function useEntryHandlers(opts: {
     handleResetScoreHook,
     refresh,
     setActiveTab,
+    notify,
   } = opts;
 
   const [activeStatusPopup, setActiveStatusPopup] = useState<string | null>(null);
@@ -296,10 +303,16 @@ export function useEntryHandlers(opts: {
       setActiveTab('pending');
     } catch (error) {
       logger.error('Failed to reset score:', error);
-      alert(`Failed to reset score: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const message = `Failed to reset score: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      if (notify) {
+        notify(message, 'error');
+      } else {
+        // eslint-disable-next-line no-alert
+        window.alert(message);
+      }
     }
     setResetConfirmDialog({ show: false, entry: null });
-  }, [resetConfirmDialog.entry, handleResetScoreHook, refresh, setActiveTab]);
+  }, [resetConfirmDialog.entry, handleResetScoreHook, refresh, setActiveTab, notify]);
 
   const cancelResetScore = useCallback(() => {
     setResetConfirmDialog({ show: false, entry: null });

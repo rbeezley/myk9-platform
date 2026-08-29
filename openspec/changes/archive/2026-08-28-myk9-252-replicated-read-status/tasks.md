@@ -17,5 +17,5 @@
 
 - [x] 4.1 Run focused replication, Trial store, and Show Desk tests; run relevant package and myK9Show typechecks; fix all change-caused failures.
 - [x] 4.2 Run `pnpm openspec validate "myk9-252-replicated-read-status" --type change --strict --no-interactive`, inspect the final diff for unrelated changes, and record the 85-occurrence/36-file caller audit plus deferred migrations in the PR or tracking update.
-- [ ] 4.3 Open the implementation PR with MYK9-252 acceptance evidence and `Tracked in openspec change: myk9-252-replicated-read-status`; verify required CI and review pass before merge.
-- [ ] 4.4 After merge, update MYK9-252 with the implementation summary, checks, PR/merge commit, risks, and acceptance result; move it to Done only when its evidence gate is satisfied, then archive the OpenSpec change and clean up the branch/worktree.
+- [x] 4.3 Open the implementation PR with MYK9-252 acceptance evidence and `Tracked in openspec change: myk9-252-replicated-read-status`; verify required CI and review pass before merge.
+- [x] 4.4 After merge, update MYK9-252 with the implementation summary, checks, PR/merge commit, risks, and acceptance result; move it to Done only when its evidence gate is satisfied, then archive the OpenSpec change and clean up the branch/worktree.

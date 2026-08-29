@@ -228,20 +228,23 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     return (
       <div className="p-3">
         <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
-          <div className="empty-state-icon">
-            <Users size={48} />
-          </div>
+          {/* These used semantic class names (`empty-state-icon`, `btn
+              btn-secondary`, ...) that have had NO CSS since the Tailwind
+              migration deleted ringside.css -- so "Go Back" rendered as an
+              unstyled browser default with no 44px target. */}
+          <Users size={48} aria-hidden="true" />
           <h2 className="m-0 text-lg font-semibold text-foreground">No Entries Yet</h2>
-          {classInfo?.className && <p className="empty-state-class-name">{classInfo.className}</p>}
-          <p className="empty-state-message">
+          {classInfo?.className && <p className="text-sm font-medium">{classInfo.className}</p>}
+          <p className="max-w-sm text-sm">
             This class doesn't have any entries yet. Entries will appear once they are registered.
           </p>
-          <div className="empty-state-action">
-            <button className="btn btn-secondary" onClick={() => navigate(-1)}>
-              <ArrowLeft size={16} />
-              Go Back
-            </button>
-          </div>
+          <button
+            className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Go Back
+          </button>
         </div>
       </div>
     );

@@ -20,7 +20,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusIcon, TabBar, type Tab } from '@myk9/ui';
-import { ArrowUpDown, Trophy } from 'lucide-react';
+import { ArrowUpDown, Trophy, Users } from 'lucide-react';
 import type { Entry } from '../../stores/entryStore';
 import type {
   CombinedEntryListPageProps,
@@ -282,8 +282,27 @@ export const CombinedEntryListPage: React.FC<CombinedEntryListPageProps> = ({
   const hasActiveFilters = searchTerm.length > 0 || sortOrder !== 'section-armband';
 
   // Loading state
-  if (!entries.length && !fetchError) {
+  // Gate on LOAD COMPLETION, not emptiness. `!entries.length` meant a combined
+  // Novice A/B class that genuinely has no entries shimmered forever, and a
+  // partially-arrived list read as complete the moment one entry landed. The
+  // single-class page has always used this signal; the combined route tracked
+  // `isLoaded` and then ignored it.
+  if (!isLoaded && !fetchError) {
     return <CombinedEntryListSkeleton />;
+  }
+
+  if (isLoaded && !entries.length && !fetchError) {
+    return (
+      <div className="p-3">
+        <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
+          <Users size={48} aria-hidden="true" />
+          <h2 className="m-0 text-lg font-semibold text-foreground">No Entries Yet</h2>
+          <p className="max-w-sm text-sm">
+            Neither section has entries yet. They&rsquo;ll appear here once they are registered.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // Error state

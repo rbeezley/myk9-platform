@@ -104,27 +104,23 @@ describe('ShowDetailTabs', () => {
     expect(screen.queryByTestId('entries-tab')).toBeNull();
   });
 
-  it('forwards canManageShow to the Show Map so managers get its row actions', async () => {
-    // CHANGED (secretary task walk, 2026-08-28). This previously asserted
-    // `data-can-manage="false"` with the comment "the shell always renders the map
-    // read-only, even for managers" -- a property #1035 inherited and preserved
-    // during a refactor ("stays read-only"), not a stated product decision.
+  it('renders the Show Map read-only even for managers', async () => {
+    // INTENT: view-only for everyone on the public show page. Decided by #291
+    // ("make public map read-only") and re-affirmed as an architectural
+    // commitment by the workbench collapse. The manager action layer lives on
+    // Show Desk (ShowDeskPanel), not here.
     //
-    // The consequence was that `ShowMapRowActionsMenu` -- Move up, Pull / no-show,
-    // Mark checked in, Edit score -- and the run-order reorder mode were
-    // unreachable ANYWHERE, because this is the only mount of `ShowMapTab` in the
-    // app. Two responsibilities in docs/roles/secretary.md ("manage class changes
-    // and move-ups", "publish the running order") therefore had no UI at all.
-    // ShowDetailTabs' own doc comment already says the management surface passes
-    // this true "to light up the Show Map".
+    // I broke this assertion during the 2026-08-28 secretary walk on the theory
+    // that the row actions were unreachable app-wide. They are not: Show Desk
+    // mounts ShowDeskPanel with canManageShow and owns the move-up dialog.
+    // Forwarding the prop here duplicates that surface rather than unlocking a
+    // missing one -- do not "fix" this to true.
     renderTabs({ activeTab: 'map', canShowMap: true, canManageShow: true });
     const map = await screen.findByTestId('show-map-tab');
-    expect(map).toHaveAttribute('data-can-manage', 'true');
+    expect(map).toHaveAttribute('data-can-manage', 'false');
   });
 
   it('keeps the Show Map read-only for the exhibitor surface', async () => {
-    // The exhibitor view passes canManageShow=false; forwarding must not hand
-    // exhibitors the manager action menu.
     renderTabs({ activeTab: 'map', canShowMap: true, canManageShow: false });
     const map = await screen.findByTestId('show-map-tab');
     expect(map).toHaveAttribute('data-can-manage', 'false');

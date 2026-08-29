@@ -178,16 +178,21 @@ export function ShowDetailTabs({
                 trials={mapTrials}
                 classes={mapClasses}
                 entries={mapEntries}
-                // Forward the caller's permission instead of hardcoding false.
-                // `ShowMapTab` gates its whole row-action layer on this
-                // (`reorderMode={canManageShow ? ... : undefined}`, and
-                // `ShowMapRowActionsMenu` carries Move up, Pull / no-show, Mark
-                // checked in and Edit score). This is the ONLY mount of
-                // `ShowMapTab` in the app, so hardcoding false made run order and
-                // move-up unreachable for everyone -- contradicting the comment
-                // above, which already says the management surface passes it true.
-                // The exhibitor surface passes false and is unaffected.
-                canManageShow={canManageShow}
+                // INTENT: the public show page's map is view-only for EVERYONE,
+                // managers included. This is not inherited drift -- #291
+                // ("feat(show-map): make public map read-only") decided it, and
+                // docs/archive/plan-show-map-workbench-collapse.md carries
+                // "view-only public map" in its list of architectural commitments
+                // that the workbench collapse had to respect.
+                //
+                // The manager action layer (run order / Move up / Pull-no-show /
+                // Mark checked in / Edit score) lives on Show Desk --
+                // /shows/:showId/show-desk -> ShowDeskPanel, which is passed
+                // canManageShow and owns ShowMapMoveUpDialog. Forwarding the prop
+                // here does NOT unlock a missing capability; it duplicates that
+                // surface on a page whose job is browsing, which is the opposite
+                // of the consolidation this phase is doing.
+                canManageShow={false}
               />
             </Suspense>
           )}

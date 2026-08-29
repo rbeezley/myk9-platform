@@ -621,28 +621,61 @@ page whose purpose is assigning judges.
 Also note this is the **third** surface that sets a class judge, after the class
 detail Edit dialog and Edit Show → Judges (F12).
 
-### F29 — P2 — FIXED — The Show Map action layer (run order AND move-up) never renders
+### F29 — SPLIT — one half WITHDRAWN (my error), one half REAL and still open
 
-Task 5 has an implementation — `features/show-map/` contains `ShowMapRunOrderMenu`
-("Run order" per class), `ShowMapSortableEntryRow` with drag plus
-`Alt+ArrowUp/ArrowDown` keyboard reordering, and a `ShowMapReorderBanner` — and
-`ShowMapTab` passes `reorderMode={canManageShow ? reorderMode : undefined}`.
+**I got this wrong, shipped the wrong fix, and CI caught it.** Recorded in full
+because the mistake is the instructive part.
 
-No such control rendered anywhere I looked as the managing secretary:
+**What I claimed:** `ShowDetailTabs` discards its `canManageShow` prop and passes
+`canManageShow={false}` to `ShowMapTab`; since that is the only mount of
+`ShowMapTab`, the entire action layer was unreachable app-wide. I changed it to
+forward the prop, and rewrote the test that asserted `false`, reasoning that the
+property was "inherited, not decided" because #1035 (a refactor) said the map
+"stays read-only".
 
-- Show detail → **Show Map** tab, audit show, class expanded to its entry: class row
-  offers only Expand / class name / progress.
-- Same tab on the demo show, trials expanded, classes "Not started" with 63–66
-  entries each: **zero** occurrences of "Run order" in the accessibility tree.
-- **Manage Classes** → "More actions": View waitlist, Set to Scheduled / Upcoming /
-  In Progress / Completed / Cancelled, Delete class. No run order.
-- **Show Desk**: links out to "Run order and class setup", which lands on Manage
-  Classes — which has no run-order control.
+**Why that was wrong.** I looked at the refactor that preserved the behaviour
+instead of the commit that chose it. The origin is
+[#291](https://github.com/rbeezley/myk9-platform/pull/291), *"feat(show-map): make
+public map read-only"* — a deliberate feature PR — and
+`docs/archive/plan-show-map-workbench-collapse.md` lists **"view-only public map"**
+among the architectural commitments the workbench collapse had to respect. The
+`false` is an INTENT, not drift. A second test I had not run,
+`ShowDetailsPage.test.tsx:753` ("renders the public Show Map as read-only for show
+managers"), pinned it and failed in CI on all three shards.
 
-So the deep link is named for a capability the destination does not appear to offer.
-The likely cause is the `canManageShow` (or `compact`) gate in `ShowMapTab`, which
-needs a focused look — this is "the control never rendered on these paths", not
-"the feature does not exist anywhere".
+**F29a — WITHDRAWN. The row actions are not unreachable.** Show Desk
+(`/shows/:showId/show-desk`) renders `ShowDeskPanel` with `canManageShow`, which
+drives `SecretaryCockpit` off `getRankedActions(...)`. That catalog
+(`showMapActions.ts`) contains `move-up-entry`, `mark-checked-in`, `scratch-entry`,
+`edit-score`, `review-entry` and `message-handler`, and `ShowDeskPanel` owns
+`ShowMapMoveUpDialog` directly. Move-up is reachable for a secretary today; my walk
+missed it because I searched the Show Map tab for a row menu instead of the cockpit,
+which surfaces actions contextually by rank rather than as a per-row menu.
+
+My change therefore did not unlock a missing capability — it **duplicated Show Desk's
+capability onto a browsing page**, the exact move CLAUDE.md's "consolidate, don't
+duplicate" rule exists to prevent. Reverted; the component and both tests now carry a
+comment naming #291 so the next reader does not repeat it.
+
+**F29b — REAL, still open. Run order has no reachable surface.** This half survives
+and is *not* fixed by anything above:
+
+- `ShowMapRunOrderMenu` and `reorderMode` (drag plus `Alt+ArrowUp/ArrowDown`) render
+  only inside `ShowMapStructureTable`, which is imported only by `ShowMapTab`, whose
+  `reorderMode={canManageShow ? reorderMode : undefined}` is now — correctly — always
+  undefined.
+- The cockpit action catalog has **no** run-order/reorder command, so Show Desk does
+  not offer it either.
+- **Manage Classes** → "More actions" has no run-order control.
+- Show Desk links out to **"Run order and class setup"**, which lands on Manage
+  Classes — a deep link named for a capability its destination does not have.
+
+So `docs/roles/secretary.md`'s "publish the running order" still has no working path,
+and a reorder implementation exists that nothing can reach. The fix is **not** to
+unlock the public map. It is to give run order a home on a management surface —
+either a cockpit action or a control on Manage Classes, where the existing deep link
+already points. Left open deliberately; sized as a Phase 2 judgment call, not a
+mechanical fix.
 
 ### F30 — P1 — MECHANISM FOUND — Deleting a club silently strips management from its shows, permanently
 
@@ -938,8 +971,8 @@ correctly offered none.
 | 4 | Email exhibitors | **Possible, badly signposted** — composer is in the header Message Center panel, not the Messages page (F22), and does not inherit show context (F23) |
 | 13 | Waitlist | **Verified present** — Entry Management → Exceptions → Waitlist shows judge-day capacity and "View Wait List" per judge-day; no waitlisted entries to promote on this show |
 | 14 | Payments / refunds | **Partial** — Pull Management ("reconcile refunds in one place") loads with Pending/Pulled queues; payment channel is mislabelled (F18) and check references are not stored (F16) |
-| 5 | Set run order | **FIXED (F29)** — "Run order" now renders per class on the Show Map |
-| 8 | Process a move-up | **FIXED (F29) and verified end to end** — moved armband 103 from Interior Novice B to Interior Advanced (65 -> 66 entries). The dialog offers only same-element, strictly-higher-level targets, and asks for a reason |
+| 5 | Set run order | **NOT POSSIBLE (F29b, open)** — the reorder implementation is unreachable from every management surface; Show Desk's "Run order and class setup" link lands on Manage Classes, which has no run-order control |
+| 8 | Process a move-up | **WORKS (F29a withdrawn)** — reachable on Show Desk via the cockpit, which owns `ShowMapMoveUpDialog`; my walk verified the flow end to end (armband 103, Interior Novice B -> Interior Advanced, 65 -> 66 entries) but reached it through a change I have since reverted, so the *dialog behaviour* is confirmed and its Show Desk entry point still wants a browser re-check in the verification pass. Targets are same-element, strictly-higher-level, and a reason is required |
 | 15 | Scratches / pulls / no-shows | **Verified present** — Entry Management → Exceptions → Pulls / scratches: "Review pull requests and reconcile refunds in one place", Pending/Pulled queues with search |
 | 16 | Late / walk-in entries | **Verified** — see Task 3; Show Desk → Tools → Late entry completes end to end |
 | 6 | Print check-in sheets | **Verified** — 33-page PDF, US Letter, "Check-in & Running Order", columns Gate Order / Armband / Call Name / Breed / Reg # / Handler / Pull-Move-Note. The Reg # column is blank for every dog (see F21) |

@@ -1,7 +1,6 @@
 import { lazy, Suspense, useMemo } from 'react';
 import { FileBarChart, ListChecks, Send } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { useShallow } from 'zustand/react/shallow';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
@@ -35,7 +34,6 @@ import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
 import type { SecretaryTask } from '@/pages/secretary/SecretaryDashboardPage/types';
 import { computeShowDeskActionable } from '@/features/show-map/showDeskActionable';
 import type { ShowDeskToolSection } from '@/features/show-map/ShowDeskToolsSheet';
-import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS } from '@myk9/core';
 import type { ShowWorkbenchClassSummary } from '@/features/show-workbench/showWorkbenchTypes';
@@ -50,62 +48,18 @@ import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
+import {
+  ShowDeskScheduleRefreshWarning,
+  ShowDeskScheduleUnavailable,
+} from './ShowDeskScheduleReadState';
+import { useShowDeskScheduleRead } from './useShowDeskScheduleRead';
+import { toIncidentEntryOption } from './showDeskIncidentEntryOptions';
 
 /** Stable identities so a missing read does not remint an array each render. */
 const EMPTY_INCIDENTS: Awaited<ReturnType<typeof listShowIncidentCloseout>> = [];
 const EMPTY_TASKS: SecretaryTask[] = [];
 
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
-
-function textField(source: Record<string, unknown> | null | undefined, key: string): string | null {
-  const value = source?.[key];
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
-
-function relatedObject(
-  source: Record<string, unknown>,
-  key: string
-): Record<string, unknown> | null {
-  const value = source[key];
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function toIncidentEntryOption(
-  entry: Record<string, unknown>,
-  classById: Map<string, ShowWorkbenchClassSummary>
-): IncidentEntryOption | null {
-  const dog = relatedObject(entry, 'dog');
-  const id = textField(entry, 'id');
-  if (!id) return null;
-
-  const classId = textField(entry, 'class_id');
-  const classSummary = classId ? classById.get(classId) : undefined;
-  const dogName = textField(dog, 'call_name') ?? textField(dog, 'name');
-  const handlerName = textField(entry, 'handler');
-  const armband = textField(entry, 'armband');
-  const classLabel = classSummary?.name;
-  const label = [
-    armband ? `#${armband}` : null,
-    dogName ?? 'Unknown dog',
-    handlerName ? `(${handlerName})` : null,
-    classLabel ? `- ${classLabel}` : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return {
-    classId,
-    dogId: textField(entry, 'dog_id') ?? textField(dog, 'id'),
-    dogName,
-    handlerId: textField(entry, 'handler_id'),
-    handlerName,
-    id,
-    label,
-    trialId: classSummary?.trialId ?? null,
-  };
-}
 
 export function ShowWorkbenchShowDeskPage() {
   const params = useParams<{ showId?: string; id?: string }>();
@@ -114,24 +68,11 @@ export function ShowWorkbenchShowDeskPage() {
   const {
     trials,
     trialClasses,
-    trialsReadStatus,
-    trialsHasConfirmedSnapshot,
-    trialClassesReadStatus,
-    trialClassesHasConfirmedSnapshot,
-    loadTrials,
-    loadTrialClasses,
-  } = useTrialStore(
-    useShallow(s => ({
-      trials: s.trials,
-      trialClasses: s.trialClasses,
-      trialsReadStatus: s.trialsReadStatus,
-      trialsHasConfirmedSnapshot: s.trialsHasConfirmedSnapshot,
-      trialClassesReadStatus: s.trialClassesReadStatus,
-      trialClassesHasConfirmedSnapshot: s.trialClassesHasConfirmedSnapshot,
-      loadTrials: s.loadTrials,
-      loadTrialClasses: s.loadTrialClasses,
-    }))
-  );
+    hasConfirmedSnapshot: scheduleHasConfirmedSnapshot,
+    readFailed: scheduleReadFailed,
+    readPending: scheduleReadPending,
+    retry: retrySchedule,
+  } = useShowDeskScheduleRead();
   const {
     data: showEntriesData,
     isLoading: showEntriesLoading,
@@ -146,17 +87,6 @@ export function ShowWorkbenchShowDeskPage() {
     isError: showEntriesIsError,
     isEnabled: Boolean(showId),
   });
-  const scheduleHasConfirmedSnapshot =
-    trialsHasConfirmedSnapshot && trialClassesHasConfirmedSnapshot;
-  const scheduleReadFailed = trialsReadStatus === 'error' || trialClassesReadStatus === 'error';
-  const scheduleReadPending =
-    trialsReadStatus === 'idle' ||
-    trialsReadStatus === 'loading' ||
-    trialClassesReadStatus === 'idle' ||
-    trialClassesReadStatus === 'loading';
-  const retrySchedule = () => {
-    void Promise.all([loadTrials(), loadTrialClasses()]);
-  };
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
   const reconciliationEntries = showEntries as unknown as ShowDayReconciliationEntry[];
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
@@ -482,34 +412,15 @@ export function ShowWorkbenchShowDeskPage() {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
-  // INTENT: An unread local replica is unknown, not an empty schedule. Pause
-  // status claims until both schedule dependencies have produced a confirmed
-  // snapshot; this keeps Show Desk calm and truthful during show-day failures.
-  if (!scheduleHasConfirmedSnapshot) {
-    if (scheduleReadFailed) {
-      return (
-        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
-          <p className="font-medium text-destructive">Couldn't load the show schedule.</p>
-          <p className="mt-1 text-muted-foreground">
-            Class timing and show-day status are paused so they do not show an empty schedule that
-            wasn't read.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={retrySchedule}
-          >
-            Retry schedule
-          </Button>
-        </div>
-      );
-    }
-
-    if (scheduleReadPending) {
-      return <LoadingSkeleton variant="cards" count={2} />;
-    }
+  if (!scheduleHasConfirmedSnapshot && (scheduleReadFailed || scheduleReadPending)) {
+    return (
+      <ShowDeskScheduleUnavailable
+        hasConfirmedSnapshot={scheduleHasConfirmedSnapshot}
+        readFailed={scheduleReadFailed}
+        readPending={scheduleReadPending}
+        onRetry={() => void retrySchedule()}
+      />
+    );
   }
 
   // Settled, no data, no error: the read never happened (paused offline, or
@@ -539,23 +450,11 @@ export function ShowWorkbenchShowDeskPage() {
 
   return (
     <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-      {scheduleReadFailed && scheduleHasConfirmedSnapshot && (
-        <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 p-4 text-sm">
-          <p className="font-medium">Couldn't refresh the show schedule.</p>
-          <p className="mt-1 text-muted-foreground">
-            The last loaded schedule is still shown. Retry when you're ready.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={retrySchedule}
-          >
-            Retry schedule
-          </Button>
-        </div>
-      )}
+      <ShowDeskScheduleRefreshWarning
+        hasConfirmedSnapshot={scheduleHasConfirmedSnapshot}
+        readFailed={scheduleReadFailed}
+        onRetry={() => void retrySchedule()}
+      />
       {entriesUnavailable && (
         <ShowDeskEntriesUnavailable onRetry={() => void refetchShowEntries()} />
       )}

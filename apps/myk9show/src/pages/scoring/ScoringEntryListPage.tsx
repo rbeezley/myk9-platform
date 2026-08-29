@@ -35,6 +35,7 @@ import {
   replicatedClassesTable,
   type ReplicatedClass,
 } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 
 // Local components and types
 import { SortableScoringEntryCard } from './components/ScoringEntryCard';
@@ -52,6 +53,10 @@ export function ScoringEntryListPage() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
   const breadcrumb = useScoringBreadcrumb(classId);
+  // The show this class belongs to, resolved by the breadcrumb. Needed to hydrate a
+  // cold replication store before concluding the class does not exist (F27).
+  const showId = breadcrumb.showId ?? null;
+  const breadcrumbLoading = breadcrumb.isLoading;
   const showEntriesQuery = useSecretaryShowEntriesQuery(
     breadcrumb.showId ?? '',
     Boolean(classId && breadcrumb.showId)
@@ -70,30 +75,76 @@ export function ScoringEntryListPage() {
 
   // Load the class identity from replication. Entry rows come from the shared
   // show-scoped query below so scoring cannot disagree with Show Desk.
+  //
+  // F27: a miss in the local replica is NOT proof the class does not exist. Landing
+  // here directly -- a bookmark, a shared link, a fresh device, or the class detail
+  // page's own readiness deep-links -- reaches this before the show has been
+  // replicated, and the page answered "Class not found" for a class that renders
+  // fine elsewhere. Hydrate first and re-read; only a miss AFTER that is an absence.
+  //
+  // Hydration goes through the trial-scoped replication path rather than a direct
+  // PostgREST read, matching useAtShowScoresheet and keeping the offline-first rule
+  // intact (classes replicate per trial, so the show's trials must land first).
   useEffect(() => {
+    let cancelled = false;
+
     async function loadClass() {
       if (!classId) return;
 
+      // Whether this run reached a conclusion (found, absent, or failed). A run that
+      // bails out while the breadcrumb is still resolving has NOT concluded.
+      let settled = false;
       setIsClassLoading(true);
       setClassError(null);
 
       try {
-        const cls = await replicatedClassesTable.getClassById(classId);
+        let cls = await replicatedClassesTable.getClassById(classId);
+        if (cancelled) return;
+
+        if (!cls && showId) {
+          await replicatedTrialsTable.sync(showId);
+          if (cancelled) return;
+          const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
+          await Promise.all(showTrials.map(trial => replicatedClassesTable.sync(trial.id)));
+          if (cancelled) return;
+          cls = await replicatedClassesTable.getClassById(classId);
+          if (cancelled) return;
+        }
+
         if (!cls) {
-          setClassError('Class not found');
+          // Still resolving which show this class belongs to -- there was nothing to
+          // hydrate from yet, so stay in the loading state rather than flashing an
+          // absence the next run will contradict. `settled` stays false so the
+          // `finally` below leaves the loading flag up.
+          if (breadcrumbLoading) return;
+          // Distinguish the two remaining cases rather than stating absence for both.
+          setClassError(
+            showId ? 'Class not found' : 'This class could not be loaded yet. Try again.'
+          );
+          settled = true;
           return;
         }
         setReplicatedClass(cls);
+        settled = true;
       } catch (err) {
         logger.error('Failed to load scoring data:', 'pages', {}, err as Error);
+        if (cancelled) return;
         setClassError(err instanceof Error ? err.message : 'Failed to load data');
+        settled = true;
       } finally {
-        setIsClassLoading(false);
+        if (!cancelled && settled) setIsClassLoading(false);
       }
     }
 
     loadClass();
-  }, [classId]);
+    return () => {
+      cancelled = true;
+    };
+    // NOT keyed on `replicatedClass`: getClassById returns a fresh object per call, so
+    // depending on the state it sets would re-run this effect on every successful load
+    // and never settle. A local `settled` flag carries the same information without
+    // making the result an input.
+  }, [classId, showId, breadcrumbLoading]);
 
   const canonicalClassEntries = useMemo(
     () =>

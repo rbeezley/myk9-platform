@@ -162,12 +162,29 @@ defaults to **8:00 AM**, so choosing the show's own start date as the entry-clos
 date — normal for a day-of-entry show — always violates the rule. The time control
 is inside the date popover, so the fix is not where the error is shown.
 
-### F7 — P3 — Judge and chairman pickers are not exposed as lists
+### F7 — P3 — MOSTLY FIXED ELSEWHERE — Judge and chairman pickers were not exposed as lists
 
-Rows in both pickers render as bare `<div>`s inside a `role="dialog"` popover, with
-no `option`, `listitem`, or button role, and the person's name is not a leaf node.
-Nothing is keyboard-navigable as a list or announced as a set of choices. This
-matters for a role explicitly described as low-computer-savviness volunteers.
+Accurate when observed, and largely resolved by someone else the same day.
+
+The walk found both pickers rendering rows as bare `<div>`s inside a `role="dialog"`
+popover — no `option`/`listitem` role, nothing keyboard-navigable, the person's name
+not a leaf node. `git log -S 'role="option"'` on
+`components/ui/grouped-searchable-popover.tsx` returns exactly one commit: `8b8868f33`,
+[#1845](https://github.com/rbeezley/myk9-platform/pull/1845), merged **2026-08-28** —
+the day of the walk. It added `role="listbox"`, `role="option"`, `tabIndex={0}` and
+Enter/Space activation. My snapshot predates it.
+
+Checked before changing anything, because F29 had just taught me what happens when I
+do not.
+
+**Residual, and it is real:** the listbox had no `aria-selected`. An ARIA listbox
+option carries its chosen state there, so a screen reader could enumerate the choices
+but never say which one was in effect — for a role the audit elsewhere describes as
+low-computer-savviness volunteers, that is the half that matters. Both pickers now
+pass their selection (`selectedItemIds`), single-select for chairman/secretary and
+multi-select for judges. The prop is optional: a picker tracking no persistent
+selection omits the attribute entirely rather than announcing a misleading
+"not selected".
 
 ### F8 — P3 — Chairman picker lists every person on the platform
 

@@ -25,9 +25,7 @@ missing predicate is the standing precedent), and once nearly did.
 
 Phase 1 is safe to run unattended. Phases 2 and 3 are not.
 
-**Phase 1 progress (2026-08-29):** 12 of 15 done. Remaining: 1.8 (F19 filter-chip
-pressed state), 1.9 (F7 picker list semantics), 1.10 (F27 cold-store "Class not
-found"). Two new findings came out of the work — **F34** (id-keyed Selects render raw
+**Phase 1 COMPLETE (2026-08-29): all 15 done.** Two new findings came out of the work — **F34** (id-keyed Selects render raw
 UUIDs app-wide, 43 sites) and **F35** (a local time exactly on UTC midnight resolves a
 day late) — both recorded in the audit and deferred to Phase 3 rather than swept in
 here.
@@ -47,9 +45,9 @@ Each is a contained change with an observable before/after. No product decision.
 | 1.5 | F20 | Waitlist capacity cards title a judge-day with a bare person name — **DONE** — labelled as a judge; entry count pluralized |
 | 1.6 | F32 | Volunteers empty state names a sidebar picker that does not exist — **DONE** — names the Show Desk path that works, links to the shows list |
 | 1.7 | F5 | "Judges Assigned n/n" counts judges used/added, not classes covered — **DONE** — tile now counts classes covered, not judges used (mutation-checked) |
-| 1.8 | F19 | Filter chips expose no pressed state (Entry Management queues, Show Map filters); Manage Classes already does it correctly — copy that |
-| 1.9 | F7 | Judge/chairman picker rows are bare `<div>`s: no option/listitem role, name not a leaf node |
-| 1.10 | F27 | Cold replication store reports "Class not found" for a class that exists |
+| 1.8 | F19 | Filter chips expose no pressed state (Entry Management queues, Show Map filters); Manage Classes already does it correctly — copy that — **DONE** — 4 filter groups (3 Show Map + Entry Management queues), mutation-checked |
+| 1.9 | F7 | Judge/chairman picker rows are bare `<div>`s: no option/listitem role, name not a leaf node — **DONE (residual only)** — #1845 had already added the list roles the same day; added the missing `aria-selected` |
+| 1.10 | F27 | Cold replication store reports "Class not found" for a class that exists — **DONE** — hydrates trials+classes via replication, then re-reads, before reporting absence |
 | 1.11 | F31 | `classifyEmptyUpdateResult` calls an unreadable row a deleted one; the re-read is filtered by the same policy that denied the write — **DONE** — no longer asserts deletion for an unreadable row |
 | 1.12 | F6 | Entry-close picker defaults to 11:59 PM, so choosing the show's own start date is always invalid — **DONE** — `toLocalDateOnly`; tested across 6 timezones; surfaced **F35** |
 | 1.13 | F2 | `.env.local` `E2E_SECRETARY_EMAIL` points at a deleted account, breaking every local secretary e2e run — **DONE** — canonical `@myk9t.com` defaults in `testUsers.ts` (audit was wrong: the default was `''`, not the named account) |

@@ -345,7 +345,22 @@ FROM (
     ('dededede-0000-0000-0000-000000000002'::uuid, 'exhibitor@myk9t.com', 'associate')
 ) AS club(club_id, email, membership_type)
 JOIN public.people p ON lower(p.email) = club.email
-ON CONFLICT (club_id, person_id) DO NOTHING;
+ON CONFLICT (club_id, person_id) DO UPDATE
+  -- RESET, not just collide-safely-insert. The demo clubs are no longer
+  -- delete-and-recreated (F30 made shows.club_id RESTRICT), so the cascade that
+  -- used to clear these rows every reseed is gone. DO NOTHING would preserve
+  -- whatever a QA run left behind -- a membership set to `suspended`, a changed
+  -- membership_type -- and a role walkthrough would start in the wrong state while
+  -- the reseed reported success. The load-club membership insert below keeps
+  -- DO NOTHING: those clubs ARE still deleted in the idempotency block.
+  SET membership_type   = EXCLUDED.membership_type,
+      membership_status = EXCLUDED.membership_status,
+      joined_date       = EXCLUDED.joined_date,
+      -- Columns the seed deliberately leaves at their defaults still have to be
+      -- reset, or QA drift on them survives a reseed too.
+      dues_paid_through = DEFAULT,
+      voting_eligible   = DEFAULT,
+      notes             = DEFAULT;
 
 -- ---------------------------------------------------------------------------
 -- 2. Published show  (AKC, fixed dates ~ Aug 1-3 2026)

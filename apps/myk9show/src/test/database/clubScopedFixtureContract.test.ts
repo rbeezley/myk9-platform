@@ -164,8 +164,13 @@ describe('seed-demo club scope fixtures', () => {
     );
     expect(membersBlock).toContain(HEARTLAND_CLUB_ID);
     expect(membersBlock).toContain(PRAIRIE_TRAIL_CLUB_ID);
-    // Idempotent: a reseed must not collide with the UNIQUE(club_id, person_id).
-    expect(membersBlock).toContain('ON CONFLICT (club_id, person_id) DO NOTHING');
+    // Idempotent AND reset. Not colliding is only half of it: since F30 the demo
+    // clubs are upserted rather than delete-and-recreated, so the cascade that used
+    // to clear these rows is gone. DO NOTHING would preserve a membership a QA run
+    // had suspended, and the reseed would report success on a wrong dataset.
+    expect(membersBlock).toContain('ON CONFLICT (club_id, person_id) DO UPDATE');
+    expect(membersBlock).toContain('membership_status = EXCLUDED.membership_status');
+    expect(membersBlock).not.toContain('ON CONFLICT (club_id, person_id) DO NOTHING');
   });
 
   // Bounded by the NEXT subsection, not by section 11. 10e was the last block

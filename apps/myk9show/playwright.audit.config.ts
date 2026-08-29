@@ -18,14 +18,18 @@ const target = resolveAuditTarget(process.env);
  * write guard before navigation.
  */
 export default defineConfig({
-  // F10: scrub e2e passwords out of failure artifacts before CI uploads them.
-  globalTeardown: './src/test/e2e/helpers/scrubArtifactSecrets.ts',
   testDir: './src/test/e2e',
   fullyParallel: false,
   workers: 1,
   retries: 0,
   forbidOnly: true,
-  reporter: [['list'], ['html', { open: 'never', outputFolder: 'test-results/audit-report' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: 'test-results/audit-report' }],
+    // F10: must run AFTER the html reporter writes its report, so this is a
+    // reporter listed LAST -- a globalTeardown runs before reporter.onEnd.
+    ['./src/test/e2e/reporters/scrubSecretsReporter.ts'],
+  ],
   outputDir: 'test-results/audit',
   globalSetup: './src/test/e2e/helpers/auditGlobalSetup.ts',
   use: {

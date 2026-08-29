@@ -15,8 +15,6 @@ const startApp = process.env.LOAD_TEST_START_APP === 'true';
 // -- but with one session per route instead of a hundred, which is what
 // separates an app defect from generator contention.
 export default defineConfig({
-  // F10: scrub e2e passwords out of failure artifacts before CI uploads them.
-  globalTeardown: './src/test/e2e/helpers/scrubArtifactSecrets.ts',
   testDir: './src/test/load',
   testMatch: 'pageReadiness.probe.spec.ts',
   fullyParallel: false,
@@ -25,7 +23,12 @@ export default defineConfig({
   workers: 1,
   timeout: 4 * 60 * 1_000,
   expect: { timeout: 20_000 },
-  reporter: [['list']],
+  reporter: [
+    ['list'],
+    // F10: must run AFTER the html reporter writes its report, so this is a
+    // reporter listed LAST -- a globalTeardown runs before reporter.onEnd.
+    ['./src/test/e2e/reporters/scrubSecretsReporter.ts'],
+  ],
   outputDir: 'test-results/readiness',
   use: {
     baseURL,

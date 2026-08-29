@@ -15,23 +15,31 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const SECRET_ENV_VARS = [
-  'E2E_ADMIN_PASSWORD',
-  'E2E_SECRETARY_PASSWORD',
-  'E2E_JUDGE_PASSWORD',
-  'E2E_CLUB_ADMIN_PASSWORD',
-  'E2E_DEMO_EXHIBITOR_PASSWORD',
-  'E2E_EXHIBITOR_PASSWORD',
-] as const;
+/**
+ * Env vars whose VALUES are secrets, matched by NAME pattern rather than a hand-kept
+ * list.
+ *
+ * The list this replaced named six E2E_* passwords and missed
+ * E2E_LOAD_SECRETARY_{1,2,3}_PASSWORD, which .github/workflows/load-rehearsal.yml
+ * passes -- so a load-rehearsal failure could still publish a password. That is the
+ * same hand-maintained-allowlist failure this repo hits elsewhere (see CLAUDE.md on
+ * test-runner allowlists): the list passes review, and the next secret nobody
+ * remembers to add is exposed silently. A pattern cannot go stale that way.
+ *
+ * Over-matching is safe here -- scrubbing an extra secret from an artifact costs
+ * nothing, while missing one is the bug.
+ */
+const SECRET_NAME_PATTERN = /(PASSWORD|PASSWD|SECRET|TOKEN|API_KEY|ACCESS_KEY|PRIVATE_KEY)$/;
 
 /** Values short enough that blind replacement would corrupt unrelated text. */
 const MIN_SCRUBBABLE_LENGTH = 6;
 
 export function collectSecrets(env: NodeJS.ProcessEnv = process.env): string[] {
   const seen = new Set<string>();
-  for (const name of SECRET_ENV_VARS) {
-    const value = env[name]?.trim();
-    if (value && value.length >= MIN_SCRUBBABLE_LENGTH) seen.add(value);
+  for (const [name, value] of Object.entries(env)) {
+    if (!SECRET_NAME_PATTERN.test(name)) continue;
+    const trimmed = value?.trim();
+    if (trimmed && trimmed.length >= MIN_SCRUBBABLE_LENGTH) seen.add(trimmed);
   }
   return [...seen];
 }

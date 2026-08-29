@@ -27,14 +27,17 @@ loadEnv({ path: path.join(myk9showRoot, '.env.local'), override: false });
 loadEnv({ path: path.join(myk9showRoot, '.env'), override: false });
 
 export default defineConfig({
-  // F10: scrub e2e passwords out of failure artifacts before they are uploaded.
-  globalTeardown: path.join(myk9showRoot, 'src/test/e2e/helpers/scrubArtifactSecrets.ts'),
   testDir: path.join(myk9showRoot, 'src/test/e2e'),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
   workers: process.env.CI ? 1 : 4,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never' }],
+    // F10: must run AFTER the html reporter writes, so it is listed LAST.
+    [path.join(myk9showRoot, 'src/test/e2e/reporters/scrubSecretsReporter.ts')],
+  ],
   outputDir: path.join(myk9showRoot, 'test-results'),
   snapshotDir: path.join(myk9showRoot, 'src/test/e2e/__snapshots__'),
   snapshotPathTemplate: '{snapshotDir}/{testFilePath}/{projectName}/{arg}{ext}',

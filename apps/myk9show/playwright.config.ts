@@ -16,13 +16,15 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1, // Add retry for flaky tests
   workers: process.env.CI ? 1 : 4, // Limit workers to prevent resource contention
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never' }],
+    // F10: must run AFTER the html reporter writes its report, so this is a
+    // reporter listed LAST -- a globalTeardown runs before reporter.onEnd.
+    ['./src/test/e2e/reporters/scrubSecretsReporter.ts'],
+  ],
   // Output directory for test artifacts
   outputDir: 'test-results',
-  // F10: a failed test's error-context.md carries the page's accessibility snapshot,
-  // which includes the filled password field's value -- and CI uploads these on
-  // failure. Scrub the literal secrets after the run, before that upload.
-  globalTeardown: './src/test/e2e/helpers/scrubArtifactSecrets.ts',
   // Snapshot settings for visual regression testing
   snapshotDir: './src/test/e2e/__snapshots__',
   snapshotPathTemplate: '{snapshotDir}/{testFilePath}/{projectName}/{arg}{ext}',

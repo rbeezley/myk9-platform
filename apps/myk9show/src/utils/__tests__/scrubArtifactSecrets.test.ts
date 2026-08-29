@@ -21,6 +21,34 @@ describe('scrubArtifactSecrets', () => {
     expect(secrets).toEqual(['a-real-password']);
   });
 
+  it('matches by NAME PATTERN, so a new secret cannot be forgotten', () => {
+    // The hand-kept list this replaced missed E2E_LOAD_SECRETARY_{1,2,3}_PASSWORD,
+    // which load-rehearsal.yml passes -- the same stale-allowlist failure mode this
+    // repo hits with test-runner include lists.
+    const secrets = collectSecrets({
+      E2E_LOAD_SECRETARY_1_PASSWORD: 'load-one-password',
+      E2E_LOAD_SECRETARY_2_PASSWORD: 'load-two-password',
+      SUPABASE_DB_PASSWORD: 'db-password-value',
+      SOME_SERVICE_TOKEN: 'token-value-long',
+      STRIPE_SECRET: 'stripe-secret-val',
+    } as NodeJS.ProcessEnv);
+
+    expect(secrets).toContain('load-one-password');
+    expect(secrets).toContain('load-two-password');
+    expect(secrets).toContain('db-password-value');
+    expect(secrets).toContain('token-value-long');
+    expect(secrets).toContain('stripe-secret-val');
+  });
+
+  it('ignores env vars that are not secrets', () => {
+    const secrets = collectSecrets({
+      E2E_SECRETARY_EMAIL: 'secretary@myk9t.com',
+      NODE_ENV: 'production',
+      PATH: '/usr/bin:/bin',
+    } as NodeJS.ProcessEnv);
+    expect(secrets).toEqual([]);
+  });
+
   it('skips values too short to replace safely', () => {
     // A 3-character password would otherwise blank out unrelated substrings.
     expect(collectSecrets({ E2E_ADMIN_PASSWORD: 'abc' } as NodeJS.ProcessEnv)).toEqual([]);

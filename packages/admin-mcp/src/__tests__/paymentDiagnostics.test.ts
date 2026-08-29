@@ -25,19 +25,20 @@ interface FilterCall {
 
 function makeCtx(
   spec: { entries?: QueryResult; stripe_orders?: QueryResult },
-  calls?: FilterCall[],
+  calls?: FilterCall[]
 ): ToolContext {
   const supabase = {
     from(table: string) {
-      const result =
-        (spec as Record<string, QueryResult | undefined>)[table] ?? {
-          data: null,
-          error: null,
-        };
+      const result = (spec as Record<string, QueryResult | undefined>)[table] ?? {
+        data: null,
+        error: null,
+      };
       const builder: Record<string, unknown> = {};
       const chain = () => builder;
       builder.select = chain;
       builder.returns = chain;
+      builder.order = chain;
+      builder.limit = chain;
       builder.eq = (col: string) => {
         calls?.push({ table, method: 'eq', col });
         return builder;
@@ -49,7 +50,7 @@ function makeCtx(
       builder.maybeSingle = () => Promise.resolve(result);
       builder.then = (
         resolve: (value: QueryResult) => unknown,
-        reject: (reason: unknown) => unknown,
+        reject: (reason: unknown) => unknown
       ) => Promise.resolve(result).then(resolve, reject);
       return builder;
     },
@@ -84,17 +85,20 @@ describe('diagnosePayment', () => {
     const calls: FilterCall[] = [];
     const ctx = makeCtx(
       { entries: PAID_ENTRY, stripe_orders: { data: [order({})], error: null } },
-      calls,
+      calls
     );
     const result = await diagnosePayment({ entryId: ENTRY_ID }, ctx);
 
     expect(result.state).toBe('found');
     expect(result.summary).toMatchObject({ amount: '42.00 USD', onlineOrderFound: true });
+    expect(result.evidence).toContainEqual(
+      expect.objectContaining({ label: 'Linked entry ids', value: ENTRY_ID })
+    );
     // entry_ids is uuid[], so the lookup must use containment, not equality.
     expect(
       calls.some(
-        (c) => c.table === 'stripe_orders' && c.method === 'contains' && c.col === 'entry_ids',
-      ),
+        c => c.table === 'stripe_orders' && c.method === 'contains' && c.col === 'entry_ids'
+      )
     ).toBe(true);
   });
 
@@ -127,11 +131,12 @@ describe('diagnosePayment', () => {
 
   it('returns source_unavailable when the orders query errors', async () => {
     const ctx = makeCtx({
-      entries: { data: { id: ENTRY_ID, payment_status: 'pending', show_id: 'show-1' }, error: null },
+      entries: {
+        data: { id: ENTRY_ID, payment_status: 'pending', show_id: 'show-1' },
+        error: null,
+      },
       stripe_orders: { data: null, error: { code: 'PGRST' } },
     });
-    expect((await diagnosePayment({ entryId: ENTRY_ID }, ctx)).state).toBe(
-      'source_unavailable',
-    );
+    expect((await diagnosePayment({ entryId: ENTRY_ID }, ctx)).state).toBe('source_unavailable');
   });
 });

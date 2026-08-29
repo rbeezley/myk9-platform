@@ -22,6 +22,8 @@ type QueryResult = { data: unknown; error: unknown };
 interface MockSpec {
   show: QueryResult;
   userRoles?: QueryResult[];
+  clubMembers?: QueryResult;
+  queryCalls?: Array<{ table: string; method: 'eq' | 'in'; args: unknown[] }>;
 }
 
 /**
@@ -42,15 +44,39 @@ function makeCtx(spec: MockSpec): ToolContext {
           }),
         };
       }
+      if (table === 'club_members') {
+        const builder: Record<string, unknown> = {};
+        const chain = () => builder;
+        builder.select = chain;
+        builder.eq = chain;
+        builder.in = chain;
+        builder.limit = chain;
+        builder.then = (
+          resolve: (value: QueryResult) => unknown,
+          reject: (reason: unknown) => unknown
+        ) => Promise.resolve(spec.clubMembers ?? { data: [], error: null }).then(resolve, reject);
+        return builder;
+      }
       const builder: Record<string, unknown> = {};
       const chain = () => builder;
       builder.select = chain;
-      builder.eq = chain;
+      builder.eq = (...args: unknown[]) => {
+        spec.queryCalls?.push({ table, method: 'eq', args });
+        return builder;
+      };
+      builder.neq = chain;
+      builder.in = (...args: unknown[]) => {
+        spec.queryCalls?.push({ table, method: 'in', args });
+        return builder;
+      };
       builder.is = chain;
+      builder.not = chain;
+      builder.order = chain;
+      builder.limit = chain;
       builder.returns = chain;
       builder.then = (
         resolve: (value: QueryResult) => unknown,
-        reject: (reason: unknown) => unknown,
+        reject: (reason: unknown) => unknown
       ) => {
         const result = (spec.userRoles ?? [])[urIndex] ?? { data: [], error: null };
         urIndex += 1;
@@ -69,6 +95,8 @@ function grant(overrides: Record<string, unknown>) {
     expires_at: null,
     show_id: SHOW_ID,
     club_id: null,
+    auth_user_id: 'auth-user-id',
+    user_id: 'person-id',
     role: { name: 'secretary' },
     person: { first_name: 'Pat', last_name: 'Lee', email: 'pat@example.com' },
     ...overrides,
@@ -88,13 +116,17 @@ describe('listShowAccess', () => {
     expect(result.state).toBe('source_unavailable');
   });
 
-  it('unions show-scoped and club-scoped grants and redacts emails', async () => {
+  it('returns every current policy role, including global site admins', async () => {
+    const queryCalls: NonNullable<MockSpec['queryCalls']> = [];
     const ctx = makeCtx({
       show: { data: { id: SHOW_ID, name: 'Spring Trial', club_id: CLUB_ID }, error: null },
+      queryCalls,
       userRoles: [
         {
           data: [
             grant({ id: 'a', role: { name: 'secretary' }, show_id: SHOW_ID }),
+            grant({ id: 'chair', role: { name: 'chairman' }, show_id: SHOW_ID }),
+            grant({ id: 'steward', role: { name: 'steward' }, show_id: SHOW_ID }),
           ],
           error: null,
         },
@@ -110,21 +142,88 @@ describe('listShowAccess', () => {
           ],
           error: null,
         },
+        {
+          data: [
+            grant({
+              id: 'site-admin',
+              role: { name: 'site_admin' },
+              show_id: null,
+              club_id: null,
+            }),
+          ],
+          error: null,
+        },
       ],
     });
 
     const result = await listShowAccess({ showId: SHOW_ID }, ctx);
     expect(result.state).toBe('found');
-    expect(result.summary).toMatchObject({ totalGrants: 2, activeGrants: 2, hasScopedSecretary: true });
+    expect(result.summary).toMatchObject({
+      totalGrants: 5,
+      activeGrants: 5,
+      hasScopedSecretary: true,
+    });
     // Club-scoped club_admin is included even though show_id is null.
-    expect(result.evidence.map((e) => e.label)).toEqual([
-      'secretary (show-scoped)',
-      'club_admin (club-scoped)',
-    ]);
+    expect(result.evidence.map(e => e.label)).toEqual(
+      expect.arrayContaining([
+        'secretary (show-scoped)',
+        'chairman (show-scoped)',
+        'steward (show-scoped)',
+        'club_admin (club-scoped)',
+        'site_admin (global)',
+      ])
+    );
     // Emails are masked.
     expect(result.evidence[0]?.value).toContain('p***@example.com');
     expect(result.evidence[1]?.value).toContain('d***@club.org');
     expect(result.limitations).toHaveLength(0);
+    expect(queryCalls).toEqual(
+      expect.arrayContaining([
+        { table: 'user_roles', method: 'in', args: ['role.name', expect.any(Array)] },
+        { table: 'user_roles', method: 'eq', args: ['role.name', 'site_admin'] },
+      ])
+    );
+  });
+
+  it('does not report club-scoped secretary access without active membership', async () => {
+    const ctx = makeCtx({
+      show: { data: { id: SHOW_ID, name: 'Spring Trial', club_id: CLUB_ID }, error: null },
+      userRoles: [
+        { data: [], error: null },
+        {
+          data: [
+            grant({
+              id: 'club-secretary',
+              role: { name: 'secretary' },
+              show_id: null,
+              club_id: CLUB_ID,
+            }),
+          ],
+          error: null,
+        },
+        { data: [], error: null },
+      ],
+      clubMembers: { data: [], error: null },
+    });
+
+    const result = await listShowAccess({ showId: SHOW_ID }, ctx);
+    expect(result.summary).toMatchObject({ activeGrants: 0, hasScopedSecretary: false });
+    expect(String(result.evidence[0]?.value)).toContain('membership_inactive');
+  });
+
+  it('notes grants for the same club that are scoped to a different show', async () => {
+    const ctx = makeCtx({
+      show: { data: { id: SHOW_ID, name: 'Spring Trial', club_id: CLUB_ID }, error: null },
+      userRoles: [
+        { data: [], error: null },
+        { data: [], error: null },
+        { data: [], error: null },
+        { data: [{ id: 'other-show-grant' }], error: null },
+      ],
+    });
+
+    const result = await listShowAccess({ showId: SHOW_ID }, ctx);
+    expect(result.limitations.join(' ')).toContain('different show');
   });
 
   it('labels inactive and expired grants instead of omitting them', async () => {
@@ -136,7 +235,7 @@ describe('listShowAccess', () => {
             grant({ id: 'inactive', role: { name: 'chairman' }, is_active: false }),
             grant({
               id: 'expired',
-              role: { name: 'trial_secretary' },
+              role: { name: 'secretary' },
               expires_at: '2000-01-01T00:00:00Z',
             }),
           ],
@@ -146,9 +245,11 @@ describe('listShowAccess', () => {
     });
 
     const result = await listShowAccess({ showId: SHOW_ID }, ctx);
-    const values = result.evidence.map((e) => String(e.value));
-    expect(values.some((v) => v.endsWith('inactive'))).toBe(true);
-    expect(values.some((v) => v.endsWith('expired'))).toBe(true);
+    const values = result.evidence.map(e => String(e.value));
+    expect(values.some(v => v.endsWith('inactive'))).toBe(true);
+    expect(values.some(v => v.endsWith('expired'))).toBe(true);
+    expect(values.some(v => v.includes(`showId=${SHOW_ID}`))).toBe(true);
+    expect(values.some(v => v.includes('expiresAt=2000-01-01T00:00:00Z'))).toBe(true);
     // No active secretary-like role → limitation present.
     expect(result.summary).toMatchObject({ hasScopedSecretary: false });
     expect(result.limitations.join(' ')).toContain('secretary');

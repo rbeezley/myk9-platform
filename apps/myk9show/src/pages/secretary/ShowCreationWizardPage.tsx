@@ -12,11 +12,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useWizardStore } from '@/store/wizardStore';
-import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
-import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import { PanelProvider, PanelStack } from '@/components/panels';
@@ -34,7 +32,7 @@ import {
   WizardDraftResumeBanner,
   shouldOfferDraftResume,
   useEditModeInitialization,
-  resolveEditMode,
+  useWritableEditModeResolution,
   parseEditMode,
 } from './ShowCreationWizard';
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
@@ -53,7 +51,6 @@ const ShowCreationWizardPage: React.FC = () => {
   // view once it has mounted. A ref (not state) keeps this a one-shot signal
   // that doesn't re-fire as the secretary fixes fields.
   const pendingBannerScrollRef = useRef(false);
-
 
   // Extract edit mode from URL params. `parseEditMode` allowlists the two modes
   // the app actually links to; previously an unchecked `as` cast turned ANY
@@ -95,10 +92,6 @@ const ShowCreationWizardPage: React.FC = () => {
     trialCount: trials.length,
   });
 
-  const { shows: zustandShows } = useShowStore();
-  // No `= []` default: an unloaded list must stay distinguishable from an
-  // empty one, because edit mode writes a full show record.
-  const { data: queryShows, isLoading: showsLoading, refetch: refetchShows } = useShowsQuery();
   const { trials: existingTrials } = useTrialStore();
   const { classes: existingClasses } = useClassStoreCompat();
   const { people, loadPeople } = useUserStore();
@@ -166,23 +159,8 @@ const ShowCreationWizardPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [currentStep]);
 
-  // Merge Zustand and React Query show sources for lookups
-  const allShows = React.useMemo(() => {
-    const seen = new Set<string>();
-    const merged = [...zustandShows];
-    for (const s of merged) seen.add(s.id);
-    for (const s of queryShows ?? []) {
-      if (!seen.has(s.id)) merged.push(s);
-    }
-    return merged;
-  }, [zustandShows, queryShows]);
-
-  // Is the edit-mode target show actually KNOWN? Gates the WRITE, not just the
-  // render -- see editModeResolution.ts.
-  const editModeResolution = React.useMemo(
-    () => resolveEditMode({ editMode, allShows, showsLoading }),
-    [editMode, allShows, showsLoading]
-  );
+  // Is the edit-mode target show available to the same store that will write it?
+  const { editModeResolution, retryWritableShow } = useWritableEditModeResolution(editMode);
 
   const { officialsUnavailable, resetInitialization } = useEditModeInitialization({
     editMode,
@@ -193,6 +171,11 @@ const ShowCreationWizardPage: React.FC = () => {
     isDirty,
     loadDraft,
   });
+
+  const handleRetryWritableShow = useCallback(() => {
+    resetInitialization();
+    retryWritableShow();
+  }, [resetInitialization, retryWritableShow]);
 
   // Handle wizard close
   const handleClose = useCallback(() => {
@@ -374,9 +357,8 @@ const ShowCreationWizardPage: React.FC = () => {
                 className="border-b border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground sm:px-6"
                 role="alert"
               >
-                We couldn&rsquo;t load this show&rsquo;s current officials, so the Officials
-                fields below may look empty even if people are already assigned. Check them
-                before saving.
+                We couldn&rsquo;t load this show&rsquo;s current officials, so the Officials fields
+                below may look empty even if people are already assigned. Check them before saving.
               </div>
             )}
 
@@ -405,10 +387,7 @@ const ShowCreationWizardPage: React.FC = () => {
                 editModeResolution.state === 'unavailable' ? (
                   <WizardEditModeGate
                     state={editModeResolution.state}
-                    onRetry={() => {
-                      resetInitialization();
-                      void refetchShows();
-                    }}
+                    onRetry={handleRetryWritableShow}
                     onLeave={() => navigate('/shows')}
                   />
                 ) : (

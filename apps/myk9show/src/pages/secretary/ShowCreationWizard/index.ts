@@ -16,4 +16,5 @@ export { WizardEditModeGate } from './WizardEditModeGate';
 export { WizardDraftResumeBanner, shouldOfferDraftResume } from './WizardDraftResumeBanner';
 export { useEditModeInitialization, shouldSkipInitialization } from './useEditModeInitialization';
 export { resolveEditMode, parseEditMode } from './editModeResolution';
+export { useWritableEditModeResolution } from './useWritableEditModeResolution';
 export type { EditModeResolution } from './editModeResolution';

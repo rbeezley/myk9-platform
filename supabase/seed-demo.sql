@@ -327,7 +327,27 @@ ON CONFLICT (id) DO UPDATE
       -- (services/database/clubs/reads.ts) and clubCRUD.spec.ts exercises it, so a
       -- prior e2e run can leave exactly this state behind.
       deleted_at  = NULL,
-      deleted_by  = NULL;
+      deleted_by  = NULL,
+      -- Every column the fixture does NOT declare, reset to its default. The
+      -- delete-and-recreate this replaced produced a row with these at their
+      -- defaults; an upsert that lists only the declared columns preserves whatever
+      -- a QA run or manual walkthrough left in the rest. Enumerated from
+      -- pg_attribute, not from a reviewer's list -- an eyeballed list of this missed
+      -- cover_image_url, accent_color and all four default_withdrawal_* columns.
+      -- created_at / updated_at are deliberately absent: they are row bookkeeping,
+      -- not fixture state.
+      address                            = DEFAULT,
+      zip_code                           = DEFAULT,
+      phone                              = DEFAULT,
+      website                            = DEFAULT,
+      logo_url                           = DEFAULT,
+      license_key                        = DEFAULT,
+      cover_image_url                    = DEFAULT,
+      accent_color                       = DEFAULT,
+      default_withdrawal_cutoff_date     = DEFAULT,
+      default_withdrawal_retention_type  = DEFAULT,
+      default_withdrawal_retention_value = DEFAULT,
+      default_withdrawal_policy_notes    = DEFAULT;
 
 -- Stripe Connect sandbox account for the demo club.
 -- payouts_enabled=true gates the stripe-checkout edge function's online-entry

@@ -138,6 +138,25 @@ describe('seed-demo club scope fixtures', () => {
     // always produced a fresh row, so recovery must be explicit.
     expect(clubsBlock).toContain('deleted_at  = NULL');
     expect(clubsBlock).toContain('deleted_by  = NULL');
+    // Columns the fixture does not declare must be reset too, or QA drift on them
+    // survives a reseed. This list came from pg_attribute; an eyeballed one missed
+    // cover_image_url, accent_color and the default_withdrawal_* group.
+    for (const col of [
+      'address',
+      'zip_code',
+      'phone',
+      'website',
+      'logo_url',
+      'license_key',
+      'cover_image_url',
+      'accent_color',
+      'default_withdrawal_cutoff_date',
+      'default_withdrawal_retention_type',
+      'default_withdrawal_retention_value',
+      'default_withdrawal_policy_notes',
+    ]) {
+      expect(clubsBlock).toMatch(new RegExp(`${col}\\s*= DEFAULT`));
+    }
     expect(clubsBlock).toContain(HEARTLAND_CLUB_ID);
     expect(clubsBlock).toContain(PRAIRIE_TRAIL_CLUB_ID);
     // The delete-and-recreate pair must not come back for the DEMO clubs: it cannot

@@ -69,6 +69,24 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
   const entryCount =
     canonicalEntryCount === undefined ? (cls.entries?.length ?? 0) : canonicalEntryCount;
   const maxEntries = cls.max_entries ?? 0;
+  const assignedJudgeId = cls.judge_assignments?.[0]?.person_id ?? null;
+  // Base UI resolves <SelectValue> to an item's label ONLY when the root is given
+  // `items` -- "When specified, <Select.Value> renders the label of the selected
+  // item instead of the raw value" (@base-ui/react 1.7.0, SelectRoot.d.ts). Without
+  // it the trigger printed the assigned judge's UUID on the page whose whole job is
+  // assigning judges (F28). The popup's <SelectItem>s cannot supply this: they are
+  // unmounted while the select is closed, which is exactly when the trigger renders.
+  const judgeItems = React.useMemo(() => {
+    const items: Record<string, React.ReactNode> = { [UNASSIGNED_JUDGE_VALUE]: 'Unassigned' };
+    for (const judge of availableJudges) items[judge.id] = judge.name;
+    // A judge can be assigned and yet absent from `availableJudges` -- the list is
+    // filtered to active qualifications and is empty while it loads or fails. Give
+    // that value a label too, or it falls straight back to rendering the raw id.
+    if (assignedJudgeId && !(assignedJudgeId in items)) {
+      items[assignedJudgeId] = 'Assigned judge (unavailable)';
+    }
+    return items;
+  }, [availableJudges, assignedJudgeId]);
   const isCompact = density === 'compact';
   return (
     <div
@@ -135,7 +153,8 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
 
           <div>
             <Select
-              value={cls.judge_assignments?.[0]?.person_id ?? UNASSIGNED_JUDGE_VALUE}
+              items={judgeItems}
+              value={assignedJudgeId ?? UNASSIGNED_JUDGE_VALUE}
               onValueChange={judgeId => onJudgeChange(cls.id, judgeId)}
               disabled={!showId || availableJudges.length === 0}
             >

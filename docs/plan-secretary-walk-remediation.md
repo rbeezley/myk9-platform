@@ -3,8 +3,17 @@
 > **Status:** Active
 
 Closes the findings from [`audits/2026-08-28-secretary-task-walk.md`](audits/2026-08-28-secretary-task-walk.md),
-a live browser walk of all 20 common secretary tasks. 33 findings; 8 are already fixed
-and deployed. This plan covers the remainder.
+a live browser walk of all 20 common secretary tasks. 33 findings; 7 are fixed and
+merged (#1853). This plan covers the remainder.
+
+**F29 correction (2026-08-29).** An eighth fix was reverted before merge. I had changed
+`ShowDetailTabs` to forward `canManageShow` to the Show Map, overruling a test that said
+otherwise; #291 decided that read-only property deliberately and the collapse plan lists
+"view-only public map" as an architectural commitment. The premise was wrong too -- the
+row actions live on Show Desk's cockpit (`getRankedActions`), so the change duplicated an
+existing surface rather than unlocking a missing one. One half survives as **F29b** and is
+real: run order has no reachable home anywhere. It is a Phase 2 judgment call, not a
+mechanical fix -- added as 2.8 below.
 
 ## How this plan is grouped, and why
 
@@ -27,7 +36,7 @@ Each is a contained change with an observable before/after. No product decision.
 | 1.1 | F9 | "1 classes" → singular form on the Detective element |
 | 1.2 | F13 | Judge option renders `Test Judge( - )`; drop the empty separator/parens |
 | 1.3 | F17 | Secretary entry wizard's Help link points at the exhibitor guide |
-| 1.4 | F28 | Manage Classes shows the judge's raw UUID instead of their name |
+| 1.4 | F28 | Manage Classes shows the judge's raw UUID instead of their name — **DONE**; root cause is Base UI needing `items` on the Select root, which turned out to be systemic (see **F34**, Phase 3) |
 | 1.5 | F20 | Waitlist capacity cards title a judge-day with a bare person name |
 | 1.6 | F32 | Volunteers empty state names a sidebar picker that does not exist |
 | 1.7 | F5 | "Judges Assigned n/n" counts judges used/added, not classes covered |
@@ -61,6 +70,7 @@ that may be a deliberate choice.
 | 2.4 | F8 | The Show Chairman picker lists every person on the platform. Should it be club-scoped, or is cross-club chairman selection legitimate? |
 | 2.5 | F22 / F23 | `/secretary/messages` is history-only and composing lives in a header panel that does not inherit the show you opened it from. Should Messages gain a composer, or should the panel be the only entry point and Messages link to it? |
 | 2.6 | F18 | Every paid entry displays "Paid online" because `mapPaymentStatus` maps the generic `'paid'` onto `PAID_ONLINE`. Should the label read `entries.payment_method`, or should the status enum carry the channel? |
+| 2.8 | **F29b** (P2) | Run order is unreachable: `ShowMapRunOrderMenu`/`reorderMode` render only inside `ShowMapTab` (correctly read-only), the cockpit action catalog has no reorder command, and Manage Classes -- where Show Desk's "Run order and class setup" link lands -- has no run-order control. Should reorder become a cockpit action, or a control on Manage Classes where the deep link already points? |
 | 2.7 | F24 | Other clubs' show names appear in the Communication History filter. Names and existence leak; content isolation is **untested** (no load show has messages). Needs a scoping decision and a test that proves content is isolated. |
 
 ---

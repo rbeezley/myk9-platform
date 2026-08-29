@@ -905,6 +905,63 @@ lower-level targets. Confirmed live: an Interior Novice entry offered exactly on
 target (Interior Advanced), and a show with only Container Novice A + Interior Novice A
 correctly offered none.
 
+### F34 — P1 — NEW, systemic — Every id-keyed dropdown in the app displays a raw UUID
+
+Found while fixing F28, which turned out to be one instance of a general defect rather
+than a one-page bug.
+
+**Mechanism, verified against the installed package.** `@base-ui/react` 1.7.0 documents
+on `Select.Root` (`select/root/SelectRoot.d.ts:97`):
+
+> "Data structure of the items rendered in the select popup. When specified,
+> `<Select.Value>` renders the label of the selected item instead of the raw value."
+
+Our `SelectItem` wraps its children in `Select.ItemText` correctly, but the items are
+**unmounted while the popup is closed** — which is exactly when the trigger has to render
+a label. Without `items` on the root there is nothing to resolve the value against, so
+the trigger prints the value itself.
+
+**It is not limited to preselected values.** A scratch probe (written, run, deleted)
+rendered a select with no `items`, opened it, and clicked "Richard Beezley". The closed
+trigger then read:
+
+```
+TRIGGER TEXT AFTER SELECT >>> "08a66fc8-51b4-484a-918a-03bdd5a8d5bf"
+```
+
+So the user picks a name and the control answers with a UUID. Both the preset path (data
+loaded from the database) and the interactive path are affected.
+
+**Blast radius.** 179 `<Select>` sites pass a value without `items`. Most are harmless
+because their value already *is* the label (`"Novice"`, `"AKC"`). The visible damage is
+where value != label — **43 option sites across 34 files** keyed by an id:
+
+| Surface | File |
+| --- | --- |
+| Move-up target class | `features/show-map/ShowMapMoveUpDialog.tsx:100` |
+| Reports selector | `pages/secretary/ReportsPage/ReportControlsBar.tsx:228` (4) |
+| Incident log | `features/show-workbench/IncidentLogCard.tsx:190` (4) |
+| Waitlist show picker | `pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:66` (2) |
+| Check-in report trial | `pages/secretary/CheckInReportPage.tsx:258` |
+| Volunteer scheduling trial | `pages/secretary/VolunteerSchedulingPage/index.tsx:190` |
+| Class judge (4 more surfaces) | `SimpleClassSelector`, `SimpleEditForm`, `ClassEditForm`, `ClassEditPanel` |
+| Club pickers | `ShowEditBasicInfoTab`, `ManageUserRolesDialog`, `BulkRoleDialog` |
+| …plus 20 more | see the scan in the Phase 1 commit |
+
+**Fixed here:** only F28 (`ClassManagementRow`), because that is the one the walk
+observed and the one on the page whose purpose is assigning judges. The pattern is
+`items={Record<value, label>}` on the root, including an entry for a value that is
+assigned but missing from the options list — otherwise it falls straight back to the raw
+id.
+
+**Not fixed:** the other 33 files. That is a 34-file sweep touching admin, reports,
+waitlist, volunteers and ringside, and it needs its own PR and its own verification pass;
+batching it into the secretary walk would make this change unreviewable. Two things worth
+deciding with it: whether the shared `Select` wrapper should fail loudly (or warn in dev)
+when given a `value` with no `items`, so the next one cannot ship silently; and whether
+a lint rule can catch it. Filed as Phase 3.
+
+
 ## What works well
 
 - **Show creation wizard defaults.** Host club auto-selected when only one is

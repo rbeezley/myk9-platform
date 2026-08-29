@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
+import { deriveEntriesIdentityState, type EntriesIdentityState } from './entriesIdentityState';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
@@ -46,6 +47,12 @@ interface UseMyEntriesDataReturn {
    * Payments. See `exhibitor-money-clarity` spec + `crossSurfaceAmountDue.test.ts`.
    */
   balanceSummary: EntryBalanceSummary;
+  /**
+   * Whether we know which person these entries belong to. `unresolved` is a
+   * real state, distinct from "no entries": the `people` lookup pauses
+   * offline, so an empty list under an unresolved identity proves nothing.
+   */
+  identityState: EntriesIdentityState;
   isLoading: boolean;
   isError: boolean;
   refreshing: boolean;
@@ -116,9 +123,17 @@ function getOwnEntryPaymentStatus(
 export function useMyEntriesData({
   persistCheckInStatus,
 }: UseMyEntriesDataOptions): UseMyEntriesDataReturn {
-  const { user, userWithRoles } = useAuthContext();
+  const { user, userWithRoles, loading: authLoading } = useAuthContext();
   const legacyPersonId = useCurrentUserPersonId();
   const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
+  // Whether we know WHO these entries belong to. The page gates its first-run
+  // claim on this: `entries: []` from an unresolved identity is an absence of
+  // knowledge, not an absence of entries (see entriesIdentityState).
+  const identityState = deriveEntriesIdentityState({
+    authLoading,
+    hasUser: Boolean(user?.id),
+    personId,
+  });
   const [entries, setEntries] = useState<MyEntry[]>([]);
   const [balanceSummary, setBalanceSummary] = useState<EntryBalanceSummary>(() =>
     summarizeEntryBalances([])
@@ -459,6 +474,7 @@ export function useMyEntriesData({
   return {
     entries,
     balanceSummary,
+    identityState,
     isLoading,
     isError,
     refreshing,

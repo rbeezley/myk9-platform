@@ -1013,6 +1013,27 @@
   min-width: 0;
 }
 
+.myk9-entries-dog-face-trial {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.myk9-entries-dog-face-trial + .myk9-entries-dog-face-trial {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Distinguished by weight, tracking and colour rather than size — the 14px
+   floor makes a smaller step impossible (DESIGN.md, The 14px Floor Rule). */
+.myk9-entries-dog-face-trial-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+
 .myk9-entries-dog-face-classes {
   display: flex;
   flex-wrap: wrap;
@@ -1036,6 +1057,38 @@
   display: inline-flex;
   align-items: center;
   color: var(--success);
+}
+
+.myk9-entries-dog-face-time,
+.myk9-entries-dog-face-faults {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.myk9-entries-dog-face-time {
+  color: var(--muted-foreground);
+}
+
+.myk9-entries-dog-face-faults {
+  color: var(--warning);
+  font-weight: 500;
+}
+
+.myk9-entries-dog-face-pulled,
+.myk9-entries-dog-face-conflict {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.myk9-entries-dog-face-pulled {
+  color: var(--muted-foreground);
+}
+
+.myk9-entries-dog-face-conflict {
+  color: var(--warning);
 }
 
 .myk9-entries-dog-face-tally {

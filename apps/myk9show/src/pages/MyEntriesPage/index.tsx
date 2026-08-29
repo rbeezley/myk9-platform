@@ -38,6 +38,7 @@ import {
   MyEntryCard,
   EntriesEmptyState,
   EntriesLoadErrorCard,
+  EntriesIdentityPendingCard,
   EntryScopeBanner,
   MyEntriesDialogGroup,
   WaitListSection,
@@ -57,6 +58,7 @@ const MyEntriesPage: React.FC = () => {
   const {
     entries,
     balanceSummary,
+    identityState,
     isLoading,
     isError,
     refreshing,
@@ -266,7 +268,13 @@ const MyEntriesPage: React.FC = () => {
               whole stack and present one calm, adaptive call-to-action instead.
               INTENT: Exhibitor first run must feel frictionless ("respects my
               time"), never like a form to fill. */}
-            {entries.length === 0 ? (
+            {identityState !== 'resolved' ? (
+              /* We do not know whose entries these are yet, so the empty list
+                 below proves nothing. Rendering FirstRunZeroState here told an
+                 exhibitor on a cold offline boot that they had never entered a
+                 show, with their entries sitting in IndexedDB. */
+              <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
+            ) : entries.length === 0 ? (
               <FirstRunZeroState hasDogs={hasDogs} onAddDog={dialogs.openAddDog} />
             ) : (
               <>

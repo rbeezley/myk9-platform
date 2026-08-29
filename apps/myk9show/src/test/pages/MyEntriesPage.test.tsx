@@ -424,6 +424,10 @@ describe('MyEntriesPage UI Improvements', () => {
 
   describe('Zero State (no entries)', () => {
     it('renders FirstRunZeroState instead of the stat/tab stack', async () => {
+      // A RESOLVED identity is what makes "you have no entries" a claim the
+      // page may make. Without it this test passed against the old bug, where
+      // an unresolved person id also produced the welcome screen.
+      seedAuthWithPerson();
       renderWithProviders(<MyEntriesPage />);
 
       // The welcoming zero-state replaces the whole stat/dog/tab stack.
@@ -450,6 +454,7 @@ describe('MyEntriesPage UI Improvements', () => {
     });
 
     it('offers a Browse Shows link pointing at /shows', async () => {
+      seedAuthWithPerson();
       renderWithProviders(<MyEntriesPage />);
 
       const browse = await screen.findByRole('link', { name: /browse shows/i });
@@ -457,8 +462,10 @@ describe('MyEntriesPage UI Improvements', () => {
     });
 
     it('leads with "Add Your First Dog" when the exhibitor has no dogs', async () => {
-      // Default auth has no databaseUserId → ownerId is empty → dogs are
-      // definitively none, so the first-dog CTA is shown (no loading flash).
+      // Identity resolved, dog query settled empty → dogs are definitively
+      // none, so the first-dog CTA is shown (no loading flash).
+      seedAuthWithPerson();
+      mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
       renderWithProviders(<MyEntriesPage />);
 
       expect(
@@ -515,9 +522,15 @@ describe('MyEntriesPage UI Improvements', () => {
     it('does not load entries when no person id source is available', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      // No person id → no entries → zero-state (no tablist to await).
-      await screen.findByText(/Welcome!/i);
-
+      // No person id means we do not know WHOSE entries to load, so the page
+      // must claim nothing. It previously rendered "Welcome!" here — telling a
+      // cold-offline-booted exhibitor they had never entered a show while
+      // their entries sat in IndexedDB.
+      expect(await screen.findByText(/Getting your shows ready/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /add your first dog/i })
+      ).not.toBeInTheDocument();
       expect(getUserEntries).not.toHaveBeenCalled();
     });
 

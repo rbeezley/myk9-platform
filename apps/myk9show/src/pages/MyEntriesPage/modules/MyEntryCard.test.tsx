@@ -553,7 +553,8 @@ describe('MyEntryCard scored result display', () => {
 
     expect(screen.getAllByText('Q').length).toBeGreaterThan(0);
     expect(screen.getAllByText('2nd').length).toBeGreaterThan(0);
-    expect(screen.getByText('42.5s')).toBeInTheDocument();
+    // Time now reads on the always-visible band as well as in the detail row.
+    expect(screen.getAllByText('42.5s').length).toBeGreaterThan(0);
   });
 
   it('does not show a placement pill for an NQ entry even if a placement value leaks through', () => {

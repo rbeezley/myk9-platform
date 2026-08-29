@@ -41,6 +41,7 @@ export { MyEntryCard } from './MyEntryCard';
 export { EntriesEmptyState } from './EntriesEmptyState';
 export { EntryScopeBanner } from './EntryScopeBanner';
 export { EntriesLoadErrorCard } from './EntriesLoadErrorCard';
+export { EntriesIdentityPendingCard } from './EntriesIdentityPendingCard';
 export {
   CheckInDialog,
   EditEntryDialog,

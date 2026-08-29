@@ -1,36 +1,17 @@
 /**
  * Custom hook for ShowDetailsStep mutation handlers.
- * Handles inline creation of clubs, official people, and judge credentials
- * from within the show creation wizard's Basic Show Information step.
+ * Handles inline creation of official people and judge credentials from the
+ * show creation wizard's Basic Show Information step.
  */
 
 import { useCallback } from 'react';
-import { logger } from '@/services/LoggingService';
-import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
-import { useWizardStore } from '@/store/wizardStore';
 import { createUser, updateUser } from '@/services/database/users';
 import { createJudgeQualification } from '@/services/database/judges';
-import { createClub } from '@/services/database/clubs';
 import { personEmailsMatch } from '@/utils/personIdentity';
-import type { CreateClubData } from './sections';
 
 export function useShowDetailsStepActions() {
-  const { loadClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
-  const { updateShowData } = useWizardStore();
-
-  // Inline club creation — no panelManager needed
-  const handleCreateClub = useCallback(
-    async (data: CreateClubData): Promise<void> => {
-      const result = await createClub({ name: data.name, email: data.email });
-      if (result.error) throw result.error;
-      await loadClubs();
-      updateShowData({ clubId: result.data!.id });
-      logger.debug('Club created or reused and selected', 'wizard', { clubName: data.name });
-    },
-    [loadClubs, updateShowData]
-  );
 
   const handleCreateOfficialPerson = useCallback(
     async (data: {
@@ -130,7 +111,6 @@ export function useShowDetailsStepActions() {
   );
 
   return {
-    handleCreateClub,
     handleCreateOfficialPerson,
     handleSaveJudgeCredentials,
     handleCreateNewJudge,

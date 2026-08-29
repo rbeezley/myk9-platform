@@ -1,3 +1,4 @@
+import { formatShowDate, resolveDisplayDate } from '@/features/_shared/landing/calendarDate';
 /**
  * Date formatting helpers for Poster surfaces. Mirrors the Banner /
  * Monogram / Heritage helpers — kept as a sibling rather than imported
@@ -13,9 +14,12 @@ export function formatDateInTimezone(
   format: 'short' | 'long' | 'time' | 'monthDay' | 'monthDayUpper'
 ): string {
   try {
-    const date = new Date(iso);
+    // A show date names a calendar DAY (stored as midnight-UTC timestamptz).
+    // Converting it through a timezone rolls it back a day west of UTC; only a
+    // genuine instant gets the zone applied. See _shared/landing/calendarDate.
+    const { date, isCalendarDay } = resolveDisplayDate(iso);
     if (isNaN(date.getTime())) return '';
-    const opts: Intl.DateTimeFormatOptions = { timeZone: timezone };
+    const opts: Intl.DateTimeFormatOptions = isCalendarDay ? {} : { timeZone: timezone };
     if (format === 'short') {
       return date.toLocaleDateString('en-US', {
         ...opts,
@@ -34,6 +38,11 @@ export function formatDateInTimezone(
       });
     }
     if (format === 'time') {
+      // A calendar date has no time-of-day. Without this the resolver's
+      // local-midnight Date renders "12:00 AM" labelled with the VIEWER's zone
+      // -- a fabricated deadline that also contradicts the countdown beside it.
+      // heritage and monogram already guarded this; these five did not.
+      if (isCalendarDay) return '';
       return date.toLocaleTimeString('en-US', {
         ...opts,
         hour: 'numeric',
@@ -62,21 +71,23 @@ export function formatDateRange(
   uppercase: boolean = false
 ): string {
   if (!startIso) return '';
-  const start = new Date(startIso);
+  // formatShowDate applies the timezone only to real instants. Building
+  // `new Date(iso)` here and passing `{ timeZone }` unconditionally showed the
+  // previous day west of UTC — the same bug as formatDateInTimezone, in a
+  // second function that the per-variant audit table missed.
+  const startMonth = formatShowDate(startIso, timezone, { month: 'short' });
+  const startDay = formatShowDate(startIso, timezone, { day: 'numeric' });
+  if (!startMonth) return '';
+
   const end = endIso ? new Date(endIso) : null;
-  if (isNaN(start.getTime())) return '';
-
-  const startMonth = start.toLocaleDateString('en-US', { timeZone: timezone, month: 'short' });
-  const startDay = start.toLocaleDateString('en-US', { timeZone: timezone, day: 'numeric' });
-
   const apply = (s: string) => (uppercase ? s.toUpperCase() : s);
 
   if (!end || isNaN(end.getTime()) || endIso === startIso) {
     return apply(`${startMonth} ${startDay}`);
   }
 
-  const endMonth = end.toLocaleDateString('en-US', { timeZone: timezone, month: 'short' });
-  const endDay = end.toLocaleDateString('en-US', { timeZone: timezone, day: 'numeric' });
+  const endMonth = formatShowDate(endIso, timezone, { month: 'short' });
+  const endDay = formatShowDate(endIso, timezone, { day: 'numeric' });
 
   if (startMonth === endMonth) {
     return apply(`${startMonth} ${startDay}—${endDay}`);

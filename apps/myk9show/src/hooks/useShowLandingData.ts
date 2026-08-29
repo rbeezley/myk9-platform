@@ -39,6 +39,12 @@ export interface ShowLandingData {
   publicShowClasses: ClassInfo[];
   /** Cold-store per-trial stat cards for the Trials tab. */
   publicTrialStats: Record<string, TrialStats>;
+  /**
+   * Whether the cold/anon class read has settled successfully. `true` when the
+   * read is not needed at all. Callers use it to keep an empty class list
+   * distinguishable from an unread one.
+   */
+  publicClassInventoryResolved: boolean;
 }
 
 export function useShowLandingData(
@@ -69,25 +75,27 @@ export function useShowLandingData(
   // self-falls-through to a direct anon-safe PostgREST read, so fetch per
   // landing trial when the store is cold, then reshape to the tab's ClassInfo.
   const landingTrialIdsKey = useMemo(() => landingTrials.map(t => t.id).join(','), [landingTrials]);
-  const { data: publicClassesByTrial } = useQuery<TrialClassRows[]>({
-    queryKey: ['public-show-classes', showId, landingTrialIdsKey],
-    queryFn: async () => {
-      const results = await Promise.all(
-        landingTrials.map(async trial => {
-          const { data, error } = await getClassesByTrialId(trial.id);
-          // The service returns { data: [], error } on a fallback failure — NOT a
-          // throw. Swallowing that error would turn a failed read into a silent
-          // empty tab, re-creating the exact false-empty bug this query fixes.
-          // Throw so React Query surfaces the error (and retries) instead.
-          if (error) throw error;
-          return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
-        })
-      );
-      return results;
-    },
-    enabled: !!showId && associatedTrials.length === 0 && landingTrials.length > 0,
-    staleTime: 60_000,
-  });
+  const { data: publicClassesByTrial, isSuccess: publicClassesLoaded } = useQuery<TrialClassRows[]>(
+    {
+      queryKey: ['public-show-classes', showId, landingTrialIdsKey],
+      queryFn: async () => {
+        const results = await Promise.all(
+          landingTrials.map(async trial => {
+            const { data, error } = await getClassesByTrialId(trial.id);
+            // The service returns { data: [], error } on a fallback failure — NOT a
+            // throw. Swallowing that error would turn a failed read into a silent
+            // empty tab, re-creating the exact false-empty bug this query fixes.
+            // Throw so React Query surfaces the error (and retries) instead.
+            if (error) throw error;
+            return { trialId: trial.id, rows: (data ?? []) as Record<string, unknown>[] };
+          })
+        );
+        return results;
+      },
+      enabled: !!showId && associatedTrials.length === 0 && landingTrials.length > 0,
+      staleTime: 60_000,
+    }
+  );
 
   // Anon/cold-store fallback for the Classes tab + overview. When the store has
   // trials the page keeps the store-derived classes verbatim (warm session, no
@@ -103,5 +111,20 @@ export function useShowLandingData(
     [publicClassesByTrial, showEntries]
   );
 
-  return { landingTrials, publicShowClasses, publicTrialStats };
+  /**
+   * Whether the cold/anon class read has actually SETTLED successfully.
+   *
+   * The page needs this to keep `hasEntryClassInventory` honest: an empty class
+   * list during the two serial round trips below is "not known yet", not "this
+   * show has no classes". Reporting the latter hides the entry CTA on a public
+   * landing and, on the authed surface, tells an exhibitor the show cannot be
+   * entered.
+   *
+   * `true` when the query is not needed (the warm store already has trials), so
+   * callers can treat this as "the cold path has nothing outstanding".
+   */
+  const publicClassInventoryResolved =
+    associatedTrials.length > 0 || landingTrials.length === 0 ? true : publicClassesLoaded;
+
+  return { landingTrials, publicShowClasses, publicTrialStats, publicClassInventoryResolved };
 }

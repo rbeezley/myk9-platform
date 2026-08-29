@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Club } from '@/types/club-types';
 
@@ -56,6 +56,8 @@ let mockBrowseClubsReturn = {
   clubShowCounts: new Map<string, number>(),
 };
 
+const mockAddClub = vi.hoisted(() => vi.fn());
+
 // ── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('@/hooks/useBrowseClubsData', () => ({
@@ -65,7 +67,7 @@ vi.mock('@/hooks/useBrowseClubsData', () => ({
 vi.mock('@/store/clubStore', () => ({
   useClubStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
-      addClub: vi.fn(),
+      addClub: mockAddClub,
       selectClub: vi.fn(),
       clubs: [],
     }),
@@ -77,7 +79,26 @@ vi.mock('@/components/panels', () => ({
 }));
 
 vi.mock('@/components/panels/edit/ClubEditPanel', () => ({
-  ClubEditPanel: () => null,
+  ClubEditPanel: ({ onSave }: { onSave: (club: Partial<Club>) => void }) => (
+    <button
+      type="button"
+      onClick={() =>
+        onSave({
+          name: 'Complete Club',
+          email: 'club@example.com',
+          address: {
+            street: '1 Main St',
+            city: 'Tulsa',
+            state: 'OK',
+            zipCode: '74103',
+            country: 'US',
+          },
+        })
+      }
+    >
+      Submit complete club
+    </button>
+  ),
 }));
 
 vi.mock('@/components/clubs/browse', () => ({
@@ -105,14 +126,22 @@ vi.mock('@/components/common/SkeletonLoaders', () => ({
 
 import BrowseClubsPage from '../BrowseClubsPage';
 
-function renderPage() {
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
+}
+
+function renderPage(initialEntry = '/clubs') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <BrowseClubsPage />
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route path="/clubs" element={<BrowseClubsPage />} />
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -124,6 +153,7 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockAddClub.mockResolvedValue('club-new');
     mockAuthReturn = {
       user: { id: 'test-user' },
       userWithRoles: { roles: ['secretary'] },
@@ -183,8 +213,11 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
     renderPage();
 
     expect(screen.getByText('No clubs yet')).toBeInTheDocument();
-    // Default mock role is 'secretary' (non-admin), so the non-admin description is shown
-    expect(screen.getByText('No clubs are listed yet.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Get started by creating your first club to manage organizations and events.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('renders filtered EmptyState when filters produce zero results', () => {
@@ -258,6 +291,7 @@ describe('BrowseClubsPage — New Club button visibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockAddClub.mockResolvedValue('club-new');
     mockBrowseClubsReturn = {
       clubs: [makeClub()],
       filteredClubs: [makeClub()],
@@ -283,7 +317,7 @@ describe('BrowseClubsPage — New Club button visibility', () => {
     expect(screen.getByRole('button', { name: /new club/i })).toBeInTheDocument();
   });
 
-  it('hides New Club button when user is a secretary', () => {
+  it('shows New Club button when user is a secretary', () => {
     mockAuthReturn = {
       user: { id: 'secretary-user' },
       userWithRoles: { roles: ['secretary'] },
@@ -291,7 +325,18 @@ describe('BrowseClubsPage — New Club button visibility', () => {
 
     renderPage();
 
-    expect(screen.queryByRole('button', { name: /new club/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /new club/i })).toBeInTheDocument();
+  });
+
+  it('shows New Club button when user is a club admin', () => {
+    mockAuthReturn = {
+      user: { id: 'club-admin-user' },
+      userWithRoles: { roles: ['club_admin'] },
+    };
+
+    renderPage();
+
+    expect(screen.getByRole('button', { name: /new club/i })).toBeInTheDocument();
   });
 
   it('hides New Club button when user is unauthenticated', () => {
@@ -303,5 +348,22 @@ describe('BrowseClubsPage — New Club button visibility', () => {
     renderPage();
 
     expect(screen.queryByRole('button', { name: /new club/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the complete club creator from a wizard handoff and returns the new club', async () => {
+    mockAuthReturn = {
+      user: { id: 'secretary-user' },
+      userWithRoles: { roles: ['secretary'] },
+    };
+
+    renderPage(
+      '/clubs?create=true&returnTo=%2Fsecretary%2Fcreate-show%2Fwizard%3Fsource%3Dclub-link'
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /submit complete club/i }));
+
+    expect(await screen.findByTestId('location')).toHaveTextContent(
+      '/secretary/create-show/wizard?source=club-link&clubId=club-new'
+    );
   });
 });

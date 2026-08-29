@@ -113,4 +113,79 @@ describe('isCountdownTargetClosed', () => {
   it('fails open when no close date is set', () => {
     expect(isCountdownTargetClosed(null, 'America/New_York')).toBe(false);
   });
+
+  /**
+   * These use the shape the DATABASE actually produces. `shows.entry_close_date`
+   * is `timestamptz` (migration 035 converted it from DATE), so PostgREST
+   * serializes it as `2026-09-01T00:00:00+00:00` and `showMappers` passes that
+   * through raw. The tests above use a bare `YYYY-MM-DD`, a form the column
+   * never emits -- which is exactly why the bug below survived: the end-of-day
+   * branch was dead code for the only column that calls this.
+   */
+  describe('the timestamptz form the shows table actually stores', () => {
+    // 2026-09-01T00:00:00Z is 8pm Aug 31 in New York. Entries for a show
+    // closing "September 1" must still be open then -- and all through Sep 1.
+    const CLOSE = '2026-09-01T00:00:00+00:00';
+
+    it('is still open the evening before, when UTC midnight has already passed', () => {
+      expect(
+        isCountdownTargetClosed(
+          CLOSE,
+          'America/New_York',
+          new Date('2026-09-01T01:00:00Z').getTime()
+        )
+      ).toBe(false);
+    });
+
+    it('is still open during the closing day itself', () => {
+      expect(
+        isCountdownTargetClosed(
+          CLOSE,
+          'America/New_York',
+          new Date('2026-09-01T20:00:00Z').getTime() // 4pm Sep 1 in New York
+        )
+      ).toBe(false);
+    });
+
+    it('closes at end of the named day in the SHOW timezone', () => {
+      expect(
+        isCountdownTargetClosed(
+          CLOSE,
+          'America/New_York',
+          new Date('2026-09-02T04:00:00Z').getTime() // 12:00am Sep 2 in New York
+        )
+      ).toBe(true);
+    });
+
+    it('gives a west-coast show its own later cutoff', () => {
+      expect(
+        isCountdownTargetClosed(
+          CLOSE,
+          'America/Los_Angeles',
+          new Date('2026-09-02T04:00:00Z').getTime() // still 9pm Sep 1 in LA
+        )
+      ).toBe(false);
+    });
+
+    it('treats a Z suffix the same as +00:00', () => {
+      expect(
+        isCountdownTargetClosed(
+          '2026-09-01T00:00:00Z',
+          'America/New_York',
+          new Date('2026-09-01T01:00:00Z').getTime()
+        )
+      ).toBe(false);
+    });
+
+    it('still honours a genuine mid-day instant as a real instant', () => {
+      // Not midnight UTC, so this names a moment, not a day.
+      expect(
+        isCountdownTargetClosed(
+          '2026-09-01T17:00:00+00:00',
+          'America/New_York',
+          new Date('2026-09-01T18:00:00Z').getTime()
+        )
+      ).toBe(true);
+    });
+  });
 });

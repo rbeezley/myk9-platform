@@ -14,16 +14,16 @@ const show = { id: 'show-1', name: 'Spring Trial' } as Show;
 
 describe('resolveEditMode', () => {
   it('is not-applicable for a fresh create', () => {
-    expect(resolveEditMode({ editMode: undefined, allShows: [], showsLoading: false })).toEqual({
-      state: 'not-applicable',
-    });
+    expect(
+      resolveEditMode({ editMode: undefined, writableShows: [], showsLoading: false })
+    ).toEqual({ state: 'not-applicable' });
   });
 
   it('resolves once the target show is present', () => {
     expect(
       resolveEditMode({
         editMode: { showId: 'show-1', mode: 'add-trials' },
-        allShows: [show],
+        writableShows: [show],
         showsLoading: false,
       })
     ).toEqual({ state: 'resolved', show });
@@ -33,7 +33,7 @@ describe('resolveEditMode', () => {
     expect(
       resolveEditMode({
         editMode: { showId: 'show-1', mode: 'add-trials' },
-        allShows: [],
+        writableShows: [],
         showsLoading: true,
       })
     ).toEqual({ state: 'loading' });
@@ -47,7 +47,7 @@ describe('resolveEditMode', () => {
     expect(
       resolveEditMode({
         editMode: { showId: 'show-1', mode: 'add-trials' },
-        allShows: [],
+        writableShows: [],
         showsLoading: false,
       })
     ).toEqual({ state: 'unavailable' });
@@ -57,7 +57,7 @@ describe('resolveEditMode', () => {
     expect(
       resolveEditMode({
         editMode: { showId: 'show-2', mode: 'add-classes' },
-        allShows: [show],
+        writableShows: [show],
         showsLoading: false,
       })
     ).toEqual({ state: 'unavailable' });

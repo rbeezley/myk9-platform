@@ -1,5 +1,6 @@
 import { getShowStyle } from '@/features/registries';
 import { STYLED_LANDING_BY_STYLE } from '@/features/_shared/styledLandingRegistry';
+import { StaleShowNotice } from './StaleShowNotice';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 
@@ -16,6 +17,11 @@ export interface ShowPublicLandingProps {
    * explicit.
    */
   hasEntryClassInventory: boolean | null;
+  /** True when the entry window has not opened yet. */
+  entryNotYetOpen: boolean;
+  /** True when a cached show is being shown because the refresh failed. */
+  refreshFailed?: boolean | undefined;
+  onRetry?: (() => void) | undefined;
 }
 
 /**
@@ -30,6 +36,9 @@ export function ShowPublicLanding({
   show,
   landingTrials,
   hasEntryClassInventory,
+  entryNotYetOpen,
+  refreshFailed,
+  onRetry,
 }: ShowPublicLandingProps) {
   // When an experience is published, its published style wins over the show's
   // current (possibly draft) style for public visitors.
@@ -49,11 +58,15 @@ export function ShowPublicLanding({
   const StyledLanding = STYLED_LANDING_BY_STYLE[publicShowStyle];
 
   return (
-    <StyledLanding
-      show={publicLandingShow}
-      trial={landingTrials[0] ?? null}
-      allTrials={landingTrials}
-      hasEntryClassInventory={hasEntryClassInventory}
-    />
+    <>
+      {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
+      <StyledLanding
+        show={publicLandingShow}
+        trial={landingTrials[0] ?? null}
+        allTrials={landingTrials}
+        hasEntryClassInventory={hasEntryClassInventory}
+        entryNotYetOpen={entryNotYetOpen}
+      />
+    </>
   );
 }

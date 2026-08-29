@@ -28,6 +28,15 @@ export interface StyledLandingProps {
   trial: Trial | null | undefined;
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
+  /**
+   * True when the show's entry window has not OPENED yet.
+   *
+   * The landings only ever checked `entryClosed`, so a show whose entries open
+   * in three months advertised "Enter This Show" to every anonymous visitor and
+   * sent them to a dead end. `getEntryStatus` has always handled `not_yet_open`
+   * correctly -- it was just computed after the public branch had returned.
+   */
+  entryNotYetOpen?: boolean | undefined;
 }
 
 export const STYLED_LANDING_BY_STYLE: Record<ShowStyle, ComponentType<StyledLandingProps>> = {

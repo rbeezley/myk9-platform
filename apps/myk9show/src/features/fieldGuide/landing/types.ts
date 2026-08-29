@@ -1,3 +1,11 @@
+import type {
+  LandingAccommodation,
+  LandingData,
+  LandingFee,
+  LandingJudge,
+  LandingTrial,
+} from '@/features/_shared/landing/landingData';
+
 /**
  * Prop types for FieldGuideLandingPage and its sections. Mirrors the
  * Banner / Monogram landing shape, with two Field-Guide-specific
@@ -10,16 +18,9 @@
  * `tokens.ts`.
  */
 
-export interface FieldGuideTrial {
-  id: string;
-  trialNumber: number | string;
-  date: string | null;
-  judgeName?: string;
-}
+export type FieldGuideTrial = LandingTrial;
 
-export interface FieldGuideJudge {
-  id: string;
-  name: string;
+export interface FieldGuideJudge extends LandingJudge {
   /** "TRIALS 01·03·05" — chip label rendered above the judge's name. */
   trialsLabel: string | null;
   city: string | null;
@@ -34,22 +35,14 @@ export interface FieldGuideOfficer {
   email?: string | null;
 }
 
-export interface FieldGuideFee {
+export interface FieldGuideFee extends LandingFee {
   /** Mono uppercase label, e.g. "FIRST ENTRY". */
-  label: string;
   /** Display amount, e.g. "$25.00". */
-  amount: string;
   /** Mono caption beneath the number, e.g. "PER DOG / PER TRIAL". */
   sub?: string;
 }
 
-export interface FieldGuideAccommodation {
-  name: string;
-  address?: string;
-  phone?: string;
-  url?: string;
-  type?: string;
-}
+export type FieldGuideAccommodation = LandingAccommodation;
 
 export interface FieldGuideOnDayItem {
   label: string;
@@ -64,64 +57,27 @@ export interface FieldGuideQuickRefCell {
   emphasis?: boolean;
 }
 
-export interface FieldGuideLandingData {
+export interface FieldGuideLandingData extends LandingData<
+  FieldGuideTrial,
+  FieldGuideJudge,
+  FieldGuideFee,
+  FieldGuideAccommodation
+> {
   // Show identity
   /** Compact ID for the top strip — e.g. "BCKC.2026.SS". Derived from the
    *  show + year + slug; falls back to the raw show name uppercased if no
    *  better source is available. */
   showCode: string;
-  clubName: string;
-  showName: string;
   /** One-line description of what this is. Mono-orange-deep below the
    *  hero title. */
-  showSubtitle: string;
-  welcomeText: string | null;
-  trialChairName: string | null;
   trialChairEmail: string | null;
-
-  // Dates
-  entryOpenDate: string | null;
-  entryCloseDate: string | null;
-  confirmationDate: string | null;
-  trialStartDate: string | null;
-  trialEndDate: string | null;
-  timezone: string;
-
-  // Venue
-  venueName: string | null;
-  venueAddress: string | null;
-  venueCity: string | null;
-
-  // Trials + judges
-  trials: FieldGuideTrial[];
-  judges: FieldGuideJudge[];
-
-  // Capacity
-  entryCount: number;
-  entryLimit: number | null;
 
   // Hero quick-ref cells (typically 6)
   quickRefCells: FieldGuideQuickRefCell[];
-
-  // Fees
-  fees: FieldGuideFee[];
 
   // Officers
   officers: FieldGuideOfficer[];
 
   // Plan / on the day
   onTheDay: FieldGuideOnDayItem[];
-  accommodations: FieldGuideAccommodation[];
-  hospitalityNotes: string | null;
-
-  // Contact
-  secretaryName: string | null;
-  secretaryEmail: string | null;
-
-  // Registry
-  licenseLanguage: string;
-  memberClubLanguage: string;
-
-  // Entry wizard link
-  entryWizardUrl: string;
 }

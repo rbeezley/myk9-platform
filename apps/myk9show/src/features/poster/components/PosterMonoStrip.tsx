@@ -27,6 +27,8 @@ export interface PosterMonoStripProps {
   className?: string;
   /** Optional ARIA label for the strip; defaults to "Trial header". */
   ariaLabel?: string;
+  /** Landmark role for the strip. The sticky top strip is navigation. */
+  landmarkRole?: 'banner' | 'navigation';
   /** Optional content rendered after the items (e.g. links). */
   children?: ReactNode;
 }
@@ -50,11 +52,12 @@ export function PosterMonoStrip({
   foreground = posterColors.cream,
   className,
   ariaLabel = 'Trial header',
+  landmarkRole = 'banner',
   children,
 }: PosterMonoStripProps): JSX.Element {
   return (
     <div
-      role="banner"
+      role={landmarkRole}
       aria-label={ariaLabel}
       className={`po-strip ${className ?? ''}`.trim()}
       style={{
@@ -77,9 +80,7 @@ export function PosterMonoStrip({
         {items.map((item, i) => (
           <span
             key={`${item.label}-${i}`}
-            className={
-              i >= 2 ? 'po-strip-item po-strip-item--hide-narrow' : 'po-strip-item'
-            }
+            className={i >= 2 ? 'po-strip-item po-strip-item--hide-narrow' : 'po-strip-item'}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
           >
             {i > 0 && (
@@ -111,7 +112,8 @@ export function PosterMonoStrip({
             flexShrink: 0,
           }}
         >
-          {cta.label}
+          {cta.label.replace(/\s*→$/, '')}
+          {cta.label.endsWith('→') && <span aria-hidden="true"> →</span>}
         </a>
       )}
     </div>

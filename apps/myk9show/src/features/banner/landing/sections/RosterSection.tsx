@@ -3,9 +3,10 @@ import { BannerSectionHead } from '../../components/BannerSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerColors, bannerSpacing } from '../../tokens';
+import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
   flag: string;
   flagBright: string;
@@ -13,10 +14,7 @@ interface RosterSectionProps {
 
 export function RosterSection({ entryCount, entryLimit, flag, flagBright }: RosterSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const pct =
-    entryLimit && entryLimit > 0
-      ? Math.min(100, Math.round((entryCount / entryLimit) * 100))
-      : null;
+  const pct = entryCapacityPercent(entryCount, entryLimit);
   const pace =
     pct != null && pct >= 90 ? 'fast.' : pct != null && pct >= 50 ? 'steadily.' : 'slowly.';
 
@@ -34,10 +32,7 @@ export function RosterSection({ entryCount, entryLimit, flag, flagBright }: Rost
           Filling <span style={{ color: flag }}>{pace}</span>
         </BannerSectionHead>
 
-        <div
-          ref={ref}
-          className={`bn-reveal bn-capacity ${revealed ? 'in' : ''}`}
-        >
+        <div ref={ref} className={`bn-reveal bn-capacity ${revealed ? 'in' : ''}`}>
           <BannerContentRow>
             <div
               style={{
@@ -49,7 +44,7 @@ export function RosterSection({ entryCount, entryLimit, flag, flagBright }: Rost
                 color: bannerColors.ink,
               }}
             >
-              {entryCount}
+              {formatEntryCount(entryCount)}
               {entryLimit != null && (
                 <span
                   style={{
@@ -58,7 +53,8 @@ export function RosterSection({ entryCount, entryLimit, flag, flagBright }: Rost
                     fontWeight: 500,
                   }}
                 >
-                  {' '}/ {entryLimit}
+                  {' '}
+                  / {entryLimit}
                 </span>
               )}
             </div>

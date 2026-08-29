@@ -7,6 +7,8 @@ import type { FieldGuideOnDayItem } from '../types';
 interface ScheduleSectionProps {
   items: FieldGuideOnDayItem[];
   hospitalityNotes: string | null;
+  awardsDescription: string | null;
+  houseRulesNotes: string | null;
 }
 
 /**
@@ -14,12 +16,19 @@ interface ScheduleSectionProps {
  * the data set is rich enough we expand to a full mono timetable; for
  * now we surface label/value pairs in a 2-column grid.
  */
-export function ScheduleSection({ items, hospitalityNotes }: ScheduleSectionProps) {
+export function ScheduleSection({
+  items,
+  hospitalityNotes,
+  awardsDescription,
+  houseRulesNotes,
+}: ScheduleSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
   const all: FieldGuideOnDayItem[] = [
     ...items,
     ...(hospitalityNotes ? [{ label: 'Hospitality', value: hospitalityNotes }] : []),
+    ...(awardsDescription ? [{ label: 'Awards', value: awardsDescription }] : []),
+    ...(houseRulesNotes ? [{ label: 'House rules', value: houseRulesNotes }] : []),
   ];
 
   if (all.length === 0) return null;

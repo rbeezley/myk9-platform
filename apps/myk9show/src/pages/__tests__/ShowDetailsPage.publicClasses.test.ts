@@ -80,6 +80,16 @@ describe('buildPublicShowClasses', () => {
     expect(result.find(c => c.id === 'class-2')?.entryCount).toBe(1);
   });
 
+  it('marks class counts unavailable when the entry read failed', () => {
+    const result = buildPublicShowClasses(
+      [makeTrial()],
+      [{ trialId: 'trial-1', rows: [makeClassRow()] }],
+      null
+    );
+
+    expect(result[0].entryCount).toBeNull();
+  });
+
   it('handles a class row with no judge assignment', () => {
     const trials = [makeTrial()];
     const classesByTrial: TrialClassRows[] = [
@@ -147,5 +157,11 @@ describe('buildPublicTrialStats', () => {
       completedClasses: 0,
       hasStarted: false,
     });
+  });
+
+  it('marks aggregate entry counts unavailable when the entry read failed', () => {
+    const stats = buildPublicTrialStats([{ trialId: 'trial-1', rows: [makeClassRow()] }], null);
+
+    expect(stats['trial-1'].entryCount).toBeNull();
   });
 });

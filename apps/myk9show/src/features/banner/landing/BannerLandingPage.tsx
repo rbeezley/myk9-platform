@@ -55,8 +55,7 @@ export function BannerLandingPage({
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline =
-    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   return (
     <div
@@ -142,6 +141,8 @@ export function BannerLandingPage({
         <OnTheDaySection
           items={data.onTheDay}
           hospitalityNotes={data.hospitalityNotes}
+          awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
           flag={brandColors.flag}
         />
         <OfficersSection

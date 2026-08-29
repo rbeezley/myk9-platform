@@ -8,13 +8,7 @@ vi.mock('@sentry/react', () => ({
   captureMessage: sentryMocks.captureMessage,
 }));
 
-import {
-  getShowStyle,
-  getShowLandingStyle,
-  getTrialRegistry,
-  getTrialTimezone,
-  deriveRegistryId,
-} from '../helpers';
+import { getShowStyle, getTrialRegistry, getTrialTimezone, deriveRegistryId } from '../helpers';
 import { akcRegistry } from '../akc';
 import { ukcRegistry } from '../ukc';
 import { ascaRegistry } from '../asca';
@@ -58,29 +52,6 @@ describe('getShowStyle', () => {
     expect(getShowStyle(undefined)).toBe('monogram');
     expect(getShowStyle({})).toBe('monogram');
     expect(getShowStyle({ style: null })).toBe('monogram');
-  });
-});
-
-describe('getShowLandingStyle', () => {
-  it('returns "heritage" when the show has landing_style = "heritage"', () => {
-    expect(getShowLandingStyle({ landing_style: 'heritage' })).toBe('heritage');
-  });
-
-  it('returns "default" for an explicit "default" value', () => {
-    expect(getShowLandingStyle({ landing_style: 'default' })).toBe('default');
-  });
-
-  it('returns "default" when the column is null, undefined, or missing', () => {
-    expect(getShowLandingStyle({ landing_style: null })).toBe('default');
-    expect(getShowLandingStyle({ landing_style: undefined })).toBe('default');
-    expect(getShowLandingStyle({})).toBe('default');
-    expect(getShowLandingStyle(null)).toBe('default');
-    expect(getShowLandingStyle(undefined)).toBe('default');
-  });
-
-  it('returns "default" for any non-heritage value (shim — only heritage is special)', () => {
-    expect(getShowLandingStyle({ landing_style: 'magazine' })).toBe('default');
-    expect(getShowLandingStyle({ style: 'gazette' })).toBe('default');
   });
 });
 

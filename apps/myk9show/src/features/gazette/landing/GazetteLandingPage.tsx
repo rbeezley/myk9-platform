@@ -28,9 +28,8 @@ interface GazetteLandingPageProps {
 }
 
 /**
- * Gazette-style public trial landing page. Renders when
- * `show.landing_style === 'gazette'`. Branches in from TrialDetailsPage
- * after loading checks so all hooks fire unconditionally.
+ * Gazette-style public show landing page. ShowDetailsPage dispatches it through
+ * the styled landing registry when `getShowStyle(show) === 'gazette'`.
  *
  * `data-gazette` on the root element scopes all .gz-* CSS rules (gazette.css).
  * Reduced-motion handling lives inside individual sections via the shared
@@ -53,8 +52,7 @@ export function GazetteLandingPage({
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline =
-    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   const editionLabel =
     data.edition != null
@@ -86,6 +84,7 @@ export function GazetteLandingPage({
 
       <MastheadSection
         clubName={data.clubName}
+        showName={data.showName}
         volumeRoman={data.volumeRoman}
         edition={data.edition}
         motto={data.motto}
@@ -134,6 +133,7 @@ export function GazetteLandingPage({
           accommodations={data.accommodations}
           hospitalityNotes={data.hospitalityNotes}
           awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
           volumeRoman={data.volumeRoman}
         />
 

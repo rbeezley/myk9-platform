@@ -126,7 +126,8 @@ describe('useFieldGuideLandingData', () => {
     expect(result.current.fees).toHaveLength(2);
     expect(result.current.fees[0]?.label).toBe('FIRST ENTRY');
     expect(result.current.fees[0]?.sub).toBe('PER DOG / PER TRIAL');
-    expect(result.current.fees[1]?.label).toBe('EACH ADDITIONAL');
+    expect(result.current.fees[1]?.label).toBe('DAY-OF ENTRY');
+    expect(result.current.fees[1]?.sub).toBe('PER DOG / DAY OF SHOW');
   });
 
   it('omits fee entries when source fields are missing', () => {

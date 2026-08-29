@@ -30,7 +30,7 @@ interface MagazineLandingPageProps {
 
 /**
  * Magazine-style public trial landing page. Mounts when
- * `getShowLandingStyle(show) === 'magazine'`.
+ * `getShowStyle(show) === 'magazine'`.
  *
  * The `data-magazine` root attribute scopes every `.mz-*` rule in
  * `magazine.css`, so adding this import to a non-Magazine surface is a
@@ -56,8 +56,7 @@ export function MagazineLandingPage({
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline =
-    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   const editionLabel = useMemo(() => {
     const year = data.trialStartDate

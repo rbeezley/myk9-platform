@@ -4,17 +4,18 @@ import { MagazineSectionFolio } from '../../components/MagazineSectionFolio';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
 import { formatJourneyDate } from '../utils/dateFormat';
 import type { MagazineJourneyStep } from '../types';
+import { entryCapacityPercent, formatEntryCount } from '@/features/_shared/landing/entryCount';
 
 interface RosterSectionProps {
-  entryCount: number;
+  entryCount: number | null;
   entryLimit: number | null;
   journeySteps: MagazineJourneyStep[];
   timezone: string;
 }
 
-function CapacityCounter({ count, limit }: { count: number; limit: number | null }) {
+function CapacityCounter({ count, limit }: { count: number | null; limit: number | null }) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
-  const pct = limit && limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : null;
+  const pct = entryCapacityPercent(count, limit);
 
   return (
     <div
@@ -32,7 +33,7 @@ function CapacityCounter({ count, limit }: { count: number; limit: number | null
           color: 'var(--mz-ink)',
         }}
       >
-        {count}
+        {formatEntryCount(count)}
         {limit != null && (
           <em
             className="ml-2 italic"
@@ -55,7 +56,7 @@ function CapacityCounter({ count, limit }: { count: number; limit: number | null
           color: 'var(--mz-quill)',
         }}
       >
-        runs claimed at this hour
+        {count == null ? 'entry count unavailable' : 'runs claimed at this hour'}
       </div>
 
       {pct != null && (
@@ -67,10 +68,7 @@ function CapacityCounter({ count, limit }: { count: number; limit: number | null
           }}
           aria-hidden="true"
         >
-          <div
-            className="mz-capacity-bar absolute inset-y-0 left-0"
-            style={{ height: '100%' }}
-          />
+          <div className="mz-capacity-bar absolute inset-y-0 left-0" style={{ height: '100%' }} />
         </div>
       )}
 
@@ -90,20 +88,11 @@ function CapacityCounter({ count, limit }: { count: number; limit: number | null
   );
 }
 
-function JourneyTimeline({
-  steps,
-  timezone,
-}: {
-  steps: MagazineJourneyStep[];
-  timezone: string;
-}) {
+function JourneyTimeline({ steps, timezone }: { steps: MagazineJourneyStep[]; timezone: string }) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
   return (
-    <div
-      ref={ref}
-      className={`mx-auto flex w-full max-w-2xl flex-col ${revealed ? 'in' : ''}`}
-    >
+    <div ref={ref} className={`mx-auto flex w-full max-w-2xl flex-col ${revealed ? 'in' : ''}`}>
       {steps.map((step, i) => {
         const isActive = step.status === 'active';
         const isDone = step.status === 'done';

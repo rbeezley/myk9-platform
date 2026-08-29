@@ -1,6 +1,6 @@
 /**
  * Single source of truth for "which wizard-completion receipt renders
- * for `shows.landing_style = X`". Used by WorkflowStepContent and by
+ * for `getShowStyle(show) = X` from `shows.style`". Used by WorkflowStepContent and by
  * the cascade-routing test.
  *
  * The registry is keyed by ShowStyle (exhaustive), so any future style

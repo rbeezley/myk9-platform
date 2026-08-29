@@ -124,6 +124,8 @@ export function MonogramLandingPage({
         <PlanSection
           accommodations={data.accommodations}
           hospitalityNotes={data.hospitalityNotes}
+          awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
         />
 
         <OfficersSection

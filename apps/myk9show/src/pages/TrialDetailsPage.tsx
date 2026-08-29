@@ -276,6 +276,7 @@ const TrialDetailsPage: React.FC = () => {
         <ErrorState
           message="We couldn't load this trial. Please try again."
           onRetry={() => refetchFallbackTrial()}
+          headingLevel={1}
         />
       </PageShell>
     );
@@ -292,6 +293,7 @@ const TrialDetailsPage: React.FC = () => {
         <ErrorState
           message="The trial you're looking for doesn't exist."
           onRetry={() => navigate(showId ? `/shows/${showId}` : '/shows')}
+          headingLevel={1}
         />
       </PageShell>
     );

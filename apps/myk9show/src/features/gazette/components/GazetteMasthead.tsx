@@ -13,6 +13,8 @@ interface GazetteMastheadProps {
   clubName?: string;
   /** Fully rendered title — bypasses the auto-italic logic. */
   titleSlot?: ReactNode;
+  /** Accessible name for the page-level heading when the visible masthead is editorial. */
+  headingLabel?: string;
   /** Volume — already roman, e.g. "LXXIX". Pass null to omit the strip cell. */
   volumeRoman?: string | null;
   /** Edition / issue number. Pass null to omit. */
@@ -45,6 +47,7 @@ interface GazetteMastheadProps {
 export function GazetteMasthead({
   clubName,
   titleSlot,
+  headingLabel,
   volumeRoman = GAZETTE_DEFAULT_VOLUME_ROMAN,
   edition = GAZETTE_DEFAULT_EDITION,
   dateLabel,
@@ -73,7 +76,12 @@ export function GazetteMasthead({
           {dateLabel && <span>{dateLabel}</span>}
         </div>
       )}
-      <h1 className={cn('gz-masthead__title', !noAnimation && 'gz-rise delay-1')}>{titleNode}</h1>
+      <h1
+        aria-label={headingLabel}
+        className={cn('gz-masthead__title', !noAnimation && 'gz-rise delay-1')}
+      >
+        {titleNode}
+      </h1>
       {(established || motto || rightSubSlot) && (
         <div className="gz-masthead__sub">
           <span>{established ?? ''}</span>

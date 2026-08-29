@@ -15,10 +15,9 @@
  *    The two test suites should both fail in that case, but a wider
  *    refactor (e.g. moving the data layer to `features/_shared/entry-blank/`)
  *    is the better long-term home once a third style takes the same dep.
- *  - The dispatch layer (still un-wired per the parallel-fan-out plan)
- *    selects between Heritage's and Magazine's `*EntryBlankButton` /
- *    `*EntryBlankDocument` exports on `show.landing_style`; both pull
- *    from the same `buildEntryBlankProps` factory.
+ *  - WorkflowStepContent dispatches through the shared entry-blank registry
+ *    using the `ShowStyle` resolved by `getShowStyle(show)` from `shows.style`;
+ *    Heritage and Magazine both pull from the same `buildEntryBlankProps` factory.
  */
 
 export { MagazineEntryBlankDocument } from './MagazineEntryBlankDocument';

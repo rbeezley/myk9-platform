@@ -30,7 +30,7 @@ interface PosterLandingPageProps {
 
 /**
  * Poster-style public trial landing page. Renders when
- * `getShowLandingStyle(show) === 'poster'`.
+ * `getShowStyle(show) === 'poster'`.
  *
  * The Poster identity has no per-club brand-color override — its palette
  * is fixed at the design-system level (cream / ink / red / olive). All
@@ -69,8 +69,7 @@ export function PosterLandingPage({
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline =
-    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   // Build the show abbreviation from the first letters of words, e.g.
   // "Spring Scent Work" → "SSW". Falls back to first 4 chars if too short.
@@ -147,7 +146,12 @@ export function PosterLandingPage({
         />
         <JudgesSection judges={data.judges} trialsCount={data.trials.length} />
         <RosterSection entryCount={data.entryCount} entryLimit={data.entryLimit} />
-        <OnTheDaySection items={data.onTheDay} hospitalityNotes={data.hospitalityNotes} />
+        <OnTheDaySection
+          items={data.onTheDay}
+          hospitalityNotes={data.hospitalityNotes}
+          awardsDescription={data.awardsDescription}
+          houseRulesNotes={data.houseRulesNotes}
+        />
         <PlanSection accommodations={data.accommodations} />
         <OfficersSection
           officers={data.officers}

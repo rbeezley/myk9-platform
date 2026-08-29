@@ -13,7 +13,7 @@ interface ClassInfo {
   time: string;
   ring: number;
   status: ClassStatusValue;
-  entryCount: number;
+  entryCount: number | null;
   userHasEntry?: boolean;
 }
 
@@ -143,7 +143,8 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
       {/* Entry count footer */}
       <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1 border-t border-border/30">
         <Users className="h-3 w-3" />
-        <strong className="text-card-foreground">{classInfo.entryCount}</strong> entries
+        <strong className="text-card-foreground">{classInfo.entryCount ?? '—'}</strong>{' '}
+        {classInfo.entryCount == null ? 'entries unavailable' : 'entries'}
       </div>
     </div>
   );

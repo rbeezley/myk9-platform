@@ -106,9 +106,9 @@ cd apps/myk9show && npx vitest run -t "pattern"
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
 - **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
 
-### Heritage / registry columns (migrations 192–193)
+### Heritage / registry columns (migrations 192–195)
 
-- `shows.landing_style` — `'default' | 'heritage'`. Read via `getShowLandingStyle(show)` from `@/features/registries`.
+- `shows.style` — one of the supported experience styles. Read via `getShowStyle(show)` from `@/features/registries`; it preserves the pre-migration `landing_style` fallback.
 - `trials.registry_id` — sanctioning body (default `'AKC'`). Read via `getTrialRegistry(trial)`.
 - `trials.confirmation_date` — when the Heritage confirmation email is sent. NULL = no formal step.
 - `trials.timezone` — IANA name (default `'America/New_York'`). Read via `getTrialTimezone(trial)`.

@@ -7,6 +7,8 @@ import type { MonogramAccommodation, MonogramPlanItem } from '../types';
 interface PlanSectionProps {
   accommodations: MonogramAccommodation[];
   hospitalityNotes: string | null;
+  awardsDescription: string | null;
+  houseRulesNotes: string | null;
 }
 
 /**
@@ -19,19 +21,26 @@ interface PlanSectionProps {
  * `value-body` rows (longer text) render in Crimson Pro 15px; short display
  * values render in Bodoni Moda 18px.
  */
-export function PlanSection({ accommodations, hospitalityNotes }: PlanSectionProps) {
+export function PlanSection({
+  accommodations,
+  hospitalityNotes,
+  awardsDescription,
+  houseRulesNotes,
+}: PlanSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
-  const hasOnDay = !!hospitalityNotes;
+  const hasOnDay = !!hospitalityNotes || !!awardsDescription || !!houseRulesNotes;
   const hasStays = accommodations.length > 0;
   if (!hasOnDay && !hasStays) return null;
 
   // "On the day" currently surfaces only the hospitality notes field. Once
   // the schema grows structured day-of-event data, populate this list from
   // the hook rather than building inline here.
-  const onDayItems: MonogramPlanItem[] = hospitalityNotes
-    ? [{ label: 'Hospitality', value: hospitalityNotes, isBody: true }]
-    : [];
+  const onDayItems: MonogramPlanItem[] = [
+    ...(hospitalityNotes ? [{ label: 'Hospitality', value: hospitalityNotes, isBody: true }] : []),
+    ...(awardsDescription ? [{ label: 'Awards', value: awardsDescription, isBody: true }] : []),
+    ...(houseRulesNotes ? [{ label: 'House rules', value: houseRulesNotes, isBody: true }] : []),
+  ];
 
   return (
     <section className="mg-section" id="plan">

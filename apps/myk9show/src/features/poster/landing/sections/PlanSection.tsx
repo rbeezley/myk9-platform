@@ -1,10 +1,6 @@
 import { PosterSectionHead } from '../../components/PosterSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
-import {
-  POSTER_BODY_FAMILY,
-  POSTER_DISPLAY_FAMILY,
-  POSTER_MONO_FAMILY,
-} from '../../fonts';
+import { POSTER_BODY_FAMILY, POSTER_DISPLAY_FAMILY, POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
 import type { PosterAccommodation } from '../types';
 
@@ -117,7 +113,7 @@ export function PlanSection({ accommodations }: PlanSectionProps) {
                     textDecoration: 'underline',
                   }}
                 >
-                  Visit website →
+                  Visit website <span aria-hidden="true">→</span>
                 </a>
               )}
             </article>

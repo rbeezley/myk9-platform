@@ -12,6 +12,7 @@ import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useTrialStore } from '@/store/trialStore';
+import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
 import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 import {
@@ -51,6 +52,7 @@ const ShowDetailsPage: React.FC = () => {
   const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
+  const trialClassesLoaded = useTrialStore(s => s.trialClassesLoaded);
   const loadTrials = useTrialStore(s => s.loadTrials);
   const loadTrialClasses = useTrialStore(s => s.loadTrialClasses);
   const {
@@ -146,7 +148,8 @@ const ShowDetailsPage: React.FC = () => {
   // Anon / cold-store fallback data layer for the public read path: trials,
   // classes, and per-trial stats fetched via anon-safe PostgREST when the
   // replicated store is cold (guest session). See useShowLandingData.
-  const { landingTrials, publicShowClasses, publicTrialStats } = useShowLandingData(
+  const { landingTrials, publicShowClasses, publicTrialStats, publicClassInventoryResolved } =
+    useShowLandingData(
     showId_,
     associatedTrials,
     showEntries
@@ -281,8 +284,14 @@ const ShowDetailsPage: React.FC = () => {
   // (publicTrialStats from useShowLandingData).
   const effectiveTrialStats = associatedTrials.length > 0 ? trialStats : publicTrialStats;
 
-  const hasEntryClassInventory =
-    effectiveTrials.length > 0 ? effectiveShowClasses.length > 0 : null;
+  // Three-state by construction; see ShowDetailsPage.entryInventory.
+  const hasEntryClassInventory = resolveEntryClassInventory({
+    storeTrialCount: associatedTrials.length,
+    effectiveTrialCount: effectiveTrials.length,
+    effectiveClassCount: effectiveShowClasses.length,
+    trialClassesLoaded,
+    publicClassInventoryResolved,
+  });
 
   // Redirect if no show ID
   useEffect(() => {
@@ -411,19 +420,22 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
+  // Computed BEFORE the public branch: getEntryStatus has always handled
+  // `not_yet_open`, it was just derived after the public landing had returned.
+  const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries, {
+    hasEntryClassInventory,
+  });
+
   if (audience === 'public') {
     return (
       <ShowPublicLanding
         show={actualCurrentShow}
         landingTrials={landingTrials}
         hasEntryClassInventory={hasEntryClassInventory}
+        entryNotYetOpen={entryStatus.status === 'not_yet_open'}
       />
     );
   }
-
-  const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries, {
-    hasEntryClassInventory,
-  });
 
   // The tab body is identical across both authed surfaces — build it once.
   const tabsProps: ShowDetailTabsProps = {

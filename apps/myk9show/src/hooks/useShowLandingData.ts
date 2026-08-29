@@ -39,6 +39,12 @@ export interface ShowLandingData {
   publicShowClasses: ClassInfo[];
   /** Cold-store per-trial stat cards for the Trials tab. */
   publicTrialStats: Record<string, TrialStats>;
+  /**
+   * Whether the cold/anon class read has settled successfully. `true` when the
+   * read is not needed at all. Callers use it to keep an empty class list
+   * distinguishable from an unread one.
+   */
+  publicClassInventoryResolved: boolean;
 }
 
 export function useShowLandingData(
@@ -69,7 +75,9 @@ export function useShowLandingData(
   // self-falls-through to a direct anon-safe PostgREST read, so fetch per
   // landing trial when the store is cold, then reshape to the tab's ClassInfo.
   const landingTrialIdsKey = useMemo(() => landingTrials.map(t => t.id).join(','), [landingTrials]);
-  const { data: publicClassesByTrial } = useQuery<TrialClassRows[]>({
+  const { data: publicClassesByTrial, isSuccess: publicClassesLoaded } = useQuery<
+    TrialClassRows[]
+  >({
     queryKey: ['public-show-classes', showId, landingTrialIdsKey],
     queryFn: async () => {
       const results = await Promise.all(
@@ -103,5 +111,20 @@ export function useShowLandingData(
     [publicClassesByTrial, showEntries]
   );
 
-  return { landingTrials, publicShowClasses, publicTrialStats };
+  /**
+   * Whether the cold/anon class read has actually SETTLED successfully.
+   *
+   * The page needs this to keep `hasEntryClassInventory` honest: an empty class
+   * list during the two serial round trips below is "not known yet", not "this
+   * show has no classes". Reporting the latter hides the entry CTA on a public
+   * landing and, on the authed surface, tells an exhibitor the show cannot be
+   * entered.
+   *
+   * `true` when the query is not needed (the warm store already has trials), so
+   * callers can treat this as "the cold path has nothing outstanding".
+   */
+  const publicClassInventoryResolved =
+    associatedTrials.length > 0 || landingTrials.length === 0 ? true : publicClassesLoaded;
+
+  return { landingTrials, publicShowClasses, publicTrialStats, publicClassInventoryResolved };
 }

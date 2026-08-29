@@ -33,7 +33,7 @@ export function StandardBody({ data, org, inkSaver = false }: Props) {
       <Text style={s.sectionTitle}>Entry Information</Text>
       <View style={s.pullQuoteRow}>
         <View style={s.pullQuoteCell}>
-          <Text style={s.pullQuoteValue}>${show.preEntryFee ?? '—'}</Text>
+          <Text style={s.pullQuoteValue}>${show.preEntryFee || '—'}</Text>
           <Text style={s.pullQuoteLabel}>Pre-Entry Fee</Text>
         </View>
         <View style={s.pullQuoteCell}>

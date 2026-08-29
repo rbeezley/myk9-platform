@@ -39,6 +39,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
   trials: shouldUseMockTrials() ? mockTrials : [],
   selectedTrialId: shouldUseMockTrials() ? mockTrials[0]?.id || null : null,
   trialClasses: {},
+  trialClassesLoaded: false,
   isLoading: false,
   error: null,
   _unsubscribe: null,
@@ -274,7 +275,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         grouped[trialId].push(merged);
       }
 
-      set({ trialClasses: grouped });
+      set({ trialClasses: grouped, trialClassesLoaded: true });
       reportDebug('store', 'Loaded trial classes from replicated table', {
         trialCount: Object.keys(grouped).length,
         classCount: allClasses.length,
@@ -569,7 +570,7 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         grouped[trialId].push(merged);
       }
 
-      set({ trialClasses: grouped });
+      set({ trialClasses: grouped, trialClassesLoaded: true });
       reportDebug('store', 'Trial classes updated from replicated table', {
         trialCount: Object.keys(grouped).length,
       });

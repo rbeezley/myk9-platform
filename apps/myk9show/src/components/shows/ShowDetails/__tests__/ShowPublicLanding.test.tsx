@@ -55,23 +55,27 @@ function makeTrial(id: string): Trial {
 
 describe('ShowPublicLanding', () => {
   it('renders the styled landing matching the show style', () => {
-    render(<ShowPublicLanding show={makeShow({ style: 'heritage' })} landingTrials={[]} hasEntryClassInventory={null} />);
+    render(<ShowPublicLanding show={makeShow({ style: 'heritage' })} landingTrials={[]} hasEntryClassInventory={null}
+          entryNotYetOpen={false} />);
     expect(screen.getByTestId('heritage-landing')).toBeInTheDocument();
   });
 
   it('renders a different styled landing for a different style', () => {
-    render(<ShowPublicLanding show={makeShow({ style: 'banner' })} landingTrials={[]} hasEntryClassInventory={null} />);
+    render(<ShowPublicLanding show={makeShow({ style: 'banner' })} landingTrials={[]} hasEntryClassInventory={null}
+          entryNotYetOpen={false} />);
     expect(screen.getByTestId('banner-landing')).toBeInTheDocument();
     expect(screen.queryByTestId('monogram-landing')).toBeNull();
   });
 
   it('falls back to the Monogram default for a null style', () => {
-    render(<ShowPublicLanding show={makeShow({ style: null })} landingTrials={[]} hasEntryClassInventory={null} />);
+    render(<ShowPublicLanding show={makeShow({ style: null })} landingTrials={[]} hasEntryClassInventory={null}
+          entryNotYetOpen={false} />);
     expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
   });
 
   it('falls back to the Monogram default for a "default" style', () => {
-    render(<ShowPublicLanding show={makeShow({ style: 'default' })} landingTrials={[]} hasEntryClassInventory={null} />);
+    render(<ShowPublicLanding show={makeShow({ style: 'default' })} landingTrials={[]} hasEntryClassInventory={null}
+          entryNotYetOpen={false} />);
     expect(screen.getByTestId('monogram-landing')).toBeInTheDocument();
   });
 
@@ -85,6 +89,7 @@ describe('ShowPublicLanding', () => {
         })}
         landingTrials={[]}
         hasEntryClassInventory={null}
+          entryNotYetOpen={false}
       />
     );
     const landing = screen.getByTestId('heritage-landing');
@@ -99,6 +104,7 @@ describe('ShowPublicLanding', () => {
         show={makeShow({ style: null })}
         landingTrials={[makeTrial('t1'), makeTrial('t2')]}
         hasEntryClassInventory={true}
+          entryNotYetOpen={false}
       />
     );
     const landing = screen.getByTestId('monogram-landing');
@@ -108,7 +114,8 @@ describe('ShowPublicLanding', () => {
   });
 
   it('passes a null trial when there are no landing trials', () => {
-    render(<ShowPublicLanding show={makeShow({ style: null })} landingTrials={[]} hasEntryClassInventory={null} />);
+    render(<ShowPublicLanding show={makeShow({ style: null })} landingTrials={[]} hasEntryClassInventory={null}
+          entryNotYetOpen={false} />);
     expect(screen.getByTestId('monogram-landing')).toHaveAttribute('data-trial', 'none');
   });
 });

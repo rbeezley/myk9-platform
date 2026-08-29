@@ -104,6 +104,18 @@ export interface TrialStore {
 
   // Trial Classes
   trialClasses: Record<string, SyncableTrialClass[]>; // Maps trialId to its classes
+  /**
+   * Whether `loadTrialClasses` has completed a pass. Without this, an empty
+   * `trialClasses` is indistinguishable from "not read yet" -- and the public
+   * show landing turned that into "this show has no classes, entries are not
+   * available", stated as fact to a prospective exhibitor.
+   *
+   * NOTE this means "the load ran", not "the load succeeded":
+   * `ReplicatedTableQuery.getAll()` reports every failure as an empty list
+   * (MYK9-252), so a silent failure still reads as ready. It closes the
+   * during-load window, not the failed-read one.
+   */
+  trialClassesLoaded: boolean;
   addTrialClass: (
     trialId: string,
     trialClassData: TrialClassInput,

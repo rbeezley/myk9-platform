@@ -24,6 +24,8 @@ interface PosterLandingPageProps {
   trial: Trial | null | undefined;
   allTrials: Trial[];
   hasEntryClassInventory?: boolean | null;
+  /** True when the entry window has not opened yet. */
+  entryNotYetOpen?: boolean | undefined;
 }
 
 /**
@@ -55,6 +57,7 @@ export function PosterLandingPage({
   trial,
   allTrials,
   hasEntryClassInventory,
+  entryNotYetOpen,
 }: PosterLandingPageProps) {
   useEffect(() => {
     ensurePosterFontsLoaded();
@@ -64,7 +67,10 @@ export function PosterLandingPage({
   const classesHref = publicClassesHref(show?.id, allTrials);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
-  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed;
+  // `entryNotYetOpen` matters as much as closed: a show whose entries open
+  // months from now must not advertise an entry CTA that dead-ends.
+  const canEnterOnline =
+    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   // Build the show abbreviation from the first letters of words, e.g.
   // "Spring Scent Work" → "SSW". Falls back to first 4 chars if too short.

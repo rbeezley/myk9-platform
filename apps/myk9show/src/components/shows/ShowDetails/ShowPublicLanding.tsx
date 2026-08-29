@@ -16,6 +16,8 @@ export interface ShowPublicLandingProps {
    * explicit.
    */
   hasEntryClassInventory: boolean | null;
+  /** True when the entry window has not opened yet. */
+  entryNotYetOpen: boolean;
 }
 
 /**
@@ -30,6 +32,7 @@ export function ShowPublicLanding({
   show,
   landingTrials,
   hasEntryClassInventory,
+  entryNotYetOpen,
 }: ShowPublicLandingProps) {
   // When an experience is published, its published style wins over the show's
   // current (possibly draft) style for public visitors.
@@ -54,6 +57,7 @@ export function ShowPublicLanding({
       trial={landingTrials[0] ?? null}
       allTrials={landingTrials}
       hasEntryClassInventory={hasEntryClassInventory}
+      entryNotYetOpen={entryNotYetOpen}
     />
   );
 }

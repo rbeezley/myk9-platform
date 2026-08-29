@@ -228,7 +228,11 @@ export const mapDatabaseToShow = (
     source: ((dbShow as Record<string, unknown>).source as 'myK9Show' | 'external') || 'myK9Show', // Use source from database or default
     entryOpenDate: dbShow.entry_open_date || '',
     entryCloseDate: dbShow.entry_close_date || '',
-    preEntryFee: dbShow.pre_entry_fee?.toString() || '0',
+    // '' not '0': a NULL fee is UNSET, and '0' is truthy, so every landing's
+    // `if (show?.preEntryFee)` guard passed and published "First entry $0.00"
+    // on a club's shareable page. The guards are already written to skip an
+    // empty value.
+    preEntryFee: dbShow.pre_entry_fee?.toString() ?? '',
     dayOfShowFee: dbShow.day_of_show_fee?.toString() || undefined,
     entryDeadline: (dbShow as Record<string, unknown>).entry_deadline as string | undefined,
     lateEntryDeadline: (dbShow as Record<string, unknown>).late_entry_deadline as

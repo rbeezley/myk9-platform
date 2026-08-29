@@ -178,7 +178,16 @@ export function ShowDetailTabs({
                 trials={mapTrials}
                 classes={mapClasses}
                 entries={mapEntries}
-                canManageShow={false}
+                // Forward the caller's permission instead of hardcoding false.
+                // `ShowMapTab` gates its whole row-action layer on this
+                // (`reorderMode={canManageShow ? ... : undefined}`, and
+                // `ShowMapRowActionsMenu` carries Move up, Pull / no-show, Mark
+                // checked in and Edit score). This is the ONLY mount of
+                // `ShowMapTab` in the app, so hardcoding false made run order and
+                // move-up unreachable for everyone -- contradicting the comment
+                // above, which already says the management surface passes it true.
+                // The exhibitor surface passes false and is unaffected.
+                canManageShow={canManageShow}
               />
             </Suspense>
           )}

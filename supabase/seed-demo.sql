@@ -245,8 +245,38 @@ BEGIN
   END IF;
 END $$;
 DELETE FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000010';
--- The shows.club_id FK is RESTRICT: reset the show above, then upsert the
--- tenant roots instead of deleting and recreating clubs.
+-- The shows.club_id FK is RESTRICT (F30), so the demo clubs can no longer be
+-- delete-and-recreated: the row is upserted in section 1 instead.
+--
+-- That DELETE was doing more than removing two rows. It cascaded to every child of
+-- `clubs`, which is what made a reseed DETERMINISTIC -- not merely collision-free.
+-- An upsert only touches the rows the fixture declares, so anything a QA run or a
+-- manual walkthrough added would survive: an extra club member, a club-scoped role
+-- grant, a secretary task. The seed would report success on a contaminated dataset,
+-- and roster and authorization walks would start from it.
+--
+-- Replicate the cascade explicitly for the two demo clubs. Enumerated from
+-- pg_constraint (contype='f', confrelid='public.clubs', confdeltype='c'), not from
+-- memory -- if a new child table is added with ON DELETE CASCADE, it belongs here
+-- too. `shows` is deliberately absent: it is the RESTRICT parent this finding is
+-- about, and its own seeded row is reset above.
+DELETE FROM public.club_members       WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+DELETE FROM public.club_officers      WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+DELETE FROM public.club_premium_templates WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+DELETE FROM public.premium_generations WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+DELETE FROM public.secretary_tasks    WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+-- Club-scoped role grants only. Section 10 re-creates the declared ones (it guards
+-- every insert with NOT EXISTS and normalises is_active/expires_at), so clearing
+-- here removes exactly the undeclared grants the cascade used to remove.
+DELETE FROM public.user_roles         WHERE club_id IN (
+  'dededede-0000-0000-0000-000000000001','dededede-0000-0000-0000-000000000002');
+-- club_stripe_accounts is left alone: section 1 upserts it with DO UPDATE on
+-- (club_id, livemode), which already restores it to the declared state.
 
 -- ---------------------------------------------------------------------------
 -- 1. Clubs (2)

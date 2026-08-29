@@ -128,7 +128,10 @@ describe('seed-demo club scope fixtures', () => {
     // delivers idempotency. Dependent rows carry their own conflict clauses
     // (club_members DO NOTHING, club_stripe_accounts DO UPDATE) and club_officers
     // is not seeded, so nothing relied on the cascade the DELETE used to trigger.
-    const clubsBlock = seed.slice(seed.indexOf('-- 1. Clubs'), seed.indexOf('club_stripe_accounts'));
+    const clubsBlock = seed.slice(
+      seed.indexOf('-- 1. Clubs'),
+      seed.indexOf('INSERT INTO public.club_stripe_accounts')
+    );
     expect(clubsBlock).toContain('ON CONFLICT (id) DO UPDATE');
     // An upsert that leaves deleted_at set "succeeds" while the club stays invisible
     // to every read, silently emptying the demo dataset. The DELETE it replaced
@@ -144,6 +147,21 @@ describe('seed-demo club scope fixtures', () => {
       seed.indexOf('-- 0. Idempotency'),
       seed.indexOf('-- 1. Clubs')
     );
+    // The removed club DELETE cascaded to every child of `clubs`. An upsert only
+    // touches declared rows, so the cascade is replicated explicitly or a reseed
+    // stops being deterministic: extra members, stale club-scoped role grants and
+    // orphaned secretary tasks would all survive and contaminate role walks.
+    for (const child of [
+      'club_members',
+      'club_officers',
+      'club_premium_templates',
+      'premium_generations',
+      'secretary_tasks',
+      'user_roles',
+    ]) {
+      expect(idempotencyBlock).toContain(`DELETE FROM public.${child}`);
+    }
+
     const clubDeleteStart = idempotencyBlock.indexOf('DELETE FROM public.clubs');
     if (clubDeleteStart !== -1) {
       const clubDelete = idempotencyBlock.slice(

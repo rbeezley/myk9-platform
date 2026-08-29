@@ -39,6 +39,36 @@ describe('getEntryCloseSubmitBlocker', () => {
     ).toBeNull();
   });
 
+  it('does not block a secretary after close WITHOUT the late-entry URL flag', () => {
+    // The F14 case: Entry Management's "Add mail-in entry" routes the secretary to
+    // the wizard with no ?entryMode=late, and they were told to contact the trial
+    // secretary -- who is them. Recording a mail-in after the close date is
+    // ordinary secretary work.
+    expect(
+      getEntryCloseSubmitBlocker({
+        entryCloseDate: '2026-05-01',
+        today: '2026-05-10',
+        isLateEntryMode: false,
+        workflowMode: 'secretary_existing',
+      })
+    ).toBeNull();
+  });
+
+  it('still blocks an exhibitor after close even with the URL late-entry flag set', () => {
+    // isLateEntryMode comes purely from ?source=show-desk&entryMode=late, which any
+    // exhibitor can append. The open gate already refuses to trust it; the close
+    // gate now does too, so the flag alone cannot buy a self-service entry after
+    // the deadline.
+    expect(
+      getEntryCloseSubmitBlocker({
+        entryCloseDate: '2026-05-01',
+        today: '2026-05-10',
+        isLateEntryMode: true,
+        workflowMode: 'exhibitor',
+      })
+    ).toBe('Entries are closed for this show. Contact the trial secretary for late-entry help.');
+  });
+
   it('does not block the demo-style close date after show start', () => {
     expect(
       getEntryCloseSubmitBlocker({

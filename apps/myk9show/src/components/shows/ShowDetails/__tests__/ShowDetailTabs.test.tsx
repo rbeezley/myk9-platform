@@ -104,10 +104,25 @@ describe('ShowDetailTabs', () => {
     expect(screen.queryByTestId('entries-tab')).toBeNull();
   });
 
-  it('renders the Show Map (read-only) only when canShowMap is true', async () => {
+  it('renders the Show Map read-only even for managers', async () => {
+    // INTENT: view-only for everyone on the public show page. Decided by #291
+    // ("make public map read-only") and re-affirmed as an architectural
+    // commitment by the workbench collapse. The manager action layer lives on
+    // Show Desk (ShowDeskPanel), not here.
+    //
+    // I broke this assertion during the 2026-08-28 secretary walk on the theory
+    // that the row actions were unreachable app-wide. They are not: Show Desk
+    // mounts ShowDeskPanel with canManageShow and owns the move-up dialog.
+    // Forwarding the prop here duplicates that surface rather than unlocking a
+    // missing one -- do not "fix" this to true.
     renderTabs({ activeTab: 'map', canShowMap: true, canManageShow: true });
     const map = await screen.findByTestId('show-map-tab');
-    // The shell always renders the map read-only, even for managers.
+    expect(map).toHaveAttribute('data-can-manage', 'false');
+  });
+
+  it('keeps the Show Map read-only for the exhibitor surface', async () => {
+    renderTabs({ activeTab: 'map', canShowMap: true, canManageShow: false });
+    const map = await screen.findByTestId('show-map-tab');
     expect(map).toHaveAttribute('data-can-manage', 'false');
   });
 

@@ -12,6 +12,7 @@ import { logger } from '@/services/LoggingService';
 import { Search, CheckSquare, Square, Filter, User } from 'lucide-react';
 import { formatJudgeName, groupClassesByElement } from './SimpleClassSelector.helpers';
 import '@/styles/myk9-class-selection.css';
+import { countLabel } from '@/utils/pluralize';
 
 interface SimpleClassSelectorProps {
   template: ClassTemplate;
@@ -387,7 +388,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                     <h3 className="myk9-class-element-title" onClick={toggleAllElementClasses}>
                       {element}
                     </h3>
-                    <div className="myk9-class-element-count">{elementClasses.length} classes</div>
+                    <div className="myk9-class-element-count">{countLabel(elementClasses.length, 'class', 'classes')}</div>
 
                     {/* Judge Assignment for Element - moved here */}
                     {availableJudges.length > 0 && (

@@ -31,6 +31,17 @@ export interface GroupedSearchablePopoverProps<T extends { id: string }> {
   loading?: boolean;
   /** Message shown while `loading` is true. Defaults to "Loading…". */
   loadingLabel?: string;
+  /**
+   * Ids of the currently selected items, used for `aria-selected` on each option.
+   *
+   * F7: #1845 gave this list `role="listbox"` / `role="option"` and keyboard
+   * activation, but an ARIA listbox option carries its chosen state in
+   * `aria-selected` -- without it a screen reader reads the set of choices and
+   * cannot say which one is in effect. Optional: a picker with no persistent
+   * selection may omit it, and options then expose no selection state at all
+   * rather than a misleading "not selected".
+   */
+  selectedItemIds?: readonly string[] | undefined;
 }
 
 function GroupedSearchablePopover<T extends { id: string }>({
@@ -47,7 +58,12 @@ function GroupedSearchablePopover<T extends { id: string }>({
   id,
   loading = false,
   loadingLabel = 'Loading…',
+  selectedItemIds,
 }: GroupedSearchablePopoverProps<T>) {
+  const selectedIdSet = React.useMemo(
+    () => (selectedItemIds ? new Set(selectedItemIds) : null),
+    [selectedItemIds]
+  );
   const visibleGroups = groups.filter(g => g.items.length > 0);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -106,6 +122,7 @@ function GroupedSearchablePopover<T extends { id: string }>({
                   <div
                     key={item.id}
                     role="option"
+                    {...(selectedIdSet ? { 'aria-selected': selectedIdSet.has(item.id) } : {})}
                     tabIndex={0}
                     onClick={choose}
                     onKeyDown={event => {

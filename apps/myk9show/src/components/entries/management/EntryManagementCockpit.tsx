@@ -210,7 +210,11 @@ export function EntryManagementCockpit({
   return (
     <div ref={ref} className={cn('space-y-4', cockpit.selection.selectedCount > 0 && 'pb-32')}>
       <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-1 flex-wrap gap-2 pb-1" aria-label="Registration queues">
+        <div
+          className="flex min-w-0 flex-1 flex-wrap gap-2 pb-1"
+          role="group"
+          aria-label="Registration queues"
+        >
           {QUEUES.map(queue => (
             <Button
               key={queue.id}
@@ -221,6 +225,12 @@ export function EntryManagementCockpit({
                 'min-h-11 shrink-0 gap-3',
                 cockpit.state.queue === queue.id && 'border border-primary/30 bg-primary/10'
               )}
+              // F19: the active queue was signalled by colour alone. A show with one
+              // entry lands on Needs review, reads "No matching registrations", and
+              // shows "All registrations 1" beside it with nothing saying which
+              // filter is responsible. The Exceptions sub-tabs on this same page
+              // already expose a pressed state.
+              aria-pressed={cockpit.state.queue === queue.id}
               onClick={() => cockpit.setQueue(queue.id)}
             >
               {queue.label}

@@ -162,12 +162,29 @@ defaults to **8:00 AM**, so choosing the show's own start date as the entry-clos
 date — normal for a day-of-entry show — always violates the rule. The time control
 is inside the date popover, so the fix is not where the error is shown.
 
-### F7 — P3 — Judge and chairman pickers are not exposed as lists
+### F7 — P3 — MOSTLY FIXED ELSEWHERE — Judge and chairman pickers were not exposed as lists
 
-Rows in both pickers render as bare `<div>`s inside a `role="dialog"` popover, with
-no `option`, `listitem`, or button role, and the person's name is not a leaf node.
-Nothing is keyboard-navigable as a list or announced as a set of choices. This
-matters for a role explicitly described as low-computer-savviness volunteers.
+Accurate when observed, and largely resolved by someone else the same day.
+
+The walk found both pickers rendering rows as bare `<div>`s inside a `role="dialog"`
+popover — no `option`/`listitem` role, nothing keyboard-navigable, the person's name
+not a leaf node. `git log -S 'role="option"'` on
+`components/ui/grouped-searchable-popover.tsx` returns exactly one commit: `8b8868f33`,
+[#1845](https://github.com/rbeezley/myk9-platform/pull/1845), merged **2026-08-28** —
+the day of the walk. It added `role="listbox"`, `role="option"`, `tabIndex={0}` and
+Enter/Space activation. My snapshot predates it.
+
+Checked before changing anything, because F29 had just taught me what happens when I
+do not.
+
+**Residual, and it is real:** the listbox had no `aria-selected`. An ARIA listbox
+option carries its chosen state there, so a screen reader could enumerate the choices
+but never say which one was in effect — for a role the audit elsewhere describes as
+low-computer-savviness volunteers, that is the half that matters. Both pickers now
+pass their selection (`selectedItemIds`), single-select for chairman/secretary and
+multi-select for judges. The prop is optional: a picker tracking no persistent
+selection omits the attribute entirely rather than announcing a misleading
+"not selected".
 
 ### F8 — P3 — Chairman picker lists every person on the platform
 
@@ -904,6 +921,88 @@ the Show Map, Show Desk and Entry Management so none of them offers cross-elemen
 lower-level targets. Confirmed live: an Interior Novice entry offered exactly one
 target (Interior Advanced), and a show with only Container Novice A + Interior Novice A
 correctly offered none.
+
+### F34 — P1 — NEW, systemic — Every id-keyed dropdown in the app displays a raw UUID
+
+Found while fixing F28, which turned out to be one instance of a general defect rather
+than a one-page bug.
+
+**Mechanism, verified against the installed package.** `@base-ui/react` 1.7.0 documents
+on `Select.Root` (`select/root/SelectRoot.d.ts:97`):
+
+> "Data structure of the items rendered in the select popup. When specified,
+> `<Select.Value>` renders the label of the selected item instead of the raw value."
+
+Our `SelectItem` wraps its children in `Select.ItemText` correctly, but the items are
+**unmounted while the popup is closed** — which is exactly when the trigger has to render
+a label. Without `items` on the root there is nothing to resolve the value against, so
+the trigger prints the value itself.
+
+**It is not limited to preselected values.** A scratch probe (written, run, deleted)
+rendered a select with no `items`, opened it, and clicked "Richard Beezley". The closed
+trigger then read:
+
+```
+TRIGGER TEXT AFTER SELECT >>> "08a66fc8-51b4-484a-918a-03bdd5a8d5bf"
+```
+
+So the user picks a name and the control answers with a UUID. Both the preset path (data
+loaded from the database) and the interactive path are affected.
+
+**Blast radius.** 179 `<Select>` sites pass a value without `items`. Most are harmless
+because their value already *is* the label (`"Novice"`, `"AKC"`). The visible damage is
+where value != label — **43 option sites across 34 files** keyed by an id:
+
+| Surface | File |
+| --- | --- |
+| Move-up target class | `features/show-map/ShowMapMoveUpDialog.tsx:100` |
+| Reports selector | `pages/secretary/ReportsPage/ReportControlsBar.tsx:228` (4) |
+| Incident log | `features/show-workbench/IncidentLogCard.tsx:190` (4) |
+| Waitlist show picker | `pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:66` (2) |
+| Check-in report trial | `pages/secretary/CheckInReportPage.tsx:258` |
+| Volunteer scheduling trial | `pages/secretary/VolunteerSchedulingPage/index.tsx:190` |
+| Class judge (4 more surfaces) | `SimpleClassSelector`, `SimpleEditForm`, `ClassEditForm`, `ClassEditPanel` |
+| Club pickers | `ShowEditBasicInfoTab`, `ManageUserRolesDialog`, `BulkRoleDialog` |
+| …plus 20 more | see the scan in the Phase 1 commit |
+
+**Fixed here:** only F28 (`ClassManagementRow`), because that is the one the walk
+observed and the one on the page whose purpose is assigning judges. The pattern is
+`items={Record<value, label>}` on the root, including an entry for a value that is
+assigned but missing from the options list — otherwise it falls straight back to the raw
+id.
+
+**Not fixed:** the other 33 files. That is a 34-file sweep touching admin, reports,
+waitlist, volunteers and ringside, and it needs its own PR and its own verification pass;
+batching it into the secretary walk would make this change unreviewable. Two things worth
+deciding with it: whether the shared `Select` wrapper should fail loudly (or warn in dev)
+when given a `value` with no `items`, so the next one cannot ship silently; and whether
+a lint rule can catch it. Filed as Phase 3.
+
+
+### F35 — P3 — NEW — A local time that is exactly UTC midnight resolves one day late
+
+Surfaced while fixing F6, and **pre-existing** rather than introduced by it.
+
+`toLocalDateOnly` (`utils/date-format.ts`) short-circuits any ISO string ending
+`T00:00:00Z` to its literal date part. That is deliberate and correct for its stated
+case: a `DATE` column round-trips as UTC midnight, and local getters would misread it
+as the previous day west of UTC. But a genuine *local* timestamp that happens to land
+on UTC midnight is indistinguishable from that — 5:00 PM PDT, 7:00 PM EST — so it
+resolves to the next calendar day.
+
+Concretely, a show ending 5:00 PM Pacific serialises to `2026-08-29T00:00:00.000Z` and
+reads as Aug 29 rather than Aug 28, which suppresses the "End date must be on or after
+start date" rule for that combination.
+
+Not a regression: the previous `slice(0, 10)` returned the same wrong date for the same
+input (verified before changing it), so F6's fix is a strict improvement that merely
+made this visible. Pinned by a test in `showCreationWizardValidation.test.ts` marked
+KNOWN LIMITATION rather than folded silently into an unrelated assertion.
+
+The real fix is for the wizard to carry date-only values instead of ISO datetimes, so
+the ambiguity never arises — that is a data-shape change across the picker and the
+show payload, not a one-line edit, so it is left open.
+
 
 ## What works well
 

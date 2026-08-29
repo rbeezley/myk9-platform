@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
+import { pluralize } from '@/utils/pluralize';
 
 interface JudgeCapacityOverviewProps {
   judgeDays: JudgeDayCapacity[];
@@ -35,7 +36,15 @@ export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapaci
           <Card key={`${day.judgeId}-${day.showDate}`}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-base leading-tight">{day.judgeName}</CardTitle>
+                {/* F20: the card was titled with a bare person name, so "Test Judge
+                    -- 1 / 125 entries" read as an exhibitor with 125 entries rather
+                    than a judge-day capacity. Say what the name is. */}
+                <CardTitle className="text-base leading-tight">
+                  <span className="text-muted-foreground block text-xs font-medium tracking-wide uppercase">
+                    Judge
+                  </span>
+                  {day.judgeName}
+                </CardTitle>
                 {isFull && (
                   <Badge variant="destructive" className="shrink-0">
                     Full
@@ -49,7 +58,8 @@ export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapaci
               <div>
                 <div className="mb-1 flex justify-between text-sm">
                   <span className="font-medium">
-                    {day.confirmedCount} / {day.capacity} entries
+                    {day.confirmedCount} / {day.capacity}{' '}
+                    {pluralize(day.capacity, 'entry', 'entries')}
                   </span>
                   <span className="text-muted-foreground">
                     {day.availableSpots} spot{day.availableSpots !== 1 ? 's' : ''} available

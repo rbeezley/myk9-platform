@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Users } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import {
@@ -156,9 +156,22 @@ export default function VolunteerSchedulingPage() {
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Users className="mb-4 h-12 w-12 text-muted-foreground/50" />
         <h2 className="text-lg font-semibold">Select a Show</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choose a show from the sidebar to manage volunteers.
+        {/* F32: this used to say "Choose a show from the sidebar", but the sidebar
+            has no show picker -- it carries a single link to the current live show,
+            and following it navigates away from Volunteers. Name the path that
+            actually works: the page needs ?showId=, which Show Desk's Tools sheet
+            appends. */}
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">
+          Volunteer scheduling is per show. Open the show you want, then choose{' '}
+          <span className="font-medium text-foreground">Tools &rarr; Volunteers</span> on its Show
+          Desk.
         </p>
+        <Link
+          to="/secretary/dashboard"
+          className="mt-4 text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Go to your shows
+        </Link>
       </div>
     );
   }

@@ -19,4 +19,3 @@ Every styled public show landing table SHALL remain usable when its intrinsic wi
 - **WHEN** a landing style contains a wide table or dense horizontal navigation
 - **THEN** the table is contained in a keyboard-reachable horizontal scroll region or responsive alternative
 - **AND** navigation content is not consumed by fixed desktop padding
-

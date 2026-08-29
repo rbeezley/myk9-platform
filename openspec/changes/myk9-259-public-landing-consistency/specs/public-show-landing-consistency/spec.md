@@ -59,4 +59,3 @@ Every public show landing style SHALL identify the show name as the page's prima
 - **WHEN** the public landing is loading, missing, or cannot load
 - **THEN** assistive technology receives an appropriate status or alert signal
 - **AND** the state begins with a page-level heading
-

@@ -14,4 +14,3 @@ The show landing page's entries-received counter SHALL reflect the show's actual
 - **WHEN** the sanctioned public entry-count read fails
 - **THEN** the entries-received figure renders as unknown rather than zero
 - **AND** no percentage or capacity claim is calculated from the unavailable count
-

@@ -97,7 +97,7 @@ export default function ShowSettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/shows/${selectedShowId}/results-control`)}
+              onClick={() => navigate(`/shows/${selectedShowId}/show-desk?tool=self-checkin`)}
             >
               Manage <ArrowRight className="ml-1 h-4 w-4" />
             </Button>

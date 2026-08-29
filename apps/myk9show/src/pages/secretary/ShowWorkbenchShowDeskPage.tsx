@@ -22,6 +22,7 @@ import {
   type CloseoutTrialSummary,
 } from '@/features/show-workbench/showCloseOutShow';
 import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
+import { SelfCheckinTool } from '@/features/show-workbench/SelfCheckinTool';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -265,6 +266,25 @@ export function ShowWorkbenchShowDeskPage() {
         ),
       },
       {
+        id: 'self-checkin',
+        title: 'Self check-in',
+        summary: 'Control exhibitor self check-in by show, trial, or class',
+        layout: 'wide',
+        content: (
+          <SelfCheckinTool
+            showId={currentShow.id}
+            trials={associatedTrials}
+            classes={showClasses.map(cls => ({
+              id: cls.id,
+              trialId: cls.trialId,
+              element: cls.element,
+              level: cls.level,
+              section: cls.section,
+            }))}
+          />
+        ),
+      },
+      {
         id: 'add-entries',
         title: 'Add entries',
         summary: 'Choose own, paper, or late entries without leaving Show Desk',
@@ -358,7 +378,7 @@ export function ShowWorkbenchShowDeskPage() {
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
                 <Link to={`/shows/${currentShow.id}/results-control`}>
                   <ListChecks className="h-5 w-5" />
-                  <span className="text-left">Results visibility</span>
+                  <span className="text-left">Results</span>
                 </Link>
               </Button>
               <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
@@ -387,6 +407,7 @@ export function ShowWorkbenchShowDeskPage() {
       },
     ];
   }, [
+    associatedTrials,
     currentShow,
     closeoutClasses,
     closeoutTrials,

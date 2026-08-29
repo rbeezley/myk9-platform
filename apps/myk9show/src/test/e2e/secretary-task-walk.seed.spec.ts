@@ -49,12 +49,27 @@ test('secretary walk', async ({ page }) => {
 
   const consoleErrors: string[] = [];
   const requests: string[] = [];
-  page.on('request', r => { const u = r.url(); if (/supabase|rest\/v1|auth\/v1|functions\/v1/.test(u)) requests.push(`${r.method()} ${u.slice(0, 160)}`); });
+  page.on('request', r => {
+    const u = r.url();
+    if (/supabase|rest\/v1|auth\/v1|functions\/v1/.test(u)) requests.push(`${r.method()} ${u.slice(0, 160)}`);
+    // Audit aid: capture the body of show writes so a dropped field is visible.
+    if (/rpc\/create_show_with_children/.test(u) || (/rest\/v1\/shows/.test(u) && r.method() !== 'GET')) {
+      const body = r.postData() ?? '';
+      requests.push(`  BODY ${r.method()} ${u.replace(/^.*rest\/v1\//, '')} :: ${body.slice(0, 700)}`);
+    }
+  });
   page.on('response', r => {
     const u = r.url();
     if (/rest\/v1|functions\/v1/.test(u) && r.status() >= 400) {
       consoleErrors.push(`HTTP ${r.status()} ${decodeURIComponent(u).slice(0, 900)}`);
       void r.text().then(b => { consoleErrors.push(`  BODY(${r.status()}): ${b.slice(0, 400)}`); }).catch(() => undefined);
+    }
+    // Audit aid: a PATCH that returns 200 with an EMPTY array is an RLS denial or a
+    // filter miss, not a success -- capture it even though it is not a 4xx.
+    if (/rest\/v1\/entries/.test(u) && r.request().method() === 'PATCH') {
+      void r.text().then(b => {
+        consoleErrors.push(`  PATCH ${r.status()} rows=${b.trim()===''?'(empty body)':b.slice(0,200)}`);
+      }).catch(() => undefined);
     }
   });
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 300)); });

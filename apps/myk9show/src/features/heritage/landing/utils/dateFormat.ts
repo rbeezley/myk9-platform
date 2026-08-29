@@ -1,3 +1,4 @@
+import { resolveDisplayDate } from '@/features/_shared/landing/calendarDate';
 /**
  * Date formatting helpers for Heritage surfaces.
  * All formatting respects the trial's IANA timezone.
@@ -12,19 +13,11 @@
 // timezone conversion) correctly showed "Aug 1". A date-only value is a
 // calendar date, not an instant — it must never be converted through a
 // timezone at all, only a genuine timestamp (with a time component) should be.
-const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * Build a local `Date` from a "YYYY-MM-DD" string's own Y/M/D — no UTC/timezone
- * conversion. Callers gate on DATE_ONLY_PATTERN first, so all three parts exist;
- * `Number(...)` (which accepts `undefined`) keeps this compiling cleanly even
- * under `noUncheckedIndexedAccess`, where the split parts type as
- * `string | undefined`.
- */
-function parseDateOnlyAsLocalCalendarDate(dateOnly: string): Date {
-  const parts = dateOnly.split('-');
-  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-}
+// UPDATE: the guard here was right in intent and dead in practice. These are
+// `timestamptz` columns (migration 035), so they arrive as
+// "2026-09-01T00:00:00+00:00" and never matched a bare YYYY-MM-DD -- so this
+// variant rendered the wrong day too. The rule now lives in
+// _shared/landing/calendarDate.ts, which matches both forms.
 
 export function formatDateInTimezone(
   iso: string,
@@ -32,8 +25,7 @@ export function formatDateInTimezone(
   format: 'short' | 'long' | 'time'
 ): string {
   try {
-    const isDateOnly = DATE_ONLY_PATTERN.test(iso);
-    const date = isDateOnly ? parseDateOnlyAsLocalCalendarDate(iso) : new Date(iso);
+    const { date, isCalendarDay: isDateOnly } = resolveDisplayDate(iso);
     if (isNaN(date.getTime())) return '';
 
     // A date-only value has no meaningful timezone to convert through — format
@@ -76,8 +68,7 @@ export function formatDateInTimezone(
 /** Format an ISO date as a journey step label, e.g. "15 Apr". */
 export function formatJourneyDate(iso: string, timezone: string): string {
   try {
-    const isDateOnly = DATE_ONLY_PATTERN.test(iso);
-    const date = isDateOnly ? parseDateOnlyAsLocalCalendarDate(iso) : new Date(iso);
+    const { date, isCalendarDay: isDateOnly } = resolveDisplayDate(iso);
     if (isNaN(date.getTime())) return '';
     return date.toLocaleDateString('en-US', {
       ...(isDateOnly ? {} : { timeZone: timezone }),

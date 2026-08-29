@@ -206,7 +206,7 @@ Both halves work; nothing in the class dialog points at the other half.
 The class Edit dropdown lists the judge as `Test Judge( - )` — a template emitting
 its separator and parentheses with no values to put in them.
 
-### F14 — P1 — "Add mail-in entry" is a dead end once entries close
+### F14 — P1 — FIXED — "Add mail-in entry" is a dead end once entries close
 
 Entry Management → **Add entry** → **Add mail-in entry** routes to
 `/secretary/register/:showId`, the exhibitor registration wizard, which enforces the
@@ -225,6 +225,22 @@ Management points at it, and Entry Management is the canonical entries surface.
 
 Note the Tools panel offers *both* "Add mail-in entry" (blocked) and "Add late entry"
 (works) side by side, with no indication that one of them will refuse.
+
+**Fix applied.** `getEntryCloseSubmitBlocker` now exempts organizer workflows
+(`workflowMode !== 'exhibitor'`), mirroring `getEntryOpenSubmitBlocker`. The
+asymmetry was the whole bug: the open gate already exempted RBAC-derived organizers
+and deliberately refused to trust the URL flag, while the close gate did the reverse —
+trusting only `?source=show-desk&entryMode=late` and never exempting the secretary.
+
+That also closes a hole the open gate's own comment had already named: the flag "any
+exhibitor can append" was the *only* way past the close gate, so appending it bought a
+self-service entry after the deadline. `isLateEntryMode` is no longer honoured alone;
+every legitimate late-entry caller is an organizer, which the RBAC check covers.
+
+*Verified:* Entry Management → Add entry → Add mail-in entry now opens Step 1 (Select
+Dogs) on a show whose entries closed, with no `entryMode=late` in the URL. Two new
+guard tests: a secretary is not blocked after close without the flag, and an exhibitor
+IS blocked after close even with it. 18 guard tests pass.
 
 ### F15 — P1 — FIXED — A blank Day-of-Show Fee charges $0 for every entry once the show starts
 
@@ -336,7 +352,7 @@ dropping the scored columns the reports need.
 columns through a defensive accessor precisely because the generated row type cannot
 know them yet.
 
-### F21 — P2 — A dog can be entered with no registration number by any path but the wizard
+### F21 — P2 — FIXED — A dog can be entered with no registration number by any path but the wizard
 
 `registrationPrerequisite.ts` correctly blocks class selection when the dog has no
 registration for the show's registry, and carves out only conformation puppy classes.
@@ -545,19 +561,33 @@ three showed the Score Sheet):
 blob is dropped before the markup write. Confirmed non-vacuous (it fails when the
 handoff is removed). 123 ReportsPage tests, typecheck, ratchet and lint all clean.
 
-### F26 — P1 — High in Trial / High in Class has no reachable surface
+### F26 — P1 — CORRECTED — High in Trial / High in Class does not exist
 
 Task 11 has no report. The Reports picker lists 24 report types and none of them is a
 High in Trial or High in Class award report.
 
-An implementation exists — `components/awards/AwardsProcessor.tsx` computes
-`High In Trial`, including a winner spotlight — but it is **orphaned**: its only
-importer anywhere in the repo is `src/test/phase5-component-validation.test.ts`,
-which renders it directly. No route, no page, no component mounts it. `awards/` holds
-that one file.
+I first recorded this as "an implementation exists but is orphaned". **That was too
+generous.** `components/awards/AwardsProcessor.tsx` computes nothing: it runs
+`simulateProcessing(800)` fake delays behind a progress bar and then returns a
+hardcoded `mockAwards` array — "Champion Rex / John Smith", "Lady Belle /
+Mary Johnson". It is a UI prototype, not an award calculator.
 
-So the component is kept green by a test while being unreachable in the product —
-the shape where a passing test certifies something no user can get to.
+Its only importer anywhere is `src/test/phase5-component-validation.test.ts`, which
+renders it directly. So a passing test keeps a mock alive that no user can reach and
+that would produce fabricated winners if they could.
+
+**Not fixed; rule since established.** `docs/rulebooks/akc-scent-work-regulations.txt`
+Chapter 6 §8 defines it: offered only when more than one element runs at a difficulty
+level; eligible teams entered every element offered at that level and qualified in each;
+Handler Discrimination excluded; ranked by summed faults, then summed time, then a coin
+flip; one winner per level. §10 covers uneven element offerings, and §9 makes High
+Combined Division mandatory alongside HIT when Handler Discrimination is offered.
+
+Also worth correcting: **"High in Class" is not an AKC concept** (zero rulebook
+occurrences). The equivalent is §6 Placements 1–4 per class, which the app already
+computes — verified during the walk. So this is one missing report, not two.
+
+Planned as Phase 2B in `plan-secretary-walk-remediation.md`.
 
 ### F27 — P2 — A cold replication store reports "Class not found" for a class that exists
 
@@ -591,28 +621,289 @@ page whose purpose is assigning judges.
 Also note this is the **third** surface that sets a class judge, after the class
 detail Edit dialog and Edit Show → Judges (F12).
 
-### F29 — P2 — Run order: no reorder control renders on the paths a secretary would use
+### F29 — SPLIT — one half WITHDRAWN (my error), one half REAL and still open
 
-Task 5 has an implementation — `features/show-map/` contains `ShowMapRunOrderMenu`
-("Run order" per class), `ShowMapSortableEntryRow` with drag plus
-`Alt+ArrowUp/ArrowDown` keyboard reordering, and a `ShowMapReorderBanner` — and
-`ShowMapTab` passes `reorderMode={canManageShow ? reorderMode : undefined}`.
+**I got this wrong, shipped the wrong fix, and CI caught it.** Recorded in full
+because the mistake is the instructive part.
 
-No such control rendered anywhere I looked as the managing secretary:
+**What I claimed:** `ShowDetailTabs` discards its `canManageShow` prop and passes
+`canManageShow={false}` to `ShowMapTab`; since that is the only mount of
+`ShowMapTab`, the entire action layer was unreachable app-wide. I changed it to
+forward the prop, and rewrote the test that asserted `false`, reasoning that the
+property was "inherited, not decided" because #1035 (a refactor) said the map
+"stays read-only".
 
-- Show detail → **Show Map** tab, audit show, class expanded to its entry: class row
-  offers only Expand / class name / progress.
-- Same tab on the demo show, trials expanded, classes "Not started" with 63–66
-  entries each: **zero** occurrences of "Run order" in the accessibility tree.
-- **Manage Classes** → "More actions": View waitlist, Set to Scheduled / Upcoming /
-  In Progress / Completed / Cancelled, Delete class. No run order.
-- **Show Desk**: links out to "Run order and class setup", which lands on Manage
-  Classes — which has no run-order control.
+**Why that was wrong.** I looked at the refactor that preserved the behaviour
+instead of the commit that chose it. The origin is
+[#291](https://github.com/rbeezley/myk9-platform/pull/291), *"feat(show-map): make
+public map read-only"* — a deliberate feature PR — and
+`docs/archive/plan-show-map-workbench-collapse.md` lists **"view-only public map"**
+among the architectural commitments the workbench collapse had to respect. The
+`false` is an INTENT, not drift. A second test I had not run,
+`ShowDetailsPage.test.tsx:753` ("renders the public Show Map as read-only for show
+managers"), pinned it and failed in CI on all three shards.
 
-So the deep link is named for a capability the destination does not appear to offer.
-The likely cause is the `canManageShow` (or `compact`) gate in `ShowMapTab`, which
-needs a focused look — this is "the control never rendered on these paths", not
-"the feature does not exist anywhere".
+**F29a — WITHDRAWN. The row actions are not unreachable.** Show Desk
+(`/shows/:showId/show-desk`) renders `ShowDeskPanel` with `canManageShow`, which
+drives `SecretaryCockpit` off `getRankedActions(...)`. That catalog
+(`showMapActions.ts`) contains `move-up-entry`, `mark-checked-in`, `scratch-entry`,
+`edit-score`, `review-entry` and `message-handler`, and `ShowDeskPanel` owns
+`ShowMapMoveUpDialog` directly. Move-up is reachable for a secretary today; my walk
+missed it because I searched the Show Map tab for a row menu instead of the cockpit,
+which surfaces actions contextually by rank rather than as a per-row menu.
+
+My change therefore did not unlock a missing capability — it **duplicated Show Desk's
+capability onto a browsing page**, the exact move CLAUDE.md's "consolidate, don't
+duplicate" rule exists to prevent. Reverted; the component and both tests now carry a
+comment naming #291 so the next reader does not repeat it.
+
+**F29b — REAL, still open. Run order has no reachable surface.** This half survives
+and is *not* fixed by anything above:
+
+- `ShowMapRunOrderMenu` and `reorderMode` (drag plus `Alt+ArrowUp/ArrowDown`) render
+  only inside `ShowMapStructureTable`, which is imported only by `ShowMapTab`, whose
+  `reorderMode={canManageShow ? reorderMode : undefined}` is now — correctly — always
+  undefined.
+- The cockpit action catalog has **no** run-order/reorder command, so Show Desk does
+  not offer it either.
+- **Manage Classes** → "More actions" has no run-order control.
+- Show Desk links out to **"Run order and class setup"**, which lands on Manage
+  Classes — a deep link named for a capability its destination does not have.
+
+So `docs/roles/secretary.md`'s "publish the running order" still has no working path,
+and a reorder implementation exists that nothing can reach. The fix is **not** to
+unlock the public map. It is to give run order a home on a management surface —
+either a cockpit action or a control on Manage Classes, where the existing deep link
+already points. Left open deliberately; sized as a Phase 2 judgment call, not a
+mechanical fix.
+
+### F30 — P1 — MECHANISM FOUND — Deleting a club silently strips management from its shows, permanently
+
+**Twice rewritten. The first version blamed the creation wizard, the second the edit
+path. Both were wrong, and the disproof is the useful part.**
+
+Observed: `shows.club_id IS NULL` on the audit show
+(`e8675466-…`), which makes every secretary write to it fail — see F31 for the chain.
+
+Attempts to reproduce, all negative:
+
+| Probe | Path | Result |
+| --- | --- | --- |
+| `ZZ Audit - Club Persistence Probe` | wizard → **Create Show (Unpublished)** | `club_id` set correctly |
+| `ZZ Audit - Publish Path Probe` | wizard → **Create & Publish Show** | `club_id` set correctly |
+| Probe 1 again | More show actions → Edit → Judges → Save Changes | `club_id` **preserved** |
+
+The wizard and the edit path are therefore exonerated: identical steps produced a
+correct `club_id` twice.
+
+**The cause is club deletion, and a reseed does it every time.** Both probe shows had
+a correct `club_id` at 00:58; after running `seed-demo.sql` they were both NULL. The
+chain:
+
+- `seed-demo.sql:249` — `DELETE FROM public.clubs WHERE id IN ('dededede-…001', …)`.
+- `shows_club_id_fkey` is `FOREIGN KEY (club_id) REFERENCES clubs(id)`
+  **`ON DELETE SET NULL`**.
+- So deleting the club nulls `club_id` on **every** show that references it.
+- The seed recreates the club under the same id and re-inserts *its own* fixture shows
+  with `club_id` set, so the fixture data looks correct — and every non-fixture show is
+  silently orphaned.
+
+That also explains the original audit show, whose `updated_at` (21:59) was hours after
+its creation: a reseed, not the wizard.
+
+What *is* established, and is the finding worth keeping:
+
+- `shows.club_id` is nullable and nothing — no constraint, no trigger — prevents a
+  club-less show from existing.
+- `20260828230000` (MYK9-258) rewrote `can_manage_show` to require
+  `s.club_id IS NOT NULL`. That fix is right on its own terms: a club-less show
+  should not be manageable by *every* secretary.
+- Together those mean a show that loses its club becomes manageable by **nobody** —
+  not its creator, not a club admin, only a site admin. There is no in-app route back,
+  because every repair write is itself gated by `can_manage_show`.
+
+So the severity is not "the wizard is broken" but **"deleting a club silently and
+permanently removes management from all of its shows"**.
+
+Pre-launch this only costs demo and QA shows on every reseed. It is not a demo-only
+problem though: the same FK rule applies to a real club deleted for any reason, and
+after MYK9-258 the resulting shows cannot be repaired from inside the app, because
+every repair write is itself gated by `can_manage_show`.
+
+Worth noting the two changes are individually reasonable and only dangerous together:
+`ON DELETE SET NULL` was harmless while `club_id` was descriptive, and MYK9-258 is
+correct that a club-less show should not be manageable by every secretary. Making
+`club_id` authorization-critical turned an existing nullable FK into a trapdoor.
+
+Options, none of which I am picking unilaterally: `ON DELETE RESTRICT` (would require
+the seed to stop delete-recreating its club), a `NOT NULL` constraint, or a site-admin
+reassign-club repair path. The seed could also simply re-point or refuse to orphan
+shows it does not own.
+
+*Audit artifacts on staging:* the walk show plus three probe shows
+(`6cea4cdf-…`, the publish probe, and `ZZ Audit - Rewalk`), and one move-up-created
+entry on the demo show (`7ae6ac8b-…`, Interior Advanced) whose id falls outside the
+seed's fixture ranges, so a reseed will not remove it.
+
+### F31 — P3 — CORRECTED — A denied entry update is diagnosed internally as a deletion
+
+**This finding was first written as a P1 silent-data-loss bug. That was wrong, and the
+correction is the substantive part.** The app *does* tell the secretary. On the failed
+status change it raised a persistent toast:
+
+> We couldn't update this entry. Retry or discard this change.  [Retry] [Discard]
+
+with `duration: Infinity` and both recovery actions wired to
+`retryFailedMutation` / `discardFailedMutation`
+(`providers/ReplicationSyncProvider.tsx:674`). I originally grepped a snapshot taken
+before the toast rendered and concluded "no error anywhere". The user-facing
+behaviour here is good.
+
+What remains, and it is developer-facing only: the failure is **misdiagnosed**. The
+chain is
+
+1. `shows.club_id IS NULL` (F30), so `can_manage_show` — which `20260828230000` now
+   requires `s.club_id IS NOT NULL` for — returns false.
+2. The `entries_update` policy denies, so the UPDATE matches zero rows and PostgREST
+   answers `200 []` (captured: `PATCH 200 rows=[]`; the walk's 4xx count stays 0).
+3. `classifyEmptyUpdateResult` (`packages/replication/src/mutation-occ.ts:139`) then
+   re-reads the row to tell deletion, OCC conflict and RLS denial apart — good design.
+   But the re-read `SELECT` is filtered by the *same* policy that denied the UPDATE,
+   so it returns nothing, and the `!serverCheck` branch concludes:
+
+   `Row <id> on entries no longer exists server-side.`
+
+An unreadable row and a deleted row are indistinguishable to that check, so a
+permission problem is logged as data loss. The user gets the right prompt; anyone
+reading the log to work out *why* is pointed at the wrong cause.
+
+The optimistic list also shows the change as applied ("Needs review 1") until the
+failure lands — correct for offline-first, worth knowing when reading a screenshot.
+
+### F32 — P3 — The Volunteers page tells you to use a sidebar picker that does not exist
+
+`/secretary/volunteers` without a `showId` renders **"Select a Show — Choose a show
+from the sidebar to manage volunteers."** The sidebar has no show picker; it has a
+single link to the current live show, and following it navigates away from Volunteers.
+Visiting a show first does not help either — the page still asks you to select one.
+
+The working entry point is **Show Desk → Tools → Volunteers → Open volunteer
+scheduling**, which appends `?showId=…`; with that param the page is fully functional
+(Add Volunteer, per-class "Assign volunteer" slots grouped by trial). So the feature
+works and only its empty state misdirects — but it misdirects toward a control that
+does not exist, which is worse than saying nothing.
+
+Third instance of the same shape: `Compose` not inheriting the show (F23), Show Desk's
+"Run order and class setup" naming a capability its destination lacks (F29), and this.
+
+### F33 — P1 — FIXED AND DEPLOYED — The receipt says $30.00 and the database records $0.00
+
+Found during the post-fix re-walk, on a clean show with a club. A mail-in entry
+submitted through Entry Management produced:
+
+- Receipt on screen: **"Confirmation # MK9-000103 $30.00"**
+- `entries.entry_fee`: **0.00**
+- `enrollments.total_amount`: **0**, `paid_amount`: **0.00**, `payment_status`: `paid`
+
+So the secretary is told they took $30 and the club's records say the entry was free.
+For contrast, the 514 seeded entries on the demo show all carry `entry_fee = 30.00`,
+so this is specific to the wizard's write path, not the data model.
+
+This is **not** F15 resurfacing. F15 displayed $0 and stored $0 — wrong but internally
+consistent, and the fix corrected the computation the Payment step displays. Here the
+display is now right and the persisted value is still zero, which is worse: nothing on
+screen contradicts the record, so it cannot be noticed at the desk.
+
+It also explains something I saw earlier and did not question: the closeout panel on a
+514-entry show reports **"At-show collected $0.00"**.
+
+**Root cause — the server-side twin of F15.** The client was never at fault: it
+computed and sent 3000 cents. `submit_show_entries` is authoritative and priced the
+entry itself:
+
+```sql
+v_server_fee := COALESCE(
+  CASE WHEN v_show_start IS NOT NULL AND CURRENT_DATE >= v_show_start
+       THEN v_show_dos_fee ELSE v_show_pre_fee END,
+  v_class_fee, 0);
+```
+
+`COALESCE` only falls through on NULL, and a blank Day-of-Show Fee is stored as
+`0.00`. So from the show's start date the day-of branch yields zero.
+
+The fee-mismatch guard cannot catch it, because it is one-directional:
+
+```sql
+IF v_client_cents IS NOT NULL AND v_client_cents < v_server_cents THEN RAISE ...
+```
+
+It exists to stop underpayment, so `3000 < 0` is false and the correct client figure
+is silently discarded. Fixing F15 on the client therefore made this *less* visible,
+not more: before, display and record agreed at zero; now the screen says $30 and the
+record says nothing.
+
+`submit_show_entries` is the only server-side use of `day_of_show_fee` for pricing —
+the edge functions only print it on the premium list — so the fix is contained.
+
+Impact is the Financial Report, closeout reconciliation and any payout maths: entries
+the secretary believes are paid contribute nothing to the show's totals.
+
+**Fixed. Migration applied to staging 2026-08-29.**
+`supabase/migrations/20260829030000_day_of_fee_zero_is_not_a_tier.sql` takes the
+day-of fee only when it is `> 0`, mirroring the client fix. Rebuilt from the LIVE
+`pg_get_functiondef` rather than an older migration file so no intervening change is
+reverted; the only edit is the fee expression. Role decisions restate the verified
+live grants (anon false, authenticated true, service_role true). 733 DB contract tests
+pass — the suite first rejected it for missing EXECUTE decisions.
+
+*Verified against the applied database:* the fee expression now carries
+`v_show_dos_fee > 0`, grants are unchanged (anon false, authenticated true,
+service_role true) and the function is still `SECURITY DEFINER`.
+
+*Verified end to end* on the same show, same wizard, same dog:
+
+| Entry | Created | `entry_fee` |
+| --- | --- | --- |
+| Container Novice A | 01:54, before the push | **0.00** |
+| Interior Novice A | 02:32, after the push | **30.00** |
+
+The enrollment moved from `total_amount: 0` to `3000` with `paid_amount: 30.00`.
+
+**History is not repaired.** Every entry created on or after a show's start date while
+this was live still carries `entry_fee = 0` and contributes nothing to that show's
+totals. A backfill would need to decide which fee tier applied on the day each entry
+was taken, so it is a deliberate decision rather than an obvious follow-up.
+
+*Push note:* `pg_get_functiondef` returns the definition WITHOUT a trailing semicolon,
+so the first push failed with a syntax error at the following `REVOKE` — the grants had
+run on as part of the function statement. Worth knowing for any migration rebuilt from
+a live definition.
+
+*Unit oddity, not investigated:* `enrollments.total_amount` is in cents (3000) while
+`paid_amount` is in dollars (30.00). `utils/enrollmentGrouping.ts` documents the cents
+convention for Stripe, so this looks intentional rather than a defect.
+
+### Move-up semantics (verified, not a defect)
+
+Worth writing down because the dialog's wording ("Move this entry into another
+class") does not describe what happens, and a reader of the data would otherwise
+suspect a duplicate:
+
+- The original entry becomes `entry_status = 'moved'`, keeps `move_up_requested = true`
+  and **keeps its $30 fee** — the paid record and its history survive.
+- A **new** entry is created in the target class, `confirmed`, at `entry_fee = 0.00`.
+
+So the dog is not double-booked and not double-charged; the money stays on the record
+that was paid. The one thing to check downstream is whether the Financial Report and
+closeout totals count `moved` entries — if they only count `confirmed`, that $30 would
+vanish from show takings. Not investigated here.
+
+Target eligibility is enforced by `utils/moveUpEligibility` via
+`buildMoveUpTargets`: same element, strictly higher level, deliberately aligned across
+the Show Map, Show Desk and Entry Management so none of them offers cross-element or
+lower-level targets. Confirmed live: an Interior Novice entry offered exactly one
+target (Interior Advanced), and a show with only Container Novice A + Interior Novice A
+correctly offered none.
 
 ## What works well
 
@@ -655,6 +946,18 @@ needs a focused look — this is "the control never rendered on these paths", no
 - **Paper scoring flow.** Selecting Q reveals exactly the fields that result needs,
   the time input is digit-masked so no separator can be typed wrong, and placement is
   computed on save.
+- **Registry submission gate.** Submit Results refuses to send when data is missing and
+  says exactly what is missing ("514 entries are missing AKC registration numbers"),
+  while still allowing a draft XML download. This is the same invariant the new
+  entry-time registration rule enforces — the app already blocked it at filing time,
+  after the dogs had taken their spots.
+- **Sync-failure recovery.** A write the server refuses raises a persistent toast
+  naming the entry, with Retry and Discard actions, and the mutation survives in
+  IndexedDB either way. This is the half of offline-first that is usually missing.
+- **Status-change guard.** Moving a scored entry back to Pending raises a named
+  consequence — "This entry has a recorded result. Changing it to Pending removes it
+  from results until re-scored" — with Cancel / Change status, rather than a generic
+  confirmation.
 - **Honest empty states.** The workbench refuses to render a false zero entry count
   and says so explicitly — the correct behaviour, even though here it is masking F1.
 
@@ -662,21 +965,27 @@ needs a focused look — this is "the control never rendered on these paths", no
 
 | # | Task | Status |
 | --- | --- | --- |
-| 1 | Create a show, trial, and classes | **Verified** — completed end to end; show published with 1 trial, 2 classes, 1 judge |
+| 1 | Create a show, trial, and classes | **Verified** — completed end to end three times (draft and published); Host Club persists correctly. The audit show's NULL `club_id` (F30) was not caused by creation |
 | 2 | Edit a show / reassign a judge | **Verified** — added a second judge via Edit Show → Judges, reassigned Container Novice A to them; `judge_assignments` updated, other class untouched |
-| 3 | Process a mail-in entry | **Works via Show Desk → Tools → Late entry** (F14 still open). Entry created, confirmed, and now correctly priced after the F15 fix; check reference still discarded (F16) |
+| 3 | Process a mail-in entry | **FIXED (F14)** — Entry Management's own "Add mail-in entry" now works after close. Entry created, confirmed, and now correctly priced after the F15 fix; check reference still discarded (F16) |
 | 4 | Email exhibitors | **Possible, badly signposted** — composer is in the header Message Center panel, not the Messages page (F22), and does not inherit show context (F23) |
 | 13 | Waitlist | **Verified present** — Entry Management → Exceptions → Waitlist shows judge-day capacity and "View Wait List" per judge-day; no waitlisted entries to promote on this show |
 | 14 | Payments / refunds | **Partial** — Pull Management ("reconcile refunds in one place") loads with Pending/Pulled queues; payment channel is mislabelled (F18) and check references are not stored (F16) |
-| 5 | Set run order | **Not reachable (F29)** — implementation exists (drag + Alt+Arrow), but no control renders on Show Map, Manage Classes, or Show Desk |
-| 8 | Move-up | Surface found (Exceptions → Move-ups); not yet exercised |
+| 5 | Set run order | **NOT POSSIBLE (F29b, open)** — the reorder implementation is unreachable from every management surface; Show Desk's "Run order and class setup" link lands on Manage Classes, which has no run-order control |
+| 8 | Process a move-up | **WORKS (F29a withdrawn)** — reachable on Show Desk via the cockpit, which owns `ShowMapMoveUpDialog`; my walk verified the flow end to end (armband 103, Interior Novice B -> Interior Advanced, 65 -> 66 entries) but reached it through a change I have since reverted, so the *dialog behaviour* is confirmed and its Show Desk entry point still wants a browser re-check in the verification pass. Targets are same-element, strictly-higher-level, and a reason is required |
+| 15 | Scratches / pulls / no-shows | **Verified present** — Entry Management → Exceptions → Pulls / scratches: "Review pull requests and reconcile refunds in one place", Pending/Pulled queues with search |
+| 16 | Late / walk-in entries | **Verified** — see Task 3; Show Desk → Tools → Late entry completes end to end |
 | 6 | Print check-in sheets | **Verified** — 33-page PDF, US Letter, "Check-in & Running Order", columns Gate Order / Armband / Call Name / Breed / Reg # / Handler / Pull-Move-Note. The Reg # column is blank for every dog (see F21) |
 | 7 | Print scoresheets | **Verified** — 106-page "AKC Scent Work Scoresheet": per-dog armband/breed/handler, Q/NQ/EX/ABS, Place, the full AKC fault taxonomy and MM/SS/TT time fields |
 | 10 | Print preliminary results | **Verified** (after the F25 fix) — "AKC Container Preliminary Results" with element, level, trial, date and judge |
 | 12 | Registry reports | **Verified present** (after the F25 fix) — Trial Secretary Report and AKC Judge's Report render their real AKC instruction text; Show Catalog, Result Catalog and Financial Report also render. Content not yet checked line-by-line against the official forms |
 | 9 | Enter results from paper scoresheets | **Verified** — `/scoring/classes/:id/entries`: Q/NQ/ABS/EX, prefill, Search Time (digit-masked, `4520` → `0:45.20`), faults stepper, Save / Save & Next. Persisted `qualified`, 45.2s, 0 faults, and computed placement 1. Blocked on a cold store by F27 |
+| 12 (submit) | Submit results to the registry | **Verified** — `/shows/:id/submit-results`: organization selector, Download draft XML, Mark as submitted, closeout guidance, submission history. **Send to AKC is correctly disabled** with "514 entries are missing AKC registration numbers" |
+| 17 | Volunteer scheduling | **Verified via Show Desk → Tools** — Add Volunteer and per-class assign slots by trial. Direct navigation misdirects (F32) |
+| 18 | Ringside access codes | **Verified** — Admin/Judge/Steward/Exhibitor codes with copy, copy-link, Print slip, Regenerate |
+| 19 | Close out the show | **Verified** — closeout panel reconciles attendance & fees (entries, day-of, at-show collected, waived, pulled/no-show, refund review) and incidents (all/reportable/urgent), e.g. "2 pulled entries have $60.00 marked refunded" |
 | 11 | High in Trial / High in Class | **Gap (F26)** — no report exists; the only implementation is orphaned |
-| 20 | Approve / accept online entries | Surface confirmed (Entry Management queues + Bulk actions Accept/Reject); not yet exercised — no pending online entry exists on the audit show |
+| 20 | Approve / accept online entries | **Blocked by F30** — every entry write on the audit show is refused because the show has no club, so accept could not be exercised end to end. The refusal is surfaced correctly (F31) |
 
 Tasks 20 (approve/accept online entries) and 13 (waitlist) were added to the canonical
 list at the owner's request on 2026-08-28. Accept/reject is the secretary's

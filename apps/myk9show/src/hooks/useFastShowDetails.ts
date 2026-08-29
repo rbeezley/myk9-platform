@@ -25,6 +25,12 @@ interface FastShowDetailsResult {
   show: Show | null;
   isLoading: boolean;
   isError: boolean;
+  /**
+   * The network read failed but a cached placeholder is standing in, so
+   * `isError` is suppressed. Callers must say so rather than presenting the
+   * stale row as current.
+   */
+  refreshFailed: boolean;
   refetch: () => void;
   isFromCache: boolean;
   loadTime: number;
@@ -93,6 +99,15 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
     show: show ?? null,
     isLoading: isNetworkLoading && !show,
     isError: isNetworkError && !show,
+    /**
+     * The network read FAILED but a placeholder (list cache or Zustand store) is
+     * standing in, so `isError` above is suppressed and the page renders a full,
+     * confident show page from a possibly-stale row -- dates and fee included --
+     * with nothing telling the viewer it could not be refreshed. `isError` stays
+     * as-is so the hard-failure branch is unchanged; this is the "showing you
+     * something older" case, which needs saying rather than hiding.
+     */
+    refreshFailed: isNetworkError && !!show,
     refetch,
     isFromCache,
     loadTime,

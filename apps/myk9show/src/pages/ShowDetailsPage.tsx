@@ -71,6 +71,7 @@ const ShowDetailsPage: React.FC = () => {
     isError: fastError,
     refetch: refetchShow,
     isFromCache,
+    refreshFailed,
   } = useFastShowDetails(id);
 
   // Track navigation performance when data loads
@@ -284,7 +285,6 @@ const ShowDetailsPage: React.FC = () => {
   // (publicTrialStats from useShowLandingData).
   const effectiveTrialStats = associatedTrials.length > 0 ? trialStats : publicTrialStats;
 
-  // Three-state by construction; see ShowDetailsPage.entryInventory.
   const hasEntryClassInventory = resolveEntryClassInventory({
     storeTrialCount: associatedTrials.length,
     effectiveTrialCount: effectiveTrials.length,
@@ -420,8 +420,7 @@ const ShowDetailsPage: React.FC = () => {
     );
   }
 
-  // Computed BEFORE the public branch: getEntryStatus has always handled
-  // `not_yet_open`, it was just derived after the public landing had returned.
+  // Before the public branch: getEntryStatus always handled `not_yet_open`.
   const entryStatus = getEntryStatus(actualCurrentShow, hasUserEntries, {
     hasEntryClassInventory,
   });
@@ -433,6 +432,8 @@ const ShowDetailsPage: React.FC = () => {
         landingTrials={landingTrials}
         hasEntryClassInventory={hasEntryClassInventory}
         entryNotYetOpen={entryStatus.status === 'not_yet_open'}
+        refreshFailed={refreshFailed}
+        onRetry={() => void refetchShow()}
       />
     );
   }

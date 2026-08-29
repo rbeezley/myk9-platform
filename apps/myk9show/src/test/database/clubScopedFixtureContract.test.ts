@@ -130,6 +130,11 @@ describe('seed-demo club scope fixtures', () => {
     // is not seeded, so nothing relied on the cascade the DELETE used to trigger.
     const clubsBlock = seed.slice(seed.indexOf('-- 1. Clubs'), seed.indexOf('club_stripe_accounts'));
     expect(clubsBlock).toContain('ON CONFLICT (id) DO UPDATE');
+    // An upsert that leaves deleted_at set "succeeds" while the club stays invisible
+    // to every read, silently emptying the demo dataset. The DELETE it replaced
+    // always produced a fresh row, so recovery must be explicit.
+    expect(clubsBlock).toContain('deleted_at  = NULL');
+    expect(clubsBlock).toContain('deleted_by  = NULL');
     expect(clubsBlock).toContain(HEARTLAND_CLUB_ID);
     expect(clubsBlock).toContain(PRAIRIE_TRAIL_CLUB_ID);
     // The delete-and-recreate pair must not come back for the DEMO clubs: it cannot

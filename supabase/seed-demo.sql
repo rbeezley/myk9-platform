@@ -284,7 +284,15 @@ ON CONFLICT (id) DO UPDATE
       email       = EXCLUDED.email,
       description = EXCLUDED.description,
       club_number = EXCLUDED.club_number,
-      version     = EXCLUDED.version;
+      version     = EXCLUDED.version,
+      -- Clear the soft delete. The DELETE+INSERT this replaced always produced a
+      -- fresh row; an upsert that leaves deleted_at set would "succeed" while the
+      -- club stays invisible to every read (they all filter `.is('deleted_at',
+      -- null)`), silently emptying the demo dataset. The app does soft-delete clubs
+      -- (services/database/clubs/reads.ts) and clubCRUD.spec.ts exercises it, so a
+      -- prior e2e run can leave exactly this state behind.
+      deleted_at  = NULL,
+      deleted_by  = NULL;
 
 -- Stripe Connect sandbox account for the demo club.
 -- payouts_enabled=true gates the stripe-checkout edge function's online-entry
